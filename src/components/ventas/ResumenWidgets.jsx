@@ -1,22 +1,11 @@
-import { listVentas, productosById, fraseDelDia } from '@/lib/storage'
-import {
-  totalesVendedor,
-  semaforo,
-  ventasDelDia,
-  comisionDeVentas,
-  fechaClave,
-  gs,
-} from '@/utils/calculos'
+import { listVentas, fraseDelDia } from '@/lib/storage'
+import { totalesVendedor, semaforo, gs } from '@/utils/calculos'
 import { Card } from '@/components/ui'
 
 export default function ResumenWidgets({ vendedorId }) {
   const ventas = listVentas()
   const t = totalesVendedor(ventas, vendedorId)
   const sem = semaforo(t.hoy, t.ayer)
-  const comision = comisionDeVentas(
-    ventasDelDia(ventas, fechaClave(), vendedorId),
-    productosById(),
-  )
 
   const verde = sem.estado === 'verde'
   const rojo = sem.estado === 'rojo'
@@ -81,17 +70,6 @@ export default function ResumenWidgets({ vendedorId }) {
             )}
           </div>
         </div>
-      </Card>
-
-      {/* Comisión del día */}
-      <Card className="flex items-center justify-between">
-        <div>
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-            💰 Comisión de hoy (tienda)
-          </div>
-          <div className="text-2xl font-extrabold text-fono mt-0.5">{gs(comision)}</div>
-        </div>
-        <div className="text-3xl">🤑</div>
       </Card>
 
       {/* Frase motivadora */}
