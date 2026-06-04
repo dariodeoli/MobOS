@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { listVentas, getVendedores, productosById } from '@/lib/storage'
 import {
   totalesTienda,
@@ -6,13 +7,16 @@ import {
   ventasDelDia,
   comisionDeVentas,
   fechaClave,
+  num,
   gs,
 } from '@/utils/calculos'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
-import { Card, Badge } from '@/components/ui'
+import { Card, Badge, Input, Button } from '@/components/ui'
 
 export default function Resumen() {
   const ventas = listVentas()
+  const [fecha, setFecha] = useState(fechaClave())
+  const totalDia = ventasDelDia(ventas, fecha).reduce((a, v) => a + num(v.precio), 0)
   const tienda = totalesTienda(ventas)
   const sem = semaforo(tienda.hoy, tienda.ayer)
   const vendedores = getVendedores()
@@ -97,8 +101,36 @@ export default function Resumen() {
         </div>
       </Card>
 
-      {/* Todas las ventas del día */}
-      <ListaVentasDia mostrarVendedor vendedoresById={vendedoresById} />
+      {/* Selector de fecha para ver ventas de otros días */}
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">📅 Ver ventas del día:</span>
+            <Input
+              type="date"
+              value={fecha}
+              max={fechaClave()}
+              onChange={(e) => setFecha(e.target.value)}
+              className="w-auto h-9"
+            />
+            {fecha !== fechaClave() && (
+              <Button
+                variant="ghost"
+                className="h-9 px-3 text-xs"
+                onClick={() => setFecha(fechaClave())}
+              >
+                Hoy
+              </Button>
+            )}
+          </div>
+          <div className="text-sm text-slate-500">
+            Total del día: <span className="font-bold text-fono">{gs(totalDia)}</span>
+          </div>
+        </div>
+      </Card>
+
+      {/* Ventas del día seleccionado */}
+      <ListaVentasDia fecha={fecha} mostrarVendedor vendedoresById={vendedoresById} />
     </div>
   )
 }

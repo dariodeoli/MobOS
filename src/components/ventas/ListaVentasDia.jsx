@@ -3,17 +3,32 @@ import { useSesion } from '@/lib/sesion'
 import { ventasDelDia, fechaClave, gs } from '@/utils/calculos'
 import { Card, Badge, Button } from '@/components/ui'
 
-export default function ListaVentasDia({ vendedorId, mostrarVendedor = false, vendedoresById = {} }) {
+// 'YYYY-MM-DD' → 'DD/MM/YYYY' (sin problemas de zona horaria).
+function fmtFecha(clave) {
+  const [y, m, d] = (clave || '').split('-')
+  return d && m && y ? `${d}/${m}/${y}` : clave
+}
+
+export default function ListaVentasDia({
+  vendedorId,
+  mostrarVendedor = false,
+  vendedoresById = {},
+  fecha = fechaClave(),
+}) {
   const { sesion } = useSesion()
   const puedeBorrar = !!sesion?.esPropietario
   const prods = productosById()
-  const ventas = ventasDelDia(listVentas(), fechaClave(), vendedorId)
+  const ventas = ventasDelDia(listVentas(), fecha, vendedorId)
+  const esHoy = fecha === fechaClave()
+  const titulo = esHoy ? '📋 Ventas de hoy' : `📋 Ventas del ${fmtFecha(fecha)}`
 
   if (!ventas.length) {
     return (
       <Card className="text-center text-slate-400 py-10">
         <div className="text-4xl mb-2">🧾</div>
-        <p className="text-sm">Todavía no hay ventas cargadas hoy.</p>
+        <p className="text-sm">
+          {esHoy ? 'Todavía no hay ventas cargadas hoy.' : `No hubo ventas el ${fmtFecha(fecha)}.`}
+        </p>
       </Card>
     )
   }
@@ -21,7 +36,7 @@ export default function ListaVentasDia({ vendedorId, mostrarVendedor = false, ve
   return (
     <Card className="p-0 overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-slate-100">
-        <h2 className="font-bold">📋 Ventas de hoy</h2>
+        <h2 className="font-bold">{titulo}</h2>
         <Badge color="blue">{ventas.length} ventas</Badge>
       </div>
 

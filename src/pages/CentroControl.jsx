@@ -69,7 +69,7 @@ export default function CentroControl() {
   return (
     <div className="min-h-dvh bg-slate-100">
       <header className="sticky top-0 z-30 bg-slate-900 text-white pt-safe shadow-md">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-[1700px] mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold">
             <span className="text-lg">👑</span> Centro de Control
           </div>
@@ -82,7 +82,7 @@ export default function CentroControl() {
           </Button>
         </div>
         {/* Tabs */}
-        <div className="max-w-5xl mx-auto px-2 overflow-x-auto">
+        <div className="max-w-[1700px] mx-auto px-2 overflow-x-auto">
           <div className="flex gap-1 pb-2">
             {TABS.map(([k, label]) => (
               <button
@@ -100,7 +100,7 @@ export default function CentroControl() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto p-4">
+      <main className="max-w-[1700px] mx-auto p-4">
         <Activa registrarDirty={registrarDirty} />
       </main>
 
