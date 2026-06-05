@@ -45,8 +45,35 @@ export default function FormularioVenta({ onGuardado }) {
   const [nuevoVend, setNuevoVend] = useState(false)
   const [nombreVend, setNombreVend] = useState('')
   const [ok, setOk] = useState(false)
+  const [items, setItems] = useState([]) // carrito: varios productos del mismo cliente
 
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }))
+
+  function nombreDe(id) {
+    return productos.find((p) => p.id === id)?.nombre || ''
+  }
+  function agregarItem() {
+    if (!f.productoId || num(f.precio) <= 0) return
+    setItems((arr) => [
+      ...arr,
+      {
+        key: `${Date.now()}-${Math.random()}`,
+        productoId: f.productoId,
+        nombre: nombreDe(f.productoId),
+        precio: num(f.precio),
+      },
+    ])
+    setF((s) => ({ ...s, productoId: '', precio: '' }))
+    setFamiliaActiva(null)
+  }
+  function quitarItem(key) {
+    setItems((arr) => arr.filter((x) => x.key !== key))
+  }
+
+  const totalCarrito = items.reduce((a, it) => a + it.precio, 0)
+  const precioActual = f.productoId && num(f.precio) > 0 ? num(f.precio) : 0
+  const totalGeneral = totalCarrito + precioActual
+  const cantTotal = items.length + (precioActual > 0 ? 1 : 0)
 
   // Lo que muestra el <Select>: la familia (si hay color elegido) o el id directo.
   const valorSelect = familiaActiva ? 'fam:' + familiaActiva.base : f.productoId
@@ -149,13 +176,32 @@ export default function FormularioVenta({ onGuardado }) {
 
   function guardar(e) {
     e.preventDefault()
-    if (!f.vendedorId || !f.productoId || num(f.precio) <= 0) return
-    addVenta({
-      ...f,
-      precio: num(f.precio),
-      montoDelivery: num(f.montoDelivery),
+    // Lista final = lo agregado al carrito + lo que esté seleccionado ahora.
+    const lista = [...items]
+    if (f.productoId && num(f.precio) > 0) {
+      lista.push({ productoId: f.productoId, precio: num(f.precio) })
+    }
+    if (!f.vendedorId || !f.cliente.trim() || lista.length === 0) return
+
+    // Una venta por producto, compartiendo cliente/vendedor/pago. El costo de
+    // envío se cobra una sola vez (va en el primer producto).
+    lista.forEach((it, i) => {
+      addVenta({
+        vendedorId: f.vendedorId,
+        cliente: f.cliente,
+        productoId: it.productoId,
+        estadoPago: f.estadoPago,
+        fecha: f.fecha,
+        precio: it.precio,
+        medioPago: f.medioPago,
+        entrega: i === 0 ? f.entrega : 'Retiro en tienda',
+        montoDelivery: i === 0 ? num(f.montoDelivery) : 0,
+        observacion: f.observacion,
+      })
     })
+
     localStorage.setItem(ULTIMO_VENDEDOR, f.vendedorId)
+    setItems([])
     setF(VACIO(f.vendedorId))
     setFamiliaActiva(null)
     setOk(true)
@@ -163,7 +209,7 @@ export default function FormularioVenta({ onGuardado }) {
     onGuardado?.()
   }
 
-  const valido = f.vendedorId && f.cliente.trim() && f.productoId && num(f.precio) > 0
+  const valido = f.vendedorId && f.cliente.trim() && cantTotal > 0
 
   return (
     <Card>
@@ -325,6 +371,60 @@ export default function FormularioVenta({ onGuardado }) {
           )}
         </div>
 
+        {/* Precio del producto actual */}
+        <div className="md:col-span-2">
+          <Label>Precio (₲)</Label>
+          <Input
+            inputMode="numeric"
+            value={f.precio}
+            onChange={set('precio')}
+            placeholder="Ej: 110000"
+          />
+        </div>
+
+        {/* Carrito: varios productos para el mismo cliente */}
+        <div className="md:col-span-2">
+          {items.length > 0 && (
+            <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 mb-2">
+              {items.map((it) => (
+                <div key={it.key} className="flex items-center justify-between gap-2 px-3 py-2">
+                  <span className="text-sm font-medium truncate">{it.nombre}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-sm font-bold text-fono">{gs(it.precio)}</span>
+                    <button
+                      type="button"
+                      onClick={() => quitarItem(it.key)}
+                      className="text-slate-400 hover:text-bad"
+                      title="Quitar"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-center justify-between px-3 py-2 bg-slate-50">
+                <span className="text-xs font-bold uppercase text-slate-500">
+                  Subtotal ({items.length})
+                </span>
+                <span className="text-sm font-extrabold">{gs(totalCarrito)}</span>
+              </div>
+            </div>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={agregarItem}
+            disabled={!f.productoId || num(f.precio) <= 0}
+          >
+            ➕ Agregar otro producto a la lista
+          </Button>
+          <p className="text-[11px] text-slate-400 mt-1">
+            Elegí un producto y su precio, tocá <b>Agregar</b>, y repetí para cargar varios al
+            mismo cliente. Al final tocá <b>Guardar</b>.
+          </p>
+        </div>
+
         {/* Estado de pago */}
         <div>
           <Label>Estado de pago</Label>
@@ -341,17 +441,6 @@ export default function FormularioVenta({ onGuardado }) {
         <div>
           <Label>Fecha</Label>
           <Input type="date" value={f.fecha} onChange={set('fecha')} />
-        </div>
-
-        {/* Precio */}
-        <div>
-          <Label>Precio (₲)</Label>
-          <Input
-            inputMode="numeric"
-            value={f.precio}
-            onChange={set('precio')}
-            placeholder="Ej: 110000"
-          />
         </div>
 
         {/* Medio de pago */}
@@ -408,7 +497,9 @@ export default function FormularioVenta({ onGuardado }) {
 
         <div className="md:col-span-2 flex items-center gap-3">
           <Button type="submit" variant="success" disabled={!valido} className="flex-1">
-            💾 Guardar venta {num(f.precio) > 0 ? `· ${gs(f.precio)}` : ''}
+            💾 Guardar venta
+            {cantTotal > 1 ? ` · ${cantTotal} productos` : ''}
+            {totalGeneral > 0 ? ` · ${gs(totalGeneral)}` : ''}
           </Button>
           {ok && (
             <span className="text-ok font-bold text-sm whitespace-nowrap">
