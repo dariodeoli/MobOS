@@ -151,6 +151,30 @@ export function calcularGanancia(periodo, { ventas, gastos, ads, prodsById }) {
   }
 }
 
+// ── Ganancia de un solo día (clave YYYY-MM-DD) ──────────────────────
+// Mismo cálculo que calcularGanancia pero filtrando por fecha exacta.
+export function calcularGananciaDia(clave, { ventas, gastos, ads, prodsById }) {
+  const vs = ventas.filter((v) => v.fecha === clave)
+  const ingresos = sumaPrecios(vs)
+  const costoMercaderia = vs.reduce(
+    (acc, v) => acc + num(v.precioCosto ?? prodsById[v.productoId]?.precioCosto),
+    0,
+  )
+  const totalGastos = gastos.filter((g) => g.fecha === clave).reduce((acc, g) => acc + num(g.monto), 0)
+  const totalAds = ads.filter((a) => a.fecha === clave).reduce((acc, a) => acc + num(a.monto), 0)
+  const ganancia = ingresos - costoMercaderia - totalGastos - totalAds
+  const sinDatos = vs.length === 0 && totalGastos === 0 && totalAds === 0
+  return {
+    ingresos,
+    costoMercaderia,
+    totalGastos,
+    totalAds,
+    ganancia,
+    estado: sinDatos ? 'vacio' : ganancia > 0 ? 'ganancia' : ganancia < 0 ? 'perdida' : 'empate',
+    cantVentas: vs.length,
+  }
+}
+
 // ── Productos ganadores por período ─────────────────────────────────
 export function productosGanadores(periodo, ventas, prodsById, limite = 5) {
   const desde = desdeDePeriodo(periodo)

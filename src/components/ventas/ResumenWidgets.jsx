@@ -18,10 +18,7 @@ export default function ResumenWidgets({ vendedorId }) {
           📊 Ventas de hoy (tienda)
         </div>
         <div className="text-4xl font-extrabold mt-1 tracking-tight">{gs(t.hoy)}</div>
-        <div className="flex gap-4 mt-3 text-xs opacity-80">
-          <span>Semana: {gs(t.semana)}</span>
-          <span>Mes: {gs(t.mes)}</span>
-        </div>
+        <div className="mt-3 text-xs opacity-80">Esta semana: {gs(t.semana)}</div>
       </Card>
 
       {/* Semáforo hoy vs ayer */}

@@ -29,45 +29,54 @@ export default function PanelVendedor() {
     <div className="min-h-dvh bg-slate-100">
       {/* Top bar */}
       <header className="sticky top-0 z-30 bg-fono text-white pt-safe shadow-md">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img src="/logo.svg" alt="Fono" className="h-7" />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold hidden sm:inline opacity-90">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="text-sm font-semibold hidden md:inline opacity-90">
               {sesion.esPropietario ? '👑' : '🏬'} {sesion.nombre}
             </span>
-            <button
-              onClick={() => navigate('/celulares')}
-              className="rounded-lg bg-white/15 px-3 h-9 text-sm font-bold hover:bg-white/25 transition"
-              title="Lista de precios de celulares"
-            >
-              📱 <span className="hidden sm:inline">Precios</span>
-            </button>
-            <button
-              onClick={() => navigate('/comparador')}
-              className="rounded-lg bg-white/15 px-3 h-9 text-sm font-bold hover:bg-white/25 transition"
-              title="Comparar modelos de celulares"
-            >
-              ⚖️ <span className="hidden sm:inline">Comparar</span>
-            </button>
-            <button
-              onClick={() => navigate('/tradein')}
-              className="rounded-lg bg-white/15 px-3 h-9 text-sm font-bold hover:bg-white/25 transition"
-              title="Calcular Trade-In de un equipo"
-            >
-              🔄 <span className="hidden sm:inline">Trade-In</span>
-            </button>
+
+            {/* Grupo de herramientas */}
+            <div className="flex items-center gap-1 rounded-xl bg-white/10 p-1">
+              <button
+                onClick={() => navigate('/celulares')}
+                className="rounded-lg px-2.5 h-8 text-sm font-bold hover:bg-white/20 transition"
+                title="Lista de precios de celulares"
+              >
+                📱 <span className="hidden lg:inline">Precios</span>
+              </button>
+              <button
+                onClick={() => navigate('/comparador')}
+                className="rounded-lg px-2.5 h-8 text-sm font-bold hover:bg-white/20 transition"
+                title="Comparar modelos de celulares"
+              >
+                ⚖️ <span className="hidden lg:inline">Comparar</span>
+              </button>
+              <button
+                onClick={() => navigate('/tradein')}
+                className="rounded-lg px-2.5 h-8 text-sm font-bold hover:bg-white/20 transition"
+                title="Calcular Trade-In de un equipo"
+              >
+                🔄 <span className="hidden lg:inline">Trade-In</span>
+              </button>
+            </div>
+
+            {/* Centro de control (acceso del dueño) */}
             <button
               onClick={abrirControl}
-              className="rounded-lg bg-white/15 px-3 h-9 text-sm font-bold hover:bg-white/25 transition"
+              className="rounded-lg bg-white text-fono px-3 h-9 text-sm font-bold hover:bg-white/90 transition"
               title="Centro de Control"
             >
               🔐 <span className="hidden sm:inline">Control</span>
             </button>
+
+            {/* Salir */}
             <button
               onClick={salir}
-              className="rounded-lg bg-white/15 px-3 h-9 text-sm font-bold hover:bg-white/25 transition"
+              className="rounded-lg px-3 h-9 text-sm font-semibold text-white/80 hover:bg-white/15 hover:text-white transition"
+              title="Cerrar sesión"
             >
               Salir
             </button>
@@ -75,16 +84,20 @@ export default function PanelVendedor() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <main className="mx-auto p-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-12 gap-4">
         {/* Columna izquierda: widgets en vivo (toda la tienda) */}
-        <div className="lg:col-span-1 space-y-3">
+        <div className="xl:col-span-3 space-y-3">
           <ResumenWidgets vendedorId={null} />
           <DeliveryHoy />
         </div>
 
-        {/* Columna derecha: cargar venta + lista */}
-        <div className="lg:col-span-2 space-y-4">
+        {/* Columna del medio: cargar venta */}
+        <div className="xl:col-span-4">
           <FormularioVenta />
+        </div>
+
+        {/* Columna derecha: lista de ventas del día */}
+        <div className="lg:col-span-2 xl:col-span-5">
           <ListaVentasDia vendedorId={null} mostrarVendedor vendedoresById={vendsById} />
         </div>
       </main>

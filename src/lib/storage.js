@@ -721,7 +721,7 @@ export function addVenta(venta) {
     ? cache.productos.find((p) => p.id === venta.productoId)
     : null
   const nueva = {
-    id: 'venta-' + Date.now().toString(36),
+    id: 'venta-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     creadoEn: new Date().toISOString(),
     // Foto del costo y la comisión al momento de la venta: si después editás
     // el producto, los reportes históricos NO cambian. (...venta puede pisarlos.)

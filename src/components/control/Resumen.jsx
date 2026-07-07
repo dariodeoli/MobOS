@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { listVentas, getVendedores, productosById } from '@/lib/storage'
 import {
   totalesTienda,
-  totalesVendedor,
   semaforo,
   ventasDelDia,
   comisionDeVentas,
@@ -13,9 +12,16 @@ import {
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
 import { Card, Badge, Input, Button } from '@/components/ui'
 
+// 'YYYY-MM-DD' → 'DD/MM/YYYY'
+function fmtFecha(clave) {
+  const [y, m, d] = (clave || '').split('-')
+  return d && m && y ? `${d}/${m}/${y}` : clave
+}
+
 export default function Resumen() {
   const ventas = listVentas()
   const [fecha, setFecha] = useState(fechaClave())
+  const esHoy = fecha === fechaClave()
   const totalDia = ventasDelDia(ventas, fecha).reduce((a, v) => a + num(v.precio), 0)
   const tienda = totalesTienda(ventas)
   const sem = semaforo(tienda.hoy, tienda.ayer)
@@ -74,38 +80,11 @@ export default function Resumen() {
         ))}
       </div>
 
-      {/* Por vendedor */}
-      <Card>
-        <h2 className="font-bold mb-3">🧑‍💼 Por vendedor (hoy)</h2>
-        <div className="space-y-2">
-          {vendedores.map((v) => {
-            const t = totalesVendedor(ventas, v.id)
-            const s = semaforo(t.hoy, t.ayer)
-            const com = comisionDeVentas(ventasDelDia(ventas, fechaClave(), v.id), prods)
-            return (
-              <div
-                key={v.id}
-                className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5"
-              >
-                <div className="flex items-center gap-2">
-                  <span>{s.estado === 'verde' ? '🟢' : s.estado === 'rojo' ? '🔴' : '⚪'}</span>
-                  <span className="font-semibold text-sm">{v.nombre}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <span className="font-bold text-fono">{gs(t.hoy)}</span>
-                  <Badge color="blue">Comisión {gs(com)}</Badge>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </Card>
-
-      {/* Selector de fecha para ver ventas de otros días */}
+      {/* Selector de fecha: controla el resumen por vendedor y la lista de abajo */}
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">📅 Ver ventas del día:</span>
+            <span className="text-sm font-semibold">📅 Ver resumen del día:</span>
             <Input
               type="date"
               value={fecha}
@@ -113,7 +92,7 @@ export default function Resumen() {
               onChange={(e) => setFecha(e.target.value)}
               className="w-auto h-9"
             />
-            {fecha !== fechaClave() && (
+            {!esHoy && (
               <Button
                 variant="ghost"
                 className="h-9 px-3 text-xs"
@@ -126,6 +105,35 @@ export default function Resumen() {
           <div className="text-sm text-slate-500">
             Total del día: <span className="font-bold text-fono">{gs(totalDia)}</span>
           </div>
+        </div>
+      </Card>
+
+      {/* Por vendedor (del día seleccionado) */}
+      <Card>
+        <h2 className="font-bold mb-3">
+          🧑‍💼 Por vendedor · {esHoy ? 'hoy' : fmtFecha(fecha)}
+        </h2>
+        <div className="space-y-2">
+          {vendedores.map((v) => {
+            const vventas = ventasDelDia(ventas, fecha, v.id)
+            const totalV = vventas.reduce((a, x) => a + num(x.precio), 0)
+            const com = comisionDeVentas(vventas, prods)
+            return (
+              <div
+                key={v.id}
+                className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5"
+              >
+                <div className="flex items-center gap-2">
+                  <span>{totalV > 0 ? '🟢' : '⚪'}</span>
+                  <span className="font-semibold text-sm">{v.nombre}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="font-bold text-fono">{gs(totalV)}</span>
+                  <Badge color="blue">Comisión {gs(com)}</Badge>
+                </div>
+              </div>
+            )
+          })}
         </div>
       </Card>
 

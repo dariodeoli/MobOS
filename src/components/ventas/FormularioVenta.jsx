@@ -183,10 +183,15 @@ export default function FormularioVenta({ onGuardado }) {
     }
     if (!f.vendedorId || !f.cliente.trim() || lista.length === 0) return
 
+    // Si hay más de un producto, los marcamos como una misma compra para que el
+    // historial los muestre agrupados.
+    const compraId = lista.length > 1 ? `compra-${Date.now().toString(36)}` : undefined
+
     // Una venta por producto, compartiendo cliente/vendedor/pago. El costo de
     // envío se cobra una sola vez (va en el primer producto).
     lista.forEach((it, i) => {
       addVenta({
+        compraId,
         vendedorId: f.vendedorId,
         cliente: f.cliente,
         productoId: it.productoId,
@@ -213,14 +218,14 @@ export default function FormularioVenta({ onGuardado }) {
 
   return (
     <Card>
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-3">
         <span className="text-xl">🧾</span>
         <h2 className="font-bold">Cargar venta</h2>
       </div>
 
-      <form onSubmit={guardar} className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+      <form onSubmit={guardar} className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2.5">
         {/* Vendedor */}
-        <div className="md:col-span-2">
+        <div className={nuevoVend ? 'md:col-span-2' : ''}>
           <Label>Vendedor</Label>
           {nuevoVend ? (
             <div className="flex gap-2">
@@ -259,7 +264,7 @@ export default function FormularioVenta({ onGuardado }) {
         </div>
 
         {/* Cliente */}
-        <div className="md:col-span-2">
+        <div>
           <Label>Cliente</Label>
           <Input
             value={f.cliente}
@@ -371,8 +376,8 @@ export default function FormularioVenta({ onGuardado }) {
           )}
         </div>
 
-        {/* Precio del producto actual */}
-        <div className="md:col-span-2">
+        {/* Precio + botón agregar (misma fila) */}
+        <div>
           <Label>Precio (₲)</Label>
           <Input
             inputMode="numeric"
@@ -381,35 +386,7 @@ export default function FormularioVenta({ onGuardado }) {
             placeholder="Ej: 110000"
           />
         </div>
-
-        {/* Carrito: varios productos para el mismo cliente */}
-        <div className="md:col-span-2">
-          {items.length > 0 && (
-            <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 mb-2">
-              {items.map((it) => (
-                <div key={it.key} className="flex items-center justify-between gap-2 px-3 py-2">
-                  <span className="text-sm font-medium truncate">{it.nombre}</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm font-bold text-fono">{gs(it.precio)}</span>
-                    <button
-                      type="button"
-                      onClick={() => quitarItem(it.key)}
-                      className="text-slate-400 hover:text-bad"
-                      title="Quitar"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <div className="flex items-center justify-between px-3 py-2 bg-slate-50">
-                <span className="text-xs font-bold uppercase text-slate-500">
-                  Subtotal ({items.length})
-                </span>
-                <span className="text-sm font-extrabold">{gs(totalCarrito)}</span>
-              </div>
-            </div>
-          )}
+        <div className="flex items-end">
           <Button
             type="button"
             variant="outline"
@@ -417,13 +394,37 @@ export default function FormularioVenta({ onGuardado }) {
             onClick={agregarItem}
             disabled={!f.productoId || num(f.precio) <= 0}
           >
-            ➕ Agregar otro producto a la lista
+            ➕ Agregar a la lista
           </Button>
-          <p className="text-[11px] text-slate-400 mt-1">
-            Elegí un producto y su precio, tocá <b>Agregar</b>, y repetí para cargar varios al
-            mismo cliente. Al final tocá <b>Guardar</b>.
-          </p>
         </div>
+
+        {/* Carrito: productos agregados al mismo cliente */}
+        {items.length > 0 && (
+          <div className="md:col-span-2 rounded-xl border border-slate-200 divide-y divide-slate-100">
+            {items.map((it) => (
+              <div key={it.key} className="flex items-center justify-between gap-2 px-3 py-1.5">
+                <span className="text-sm font-medium truncate">{it.nombre}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm font-bold text-fono">{gs(it.precio)}</span>
+                  <button
+                    type="button"
+                    onClick={() => quitarItem(it.key)}
+                    className="text-slate-400 hover:text-bad"
+                    title="Quitar"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50">
+              <span className="text-xs font-bold uppercase text-slate-500">
+                Subtotal ({items.length})
+              </span>
+              <span className="text-sm font-extrabold">{gs(totalCarrito)}</span>
+            </div>
+          </div>
+        )}
 
         {/* Estado de pago */}
         <div>
@@ -487,7 +488,7 @@ export default function FormularioVenta({ onGuardado }) {
         <div className="md:col-span-2">
           <Label>Observación</Label>
           <Textarea
-            rows={2}
+            rows={1}
             value={f.observacion}
             onChange={set('observacion')}
             placeholder="Notas, color, envío vía encomienda, etc."
