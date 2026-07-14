@@ -426,13 +426,34 @@ function aplicarKv(payload) {
   }
 }
 
+// Baja TODAS las filas de `entities` paginando de a 1000 (Supabase/PostgREST
+// devuelve como máximo 1000 por request; sin esto, se perdían las más nuevas).
+async function fetchAllEntities() {
+  const PAGE = 1000
+  let desde = 0
+  let todo = []
+  for (;;) {
+    const { data, error } = await supabase
+      .from('entities')
+      .select('collection,id,data,created_at')
+      .order('created_at', { ascending: true })
+      .range(desde, desde + PAGE - 1)
+    if (error) throw error
+    if (!data || data.length === 0) break
+    todo = todo.concat(data)
+    if (data.length < PAGE) break
+    desde += PAGE
+  }
+  return todo
+}
+
 let hidratado = false
 async function hydrate() {
   if (!supabase || hidratado) return
   hidratado = true
   try {
-    const [{ data: ents }, { data: kvs }] = await Promise.all([
-      supabase.from('entities').select('collection,id,data,created_at'),
+    const [ents, { data: kvs }] = await Promise.all([
+      fetchAllEntities(),
       supabase.from('kv').select('key,value'),
     ])
 
@@ -469,8 +490,8 @@ async function hydrate() {
 export async function refrescar() {
   if (!supabase) return
   try {
-    const [{ data: ents }, { data: kvs }] = await Promise.all([
-      supabase.from('entities').select('collection,id,data,created_at'),
+    const [ents, { data: kvs }] = await Promise.all([
+      fetchAllEntities(),
       supabase.from('kv').select('key,value'),
     ])
     if (ents) {
