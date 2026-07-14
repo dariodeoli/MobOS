@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
+import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import { vendedoresById } from '@/lib/storage'
 import ResumenWidgets from '@/components/ventas/ResumenWidgets'
 import DeliveryHoy from '@/components/ventas/DeliveryHoy'
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui'
 
 export default function PanelVendedor() {
   useLive()
+  useAutoRefrescar()
   const { sesion, salir, setPropietario } = useSesion()
   const navigate = useNavigate()
   const [pidiendoClave, setPidiendoClave] = useState(false)

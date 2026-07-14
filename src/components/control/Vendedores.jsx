@@ -3,11 +3,46 @@ import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas,
 import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
 import { Card, Button, Input, Badge } from '@/components/ui'
 
+const MESES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
+// 'YYYY-MM' → 'Julio 2026'
+function mesLabel(clave) {
+  const [y, m] = (clave || '').split('-')
+  return `${MESES[Number(m) - 1] || m} ${y}`
+}
+
 export default function Vendedores() {
   const vendedores = getVendedores()
   const ventas = listVentas()
   const prods = productosById()
   const [nuevo, setNuevo] = useState('')
+
+  // Nombres por id (incluye vendedores ya eliminados que tienen ventas viejas).
+  const nombreById = Object.fromEntries(vendedores.map((v) => [v.id, v.nombre]))
+
+  // Agrupa ventas por mes y vendedor: { 'YYYY-MM': { vendedorId: [ventas] } }.
+  const porMes = {}
+  ventas.forEach((v) => {
+    const mes = (v.fecha || '').slice(0, 7)
+    if (!mes) return
+    const vid = v.vendedorId || 'sin'
+    if (!porMes[mes]) porMes[mes] = {}
+    if (!porMes[mes][vid]) porMes[mes][vid] = []
+    porMes[mes][vid].push(v)
+  })
+  const meses = Object.keys(porMes).sort().reverse()
+
+  // Meses desplegados (abierto el más reciente por defecto).
+  const [abiertos, setAbiertos] = useState(() => new Set(meses.slice(0, 1)))
+  function toggleMes(mes) {
+    setAbiertos((prev) => {
+      const s = new Set(prev)
+      s.has(mes) ? s.delete(mes) : s.add(mes)
+      return s
+    })
+  }
 
   function crear(e) {
     e.preventDefault()
@@ -86,6 +121,72 @@ export default function Vendedores() {
           })}
         </div>
       </Card>
+
+      {/* Historial mensual por vendedor */}
+      {meses.length > 0 && (
+        <Card>
+          <h2 className="font-bold mb-1">📅 Historial mensual por vendedor</h2>
+          <p className="text-sm text-slate-500 mb-4">
+            Cuánto vendió cada uno y su <strong>comisión total</strong> en cada mes.
+          </p>
+          <div className="space-y-4">
+            {meses.map((mes) => {
+              const filas = Object.entries(porMes[mes])
+                .map(([vid, lista]) => ({
+                  vid,
+                  nombre: nombreById[vid] || 'Sin vendedor',
+                  total: lista.reduce((a, x) => a + num(x.precio), 0),
+                  com: comisionDeVentas(lista, prods),
+                  cant: lista.length,
+                }))
+                .sort((a, b) => b.total - a.total)
+              const totalMes = filas.reduce((a, f) => a + f.total, 0)
+              const comMes = filas.reduce((a, f) => a + f.com, 0)
+
+              const abierto = abiertos.has(mes)
+              return (
+                <div key={mes} className="rounded-xl border border-slate-200 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => toggleMes(mes)}
+                    className="w-full flex items-center justify-between gap-2 bg-slate-50 px-4 py-2.5 hover:bg-slate-100 transition text-left"
+                  >
+                    <span className="flex items-center gap-2 font-bold text-sm capitalize">
+                      <span className="text-slate-400 text-xs">{abierto ? '▼' : '▶'}</span>
+                      {mesLabel(mes)}
+                    </span>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Badge color="blue">Vendido {gs(totalMes)}</Badge>
+                      <Badge color="green">Comisión {gs(comMes)}</Badge>
+                    </div>
+                  </button>
+                  {abierto && (
+                  <div className="divide-y divide-slate-100 border-t border-slate-100">
+                    {filas.map((f) => (
+                      <div
+                        key={f.vid}
+                        className="flex items-center justify-between gap-2 px-4 py-2.5"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-semibold text-sm truncate">{f.nombre}</div>
+                          <div className="text-xs text-slate-400">
+                            {f.cant} {f.cant === 1 ? 'venta' : 'ventas'}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0 text-sm">
+                          <span className="font-bold text-fono">{gs(f.total)}</span>
+                          <Badge color="green">Comisión {gs(f.com)}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
     </div>
   )
 }

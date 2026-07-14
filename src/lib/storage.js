@@ -463,6 +463,37 @@ async function hydrate() {
   }
 }
 
+// Vuelve a bajar todo de Supabase y refresca la vista. Se usa para mantener el
+// sistema al día (al volver a la pestaña y cada pocos minutos), aunque el
+// realtime no haya empujado algún cambio.
+export async function refrescar() {
+  if (!supabase) return
+  try {
+    const [{ data: ents }, { data: kvs }] = await Promise.all([
+      supabase.from('entities').select('collection,id,data,created_at'),
+      supabase.from('kv').select('key,value'),
+    ])
+    if (ents) {
+      const porColl = Object.fromEntries(COLLECTIONS.map((c) => [c, []]))
+      ents.forEach((r) => {
+        if (porColl[r.collection]) porColl[r.collection].push({ ...r.data, _ts: r.created_at })
+      })
+      COLLECTIONS.forEach((c) => {
+        cache[c] = sortColeccion(c, porColl[c])
+      })
+    }
+    if (kvs) {
+      kvs.forEach((r) => {
+        if (r.key === 'tradein' || r.key === 'config') cache[r.key] = r.value
+      })
+    }
+    persistMirror()
+    notify()
+  } catch (e) {
+    console.warn('[storage] refresco falló:', e?.message || e)
+  }
+}
+
 // Primer arranque: si Supabase está vacío, sembramos defaults (o importamos
 // datos viejos de localStorage de la versión anterior, si existieran).
 const LEGACY = {

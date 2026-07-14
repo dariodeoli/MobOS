@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLive } from '@/hooks/useLive'
+import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import { Button, Card } from '@/components/ui'
 import Resumen from '@/components/control/Resumen'
 import Inventario from '@/components/control/Inventario'
@@ -34,6 +35,7 @@ const TABS = [
 
 export default function CentroControl() {
   useLive()
+  useAutoRefrescar()
   const navigate = useNavigate()
   const [tab, setTab] = useState('resumen')
   const [pendiente, setPendiente] = useState(null) // acción a ejecutar si confirma salir

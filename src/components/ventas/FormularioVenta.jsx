@@ -218,9 +218,14 @@ export default function FormularioVenta({ onGuardado }) {
 
   return (
     <Card>
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-xl">🧾</span>
-        <h2 className="font-bold">Cargar venta</h2>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🧾</span>
+          <h2 className="font-bold">Cargar venta</h2>
+        </div>
+        <span className="text-xs font-semibold text-slate-500">
+          📅 Hoy: {fechaClave().split('-').reverse().join('/')}
+        </span>
       </div>
 
       <form onSubmit={guardar} className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2.5">

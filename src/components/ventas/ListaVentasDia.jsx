@@ -38,7 +38,9 @@ export default function ListaVentasDia({
   const ventas = ventasDelDia(listVentas(), fecha, vendedorId)
   const grupos = agruparCompras(ventas)
   const esHoy = fecha === fechaClave()
-  const titulo = esHoy ? '📋 Ventas de hoy' : `📋 Ventas del ${fmtFecha(fecha)}`
+  const titulo = esHoy
+    ? `📋 Ventas de hoy · ${fmtFecha(fecha)}`
+    : `📋 Ventas del ${fmtFecha(fecha)}`
 
   if (!ventas.length) {
     return (
