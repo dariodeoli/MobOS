@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   getProductos,
   addProducto,
@@ -24,6 +24,7 @@ const VACIO = (vendedorId) => ({
   productoId: '',
   estadoPago: ESTADOS_PAGO[0],
   fecha: fechaClave(),
+  fechaManual: false, // true si el usuario eligió una fecha distinta a mano
   precio: '',
   medioPago: MEDIOS_PAGO[0],
   entrega: ENTREGA[0],
@@ -48,6 +49,23 @@ export default function FormularioVenta({ onGuardado }) {
   const [items, setItems] = useState([]) // carrito: varios productos del mismo cliente
 
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }))
+
+  // Si cambia el día (o se corrige el reloj) con la app abierta, resincroniza la
+  // fecha a HOY, salvo que la hayas elegido a mano.
+  useEffect(() => {
+    const sync = () => {
+      if (document.visibilityState !== 'visible') return
+      setF((s) => (s.fechaManual || s.fecha === fechaClave() ? s : { ...s, fecha: fechaClave() }))
+    }
+    document.addEventListener('visibilitychange', sync)
+    window.addEventListener('focus', sync)
+    const id = setInterval(sync, 60000)
+    return () => {
+      document.removeEventListener('visibilitychange', sync)
+      window.removeEventListener('focus', sync)
+      clearInterval(id)
+    }
+  }, [])
 
   function nombreDe(id) {
     return productos.find((p) => p.id === id)?.nombre || ''
@@ -183,6 +201,10 @@ export default function FormularioVenta({ onGuardado }) {
     }
     if (!f.vendedorId || !f.cliente.trim() || lista.length === 0) return
 
+    // Fecha real de hoy, salvo que se haya elegido una a mano (para no guardar
+    // con una fecha vieja si la app quedó abierta desde ayer).
+    const fechaVenta = f.fechaManual ? f.fecha : fechaClave()
+
     // Si hay más de un producto, los marcamos como una misma compra para que el
     // historial los muestre agrupados.
     const compraId = lista.length > 1 ? `compra-${Date.now().toString(36)}` : undefined
@@ -196,7 +218,7 @@ export default function FormularioVenta({ onGuardado }) {
         cliente: f.cliente,
         productoId: it.productoId,
         estadoPago: f.estadoPago,
-        fecha: f.fecha,
+        fecha: fechaVenta,
         precio: it.precio,
         medioPago: f.medioPago,
         entrega: i === 0 ? f.entrega : 'Retiro en tienda',
@@ -446,7 +468,11 @@ export default function FormularioVenta({ onGuardado }) {
         {/* Fecha */}
         <div>
           <Label>Fecha</Label>
-          <Input type="date" value={f.fecha} onChange={set('fecha')} />
+          <Input
+            type="date"
+            value={f.fecha}
+            onChange={(e) => setF((s) => ({ ...s, fecha: e.target.value, fechaManual: true }))}
+          />
         </div>
 
         {/* Medio de pago */}

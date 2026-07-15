@@ -487,6 +487,22 @@ async function hydrate() {
 // Vuelve a bajar todo de Supabase y refresca la vista. Se usa para mantener el
 // sistema al día (al volver a la pestaña y cada pocos minutos), aunque el
 // realtime no haya empujado algún cambio.
+// Hora del servidor (ms) leída del header HTTP `Date` de Supabase. Sirve para
+// detectar si el reloj del equipo está mal (y por eso guardaría mal las fechas).
+export async function horaServidorMs() {
+  if (!SB_URL || !SB_KEY) return null
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/`, {
+      method: 'HEAD',
+      headers: { apikey: SB_KEY },
+    })
+    const d = res.headers.get('date')
+    return d ? new Date(d).getTime() : null
+  } catch {
+    return null
+  }
+}
+
 export async function refrescar() {
   if (!supabase) return
   try {

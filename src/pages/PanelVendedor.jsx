@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
+import { useReloj } from '@/hooks/useReloj'
 import { vendedoresById } from '@/lib/storage'
 import ResumenWidgets from '@/components/ventas/ResumenWidgets'
 import DeliveryHoy from '@/components/ventas/DeliveryHoy'
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui'
 export default function PanelVendedor() {
   useLive()
   useAutoRefrescar()
+  const desfaseHoras = useReloj()
   const { sesion, salir, setPropietario } = useSesion()
   const navigate = useNavigate()
   const [pidiendoClave, setPidiendoClave] = useState(false)
@@ -85,6 +87,14 @@ export default function PanelVendedor() {
           </div>
         </div>
       </header>
+
+      {desfaseHoras > 0 && (
+        <div className="bg-red-600 text-white px-4 py-2.5 text-sm font-semibold text-center">
+          ⚠️ La fecha/hora de este equipo está mal (desfasada ~{desfaseHoras} h). Las ventas se
+          guardarían con la fecha equivocada. Corregí la fecha del dispositivo (ponela en
+          automático) antes de seguir cargando.
+        </div>
+      )}
 
       <main className="mx-auto p-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-12 gap-4">
         {/* Columna izquierda: widgets en vivo (toda la tienda) */}
