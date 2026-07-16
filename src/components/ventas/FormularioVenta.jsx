@@ -18,6 +18,10 @@ import SelectorColor from './SelectorColor'
 // en cada venta (suelen ser ráfagas de la misma persona).
 const ULTIMO_VENDEDOR = 'fono:ultimoVendedor'
 
+// Montos en ₲ son enteros y se escriben con puntos de miles ("20.000"). Tomamos
+// solo los dígitos para no confundir el punto con un decimal (evita 20.000 → 20).
+const gsNum = (v) => Number(String(v ?? '').replace(/[^\d]/g, '')) || 0
+
 const VACIO = (vendedorId) => ({
   vendedorId: vendedorId || '',
   cliente: '',
@@ -71,14 +75,14 @@ export default function FormularioVenta({ onGuardado }) {
     return productos.find((p) => p.id === id)?.nombre || ''
   }
   function agregarItem() {
-    if (!f.productoId || num(f.precio) <= 0) return
+    if (!f.productoId || gsNum(f.precio) <= 0) return
     setItems((arr) => [
       ...arr,
       {
         key: `${Date.now()}-${Math.random()}`,
         productoId: f.productoId,
         nombre: nombreDe(f.productoId),
-        precio: num(f.precio),
+        precio: gsNum(f.precio),
       },
     ])
     setF((s) => ({ ...s, productoId: '', precio: '' }))
@@ -89,7 +93,7 @@ export default function FormularioVenta({ onGuardado }) {
   }
 
   const totalCarrito = items.reduce((a, it) => a + it.precio, 0)
-  const precioActual = f.productoId && num(f.precio) > 0 ? num(f.precio) : 0
+  const precioActual = f.productoId && gsNum(f.precio) > 0 ? gsNum(f.precio) : 0
   const totalGeneral = totalCarrito + precioActual
   const cantTotal = items.length + (precioActual > 0 ? 1 : 0)
 
@@ -196,8 +200,8 @@ export default function FormularioVenta({ onGuardado }) {
     e.preventDefault()
     // Lista final = lo agregado al carrito + lo que esté seleccionado ahora.
     const lista = [...items]
-    if (f.productoId && num(f.precio) > 0) {
-      lista.push({ productoId: f.productoId, precio: num(f.precio) })
+    if (f.productoId && gsNum(f.precio) > 0) {
+      lista.push({ productoId: f.productoId, precio: gsNum(f.precio) })
     }
     if (!f.vendedorId || !f.cliente.trim() || lista.length === 0) return
 
@@ -222,7 +226,7 @@ export default function FormularioVenta({ onGuardado }) {
         precio: it.precio,
         medioPago: f.medioPago,
         entrega: i === 0 ? f.entrega : 'Retiro en tienda',
-        montoDelivery: i === 0 ? num(f.montoDelivery) : 0,
+        montoDelivery: i === 0 ? gsNum(f.montoDelivery) : 0,
         observacion: f.observacion,
       })
     })
@@ -419,7 +423,7 @@ export default function FormularioVenta({ onGuardado }) {
             variant="outline"
             className="w-full"
             onClick={agregarItem}
-            disabled={!f.productoId || num(f.precio) <= 0}
+            disabled={!f.productoId || gsNum(f.precio) <= 0}
           >
             ➕ Agregar a la lista
           </Button>

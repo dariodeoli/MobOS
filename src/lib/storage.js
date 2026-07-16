@@ -342,18 +342,68 @@ function sortColeccion(coll, arr) {
 // ════════════════════════════════════════════════════════════════════
 // SUPABASE: hidratación, escritura y realtime
 // ════════════════════════════════════════════════════════════════════
-function logErr(prefix) {
-  return ({ error } = {}) => {
-    if (error) console.warn(`[storage] ${prefix}:`, error.message || error)
+// ── Cola de escrituras pendientes ───────────────────────────────────
+// Si un envío a Supabase falla (ej. corte de internet), lo guardamos y lo
+// reintentamos. Así una venta cargada NUNCA se pierde por un fallo de red.
+const PENDING_KEY = 'fono:pending:v1'
+let pendientes = safeParse(typeof localStorage !== 'undefined' ? localStorage.getItem(PENDING_KEY) : null) || []
+function savePendientes() {
+  try {
+    localStorage.setItem(PENDING_KEY, JSON.stringify(pendientes))
+  } catch {
+    /* noop */
   }
 }
+function enqueue(item) {
+  // Evita duplicados de la misma entidad: se queda con la última versión.
+  pendientes = pendientes.filter(
+    (p) => !(p.t === item.t && p.collection === item.collection && (p.obj?.id || p.id) === (item.obj?.id || item.id)),
+  )
+  pendientes.push(item)
+  savePendientes()
+}
+// ¿La entidad `id` de `collection` está pendiente de subir? (para no borrarla al refrescar)
+function estaPendiente(collection, id) {
+  return pendientes.some((p) => p.collection === collection && (p.obj?.id || p.id) === id)
+}
+export async function flushPendientes() {
+  if (!supabase || pendientes.length === 0) return
+  const cola = pendientes
+  pendientes = []
+  savePendientes()
+  for (const it of cola) {
+    try {
+      let res
+      if (it.t === 'ent') {
+        const row = { collection: it.collection, id: it.obj.id, data: it.obj }
+        if (it.obj.creadoEn) row.created_at = it.obj.creadoEn
+        res = await supabase.from('entities').upsert(row)
+      } else if (it.t === 'entdel') {
+        res = await supabase.from('entities').delete().eq('collection', it.collection).eq('id', it.id)
+      } else if (it.t === 'kv') {
+        res = await supabase.from('kv').upsert({ key: it.key, value: it.value, updated_at: new Date().toISOString() })
+      }
+      if (res?.error) throw res.error
+    } catch {
+      enqueue(it) // sigue fallando: lo dejamos para el próximo intento
+    }
+  }
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => flushPendientes())
+}
 
-// Inserta/actualiza una entidad (fila) en Supabase.
+// Inserta/actualiza una entidad (fila) en Supabase; si falla, la encola.
 function remoteUpsertEnt(collection, obj) {
   if (!supabase) return
   const row = { collection, id: obj.id, data: obj }
   if (obj.creadoEn) row.created_at = obj.creadoEn
-  supabase.from('entities').upsert(row).then(logErr(`upsert ${collection}`))
+  supabase.from('entities').upsert(row).then(
+    ({ error }) => {
+      if (error) enqueue({ t: 'ent', collection, obj })
+    },
+    () => enqueue({ t: 'ent', collection, obj }),
+  )
 }
 function remoteDeleteEnt(collection, id) {
   if (!supabase) return
@@ -362,14 +412,24 @@ function remoteDeleteEnt(collection, id) {
     .delete()
     .eq('collection', collection)
     .eq('id', id)
-    .then(logErr(`delete ${collection}`))
+    .then(
+      ({ error }) => {
+        if (error) enqueue({ t: 'entdel', collection, id })
+      },
+      () => enqueue({ t: 'entdel', collection, id }),
+    )
 }
 function remoteUpsertKv(key, value) {
   if (!supabase) return
   supabase
     .from('kv')
     .upsert({ key, value, updated_at: new Date().toISOString() })
-    .then(logErr(`upsert kv ${key}`))
+    .then(
+      ({ error }) => {
+        if (error) enqueue({ t: 'kv', key, value })
+      },
+      () => enqueue({ t: 'kv', key, value }),
+    )
 }
 
 // Mutaciones locales optimistas (cache + espejo + notify) y luego remoto.
@@ -505,6 +565,8 @@ export async function horaServidorMs() {
 
 export async function refrescar() {
   if (!supabase) return
+  // Primero reintentamos lo que quedó sin subir, para no perderlo.
+  await flushPendientes()
   try {
     const [ents, { data: kvs }] = await Promise.all([
       fetchAllEntities(),
@@ -517,6 +579,16 @@ export async function refrescar() {
       })
       COLLECTIONS.forEach((c) => {
         cache[c] = sortColeccion(c, porColl[c])
+      })
+      // Re-aplica lo que todavía está pendiente de subir, para que NO desaparezca
+      // de la vista mientras se reintenta el envío.
+      pendientes.forEach((it) => {
+        if (it.t === 'ent' && cache[it.collection]) {
+          const arr = cache[it.collection]
+          const i = arr.findIndex((o) => o.id === it.obj.id)
+          if (i >= 0) arr[i] = it.obj
+          else arr.push(it.obj)
+        }
       })
     }
     if (kvs) {
