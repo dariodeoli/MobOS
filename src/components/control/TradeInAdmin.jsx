@@ -60,10 +60,16 @@ export default function TradeInAdmin() {
     setAviso(null)
     const r = await actualizarDolar()
     setActualizando(false)
+    const noDesplegada = /Edge Function|not found|404|Failed to send/i.test(r.error || '')
     setAviso(
       r.ok
         ? { ok: true, texto: `Cotización actualizada: 1 USD = ${gs(r.rate)} (${r.fuente})` }
-        : { ok: false, texto: `No se pudo actualizar: ${r.error}` },
+        : {
+            ok: false,
+            texto: noDesplegada
+              ? 'La actualización automática todavía no está activada. Por ahora cargá el valor a mano en “1 USD = ₲”.'
+              : `No se pudo actualizar: ${r.error}`,
+          },
     )
   }
 
