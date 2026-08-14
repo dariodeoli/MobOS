@@ -13,13 +13,14 @@ import { fechaClave, num, gs } from '@/utils/calculos'
 import { agruparProductos } from '@/utils/colores'
 import { Button, Card, Input, Label, Select, Textarea, Badge } from '@/components/ui'
 import SelectorColor from './SelectorColor'
+import Icon from '@/components/shared/Icon'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
 // en cada venta (suelen ser ráfagas de la misma persona).
 const ULTIMO_VENDEDOR = 'fono:ultimoVendedor'
 
 // Montos en ₲ son enteros y se escriben con puntos de miles ("20.000"). Tomamos
-// solo los dígitos para no confundir el punto con un decimal (evita 20.000 → 20).
+// solo los dígitos para no confundir el punto con un decimal (evita 20.000 20).
 const gsNum = (v) => Number(String(v ?? '').replace(/[^\d]/g, '')) || 0
 
 const VACIO = (vendedorId) => ({
@@ -101,9 +102,7 @@ export default function FormularioVenta({ onGuardado }) {
   const valorSelect = familiaActiva ? 'fam:' + familiaActiva.base : f.productoId
   // Producto/color elegido actualmente (para el chip).
   const itemActivo =
-    familiaActiva && f.productoId
-      ? familiaActiva.items.find((it) => it.id === f.productoId)
-      : null
+    familiaActiva && f.productoId ? familiaActiva.items.find((it) => it.id === f.productoId) : null
 
   function elegirVendedor(e) {
     const v = e.target.value
@@ -138,7 +137,7 @@ export default function FormularioVenta({ onGuardado }) {
       return
     }
     if (v.startsWith('fam:')) {
-      // Familia con varios colores → abrir la ventana para elegir color.
+      // Familia con varios colores abrir la ventana para elegir color.
       const fam = familias.find((x) => 'fam:' + x.base === v)
       setFamiliaActiva(fam)
       setF((s) => ({ ...s, productoId: '' }))
@@ -175,12 +174,12 @@ export default function FormularioVenta({ onGuardado }) {
     const base = nombreProd.trim()
     if (!base) return
     if (coloresNuevos.length === 0) {
-      // Producto sin colores → uno solo, queda elegido.
+      // Producto sin colores uno solo, queda elegido.
       const p = addProducto(base)
       setFamiliaActiva(null)
       setF((s) => ({ ...s, productoId: p.id }))
     } else {
-      // Con colores → creamos una variante por color ("Base Color") y abrimos
+      // Con colores creamos una variante por color ("Base Color") y abrimos
       // la ventana para elegir cuál corresponde a esta venta.
       const items = coloresNuevos.map((c) => {
         const p = addProducto(`${base} ${c}`)
@@ -246,11 +245,13 @@ export default function FormularioVenta({ onGuardado }) {
     <Card>
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-xl">🧾</span>
+          <span className="text-xl">
+            <Icon name="receipt" className="h-4 w-4" />
+          </span>
           <h2 className="font-bold">Cargar venta</h2>
         </div>
-        <span className="text-xs font-semibold text-slate-500">
-          📅 Hoy: {fechaClave().split('-').reverse().join('/')}
+        <span className="text-xs font-semibold text-mute">
+          Hoy: {fechaClave().split('-').reverse().join('/')}
         </span>
       </div>
 
@@ -275,10 +276,10 @@ export default function FormularioVenta({ onGuardado }) {
                 }}
               />
               <Button type="button" onClick={crearVendedor}>
-                ➕ Agregar
+                Agregar
               </Button>
               <Button type="button" variant="ghost" onClick={() => setNuevoVend(false)}>
-                ✕
+                <Icon name="close" className="h-4 w-4" />
               </Button>
             </div>
           ) : (
@@ -289,7 +290,7 @@ export default function FormularioVenta({ onGuardado }) {
                   {v.nombre}
                 </option>
               ))}
-              <option value="__nuevo__">➕ Agregar vendedor…</option>
+              <option value="__nuevo__">Agregar vendedor…</option>
             </Select>
           )}
         </div>
@@ -310,7 +311,7 @@ export default function FormularioVenta({ onGuardado }) {
         <div className="md:col-span-2">
           <Label>Producto</Label>
           {nuevoProd ? (
-            <div className="rounded-xl border border-slate-200 p-3 space-y-2.5">
+            <div className="rounded-xl border border-ink-600 p-3 space-y-2.5">
               <Input
                 autoFocus
                 value={nombreProd}
@@ -319,7 +320,7 @@ export default function FormularioVenta({ onGuardado }) {
                 autoCapitalize="words"
               />
               <div>
-                <div className="text-[11px] font-bold uppercase text-slate-400 mb-1">
+                <div className="text-[11px] font-bold uppercase text-mute mb-1">
                   Colores (opcional)
                 </div>
                 <div className="flex gap-2">
@@ -345,28 +346,26 @@ export default function FormularioVenta({ onGuardado }) {
                       <button
                         key={c}
                         type="button"
-                        onClick={() =>
-                          setColoresNuevos((s) => s.filter((x) => x !== c))
-                        }
-                        className="rounded-full bg-fono-light text-fono text-xs font-bold px-2.5 py-1 hover:bg-red-100 hover:text-bad transition"
+                        onClick={() => setColoresNuevos((s) => s.filter((x) => x !== c))}
+                        className="rounded-full bg-fono/10 text-fono text-xs font-bold px-2.5 py-1 hover:bg-bad/15 hover:text-bad transition"
                         title="Quitar"
                       >
-                        {c} ✕
+                        {c}
                       </button>
                     ))}
                   </div>
                 )}
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Sin colores: se crea un solo producto. Con colores: se crea una variante por
-                  color y vas a elegir cuál en cada venta.
+                <p className="text-[11px] text-mute mt-1">
+                  Sin colores: se crea un solo producto. Con colores: se crea una variante por color
+                  y vas a elegir cuál en cada venta.
                 </p>
               </div>
               <div className="flex gap-2">
                 <Button type="button" onClick={crearProducto} className="flex-1">
-                  ➕ Crear {coloresNuevos.length > 0 ? `(${coloresNuevos.length} colores)` : ''}
+                  Crear {coloresNuevos.length > 0 ? `(${coloresNuevos.length} colores)` : ''}
                 </Button>
                 <Button type="button" variant="ghost" onClick={cancelarNuevoProd}>
-                  ✕
+                  <Icon name="close" className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -377,7 +376,7 @@ export default function FormularioVenta({ onGuardado }) {
                 {familias.map((fam) =>
                   fam.items.length > 1 ? (
                     <option key={fam.base} value={'fam:' + fam.base}>
-                      🎨 {fam.base} · {fam.items.length} colores
+                      {fam.base} · {fam.items.length} colores
                     </option>
                   ) : (
                     <option key={fam.items[0].id} value={fam.items[0].id}>
@@ -385,12 +384,12 @@ export default function FormularioVenta({ onGuardado }) {
                     </option>
                   ),
                 )}
-                <option value="__nuevo__">➕ Agregar otro producto…</option>
+                <option value="__nuevo__">Agregar otro producto…</option>
               </Select>
               {familiaActiva && (
                 <div className="flex items-center gap-2 mt-2">
                   {itemActivo ? (
-                    <Badge color="green">🎨 {itemActivo.color || itemActivo.nombre}</Badge>
+                    <Badge color="green"> {itemActivo.color || itemActivo.nombre}</Badge>
                   ) : (
                     <Badge color="orange">Elegí un color</Badge>
                   )}
@@ -425,13 +424,13 @@ export default function FormularioVenta({ onGuardado }) {
             onClick={agregarItem}
             disabled={!f.productoId || gsNum(f.precio) <= 0}
           >
-            ➕ Agregar a la lista
+            Agregar a la lista
           </Button>
         </div>
 
         {/* Carrito: productos agregados al mismo cliente */}
         {items.length > 0 && (
-          <div className="md:col-span-2 rounded-xl border border-slate-200 divide-y divide-slate-100">
+          <div className="md:col-span-2 rounded-xl border border-ink-600 divide-y divide-ink-600">
             {items.map((it) => (
               <div key={it.key} className="flex items-center justify-between gap-2 px-3 py-1.5">
                 <span className="text-sm font-medium truncate">{it.nombre}</span>
@@ -440,16 +439,16 @@ export default function FormularioVenta({ onGuardado }) {
                   <button
                     type="button"
                     onClick={() => quitarItem(it.key)}
-                    className="text-slate-400 hover:text-bad"
+                    className="text-mute hover:text-bad"
                     title="Quitar"
                   >
-                    🗑️
+                    <Icon name="trash" className="h-4 w-4" />
                   </button>
                 </div>
               </div>
             ))}
-            <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50">
-              <span className="text-xs font-bold uppercase text-slate-500">
+            <div className="flex items-center justify-between px-3 py-1.5 bg-ink-700">
+              <span className="text-xs font-bold uppercase text-mute">
                 Subtotal ({items.length})
               </span>
               <span className="text-sm font-extrabold">{gs(totalCarrito)}</span>
@@ -463,7 +462,7 @@ export default function FormularioVenta({ onGuardado }) {
           <Select value={f.estadoPago} onChange={set('estadoPago')}>
             {ESTADOS_PAGO.map((x) => (
               <option key={x} value={x}>
-                {x === 'Pagado' ? '✅ Pagado' : '⏳ No pagado'}
+                {x === 'Pagado' ? 'Pagado' : '⏳ No pagado'}
               </option>
             ))}
           </Select>
@@ -498,10 +497,10 @@ export default function FormularioVenta({ onGuardado }) {
             {ENTREGA.map((x) => (
               <option key={x} value={x}>
                 {x === 'Delivery'
-                  ? '🛵 Delivery'
+                  ? 'Delivery'
                   : x === 'Encomienda'
-                    ? '📦 Envío por encomienda'
-                    : '🏬 Retiro en tienda'}
+                    ? 'Envío por encomienda'
+                    : 'Retiro en tienda'}
               </option>
             ))}
           </Select>
@@ -533,15 +532,11 @@ export default function FormularioVenta({ onGuardado }) {
 
         <div className="md:col-span-2 flex items-center gap-3">
           <Button type="submit" variant="success" disabled={!valido} className="flex-1">
-            💾 Guardar venta
+            Guardar venta
             {cantTotal > 1 ? ` · ${cantTotal} productos` : ''}
             {totalGeneral > 0 ? ` · ${gs(totalGeneral)}` : ''}
           </Button>
-          {ok && (
-            <span className="text-ok font-bold text-sm whitespace-nowrap">
-              ✅ ¡Guardada!
-            </span>
-          )}
+          {ok && <span className="text-ok font-bold text-sm whitespace-nowrap">¡Guardada!</span>}
         </div>
       </form>
 

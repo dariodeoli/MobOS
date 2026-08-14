@@ -17,11 +17,7 @@ import {
   semaforo,
 } from '@/utils/calculos'
 
-const norm = (s) =>
-  (s || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
 const tiene = (t, ...palabras) => palabras.some((p) => t.includes(p))
 
@@ -148,7 +144,12 @@ function respCosto(periodo, data) {
     filas: [
       { k: 'Ingresos por ventas', v: gs(g.ingresos) },
       { k: 'Costo de la mercadería vendida', v: gs(g.costoMercaderia) },
-      { k: 'Margen bruto', v: gs(margenBruto), tono: margenBruto >= 0 ? 'bueno' : 'malo', fuerte: true },
+      {
+        k: 'Margen bruto',
+        v: gs(margenBruto),
+        tono: margenBruto >= 0 ? 'bueno' : 'malo',
+        fuerte: true,
+      },
     ],
     nota:
       g.costoMercaderia === 0
@@ -175,7 +176,8 @@ function respComision(periodo, data) {
     filas: [{ k: 'Total a pagar en comisiones', v: gs(totalCom), fuerte: true }],
     lista: porVend.length ? porVend.map((x) => ({ izq: x.nombre, der: gs(x.com) })) : null,
     listaTitulo: porVend.length ? 'Por vendedor' : null,
-    nota: totalCom === 0 ? 'No hay comisiones (cargá la comisión por producto en Inventario).' : null,
+    nota:
+      totalCom === 0 ? 'No hay comisiones (cargá la comisión por producto en Inventario).' : null,
   }
 }
 
@@ -211,7 +213,12 @@ function respCubrir(periodo, data) {
       { k: 'Gastos + ads a cubrir', v: gs(aCubrir) },
       falta > 0
         ? { k: 'Te falta de margen para cubrir', v: gs(falta), tono: 'malo', fuerte: true }
-        : { k: 'Ya cubriste todo, ganancia', v: gs(margenBruto - aCubrir), tono: 'bueno', fuerte: true },
+        : {
+            k: 'Ya cubriste todo, ganancia',
+            v: gs(margenBruto - aCubrir),
+            tono: 'bueno',
+            fuerte: true,
+          },
     ],
     nota:
       falta > 0
@@ -304,18 +311,26 @@ export function responder(pregunta, data) {
     return respCubrir(periodo, data)
   if (tiene(t, 'publicidad', 'ads', 'anuncio', 'marketing', 'meta ads', 'pauta'))
     return respAds(periodo, data)
-  if (tiene(t, 'comision', 'comisiones'))
-    return respComision(periodo, data)
-  if (tiene(t, 'ganador', 'mas vendido', 'mejor producto', 'producto estrella', 'top producto', 'que se vende', 'mas se vende'))
+  if (tiene(t, 'comision', 'comisiones')) return respComision(periodo, data)
+  if (
+    tiene(
+      t,
+      'ganador',
+      'mas vendido',
+      'mejor producto',
+      'producto estrella',
+      'top producto',
+      'que se vende',
+      'mas se vende',
+    )
+  )
     return respGanadores(periodo, data)
   if (tiene(t, 'vendedor', 'quien vende', 'ranking', 'mejor vendedor'))
     return respVendedores(periodo, data)
   if (tiene(t, 'meta', 'objetivo', 'semaforo', 'falta para la meta', 'voy con la meta'))
     return respMeta(data)
-  if (tiene(t, 'gasto', 'gaste'))
-    return respGastos(periodo, data)
-  if (tiene(t, 'costo', 'mercaderia', 'margen bruto'))
-    return respCosto(periodo, data)
+  if (tiene(t, 'gasto', 'gaste')) return respGastos(periodo, data)
+  if (tiene(t, 'costo', 'mercaderia', 'margen bruto')) return respCosto(periodo, data)
   if (tiene(t, 'ganancia', 'gane', 'gano', 'rentab', 'utilidad', 'neto', 'plata'))
     return respGanancia(periodo, data)
   if (tiene(t, 'venta', 'vendi', 'factur', 'ingreso', 'cuanto vend', 'ticket'))

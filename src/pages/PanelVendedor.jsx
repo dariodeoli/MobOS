@@ -5,12 +5,20 @@ import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import { useReloj } from '@/hooks/useReloj'
 import { vendedoresById } from '@/lib/storage'
+import { fechaClave } from '@/utils/calculos'
 import ResumenWidgets from '@/components/ventas/ResumenWidgets'
 import DeliveryHoy from '@/components/ventas/DeliveryHoy'
 import FormularioVenta from '@/components/ventas/FormularioVenta'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
 import ClavePanelDialog from '@/components/shared/ClavePanelDialog'
-import { Button } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
+import { cn } from '@/lib/utils'
+
+const NAV = [
+  { to: '/celulares', label: 'Precios', icon: 'phone' },
+  { to: '/comparador', label: 'Comparar', icon: 'chart' },
+  { to: '/tradein', label: 'Trade-In', icon: 'refresh' },
+]
 
 export default function PanelVendedor() {
   useLive()
@@ -22,93 +30,74 @@ export default function PanelVendedor() {
   const vendsById = vendedoresById()
 
   function abrirControl() {
-    if (sesion.esPropietario) {
-      navigate('/control')
-    } else {
-      setPidiendoClave(true)
-    }
+    if (sesion.esPropietario) navigate('/control')
+    else setPidiendoClave(true)
   }
 
+  const hoy = fechaClave().split('-').reverse().join('/')
+
   return (
-    <div className="min-h-dvh bg-slate-100">
-      {/* Top bar */}
-      <header className="sticky top-0 z-30 bg-fono text-white pt-safe shadow-md">
-        <div className="mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src="/logo.svg" alt="Fono" className="h-7" />
+    <div className="min-h-dvh bg-ink text-white">
+      {/* ── Barra superior ───────────────────────────────────────── */}
+      <header className="sticky top-0 z-30 border-b border-ink-600 bg-ink/80 pt-safe backdrop-blur">
+        <div className="flex h-16 items-center justify-between gap-3 px-4 md:px-6">
+          <div className="flex items-center gap-3">
+            <img src="/logo-dark.svg" alt="Fono" className="h-5" />
+            <span className="hidden text-sm text-mute md:inline">{hoy}</span>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <span className="text-sm font-semibold hidden md:inline opacity-90">
-              {sesion.esPropietario ? '👑' : '🏬'} {sesion.nombre}
-            </span>
 
-            {/* Grupo de herramientas */}
-            <div className="flex items-center gap-1 rounded-xl bg-white/10 p-1">
-              <button
-                onClick={() => navigate('/celulares')}
-                className="rounded-lg px-2.5 h-8 text-sm font-bold hover:bg-white/20 transition"
-                title="Lista de precios de celulares"
-              >
-                📱 <span className="hidden lg:inline">Precios</span>
-              </button>
-              <button
-                onClick={() => navigate('/comparador')}
-                className="rounded-lg px-2.5 h-8 text-sm font-bold hover:bg-white/20 transition"
-                title="Comparar modelos de celulares"
-              >
-                ⚖️ <span className="hidden lg:inline">Comparar</span>
-              </button>
-              <button
-                onClick={() => navigate('/tradein')}
-                className="rounded-lg px-2.5 h-8 text-sm font-bold hover:bg-white/20 transition"
-                title="Calcular Trade-In de un equipo"
-              >
-                🔄 <span className="hidden lg:inline">Trade-In</span>
-              </button>
-            </div>
+          <div className="flex items-center gap-2">
+            <nav className="flex items-center gap-0.5 rounded-lg border border-ink-600 bg-ink-800 p-1">
+              {NAV.map((n) => (
+                <button
+                  key={n.to}
+                  onClick={() => navigate(n.to)}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm text-mute transition hover:bg-ink-700 hover:text-white"
+                  title={n.label}
+                >
+                  <Icon name={n.icon} className="h-4 w-4" />
+                  <span className="hidden lg:inline">{n.label}</span>
+                </button>
+              ))}
+            </nav>
 
-            {/* Centro de control (acceso del dueño) */}
             <button
               onClick={abrirControl}
-              className="rounded-lg bg-white text-fono px-3 h-9 text-sm font-bold hover:bg-white/90 transition"
-              title="Centro de Control"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-fono px-3 text-sm font-medium text-white transition hover:bg-fono-dark"
             >
-              🔐 <span className="hidden sm:inline">Control</span>
+              <Icon name="lock" className="h-4 w-4" />
+              <span className="hidden sm:inline">Control</span>
             </button>
-
-            {/* Salir */}
             <button
               onClick={salir}
-              className="rounded-lg px-3 h-9 text-sm font-semibold text-white/80 hover:bg-white/15 hover:text-white transition"
-              title="Cerrar sesión"
+              className="rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-white"
+              title="Salir"
             >
-              Salir
+              <Icon name="logout" className="h-4 w-4" />
             </button>
           </div>
         </div>
       </header>
 
       {desfaseHoras > 0 && (
-        <div className="bg-red-600 text-white px-4 py-2.5 text-sm font-semibold text-center">
-          ⚠️ La fecha/hora de este equipo está mal (desfasada ~{desfaseHoras} h). Las ventas se
-          guardarían con la fecha equivocada. Corregí la fecha del dispositivo (ponela en
-          automático) antes de seguir cargando.
+        <div className="flex items-center justify-center gap-2 bg-bad px-4 py-2.5 text-center text-sm font-medium">
+          <Icon name="alert" className="h-4 w-4" />
+          La fecha de este equipo está desfasada ~{desfaseHoras} h. Corregila antes de cargar
+          ventas.
         </div>
       )}
 
-      <main className="mx-auto p-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-12 gap-4">
-        {/* Columna izquierda: widgets en vivo (toda la tienda) */}
-        <div className="xl:col-span-3 space-y-3">
+      {/* ── Contenido ────────────────────────────────────────────── */}
+      <main className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2 xl:grid-cols-12 md:p-6">
+        <div className="space-y-4 xl:col-span-3">
           <ResumenWidgets vendedorId={null} />
           <DeliveryHoy />
         </div>
 
-        {/* Columna del medio: cargar venta */}
         <div className="xl:col-span-4">
           <FormularioVenta />
         </div>
 
-        {/* Columna derecha: lista de ventas del día */}
         <div className="lg:col-span-2 xl:col-span-5">
           <ListaVentasDia vendedorId={null} mostrarVendedor vendedoresById={vendsById} />
         </div>

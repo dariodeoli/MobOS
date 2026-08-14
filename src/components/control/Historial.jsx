@@ -2,18 +2,19 @@ import { useState } from 'react'
 import { listAuditoria } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { Card, Badge, Input } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
 
 const ACCION = {
   crear: { label: 'Creó', color: 'green', emoji: '🆕' },
-  editar: { label: 'Editó', color: 'orange', emoji: '✏️' },
-  eliminar: { label: 'Eliminó', color: 'red', emoji: '🗑️' },
+  editar: { label: 'Editó', color: 'orange', emoji: '' },
+  eliminar: { label: 'Eliminó', color: 'red', emoji: '' },
 }
 
 const FILTROS = [
   ['todas', 'Todo'],
   ['crear', '🆕 Cargas'],
-  ['editar', '✏️ Ediciones'],
-  ['eliminar', '🗑️ Borrados'],
+  ['editar', 'Ediciones'],
+  ['eliminar', 'Borrados'],
 ]
 
 function fechaHora(iso) {
@@ -37,10 +38,7 @@ function valorCambio(campo, v) {
 
 // Normaliza para buscar sin importar acentos ni mayúsculas.
 function norm(s) {
-  return (s || '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
+  return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 }
 
 export default function Historial() {
@@ -61,15 +59,19 @@ export default function Historial() {
     <div className="space-y-4">
       <Card>
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-2xl">📜</span>
+          <span className="text-2xl">
+            <Icon name="clock" className="h-4 w-4" />
+          </span>
           <h2 className="font-bold">Historial de movimientos</h2>
         </div>
-        <p className="text-sm text-slate-500 mb-4">
-          Cada vez que alguien carga, edita o elimina una venta queda registrado acá con su
-          autor, fecha y hora. Es automático y no se puede modificar ni borrar.
+        <p className="text-sm text-mute mb-4">
+          Cada vez que alguien carga, edita o elimina una venta queda registrado acá con su autor,
+          fecha y hora. Es automático y no se puede modificar ni borrar.
         </p>
         <div className="relative mb-3">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-mute">
+            <Icon name="search" className="h-4 w-4" />
+          </span>
           <Input
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
@@ -81,10 +83,10 @@ export default function Historial() {
           {busqueda && (
             <button
               onClick={() => setBusqueda('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-mute hover:text-mute"
               title="Limpiar"
             >
-              ✕
+              <Icon name="close" className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -97,7 +99,7 @@ export default function Historial() {
                 'rounded-full px-3 py-1.5 text-xs font-bold transition border-2 ' +
                 (filtro === k
                   ? 'border-fono bg-fono text-white'
-                  : 'border-slate-200 text-slate-600 hover:border-fono hover:text-fono')
+                  : 'border-ink-600 text-mute hover:border-fono hover:text-fono')
               }
             >
               {label}
@@ -107,17 +109,17 @@ export default function Historial() {
       </Card>
 
       <Card className="p-0 overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-slate-100">
+        <div className="flex items-center justify-between p-4 border-b border-ink-600">
           <h3 className="font-bold">Movimientos ({items.length})</h3>
         </div>
 
         {items.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">
-            <div className="text-4xl mb-2">🕊️</div>
+          <div className="p-8 text-center text-mute text-sm">
+            <div className="text-4xl mb-2"></div>
             Todavía no hay movimientos registrados.
           </div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-ink-600">
             {items.map((m) => {
               const a = ACCION[m.accion] || { label: m.accion, color: 'slate', emoji: '•' }
               return (
@@ -130,26 +132,26 @@ export default function Historial() {
                         </Badge>
                         <span className="font-bold text-sm">
                           {m.actorNombre}
-                          {m.esPropietario && <span title="Dueño"> 👑</span>}
+                          {m.esPropietario && <span title="Dueño"></span>}
                         </span>
                       </div>
-                      <div className="text-sm text-slate-600 mt-1 truncate">
+                      <div className="text-sm text-mute mt-1 truncate">
                         {m.resumen?.cliente || '—'} · {m.resumen?.producto || '—'} ·{' '}
                         <span className="font-semibold text-fono">{gs(m.resumen?.precio)}</span>
                       </div>
                     </div>
-                    <div className="text-xs text-slate-400 shrink-0 text-right">
+                    <div className="text-xs text-mute shrink-0 text-right">
                       {fechaHora(m.creadoEn)}
                     </div>
                   </div>
 
                   {m.cambios?.length > 0 && (
-                    <div className="mt-2 rounded-lg bg-slate-50 p-2.5 space-y-1">
+                    <div className="mt-2 rounded-lg bg-ink-700 p-2.5 space-y-1">
                       {m.cambios.map((c, i) => (
-                        <div key={i} className="text-xs text-slate-500">
-                          <span className="font-semibold text-slate-600">{c.campo}:</span>{' '}
+                        <div key={i} className="text-xs text-mute">
+                          <span className="font-semibold text-mute">{c.campo}:</span>{' '}
                           <span className="line-through">{valorCambio(c.campo, c.de)}</span>{' '}
-                          → <span className="text-slate-700">{valorCambio(c.campo, c.a)}</span>
+                          <span className="text-white">{valorCambio(c.campo, c.a)}</span>
                         </div>
                       ))}
                     </div>

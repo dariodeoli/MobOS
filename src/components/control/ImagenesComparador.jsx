@@ -9,6 +9,7 @@ import {
 import { colorHex } from '@/utils/colores'
 import { procesarImagenCelular } from '@/utils/imagen'
 import { Card, Button, Input, Label, Select } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
 
 // Sugerencias de color para autocompletar (datalist).
 const SUGERENCIAS_COLOR = [
@@ -107,7 +108,7 @@ export default function ImagenesComparador() {
     listas.forEach((p) => setComparadorImagen(p.modelo, p.color.trim(), p.src))
     setPendientes((ps) => ps.filter((p) => !(p.modelo && p.color.trim())))
     setError('')
-    setAviso(`Se guardaron ${listas.length} imagen(es). ✅`)
+    setAviso(`Se guardaron ${listas.length} imagen(es). `)
   }
 
   const modelosConImagenes = Object.keys(imagenes).sort((a, b) => rankCelular(a) - rankCelular(b))
@@ -122,11 +123,11 @@ export default function ImagenesComparador() {
       </datalist>
 
       <Card>
-        <h2 className="font-bold mb-1">🖼️ Imágenes del comparador</h2>
-        <p className="text-sm text-slate-500 mb-4">
-          <strong>Pegá (Ctrl+V)</strong> o <strong>arrastrá</strong> varias fotos de una. La app
-          les saca el fondo blanco sola y las deja en PNG. Después le ponés modelo y color a cada
-          una y tocás <strong>Guardar todas</strong>.
+        <h2 className="font-bold mb-1">Imágenes del comparador</h2>
+        <p className="text-sm text-mute mb-4">
+          <strong>Pegá (Ctrl+V)</strong> o <strong>arrastrá</strong> varias fotos de una. La app les
+          saca el fondo blanco sola y las deja en PNG. Después le ponés modelo y color a cada una y
+          tocás <strong>Guardar todas</strong>.
         </p>
 
         <div className="mb-3 max-w-xs">
@@ -134,7 +135,9 @@ export default function ImagenesComparador() {
           <Select value={defaultModelo} onChange={(e) => setDefaultModelo(e.target.value)}>
             <option value="">Sin asignar…</option>
             {modelos.map((m) => (
-              <option key={m} value={m}>{m}</option>
+              <option key={m} value={m}>
+                {m}
+              </option>
             ))}
           </Select>
         </div>
@@ -154,14 +157,14 @@ export default function ImagenesComparador() {
           onClick={() => fileRef.current?.click()}
           className={
             'cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition ' +
-            (dragOver ? 'border-fono bg-fono-light' : 'border-slate-300 hover:border-fono')
+            (dragOver ? 'border-fono bg-fono/10' : 'border-ink-500 hover:border-fono')
           }
         >
-          <div className="text-3xl mb-1">📋</div>
-          <div className="font-semibold text-sm text-slate-700">
+          <div className="text-3xl mb-1"></div>
+          <div className="font-semibold text-sm text-white">
             Pegá con Ctrl+V, arrastrá las fotos acá, o tocá para elegir
           </div>
-          <div className="text-xs text-slate-400 mt-1">
+          <div className="text-xs text-mute mt-1">
             {procesando > 0 ? `⏳ Procesando ${procesando}…` : 'Podés cargar varias a la vez'}
           </div>
           <input
@@ -178,7 +181,7 @@ export default function ImagenesComparador() {
         </div>
 
         {error && <p className="mt-2 text-sm text-bad">{error}</p>}
-        {aviso && <p className="mt-2 text-sm text-emerald-700">{aviso}</p>}
+        {aviso && <p className="mt-2 text-sm text-ok">{aviso}</p>}
       </Card>
 
       {/* Cola de imágenes pendientes de asignar */}
@@ -187,14 +190,14 @@ export default function ImagenesComparador() {
           <div className="flex items-center justify-between gap-2 mb-3">
             <h3 className="font-bold">En cola ({pendientes.length})</h3>
             <Button variant="success" className="h-9 px-4 text-sm" onClick={guardarTodas}>
-              💾 Guardar todas{listasParaGuardar > 0 ? ` (${listasParaGuardar})` : ''}
+              Guardar todas{listasParaGuardar > 0 ? ` (${listasParaGuardar})` : ''}
             </Button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {pendientes.map((p) => (
-              <div key={p.key} className="rounded-xl border border-slate-200 p-3 space-y-2">
+              <div key={p.key} className="rounded-xl border border-ink-600 p-3 space-y-2">
                 <div className="flex items-start gap-3">
-                  <div className="h-20 w-20 shrink-0 rounded-lg bg-slate-50 flex items-center justify-center overflow-hidden">
+                  <div className="h-20 w-20 shrink-0 rounded-lg bg-ink-700 flex items-center justify-center overflow-hidden">
                     <img src={p.src} alt="" className="max-h-full max-w-full object-contain" />
                   </div>
                   <div className="flex-1 min-w-0 space-y-1.5">
@@ -205,12 +208,14 @@ export default function ImagenesComparador() {
                     >
                       <option value="">Elegí modelo…</option>
                       {modelos.map((m) => (
-                        <option key={m} value={m}>{m}</option>
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
                       ))}
                     </Select>
                     <div className="flex items-center gap-1.5">
                       <span
-                        className="h-4 w-4 rounded-full border border-slate-300 shrink-0"
+                        className="h-4 w-4 rounded-full border border-ink-500 shrink-0"
                         style={{ background: colorHex(p.color) }}
                       />
                       <Input
@@ -226,7 +231,7 @@ export default function ImagenesComparador() {
                 </div>
                 <button
                   onClick={() => quitarPend(p.key)}
-                  className="text-xs text-slate-400 hover:text-bad"
+                  className="text-xs text-mute hover:text-bad"
                 >
                   Quitar
                 </button>
@@ -238,7 +243,7 @@ export default function ImagenesComparador() {
 
       {/* Imágenes ya guardadas */}
       {modelosConImagenes.length === 0 ? (
-        <Card className="text-center text-slate-400 text-sm py-8">
+        <Card className="text-center text-mute text-sm py-8">
           Todavía no guardaste ninguna imagen.
         </Card>
       ) : (
@@ -247,24 +252,28 @@ export default function ImagenesComparador() {
             <h3 className="font-bold mb-3">{m}</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {Object.entries(imagenes[m]).map(([colorNombre, src]) => (
-                <div key={colorNombre} className="rounded-xl border border-slate-200 p-2">
-                  <div className="aspect-square rounded-lg bg-slate-50 flex items-center justify-center overflow-hidden">
-                    <img src={src} alt={colorNombre} className="max-h-full max-w-full object-contain" />
+                <div key={colorNombre} className="rounded-xl border border-ink-600 p-2">
+                  <div className="aspect-square rounded-lg bg-ink-700 flex items-center justify-center overflow-hidden">
+                    <img
+                      src={src}
+                      alt={colorNombre}
+                      className="max-h-full max-w-full object-contain"
+                    />
                   </div>
                   <div className="mt-2 flex items-center justify-between gap-1">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span
-                        className="h-4 w-4 rounded-full border border-slate-300 shrink-0"
+                        className="h-4 w-4 rounded-full border border-ink-500 shrink-0"
                         style={{ background: colorHex(colorNombre) }}
                       />
                       <span className="text-xs font-medium truncate">{colorNombre}</span>
                     </div>
                     <button
                       onClick={() => deleteComparadorImagen(m, colorNombre)}
-                      className="text-slate-400 hover:text-bad p-1 shrink-0"
+                      className="text-mute hover:text-bad p-1 shrink-0"
                       title="Eliminar imagen"
                     >
-                      🗑️
+                      <Icon name="trash" className="h-4 w-4" />
                     </button>
                   </div>
                 </div>

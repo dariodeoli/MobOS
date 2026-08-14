@@ -1,6 +1,7 @@
 import { listVentas } from '@/lib/storage'
 import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
-import { Card, Badge } from '@/components/ui'
+import { Card } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
 
 // Muestra, en vivo, lo que se acumuló hoy en envíos. Sirve para cuadrar la
 // cuenta con el delivery (motoboy) al final del día: cada renglón es un envío.
@@ -15,35 +16,34 @@ export default function DeliveryHoy() {
   return (
     <Card>
       <div className="flex items-center justify-between">
-        <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-          🛵 Delivery de hoy
+        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-mute">
+          <Icon name="truck" className="h-4 w-4" />
+          Delivery de hoy
         </div>
-        <Badge color="blue">{deliveries.length} envíos</Badge>
+        <span className="text-xs text-mute">{deliveries.length} envíos</span>
       </div>
-      <div className="text-2xl font-extrabold text-fono mt-0.5">{gs(totalDelivery)}</div>
-      <p className="text-[11px] text-slate-400 mb-2">
-        Total a pagar al delivery por los envíos de hoy.
-      </p>
+
+      <div className="mt-1.5 text-2xl font-semibold tracking-tight">{gs(totalDelivery)}</div>
+      <p className="mt-0.5 text-xs text-mute">Total a pagar al delivery por los envíos de hoy.</p>
 
       {deliveries.length > 0 && (
-        <div className="rounded-lg bg-slate-50 divide-y divide-slate-100">
+        <div className="mt-3 divide-y divide-ink-600 rounded-lg border border-ink-600">
           {deliveries.map((v) => (
-            <div key={v.id} className="flex items-center justify-between px-2.5 py-1.5 text-xs">
-              <span className="truncate text-slate-600">{v.cliente || '—'}</span>
-              <span className="font-bold text-slate-700 shrink-0 ml-2">
-                {gs(v.montoDelivery)}
-              </span>
+            <div key={v.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+              <span className="truncate text-mute">{v.cliente || '—'}</span>
+              <span className="shrink-0 font-medium">{gs(v.montoDelivery)}</span>
             </div>
           ))}
         </div>
       )}
 
       {encomiendas.length > 0 && (
-        <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-50 px-2.5 py-2 text-xs">
-          <span className="text-slate-500">
-            📦 Encomiendas ({encomiendas.length})
+        <div className="mt-2 flex items-center justify-between rounded-lg border border-ink-600 px-3 py-2 text-sm">
+          <span className="inline-flex items-center gap-1.5 text-mute">
+            <Icon name="package" className="h-4 w-4" />
+            Encomiendas ({encomiendas.length})
           </span>
-          <span className="font-bold text-slate-700">{gs(totalEnc)}</span>
+          <span className="font-medium">{gs(totalEnc)}</span>
         </div>
       )}
     </Card>

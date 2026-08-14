@@ -6,10 +6,11 @@ import { gs } from '@/utils/calculos'
 import { colorHex } from '@/utils/colores'
 import { cn } from '@/lib/utils'
 import { Button, Select } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
 
 const CONDICIONES = [
-  ['Nuevo', '✨ Nuevos'],
-  ['Seminuevo', '♻️ Semi-nuevos'],
+  ['Nuevo', 'Nuevos'],
+  ['Seminuevo', 'Semi-nuevos'],
 ]
 
 // Maqueta de teléfono teñida con el color elegido. Si el equipo tiene una
@@ -38,10 +39,12 @@ function Columna({ info, valor, onModelo, onColor, modelos }) {
   const imagen = info?.imagenes?.[color] || null
 
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="flex flex-col rounded-2xl border border-ink-600 bg-ink-800 p-4">
       <Select value={modelo} onChange={(e) => onModelo(e.target.value)} className="font-semibold">
         {modelos.map((m) => (
-          <option key={m} value={m}>{m}</option>
+          <option key={m} value={m}>
+            {m}
+          </option>
         ))}
       </Select>
 
@@ -58,34 +61,28 @@ function Columna({ info, valor, onModelo, onColor, modelos }) {
               title={c}
               className={cn(
                 'h-7 w-7 rounded-full border transition',
-                color === c
-                  ? 'ring-2 ring-fono ring-offset-2'
-                  : 'border-slate-300 hover:scale-110',
+                color === c ? 'ring-2 ring-fono ring-offset-2' : 'border-ink-500 hover:scale-110',
               )}
               style={{ background: colorHex(c) }}
             />
           ))}
         </div>
       ) : (
-        <div className="text-center text-xs text-slate-400">Sin colores cargados</div>
+        <div className="text-center text-xs text-mute">Sin colores cargados</div>
       )}
-      {color && (
-        <div className="mt-2 text-center text-sm font-medium text-slate-700">{color}</div>
-      )}
+      {color && <div className="mt-2 text-center text-sm font-medium text-white">{color}</div>}
 
-      <div className="mt-4 border-t border-slate-100 pt-3">
+      <div className="mt-4 border-t border-ink-600 pt-3">
         {info?.min > 0 && (
-          <div className="mb-2 text-center text-sm text-slate-500">
-            Desde <span className="font-extrabold text-slate-900">{gs(info.min)}</span>
+          <div className="mb-2 text-center text-sm text-mute">
+            Desde <span className="font-extrabold text-white">{gs(info.min)}</span>
           </div>
         )}
         <div className="space-y-1">
           {info?.capacidades?.map(({ capacidad, precio }) => (
             <div key={capacidad} className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">{capacidad}</span>
-              <span className="font-bold text-slate-900">
-                {precio > 0 ? gs(precio) : '—'}
-              </span>
+              <span className="text-mute">{capacidad}</span>
+              <span className="font-bold text-white">{precio > 0 ? gs(precio) : '—'}</span>
             </div>
           ))}
         </div>
@@ -116,17 +113,14 @@ export default function Comparador() {
     const map = new Map()
     modelos.forEach((modelo) => {
       const items = activos.filter((c) => c.modelo === modelo)
-      // Imágenes subidas para este modelo (mapa color → dataUrl PNG).
+      // Imágenes subidas para este modelo (mapa color dataUrl PNG).
       const imagenes = { ...(imgStore[modelo] || {}) }
       items.forEach((c) => {
         if (c.color && c.imagen && !imagenes[c.color]) imagenes[c.color] = c.imagen
       })
       // Colores = los de las filas + los que tengan imagen subida.
       const colores = [
-        ...new Set([
-          ...Object.keys(imagenes),
-          ...items.map((c) => c.color).filter(Boolean),
-        ]),
+        ...new Set([...Object.keys(imagenes), ...items.map((c) => c.color).filter(Boolean)]),
       ]
       const capMap = new Map()
       items.forEach((c) => {
@@ -170,30 +164,30 @@ export default function Comparador() {
   }
 
   return (
-    <div className="min-h-dvh bg-slate-50">
+    <div className="min-h-dvh bg-ink-700">
       <header className="sticky top-0 z-30 bg-fono text-white pt-safe shadow-md">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-          <div className="flex items-center gap-2 font-bold">📱 Comparar modelos</div>
+          <div className="flex items-center gap-2 font-bold">Comparar modelos</div>
           <Button
             variant="ghost"
-            className="text-white hover:bg-white/15"
+            className="text-white hover:bg-ink-800/15"
             onClick={() => navigate('/celulares')}
           >
-            Lista de precios →
+            Lista de precios
           </Button>
         </div>
       </header>
 
       <main className="mx-auto max-w-5xl space-y-5 p-4">
         {/* Toggle de condición */}
-        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
+        <div className="inline-flex rounded-xl border border-ink-600 bg-ink-800 p-1">
           {CONDICIONES.map(([key, label]) => (
             <button
               key={key}
               onClick={() => setCondicion(key)}
               className={cn(
                 'rounded-lg px-4 py-1.5 text-sm font-bold transition',
-                condicion === key ? 'bg-fono text-white shadow-sm' : 'text-slate-500 hover:text-fono',
+                condicion === key ? 'bg-fono text-white shadow-sm' : 'text-mute hover:text-fono',
               )}
             >
               {label}
@@ -202,12 +196,14 @@ export default function Comparador() {
         </div>
 
         {modelos.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white py-16 text-center text-slate-400">
-            <div className="mb-2 text-4xl">📱</div>
+          <div className="rounded-2xl border border-ink-600 bg-ink-800 py-16 text-center text-mute">
+            <div className="mb-2 text-4xl">
+              <Icon name="phone" className="h-4 w-4" />
+            </div>
             <p className="text-sm">
               No hay modelos {condicion === 'Nuevo' ? 'nuevos' : 'semi-nuevos'} cargados.
               <br />
-              Cargalos desde el Centro de Control → 📱 Celulares.
+              Cargalos desde el Centro de Control Celulares.
             </p>
           </div>
         ) : (
@@ -225,9 +221,9 @@ export default function Comparador() {
           </div>
         )}
 
-        <p className="text-center text-xs text-slate-400">
-          💡 Subí las fotos reales en Centro de Control → 🖼️ Imágenes. Donde no haya foto, se
-          muestra una maqueta con el color elegido.
+        <p className="text-center text-xs text-mute">
+          Subí las fotos reales en Centro de Control Imágenes. Donde no haya foto, se muestra una
+          maqueta con el color elegido.
         </p>
       </main>
     </div>

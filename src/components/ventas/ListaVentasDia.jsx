@@ -1,16 +1,14 @@
+import { useState } from 'react'
 import { listVentas, productosById, deleteVenta } from '@/lib/storage'
 import { useSesion } from '@/lib/sesion'
-import { ventasDelDia, fechaClave, gs } from '@/utils/calculos'
-import { Card, Badge, Button } from '@/components/ui'
+import { fechaClave, num, gs } from '@/utils/calculos'
+import { fmtLargo } from '@/components/shared/RangoFechas'
+import MedioPago from '@/components/shared/MedioPago'
+import Icon from '@/components/shared/Icon'
+import { Card, Badge, Dot } from '@/components/ui'
+import { cn } from '@/lib/utils'
 
-// 'YYYY-MM-DD' → 'DD/MM/YYYY' (sin problemas de zona horaria).
-function fmtFecha(clave) {
-  const [y, m, d] = (clave || '').split('-')
-  return d && m && y ? `${d}/${m}/${y}` : clave
-}
-
-// Agrupa las ventas por compra (compraId). Las ventas sueltas (sin compraId)
-// quedan como un grupo de 1. Preserva el orden de aparición.
+// Agrupa por compra (compraId); las sueltas quedan como grupo de 1.
 function agruparCompras(ventas) {
   const grupos = []
   const idx = new Map()
@@ -19,197 +17,301 @@ function agruparCompras(ventas) {
     if (!idx.has(key)) {
       idx.set(key, grupos.length)
       grupos.push({ key, items: [v] })
-    } else {
-      grupos[idx.get(key)].items.push(v)
-    }
+    } else grupos[idx.get(key)].items.push(v)
   })
   return grupos
 }
+
+const FILTROS = [
+  ['todas', 'Todas'],
+  ['pagadas', 'Pagadas'],
+  ['pendientes', 'Pendientes'],
+  ['envios', 'Envíos'],
+]
 
 export default function ListaVentasDia({
   vendedorId,
   mostrarVendedor = false,
   vendedoresById = {},
   fecha = fechaClave(),
+  rango = null,
+  titulo = null,
 }) {
   const { sesion } = useSesion()
   const puedeBorrar = !!sesion?.esPropietario
   const prods = productosById()
-  const ventas = ventasDelDia(listVentas(), fecha, vendedorId)
-  const grupos = agruparCompras(ventas)
-  const esHoy = fecha === fechaClave()
-  const titulo = esHoy
-    ? `📋 Ventas de hoy · ${fmtFecha(fecha)}`
-    : `📋 Ventas del ${fmtFecha(fecha)}`
+  const [filtro, setFiltro] = useState('todas')
+  const [confirmar, setConfirmar] = useState(null)
 
-  if (!ventas.length) {
-    return (
-      <Card className="text-center text-slate-400 py-10">
-        <div className="text-4xl mb-2">🧾</div>
-        <p className="text-sm">
-          {esHoy ? 'Todavía no hay ventas cargadas hoy.' : `No hubo ventas el ${fmtFecha(fecha)}.`}
-        </p>
-      </Card>
-    )
-  }
+  const base = listVentas().filter((v) => {
+    const okFecha = rango ? v.fecha >= rango.desde && v.fecha <= rango.hasta : v.fecha === fecha
+    return okFecha && (vendedorId == null || v.vendedorId === vendedorId)
+  })
+
+  const ventas = base.filter((v) => {
+    if (filtro === 'pagadas') return v.estadoPago === 'Pagado'
+    if (filtro === 'pendientes') return v.estadoPago !== 'Pagado'
+    if (filtro === 'envios') return v.entrega === 'Delivery' || v.entrega === 'Encomienda'
+    return true
+  })
+  const grupos = agruparCompras(ventas)
+  const total = ventas.reduce((a, v) => a + num(v.precio), 0)
+
+  const esHoy = !rango && fecha === fechaClave()
+  const encabezado = titulo || (esHoy ? 'Ventas de hoy' : `Ventas del ${fmtLargo(fecha)}`)
+
+  const nombreProd = (v) => v.productoNombre || prods[v.productoId]?.nombre || '—'
+  const cuenta = (k) =>
+    k === 'todas'
+      ? base.length
+      : base.filter((v) =>
+          k === 'pagadas'
+            ? v.estadoPago === 'Pagado'
+            : k === 'pendientes'
+              ? v.estadoPago !== 'Pagado'
+              : v.entrega === 'Delivery' || v.entrega === 'Encomienda',
+        ).length
 
   return (
-    <Card className="p-0 overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-slate-100">
-        <h2 className="font-bold">{titulo}</h2>
-        <Badge color="blue">{ventas.length} ventas</Badge>
+    <Card className="p-0">
+      {/* ── Encabezado ───────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-600 px-5 py-4">
+        <div>
+          <h2 className="font-medium">{encabezado}</h2>
+          {!esHoy && !titulo && <p className="mt-0.5 text-xs text-mute">{fmtLargo(fecha)}</p>}
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          <span className="text-mute">{ventas.length} ventas</span>
+          <span className="font-semibold">{gs(total)}</span>
+        </div>
       </div>
 
-      {/* Lista en tarjetas (móvil) */}
-      <div className="md:hidden divide-y divide-slate-100">
-        {grupos.map((g) => {
-          const v = g.items[0] // cabecera: datos compartidos de la compra
-          const total = g.items.reduce((a, x) => a + (x.precio || 0), 0)
-          const varios = g.items.length > 1
-          return (
-            <div key={g.key} className="p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="font-bold text-sm truncate">{v.cliente || '—'}</div>
-                  {varios && (
-                    <Badge color="blue">🛒 {g.items.length} productos</Badge>
-                  )}
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="font-extrabold text-fono">{gs(total)}</div>
-                  <Badge color={v.estadoPago === 'Pagado' ? 'green' : 'orange'}>
-                    {v.estadoPago}
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Productos de la compra */}
-              <div className={varios ? 'mt-2 space-y-1' : 'mt-1'}>
-                {g.items.map((it) => (
-                  <div key={it.id} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="text-slate-600 truncate">
-                      {varios && '• '}
-                      {it.productoNombre || prods[it.productoId]?.nombre || 'Producto'}
-                    </span>
-                    {varios && <span className="text-slate-500 shrink-0">{gs(it.precio)}</span>}
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-1.5 mt-2 text-xs text-slate-500">
-                <Badge color="slate">{v.medioPago}</Badge>
-                {v.entrega === 'Delivery' && <Badge color="blue">🛵 {gs(v.montoDelivery)}</Badge>}
-                {v.entrega === 'Encomienda' && <Badge color="blue">📦 {gs(v.montoDelivery)}</Badge>}
-                {mostrarVendedor && (
-                  <Badge color="slate">🧑‍💼 {vendedoresById[v.vendedorId] || '—'}</Badge>
-                )}
-                {v.observacion && <span className="italic">“{v.observacion}”</span>}
-              </div>
-            </div>
-          )
-        })}
+      {/* ── Filtros ──────────────────────────────────────────────── */}
+      <div className="flex gap-1 overflow-x-auto border-b border-ink-600 px-3 py-2.5">
+        {FILTROS.map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setFiltro(k)}
+            className={cn(
+              'whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition',
+              filtro === k ? 'bg-ink-600 font-medium text-white' : 'text-mute hover:text-white',
+            )}
+          >
+            {label}
+            <span className="ml-1.5 text-xs text-mute">{cuenta(k)}</span>
+          </button>
+        ))}
       </div>
 
-      {/* Tabla (desktop) */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-200">
-              <th className="px-5 py-3.5 font-bold">Cliente</th>
-              <th className="px-5 py-3.5 font-bold">Producto</th>
-              <th className="px-5 py-3.5 font-bold">Estado</th>
-              <th className="px-5 py-3.5 font-bold">Precio</th>
-              <th className="px-5 py-3.5 font-bold">Medio</th>
-              <th className="px-5 py-3.5 font-bold">Delivery</th>
-              {mostrarVendedor && <th className="px-5 py-3.5 font-bold">Vendedor</th>}
-              <th className="px-5 py-3.5 font-bold">Observación</th>
-              <th className="px-5 py-3.5"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {grupos.map((g) =>
-              g.items.map((v, idx) => {
-                const varios = g.items.length > 1
-                const total = g.items.reduce((a, x) => a + (x.precio || 0), 0)
-                return (
-                  <tr
-                    key={v.id}
-                    className={
-                      'border-b border-slate-100 hover:bg-slate-50 ' +
-                      (varios ? 'bg-slate-50/40' : '')
-                    }
-                  >
-                    {idx === 0 && (
-                      <td
-                        rowSpan={g.items.length}
-                        className="px-5 py-3.5 font-semibold align-top border-r border-slate-100"
-                      >
-                        {v.cliente || '—'}
-                        {varios && (
-                          <div className="mt-1">
-                            <Badge color="blue">🛒 {g.items.length} · {gs(total)}</Badge>
+      {ventas.length === 0 ? (
+        <div className="px-5 py-16 text-center">
+          <Icon name="receipt" className="mx-auto mb-3 h-8 w-8 text-ink-500" />
+          <p className="text-sm text-mute">
+            {filtro === 'todas'
+              ? 'No hay ventas en este período.'
+              : 'Ninguna venta con este filtro.'}
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* ── Tarjetas (móvil) ─────────────────────────────────── */}
+          <div className="divide-y divide-ink-600 md:hidden">
+            {grupos.map((g) => {
+              const v = g.items[0]
+              const varios = g.items.length > 1
+              const tot = g.items.reduce((a, x) => a + num(x.precio), 0)
+              const pagado = v.estadoPago === 'Pagado'
+              return (
+                <div key={g.key} className="px-5 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Dot color={pagado ? 'green' : 'red'} />
+                        <span className="truncate font-medium">{v.cliente || '—'}</span>
+                      </div>
+                      <div className="mt-1 space-y-0.5 pl-4 text-sm text-mute">
+                        {g.items.map((it) => (
+                          <div key={it.id} className="flex justify-between gap-3">
+                            <span className="truncate">{nombreProd(it)}</span>
+                            {varios && <span className="shrink-0">{gs(it.precio)}</span>}
                           </div>
-                        )}
-                      </td>
-                    )}
-                    <td className="px-5 py-3.5">{prods[v.productoId]?.nombre || '—'}</td>
-                    <td className="px-5 py-3.5">
-                      <Badge color={v.estadoPago === 'Pagado' ? 'green' : 'orange'}>
-                        {v.estadoPago}
+                        ))}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="font-semibold">{gs(tot)}</div>
+                      <span className={cn('text-xs', pagado ? 'text-ok' : 'text-bad')}>
+                        {pagado ? 'Pagado' : 'Pendiente'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-4">
+                    <MedioPago medio={v.medioPago} alto="h-4" />
+                    {v.entrega !== 'Retiro en tienda' && (
+                      <Badge color="blue">
+                        {v.entrega === 'Delivery' ? 'Delivery' : 'Encomienda'} {gs(v.montoDelivery)}
                       </Badge>
-                    </td>
-                    <td className="px-5 py-3.5 font-bold text-fono">{gs(v.precio)}</td>
-                    {idx === 0 ? (
-                      <>
-                        <td rowSpan={g.items.length} className="px-5 py-3.5 align-top">
-                          {v.medioPago}
-                        </td>
-                        <td rowSpan={g.items.length} className="px-5 py-3.5 align-top">
-                          {v.entrega === 'Delivery'
-                            ? `🛵 ${gs(v.montoDelivery)}`
-                            : v.entrega === 'Encomienda'
-                              ? `📦 ${gs(v.montoDelivery)}`
-                              : '🏬'}
-                        </td>
-                        {mostrarVendedor && (
-                          <td rowSpan={g.items.length} className="px-5 py-3.5 align-top">
-                            {vendedoresById[v.vendedorId] || '—'}
+                    )}
+                    {mostrarVendedor && (
+                      <span className="text-xs text-mute">
+                        {vendedoresById[v.vendedorId] || '—'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* ── Tabla (escritorio) ───────────────────────────────── */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-ink-600 text-left text-xs font-medium text-mute">
+                  <th className="px-5 py-3">Cliente</th>
+                  <th className="px-5 py-3">Producto</th>
+                  <th className="px-5 py-3">Estado</th>
+                  <th className="px-5 py-3 text-right">Precio</th>
+                  <th className="px-5 py-3">Medio de pago</th>
+                  <th className="px-5 py-3">Entrega</th>
+                  {mostrarVendedor && <th className="px-5 py-3">Vendedor</th>}
+                  <th className="px-5 py-3">Nota</th>
+                  <th className="px-5 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {grupos.map((g) =>
+                  g.items.map((v, idx) => {
+                    const varios = g.items.length > 1
+                    const tot = g.items.reduce((a, x) => a + num(x.precio), 0)
+                    const pagado = v.estadoPago === 'Pagado'
+                    return (
+                      <tr
+                        key={v.id}
+                        className={cn(
+                          'border-b border-ink-600/60 transition hover:bg-ink-700',
+                          varios && 'bg-ink-700/30',
+                        )}
+                      >
+                        {idx === 0 && (
+                          <td
+                            rowSpan={g.items.length}
+                            className="border-r border-ink-600/60 px-5 py-3 align-top"
+                          >
+                            <div className="font-medium">{v.cliente || '—'}</div>
+                            {varios && (
+                              <div className="mt-1 text-xs text-mute">
+                                {g.items.length} productos · {gs(tot)}
+                              </div>
+                            )}
                           </td>
                         )}
-                        <td
-                          rowSpan={g.items.length}
-                          className="px-5 py-3.5 text-slate-500 italic max-w-[200px] truncate align-top"
-                        >
-                          {v.observacion || ''}
+                        <td className="px-5 py-3 text-mute">{nombreProd(v)}</td>
+                        <td className="px-5 py-3">
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium',
+                              pagado
+                                ? 'border-ok/25 bg-ok/15 text-ok'
+                                : 'border-bad/25 bg-bad/15 text-bad',
+                            )}
+                          >
+                            <Dot color={pagado ? 'green' : 'red'} />
+                            {pagado ? 'Pagado' : 'No pagado'}
+                          </span>
                         </td>
-                      </>
-                    ) : null}
-                    <td className="px-5 py-3.5">
-                      {puedeBorrar ? (
-                        <Button
-                          variant="ghost"
-                          className="h-8 px-2 text-bad"
-                          onClick={() => deleteVenta(v.id)}
-                          title="Eliminar"
-                        >
-                          🗑️
-                        </Button>
-                      ) : (
-                        <span
-                          className="text-slate-300"
-                          title="Solo el dueño puede eliminar ventas"
-                        >
-                          🔒
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              }),
-            )}
-          </tbody>
-        </table>
-      </div>
+                        <td className="px-5 py-3 text-right font-semibold">{gs(v.precio)}</td>
+                        {idx === 0 ? (
+                          <>
+                            <td rowSpan={g.items.length} className="px-5 py-3 align-top">
+                              <MedioPago medio={v.medioPago} />
+                            </td>
+                            <td rowSpan={g.items.length} className="px-5 py-3 align-top text-mute">
+                              {v.entrega === 'Retiro en tienda' ? (
+                                <span className="inline-flex items-center gap-1.5">
+                                  <Icon name="store" className="h-4 w-4" /> Tienda
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5">
+                                  <Icon
+                                    name={v.entrega === 'Delivery' ? 'truck' : 'package'}
+                                    className="h-4 w-4"
+                                  />
+                                  {gs(v.montoDelivery)}
+                                </span>
+                              )}
+                            </td>
+                            {mostrarVendedor && (
+                              <td
+                                rowSpan={g.items.length}
+                                className="px-5 py-3 align-top text-mute"
+                              >
+                                {vendedoresById[v.vendedorId] || '—'}
+                              </td>
+                            )}
+                            <td
+                              rowSpan={g.items.length}
+                              className="max-w-[180px] truncate px-5 py-3 align-top text-xs italic text-mute"
+                            >
+                              {v.observacion || ''}
+                            </td>
+                          </>
+                        ) : null}
+                        <td className="px-5 py-3 text-right">
+                          {puedeBorrar ? (
+                            <button
+                              onClick={() => setConfirmar(v)}
+                              className="rounded p-1.5 text-mute transition hover:bg-bad/15 hover:text-bad"
+                              title="Eliminar"
+                            >
+                              <Icon name="trash" className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <Icon name="lock" className="h-4 w-4 text-ink-500" />
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  }),
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* ── Confirmación de borrado ──────────────────────────────── */}
+      {confirmar && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => setConfirmar(null)}
+        >
+          <Card className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-1 font-semibold">Eliminar venta</h3>
+            <p className="mb-5 text-sm text-mute">
+              {confirmar.cliente || 'Sin cliente'} · {nombreProd(confirmar)} ·{' '}
+              {gs(confirmar.precio)}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmar(null)}
+                className="h-9 flex-1 rounded-lg border border-ink-500 text-sm transition hover:border-fono"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  deleteVenta(confirmar.id)
+                  setConfirmar(null)
+                }}
+                className="h-9 flex-1 rounded-lg bg-bad text-sm font-semibold text-white transition hover:brightness-110"
+              >
+                Eliminar
+              </button>
+            </div>
+          </Card>
+        </div>
+      )}
     </Card>
   )
 }

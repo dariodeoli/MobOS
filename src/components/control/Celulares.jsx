@@ -11,6 +11,7 @@ import {
   ESTADOS_CELULAR,
 } from '@/lib/storage'
 import { Card, Button, Input, Label, Select, Badge } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
 
 const VACIO = () => ({ modelo: '', capacidad: '', color: '', estado: 'Nuevo', precio: '' })
 
@@ -22,15 +23,15 @@ const fmtMiles = (n) => (n ? Number(n).toLocaleString('es-PY') : '')
 // Estilo por condición: verde para Nuevo, ámbar para Seminuevo.
 const TEMA = {
   Nuevo: {
-    titulo: '✨ Nuevos',
-    seccion: 'border-emerald-200 bg-emerald-50/40',
-    card: 'border-emerald-200 bg-white',
+    titulo: 'Nuevos',
+    seccion: 'border-ok/25 bg-ok/10/40',
+    card: 'border-ok/25 bg-ink-800',
     badge: 'green',
   },
   Seminuevo: {
-    titulo: '♻️ Semi-nuevos',
-    seccion: 'border-amber-200 bg-amber-50/40',
-    card: 'border-amber-200 bg-white',
+    titulo: 'Semi-nuevos',
+    seccion: 'border-warn/25 bg-warn/10/40',
+    card: 'border-warn/25 bg-ink-800',
     badge: 'orange',
   },
 }
@@ -44,8 +45,10 @@ function ConfirmDialog({ mensaje, onOk, onCancel }) {
       onClick={onCancel}
     >
       <Card className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-        <div className="text-center text-3xl mb-2">⚠️</div>
-        <p className="text-center text-sm text-slate-700 mb-4">{mensaje}</p>
+        <div className="text-center text-3xl mb-2">
+          <Icon name="alert" className="h-4 w-4" />
+        </div>
+        <p className="text-center text-sm text-white mb-4">{mensaje}</p>
         <div className="flex gap-2">
           <Button variant="ghost" className="flex-1" onClick={onCancel}>
             Cancelar
@@ -65,28 +68,28 @@ function TarjetaCelular({ c, tema, onEliminar, valorPrecio, onPrecioChange, edit
       <div className="flex items-start justify-between gap-1">
         <div className="min-w-0">
           <div className="font-semibold text-sm truncate">{c.modelo}</div>
-          <div className="text-xs text-slate-500">{c.capacidad}</div>
+          <div className="text-xs text-mute">{c.capacidad}</div>
         </div>
         <div className="flex gap-0.5 shrink-0">
           <button
             onClick={() => updateCelular(c.id, { activo: !c.activo })}
-            className="text-slate-400 hover:text-fono p-1"
+            className="text-mute hover:text-fono p-1"
             title={c.activo ? 'Ocultar de la lista' : 'Mostrar en la lista'}
           >
-            {c.activo ? '👁️' : '🚫'}
+            {c.activo ? '' : ''}
           </button>
           <button
             onClick={() => onEliminar(c)}
-            className="text-slate-400 hover:text-bad p-1"
+            className="text-mute hover:text-bad p-1"
             title="Eliminar"
           >
-            🗑️
+            <Icon name="trash" className="h-4 w-4" />
           </button>
         </div>
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap text-xs">
-        {c.color && <span className="text-slate-500">{c.color}</span>}
+        {c.color && <span className="text-mute">{c.color}</span>}
         <Badge color={tema.badge}>{c.estado}</Badge>
         {!c.activo && <Badge color="slate">Oculto</Badge>}
       </div>
@@ -96,7 +99,7 @@ function TarjetaCelular({ c, tema, onEliminar, valorPrecio, onPrecioChange, edit
         value={valorPrecio}
         onChange={(e) => onPrecioChange(c.id, e.target.value)}
         placeholder="₲ precio"
-        className={'h-9 w-full ' + (editado ? 'border-amber-400 bg-amber-50' : '')}
+        className={'h-9 w-full ' + (editado ? 'border-amber-400 bg-warn/10' : '')}
       />
     </div>
   )
@@ -109,14 +112,12 @@ function Seccion({ estado, items, onEliminar, draft, onPrecioChange }) {
     <div className={`rounded-2xl border p-4 ${tema.seccion}`}>
       <div className="flex items-center justify-between gap-2 mb-3">
         <h3 className="font-bold">
-          {tema.titulo} <span className="text-slate-400 font-normal">({items.length})</span>
+          {tema.titulo} <span className="text-mute font-normal">({items.length})</span>
         </h3>
         {sinPrecio > 0 && <Badge color="orange">{sinPrecio} sin precio</Badge>}
       </div>
       {items.length === 0 ? (
-        <div className="py-6 text-center text-slate-400 text-sm">
-          Sin modelos en esta condición.
-        </div>
+        <div className="py-6 text-center text-mute text-sm">Sin modelos en esta condición.</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {items.map((c) => (
@@ -163,7 +164,7 @@ export default function Celulares({ registrarDirty }) {
   function guardarPrecios() {
     cambios.forEach(([id, v]) => updateCelular(id, { precio: precioNum(v) }))
     setDraft({})
-    setAviso(`Se guardaron ${cambios.length} precio(s). ✅`)
+    setAviso(`Se guardaron ${cambios.length} precio(s). `)
   }
   function descartar() {
     setDraft({})
@@ -189,7 +190,11 @@ export default function Celulares({ registrarDirty }) {
 
   function cargarLineup() {
     const n = cargarLineupIphone()
-    setAviso(n ? `Se agregaron ${n} modelos de iPhone. Cargales el precio. 📱` : 'Ya estaban todos cargados.')
+    setAviso(
+      n
+        ? `Se agregaron ${n} modelos de iPhone. Cargales el precio. `
+        : 'Ya estaban todos cargados.',
+    )
   }
 
   function pedirEliminar(c) {
@@ -212,14 +217,14 @@ export default function Celulares({ registrarDirty }) {
       <div
         className={
           'sticky top-2 z-20 flex items-center justify-between gap-2 rounded-xl border px-3 py-2 shadow-sm ' +
-          (hayCambios ? 'bg-amber-50 border-amber-300' : 'bg-white border-slate-200')
+          (hayCambios ? 'bg-warn/10 border-warn/30' : 'bg-ink-800 border-ink-600')
         }
       >
         <span className="text-sm font-medium">
           {hayCambios ? (
-            <span className="text-amber-700">● {cambios.length} precio(s) sin guardar</span>
+            <span className="text-warn">● {cambios.length} precio(s) sin guardar</span>
           ) : (
-            <span className="text-slate-500">Todo guardado</span>
+            <span className="text-mute">Todo guardado</span>
           )}
         </span>
         <div className="flex items-center gap-2">
@@ -234,26 +239,28 @@ export default function Celulares({ registrarDirty }) {
             onClick={guardarPrecios}
             disabled={!hayCambios}
           >
-            💾 Guardar
+            Guardar
           </Button>
         </div>
       </div>
 
       <Card>
         <div className="flex items-start justify-between gap-2 mb-1">
-          <h2 className="font-bold">📱 Lista de precios de celulares</h2>
+          <h2 className="font-bold">Lista de precios de celulares</h2>
           <Button variant="outline" className="h-9 px-3 text-xs" onClick={cargarLineup}>
-            ⬇️ Cargar lineup iPhone
+            Cargar lineup iPhone
           </Button>
         </div>
 
         {aviso && (
-          <div className="mb-3 flex items-center justify-between gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-800">
+          <div className="mb-3 flex items-center justify-between gap-2 rounded-lg bg-ok/10 border border-ok/25 px-3 py-2 text-sm text-ok">
             <span>{aviso}</span>
-            <button onClick={() => setAviso('')} className="text-emerald-600 hover:text-emerald-800" title="Cerrar">✕</button>
+            <button onClick={() => setAviso('')} className="text-ok hover:text-ok" title="Cerrar">
+              <Icon name="close" className="h-4 w-4" />
+            </button>
           </div>
         )}
-        <p className="text-sm text-slate-500 mb-4">
+        <p className="text-sm text-mute mb-4">
           Cargá los modelos con su precio en ₲. Se separan en <strong>Nuevos</strong> y{' '}
           <strong>Semi-nuevos</strong>. Los que tengan precio aparecen en la lista que los
           vendedores comparten por WhatsApp.
@@ -262,7 +269,12 @@ export default function Celulares({ registrarDirty }) {
         <form onSubmit={agregar} className="grid grid-cols-2 md:grid-cols-6 gap-2 items-end">
           <div className="col-span-2">
             <Label>Modelo</Label>
-            <Input value={f.modelo} onChange={set('modelo')} placeholder="iPhone 15 Pro" autoCapitalize="words" />
+            <Input
+              value={f.modelo}
+              onChange={set('modelo')}
+              placeholder="iPhone 15 Pro"
+              autoCapitalize="words"
+            />
           </div>
           <div>
             <Label>Capacidad</Label>
@@ -276,7 +288,9 @@ export default function Celulares({ registrarDirty }) {
             <Label>Condición</Label>
             <Select value={f.estado} onChange={set('estado')}>
               {ESTADOS_CELULAR.map((e) => (
-                <option key={e} value={e}>{e}</option>
+                <option key={e} value={e}>
+                  {e}
+                </option>
               ))}
             </Select>
           </div>
@@ -284,20 +298,22 @@ export default function Celulares({ registrarDirty }) {
             <Label>Precio ₲</Label>
             <Input inputMode="numeric" value={f.precio} onChange={set('precio')} placeholder="0" />
           </div>
-          <Button type="submit" className="col-span-2 md:col-span-6">➕ Agregar modelo</Button>
+          <Button type="submit" className="col-span-2 md:col-span-6">
+            Agregar modelo
+          </Button>
         </form>
 
         {viejos.length > 0 && (
           <div className="mt-3 flex justify-end">
             <Button variant="outline" className="h-9 px-3 text-xs text-bad" onClick={limpiarViejos}>
-              🗑️ Limpiar {viejos.length} modelo(s) anteriores al 13
+              Limpiar {viejos.length} modelo(s) anteriores al 13
             </Button>
           </div>
         )}
       </Card>
 
       {celulares.length === 0 ? (
-        <Card className="text-center text-slate-400 text-sm py-8">
+        <Card className="text-center text-mute text-sm py-8">
           Sin modelos. Usá “Cargar lineup iPhone” o agregá uno arriba.
         </Card>
       ) : (

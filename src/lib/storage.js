@@ -177,16 +177,16 @@ const PRODUCTOS_DEFAULT = [
 const VENDEDORES_DEFAULT = []
 
 const FRASES_DEFAULT = [
-  'Cada venta te acerca a tu meta. ¡Vamos! 🚀',
-  'El éxito es la suma de pequeños esfuerzos repetidos día a día. 💪',
-  'No cuentes los días, haz que los días cuenten. 🔥',
-  'Tu actitud determina tu dirección. ¡Hoy es un gran día! ☀️',
-  'Los clientes compran confianza antes que productos. Sonreí. 😊',
-  'La constancia vence al talento. Seguí firme. 🎯',
-  'Hoy es el mejor día para superar tu marca de ayer. 📈',
-  'Vendé con pasión, atendé con el corazón. ❤️',
-  'Las metas grandes se logran con acciones pequeñas y constantes. ⭐',
-  'Creé en vos: ya hiciste lo difícil, ahora cerrá la venta. 🤝',
+  'Cada venta te acerca a tu meta. ¡Vamos!',
+  'El éxito es la suma de pequeños esfuerzos repetidos día a día.',
+  'No cuentes los días, haz que los días cuenten.',
+  'Tu actitud determina tu dirección. ¡Hoy es un gran día!',
+  'Los clientes compran confianza antes que productos. Sonreí.',
+  'La constancia vence al talento. Seguí firme.',
+  'Hoy es el mejor día para superar tu marca de ayer.',
+  'Vendé con pasión, atendé con el corazón.',
+  'Las metas grandes se logran con acciones pequeñas y constantes.',
+  'Creé en vos: ya hiciste lo difícil, ahora cerrá la venta.',
 ]
 
 const CONFIG_DEFAULT = {
@@ -214,41 +214,150 @@ const TRADEIN_DEFAULT = {
     menos70: { label: 'Menos del 70%', desc: 'Batería muy desgastada', value: 0.8 },
   },
   repairMultipliers: {
-    pantalla: { label: 'Pantalla reemplazada por terceros', desc: 'Display cambiado por servicio no oficial', value: 0.88 },
-    camara: { label: 'Cámara reemplazada por terceros', desc: 'Módulo de cámara cambiado por terceros', value: 0.92 },
-    bateria: { label: 'Batería reemplazada por terceros', desc: 'Batería cambiada por servicio no oficial', value: 0.95 },
+    pantalla: {
+      label: 'Pantalla reemplazada por terceros',
+      desc: 'Display cambiado por servicio no oficial',
+      value: 0.88,
+    },
+    camara: {
+      label: 'Cámara reemplazada por terceros',
+      desc: 'Módulo de cámara cambiado por terceros',
+      value: 0.92,
+    },
+    bateria: {
+      label: 'Batería reemplazada por terceros',
+      desc: 'Batería cambiada por servicio no oficial',
+      value: 0.95,
+    },
   },
   devices: [
-    { model: 'iPhone 17 Pro Max', capacities: ['256GB', '512GB', '1TB'], prices: { '256GB': 850, '512GB': 950, '1TB': 1050 } },
-    { model: 'iPhone 17 Pro', capacities: ['256GB', '512GB', '1TB'], prices: { '256GB': 750, '512GB': 850, '1TB': 950 } },
+    {
+      model: 'iPhone 17 Pro Max',
+      capacities: ['256GB', '512GB', '1TB'],
+      prices: { '256GB': 850, '512GB': 950, '1TB': 1050 },
+    },
+    {
+      model: 'iPhone 17 Pro',
+      capacities: ['256GB', '512GB', '1TB'],
+      prices: { '256GB': 750, '512GB': 850, '1TB': 950 },
+    },
     { model: 'iPhone 17', capacities: ['256GB', '512GB'], prices: { '256GB': 520, '512GB': 640 } },
-    { model: 'iPhone 16 Pro Max', capacities: ['256GB', '512GB', '1TB'], prices: { '256GB': 950, '512GB': 1050, '1TB': 1150 } },
-    { model: 'iPhone 16 Pro', capacities: ['128GB', '256GB', '512GB', '1TB'], prices: { '128GB': 850, '256GB': 900, '512GB': 980, '1TB': 1080 } },
-    { model: 'iPhone 16 Plus', capacities: ['128GB', '256GB', '512GB'], prices: { '128GB': 700, '256GB': 750, '512GB': 820 } },
-    { model: 'iPhone 16', capacities: ['128GB', '256GB', '512GB'], prices: { '128GB': 620, '256GB': 670, '512GB': 730 } },
-    { model: 'iPhone 15 Pro Max', capacities: ['256GB', '512GB', '1TB'], prices: { '256GB': 800, '512GB': 880, '1TB': 960 } },
-    { model: 'iPhone 15 Pro', capacities: ['128GB', '256GB', '512GB', '1TB'], prices: { '128GB': 700, '256GB': 750, '512GB': 820, '1TB': 900 } },
-    { model: 'iPhone 15 Plus', capacities: ['128GB', '256GB', '512GB'], prices: { '128GB': 580, '256GB': 630, '512GB': 700 } },
-    { model: 'iPhone 15', capacities: ['128GB', '256GB', '512GB'], prices: { '128GB': 520, '256GB': 570, '512GB': 630 } },
-    { model: 'iPhone 14 Pro Max', capacities: ['128GB', '256GB', '512GB', '1TB'], prices: { '128GB': 650, '256GB': 700, '512GB': 770, '1TB': 850 } },
-    { model: 'iPhone 14 Pro', capacities: ['128GB', '256GB', '512GB', '1TB'], prices: { '128GB': 570, '256GB': 620, '512GB': 680, '1TB': 760 } },
-    { model: 'iPhone 14', capacities: ['128GB', '256GB', '512GB'], prices: { '128GB': 420, '256GB': 460, '512GB': 510 } },
-    { model: 'iPhone 13 Pro Max', capacities: ['128GB', '256GB', '512GB', '1TB'], prices: { '128GB': 520, '256GB': 570, '512GB': 630, '1TB': 710 } },
-    { model: 'iPhone 13 Pro', capacities: ['128GB', '256GB', '512GB', '1TB'], prices: { '128GB': 450, '256GB': 490, '512GB': 540, '1TB': 620 } },
-    { model: 'iPhone 13', capacities: ['128GB', '256GB', '512GB'], prices: { '128GB': 360, '256GB': 390, '512GB': 440 } },
-    { model: 'iPhone 12 Pro Max', capacities: ['128GB', '256GB', '512GB'], prices: { '128GB': 380, '256GB': 420, '512GB': 470 } },
-    { model: 'iPhone 12 Pro', capacities: ['128GB', '256GB', '512GB'], prices: { '128GB': 330, '256GB': 360, '512GB': 410 } },
-    { model: 'iPhone 12', capacities: ['64GB', '128GB', '256GB'], prices: { '64GB': 250, '128GB': 280, '256GB': 320 } },
-    { model: 'iPhone 11 Pro Max', capacities: ['64GB', '256GB', '512GB'], prices: { '64GB': 280, '256GB': 320, '512GB': 360 } },
-    { model: 'iPhone 11 Pro', capacities: ['64GB', '256GB', '512GB'], prices: { '64GB': 240, '256GB': 270, '512GB': 310 } },
-    { model: 'iPhone 11', capacities: ['64GB', '128GB', '256GB'], prices: { '64GB': 180, '128GB': 210, '256GB': 240 } },
+    {
+      model: 'iPhone 16 Pro Max',
+      capacities: ['256GB', '512GB', '1TB'],
+      prices: { '256GB': 950, '512GB': 1050, '1TB': 1150 },
+    },
+    {
+      model: 'iPhone 16 Pro',
+      capacities: ['128GB', '256GB', '512GB', '1TB'],
+      prices: { '128GB': 850, '256GB': 900, '512GB': 980, '1TB': 1080 },
+    },
+    {
+      model: 'iPhone 16 Plus',
+      capacities: ['128GB', '256GB', '512GB'],
+      prices: { '128GB': 700, '256GB': 750, '512GB': 820 },
+    },
+    {
+      model: 'iPhone 16',
+      capacities: ['128GB', '256GB', '512GB'],
+      prices: { '128GB': 620, '256GB': 670, '512GB': 730 },
+    },
+    {
+      model: 'iPhone 15 Pro Max',
+      capacities: ['256GB', '512GB', '1TB'],
+      prices: { '256GB': 800, '512GB': 880, '1TB': 960 },
+    },
+    {
+      model: 'iPhone 15 Pro',
+      capacities: ['128GB', '256GB', '512GB', '1TB'],
+      prices: { '128GB': 700, '256GB': 750, '512GB': 820, '1TB': 900 },
+    },
+    {
+      model: 'iPhone 15 Plus',
+      capacities: ['128GB', '256GB', '512GB'],
+      prices: { '128GB': 580, '256GB': 630, '512GB': 700 },
+    },
+    {
+      model: 'iPhone 15',
+      capacities: ['128GB', '256GB', '512GB'],
+      prices: { '128GB': 520, '256GB': 570, '512GB': 630 },
+    },
+    {
+      model: 'iPhone 14 Pro Max',
+      capacities: ['128GB', '256GB', '512GB', '1TB'],
+      prices: { '128GB': 650, '256GB': 700, '512GB': 770, '1TB': 850 },
+    },
+    {
+      model: 'iPhone 14 Pro',
+      capacities: ['128GB', '256GB', '512GB', '1TB'],
+      prices: { '128GB': 570, '256GB': 620, '512GB': 680, '1TB': 760 },
+    },
+    {
+      model: 'iPhone 14',
+      capacities: ['128GB', '256GB', '512GB'],
+      prices: { '128GB': 420, '256GB': 460, '512GB': 510 },
+    },
+    {
+      model: 'iPhone 13 Pro Max',
+      capacities: ['128GB', '256GB', '512GB', '1TB'],
+      prices: { '128GB': 520, '256GB': 570, '512GB': 630, '1TB': 710 },
+    },
+    {
+      model: 'iPhone 13 Pro',
+      capacities: ['128GB', '256GB', '512GB', '1TB'],
+      prices: { '128GB': 450, '256GB': 490, '512GB': 540, '1TB': 620 },
+    },
+    {
+      model: 'iPhone 13',
+      capacities: ['128GB', '256GB', '512GB'],
+      prices: { '128GB': 360, '256GB': 390, '512GB': 440 },
+    },
+    {
+      model: 'iPhone 12 Pro Max',
+      capacities: ['128GB', '256GB', '512GB'],
+      prices: { '128GB': 380, '256GB': 420, '512GB': 470 },
+    },
+    {
+      model: 'iPhone 12 Pro',
+      capacities: ['128GB', '256GB', '512GB'],
+      prices: { '128GB': 330, '256GB': 360, '512GB': 410 },
+    },
+    {
+      model: 'iPhone 12',
+      capacities: ['64GB', '128GB', '256GB'],
+      prices: { '64GB': 250, '128GB': 280, '256GB': 320 },
+    },
+    {
+      model: 'iPhone 11 Pro Max',
+      capacities: ['64GB', '256GB', '512GB'],
+      prices: { '64GB': 280, '256GB': 320, '512GB': 360 },
+    },
+    {
+      model: 'iPhone 11 Pro',
+      capacities: ['64GB', '256GB', '512GB'],
+      prices: { '64GB': 240, '256GB': 270, '512GB': 310 },
+    },
+    {
+      model: 'iPhone 11',
+      capacities: ['64GB', '128GB', '256GB'],
+      prices: { '64GB': 180, '128GB': 210, '256GB': 240 },
+    },
   ],
 }
 
 // ════════════════════════════════════════════════════════════════════
 // CACHÉ EN MEMORIA + ESPEJO LOCAL
 // ════════════════════════════════════════════════════════════════════
-const COLLECTIONS = ['productos', 'vendedores', 'ventas', 'gastos', 'ads', 'celulares', 'auditoria', 'comparadorImg']
+const COLLECTIONS = [
+  'productos',
+  'vendedores',
+  'ventas',
+  'gastos',
+  'ads',
+  'celulares',
+  'auditoria',
+  'comparadorImg',
+]
 // Colecciones tipo "feed": se muestran de la más nueva a la más vieja.
 const FEEDS = new Set(['ventas', 'gastos', 'ads', 'auditoria'])
 const MIRROR = 'fono:cache:v2'
@@ -346,7 +455,8 @@ function sortColeccion(coll, arr) {
 // Si un envío a Supabase falla (ej. corte de internet), lo guardamos y lo
 // reintentamos. Así una venta cargada NUNCA se pierde por un fallo de red.
 const PENDING_KEY = 'fono:pending:v1'
-let pendientes = safeParse(typeof localStorage !== 'undefined' ? localStorage.getItem(PENDING_KEY) : null) || []
+let pendientes =
+  safeParse(typeof localStorage !== 'undefined' ? localStorage.getItem(PENDING_KEY) : null) || []
 function savePendientes() {
   try {
     localStorage.setItem(PENDING_KEY, JSON.stringify(pendientes))
@@ -357,7 +467,12 @@ function savePendientes() {
 function enqueue(item) {
   // Evita duplicados de la misma entidad: se queda con la última versión.
   pendientes = pendientes.filter(
-    (p) => !(p.t === item.t && p.collection === item.collection && (p.obj?.id || p.id) === (item.obj?.id || item.id)),
+    (p) =>
+      !(
+        p.t === item.t &&
+        p.collection === item.collection &&
+        (p.obj?.id || p.id) === (item.obj?.id || item.id)
+      ),
   )
   pendientes.push(item)
   savePendientes()
@@ -379,9 +494,15 @@ export async function flushPendientes() {
         if (it.obj.creadoEn) row.created_at = it.obj.creadoEn
         res = await supabase.from('entities').upsert(row)
       } else if (it.t === 'entdel') {
-        res = await supabase.from('entities').delete().eq('collection', it.collection).eq('id', it.id)
+        res = await supabase
+          .from('entities')
+          .delete()
+          .eq('collection', it.collection)
+          .eq('id', it.id)
       } else if (it.t === 'kv') {
-        res = await supabase.from('kv').upsert({ key: it.key, value: it.value, updated_at: new Date().toISOString() })
+        res = await supabase
+          .from('kv')
+          .upsert({ key: it.key, value: it.value, updated_at: new Date().toISOString() })
       }
       if (res?.error) throw res.error
     } catch {
@@ -398,12 +519,15 @@ function remoteUpsertEnt(collection, obj) {
   if (!supabase) return
   const row = { collection, id: obj.id, data: obj }
   if (obj.creadoEn) row.created_at = obj.creadoEn
-  supabase.from('entities').upsert(row).then(
-    ({ error }) => {
-      if (error) enqueue({ t: 'ent', collection, obj })
-    },
-    () => enqueue({ t: 'ent', collection, obj }),
-  )
+  supabase
+    .from('entities')
+    .upsert(row)
+    .then(
+      ({ error }) => {
+        if (error) enqueue({ t: 'ent', collection, obj })
+      },
+      () => enqueue({ t: 'ent', collection, obj }),
+    )
 }
 function remoteDeleteEnt(collection, id) {
   if (!supabase) return
@@ -629,7 +753,10 @@ async function bulkInsert(collection, arr) {
     if (o.creadoEn) row.created_at = o.creadoEn
     return row
   })
-  await supabase.from('entities').upsert(rows).then(logErr(`seed ${collection}`))
+  await supabase
+    .from('entities')
+    .upsert(rows)
+    .then(logErr(`seed ${collection}`))
 }
 
 async function seedSiVacio(kvPresent) {
@@ -777,8 +904,7 @@ export function saveProductos(productos) {
   }
 }
 export function addProducto(nombre, categoria = 'Otros') {
-  const id =
-    nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36)
+  const id = nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36)
   const nuevo = {
     id,
     nombre,
@@ -857,9 +983,7 @@ export function listVentas() {
   return cache.ventas
 }
 export function addVenta(venta) {
-  const prod = venta.productoId
-    ? cache.productos.find((p) => p.id === venta.productoId)
-    : null
+  const prod = venta.productoId ? cache.productos.find((p) => p.id === venta.productoId) : null
   const nueva = {
     id: 'venta-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     creadoEn: new Date().toISOString(),
@@ -1014,8 +1138,7 @@ export async function actualizarDolar() {
 // Cada imagen es un registro independiente { id, modelo, color, img } en la
 // colección 'comparadorImg'. Así guardar varias a la vez NO se pisa entre sí
 // (cada una se escribe por separado). Se exponen como mapa { modelo: { color: img } }.
-const idImg = (modelo, color) =>
-  `${modelo}__${color}`.toLowerCase().replace(/\s+/g, '-')
+const idImg = (modelo, color) => `${modelo}__${color}`.toLowerCase().replace(/\s+/g, '-')
 
 export function getComparadorImagenes() {
   const map = {}
@@ -1041,8 +1164,7 @@ export function getFrases() {
 export function fraseDelDia() {
   const frases = getFrases()
   const hoy = new Date()
-  const idx =
-    (hoy.getFullYear() * 372 + hoy.getMonth() * 31 + hoy.getDate()) % frases.length
+  const idx = (hoy.getFullYear() * 372 + hoy.getMonth() * 31 + hoy.getDate()) % frases.length
   return frases[idx]
 }
 

@@ -160,7 +160,9 @@ export function calcularGananciaDia(clave, { ventas, gastos, ads, prodsById }) {
     (acc, v) => acc + num(v.precioCosto ?? prodsById[v.productoId]?.precioCosto),
     0,
   )
-  const totalGastos = gastos.filter((g) => g.fecha === clave).reduce((acc, g) => acc + num(g.monto), 0)
+  const totalGastos = gastos
+    .filter((g) => g.fecha === clave)
+    .reduce((acc, g) => acc + num(g.monto), 0)
   const totalAds = ads.filter((a) => a.fecha === clave).reduce((acc, a) => acc + num(a.monto), 0)
   const ganancia = ingresos - costoMercaderia - totalGastos - totalAds
   const sinDatos = vs.length === 0 && totalGastos === 0 && totalAds === 0

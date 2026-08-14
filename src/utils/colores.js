@@ -35,11 +35,7 @@ export const COLORES = [
 ]
 
 function norm(s) {
-  return (s || '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim()
+  return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 }
 
 // Color de cada swatch para el comparador. Clave normalizada (sin acentos ni

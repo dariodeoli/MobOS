@@ -2,14 +2,25 @@ import { useState } from 'react'
 import { listAds, addAds, deleteAds } from '@/lib/storage'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { Card, Button, Input, Label, Select, Badge } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
 
 const PLATAFORMAS = ['Meta Ads', 'Instagram', 'Facebook', 'Google Ads', 'TikTok', 'Otro']
 
 const MESES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
 ]
-// 'YYYY-MM' → 'Julio 2026'
+// 'YYYY-MM' 'Julio 2026'
 function mesLabel(clave) {
   const [y, m] = (clave || '').split('-')
   return `${MESES[Number(m) - 1] || m} ${y}`
@@ -31,7 +42,7 @@ export default function Ads() {
 
   const total = ads.reduce((a, x) => a + num(x.monto), 0)
 
-  // Resumen por mes (YYYY-MM → total y cantidad), del más nuevo al más viejo.
+  // Resumen por mes (YYYY-MM total y cantidad), del más nuevo al más viejo.
   const porMes = {}
   ads.forEach((a) => {
     const clave = (a.fecha || '').slice(0, 7)
@@ -45,15 +56,20 @@ export default function Ads() {
   return (
     <div className="space-y-4">
       <Card>
-        <h2 className="font-bold mb-1">📣 Gasto en publicidad (Meta Ads)</h2>
-        <p className="text-sm text-slate-500 mb-3">
-          Cargá manualmente cuánto invertís en ads. Se descuenta en el tablero de
-          ganancias para saber tu resultado real.
+        <h2 className="font-bold mb-1">Gasto en publicidad (Meta Ads)</h2>
+        <p className="text-sm text-mute mb-3">
+          Cargá manualmente cuánto invertís en ads. Se descuenta en el tablero de ganancias para
+          saber tu resultado real.
         </p>
         <form onSubmit={guardar} className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <Label>Monto ₲</Label>
-            <Input inputMode="numeric" value={f.monto} onChange={set('monto')} placeholder="Ej: 150000" />
+            <Input
+              inputMode="numeric"
+              value={f.monto}
+              onChange={set('monto')}
+              placeholder="Ej: 150000"
+            />
           </div>
           <div>
             <Label>Fecha</Label>
@@ -63,12 +79,16 @@ export default function Ads() {
             <Label>Plataforma</Label>
             <Select value={f.plataforma} onChange={set('plataforma')}>
               {PLATAFORMAS.map((p) => (
-                <option key={p} value={p}>{p}</option>
+                <option key={p} value={p}>
+                  {p}
+                </option>
               ))}
             </Select>
           </div>
           <div className="flex items-end">
-            <Button type="submit" className="w-full">💾 Guardar inversión</Button>
+            <Button type="submit" className="w-full">
+              Guardar inversión
+            </Button>
           </div>
         </form>
       </Card>
@@ -76,16 +96,16 @@ export default function Ads() {
       {/* Reporte mensual */}
       {meses.length > 0 && (
         <Card className="p-0 overflow-hidden">
-          <div className="flex items-center justify-between p-4 border-b border-slate-100">
-            <h3 className="font-bold">📅 Reporte mensual</h3>
+          <div className="flex items-center justify-between p-4 border-b border-ink-600">
+            <h3 className="font-bold">Reporte mensual</h3>
             <Badge color="orange">Total general: {gs(total)}</Badge>
           </div>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-ink-600">
             {meses.map(([clave, { total: t, cant }]) => (
               <div key={clave} className="flex items-center justify-between gap-2 p-3.5">
                 <div>
                   <div className="font-semibold text-sm capitalize">{mesLabel(clave)}</div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-mute">
                     {cant} {cant === 1 ? 'inversión' : 'inversiones'}
                   </div>
                 </div>
@@ -97,23 +117,29 @@ export default function Ads() {
       )}
 
       <Card className="p-0 overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-slate-100">
+        <div className="flex items-center justify-between p-4 border-b border-ink-600">
           <h3 className="font-bold">Historial de inversión</h3>
           <Badge color="orange">Total: {gs(total)}</Badge>
         </div>
         {ads.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">Sin inversiones registradas.</div>
+          <div className="p-8 text-center text-mute text-sm">Sin inversiones registradas.</div>
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-ink-600">
             {ads.map((a) => (
               <div key={a.id} className="flex items-center justify-between gap-2 p-3.5">
                 <div>
                   <div className="font-semibold text-sm">{a.plataforma}</div>
-                  <div className="text-xs text-slate-500">{a.fecha}</div>
+                  <div className="text-xs text-mute">{a.fecha}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-warn">{gs(a.monto)}</span>
-                  <button onClick={() => deleteAds(a.id)} className="text-slate-400 hover:text-bad p-1" title="Eliminar">🗑️</button>
+                  <button
+                    onClick={() => deleteAds(a.id)}
+                    className="text-mute hover:text-bad p-1"
+                    title="Eliminar"
+                  >
+                    <Icon name="trash" className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
             ))}

@@ -4,17 +4,67 @@
 
 html {
   -webkit-tap-highlight-color: transparent;
+  color-scheme: dark;
 }
 
 body {
-  @apply bg-slate-100 text-slate-900 antialiased;
+  @apply bg-ink text-white antialiased;
   min-height: 100dvh;
 }
 
-/* Safe-area utilities para notch / home indicator */
+/* Scrollbars discretas, a tono con el tema oscuro */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2f37 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #2a2f37;
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* El calendario nativo de los <input type="date"> en oscuro */
+input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.5;
+  cursor: pointer;
+}
+input[type='date']::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.9;
+}
+
 @layer utilities {
-  .pt-safe { padding-top: env(safe-area-inset-top); }
-  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-  .pl-safe { padding-left: env(safe-area-inset-left); }
-  .pr-safe { padding-right: env(safe-area-inset-right); }
+  /* Safe-area para notch / home indicator */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Halo azul difuminado detrás de un bloque destacado */
+  .glow-blue {
+    position: relative;
+  }
+  .glow-blue::before {
+    content: '';
+    position: absolute;
+    inset: -40% -20% auto -20%;
+    height: 180px;
+    background: radial-gradient(60% 100% at 50% 0%, rgba(46, 107, 255, 0.35), transparent 70%);
+    pointer-events: none;
+    filter: blur(28px);
+  }
 }

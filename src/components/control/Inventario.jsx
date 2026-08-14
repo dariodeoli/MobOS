@@ -1,52 +1,68 @@
 import { useState } from 'react'
-import {
-  getProductos,
-  updateProducto,
-  deleteProducto,
-  addProducto,
-} from '@/lib/storage'
+import { getProductos, updateProducto, deleteProducto, addProducto } from '@/lib/storage'
 import { num, gs } from '@/utils/calculos'
 import { Card, Button, Input, Badge } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
 
 function FilaProducto({ p }) {
   const margen = num(p.precioVenta) - num(p.precioCosto)
   const set = (campo) => (e) => updateProducto(p.id, { [campo]: num(e.target.value) })
 
   return (
-    <div className="rounded-xl border border-slate-200 p-3">
+    <div className="rounded-xl border border-ink-600 p-3">
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="font-bold text-sm">{p.nombre}</div>
         <button
           onClick={() => {
             if (confirm(`¿Eliminar "${p.nombre}"?`)) deleteProducto(p.id)
           }}
-          className="text-bad text-sm px-2 py-1 rounded hover:bg-red-50"
+          className="text-bad text-sm px-2 py-1 rounded hover:bg-bad/10"
           title="Eliminar"
         >
-          🗑️
+          <Icon name="trash" className="h-4 w-4" />
         </button>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
-          <span className="text-[10px] font-bold uppercase text-slate-400">Precio venta ₲</span>
-          <Input inputMode="numeric" defaultValue={p.precioVenta || ''} onBlur={set('precioVenta')} placeholder="0" />
+          <span className="text-[10px] font-bold uppercase text-mute">Precio venta ₲</span>
+          <Input
+            inputMode="numeric"
+            defaultValue={p.precioVenta || ''}
+            onBlur={set('precioVenta')}
+            placeholder="0"
+          />
         </label>
         <label className="block">
-          <span className="text-[10px] font-bold uppercase text-slate-400">Costo ₲</span>
-          <Input inputMode="numeric" defaultValue={p.precioCosto || ''} onBlur={set('precioCosto')} placeholder="0" />
+          <span className="text-[10px] font-bold uppercase text-mute">Costo ₲</span>
+          <Input
+            inputMode="numeric"
+            defaultValue={p.precioCosto || ''}
+            onBlur={set('precioCosto')}
+            placeholder="0"
+          />
         </label>
         <label className="block">
-          <span className="text-[10px] font-bold uppercase text-slate-400">Comisión ₲</span>
-          <Input inputMode="numeric" defaultValue={p.comision || ''} onBlur={set('comision')} placeholder="0" />
+          <span className="text-[10px] font-bold uppercase text-mute">Comisión ₲</span>
+          <Input
+            inputMode="numeric"
+            defaultValue={p.comision || ''}
+            onBlur={set('comision')}
+            placeholder="0"
+          />
         </label>
         <label className="block">
-          <span className="text-[10px] font-bold uppercase text-slate-400">Stock</span>
-          <Input inputMode="numeric" defaultValue={p.stock || ''} onBlur={set('stock')} placeholder="0" />
+          <span className="text-[10px] font-bold uppercase text-mute">Stock</span>
+          <Input
+            inputMode="numeric"
+            defaultValue={p.stock || ''}
+            onBlur={set('stock')}
+            placeholder="0"
+          />
         </label>
       </div>
       <div className="flex items-center gap-2 mt-2">
         <Badge color={margen > 0 ? 'green' : 'slate'}>Margen {gs(margen)}</Badge>
-        {num(p.stock) <= 3 && <Badge color="orange">⚠️ Stock bajo</Badge>}
+        {num(p.stock) <= 3 && <Badge color="orange">Stock bajo</Badge>}
       </div>
     </div>
   )
@@ -54,10 +70,7 @@ function FilaProducto({ p }) {
 
 // Normaliza para buscar sin importar acentos ni mayúsculas.
 function norm(s) {
-  return (s || '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
+  return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 }
 
 export default function Inventario() {
@@ -79,12 +92,11 @@ export default function Inventario() {
   return (
     <div className="space-y-4">
       <Card>
-        <h2 className="font-bold mb-1">📦 Inventario y precios</h2>
-        <p className="text-sm text-slate-500 mb-4">
+        <h2 className="font-bold mb-1">Inventario y precios</h2>
+        <p className="text-sm text-mute mb-4">
           Cargá el <strong>precio de venta</strong>, el <strong>costo</strong> y la{' '}
-          <strong>comisión</strong> de cada producto. Estos valores alimentan las
-          comisiones de los vendedores y el tablero de ganancias. Se guarda al salir
-          del campo.
+          <strong>comisión</strong> de cada producto. Estos valores alimentan las comisiones de los
+          vendedores y el tablero de ganancias. Se guarda al salir del campo.
         </p>
         <form onSubmit={crear} className="flex gap-2 mb-3">
           <Input
@@ -93,10 +105,12 @@ export default function Inventario() {
             placeholder="Nombre del nuevo producto"
             autoCapitalize="words"
           />
-          <Button type="submit">➕ Agregar</Button>
+          <Button type="submit">Agregar</Button>
         </form>
         <div className="relative mb-4">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-mute">
+            <Icon name="search" className="h-4 w-4" />
+          </span>
           <Input
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
@@ -108,15 +122,15 @@ export default function Inventario() {
           {busqueda && (
             <button
               onClick={() => setBusqueda('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-mute hover:text-mute"
               title="Limpiar"
             >
-              ✕
+              <Icon name="close" className="h-4 w-4" />
             </button>
           )}
         </div>
         {items.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">
+          <div className="p-8 text-center text-mute text-sm">
             {productos.length === 0
               ? 'Todavía no hay productos cargados.'
               : 'Ningún producto coincide con la búsqueda.'}

@@ -1,13 +1,38 @@
 import { useState } from 'react'
-import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas, productosById } from '@/lib/storage'
-import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
+import {
+  getVendedores,
+  addVendedor,
+  updateVendedor,
+  deleteVendedor,
+  listVentas,
+  productosById,
+} from '@/lib/storage'
+import {
+  totalesVendedor,
+  ventasDelDia,
+  comisionDeVentas,
+  fechaClave,
+  num,
+  gs,
+} from '@/utils/calculos'
 import { Card, Button, Input, Badge } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
 
 const MESES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
 ]
-// 'YYYY-MM' → 'Julio 2026'
+// 'YYYY-MM' 'Julio 2026'
 function mesLabel(clave) {
   const [y, m] = (clave || '').split('-')
   return `${MESES[Number(m) - 1] || m} ${y}`
@@ -55,10 +80,10 @@ export default function Vendedores() {
   return (
     <div className="space-y-4">
       <Card>
-        <h2 className="font-bold mb-1">🧑‍💼 Funcionarios y metas</h2>
-        <p className="text-sm text-slate-500 mb-4">
-          Fijá la <strong>meta diaria</strong> de cada vendedor y agregá nuevos cuando
-          contrates. La meta se guarda al salir del campo.
+        <h2 className="font-bold mb-1">‍ Funcionarios y metas</h2>
+        <p className="text-sm text-mute mb-4">
+          Fijá la <strong>meta diaria</strong> de cada vendedor y agregá nuevos cuando contrates. La
+          meta se guarda al salir del campo.
         </p>
         <form onSubmit={crear} className="flex gap-2 mb-4">
           <Input
@@ -67,7 +92,7 @@ export default function Vendedores() {
             placeholder="Nombre del nuevo vendedor"
             autoCapitalize="words"
           />
-          <Button type="submit">➕ Agregar</Button>
+          <Button type="submit">Agregar</Button>
         </form>
 
         <div className="space-y-2.5">
@@ -75,11 +100,13 @@ export default function Vendedores() {
             const t = totalesVendedor(ventas, v.id)
             const com = comisionDeVentas(ventasDelDia(ventas, fechaClave(), v.id), prods)
             return (
-              <div key={v.id} className="rounded-xl border border-slate-200 p-3">
+              <div key={v.id} className="rounded-xl border border-ink-600 p-3">
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <input
                     defaultValue={v.nombre}
-                    onBlur={(e) => updateVendedor(v.id, { nombre: e.target.value.trim() || v.nombre })}
+                    onBlur={(e) =>
+                      updateVendedor(v.id, { nombre: e.target.value.trim() || v.nombre })
+                    }
                     className="font-bold text-sm bg-transparent outline-none border-b border-transparent focus:border-fono"
                   />
                   <div className="flex items-center gap-2">
@@ -88,23 +115,31 @@ export default function Vendedores() {
                       className="text-xs"
                       title={v.activo ? 'Desactivar' : 'Activar'}
                     >
-                      {v.activo ? <Badge color="green">Activo</Badge> : <Badge color="slate">Inactivo</Badge>}
+                      {v.activo ? (
+                        <Badge color="green">Activo</Badge>
+                      ) : (
+                        <Badge color="slate">Inactivo</Badge>
+                      )}
                     </button>
                     <button
                       onClick={() => {
-                        if (confirm(`¿Eliminar a "${v.nombre}"? Las ventas que ya cargó se mantienen.`))
+                        if (
+                          confirm(
+                            `¿Eliminar a "${v.nombre}"? Las ventas que ya cargó se mantienen.`,
+                          )
+                        )
                           deleteVendedor(v.id)
                       }}
-                      className="text-slate-300 hover:text-bad text-sm transition"
+                      className="text-ink-500 hover:text-bad text-sm transition"
                       title="Eliminar vendedor"
                     >
-                      🗑️
+                      <Icon name="trash" className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
                   <label className="block col-span-2 md:col-span-1">
-                    <span className="text-[10px] font-bold uppercase text-slate-400">Meta diaria ₲</span>
+                    <span className="text-[10px] font-bold uppercase text-mute">Meta diaria ₲</span>
                     <Input
                       inputMode="numeric"
                       defaultValue={v.metaDiaria || ''}
@@ -125,8 +160,8 @@ export default function Vendedores() {
       {/* Historial mensual por vendedor */}
       {meses.length > 0 && (
         <Card>
-          <h2 className="font-bold mb-1">📅 Historial mensual por vendedor</h2>
-          <p className="text-sm text-slate-500 mb-4">
+          <h2 className="font-bold mb-1">Historial mensual por vendedor</h2>
+          <p className="text-sm text-mute mb-4">
             Cuánto vendió cada uno y su <strong>comisión total</strong> en cada mes.
           </p>
           <div className="space-y-4">
@@ -145,14 +180,14 @@ export default function Vendedores() {
 
               const abierto = abiertos.has(mes)
               return (
-                <div key={mes} className="rounded-xl border border-slate-200 overflow-hidden">
+                <div key={mes} className="rounded-xl border border-ink-600 overflow-hidden">
                   <button
                     type="button"
                     onClick={() => toggleMes(mes)}
-                    className="w-full flex items-center justify-between gap-2 bg-slate-50 px-4 py-2.5 hover:bg-slate-100 transition text-left"
+                    className="w-full flex items-center justify-between gap-2 bg-ink-700 px-4 py-2.5 hover:bg-ink-700 transition text-left"
                   >
                     <span className="flex items-center gap-2 font-bold text-sm capitalize">
-                      <span className="text-slate-400 text-xs">{abierto ? '▼' : '▶'}</span>
+                      <span className="text-mute text-xs">{abierto ? '▼' : '▶'}</span>
                       {mesLabel(mes)}
                     </span>
                     <div className="flex items-center gap-2 text-xs">
@@ -161,25 +196,25 @@ export default function Vendedores() {
                     </div>
                   </button>
                   {abierto && (
-                  <div className="divide-y divide-slate-100 border-t border-slate-100">
-                    {filas.map((f) => (
-                      <div
-                        key={f.vid}
-                        className="flex items-center justify-between gap-2 px-4 py-2.5"
-                      >
-                        <div className="min-w-0">
-                          <div className="font-semibold text-sm truncate">{f.nombre}</div>
-                          <div className="text-xs text-slate-400">
-                            {f.cant} {f.cant === 1 ? 'venta' : 'ventas'}
+                    <div className="divide-y divide-ink-600 border-t border-ink-600">
+                      {filas.map((f) => (
+                        <div
+                          key={f.vid}
+                          className="flex items-center justify-between gap-2 px-4 py-2.5"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-semibold text-sm truncate">{f.nombre}</div>
+                            <div className="text-xs text-mute">
+                              {f.cant} {f.cant === 1 ? 'venta' : 'ventas'}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0 text-sm">
+                            <span className="font-bold text-fono">{gs(f.total)}</span>
+                            <Badge color="green">Comisión {gs(f.com)}</Badge>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0 text-sm">
-                          <span className="font-bold text-fono">{gs(f.total)}</span>
-                          <Badge color="green">Comisión {gs(f.com)}</Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               )
@@ -193,8 +228,8 @@ export default function Vendedores() {
 
 function Mini({ label, valor }) {
   return (
-    <div className="text-center rounded-lg bg-slate-50 py-2">
-      <div className="text-[10px] font-bold uppercase text-slate-400">{label}</div>
+    <div className="text-center rounded-lg bg-ink-700 py-2">
+      <div className="text-[10px] font-bold uppercase text-mute">{label}</div>
       <div className="text-sm font-bold text-fono">{gs(valor)}</div>
     </div>
   )

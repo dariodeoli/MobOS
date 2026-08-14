@@ -4,22 +4,40 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Marca Fono Mobile
-        fono: {
-          DEFAULT: '#1A2768',
-          dark: '#0f1d52',
-          light: '#eef0f8',
-          accent: '#2355c0',
+        // ── Tema oscuro ────────────────────────────────────────────────
+        // Fondos: negro real → superficies elevadas
+        ink: {
+          DEFAULT: '#08090B', // fondo de la app
+          800: '#0E1013', // superficie base (cards)
+          700: '#15181D', // superficie elevada (hover, headers)
+          600: '#1D2127', // bordes suaves / inputs
+          500: '#2A2F37', // bordes
         },
-        ok: '#10B981',
+        // Azul difuminado de marca
+        fono: {
+          DEFAULT: '#2E6BFF',
+          dark: '#1B4ED8',
+          light: '#7BA4FF',
+          glow: '#3B82F6',
+          soft: 'rgba(46,107,255,.12)', // fondo tenue para chips/activos
+        },
+        ok: '#22C55E',
         bad: '#EF4444',
         warn: '#F59E0B',
+        // Texto
+        mute: '#8A93A3',
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
       },
       boxShadow: {
-        card: '0 4px 24px rgba(26,39,104,.08), 0 1px 3px rgba(0,0,0,.04)',
+        card: '0 1px 2px rgba(0,0,0,.4)',
+        glow: '0 0 40px -10px rgba(46,107,255,.45)',
+      },
+      backgroundImage: {
+        // Azul difuminado para encabezados y tarjetas destacadas
+        'blue-blur': 'radial-gradient(120% 140% at 0% 0%, #2E6BFF 0%, #1B3FA8 45%, #0E1013 100%)',
+        'blue-line': 'linear-gradient(90deg, #2E6BFF, #7BA4FF)',
       },
     },
   },

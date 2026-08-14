@@ -1,144 +1,234 @@
-import { useState } from 'react'
-import { listVentas, getVendedores, productosById } from '@/lib/storage'
-import {
-  totalesTienda,
-  semaforo,
-  ventasDelDia,
-  comisionDeVentas,
-  fechaClave,
-  num,
-  gs,
-} from '@/utils/calculos'
+import { useMemo, useState } from 'react'
+import { listVentas, getVendedores, productosById, listGastos } from '@/lib/storage'
+import { comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
-import { Card, Badge, Input, Button } from '@/components/ui'
+import RangoFechas, {
+  rangoPorDefecto,
+  rangoAnterior,
+  etiquetaRango,
+} from '@/components/shared/RangoFechas'
+import Icon from '@/components/shared/Icon'
+import MedioPago from '@/components/shared/MedioPago'
+import { Card, Badge, Dot, Stat } from '@/components/ui'
+import { cn } from '@/lib/utils'
 
-// 'YYYY-MM-DD' → 'DD/MM/YYYY'
-function fmtFecha(clave) {
-  const [y, m, d] = (clave || '').split('-')
-  return d && m && y ? `${d}/${m}/${y}` : clave
-}
+const enRango = (v, r) => v.fecha >= r.desde && v.fecha <= r.hasta
+const suma = (arr, f = (x) => num(x.precio)) => arr.reduce((a, x) => a + f(x), 0)
+const variacion = (hoy, antes) => (antes > 0 ? ((hoy - antes) / antes) * 100 : null)
 
 export default function Resumen() {
   const ventas = listVentas()
-  const [fecha, setFecha] = useState(fechaClave())
-  const esHoy = fecha === fechaClave()
-  const totalDia = ventasDelDia(ventas, fecha).reduce((a, v) => a + num(v.precio), 0)
-  const tienda = totalesTienda(ventas)
-  const sem = semaforo(tienda.hoy, tienda.ayer)
   const vendedores = getVendedores()
+  const gastos = listGastos()
   const prods = productosById()
-  const vendedoresById = Object.fromEntries(vendedores.map((v) => [v.id, v.nombre]))
+  const [rango, setRango] = useState(rangoPorDefecto)
 
-  const verde = sem.estado === 'verde'
-  const rojo = sem.estado === 'rojo'
+  const vendedoresById = useMemo(
+    () => Object.fromEntries(vendedores.map((v) => [v.id, v.nombre])),
+    [vendedores],
+  )
+
+  const d = useMemo(() => {
+    const prev = rangoAnterior(rango)
+    const act = ventas.filter((v) => enRango(v, rango))
+    const ant = ventas.filter((v) => enRango(v, prev))
+    const gastosR = gastos.filter((g) => enRango(g, rango))
+
+    const total = suma(act)
+    const totalAnt = suma(ant)
+    const comision = comisionDeVentas(act, prods)
+    const delivery = suma(act, (x) => num(x.montoDelivery))
+    const ticket = act.length ? total / act.length : 0
+    const ticketAnt = ant.length ? totalAnt / ant.length : 0
+
+    // Por vendedor
+    const porVend = {}
+    act.forEach((v) => {
+      const k = v.vendedorId || 'sin'
+      porVend[k] ??= { n: 0, total: 0, com: 0 }
+      porVend[k].n++
+      porVend[k].total += num(v.precio)
+      porVend[k].com += num(v.comision ?? prods[v.productoId]?.comision)
+    })
+    const ranking = Object.entries(porVend)
+      .map(([k, x]) => ({ id: k, nombre: vendedoresById[k] || 'Sin vendedor', ...x }))
+      .sort((a, b) => b.total - a.total)
+
+    // Por medio de pago
+    const porMedio = {}
+    act.forEach((v) => {
+      const k = v.medioPago || '—'
+      porMedio[k] = (porMedio[k] || 0) + num(v.precio)
+    })
+    const medios = Object.entries(porMedio)
+      .map(([medio, monto]) => ({ medio, monto, pct: total > 0 ? (monto / total) * 100 : 0 }))
+      .sort((a, b) => b.monto - a.monto)
+
+    // Serie diaria (para el mini-gráfico)
+    const porDia = {}
+    act.forEach((v) => (porDia[v.fecha] = (porDia[v.fecha] || 0) + num(v.precio)))
+    const serie = Object.entries(porDia).sort(([a], [b]) => a.localeCompare(b))
+
+    const pagadas = act.filter((v) => v.estadoPago === 'Pagado').length
+
+    return {
+      act,
+      total,
+      totalAnt,
+      comision,
+      delivery,
+      ticket,
+      ticketAnt,
+      ranking,
+      medios,
+      serie,
+      pagadas,
+      sinPagar: act.length - pagadas,
+      gastos: suma(gastosR, (x) => num(x.monto)),
+      prev,
+    }
+  }, [ventas, gastos, prods, rango, vendedoresById])
+
+  const maxSerie = Math.max(...d.serie.map(([, v]) => v), 1)
+  const maxVend = Math.max(...d.ranking.map((r) => r.total), 1)
 
   return (
-    <div className="space-y-4">
-      {/* Semáforo total de la tienda */}
-      <Card
-        className={
-          verde
-            ? 'bg-emerald-50 border-emerald-300'
-            : rojo
-              ? 'bg-red-50 border-red-300'
-              : 'bg-white'
-        }
-      >
-        <div className="flex items-center gap-3">
-          <div className="text-4xl">{verde ? '🟢' : rojo ? '🔴' : '⚪'}</div>
-          <div className="flex-1">
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              Tienda · hoy vs ayer
-            </div>
-            <div className="text-3xl font-extrabold tracking-tight">{gs(tienda.hoy)}</div>
-            <div className="text-sm text-slate-500">
-              {sem.meta > 0
-                ? verde
-                  ? `🎉 ¡Superaron la meta de ayer (${gs(sem.meta)})!`
-                  : `Faltan ${gs(sem.falta)} para igualar ayer (${gs(sem.meta)})`
-                : 'Sin referencia de ayer todavía'}
-            </div>
-          </div>
+    <div className="space-y-5">
+      {/* ── Encabezado + período ─────────────────────────────────── */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Resumen general</h1>
+          <p className="mt-0.5 text-sm text-mute">
+            {etiquetaRango(rango)} · comparado con el período anterior
+          </p>
         </div>
-      </Card>
-
-      {/* Totales */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          ['Hoy', tienda.hoy],
-          ['Esta semana', tienda.semana],
-          ['Este mes', tienda.mes],
-        ].map(([label, valor]) => (
-          <Card key={label} className="text-center">
-            <div className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              {label}
-            </div>
-            <div className="text-lg md:text-2xl font-extrabold text-fono mt-1">
-              {gs(valor)}
-            </div>
-          </Card>
-        ))}
+        <RangoFechas valor={rango} onChange={setRango} />
       </div>
 
-      {/* Selector de fecha: controla el resumen por vendedor y la lista de abajo */}
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">📅 Ver resumen del día:</span>
-            <Input
-              type="date"
-              value={fecha}
-              max={fechaClave()}
-              onChange={(e) => setFecha(e.target.value)}
-              className="w-auto h-9"
-            />
-            {!esHoy && (
-              <Button
-                variant="ghost"
-                className="h-9 px-3 text-xs"
-                onClick={() => setFecha(fechaClave())}
-              >
-                Hoy
-              </Button>
-            )}
-          </div>
-          <div className="text-sm text-slate-500">
-            Total del día: <span className="font-bold text-fono">{gs(totalDia)}</span>
-          </div>
-        </div>
-      </Card>
+      {/* ── Métricas ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat
+          destacado
+          label="Facturado"
+          valor={gs(d.total)}
+          delta={variacion(d.total, d.totalAnt)}
+          sub={`vs ${gs(d.totalAnt)}`}
+        />
+        <Stat
+          label="Ventas"
+          valor={d.act.length}
+          sub={`${d.pagadas} pagadas · ${d.sinPagar} pendientes`}
+        />
+        <Stat
+          label="Ticket promedio"
+          valor={gs(d.ticket)}
+          delta={variacion(d.ticket, d.ticketAnt)}
+        />
+        <Stat label="Comisiones" valor={gs(d.comision)} sub={`Delivery ${gs(d.delivery)}`} />
+      </div>
 
-      {/* Por vendedor (del día seleccionado) */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        {/* ── Evolución diaria ───────────────────────────────────── */}
+        <Card className="xl:col-span-2">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-medium">Evolución</h2>
+            <Badge color="blue">{d.serie.length} días con ventas</Badge>
+          </div>
+          {d.serie.length === 0 ? (
+            <div className="py-14 text-center text-sm text-mute">Sin ventas en este período</div>
+          ) : (
+            <div className="flex h-44 items-end gap-1.5">
+              {d.serie.map(([f, v]) => (
+                <div key={f} className="group relative flex flex-1 flex-col items-center gap-1.5">
+                  <div className="pointer-events-none absolute -top-8 z-10 hidden whitespace-nowrap rounded-md border border-ink-500 bg-ink px-2 py-1 text-xs group-hover:block">
+                    {gs(v)}
+                  </div>
+                  <div
+                    className="w-full rounded-t bg-blue-line opacity-80 transition group-hover:opacity-100"
+                    style={{ height: `${Math.max((v / maxSerie) * 100, 3)}%` }}
+                  />
+                  <span className="text-[10px] text-mute">{f.slice(8)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* ── Medios de pago ─────────────────────────────────────── */}
+        <Card>
+          <h2 className="mb-4 font-medium">Medios de pago</h2>
+          {d.medios.length === 0 ? (
+            <div className="py-14 text-center text-sm text-mute">Sin datos</div>
+          ) : (
+            <div className="space-y-3">
+              {d.medios.map((m) => (
+                <div key={m.medio}>
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <MedioPago medio={m.medio} alto="h-4" />
+                    <span className="text-sm font-medium">{gs(m.monto)}</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-ink-600">
+                    <div
+                      className="h-full rounded-full bg-blue-line"
+                      style={{ width: `${m.pct}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* ── Vendedores ───────────────────────────────────────────── */}
       <Card>
-        <h2 className="font-bold mb-3">
-          🧑‍💼 Por vendedor · {esHoy ? 'hoy' : fmtFecha(fecha)}
-        </h2>
-        <div className="space-y-2">
-          {vendedores.map((v) => {
-            const vventas = ventasDelDia(ventas, fecha, v.id)
-            const totalV = vventas.reduce((a, x) => a + num(x.precio), 0)
-            const com = comisionDeVentas(vventas, prods)
-            return (
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-medium">Rendimiento por vendedor</h2>
+          <span className="text-xs text-mute">{etiquetaRango(rango)}</span>
+        </div>
+        {d.ranking.length === 0 ? (
+          <div className="py-10 text-center text-sm text-mute">Sin ventas en este período</div>
+        ) : (
+          <div className="space-y-1">
+            {d.ranking.map((v, i) => (
               <div
                 key={v.id}
-                className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5"
+                className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition hover:bg-ink-700"
               >
-                <div className="flex items-center gap-2">
-                  <span>{totalV > 0 ? '🟢' : '⚪'}</span>
-                  <span className="font-semibold text-sm">{v.nombre}</span>
+                <span className="w-5 text-center text-xs font-medium text-mute">{i + 1}</span>
+                <Dot color={i === 0 ? 'green' : v.total > 0 ? 'blue' : 'slate'} />
+                <span className="w-32 shrink-0 truncate text-sm font-medium">{v.nombre}</span>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-600">
+                  <div
+                    className={cn('h-full rounded-full', i === 0 ? 'bg-ok' : 'bg-blue-line')}
+                    style={{ width: `${(v.total / maxVend) * 100}%` }}
+                  />
                 </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <span className="font-bold text-fono">{gs(totalV)}</span>
-                  <Badge color="blue">Comisión {gs(com)}</Badge>
-                </div>
+                <span className="w-10 text-right text-xs text-mute">{v.n}</span>
+                <span className="w-28 text-right text-sm font-semibold">{gs(v.total)}</span>
+                <span className="hidden w-28 text-right text-sm text-ok sm:block">{gs(v.com)}</span>
               </div>
-            )
-          })}
-        </div>
+            ))}
+            <div className="mt-2 flex items-center gap-3 border-t border-ink-600 px-2 pt-3 text-xs text-mute">
+              <span className="w-5" />
+              <span className="w-2" />
+              <span className="w-32 shrink-0">Total</span>
+              <span className="flex-1" />
+              <span className="w-10 text-right">{d.act.length}</span>
+              <span className="w-28 text-right font-semibold text-white">{gs(d.total)}</span>
+              <span className="hidden w-28 text-right text-ok sm:block">{gs(d.comision)}</span>
+            </div>
+          </div>
+        )}
       </Card>
 
-      {/* Ventas del día seleccionado */}
-      <ListaVentasDia fecha={fecha} mostrarVendedor vendedoresById={vendedoresById} />
+      {/* ── Detalle de ventas ────────────────────────────────────── */}
+      <ListaVentasDia
+        rango={rango}
+        mostrarVendedor
+        vendedoresById={vendedoresById}
+        titulo="Detalle de ventas"
+      />
     </div>
   )
 }
