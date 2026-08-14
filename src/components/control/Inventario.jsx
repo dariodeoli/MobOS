@@ -33,6 +33,15 @@ function FilaProducto({ p }) {
           />
         </label>
         <label className="block">
+          <span className="text-[10px] font-bold uppercase text-mute">Precio mayorista ₲</span>
+          <Input
+            inputMode="numeric"
+            defaultValue={p.precioMayorista || ''}
+            onBlur={set('precioMayorista')}
+            placeholder="0"
+          />
+        </label>
+        <label className="block">
           <span className="text-[10px] font-bold uppercase text-mute">Costo ₲</span>
           <Input
             inputMode="numeric"

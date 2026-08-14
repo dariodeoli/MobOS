@@ -145,6 +145,7 @@ function prod(nombre, categoria) {
     nombre,
     categoria,
     precioVenta: 0,
+    precioMayorista: 0,
     precioCosto: 0,
     comision: 0,
     stock: 0,
@@ -350,6 +351,8 @@ const TRADEIN_DEFAULT = {
 // ════════════════════════════════════════════════════════════════════
 const COLLECTIONS = [
   'productos',
+  'mayoristas',
+  'ventasMay',
   'vendedores',
   'ventas',
   'gastos',
@@ -374,6 +377,8 @@ function safeParse(raw) {
 
 const cache = {
   productos: [],
+  mayoristas: [],
+  ventasMay: [],
   vendedores: [],
   ventas: [],
   gastos: [],
@@ -994,6 +999,7 @@ export function addVenta(venta) {
     ...venta,
   }
   entUpsert('ventas', nueva)
+  moverStock(nueva.productoId, -1)
   logAuditoria('crear', nueva)
   return nueva
 }
@@ -1013,7 +1019,87 @@ export function updateVenta(id, cambios) {
 export function deleteVenta(id) {
   const v = cache.ventas.find((x) => x.id === id)
   entDelete('ventas', id)
+  if (v) moverStock(v.productoId, +1) // se repone lo que había salido
   logAuditoria('eliminar', v || { id })
+}
+
+// ── MAYORISTAS ──────────────────────────────────────────────────────
+// Mueve el stock de un producto. delta negativo = sale mercadería.
+// Lo usan tanto las ventas de mostrador como las mayoristas, para que el
+// inventario del sistema coincida con el físico.
+export function moverStock(productoId, delta) {
+  if (!productoId || !delta) return
+  const p = cache.productos.find((x) => x.id === productoId)
+  if (!p) return
+  entUpsert('productos', { ...p, stock: num(p.stock) + delta })
+}
+
+export function listMayoristas() {
+  return cache.mayoristas
+}
+export function addMayorista({ nombre, ruc = '', contacto = '', tel = '' }) {
+  const nuevo = {
+    id: 'may-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+    nombre: (nombre || '').trim(),
+    ruc,
+    contacto,
+    tel,
+    activo: true,
+    creadoEn: new Date().toISOString(),
+  }
+  entUpsert('mayoristas', nuevo)
+  return nuevo
+}
+export function updateMayorista(id, cambios) {
+  const actual = cache.mayoristas.find((m) => m.id === id)
+  if (actual) entUpsert('mayoristas', { ...actual, ...cambios })
+}
+export function deleteMayorista(id) {
+  entDelete('mayoristas', id)
+}
+
+export function listVentasMay() {
+  return cache.ventasMay
+}
+// Registra una venta mayorista con varias líneas y descuenta el stock de cada
+// producto por la cantidad vendida.
+export function addVentaMayorista({ mayoristaId, lineas, medioPago, estadoPago, observacion, fecha }) {
+  const items = (lineas || []).filter((l) => l.productoId && num(l.cantidad) > 0)
+  if (!mayoristaId || items.length === 0) return null
+  const nueva = {
+    id: 'vmay-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    codigo: 'MAY-' + String(cache.ventasMay.length + 1).padStart(4, '0'),
+    mayoristaId,
+    fecha: fecha || new Date().toISOString().slice(0, 10),
+    lineas: items.map((l) => {
+      const p = cache.productos.find((x) => x.id === l.productoId)
+      return {
+        productoId: l.productoId,
+        nombre: p?.nombre || 'Producto',
+        cantidad: num(l.cantidad),
+        precioUnit: num(l.precioUnit),
+        precioCosto: num(p?.precioCosto),
+      }
+    }),
+    medioPago: medioPago || MEDIOS_PAGO[0],
+    estadoPago: estadoPago || 'No pagado',
+    observacion: observacion || '',
+    creadoEn: new Date().toISOString(),
+  }
+  nueva.total = nueva.lineas.reduce((a, l) => a + l.cantidad * l.precioUnit, 0)
+  nueva.unidades = nueva.lineas.reduce((a, l) => a + l.cantidad, 0)
+  entUpsert('ventasMay', nueva)
+  nueva.lineas.forEach((l) => moverStock(l.productoId, -l.cantidad))
+  return nueva
+}
+export function updateVentaMay(id, cambios) {
+  const actual = cache.ventasMay.find((v) => v.id === id)
+  if (actual) entUpsert('ventasMay', { ...actual, ...cambios })
+}
+export function deleteVentaMay(id) {
+  const v = cache.ventasMay.find((x) => x.id === id)
+  entDelete('ventasMay', id)
+  if (v) (v.lineas || []).forEach((l) => moverStock(l.productoId, +num(l.cantidad)))
 }
 
 // ── GASTOS ──────────────────────────────────────────────────────────
