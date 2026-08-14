@@ -676,9 +676,9 @@ async function hydrate() {
 export async function horaServidorMs() {
   if (!SB_URL || !SB_KEY) return null
   try {
-    const res = await fetch(`${SB_URL}/rest/v1/`, {
-      method: 'HEAD',
-      headers: { apikey: SB_KEY },
+    // Consulta mínima: solo interesa el header `Date` de la respuesta.
+    const res = await fetch(`${SB_URL}/rest/v1/kv?select=key&limit=1`, {
+      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
     })
     const d = res.headers.get('date')
     return d ? new Date(d).getTime() : null

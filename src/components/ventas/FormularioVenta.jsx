@@ -14,6 +14,7 @@ import { agruparProductos } from '@/utils/colores'
 import { Button, Card, Input, Label, Select, Textarea, Badge } from '@/components/ui'
 import SelectorColor from './SelectorColor'
 import Icon from '@/components/shared/Icon'
+import SelectorMedioPago from '@/components/shared/SelectorMedioPago'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
 // en cada venta (suelen ser ráfagas de la misma persona).
@@ -481,13 +482,10 @@ export default function FormularioVenta({ onGuardado }) {
         {/* Medio de pago */}
         <div>
           <Label>Medio de pago</Label>
-          <Select value={f.medioPago} onChange={set('medioPago')}>
-            {MEDIOS_PAGO.map((x) => (
-              <option key={x} value={x}>
-                {x}
-              </option>
-            ))}
-          </Select>
+          <SelectorMedioPago
+            value={f.medioPago}
+            onChange={(v) => setF((s) => ({ ...s, medioPago: v }))}
+          />
         </div>
 
         {/* Entrega + monto envío */}

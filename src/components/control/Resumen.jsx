@@ -12,6 +12,34 @@ import MedioPago from '@/components/shared/MedioPago'
 import { Card, Badge, Dot, Stat } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
+// Métrica al estilo del tablero: rótulo, número grande, indicador de tendencia
+// y una línea de contexto abajo. Van en fila separadas por divisores.
+function Metrica({ label, valor, delta, sub, tono = 'blue' }) {
+  const sube = typeof delta === 'number' && delta >= 0
+  const barra = { blue: 'bg-fono', green: 'bg-ok', red: 'bg-bad' }[tono]
+  return (
+    <div className="border-b border-ink-600 p-5 last:border-b-0 lg:border-b-0">
+      <div className="text-sm text-mute">{label}</div>
+      <div className="mt-1.5 flex items-center gap-2.5">
+        <span className="text-2xl font-semibold tracking-tight">{valor}</span>
+        {typeof delta === 'number' ? (
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium',
+              sube ? 'bg-ok/15 text-ok' : 'bg-bad/15 text-bad',
+            )}
+          >
+            {sube ? '↑' : '↓'} {Math.abs(delta).toFixed(1)}%
+          </span>
+        ) : (
+          <span className={cn('h-0.5 w-4 rounded-full', barra)} />
+        )}
+      </div>
+      {sub && <div className="mt-1.5 text-xs text-mute">{sub}</div>}
+    </div>
+  )
+}
+
 const enRango = (v, r) => v.fecha >= r.desde && v.fecha <= r.hasta
 const suma = (arr, f = (x) => num(x.precio)) => arr.reduce((a, x) => a + f(x), 0)
 const variacion = (hoy, antes) => (antes > 0 ? ((hoy - antes) / antes) * 100 : null)
@@ -95,36 +123,42 @@ export default function Resumen() {
   return (
     <div className="space-y-5">
       {/* ── Encabezado + período ─────────────────────────────────── */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Resumen general</h1>
           <p className="mt-0.5 text-sm text-mute">
-            {etiquetaRango(rango)} · comparado con el período anterior
+            Acá ves el movimiento de la tienda en el período elegido.
           </p>
         </div>
         <RangoFechas valor={rango} onChange={setRango} />
       </div>
 
-      {/* ── Métricas ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat
-          destacado
+      {/* ── Métricas (fila con divisores) ────────────────────────── */}
+      <div className="grid grid-cols-2 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800 lg:grid-cols-4 lg:divide-x">
+        <Metrica
           label="Facturado"
           valor={gs(d.total)}
           delta={variacion(d.total, d.totalAnt)}
-          sub={`vs ${gs(d.totalAnt)}`}
+          sub={`Período anterior ${gs(d.totalAnt)}`}
         />
-        <Stat
+        <Metrica
           label="Ventas"
           valor={d.act.length}
+          tono="blue"
           sub={`${d.pagadas} pagadas · ${d.sinPagar} pendientes`}
         />
-        <Stat
+        <Metrica
           label="Ticket promedio"
           valor={gs(d.ticket)}
           delta={variacion(d.ticket, d.ticketAnt)}
+          sub={`Por venta en ${etiquetaRango(rango).toLowerCase()}`}
         />
-        <Stat label="Comisiones" valor={gs(d.comision)} sub={`Delivery ${gs(d.delivery)}`} />
+        <Metrica
+          label="Comisiones"
+          valor={gs(d.comision)}
+          tono="green"
+          sub={`Delivery ${gs(d.delivery)} · Gastos ${gs(d.gastos)}`}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">

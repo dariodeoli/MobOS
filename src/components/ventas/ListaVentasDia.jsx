@@ -29,6 +29,15 @@ const FILTROS = [
   ['envios', 'Envíos'],
 ]
 
+const POR_PAGINA = 12
+
+// Normaliza para buscar sin importar acentos ni mayúsculas.
+const norm = (s) =>
+  (s || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+
 export default function ListaVentasDia({
   vendedorId,
   mostrarVendedor = false,
@@ -41,6 +50,8 @@ export default function ListaVentasDia({
   const puedeBorrar = !!sesion?.esPropietario
   const prods = productosById()
   const [filtro, setFiltro] = useState('todas')
+  const [busqueda, setBusqueda] = useState('')
+  const [pagina, setPagina] = useState(1)
   const [confirmar, setConfirmar] = useState(null)
 
   const base = listVentas().filter((v) => {
@@ -48,19 +59,29 @@ export default function ListaVentasDia({
     return okFecha && (vendedorId == null || v.vendedorId === vendedorId)
   })
 
+  const nombreProd = (v) => v.productoNombre || prods[v.productoId]?.nombre || '—'
+  const q = norm(busqueda.trim())
+
   const ventas = base.filter((v) => {
-    if (filtro === 'pagadas') return v.estadoPago === 'Pagado'
-    if (filtro === 'pendientes') return v.estadoPago !== 'Pagado'
-    if (filtro === 'envios') return v.entrega === 'Delivery' || v.entrega === 'Encomienda'
-    return true
+    if (filtro === 'pagadas' && v.estadoPago !== 'Pagado') return false
+    if (filtro === 'pendientes' && v.estadoPago === 'Pagado') return false
+    if (filtro === 'envios' && v.entrega === 'Retiro en tienda') return false
+    if (!q) return true
+    return [v.cliente, nombreProd(v), vendedoresById[v.vendedorId], v.medioPago, v.observacion].some(
+      (c) => norm(c).includes(q),
+    )
   })
-  const grupos = agruparCompras(ventas)
   const total = ventas.reduce((a, v) => a + num(v.precio), 0)
+
+  // Paginación sobre compras (no sobre filas), para no cortar una compra al medio.
+  const todosGrupos = agruparCompras(ventas)
+  const paginas = Math.max(1, Math.ceil(todosGrupos.length / POR_PAGINA))
+  const pag = Math.min(pagina, paginas)
+  const grupos = todosGrupos.slice((pag - 1) * POR_PAGINA, pag * POR_PAGINA)
 
   const esHoy = !rango && fecha === fechaClave()
   const encabezado = titulo || (esHoy ? 'Ventas de hoy' : `Ventas del ${fmtLargo(fecha)}`)
 
-  const nombreProd = (v) => v.productoNombre || prods[v.productoId]?.nombre || '—'
   const cuenta = (k) =>
     k === 'todas'
       ? base.length
@@ -86,21 +107,46 @@ export default function ListaVentasDia({
         </div>
       </div>
 
-      {/* ── Filtros ──────────────────────────────────────────────── */}
-      <div className="flex gap-1 overflow-x-auto border-b border-ink-600 px-3 py-2.5">
-        {FILTROS.map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => setFiltro(k)}
-            className={cn(
-              'whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition',
-              filtro === k ? 'bg-ink-600 font-medium text-white' : 'text-mute hover:text-white',
-            )}
-          >
-            {label}
-            <span className="ml-1.5 text-xs text-mute">{cuenta(k)}</span>
-          </button>
-        ))}
+      {/* ── Búsqueda + filtros ───────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-ink-600 px-5 py-3">
+        <div className="relative min-w-[13rem] flex-1">
+          <Icon name="search" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
+          <input
+            value={busqueda}
+            onChange={(e) => {
+              setBusqueda(e.target.value)
+              setPagina(1)
+            }}
+            placeholder="Buscar por cliente, producto o vendedor…"
+            className="h-9 w-full rounded-lg border border-ink-500 bg-ink pl-9 pr-8 text-sm text-white outline-none transition focus:border-fono placeholder:text-mute/60"
+          />
+          {busqueda && (
+            <button
+              onClick={() => setBusqueda('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mute transition hover:text-white"
+            >
+              <Icon name="close" className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <div className="flex gap-1 overflow-x-auto">
+          {FILTROS.map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => {
+                setFiltro(k)
+                setPagina(1)
+              }}
+              className={cn(
+                'whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition',
+                filtro === k ? 'bg-ink-600 font-medium text-white' : 'text-mute hover:text-white',
+              )}
+            >
+              {label}
+              <span className="ml-1.5 text-xs text-mute">{cuenta(k)}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {ventas.length === 0 ? (
@@ -277,6 +323,50 @@ export default function ListaVentasDia({
               </tbody>
             </table>
           </div>
+
+          {/* ── Paginación ─────────────────────────────────────────── */}
+          {paginas > 1 && (
+            <div className="flex items-center justify-between gap-3 border-t border-ink-600 px-5 py-3">
+              <button
+                onClick={() => setPagina(pag - 1)}
+                disabled={pag <= 1}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-sm transition hover:border-fono disabled:opacity-30 disabled:hover:border-ink-500"
+              >
+                <Icon name="back" className="h-4 w-4" />
+                Anterior
+              </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: paginas }, (_, i) => i + 1)
+                  .filter((n) => n === 1 || n === paginas || Math.abs(n - pag) <= 1)
+                  .map((n, i, arr) => (
+                    <span key={n} className="flex items-center gap-1">
+                      {i > 0 && arr[i - 1] !== n - 1 && <span className="px-1 text-mute">…</span>}
+                      <button
+                        onClick={() => setPagina(n)}
+                        className={cn(
+                          'h-8 min-w-8 rounded-lg px-2 text-sm transition',
+                          n === pag
+                            ? 'bg-fono/20 font-medium text-white ring-1 ring-fono/40'
+                            : 'text-mute hover:bg-ink-700 hover:text-white',
+                        )}
+                      >
+                        {n}
+                      </button>
+                    </span>
+                  ))}
+              </div>
+
+              <button
+                onClick={() => setPagina(pag + 1)}
+                disabled={pag >= paginas}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-sm transition hover:border-fono disabled:opacity-30 disabled:hover:border-ink-500"
+              >
+                Siguiente
+                <Icon name="back" className="h-4 w-4 rotate-180" />
+              </button>
+            </div>
+          )}
         </>
       )}
 
