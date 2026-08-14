@@ -86,7 +86,7 @@ export function Label({ className, ...props }) {
 // ── Card ────────────────────────────────────────────────────────────
 export function Card({ className, ...props }) {
   return (
-    <div className={cn('rounded-xl border border-ink-600 bg-ink-800 p-5', className)} {...props} />
+    <div className={cn('rounded-xl border border-fono/30 bg-ink-800 p-5', className)} {...props} />
   )
 }
 

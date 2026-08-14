@@ -173,7 +173,7 @@ export default function Resumen() {
           ) : (
             <div className="flex h-44 items-end gap-1.5">
               {d.serie.map(([f, v]) => (
-                <div key={f} className="group relative flex flex-1 flex-col items-center gap-1.5">
+                <div key={f} className="group relative flex h-full flex-1 flex-col items-center justify-end gap-1.5">
                   <div className="pointer-events-none absolute -top-8 z-10 hidden whitespace-nowrap rounded-md border border-ink-500 bg-ink px-2 py-1 text-xs group-hover:block">
                     {gs(v)}
                   </div>

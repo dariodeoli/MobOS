@@ -4,9 +4,10 @@ import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import { useReloj } from '@/hooks/useReloj'
-import { vendedoresById } from '@/lib/storage'
-import { fechaClave } from '@/utils/calculos'
+import { vendedoresById, listVentas } from '@/lib/storage'
+import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
 import ResumenWidgets from '@/components/ventas/ResumenWidgets'
+import ResumenDia from '@/components/ventas/ResumenDia'
 import DeliveryHoy from '@/components/ventas/DeliveryHoy'
 import FormularioVenta from '@/components/ventas/FormularioVenta'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
@@ -20,6 +21,11 @@ const NAV = [
   { to: '/tradein', label: 'Trade-In', icon: 'refresh' },
 ]
 
+const TABS = [
+  ['cargar', 'Cargar venta', 'receipt'],
+  ['resumen', 'Resumen del día', 'chart'],
+]
+
 export default function PanelVendedor() {
   useLive()
   useAutoRefrescar()
@@ -27,6 +33,7 @@ export default function PanelVendedor() {
   const { sesion, salir, setPropietario } = useSesion()
   const navigate = useNavigate()
   const [pidiendoClave, setPidiendoClave] = useState(false)
+  const [tab, setTab] = useState('cargar')
   const vendsById = vendedoresById()
 
   function abrirControl() {
@@ -34,7 +41,8 @@ export default function PanelVendedor() {
     else setPidiendoClave(true)
   }
 
-  const hoy = fechaClave().split('-').reverse().join('/')
+  const hoy = fechaClave()
+  const totalHoy = ventasDelDia(listVentas(), hoy).reduce((a, v) => a + num(v.precio), 0)
 
   return (
     <div className="min-h-dvh bg-ink text-white">
@@ -43,7 +51,9 @@ export default function PanelVendedor() {
         <div className="flex h-16 items-center justify-between gap-3 px-4 md:px-6">
           <div className="flex items-center gap-3">
             <img src="/logo-dark.svg" alt="Fono" className="h-5" />
-            <span className="hidden text-sm text-mute md:inline">{hoy}</span>
+            <span className="hidden text-sm text-mute md:inline">
+              {hoy.split('-').reverse().join('/')}
+            </span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -77,30 +87,60 @@ export default function PanelVendedor() {
             </button>
           </div>
         </div>
+
+        {/* ── Pestañas ───────────────────────────────────────────── */}
+        <div className="flex items-center justify-between gap-3 px-4 md:px-6">
+          <div className="flex gap-1">
+            {TABS.map(([k, label, ico]) => (
+              <button
+                key={k}
+                onClick={() => setTab(k)}
+                className={cn(
+                  'inline-flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm transition',
+                  tab === k
+                    ? 'border-fono font-medium text-white'
+                    : 'border-transparent text-mute hover:text-white',
+                )}
+              >
+                <Icon name={ico} className="h-4 w-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="hidden items-center gap-2 pb-1 text-sm sm:flex">
+            <span className="text-mute">Hoy</span>
+            <span className="font-semibold">{gs(totalHoy)}</span>
+          </div>
+        </div>
       </header>
 
       {desfaseHoras > 0 && (
         <div className="flex items-center justify-center gap-2 bg-bad px-4 py-2.5 text-center text-sm font-medium">
           <Icon name="alert" className="h-4 w-4" />
-          La fecha de este equipo está desfasada ~{desfaseHoras} h. Corregila antes de cargar
-          ventas.
+          La fecha de este equipo está desfasada ~{desfaseHoras} h. Corregila antes de cargar ventas.
         </div>
       )}
 
       {/* ── Contenido ────────────────────────────────────────────── */}
-      <main className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2 xl:grid-cols-12 md:p-6">
-        <div className="space-y-4 xl:col-span-3">
-          <ResumenWidgets vendedorId={null} />
-          <DeliveryHoy />
-        </div>
-
-        <div className="xl:col-span-4">
-          <FormularioVenta />
-        </div>
-
-        <div className="lg:col-span-2 xl:col-span-5">
-          <ListaVentasDia vendedorId={null} mostrarVendedor vendedoresById={vendsById} />
-        </div>
+      <main className="p-4 md:p-6">
+        {tab === 'cargar' ? (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-12">
+            <div className="space-y-4 xl:col-span-3">
+              <ResumenWidgets vendedorId={null} />
+              <DeliveryHoy />
+            </div>
+            <div className="xl:col-span-4">
+              <FormularioVenta />
+            </div>
+            <div className="lg:col-span-2 xl:col-span-5">
+              <ListaVentasDia vendedorId={null} mostrarVendedor vendedoresById={vendsById} />
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto max-w-6xl">
+            <ResumenDia />
+          </div>
+        )}
       </main>
 
       {pidiendoClave && (
