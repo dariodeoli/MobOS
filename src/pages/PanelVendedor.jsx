@@ -8,6 +8,7 @@ import { vendedoresById, listVentas, getVendedores } from '@/lib/storage'
 import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
 import PanelDia from '@/components/ventas/PanelDia'
 import Mayoristas from '@/components/ventas/Mayoristas'
+import ControlResumen from '@/components/ventas/ControlResumen'
 import ResumenDia from '@/components/ventas/ResumenDia'
 import ResumenWidgets from '@/components/ventas/ResumenWidgets'
 import DeliveryHoy from '@/components/ventas/DeliveryHoy'
@@ -29,6 +30,10 @@ const NAV = [
     ],
   },
   {
+    titulo: 'Equipo',
+    items: [['control', 'Centro de control', 'users']],
+  },
+  {
     titulo: 'Herramientas',
     items: [
       ['precios', 'Lista de precios', 'phone'],
@@ -40,6 +45,7 @@ const NAV = [
 
 const LABELS = {
   cargar: 'Cargar venta',
+  control: 'Centro de control',
   mayorista: 'Mayoristas',
   panel: 'Panel del día',
   resumen: 'Resumen del día',
@@ -65,7 +71,11 @@ export default function PanelVendedor() {
   }
 
   function ir(id) {
-    if (RUTAS[id]) navigate(RUTAS[id])
+    if (id === 'control') {
+      if (sesion.esPropietario) setVista('control')
+      else setPidiendoClave(true)
+    }
+    else if (RUTAS[id]) navigate(RUTAS[id])
     else setVista(id)
     setMenuAbierto(false)
   }
@@ -225,6 +235,13 @@ export default function PanelVendedor() {
 
           {vista === 'mayorista' && <Mayoristas />}
 
+          {vista === 'control' &&
+            (sesion.esPropietario ? (
+              <ControlResumen onAbrirPanel={() => navigate('/control')} />
+            ) : (
+              <p className="py-10 text-center text-sm text-mute">Acceso solo para el dueño.</p>
+            ))}
+
           {vista === 'panel' && <PanelDia vendedoresById={vendsById} />}
 
           {vista === 'resumen' && (
@@ -241,7 +258,7 @@ export default function PanelVendedor() {
           onOk={() => {
             setPidiendoClave(false)
             setPropietario(true)
-            navigate('/control')
+            setVista('control')
           }}
         />
       )}
