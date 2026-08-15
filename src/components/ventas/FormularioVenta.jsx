@@ -38,7 +38,7 @@ const VACIO = (vendedorId) => ({
   observacion: '',
 })
 
-export default function FormularioVenta({ onGuardado }) {
+export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito = false }) {
   const productos = getProductos().filter((p) => p.activo)
   const familias = agruparProductos(productos)
   const vendedores = getVendedores().filter((v) => v.activo)
@@ -98,6 +98,17 @@ export default function FormularioVenta({ onGuardado }) {
   const precioActual = f.productoId && gsNum(f.precio) > 0 ? gsNum(f.precio) : 0
   const totalGeneral = totalCarrito + precioActual
   const cantTotal = items.length + (precioActual > 0 ? 1 : 0)
+
+  // Informa al contenedor lo que lleva esta compra, para pintarlo en el lateral.
+  useEffect(() => {
+    if (!onCarrito) return
+    const actual =
+      f.productoId && gsNum(f.precio) > 0
+        ? [{ key: '__actual__', nombre: nombreDe(f.productoId), precio: gsNum(f.precio) }]
+        : []
+    onCarrito({ items: [...items, ...actual], quitar: quitarItem })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, f.productoId, f.precio])
 
   // Lo que muestra el <Select>: la familia (si hay color elegido) o el id directo.
   const valorSelect = familiaActiva ? 'fam:' + familiaActiva.base : f.productoId
@@ -249,7 +260,12 @@ export default function FormularioVenta({ onGuardado }) {
           <span className="text-xl">
             <Icon name="receipt" className="h-4 w-4" />
           </span>
-          <h2 className="font-bold">Cargar venta</h2>
+          <div>
+            <h2 className="font-bold">Cargar venta</h2>
+            <p className="mt-0.5 text-xs text-mute">
+              Los campos obligatorios son vendedor, cliente y al menos un producto
+            </p>
+          </div>
         </div>
         <span className="text-xs font-semibold text-mute">
           Hoy: {fechaClave().split('-').reverse().join('/')}
@@ -430,7 +446,7 @@ export default function FormularioVenta({ onGuardado }) {
         </div>
 
         {/* Carrito: productos agregados al mismo cliente */}
-        {items.length > 0 && (
+        {!ocultarCarrito && items.length > 0 && (
           <div className="md:col-span-2 rounded-xl border border-ink-600 divide-y divide-ink-600">
             {items.map((it) => (
               <div key={it.key} className="flex items-center justify-between gap-2 px-3 py-1.5">

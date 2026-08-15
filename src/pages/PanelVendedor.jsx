@@ -8,6 +8,7 @@ import { vendedoresById, listVentas, getVendedores } from '@/lib/storage'
 import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
 import PanelDia from '@/components/ventas/PanelDia'
 import Mayoristas from '@/components/ventas/Mayoristas'
+import VistaCargarVenta from '@/components/ventas/VistaCargarVenta'
 import ControlResumen from '@/components/ventas/ControlResumen'
 import ResumenDia from '@/components/ventas/ResumenDia'
 import ResumenWidgets from '@/components/ventas/ResumenWidgets'
@@ -85,7 +86,9 @@ export default function PanelVendedor() {
   const totalHoy = delDia.reduce((a, v) => a + num(v.precio), 0)
   const activos = new Set(delDia.map((v) => v.vendedorId).filter(Boolean)).size
   const [y, m, dd] = hoy.split('-')
-  const fechaLarga = `${Number(dd)} de ${MESES[Number(m) - 1]} de ${y}`
+  const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+  const diaSem = DIAS[new Date(`${hoy}T12:00:00`).getDay()]
+  const fechaLarga = `${diaSem}, ${Number(dd)} de ${MESES[Number(m) - 1]}`
 
   return (
     <div className="flex min-h-dvh bg-ink text-sm text-white">
@@ -218,20 +221,7 @@ export default function PanelVendedor() {
         )}
 
         <main className="flex-1 p-4 md:p-6">
-          {vista === 'cargar' && (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-12">
-              <div className="space-y-4 xl:col-span-3">
-                <ResumenWidgets vendedorId={null} />
-                <DeliveryHoy />
-              </div>
-              <div className="xl:col-span-4">
-                <FormularioVenta />
-              </div>
-              <div className="lg:col-span-2 xl:col-span-5">
-                <ListaVentasDia vendedorId={null} mostrarVendedor vendedoresById={vendsById} />
-              </div>
-            </div>
-          )}
+          {vista === 'cargar' && <VistaCargarVenta vendedoresById={vendsById} />}
 
           {vista === 'mayorista' && <Mayoristas />}
 
