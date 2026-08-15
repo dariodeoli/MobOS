@@ -1,9 +1,7 @@
 -- Cron: envía el resumen diario por correo todas las noches a las 21:00 de Paraguay.
 -- Paraguay es UTC-3, así que 21:00 local = 00:00 UTC del día siguiente.
 --
--- Ejecutar UNA vez en el SQL Editor de Supabase. Reemplazá antes:
---   <PROJECT_REF>  → la referencia de tu proyecto (el xxxx de https://xxxx.supabase.co)
---   <ANON_KEY>     → tu clave publishable (la misma del .env del frontend)
+-- Ya tiene tus datos cargados: copiá todo y ejecutalo en el SQL Editor de Supabase.
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
@@ -17,9 +15,9 @@ select cron.schedule(
   '0 0 * * *',          -- 00:00 UTC = 21:00 Paraguay
   $$
   select net.http_post(
-    url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/resumen-diario',
+    url     := 'https://aicmzezndcznrivseeno.supabase.co/functions/v1/resumen-diario',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer <ANON_KEY>',
+      'Authorization', 'Bearer sb_publishable_JioGO0l2jULYOKiu22mzeA_dZAAevcd',
       'Content-Type', 'application/json'
     ),
     body    := '{}'::jsonb

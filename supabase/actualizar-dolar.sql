@@ -2,9 +2,7 @@
 -- Llama a la Edge Function `actualizar-dolar`, que lee Cambios Chaco y guarda el
 -- valor en la tabla kv. Corre en el servidor aunque nadie tenga la app abierta.
 --
--- Ejecutar UNA vez en el SQL Editor de Supabase. Reemplazá:
---   <PROJECT_REF>  → la referencia de tu proyecto (xxxx en https://xxxx.supabase.co)
---   <ANON_KEY>     → tu clave anónima/publishable (la misma del frontend, .env)
+-- Ya tiene tus datos cargados: copiá todo y ejecutalo en el SQL Editor de Supabase.
 
 -- 1) Habilitar las extensiones necesarias (idempotente).
 create extension if not exists pg_cron;
@@ -20,9 +18,9 @@ select cron.schedule(
   '0 */4 * * *',
   $$
   select net.http_post(
-    url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/actualizar-dolar',
+    url     := 'https://aicmzezndcznrivseeno.supabase.co/functions/v1/actualizar-dolar',
     headers := jsonb_build_object(
-      'Authorization', 'Bearer <ANON_KEY>',
+      'Authorization', 'Bearer sb_publishable_JioGO0l2jULYOKiu22mzeA_dZAAevcd',
       'Content-Type', 'application/json'
     ),
     body    := '{}'::jsonb
