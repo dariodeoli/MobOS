@@ -7,6 +7,11 @@ import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 
 const POR_PAGINA = 8
+// 'YYYY-MM-DD' -> 'DD/MM/YY'
+const fmtFecha = (f) => {
+  const [y, m, d] = (f || '').split('-')
+  return d ? `${d}/${m}/${y.slice(2)}` : '—'
+}
 const inicial = (s) => (s || '?').trim().charAt(0).toUpperCase()
 
 function Caja({ className, children }) {
@@ -75,6 +80,7 @@ export default function VistaCargarVenta({ vendedoresById = {} }) {
                   <thead>
                     <tr className="border-b border-ink-600 text-left text-xs font-medium text-mute">
                       <th className="px-5 py-3">N° venta</th>
+                      <th className="px-5 py-3">Fecha</th>
                       <th className="px-5 py-3">Cliente</th>
                       <th className="px-5 py-3">Producto</th>
                       <th className="px-5 py-3 text-right">Precio</th>
@@ -93,6 +99,17 @@ export default function VistaCargarVenta({ vendedoresById = {} }) {
                         >
                           <td className="px-5 py-3 font-medium text-fono-light">
                             VTA-{d.nro[v.id]}
+                          </td>
+                          <td className="whitespace-nowrap px-5 py-3 text-mute">
+                            <div className="tabular-nums">{fmtFecha(v.fecha)}</div>
+                            {v.creadoEn && (
+                              <div className="text-[11px] text-mute/70">
+                                {new Date(v.creadoEn).toLocaleTimeString('es-PY', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </div>
+                            )}
                           </td>
                           <td className="px-5 py-3">
                             <div className="flex items-center gap-2.5">
