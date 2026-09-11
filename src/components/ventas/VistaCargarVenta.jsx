@@ -141,7 +141,7 @@ export default function VistaCargarVenta({ vendedoresById = {} }) {
                                   pagado ? 'bg-ok' : 'bg-bad',
                                 )}
                               />
-                              {pagado ? 'Pagado' : 'No pagado'}
+                              {pagado ? 'Pagado' : v.estadoPago === 'Parcial' ? `Parcial · ${gs(v.totalPendiente)} pendiente` : 'Pendiente'}
                             </span>
                           </td>
                           <td className="px-5 py-3 text-mute">
