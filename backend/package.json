@@ -10,13 +10,16 @@
     "prisma:generate": "prisma generate --schema prisma/schema.prisma"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.6.0",
     "next": "14.2.35",
+    "pg": "^8.23.0",
     "react": "^18",
     "react-dom": "^18"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "prisma": "^7.6.0",

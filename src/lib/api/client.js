@@ -2,6 +2,7 @@ import { ApiError } from './errors'
 
 const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
 const TOKEN_KEY = 'owncoding_hub_access_token'
+const TENANT_KEY = 'mobos_tenant_id'
 
 function readToken() {
   try {
@@ -9,6 +10,10 @@ function readToken() {
   } catch {
     return null
   }
+}
+
+function readTenant() {
+  try { return localStorage.getItem(TENANT_KEY) || import.meta.env.VITE_TENANT_ID || null } catch { return import.meta.env.VITE_TENANT_ID || null }
 }
 
 async function readBody(response) {
@@ -26,6 +31,7 @@ export async function request(path, options = {}) {
 
   const { body, headers, ...init } = options
   const token = readToken()
+  const tenant = readTenant()
   let response
   try {
     response = await fetch(`${API_URL}/${String(path).replace(/^\//, '')}`, {
@@ -34,6 +40,7 @@ export async function request(path, options = {}) {
         Accept: 'application/json',
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(tenant ? { 'x-tenant-id': tenant } : {}),
         ...headers,
       },
       body: body === undefined || typeof body === 'string' ? body : JSON.stringify(body),

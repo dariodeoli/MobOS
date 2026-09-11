@@ -1,0 +1,4 @@
+import { prisma } from '../../../lib/prisma'
+import { error, json, tenantId } from '../../../lib/http'
+export async function GET(request: Request) { const tenant = tenantId(request); if (!tenant) return error('Falta x-tenant-id.', 401); return json(await prisma.user.findMany({ where: { tenantId: tenant }, select: { id: true, name: true, email: true, role: true, status: true, branchId: true, createdAt: true }, orderBy: { name: 'asc' } })) }
+export async function POST(request: Request) { const tenant = tenantId(request); if (!tenant) return error('Falta x-tenant-id.', 401); const b = await request.json(); if (!b.name || !b.pinHash) return error('Nombre y PIN son obligatorios.'); return json(await prisma.user.create({ data: { tenantId: tenant, name: b.name, email: b.email, pinHash: b.pinHash, role: b.role || 'VENDEDOR', branchId: b.branchId } }), { status: 201 }) }
