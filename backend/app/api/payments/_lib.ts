@@ -8,8 +8,11 @@ export const PROOF_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'appli
 export const RECONCILIATION_ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
 
 export class ProofValidationError extends Error {
-  constructor(public readonly status: 400 | 413 | 415, message: string) {
+  public readonly status: 400 | 413 | 415
+
+  constructor(status: 400 | 413 | 415, message: string) {
     super(message)
+    this.status = status
   }
 }
 

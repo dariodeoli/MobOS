@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-// @ts-expect-error Node's native TypeScript runner requires the .ts extension.
-import { MAX_PROOF_SIZE_BYTES, normalizeReconciliationNote, readProofFile, safeDownloadName } from '../app/api/payments/_lib.ts'
+import { MAX_PROOF_SIZE_BYTES, normalizeReconciliationNote, readProofFile, safeDownloadName } from '../app/api/payments/_lib'
 
 function pdfFile(name = 'comprobante.pdf') {
   return new File([Uint8Array.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37])], name, { type: 'application/pdf' })
