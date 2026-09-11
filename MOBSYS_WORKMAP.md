@@ -267,6 +267,22 @@ Salida: el sistema recomienda qué comprar, a quién contactar y qué margen cor
 
 ## 5. Modelo de datos definitivo
 
+### Infraestructura de persistencia
+
+MobOS no usará Supabase como base principal. La persistencia productiva se alojará en
+OwnCoding Hub, siguiendo el patrón ya operativo de miBilletera:
+
+- PostgreSQL administrado dentro del proyecto de OwnCoding Hub.
+- Backend propio desplegado en Hub (API y autenticación del lado servidor).
+- Prisma como capa de datos y migraciones versionadas.
+- El frontend no se conecta directamente a PostgreSQL ni guarda operaciones sensibles
+  en `localStorage`.
+- `DATABASE_URL`, secretos de autenticación y claves internas quedan únicamente en
+  variables privadas del backend de Hub.
+
+La carpeta `supabase/` se conserva solo como referencia histórica hasta completar la
+migración; no debe recibir nuevas funcionalidades ni considerarse la fuente de verdad.
+
 ```text
 organization
  ├── branches
