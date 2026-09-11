@@ -9,6 +9,7 @@ import Celulares from '@/pages/Celulares'
 import Comparador from '@/pages/Comparador'
 import TradeIn from '@/pages/TradeIn'
 import { APP_CREDIT, APP_CREDIT_URL, APP_VERSION } from '@/lib/brand'
+import Landing from '@/pages/Landing'
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -83,6 +84,8 @@ function AppFooter() {
 }
 
 export default function App() {
+  const host = typeof window !== 'undefined' ? window.location.hostname : ''
+  if (host === 'controlaria.online' || host === 'www.controlaria.online') return <Landing />
   return (
     <SesionProvider>
       <Routes>
