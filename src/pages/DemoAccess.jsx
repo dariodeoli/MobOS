@@ -6,13 +6,13 @@ import { useSesion } from '@/lib/sesion'
 const demoProfiles = [
   {
     name: 'Vendedor',
-    pin: '2580',
+    pin: '2001',
     description: 'Operá ventas y clientes desde la sucursal asignada.',
     permissions: 'Ventas, productos, stock disponible y seguimiento de clientes.',
   },
   {
     name: 'Dueño',
-    pin: '1234',
+    pin: '3001',
     description: 'Revisá la operación completa de tu tienda demo.',
     permissions: 'Panel general, ventas, stock, caja, compras, garantías y usuarios.',
   },
@@ -34,13 +34,13 @@ export default function DemoAccess() {
     if (pin.length !== 4 || checking.current) return
 
     if (!demoProfiles.some((profile) => profile.pin === pin)) {
-      setError('PIN incorrecto. Probá 2580 para Vendedor o 1234 para Dueño.')
+      setError('PIN incorrecto. Probá 2001 para Vendedor o 3001 para Dueño.')
       return
     }
 
     checking.current = true
     setBusy(true)
-    entrarDemo(pin === '1234' ? 'ADMIN' : 'VENDEDOR')
+    entrarDemo(pin === '3001' ? 'ADMIN' : 'VENDEDOR')
       .then(() => navigate('/', { replace: true }))
       .catch(() => {
         setError('No pudimos abrir la demo. Intentá nuevamente.')
