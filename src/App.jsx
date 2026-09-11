@@ -10,6 +10,7 @@ import Comparador from '@/pages/Comparador'
 import TradeIn from '@/pages/TradeIn'
 import { APP_CREDIT, APP_CREDIT_URL, APP_VERSION } from '@/lib/brand'
 import Landing from '@/pages/Landing'
+import Demo from '@/pages/Demo'
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -89,6 +90,7 @@ export default function App() {
   return (
     <SesionProvider>
       <Routes>
+        <Route path="/demo" element={<Demo />} />
         <Route path="/login" element={<SoloFuera />} />
         <Route
           path="/"

@@ -85,7 +85,7 @@ export default function Login() {
 
   return (
     <div className="glow-blue relative flex min-h-dvh flex-col items-center justify-center bg-ink p-5 pt-safe pb-safe">
-      <img src="/logo-dark.svg" alt="Fono" className="mb-2 w-44" />
+      <img src="/logo-dark.svg" alt="MobOS" className="mb-2 w-44" />
       <p className="mb-8 text-sm text-mute">Sistema de ventas para tiendas</p>
 
       <Card className="w-full max-w-md">
@@ -188,7 +188,7 @@ export default function Login() {
         </form>
       </Card>
 
-      <p className="mt-6 text-xs text-mute/60">Fono · v0.2</p>
+      <p className="mt-6 text-xs text-mute/60">MobOS 0.2</p>
     </div>
   )
 }

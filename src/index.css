@@ -59,7 +59,7 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
     padding-right: env(safe-area-inset-right);
   }
 
-  /* Halo azul difuminado detrás de un bloque destacado */
+  /* Halo verde MobOS detrás de un bloque destacado */
   .glow-blue {
     position: relative;
   }
@@ -68,7 +68,7 @@ input[type='date']::-webkit-calendar-picker-indicator:hover {
     position: absolute;
     inset: -40% -20% auto -20%;
     height: 180px;
-    background: radial-gradient(60% 100% at 50% 0%, rgba(46, 107, 255, 0.35), transparent 70%);
+    background: radial-gradient(60% 100% at 50% 0%, rgba(21, 215, 184, 0.35), transparent 70%);
     pointer-events: none;
     filter: blur(28px);
   }
