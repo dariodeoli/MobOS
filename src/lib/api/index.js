@@ -10,3 +10,7 @@ export const resources = {
   payments: { create: data => api.post('/api/payments', data) },
   users: { list: () => api.get('/api/users'), create: data => api.post('/api/users', data) },
 }
+
+export const authApi = {
+  pin: (pin) => api.post('/api/auth/pin', { pin }),
+}
