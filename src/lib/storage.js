@@ -10,22 +10,15 @@
 // Nadie más debe tocar localStorage ni Supabase directamente.
 // ════════════════════════════════════════════════════════════════════
 
-import { createClient } from '@supabase/supabase-js'
 import { num } from '@/utils/calculos'
 import { APP_NAME } from '@/lib/brand'
+import { api } from '@/lib/api'
+import { isDemoRuntime } from './demoMode'
 
-// ── Cliente Supabase (opcional) ─────────────────────────────────────
-const SB_URL = import.meta.env.VITE_SUPABASE_URL
-const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-export const supabase =
-  SB_URL && SB_KEY
-    ? createClient(SB_URL, SB_KEY, {
-        // Multiempresa: la sesión tiene que sobrevivir al refresco, porque es
-        // lo que decide qué datos puede leer este navegador.
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
-        realtime: { params: { eventsPerSecond: 5 } },
-      })
-    : null
+// La persistencia real del frontend usa OwnCoding Hub. Se conserva este
+// export por compatibilidad con consumidores legacy, pero ya no existe un
+// cliente Supabase en esta capa.
+export const supabase = null
 
 export const ESTADOS_CELULAR = ['Nuevo', 'Seminuevo']
 
@@ -376,6 +369,9 @@ const COMPARTIDAS = new Set(['productos', 'celulares', 'comparadorImg'])
 // Lo setea setContexto() después del login. Sin empresa, la capa de datos
 // queda inerte: no lee ni escribe nada.
 const ctx = { empresaId: null, sucursalId: null, userId: null, rol: null }
+let fuenteDatos = 'legacy'
+export const modoDatosActual = () => fuenteDatos
+const apiMode = () => fuenteDatos === 'api'
 export const contextoActual = () => ({ ...ctx })
 export const hayContexto = () => Boolean(ctx.empresaId)
 
@@ -437,7 +433,7 @@ function bootFromMirror() {
 }
 
 function persistMirror() {
-  if (!ctx.empresaId) return
+  if (!ctx.empresaId || apiMode()) return
   try {
     localStorage.setItem(mirrorKey(), JSON.stringify(cache))
   } catch {
@@ -464,7 +460,7 @@ function notify() {
 // Sync entre pestañas del mismo dispositivo (incluso sin Supabase).
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
-    if (e.key === MIRROR) {
+    if (ctx.empresaId && e.key === mirrorKey()) {
       const m = safeParse(e.newValue)
       if (m && typeof m === 'object') {
         Object.assign(cache, m)
@@ -630,22 +626,25 @@ function remoteUpsertKv(key, value) {
 
 // Mutaciones locales optimistas (cache + espejo + notify) y luego remoto.
 function entUpsert(collection, obj) {
+  if (apiMode()) throw new Error(`La mutación legacy de ${collection} no está disponible en modo API.`)
   const arr = cache[collection]
   const i = arr.findIndex((o) => o.id === obj.id)
-  if (i >= 0) arr[i] = obj
-  else if (FEEDS.has(collection)) arr.unshift(obj)
-  else arr.push(obj)
+  if (i >= 0) cache[collection] = arr.map((item, index) => index === i ? obj : item)
+  else if (FEEDS.has(collection)) cache[collection] = [obj, ...arr]
+  else cache[collection] = [...arr, obj]
   persistMirror()
   notify()
   remoteUpsertEnt(collection, obj)
 }
 function entDelete(collection, id) {
+  if (apiMode()) throw new Error(`La eliminación legacy de ${collection} no está disponible en modo API.`)
   cache[collection] = cache[collection].filter((o) => o.id !== id)
   persistMirror()
   notify()
   remoteDeleteEnt(collection, id)
 }
 function kvSet(key, value) {
+  if (apiMode()) throw new Error(`La mutación legacy de ${key} no está disponible en modo API.`)
   cache[key] = value
   persistMirror()
   notify()
@@ -749,27 +748,46 @@ async function hydrate() {
   }
 }
 
+async function hydrateApi() {
+  if (!apiMode()) return
+  const [products, orders, users] = await Promise.all([
+    api.get('/api/products'), api.get('/api/orders'), api.get('/api/users'),
+  ])
+  cache.productos = (products || []).map((p) => ({ ...p, nombre: p.name, precioVenta: p.pricePyg, precioCosto: 0, activo: p.isActive !== false }))
+  cache.ventas = (orders || []).map(mapOrdenApi)
+  cache.vendedores = (users || []).map((u) => ({ ...u, nombre: u.name, activo: u.status === 'ACTIVE' }))
+  cache.mayoristas = []; cache.gastos = []; cache.ads = []; cache.auditoria = []
+  cache.config = { ...CONFIG_DEFAULT, nombreTienda: getCompanyName() }
+  notify()
+}
+
+function mapOrdenApi(o) {
+  const pagos = (o.payments || []).map((p) => ({ ...p, monto: p.amountPyg, medioPago: p.method }))
+  const totalPagado = pagos.filter((p) => p.status === 'CONFIRMED').reduce((sum, p) => sum + num(p.monto), 0)
+  const total = num(o.totalPyg)
+  return { ...o, codigo: o.orderNumber, precio: total, vendedorId: o.sellerId, clienteId: o.customerId, cliente: o.customer?.name || '', fecha: o.createdAt?.slice(0, 10) || '', creadoEn: o.createdAt, productoNombre: (o.items || []).map((item) => item.description).filter(Boolean).join(', '), pagos, totalPagado, totalPendiente: Math.max(0, total - totalPagado), estadoPago: totalPagado >= total ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente' }
+}
+
+function getCompanyName() {
+  try { return JSON.parse(localStorage.getItem('owncoding_hub_company_context') || 'null')?.tenant?.name || APP_NAME } catch { return APP_NAME }
+}
+
 // Vuelve a bajar todo de Supabase y refresca la vista. Se usa para mantener el
 // sistema al día (al volver a la pestaña y cada pocos minutos), aunque el
 // realtime no haya empujado algún cambio.
 // Hora del servidor (ms) leída del header HTTP `Date` de Supabase. Sirve para
 // detectar si el reloj del equipo está mal (y por eso guardaría mal las fechas).
 export async function horaServidorMs() {
-  if (!SB_URL || !SB_KEY) return null
-  try {
-    // Consulta mínima: solo interesa el header `Date` de la respuesta.
-    const res = await fetch(`${SB_URL}/rest/v1/kv?select=key&limit=1`, {
-      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
-    })
-    const d = res.headers.get('date')
-    return d ? new Date(d).getTime() : null
-  } catch {
-    return null
-  }
+  return null
 }
 
 export async function refrescar() {
-  if (!supabase || !ctx.empresaId) return
+  if (!ctx.empresaId) return
+  if (apiMode()) {
+    await hydrateApi()
+    return
+  }
+  if (!supabase) return
   // Primero reintentamos lo que quedó sin subir, para no perderlo.
   await flushPendientes()
   try {
@@ -916,7 +934,7 @@ const SUC_KEY = 'fono:sucursal'
 
 // Entra a una empresa/sucursal: limpia lo anterior, levanta el espejo de esta
 // y arranca la sincronización. Es el único punto por donde se cambia de tienda.
-export async function setContexto({ empresaId, sucursalId, userId, rol }) {
+export async function setContexto({ empresaId, sucursalId, userId, rol, fuente = 'legacy' }) {
   const cambioEmpresa = ctx.empresaId !== empresaId
   desconectarRealtime()
   hidratado = false
@@ -924,6 +942,7 @@ export async function setContexto({ empresaId, sucursalId, userId, rol }) {
   ctx.sucursalId = sucursalId || null
   ctx.userId = userId || null
   ctx.rol = rol || null
+  fuenteDatos = fuente === 'api' ? 'api' : 'legacy'
   if (sucursalId) {
     try {
       localStorage.setItem(SUC_KEY, sucursalId)
@@ -936,9 +955,10 @@ export async function setContexto({ empresaId, sucursalId, userId, rol }) {
     notify()
     return
   }
-  if (cambioEmpresa) bootFromMirror()
+  if (cambioEmpresa && !apiMode()) bootFromMirror()
   notify()
-  await hydrate()
+  if (apiMode()) await hydrateApi()
+  else await hydrate()
 }
 
 export function sucursalGuardada() {
@@ -1209,14 +1229,34 @@ export function listAuditoria() {
 
 // ── PRODUCTOS ───────────────────────────────────────────────────────
 export function getProductos() {
+  if (apiMode()) return cache.productos
   // Modo 100% local (sin Supabase): sembramos defaults la primera vez.
-  if (!supabase && cache.productos.length === 0) {
+  if (!isDemoRuntime && !supabase && cache.productos.length === 0) {
     cache.productos = clone(PRODUCTOS_DEFAULT)
     persistMirror()
   }
   return cache.productos
 }
+export async function addProductoApi(payload) {
+  if (!apiMode()) throw new Error('addProductoApi solo está disponible con una sesión API real.')
+  const created = await api.post('/api/products', payload)
+  if (!created?.id) throw new Error('El backend no devolvió un producto confirmado.')
+  cache.productos.push({ ...created, nombre: created.name, precioVenta: created.pricePyg, activo: created.isActive !== false })
+  notify()
+  return created
+}
+export async function updateProductoApi(id, cambios) {
+  if (!apiMode()) throw new Error('updateProductoApi solo está disponible con una sesión API real.')
+  const updated = await api.patch('/api/products', { id, ...cambios })
+  if (!updated?.id) throw new Error('El backend no devolvió un producto confirmado.')
+  const mapped = { ...updated, nombre: updated.name, precioVenta: updated.pricePyg, activo: updated.isActive !== false }
+  const index = cache.productos.findIndex((product) => product.id === id)
+  if (index >= 0) cache.productos[index] = mapped
+  notify()
+  return updated
+}
 export function saveProductos(productos) {
+  if (apiMode()) throw new Error('Productos: escritura API todavía no está disponible.')
   const removidos = cache.productos.filter((p) => !productos.some((n) => n.id === p.id))
   cache.productos = productos
   persistMirror()
@@ -1231,6 +1271,7 @@ export function saveProductos(productos) {
   }
 }
 export function addProducto(nombre, categoria = 'Otros') {
+  if (apiMode()) throw new Error('Productos: escritura API todavía no está disponible.')
   const id = nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36)
   const nuevo = {
     id,
@@ -1262,21 +1303,41 @@ export function productosById() {
   return map
 }
 export function updateProducto(id, cambios) {
+  if (apiMode()) throw new Error('Productos: escritura API todavía no está disponible.')
   const actual = cache.productos.find((p) => p.id === id)
   if (!actual) return
   entUpsert('productos', { ...actual, ...cambios })
 }
 export function deleteProducto(id) {
+  if (apiMode()) throw new Error('Productos: escritura API todavía no está disponible.')
   entDelete('productos', id)
 }
 
 // ── VENDEDORES ──────────────────────────────────────────────────────
 export function getVendedores() {
-  if (!supabase && cache.vendedores.length === 0) {
-    cache.vendedores = clone(VENDEDORES_DEFAULT)
+  if (!isDemoRuntime && !supabase && cache.vendedores.length === 0) {
+    cache.vendedores = isDemoRuntime
+      ? [{ id: 'demo-user', nombre: 'Usuario demo', activo: true, metaDiaria: 1000000 }]
+      : clone(VENDEDORES_DEFAULT)
     persistMirror()
   }
   return cache.vendedores
+}
+
+// La cuenta demo utiliza las mismas colecciones y pantallas, en su propia tienda.
+export function prepararDatosDemo() {
+  if (!isDemoRuntime || ctx.empresaId !== 'mobos-demo') return
+  if (cache.config.demoSeedVersion === 1) return
+  cache.productos = [
+    { ...prod('iPhone 15 Pro 256GB Titanio', 'Celulares'), precioVenta: 6850000, precioCosto: 5300000, comision: 50000, stock: 5, atributos: { color: 'Titanio', capacidad: '256GB', estado: 'Nuevo' } },
+    { ...prod('Funda MagSafe Transparente', 'Accesorios'), precioVenta: 180000, precioCosto: 70000, comision: 10000, stock: 24 },
+    { ...prod('Cargador USB-C 20W', 'Accesorios'), precioVenta: 220000, precioCosto: 120000, comision: 10000, stock: 12 },
+    { ...prod('AirPods Pro 2', 'Audio'), precioVenta: 1850000, precioCosto: 1300000, comision: 30000, stock: 3 },
+  ]
+  cache.vendedores = [{ id: 'demo-user', nombre: 'Usuario demo', activo: true, metaDiaria: 1000000 }]
+  cache.config = { ...cache.config, nombreTienda: 'MobOS Tienda Demo', demoSeedVersion: 1 }
+  persistMirror()
+  notify()
 }
 export function saveVendedores(vendedores) {
   const removidos = cache.vendedores.filter((v) => !vendedores.some((n) => n.id === v.id))
@@ -1320,7 +1381,24 @@ export function vendedoresById() {
 export function listVentas() {
   return cache.ventas
 }
+export async function guardarOrdenApi(payload) {
+  if (!apiMode()) throw new Error('guardarOrdenApi solo está disponible con una sesión API real.')
+  if (!payload || typeof payload !== 'object') throw new Error('El payload de la orden es obligatorio.')
+  const order = await api.post('/api/orders', payload)
+  if (!order?.id) throw new Error('El backend no devolvió una orden confirmada.')
+  const venta = mapOrdenApi(order)
+  const i = cache.ventas.findIndex((item) => item.id === venta.id)
+  if (i >= 0) cache.ventas = cache.ventas.map((item, index) => index === i ? venta : item)
+  else cache.ventas = [venta, ...cache.ventas]
+  for (const item of order.items || []) {
+    const product = cache.productos.find((p) => p.id === item.productId)
+    if (product) product.stock = Math.max(0, num(product.stock) - num(item.quantity))
+  }
+  notify()
+  return order
+}
 export function addVenta(venta) {
+  if (apiMode()) throw new Error('Órdenes: creación API requiere la integración de FormularioVenta.')
   const prod = venta.productoId ? cache.productos.find((p) => p.id === venta.productoId) : null
   const nueva = {
     id: 'venta-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),

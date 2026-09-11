@@ -10,7 +10,7 @@ import Comparador from '@/pages/Comparador'
 import TradeIn from '@/pages/TradeIn'
 import { APP_CREDIT, APP_CREDIT_URL, APP_VERSION } from '@/lib/brand'
 import Landing from '@/pages/Landing'
-import Demo from '@/pages/Demo'
+import DemoAccess from '@/pages/DemoAccess'
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -76,9 +76,11 @@ function SoloPropietario({ children }) {
 }
 
 function AppFooter() {
+  const { esDemo, salir } = useSesion()
   return (
     <footer className="mobos-footer border-t border-ink-600 bg-ink-900 px-4 py-3 text-center text-[11px] text-mute">
       <span>{APP_VERSION}</span>{' · '}
+      {esDemo && <span>Usuario demo · Datos de prueba <button onClick={salir} className="mx-2 underline">Salir de demo</button> · </span>}
       <a href={APP_CREDIT_URL} target="_blank" rel="noreferrer" className="text-fono-light hover:underline">{APP_CREDIT}</a>
     </footer>
   )
@@ -90,7 +92,7 @@ export default function App() {
   return (
     <SesionProvider>
       <Routes>
-        <Route path="/demo" element={<Demo />} />
+        <Route path="/demo" element={<DemoAccess />} />
         <Route path="/login" element={<SoloFuera />} />
         <Route
           path="/"

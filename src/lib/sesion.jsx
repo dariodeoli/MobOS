@@ -1,168 +1,45 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import {
-  setActor,
-  setContexto,
-  salirDeTodo,
-  sesionSupabase,
-  misEmpresas,
-  sucursalesDe,
-  sucursalGuardada,
-  supabase,
-} from '@/lib/storage'
+import { isDemoRuntime, demoSessionActive, saveDemoSession, clearDemoSession } from './demoMode'
+import { clearSession, getCompanyContext, sessionApi } from '@/lib/api'
+import { setActor, setContexto, prepararDatosDemo } from '@/lib/storage'
 
 const SesionContext = createContext(null)
 
-// Estados posibles:
-//   cargando   → todavía no sabemos si hay sesión (no mostrar nada definitivo)
-//   fuera      → no hay sesión: va al login
-//   sinEmpresa → hay usuario pero todavía no pertenece a ninguna empresa
-//   dentro     → hay usuario, empresa y sucursal activas
+function adaptarUsuario(user) {
+  return { ...user, id: user?.id, email: user?.email || null, user_metadata: { nombre: user?.name || user?.user_metadata?.nombre || user?.email || '' } }
+}
+function adaptarEmpresa(user) {
+  if (user.tenantId === 'mobos-demo') return { id: 'mobos-demo', nombre: 'MobOS Tienda Demo', rol: 'dueno' }
+  const context = getCompanyContext()
+  return { id: user.tenantId || context?.tenant?.id, nombre: context?.tenant?.name || user.tenantName || 'Mi tienda', rol: user.role === 'ADMIN' ? 'dueno' : user.role }
+}
+
 export function SesionProvider({ children }) {
   const [estado, setEstado] = useState('cargando')
-  const [usuario, setUsuario] = useState(null)
-  const [empresas, setEmpresas] = useState([])
-  const [empresa, setEmpresa] = useState(null)
-  const [sucursales, setSucursales] = useState([])
-  const [sucursal, setSucursal] = useState(null)
-
-  // Deja activa una empresa y una de sus sucursales, y se lo avisa a la capa
-  // de datos para que empiece a leer y escribir ahí.
-  const activar = useCallback(async (emp, sucursalId, user) => {
-    const sucs = await sucursalesDe(emp.id)
-    const elegida =
-      sucs.find((s) => s.id === sucursalId) ||
-      sucs.find((s) => s.id === emp.sucursalId) ||
-      sucs[0] ||
-      null
-    setEmpresa(emp)
-    setSucursales(sucs)
-    setSucursal(elegida)
-    await setContexto({
-      empresaId: emp.id,
-      sucursalId: elegida?.id || null,
-      userId: user?.id || null,
-      rol: emp.rol,
-    })
-    setEstado('dentro')
+  const [usuario, setUsuario] = useState(null); const [empresas, setEmpresas] = useState([]); const [empresa, setEmpresa] = useState(null); const [sucursales, setSucursales] = useState([]); const [sucursal, setSucursal] = useState(null); const [vendedores, setVendedores] = useState([])
+  const activarSesion = useCallback(async (rawUser, { prepararLegacy = false } = {}) => {
+    const user = adaptarUsuario(rawUser); const emp = adaptarEmpresa(rawUser); const suc = rawUser.branchId ? { id: rawUser.branchId, nombre: rawUser.branchName || 'Sucursal' } : null
+    // El storage actual sigue siendo legacy (Supabase/local optimistic). No lo
+    // inicializamos para sesiones API reales: así no aparenta persistencia API.
+    await setContexto({ empresaId: emp.id, sucursalId: suc?.id || null, userId: user.id, rol: emp.rol, fuente: prepararLegacy ? 'legacy' : 'api' })
+    setUsuario(user); setEmpresa(emp); setEmpresas([emp]); setSucursal(suc); setSucursales(suc ? [suc] : []); setVendedores(getCompanyContext()?.sellers || []); setEstado('dentro')
   }, [])
-
-  const cargar = useCallback(
-    async (user) => {
-      setUsuario(user)
-      const lista = await misEmpresas()
-      setEmpresas(lista)
-      if (lista.length === 0) {
-        setEstado('sinEmpresa')
-        return
-      }
-      await activar(lista[0], sucursalGuardada(), user)
-    },
-    [activar],
-  )
-
-  // Al arrancar: ¿hay sesión guardada? Y quedamos escuchando los cambios de
-  // auth (logout, token vencido) para no quedar desincronizados.
+  const entrarDemo = useCallback(async () => {
+    saveDemoSession(); await activarSesion({ id: 'demo-user', email: 'demo@example.invalid', name: 'Usuario demo', tenantId: 'mobos-demo', role: 'ADMIN', branchId: 'mobos-demo-central', branchName: 'Tienda demo' }, { prepararLegacy: true }); prepararDatosDemo()
+  }, [activarSesion])
   useEffect(() => {
     let vivo = true
-    ;(async () => {
-      const s = await sesionSupabase()
-      if (!vivo) return
-      if (s?.user) await cargar(s.user)
-      else setEstado('fuera')
-    })()
-
-    const { data: sub } =
-      supabase?.auth.onAuthStateChange((evento) => {
-        if (!vivo || evento !== 'SIGNED_OUT') return
-        setUsuario(null)
-        setEmpresas([])
-        setEmpresa(null)
-        setSucursales([])
-        setSucursal(null)
-        setEstado('fuera')
-      }) || {}
-
-    return () => {
-      vivo = false
-      sub?.subscription?.unsubscribe()
-    }
-  }, [cargar])
-
-  // La auditoría necesita saber quién está haciendo cada cosa.
-  useEffect(() => {
-    setActor(
-      usuario
-        ? {
-            vendedorId: usuario.id,
-            nombre: usuario.user_metadata?.nombre || usuario.email,
-            esPropietario: empresa?.rol === 'dueno',
-          }
-        : null,
-    )
-  }, [usuario, empresa])
-
-  async function entrar(user) {
-    setEstado('cargando')
-    await cargar(user)
-  }
-
-  async function salir() {
-    await salirDeTodo()
-    setEstado('fuera')
-  }
-
-  async function cambiarSucursal(sucursalId) {
-    if (!empresa || sucursalId === sucursal?.id) return
-    await activar(empresa, sucursalId, usuario)
-  }
-
-  async function cambiarEmpresa(empresaId) {
-    const emp = empresas.find((e) => e.id === empresaId)
-    if (!emp || empresaId === empresa?.id) return
-    setEstado('cargando')
-    await activar(emp, null, usuario)
-  }
-
-  async function recargarEmpresas() {
-    const lista = await misEmpresas()
-    setEmpresas(lista)
-    if (lista.length > 0) await activar(lista[0], null, usuario)
-  }
-
-  // `sesion` mantiene la forma que ya usan los componentes (nombre,
-  // esPropietario), así no hay que tocarlos uno por uno.
-  const sesion = usuario
-    ? {
-        vendedorId: usuario.id,
-        nombre: usuario.user_metadata?.nombre || usuario.email,
-        correo: usuario.email,
-        esPropietario: empresa?.rol === 'dueno',
-        rol: empresa?.rol || null,
-      }
-    : null
-
-  return (
-    <SesionContext.Provider
-      value={{
-        estado,
-        sesion,
-        usuario,
-        empresa,
-        empresas,
-        sucursal,
-        sucursales,
-        entrar,
-        salir,
-        cambiarSucursal,
-        cambiarEmpresa,
-        recargarEmpresas,
-      }}
-    >
-      {children}
-    </SesionContext.Provider>
-  )
+    if (isDemoRuntime) { if (demoSessionActive()) entrarDemo(); else setEstado('fuera'); return () => { vivo = false } }
+    sessionApi.me().then(async (result) => { if (vivo && result?.user) await activarSesion(result.user); else if (vivo) { clearSession(); setEstado('fuera') } }).catch((error) => { if (!vivo) return; if (error?.status === 401) { clearSession(); setEstado('fuera') } else { console.error('[sesion] no se pudo validar la sesión real:', error); setEstado('fuera') } })
+    return () => { vivo = false }
+  }, [activarSesion, entrarDemo])
+  useEffect(() => { setActor(usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, esPropietario: empresa?.rol === 'dueno' } : null) }, [usuario, empresa])
+  async function entrarEmpresa(credentials) { const result = await sessionApi.loginCompany(credentials); setEmpresa(result.tenant ? { id: result.tenant.id, nombre: result.tenant.name, rol: null } : null); setEmpresas(result.tenant ? [result.tenant] : []); setVendedores(result.sellers || []); return result }
+  async function entrarVendedor(credentials) { const result = await sessionApi.loginSeller(credentials); await activarSesion(result.user); return result }
+  async function cambiarVendedor(credentials) { const result = await sessionApi.switchSeller(credentials); await activarSesion(result.user); return result }
+  async function entrar(session) { if (!session?.accessToken || !session?.user) throw new Error('Usá el flujo de autenticación de OwnCoding Hub.'); await activarSesion(session.user) }
+  async function salir() { if (isDemoRuntime) { clearDemoSession(); clearSession(); await setContexto({ fuente: 'legacy' }); window.location.assign('/login'); return }; await sessionApi.logout(); await setContexto({ fuente: 'legacy' }); setUsuario(null); setEmpresa(null); setEmpresas([]); setSucursal(null); setSucursales([]); setVendedores([]); setEstado('fuera') }
+  const sesion = usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, correo: usuario.email, esPropietario: empresa?.rol === 'dueno', rol: empresa?.rol || null } : null
+  return <SesionContext.Provider value={{ estado, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal: async () => {}, cambiarEmpresa: async () => {}, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
 }
-
-export function useSesion() {
-  return useContext(SesionContext)
-}
+export function useSesion() { return useContext(SesionContext) }

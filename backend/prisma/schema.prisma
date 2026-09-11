@@ -9,6 +9,10 @@ datasource db {
 model Tenant {
   id        String   @id @default(cuid())
   name      String
+  email     String?  @unique
+  passwordHash String?
+  failedLoginAttempts Int @default(0)
+  lockedUntil DateTime?
   slug      String   @unique
   settings  Json     @default("{}")
   createdAt DateTime @default(now())
@@ -16,6 +20,7 @@ model Tenant {
 
   branches  Branch[]
   users     User[]
+  sessions  Session[]
   products  Product[]
   customers Customer[]
   orders    Order[]
@@ -53,15 +58,43 @@ model User {
   pinHash   String
   role      UserRole   @default(VENDEDOR)
   status    UserStatus @default(ACTIVE)
+  failedLoginAttempts Int @default(0)
+  lockedUntil DateTime?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
   orders    Order[]
   auditLogs AuditLog[]
 
+  sessions Session[]
+
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([branchId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level     SessionLevel @default(COMPANY)
+  deviceId  String
+  branchId  String?
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([tenantId, userId])
+  @@index([expiresAt])
+}
+
+enum SessionLevel {
+  COMPANY
+  SELLER
 }
 
 enum UserRole {
@@ -137,6 +170,11 @@ model Order {
   seller      User        @relation(fields: [sellerId], references: [id])
   orderNumber String
   status      OrderStatus @default(PENDING)
+  subtotalPyg Int
+  discountPyg Int @default(0)
+  deliveryPyg Int @default(0)
+  deliveryType String?
+  deliveryNotes String?
   totalPyg    Int
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

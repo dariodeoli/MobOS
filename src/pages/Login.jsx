@@ -1,13 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
-import { entrarConCorreo, registrarEmpresa } from '@/lib/storage'
 import { Button, Card, Input, Label } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { APP_VERSION } from '@/lib/brand'
 
 export default function Login() {
-  const { entrar } = useSesion()
+  const { entrarEmpresa, entrarVendedor } = useSesion()
   const [modo, setModo] = useState('entrar') // entrar | crear
   const [f, setF] = useState({
     correo: '',
@@ -18,6 +17,12 @@ export default function Login() {
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
   const [cargando, setCargando] = useState(false)
+  const [etapa, setEtapa] = useState('empresa')
+  const [vendedores, setVendedores] = useState([])
+  const [vendedorId, setVendedorId] = useState('')
+  const [pin, setPin] = useState('')
+  const [nombreEmpresa, setNombreEmpresa] = useState('')
+  const pinSubmit = useRef(false)
 
   const set = (campo) => (e) => setF((x) => ({ ...x, [campo]: e.target.value }))
 
@@ -27,53 +32,44 @@ export default function Login() {
     setOk('')
   }
 
+  useEffect(() => {
+    if (modo !== 'entrar' || etapa !== 'vendedor' || pin.length !== 4 || !vendedorId || cargando || pinSubmit.current) return
+    pinSubmit.current = true
+    setCargando(true)
+    entrarVendedor({ sellerId: vendedorId, pin }).catch((err) => {
+      setError(err?.message || 'PIN inválido. Probá de nuevo.')
+      setPin('')
+    }).finally(() => { pinSubmit.current = false; setCargando(false) })
+  }, [pin, vendedorId, etapa, modo, cargando, entrarVendedor])
+
   async function enviar(e) {
     e.preventDefault()
     setError('')
     setOk('')
 
+    if (modo === 'crear') {
+      setOk('La creación de cuentas está temporalmente disponible por contacto con el equipo de MobOS. No se envió ningún correo.')
+      setCargando(false)
+      return
+    }
     if (!f.correo.trim() || !f.clave) {
       setError('Completá el correo y la contraseña.')
       return
-    }
-    if (modo === 'crear') {
-      if (!f.nombreEmpresa.trim()) {
-        setError('Poné el nombre de tu tienda.')
-        return
-      }
-      if (f.clave.length < 8) {
-        setError('La contraseña tiene que tener al menos 8 caracteres.')
-        return
-      }
     }
 
     setCargando(true)
     try {
       if (modo === 'entrar') {
-        const r = await entrarConCorreo(f.correo, f.clave)
-        if (r.error) {
-          setError(r.error)
-          return
-        }
-        await entrar(r.user)
-      } else {
-        const r = await registrarEmpresa({
-          nombreEmpresa: f.nombreEmpresa,
-          nombrePersona: f.nombrePersona,
-          correo: f.correo,
-          clave: f.clave,
-        })
-        if (r.error) {
-          setError(r.error)
-          return
-        }
-        if (!r.empresaId) {
-          // Supabase quedó esperando que confirme el correo.
-          setOk('Te mandamos un correo para confirmar la cuenta. Confirmalo y entrá.')
-          cambiarModo('entrar')
-          return
-        }
-        await entrar(r.user)
+        const deviceId = localStorage.getItem('mobos:device-id') || crypto.randomUUID()
+        localStorage.setItem('mobos:device-id', deviceId)
+        const r = await entrarEmpresa({ email: f.correo.trim(), password: f.clave, deviceId })
+        const lista = Array.isArray(r.sellers) ? r.sellers : []
+        setNombreEmpresa(r.tenant?.name || r.tenant?.nombre || '')
+        setVendedores(lista)
+        setVendedorId(lista.length === 1 ? lista[0].id : '')
+        setEtapa('vendedor')
+        setError(lista.length ? '' : 'La empresa no devolvió vendedores disponibles.')
+        return
       }
     } catch (err) {
       setError(err?.message || 'No se pudo completar. Probá de nuevo.')
@@ -85,7 +81,16 @@ export default function Login() {
   const crear = modo === 'crear'
 
   return (
-    <div className="glow-blue relative flex min-h-dvh flex-col items-center justify-center bg-ink p-5 pt-safe pb-safe">
+    <main className="relative min-h-dvh overflow-hidden bg-[#071018] text-white">
+      <div className="pointer-events-none absolute -left-40 -top-40 h-96 w-96 rounded-full bg-[#15D7B8]/15 blur-3xl" />
+      <div className="mx-auto grid min-h-dvh max-w-7xl items-center gap-12 px-5 py-10 lg:grid-cols-[1fr_440px] lg:px-10">
+      <section className="hidden lg:block">
+        <img src="/logo-dark.svg" alt="MobOS" className="h-10 w-auto" />
+        <p className="mt-16 text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">Sistema operativo para tiendas móviles</p>
+        <h1 className="mt-5 max-w-xl text-6xl font-bold leading-[.94] tracking-[-.06em]">Vendé rápido.<br /><span className="text-[#15D7B8]">Controlá mejor.</span></h1>
+        <p className="mt-7 max-w-lg text-lg leading-8 text-slate-400">POS, stock, caja y clientes conectados en una sola operación para que tu equipo se mueva con claridad.</p>
+      </section>
+      <section className="mx-auto w-full max-w-md rounded-[2rem] border border-white/10 bg-[#0b1822]/95 p-6 shadow-2xl shadow-[#15D7B8]/5 sm:p-8">
       <img src="/logo-dark.svg" alt="MobOS" className="mb-2 w-44" />
       <p className="mb-8 text-sm text-mute">Sistema de ventas para tiendas</p>
 
@@ -119,31 +124,15 @@ export default function Login() {
         </p>
 
         <form onSubmit={enviar} className="space-y-3.5">
-          {crear && (
-            <>
-              <div>
-                <Label htmlFor="emp">Nombre de la tienda</Label>
-                <Input
-                  id="emp"
-                  value={f.nombreEmpresa}
-                  onChange={set('nombreEmpresa')}
-                  placeholder="Mi Tienda de Celulares"
-                  autoCapitalize="words"
-                />
-              </div>
-              <div>
-                <Label htmlFor="per">Tu nombre</Label>
-                <Input
-                  id="per"
-                  value={f.nombrePersona}
-                  onChange={set('nombrePersona')}
-                  placeholder="Esteban"
-                  autoCapitalize="words"
-                />
-              </div>
-            </>
-          )}
+          {crear && <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-4 text-sm leading-6 text-slate-300">La creación de cuentas está temporalmente disponible por contacto con el equipo de MobOS. Este formulario no envía correos ni crea cuentas todavía.</div>}
 
+          {modo === 'entrar' && etapa === 'vendedor' ? (
+            <>
+              <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 px-4 py-3"><span className="text-xs text-slate-500">Empresa</span><strong className="mt-1 block text-sm text-[#15D7B8]">{nombreEmpresa || 'Tu empresa'}</strong></div><div><Label htmlFor="seller">Vendedor</Label><select id="seller" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="mt-1 w-full rounded-xl border border-ink-500 bg-ink px-3 py-3 text-white"><option value="">Seleccioná tu usuario</option>{vendedores.map((v) => <option key={v.id} value={v.id}>{v.name || v.nombre || v.email}</option>)}</select></div>
+              <div><Label htmlFor="seller-pin">PIN del vendedor</Label><Input id="seller-pin" autoFocus type="password" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => { setError(''); setPin(e.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="4 dígitos" autoComplete="one-time-code" /></div>
+              <button type="button" onClick={() => { setEtapa('empresa'); setPin(''); setError('') }} className="text-sm text-mute hover:text-white">← Volver a empresa</button>
+            </>
+          ) : <>
           <div>
             <Label htmlFor="mail">Correo</Label>
             <Input
@@ -169,6 +158,7 @@ export default function Login() {
               autoComplete={crear ? 'new-password' : 'current-password'}
             />
           </div>
+          </>}
 
           {error && (
             <div className="flex items-start gap-2 rounded-lg border border-bad/30 bg-bad/10 px-3.5 py-2.5 text-sm text-bad">
@@ -183,13 +173,15 @@ export default function Login() {
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={cargando}>
-            {cargando ? 'Un momento…' : crear ? 'Crear mi tienda' : 'Entrar'}
+          <Button type="submit" className="w-full" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>
+            {cargando ? 'Un momento…' : crear ? 'Crear mi tienda' : 'Continuar'}
           </Button>
         </form>
       </Card>
 
-      <p className="mt-6 text-xs text-mute/60">{APP_VERSION}</p>
-    </div>
+      <p className="mt-6 text-center text-xs text-slate-500">{APP_VERSION} · Tus datos quedan separados y protegidos.</p>
+      </section>
+      </div>
+    </main>
   )
 }

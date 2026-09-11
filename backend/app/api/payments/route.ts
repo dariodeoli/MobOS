@@ -1,3 +1,30 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
-export async function POST(request: Request) { const tenant = tenantId(request); if (!tenant) return error('Falta x-tenant-id.', 401); const b = await request.json(); if (!b.orderId || !b.amountPyg || !b.method) return error('Venta, monto y método son obligatorios.'); try { return json(await prisma.$transaction(async tx => { const order = await tx.order.findFirst({ where: { id: b.orderId, tenantId: tenant } }); if (!order) throw new Error('Venta no encontrada.'); const payment = await tx.payment.create({ data: { tenantId: tenant, orderId: order.id, method: b.method, amountPyg: Number(b.amountPyg), status: b.status || 'CONFIRMED', reference: b.reference } }); const paid = await tx.payment.aggregate({ where: { orderId: order.id, tenantId: tenant, status: 'CONFIRMED' }, _sum: { amountPyg: true } }); if ((paid._sum.amountPyg || 0) >= order.totalPyg) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } }); return payment }), { status: 201 }) } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo registrar el pago.', 409) } }
+import { requireSession } from '../../../lib/auth'
+
+const methods = ['CASH', 'TRANSFER', 'CARD', 'CREDIT'] as const
+const statuses = ['PENDING', 'CONFIRMED', 'REJECTED', 'REFUNDED'] as const
+const INT_MAX = 2147483647
+
+export async function POST(request: Request) {
+  const tenant = await tenantId(request); const session = await requireSession(request)
+  if (!tenant || !session) return error('Falta sesión.', 401)
+  const body = await request.json(); const amount = Number(body.amountPyg); const status = body.status || 'CONFIRMED'
+  if (!body.orderId || !Number.isSafeInteger(amount) || amount <= 0 || amount > INT_MAX || !methods.includes(body.method) || !statuses.includes(status)) return error('Venta, monto entero positivo, método y estado válido son obligatorios.')
+  try {
+    const result = await prisma.$transaction(async tx => {
+      const locked = await tx.$queryRaw<Array<{ id: string; branchId: string | null; status: string; totalPyg: number }>>`SELECT "id", "branchId", "status", "totalPyg" FROM "Order" WHERE "id" = ${body.orderId} AND "tenantId" = ${tenant} FOR UPDATE`
+      const order = locked[0]
+      if (!order) throw new Error('Venta no encontrada.')
+      if ((session.user.branchId === null && order.branchId !== null) || (session.user.branchId && order.branchId !== null && order.branchId !== session.user.branchId)) throw new Error('La venta pertenece a otra sucursal.')
+      if (order.status === 'CANCELLED' || order.status === 'COMPLETED') throw new Error('La venta no admite nuevos pagos.')
+      const paid = await tx.payment.aggregate({ where: { orderId: order.id, tenantId: tenant, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
+      const confirmed = paid._sum.amountPyg || 0
+      if (!Number.isSafeInteger(order.totalPyg) || order.totalPyg < 0 || order.totalPyg > INT_MAX || (status === 'CONFIRMED' && (!Number.isSafeInteger(confirmed + amount) || confirmed + amount > INT_MAX || confirmed + amount > order.totalPyg))) throw new Error('El pago supera el total de la venta.')
+      const payment = await tx.payment.create({ data: { tenantId: tenant, orderId: order.id, method: body.method, amountPyg: amount, status, reference: body.reference } })
+      if (status === 'CONFIRMED' && confirmed + amount === order.totalPyg) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
+      return payment
+    })
+    return json(result, { status: 201 })
+  } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo registrar el pago.', 409) }
+}

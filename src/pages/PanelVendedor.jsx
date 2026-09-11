@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
@@ -60,10 +60,16 @@ export default function PanelVendedor() {
   useLive()
   useAutoRefrescar()
   const desfaseHoras = useReloj()
-  const { sesion, salir } = useSesion()
+  const { sesion, vendedores, cambiarVendedor, esDemo, salir } = useSesion()
   const navigate = useNavigate()
   const [vista, setVista] = useState('cargar')
   const [menuAbierto, setMenuAbierto] = useState(false)
+  const [cambiarAbierto, setCambiarAbierto] = useState(false)
+  const [sellerId, setSellerId] = useState('')
+  const [pin, setPin] = useState('')
+  const [cambioError, setCambioError] = useState('')
+  const [cambiando, setCambiando] = useState(false)
+  const cambioEnCurso = useRef(false)
   const vendsById = vendedoresById()
 
   function abrirControl() {
@@ -87,27 +93,55 @@ export default function PanelVendedor() {
   const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
   const diaSem = DIAS[new Date(`${hoy}T12:00:00`).getDay()]
   const fechaLarga = `${diaSem}, ${Number(dd)} de ${MESES[Number(m) - 1]}`
+  const opcionesVendedor = vendedores?.length ? vendedores : [{ id: sesion?.vendedorId, name: sesion?.nombre }]
+
+  function abrirCambio() {
+    setSellerId(sesion?.vendedorId || opcionesVendedor[0]?.id || '')
+    setPin('')
+    setCambioError('')
+    setCambiarAbierto(true)
+  }
+
+  useEffect(() => {
+    if (!cambiarAbierto) return undefined
+    const cerrarConEscape = (event) => event.key === 'Escape' && !cambiando && setCambiarAbierto(false)
+    document.addEventListener('keydown', cerrarConEscape)
+    return () => document.removeEventListener('keydown', cerrarConEscape)
+  }, [cambiarAbierto, cambiando])
+
+  useEffect(() => {
+    if (!cambiarAbierto || pin.length !== 4 || !sellerId || cambioEnCurso.current) return
+    cambioEnCurso.current = true
+    setCambiando(true)
+    const cambio = esDemo
+      ? Promise.resolve()
+      : cambiarVendedor({ sellerId, pin })
+    cambio.then(() => setCambiarAbierto(false)).catch((err) => {
+      setCambioError(err?.message || 'PIN inválido. Probá de nuevo.')
+      setPin('')
+    }).finally(() => { cambioEnCurso.current = false; setCambiando(false) })
+  }, [pin, sellerId, cambiarAbierto, esDemo, cambiarVendedor])
 
   return (
-    <div className="flex min-h-dvh bg-ink text-sm text-white">
+    <div className="flex min-h-dvh flex-col bg-[#071018] text-sm text-white lg:flex-row">
       {/* ── Lateral ──────────────────────────────────────────────── */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 flex w-[248px] shrink-0 flex-col border-r border-fono/30 bg-ink-800 transition-transform lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-40 flex w-[264px] shrink-0 flex-col border-r border-white/10 bg-[#0b1822] transition-transform lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0',
           menuAbierto ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="flex h-16 items-center gap-2.5 border-b border-fono/20 px-5 pt-safe">
-          <div className="flex h-[26px] w-[26px] items-center justify-center rounded-lg bg-gradient-to-br from-fono to-fono-dark text-[13px] font-bold">
-            F
+        <div className="flex h-20 items-center gap-3 border-b border-white/10 px-5 pt-safe">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#15D7B8] text-sm font-bold text-[#071018]">
+            M
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold tracking-tight">{APP_NAME}</span>
-            <span className="text-[11px] text-mute">Panel de ventas</span>
+            <span className="text-base font-bold tracking-tight">{APP_NAME}</span>
+            <span className="text-[11px] text-slate-500">Operación en vivo</span>
           </div>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-[22px] overflow-y-auto p-3">
+        <nav className="flex flex-1 flex-col gap-7 overflow-y-auto p-4">
           {NAV.map((g) => (
             <div key={g.titulo} className="flex flex-col gap-0.5">
               <div className="px-3 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[.08em] text-mute/70">
@@ -161,7 +195,7 @@ export default function PanelVendedor() {
 
       {/* ── Contenido ────────────────────────────────────────────── */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-fono/30 bg-ink/85 px-4 pt-safe backdrop-blur md:px-6">
+        <header className="sticky top-0 z-20 flex h-20 items-center justify-between gap-4 border-b border-white/10 bg-[#071018]/85 px-4 pt-safe backdrop-blur md:px-8">
           <div className="flex min-w-0 items-center gap-2">
             <button
               onClick={() => setMenuAbierto(true)}
@@ -170,12 +204,10 @@ export default function PanelVendedor() {
             >
               <Icon name="menu" className="h-5 w-5" />
             </button>
-            <span className="hidden text-mute sm:inline">{APP_NAME}</span>
-            <span className="hidden text-ink-500 sm:inline">/</span>
-            <span className="truncate font-medium">{LABELS[vista]}</span>
-            <span className="ml-1.5 whitespace-nowrap rounded-full border border-fono/30 bg-fono/[.12] px-2.5 py-0.5 text-[11.5px] font-medium text-fono-light">
-              {sesion.esPropietario ? 'Dueño' : 'Vendedor'}
-            </span>
+            <div className="hidden sm:block"><span className="block text-[11px] font-bold uppercase tracking-[.18em] text-[#15D7B8]">{APP_NAME}</span><span className="mt-1 block truncate text-lg font-semibold tracking-tight">{LABELS[vista]}</span></div>
+            <button onClick={abrirCambio} className="ml-1.5 whitespace-nowrap rounded-full border border-fono/30 bg-fono/[.12] px-2.5 py-1 text-[11.5px] font-medium text-fono-light transition hover:bg-fono/20" title="Cambiar vendedor">
+              {sesion?.nombre || (sesion.esPropietario ? 'Dueño' : 'Vendedor')} · Cambiar
+            </button>
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -221,7 +253,7 @@ export default function PanelVendedor() {
           </div>
         )}
 
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 bg-gradient-to-b from-[#071018] to-[#09151d] p-4 md:p-8">
           {vista === 'cargar' && <VistaCargarVenta vendedoresById={vendsById} />}
 
           {vista === 'mayorista' && <Mayoristas />}
@@ -242,6 +274,8 @@ export default function PanelVendedor() {
           )}
         </main>
       </div>
+
+      {cambiarAbierto && <div className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4" onMouseDown={(event) => event.target === event.currentTarget && !cambiando && setCambiarAbierto(false)}><section role="dialog" aria-modal="true" aria-labelledby="cambiar-vendedor-title" className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b1822] p-6 shadow-2xl"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-[#15D7B8]">Sesión segura</p><h2 id="cambiar-vendedor-title" className="mt-2 text-2xl font-bold">Cambiar vendedor</h2></div><button onClick={() => setCambiarAbierto(false)} disabled={cambiando} className="rounded-lg px-2 py-1 text-2xl text-slate-500 hover:text-white" aria-label="Cerrar">×</button></div><p className="mt-2 text-sm text-slate-400">Elegí quién registra la próxima venta y confirmá su PIN.</p><label htmlFor="seller-switch" className="mt-6 block text-sm font-semibold">Vendedor</label><select id="seller-switch" value={sellerId} onChange={(event) => setSellerId(event.target.value)} disabled={cambiando} className="mt-2 w-full rounded-xl border border-white/10 bg-[#071018] px-3 py-3 text-white outline-none focus:border-[#15D7B8]">{opcionesVendedor.map((seller) => <option key={seller.id} value={seller.id}>{seller.name || seller.nombre || seller.email}</option>)}</select>{esDemo ? <p className="mt-4 rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-3 text-xs text-slate-400">Demo: solo hay un vendedor disponible. No se realiza ninguna llamada API.</p> : <><label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">PIN del vendedor</label><input id="seller-switch-pin" autoFocus type="password" inputMode="numeric" maxLength={4} value={pin} disabled={cambiando} onChange={(event) => { setCambioError(''); setPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} className="mt-2 w-full rounded-xl border border-white/10 bg-[#071018] p-4 text-center text-3xl tracking-[.5em] outline-none focus:border-[#15D7B8]" /> </>}{cambioError && <p role="alert" className="mt-3 text-sm text-red-300">{cambioError}</p>}<p className="mt-5 text-xs text-slate-500">Esc para cerrar · tocar afuera también cierra</p></section></div>}
 
     </div>
   )

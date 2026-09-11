@@ -4,6 +4,7 @@ import {
   getProductos,
   addProducto,
   addVenta,
+  guardarOrdenApi,
   getVendedores,
   addVendedor,
   MEDIOS_PAGO,
@@ -11,6 +12,8 @@ import {
   ENTREGA,
 } from '@/lib/storage'
 import { fechaClave, num, gs, gsInput } from '@/utils/calculos'
+import { allocateCheckout } from '@/utils/checkout'
+import { api } from '@/lib/api/client'
 import { agruparProductos } from '@/utils/colores'
 import { Button, Card, Input, Label, Select, Textarea, Badge } from '@/components/ui'
 import SelectorColor from './SelectorColor'
@@ -42,7 +45,7 @@ const VACIO = (vendedorId) => ({
 const PAGO_VACIO = { medioPago: MEDIOS_PAGO[0], cuenta: '', monto: '' }
 
 export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito = false }) {
-  const { sesion } = useSesion()
+  const { sesion, esDemo } = useSesion()
   const productos = getProductos().filter((p) => p.activo)
   const familias = agruparProductos(productos)
   const vendedores = getVendedores().filter((v) => v.activo)
@@ -59,6 +62,8 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   const [items, setItems] = useState([]) // carrito: varios productos del mismo cliente
   const [descuento, setDescuento] = useState('')
   const [pagos, setPagos] = useState([])
+  const [errorVenta, setErrorVenta] = useState('')
+  const [guardando, setGuardando] = useState(false)
 
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }))
 
@@ -107,8 +112,8 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   const totalPagado = pagos.reduce((s, p) => s + gsNum(p.monto), 0)
   const pendiente = Math.max(0, totalGeneral - totalPagado)
 
-  const valido = f.vendedorId && f.cliente.trim() && cantTotal > 0
   const cantTotal = items.length + (precioActual > 0 ? 1 : 0)
+  const valido = sesion?.vendedorId && f.cliente.trim() && cantTotal > 0 && totalPagado <= totalGeneral && gsNum(descuento) <= subtotal
 
   // Informa al contenedor lo que lleva esta compra, para pintarlo en el lateral.
   useEffect(() => {
@@ -218,14 +223,29 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     setColorInput('')
   }
 
-  function guardar(e) {
+  async function guardar(e) {
     e.preventDefault()
+    if (guardando) return
     // Lista final = lo agregado al carrito + lo que esté seleccionado ahora.
     const lista = [...items]
     if (f.productoId && gsNum(f.precio) > 0) {
       lista.push({ productoId: f.productoId, precio: gsNum(f.precio) })
     }
-    if (!f.vendedorId || !f.cliente.trim() || lista.length === 0) return
+    if (!sesion?.vendedorId || !f.cliente.trim() || lista.length === 0 || totalPagado > totalGeneral) return
+    setErrorVenta('')
+    let lineas
+    try {
+      const cantidades = new Map()
+      for (const item of lista) cantidades.set(item.productoId, (cantidades.get(item.productoId) || 0) + 1)
+      for (const [id, cantidad] of cantidades) {
+        const producto = productos.find(p => p.id === id)
+        if (!producto || num(producto.stock) < cantidad) throw new Error(`Stock insuficiente: ${producto?.nombre || 'producto'}.`)
+      }
+      lineas = allocateCheckout(lista, gsNum(descuento), gsNum(f.montoDelivery), pagos.map(p => ({ ...p, monto: gsNum(p.monto) })))
+    } catch (error) {
+      setErrorVenta(error.message)
+      return
+    }
 
     // Fecha real de hoy, salvo que se haya elegido una a mano (para no guardar
     // con una fecha vieja si la app quedó abierta desde ayer).
@@ -237,10 +257,27 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
 
     // Una venta por producto, compartiendo cliente/vendedor/pago. El costo de
     // envío se cobra una sola vez (va en el primer producto).
-    lista.forEach((it, i) => {
+    setGuardando(true)
+    try {
+    if (!esDemo) {
+      const nombre = f.cliente.trim()
+      const encontrados = await api.get(`/api/customers?q=${encodeURIComponent(nombre)}`)
+      let cliente = encontrados.find(c => c.name.toLocaleLowerCase() === nombre.toLocaleLowerCase())
+      if (!cliente) cliente = await api.post('/api/customers', { name: nombre })
+      await guardarOrdenApi({
+        customerId: cliente.id,
+        items: lista.map(it => ({ productId: it.productoId, description: nombreDe(it.productoId), quantity: 1, unitPricePyg: it.precio })),
+        payments: pagos.filter(p => gsNum(p.monto) > 0).map(p => ({
+          method: /efectivo/i.test(p.medioPago) ? 'CASH' : /tarjeta|pos/i.test(p.medioPago) ? 'CARD' : 'TRANSFER',
+          amountPyg: gsNum(p.monto), status: 'CONFIRMED', reference: [p.medioPago, p.cuenta].filter(Boolean).join(' · '),
+        })),
+        discountPyg: gsNum(descuento), deliveryPyg: gsNum(f.montoDelivery),
+        deliveryNotes: f.observacion, deliveryType: f.entrega,
+      })
+    } else lineas.forEach((it, i) => {
       addVenta({
         compraId,
-        vendedorId: f.vendedorId,
+        vendedorId: sesion.vendedorId,
         cliente: f.cliente,
         productoId: it.productoId,
         estadoPago: pendiente === 0 ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente',
@@ -248,12 +285,12 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         precio: it.precio,
         medioPago: f.medioPago,
         entrega: i === 0 ? f.entrega : 'Retiro en tienda',
-        montoDelivery: i === 0 ? gsNum(f.montoDelivery) : 0,
+        montoDelivery: it.montoDelivery,
         observacion: f.observacion,
-        descuento: gsNum(descuento),
+        descuento: it.descuento,
         subtotal,
-        total: totalGeneral,
-        pagos,
+        total: it.total,
+        pagos: it.pagos,
         totalPagado,
         totalPendiente: pendiente,
       })
@@ -268,6 +305,11 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     setOk(true)
     setTimeout(() => setOk(false), 2500)
     onGuardado?.()
+    } catch (error) {
+      setErrorVenta(error?.message || 'No se pudo guardar la venta. Tu carrito sigue disponible.')
+    } finally {
+      setGuardando(false)
+    }
   }
 
   function agregarPago() {
@@ -284,7 +326,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
           <div>
             <h2 className="font-bold">Cargar venta</h2>
             <p className="mt-0.5 text-xs text-mute">
-              Los campos obligatorios son vendedor, cliente y al menos un producto
+              El vendedor se asigna desde tu sesión. Agregá el cliente y los productos.
             </p>
           </div>
         </div>
@@ -294,10 +336,13 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
       </div>
 
       <form onSubmit={guardar} className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2.5">
+        {errorVenta && <p role="alert" className="md:col-span-2 text-sm text-red-400">{errorVenta}</p>}
         {/* Vendedor */}
         <div className={nuevoVend ? 'md:col-span-2' : ''}>
           <Label>Vendedor</Label>
-          {nuevoVend ? (
+          {sesion?.vendedorId ? (
+            <Input value={sesion.nombre || 'Vendedor autenticado'} readOnly aria-label="Vendedor de la sesión" />
+          ) : nuevoVend ? (
             <div className="flex gap-2">
               <Input
                 autoFocus
@@ -584,8 +629,8 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         </div>
 
         <div className="md:col-span-2 flex items-center gap-3">
-          <Button type="submit" variant="success" disabled={!valido} className="flex-1">
-            Guardar venta
+          <Button type="submit" variant="success" disabled={!valido || guardando} className="flex-1">
+            {guardando ? 'Guardando venta…' : 'Guardar venta'}
             {cantTotal > 1 ? ` · ${cantTotal} productos` : ''}
             {totalGeneral > 0 ? ` · ${gs(totalGeneral)}` : ''}
           </Button>
