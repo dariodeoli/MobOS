@@ -15,7 +15,7 @@ import ResumenWidgets from '@/components/ventas/ResumenWidgets'
 import DeliveryHoy from '@/components/ventas/DeliveryHoy'
 import FormularioVenta from '@/components/ventas/FormularioVenta'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
-import ClavePanelDialog from '@/components/shared/ClavePanelDialog'
+import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 
@@ -59,22 +59,19 @@ export default function PanelVendedor() {
   useLive()
   useAutoRefrescar()
   const desfaseHoras = useReloj()
-  const { sesion, salir, setPropietario } = useSesion()
+  const { sesion, salir } = useSesion()
   const navigate = useNavigate()
-  const [pidiendoClave, setPidiendoClave] = useState(false)
   const [vista, setVista] = useState('cargar')
   const [menuAbierto, setMenuAbierto] = useState(false)
   const vendsById = vendedoresById()
 
   function abrirControl() {
-    if (sesion.esPropietario) navigate('/control')
-    else setPidiendoClave(true)
+    if (sesion?.esPropietario) navigate('/control')
   }
 
   function ir(id) {
     if (id === 'control') {
-      if (sesion.esPropietario) setVista('control')
-      else setPidiendoClave(true)
+      if (sesion?.esPropietario) setVista('control')
     }
     else if (RUTAS[id]) navigate(RUTAS[id])
     else setVista(id)
@@ -181,6 +178,7 @@ export default function PanelVendedor() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            <SelectorSucursal />
             <div className="hidden h-[34px] items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[12.5px] text-mute md:flex">
               <Icon name="calendar" className="h-[15px] w-[15px]" />
               <span className="whitespace-nowrap">{fechaLarga}</span>
@@ -194,14 +192,16 @@ export default function PanelVendedor() {
                 <span className="hidden sm:inline">Cargar venta</span>
               </button>
             )}
-            <button
-              onClick={abrirControl}
-              className="inline-flex h-[34px] items-center gap-1.5 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[13px] text-mute transition hover:text-white"
-              title="Centro de control"
-            >
-              <Icon name="lock" className="h-4 w-4" />
-              <span className="hidden lg:inline">Control</span>
-            </button>
+            {sesion?.esPropietario && (
+              <button
+                onClick={abrirControl}
+                className="inline-flex h-[34px] items-center gap-1.5 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[13px] text-mute transition hover:text-white"
+                title="Centro de control"
+              >
+                <Icon name="chart" className="h-4 w-4" />
+                <span className="hidden lg:inline">Control</span>
+              </button>
+            )}
             <button
               onClick={salir}
               className="rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-white"
@@ -242,16 +242,6 @@ export default function PanelVendedor() {
         </main>
       </div>
 
-      {pidiendoClave && (
-        <ClavePanelDialog
-          onCancel={() => setPidiendoClave(false)}
-          onOk={() => {
-            setPidiendoClave(false)
-            setPropietario(true)
-            setVista('control')
-          }}
-        />
-      )}
     </div>
   )
 }

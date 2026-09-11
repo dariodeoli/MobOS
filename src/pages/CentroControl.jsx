@@ -7,6 +7,7 @@ import { Button, Card } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import Resumen from '@/components/control/Resumen'
 import Inventario from '@/components/control/Inventario'
+import ProductosIncompletos from '@/components/control/ProductosIncompletos'
 import Ganancias from '@/components/control/Ganancias'
 import Gastos from '@/components/control/Gastos'
 import Ads from '@/components/control/Ads'
@@ -33,6 +34,7 @@ const SECCIONES = [
   {
     titulo: 'Operación',
     items: [
+      ['incompletos', 'Productos incompletos', ProductosIncompletos, 'alert'],
       ['inventario', 'Inventario', Inventario, 'box'],
       ['celulares', 'Celulares', Celulares, 'phone'],
       ['tradein', 'Trade-In', TradeInAdmin, 'refresh'],

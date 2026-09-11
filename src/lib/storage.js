@@ -19,7 +19,9 @@ const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 export const supabase =
   SB_URL && SB_KEY
     ? createClient(SB_URL, SB_KEY, {
-        auth: { persistSession: false },
+        // Multiempresa: la sesión tiene que sobrevivir al refresco, porque es
+        // lo que decide qué datos puede leer este navegador.
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
         realtime: { params: { eventsPerSecond: 5 } },
       })
     : null
@@ -363,7 +365,23 @@ const COLLECTIONS = [
 ]
 // Colecciones tipo "feed": se muestran de la más nueva a la más vieja.
 const FEEDS = new Set(['ventas', 'gastos', 'ads', 'auditoria'])
-const MIRROR = 'fono:cache:v2'
+
+// Colecciones que las sucursales de una misma empresa COMPARTEN: el catálogo
+// y la lista de precios se cargan una vez y valen para todos los locales. El
+// resto (ventas, gastos, stock, equipo) es de cada sucursal.
+const COMPARTIDAS = new Set(['productos', 'celulares', 'comparadorImg'])
+
+// ── Contexto: a qué empresa y sucursal pertenece lo que se lee y escribe ──
+// Lo setea setContexto() después del login. Sin empresa, la capa de datos
+// queda inerte: no lee ni escribe nada.
+const ctx = { empresaId: null, sucursalId: null, userId: null, rol: null }
+export const contextoActual = () => ({ ...ctx })
+export const hayContexto = () => Boolean(ctx.empresaId)
+
+// El espejo local se guarda por empresa. Si fuera uno solo, al cambiar de
+// tienda verías por un instante los datos de la anterior.
+const MIRROR_BASE = 'fono:cache:v3'
+const mirrorKey = () => `${MIRROR_BASE}:${ctx.empresaId || 'sin-empresa'}`
 
 const clone = (x) => JSON.parse(JSON.stringify(x))
 function safeParse(raw) {
@@ -390,10 +408,22 @@ const cache = {
   comparadorImg: [], // 1 registro por imagen: { id, modelo, color, img } (colección)
 }
 
-// Pintado instantáneo: levantamos el último estado conocido del espejo local.
-;(function bootFromMirror() {
+// Deja la caché en blanco (al entrar a otra empresa o al cerrar sesión).
+function vaciarCache() {
+  COLLECTIONS.forEach((c) => {
+    cache[c] = []
+  })
+  cache.tradein = clone(TRADEIN_DEFAULT)
+  cache.config = { ...CONFIG_DEFAULT }
+}
+
+// Pintado instantáneo: levanta el último estado conocido de ESTA empresa.
+// Antes corría al importar el módulo; ahora corre al entrar, porque hasta que
+// no sabemos la empresa no sabemos qué espejo leer.
+function bootFromMirror() {
+  vaciarCache()
   try {
-    const m = safeParse(localStorage.getItem(MIRROR))
+    const m = safeParse(localStorage.getItem(mirrorKey()))
     if (m && typeof m === 'object') Object.assign(cache, m)
   } catch {
     /* localStorage bloqueado: seguimos solo en memoria */
@@ -403,11 +433,12 @@ const cache = {
   COLLECTIONS.forEach((c) => {
     if (!Array.isArray(cache[c])) cache[c] = []
   })
-})()
+}
 
 function persistMirror() {
+  if (!ctx.empresaId) return
   try {
-    localStorage.setItem(MIRROR, JSON.stringify(cache))
+    localStorage.setItem(mirrorKey(), JSON.stringify(cache))
   } catch {
     /* noop */
   }
@@ -470,21 +501,30 @@ function savePendientes() {
   }
 }
 function enqueue(item) {
+  // La empresa viaja con el pendiente: si se reintenta después de cambiar de
+  // tienda, tiene que escribirse igual en la que lo originó.
+  const it = { empresa_id: ctx.empresaId, sucursal_id: ctx.sucursalId, ...item }
   // Evita duplicados de la misma entidad: se queda con la última versión.
   pendientes = pendientes.filter(
     (p) =>
       !(
-        p.t === item.t &&
-        p.collection === item.collection &&
-        (p.obj?.id || p.id) === (item.obj?.id || item.id)
+        p.t === it.t &&
+        p.empresa_id === it.empresa_id &&
+        p.collection === it.collection &&
+        (p.obj?.id || p.id) === (it.obj?.id || it.id)
       ),
   )
-  pendientes.push(item)
+  pendientes.push(it)
   savePendientes()
 }
 // ¿La entidad `id` de `collection` está pendiente de subir? (para no borrarla al refrescar)
 function estaPendiente(collection, id) {
-  return pendientes.some((p) => p.collection === collection && (p.obj?.id || p.id) === id)
+  return pendientes.some(
+    (p) =>
+      p.empresa_id === ctx.empresaId &&
+      p.collection === collection &&
+      (p.obj?.id || p.id) === id,
+  )
 }
 export async function flushPendientes() {
   if (!supabase || pendientes.length === 0) return
@@ -492,22 +532,35 @@ export async function flushPendientes() {
   pendientes = []
   savePendientes()
   for (const it of cola) {
+    // Un pendiente sin empresa es de la versión anterior a multiempresa: se
+    // descarta en vez de escribirlo en la tienda equivocada.
+    if (!it.empresa_id) continue
     try {
       let res
       if (it.t === 'ent') {
-        const row = { collection: it.collection, id: it.obj.id, data: it.obj }
+        const row = {
+          empresa_id: it.empresa_id,
+          sucursal_id: COMPARTIDAS.has(it.collection) ? null : it.sucursal_id,
+          collection: it.collection,
+          id: it.obj.id,
+          data: it.obj,
+        }
         if (it.obj.creadoEn) row.created_at = it.obj.creadoEn
         res = await supabase.from('entities').upsert(row)
       } else if (it.t === 'entdel') {
         res = await supabase
           .from('entities')
           .delete()
+          .eq('empresa_id', it.empresa_id)
           .eq('collection', it.collection)
           .eq('id', it.id)
       } else if (it.t === 'kv') {
-        res = await supabase
-          .from('kv')
-          .upsert({ key: it.key, value: it.value, updated_at: new Date().toISOString() })
+        res = await supabase.from('kv').upsert({
+          empresa_id: it.empresa_id,
+          key: it.key,
+          value: it.value,
+          updated_at: new Date().toISOString(),
+        })
       }
       if (res?.error) throw res.error
     } catch {
@@ -521,8 +574,15 @@ if (typeof window !== 'undefined') {
 
 // Inserta/actualiza una entidad (fila) en Supabase; si falla, la encola.
 function remoteUpsertEnt(collection, obj) {
-  if (!supabase) return
-  const row = { collection, id: obj.id, data: obj }
+  if (!supabase || !ctx.empresaId) return
+  const row = {
+    empresa_id: ctx.empresaId,
+    // Las compartidas no viven en una sucursal: son de toda la empresa.
+    sucursal_id: COMPARTIDAS.has(collection) ? null : ctx.sucursalId,
+    collection,
+    id: obj.id,
+    data: obj,
+  }
   if (obj.creadoEn) row.created_at = obj.creadoEn
   supabase
     .from('entities')
@@ -535,10 +595,11 @@ function remoteUpsertEnt(collection, obj) {
     )
 }
 function remoteDeleteEnt(collection, id) {
-  if (!supabase) return
+  if (!supabase || !ctx.empresaId) return
   supabase
     .from('entities')
     .delete()
+    .eq('empresa_id', ctx.empresaId)
     .eq('collection', collection)
     .eq('id', id)
     .then(
@@ -549,10 +610,15 @@ function remoteDeleteEnt(collection, id) {
     )
 }
 function remoteUpsertKv(key, value) {
-  if (!supabase) return
+  if (!supabase || !ctx.empresaId) return
   supabase
     .from('kv')
-    .upsert({ key, value, updated_at: new Date().toISOString() })
+    .upsert({
+      empresa_id: ctx.empresaId,
+      key,
+      value,
+      updated_at: new Date().toISOString(),
+    })
     .then(
       ({ error }) => {
         if (error) enqueue({ t: 'kv', key, value })
@@ -594,8 +660,11 @@ function aplicarEnt(payload) {
       cache[collection] = cache[collection].filter((o) => o.id !== id)
     }
   } else {
-    const { collection, id, data } = payload.new || {}
+    const { collection, id, data, sucursal_id: suc } = payload.new || {}
     if (!collection || !cache[collection]) return
+    // Un movimiento de otra sucursal no entra en la vista actual. (suc null =
+    // compartido por toda la empresa, ese sí entra siempre.)
+    if (suc && ctx.sucursalId && suc !== ctx.sucursalId) return
     const arr = cache[collection]
     const i = arr.findIndex((o) => o.id === id)
     if (i >= 0) arr[i] = data
@@ -622,9 +691,15 @@ async function fetchAllEntities() {
   let desde = 0
   let todo = []
   for (;;) {
-    const { data, error } = await supabase
+    // La RLS ya limita a las empresas del usuario, pero filtramos igual: el
+    // dueño de varias tiendas no debe mezclar los datos de una con otra.
+    // sucursal_id null = compartida por toda la empresa (catálogo, precios).
+    let q = supabase
       .from('entities')
-      .select('collection,id,data,created_at')
+      .select('collection,id,data,created_at,sucursal_id')
+      .eq('empresa_id', ctx.empresaId)
+    if (ctx.sucursalId) q = q.or(`sucursal_id.is.null,sucursal_id.eq.${ctx.sucursalId}`)
+    const { data, error } = await q
       .order('created_at', { ascending: true })
       .range(desde, desde + PAGE - 1)
     if (error) throw error
@@ -638,12 +713,12 @@ async function fetchAllEntities() {
 
 let hidratado = false
 async function hydrate() {
-  if (!supabase || hidratado) return
+  if (!supabase || hidratado || !ctx.empresaId) return
   hidratado = true
   try {
     const [ents, { data: kvs }] = await Promise.all([
       fetchAllEntities(),
-      supabase.from('kv').select('key,value'),
+      supabase.from('kv').select('key,value').eq('empresa_id', ctx.empresaId),
     ])
 
     if (ents) {
@@ -693,13 +768,13 @@ export async function horaServidorMs() {
 }
 
 export async function refrescar() {
-  if (!supabase) return
+  if (!supabase || !ctx.empresaId) return
   // Primero reintentamos lo que quedó sin subir, para no perderlo.
   await flushPendientes()
   try {
     const [ents, { data: kvs }] = await Promise.all([
       fetchAllEntities(),
-      supabase.from('kv').select('key,value'),
+      supabase.from('kv').select('key,value').eq('empresa_id', ctx.empresaId),
     ])
     if (ents) {
       const porColl = Object.fromEntries(COLLECTIONS.map((c) => [c, []]))
@@ -712,6 +787,7 @@ export async function refrescar() {
       // Re-aplica lo que todavía está pendiente de subir, para que NO desaparezca
       // de la vista mientras se reintenta el envío.
       pendientes.forEach((it) => {
+        if (it.empresa_id !== ctx.empresaId) return
         if (it.t === 'ent' && cache[it.collection]) {
           const arr = cache[it.collection]
           const i = arr.findIndex((o) => o.id === it.obj.id)
@@ -802,17 +878,261 @@ async function seedSiVacio(kvPresent) {
   }
 }
 
+let canal = null
 function subscribeRealtime() {
-  if (!supabase) return
-  supabase
-    .channel('fono-db')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'entities' }, aplicarEnt)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'kv' }, aplicarKv)
+  if (!supabase || !ctx.empresaId) return
+  desconectarRealtime()
+  // El filtro evita recibir (y tener que descartar) los cambios de las otras
+  // empresas. La RLS igual no los dejaría pasar, pero mejor no pedirlos.
+  const filtro = `empresa_id=eq.${ctx.empresaId}`
+  canal = supabase
+    .channel(`fono-${ctx.empresaId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'entities', filter: filtro },
+      aplicarEnt,
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'kv', filter: filtro },
+      aplicarKv,
+    )
     .subscribe()
 }
+function desconectarRealtime() {
+  if (canal) {
+    supabase?.removeChannel(canal)
+    canal = null
+  }
+}
 
-// Arranca la sincronización (no bloquea el primer render).
-hydrate()
+// ════════════════════════════════════════════════════════════════════
+// MULTIEMPRESA — sesión, empresas y sucursales
+// Nada de esto se guarda en el navegador salvo la sesión de Supabase y la
+// última sucursal elegida: quién puede ver qué lo decide la base (RLS).
+// ════════════════════════════════════════════════════════════════════
+const SUC_KEY = 'fono:sucursal'
+
+// Entra a una empresa/sucursal: limpia lo anterior, levanta el espejo de esta
+// y arranca la sincronización. Es el único punto por donde se cambia de tienda.
+export async function setContexto({ empresaId, sucursalId, userId, rol }) {
+  const cambioEmpresa = ctx.empresaId !== empresaId
+  desconectarRealtime()
+  hidratado = false
+  ctx.empresaId = empresaId || null
+  ctx.sucursalId = sucursalId || null
+  ctx.userId = userId || null
+  ctx.rol = rol || null
+  if (sucursalId) {
+    try {
+      localStorage.setItem(SUC_KEY, sucursalId)
+    } catch {
+      /* noop */
+    }
+  }
+  if (!ctx.empresaId) {
+    vaciarCache()
+    notify()
+    return
+  }
+  if (cambioEmpresa) bootFromMirror()
+  notify()
+  await hydrate()
+}
+
+export function sucursalGuardada() {
+  try {
+    return localStorage.getItem(SUC_KEY)
+  } catch {
+    return null
+  }
+}
+
+export async function salirDeTodo() {
+  desconectarRealtime()
+  hidratado = false
+  ctx.empresaId = null
+  ctx.sucursalId = null
+  ctx.userId = null
+  ctx.rol = null
+  vaciarCache()
+  notify()
+  await supabase?.auth.signOut()
+}
+
+// ── Autenticación ───────────────────────────────────────────────────
+export async function sesionSupabase() {
+  if (!supabase) return null
+  const { data } = await supabase.auth.getSession()
+  return data?.session || null
+}
+
+export async function entrarConCorreo(correo, clave) {
+  if (!supabase) return { error: 'Supabase no está configurado.' }
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: correo.trim(),
+    password: clave,
+  })
+  if (error) {
+    return {
+      error:
+        error.message === 'Invalid login credentials'
+          ? 'Correo o contraseña incorrectos.'
+          : error.message,
+    }
+  }
+  return { user: data.user }
+}
+
+// Crea la cuenta, la empresa y su primera sucursal, y deja al que registra
+// como dueño. Todo en la misma llamada para que no queden cuentas sin empresa.
+export async function registrarEmpresa({ nombreEmpresa, nombrePersona, correo, clave }) {
+  if (!supabase) return { error: 'Supabase no está configurado.' }
+  const { data, error } = await supabase.auth.signUp({
+    email: correo.trim(),
+    password: clave,
+    options: { data: { nombre: nombrePersona } },
+  })
+  if (error) return { error: error.message }
+  if (!data.user) return { error: 'No se pudo crear el usuario.' }
+
+  const { data: empresaId, error: e2 } = await supabase.rpc('crear_empresa', {
+    p_nombre: nombreEmpresa.trim(),
+    p_nombre_persona: (nombrePersona || '').trim(),
+  })
+  if (e2) return { error: e2.message }
+  return { user: data.user, empresaId }
+}
+
+// ── Empresas y sucursales del usuario ───────────────────────────────
+export async function misEmpresas() {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('miembros')
+    .select('rol, sucursal_id, empresa_id, empresas(id, nombre, slug)')
+  if (error || !data) return []
+  return data
+    .filter((m) => m.empresas)
+    .map((m) => ({
+      id: m.empresas.id,
+      nombre: m.empresas.nombre,
+      slug: m.empresas.slug,
+      rol: m.rol,
+      sucursalId: m.sucursal_id,
+    }))
+}
+
+export async function sucursalesDe(empresaId) {
+  if (!supabase || !empresaId) return []
+  const { data, error } = await supabase
+    .from('sucursales')
+    .select('id, nombre, activa')
+    .eq('empresa_id', empresaId)
+    .eq('activa', true)
+    .order('creada_en', { ascending: true })
+  return error || !data ? [] : data
+}
+
+export async function crearSucursal(nombre) {
+  if (!supabase || !ctx.empresaId) return { error: 'Sin empresa activa.' }
+  const { data, error } = await supabase
+    .from('sucursales')
+    .insert({ empresa_id: ctx.empresaId, nombre: nombre.trim() })
+    .select('id, nombre')
+    .single()
+  return error ? { error: error.message } : { sucursal: data }
+}
+
+export async function renombrarSucursal(id, nombre) {
+  if (!supabase) return { error: 'Supabase no está configurado.' }
+  const { error } = await supabase
+    .from('sucursales')
+    .update({ nombre: nombre.trim() })
+    .eq('id', id)
+  return error ? { error: error.message } : {}
+}
+
+// ── Equipo ──────────────────────────────────────────────────────────
+export async function miembrosDeEmpresa() {
+  if (!supabase || !ctx.empresaId) return []
+  const { data, error } = await supabase
+    .from('miembros')
+    .select('user_id, rol, nombre, sucursal_id')
+    .eq('empresa_id', ctx.empresaId)
+  return error || !data ? [] : data
+}
+
+export async function cambiarMiClave(nueva) {
+  if (!supabase) return { error: 'Supabase no está configurado.' }
+  const { error } = await supabase.auth.updateUser({ password: nueva })
+  return error ? { error: error.message } : {}
+}
+
+// ── Invitaciones ────────────────────────────────────────────────────
+// El dueño anota el correo; cuando esa persona crea su cuenta, entra sola.
+export async function listInvitaciones() {
+  if (!supabase || !ctx.empresaId) return []
+  const { data, error } = await supabase
+    .from('invitaciones')
+    .select('correo, rol, nombre, sucursal_id, creada_en')
+    .eq('empresa_id', ctx.empresaId)
+    .order('creada_en', { ascending: true })
+  return error || !data ? [] : data
+}
+
+export async function invitar({ correo, rol = 'vendedor', nombre = '', sucursalId }) {
+  if (!supabase || !ctx.empresaId) return { error: 'Sin empresa activa.' }
+  const { error } = await supabase.from('invitaciones').upsert({
+    empresa_id: ctx.empresaId,
+    correo: correo.trim().toLowerCase(),
+    rol,
+    nombre: nombre.trim() || null,
+    sucursal_id: sucursalId || ctx.sucursalId,
+  })
+  return error ? { error: error.message } : {}
+}
+
+export async function cancelarInvitacion(correo) {
+  if (!supabase || !ctx.empresaId) return { error: 'Sin empresa activa.' }
+  const { error } = await supabase
+    .from('invitaciones')
+    .delete()
+    .eq('empresa_id', ctx.empresaId)
+    .eq('correo', correo.trim().toLowerCase())
+  return error ? { error: error.message } : {}
+}
+
+export async function cambiarRol(userId, rol) {
+  if (!supabase || !ctx.empresaId) return { error: 'Sin empresa activa.' }
+  const { error } = await supabase
+    .from('miembros')
+    .update({ rol })
+    .eq('empresa_id', ctx.empresaId)
+    .eq('user_id', userId)
+  return error ? { error: error.message } : {}
+}
+
+export async function quitarMiembro(userId) {
+  if (!supabase || !ctx.empresaId) return { error: 'Sin empresa activa.' }
+  if (userId === ctx.userId) return { error: 'No te podés quitar a vos mismo.' }
+  const { error } = await supabase
+    .from('miembros')
+    .delete()
+    .eq('empresa_id', ctx.empresaId)
+    .eq('user_id', userId)
+  return error ? { error: error.message } : {}
+}
+
+// ── Cotización del dólar (global, compartida por todas las empresas) ──
+export async function cotizacionDolar() {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('cotizacion')
+    .select('compra, venta, actualizado')
+    .eq('id', 1)
+    .maybeSingle()
+  return error ? null : data
+}
 
 // ════════════════════════════════════════════════════════════════════
 // AUDITORÍA — quién creó / editó / eliminó cada venta
@@ -842,6 +1162,7 @@ const CAMPOS_AUDIT = {
   entrega: 'Entrega',
   montoDelivery: 'Delivery',
   observacion: 'Observación',
+  comision: 'Comisión',
 }
 
 function resumenVenta(v) {
