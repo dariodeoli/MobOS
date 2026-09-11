@@ -31,6 +31,13 @@ export const COLORES = [
   'Turquesa',
   'Transparente',
   'Holográfica',
+  'Titanio',
+  'Natural',
+  'Grafito',
+  'Medianoche',
+  'Oro',
+  'Lavanda',
+  'Coral',
   'Holografico',
 ]
 

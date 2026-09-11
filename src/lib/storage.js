@@ -1327,15 +1327,43 @@ export function getVendedores() {
 // La cuenta demo utiliza las mismas colecciones y pantallas, en su propia tienda.
 export function prepararDatosDemo() {
   if (!isDemoRuntime || ctx.empresaId !== 'mobos-demo') return
-  if (cache.config.demoSeedVersion === 1) return
-  cache.productos = [
-    { ...prod('iPhone 15 Pro 256GB Titanio', 'Celulares'), precioVenta: 6850000, precioCosto: 5300000, comision: 50000, stock: 5, atributos: { color: 'Titanio', capacidad: '256GB', estado: 'Nuevo' } },
-    { ...prod('Funda MagSafe Transparente', 'Accesorios'), precioVenta: 180000, precioCosto: 70000, comision: 10000, stock: 24 },
-    { ...prod('Cargador USB-C 20W', 'Accesorios'), precioVenta: 220000, precioCosto: 120000, comision: 10000, stock: 12 },
-    { ...prod('AirPods Pro 2', 'Audio'), precioVenta: 1850000, precioCosto: 1300000, comision: 30000, stock: 3 },
+  const version = num(cache.config.demoSeedVersion)
+  const hoy = new Date()
+  const fecha = (dias) => { const d = new Date(hoy); d.setDate(d.getDate() - dias); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+  const producto = (id, nombre, categoria, precioVenta, precioCosto, stock, atributos = {}) => ({
+    ...prod(nombre, categoria), id, precioVenta, precioCosto, comision: Math.round(precioVenta * 0.01), stock, atributos,
+  })
+  const seeds = [
+    producto('demo-iphone-15-pro-256-titanio', 'iPhone 15 Pro 256GB Titanio', 'Celulares', 6850000, 5300000, 4, { modelo: 'iPhone 15 Pro', color: 'Titanio', capacidad: '256GB', estado: 'Nuevo' }),
+    producto('demo-iphone-15-pro-256-negro', 'iPhone 15 Pro 256GB Negro', 'Celulares', 6750000, 5250000, 2, { modelo: 'iPhone 15 Pro', color: 'Negro', capacidad: '256GB', estado: 'Nuevo' }),
+    producto('demo-iphone-15-128-azul', 'iPhone 15 128GB Azul', 'Celulares', 4850000, 3900000, 3, { modelo: 'iPhone 15', color: 'Azul', capacidad: '128GB', estado: 'Nuevo' }),
+    producto('demo-iphone-14-pro-256-plata', 'iPhone 14 Pro 256GB Plata', 'Celulares', 4950000, 4000000, 1, { modelo: 'iPhone 14 Pro', color: 'Plata', capacidad: '256GB', estado: 'Seminuevo' }),
+    producto('demo-funda-magsafe-transparente', 'Funda MagSafe Transparente', 'Accesorios', 180000, 70000, 23, { compatible: 'iPhone 15 Pro' }),
+    producto('demo-funda-silicona-negra', 'Funda Silicona Negra', 'Accesorios', 150000, 55000, 14, { compatible: 'iPhone 15 / 15 Pro' }),
+    producto('demo-cargador-usbc-20w', 'Cargador USB-C 20W', 'Accesorios', 220000, 120000, 10, { compatible: 'USB-C' }),
+    producto('demo-airpods-pro-2-usbc', 'AirPods Pro 2 USB-C', 'Audio', 1850000, 1300000, 3, { estado: 'Nuevo' }),
   ]
-  cache.vendedores = [{ id: 'demo-user', nombre: 'Usuario demo', activo: true, metaDiaria: 1000000 }]
-  cache.config = { ...cache.config, nombreTienda: 'MobOS Tienda Demo', demoSeedVersion: 1 }
+  const productoPorId = new Map()
+  const productoPorNombre = new Map(cache.productos.map((item) => [item.nombre.trim().toLowerCase(), item]))
+  const nuevosProductos = []
+  for (const item of seeds) {
+    const existente = productoPorNombre.get(item.nombre.trim().toLowerCase())
+    const elegido = existente || item
+    productoPorId.set(item.id, elegido.id)
+    if (!existente && !cache.productos.some((actual) => actual.id === item.id)) nuevosProductos.push(item)
+  }
+  const ventas = [
+    { id: 'demo-venta-hoy-full', fecha: fecha(0), creadoEn: `${fecha(0)}T10:15:00`, cliente: 'María González', productoId: 'demo-iphone-15-pro-256-titanio', productoNombre: 'iPhone 15 Pro 256GB Titanio', precio: 6850000, precioCosto: 5300000, comision: 50000, vendedorId: 'demo-user', medioPago: 'DINERO', pagos: [{ id: 'demo-pago-hoy-full', medioPago: 'DINERO', cuenta: '', monto: 6850000, fecha: `${fecha(0)}T10:15:00` }], totalPagado: 6850000, totalPendiente: 0, estadoPago: 'Pagado', entrega: 'Retiro en tienda', montoDelivery: 0, observacion: 'Venta demo completa' },
+    { id: 'demo-venta-hoy-partial', fecha: fecha(0), creadoEn: `${fecha(0)}T11:20:00`, cliente: 'Carlos Benítez', productoId: 'demo-funda-magsafe-transparente', productoNombre: 'Funda MagSafe Transparente', precio: 180000, precioCosto: 70000, comision: 10000, vendedorId: 'demo-user', medioPago: 'DINERO', pagos: [{ id: 'demo-pago-hoy-partial-a', medioPago: 'DINERO', cuenta: '', monto: 50000, fecha: `${fecha(0)}T11:20:00` }, { id: 'demo-pago-hoy-partial-b', medioPago: 'UENO BANK', cuenta: 'Caja demo', monto: 30000, fecha: `${fecha(0)}T11:21:00` }], totalPagado: 80000, totalPendiente: 100000, estadoPago: 'Parcial', entrega: 'Retiro en tienda', montoDelivery: 0, observacion: 'Seña demo combinada' },
+    { id: 'demo-venta-ayer-pending', fecha: fecha(1), creadoEn: `${fecha(1)}T16:40:00`, cliente: 'Lucía Franco', productoId: 'demo-airpods-pro-2-usbc', productoNombre: 'AirPods Pro 2 USB-C', precio: 1850000, precioCosto: 1300000, comision: 30000, vendedorId: 'demo-user', medioPago: 'DINERO', pagos: [], totalPagado: 0, totalPendiente: 1880000, estadoPago: 'Pendiente', entrega: 'Delivery', montoDelivery: 30000, observacion: 'Pendiente de cobro demo' },
+  ]
+  const ventasDemo = ventas.map((item) => ({ ...item, productoId: productoPorId.get(item.productoId) || item.productoId })).filter((item) => !cache.ventas.some((actual) => actual.id === item.id))
+  if (version < 2) {
+    cache.productos = [...cache.productos, ...nuevosProductos]
+    cache.vendedores = cache.vendedores.some((item) => item.id === 'demo-user') ? cache.vendedores : [...cache.vendedores, { id: 'demo-user', nombre: 'Usuario demo', activo: true, metaDiaria: 1000000 }]
+    cache.ventas = [...ventasDemo, ...cache.ventas]
+  }
+  cache.config = { ...cache.config, nombreTienda: cache.config.nombreTienda || 'MobOS Tienda Demo', demoSeedVersion: 2 }
   persistMirror()
   notify()
 }
