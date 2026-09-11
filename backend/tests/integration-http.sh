@@ -79,7 +79,7 @@ echo "Preparando cluster PostgreSQL temporal aislado..."
 "$PG_BIN/createdb" -h 127.0.0.1 -p "$PGPORT" -U postgres "$DB_NAME"
 
 export DATABASE_URL
-(cd "$BACKEND_ROOT" && ./node_modules/.bin/prisma db push --schema prisma/schema.prisma >/dev/null)
+(cd "$BACKEND_ROOT" && ./node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma)
 (cd "$BACKEND_ROOT" && ./node_modules/.bin/prisma generate --schema prisma/schema.prisma >/dev/null)
 
 PIN_HASH="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('2468', 10))")"

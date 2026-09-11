@@ -33,3 +33,14 @@ No ejecutar:
 npx prisma migrate reset
 npx prisma db push --force-reset
 ```
+
+## Flujo de una base nueva y vacía
+
+La inspección de producción confirmó que la base `mobos` no tiene tablas públicas. Para una base nueva, el orden esperado es:
+
+1. Ejecutar el preflight sobre la URL de la base vacía y confirmar que no contiene tablas públicas ni un historial Prisma previo.
+2. Ejecutar `npx prisma migrate deploy` desde `backend/`. Prisma aplicará primero `20260911000000_baseline` y después `20260911153000_auth_order_snapshots`.
+3. Ejecutar `npx prisma migrate status` y comprobar las tablas, índices, FKs y columnas de snapshot.
+4. Recién después iniciar el backend y correr las pruebas de integración.
+
+La baseline se generó con `prisma migrate diff --from-empty --to-schema` usando exclusivamente `1e9b3bf:backend/prisma/schema.prisma`, no el `HEAD` actual. No debe usarse `migrate reset` ni `db push` como sustituto del deploy versionado. La migración snapshot no fue modificada.
