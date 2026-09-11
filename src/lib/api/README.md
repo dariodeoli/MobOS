@@ -2,7 +2,9 @@
 
 Esta carpeta es un adaptador aislado para el backend futuro. Se activa únicamente
 cuando un módulo importa `@/lib/api`; la aplicación actual sigue usando
-`src/lib/storage.js` y Supabase sin cambios.
+La capa nueva apunta al API de MobOS en OwnCoding Hub. La migración de las pantallas
+que aún usan el adaptador histórico se realizará módulo por módulo, sin usar Supabase
+como fuente de datos de producción.
 
 ## Configuración
 
@@ -33,4 +35,3 @@ provisional y deben alinearse con OwnCoding Hub cuando exista el backend.
 
 Esta capa no modifica la sesión de Supabase ni migra datos. La migración deberá
 hacerse mediante adaptadores de dominio independientes y por etapas.
-

@@ -1,14 +1,12 @@
 # MobOS backend
 
-Backend/API independiente para MobOS, basado en la arquitectura de `mobile-system`:
-Next.js, Prisma y PostgreSQL. Vive en esta carpeta para no acoplarse al frontend actual
-ni a `supabase/`.
+Backend/API independiente para MobOS: Next.js, Prisma y PostgreSQL administrado en
+OwnCoding Hub. Esta es la única fuente de datos y autenticación de producción.
 
 ## Estado
 
-Este es un scaffold inicial seguro. Incluye un endpoint de salud y el modelo Prisma
-base para multiempresa, sucursales, usuarios con PIN hasheado, catálogo, clientes,
-órdenes, pagos y auditoría. No contiene secretos, seed ni migraciones aplicadas.
+Incluye endpoints para clientes, productos, stock, usuarios, órdenes y pagos, además
+del modelo Prisma base para multiempresa, sucursales, catálogo y auditoría.
 
 ## Desarrollo local
 
