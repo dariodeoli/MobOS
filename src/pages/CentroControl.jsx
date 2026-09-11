@@ -23,6 +23,7 @@ import Config from '@/components/control/Config'
 import Caja from '@/components/control/Caja'
 import Compras from '@/components/control/Compras'
 import Garantias from '@/components/control/Garantias'
+import TradeInPipeline from '@/components/control/TradeInPipeline'
 
 // [clave, etiqueta, componente, ícono]
 const SECCIONES = [
@@ -43,7 +44,7 @@ const SECCIONES = [
       ['compras', 'Compras', Compras, 'store'],
       ['garantias', 'Garantías y servicio', Garantias, 'phone'],
       ['celulares', 'Celulares', Celulares, 'phone'],
-      ['tradein', 'Trade-In', TradeInAdmin, 'refresh'],
+      ['tradein', 'Equipos recibidos · Trade-In', TradeInPipeline, 'refresh'],
       ['imagenes', 'Imágenes', ImagenesComparador, 'image'],
     ],
   },

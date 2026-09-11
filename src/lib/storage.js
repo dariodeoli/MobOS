@@ -1445,6 +1445,7 @@ export function addVenta(venta) {
   }
   const pagos = Array.isArray(venta.pagos) ? venta.pagos : []
   nueva.pagos = pagos.map((p) => ({
+    ...p,
     id: p.id || 'p-' + Math.random().toString(36).slice(2, 9),
     medioPago: p.medioPago || MEDIOS_PAGO[0],
     cuenta: p.cuenta || '',

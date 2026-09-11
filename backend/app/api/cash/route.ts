@@ -25,6 +25,7 @@ async function expected(db: QueryDb, tenantId: string, branchId: string, openedA
     SELECT COALESCE(SUM(p."amountPyg"), 0)::bigint AS total
     FROM "Payment" p JOIN "Order" o ON o."id" = p."orderId"
     WHERE p."tenantId" = ${tenantId} AND p."method" = 'CASH' AND p."status" = 'CONFIRMED'
+      AND COALESCE(p."currency"::text, 'PYG') = 'PYG'
       AND o."tenantId" = ${tenantId} AND o."branchId" = ${branchId}
       AND p."paidAt" >= ${openedAt} AND p."paidAt" <= ${until}`
   const total = Number(rows[0]?.total || 0n)

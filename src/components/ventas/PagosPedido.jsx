@@ -6,8 +6,10 @@ import { listVentas, updateVenta, refrescar } from '@/lib/storage'
 import { listDemoProofs, saveDemoProof } from '@/lib/demoProofs'
 import { gs, num } from '@/utils/calculos'
 import { formatGsInput, parseGsInput } from '@/utils/moneda'
+import { getPaymentAccounts } from '@/lib/paymentAccounts'
+import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 
-const METHODS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta / POS', CREDIT: 'Parte de pago' }
+const METHODS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta / POS', CREDIT: 'Crédito' }
 
 export default function PagosPedido({ venta, onClose }) {
   const { esDemo, usuario, sesion } = useSesion()
@@ -15,6 +17,12 @@ export default function PagosPedido({ venta, onClose }) {
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState('TRANSFER')
   const [reference, setReference] = useState('')
+  const [accounts, setAccounts] = useState([])
+  const [accountId, setAccountId] = useState('')
+  const [rate, setRate] = useState('')
+  const [device, setDevice] = useState({ serial: '', model: '', conditionNotes: '' })
+  const account = accounts.find(a => a.id === accountId)
+  useEffect(() => { let active = true; getPaymentAccounts().then(rows => { if (active) setAccounts(rows.filter(a => a.isActive)) }).catch(e => { if (active) setError(e.message) }); return () => { active = false } }, [])
   const [proofs, setProofs] = useState({})
   const [reconciliations, setReconciliations] = useState({})
   const [notes, setNotes] = useState({})
@@ -58,16 +66,29 @@ export default function PagosPedido({ venta, onClose }) {
   async function register(e) {
     e.preventDefault()
     if (busy || needsRefresh) return
-    const value = parseGsInput(amount)
+    if (account?.currency === 'USD' && (!/^\d+(?:[.,]\d{1,2})?$/.test(amount.trim()) || !/^\d+(?:[.,]\d{1,6})?$/.test(rate.trim()))) { setError('Usá hasta 2 decimales para USD y 6 para la cotización.'); return }
+    const originalAmount = account?.currency === 'USD' ? Number(amount.replace(',', '.')) : parseGsInput(amount)
+    const exchangeRatePyg = account?.currency === 'USD' ? Number(rate.replace(',', '.')) : 1
+    if (!Number.isFinite(originalAmount) || !Number.isFinite(exchangeRatePyg) || exchangeRatePyg <= 0) { setError('Completá el monto y la cotización.'); return }
+    const value = Math.round(originalAmount * exchangeRatePyg)
     if (!Number.isSafeInteger(value) || value <= 0 || value > pending) { setError('El monto debe ser positivo y no superar el saldo pendiente.'); return }
     setBusy(true); setError(''); setNotice('')
     try {
+      const tradeIn = account?.kind === 'TRADE_IN' ? device : undefined
+      if (tradeIn && (!device.serial.trim() || !device.model.trim() || !device.conditionNotes.trim())) throw new Error('Completá IMEI/serial, modelo y estado del teléfono recibido.')
+      const details = account ? { accountId, originalAmount, exchangeRatePyg, currency: account.currency, accountSnapshot: { ...account }, tradeIn } : {}
       if (esDemo) {
-        const updatedPayments = [...payments, { id: crypto.randomUUID(), medioPago: METHODS[method], monto: value, cuenta: reference, fecha: new Date().toISOString(), reconciliationState: 'PENDING' }]
+        const newPayment = { id: crypto.randomUUID(), ...details, method: account?.kind || method, medioPago: account?.name || METHODS[method], monto: value, amountPyg: value, cuenta: reference, fecha: new Date().toISOString(), reconciliationState: 'PENDING' }
+        await validateDemoTradeIns([newPayment])
+        const updatedPayments = [...payments, newPayment]
         const paid = num(order.totalPagado) + value
         updateVenta(order.id, { pagos: updatedPayments, totalPagado: paid, totalPendiente: pending - value, estadoPago: pending === value ? 'Pagado' : 'Parcial' })
+        try { await recordDemoTradeIns(order, [newPayment]) } catch (error) {
+          setNeedsRefresh(true)
+          throw new Error(`El pago demo se guardó, pero el equipo requiere revisión. No repitas el cobro. ${error.message}`)
+        }
       } else {
-        const payload = { orderId: order.id, method, amountPyg: value, reference }
+        const payload = { orderId: order.id, method: account?.kind || method, amountPyg: value, reference, ...details }
         const signature = JSON.stringify(payload)
         if (!attempt.current || attempt.current.signature !== signature) attempt.current = { signature, key: crypto.randomUUID() }
         await api.post('/api/payments', payload, { headers: { 'Idempotency-Key': attempt.current.key } })
@@ -118,8 +139,11 @@ export default function PagosPedido({ venta, onClose }) {
     </div>
     {pending > 0 && <form onSubmit={register} className="mb-6 space-y-3 rounded-xl border border-fono/20 bg-fono/5 p-4">
       <h3 className="font-semibold">Registrar pago parcial o total</h3>
-      <label className="block text-xs text-mute">Monto en guaraníes<Input aria-label="Monto del pago" value={amount} inputMode="numeric" onChange={e => setAmount(formatGsInput(e.target.value))} placeholder="Gs 0" /></label>
-      <label className="block text-xs text-mute">Método<select className="mt-1 w-full rounded-lg border border-ink-500 bg-ink p-2" value={method} onChange={e => setMethod(e.target.value)}>{Object.entries(METHODS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+      <label className="block text-xs text-mute">Cuenta de destino<select aria-label="Cuenta de destino" className="mt-1 w-full rounded-lg border border-ink-500 bg-ink p-2" value={accountId} onChange={e => { setAccountId(e.target.value); setAmount(''); setRate('') }}><option value="">Método manual sin cuenta</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.accountNumber || a.kind}</option>)}</select></label>
+      <label className="block text-xs text-mute">Monto en {account?.currency === 'USD' ? 'dólares' : 'guaraníes'}<Input aria-label="Monto del pago" value={amount} inputMode="decimal" onChange={e => setAmount(account?.currency === 'USD' ? e.target.value : formatGsInput(e.target.value))} placeholder={account?.currency === 'USD' ? '10.50' : 'Gs 0'} /></label>
+      {account?.currency === 'USD' && <label className="block text-xs text-mute">Cotización: Gs por USD<Input inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} placeholder="7500" /></label>}
+      {account?.kind === 'TRADE_IN' && <div className="space-y-2"><Input aria-label="IMEI o serial" placeholder="IMEI / serial" value={device.serial} onChange={e => setDevice(d => ({ ...d, serial: e.target.value }))} /><Input aria-label="Modelo recibido" placeholder="Modelo recibido" value={device.model} onChange={e => setDevice(d => ({ ...d, model: e.target.value }))} /><Input placeholder="Estado y observaciones" value={device.conditionNotes} onChange={e => setDevice(d => ({ ...d, conditionNotes: e.target.value }))} /></div>}
+      {!account && <label className="block text-xs text-mute">Método<select className="mt-1 w-full rounded-lg border border-ink-500 bg-ink p-2" value={method} onChange={e => setMethod(e.target.value)}>{Object.entries(METHODS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>}
       <label className="block text-xs text-mute">Cuenta / referencia<Input value={reference} onChange={e => setReference(e.target.value)} maxLength={200} placeholder="Banco, cuenta o referencia de operación" /></label>
       <Button disabled={busy || needsRefresh} type="submit">{busy ? 'Guardando…' : 'Registrar pago'}</Button>
     </form>}
@@ -128,6 +152,7 @@ export default function PagosPedido({ venta, onClose }) {
       {payments.map(p => <article key={p.id} className="rounded-xl border border-white/10 p-4">
         <div className="flex justify-between gap-3"><strong>{gs(p.monto)}</strong><span className="text-xs text-mute">{METHODS[p.medioPago] || p.medioPago}</span></div>
         <p className="mt-1 text-xs text-mute">{new Date(p.fecha || p.paidAt || p.createdAt).toLocaleString('es-PY')} · {p.cuenta || p.reference || 'Sin referencia'}</p>
+        {p.accountSnapshot && <p className="mt-1 text-xs text-fono-light">{p.accountSnapshot.name} · {p.accountSnapshot.bank} · {p.accountSnapshot.accountNumber} · {p.currency} {p.originalAmount} · cotización {p.exchangeRatePyg}</p>}
         <p className="my-2 text-xs text-amber-300">Conciliación: {(reconciliations[p.id]?.state || p.reconciliationState) === 'VERIFIED' ? 'Verificada' : (reconciliations[p.id]?.state || p.reconciliationState) === 'REJECTED' ? 'Rechazada' : 'Pendiente de revisión'}</p>
         {(proofs[p.id] || []).map(file => <button key={file.id} className="mb-2 block text-sm text-fono-light underline" onClick={() => download(p.id, file)}>{file.name || file.fileName || 'Descargar comprobante'}</button>)}
         <label className="block text-xs text-mute">Adjuntar comprobante · JPG, PNG, WebP o PDF · hasta 5 MB<input disabled={busy} type="file" className="mt-2 block w-full text-xs" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={e => { upload(p.id, e.target.files?.[0]); e.target.value = '' }} /></label>

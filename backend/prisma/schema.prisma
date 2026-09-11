@@ -7,6 +7,8 @@ datasource db {
 }
 
 model Tenant {
+  paymentAccounts PaymentAccount[]
+  tradeInDevices TradeInDevice[]
   cashSessions CashSession[]
   purchases PurchaseOrder[]
   warrantyCases WarrantyCase[]
@@ -34,6 +36,7 @@ model Tenant {
 }
 
 model Branch {
+  tradeInDevices TradeInDevice[]
   cashSessions CashSession[]
   purchases PurchaseOrder[]
   warrantyCases WarrantyCase[]
@@ -124,6 +127,8 @@ enum UserStatus {
 }
 
 model Product {
+  tradeInDevice TradeInDevice?
+  destination ProductDestination @default(NORMAL)
   purchaseLines PurchaseLine[]
   id        String        @id @default(cuid())
   tenantId  String
@@ -173,6 +178,7 @@ model Customer {
 }
 
 model Order {
+  tradeInDevices TradeInDevice[]
   id          String      @id @default(cuid())
   tenantId    String
   tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -223,6 +229,13 @@ model OrderItem {
 }
 
 model Payment {
+  accountId String?
+  account PaymentAccount? @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  accountSnapshot Json?
+  currency PaymentCurrency?
+  originalAmount Decimal? @db.Decimal(18, 2)
+  exchangeRatePyg Decimal? @db.Decimal(18, 6)
+  tradeInDevice TradeInDevice?
   id         String        @id @default(cuid())
   tenantId   String
   tenant     Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -285,6 +298,78 @@ enum PaymentMethod {
   TRANSFER
   CARD
   CREDIT
+  TRADE_IN
+}
+
+enum PaymentCurrency {
+  PYG
+  USD
+}
+
+enum PaymentAccountKind {
+  CASH
+  TRANSFER
+  CARD
+  TRADE_IN
+}
+
+enum ProductDestination {
+  NORMAL
+  OFFER
+  WHOLESALE
+}
+
+enum TradeInStatus {
+  RECEIVED
+  REVIEW
+  REPAIR
+  READY
+  STOCK
+  SOLD_EXTERNAL
+}
+
+model PaymentAccount {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name String
+  bank String?
+  holder String?
+  accountNumber String?
+  currency PaymentCurrency
+  kind PaymentAccountKind
+  isActive Boolean @default(true)
+  feePercent Decimal @default(0) @db.Decimal(5, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  payments Payment[]
+  @@index([tenantId, isActive])
+}
+
+model TradeInDevice {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId String?
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  orderId String
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  paymentId String @unique
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  serial String
+  model String
+  conditionNotes String
+  valuePyg Int
+  status TradeInStatus @default(RECEIVED)
+  repairCostPyg Int @default(0)
+  notes String?
+  productId String? @unique
+  product Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([tenantId, serial])
+  @@index([tenantId, branchId, status])
+  @@index([orderId])
 }
 
 enum PaymentStatus {

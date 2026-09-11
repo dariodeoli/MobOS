@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import {
   getProductos,
@@ -20,6 +20,9 @@ import { Button, Card, Input, Label, Select, Textarea, Badge } from '@/component
 import SelectorColor from './SelectorColor'
 import Icon from '@/components/shared/Icon'
 import SelectorMedioPago from '@/components/shared/SelectorMedioPago'
+import { getPaymentAccounts } from '@/lib/paymentAccounts'
+import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
+import PaymentAccountFields, { accountPayment, updateAccountPayment } from './PaymentAccountFields'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
 // en cada venta (suelen ser ráfagas de la misma persona).
@@ -67,6 +70,25 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   const [errorVenta, setErrorVenta] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [paso, setPaso] = useState(1)
+  const [cuentas, setCuentas] = useState(null)
+  const [errorCuentas, setErrorCuentas] = useState('')
+  const [intentoCuentas, setIntentoCuentas] = useState(0)
+  const guardadoEnCurso = useRef(false)
+  const [guardadoIncompleto, setGuardadoIncompleto] = useState(false)
+  const usaCuentas = Boolean(cuentas?.length)
+
+  useEffect(() => {
+    let vigente = true
+    setCuentas(null)
+    setErrorCuentas('')
+    Promise.resolve().then(() => getPaymentAccounts()).then((result) => {
+      if (!Array.isArray(result)) throw new Error('Respuesta inválida al cargar cuentas.')
+      if (vigente) setCuentas(result)
+    }).catch((error) => {
+      if (vigente) setErrorCuentas(error?.message || 'No se pudieron cargar las cuentas de cobro.')
+    })
+    return () => { vigente = false }
+  }, [esDemo, intentoCuentas])
 
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }))
 
@@ -234,7 +256,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   async function guardar(e) {
     e.preventDefault()
     if (paso !== 3) return
-    if (guardando) return
+    if (guardando || guardadoEnCurso.current || guardadoIncompleto) return
     // Lista final = lo agregado al carrito + lo que esté seleccionado ahora.
     const lista = [...items]
     if (f.productoId && gsNum(f.precio) > 0) {
@@ -243,14 +265,28 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     if (!sesion?.vendedorId || !f.cliente.trim() || lista.length === 0 || totalPagado > totalGeneral) return
     setErrorVenta('')
     let lineas
+    let payments
     try {
+      if (!cuentas || errorCuentas) throw new Error(errorCuentas || 'Esperá a que terminen de cargar las cuentas.')
+      if (!usaCuentas && pagos.some(p => !String(p.monto).trim() || gsNum(p.monto) <= 0)) throw new Error('Ingresá un monto positivo en cada pago o quitá la fila vacía.')
+      payments = usaCuentas ? pagos.map((p) => accountPayment(p, cuentas)) : pagos.map(p => ({
+        method: /efectivo/i.test(p.medioPago) ? 'CASH' : /tarjeta|pos/i.test(p.medioPago) ? 'CARD' : 'TRANSFER',
+        originalAmount: gsNum(p.monto), exchangeRatePyg: 1,
+        amountPyg: gsNum(p.monto), status: 'CONFIRMED', reference: [p.medioPago, p.cuenta].filter(Boolean).join(' · '),
+      }))
+      if (esDemo) payments = payments.map((p) => {
+        const account = cuentas.find((a) => a.id === p.accountId)
+        return { ...p, id: crypto.randomUUID(), ...(account ? { currency: account.currency, accountSnapshot: { ...account }, medioPago: account.name, cuenta: account.name } : {}) }
+      })
       const cantidades = new Map()
       for (const item of lista) cantidades.set(item.productoId, (cantidades.get(item.productoId) || 0) + 1)
       for (const [id, cantidad] of cantidades) {
         const producto = productos.find(p => p.id === id)
         if (!producto || num(producto.stock) < cantidad) throw new Error(`Stock insuficiente: ${producto?.nombre || 'producto'}.`)
       }
-      lineas = allocateCheckout(lista, gsNum(descuento), gsNum(f.montoDelivery), pagos.map(p => ({ ...p, monto: gsNum(p.monto) })))
+      lineas = allocateCheckout(lista, gsNum(descuento), gsNum(f.montoDelivery), usaCuentas
+        ? pagos.map((p, i) => ({ ...p, ...payments[i], monto: payments[i].amountPyg }))
+        : pagos.map((p, i) => ({ ...p, ...payments[i], monto: gsNum(p.monto) })))
     } catch (error) {
       setErrorVenta(error.message)
       return
@@ -267,24 +303,29 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     // Una venta por producto, compartiendo cliente/vendedor/pago. El costo de
     // envío se cobra una sola vez (va en el primer producto).
     setGuardando(true)
+    guardadoEnCurso.current = true
+    let ventaPersistida = false
     try {
     if (!esDemo) {
       const nombre = f.cliente.trim()
       const encontrados = await api.get(`/api/customers?q=${encodeURIComponent(nombre)}`)
       let cliente = encontrados.find(c => c.name.toLocaleLowerCase() === nombre.toLocaleLowerCase())
       if (!cliente) cliente = await api.post('/api/customers', { name: nombre })
-      await guardarOrdenApi({
+      const order = await guardarOrdenApi({
         customerId: cliente.id,
         items: lista.map(it => ({ productId: it.productoId, description: nombreDe(it.productoId), quantity: 1, unitPricePyg: it.precio })),
-        payments: pagos.filter(p => gsNum(p.monto) > 0).map(p => ({
-          method: /efectivo/i.test(p.medioPago) ? 'CASH' : /tarjeta|pos/i.test(p.medioPago) ? 'CARD' : 'TRANSFER',
-          amountPyg: gsNum(p.monto), status: 'CONFIRMED', reference: [p.medioPago, p.cuenta].filter(Boolean).join(' · '),
-        })),
+        payments,
         discountPyg: gsNum(descuento), deliveryPyg: gsNum(f.montoDelivery),
         deliveryNotes: f.observacion, deliveryType: f.entrega,
       })
-    } else lineas.forEach((it, i) => {
-      addVenta({
+      if (!order?.id || order.error || order.ok === false) throw new Error(order?.error || 'No se recibió confirmación de la orden.')
+      ventaPersistida = true
+    } else {
+      const validation = await validateDemoTradeIns(payments)
+      if (validation === false || validation?.error || validation?.ok === false) throw new Error(validation?.error || 'No se pudo validar el canje.')
+      const ventas = []
+      for (const [i, it] of lineas.entries()) {
+      const venta = await addVenta({
         compraId,
         vendedorId: sesion.vendedorId,
         cliente: f.cliente,
@@ -303,7 +344,14 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         totalPagado,
         totalPendiente: pendiente,
       })
-    })
+      if (!venta?.id || venta.error || venta.ok === false) throw new Error(venta?.error || 'No se recibió confirmación de la venta demo.')
+      ventaPersistida = true
+      ventas.push(venta)
+      }
+      const order = { ...ventas[0], id: ventas[0].id, compraId, cliente: f.cliente.trim(), vendedorId: sesion.vendedorId, seller: { id: sesion.vendedorId, name: sesion.nombre }, fecha: fechaVenta, totalPyg: totalGeneral, payments, ventas }
+      const result = await recordDemoTradeIns(order, payments)
+      if (result === false || result?.error || result?.ok === false) throw new Error(result?.error || 'No se pudo registrar el canje demo.')
+    }
 
     localStorage.setItem(ULTIMO_VENDEDOR, f.vendedorId)
     setItems([])
@@ -317,14 +365,21 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     setTimeout(() => setOk(false), 2500)
     onGuardado?.()
     } catch (error) {
-      setErrorVenta(error?.message || 'No se pudo guardar la venta. Tu carrito sigue disponible.')
+      if (ventaPersistida) setGuardadoIncompleto(true)
+      setErrorVenta(ventaPersistida
+        ? `La venta se guardó, pero quedó un paso incompleto: ${error?.message || 'error al finalizar'}. Revisá el registro antes de volver a vender; se bloqueó el reintento para evitar duplicados.`
+        : error?.message || 'No se pudo guardar la venta. Tu carrito sigue disponible.')
     } finally {
       setGuardando(false)
+      guardadoEnCurso.current = false
     }
   }
 
   function agregarPago() {
-    setPagos((arr) => [...arr, { ...PAGO_VACIO, monto: pendiente > 0 ? String(pendiente) : '' }])
+    if (!cuentas) return
+    setPagos((arr) => [...arr, usaCuentas
+      ? { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '' }
+      : { ...PAGO_VACIO, monto: pendiente > 0 ? String(pendiente) : '' }])
   }
 
   const pasos = ['Cliente y productos', 'Revisar carrito', 'Cobrar']
@@ -596,13 +651,13 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
 
         <div className={paso === 3 ? 'contents' : 'hidden'}>
         {/* Medio de pago */}
-        <div>
+        {cuentas?.length === 0 && <div>
           <Label>Medio de pago</Label>
           <SelectorMedioPago
             value={f.medioPago}
             onChange={(v) => setF((s) => ({ ...s, medioPago: v }))}
           />
-        </div>
+        </div>}
 
         {/* Pagos parciales y combinados */}
         <div className="space-y-3 rounded-2xl border border-fono/30 bg-gradient-to-br from-fono/[.08] to-transparent p-4 md:col-span-2">
@@ -611,13 +666,19 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
               <Label>Pagos de esta venta</Label>
               <p className="text-[11px] text-mute">Podés dividir el cobro entre efectivo, cuentas y transferencias.</p>
             </div>
-            <Button type="button" variant="outline" onClick={agregarPago}>+ Agregar pago</Button>
+            <Button type="button" variant="outline" onClick={agregarPago} disabled={!cuentas || guardando || guardadoIncompleto}>+ Agregar pago</Button>
           </div>
+          {!cuentas && !errorCuentas && <p role="status" className="text-sm text-mute">Cargando cuentas de cobro…</p>}
+          {errorCuentas && <div role="alert" className="text-sm text-red-300">{errorCuentas}<Button type="button" variant="ghost" onClick={() => setIntentoCuentas((n) => n + 1)}>Reintentar carga</Button></div>}
+          {cuentas?.length === 0 && <p className="text-xs text-mute">No hay cuentas configuradas. Se habilitaron los medios de pago anteriores.</p>}
+          {usaCuentas && !cuentas.some((a) => a.isActive && ['USD', 'PYG'].includes(a.currency)) && <p role="alert" className="text-sm text-warn">No hay cuentas activas en USD o PYG para recibir pagos.</p>}
           {pagos.map((p, i) => (
             <div key={i} className="grid grid-cols-1 sm:grid-cols-[1.2fr_1fr_1fr_auto] gap-2 items-end">
+              {usaCuentas ? <PaymentAccountFields payment={p} accounts={cuentas} onChange={(change) => setPagos((a) => a.map((x, j) => j === i ? updateAccountPayment(x, change, cuentas) : x))} /> : <>
               <div><Label>Medio</Label><SelectorMedioPago value={p.medioPago} onChange={(v) => setPagos((a) => a.map((x, j) => j === i ? { ...x, medioPago: v } : x))} /></div>
               <div><Label>Cuenta</Label><Input value={p.cuenta} onChange={(e) => setPagos((a) => a.map((x, j) => j === i ? { ...x, cuenta: e.target.value } : x))} placeholder="Ej. Ueno principal" /></div>
               <div><Label>Monto (Gs)</Label><Input inputMode="numeric" value={gsInput(p.monto)} onChange={(e) => setPagos((a) => a.map((x, j) => j === i ? { ...x, monto: e.target.value } : x))} /></div>
+              </>}
               <Button type="button" variant="ghost" onClick={() => setPagos((a) => a.filter((_, j) => j !== i))}><Icon name="trash" className="h-4 w-4" /></Button>
             </div>
           ))}
@@ -670,7 +731,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
 
         <div className="md:col-span-2 flex items-center gap-3">
           <Button type="button" variant="ghost" onClick={() => setPaso(2)} className="min-h-12">Atrás</Button>
-          <Button type="submit" variant="success" disabled={!valido || guardando} className="sticky bottom-3 min-h-12 flex-1 text-base shadow-lg shadow-fono/10">
+          <Button type="submit" variant="success" disabled={!valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto} className="sticky bottom-3 min-h-12 flex-1 text-base shadow-lg shadow-fono/10">
             {guardando ? 'Guardando venta…' : 'Guardar venta'}
             {cantTotal > 1 ? ` · ${cantTotal} productos` : ''}
             {totalGeneral > 0 ? ` · ${gs(totalGeneral)}` : ''}

@@ -321,6 +321,7 @@ PRIVATE_ORDER_ID="$(json_field "$out" id)"
 PRIVATE_PAYMENT_ID="$(node -e 'const fs=require("fs");console.log(JSON.parse(fs.readFileSync(process.argv[1],"utf8")).payments[0].id)' "$out")"
 SELLER_PRIVACY_SELLER_ID="user-a-it" SELLER_PRIVACY_OTHER_ORDER_ID="$PRIVATE_ORDER_ID" SELLER_PRIVACY_OTHER_PAYMENT_ID="$PRIVATE_PAYMENT_ID" node "$BACKEND_ROOT/tests/seller-privacy.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/new-modules-functional.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 MOBOS_SECURITY_PAYMENT_ID="$PAYMENT_PROOF_ID" node "$BACKEND_ROOT/tests/security-regression.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
 
 echo "10/11 Bloqueo de login empresarial después de cinco intentos..."

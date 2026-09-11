@@ -1,9 +1,8 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { InputError, normalizePayment, receiveTradeIn } from '../../../lib/payment-input'
 
-const methods = ['CASH', 'TRANSFER', 'CARD', 'CREDIT'] as const
-const statuses = ['PENDING', 'CONFIRMED', 'REJECTED', 'REFUNDED'] as const
 const INT_MAX = 2147483647
 const safeInt = (value: unknown, minimum = 0) => Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= INT_MAX
 
@@ -49,13 +48,20 @@ export async function POST(request: Request) {
       const total = subtotal - discount + delivery
       if (!safeInt(subtotal) || !safeInt(total)) throw new Error('Total inválido.')
       let confirmed = 0
+      const normalizedPayments = []
       for (const payment of payments) {
-        const amount = Number(payment.amountPyg); const status = payment.status || 'CONFIRMED'
-        if (!safeInt(amount, 1) || !methods.includes(payment.method) || !statuses.includes(status)) throw new Error('Pago inválido.')
+        const normalizedPayment = await normalizePayment(tx, tenant, payment)
+        normalizedPayments.push(normalizedPayment)
+        const amount = normalizedPayment.amountPyg; const status = normalizedPayment.status
         if (status === 'CONFIRMED') { confirmed += amount; if (!Number.isSafeInteger(confirmed) || confirmed > total) throw new Error('Los pagos superan el total.') }
       }
-      return tx.order.create({ data: { tenantId: tenant, branchId, customerId: body.customerId, sellerId: session.user.id, orderNumber: body.orderNumber || `MOB-${Date.now()}`, subtotalPyg: subtotal, discountPyg: discount, deliveryPyg: delivery, deliveryType: typeof body.deliveryType === 'string' ? body.deliveryType : undefined, deliveryNotes: typeof body.deliveryNotes === 'string' ? body.deliveryNotes : undefined, totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized }, payments: { create: payments.map((payment: any) => ({ tenantId: tenant, method: payment.method, amountPyg: Number(payment.amountPyg), status: payment.status || 'CONFIRMED', reference: payment.reference })) } }, include: { items: true, payments: true } })
+      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId: body.customerId, sellerId: session.user.id, orderNumber: body.orderNumber || `MOB-${Date.now()}`, subtotalPyg: subtotal, discountPyg: discount, deliveryPyg: delivery, deliveryType: typeof body.deliveryType === 'string' ? body.deliveryType : undefined, deliveryNotes: typeof body.deliveryNotes === 'string' ? body.deliveryNotes : undefined, totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      for (const { tradeIn, ...paymentData } of normalizedPayments) {
+        const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id } })
+        await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
+      }
+      return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: { items: true, payments: true } })
     })
     return json(result, { status: 201 })
-  } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo crear la venta.', 409) }
+  } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo crear la venta.', e instanceof InputError ? e.status : 409) }
 }

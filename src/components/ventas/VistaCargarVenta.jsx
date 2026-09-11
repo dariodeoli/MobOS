@@ -14,6 +14,21 @@ const fmtFecha = (f) => {
   return d ? `${d}/${m}/${y.slice(2)}` : '—'
 }
 const inicial = (s) => (s || '?').trim().charAt(0).toUpperCase()
+const TIPOS_PAGO = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta', TRADE_IN: 'Canje' }
+
+function PagosVenta({ venta }) {
+  const pagos = venta.pagos?.length ? venta.pagos : venta.payments || []
+  if (!pagos.length) return <MedioPago medio={venta.medioPago} alto="h-4" />
+  return <div className="space-y-1">{pagos.map((p, i) => {
+    const cuenta = p.accountSnapshot
+    const kind = cuenta?.kind || p.method
+    if (cuenta || kind === 'TRADE_IN') return <div key={p.id || i} className="text-xs text-mute">
+      <span className="font-medium">{cuenta?.name || p.medioPago || TIPOS_PAGO[kind] || 'Cuenta de pago'}</span>
+      {kind && <span> · {TIPOS_PAGO[kind] || kind}</span>}
+    </div>
+    return <MedioPago key={p.id || i} medio={p.medioPago || TIPOS_PAGO[kind] || kind} alto="h-4" />
+  })}</div>
+}
 
 function Caja({ className, children }) {
   return (
@@ -22,7 +37,7 @@ function Caja({ className, children }) {
 }
 
 export default function VistaCargarVenta({ vendedoresById = {} }) {
-  const { sesion } = useSesion()
+  const { sesion, esDemo } = useSesion()
   const ventas = listVentas()
   const prods = productosById()
   const [carrito, setCarrito] = useState({ items: [], quitar: null })
@@ -128,7 +143,7 @@ export default function VistaCargarVenta({ vendedoresById = {} }) {
                             {gs(v.precio)}
                           </td>
                           <td className="px-5 py-3">
-                            <MedioPago medio={v.medioPago} alto="h-4" />
+                            <PagosVenta venta={v} />
                           </td>
                           <td className="px-5 py-3">
                             <span
@@ -149,7 +164,7 @@ export default function VistaCargarVenta({ vendedoresById = {} }) {
                             </span>
                           </td>
                           <td className="px-5 py-3 text-mute">
-                            {vendedoresById[v.vendedorId] || '—'}
+                            {v.seller?.name || v.vendedorNombre || (esDemo && v.vendedorId === sesion.vendedorId ? sesion.nombre : vendedoresById[v.vendedorId]) || '—'}
                           </td>
                         </tr>
                       )

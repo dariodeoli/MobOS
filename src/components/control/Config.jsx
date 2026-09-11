@@ -13,6 +13,7 @@ import {
 } from '@/lib/storage'
 import { Card, Button, Input, Label, Badge } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import PaymentAccounts from './PaymentAccounts'
 
 const ROLES = [
   ['dueno', 'Dueño'],
@@ -110,6 +111,7 @@ export default function Config() {
 
   return (
     <div className="space-y-4">
+      {esDueno && <PaymentAccounts />}
       {/* ── Tu cuenta ──────────────────────────────────────────── */}
       <Card className="space-y-4">
         <div>
