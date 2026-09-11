@@ -17,16 +17,21 @@ export class ProofValidationError extends Error {
 }
 
 export function canAccessPayment(session: SessionContext, branchId: string | null) {
-  if (['VENDEDOR', 'CAJERA'].includes(session.user.role)) return session.user.branchId === branchId
+  if (session.user.role === 'VENDEDOR') return session.user.branchId === branchId
+  if (session.user.role === 'CAJERA') return session.user.branchId === branchId
   return true
 }
 
 export async function findAccessiblePayment(paymentId: string, session: SessionContext) {
   const payment = await prisma.payment.findFirst({
-    where: { id: paymentId, tenantId: session.user.tenantId },
-    include: { order: { select: { branchId: true } } },
+    where: {
+      id: paymentId,
+      tenantId: session.user.tenantId,
+      ...(session.user.role === 'VENDEDOR' ? { order: { sellerId: session.user.id } } : {}),
+    },
+    include: { order: { select: { branchId: true, sellerId: true } } },
   })
-  if (!payment || !canAccessPayment(session, payment.order.branchId)) return null
+  if (!payment || !canAccessPayment(session, payment.order.branchId) || (session.user.role === 'VENDEDOR' && payment.order.sellerId !== session.user.id)) return null
   return payment
 }
 

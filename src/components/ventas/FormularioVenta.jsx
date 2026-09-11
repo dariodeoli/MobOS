@@ -66,6 +66,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   const [pagos, setPagos] = useState([])
   const [errorVenta, setErrorVenta] = useState('')
   const [guardando, setGuardando] = useState(false)
+  const [paso, setPaso] = useState(1)
 
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }))
 
@@ -232,6 +233,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
 
   async function guardar(e) {
     e.preventDefault()
+    if (paso !== 3) return
     if (guardando) return
     // Lista final = lo agregado al carrito + lo que esté seleccionado ahora.
     const lista = [...items]
@@ -309,6 +311,8 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     setPagos([])
     setF(VACIO(f.vendedorId))
     setFamiliaActiva(null)
+    setBusquedaProducto('')
+    setPaso(1)
     setOk(true)
     setTimeout(() => setOk(false), 2500)
     onGuardado?.()
@@ -321,6 +325,13 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
 
   function agregarPago() {
     setPagos((arr) => [...arr, { ...PAGO_VACIO, monto: pendiente > 0 ? String(pendiente) : '' }])
+  }
+
+  const pasos = ['Cliente y productos', 'Revisar carrito', 'Cobrar']
+  const puedePaso2 = Boolean(f.cliente.trim() && items.length > 0 && !f.productoId)
+  function siguientePaso() {
+    if (paso === 1 && puedePaso2) setPaso(2)
+    else if (paso === 2) setPaso(3)
   }
 
   return (
@@ -342,8 +353,14 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         </span>
       </div>
 
+      {ok && <p role="status" aria-live="polite" className="mb-4 rounded-xl border border-ok/30 bg-ok/10 p-4 text-ok">Venta registrada correctamente. Ya podés cargar la siguiente.</p>}
       <form onSubmit={guardar} className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
         {errorVenta && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-red-300 md:col-span-2">{errorVenta}</p>}
+        <nav aria-label="Pasos de la venta" className="grid grid-cols-3 gap-1 rounded-2xl border border-ink-600 bg-ink-900/50 p-1 md:col-span-2">
+          {pasos.map((nombre, index) => { const n = index + 1; return <button key={nombre} type="button" onClick={() => n <= paso && setPaso(n)} disabled={n > paso} className={cn('min-h-11 rounded-xl px-2 text-left text-xs font-semibold transition sm:px-3', paso === n ? 'bg-fono text-white shadow-lg shadow-fono/15' : n < paso ? 'text-fono-light hover:bg-fono/10' : 'cursor-not-allowed text-mute/60')}><span className="mr-1.5 text-[10px] opacity-70">0{n}</span>{nombre}</button> })}
+        </nav>
+        <div className="flex items-center justify-between text-xs text-mute md:col-span-2"><span>Paso {paso} de 3</span>{paso === 3 && <span className="text-fono-light">Revisá los montos antes de confirmar</span>}</div>
+        <div className={paso === 1 ? 'contents' : 'hidden'}>
         {/* Vendedor */}
         <div className={nuevoVend ? 'md:col-span-2' : ''}>
           <Label>Vendedor</Label>
@@ -509,9 +526,9 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
           <Label>Precio (₲)</Label>
           <Input
             inputMode="numeric"
-            value={f.precio}
+            value={gsInput(f.precio)}
             onChange={set('precio')}
-            placeholder="Ej: 110000"
+            placeholder="Ej: 110.000"
           />
         </div>
         <div className="flex items-end">
@@ -526,6 +543,10 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
           </Button>
         </div>
 
+        <div className="flex justify-end md:col-span-2"><Button type="button" disabled={!puedePaso2} onClick={siguientePaso} className="min-h-11 w-full sm:w-auto">Revisar carrito <Icon name="chevron" className="ml-2 h-4 w-4 -rotate-90" /></Button></div>
+        </div>
+
+        <div className={paso === 2 ? 'contents' : 'hidden'}>
         {/* Carrito: productos agregados al mismo cliente */}
         {!ocultarCarrito && items.length > 0 && (
           <div className="md:col-span-2 rounded-xl border border-ink-600 divide-y divide-ink-600">
@@ -570,6 +591,10 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
           />
         </div>
 
+        <div className="flex justify-between gap-2 md:col-span-2"><Button type="button" variant="ghost" onClick={() => setPaso(1)} className="min-h-11">Atrás</Button><Button type="button" onClick={siguientePaso} className="min-h-11">Ir a cobrar <Icon name="chevron" className="ml-2 h-4 w-4 -rotate-90" /></Button></div>
+        </div>
+
+        <div className={paso === 3 ? 'contents' : 'hidden'}>
         {/* Medio de pago */}
         <div>
           <Label>Medio de pago</Label>
@@ -644,12 +669,14 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         </div>
 
         <div className="md:col-span-2 flex items-center gap-3">
-          <Button type="submit" variant="success" disabled={!valido || guardando} className="min-h-12 flex-1 text-base shadow-lg shadow-fono/10">
+          <Button type="button" variant="ghost" onClick={() => setPaso(2)} className="min-h-12">Atrás</Button>
+          <Button type="submit" variant="success" disabled={!valido || guardando} className="sticky bottom-3 min-h-12 flex-1 text-base shadow-lg shadow-fono/10">
             {guardando ? 'Guardando venta…' : 'Guardar venta'}
             {cantTotal > 1 ? ` · ${cantTotal} productos` : ''}
             {totalGeneral > 0 ? ` · ${gs(totalGeneral)}` : ''}
           </Button>
-          {ok && <span className="text-ok font-bold text-sm whitespace-nowrap">¡Guardada!</span>}
+          {ok && <span role="status" aria-live="polite" className="inline-flex items-center gap-1.5 rounded-full border border-ok/30 bg-ok/10 px-3 py-2 text-ok font-bold text-sm whitespace-nowrap"><Icon name="receipt" className="h-4 w-4" /> Recibo confirmado</span>}
+        </div>
         </div>
       </form>
 

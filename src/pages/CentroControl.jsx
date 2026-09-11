@@ -145,7 +145,7 @@ export default function CentroControl() {
 
           <div className="border-t border-ink-600 p-3">
             <button
-              onClick={() => intentar(() => navigate('/'))}
+              onClick={() => intentar(() => navigate('/pos'))}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-mute transition hover:bg-ink-700 hover:text-white"
             >
               <Icon name="back" className="h-4 w-4" />

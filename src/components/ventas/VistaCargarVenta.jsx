@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSesion } from '@/lib/sesion'
 import { listVentas, productosById } from '@/lib/storage'
 import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
 import FormularioVenta from './FormularioVenta'
@@ -21,6 +22,7 @@ function Caja({ className, children }) {
 }
 
 export default function VistaCargarVenta({ vendedoresById = {} }) {
+  const { sesion } = useSesion()
   const ventas = listVentas()
   const prods = productosById()
   const [carrito, setCarrito] = useState({ items: [], quitar: null })
@@ -50,6 +52,8 @@ export default function VistaCargarVenta({ vendedoresById = {} }) {
   const pag = Math.min(pagina, paginas)
   const filas = d.ultimas.slice((pag - 1) * POR_PAGINA, pag * POR_PAGINA)
   const nombreProd = (v) => v.productoNombre || prods[v.productoId]?.nombre || '—'
+
+  if (!sesion?.esPropietario) return <div className="mx-auto w-full max-w-4xl"><FormularioVenta /></div>
 
   return (
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">

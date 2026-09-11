@@ -18,6 +18,7 @@ function scope(session: { user: { role: string; branchId: string | null } }) {
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  if (session.user.role === 'VENDEDOR') return error('No autorizado.', 403)
   const branchId = scope(session); if (branchId === '') return json([])
   const params = [tenant]; const branchSql = branchId ? ' AND po."branchId" = $2' : ''
   if (branchId) params.push(branchId)

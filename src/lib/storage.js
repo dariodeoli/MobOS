@@ -712,6 +712,7 @@ async function fetchAllEntities() {
 }
 
 let hidratado = false
+let apiHydrationVersion = 0
 async function hydrate() {
   if (!supabase || hidratado || !ctx.empresaId) return
   hidratado = true
@@ -750,9 +751,12 @@ async function hydrate() {
 
 async function hydrateApi() {
   if (!apiMode()) return
+  const version = apiHydrationVersion
+  const identity = `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`
   const [products, orders, users] = await Promise.all([
-    api.get('/api/products'), api.get('/api/orders'), api.get('/api/users'),
+    api.get('/api/products'), api.get('/api/orders'), ctx.rol === 'dueno' ? api.get('/api/users') : Promise.resolve([]),
   ])
+  if (!apiMode() || version !== apiHydrationVersion || identity !== `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`) return
   cache.productos = (products || []).map((p) => ({ ...p, nombre: p.name, precioVenta: p.pricePyg, precioCosto: 0, activo: p.isActive !== false }))
   cache.ventas = (orders || []).map(mapOrdenApi)
   cache.vendedores = (users || []).map((u) => ({ ...u, nombre: u.name, activo: u.status === 'ACTIVE' }))
@@ -935,7 +939,9 @@ const SUC_KEY = 'fono:sucursal'
 // Entra a una empresa/sucursal: limpia lo anterior, levanta el espejo de esta
 // y arranca la sincronización. Es el único punto por donde se cambia de tienda.
 export async function setContexto({ empresaId, sucursalId, userId, rol, fuente = 'legacy' }) {
+  apiHydrationVersion += 1
   const cambioEmpresa = ctx.empresaId !== empresaId
+  if (fuente === 'api' && (ctx.userId !== userId || ctx.rol !== rol || cambioEmpresa)) vaciarCache()
   desconectarRealtime()
   hidratado = false
   ctx.empresaId = empresaId || null

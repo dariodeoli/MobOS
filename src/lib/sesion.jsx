@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { isDemoRuntime, demoSessionActive, saveDemoSession, clearDemoSession } from './demoMode'
+import { isDemoRuntime, demoSessionActive, demoSessionRole, saveDemoSession, clearDemoSession } from './demoMode'
 import { clearSession, getCompanyContext, sessionApi } from '@/lib/api'
 import { setActor, setContexto, prepararDatosDemo } from '@/lib/storage'
 
@@ -9,7 +9,7 @@ function adaptarUsuario(user) {
   return { ...user, id: user?.id, email: user?.email || null, user_metadata: { nombre: user?.name || user?.user_metadata?.nombre || user?.email || '' } }
 }
 function adaptarEmpresa(user) {
-  if (user.tenantId === 'mobos-demo') return { id: 'mobos-demo', nombre: 'MobOS Tienda Demo', rol: 'dueno' }
+  if (user.tenantId === 'mobos-demo') return { id: 'mobos-demo', nombre: 'MobOS Tienda Demo', rol: user.role === 'ADMIN' ? 'dueno' : 'VENDEDOR' }
   const context = getCompanyContext()
   return { id: user.tenantId || context?.tenant?.id, nombre: context?.tenant?.name || user.tenantName || 'Mi tienda', rol: user.role === 'ADMIN' ? 'dueno' : user.role }
 }
@@ -24,8 +24,8 @@ export function SesionProvider({ children }) {
     await setContexto({ empresaId: emp.id, sucursalId: suc?.id || null, userId: user.id, rol: emp.rol, fuente: prepararLegacy ? 'legacy' : 'api' })
     setUsuario(user); setEmpresa(emp); setEmpresas([emp]); setSucursal(suc); setSucursales(suc ? [suc] : []); setVendedores(getCompanyContext()?.sellers || []); setEstado('dentro')
   }, [])
-  const entrarDemo = useCallback(async () => {
-    saveDemoSession(); await activarSesion({ id: 'demo-user', email: 'demo@example.invalid', name: 'Usuario demo', tenantId: 'mobos-demo', role: 'ADMIN', branchId: 'mobos-demo-central', branchName: 'Tienda demo' }, { prepararLegacy: true }); prepararDatosDemo()
+  const entrarDemo = useCallback(async (role = demoSessionRole()) => {
+    saveDemoSession(role); await activarSesion({ id: 'demo-user', email: 'demo@example.invalid', name: role === 'ADMIN' ? 'Dueño demo' : 'Vendedor demo', tenantId: 'mobos-demo', role, branchId: 'mobos-demo-central', branchName: 'Tienda demo' }, { prepararLegacy: true }); prepararDatosDemo()
   }, [activarSesion])
   useEffect(() => {
     let vivo = true

@@ -5,6 +5,9 @@ import { requireSession } from '../../../lib/auth'
 const methods = ['CASH', 'TRANSFER', 'CARD', 'CREDIT'] as const
 const statuses = ['PENDING', 'CONFIRMED', 'REJECTED', 'REFUNDED'] as const
 const INT_MAX = 2147483647
+class PaymentScopeError extends Error {
+  readonly status = 403
+}
 
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
@@ -15,9 +18,10 @@ export async function POST(request: Request) {
   if (!body.orderId || !Number.isSafeInteger(amount) || amount <= 0 || amount > INT_MAX || !methods.includes(body.method) || !statuses.includes(status)) return error('Venta, monto entero positivo, método y estado válido son obligatorios.')
   try {
     const result = await prisma.$transaction(async tx => {
-      const locked = await tx.$queryRaw<Array<{ id: string; branchId: string | null; status: string; totalPyg: number }>>`SELECT "id", "branchId", "status", "totalPyg" FROM "Order" WHERE "id" = ${body.orderId} AND "tenantId" = ${tenant} FOR UPDATE`
+      const locked = await tx.$queryRaw<Array<{ id: string; branchId: string | null; sellerId: string; status: string; totalPyg: number }>>`SELECT "id", "branchId", "sellerId", "status", "totalPyg" FROM "Order" WHERE "id" = ${body.orderId} AND "tenantId" = ${tenant} FOR UPDATE`
       const order = locked[0]
       if (!order) throw new Error('Venta no encontrada.')
+      if (session.user.role === 'VENDEDOR' && order.sellerId !== session.user.id) throw new PaymentScopeError('La venta pertenece a otro vendedor.')
       if ((session.user.branchId === null && order.branchId !== null) || (session.user.branchId && order.branchId !== null && order.branchId !== session.user.branchId)) throw new Error('La venta pertenece a otra sucursal.')
       if (idempotencyKey) {
         const previous = await tx.payment.findUnique({ where: { tenantId_idempotencyKey: { tenantId: tenant, idempotencyKey } } })
@@ -35,5 +39,8 @@ export async function POST(request: Request) {
       return payment
     })
     return json(result, { status: 201 })
-  } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo registrar el pago.', 409) }
+  } catch (e) {
+    if (e instanceof PaymentScopeError) return error(e.message, e.status)
+    return error(e instanceof Error ? e.message : 'No se pudo registrar el pago.', 409)
+  }
 }

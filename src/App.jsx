@@ -36,7 +36,7 @@ function SinEmpresa() {
   )
 }
 
-// Mientras Supabase resuelve si hay sesión no se decide nada: si mandáramos
+// Mientras el API resuelve si hay sesión no se decide nada: si mandáramos
 // al login en ese instante, al recargar la página te sacaría siempre.
 function Cargando() {
   return (
@@ -75,6 +75,11 @@ function SoloPropietario({ children }) {
   return children
 }
 
+function InicioPorRol() {
+  const { sesion } = useSesion()
+  return <Navigate to={sesion?.esPropietario ? '/control' : '/pos'} replace />
+}
+
 function AppFooter() {
   const { esDemo, salir } = useSesion()
   return (
@@ -98,32 +103,34 @@ export default function App() {
           path="/"
           element={
             <Protegida>
-              <PanelVendedor />
+              <InicioPorRol />
             </Protegida>
           }
         />
         <Route
+          path="/pos" element={<Protegida><PanelVendedor /></Protegida>} />
+        <Route
           path="/celulares"
           element={
-            <Protegida>
+            <SoloPropietario>
               <Celulares />
-            </Protegida>
+            </SoloPropietario>
           }
         />
         <Route
           path="/comparador"
           element={
-            <Protegida>
+            <SoloPropietario>
               <Comparador />
-            </Protegida>
+            </SoloPropietario>
           }
         />
         <Route
           path="/tradein"
           element={
-            <Protegida>
+            <SoloPropietario>
               <TradeIn />
-            </Protegida>
+            </SoloPropietario>
           }
         />
         <Route

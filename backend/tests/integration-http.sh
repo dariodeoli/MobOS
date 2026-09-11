@@ -316,6 +316,10 @@ assert_confirmed_payment_total "$out" IT-CONCURRENT-001 60000 || { echo "Los pag
 node "$BACKEND_ROOT/tests/new-modules.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
 out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 ADMIN_TOKEN="$(json_field "$out" accessToken)"
+out="$(response_file)"; request POST /api/orders 201 '{"orderNumber":"ADMIN-PRIVATE","items":[{"productId":"prod-a-order-it","description":"Private admin test","quantity":1,"unitPricePyg":100000}],"payment":{"method":"CASH","amountPyg":1000}}' "$out" "$ADMIN_TOKEN" ''
+PRIVATE_ORDER_ID="$(json_field "$out" id)"
+PRIVATE_PAYMENT_ID="$(node -e 'const fs=require("fs");console.log(JSON.parse(fs.readFileSync(process.argv[1],"utf8")).payments[0].id)' "$out")"
+SELLER_PRIVACY_SELLER_ID="user-a-it" SELLER_PRIVACY_OTHER_ORDER_ID="$PRIVATE_ORDER_ID" SELLER_PRIVACY_OTHER_PAYMENT_ID="$PRIVATE_PAYMENT_ID" node "$BACKEND_ROOT/tests/seller-privacy.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/new-modules-functional.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 MOBOS_SECURITY_PAYMENT_ID="$PAYMENT_PROOF_ID" node "$BACKEND_ROOT/tests/security-regression.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
 

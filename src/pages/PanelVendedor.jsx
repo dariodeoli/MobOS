@@ -60,8 +60,9 @@ export default function PanelVendedor() {
   useLive()
   useAutoRefrescar()
   const desfaseHoras = useReloj()
-  const { sesion, vendedores, cambiarVendedor, esDemo, salir } = useSesion()
+  const { sesion, usuario, vendedores, cambiarVendedor, entrarDemo, esDemo, salir } = useSesion()
   const navigate = useNavigate()
+  const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const [vista, setVista] = useState('cargar')
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [cambiarAbierto, setCambiarAbierto] = useState(false)
@@ -72,13 +73,19 @@ export default function PanelVendedor() {
   const cambioEnCurso = useRef(false)
   const vendsById = vendedoresById()
 
+  useEffect(() => {
+    if (!esOwner && vista !== 'cargar') setVista('cargar')
+  }, [esOwner, vista])
+
   function abrirControl() {
     if (sesion?.esPropietario) navigate('/control')
   }
 
   function ir(id) {
     if (id === 'control') {
-      if (sesion?.esPropietario) setVista('control')
+      if (esOwner) setVista('control')
+    } else if (!esOwner && id !== 'cargar') {
+      setVista('cargar')
     }
     else if (RUTAS[id]) navigate(RUTAS[id])
     else setVista(id)
@@ -113,14 +120,23 @@ export default function PanelVendedor() {
     if (!cambiarAbierto || pin.length !== 4 || !sellerId || cambioEnCurso.current) return
     cambioEnCurso.current = true
     setCambiando(true)
+    if (esDemo && !['2580', '1234'].includes(pin)) {
+      setCambioError('PIN demo inválido.')
+      setPin('')
+      cambioEnCurso.current = false
+      return
+    }
     const cambio = esDemo
-      ? Promise.resolve()
+      ? entrarDemo(pin === '1234' ? 'ADMIN' : 'VENDEDOR')
       : cambiarVendedor({ sellerId, pin })
-    cambio.then(() => setCambiarAbierto(false)).catch((err) => {
+    cambio.then(() => {
+      setCambiarAbierto(false)
+      if (esDemo && pin === '1234') navigate('/')
+    }).catch((err) => {
       setCambioError(err?.message || 'PIN inválido. Probá de nuevo.')
       setPin('')
     }).finally(() => { cambioEnCurso.current = false; setCambiando(false) })
-  }, [pin, sellerId, cambiarAbierto, esDemo, cambiarVendedor])
+  }, [pin, sellerId, cambiarAbierto, esDemo, cambiarVendedor, entrarDemo, navigate])
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#071018] text-sm text-white lg:flex-row">
@@ -140,7 +156,7 @@ export default function PanelVendedor() {
         </div>
 
         <nav className="flex flex-1 flex-col gap-7 overflow-y-auto p-4">
-          {NAV.map((g) => (
+          {(esOwner ? NAV : [{ ...NAV[0], items: NAV[0].items.filter(([id]) => id === 'cargar') }]).map((g) => (
             <div key={g.titulo} className="flex flex-col gap-0.5">
               <div className="px-3 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[.08em] text-mute/70">
                 {g.titulo}
@@ -171,7 +187,7 @@ export default function PanelVendedor() {
           ))}
         </nav>
 
-        <div className="flex flex-col gap-2.5 border-t border-fono/20 p-3.5 pb-safe">
+        {esOwner && <div className="flex flex-col gap-2.5 border-t border-fono/20 p-3.5 pb-safe">
           <div className="rounded-2xl border border-fono/20 bg-gradient-to-br from-fono/10 to-ink-800 p-4">
             <div className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-white/60">
               Vendido hoy
@@ -181,7 +197,7 @@ export default function PanelVendedor() {
               {delDia.length} ventas · {activos} {activos === 1 ? 'vendedor' : 'vendedores'}
             </div>
           </div>
-        </div>
+        </div>}
       </aside>
 
       {menuAbierto && (
@@ -223,7 +239,7 @@ export default function PanelVendedor() {
                 <span className="hidden sm:inline">Cargar venta</span>
               </button>
             )}
-            {sesion?.esPropietario && (
+            {esOwner && (
               <button
                 onClick={abrirControl}
                 className="inline-flex h-[34px] items-center gap-1.5 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[13px] text-mute transition hover:text-white"
@@ -254,18 +270,18 @@ export default function PanelVendedor() {
         <main className="flex-1 bg-gradient-to-b from-[#071018] to-[#09151d] p-4 md:p-8">
           {vista === 'cargar' && <VistaCargarVenta vendedoresById={vendsById} />}
 
-          {vista === 'mayorista' && <Mayoristas />}
+          {esOwner && vista === 'mayorista' && <Mayoristas />}
 
           {vista === 'control' &&
-            (sesion.esPropietario ? (
+            (esOwner ? (
               <ControlResumen onAbrirPanel={() => navigate('/control')} />
             ) : (
               <p className="py-10 text-center text-sm text-mute">Acceso solo para el dueño.</p>
             ))}
 
-          {vista === 'panel' && <PanelDia vendedoresById={vendsById} />}
+          {esOwner && vista === 'panel' && <PanelDia vendedoresById={vendsById} />}
 
-          {vista === 'resumen' && (
+          {esOwner && vista === 'resumen' && (
             <div className="mx-auto max-w-6xl">
               <ResumenDia />
             </div>
@@ -273,7 +289,7 @@ export default function PanelVendedor() {
         </main>
       </div>
 
-      {cambiarAbierto && <div className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4" onMouseDown={(event) => event.target === event.currentTarget && !cambiando && setCambiarAbierto(false)}><section role="dialog" aria-modal="true" aria-labelledby="cambiar-vendedor-title" className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b1822] p-6 shadow-2xl"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-[#15D7B8]">Sesión segura</p><h2 id="cambiar-vendedor-title" className="mt-2 text-2xl font-bold">Cambiar vendedor</h2></div><button onClick={() => setCambiarAbierto(false)} disabled={cambiando} className="rounded-lg px-2 py-1 text-2xl text-slate-500 hover:text-white" aria-label="Cerrar">×</button></div><p className="mt-2 text-sm text-slate-400">Elegí quién registra la próxima venta y confirmá su PIN.</p><label htmlFor="seller-switch" className="mt-6 block text-sm font-semibold">Vendedor</label><select id="seller-switch" value={sellerId} onChange={(event) => setSellerId(event.target.value)} disabled={cambiando} className="mt-2 w-full rounded-xl border border-white/10 bg-[#071018] px-3 py-3 text-white outline-none focus:border-[#15D7B8]">{opcionesVendedor.map((seller) => <option key={seller.id} value={seller.id}>{seller.name || seller.nombre || seller.email}</option>)}</select>{esDemo ? <p className="mt-4 rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-3 text-xs text-slate-400">Demo: solo hay un vendedor disponible. No se realiza ninguna llamada API.</p> : <><label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">PIN del vendedor</label><input id="seller-switch-pin" autoFocus type="password" inputMode="numeric" maxLength={4} value={pin} disabled={cambiando} onChange={(event) => { setCambioError(''); setPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} className="mt-2 w-full rounded-xl border border-white/10 bg-[#071018] p-4 text-center text-3xl tracking-[.5em] outline-none focus:border-[#15D7B8]" /> </>}{cambioError && <p role="alert" className="mt-3 text-sm text-red-300">{cambioError}</p>}<p className="mt-5 text-xs text-slate-500">Esc para cerrar · tocar afuera también cierra</p></section></div>}
+      {cambiarAbierto && <div className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4" onMouseDown={(event) => event.target === event.currentTarget && !cambiando && setCambiarAbierto(false)}><section role="dialog" aria-modal="true" aria-labelledby="cambiar-vendedor-title" className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b1822] p-6 shadow-2xl"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-[#15D7B8]">Sesión segura</p><h2 id="cambiar-vendedor-title" className="mt-2 text-2xl font-bold">Cambiar vendedor</h2></div><button onClick={() => setCambiarAbierto(false)} disabled={cambiando} className="rounded-lg px-2 py-1 text-2xl text-slate-500 hover:text-white" aria-label="Cerrar">×</button></div><p className="mt-2 text-sm text-slate-400">Elegí quién registra la próxima venta y confirmá su PIN.</p><label htmlFor="seller-switch" className="mt-6 block text-sm font-semibold">Vendedor</label><select id="seller-switch" value={sellerId} onChange={(event) => setSellerId(event.target.value)} disabled={cambiando} className="mt-2 w-full rounded-xl border border-white/10 bg-[#071018] px-3 py-3 text-white outline-none focus:border-[#15D7B8]">{opcionesVendedor.map((seller) => <option key={seller.id} value={seller.id}>{seller.name || seller.nombre || seller.email}</option>)}</select>{esDemo ? <><p className="mt-4 rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-3 text-xs text-slate-400">PIN demo vendedor: <strong className="text-white">2580</strong> · dueño: <strong className="text-white">1234</strong></p><label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">PIN demo</label><input id="seller-switch-pin" autoFocus type="password" inputMode="numeric" maxLength={4} value={pin} disabled={cambiando} onChange={(event) => { setCambioError(''); setPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} className="mt-2 w-full rounded-xl border border-white/10 bg-[#071018] p-4 text-center text-3xl tracking-[.5em] outline-none focus:border-[#15D7B8]" /> </> : <><label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">PIN del vendedor</label><input id="seller-switch-pin" autoFocus type="password" inputMode="numeric" maxLength={4} value={pin} disabled={cambiando} onChange={(event) => { setCambioError(''); setPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} className="mt-2 w-full rounded-xl border border-white/10 bg-[#071018] p-4 text-center text-3xl tracking-[.5em] outline-none focus:border-[#15D7B8]" /> </>}{cambioError && <p role="alert" className="mt-3 text-sm text-red-300">{cambioError}</p>}<p className="mt-5 text-xs text-slate-500">Esc para cerrar · tocar afuera también cierra</p></section></div>}
 
     </div>
   )

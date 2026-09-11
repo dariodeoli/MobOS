@@ -12,6 +12,7 @@ const validDate = (value: unknown) => value === undefined || value === null || (
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  if (session.user.role === 'VENDEDOR') return error('No autorizado.', 403)
   const q = new URL(request.url).searchParams.get('q')?.trim() || ''
   const branch = session.user.role === 'ADMIN' ? null : session.user.branchId
   if (session.user.role !== 'ADMIN' && !branch) return json([])

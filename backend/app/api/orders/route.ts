@@ -10,7 +10,11 @@ const safeInt = (value: unknown, minimum = 0) => Number.isSafeInteger(value) && 
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  const where = ['VENDEDOR', 'CAJERA'].includes(session.user.role) ? { tenantId: tenant, branchId: session.user.branchId } : { tenantId: tenant }
+  const where = session.user.role === 'VENDEDOR'
+    ? { tenantId: tenant, branchId: session.user.branchId, sellerId: session.user.id }
+    : session.user.role === 'CAJERA'
+      ? { tenantId: tenant, branchId: session.user.branchId }
+      : { tenantId: tenant }
   return json(await prisma.order.findMany({ where, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 100 }))
 }
 
