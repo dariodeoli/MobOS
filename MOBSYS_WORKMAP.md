@@ -12,6 +12,28 @@ Nombre completo provisional: `MobOS Retail`.
 
 El nombre completo y la identidad visual deben continuar configurables por entorno y organización.
 
+## 1.1 Apartados conectados de iFusion/MobOS
+
+La navegación funcional se organiza en nueve apartados. Todos comparten la misma empresa, sucursal, usuarios, clientes, productos y movimientos auditables:
+
+1. **Inicio:** ventas, ganancia bruta, caja, faltantes y pendientes del día.
+2. **Ventas:** cobros, descuentos, reservas, combos, cambios y devoluciones.
+3. **Productos y compatibilidad:** catálogo con modelos, colores, capacidades, estados y dispositivos compatibles.
+4. **Stock:** existencias por local, reservas, mercadería en tránsito, transferencias y ajustes.
+5. **Compras:** proveedores, pedidos, importaciones, costos finales y reposición sugerida.
+6. **Caja y gastos:** cierre diario, medios de pago, comisiones, gastos y cuentas pendientes.
+7. **Clientes:** historial, dispositivos asociados, recurrencia y seguimiento.
+8. **Garantías:** equipos recibidos, seriales, responsables, plazos y resolución.
+9. **Reportes y controles:** resultados por producto, categoría y vendedor, permisos e historial de cambios.
+
+### Regla central de compatibilidad
+
+La compatibilidad es una relación entre productos, no una copia de stock. Un case conserva un único stock físico y puede ofrecerse como compatible con varios modelos. La demanda se suma por producto físico para sugerir reposición sin duplicar existencias.
+
+### Regla central de venta conectada
+
+Una venta debe poder seguir este flujo: seleccionar dispositivo del cliente → sugerir accesorios compatibles → cobrar con uno o varios pagos → descontar/reservar stock → registrar ingreso y caja → actualizar historial del cliente → activar garantía o entrega.
+
 ## 2. Principios no negociables
 
 - Cada empresa ve únicamente sus datos.
@@ -100,6 +122,8 @@ MobOS
 ```
 
 ## 4. Orden de implementación
+
+La primera entrega prioriza **Productos y compatibilidad, Stock, Ventas y Caja**. Compras, rentabilidad avanzada y reportes dependen de que estos cuatro módulos registren movimientos confiables.
 
 ### Fase 0 — Fundación y seguridad
 
