@@ -7,6 +7,7 @@ import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
 import { Card, Badge, Dot } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import PagosPedido from './PagosPedido'
 
 // Agrupa por compra (compraId); las sueltas quedan como grupo de 1.
 function agruparCompras(ventas) {
@@ -53,6 +54,7 @@ export default function ListaVentasDia({
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
   const [confirmar, setConfirmar] = useState(null)
+  const [pagoPedido, setPagoPedido] = useState(null)
 
   const base = listVentas().filter((v) => {
     const okFecha = rango ? v.fecha >= rango.desde && v.fecha <= rango.hasta : v.fecha === fecha
@@ -95,6 +97,7 @@ export default function ListaVentasDia({
 
   return (
     <Card className="p-0">
+      {pagoPedido && <PagosPedido venta={pagoPedido} onClose={() => setPagoPedido(null)} />}
       {/* ── Encabezado ───────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-600 px-5 py-4">
         <div>
@@ -187,11 +190,12 @@ export default function ListaVentasDia({
                     <div className="shrink-0 text-right">
                       <div className="font-semibold">{gs(tot)}</div>
                       <span className={cn('text-xs', pagado ? 'text-ok' : 'text-bad')}>
-                        {pagado ? 'Pagado' : 'Pendiente'}
+                        {pagado ? 'Pagado' : g.items.some(item => num(item.totalPagado) > 0) ? 'Parcial' : 'Pendiente'}
                       </span>
                     </div>
                   </div>
                   <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-4">
+                    <button className="rounded-lg border border-fono/30 px-3 py-2 text-xs text-fono-light" onClick={() => setPagoPedido(v)}>Pagos y comprobantes</button>
                     <MedioPago medio={v.medioPago} alto="h-4" />
                     {v.entrega !== 'Retiro en tienda' && (
                       <Badge color="blue">
@@ -263,7 +267,7 @@ export default function ListaVentasDia({
                             )}
                           >
                             <Dot color={pagado ? 'green' : 'red'} />
-                            {pagado ? 'Pagado' : 'No pagado'}
+                            {pagado ? 'Pagado' : num(v.totalPagado) > 0 ? 'Parcial' : 'Pendiente'}
                           </span>
                         </td>
                         <td className="px-5 py-3 text-right font-semibold">{gs(v.precio)}</td>
@@ -304,6 +308,7 @@ export default function ListaVentasDia({
                           </>
                         ) : null}
                         <td className="px-5 py-3 text-right">
+                          <button className="mb-2 whitespace-nowrap rounded-lg border border-fono/30 px-3 py-2 text-xs text-fono-light" onClick={() => setPagoPedido(v)}>Pagos y comprobantes</button>
                           {puedeBorrar ? (
                             <button
                               onClick={() => setConfirmar(v)}

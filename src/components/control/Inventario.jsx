@@ -1,12 +1,26 @@
-import { useState } from 'react'
-import { getProductos, updateProducto, deleteProducto, addProducto, addProductoVariante } from '@/lib/storage'
+import { useEffect, useState } from 'react'
+import { getProductos, updateProducto, deleteProducto, addProducto, addProductoVariante, addProductoApi, updateProductoApi, modoDatosActual } from '@/lib/storage'
 import { num, gs } from '@/utils/calculos'
 import { Card, Button, Input, Badge } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { deleteProductoApi } from '@/lib/api/products'
 
 function FilaProducto({ p }) {
   const margen = num(p.precioVenta) - num(p.precioCosto)
-  const set = (campo) => (e) => updateProducto(p.id, { [campo]: num(e.target.value) })
+  const apiMode = modoDatosActual() === 'api'
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [draft, setDraft] = useState({ precioVenta: p.precioVenta ?? '', stock: p.stock ?? '' })
+  const set = (campo) => async (e) => {
+    if (apiMode) {
+      const field = campo === 'precioVenta' ? 'pricePyg' : campo === 'stock' ? 'stock' : null
+      if (!field) return
+      setBusy(true); setError('')
+      try { await updateProductoApi(p.id, { [field]: num(e.target.value) }); window.dispatchEvent(new Event('mobos:catalog-updated')) } catch (err) { setError(err?.message || 'No se pudo guardar.') } finally { setBusy(false) }
+      return
+    }
+    updateProducto(p.id, { [campo]: num(e.target.value) })
+  }
 
   return (
     <div className="rounded-xl border border-ink-600 p-3">
@@ -14,7 +28,10 @@ function FilaProducto({ p }) {
         <div className="font-bold text-sm">{p.nombre}</div>
         <button
           onClick={() => {
-            if (confirm(`¿Eliminar "${p.nombre}"?`)) deleteProducto(p.id)
+            if (confirm(`¿Eliminar "${p.nombre}"?`)) {
+              if (apiMode) { setBusy(true); setError(''); deleteProductoApi(p.id).then(() => window.dispatchEvent(new Event('mobos:catalog-updated'))).catch((err) => setError(err?.message || 'No se pudo eliminar.')).finally(() => setBusy(false)) }
+              else deleteProducto(p.id)
+            }
           }}
           className="text-bad text-sm px-2 py-1 rounded hover:bg-bad/10"
           title="Eliminar"
@@ -27,14 +44,15 @@ function FilaProducto({ p }) {
           <span className="text-[10px] font-bold uppercase text-mute">Precio venta ₲</span>
           <Input
             inputMode="numeric"
-            defaultValue={p.precioVenta || ''}
+            value={draft.precioVenta}
+            onChange={(e) => setDraft((d) => ({ ...d, precioVenta: e.target.value }))}
             onBlur={set('precioVenta')}
             placeholder="0"
           />
         </label>
         <label className="block">
           <span className="text-[10px] font-bold uppercase text-mute">Precio mayorista ₲</span>
-          <Input
+          <Input disabled={apiMode} title={apiMode ? 'Este campo aún no existe en la API.' : undefined}
             inputMode="numeric"
             defaultValue={p.precioMayorista || ''}
             onBlur={set('precioMayorista')}
@@ -43,7 +61,7 @@ function FilaProducto({ p }) {
         </label>
         <label className="block">
           <span className="text-[10px] font-bold uppercase text-mute">Costo ₲</span>
-          <Input
+          <Input disabled={apiMode} title={apiMode ? 'Este campo aún no existe en la API.' : undefined}
             inputMode="numeric"
             defaultValue={p.precioCosto || ''}
             onBlur={set('precioCosto')}
@@ -52,7 +70,7 @@ function FilaProducto({ p }) {
         </label>
         <label className="block">
           <span className="text-[10px] font-bold uppercase text-mute">Comisión ₲</span>
-          <Input
+          <Input disabled={apiMode} title={apiMode ? 'Este campo aún no existe en la API.' : undefined}
             inputMode="numeric"
             defaultValue={p.comision || ''}
             onBlur={set('comision')}
@@ -63,7 +81,8 @@ function FilaProducto({ p }) {
           <span className="text-[10px] font-bold uppercase text-mute">Stock</span>
           <Input
             inputMode="numeric"
-            defaultValue={p.stock || ''}
+            value={draft.stock}
+            onChange={(e) => setDraft((d) => ({ ...d, stock: e.target.value }))}
             onBlur={set('stock')}
             placeholder="0"
           />
@@ -74,6 +93,9 @@ function FilaProducto({ p }) {
         <Badge color={margen > 0 ? 'green' : 'slate'}>Margen {gs(margen)}</Badge>
         {num(p.stock) <= 3 && <Badge color="orange">Stock bajo</Badge>}
       </div>
+      {apiMode && <p className="mt-2 text-[11px] text-mute">Costo, mayorista y comisión no están disponibles todavía en la API.</p>}
+      {busy && <p className="mt-1 text-xs text-mute">Guardando…</p>}
+      {error && <p className="mt-1 text-xs text-bad">{error}</p>}
     </div>
   )
 }
@@ -84,30 +106,47 @@ function norm(s) {
 }
 
 export default function Inventario() {
+  const [, refresh] = useState(0)
   const productos = getProductos()
   const [nuevo, setNuevo] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [atributos, setAtributos] = useState('color=; capacidad=; estado=')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const actualizar = () => refresh((n) => n + 1)
+    window.addEventListener('mobos:catalog-updated', actualizar)
+    return () => window.removeEventListener('mobos:catalog-updated', actualizar)
+  }, [])
 
   const q = norm(busqueda.trim())
   const items = !q ? productos : productos.filter((p) => norm(p.nombre).includes(q))
 
-  function crear(e) {
+  async function crear(e) {
     e.preventDefault()
     const nombre = nuevo.trim()
     if (!nombre) return
-    addProducto(nombre)
-    setNuevo('')
+    setBusy(true); setError('')
+    try {
+      if (modoDatosActual() === 'api') { await addProductoApi({ sku: `${norm(nombre).replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`, name: nombre, category: 'Otros', pricePyg: 0, stock: 0 }); window.dispatchEvent(new Event('mobos:catalog-updated')) }
+      else addProducto(nombre)
+      setNuevo('')
+    } catch (err) { setError(err?.message || 'No se pudo crear el producto.') } finally { setBusy(false) }
   }
 
-  function crearVariante(e) {
+  async function crearVariante(e) {
     e.preventDefault()
     const [nombre, ...resto] = nuevo.split('|')
     const base = productos.find((p) => p.nombre.toLowerCase() === nombre.trim().toLowerCase())
     if (!base) return
     const attrs = Object.fromEntries(atributos.split(';').map((x) => x.split('=').map((y) => y.trim())).filter(([k, v]) => k && v))
-    addProductoVariante(base, attrs)
-    setNuevo('')
+    setBusy(true); setError('')
+    try {
+      if (modoDatosActual() === 'api') { await addProductoApi({ sku: `${norm(`${base.nombre}-${Object.values(attrs).join('-')}`).replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`, name: `${base.nombre} · ${Object.values(attrs).join(' · ')}`, category: base.categoria || 'Otros', pricePyg: num(base.precioVenta), stock: 0 }); window.dispatchEvent(new Event('mobos:catalog-updated')) }
+      else addProductoVariante(base, attrs)
+      setNuevo('')
+    } catch (err) { setError(err?.message || 'No se pudo crear la variante.') } finally { setBusy(false) }
   }
 
   return (
@@ -126,7 +165,7 @@ export default function Inventario() {
             placeholder="Nombre del nuevo producto"
             autoCapitalize="words"
           />
-          <Button type="submit">Agregar</Button>
+          <Button type="submit" disabled={busy}>Agregar</Button>
         </form>
         <form onSubmit={crearVariante} className="mb-4 rounded-xl border border-dashed border-ink-500 p-3">
           <div className="mb-2 text-xs font-semibold text-mute">Variante personalizada</div>
@@ -134,7 +173,7 @@ export default function Inventario() {
             <Input value={nuevo} onChange={(e) => setNuevo(e.target.value)} placeholder="Modelo base exacto" />
             <Input value={atributos} onChange={(e) => setAtributos(e.target.value)} placeholder="color=; capacidad=; estado=" />
           </div>
-          <Button type="submit" variant="outline" className="mt-2 w-full sm:w-auto">Crear variante</Button>
+          <Button type="submit" disabled={busy} variant="outline" className="mt-2 w-full sm:w-auto">Crear variante</Button>
         </form>
         <div className="relative mb-4">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-mute">
@@ -158,6 +197,7 @@ export default function Inventario() {
             </button>
           )}
         </div>
+        {error && <p className="mb-4 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
         {items.length === 0 ? (
           <div className="p-8 text-center text-mute text-sm">
             {productos.length === 0

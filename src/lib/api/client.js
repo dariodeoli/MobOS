@@ -30,6 +30,7 @@ export async function request(path, options = {}) {
   }
 
   const { body, headers, ...init } = options
+  const multipart = typeof FormData !== 'undefined' && body instanceof FormData
   const token = readToken()
   const tenant = readTenant()
   let response
@@ -38,12 +39,12 @@ export async function request(path, options = {}) {
       ...init,
       headers: {
         Accept: 'application/json',
-        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(body !== undefined && !multipart ? { 'Content-Type': 'application/json' } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(tenant ? { 'x-tenant-id': tenant } : {}),
         ...headers,
       },
-      body: body === undefined || typeof body === 'string' ? body : JSON.stringify(body),
+      body: body === undefined || typeof body === 'string' || multipart ? body : JSON.stringify(body),
     })
   } catch (error) {
     throw new ApiError('No se pudo conectar con OwnCoding Hub.', {

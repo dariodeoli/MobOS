@@ -52,7 +52,7 @@ export default function VistaCargarVenta({ vendedoresById = {} }) {
   const nombreProd = (v) => v.productoNombre || prods[v.productoId]?.nombre || '—'
 
   return (
-    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
+    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
       {/* ── Columna principal ────────────────────────────────────── */}
       <div className="flex min-w-0 flex-col gap-5">
         <FormularioVenta ocultarCarrito onCarrito={setCarrito} />
@@ -194,11 +194,11 @@ export default function VistaCargarVenta({ vendedoresById = {} }) {
       </div>
 
       {/* ── Columna lateral ──────────────────────────────────────── */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 xl:sticky xl:top-5">
         {/* Esta compra */}
-        <Caja>
-          <div className="flex items-center justify-between gap-2 border-b border-fono/20 px-5 py-3.5">
-            <span className="font-semibold">Esta compra</span>
+        <Caja className="overflow-hidden shadow-xl shadow-black/10">
+          <div className="flex items-center justify-between gap-2 border-b border-fono/20 bg-fono/[.05] px-5 py-4">
+            <span className="font-semibold tracking-tight">Resumen de compra</span>
             <span className="text-xs text-mute">
               {carrito.items.length} {carrito.items.length === 1 ? 'producto' : 'productos'}
             </span>

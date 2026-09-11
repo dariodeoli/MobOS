@@ -7,11 +7,11 @@ export default {
         // ── Tema oscuro ────────────────────────────────────────────────
         // Fondos: negro real → superficies elevadas
         ink: {
-          DEFAULT: '#08090B', // fondo de la app
-          800: '#0E1013', // superficie base (cards)
-          700: '#15181D', // superficie elevada (hover, headers)
-          600: '#1D2127', // bordes suaves / inputs
-          500: '#2A2F37', // bordes
+          DEFAULT: '#071018', // fondo alineado a la landing
+          800: '#0D1B25', // superficie base
+          700: '#142733', // superficie elevada
+          600: '#203744', // inputs y separadores
+          500: '#34505E', // bordes
         },
         // Verde MobOS de marca
         fono: {

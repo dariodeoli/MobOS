@@ -1,3 +1,5 @@
+import { formatGs, formatGsInput, parseGsInput, formatUsd } from './moneda.js'
+
 // ── Coerción y formato ──────────────────────────────────────────────
 export function num(v) {
   const n = typeof v === 'string' ? parseFloat(v.replace(/[^\d.-]/g, '')) : Number(v)
@@ -5,18 +7,16 @@ export function num(v) {
 }
 
 export function gs(v) {
-  return 'Gs ' + Math.round(num(v)).toLocaleString('es-PY', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  })
+  return formatGs(num(v))
 }
 
 // Formato de entrada para guaraníes: solo enteros y separador de miles con
 // puntos. El valor almacenado sigue siendo numérico, sin formato.
 export function gsInput(v) {
-  const digits = String(v ?? '').replace(/\D/g, '')
-  return digits ? Number(digits).toLocaleString('es-PY') : ''
+  return formatGsInput(v)
 }
+
+export { formatGs, formatGsInput, parseGsInput, formatUsd }
 
 export function pct(v) {
   return Math.round(num(v) * 100) + '%'

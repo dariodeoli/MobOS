@@ -16,9 +16,9 @@ const inicial = (s) => (s || '?').trim().charAt(0).toUpperCase()
 // Tarjeta de métrica: rótulo chico, número grande, contexto abajo.
 function Metrica({ label, valor, children }) {
   return (
-    <div className="min-w-0 rounded-xl border border-fono/30 bg-ink-800 p-[18px]">
+    <div className="min-w-0 rounded-2xl border border-white/10 bg-gradient-to-br from-ink-700/60 to-ink-800 p-5 shadow-card">
       <div className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-mute">{label}</div>
-      <div className="mt-2 whitespace-nowrap text-[25px] font-semibold tracking-tight tabular-nums">
+      <div className="mt-3 break-words text-[clamp(1.2rem,2vw,1.65rem)] font-semibold tracking-tight tabular-nums">
         {valor}
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-mute">{children}</div>
@@ -76,11 +76,20 @@ export default function PanelDia({ vendedoresById = {} }) {
         monto: num(v.montoDelivery),
       }))
 
-    // Medios de pago
+    // Cobros confirmados, no confundir facturación con dinero recibido.
     const porMedio = {}
     hoy.forEach((v) => {
-      const k = v.medioPago || '—'
-      porMedio[k] = (porMedio[k] || 0) + num(v.precio)
+      const pagos = Array.isArray(v.pagos) ? v.pagos : []
+      if (pagos.length) {
+        pagos.forEach((p) => {
+          if (p.status && p.status !== 'CONFIRMED') return
+          const k = p.medioPago || '—'
+          porMedio[k] = (porMedio[k] || 0) + num(p.monto)
+        })
+      } else if (v.estadoPago === 'Pagado') {
+        const k = v.medioPago || '—'
+        porMedio[k] = (porMedio[k] || 0) + num(v.totalPagado ?? v.precio)
+      }
     })
     const medios = Object.entries(porMedio)
       .map(([medio, monto]) => ({ medio, monto }))
@@ -190,7 +199,7 @@ export default function PanelDia({ vendedoresById = {} }) {
           )}
         </Panel>
 
-        <Panel titulo="Por medio de pago">
+        <Panel titulo="Cobrado por medio de pago">
           {d.medios.length === 0 ? (
             <p className="py-4 text-center text-sm text-mute">Sin datos</p>
           ) : (

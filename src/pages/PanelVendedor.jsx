@@ -132,12 +132,10 @@ export default function PanelVendedor() {
         )}
       >
         <div className="flex h-20 items-center gap-3 border-b border-white/10 px-5 pt-safe">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#15D7B8] text-sm font-bold text-[#071018]">
-            M
-          </div>
+          <img src="/favicon.svg" alt="" className="h-10 w-10 shrink-0 rounded-xl" />
           <div className="flex flex-col leading-tight">
             <span className="text-base font-bold tracking-tight">{APP_NAME}</span>
-            <span className="text-[11px] text-slate-500">Operación en vivo</span>
+            <span className="text-[11px] text-slate-400">{esDemo ? 'Tienda de demostración' : 'Centro de operaciones'}</span>
           </div>
         </div>
 
@@ -174,11 +172,11 @@ export default function PanelVendedor() {
         </nav>
 
         <div className="flex flex-col gap-2.5 border-t border-fono/20 p-3.5 pb-safe">
-          <div className="rounded-xl border border-fono/30 bg-blue-blur p-3.5">
+          <div className="rounded-2xl border border-fono/20 bg-gradient-to-br from-fono/10 to-ink-800 p-4">
             <div className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-white/60">
               Vendido hoy
             </div>
-            <div className="mt-1 text-[22px] font-semibold tracking-tight">{gs(totalHoy)}</div>
+            <div className="mt-2 text-[22px] font-semibold tracking-tight text-fono-light tabular-nums">{gs(totalHoy)}</div>
             <div className="mt-1 text-[11.5px] text-white/60">
               {delDia.length} ventas · {activos} {activos === 1 ? 'vendedor' : 'vendedores'}
             </div>

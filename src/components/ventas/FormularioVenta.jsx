@@ -12,6 +12,7 @@ import {
   ENTREGA,
 } from '@/lib/storage'
 import { fechaClave, num, gs, gsInput } from '@/utils/calculos'
+import { cn } from '@/lib/utils'
 import { allocateCheckout } from '@/utils/checkout'
 import { api } from '@/lib/api/client'
 import { agruparProductos } from '@/utils/colores'
@@ -55,6 +56,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   const [coloresNuevos, setColoresNuevos] = useState([])
   const [colorInput, setColorInput] = useState('')
   const [familiaActiva, setFamiliaActiva] = useState(null) // { base, items } cuando se eligió una familia con colores
+  const [busquedaProducto, setBusquedaProducto] = useState('')
   const [modalColor, setModalColor] = useState(false)
   const [nuevoVend, setNuevoVend] = useState(false)
   const [nombreVend, setNombreVend] = useState('')
@@ -131,6 +133,11 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   // Producto/color elegido actualmente (para el chip).
   const itemActivo =
     familiaActiva && f.productoId ? familiaActiva.items.find((it) => it.id === f.productoId) : null
+  const familiasVisibles = familias.filter((fam) => {
+    const query = busquedaProducto.trim().toLocaleLowerCase()
+    if (!query) return true
+    return [fam.base, ...fam.items.map((item) => item.nombre)].some((text) => text.toLocaleLowerCase().includes(query))
+  })
 
   function elegirVendedor(e) {
     const v = e.target.value
@@ -318,25 +325,25 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
 
   return (
     <Card>
-      <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-ink-600 pb-4">
         <div className="flex items-center gap-2">
-          <span className="text-xl">
-            <Icon name="receipt" className="h-4 w-4" />
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-fono/10 text-fono-light">
+            <Icon name="receipt" className="h-5 w-5" />
           </span>
           <div>
-            <h2 className="font-bold">Cargar venta</h2>
+            <h2 className="text-lg font-bold tracking-tight">Nueva venta</h2>
             <p className="mt-0.5 text-xs text-mute">
               El vendedor se asigna desde tu sesión. Agregá el cliente y los productos.
             </p>
           </div>
         </div>
-        <span className="text-xs font-semibold text-mute">
+        <span className="rounded-full border border-fono/20 bg-fono/5 px-3 py-1 text-xs font-semibold text-fono-light">
           Hoy: {fechaClave().split('-').reverse().join('/')}
         </span>
       </div>
 
-      <form onSubmit={guardar} className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2.5">
-        {errorVenta && <p role="alert" className="md:col-span-2 text-sm text-red-400">{errorVenta}</p>}
+      <form onSubmit={guardar} className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
+        {errorVenta && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-red-300 md:col-span-2">{errorVenta}</p>}
         {/* Vendedor */}
         <div className={nuevoVend ? 'md:col-span-2' : ''}>
           <Label>Vendedor</Label>
@@ -391,8 +398,11 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         </div>
 
         {/* Producto */}
-        <div className="md:col-span-2">
-          <Label>Producto</Label>
+        <div className="rounded-2xl border border-fono/20 bg-fono/[.04] p-4 md:col-span-2">
+          <div className="mb-3 flex items-end justify-between gap-3">
+            <div><Label>Producto</Label><p className="mt-1 text-xs text-mute">Buscá por nombre, modelo o variante.</p></div>
+            <span className="text-xs font-medium text-fono-light">{productos.length} disponibles</span>
+          </div>
           {nuevoProd ? (
             <div className="rounded-xl border border-ink-600 p-3 space-y-2.5">
               <Input
@@ -454,9 +464,13 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
             </div>
           ) : (
             <>
-              <Select value={valorSelect} onChange={elegirProducto}>
+              <div className="relative mb-2">
+                <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
+                <Input value={busquedaProducto} onChange={(e) => setBusquedaProducto(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto por texto" className="pl-9" />
+              </div>
+              <Select value={valorSelect} onChange={elegirProducto} aria-label="Seleccionar producto">
                 <option value="">— Seleccionar producto —</option>
-                {familias.map((fam) =>
+                {familiasVisibles.map((fam) =>
                   fam.items.length > 1 ? (
                     <option key={fam.base} value={'fam:' + fam.base}>
                       {fam.base} · {fam.items.length} colores
@@ -467,6 +481,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
                     </option>
                   ),
                 )}
+                {familiasVisibles.length === 0 && <option disabled>No encontramos ese producto</option>}
                 <option value="__nuevo__">Agregar otro producto…</option>
               </Select>
               {familiaActiva && (
@@ -503,7 +518,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
           <Button
             type="button"
             variant="outline"
-            className="w-full"
+            className="min-h-11 w-full"
             onClick={agregarItem}
             disabled={!f.productoId || gsNum(f.precio) <= 0}
           >
@@ -565,7 +580,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         </div>
 
         {/* Pagos parciales y combinados */}
-        <div className="md:col-span-2 rounded-xl border border-fono/30 bg-fono/5 p-3 space-y-2">
+        <div className="space-y-3 rounded-2xl border border-fono/30 bg-gradient-to-br from-fono/[.08] to-transparent p-4 md:col-span-2">
           <div className="flex items-center justify-between gap-2">
             <div>
               <Label>Pagos de esta venta</Label>
@@ -581,10 +596,10 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
               <Button type="button" variant="ghost" onClick={() => setPagos((a) => a.filter((_, j) => j !== i))}><Icon name="trash" className="h-4 w-4" /></Button>
             </div>
           ))}
-          <div className="flex flex-wrap justify-between gap-2 border-t border-fono/20 pt-2 text-sm">
-            <span>Total: <strong>{gs(totalGeneral)}</strong></span>
-            <span>Pagado: <strong className="text-ok">{gs(totalPagado)}</strong></span>
-            <span>Pendiente: <strong className={pendiente ? 'text-warn' : 'text-ok'}>{gs(pendiente)}</strong></span>
+          <div className="grid grid-cols-3 gap-2 border-t border-fono/20 pt-3 text-sm">
+            <span className="text-mute">Total<strong className="mt-1 block text-base text-white">{gs(totalGeneral)}</strong></span>
+            <span className="text-mute">Pagado<strong className="mt-1 block text-base text-ok">{gs(totalPagado)}</strong></span>
+            <span className="text-mute">Pendiente<strong className={cn('mt-1 block text-base', pendiente ? 'text-warn' : 'text-ok')}>{gs(pendiente)}</strong></span>
           </div>
         </div>
 
@@ -629,7 +644,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         </div>
 
         <div className="md:col-span-2 flex items-center gap-3">
-          <Button type="submit" variant="success" disabled={!valido || guardando} className="flex-1">
+          <Button type="submit" variant="success" disabled={!valido || guardando} className="min-h-12 flex-1 text-base shadow-lg shadow-fono/10">
             {guardando ? 'Guardando venta…' : 'Guardar venta'}
             {cantTotal > 1 ? ` · ${cantTotal} productos` : ''}
             {totalGeneral > 0 ? ` · ${gs(totalGeneral)}` : ''}

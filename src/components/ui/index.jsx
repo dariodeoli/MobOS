@@ -1,9 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 // ── Button ──────────────────────────────────────────────────────────
 const VARIANTS = {
-  primary: 'bg-fono text-white hover:bg-fono-dark',
+  primary: 'bg-fono text-ink hover:bg-fono-light',
   success: 'bg-ok text-black hover:brightness-110',
   danger: 'bg-bad text-white hover:brightness-110',
   outline: 'bg-transparent text-white border border-ink-500 hover:border-fono hover:bg-fono/10',
@@ -93,18 +93,34 @@ export function Card({ className, ...props }) {
 
 // Popup estándar: Esc, clic afuera, botón cerrar y cierre opcional al guardar.
 export function Modal({ open, onClose, title, children, className }) {
+  const dialog = useRef(null)
+  const close = useRef(onClose)
+  close.current = onClose
+  const titleId = useId()
   useEffect(() => {
     if (!open) return undefined
-    const onKey = (e) => e.key === 'Escape' && onClose?.()
+    const previous = document.activeElement
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    dialog.current?.focus()
+    const onKey = (e) => {
+      if (e.key === 'Escape') close.current?.()
+      if (e.key !== 'Tab') return
+      const nodes = [...(dialog.current?.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]') || [])].filter(el => el.getClientRects().length)
+      const first = nodes[0], last = nodes[nodes.length - 1]
+      if (!first) { e.preventDefault(); return }
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; previous?.focus?.() }
+  }, [open])
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div role="dialog" aria-modal="true" className={cn('max-h-[min(90dvh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-ink-600 bg-ink-800 p-4 shadow-2xl sm:p-6', className)}>
+      <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cn('max-h-[min(90dvh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-ink-600 bg-ink-800 p-4 shadow-2xl sm:p-6', className)}>
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-base font-bold text-white">{title}</h2>
+          <h2 id={titleId} className="text-base font-bold text-white">{title}</h2>
           <button type="button" onClick={onClose} className="rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-white" aria-label="Cerrar">×</button>
         </div>
         {children}

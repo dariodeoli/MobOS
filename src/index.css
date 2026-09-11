@@ -12,6 +12,30 @@ body {
   min-height: 100dvh;
 }
 
+/* Tokens compartidos: landing, acceso, POS y administración. */
+:root {
+  --mobos-brand: #15d7b8;
+  --mobos-canvas: #071018;
+  --mobos-surface: #0d1b25;
+  --mobos-border: #203744;
+  --mobos-radius: 1rem;
+}
+body { font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11'; }
+h1, h2, h3 { letter-spacing: -.035em; text-wrap: balance; }
+input, td, [data-money] { font-variant-numeric: tabular-nums; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--mobos-brand); outline-offset: 3px; }
+input, select, textarea { min-height: 2.75rem; }
+input::placeholder, textarea::placeholder { color: #8197a5; }
+table { font-variant-numeric: tabular-nums; }
+thead { color: #a6bac6; }
+tbody tr { transition: background-color .15s ease; }
+tbody tr:hover { background-color: rgba(21, 215, 184, .035); }
+::selection { background: #15d7b8; color: #071018; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
 /* Sistema visual MobOS 1.1.0.1: topbar/footer respetan notch y controles táctiles. */
 .mobos-topbar { min-height: 3.75rem; padding-top: env(safe-area-inset-top); }
 .mobos-footer { padding-bottom: max(.75rem, env(safe-area-inset-bottom)); }

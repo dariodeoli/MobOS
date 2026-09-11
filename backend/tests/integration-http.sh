@@ -288,6 +288,8 @@ request POST /api/orders 201 '{"orderNumber":"IT-PENDING-001","items":[{"product
 PENDING_ORDER_ID="$(json_field "$out" id)"
 out="$(response_file)"
 request POST /api/payments 201 '{"orderId":"'"$PENDING_ORDER_ID"'","method":"CASH","amountPyg":40000,"status":"PENDING"}' "$out" "$TOKEN_A" tenant-a-it
+PAYMENT_PROOF_ID="$(json_field "$out" id)"
+node "$BACKEND_ROOT/tests/payment-proofs.mjs" "$BASE_URL" "$TOKEN_A" "$PAYMENT_PROOF_ID"
 out="$(response_file)"; request GET /api/orders 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_pending_payment "$out" IT-PENDING-001 || { echo "El pago pendiente confirmó o alteró incorrectamente la orden." >&2; exit 1; }
 
