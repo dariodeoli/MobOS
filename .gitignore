@@ -4,6 +4,7 @@ node_modules
 # Build
 dist
 dist-ssr
+*.tsbuildinfo
 
 # Variables de entorno (claves) — NO subir
 .env

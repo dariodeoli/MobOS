@@ -7,6 +7,9 @@ datasource db {
 }
 
 model Tenant {
+  cashSessions CashSession[]
+  purchases PurchaseOrder[]
+  warrantyCases WarrantyCase[]
   id        String   @id @default(cuid())
   name      String
   email     String?  @unique
@@ -31,6 +34,9 @@ model Tenant {
 }
 
 model Branch {
+  cashSessions CashSession[]
+  purchases PurchaseOrder[]
+  warrantyCases WarrantyCase[]
   id        String   @id @default(cuid())
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -50,6 +56,9 @@ model Branch {
 }
 
 model User {
+  openedCashSessions CashSession[] @relation("CashOpenedBy")
+  closedCashSessions CashSession[] @relation("CashClosedBy")
+  purchases PurchaseOrder[]
   id        String     @id @default(cuid())
   tenantId  String
   tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -115,6 +124,7 @@ enum UserStatus {
 }
 
 model Product {
+  purchaseLines PurchaseLine[]
   id        String        @id @default(cuid())
   tenantId  String
   tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -198,6 +208,7 @@ enum OrderStatus {
 }
 
 model OrderItem {
+  warrantyCases WarrantyCase[]
   id          String  @id @default(cuid())
   orderId     String
   order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -221,6 +232,7 @@ model Payment {
   status     PaymentStatus @default(CONFIRMED)
   amountPyg  Int
   reference  String?
+  idempotencyKey String?
   paidAt     DateTime      @default(now())
   createdAt  DateTime      @default(now())
 
@@ -229,6 +241,7 @@ model Payment {
 
   @@index([tenantId])
   @@index([orderId])
+  @@unique([tenantId, idempotencyKey])
 }
 
 model PaymentProof {
@@ -301,4 +314,90 @@ model AuditLog {
 
   @@index([tenantId, createdAt])
   @@index([entity, entityId])
+}
+
+model CashSession {
+  id String @id
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId String
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  openedById String
+  openedBy User @relation("CashOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
+  closedById String?
+  closedBy User? @relation("CashClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  openedAt DateTime @default(now())
+  closedAt DateTime?
+  openingPyg Int
+  countedPyg Int?
+  expectedPyg Int?
+  status String @default("OPEN")
+  notes String?
+  // Una caja abierta por sucursal: índice parcial definido en la migración SQL.
+  @@index([tenantId, branchId, openedAt])
+}
+
+enum PurchaseStatus {
+  DRAFT
+  RECEIVED
+}
+
+model PurchaseOrder {
+  id String @id
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId String?
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  supplierName String
+  status PurchaseStatus @default(DRAFT)
+  createdAt DateTime @default(now())
+  receivedAt DateTime?
+  createdById String
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  shippingPyg Int @default(0)
+  customsPyg Int @default(0)
+  lines PurchaseLine[]
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+}
+
+model PurchaseLine {
+  id String @id
+  purchaseId String
+  purchase PurchaseOrder @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  productId String
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity Int
+  unitCostPyg Int
+  @@index([purchaseId])
+  @@index([productId])
+}
+
+enum WarrantyStatus {
+  RECEIVED
+  DIAGNOSIS
+  READY
+  DELIVERED
+}
+
+model WarrantyCase {
+  id String @id
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId String
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  orderItemId String?
+  orderItem OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  customerName String
+  serial String
+  description String
+  status WarrantyStatus @default(RECEIVED)
+  responsibleName String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  expiresAt DateTime?
+  @@index([tenantId, createdAt])
+  @@index([tenantId, serial])
+  @@index([tenantId, branchId])
+  @@index([tenantId, status])
 }

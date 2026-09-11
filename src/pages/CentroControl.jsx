@@ -20,6 +20,9 @@ import TradeInAdmin from '@/components/control/TradeInAdmin'
 import Asistente from '@/components/control/Asistente'
 import Historial from '@/components/control/Historial'
 import Config from '@/components/control/Config'
+import Caja from '@/components/control/Caja'
+import Compras from '@/components/control/Compras'
+import Garantias from '@/components/control/Garantias'
 
 // [clave, etiqueta, componente, ícono]
 const SECCIONES = [
@@ -37,6 +40,8 @@ const SECCIONES = [
     items: [
       ['incompletos', 'Productos incompletos', ProductosIncompletos, 'alert'],
       ['inventario', 'Inventario', Inventario, 'box'],
+      ['compras', 'Compras', Compras, 'store'],
+      ['garantias', 'Garantías y servicio', Garantias, 'phone'],
       ['celulares', 'Celulares', Celulares, 'phone'],
       ['tradein', 'Trade-In', TradeInAdmin, 'refresh'],
       ['imagenes', 'Imágenes', ImagenesComparador, 'image'],
@@ -45,6 +50,7 @@ const SECCIONES = [
   {
     titulo: 'Finanzas',
     items: [
+      ['caja', 'Caja', Caja, 'receipt'],
       ['gastos', 'Gastos', Gastos, 'receipt'],
       ['ads', 'Publicidad', Ads, 'megaphone'],
     ],

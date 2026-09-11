@@ -96,6 +96,7 @@ INSERT INTO "Branch" ("id", "tenantId", "name", "updatedAt") VALUES
   ('branch-b-it', 'tenant-b-it', 'Sucursal B', CURRENT_TIMESTAMP);
 
 INSERT INTO "User" ("id", "tenantId", "branchId", "name", "email", "pinHash", "role", "status", "updatedAt") VALUES
+  ('user-admin-it', 'tenant-a-it', 'branch-a-it', 'Admin Test', 'admin-it@example.invalid', :'pin_hash', 'ADMIN', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-a-it', 'tenant-a-it', 'branch-a-it', 'Seller A', 'seller-a-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-a-2-it', 'tenant-a-it', 'branch-a-it', 'Seller A Two', 'seller-a-2-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-lock-it', 'tenant-a-it', 'branch-a-it', 'Seller Lock', 'seller-lock-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
@@ -292,6 +293,7 @@ PAYMENT_PROOF_ID="$(json_field "$out" id)"
 node "$BACKEND_ROOT/tests/payment-proofs.mjs" "$BASE_URL" "$TOKEN_A" "$PAYMENT_PROOF_ID"
 out="$(response_file)"; request GET /api/orders 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_pending_payment "$out" IT-PENDING-001 || { echo "El pago pendiente confirmó o alteró incorrectamente la orden." >&2; exit 1; }
+node "$BACKEND_ROOT/tests/payment-retry.mjs" "$BASE_URL" "$TOKEN_A" "$PENDING_ORDER_ID"
 
 echo "9/11 Pagos concurrentes no permiten sobrepagar..."
 out="$(response_file)"
@@ -310,6 +312,12 @@ if ! { [[ "$status_a_value" == "201" && "$status_b_value" == "409" ]] || [[ "$st
 fi
 out="$(response_file)"; request GET /api/orders 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_confirmed_payment_total "$out" IT-CONCURRENT-001 60000 || { echo "Los pagos concurrentes superaron o duplicaron el total confirmado." >&2; exit 1; }
+
+node "$BACKEND_ROOT/tests/new-modules.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
+out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
+ADMIN_TOKEN="$(json_field "$out" accessToken)"
+node "$BACKEND_ROOT/tests/new-modules-functional.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+MOBOS_SECURITY_PAYMENT_ID="$PAYMENT_PROOF_ID" node "$BACKEND_ROOT/tests/security-regression.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
 
 echo "10/11 Bloqueo de login empresarial después de cinco intentos..."
 out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-lock-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''

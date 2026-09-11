@@ -7,7 +7,8 @@ export function middleware(request: NextRequest) {
   const response = request.method === 'OPTIONS' ? new NextResponse(null, { status: 204 }) : NextResponse.next()
   if (allowed.includes(origin)) response.headers.set('Access-Control-Allow-Origin', origin)
   response.headers.set('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS')
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-tenant-id')
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-tenant-id, Idempotency-Key')
+  response.headers.set('Vary', 'Origin')
   response.headers.set('Access-Control-Allow-Credentials', 'true')
   return response
 }

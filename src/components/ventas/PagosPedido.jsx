@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Modal, Input, Button } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import { api, API_URL, getAccessToken } from '@/lib/api'
@@ -21,6 +21,8 @@ export default function PagosPedido({ venta, onClose }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const attempt = useRef(null)
+  const [needsRefresh, setNeedsRefresh] = useState(false)
   const payments = order.pagos || []
   const pending = num(order.totalPendiente)
   const canReconcile = esDemo || ['ADMIN', 'GERENTE', 'CAJERA'].includes(usuario?.role)
@@ -55,7 +57,7 @@ export default function PagosPedido({ venta, onClose }) {
 
   async function register(e) {
     e.preventDefault()
-    if (busy) return
+    if (busy || needsRefresh) return
     const value = parseGsInput(amount)
     if (!Number.isSafeInteger(value) || value <= 0 || value > pending) { setError('El monto debe ser positivo y no superar el saldo pendiente.'); return }
     setBusy(true); setError(''); setNotice('')
@@ -65,8 +67,16 @@ export default function PagosPedido({ venta, onClose }) {
         const paid = num(order.totalPagado) + value
         updateVenta(order.id, { pagos: updatedPayments, totalPagado: paid, totalPendiente: pending - value, estadoPago: pending === value ? 'Pagado' : 'Parcial' })
       } else {
-        await api.post('/api/payments', { orderId: order.id, method, amountPyg: value, reference })
-        await refrescar()
+        const payload = { orderId: order.id, method, amountPyg: value, reference }
+        const signature = JSON.stringify(payload)
+        if (!attempt.current || attempt.current.signature !== signature) attempt.current = { signature, key: crypto.randomUUID() }
+        await api.post('/api/payments', payload, { headers: { 'Idempotency-Key': attempt.current.key } })
+        setAmount(''); setReference('')
+        try { await refrescar() } catch {
+          setNeedsRefresh(true)
+          throw new Error('El pago se guardó, pero no se pudo actualizar el saldo. Cerrá y recargá antes de registrar otro pago; no lo repitas.')
+        }
+        attempt.current = null
       }
       setOrder(listVentas().find(v => v.id === order.id) || order)
       setAmount(''); setReference(''); setNotice('Pago registrado. Podés adjuntar su comprobante abajo.')
@@ -111,7 +121,7 @@ export default function PagosPedido({ venta, onClose }) {
       <label className="block text-xs text-mute">Monto en guaraníes<Input aria-label="Monto del pago" value={amount} inputMode="numeric" onChange={e => setAmount(formatGsInput(e.target.value))} placeholder="Gs 0" /></label>
       <label className="block text-xs text-mute">Método<select className="mt-1 w-full rounded-lg border border-ink-500 bg-ink p-2" value={method} onChange={e => setMethod(e.target.value)}>{Object.entries(METHODS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
       <label className="block text-xs text-mute">Cuenta / referencia<Input value={reference} onChange={e => setReference(e.target.value)} maxLength={200} placeholder="Banco, cuenta o referencia de operación" /></label>
-      <Button disabled={busy} type="submit">{busy ? 'Guardando…' : 'Registrar pago'}</Button>
+      <Button disabled={busy || needsRefresh} type="submit">{busy ? 'Guardando…' : 'Registrar pago'}</Button>
     </form>}
     <div className="space-y-3"><h3 className="font-semibold">Cronología de pagos y comprobantes</h3>
       {!payments.length && <p className="text-sm text-mute">Todavía no hay pagos registrados.</p>}
