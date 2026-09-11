@@ -4,6 +4,7 @@ import { entrarConCorreo, registrarEmpresa } from '@/lib/storage'
 import { Button, Card, Input, Label } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
+import { APP_VERSION } from '@/lib/brand'
 
 export default function Login() {
   const { entrar } = useSesion()
@@ -188,7 +189,7 @@ export default function Login() {
         </form>
       </Card>
 
-      <p className="mt-6 text-xs text-mute/60">MobOS 0.2</p>
+      <p className="mt-6 text-xs text-mute/60">{APP_VERSION}</p>
     </div>
   )
 }

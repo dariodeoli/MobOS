@@ -3,7 +3,9 @@
 export const APP_NAME = import.meta.env.VITE_APP_NAME || 'MobOS'
 export const APP_FULL_NAME = import.meta.env.VITE_APP_FULL_NAME || 'MobOS Retail'
 export const APP_TAGLINE = import.meta.env.VITE_APP_TAGLINE || 'Gestión móvil'
-export const APP_VERSION = import.meta.env.VITE_APP_VERSION || 'MobOS 0.2'
+// Cada actualización publicada incrementa el último punto: 0.2.1, 0.2.2...
+// Los pies visibles de la app leen esta constante central.
+export const APP_VERSION = import.meta.env.VITE_APP_VERSION || 'MobOS 0.2.1'
 export const APP_CREDIT = import.meta.env.VITE_APP_CREDIT || 'Coding by OwnCoding'
 export const APP_CREDIT_URL = import.meta.env.VITE_APP_CREDIT_URL || 'https://owncoding.dev/'
 export const LEGACY_APP_NAME = 'MobOS'
