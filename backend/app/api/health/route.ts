@@ -4,3 +4,7 @@ export function GET() {
     service: "mobos-backend",
   });
 }
+
+export function HEAD() {
+  return new Response(null, { status: 200 })
+}
