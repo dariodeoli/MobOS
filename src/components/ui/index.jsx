@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 // ── Button ──────────────────────────────────────────────────────────
@@ -87,6 +88,28 @@ export function Label({ className, ...props }) {
 export function Card({ className, ...props }) {
   return (
     <div className={cn('rounded-xl border border-fono/30 bg-ink-800 p-5', className)} {...props} />
+  )
+}
+
+// Popup estándar: Esc, clic afuera, botón cerrar y cierre opcional al guardar.
+export function Modal({ open, onClose, title, children, className }) {
+  useEffect(() => {
+    if (!open) return undefined
+    const onKey = (e) => e.key === 'Escape' && onClose?.()
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
+      <div role="dialog" aria-modal="true" className={cn('max-h-[min(90dvh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-ink-600 bg-ink-800 p-4 shadow-2xl sm:p-6', className)}>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-base font-bold text-white">{title}</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-white" aria-label="Cerrar">×</button>
+        </div>
+        {children}
+      </div>
+    </div>
   )
 }
 

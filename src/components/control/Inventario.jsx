@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { getProductos, updateProducto, deleteProducto, addProducto } from '@/lib/storage'
+import { getProductos, updateProducto, deleteProducto, addProducto, addProductoVariante } from '@/lib/storage'
 import { num, gs } from '@/utils/calculos'
 import { Card, Button, Input, Badge } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -70,6 +70,7 @@ function FilaProducto({ p }) {
         </label>
       </div>
       <div className="flex items-center gap-2 mt-2">
+        {Object.entries(p.atributos || {}).map(([k, v]) => <Badge key={k} color="blue">{k}: {v}</Badge>)}
         <Badge color={margen > 0 ? 'green' : 'slate'}>Margen {gs(margen)}</Badge>
         {num(p.stock) <= 3 && <Badge color="orange">Stock bajo</Badge>}
       </div>
@@ -86,6 +87,7 @@ export default function Inventario() {
   const productos = getProductos()
   const [nuevo, setNuevo] = useState('')
   const [busqueda, setBusqueda] = useState('')
+  const [atributos, setAtributos] = useState('color=; capacidad=; estado=')
 
   const q = norm(busqueda.trim())
   const items = !q ? productos : productos.filter((p) => norm(p.nombre).includes(q))
@@ -95,6 +97,16 @@ export default function Inventario() {
     const nombre = nuevo.trim()
     if (!nombre) return
     addProducto(nombre)
+    setNuevo('')
+  }
+
+  function crearVariante(e) {
+    e.preventDefault()
+    const [nombre, ...resto] = nuevo.split('|')
+    const base = productos.find((p) => p.nombre.toLowerCase() === nombre.trim().toLowerCase())
+    if (!base) return
+    const attrs = Object.fromEntries(atributos.split(';').map((x) => x.split('=').map((y) => y.trim())).filter(([k, v]) => k && v))
+    addProductoVariante(base, attrs)
     setNuevo('')
   }
 
@@ -115,6 +127,14 @@ export default function Inventario() {
             autoCapitalize="words"
           />
           <Button type="submit">Agregar</Button>
+        </form>
+        <form onSubmit={crearVariante} className="mb-4 rounded-xl border border-dashed border-ink-500 p-3">
+          <div className="mb-2 text-xs font-semibold text-mute">Variante personalizada</div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Input value={nuevo} onChange={(e) => setNuevo(e.target.value)} placeholder="Modelo base exacto" />
+            <Input value={atributos} onChange={(e) => setAtributos(e.target.value)} placeholder="color=; capacidad=; estado=" />
+          </div>
+          <Button type="submit" variant="outline" className="mt-2 w-full sm:w-auto">Crear variante</Button>
         </form>
         <div className="relative mb-4">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-mute">

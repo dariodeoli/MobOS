@@ -102,13 +102,17 @@ export default function Vendedores() {
             return (
               <div key={v.id} className="rounded-xl border border-ink-600 p-3">
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <input
-                    defaultValue={v.nombre}
-                    onBlur={(e) =>
-                      updateVendedor(v.id, { nombre: e.target.value.trim() || v.nombre })
-                    }
-                    className="font-bold text-sm bg-transparent outline-none border-b border-transparent focus:border-fono"
-                  />
+                  <div className="flex min-w-0 items-center gap-2">
+                    <label className="relative h-10 w-10 shrink-0 cursor-pointer overflow-hidden rounded-full border border-ink-500 bg-ink-700" title="Agregar foto">
+                      {v.foto ? <img src={v.foto} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center text-mute"><Icon name="user" className="h-4 w-4" /></span>}
+                      <input type="file" accept="image/*" className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => updateVendedor(v.id, { foto: reader.result }); reader.readAsDataURL(file) }} />
+                    </label>
+                    <input
+                      defaultValue={v.nombre}
+                      onBlur={(e) => updateVendedor(v.id, { nombre: e.target.value.trim() || v.nombre })}
+                      className="min-w-0 max-w-[12rem] font-bold text-sm bg-transparent outline-none border-b border-transparent focus:border-fono"
+                    />
+                  </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => updateVendedor(v.id, { activo: !v.activo })}

@@ -1241,8 +1241,19 @@ export function addProducto(nombre, categoria = 'Otros') {
     comision: 0,
     stock: 0,
     activo: true,
+    // Variantes generales: color, capacidad, estado y atributos definidos por la tienda.
+    varianteDe: null,
+    atributos: {},
   }
   entUpsert('productos', nuevo)
+  return nuevo
+}
+export function addProductoVariante(productoBase, atributos = {}) {
+  const base = typeof productoBase === 'string' ? cache.productos.find((p) => p.id === productoBase) : productoBase
+  if (!base) return null
+  const detalle = Object.entries(atributos).filter(([, v]) => String(v).trim()).map(([k, v]) => `${k}: ${v}`).join(' · ')
+  const nuevo = addProducto(`${base.nombre}${detalle ? ` · ${detalle}` : ''}`, base.categoria)
+  updateProducto(nuevo.id, { ...base, id: nuevo.id, nombre: nuevo.nombre, varianteDe: base.id, atributos, stock: 0 })
   return nuevo
 }
 export function productosById() {

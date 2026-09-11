@@ -8,6 +8,7 @@ import CentroControl from '@/pages/CentroControl'
 import Celulares from '@/pages/Celulares'
 import Comparador from '@/pages/Comparador'
 import TradeIn from '@/pages/TradeIn'
+import { APP_CREDIT, APP_CREDIT_URL, APP_VERSION } from '@/lib/brand'
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -72,6 +73,15 @@ function SoloPropietario({ children }) {
   return children
 }
 
+function AppFooter() {
+  return (
+    <footer className="mobos-footer border-t border-ink-600 bg-ink-900 px-4 py-3 text-center text-[11px] text-mute">
+      <span>{APP_VERSION}</span>{' · '}
+      <a href={APP_CREDIT_URL} target="_blank" rel="noreferrer" className="text-fono-light hover:underline">{APP_CREDIT}</a>
+    </footer>
+  )
+}
+
 export default function App() {
   return (
     <SesionProvider>
@@ -119,6 +129,7 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <AppFooter />
     </SesionProvider>
   )
 }

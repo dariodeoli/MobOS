@@ -12,6 +12,11 @@ body {
   min-height: 100dvh;
 }
 
+/* Sistema visual MobOS 1.1.0.1: topbar/footer respetan notch y controles táctiles. */
+.mobos-topbar { min-height: 3.75rem; padding-top: env(safe-area-inset-top); }
+.mobos-footer { padding-bottom: max(.75rem, env(safe-area-inset-bottom)); }
+button, input, select, textarea { touch-action: manipulation; }
+
 /* Scrollbars discretas, a tono con el tema oscuro */
 * {
   scrollbar-width: thin;
