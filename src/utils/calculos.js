@@ -5,7 +5,17 @@ export function num(v) {
 }
 
 export function gs(v) {
-  return '₲ ' + num(v).toLocaleString('es-PY', { maximumFractionDigits: 0 })
+  return 'Gs ' + Math.round(num(v)).toLocaleString('es-PY', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  })
+}
+
+// Formato de entrada para guaraníes: solo enteros y separador de miles con
+// puntos. El valor almacenado sigue siendo numérico, sin formato.
+export function gsInput(v) {
+  const digits = String(v ?? '').replace(/\D/g, '')
+  return digits ? Number(digits).toLocaleString('es-PY') : ''
 }
 
 export function pct(v) {

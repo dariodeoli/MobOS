@@ -207,7 +207,7 @@ export default function TradeIn() {
                   <Icon name="eyeOff" className="h-4 w-4" />
                 </div>
                 <div className="font-extrabold text-bad">Equipo NO aceptado</div>
-                <div className="text-sm text-bad">Fono Mobile no toma equipos sin Face ID.</div>
+                        <div className="text-sm text-bad">Mobtock no toma equipos sin Face ID.</div>
               </div>
             )}
           </Card>

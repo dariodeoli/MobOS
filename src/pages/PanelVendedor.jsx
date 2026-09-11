@@ -17,6 +17,7 @@ import FormularioVenta from '@/components/ventas/FormularioVenta'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
 import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
+import { APP_NAME } from '@/lib/brand'
 import { cn } from '@/lib/utils'
 
 // Navegación agrupada del lateral.
@@ -101,7 +102,7 @@ export default function PanelVendedor() {
             F
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold tracking-tight">Fono</span>
+            <span className="text-sm font-semibold tracking-tight">{APP_NAME}</span>
             <span className="text-[11px] text-mute">Panel de ventas</span>
           </div>
         </div>
@@ -169,7 +170,7 @@ export default function PanelVendedor() {
             >
               <Icon name="menu" className="h-5 w-5" />
             </button>
-            <span className="hidden text-mute sm:inline">Fono</span>
+            <span className="hidden text-mute sm:inline">{APP_NAME}</span>
             <span className="hidden text-ink-500 sm:inline">/</span>
             <span className="truncate font-medium">{LABELS[vista]}</span>
             <span className="ml-1.5 whitespace-nowrap rounded-full border border-fono/30 bg-fono/[.12] px-2.5 py-0.5 text-[11.5px] font-medium text-fono-light">

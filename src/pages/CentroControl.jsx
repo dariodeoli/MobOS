@@ -5,6 +5,7 @@ import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import { cn } from '@/lib/utils'
 import { Button, Card } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { APP_NAME } from '@/lib/brand'
 import Resumen from '@/components/control/Resumen'
 import Inventario from '@/components/control/Inventario'
 import ProductosIncompletos from '@/components/control/ProductosIncompletos'
@@ -105,7 +106,7 @@ export default function CentroControl() {
       >
         <div className="flex h-full flex-col pt-safe">
           <div className="flex h-16 items-center gap-2.5 px-5">
-            <img src="/logo-dark.svg" alt="Fono" className="h-5" />
+            <img src="/logo-dark.svg" alt={APP_NAME} className="h-5" />
             <span className="text-sm font-medium text-mute">Control</span>
           </div>
 

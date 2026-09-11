@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSesion } from '@/lib/sesion'
 import {
   getProductos,
   addProducto,
@@ -9,7 +10,7 @@ import {
   ESTADOS_PAGO,
   ENTREGA,
 } from '@/lib/storage'
-import { fechaClave, num, gs } from '@/utils/calculos'
+import { fechaClave, num, gs, gsInput } from '@/utils/calculos'
 import { agruparProductos } from '@/utils/colores'
 import { Button, Card, Input, Label, Select, Textarea, Badge } from '@/components/ui'
 import SelectorColor from './SelectorColor'
@@ -38,11 +39,14 @@ const VACIO = (vendedorId) => ({
   observacion: '',
 })
 
+const PAGO_VACIO = { medioPago: MEDIOS_PAGO[0], cuenta: '', monto: '' }
+
 export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito = false }) {
+  const { sesion } = useSesion()
   const productos = getProductos().filter((p) => p.activo)
   const familias = agruparProductos(productos)
   const vendedores = getVendedores().filter((v) => v.activo)
-  const [f, setF] = useState(() => VACIO(localStorage.getItem(ULTIMO_VENDEDOR)))
+  const [f, setF] = useState(() => VACIO(sesion?.vendedorId || localStorage.getItem(ULTIMO_VENDEDOR)))
   const [nuevoProd, setNuevoProd] = useState(false)
   const [nombreProd, setNombreProd] = useState('')
   const [coloresNuevos, setColoresNuevos] = useState([])
@@ -53,6 +57,8 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   const [nombreVend, setNombreVend] = useState('')
   const [ok, setOk] = useState(false)
   const [items, setItems] = useState([]) // carrito: varios productos del mismo cliente
+  const [descuento, setDescuento] = useState('')
+  const [pagos, setPagos] = useState([])
 
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }))
 
@@ -96,7 +102,12 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
 
   const totalCarrito = items.reduce((a, it) => a + it.precio, 0)
   const precioActual = f.productoId && gsNum(f.precio) > 0 ? gsNum(f.precio) : 0
-  const totalGeneral = totalCarrito + precioActual
+  const subtotal = totalCarrito + precioActual
+  const totalGeneral = Math.max(0, subtotal - gsNum(descuento) + gsNum(f.montoDelivery))
+  const totalPagado = pagos.reduce((s, p) => s + gsNum(p.monto), 0)
+  const pendiente = Math.max(0, totalGeneral - totalPagado)
+
+  const valido = f.vendedorId && f.cliente.trim() && cantTotal > 0
   const cantTotal = items.length + (precioActual > 0 ? 1 : 0)
 
   // Informa al contenedor lo que lleva esta compra, para pintarlo en el lateral.
@@ -232,18 +243,26 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         vendedorId: f.vendedorId,
         cliente: f.cliente,
         productoId: it.productoId,
-        estadoPago: f.estadoPago,
+        estadoPago: pendiente === 0 ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente',
         fecha: fechaVenta,
         precio: it.precio,
         medioPago: f.medioPago,
         entrega: i === 0 ? f.entrega : 'Retiro en tienda',
         montoDelivery: i === 0 ? gsNum(f.montoDelivery) : 0,
         observacion: f.observacion,
+        descuento: gsNum(descuento),
+        subtotal,
+        total: totalGeneral,
+        pagos,
+        totalPagado,
+        totalPendiente: pendiente,
       })
     })
 
     localStorage.setItem(ULTIMO_VENDEDOR, f.vendedorId)
     setItems([])
+    setDescuento('')
+    setPagos([])
     setF(VACIO(f.vendedorId))
     setFamiliaActiva(null)
     setOk(true)
@@ -251,7 +270,9 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     onGuardado?.()
   }
 
-  const valido = f.vendedorId && f.cliente.trim() && cantTotal > 0
+  function agregarPago() {
+    setPagos((arr) => [...arr, { ...PAGO_VACIO, monto: pendiente > 0 ? String(pendiente) : '' }])
+  }
 
   return (
     <Card>
@@ -475,14 +496,8 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
 
         {/* Estado de pago */}
         <div>
-          <Label>Estado de pago</Label>
-          <Select value={f.estadoPago} onChange={set('estadoPago')}>
-            {ESTADOS_PAGO.map((x) => (
-              <option key={x} value={x}>
-                {x === 'Pagado' ? 'Pagado' : '⏳ No pagado'}
-              </option>
-            ))}
-          </Select>
+          <Label>Descuento extra (Gs)</Label>
+          <Input inputMode="numeric" value={gsInput(descuento)} onChange={(e) => setDescuento(e.target.value)} placeholder="0" />
         </div>
 
         {/* Fecha */}
@@ -502,6 +517,30 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
             value={f.medioPago}
             onChange={(v) => setF((s) => ({ ...s, medioPago: v }))}
           />
+        </div>
+
+        {/* Pagos parciales y combinados */}
+        <div className="md:col-span-2 rounded-xl border border-fono/30 bg-fono/5 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <Label>Pagos de esta venta</Label>
+              <p className="text-[11px] text-mute">Podés dividir el cobro entre efectivo, cuentas y transferencias.</p>
+            </div>
+            <Button type="button" variant="outline" onClick={agregarPago}>+ Agregar pago</Button>
+          </div>
+          {pagos.map((p, i) => (
+            <div key={i} className="grid grid-cols-1 sm:grid-cols-[1.2fr_1fr_1fr_auto] gap-2 items-end">
+              <div><Label>Medio</Label><SelectorMedioPago value={p.medioPago} onChange={(v) => setPagos((a) => a.map((x, j) => j === i ? { ...x, medioPago: v } : x))} /></div>
+              <div><Label>Cuenta</Label><Input value={p.cuenta} onChange={(e) => setPagos((a) => a.map((x, j) => j === i ? { ...x, cuenta: e.target.value } : x))} placeholder="Ej. Ueno principal" /></div>
+              <div><Label>Monto (Gs)</Label><Input inputMode="numeric" value={gsInput(p.monto)} onChange={(e) => setPagos((a) => a.map((x, j) => j === i ? { ...x, monto: e.target.value } : x))} /></div>
+              <Button type="button" variant="ghost" onClick={() => setPagos((a) => a.filter((_, j) => j !== i))}><Icon name="trash" className="h-4 w-4" /></Button>
+            </div>
+          ))}
+          <div className="flex flex-wrap justify-between gap-2 border-t border-fono/20 pt-2 text-sm">
+            <span>Total: <strong>{gs(totalGeneral)}</strong></span>
+            <span>Pagado: <strong className="text-ok">{gs(totalPagado)}</strong></span>
+            <span>Pendiente: <strong className={pendiente ? 'text-warn' : 'text-ok'}>{gs(pendiente)}</strong></span>
+          </div>
         </div>
 
         {/* Entrega + monto envío */}
@@ -525,7 +564,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
           </Label>
           <Input
             inputMode="numeric"
-            value={f.montoDelivery}
+            value={gsInput(f.montoDelivery)}
             onChange={set('montoDelivery')}
             placeholder="0 si retira en tienda"
             disabled={f.entrega === 'Retiro en tienda'}

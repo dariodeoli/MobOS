@@ -6,6 +6,7 @@ import { useLive } from '@/hooks/useLive'
 import { gs } from '@/utils/calculos'
 import { Button, Card } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { APP_NAME } from '@/lib/brand'
 
 // Agrupa por modelo (más nuevo arriba; capacidad ascendente dentro de cada uno).
 function agrupar(celulares) {
@@ -78,17 +79,17 @@ export default function Celulares() {
     try {
       const dataUrl = await toPng(ref.current, { pixelRatio: 2, backgroundColor: '#0E1013' })
       const blob = await (await fetch(dataUrl)).blob()
-      const file = new File([blob], 'lista-precios-fono.png', { type: 'image/png' })
+      const file = new File([blob], 'lista-precios-mobtock.png', { type: 'image/png' })
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: 'Lista de Precios · Fono Mobile Store',
+          title: `Lista de Precios · ${APP_NAME}`,
           text: 'Lista de precios',
         })
       } else {
         const link = document.createElement('a')
-        link.download = 'lista-precios-fono.png'
+        link.download = 'lista-precios-mobtock.png'
         link.href = dataUrl
         link.click()
       }
@@ -147,7 +148,7 @@ export default function Celulares() {
           <div ref={ref} className="rounded-2xl bg-ink-800 overflow-hidden border border-ink-600">
             {/* Encabezado branded */}
             <div className="bg-gradient-to-br from-fono-dark via-fono to-fono-accent text-white p-5">
-              <img src="/logo-dark.svg" alt="Fono Mobile Store" className="h-8 mb-2" />
+            <img src="/logo-dark.svg" alt={APP_NAME} className="h-8 mb-2" />
               <div className="text-lg font-extrabold">Lista de Precios</div>
               <div className="text-xs opacity-80">Actualizado: {hoy}</div>
             </div>
@@ -172,7 +173,7 @@ export default function Celulares() {
             </div>
 
             <div className="bg-ink-700 px-4 py-3 text-center text-xs text-mute border-t border-ink-600">
-              <strong className="text-fono">Fono Mobile Store</strong> · Consultá disponibilidad y
+              <strong className="text-fono">{APP_NAME}</strong> · Consultá disponibilidad y
               trade-in de tu equipo usado
             </div>
           </div>

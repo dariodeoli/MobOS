@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════
-// CAPA ÚNICA DE DATOS — Fono Mobile Store
+// CAPA ÚNICA DE DATOS — Mobtock
 // Backend: Supabase (tiempo real entre dispositivos) con caché en memoria.
 // La API exportada es SINCRÓNICA (igual que antes con localStorage): los
 // componentes la usan sin async. Por dentro:
@@ -12,6 +12,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { num } from '@/utils/calculos'
+import { APP_NAME } from '@/lib/brand'
 
 // ── Cliente Supabase (opcional) ─────────────────────────────────────
 const SB_URL = import.meta.env.VITE_SUPABASE_URL
@@ -194,7 +195,7 @@ const FRASES_DEFAULT = [
 
 const CONFIG_DEFAULT = {
   clavePanel: 'fono2024', // el propietario la cambia en el Centro de Control
-  nombreTienda: 'Fono Mobile Store',
+  nombreTienda: APP_NAME,
 }
 
 const TRADEIN_DEFAULT = {
@@ -1319,6 +1320,17 @@ export function addVenta(venta) {
     comision: num(prod?.comision),
     ...venta,
   }
+  const pagos = Array.isArray(venta.pagos) ? venta.pagos : []
+  nueva.pagos = pagos.map((p) => ({
+    id: p.id || 'p-' + Math.random().toString(36).slice(2, 9),
+    medioPago: p.medioPago || MEDIOS_PAGO[0],
+    cuenta: p.cuenta || '',
+    monto: num(p.monto),
+    fecha: p.fecha || new Date().toISOString(),
+  }))
+  nueva.totalPagado = nueva.pagos.reduce((s, p) => s + num(p.monto), 0)
+  nueva.totalPendiente = Math.max(0, num(nueva.precio) + num(nueva.montoDelivery) - nueva.totalPagado)
+  nueva.estadoPago = nueva.totalPendiente === 0 ? 'Pagado' : nueva.totalPagado > 0 ? 'Parcial' : 'Pendiente'
   entUpsert('ventas', nueva)
   moverStock(nueva.productoId, -1)
   logAuditoria('crear', nueva)
