@@ -68,6 +68,7 @@ export async function authenticateCompany(input: LoginInput) {
     await tx.tenant.update({ where: { id: tenant.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
     const sellers = await tx.user.findMany({ where: { tenantId: tenant.id, status: 'ACTIVE', ...(branchId ? { branchId } : {}), OR: [{ branchId: null }, { branch: { isActive: true } }] }, select: { id: true, name: true, branchId: true }, orderBy: { name: 'asc' } })
     const session = await createSession(tx, tenant.id, null, 'COMPANY', deviceId, branchId)
+    await tx.auditLog.create({ data: { tenantId: tenant.id, action: 'COMPANY_SIGNED_IN', entity: 'Session', entityId: session.sessionId, metadata: { branchId } } })
     return { ...session, tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug }, sellers, scope: 'device:company' as const }
   })
 }
@@ -112,6 +113,7 @@ export async function authenticateSeller(request: Request, input: PinInput) {
     }
     await tx.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
     const session = await createSession(tx, parent.tenantId, user.id, 'SELLER', parent.deviceId, parent.branchId)
+    await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: 'SELLER_PIN_VERIFIED', entity: 'Session', entityId: session.sessionId, metadata: { branchId: parent.branchId } } })
     return { ...session, user: sessionUser(user) }
   })
 }
