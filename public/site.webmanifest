@@ -1,0 +1,18 @@
+{
+  "name": "MobOS · Gestión para tiendas móviles",
+  "short_name": "MobOS",
+  "description": "Ventas, inventario, caja y clientes para tiendas móviles.",
+  "lang": "es-PY",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#071018",
+  "theme_color": "#15D7B8",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

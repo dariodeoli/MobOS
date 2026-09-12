@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { SesionProvider, useSesion } from '@/lib/sesion'
 import { Button } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -95,11 +96,46 @@ function AppFooter() {
   )
 }
 
+function MetadatosPagina({ landing }) {
+  const { pathname } = useLocation()
+
+  useEffect(() => {
+    const origin = window.location.origin
+    const secciones = {
+      '/control/resumen': 'Resumen',
+      '/control/reportes': 'Reportes',
+      '/control/ganancias': 'Ganancias',
+      '/pos/cargar': 'Punto de venta',
+      '/pos/clientes': 'Clientes',
+      '/pos/pedidos': 'Pedidos',
+      '/login': 'Acceso',
+      '/demo': 'Demo interactiva',
+    }
+    const seccion = secciones[pathname]
+    document.title = landing
+      ? 'MobOS · Control total para tu tienda móvil'
+      : `${seccion || 'Gestión de tienda'} · MobOS`
+
+    const setMeta = (selector, attribute, value) => {
+      const element = document.head.querySelector(selector)
+      if (element) element.setAttribute(attribute, value)
+    }
+    const canonical = document.head.querySelector('link[rel="canonical"]')
+    if (canonical) canonical.setAttribute('href', `${origin}${landing ? '/' : pathname}`)
+    setMeta('meta[property="og:url"]', 'content', `${origin}${landing ? '/' : pathname}`)
+    setMeta('meta[name="robots"]', 'content', landing ? 'index, follow' : 'noindex, nofollow')
+  }, [landing, pathname])
+
+  return null
+}
+
 export default function App() {
   const host = typeof window !== 'undefined' ? window.location.hostname : ''
-  if (['controlaria.online', 'www.controlaria.online', 'moboss.online', 'www.moboss.online'].includes(host)) return <Landing />
+  const landing = ['controlaria.online', 'www.controlaria.online', 'moboss.online', 'www.moboss.online'].includes(host)
+  if (landing) return <><MetadatosPagina landing /><Landing /></>
   return (
     <SesionProvider>
+      <MetadatosPagina />
       <Routes>
         <Route path="/demo" element={<DemoAccess />} />
         <Route path="/login" element={<SoloFuera />} />

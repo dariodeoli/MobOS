@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /control/
+Disallow: /pos/
+Disallow: /login
+Disallow: /demo
+
+Sitemap: https://controlaria.online/sitemap.xml
