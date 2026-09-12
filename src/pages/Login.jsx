@@ -15,7 +15,6 @@ export default function Login() {
     correo: '',
     clave: '',
     nombreEmpresa: '',
-    nombrePersona: '',
   })
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
@@ -28,15 +27,14 @@ export default function Login() {
   const pinSubmit = useRef(false)
   const googleStarted = useRef(false)
   const [googleReady, setGoogleReady] = useState(false)
-  const [adminPin, setAdminPin] = useState('')
-  const [confirmOwnership, setConfirmOwnership] = useState(false)
+  const [setupPin, setSetupPin] = useState('')
 
   function showCompany(result) {
     const lista = result.sellers || []
     setNombreEmpresa(result.tenant?.name || '')
     setVendedores(lista)
     setVendedorId(lista.length === 1 ? lista[0].id : '')
-    setModo('entrar'); setEtapa('vendedor'); setGoogleReady(false)
+    setModo('entrar'); setEtapa(result.onboardingRequired ? 'setup' : 'vendedor'); setGoogleReady(false)
     setError(lista.length ? '' : 'La empresa no tiene usuarios activos disponibles.')
   }
 
@@ -87,15 +85,27 @@ export default function Login() {
     if (modo === 'crear') {
       setCargando(true)
       try {
-        if (googleReady) showCompany(await sessionApi.completeGoogle({ action: 'create', companyName: f.nombreEmpresa, adminName: f.nombrePersona, password: f.clave, pin: adminPin, confirmOwnership }))
+        if (googleReady) showCompany(await sessionApi.completeGoogle({ action: 'create', companyName: f.nombreEmpresa }))
         else {
           const deviceId = localStorage.getItem('mobos:device-id') || crypto.randomUUID()
           localStorage.setItem('mobos:device-id', deviceId)
-          showCompany(await sessionApi.registerCompany({ companyName: f.nombreEmpresa, adminName: f.nombrePersona, email: f.correo.trim(), password: f.clave, pin: adminPin, deviceId }))
+          showCompany(await sessionApi.registerCompany({ companyName: f.nombreEmpresa, email: f.correo.trim(), password: f.clave, deviceId }))
         }
       }
       catch (err) { setError(err.message || 'No se pudo crear la tienda.') }
       finally { setCargando(false) }
+      return
+    }
+    if (etapa === 'setup') {
+      if (setupPin.length !== 4 || !vendedorId) { setError('Elegí un PIN de 4 dígitos para activar tu tienda.'); return }
+      setCargando(true)
+      try {
+        const result = await sessionApi.completeOnboarding({ pin: setupPin })
+        await entrarVendedor({ sellerId: result.admin.id, pin: setupPin })
+      } catch (err) {
+        setError(err?.message || 'No se pudo activar el PIN. Probá nuevamente.')
+        setSetupPin('')
+      } finally { setCargando(false) }
       return
     }
     if (!f.correo.trim() || !f.clave) {
@@ -171,17 +181,16 @@ export default function Login() {
         </p>
 
         <form onSubmit={enviar} className="space-y-3.5">
-          {crear && <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-4 text-sm leading-6 text-slate-300">{googleReady ? 'Completá el alta de tu tienda. La contraseña habilita la empresa; tu PIN identifica al administrador.' : 'Creá tu tienda con correo y contraseña, o verificá tu identidad con Google. El PIN identifica al administrador.'}</div>}
+          {crear && <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-4 text-sm leading-6 text-slate-300">{googleReady ? 'Solo falta ponerle un nombre a tu tienda. Después configurás tu PIN y el resto cuando ya estés dentro.' : 'Empezá con lo esencial. El PIN, perfil, sucursales y medios de pago los configurás después.'}</div>}
           {crear && <>
             <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} autoComplete="organization" /></div>
-            <div><Label htmlFor="admin-name">Nombre del administrador</Label><Input id="admin-name" required maxLength={100} value={f.nombrePersona} onChange={set('nombrePersona')} autoComplete="name" /></div>
             {!googleReady && <div><Label htmlFor="new-email">Correo de acceso</Label><Input id="new-email" type="email" required value={f.correo} onChange={set('correo')} autoComplete="email" /></div>}
-            <div><Label htmlFor="new-password">Contraseña de empresa</Label><Input id="new-password" type="password" required minLength={12} maxLength={72} value={f.clave} onChange={set('clave')} autoComplete="new-password" /></div>
-            <div><Label htmlFor="admin-pin">PIN del administrador</Label><Input id="admin-pin" type="password" inputMode="numeric" pattern="[0-9]{4}" required maxLength={4} value={adminPin} onChange={e => setAdminPin(e.target.value.replace(/\D/g, ''))} autoComplete="new-password" /></div>
-            {googleReady && <label className="flex gap-2 text-sm"><input type="checkbox" required checked={confirmOwnership} onChange={e => setConfirmOwnership(e.target.checked)} />Confirmo que estoy creando mi propia tienda y seré su administrador.</label>}
+            {!googleReady && <div><Label htmlFor="new-password">Contraseña de empresa</Label><Input id="new-password" type="password" required minLength={12} maxLength={72} value={f.clave} onChange={set('clave')} autoComplete="new-password" /></div>}
           </>}
 
-          {modo === 'entrar' && etapa === 'vendedor' ? (
+          {modo === 'entrar' && etapa === 'setup' ? (
+            <><div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 px-4 py-3"><span className="text-xs text-slate-500">Tienda creada</span><strong className="mt-1 block text-sm text-[#15D7B8]">{nombreEmpresa || 'Tu tienda'}</strong></div><div><Label htmlFor="setup-pin">Elegí tu PIN de administrador</Label><Input id="setup-pin" autoFocus required type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={setupPin} onChange={(event) => { setError(''); setSetupPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="4 dígitos" autoComplete="new-password" /></div><p className="text-xs leading-5 text-slate-500">Este PIN abre el modo ventas y te identifica en cada operación. El resto lo configurás dentro de la app.</p></>
+          ) : modo === 'entrar' && etapa === 'vendedor' ? (
             <>
               <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 px-4 py-3"><span className="text-xs text-slate-500">Empresa</span><strong className="mt-1 block text-sm text-[#15D7B8]">{nombreEmpresa || 'Tu empresa'}</strong></div><div><Label htmlFor="seller">Vendedor</Label><select id="seller" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="mt-1 w-full rounded-xl border border-ink-500 bg-ink px-3 py-3 text-white"><option value="">Seleccioná tu usuario</option>{vendedores.map((v) => <option key={v.id} value={v.id}>{v.name || v.nombre || v.email}</option>)}</select></div>
               <div><Label htmlFor="seller-pin">PIN del vendedor</Label><Input id="seller-pin" autoFocus type="password" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => { setError(''); setPin(e.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="4 dígitos" autoComplete="one-time-code" /></div>
@@ -230,7 +239,7 @@ export default function Login() {
           )}
 
           <Button type="submit" className="w-full" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>
-            {cargando ? 'Un momento…' : crear ? 'Crear mi tienda' : 'Continuar'}
+            {cargando ? 'Un momento…' : crear ? 'Crear mi tienda' : etapa === 'setup' ? 'Activar mi tienda' : 'Continuar'}
           </Button>
           {crear && !googleReady && <Button type="button" className="w-full" disabled={cargando} onClick={async () => { try { await sessionApi.startGoogle(true) } catch (err) { setError(err.message) } }}>Crear con Google</Button>}
           {!crear && etapa === 'empresa' && <Button type="button" className="w-full" disabled={cargando} onClick={async () => { try { await sessionApi.startGoogle() } catch (err) { setError(err.message) } }}>Entrar con Google</Button>}

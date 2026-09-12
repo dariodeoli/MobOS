@@ -33,6 +33,7 @@ try {
   const start = require('../app/api/auth/google/route.ts').GET
   const callback = require('../app/api/auth/google/callback/route.ts').GET
   const complete = require('../app/api/auth/google/complete/route.ts').POST
+  const finishOnboarding = require('../app/api/auth/onboarding/route.ts').POST
   const pin = require('../app/api/auth/pin/route.ts').POST
   const logout = require('../app/api/auth/logout/route.ts').POST
   const login = require('../app/api/auth/login/route.ts').POST
@@ -98,19 +99,24 @@ try {
   const idCookie = await identity()
   await post(complete, { action: 'login' }, idCookie, 403, 'https://evil.test')
   await post(complete, { action: 'login' }, idCookie, 409)
-  await post(complete, { action: 'create', companyName: 'Tienda A' }, idCookie, 400)
-  ok(await prisma.tenant.count() === 0, 'invalid onboarding creates nothing')
-  const onboarding = { action: 'create', companyName: 'Tienda A', adminName: 'Admin A', password: 'test-password-only', pin: '7391', confirmOwnership: true, tenantId: 'attacker', role: 'ADMIN' }
-  const created = await post(complete, onboarding, idCookie)
+  await post(complete, { action: 'create' }, idCookie, 400)
+  ok(await prisma.tenant.count() === 0, 'invalid signup creates nothing')
+  const signup = { action: 'create', companyName: 'Tienda A', tenantId: 'attacker', role: 'ADMIN' }
+  const created = await post(complete, signup, idCookie)
   const companyCookie = cookie(created.res, oauth.COOKIE_COMPANY)
   const tenantId = created.data.tenant.id
-  const admin = await prisma.user.findFirst({ where: { tenantId } })
+  let admin = await prisma.user.findFirst({ where: { tenantId } })
   ok(admin.role === 'ADMIN' && tenantId !== 'attacker' && created.data.sellers.length === 1, 'isolated admin from trusted tenant')
+  ok(created.data.onboardingRequired === true, 'Google signup defers the administrator PIN')
   ok(!created.data.companyToken && !created.data.accessToken && created.res.headers.get('set-cookie').includes('HttpOnly'), 'company session only in cookie')
   ok(await prisma.order.count() === 0 && await prisma.product.count() === 0, 'new tenant starts empty')
   const companyToken = created.res.cookies.get(oauth.COOKIE_COMPANY).value
   ok(!!await prisma.session.findUnique({ where: { tokenHash: auth.hashToken(companyToken) } }), 'stored session hashed')
   await post(pin, { sellerId: admin.id, pin: '7391' }, companyCookie, 401, 'https://evil.test')
+  await post(pin, { sellerId: admin.id, pin: '7391' }, companyCookie, 401)
+  await post(finishOnboarding, { pin: '7391' }, companyCookie)
+  ok(!!await prisma.auditLog.findFirst({ where: { tenantId, action: 'ONBOARDING_ADMIN_PIN_CONFIGURED' } }), 'initial PIN setup is audited')
+  admin = await prisma.user.findFirst({ where: { tenantId } })
   const signedIn = await post(pin, { sellerId: admin.id, pin: '7391', tenantId: 'attacker' }, companyCookie)
   ok(signedIn.data.user.tenantId === tenantId && signedIn.data.user.role === 'ADMIN', 'cookie to PIN correct company')
   ok(auth.hasPermission(signedIn.data.user, 'orders:manage') && !auth.hasPermission({ permissions: ['products:read'] }, 'orders:manage'), 'server permission helper only accepts effective grants')
@@ -126,8 +132,7 @@ try {
   await prisma.tenant.create({ data: { id: 'other', name: 'Other', slug: 'other', email: 'existing@example.test' } })
   const foreign = await prisma.user.create({ data: { tenantId: 'other', name: 'Other', pinHash: admin.pinHash, role: 'VENDEDOR' } })
   await post(pin, { sellerId: foreign.id, pin: '7391' }, companyCookie, 401)
-  const traditional = await post(login, { email: 'one@example.test', password: onboarding.password, deviceId: 'password-test' })
-  ok(traditional.data.tenant.id === tenantId, 'company password works after Google signup')
+  await post(login, { email: 'one@example.test', password: 'password-not-configured', deviceId: 'password-test' }, '', 401)
   process.env.MOBOS_TRUST_PROXY = 'true'
   for (let index = 0; index < 20; index++) await post(login, { email: 'one@example.test', password: 'wrong-password', deviceId: `rate-${index}` }, '', 401, undefined, { 'X-Forwarded-For': '203.0.113.7' })
   await post(login, { email: 'one@example.test', password: 'wrong-password', deviceId: 'rate-last' }, '', 429, undefined, { 'X-Forwarded-For': '203.0.113.7' })
@@ -135,10 +140,10 @@ try {
   delete process.env.MOBOS_TRUST_PROXY
   const again = await post(complete, { action: 'login' }, await identity('login', { email: 'changed@example.test' }))
   ok(again.data.tenant.id === tenantId && await prisma.tenant.count() === 2, 'stable sub login, no new tenant or privilege changes')
-  await post(complete, onboarding, await identity('create', { sub: 'unlinked', email: 'existing@example.test' }), 409)
+  await post(complete, signup, await identity('create', { sub: 'unlinked', email: 'existing@example.test' }), 409)
   ok(await prisma.googleIdentity.count() === 1 && (await prisma.user.findUnique({ where: { id: foreign.id } })).role === 'VENDEDOR', 'no email linking or promotion')
   const concurrentCookie = await identity('create', { sub: 'concurrent', email: 'concurrent@example.test' })
-  const concurrent = await Promise.all([complete(makeReq('/api/auth/google/complete', onboarding, concurrentCookie)), complete(makeReq('/api/auth/google/complete', onboarding, concurrentCookie))])
+  const concurrent = await Promise.all([complete(makeReq('/api/auth/google/complete', signup, concurrentCookie)), complete(makeReq('/api/auth/google/complete', signup, concurrentCookie))])
   ok(concurrent.some(r => r.status === 200) && concurrent.every(r => [200,409].includes(r.status)), 'concurrent signup safe')
   ok(await prisma.googleIdentity.count({ where: { subject: 'concurrent' } }) === 1 && await prisma.tenant.count() === 3, 'no orphan or duplicate tenants after race')
   await post(logout, {}, companyCookie, 403, 'https://evil.test')

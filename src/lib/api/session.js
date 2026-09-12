@@ -61,6 +61,7 @@ export const sessionApi = {
     setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], cookieSession: true })
     return session
   },
+  completeOnboarding: (details) => api.post('/api/auth/onboarding', details),
   loginSeller: async (credentials) => {
     if (!getCompanyContext()?.cookieSession) throw new Error('Primero hay que autenticar la empresa.')
     const session = await api.post('/api/auth/pin', credentials)

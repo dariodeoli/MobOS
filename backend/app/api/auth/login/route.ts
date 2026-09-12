@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     if (!body.email || !body.password || !body.deviceId) return error('Correo, contraseña y dispositivo son obligatorios.', 400)
     const result = await authenticateCompany(body, request)
     if (!result) return error('Credenciales inválidas.', 401)
-    const response = json({ expiresAt: result.expiresAt, tenant: result.tenant, sellers: result.sellers, scope: result.scope })
+    const response = json({ expiresAt: result.expiresAt, tenant: result.tenant, sellers: result.sellers, onboardingRequired: result.onboardingRequired, scope: result.scope })
     response.cookies.set(COOKIE_COMPANY, result.accessToken, sessionCookieOptions(7 * 24 * 60 * 60))
     return response
   } catch (cause) {

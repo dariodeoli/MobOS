@@ -31,6 +31,12 @@ export type SessionContext = {
 type LoginInput = { email?: unknown; password?: unknown; deviceId?: unknown; branchId?: unknown }
 type PinInput = { sellerId?: unknown; userId?: unknown; pin?: unknown }
 
+export function requiresAdminPinSetup(settings: unknown) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return false
+  const onboarding = (settings as Record<string, unknown>).onboarding
+  return !!onboarding && typeof onboarding === 'object' && !Array.isArray(onboarding) && (onboarding as Record<string, unknown>).adminPinPending === true
+}
+
 export const USER_ROLES = ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA'] as const
 export type UserRole = (typeof USER_ROLES)[number]
 
@@ -184,8 +190,8 @@ export async function authenticateCompany(input: LoginInput, request?: Request) 
   if (!email || !password || !deviceId) return null
   const auditMetadata = request ? authRequestMetadata(request) : {}
   return prisma.$transaction(async (tx) => {
-    const rows = await tx.$queryRaw<Array<{ id: string; name: string; slug: string; email: string; passwordHash: string | null; failedLoginAttempts: number; lockedUntil: Date | null }>>`
-      SELECT "id", "name", "slug", "email", "passwordHash", "failedLoginAttempts", "lockedUntil"
+    const rows = await tx.$queryRaw<Array<{ id: string; name: string; slug: string; email: string; passwordHash: string | null; settings: unknown; failedLoginAttempts: number; lockedUntil: Date | null }>>`
+      SELECT "id", "name", "slug", "email", "passwordHash", "settings", "failedLoginAttempts", "lockedUntil"
       FROM "Tenant" WHERE "email" = ${email} FOR UPDATE
     `
     const tenant = rows[0]
@@ -209,7 +215,7 @@ export async function authenticateCompany(input: LoginInput, request?: Request) 
     const sellers = await tx.user.findMany({ where: { tenantId: tenant.id, status: 'ACTIVE', ...(branchId ? { branchId } : {}), OR: [{ branchId: null }, { branch: { isActive: true } }] }, select: { id: true, name: true, branchId: true }, orderBy: { name: 'asc' } })
     const session = await createSession(tx, tenant.id, null, 'COMPANY', deviceId, branchId)
     await tx.auditLog.create({ data: { tenantId: tenant.id, action: 'COMPANY_SIGNED_IN', entity: 'Session', entityId: session.sessionId, metadata: { branchId, ...auditMetadata } } })
-    return { ...session, tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug }, sellers, scope: 'device:company' as const }
+    return { ...session, tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug }, sellers, onboardingRequired: requiresAdminPinSetup(tenant.settings), scope: 'device:company' as const }
   })
 }
 
@@ -221,6 +227,11 @@ async function companySession(request: Request) {
   const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(match ? match[1] : cookie) } })
   if (!session || session.level !== 'COMPANY' || session.revokedAt || session.expiresAt <= new Date()) return null
   return session
+}
+
+/** Company-level session used exclusively for the first-run administrator setup. */
+export async function requireCompanySession(request: Request) {
+  return companySession(request)
 }
 
 export async function authenticateSeller(request: Request, input: PinInput) {
