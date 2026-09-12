@@ -96,6 +96,17 @@ test('los pagos no confirmados no cuentan como cobro', () => {
   assert.equal(reporte.totals.pendingPyg, 70000)
 })
 
+test('descarta comisiones de pago del margen real sin estimar las históricas', () => {
+  const reporte = aggregateReport([
+    orden({ payments: [{ status: 'CONFIRMED', amountPyg: 100000, feePyg: 3500 }] }),
+  ], { groupBy: 'seller', offsetMinutes: DEFAULT_OFFSET_MINUTES })
+
+  assert.equal(reporte.totals.commissionPyg, 3500)
+  assert.equal(reporte.totals.profitPyg, 40000)
+  assert.equal(reporte.totals.netProfitPyg, 36500)
+  assert.equal(reporte.totals.netMarginPct, 36.5)
+})
+
 test('sin estado de pago se asume confirmado, como en la base', () => {
   const reporte = aggregateReport([orden({ payments: [{ amountPyg: 100000 }] })], {
     groupBy: 'day',

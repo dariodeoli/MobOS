@@ -74,6 +74,9 @@ export type ReportTotals = {
   salesWithoutCostPyg: number
   linesWithoutCost: number
   marginPct: number | null
+  commissionPyg: number
+  netProfitPyg: number
+  netMarginPct: number | null
 }
 
 export type ReportGroup = {
@@ -91,6 +94,8 @@ export type ReportGroup = {
   profitPyg: number
   salesWithoutCostPyg: number
   linesWithoutCost: number
+  commissionPyg: number
+  netProfitPyg: number
 }
 
 export type ReportResult = { totals: ReportTotals; groups: ReportGroup[] }
@@ -206,6 +211,7 @@ type Acumulador = {
   salesWithCostPyg: number
   salesWithoutCostPyg: number
   linesWithoutCost: number
+  commissionPyg: number
 }
 
 function nuevoAcumulador(key: string, label: string): Acumulador {
@@ -224,6 +230,7 @@ function nuevoAcumulador(key: string, label: string): Acumulador {
     salesWithCostPyg: 0,
     salesWithoutCostPyg: 0,
     linesWithoutCost: 0,
+    commissionPyg: 0,
   }
 }
 
@@ -245,6 +252,7 @@ function cerrar(acumulador: Acumulador): ReportGroup {
     ...resto,
     orders: orderIds.size,
     pendingPyg: Math.max(0, resto.totalPyg - resto.collectedPyg),
+    netProfitPyg: Math.max(0, resto.profitPyg - resto.commissionPyg),
   }
 }
 
@@ -257,6 +265,7 @@ type HechoOrden = {
   conCosto: number
   sinCosto: number
   lineasSinCosto: number
+  comision: number
 }
 
 function analizarOrden(orden: OrderLike): HechoOrden {
@@ -284,12 +293,18 @@ function analizarOrden(orden: OrderLike): HechoOrden {
 
   // Solo los pagos confirmados son cobro real.
   let cobrado = 0
+  let comision = 0
   for (const pago of payments) {
     if ((pago.status ?? 'CONFIRMED') !== 'CONFIRMED') continue
-    cobrado = suma(cobrado, entero(pago.amountPyg) ?? 0)
+    const monto = entero(pago.amountPyg) ?? 0
+    cobrado = suma(cobrado, monto)
+    // La comisión se congela en `feePyg` desde la cuenta de pago. Si la venta
+    // es histórica y no conserva esa foto, no se estima para no alterar margen.
+    const fee = entero((pago as PaymentLike & { feePyg?: number | null }).feePyg ?? 0) ?? 0
+    comision = suma(comision, fee)
   }
 
-  return { orden, items, unidades, cobrado, costo, conCosto, sinCosto, lineasSinCosto }
+  return { orden, items, unidades, cobrado, costo, conCosto, sinCosto, lineasSinCosto, comision }
 }
 
 function acumularOrden(acumulador: Acumulador, hecho: HechoOrden) {
@@ -306,6 +321,7 @@ function acumularOrden(acumulador: Acumulador, hecho: HechoOrden) {
   acumulador.salesWithCostPyg = suma(acumulador.salesWithCostPyg, hecho.conCosto)
   acumulador.salesWithoutCostPyg = suma(acumulador.salesWithoutCostPyg, hecho.sinCosto)
   acumulador.linesWithoutCost += hecho.lineasSinCosto
+  acumulador.commissionPyg = suma(acumulador.commissionPyg, hecho.comision)
 }
 
 function claveDeItem(item: OrderItemLike): string {
@@ -397,6 +413,11 @@ export function aggregateReport(
     linesWithoutCost: totales.linesWithoutCost,
     marginPct: totales.salesWithCostPyg > 0
       ? Math.round((totales.profitPyg / totales.salesWithCostPyg) * 1000) / 10
+      : null,
+    commissionPyg: totales.commissionPyg,
+    netProfitPyg: Math.max(0, totales.profitPyg - totales.commissionPyg),
+    netMarginPct: totales.salesWithCostPyg > 0
+      ? Math.round((Math.max(0, totales.profitPyg - totales.commissionPyg) / totales.salesWithCostPyg) * 1000) / 10
       : null,
   }
 

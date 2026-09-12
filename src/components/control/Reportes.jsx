@@ -160,9 +160,9 @@ export default function Reportes() {
             />
             <Stat label="Cobrado" valor={gs(totales.collectedPyg)} sub={totales.pendingPyg > 0 ? `Saldo ${gs(totales.pendingPyg)}` : 'Sin saldo pendiente'} />
             <Stat
-              label="Ganancia bruta"
-              valor={gs(totales.profitPyg)}
-              sub={totales.marginPct === null ? 'Sin costos cargados' : `Margen ${totales.marginPct}%`}
+              label="Margen real"
+              valor={gs(totales.netProfitPyg ?? totales.profitPyg)}
+              sub={totales.netMarginPct === null ? 'Sin costos cargados' : `Margen neto ${totales.netMarginPct}%`}
             />
             <Stat label="Costo de mercadería" valor={gs(totales.costPyg)} sub={`${totales.units} unidades`} />
           </div>
@@ -170,12 +170,19 @@ export default function Reportes() {
           <div className="flex flex-wrap items-center gap-2">
             {totales.discountPyg > 0 && <Badge color="orange">Descuentos {gs(totales.discountPyg)}</Badge>}
             {totales.deliveryPyg > 0 && <Badge color="blue">Delivery {gs(totales.deliveryPyg)}</Badge>}
+            {totales.commissionPyg > 0 && <Badge color="orange">Comisiones de cobro {gs(totales.commissionPyg)}</Badge>}
             {totales.linesWithoutCost > 0 && (
               <Badge color="slate">
                 {totales.linesWithoutCost} línea{totales.linesWithoutCost === 1 ? '' : 's'} sin costo ({gs(totales.salesWithoutCostPyg)}) — no suman a la ganancia
               </Badge>
             )}
             {datos.truncated && <Badge color="red">El período supera el tope de ventas analizadas</Badge>}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <Stat label="Rotación del período" valor={datos.inventory?.sellThroughPct === null || datos.inventory?.sellThroughPct === undefined ? '—' : `${datos.inventory.sellThroughPct}%`} sub={`${datos.inventory?.soldUnits ?? 0} unidades vendidas`} />
+            <Stat label="Stock actual" valor={`${datos.inventory?.onHandUnits ?? 0} u.`} sub="Productos activos de la sucursal" />
+            <Stat label="Faltantes" valor={`${datos.inventory?.shortages?.length ?? 0}`} sub={(datos.inventory?.shortages || []).slice(0, 2).map((p) => p.name).join(' · ') || 'Sin faltantes'} />
           </div>
 
           {grupos.length === 0 ? (
@@ -247,7 +254,7 @@ export default function Reportes() {
             {porLinea
               ? 'Producto y categoría se calculan por línea: el descuento global y los cobros pertenecen a la orden y no se reparten. '
               : 'Día y vendedor se calculan por orden, con cobros y saldo reales. '}
-            La ganancia solo usa líneas con costo conocido y no recalcula movimientos históricos. Generado{' '}
+            El margen real descuenta costos congelados y comisiones conocidas; no estima costos históricos ausentes. Generado{' '}
             {datos.generatedAt ? new Date(datos.generatedAt).toLocaleString('es-PY') : ''}.
           </p>
         </>

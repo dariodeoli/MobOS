@@ -56,7 +56,7 @@ export async function GET(request: Request) {
             product: { select: { name: true, category: true } },
           },
         },
-        payments: { select: { status: true, amountPyg: true } },
+        payments: { select: { status: true, amountPyg: true, accountSnapshot: true } },
         seller: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'asc' },
@@ -85,10 +85,33 @@ export async function GET(request: Request) {
           unitCostPyg: item.unitCostPyg,
           totalPyg: item.totalPyg,
         })),
-        payments: orden.payments.map((pago) => ({ status: pago.status, amountPyg: pago.amountPyg })),
+        payments: orden.payments.map((pago) => {
+          const snapshot = pago.accountSnapshot && typeof pago.accountSnapshot === 'object' && !Array.isArray(pago.accountSnapshot)
+            ? pago.accountSnapshot as Record<string, unknown> : null
+          const feePercent = snapshot && (typeof snapshot.feePercent === 'number' || typeof snapshot.feePercent === 'string')
+            ? Number(snapshot.feePercent) : 0
+          const feePyg = Number.isFinite(feePercent) && feePercent > 0
+            ? Math.round((pago.amountPyg * feePercent) / 100) : 0
+          return { status: pago.status, amountPyg: pago.amountPyg, feePyg }
+        }),
       })),
       { groupBy, offsetMinutes },
     )
+
+    const productStock = await prisma.product.findMany({
+      where: { tenantId: session.user.tenantId, isActive: true, ...(branchId ? { branchId } : {}) },
+      select: { id: true, name: true, sku: true, stock: true },
+      orderBy: [{ stock: 'asc' }, { name: 'asc' }],
+      take: 1000,
+    })
+    const soldByProduct = new Map<string, number>()
+    for (const order of usadas) for (const item of order.items) {
+      if (!item.productId || order.status === 'CANCELLED') continue
+      soldByProduct.set(item.productId, (soldByProduct.get(item.productId) ?? 0) + item.quantity)
+    }
+    const onHand = productStock.reduce((sum, product) => sum + product.stock, 0)
+    const soldUnits = [...soldByProduct.values()].reduce((sum, quantity) => sum + quantity, 0)
+    const shortages = productStock.filter(product => product.stock <= 0).map(product => ({ id: product.id, name: product.name, sku: product.sku, stock: product.stock }))
 
     return json({
       from,
@@ -98,6 +121,12 @@ export async function GET(request: Request) {
       branchId,
       truncated,
       generatedAt: new Date().toISOString(),
+      inventory: {
+        onHandUnits: onHand,
+        soldUnits,
+        sellThroughPct: onHand + soldUnits > 0 ? Math.round((soldUnits / (onHand + soldUnits)) * 1000) / 10 : null,
+        shortages,
+      },
       ...reporte,
     })
   } catch (e) {
