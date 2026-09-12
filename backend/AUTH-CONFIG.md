@@ -14,8 +14,10 @@ Esquema coordinado con el agente de promociones: modelo `GoogleIdentity` con sub
 | `MOBOS_APP_URL` | Origen exacto del frontend, sin ruta; por ejemplo `https://app.moboss.online` |
 | `MOBOS_AUTH_SECRET` | 32 bytes aleatorios codificados como 64 caracteres hexadecimales; exclusivo de MobOS |
 | `DATABASE_URL` | PostgreSQL propio de MobOS, nunca WEEM |
+| `WEEM_EMAIL_RELAY_URL` | `https://weem.com.py/api/internal/email/send` — solo backend |
+| `WEEM_EMAIL_RELAY_TOKEN` | Token dedicado de al menos 16 caracteres, igual al configurado en WEEM; nunca `RESEND_API_KEY` |
 
-No usar prefijos `VITE_` ni `NEXT_PUBLIC_` para estas variables. `VITE_API_URL` ya existente debe apuntar al backend correcto.
+No usar prefijos `VITE_` ni `NEXT_PUBLIC_` para estas variables. `VITE_API_URL` ya existente debe apuntar al backend correcto. MobOS no almacena ni usa una clave de Resend: recuperación, invitaciones y avisos transaccionales se envían por el relay de WEEM bajo el perfil fijo `mobos`.
 
 ## Bloqueos externos y entrega privada
 
