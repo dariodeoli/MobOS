@@ -5,4 +5,4 @@ Disallow: /pos/
 Disallow: /login
 Disallow: /demo
 
-Sitemap: https://controlaria.online/sitemap.xml
+Sitemap: https://moboss.online/sitemap.xml

@@ -9,7 +9,7 @@
   "theme_color": "#15D7B8",
   "icons": [
     {
-      "src": "/favicon.svg?v=1.0.18",
+      "src": "/mobos-icon.svg?v=1.0.19",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

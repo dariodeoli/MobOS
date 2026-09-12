@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MobOS">
+  <rect width="64" height="64" rx="20" fill="#071018"/>
+  <rect x="17" y="11" width="30" height="43" rx="8" fill="none" stroke="#15D7B8" stroke-width="4"/>
+  <rect x="23" y="18" width="8" height="8" rx="2" fill="#15D7B8"/>
+  <rect x="34" y="18" width="8" height="8" rx="2" fill="#0E4F57"/>
+  <rect x="23" y="29" width="8" height="8" rx="2" fill="#0E4F57"/>
+  <path d="M29 44h13m-5-5 5 5-5 5" fill="none" stroke="#15D7B8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

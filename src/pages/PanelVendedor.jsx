@@ -169,7 +169,7 @@ export default function PanelVendedor() {
         )}
       >
         <div className="flex h-20 items-center gap-3 border-b border-white/10 px-5 pt-safe">
-          <img src="/favicon.svg" alt="" className="h-10 w-10 shrink-0 rounded-xl" />
+          <img src="/mobos-icon.svg" alt="" className="h-10 w-10 shrink-0 rounded-xl" />
           <div className="flex flex-col leading-tight">
             <span className="text-base font-bold tracking-tight">{APP_NAME}</span>
             <span className="text-[11px] text-slate-400">{esDemo ? 'Tienda de demostración' : 'Centro de operaciones'}</span>

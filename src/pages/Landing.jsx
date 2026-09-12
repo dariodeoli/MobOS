@@ -1,21 +1,508 @@
-import { ArrowRight, BarChart3, Check, ChevronDown, CircleDollarSign, CreditCard, Fingerprint, MapPin, Package, ReceiptText, ScanLine, ShieldCheck, Smartphone, Store, Users } from 'lucide-react'
-import { useState } from 'react'
-import { APP_VERSION, APP_CREDIT, APP_CREDIT_URL } from '@/lib/brand'
+import {
+  ArrowRight,
+  BarChart3,
+  Check,
+  ChevronDown,
+  CircleDollarSign,
+  CreditCard,
+  Fingerprint,
+  MapPin,
+  Package,
+  ReceiptText,
+  ScanLine,
+  ShieldCheck,
+  Smartphone,
+  Store,
+  Users,
+} from "lucide-react";
+import { useState } from "react";
+import { APP_VERSION, APP_CREDIT, APP_CREDIT_URL } from "@/lib/brand";
+import { publicUrls } from "@/lib/urls";
 
 const modules = [
-  ['POS que no frena la venta', 'Buscá, agregá, cobrá y dejá cada movimiento vinculado al vendedor que ingresó con su PIN.', ReceiptText],
-  ['Inventario por unidad', 'IMEI, serial, batería, condición, costo y ubicación: cada equipo conserva su propia historia.', ScanLine],
-  ['Caja y pagos reales', 'Efectivo, transferencia, POS, USDT, pagos parciales y cuentas configurables en una venta.', CreditCard],
-  ['Sucursales sin confusión', 'Disponibilidad, reservas, tránsito, ubicaciones y transferencias sin mezclar stock.', MapPin],
-  ['Clientes y posventa', 'Historial, direcciones, pedidos, mensajes, garantías y equipos recibidos en un perfil.', Users],
-  ['Control para dueños', 'Márgenes, rendimiento por vendedor, reportes y auditoría para decidir con datos.', BarChart3],
-]
+  [
+    "POS que no frena la venta",
+    "Buscá, agregá, cobrá y dejá cada movimiento vinculado al vendedor que ingresó con su PIN.",
+    ReceiptText,
+  ],
+  [
+    "Inventario por unidad",
+    "IMEI, serial, batería, condición, costo y ubicación: cada equipo conserva su propia historia.",
+    ScanLine,
+  ],
+  [
+    "Caja y pagos reales",
+    "Efectivo, transferencia, POS, USDT, pagos parciales y cuentas configurables en una venta.",
+    CreditCard,
+  ],
+  [
+    "Sucursales sin confusión",
+    "Disponibilidad, reservas, tránsito, ubicaciones y transferencias sin mezclar stock.",
+    MapPin,
+  ],
+  [
+    "Clientes y posventa",
+    "Historial, direcciones, pedidos, mensajes, garantías y equipos recibidos en un perfil.",
+    Users,
+  ],
+  [
+    "Control para dueños",
+    "Márgenes, rendimiento por vendedor, reportes y auditoría para decidir con datos.",
+    BarChart3,
+  ],
+];
 const faqs = [
-  ['¿Puedo probar antes de crear una cuenta?', 'Sí. La demo es una tienda de ejemplo: usá el PIN 2001 como vendedor o 3001 como dueño.'],
-  ['¿Cada vendedor tiene su propio acceso?', 'Sí. La empresa inicia sesión y cada persona abre su turno con PIN. Las ventas quedan vinculadas automáticamente.'],
-  ['¿Sirve para más de una sucursal?', 'Sí. MobOS separa empresa, sucursal y ubicación física, con movimientos auditables entre locales.'],
-  ['¿Puedo cobrar con varios medios?', 'Sí. Una orden puede quedar pendiente, pagarse por partes o combinar efectivo, transferencia, POS y otros métodos configurados.'],
-]
-function Preview(){return <div className="relative mx-auto max-w-[620px] rounded-[2rem] border border-white/10 bg-[#091722] p-3 shadow-[0_30px_90px_rgba(0,0,0,.42)]"><div className="flex h-9 items-center gap-2 rounded-t-[1.35rem] bg-[#0d202d] px-4 text-[10px] text-slate-500"><i className="h-2 w-2 rounded-full bg-red-400"/><i className="h-2 w-2 rounded-full bg-amber-300"/><i className="h-2 w-2 rounded-full bg-[#15D7B8]"/><span className="ml-3 rounded bg-white/5 px-2 py-1">app.controlaria.online</span></div><div className="grid min-h-[355px] grid-cols-[76px_1fr] overflow-hidden rounded-b-[1.35rem] bg-[#071018] sm:grid-cols-[118px_1fr]"><aside className="border-r border-white/5 bg-[#0a1822] px-2 py-4 sm:px-3"><b className="mb-7 hidden text-xs text-[#15D7B8] sm:block">MOBOS</b>{['Resumen','Ventas','Productos','Stock','Clientes'].map((x,i)=><div key={x} className={`mb-1 rounded-lg px-2 py-2 text-[10px] sm:text-xs ${i===0?'bg-[#15D7B8]/12 text-[#15D7B8]':'text-slate-500'}`}>{x}</div>)}</aside><div className="p-4 sm:p-6"><div className="flex justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#15D7B8]">Viernes, 12 de septiembre</p><h3 className="mt-1 text-base font-bold sm:text-xl">Buenos días, Dario</h3></div><b className="h-fit rounded-lg bg-[#15D7B8]/10 px-2 py-1 text-[10px] text-[#15D7B8]">ASU · EN VIVO</b></div><div className="mt-5 grid grid-cols-2 gap-3"><Stat label="Ventas de hoy" value="Gs. 12.840.500" detail="↑ 18,4% vs. ayer"/><Stat label="Caja disponible" value="Gs. 4.920.000" detail="3 cuentas activas"/></div><div className="mt-4 rounded-xl border border-white/10 bg-white/[.025] p-3"><div className="flex justify-between text-xs"><b>Movimiento semanal</b><span className="text-slate-500">últimos 7 días</span></div><div className="mt-4 flex h-20 items-end gap-1.5">{[36,57,45,72,52,88,70,96,80,64,100].map((n,i)=><i key={i} style={{height:`${n}%`}} className="flex-1 rounded-t bg-gradient-to-t from-[#0c6970] to-[#15D7B8]"/>)}</div></div><div className="mt-4 flex gap-3 rounded-xl bg-[#15D7B8]/10 p-3"><span className="grid h-7 w-7 place-items-center rounded-lg bg-[#15D7B8] text-[#071018]"><Package size={14}/></span><p className="text-[10px] text-slate-300"><b className="text-white">4 productos</b> necesitan reposición esta semana.</p></div></div></div></div>}
-function Stat({label,value,detail}){return <div className="rounded-xl border border-white/10 bg-white/[.035] p-3"><p className="text-[10px] text-slate-500">{label}</p><b className="mt-1 block text-base sm:text-xl">{value}</b><span className="text-[10px] text-[#15D7B8]">{detail}</span></div>}
-export default function Landing(){const [open,setOpen]=useState(0); return <div className="min-h-dvh overflow-hidden bg-[#061019] text-white selection:bg-[#15D7B8] selection:text-[#061019]"><header className="sticky top-0 z-30 border-b border-white/[.07] bg-[#061019]/80 backdrop-blur-xl"><div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5"><a href="#inicio"><img src="/logo-dark.svg" alt="MobOS" className="h-9"/></a><nav className="hidden gap-6 text-sm text-slate-400 md:flex"><a href="#operacion">Operación</a><a href="#modulos">Módulos</a><a href="#accesos">Accesos</a><a href="#precio">Precio</a></nav><div className="flex gap-2"><a href="https://app.controlaria.online/demo" className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-[#15D7B8] sm:block">Probar demo</a><a href="https://app.controlaria.online/login" className="rounded-xl bg-[#15D7B8] px-3.5 py-2 text-sm font-bold text-[#061019]">Empezar <ArrowRight className="ml-1 inline" size={15}/></a></div></div></header><main><section id="inicio" className="relative isolate overflow-hidden"><i className="absolute left-[6%] top-8 -z-10 h-80 w-80 rounded-full bg-[#15D7B8]/10 blur-[110px]"/><i className="absolute right-[-8%] top-40 -z-10 h-96 w-96 rounded-full bg-[#176b82]/20 blur-[120px]"/><div className="mx-auto grid max-w-7xl gap-14 px-5 pb-20 pt-16 lg:grid-cols-[.9fr_1.1fr] lg:items-center lg:py-24"><div><p className="inline-flex items-center gap-2 rounded-full border border-[#15D7B8]/25 bg-[#15D7B8]/[.08] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.16em] text-[#15D7B8]"><span className="h-1.5 w-1.5 rounded-full bg-[#15D7B8]"/>Sistema operativo para tiendas móviles</p><h1 className="mt-6 text-5xl font-bold leading-[.91] tracking-[-.065em] sm:text-6xl lg:text-7xl">Vendé con ritmo.<br/><span className="text-[#15D7B8]">Controlá con certeza.</span></h1><p className="mt-7 max-w-xl text-lg leading-8 text-slate-400">MobOS une ventas, inventario, caja, clientes y posventa. Lo que hoy vive repartido entre Shopify, planillas y chats, en una operación clara.</p><div className="mt-9 flex flex-wrap gap-3"><a href="https://app.controlaria.online/login" className="rounded-xl bg-[#15D7B8] px-5 py-3.5 font-bold text-[#061019] shadow-[0_0_35px_rgba(21,215,184,.2)]">Crear mi tienda <ArrowRight className="ml-1 inline" size={18}/></a><a href="https://app.controlaria.online/demo" className="rounded-xl border border-white/15 px-5 py-3.5 font-semibold">Ver demo interactiva</a></div><p className="mt-7 text-xs text-slate-500"><Check className="mr-1 inline text-[#15D7B8]" size={14}/> USD 10 / mes <span className="mx-3">·</span><Check className="mr-1 inline text-[#15D7B8]" size={14}/> Sin contratos <span className="mx-3">·</span><Check className="mr-1 inline text-[#15D7B8]" size={14}/> Correo o Google</p></div><Preview/></div></section><section className="border-y border-white/[.07] bg-white/[.018]"><div className="mx-auto grid max-w-7xl gap-6 px-5 py-7 sm:grid-cols-3"><p className="text-sm text-slate-400"><b className="block text-lg text-white">Una venta, un flujo.</b>Cliente, cobro, stock, caja y garantía conectados.</p><p className="text-sm text-slate-400"><b className="block text-lg text-white">PYG, USD y más.</b>Costos y ventas conservan moneda y cotización.</p><p className="text-sm text-slate-400"><b className="block text-lg text-white">Diseñado para móvil.</b>El vendedor opera desde teléfono o computadora.</p></div></section><section id="operacion" className="mx-auto max-w-7xl px-5 py-24"><div className="grid gap-12 lg:grid-cols-[.85fr_1.15fr] lg:items-center"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">El flujo que ordena la tienda</p><h2 className="mt-4 text-4xl font-bold tracking-[-.04em] sm:text-5xl">Hecho para vender rápido, no para llenar formularios.</h2><p className="mt-6 leading-7 text-slate-400">El vendedor se identifica con PIN y el sistema ya sabe quién vende. Busca al cliente, encuentra el producto y cobra como corresponda.</p></div><div className="grid gap-3">{[['01','Abrí el POS con PIN','Cada venta, descuento y comisión queda a nombre de quien la hizo.',Fingerprint],['02','Encontrá lo que necesitás','Clientes, productos, variantes, IMEI y compatibilidades sin planillas.',Smartphone],['03','Cobrá sin forzar el pago','Total, pendiente, reserva o pagos divididos entre varias cuentas.',CircleDollarSign],['04','Seguimiento listo','Stock, cliente, garantía y caja se actualizan desde la misma orden.',ShieldCheck]].map(([n,t,d,I])=><article key={n} className="flex gap-4 rounded-2xl border border-white/[.08] bg-[#0a1a25] p-5"><b className="text-sm text-[#15D7B8]">{n}</b><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#15D7B8]/10 text-[#15D7B8]"><I size={19}/></span><span><b className="block text-sm">{t}</b><p className="mt-1 text-sm text-slate-400">{d}</p></span></article>)}</div></div></section><section id="modulos" className="border-y border-white/[.07] bg-[#081720]"><div className="mx-auto max-w-7xl px-5 py-24"><p className="text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">Una base para toda la operación</p><div className="mt-4 flex flex-wrap items-end justify-between gap-5"><h2 className="max-w-2xl text-4xl font-bold tracking-[-.04em] sm:text-5xl">Menos herramientas separadas. Más contexto en cada decisión.</h2><p className="max-w-sm text-sm leading-6 text-slate-400">Cada apartado comparte los datos correctos, sin duplicar existencias ni perder la historia de un equipo.</p></div><div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{modules.map(([t,d,I])=><article key={t} className="rounded-2xl border border-white/[.08] bg-[#0b1c27] p-6 transition hover:-translate-y-1 hover:border-[#15D7B8]/35"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[#15D7B8]/10 text-[#15D7B8]"><I size={21}/></span><h3 className="mt-6 font-bold">{t}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{d}</p></article>)}</div></div></section><section id="accesos" className="mx-auto grid max-w-7xl gap-12 px-5 py-24 lg:grid-cols-2 lg:items-center"><div className="rounded-3xl border border-[#15D7B8]/20 bg-gradient-to-br from-[#103a43] to-[#0a1720] p-7 sm:p-10"><p className="text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">Acceso que refleja la vida real</p><div className="mt-8 space-y-4">{[['Dueño y administración','Resumen, caja, costos, reportes, permisos y configuración.'],['Vendedor','POS, clientes, productos, pedidos, promociones y trade-in.'],['PIN individual','Cada venta se atribuye automáticamente a quien atendió.']].map(([r,d],i)=><div key={r} className="flex gap-4 rounded-2xl border border-white/10 bg-[#061019]/45 p-4"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#15D7B8] text-xs font-bold text-[#061019]">{i+1}</span><div><b className="text-sm">{r}</b><p className="mt-1 text-sm text-slate-400">{d}</p></div></div>)}</div></div><div><p className="text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">Seguridad sin complicar el día</p><h2 className="mt-4 text-4xl font-bold tracking-[-.04em] sm:text-5xl">Tu negocio separado. Tu equipo con el acceso justo.</h2><p className="mt-6 leading-7 text-slate-400">Creá una tienda con correo y contraseña o ingresá con Google. Después cada colaborador usa su código para trabajar en su rol.</p><a href="https://app.controlaria.online/login" className="mt-8 inline-block font-bold text-[#15D7B8]">Configurar mi tienda <ArrowRight className="ml-1 inline" size={17}/></a></div></section><section id="precio" className="mx-auto max-w-7xl px-5 pb-24"><div className="grid gap-10 overflow-hidden rounded-[2rem] border border-[#15D7B8]/30 bg-gradient-to-br from-[#137d77] via-[#15D7B8] to-[#73f1da] p-8 text-[#061019] md:grid-cols-[1fr_auto] md:items-center sm:p-12"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-[#064f50]">Un plan, operación completa</p><h2 className="mt-4 text-4xl font-bold tracking-[-.05em] sm:text-5xl">Todo el control que tu tienda necesita.</h2><p className="mt-4 max-w-xl leading-7 text-[#073d40]">POS, usuarios, sucursales, productos, pagos, caja, inventario y actualizaciones en un mismo plan.</p></div><div className="rounded-2xl bg-[#061019] p-6 text-white shadow-2xl"><span className="text-sm font-bold text-[#15D7B8]">USD</span><strong className="ml-2 text-6xl tracking-[-.08em]">10</strong><span className="ml-2 text-sm text-slate-400">/ mes</span><a href="https://app.controlaria.online/login" className="mt-5 block rounded-xl bg-[#15D7B8] px-5 py-3 text-center font-bold text-[#061019]">Empezar ahora</a><p className="mt-3 text-center text-xs text-slate-500">Sin permanencia · soporte incluido</p></div></div></section><section className="mx-auto max-w-4xl px-5 pb-24"><p className="text-center text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">Preguntas rápidas</p><h2 className="mt-4 text-center text-3xl font-bold sm:text-4xl">Todo claro antes de empezar.</h2><div className="mt-10 space-y-3">{faqs.map(([q,a],i)=><article key={q} className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#0a1a25]"><button onClick={()=>setOpen(open===i?-1:i)} className="flex w-full items-center justify-between gap-4 p-5 text-left"><b className="text-sm sm:text-base">{q}</b><ChevronDown className={`shrink-0 text-[#15D7B8] transition ${open===i?'rotate-180':''}`} size={19}/></button>{open===i&&<p className="px-5 pb-5 text-sm leading-6 text-slate-400">{a}</p>}</article>)}</div></section><section className="border-t border-white/[.07] bg-[#0a1d26]"><div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-5 py-12 md:flex-row md:items-center"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">Probalo antes de decidir</p><h2 className="mt-2 text-3xl font-bold">Entrá a una tienda demo y recorré el flujo.</h2><p className="mt-2 text-sm text-slate-400"><b className="font-mono text-[#15D7B8]">2001</b> vendedor · <b className="font-mono text-[#15D7B8]">3001</b> dueño</p></div><a href="https://app.controlaria.online/demo" className="rounded-xl bg-[#15D7B8] px-5 py-3.5 font-bold text-[#061019]">Probar demo <ArrowRight className="ml-1 inline" size={18}/></a></div></section></main><footer className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-5 py-8 text-xs text-slate-500"><span className="flex items-center gap-2"><Store size={14} className="text-[#15D7B8]"/><b className="text-white">Controlaria · MobOS</b></span><span>{APP_VERSION}</span><a href={APP_CREDIT_URL} target="_blank" rel="noreferrer" className="font-semibold text-[#15D7B8] hover:underline">{APP_CREDIT}</a></footer></div>}
+  [
+    "¿Puedo probar antes de crear una cuenta?",
+    "Sí. La demo es una tienda de ejemplo: usá el PIN 2001 como vendedor o 3001 como dueño.",
+  ],
+  [
+    "¿Cada vendedor tiene su propio acceso?",
+    "Sí. La empresa inicia sesión y cada persona abre su turno con PIN. Las ventas quedan vinculadas automáticamente.",
+  ],
+  [
+    "¿Sirve para más de una sucursal?",
+    "Sí. MobOS separa empresa, sucursal y ubicación física, con movimientos auditables entre locales.",
+  ],
+  [
+    "¿Puedo cobrar con varios medios?",
+    "Sí. Una orden puede quedar pendiente, pagarse por partes o combinar efectivo, transferencia, POS y otros métodos configurados.",
+  ],
+];
+function Preview({ appDomain }) {
+  return (
+    <div className="relative mx-auto max-w-[620px] rounded-[2rem] border border-white/10 bg-[#091722] p-3 shadow-[0_30px_90px_rgba(0,0,0,.42)]">
+      <div className="flex h-9 items-center gap-2 rounded-t-[1.35rem] bg-[#0d202d] px-4 text-[10px] text-slate-500">
+        <i className="h-2 w-2 rounded-full bg-red-400" />
+        <i className="h-2 w-2 rounded-full bg-amber-300" />
+        <i className="h-2 w-2 rounded-full bg-[#15D7B8]" />
+        <span className="ml-3 rounded bg-white/5 px-2 py-1">
+          {appDomain.replace("https://", "")}
+        </span>
+      </div>
+      <div className="grid min-h-[355px] grid-cols-[76px_1fr] overflow-hidden rounded-b-[1.35rem] bg-[#071018] sm:grid-cols-[118px_1fr]">
+        <aside className="border-r border-white/5 bg-[#0a1822] px-2 py-4 sm:px-3">
+          <b className="mb-7 hidden text-xs text-[#15D7B8] sm:block">MOBOS</b>
+          {["Resumen", "Ventas", "Productos", "Stock", "Clientes"].map(
+            (x, i) => (
+              <div
+                key={x}
+                className={`mb-1 rounded-lg px-2 py-2 text-[10px] sm:text-xs ${i === 0 ? "bg-[#15D7B8]/12 text-[#15D7B8]" : "text-slate-500"}`}
+              >
+                {x}
+              </div>
+            ),
+          )}
+        </aside>
+        <div className="p-4 sm:p-6">
+          <div className="flex justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#15D7B8]">
+                Viernes, 12 de septiembre
+              </p>
+              <h3 className="mt-1 text-base font-bold sm:text-xl">
+                Buenos días, Dario
+              </h3>
+            </div>
+            <b className="h-fit rounded-lg bg-[#15D7B8]/10 px-2 py-1 text-[10px] text-[#15D7B8]">
+              ASU · EN VIVO
+            </b>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <Stat
+              label="Ventas de hoy"
+              value="Gs. 12.840.500"
+              detail="↑ 18,4% vs. ayer"
+            />
+            <Stat
+              label="Caja disponible"
+              value="Gs. 4.920.000"
+              detail="3 cuentas activas"
+            />
+          </div>
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/[.025] p-3">
+            <div className="flex justify-between text-xs">
+              <b>Movimiento semanal</b>
+              <span className="text-slate-500">últimos 7 días</span>
+            </div>
+            <div className="mt-4 flex h-20 items-end gap-1.5">
+              {[36, 57, 45, 72, 52, 88, 70, 96, 80, 64, 100].map((n, i) => (
+                <i
+                  key={i}
+                  style={{ height: `${n}%` }}
+                  className="flex-1 rounded-t bg-gradient-to-t from-[#0c6970] to-[#15D7B8]"
+                />
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 flex gap-3 rounded-xl bg-[#15D7B8]/10 p-3">
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#15D7B8] text-[#071018]">
+              <Package size={14} />
+            </span>
+            <p className="text-[10px] text-slate-300">
+              <b className="text-white">4 productos</b> necesitan reposición
+              esta semana.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+function Stat({ label, value, detail }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[.035] p-3">
+      <p className="text-[10px] text-slate-500">{label}</p>
+      <b className="mt-1 block text-base sm:text-xl">{value}</b>
+      <span className="text-[10px] text-[#15D7B8]">{detail}</span>
+    </div>
+  );
+}
+export default function Landing() {
+  const [open, setOpen] = useState(0);
+  const { app } = publicUrls;
+  return (
+    <div className="min-h-dvh overflow-hidden bg-[#061019] text-white selection:bg-[#15D7B8] selection:text-[#061019]">
+      <header className="sticky top-0 z-30 border-b border-white/[.07] bg-[#061019]/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5">
+          <a href="#inicio">
+            <img src="/logo-dark.svg" alt="MobOS" className="h-9" />
+          </a>
+          <nav className="hidden gap-6 text-sm text-slate-400 md:flex">
+            <a href="#operacion">Operación</a>
+            <a href="#modulos">Módulos</a>
+            <a href="#accesos">Accesos</a>
+            <a href="#precio">Precio</a>
+          </nav>
+          <div className="flex gap-2">
+            <a
+              href={`${app}/demo`}
+              className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-[#15D7B8] sm:block"
+            >
+              Probar demo
+            </a>
+            <a
+              href={`${app}/login`}
+              className="rounded-xl bg-[#15D7B8] px-3.5 py-2 text-sm font-bold text-[#061019]"
+            >
+              Empezar <ArrowRight className="ml-1 inline" size={15} />
+            </a>
+          </div>
+        </div>
+      </header>
+      <main>
+        <section id="inicio" className="relative isolate overflow-hidden">
+          <i className="absolute left-[6%] top-8 -z-10 h-80 w-80 rounded-full bg-[#15D7B8]/10 blur-[110px]" />
+          <i className="absolute right-[-8%] top-40 -z-10 h-96 w-96 rounded-full bg-[#176b82]/20 blur-[120px]" />
+          <div className="mx-auto grid max-w-7xl gap-14 px-5 pb-20 pt-16 lg:grid-cols-[.9fr_1.1fr] lg:items-center lg:py-24">
+            <div>
+              <p className="inline-flex items-center gap-2 rounded-full border border-[#15D7B8]/25 bg-[#15D7B8]/[.08] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.16em] text-[#15D7B8]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#15D7B8]" />
+                Sistema operativo para tiendas móviles
+              </p>
+              <h1 className="mt-6 text-5xl font-bold leading-[.91] tracking-[-.065em] sm:text-6xl lg:text-7xl">
+                Vendé con ritmo.
+                <br />
+                <span className="text-[#15D7B8]">Controlá con certeza.</span>
+              </h1>
+              <p className="mt-7 max-w-xl text-lg leading-8 text-slate-400">
+                MobOS une ventas, inventario, caja, clientes y posventa. Lo que
+                hoy vive repartido entre Shopify, planillas y chats, en una
+                operación clara.
+              </p>
+              <div className="mt-9 flex flex-wrap gap-3">
+                <a
+                  href={`${app}/login`}
+                  className="rounded-xl bg-[#15D7B8] px-5 py-3.5 font-bold text-[#061019] shadow-[0_0_35px_rgba(21,215,184,.2)]"
+                >
+                  Crear mi tienda{" "}
+                  <ArrowRight className="ml-1 inline" size={18} />
+                </a>
+                <a
+                  href={`${app}/demo`}
+                  className="rounded-xl border border-white/15 px-5 py-3.5 font-semibold"
+                >
+                  Ver demo interactiva
+                </a>
+              </div>
+              <p className="mt-7 text-xs text-slate-500">
+                <Check className="mr-1 inline text-[#15D7B8]" size={14} /> USD
+                10 / mes <span className="mx-3">·</span>
+                <Check className="mr-1 inline text-[#15D7B8]" size={14} /> Sin
+                contratos <span className="mx-3">·</span>
+                <Check className="mr-1 inline text-[#15D7B8]" size={14} />{" "}
+                Correo o Google
+              </p>
+            </div>
+            <Preview appDomain={app} />
+          </div>
+        </section>
+        <section className="border-y border-white/[.07] bg-white/[.018]">
+          <div className="mx-auto grid max-w-7xl gap-6 px-5 py-7 sm:grid-cols-3">
+            <p className="text-sm text-slate-400">
+              <b className="block text-lg text-white">Una venta, un flujo.</b>
+              Cliente, cobro, stock, caja y garantía conectados.
+            </p>
+            <p className="text-sm text-slate-400">
+              <b className="block text-lg text-white">PYG, USD y más.</b>Costos
+              y ventas conservan moneda y cotización.
+            </p>
+            <p className="text-sm text-slate-400">
+              <b className="block text-lg text-white">Diseñado para móvil.</b>El
+              vendedor opera desde teléfono o computadora.
+            </p>
+          </div>
+        </section>
+        <section id="operacion" className="mx-auto max-w-7xl px-5 py-24">
+          <div className="grid gap-12 lg:grid-cols-[.85fr_1.15fr] lg:items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">
+                El flujo que ordena la tienda
+              </p>
+              <h2 className="mt-4 text-4xl font-bold tracking-[-.04em] sm:text-5xl">
+                Hecho para vender rápido, no para llenar formularios.
+              </h2>
+              <p className="mt-6 leading-7 text-slate-400">
+                El vendedor se identifica con PIN y el sistema ya sabe quién
+                vende. Busca al cliente, encuentra el producto y cobra como
+                corresponda.
+              </p>
+            </div>
+            <div className="grid gap-3">
+              {[
+                [
+                  "01",
+                  "Abrí el POS con PIN",
+                  "Cada venta, descuento y comisión queda a nombre de quien la hizo.",
+                  Fingerprint,
+                ],
+                [
+                  "02",
+                  "Encontrá lo que necesitás",
+                  "Clientes, productos, variantes, IMEI y compatibilidades sin planillas.",
+                  Smartphone,
+                ],
+                [
+                  "03",
+                  "Cobrá sin forzar el pago",
+                  "Total, pendiente, reserva o pagos divididos entre varias cuentas.",
+                  CircleDollarSign,
+                ],
+                [
+                  "04",
+                  "Seguimiento listo",
+                  "Stock, cliente, garantía y caja se actualizan desde la misma orden.",
+                  ShieldCheck,
+                ],
+              ].map(([n, t, d, I]) => (
+                <article
+                  key={n}
+                  className="flex gap-4 rounded-2xl border border-white/[.08] bg-[#0a1a25] p-5"
+                >
+                  <b className="text-sm text-[#15D7B8]">{n}</b>
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#15D7B8]/10 text-[#15D7B8]">
+                    <I size={19} />
+                  </span>
+                  <span>
+                    <b className="block text-sm">{t}</b>
+                    <p className="mt-1 text-sm text-slate-400">{d}</p>
+                  </span>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+        <section
+          id="modulos"
+          className="border-y border-white/[.07] bg-[#081720]"
+        >
+          <div className="mx-auto max-w-7xl px-5 py-24">
+            <p className="text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">
+              Una base para toda la operación
+            </p>
+            <div className="mt-4 flex flex-wrap items-end justify-between gap-5">
+              <h2 className="max-w-2xl text-4xl font-bold tracking-[-.04em] sm:text-5xl">
+                Menos herramientas separadas. Más contexto en cada decisión.
+              </h2>
+              <p className="max-w-sm text-sm leading-6 text-slate-400">
+                Cada apartado comparte los datos correctos, sin duplicar
+                existencias ni perder la historia de un equipo.
+              </p>
+            </div>
+            <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {modules.map(([t, d, I]) => (
+                <article
+                  key={t}
+                  className="rounded-2xl border border-white/[.08] bg-[#0b1c27] p-6 transition hover:-translate-y-1 hover:border-[#15D7B8]/35"
+                >
+                  <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#15D7B8]/10 text-[#15D7B8]">
+                    <I size={21} />
+                  </span>
+                  <h3 className="mt-6 font-bold">{t}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">{d}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+        <section
+          id="accesos"
+          className="mx-auto grid max-w-7xl gap-12 px-5 py-24 lg:grid-cols-2 lg:items-center"
+        >
+          <div className="rounded-3xl border border-[#15D7B8]/20 bg-gradient-to-br from-[#103a43] to-[#0a1720] p-7 sm:p-10">
+            <p className="text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">
+              Acceso que refleja la vida real
+            </p>
+            <div className="mt-8 space-y-4">
+              {[
+                [
+                  "Dueño y administración",
+                  "Resumen, caja, costos, reportes, permisos y configuración.",
+                ],
+                [
+                  "Vendedor",
+                  "POS, clientes, productos, pedidos, promociones y trade-in.",
+                ],
+                [
+                  "PIN individual",
+                  "Cada venta se atribuye automáticamente a quien atendió.",
+                ],
+              ].map(([r, d], i) => (
+                <div
+                  key={r}
+                  className="flex gap-4 rounded-2xl border border-white/10 bg-[#061019]/45 p-4"
+                >
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#15D7B8] text-xs font-bold text-[#061019]">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <b className="text-sm">{r}</b>
+                    <p className="mt-1 text-sm text-slate-400">{d}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">
+              Seguridad sin complicar el día
+            </p>
+            <h2 className="mt-4 text-4xl font-bold tracking-[-.04em] sm:text-5xl">
+              Tu negocio separado. Tu equipo con el acceso justo.
+            </h2>
+            <p className="mt-6 leading-7 text-slate-400">
+              Creá una tienda con correo y contraseña o ingresá con Google.
+              Después cada colaborador usa su código para trabajar en su rol.
+            </p>
+            <a
+              href={`${app}/login`}
+              className="mt-8 inline-block font-bold text-[#15D7B8]"
+            >
+              Configurar mi tienda{" "}
+              <ArrowRight className="ml-1 inline" size={17} />
+            </a>
+          </div>
+        </section>
+        <section id="precio" className="mx-auto max-w-7xl px-5 pb-24">
+          <div className="grid gap-10 overflow-hidden rounded-[2rem] border border-[#15D7B8]/30 bg-gradient-to-br from-[#137d77] via-[#15D7B8] to-[#73f1da] p-8 text-[#061019] md:grid-cols-[1fr_auto] md:items-center sm:p-12">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[.2em] text-[#064f50]">
+                Un plan, operación completa
+              </p>
+              <h2 className="mt-4 text-4xl font-bold tracking-[-.05em] sm:text-5xl">
+                Todo el control que tu tienda necesita.
+              </h2>
+              <p className="mt-4 max-w-xl leading-7 text-[#073d40]">
+                POS, usuarios, sucursales, productos, pagos, caja, inventario y
+                actualizaciones en un mismo plan.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-[#061019] p-6 text-white shadow-2xl">
+              <span className="text-sm font-bold text-[#15D7B8]">USD</span>
+              <strong className="ml-2 text-6xl tracking-[-.08em]">10</strong>
+              <span className="ml-2 text-sm text-slate-400">/ mes</span>
+              <a
+                href={`${app}/login`}
+                className="mt-5 block rounded-xl bg-[#15D7B8] px-5 py-3 text-center font-bold text-[#061019]"
+              >
+                Empezar ahora
+              </a>
+              <p className="mt-3 text-center text-xs text-slate-500">
+                Sin permanencia · soporte incluido
+              </p>
+            </div>
+          </div>
+        </section>
+        <section className="mx-auto max-w-4xl px-5 pb-24">
+          <p className="text-center text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">
+            Preguntas rápidas
+          </p>
+          <h2 className="mt-4 text-center text-3xl font-bold sm:text-4xl">
+            Todo claro antes de empezar.
+          </h2>
+          <div className="mt-10 space-y-3">
+            {faqs.map(([q, a], i) => (
+              <article
+                key={q}
+                className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#0a1a25]"
+              >
+                <button
+                  onClick={() => setOpen(open === i ? -1 : i)}
+                  className="flex w-full items-center justify-between gap-4 p-5 text-left"
+                >
+                  <b className="text-sm sm:text-base">{q}</b>
+                  <ChevronDown
+                    className={`shrink-0 text-[#15D7B8] transition ${open === i ? "rotate-180" : ""}`}
+                    size={19}
+                  />
+                </button>
+                {open === i && (
+                  <p className="px-5 pb-5 text-sm leading-6 text-slate-400">
+                    {a}
+                  </p>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+        <section className="border-t border-white/[.07] bg-[#0a1d26]">
+          <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-5 py-12 md:flex-row md:items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">
+                Probalo antes de decidir
+              </p>
+              <h2 className="mt-2 text-3xl font-bold">
+                Entrá a una tienda demo y recorré el flujo.
+              </h2>
+              <p className="mt-2 text-sm text-slate-400">
+                <b className="font-mono text-[#15D7B8]">2001</b> vendedor ·{" "}
+                <b className="font-mono text-[#15D7B8]">3001</b> dueño
+              </p>
+            </div>
+            <a
+              href={`${app}/demo`}
+              className="rounded-xl bg-[#15D7B8] px-5 py-3.5 font-bold text-[#061019]"
+            >
+              Probar demo <ArrowRight className="ml-1 inline" size={18} />
+            </a>
+          </div>
+        </section>
+      </main>
+      <footer className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-5 py-8 text-xs text-slate-500">
+        <span className="flex items-center gap-2">
+          <Store size={14} className="text-[#15D7B8]" />
+          <b className="text-white">Controlaria · MobOS</b>
+        </span>
+        <span>{APP_VERSION}</span>
+        <a
+          href={APP_CREDIT_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="font-semibold text-[#15D7B8] hover:underline"
+        >
+          {APP_CREDIT}
+        </a>
+      </footer>
+    </div>
+  );
+}
