@@ -28,6 +28,7 @@ import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import PaymentAccountFields, { accountPayment, updateAccountPayment } from './PaymentAccountFields'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
+import { printOrderReceipt } from '@/components/shared/OrderReceipt'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
 // en cada venta (suelen ser ráfagas de la misma persona).
@@ -83,6 +84,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   const [errorCuentas, setErrorCuentas] = useState('')
   const [intentoCuentas, setIntentoCuentas] = useState(0)
   const [serialRequired, setSerialRequired] = useState(false)
+  const [lastOrder, setLastOrder] = useState(null)
   const guardadoEnCurso = useRef(false)
   const [guardadoIncompleto, setGuardadoIncompleto] = useState(false)
   const usaCuentas = Boolean(cuentas?.length)
@@ -339,6 +341,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     setGuardando(true)
     guardadoEnCurso.current = true
     let ventaPersistida = false
+    let completedOrder = null
     try {
     if (!esDemo) {
       const order = await guardarOrdenApi({
@@ -350,6 +353,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
       })
       if (!order?.id || order.error || order.ok === false) throw new Error(order?.error || 'No se recibió confirmación de la orden.')
       ventaPersistida = true
+      completedOrder = order
     } else {
       const validation = await validateDemoTradeIns(payments)
       if (validation === false || validation?.error || validation?.ok === false) throw new Error(validation?.error || 'No se pudo validar el canje.')
@@ -390,6 +394,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
       const result = await recordDemoTradeIns(order, payments)
       if (result === false || result?.error || result?.ok === false) throw new Error(result?.error || 'No se pudo registrar el canje demo.')
       recordDemoPromotionUsage(orderItems, productos, gsNum(descuento))
+      completedOrder = order
     }
 
     localStorage.setItem(ULTIMO_VENDEDOR, f.vendedorId)
@@ -400,6 +405,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     setF(VACIO(f.vendedorId))
     setFamiliaActiva(null)
     setBusquedaProducto('')
+    setLastOrder(completedOrder)
     setPaso(1)
     setOk(true)
     setTimeout(() => setOk(false), 2500)
@@ -448,7 +454,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         </span>
       </div>
 
-      {ok && <p role="status" aria-live="polite" className="mb-4 rounded-xl border border-ok/30 bg-ok/10 p-4 text-ok">Venta registrada correctamente. Ya podés cargar la siguiente.</p>}
+      {ok && <div role="status" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-ok/30 bg-ok/10 p-4 text-ok"><span>Venta registrada correctamente. Ya podés cargar la siguiente.</span>{lastOrder && <><Button type="button" variant="outline" onClick={() => printOrderReceipt(lastOrder, { format: 'a4' })}>Imprimir A4</Button><Button type="button" variant="outline" onClick={() => printOrderReceipt(lastOrder, { format: 'thermal' })}>Imprimir térmico</Button></>}</div>}
       {paso !== 3 && pagos.some(p => p.tradeIn) && <p role="status" className="mb-4 rounded-xl border border-fono/30 bg-fono/10 p-3 text-sm">Canje preparado como parte de pago. Revisá sus datos y el saldo pendiente en Cobrar.</p>}
       <form onSubmit={guardar} className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
         {errorVenta && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-red-300 md:col-span-2">{errorVenta}</p>}
