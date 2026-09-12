@@ -7,64 +7,68 @@ datasource db {
 }
 
 model Tenant {
-  googleIdentity GoogleIdentity?
-  promotions Promotion[]
-  paymentAccounts PaymentAccount[]
-  tradeInDevices TradeInDevice[]
-  cashSessions CashSession[]
-  purchases PurchaseOrder[]
-  warrantyCases WarrantyCase[]
-  id        String   @id @default(cuid())
-  name      String
-  email     String?  @unique
-  passwordHash String?
-  failedLoginAttempts Int @default(0)
-  lockedUntil DateTime?
-  slug      String   @unique
-  settings  Json     @default("{}")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  googleIdentity      GoogleIdentity?
+  promotions          Promotion[]
+  paymentAccounts     PaymentAccount[]
+  tradeInDevices      TradeInDevice[]
+  cashSessions        CashSession[]
+  purchases           PurchaseOrder[]
+  warrantyCases       WarrantyCase[]
+  id                  String           @id @default(cuid())
+  name                String
+  email               String?          @unique
+  passwordHash        String?
+  failedLoginAttempts Int              @default(0)
+  lockedUntil         DateTime?
+  slug                String           @unique
+  settings            Json             @default("{}")
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
-  branches  Branch[]
-  users     User[]
-  sessions  Session[]
-  products  Product[]
-  customers Customer[]
-  orders    Order[]
-  payments  Payment[]
-  paymentProofs PaymentProof[]
-  paymentReconciliations PaymentReconciliation[]
-  auditLogs AuditLog[]
-  inventoryUnits InventoryUnit[]
-  stockTransfers StockTransfer[]
-  costPolicies CostPolicy[]
+  branches                Branch[]
+  users                   User[]
+  sessions                Session[]
+  products                Product[]
+  customers               Customer[]
+  orders                  Order[]
+  payments                Payment[]
+  paymentProofs           PaymentProof[]
+  paymentReconciliations  PaymentReconciliation[]
+  auditLogs               AuditLog[]
+  inventoryUnits          InventoryUnit[]
+  stockTransfers          StockTransfer[]
+  costPolicies            CostPolicy[]
+  stockVisibilityGranted  InventoryVisibilityGrant[] @relation("StockVisibilityProvider")
+  stockVisibilityReceived InventoryVisibilityGrant[] @relation("StockVisibilityRecipient")
+  stockLocations          StockLocation[]
 }
 
 model GoogleIdentity {
-  subject String @id
+  subject  String @id
   tenantId String @unique
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model Branch {
   tradeInDevices TradeInDevice[]
-  cashSessions CashSession[]
-  purchases PurchaseOrder[]
-  warrantyCases WarrantyCase[]
-  id        String   @id @default(cuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name      String
-  address   String?
-  city      String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  cashSessions   CashSession[]
+  purchases      PurchaseOrder[]
+  warrantyCases  WarrantyCase[]
+  id             String          @id @default(cuid())
+  tenantId       String
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name           String
+  address        String?
+  city           String?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
-  users    User[]
-  products Product[]
-  orders   Order[]
-  inventoryUnits InventoryUnit[]
+  users             User[]
+  products          Product[]
+  orders            Order[]
+  inventoryUnits    InventoryUnit[]
+  stockLocations    StockLocation[]
   outgoingTransfers StockTransfer[] @relation("TransferSourceBranch")
   incomingTransfers StockTransfer[] @relation("TransferDestinationBranch")
 
@@ -73,30 +77,30 @@ model Branch {
 }
 
 model User {
-  openedCashSessions CashSession[] @relation("CashOpenedBy")
-  closedCashSessions CashSession[] @relation("CashClosedBy")
-  purchases PurchaseOrder[]
-  id        String     @id @default(cuid())
-  tenantId  String
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branchId  String?
-  branch    Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  name      String
-  email     String?
-  pinHash   String
-  role      UserRole   @default(VENDEDOR)
-  status    UserStatus @default(ACTIVE)
-  failedLoginAttempts Int @default(0)
-  lockedUntil DateTime?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  openedCashSessions  CashSession[]   @relation("CashOpenedBy")
+  closedCashSessions  CashSession[]   @relation("CashClosedBy")
+  purchases           PurchaseOrder[]
+  id                  String          @id @default(cuid())
+  tenantId            String
+  tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId            String?
+  branch              Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  name                String
+  email               String?
+  pinHash             String
+  role                UserRole        @default(VENDEDOR)
+  status              UserStatus      @default(ACTIVE)
+  failedLoginAttempts Int             @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
-  orders    Order[]
-  auditLogs AuditLog[]
-  uploadedPaymentProofs PaymentProof[] @relation("PaymentProofUploader")
+  orders                         Order[]
+  auditLogs                      AuditLog[]
+  uploadedPaymentProofs          PaymentProof[]          @relation("PaymentProofUploader")
   verifiedPaymentReconciliations PaymentReconciliation[] @relation("PaymentReconciliationVerifier")
 
-  sessions Session[]
+  sessions         Session[]
   createdTransfers StockTransfer[]
 
   @@unique([tenantId, email])
@@ -105,19 +109,19 @@ model User {
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  level     SessionLevel @default(COMPANY)
-  deviceId  String
-  branchId  String?
-  tokenHash String   @unique
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime @default(now())
-  lastSeenAt DateTime @default(now())
+  id         String       @id @default(cuid())
+  tenantId   String
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level      SessionLevel @default(COMPANY)
+  deviceId   String
+  branchId   String?
+  tokenHash  String       @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime     @default(now())
+  lastSeenAt DateTime     @default(now())
 
   @@index([tenantId, userId])
   @@index([expiresAt])
@@ -143,30 +147,30 @@ enum UserStatus {
 
 model Product {
   tradeInDevice TradeInDevice?
-  destination ProductDestination @default(NORMAL)
+  destination   ProductDestination @default(NORMAL)
   purchaseLines PurchaseLine[]
-  id        String        @id @default(cuid())
-  tenantId  String
-  tenant    Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branchId  String?
-  branch    Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  sku       String
-  name      String
-  category  String?
-  imei      String?
-  condition ProductCondition @default(NEW)
-  pricePyg  Int
-  costPyg   Int?
+  id            String             @id @default(cuid())
+  tenantId      String
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId      String?
+  branch        Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  sku           String
+  name          String
+  category      String?
+  imei          String?
+  condition     ProductCondition   @default(NEW)
+  pricePyg      Int
+  costPyg       Int?
   // Si tiene valor, prevalece sobre la política de la categoría.
-  insuranceRate Decimal? @db.Decimal(5, 2)
-  stock     Int           @default(0)
-  isActive  Boolean       @default(true)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  insuranceRate Decimal?           @db.Decimal(5, 2)
+  stock         Int                @default(0)
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 
-  orderItems OrderItem[]
-  inventoryUnits InventoryUnit[]
-  transferSourceLines StockTransferLine[] @relation("TransferSourceProduct")
+  orderItems               OrderItem[]
+  inventoryUnits           InventoryUnit[]
+  transferSourceLines      StockTransferLine[] @relation("TransferSourceProduct")
   transferDestinationLines StockTransferLine[] @relation("TransferDestinationProduct")
 
   @@unique([tenantId, branchId, sku])
@@ -183,66 +187,107 @@ enum InventoryUnitStatus {
 }
 
 model InventoryUnit {
-  id String @id @default(cuid())
-  tenantId String
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  productId String
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
-  branchId String?
-  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  serial String
+  id                  String              @id @default(cuid())
+  tenantId            String
+  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId           String
+  product             Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  branchId            String?
+  branch              Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  locationId          String?
+  location            StockLocation?      @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  serial              String
   // Un único modelo puede tener unidades nuevas o seminuevas con historial propio.
   // Esto evita crear un producto distinto por cada IMEI.
-  condition ProductCondition @default(NEW)
-  batteryHealth Int?
-  supplierName String?
-  purchasedAt DateTime?
-  costPyg Int?
-  costCurrency PaymentCurrency @default(PYG)
-  originalCost Decimal? @db.Decimal(14, 2)
-  exchangeRatePyg Decimal? @db.Decimal(14, 4)
-  notes String?
-  reservedUntil DateTime?
+  condition           ProductCondition    @default(NEW)
+  batteryHealth       Int?
+  supplierName        String?
+  purchasedAt         DateTime?
+  costPyg             Int?
+  costCurrency        PaymentCurrency     @default(PYG)
+  originalCost        Decimal?            @db.Decimal(14, 2)
+  exchangeRatePyg     Decimal?            @db.Decimal(14, 4)
+  notes               String?
+  reservedUntil       DateTime?
   reservationCustomer String?
-  reservedById String?
-  status InventoryUnitStatus @default(AVAILABLE)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  reservedById        String?
+  status              InventoryUnitStatus @default(AVAILABLE)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
 
   @@unique([tenantId, serial])
   @@index([tenantId, productId, status])
   @@index([tenantId, branchId, status])
   @@index([tenantId, status, reservedUntil])
+  @@index([tenantId, branchId, locationId, status])
+}
+
+// Ubicación física dentro de una sucursal: piso de venta, depósito, vitrina,
+// recepción, etc. No es una sucursal nueva y no puede cruzar empresas.
+model StockLocation {
+  id             String          @id @default(cuid())
+  tenantId       String
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId       String
+  branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name           String
+  code           String?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  inventoryUnits InventoryUnit[]
+
+  @@unique([branchId, name])
+  @@unique([branchId, code])
+  @@index([tenantId, branchId, isActive])
+}
+
+// Permiso explícito y solo de lectura: el receptor ve disponibilidad, nunca
+// costos, IMEI, clientes o movimientos de la empresa proveedora.
+model InventoryVisibilityGrant {
+  id                String   @id @default(cuid())
+  providerTenantId  String
+  providerTenant    Tenant   @relation("StockVisibilityProvider", fields: [providerTenantId], references: [id], onDelete: Cascade)
+  recipientTenantId String
+  recipientTenant   Tenant   @relation("StockVisibilityRecipient", fields: [recipientTenantId], references: [id], onDelete: Cascade)
+  createdById       String
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([providerTenantId, recipientTenantId])
+  @@index([recipientTenantId, isActive])
+  @@index([providerTenantId, isActive])
 }
 
 model StockTransfer {
-  id String @id @default(cuid())
-  tenantId String
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  sourceBranchId String
-  sourceBranch Branch @relation("TransferSourceBranch", fields: [sourceBranchId], references: [id], onDelete: Restrict)
+  id                  String              @id @default(cuid())
+  tenantId            String
+  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceBranchId      String
+  sourceBranch        Branch              @relation("TransferSourceBranch", fields: [sourceBranchId], references: [id], onDelete: Restrict)
   destinationBranchId String
-  destinationBranch Branch @relation("TransferDestinationBranch", fields: [destinationBranchId], references: [id], onDelete: Restrict)
-  createdById String
-  createdBy User @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  notes String?
-  createdAt DateTime @default(now())
-  lines StockTransferLine[]
+  destinationBranch   Branch              @relation("TransferDestinationBranch", fields: [destinationBranchId], references: [id], onDelete: Restrict)
+  createdById         String
+  createdBy           User                @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  notes               String?
+  createdAt           DateTime            @default(now())
+  lines               StockTransferLine[]
 
   @@index([tenantId, sourceBranchId, createdAt])
   @@index([tenantId, destinationBranchId, createdAt])
 }
 
 model StockTransferLine {
-  id String @id @default(cuid())
-  transferId String
-  transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
-  sourceProductId String
-  sourceProduct Product @relation("TransferSourceProduct", fields: [sourceProductId], references: [id], onDelete: Restrict)
+  id                   String        @id @default(cuid())
+  transferId           String
+  transfer             StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  sourceProductId      String
+  sourceProduct        Product       @relation("TransferSourceProduct", fields: [sourceProductId], references: [id], onDelete: Restrict)
   destinationProductId String
-  destinationProduct Product @relation("TransferDestinationProduct", fields: [destinationProductId], references: [id], onDelete: Restrict)
-  quantity Int
-  serials Json @default("[]")
+  destinationProduct   Product       @relation("TransferDestinationProduct", fields: [destinationProductId], references: [id], onDelete: Restrict)
+  quantity             Int
+  serials              Json          @default("[]")
 
   @@index([transferId])
 }
@@ -273,25 +318,25 @@ model Customer {
 
 model Order {
   tradeInDevices TradeInDevice[]
-  id          String      @id @default(cuid())
-  tenantId    String
-  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branchId    String?
-  branch      Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  customerId  String?
-  customer    Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  sellerId    String
-  seller      User        @relation(fields: [sellerId], references: [id])
-  orderNumber String
-  status      OrderStatus @default(PENDING)
-  subtotalPyg Int
-  discountPyg Int @default(0)
-  deliveryPyg Int @default(0)
-  deliveryType String?
-  deliveryNotes String?
-  totalPyg    Int
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id             String          @id @default(cuid())
+  tenantId       String
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId       String?
+  branch         Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  customerId     String?
+  customer       Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  sellerId       String
+  seller         User            @relation(fields: [sellerId], references: [id])
+  orderNumber    String
+  status         OrderStatus     @default(PENDING)
+  subtotalPyg    Int
+  discountPyg    Int             @default(0)
+  deliveryPyg    Int             @default(0)
+  deliveryType   String?
+  deliveryNotes  String?
+  totalPyg       Int
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   items    OrderItem[]
   payments Payment[]
@@ -308,22 +353,22 @@ enum OrderStatus {
 }
 
 model OrderItem {
-  promotionSnapshot Json?
-  warrantyCases WarrantyCase[]
-  id          String  @id @default(cuid())
-  orderId     String
-  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId   String?
-  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  description String
-  quantity    Int     @default(1)
-  unitPricePyg Int
-  unitCostPyg Int?
-  baseUnitCostPyg Int?
-  insurancePyg Int @default(0)
-  extraCostPyg Int @default(0)
-  soldWithoutInsurance Boolean @default(false)
-  totalPyg    Int
+  promotionSnapshot    Json?
+  warrantyCases        WarrantyCase[]
+  id                   String         @id @default(cuid())
+  orderId              String
+  order                Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId            String?
+  product              Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+  description          String
+  quantity             Int            @default(1)
+  unitPricePyg         Int
+  unitCostPyg          Int?
+  baseUnitCostPyg      Int?
+  insurancePyg         Int            @default(0)
+  extraCostPyg         Int            @default(0)
+  soldWithoutInsurance Boolean        @default(false)
+  totalPyg             Int
 
   @@index([orderId])
 }
@@ -331,65 +376,66 @@ model OrderItem {
 // Plantilla por categoría: por ejemplo Teléfonos = seguro 2%. Un producto
 // puede sobrescribirla, y la venta siempre guarda la foto del costo aplicado.
 model CostPolicy {
-  id String @id @default(cuid())
-  tenantId String
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  category String
-  insuranceRate Decimal @default(0) @db.Decimal(5, 2)
-  isActive Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category      String
+  insuranceRate Decimal  @default(0) @db.Decimal(5, 2)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@unique([tenantId, category])
   @@index([tenantId, isActive])
 }
 
 model Promotion {
-  id String @id @default(cuid())
-  tenantId String
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  code String
-  name String
-  kind String
-  value Int
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code      String
+  name      String
+  kind      String
+  value     Int
   productId String?
-  startsAt DateTime
-  endsAt DateTime
-  maxUnits Int?
-  usedUnits Int @default(0)
-  isActive Boolean @default(true)
+  startsAt  DateTime
+  endsAt    DateTime
+  maxUnits  Int?
+  usedUnits Int      @default(0)
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   @@unique([tenantId, code])
 }
 
 model Payment {
-  accountId String?
-  account PaymentAccount? @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  accountId       String?
+  account         PaymentAccount?  @relation(fields: [accountId], references: [id], onDelete: Restrict)
   accountSnapshot Json?
-  currency PaymentCurrency?
-  originalAmount Decimal? @db.Decimal(18, 2)
-  exchangeRatePyg Decimal? @db.Decimal(18, 6)
-  tradeInDevice TradeInDevice?
-  id         String        @id @default(cuid())
-  tenantId   String
-  tenant     Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  orderId    String
-  order      Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  method     PaymentMethod
-  status     PaymentStatus @default(CONFIRMED)
-  amountPyg  Int
-  reference  String?
-  idempotencyKey String?
-  paidAt     DateTime      @default(now())
-  createdAt  DateTime      @default(now())
+  currency        PaymentCurrency?
+  originalAmount  Decimal?         @db.Decimal(18, 2)
+  exchangeRatePyg Decimal?         @db.Decimal(18, 6)
+  tradeInDevice   TradeInDevice?
+  id              String           @id @default(cuid())
+  tenantId        String
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderId         String
+  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method          PaymentMethod
+  status          PaymentStatus    @default(CONFIRMED)
+  amountPyg       Int
+  reference       String?
+  idempotencyKey  String?
+  paidAt          DateTime         @default(now())
+  createdAt       DateTime         @default(now())
 
   proofs         PaymentProof[]
   reconciliation PaymentReconciliation?
 
+  @@unique([tenantId, idempotencyKey])
   @@index([tenantId])
   @@index([orderId])
-  @@unique([tenantId, idempotencyKey])
 }
 
 model PaymentProof {
@@ -412,17 +458,17 @@ model PaymentProof {
 }
 
 model PaymentReconciliation {
-  id           String             @id @default(cuid())
+  id           String              @id @default(cuid())
   tenantId     String
-  tenant       Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  paymentId    String             @unique
-  payment      Payment            @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  paymentId    String              @unique
+  payment      Payment             @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   state        ReconciliationState @default(PENDING)
   note         String?
   verifiedById String?
-  verifiedBy   User?              @relation("PaymentReconciliationVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  verifiedBy   User?               @relation("PaymentReconciliationVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
 
   @@index([tenantId, state])
   @@index([verifiedById, updatedAt])
@@ -464,44 +510,46 @@ enum TradeInStatus {
 }
 
 model PaymentAccount {
-  id String @id @default(cuid())
-  tenantId String
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name String
-  bank String?
-  holder String?
+  id            String             @id @default(cuid())
+  tenantId      String
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name          String
+  bank          String?
+  holder        String?
   accountNumber String?
-  currency PaymentCurrency
-  kind PaymentAccountKind
-  isActive Boolean @default(true)
-  feePercent Decimal @default(0) @db.Decimal(5, 2)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  payments Payment[]
+  currency      PaymentCurrency
+  kind          PaymentAccountKind
+  isActive      Boolean            @default(true)
+  feePercent    Decimal            @default(0) @db.Decimal(5, 2)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  payments      Payment[]
+
   @@index([tenantId, isActive])
 }
 
 model TradeInDevice {
-  id String @id @default(cuid())
-  tenantId String
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branchId String?
-  branch Branch? @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  orderId String
-  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  paymentId String @unique
-  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-  serial String
-  model String
+  id             String        @id @default(cuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId       String?
+  branch         Branch?       @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  orderId        String
+  order          Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  paymentId      String        @unique
+  payment        Payment       @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  serial         String
+  model          String
   conditionNotes String
-  valuePyg Int
-  status TradeInStatus @default(RECEIVED)
-  repairCostPyg Int @default(0)
-  notes String?
-  productId String? @unique
-  product Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  valuePyg       Int
+  status         TradeInStatus @default(RECEIVED)
+  repairCostPyg  Int           @default(0)
+  notes          String?
+  productId      String?       @unique
+  product        Product?      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
   @@unique([tenantId, serial])
   @@index([tenantId, branchId, status])
   @@index([orderId])
@@ -521,38 +569,39 @@ enum ReconciliationState {
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action     String
-  entity     String
-  entityId   String?
-  metadata   Json     @default("{}")
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
 
   @@index([tenantId, createdAt])
   @@index([entity, entityId])
 }
 
 model CashSession {
-  id String @id
-  tenantId String
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branchId String
-  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  openedById String
-  openedBy User @relation("CashOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
-  closedById String?
-  closedBy User? @relation("CashClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
-  openedAt DateTime @default(now())
-  closedAt DateTime?
-  openingPyg Int
-  countedPyg Int?
+  id          String    @id
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId    String
+  branch      Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  openedById  String
+  openedBy    User      @relation("CashOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
+  closedById  String?
+  closedBy    User?     @relation("CashClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  openedAt    DateTime  @default(now())
+  closedAt    DateTime?
+  openingPyg  Int
+  countedPyg  Int?
   expectedPyg Int?
-  status String @default("OPEN")
-  notes String?
+  status      String    @default("OPEN")
+  notes       String?
+
   // Una caja abierta por sucursal: índice parcial definido en la migración SQL.
   @@index([tenantId, branchId, openedAt])
 }
@@ -563,32 +612,34 @@ enum PurchaseStatus {
 }
 
 model PurchaseOrder {
-  id String @id
-  tenantId String
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branchId String?
-  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  id           String         @id
+  tenantId     String
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId     String?
+  branch       Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
   supplierName String
-  status PurchaseStatus @default(DRAFT)
-  createdAt DateTime @default(now())
-  receivedAt DateTime?
-  createdById String
-  createdBy User @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  shippingPyg Int @default(0)
-  customsPyg Int @default(0)
-  lines PurchaseLine[]
+  status       PurchaseStatus @default(DRAFT)
+  createdAt    DateTime       @default(now())
+  receivedAt   DateTime?
+  createdById  String
+  createdBy    User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  shippingPyg  Int            @default(0)
+  customsPyg   Int            @default(0)
+  lines        PurchaseLine[]
+
   @@index([tenantId, createdAt])
   @@index([tenantId, status])
 }
 
 model PurchaseLine {
-  id String @id
-  purchaseId String
-  purchase PurchaseOrder @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  productId String
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
-  quantity Int
+  id          String        @id
+  purchaseId  String
+  purchase    PurchaseOrder @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity    Int
   unitCostPyg Int
+
   @@index([purchaseId])
   @@index([productId])
 }
@@ -601,21 +652,22 @@ enum WarrantyStatus {
 }
 
 model WarrantyCase {
-  id String @id
-  tenantId String
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branchId String
-  branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  orderItemId String?
-  orderItem OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
-  customerName String
-  serial String
-  description String
-  status WarrantyStatus @default(RECEIVED)
+  id              String         @id
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId        String
+  branch          Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  orderItemId     String?
+  orderItem       OrderItem?     @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  customerName    String
+  serial          String
+  description     String
+  status          WarrantyStatus @default(RECEIVED)
   responsibleName String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
-  expiresAt DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+  expiresAt       DateTime?
+
   @@index([tenantId, createdAt])
   @@index([tenantId, serial])
   @@index([tenantId, branchId])

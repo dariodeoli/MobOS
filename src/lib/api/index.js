@@ -6,6 +6,8 @@ export const resources = {
   customers: { list: (q = '') => api.get(`/api/customers?q=${encodeURIComponent(q)}`), create: data => api.post('/api/customers', data) },
   products: { list: (q = '') => api.get(`/api/products?q=${encodeURIComponent(q)}`), create: data => api.post('/api/products', data) },
   stock: { list: () => api.get('/api/stock'), adjust: data => api.patch('/api/stock', data) },
+  stockLocations: { list: (branchId = '') => api.get(`/api/stock-locations${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''}`), create: data => api.post('/api/stock-locations', data), update: data => api.patch('/api/stock-locations', data) },
+  sharedStock: { list: () => api.get('/api/shared-stock'), setGrant: data => api.post('/api/shared-stock', data) },
   transfers: { list: () => api.get('/api/transfers'), create: data => api.post('/api/transfers', data) },
   orders: { list: () => api.get('/api/orders'), create: data => api.post('/api/orders', data) },
   payments: { create: data => api.post('/api/payments', data) },

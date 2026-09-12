@@ -48,11 +48,14 @@ export async function POST(request: Request) {
   if (session.user.branchId && branchId !== session.user.branchId) return error('No autorizado para esa sucursal.', 403)
   const serial = serialKey(b.imei)
   if (serial && (stock !== 1 || !branchId)) return error('Un producto con IMEI/serial debe ingresar como una sola unidad en una sucursal.')
+  const locationId = typeof b.locationId === 'string' && b.locationId.trim() ? b.locationId.trim() : null
+  if (locationId && !serial) return error('La ubicación física se asigna a equipos con IMEI/serial.')
   try {
     const data = await prisma.$transaction(async tx => {
       if (serial && await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { id: true } })) throw new Error('Ese IMEI/serial ya existe.')
+      if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId, isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
       const product = await tx.product.create({ data: { tenantId: tenant, sku: b.sku.trim(), name: b.name.trim(), category: b.category, imei: serial || null, condition: b.condition || 'NEW', pricePyg: price, costPyg: cost, insuranceRate, stock, branchId } })
-      if (serial) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId, serial, ...unitDetails(b, { condition: product.condition, costPyg: cost }) } })
+      if (serial) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId, locationId, serial, ...unitDetails(b, { condition: product.condition, costPyg: cost }) } })
       return product
     })
     return json(data, { status: 201 })
@@ -81,8 +84,10 @@ export async function PATCH(request: Request) {
         const existing = await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { productId: true } })
         if (existing && existing.productId !== product.id) throw new Error('Ese IMEI/serial ya existe.')
         const details = unitDetails(b, { condition: product.condition, costPyg: product.costPyg ?? undefined })
-        if (!existing) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId: product.branchId, serial, ...details } })
-        else await tx.inventoryUnit.update({ where: { tenantId_serial: { tenantId: tenant, serial } }, data: details })
+        const locationId = b.locationId === undefined ? undefined : typeof b.locationId === 'string' && b.locationId.trim() ? b.locationId.trim() : null
+        if (locationId && (!product.branchId || !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId: product.branchId, isActive: true }, select: { id: true } })))) throw new Error('Ubicación no encontrada para esa sucursal.')
+        if (!existing) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId: product.branchId, locationId: locationId ?? null, serial, ...details } })
+        else await tx.inventoryUnit.update({ where: { tenantId_serial: { tenantId: tenant, serial } }, data: { ...details, ...(locationId !== undefined ? { locationId } : {}) } })
       }
       return tx.product.update({ where: { id: product.id }, data: { ...(typeof b.name === 'string' && b.name.trim() ? { name: b.name.trim() } : {}), ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(price !== undefined ? { pricePyg: price } : {}), ...(cost !== undefined ? { costPyg: cost } : {}), ...(insuranceRate !== undefined ? { insuranceRate } : {}), ...(stock !== undefined ? { stock } : {}), ...(b.category !== undefined ? { category: b.category || null } : {}), ...(serial !== undefined ? { imei: serial } : {}), ...(b.condition !== undefined ? { condition: b.condition } : {}) } })
     })
