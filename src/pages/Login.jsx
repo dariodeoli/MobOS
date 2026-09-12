@@ -83,12 +83,15 @@ export default function Login() {
     setOk('')
 
     if (modo === 'crear') {
-      if (!googleReady) {
-        try { await sessionApi.startGoogle(true) } catch (err) { setError(err.message) }
-        return
-      }
       setCargando(true)
-      try { showCompany(await sessionApi.completeGoogle({ action: 'create', companyName: f.nombreEmpresa, adminName: f.nombrePersona, password: f.clave, pin: adminPin, confirmOwnership })) }
+      try {
+        if (googleReady) showCompany(await sessionApi.completeGoogle({ action: 'create', companyName: f.nombreEmpresa, adminName: f.nombrePersona, password: f.clave, pin: adminPin, confirmOwnership }))
+        else {
+          const deviceId = localStorage.getItem('mobos:device-id') || crypto.randomUUID()
+          localStorage.setItem('mobos:device-id', deviceId)
+          showCompany(await sessionApi.registerCompany({ companyName: f.nombreEmpresa, adminName: f.nombrePersona, email: f.correo.trim(), password: f.clave, pin: adminPin, deviceId }))
+        }
+      }
       catch (err) { setError(err.message || 'No se pudo crear la tienda.') }
       finally { setCargando(false) }
       return
@@ -166,13 +169,14 @@ export default function Login() {
         </p>
 
         <form onSubmit={enviar} className="space-y-3.5">
-          {crear && <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-4 text-sm leading-6 text-slate-300">{googleReady ? 'Completá el alta de tu tienda. La contraseña habilita la empresa; tu PIN identifica al administrador.' : 'Verificá tu identidad con Google para crear una tienda nueva. Luego elegirás contraseña de empresa y PIN de administrador.'}</div>}
-          {crear && googleReady && <>
+          {crear && <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-4 text-sm leading-6 text-slate-300">{googleReady ? 'Completá el alta de tu tienda. La contraseña habilita la empresa; tu PIN identifica al administrador.' : 'Creá tu tienda con correo y contraseña, o verificá tu identidad con Google. El PIN identifica al administrador.'}</div>}
+          {crear && <>
             <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} autoComplete="organization" /></div>
             <div><Label htmlFor="admin-name">Nombre del administrador</Label><Input id="admin-name" required maxLength={100} value={f.nombrePersona} onChange={set('nombrePersona')} autoComplete="name" /></div>
+            {!googleReady && <div><Label htmlFor="new-email">Correo de acceso</Label><Input id="new-email" type="email" required value={f.correo} onChange={set('correo')} autoComplete="email" /></div>}
             <div><Label htmlFor="new-password">Contraseña de empresa</Label><Input id="new-password" type="password" required minLength={12} maxLength={72} value={f.clave} onChange={set('clave')} autoComplete="new-password" /></div>
             <div><Label htmlFor="admin-pin">PIN del administrador</Label><Input id="admin-pin" type="password" inputMode="numeric" pattern="[0-9]{4}" required maxLength={4} value={adminPin} onChange={e => setAdminPin(e.target.value.replace(/\D/g, ''))} autoComplete="new-password" /></div>
-            <label className="flex gap-2 text-sm"><input type="checkbox" required checked={confirmOwnership} onChange={e => setConfirmOwnership(e.target.checked)} />Confirmo que estoy creando mi propia tienda y seré su administrador.</label>
+            {googleReady && <label className="flex gap-2 text-sm"><input type="checkbox" required checked={confirmOwnership} onChange={e => setConfirmOwnership(e.target.checked)} />Confirmo que estoy creando mi propia tienda y seré su administrador.</label>}
           </>}
 
           {modo === 'entrar' && etapa === 'vendedor' ? (
@@ -223,8 +227,9 @@ export default function Login() {
           )}
 
           <Button type="submit" className="w-full" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>
-            {cargando ? 'Un momento…' : crear ? googleReady ? 'Crear mi tienda' : 'Crear con Google' : 'Continuar'}
+            {cargando ? 'Un momento…' : crear ? 'Crear mi tienda' : 'Continuar'}
           </Button>
+          {crear && !googleReady && <Button type="button" className="w-full" disabled={cargando} onClick={async () => { try { await sessionApi.startGoogle(true) } catch (err) { setError(err.message) } }}>Crear con Google</Button>}
           {!crear && etapa === 'empresa' && <Button type="button" className="w-full" disabled={cargando} onClick={async () => { try { await sessionApi.startGoogle() } catch (err) { setError(err.message) } }}>Entrar con Google</Button>}
         </form>
       </Card>

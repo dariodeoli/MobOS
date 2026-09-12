@@ -75,6 +75,13 @@ export const sessionApi = {
     setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [] })
     return session
   },
+  registerCompany: async (details) => {
+    const session = await api.post('/api/auth/register', details)
+    if (!session?.companyToken) throw new Error('El servidor no devolvió una sesión de empresa válida.')
+    setCompanyToken(session.companyToken)
+    setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [] })
+    return session
+  },
   loginSeller: async (credentials) => {
     const companyToken = getCompanyToken()
     if (!companyToken && !getCompanyContext()?.cookieSession) throw new Error('Primero hay que autenticar la empresa.')
