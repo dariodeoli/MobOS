@@ -73,7 +73,7 @@ export default function CentroControl() {
   useLive()
   useAutoRefrescar()
   const navigate = useNavigate()
-  const { slug, tab: routeTab } = useParams()
+  const { tab: routeTab } = useParams()
   const [tab, setTab] = useState(() => TODAS.some(([key]) => key === routeTab) ? routeTab : 'resumen')
   const [pendiente, setPendiente] = useState(null)
   const [menuAbierto, setMenuAbierto] = useState(false)
@@ -92,7 +92,7 @@ export default function CentroControl() {
   useEffect(() => { if (TODAS.some(([key]) => key === routeTab) && routeTab !== tab) setTab(routeTab) }, [routeTab, tab])
   function cambiarTab(k) {
     setMenuAbierto(false)
-    if (k !== tab) intentar(() => { setTab(k); navigate(`/area/${slug}/control/${k}`) })
+    if (k !== tab) intentar(() => { setTab(k); navigate(`/control/${k}`) })
   }
 
   useEffect(() => {
@@ -150,7 +150,7 @@ export default function CentroControl() {
 
           <div className="border-t border-ink-600 p-3">
             <button
-              onClick={() => intentar(() => navigate(`/area/${slug}/pos/cargar`))}
+              onClick={() => intentar(() => navigate('/pos/cargar'))}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-mute transition hover:bg-ink-700 hover:text-white"
             >
               <Icon name="back" className="h-4 w-4" />

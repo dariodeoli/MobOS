@@ -78,7 +78,7 @@ export default function PanelVendedor() {
   const desfaseHoras = useReloj()
   const { sesion, usuario, vendedores, cambiarVendedor, entrarDemo, esDemo, salir } = useSesion()
   const navigate = useNavigate()
-  const { slug, vista: routeVista } = useParams()
+  const { vista: routeVista } = useParams()
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const [vista, setVista] = useState(routeVista || 'cargar')
   const [tradeIn, setTradeIn] = useState(null)
@@ -98,17 +98,17 @@ export default function PanelVendedor() {
   useEffect(() => { if (routeVista && routeVista !== vista) setVista(routeVista) }, [routeVista, vista])
 
   function abrirControl() {
-    if (sesion?.esPropietario) navigate(`/area/${slug}/control/resumen`)
+    if (sesion?.esPropietario) navigate('/control/resumen')
   }
 
   function ir(id) {
     if (id === 'control') {
-      if (esOwner) navigate(`/area/${slug}/control/resumen`)
+      if (esOwner) navigate('/control/resumen')
     } else if (!esOwner && !SELLER_NAV[0].items.some(([key]) => key === id)) {
       setVista('cargar')
     }
-    else if (RUTAS[id]) navigate(`/area/${slug}/${RUTAS[id]}`)
-    else { setVista(id); navigate(`/area/${slug}/pos/${id}`) }
+    else if (RUTAS[id]) navigate(`/${RUTAS[id]}`)
+    else { setVista(id); navigate(`/pos/${id}`) }
     setMenuAbierto(false)
   }
 
@@ -253,7 +253,7 @@ export default function PanelVendedor() {
             </div>
             {vista !== 'cargar' && (
               <button
-                onClick={() => { setVista('cargar'); navigate(`/area/${slug}/pos/cargar`) }}
+                onClick={() => { setVista('cargar'); navigate('/pos/cargar') }}
                 className="inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono px-3.5 text-[13px] font-semibold text-white transition hover:bg-fono-dark"
               >
                 <Icon name="plus" className="h-[15px] w-[15px]" />
@@ -304,7 +304,7 @@ export default function PanelVendedor() {
             {vista === 'productos' && <SellerCatalog />}
             {vista === 'pedidos' && <SellerOrders />}
             {vista === 'promociones' && <SellerTools vista="promociones" />}
-            <div hidden={vista !== 'cotizador'}><SellerTools vista="cotizador" onCargarVenta={(draft) => { setTradeIn({ ...draft, id: crypto.randomUUID(), identidad }); setVista('cargar'); navigate(`/area/${slug}/pos/cargar`) }} /></div>
+            <div hidden={vista !== 'cotizador'}><SellerTools vista="cotizador" onCargarVenta={(draft) => { setTradeIn({ ...draft, id: crypto.randomUUID(), identidad }); setVista('cargar'); navigate('/pos/cargar') }} /></div>
           </div>
 
           {esOwner && vista === 'mayorista' && <Mayoristas />}
