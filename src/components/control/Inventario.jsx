@@ -10,10 +10,10 @@ function FilaProducto({ p }) {
   const apiMode = modoDatosActual() === 'api'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [draft, setDraft] = useState({ precioVenta: p.precioVenta ?? '', precioMayorista: p.precioMayorista ?? '', precioCosto: p.precioCosto ?? '', comision: p.comision ?? '', stock: p.stock ?? '' })
+  const [draft, setDraft] = useState({ precioVenta: p.precioVenta ?? '', precioMayorista: p.precioMayorista ?? '', precioCosto: p.precioCosto ?? '', comision: p.comision ?? '', insuranceRate: p.insuranceRate ?? '', stock: p.stock ?? '' })
   const set = (campo, value) => async () => {
     if (apiMode) {
-      const field = campo === 'precioVenta' ? 'pricePyg' : campo === 'precioCosto' ? 'costPyg' : campo === 'stock' ? 'stock' : null
+      const field = campo === 'precioVenta' ? 'pricePyg' : campo === 'precioCosto' ? 'costPyg' : campo === 'insuranceRate' ? 'insuranceRate' : campo === 'stock' ? 'stock' : null
       if (!field) return
       setBusy(true); setError('')
       try { await updateProductoApi(p.id, { [field]: num(value) }); window.dispatchEvent(new Event('mobos:catalog-updated')) } catch (err) { setError(err?.message || 'No se pudo guardar.') } finally { setBusy(false) }
@@ -48,6 +48,10 @@ function FilaProducto({ p }) {
             onBlur={set('precioVenta', draft.precioVenta)}
             placeholder="0"
           />
+        </label>
+        <label className="block">
+          <span className="text-[10px] font-bold uppercase text-mute">Seguro de venta (%)</span>
+          <Input inputMode="decimal" value={draft.insuranceRate} onChange={(e) => setDraft((d) => ({ ...d, insuranceRate: e.target.value.replace(',', '.') }))} onBlur={set('insuranceRate', draft.insuranceRate)} placeholder="Ej. 2" />
         </label>
         <label className="block">
           <span className="text-[10px] font-bold uppercase text-mute">Precio mayorista</span>
@@ -92,7 +96,7 @@ function FilaProducto({ p }) {
         <Badge color={margen > 0 ? 'green' : 'slate'}>Margen {gs(margen)}</Badge>
         {num(p.stock) <= 3 && <Badge color="orange">Stock bajo</Badge>}
       </div>
-      {apiMode && <p className="mt-2 text-[11px] text-mute">Mayorista y comisión todavía no están disponibles en la API; el costo sí se guarda.</p>}
+      <p className="mt-2 text-[11px] text-mute">El seguro se descuenta del margen solo cuando la venta no se marca como “sin seguro”. Mayorista y comisión todavía no están disponibles en la API.</p>
       {busy && <p className="mt-1 text-xs text-mute">Guardando…</p>}
       {error && <p className="mt-1 text-xs text-bad">{error}</p>}
     </div>

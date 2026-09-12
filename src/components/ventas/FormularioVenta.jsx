@@ -45,6 +45,7 @@ const VACIO = (vendedorId) => ({
   fechaManual: false, // true si el usuario eligió una fecha distinta a mano
   precio: '',
   couponCode: null,
+  soldWithoutInsurance: false,
   medioPago: MEDIOS_PAGO[0],
   entrega: ENTREGA[0],
   montoDelivery: '',
@@ -140,9 +141,10 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         nombre: nombreDe(f.productoId),
         precio: gsNum(f.precio),
         couponCode: f.couponCode,
+        soldWithoutInsurance: f.soldWithoutInsurance,
       },
     ])
-    setF((s) => ({ ...s, productoId: '', precio: '', couponCode: null }))
+    setF((s) => ({ ...s, productoId: '', precio: '', couponCode: null, soldWithoutInsurance: false }))
     setFamiliaActiva(null)
   }
   function quitarItem(key) {
@@ -206,6 +208,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
       productoId: p.id,
       precio: p && p.precioVenta > 0 ? String(p.precioVenta) : '',
       couponCode: null,
+      soldWithoutInsurance: false,
     }))
   }
 
@@ -281,10 +284,10 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     // Lista final = lo agregado al carrito + lo que esté seleccionado ahora.
     const lista = [...items]
     if (f.productoId && gsNum(f.precio) > 0) {
-      lista.push({ productoId: f.productoId, precio: gsNum(f.precio), couponCode: f.couponCode })
+      lista.push({ productoId: f.productoId, precio: gsNum(f.precio), couponCode: f.couponCode, soldWithoutInsurance: f.soldWithoutInsurance })
     }
     if (!sesion?.vendedorId || !f.cliente.trim() || lista.length === 0 || totalPagado > totalGeneral) return
-    const orderItems = lista.map(it => ({ productId: it.productoId, description: nombreDe(it.productoId), quantity: 1, unitPricePyg: it.precio, ...(it.couponCode ? { couponCode: it.couponCode } : {}) }))
+    const orderItems = lista.map(it => ({ productId: it.productoId, description: nombreDe(it.productoId), quantity: 1, unitPricePyg: it.precio, soldWithoutInsurance: Boolean(it.soldWithoutInsurance), ...(it.couponCode ? { couponCode: it.couponCode } : {}) }))
     setErrorVenta('')
     let lineas
     let payments
@@ -549,6 +552,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         </div>
 
         {f.productoId && <ProductPrice key={f.productoId} esDemo={esDemo} product={productos.find(p => p.id === f.productoId)} price={f.precio} onChange={(precio, coupon = null) => setF(current => ({ ...current, precio, couponCode: typeof coupon === 'string' ? coupon : coupon?.couponCode || null }))} />}
+        {f.productoId && Number(productos.find(p => p.id === f.productoId)?.insuranceRate || 0) > 0 && <label className="flex items-center gap-2 text-sm text-mute"><input type="checkbox" checked={f.soldWithoutInsurance} onChange={(e) => setF((s) => ({ ...s, soldWithoutInsurance: e.target.checked }))} className="h-4 w-4 accent-fono" /> Vendido sin seguro — no descontar seguro del margen</label>}
         <div className="flex items-end">
           <Button
             type="button"
@@ -570,7 +574,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
           <div className="md:col-span-2 rounded-xl border border-ink-600 divide-y divide-ink-600">
             {items.map((it) => (
               <div key={it.key} className="flex items-center justify-between gap-2 px-3 py-1.5">
-                <span className="text-sm font-medium truncate">{it.nombre}{it.couponCode && <small className="ml-2 text-fono-light">Cupón {it.couponCode}</small>}</span>
+                <span className="text-sm font-medium truncate">{it.nombre}{it.couponCode && <small className="ml-2 text-fono-light">Cupón {it.couponCode}</small>}{it.soldWithoutInsurance && <small className="ml-2 text-warn">Sin seguro</small>}</span>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-sm font-bold text-fono">{gs(it.precio)}</span>
                   <button

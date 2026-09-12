@@ -66,7 +66,7 @@ export async function POST(request: Request) {
           customerId = created.id
         }
       }
-      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; totalPyg: number; promotionSnapshot?: any }> = []
+      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; totalPyg: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; promotionSnapshot?: any }> = []
       for (const item of items) {
         objectInput(item)
         if (['coupon', 'couponCodes', 'discountCode', 'promoCode', 'promotionSnapshot'].some(key => key in item)) throw new InputError('Enviá solo couponCode como metadata del cupón.')
@@ -74,19 +74,33 @@ export async function POST(request: Request) {
         if (!safeInt(quantity, 1) || !safeInt(price) || !Number.isSafeInteger(quantity * price)) throw new Error('Cantidad y precio inválidos.')
         const promotion = item.couponCode === undefined ? undefined : await quotePromotion(tx, tenant, branchId, { ...item, quantity }, true)
         if (promotion && price !== promotion.unitPricePyg) throw new InputError('El precio del cupón cambió o fue alterado. Volvé a aplicarlo.', 409)
-        let unitCostPyg: number | undefined
+        let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let insurancePyg = 0; let extraCostPyg = 0
+        const soldWithoutInsurance = item.soldWithoutInsurance === true
+        if (item.soldWithoutInsurance !== undefined && typeof item.soldWithoutInsurance !== 'boolean') throw new InputError('"Vendido sin seguro" debe ser verdadero o falso.')
+        if (item.extraCostPyg !== undefined) {
+          extraCostPyg = Number(item.extraCostPyg)
+          if (!safeInt(extraCostPyg)) throw new InputError('Costo extra inválido.')
+        }
         if (item.productId) {
           const product = await tx.product.findFirst({ where: { id: item.productId, tenantId: tenant, isActive: true } })
           if (!product) throw new Error(`Producto no encontrado: ${item.productId}`)
           if ((branchId === null && product.branchId !== null) || (branchId && product.branchId !== null && product.branchId !== branchId)) throw new Error('El producto pertenece a otra sucursal.')
           // Foto del costo: la ganancia histórica no cambia si luego se actualiza el costo.
-          if (product.costPyg !== null && product.costPyg !== undefined) unitCostPyg = product.costPyg
+          if (product.costPyg !== null && product.costPyg !== undefined) baseUnitCostPyg = product.costPyg
+          const policy = product.category ? await tx.costPolicy.findFirst({ where: { tenantId: tenant, category: product.category, isActive: true }, select: { insuranceRate: true } }) : null
+          const rate = product.insuranceRate === null || product.insuranceRate === undefined ? Number(policy?.insuranceRate ?? 0) : Number(product.insuranceRate)
+          if (!soldWithoutInsurance && rate > 0) {
+            insurancePyg = Math.round((price * rate) / 100)
+            if (!safeInt(insurancePyg)) throw new InputError('El seguro calculado es inválido.')
+          }
+          const combinedCost = (baseUnitCostPyg ?? 0) + insurancePyg + extraCostPyg
+          if ((baseUnitCostPyg !== undefined || insurancePyg > 0 || extraCostPyg > 0) && safeInt(combinedCost)) unitCostPyg = combinedCost
           const updated = await tx.product.updateMany({ where: { id: product.id, tenantId: tenant, isActive: true, ...(branchId ? { OR: [{ branchId }, { branchId: null }] } : { branchId: null }), stock: { gte: quantity } }, data: { stock: { decrement: quantity } } })
           if (!updated.count) throw new Error('Stock insuficiente o producto fuera de la sucursal.')
         }
         const line = quantity * price; subtotal += line
         if (!Number.isSafeInteger(subtotal)) throw new Error('Total fuera de rango seguro.')
-        normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(unitCostPyg === undefined ? {} : { unitCostPyg }), totalPyg: line, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
+        normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, totalPyg: line, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
       }
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery

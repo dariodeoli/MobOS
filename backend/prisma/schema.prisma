@@ -37,6 +37,7 @@ model Tenant {
   auditLogs AuditLog[]
   inventoryUnits InventoryUnit[]
   stockTransfers StockTransfer[]
+  costPolicies CostPolicy[]
 }
 
 model GoogleIdentity {
@@ -156,6 +157,8 @@ model Product {
   condition ProductCondition @default(NEW)
   pricePyg  Int
   costPyg   Int?
+  // Si tiene valor, prevalece sobre la política de la categoría.
+  insuranceRate Decimal? @db.Decimal(5, 2)
   stock     Int           @default(0)
   isActive  Boolean       @default(true)
   createdAt DateTime      @default(now())
@@ -312,9 +315,29 @@ model OrderItem {
   quantity    Int     @default(1)
   unitPricePyg Int
   unitCostPyg Int?
+  baseUnitCostPyg Int?
+  insurancePyg Int @default(0)
+  extraCostPyg Int @default(0)
+  soldWithoutInsurance Boolean @default(false)
   totalPyg    Int
 
   @@index([orderId])
+}
+
+// Plantilla por categoría: por ejemplo Teléfonos = seguro 2%. Un producto
+// puede sobrescribirla, y la venta siempre guarda la foto del costo aplicado.
+model CostPolicy {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category String
+  insuranceRate Decimal @default(0) @db.Decimal(5, 2)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, category])
+  @@index([tenantId, isActive])
 }
 
 model Promotion {
