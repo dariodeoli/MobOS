@@ -3,6 +3,7 @@ import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
 import { quotePromotion } from '../../../lib/promotions'
+import { canApproveOrderDiscount } from '../../../lib/orders'
 
 const INT_MAX = 2147483647
 const safeInt = (value: unknown, minimum = 0): value is number => Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= INT_MAX
@@ -68,6 +69,7 @@ export async function POST(request: Request) {
   if (!items.length) return error('Productos son obligatorios.')
   const discount = body.discountPyg ?? 0; const delivery = body.deliveryPyg ?? 0
   if (!safeInt(discount) || !safeInt(delivery)) return error('Descuento y delivery inválidos.')
+  if (discount > 0 && !canApproveOrderDiscount(session.user)) throw new InputError('Tu rol no puede aprobar descuentos. Solicitá autorización a gerencia.', 403)
   if (discount > 0 && items.some(item => item?.couponCode !== undefined)) throw new InputError('No se puede combinar cupón y descuento global.')
     const result = await prisma.$transaction(async tx => {
       const branchId = session.user.branchId
@@ -165,6 +167,7 @@ export async function POST(request: Request) {
         if (status === 'CONFIRMED') { confirmed += amount; if (!Number.isSafeInteger(confirmed) || confirmed > total) throw new Error('Los pagos superan el total.') }
       }
       const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber: typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : `MOB-${Date.now()}`, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
       if (soldUnits.length) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNITS_SOLD', entity: 'Order', entityId: order.id, metadata: { serials: soldUnits.map(unit => unit.serial), productIds: [...new Set(soldUnits.map(unit => unit.productId))] } } })
       for (const { tradeIn, ...paymentData } of normalizedPayments) {
         const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id } })

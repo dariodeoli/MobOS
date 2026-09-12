@@ -115,6 +115,8 @@ try {
   ;({ prisma } = require('../lib/prisma.ts'))
   const { hashToken } = require('../lib/auth.ts')
   const { POST } = require('../app/api/orders/route.ts')
+  const { PATCH: updateOrder } = require('../app/api/orders/[orderId]/route.ts')
+  const { POST: returnOrder } = require('../app/api/orders/[orderId]/return/route.ts')
   const { GET: customersGET } = require('../app/api/customers/route.ts')
   const pinHash = await require('bcryptjs').hash('2468', 10)
   for (const id of ['a', 'b']) {
@@ -123,6 +125,8 @@ try {
     await prisma.user.create({ data: { id: `seller-${id}`, tenantId: id, branchId: `branch-${id}`, name: `Seller ${id}`, pinHash, role: 'VENDEDOR', status: 'ACTIVE' } })
     await prisma.session.create({ data: { tenantId: id, userId: `seller-${id}`, level: 'SELLER', deviceId: 'synthetic', tokenHash: hashToken(`token-${id}`), expiresAt: new Date(Date.now() + 3600000) } })
   }
+  await prisma.user.create({ data: { id: 'admin-a', tenantId: 'a', branchId: 'branch-a', name: 'Admin a', pinHash, role: 'ADMIN', status: 'ACTIVE' } })
+  await prisma.session.create({ data: { tenantId: 'a', userId: 'admin-a', level: 'SELLER', deviceId: 'synthetic', tokenHash: hashToken('admin-token-a'), expiresAt: new Date(Date.now() + 3600000) } })
   await prisma.session.create({ data: { tenantId: 'a', level: 'COMPANY', deviceId: 'synthetic', tokenHash: hashToken('company'), expiresAt: new Date(Date.now() + 3600000) } })
   await prisma.branch.create({ data: { id: 'branch-a2', tenantId: 'a', name: 'Other branch' } })
   for (const [id, tenantId, branchId] of [['product', 'a', 'branch-a'], ['other-branch', 'a', 'branch-a2'], ['foreign-product', 'b', 'branch-b']]) {
@@ -149,22 +153,41 @@ try {
     assert.deepEqual(await snapshot(), before, 'Failure must leave customers, orders, stock and payments intact')
     return result
   }
+  async function orderAction(handler, orderId, body, expected = 200, token = 'admin-token-a') {
+    const response = await handler(new Request(`http://localhost/api/orders/${orderId}`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'x-tenant-id': 'a' }, body: JSON.stringify(body) }), { params: Promise.resolve({ orderId }) })
+    const result = await response.json()
+    assert.equal(response.status, expected, JSON.stringify(result)); checks++
+    return result
+  }
   await rejects({ customer: { name: 'Unauthorized' } }, 401, 'missing')
   await rejects({ customer: { name: 'Company only' } }, 401, 'company')
+  await rejects({ customer: { name: 'Seller discount' }, discountPyg: 1 }, 403)
+  const discounted = await request({ customer: { name: 'Authorized discount' }, discountPyg: 10, payments: [{ method: 'CASH', amountPyg: 90 }] }, 201, 'admin-token-a')
+  assert.equal((await prisma.auditLog.count({ where: { entityId: discounted.id, action: 'ORDER_DISCOUNT_APPROVED' } })), 1)
+  const delivery = await updateOrder(new Request(`http://localhost/api/orders/${discounted.id}`, { method: 'PATCH', headers: { Authorization: 'Bearer admin-token-a', 'Content-Type': 'application/json', 'x-tenant-id': 'a' }, body: JSON.stringify({ fulfillmentStatus: 'IN_TRANSIT' }) }), { params: Promise.resolve({ orderId: discounted.id }) })
+  assert.equal(delivery.status, 200); checks++
+  await orderAction(returnOrder, discounted.id, { operation: 'RETURN', reason: 'Cliente desistió de la compra', refundPyg: 90 })
+  const returned = await prisma.order.findUniqueOrThrow({ where: { id: discounted.id }, include: { payments: true } })
+  assert.equal(returned.status, 'CANCELLED'); assert.ok(returned.payments.every(payment => payment.status === 'REFUNDED'))
+  assert.equal(await prisma.auditLog.count({ where: { entityId: discounted.id, action: 'ORDER_RETURN_RECORDED' } }), 1)
   const created = await request({ customer: { name: '  Ana Pérez  ', phone: ' 0981000000 ', address: ' Calle Uno 123 ' } })
   assert.equal(created.customer.name, 'Ana Pérez')
   assert.deepEqual(created.seller, { id: 'seller-a', name: 'Seller a' })
   const ana = await prisma.customer.findUniqueOrThrow({ where: { id: created.customerId } })
-  assert.equal(ana.tenantId, 'a'); assert.equal(ana.name, 'Ana Pérez'); assert.equal(ana.phone, '0981000000'); assert.equal(ana.notes, 'Dirección: Calle Uno 123')
+  assert.equal(ana.tenantId, 'a'); assert.equal(ana.name, 'Ana Pérez'); assert.equal(ana.phone, '0981000000')
+  assert.equal((await prisma.customerAddress.findFirstOrThrow({ where: { customerId: ana.id } })).address, 'Calle Uno 123')
   assert.equal(created.sellerId, 'seller-a'); assert.equal(created.branchId, 'branch-a')
   assert.equal((await request({ customer: { name: 'aNA péREZ', phone: ana.phone, address: 'Calle Uno 123' } })).customerId, ana.id)
   assert.equal((await request({ customer: { name: 'Ana Pérez' } })).customerId, ana.id)
   assert.deepEqual(await prisma.customer.findUnique({ where: { id: ana.id } }), ana, 'Reuse must not mutate customer')
   await rejects({ customer: { name: ana.name, phone: 'different' } })
-  await rejects({ customer: { name: ana.name, address: 'Different address' } })
+  assert.equal((await request({ customer: { name: ana.name, address: 'Different address' } })).customerId, ana.id)
+  assert.equal(await prisma.customerAddress.count({ where: { customerId: ana.id } }), 2)
   const noPhone = await newCustomer({ name: 'No phone', notes: 'Preserve this note' })
-  await rejects({ customer: { name: noPhone.name, phone: '123' } })
-  await rejects({ customer: { name: noPhone.name, address: 'New address' } })
+  assert.equal((await request({ customer: { name: noPhone.name, phone: '123' } })).customerId, noPhone.id)
+  assert.equal((await prisma.customer.findUniqueOrThrow({ where: { id: noPhone.id } })).phone, '123')
+  assert.equal((await request({ customer: { name: noPhone.name, address: 'New address' } })).customerId, noPhone.id)
+  assert.equal((await prisma.customer.findUniqueOrThrow({ where: { id: noPhone.id } })).notes, 'Preserve this note')
   await newCustomer({ name: 'Duplicate', phone: '111' })
   await newCustomer({ name: 'DUPLICATE', phone: '222' })
   const ambiguous = await rejects({ customer: { name: 'duplicate', phone: '111' } })
@@ -180,7 +203,7 @@ try {
   for (const body of [
     { customerId: ana.id, customer: { name: 'Both' } }, { customerId: null }, { customerId: '' }, { customerId: { not: null } },
     { customer: null }, { customer: [] }, { customer: 'name' }, { customer: {} }, { customer: { name: '  ' } },
-    { customer: { name: 'A'.repeat(201) } }, { customer: { name: 'A', phone: 123 } }, { customer: { name: 'A', phone: '' } },
+    { customer: { name: 'A'.repeat(201) } }, { customer: { name: 'A', phone: 123 } },
     { customer: { name: 'A', address: null } }, { customer: { name: 'A', address: 'A'.repeat(2001) } },
     { customer: { name: 'A', tenantId: 'b' } }, { customer: { name: 'A', notes: 'Override' } },
   ]) await rejects(body, 400)
