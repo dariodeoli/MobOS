@@ -4,12 +4,33 @@ import { num, gs } from '@/utils/calculos'
 import { Card, Button, Input, Badge, MoneyInput } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { deleteProductoApi } from '@/lib/api/products'
+import { api } from '@/lib/api/client'
+
+function imprimirEtiqueta(unit) {
+  const producto = unit.product || {}
+  const ultimo = unit.serial?.slice(-4) || '----'
+  const ventana = window.open('', '_blank', 'noopener,noreferrer')
+  if (!ventana) return
+  ventana.document.write(`<!doctype html><html><head><title>Etiqueta ${ultimo}</title><style>
+    @page { size: 58mm auto; margin: 2mm } body{font-family:Arial,sans-serif;width:54mm;margin:0;color:#111}
+    .brand{font-weight:900;color:#0c8876;letter-spacing:.07em;font-size:10px}.name{font-size:13px;font-weight:800;margin:3mm 0 1mm}.meta{font-size:9px;line-height:1.5}.last{font-size:31px;font-weight:900;text-align:center;letter-spacing:2px;margin:3mm 0}.serial{font-size:8px;word-break:break-all;border-top:1px dashed #777;padding-top:2mm}.code{font-family:monospace;font-size:10px;text-align:center;margin-top:2mm;letter-spacing:1px}
+  </style></head><body><div class="brand">MOBOS · CONTROLARIA</div><div class="name">${producto.name || ''}</div><div class="meta">${unit.condition === 'USED' ? 'Seminuevo' : 'Nuevo'} · ${unit.batteryHealth ? `Batería ${unit.batteryHealth}% · ` : ''}${unit.location?.name || unit.branch?.name || 'Sin ubicación'}</div><div class="last">${ultimo}</div><div class="serial">IMEI / Serial: ${unit.serial || ''}</div><div class="code">MOBOS:${unit.serial || ''}</div><script>window.onload=()=>window.print()</script></body></html>`)
+  ventana.document.close()
+}
 
 function FilaProducto({ p, vista = 'grid' }) {
   const margen = num(p.precioVenta) - num(p.precioCosto)
   const apiMode = modoDatosActual() === 'api'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [unidades, setUnidades] = useState([])
+  const [scan, setScan] = useState('')
+  const [checking, setChecking] = useState('')
+
+  const cargarUnidades = async (query = '') => {
+    if (modoDatosActual() !== 'api') return
+    try { setUnidades(await api.get(`/api/inventory-units${query ? `?q=${encodeURIComponent(query)}` : ''}`)) } catch (err) { setError(err?.message || 'No se pudo cargar las unidades.') }
+  }
   const [draft, setDraft] = useState({ precioVenta: p.precioVenta ?? '', precioMayorista: p.precioMayorista ?? '', precioCosto: p.precioCosto ?? '', comision: p.comision ?? '', insuranceRate: p.insuranceRate ?? '', stock: p.stock ?? '' })
   const set = (campo, value) => async () => {
     if (apiMode) {
@@ -132,6 +153,17 @@ export default function Inventario() {
     return () => window.removeEventListener('mobos:catalog-updated', actualizar)
   }, [])
 
+  useEffect(() => { cargarUnidades() }, [])
+
+  async function verificarUnidad(unit) {
+    setChecking(unit.id); setError('')
+    try { await api.post('/api/inventory-units/verify', { serial: unit.serial }); await cargarUnidades(scan) } catch (err) { setError(err?.message || 'No se pudo registrar la verificación.') } finally { setChecking('') }
+  }
+
+  async function buscarEscaneo(e) {
+    e.preventDefault(); await cargarUnidades(scan)
+  }
+
   const q = norm(busqueda.trim())
   const items = productos.filter((p) => {
     const coincide = !q || norm(p.nombre).includes(q) || norm(p.sku).includes(q) || norm(p.categoria).includes(q)
@@ -221,6 +253,11 @@ export default function Inventario() {
             </button>
           )}
         </div>
+        {modoDatosActual() === 'api' && <section className="mb-4 rounded-xl border border-ink-600 bg-ink-900/40 p-3">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2"><div><b className="text-sm">Control físico por IMEI</b><p className="mt-0.5 text-xs text-mute">Escaneá o ingresá el IMEI. “Verificado” registra tu usuario, fecha y hora sin alterar el stock.</p></div><Badge color="blue">{unidades.length} unidades</Badge></div>
+          <form onSubmit={buscarEscaneo} className="flex gap-2"><Input value={scan} onChange={(e) => setScan(e.target.value)} placeholder="Escanear IMEI, SKU o MOBOS:IMEI" autoCapitalize="characters" autoCorrect="off"/><Button type="submit" variant="outline">Buscar</Button></form>
+          <div className="mt-3 space-y-2">{unidades.slice(0, 8).map((unit) => <div key={unit.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 p-2.5"><div className="min-w-0"><b className="block truncate text-sm">{unit.product?.name}</b><span className="text-xs text-mute">IMEI {unit.serial} · últimos 4: <strong className="text-white">{unit.serial?.slice(-4)}</strong>{unit.location?.name ? ` · ${unit.location.name}` : ''}</span><span className="block text-[11px] text-mute">{unit.lastVerifiedAt ? `Verificado ${new Date(unit.lastVerifiedAt).toLocaleString('es-PY')}` : 'Pendiente de verificación física'}</span></div><div className="flex gap-2"><Button type="button" variant="outline" onClick={() => imprimirEtiqueta(unit)}>Etiqueta</Button><Button type="button" disabled={checking === unit.id} onClick={() => verificarUnidad(unit)}>{checking === unit.id ? 'Guardando…' : '✓ Verificado'}</Button></div></div>)}{unidades.length === 0 && <p className="py-2 text-center text-xs text-mute">No hay unidades serializadas para mostrar.</p>}</div>
+        </section>}
           <div className="flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-900 p-1" aria-label="Filtrar condición">
             {[['todos', 'Todos'], ['NEW', 'Nuevos'], ['USED', 'Seminuevos'], ['REFURBISHED', 'Reacond.']].map(([key, label]) => <button key={key} onClick={() => setCondicion(key)} className={`shrink-0 rounded-md px-3 py-2 text-xs font-semibold ${condicion === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-white'}`}>{label}</button>)}
           </div>

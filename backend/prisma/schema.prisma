@@ -41,6 +41,7 @@ model Tenant {
   stockVisibilityGranted  InventoryVisibilityGrant[] @relation("StockVisibilityProvider")
   stockVisibilityReceived InventoryVisibilityGrant[] @relation("StockVisibilityRecipient")
   stockLocations          StockLocation[]
+  messageTemplates        MessageTemplate[]
 }
 
 model GoogleIdentity {
@@ -60,6 +61,8 @@ model Branch {
   name           String
   address        String?
   city           String?
+  phone          String?
+  instagram      String?
   isActive       Boolean         @default(true)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -211,6 +214,9 @@ model InventoryUnit {
   reservedUntil       DateTime?
   reservationCustomer String?
   reservedById        String?
+  lastVerifiedAt      DateTime?
+  lastVerifiedById    String?
+  verificationCount   Int                 @default(0)
   status              InventoryUnitStatus @default(AVAILABLE)
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
@@ -220,6 +226,7 @@ model InventoryUnit {
   @@index([tenantId, branchId, status])
   @@index([tenantId, status, reservedUntil])
   @@index([tenantId, branchId, locationId, status])
+  @@index([tenantId, branchId, lastVerifiedAt])
 }
 
 // Ubicación física dentro de una sucursal: piso de venta, depósito, vitrina,
@@ -299,44 +306,63 @@ enum ProductCondition {
 }
 
 model Customer {
-  id        String   @id @default(cuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name      String
-  phone     String?
-  email     String?
-  document  String?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  phone       String?
+  countryCode String   @default("+595")
+  email       String?
+  document    String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  orders Order[]
+  orders    Order[]
+  addresses CustomerAddress[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
 }
 
+model CustomerAddress {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  label      String   @default("Principal")
+  address    String
+  city       String?
+  notes      String?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([customerId, isDefault])
+}
+
 model Order {
-  tradeInDevices TradeInDevice[]
-  id             String          @id @default(cuid())
-  tenantId       String
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  branchId       String?
-  branch         Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  customerId     String?
-  customer       Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  sellerId       String
-  seller         User            @relation(fields: [sellerId], references: [id])
-  orderNumber    String
-  status         OrderStatus     @default(PENDING)
-  subtotalPyg    Int
-  discountPyg    Int             @default(0)
-  deliveryPyg    Int             @default(0)
-  deliveryType   String?
-  deliveryNotes  String?
-  totalPyg       Int
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  tradeInDevices    TradeInDevice[]
+  id                String            @id @default(cuid())
+  tenantId          String
+  tenant            Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId          String?
+  branch            Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  customerId        String?
+  customer          Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  sellerId          String
+  seller            User              @relation(fields: [sellerId], references: [id])
+  orderNumber       String
+  publicToken       String            @unique @default(cuid())
+  status            OrderStatus       @default(PENDING)
+  fulfillmentStatus FulfillmentStatus @default(PROCESSING)
+  subtotalPyg       Int
+  discountPyg       Int               @default(0)
+  deliveryPyg       Int               @default(0)
+  deliveryType      String?
+  deliveryNotes     String?
+  totalPyg          Int
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   items    OrderItem[]
   payments Payment[]
@@ -350,6 +376,28 @@ enum OrderStatus {
   PENDING
   COMPLETED
   CANCELLED
+}
+
+enum FulfillmentStatus {
+  PROCESSING
+  IN_TRANSIT
+  READY_FOR_PICKUP
+  DELIVERED
+}
+
+model MessageTemplate {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  key       String
+  name      String
+  body      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, key])
+  @@index([tenantId, isActive])
 }
 
 model OrderItem {
