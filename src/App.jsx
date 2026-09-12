@@ -12,6 +12,7 @@ import TradeIn from '@/pages/TradeIn'
 import { APP_CREDIT, APP_CREDIT_URL, APP_VERSION } from '@/lib/brand'
 import Landing from '@/pages/Landing'
 import DemoAccess from '@/pages/DemoAccess'
+import Status from '@/pages/Status'
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -96,7 +97,7 @@ function AppFooter() {
   )
 }
 
-function MetadatosPagina({ landing }) {
+function MetadatosPagina({ publicPage = false }) {
   const { pathname } = useLocation()
 
   useEffect(() => {
@@ -110,9 +111,10 @@ function MetadatosPagina({ landing }) {
       '/pos/pedidos': 'Pedidos',
       '/login': 'Acceso',
       '/demo': 'Demo interactiva',
+      '/status': 'Estado del sistema',
     }
     const seccion = secciones[pathname]
-    document.title = landing
+    document.title = publicPage && pathname === '/'
       ? 'MobOS · Control total para tu tienda móvil'
       : `${seccion || 'Gestión de tienda'} · MobOS`
 
@@ -121,10 +123,10 @@ function MetadatosPagina({ landing }) {
       if (element) element.setAttribute(attribute, value)
     }
     const canonical = document.head.querySelector('link[rel="canonical"]')
-    if (canonical) canonical.setAttribute('href', `${origin}${landing ? '/' : pathname}`)
-    setMeta('meta[property="og:url"]', 'content', `${origin}${landing ? '/' : pathname}`)
-    setMeta('meta[name="robots"]', 'content', landing ? 'index, follow' : 'noindex, nofollow')
-  }, [landing, pathname])
+    if (canonical) canonical.setAttribute('href', `${origin}${pathname}`)
+    setMeta('meta[property="og:url"]', 'content', `${origin}${pathname}`)
+    setMeta('meta[name="robots"]', 'content', publicPage ? 'index, follow' : 'noindex, nofollow')
+  }, [publicPage, pathname])
 
   return null
 }
@@ -132,7 +134,8 @@ function MetadatosPagina({ landing }) {
 export default function App() {
   const host = typeof window !== 'undefined' ? window.location.hostname : ''
   const landing = ['controlaria.online', 'www.controlaria.online', 'moboss.online', 'www.moboss.online'].includes(host)
-  if (landing) return <><MetadatosPagina landing /><Landing /></>
+  const status = typeof window !== 'undefined' && window.location.pathname === '/status'
+  if (landing) return <><MetadatosPagina publicPage />{status ? <Status /> : <Landing />}</>
   return (
     <SesionProvider>
       <MetadatosPagina />

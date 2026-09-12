@@ -3,4 +3,5 @@ const isNewDomain = typeof window !== 'undefined' && window.location.hostname.en
 export const publicUrls = {
   landing: isNewDomain ? 'https://moboss.online' : 'https://controlaria.online',
   app: isNewDomain ? 'https://app.moboss.online' : 'https://app.controlaria.online',
+  api: isNewDomain ? 'https://api.moboss.online' : 'https://api.controlaria.online',
 }
