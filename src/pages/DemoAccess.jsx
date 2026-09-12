@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRight, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { useSesion } from '@/lib/sesion'
 import { publicUrls } from '@/lib/urls'
-import { APP_CREDIT, APP_CREDIT_URL, APP_VERSION } from '@/lib/brand'
 
 const demoProfiles = [
   {
@@ -70,10 +69,10 @@ export default function DemoAccess() {
   }, [pin, entrarDemo, navigate])
 
   return (
-    <main className="relative min-h-dvh overflow-x-hidden bg-[#071018] px-4 py-4 text-white sm:px-5 sm:py-6">
+    <main className="relative min-h-[calc(100dvh-44px)] overflow-x-hidden bg-[#071018] px-4 py-4 text-white md:h-[calc(100dvh-44px)] md:overflow-hidden sm:px-5 sm:py-5">
       <div className="pointer-events-none absolute -right-40 -top-32 h-96 w-96 rounded-full bg-[#15D7B8]/15 blur-3xl" />
 
-      <div className="mx-auto flex min-h-[calc(100dvh-2rem)] max-w-6xl items-center justify-center sm:min-h-[calc(100dvh-3rem)]">
+      <div className="mx-auto flex min-h-[calc(100dvh-4.75rem)] max-w-6xl items-center justify-center md:h-[calc(100dvh-5.5rem)] md:min-h-0">
         <section className="grid w-full max-w-5xl overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#0b1822] shadow-2xl lg:grid-cols-[1fr_410px]">
           <div className="hidden bg-gradient-to-br from-[#10333b] to-[#0b1822] p-8 lg:block xl:p-10">
             <img src="/logo-dark.svg" alt="MobOS" className="h-10" />
@@ -170,9 +169,6 @@ export default function DemoAccess() {
           </div>
         </section>
       </div>
-      <footer className="relative mx-auto mt-4 max-w-6xl text-center text-xs text-slate-500">
-        {APP_VERSION} · <a href={APP_CREDIT_URL} target="_blank" rel="noreferrer" className="text-[#15D7B8] hover:underline">{APP_CREDIT}</a>
-      </footer>
     </main>
   )
 }

@@ -91,7 +91,7 @@ function AppFooter() {
   const { esDemo, salir } = useSesion()
   return (
     <footer className="mobos-footer border-t border-ink-600 bg-ink-900 px-4 py-3 text-center text-[11px] text-mute">
-      <span>{APP_VERSION}</span>{' · '}
+      <span>© 2026 MobOS · {APP_VERSION}</span>{' · '}
       {esDemo && <span>Usuario demo · Datos de prueba <button onClick={salir} className="mx-2 underline">Salir de demo</button> · </span>}
       <a href={APP_CREDIT_URL} target="_blank" rel="noreferrer" className="text-fono-light hover:underline">{APP_CREDIT}</a>
     </footer>

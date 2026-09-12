@@ -4,7 +4,6 @@ import { useSesion } from '@/lib/sesion'
 import { Button, Card, Input, Label } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
-import { APP_VERSION } from '@/lib/brand'
 import { publicUrls } from '@/lib/urls'
 import { sessionApi } from '@/lib/api/session'
 
@@ -137,22 +136,22 @@ export default function Login() {
   const crear = modo === 'crear'
 
   return (
-    <main className="relative min-h-dvh overflow-hidden bg-[#071018] text-white">
+    <main className="relative min-h-[calc(100dvh-44px)] overflow-x-hidden bg-[#071018] text-white lg:h-[calc(100dvh-44px)] lg:overflow-hidden">
       <div className="pointer-events-none absolute -left-40 -top-40 h-96 w-96 rounded-full bg-[#15D7B8]/15 blur-3xl" />
-      <div className="mx-auto grid min-h-dvh max-w-7xl items-center gap-12 px-5 py-10 lg:grid-cols-[1fr_440px] lg:px-10">
+      <div className="mx-auto grid min-h-[calc(100dvh-44px)] max-w-7xl items-center gap-8 px-5 py-6 lg:h-[calc(100dvh-44px)] lg:grid-cols-[1fr_410px] lg:px-10 lg:py-4">
       <section className="hidden lg:block">
         <img src="/logo-dark.svg" alt="MobOS" className="h-10 w-auto" />
-        <p className="mt-16 text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">Sistema operativo para tiendas móviles</p>
-        <h1 className="mt-5 max-w-xl text-6xl font-bold leading-[.94] tracking-[-.06em]">Vendé rápido.<br /><span className="text-[#15D7B8]">Controlá mejor.</span></h1>
-        <p className="mt-7 max-w-lg text-lg leading-8 text-slate-400">POS, stock, caja y clientes conectados en una sola operación para que tu equipo se mueva con claridad.</p>
+        <p className="mt-10 text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">Sistema operativo para tiendas móviles</p>
+        <h1 className="mt-4 max-w-xl text-5xl font-bold leading-[.94] tracking-[-.06em] xl:text-6xl">Vendé rápido.<br /><span className="text-[#15D7B8]">Controlá mejor.</span></h1>
+        <p className="mt-5 max-w-lg text-base leading-7 text-slate-400 xl:text-lg xl:leading-8">POS, stock, caja y clientes conectados en una sola operación para que tu equipo se mueva con claridad.</p>
       </section>
-      <section className="mx-auto w-full max-w-md rounded-[2rem] border border-white/10 bg-[#0b1822]/95 p-6 shadow-2xl shadow-[#15D7B8]/5 sm:p-8">
-      <a href={publicUrls.landing} className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-[#15D7B8] transition hover:text-white">← Volver al inicio</a>
-      <img src="/logo-dark.svg" alt="MobOS" className="mb-2 w-44" />
-      <p className="mb-8 text-sm text-mute">Sistema de ventas para tiendas</p>
+      <section className="mx-auto w-full max-w-[410px] rounded-[2rem] border border-white/10 bg-[#0b1822]/95 p-5 shadow-2xl shadow-[#15D7B8]/5 sm:p-6 lg:p-5">
+      <a href={publicUrls.landing} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-[#15D7B8] transition hover:text-white">← Volver al inicio</a>
+      <img src="/logo-dark.svg" alt="MobOS" className="mb-1 w-36" />
+      <p className="mb-4 text-sm text-mute">Sistema de ventas para tiendas</p>
 
-      <Card className="w-full max-w-md">
-        <div className="mb-5 flex rounded-lg border border-ink-500 p-0.5">
+      <Card className="w-full max-w-md p-4 lg:p-4">
+        <div className="mb-3 flex rounded-lg border border-ink-500 p-0.5">
           {[
             ['entrar', 'Entrar'],
             ['crear', 'Crear mi tienda'],
@@ -162,7 +161,7 @@ export default function Login() {
               type="button"
               onClick={() => cambiarModo(k)}
               className={cn(
-                'flex-1 rounded-[6px] py-2 text-sm font-medium transition',
+                'flex-1 rounded-[6px] py-1.5 text-sm font-medium transition',
                 modo === k ? 'bg-fono text-white' : 'text-mute hover:text-white',
               )}
             >
@@ -171,17 +170,17 @@ export default function Login() {
           ))}
         </div>
 
-        <h1 className="mb-1 text-lg font-semibold">
+        <h1 className="mb-1 text-base font-semibold">
           {crear ? 'Creá la cuenta de tu tienda' : 'Entrá a tu tienda'}
         </h1>
-        <p className="mb-5 text-sm text-mute">
+        <p className="mb-3 text-sm leading-5 text-mute">
           {crear
             ? 'Tu tienda arranca vacía y separada de cualquier otra. Nadie más ve tus datos.'
             : 'Con el correo y la contraseña que te dio el dueño de la tienda.'}
         </p>
 
-        <form onSubmit={enviar} className="space-y-3.5">
-          {crear && <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-4 text-sm leading-6 text-slate-300">{googleReady ? 'Solo falta ponerle un nombre a tu tienda. Después configurás tu PIN y el resto cuando ya estés dentro.' : 'Empezá con lo esencial. El PIN, perfil, sucursales y medios de pago los configurás después.'}</div>}
+        <form onSubmit={enviar} className="space-y-2.5">
+          {crear && <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-3 text-xs leading-5 text-slate-300">{googleReady ? 'Solo falta ponerle un nombre a tu tienda. Después configurás tu PIN y el resto cuando ya estés dentro.' : 'Empezá con lo esencial. El PIN, perfil, sucursales y medios de pago los configurás después.'}</div>}
           {crear && <>
             <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} autoComplete="organization" /></div>
             {!googleReady && <div><Label htmlFor="new-email">Correo de acceso</Label><Input id="new-email" type="email" required value={f.correo} onChange={set('correo')} autoComplete="email" /></div>}
@@ -246,7 +245,6 @@ export default function Login() {
         </form>
       </Card>
 
-      <p className="mt-6 text-center text-xs text-slate-500">{APP_VERSION} · Tus datos quedan separados y protegidos.</p>
       </section>
       </div>
     </main>
