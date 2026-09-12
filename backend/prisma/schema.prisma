@@ -35,6 +35,8 @@ model Tenant {
   paymentProofs PaymentProof[]
   paymentReconciliations PaymentReconciliation[]
   auditLogs AuditLog[]
+  inventoryUnits InventoryUnit[]
+  stockTransfers StockTransfer[]
 }
 
 model GoogleIdentity {
@@ -61,6 +63,9 @@ model Branch {
   users    User[]
   products Product[]
   orders   Order[]
+  inventoryUnits InventoryUnit[]
+  outgoingTransfers StockTransfer[] @relation("TransferSourceBranch")
+  incomingTransfers StockTransfer[] @relation("TransferDestinationBranch")
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -91,6 +96,7 @@ model User {
   verifiedPaymentReconciliations PaymentReconciliation[] @relation("PaymentReconciliationVerifier")
 
   sessions Session[]
+  createdTransfers StockTransfer[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -156,10 +162,71 @@ model Product {
   updatedAt DateTime      @updatedAt
 
   orderItems OrderItem[]
+  inventoryUnits InventoryUnit[]
+  transferSourceLines StockTransferLine[] @relation("TransferSourceProduct")
+  transferDestinationLines StockTransferLine[] @relation("TransferDestinationProduct")
 
-  @@unique([tenantId, sku])
+  @@unique([tenantId, branchId, sku])
   @@index([tenantId, branchId])
   @@index([tenantId, imei])
+}
+
+enum InventoryUnitStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+  DEFECTIVE
+  IN_TRANSIT
+}
+
+model InventoryUnit {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId String
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  branchId String?
+  branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  serial String
+  status InventoryUnitStatus @default(AVAILABLE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, serial])
+  @@index([tenantId, productId, status])
+  @@index([tenantId, branchId, status])
+}
+
+model StockTransfer {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sourceBranchId String
+  sourceBranch Branch @relation("TransferSourceBranch", fields: [sourceBranchId], references: [id], onDelete: Restrict)
+  destinationBranchId String
+  destinationBranch Branch @relation("TransferDestinationBranch", fields: [destinationBranchId], references: [id], onDelete: Restrict)
+  createdById String
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  notes String?
+  createdAt DateTime @default(now())
+  lines StockTransferLine[]
+
+  @@index([tenantId, sourceBranchId, createdAt])
+  @@index([tenantId, destinationBranchId, createdAt])
+}
+
+model StockTransferLine {
+  id String @id @default(cuid())
+  transferId String
+  transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  sourceProductId String
+  sourceProduct Product @relation("TransferSourceProduct", fields: [sourceProductId], references: [id], onDelete: Restrict)
+  destinationProductId String
+  destinationProduct Product @relation("TransferDestinationProduct", fields: [destinationProductId], references: [id], onDelete: Restrict)
+  quantity Int
+  serials Json @default("[]")
+
+  @@index([transferId])
 }
 
 enum ProductCondition {

@@ -2,6 +2,8 @@ import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 
+const serialKey = (value: unknown) => typeof value === 'string' ? value.trim().toUpperCase().replace(/[\s-]+/g, '') : ''
+
 export async function GET(request: Request) {
   const tenant = await tenantId(request); if (!tenant) return error('Falta sesión.', 401)
   const session = await requireSession(request); if (!session) return error('Sesión inválida.', 401)
@@ -24,8 +26,17 @@ export async function POST(request: Request) {
   const branchId = b.branchId || session.user.branchId || null
   if (branchId && !(await prisma.branch.findFirst({ where: { id: branchId, tenantId: tenant, isActive: true }, select: { id: true } }))) return error('Sucursal no encontrada.', 404)
   if (session.user.branchId && branchId !== session.user.branchId) return error('No autorizado para esa sucursal.', 403)
-  const data = await prisma.product.create({ data: { tenantId: tenant, sku: b.sku.trim(), name: b.name.trim(), category: b.category, imei: b.imei, condition: b.condition || 'NEW', pricePyg: price, costPyg: cost, stock, branchId } })
-  return json(data, { status: 201 })
+  const serial = serialKey(b.imei)
+  if (serial && (stock !== 1 || !branchId)) return error('Un producto con IMEI/serial debe ingresar como una sola unidad en una sucursal.')
+  try {
+    const data = await prisma.$transaction(async tx => {
+      if (serial && await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { id: true } })) throw new Error('Ese IMEI/serial ya existe.')
+      const product = await tx.product.create({ data: { tenantId: tenant, sku: b.sku.trim(), name: b.name.trim(), category: b.category, imei: serial || null, condition: b.condition || 'NEW', pricePyg: price, costPyg: cost, stock, branchId } })
+      if (serial) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId, serial } })
+      return product
+    })
+    return json(data, { status: 201 })
+  } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo crear el producto.', 409) }
 }
 
 export async function PATCH(request: Request) {
@@ -40,8 +51,19 @@ export async function PATCH(request: Request) {
   const product = await prisma.product.findFirst({ where: { id: b.id, tenantId: tenant, isActive: true } })
   if (!product) return error('Producto no encontrado.', 404)
   if ((session.user.branchId === null && product.branchId !== null) || (session.user.branchId && product.branchId !== null && product.branchId !== session.user.branchId)) return error('No autorizado para esa sucursal.', 403)
-  const data = await prisma.product.update({ where: { id: product.id }, data: { ...(typeof b.name === 'string' && b.name.trim() ? { name: b.name.trim() } : {}), ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(price !== undefined ? { pricePyg: price } : {}), ...(cost !== undefined ? { costPyg: cost } : {}), ...(stock !== undefined ? { stock } : {}), ...(b.category !== undefined ? { category: b.category || null } : {}), ...(b.imei !== undefined ? { imei: b.imei || null } : {}), ...(b.condition !== undefined ? { condition: b.condition } : {}) } })
-  return json(data)
+  const serial = b.imei === undefined ? undefined : serialKey(b.imei)
+  if (serial !== undefined && (!serial || stock !== undefined && stock !== 1 || product.stock !== 1 || !product.branchId)) return error('El IMEI/serial solo se asigna a una unidad individual con stock 1.')
+  try {
+    const data = await prisma.$transaction(async tx => {
+      if (serial !== undefined) {
+        const existing = await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { productId: true } })
+        if (existing && existing.productId !== product.id) throw new Error('Ese IMEI/serial ya existe.')
+        if (!existing) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId: product.branchId, serial } })
+      }
+      return tx.product.update({ where: { id: product.id }, data: { ...(typeof b.name === 'string' && b.name.trim() ? { name: b.name.trim() } : {}), ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(price !== undefined ? { pricePyg: price } : {}), ...(cost !== undefined ? { costPyg: cost } : {}), ...(stock !== undefined ? { stock } : {}), ...(b.category !== undefined ? { category: b.category || null } : {}), ...(serial !== undefined ? { imei: serial } : {}), ...(b.condition !== undefined ? { condition: b.condition } : {}) } })
+    })
+    return json(data)
+  } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo actualizar el producto.', 409) }
 }
 
 export async function DELETE(request: Request) {
