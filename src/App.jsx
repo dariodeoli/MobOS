@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { SesionProvider, useSesion } from '@/lib/sesion'
 import { Button } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -76,8 +76,17 @@ function SoloPropietario({ children }) {
 }
 
 function InicioPorRol() {
-  const { sesion } = useSesion()
-  return <Navigate to={sesion?.esPropietario ? '/control' : '/pos'} replace />
+  const { sesion, empresa } = useSesion()
+  const base = `/area/${empresa?.slug || 'mi-tienda'}`
+  return <Navigate to={sesion?.esPropietario ? `${base}/control/resumen` : `${base}/pos/cargar`} replace />
+}
+
+// El slug hace que una recarga conserve el área abierta. La autorización sigue
+// dependiendo de la sesión y del tenant del API; el slug nunca concede acceso.
+function AreaProtegida({ owner = false, children }) {
+  const { slug } = useParams(); const { empresa } = useSesion()
+  if (empresa?.slug && slug !== empresa.slug) return <Navigate to={`/area/${empresa.slug}/${owner ? 'control/resumen' : 'pos/cargar'}`} replace />
+  return owner ? <SoloPropietario>{children}</SoloPropietario> : <Protegida>{children}</Protegida>
 }
 
 function AppFooter() {
@@ -107,40 +116,20 @@ export default function App() {
             </Protegida>
           }
         />
+        <Route path="/pos" element={<InicioPorRol />} />
+        <Route path="/control" element={<InicioPorRol />} />
+        <Route path="/area/:slug/pos/:vista?" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
+        <Route path="/area/:slug/control/:tab?" element={<AreaProtegida owner><CentroControl /></AreaProtegida>} />
         <Route
-          path="/pos" element={<Protegida><PanelVendedor /></Protegida>} />
-        <Route
-          path="/celulares"
-          element={
-            <SoloPropietario>
-              <Celulares />
-            </SoloPropietario>
-          }
+          path="/celulares" element={<InicioPorRol />}
         />
         <Route
-          path="/comparador"
-          element={
-            <SoloPropietario>
-              <Comparador />
-            </SoloPropietario>
-          }
+          path="/comparador" element={<InicioPorRol />}
         />
-        <Route
-          path="/tradein"
-          element={
-            <SoloPropietario>
-              <TradeIn />
-            </SoloPropietario>
-          }
-        />
-        <Route
-          path="/control"
-          element={
-            <SoloPropietario>
-              <CentroControl />
-            </SoloPropietario>
-          }
-        />
+        <Route path="/tradein" element={<InicioPorRol />} />
+        <Route path="/area/:slug/celulares" element={<AreaProtegida owner><Celulares /></AreaProtegida>} />
+        <Route path="/area/:slug/comparador" element={<AreaProtegida owner><Comparador /></AreaProtegida>} />
+        <Route path="/area/:slug/trade-in" element={<AreaProtegida owner><TradeIn /></AreaProtegida>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <AppFooter />

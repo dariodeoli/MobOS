@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import { cn } from '@/lib/utils'
@@ -46,7 +46,7 @@ const SECCIONES = [
       ['compras', 'Compras', Compras, 'store'],
       ['garantias', 'Garantías y servicio', Garantias, 'phone'],
       ['celulares', 'Celulares', Celulares, 'phone'],
-      ['tradein', 'Equipos recibidos · Trade-In', TradeInPipeline, 'refresh'],
+      ['tradein', 'Trade-In', TradeInPipeline, 'refresh'],
       ['imagenes', 'Imágenes', ImagenesComparador, 'image'],
     ],
   },
@@ -73,7 +73,8 @@ export default function CentroControl() {
   useLive()
   useAutoRefrescar()
   const navigate = useNavigate()
-  const [tab, setTab] = useState('resumen')
+  const { slug, tab: routeTab } = useParams()
+  const [tab, setTab] = useState(() => TODAS.some(([key]) => key === routeTab) ? routeTab : 'resumen')
   const [pendiente, setPendiente] = useState(null)
   const [menuAbierto, setMenuAbierto] = useState(false)
   const actual = TODAS.find(([k]) => k === tab)
@@ -88,9 +89,10 @@ export default function CentroControl() {
     if (dirtyRef.current()) setPendiente(() => accion)
     else accion()
   }
+  useEffect(() => { if (TODAS.some(([key]) => key === routeTab) && routeTab !== tab) setTab(routeTab) }, [routeTab, tab])
   function cambiarTab(k) {
     setMenuAbierto(false)
-    if (k !== tab) intentar(() => setTab(k))
+    if (k !== tab) intentar(() => { setTab(k); navigate(`/area/${slug}/control/${k}`) })
   }
 
   useEffect(() => {
@@ -148,7 +150,7 @@ export default function CentroControl() {
 
           <div className="border-t border-ink-600 p-3">
             <button
-              onClick={() => intentar(() => navigate('/pos'))}
+              onClick={() => intentar(() => navigate(`/area/${slug}/pos/cargar`))}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-mute transition hover:bg-ink-700 hover:text-white"
             >
               <Icon name="back" className="h-4 w-4" />

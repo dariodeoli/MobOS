@@ -9,9 +9,9 @@ function adaptarUsuario(user) {
   return { ...user, id: user?.id, email: user?.email || null, user_metadata: { nombre: user?.name || user?.user_metadata?.nombre || user?.email || '' } }
 }
 function adaptarEmpresa(user) {
-  if (user.tenantId === 'mobos-demo') return { id: 'mobos-demo', nombre: 'MobOS Tienda Demo', rol: user.role === 'ADMIN' ? 'dueno' : 'VENDEDOR' }
+  if (user.tenantId === 'mobos-demo') return { id: 'mobos-demo', nombre: 'MobOS Tienda Demo', slug: 'demo', rol: user.role === 'ADMIN' ? 'dueno' : 'VENDEDOR' }
   const context = getCompanyContext()
-  return { id: user.tenantId || context?.tenant?.id, nombre: context?.tenant?.name || user.tenantName || 'Mi tienda', rol: user.role === 'ADMIN' ? 'dueno' : user.role }
+  return { id: user.tenantId || context?.tenant?.id, nombre: context?.tenant?.name || user.tenantName || 'Mi tienda', slug: context?.tenant?.slug || user.tenantSlug || 'mi-tienda', rol: user.role === 'ADMIN' ? 'dueno' : user.role }
 }
 
 export function SesionProvider({ children }) {
