@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { useSesion } from '@/lib/sesion'
+import { publicUrls } from '@/lib/urls'
 
 const demoProfiles = [
   {
@@ -140,7 +141,7 @@ export default function DemoAccess() {
             </div>
 
             <a
-              href="https://controlaria.online"
+              href={publicUrls.landing}
               className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[#15D7B8]"
             >
               Volver a la landing

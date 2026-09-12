@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const origin = request.headers.get('origin') || ''
-  const allowed = ['https://app.controlaria.online', 'https://controlaria.online', 'http://localhost:5173']
+  const allowed = ['https://app.controlaria.online', 'https://controlaria.online', 'https://app.moboss.online', 'https://moboss.online', 'http://localhost:5173']
   const response = request.method === 'OPTIONS' ? new NextResponse(null, { status: 204 }) : NextResponse.next()
   if (allowed.includes(origin)) response.headers.set('Access-Control-Allow-Origin', origin)
   response.headers.set('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS')

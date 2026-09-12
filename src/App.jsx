@@ -97,7 +97,7 @@ function AppFooter() {
 
 export default function App() {
   const host = typeof window !== 'undefined' ? window.location.hostname : ''
-  if (host === 'controlaria.online' || host === 'www.controlaria.online') return <Landing />
+  if (['controlaria.online', 'www.controlaria.online', 'moboss.online', 'www.moboss.online'].includes(host)) return <Landing />
   return (
     <SesionProvider>
       <Routes>
