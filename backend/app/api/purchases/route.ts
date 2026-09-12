@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { distributePurchaseCosts, purchaseTotals } from '../../../lib/purchases'
 
 const INT_MAX = 2147483647
 const MAX_TEXT = 160
@@ -30,8 +31,8 @@ export async function GET(request: Request) {
   const branchId = scope(session); if (branchId === '') return json([])
   const params = [tenant]; const branchSql = branchId ? ' AND po."branchId" = $2' : ''
   if (branchId) params.push(branchId)
-  const rows = await prisma.$queryRawUnsafe(`SELECT po.*, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pl."id", 'productId', pl."productId", 'quantity', pl."quantity", 'unitCostPyg', pl."unitCostPyg")) FILTER (WHERE pl."id" IS NOT NULL), '[]') AS lines, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pp."id", 'amountPyg', pp."amountPyg", 'currency', pp."currency", 'originalAmount', pp."originalAmount", 'reference', pp."reference", 'paidAt', pp."paidAt")) FILTER (WHERE pp."id" IS NOT NULL), '[]') AS payments FROM "PurchaseOrder" po LEFT JOIN "PurchaseLine" pl ON pl."purchaseId" = po."id" LEFT JOIN "PurchasePayment" pp ON pp."purchaseId" = po."id" WHERE po."tenantId" = $1${branchSql} GROUP BY po."id" ORDER BY po."createdAt" DESC LIMIT 100`, ...params)
-  return json(rows)
+  const rows = await prisma.$queryRawUnsafe<any[]>(`SELECT po.*, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pl."id", 'productId', pl."productId", 'productName', p."name", 'quantity', pl."quantity", 'unitCostPyg', pl."unitCostPyg", 'lotReference', pl."lotReference", 'baseTotalPyg', pl."baseTotalPyg", 'allocatedShippingPyg', pl."allocatedShippingPyg", 'allocatedCustomsPyg', pl."allocatedCustomsPyg", 'allocatedInsurancePyg', pl."allocatedInsurancePyg", 'allocatedTaxesPyg', pl."allocatedTaxesPyg", 'allocatedOtherCostsPyg', pl."allocatedOtherCostsPyg", 'allocatedExtraCostPyg', pl."allocatedExtraCostPyg", 'finalTotalCostPyg', pl."finalTotalCostPyg", 'finalUnitCostPyg', pl."finalUnitCostPyg")) FILTER (WHERE pl."id" IS NOT NULL), '[]') AS lines, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pp."id", 'amountPyg', pp."amountPyg", 'currency', pp."currency", 'originalAmount', pp."originalAmount", 'reference', pp."reference", 'kind', pp."kind", 'paidAt', pp."paidAt")) FILTER (WHERE pp."id" IS NOT NULL), '[]') AS payments FROM "PurchaseOrder" po LEFT JOIN "PurchaseLine" pl ON pl."purchaseId" = po."id" LEFT JOIN "Product" p ON p."id" = pl."productId" LEFT JOIN "PurchasePayment" pp ON pp."purchaseId" = po."id" WHERE po."tenantId" = $1${branchSql} GROUP BY po."id" ORDER BY po."createdAt" DESC LIMIT 100`, ...params)
+  return json(rows.map(row => ({ ...row, ...purchaseTotals(row.lines || [], row.payments || []) })))
 }
 
 export async function POST(request: Request) {
@@ -41,7 +42,8 @@ export async function POST(request: Request) {
   const body = await request.json(); const lines = Array.isArray(body.lines) ? body.lines : []
   const shippingPyg = Number(body.shippingPyg ?? 0); const customsPyg = Number(body.customsPyg ?? 0); const insurancePyg = Number(body.insurancePyg ?? 0); const taxesPyg = Number(body.taxesPyg ?? 0); const otherCostsPyg = Number(body.otherCostsPyg ?? 0)
   const currency = body.currency ?? 'PYG'; const exchangeRatePyg = body.exchangeRatePyg ?? 1
-  if (!boundedText(body.supplierName) || lines.length === 0 || lines.length > MAX_LINES || ![shippingPyg, customsPyg, insurancePyg, taxesPyg, otherCostsPyg].every(safePyg) || !currencies.has(currency) || !decimal(exchangeRatePyg, 6) || Number(exchangeRatePyg) <= 0 || (currency === 'PYG' && Number(exchangeRatePyg) !== 1) || (body.originalSubtotal !== undefined && (!decimal(body.originalSubtotal) || Number(body.originalSubtotal) < 0))) return error('Proveedor, líneas, moneda y montos válidos son obligatorios.')
+  const costAllocationMethod = body.costAllocationMethod ?? 'PROPORTIONAL_VALUE'
+  if (!boundedText(body.supplierName) || lines.length === 0 || lines.length > MAX_LINES || ![shippingPyg, customsPyg, insurancePyg, taxesPyg, otherCostsPyg].every(safePyg) || !currencies.has(currency) || !decimal(exchangeRatePyg, 6) || Number(exchangeRatePyg) <= 0 || (currency === 'PYG' && Number(exchangeRatePyg) !== 1) || !['PROPORTIONAL_VALUE', 'PROPORTIONAL_QUANTITY'].includes(costAllocationMethod) || (body.originalSubtotal !== undefined && (!decimal(body.originalSubtotal) || Number(body.originalSubtotal) < 0))) return error('Proveedor, líneas, moneda, distribución y montos válidos son obligatorios.')
   const assignedBranchId = scope(session)
   if (assignedBranchId === '') return error('El usuario no tiene sucursal asignada.', 403)
   const requestedBranchId = body.branchId === undefined || body.branchId === null || body.branchId === '' ? null : body.branchId
@@ -53,8 +55,7 @@ export async function POST(request: Request) {
         const branchRows = await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Branch" WHERE "id" = ${branchId} AND "tenantId" = ${tenant} AND "isActive" = true`
         if (branchRows.length === 0) throw new Error('Sucursal no encontrada.')
       }
-      const normalized: Array<{ id: string; productId: string; quantity: number; unitCostPyg: number }> = []
-      let totalCost = shippingPyg + customsPyg + insurancePyg + taxesPyg + otherCostsPyg
+      const normalized: Array<{ id: string; productId: string; quantity: number; unitCostPyg: number; lotReference: string | null }> = []
       for (const line of lines) {
         const quantity = Number(line.quantity); const unitCostPyg = Number(line.unitCostPyg ?? line.unitCost ?? 0)
         if (!boundedText(line.productId, MAX_ID) || !Number.isSafeInteger(quantity) || quantity <= 0 || quantity > INT_MAX || !safePyg(unitCostPyg)) throw new Error('Línea de compra inválida.')
@@ -62,20 +63,32 @@ export async function POST(request: Request) {
         const p = product[0]
         if (!p || (branchId === null ? p.branchId !== null : p.branchId !== null && p.branchId !== branchId)) throw new Error('Producto fuera del tenant o sucursal.')
         const lineTotal = quantity * unitCostPyg
-        if (!Number.isSafeInteger(lineTotal) || lineTotal > INT_MAX || totalCost > INT_MAX - lineTotal) throw new Error('Costo acumulado fuera de rango.')
-        totalCost += lineTotal
-        normalized.push({ id: randomUUID(), productId: p.id, quantity, unitCostPyg })
+        const lotReference = line.lotReference === undefined || line.lotReference === '' ? null : boundedText(line.lotReference, 120) ? String(line.lotReference).trim() : null
+        if (!Number.isSafeInteger(lineTotal) || lineTotal > INT_MAX || (line.lotReference !== undefined && line.lotReference !== '' && !lotReference)) throw new Error('Línea de compra o lote inválido.')
+        normalized.push({ id: randomUUID(), productId: p.id, quantity, unitCostPyg, lotReference })
       }
+      const costing = distributePurchaseCosts(normalized, { shippingPyg, customsPyg, insurancePyg, taxesPyg, otherCostsPyg, method: costAllocationMethod })
+      const { finalCostPyg: totalCost } = purchaseTotals(costing)
+      if (!safePyg(totalCost)) throw new Error('Costo acumulado fuera de rango.')
       const purchaseId = randomUUID()
-      const supplierName = body.supplierName.trim()
+      let supplierId = body.supplierId === undefined || body.supplierId === '' ? null : String(body.supplierId)
+      let supplierName = body.supplierName.trim()
+      if (supplierId) {
+        const supplier = await tx.supplier.findFirst({ where: { id: supplierId, tenantId: tenant, isActive: true } })
+        if (!supplier) throw new Error('Proveedor no encontrado.')
+        supplierName = supplier.name
+      } else {
+        const supplier = await tx.supplier.upsert({ where: { tenantId_name: { tenantId: tenant, name: supplierName } }, create: { tenantId: tenant, name: supplierName }, update: {} })
+        supplierId = supplier.id
+      }
       const dueAt = body.dueAt ? new Date(String(body.dueAt)) : null
       if (dueAt && !Number.isFinite(dueAt.getTime())) throw new Error('Fecha de vencimiento inválida.')
       const supplierReference = body.supplierReference === undefined || body.supplierReference === '' ? null : boundedText(body.supplierReference, 200) ? String(body.supplierReference).trim() : null
       if (body.supplierReference !== undefined && body.supplierReference !== '' && !supplierReference) throw new Error('Referencia de proveedor inválida.')
-      await tx.$executeRaw`INSERT INTO "PurchaseOrder" ("id", "tenantId", "branchId", "supplierName", "createdById", "shippingPyg", "customsPyg", "insurancePyg", "taxesPyg", "otherCostsPyg", "currency", "exchangeRatePyg", "originalSubtotal", "dueAt", "supplierReference") VALUES (${purchaseId}, ${tenant}, ${branchId}, ${supplierName}, ${session.user.id}, ${shippingPyg}, ${customsPyg}, ${insurancePyg}, ${taxesPyg}, ${otherCostsPyg}, ${currency}::"PaymentCurrency", ${String(exchangeRatePyg)}::decimal, ${body.originalSubtotal === undefined ? null : String(body.originalSubtotal)}::decimal, ${dueAt}, ${supplierReference})`
-      for (const line of normalized) await tx.$executeRaw`INSERT INTO "PurchaseLine" ("id", "purchaseId", "productId", "quantity", "unitCostPyg") VALUES (${line.id}, ${purchaseId}, ${line.productId}, ${line.quantity}, ${line.unitCostPyg})`
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_CREATED', entity: 'PurchaseOrder', entityId: purchaseId, metadata: { branchId, supplierName, lineCount: normalized.length, shippingPyg, customsPyg, insurancePyg, taxesPyg, otherCostsPyg, currency, exchangeRatePyg, totalCost } } })
-      return { id: purchaseId, tenantId: tenant, branchId, supplierName, status: 'DRAFT', shippingPyg, customsPyg, insurancePyg, taxesPyg, otherCostsPyg, currency, exchangeRatePyg, lines: normalized, payments: [] }
+      await tx.$executeRaw`INSERT INTO "PurchaseOrder" ("id", "tenantId", "branchId", "supplierName", "supplierId", "createdById", "shippingPyg", "customsPyg", "insurancePyg", "taxesPyg", "otherCostsPyg", "currency", "exchangeRatePyg", "originalSubtotal", "dueAt", "supplierReference", "creditEnabled", "costAllocationMethod") VALUES (${purchaseId}, ${tenant}, ${branchId}, ${supplierName}, ${supplierId}, ${session.user.id}, ${shippingPyg}, ${customsPyg}, ${insurancePyg}, ${taxesPyg}, ${otherCostsPyg}, ${currency}::"PaymentCurrency", ${String(exchangeRatePyg)}::decimal, ${body.originalSubtotal === undefined ? null : String(body.originalSubtotal)}::decimal, ${dueAt}, ${supplierReference}, ${Boolean(body.creditEnabled)}, ${costAllocationMethod}::"PurchaseCostAllocationMethod")`
+      for (const line of costing) await tx.$executeRaw`INSERT INTO "PurchaseLine" ("id", "purchaseId", "productId", "quantity", "unitCostPyg", "lotReference", "baseTotalPyg", "allocatedShippingPyg", "allocatedCustomsPyg", "allocatedInsurancePyg", "allocatedTaxesPyg", "allocatedOtherCostsPyg", "allocatedExtraCostPyg", "finalTotalCostPyg", "finalUnitCostPyg") VALUES (${line.id}, ${purchaseId}, ${line.productId}, ${line.quantity}, ${line.unitCostPyg}, ${line.lotReference}, ${line.baseTotalPyg}, ${line.allocatedShippingPyg}, ${line.allocatedCustomsPyg}, ${line.allocatedInsurancePyg}, ${line.allocatedTaxesPyg}, ${line.allocatedOtherCostsPyg}, ${line.allocatedExtraCostPyg}, ${line.finalTotalCostPyg}, ${line.finalUnitCostPyg})`
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_CREATED', entity: 'PurchaseOrder', entityId: purchaseId, metadata: { branchId, supplierId, supplierName, lineCount: normalized.length, shippingPyg, customsPyg, insurancePyg, taxesPyg, otherCostsPyg, currency, exchangeRatePyg, costAllocationMethod, creditEnabled: Boolean(body.creditEnabled), totalCost, allocations: costing.map(line => ({ productId: line.productId, lotReference: line.lotReference, baseTotalPyg: line.baseTotalPyg, extraPyg: line.allocatedExtraCostPyg, finalTotalPyg: line.finalTotalCostPyg })) } } })
+      return { id: purchaseId, tenantId: tenant, branchId, supplierId, supplierName, status: 'DRAFT', shippingPyg, customsPyg, insurancePyg, taxesPyg, otherCostsPyg, currency, exchangeRatePyg, costAllocationMethod, creditEnabled: Boolean(body.creditEnabled), lines: costing, payments: [], ...purchaseTotals(costing) }
     })
     return json(result, { status: 201 })
   } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo crear la compra.', 409) }
@@ -100,8 +113,9 @@ export async function PATCH(request: Request) {
         if (!account || account.currency !== currency) throw new Error('Cuenta de pago no válida para la moneda indicada.')
         const amountPyg = Math.round(originalAmount * exchangeRatePyg)
         if (!safePyg(amountPyg) || amountPyg === 0) throw new Error('Monto convertido fuera de rango.')
-        const payment = await tx.purchasePayment.create({ data: { tenantId: tenant, purchaseId: purchase.id, accountId, amountPyg, currency, originalAmount: String(originalAmount), exchangeRatePyg: String(exchangeRatePyg), reference: body.reference ? String(body.reference).slice(0, 200) : null, createdById: session.user.id } })
-        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_PAYMENT_RECORDED', entity: 'PurchaseOrder', entityId: purchase.id, metadata: { paymentId: payment.id, accountId, currency, originalAmount, exchangeRatePyg, amountPyg } } })
+        const kind = body.kind === 'ADVANCE' ? 'ADVANCE' : 'SETTLEMENT'
+        const payment = await tx.purchasePayment.create({ data: { tenantId: tenant, purchaseId: purchase.id, accountId, amountPyg, currency, originalAmount: String(originalAmount), exchangeRatePyg: String(exchangeRatePyg), reference: body.reference ? String(body.reference).slice(0, 200) : null, kind, createdById: session.user.id } })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_PAYMENT_RECORDED', entity: 'PurchaseOrder', entityId: purchase.id, metadata: { paymentId: payment.id, accountId, currency, originalAmount, exchangeRatePyg, amountPyg, kind } } })
         return { payment, status: purchase.status }
       }
       if (purchase.status !== 'DRAFT') throw new Error('La compra ya fue recibida.')

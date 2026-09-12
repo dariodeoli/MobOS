@@ -13,6 +13,7 @@ model Tenant {
   tradeInDevices      TradeInDevice[]
   cashSessions        CashSession[]
   purchases           PurchaseOrder[]
+  suppliers           Supplier[]
   warrantyCases       WarrantyCase[]
   cashMovements       CashMovement[]
   id                  String           @id @default(cuid())
@@ -771,6 +772,9 @@ model PurchaseOrder {
   branchId     String?
   branch       Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
   supplierName String
+  // El nombre se conserva como snapshot del documento, aun si luego cambia la ficha.
+  supplierId   String?
+  supplier     Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   status       PurchaseStatus @default(DRAFT)
   createdAt    DateTime       @default(now())
   receivedAt   DateTime?
@@ -786,11 +790,37 @@ model PurchaseOrder {
   originalSubtotal Decimal?   @db.Decimal(18, 2)
   dueAt        DateTime?
   supplierReference String?
+  creditEnabled Boolean        @default(false)
+  costAllocationMethod PurchaseCostAllocationMethod @default(PROPORTIONAL_VALUE)
   lines        PurchaseLine[]
   payments     PurchasePayment[]
 
   @@index([tenantId, createdAt])
   @@index([tenantId, status])
+  @@index([tenantId, supplierId, createdAt])
+}
+
+model Supplier {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name       String
+  document   String?
+  phone      String?
+  email      String?
+  notes      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  purchases  PurchaseOrder[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isActive, name])
+}
+
+enum PurchaseCostAllocationMethod {
+  PROPORTIONAL_VALUE
+  PROPORTIONAL_QUANTITY
 }
 
 model PurchaseLine {
@@ -800,7 +830,19 @@ model PurchaseLine {
   productId   String
   product     Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
   quantity    Int
+  // unitCostPyg es el costo base pactado; los valores finales quedan congelados
+  // para que una modificación posterior de flete o de catálogo no reescriba historia.
   unitCostPyg Int
+  lotReference String?
+  baseTotalPyg Int @default(0)
+  allocatedShippingPyg Int @default(0)
+  allocatedCustomsPyg Int @default(0)
+  allocatedInsurancePyg Int @default(0)
+  allocatedTaxesPyg Int @default(0)
+  allocatedOtherCostsPyg Int @default(0)
+  allocatedExtraCostPyg Int @default(0)
+  finalTotalCostPyg Int @default(0)
+  finalUnitCostPyg Int @default(0)
 
   @@index([purchaseId])
   @@index([productId])
@@ -818,11 +860,17 @@ model PurchasePayment {
   originalAmount  Decimal         @db.Decimal(18, 2)
   exchangeRatePyg Decimal         @default(1) @db.Decimal(18, 6)
   reference       String?
+  kind            PurchasePaymentKind @default(SETTLEMENT)
   paidAt          DateTime        @default(now())
   createdById     String
   createdAt       DateTime        @default(now())
 
   @@index([tenantId, purchaseId, paidAt])
+}
+
+enum PurchasePaymentKind {
+  ADVANCE
+  SETTLEMENT
 }
 
 enum WarrantyStatus {
