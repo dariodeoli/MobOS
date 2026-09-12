@@ -10,6 +10,9 @@ const MAX_LINES = 200
 const statuses = new Set(['DRAFT', 'RECEIVED'])
 const safePyg = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= INT_MAX
 const boundedText = (value: unknown, max = MAX_TEXT) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max
+const currencies = new Set(['PYG', 'USD', 'BRL', 'EUR', 'USDT'])
+const decimal = (value: unknown, decimals = 2) => typeof value === 'number' || typeof value === 'string'
+  ? /^\d+(?:\.\d+)?$/.test(String(value)) && String(value).split('.')[1]?.length <= decimals : false
 
 function scope(session: { user: { role: string; branchId: string | null } }) {
   return session.user.role === 'ADMIN' ? null : (session.user.branchId || '')
@@ -22,7 +25,7 @@ export async function GET(request: Request) {
   const branchId = scope(session); if (branchId === '') return json([])
   const params = [tenant]; const branchSql = branchId ? ' AND po."branchId" = $2' : ''
   if (branchId) params.push(branchId)
-  const rows = await prisma.$queryRawUnsafe(`SELECT po.*, COALESCE(json_agg(json_build_object('id', pl."id", 'productId', pl."productId", 'quantity', pl."quantity", 'unitCostPyg', pl."unitCostPyg")) FILTER (WHERE pl."id" IS NOT NULL), '[]') AS lines FROM "PurchaseOrder" po LEFT JOIN "PurchaseLine" pl ON pl."purchaseId" = po."id" WHERE po."tenantId" = $1${branchSql} GROUP BY po."id" ORDER BY po."createdAt" DESC LIMIT 100`, ...params)
+  const rows = await prisma.$queryRawUnsafe(`SELECT po.*, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pl."id", 'productId', pl."productId", 'quantity', pl."quantity", 'unitCostPyg', pl."unitCostPyg")) FILTER (WHERE pl."id" IS NOT NULL), '[]') AS lines, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pp."id", 'amountPyg', pp."amountPyg", 'currency', pp."currency", 'originalAmount', pp."originalAmount", 'reference', pp."reference", 'paidAt', pp."paidAt")) FILTER (WHERE pp."id" IS NOT NULL), '[]') AS payments FROM "PurchaseOrder" po LEFT JOIN "PurchaseLine" pl ON pl."purchaseId" = po."id" LEFT JOIN "PurchasePayment" pp ON pp."purchaseId" = po."id" WHERE po."tenantId" = $1${branchSql} GROUP BY po."id" ORDER BY po."createdAt" DESC LIMIT 100`, ...params)
   return json(rows)
 }
 
@@ -31,8 +34,9 @@ export async function POST(request: Request) {
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
   const body = await request.json(); const lines = Array.isArray(body.lines) ? body.lines : []
-  const shippingPyg = Number(body.shippingPyg ?? 0); const customsPyg = Number(body.customsPyg ?? 0)
-  if (!boundedText(body.supplierName) || lines.length === 0 || lines.length > MAX_LINES || !safePyg(shippingPyg) || !safePyg(customsPyg)) return error('Proveedor, líneas y montos válidos son obligatorios.')
+  const shippingPyg = Number(body.shippingPyg ?? 0); const customsPyg = Number(body.customsPyg ?? 0); const insurancePyg = Number(body.insurancePyg ?? 0); const taxesPyg = Number(body.taxesPyg ?? 0); const otherCostsPyg = Number(body.otherCostsPyg ?? 0)
+  const currency = body.currency ?? 'PYG'; const exchangeRatePyg = body.exchangeRatePyg ?? 1
+  if (!boundedText(body.supplierName) || lines.length === 0 || lines.length > MAX_LINES || ![shippingPyg, customsPyg, insurancePyg, taxesPyg, otherCostsPyg].every(safePyg) || !currencies.has(currency) || !decimal(exchangeRatePyg, 6) || Number(exchangeRatePyg) <= 0 || (currency === 'PYG' && Number(exchangeRatePyg) !== 1) || (body.originalSubtotal !== undefined && (!decimal(body.originalSubtotal) || Number(body.originalSubtotal) < 0))) return error('Proveedor, líneas, moneda y montos válidos son obligatorios.')
   const assignedBranchId = scope(session)
   if (assignedBranchId === '') return error('El usuario no tiene sucursal asignada.', 403)
   const requestedBranchId = body.branchId === undefined || body.branchId === null || body.branchId === '' ? null : body.branchId
@@ -45,7 +49,7 @@ export async function POST(request: Request) {
         if (branchRows.length === 0) throw new Error('Sucursal no encontrada.')
       }
       const normalized: Array<{ id: string; productId: string; quantity: number; unitCostPyg: number }> = []
-      let totalCost = shippingPyg + customsPyg
+      let totalCost = shippingPyg + customsPyg + insurancePyg + taxesPyg + otherCostsPyg
       for (const line of lines) {
         const quantity = Number(line.quantity); const unitCostPyg = Number(line.unitCostPyg ?? line.unitCost ?? 0)
         if (!boundedText(line.productId, MAX_ID) || !Number.isSafeInteger(quantity) || quantity <= 0 || quantity > INT_MAX || !safePyg(unitCostPyg)) throw new Error('Línea de compra inválida.')
@@ -59,10 +63,14 @@ export async function POST(request: Request) {
       }
       const purchaseId = randomUUID()
       const supplierName = body.supplierName.trim()
-      await tx.$executeRaw`INSERT INTO "PurchaseOrder" ("id", "tenantId", "branchId", "supplierName", "createdById", "shippingPyg", "customsPyg") VALUES (${purchaseId}, ${tenant}, ${branchId}, ${supplierName}, ${session.user.id}, ${shippingPyg}, ${customsPyg})`
+      const dueAt = body.dueAt ? new Date(String(body.dueAt)) : null
+      if (dueAt && !Number.isFinite(dueAt.getTime())) throw new Error('Fecha de vencimiento inválida.')
+      const supplierReference = body.supplierReference === undefined || body.supplierReference === '' ? null : boundedText(body.supplierReference, 200) ? String(body.supplierReference).trim() : null
+      if (body.supplierReference !== undefined && body.supplierReference !== '' && !supplierReference) throw new Error('Referencia de proveedor inválida.')
+      await tx.$executeRaw`INSERT INTO "PurchaseOrder" ("id", "tenantId", "branchId", "supplierName", "createdById", "shippingPyg", "customsPyg", "insurancePyg", "taxesPyg", "otherCostsPyg", "currency", "exchangeRatePyg", "originalSubtotal", "dueAt", "supplierReference") VALUES (${purchaseId}, ${tenant}, ${branchId}, ${supplierName}, ${session.user.id}, ${shippingPyg}, ${customsPyg}, ${insurancePyg}, ${taxesPyg}, ${otherCostsPyg}, ${currency}::"PaymentCurrency", ${String(exchangeRatePyg)}::decimal, ${body.originalSubtotal === undefined ? null : String(body.originalSubtotal)}::decimal, ${dueAt}, ${supplierReference})`
       for (const line of normalized) await tx.$executeRaw`INSERT INTO "PurchaseLine" ("id", "purchaseId", "productId", "quantity", "unitCostPyg") VALUES (${line.id}, ${purchaseId}, ${line.productId}, ${line.quantity}, ${line.unitCostPyg})`
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_CREATED', entity: 'PurchaseOrder', entityId: purchaseId, metadata: { branchId, supplierName, lineCount: normalized.length, shippingPyg, customsPyg, totalCost } } })
-      return { id: purchaseId, tenantId: tenant, branchId, supplierName, status: 'DRAFT', shippingPyg, customsPyg, lines: normalized }
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_CREATED', entity: 'PurchaseOrder', entityId: purchaseId, metadata: { branchId, supplierName, lineCount: normalized.length, shippingPyg, customsPyg, insurancePyg, taxesPyg, otherCostsPyg, currency, exchangeRatePyg, totalCost } } })
+      return { id: purchaseId, tenantId: tenant, branchId, supplierName, status: 'DRAFT', shippingPyg, customsPyg, insurancePyg, taxesPyg, otherCostsPyg, currency, exchangeRatePyg, lines: normalized, payments: [] }
     })
     return json(result, { status: 201 })
   } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo crear la compra.', 409) }
@@ -72,13 +80,25 @@ export async function PATCH(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
-  const body = await request.json(); if (!boundedText(body.id, MAX_ID) || body.action !== 'receive') return error('Compra y acción de recepción son obligatorias.')
+  const body = await request.json(); if (!boundedText(body.id, MAX_ID) || !['receive', 'pay'].includes(body.action)) return error('Compra y acción válida son obligatorias.')
   try {
     const result = await prisma.$transaction(async tx => {
       const rows = await tx.$queryRaw<Array<{ id: string; branchId: string | null; status: string }>>`SELECT "id", "branchId", "status" FROM "PurchaseOrder" WHERE "id" = ${body.id} AND "tenantId" = ${tenant} FOR UPDATE`
       const purchase = rows[0]
       const branchId = scope(session)
       if (!purchase || (branchId !== null && purchase.branchId !== branchId)) throw new Error('Compra no encontrada.')
+      if (body.action === 'pay') {
+        const accountId = boundedText(body.accountId, MAX_ID) ? String(body.accountId) : null
+        const currency = body.currency ?? 'PYG'; const originalAmount = Number(body.originalAmount); const exchangeRatePyg = Number(body.exchangeRatePyg ?? 1)
+        if (!accountId || !currencies.has(currency) || !decimal(body.originalAmount) || originalAmount <= 0 || !decimal(exchangeRatePyg, 6) || exchangeRatePyg <= 0 || (currency === 'PYG' && exchangeRatePyg !== 1)) throw new Error('Cuenta, moneda, monto y cotización válidos son obligatorios.')
+        const account = await tx.paymentAccount.findFirst({ where: { id: accountId, tenantId: tenant, isActive: true } })
+        if (!account || account.currency !== currency) throw new Error('Cuenta de pago no válida para la moneda indicada.')
+        const amountPyg = Math.round(originalAmount * exchangeRatePyg)
+        if (!safePyg(amountPyg) || amountPyg === 0) throw new Error('Monto convertido fuera de rango.')
+        const payment = await tx.purchasePayment.create({ data: { tenantId: tenant, purchaseId: purchase.id, accountId, amountPyg, currency, originalAmount: String(originalAmount), exchangeRatePyg: String(exchangeRatePyg), reference: body.reference ? String(body.reference).slice(0, 200) : null, createdById: session.user.id } })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_PAYMENT_RECORDED', entity: 'PurchaseOrder', entityId: purchase.id, metadata: { paymentId: payment.id, accountId, currency, originalAmount, exchangeRatePyg, amountPyg } } })
+        return { payment, status: purchase.status }
+      }
       if (purchase.status !== 'DRAFT') throw new Error('La compra ya fue recibida.')
       const lines = await tx.$queryRaw`SELECT pl."productId", pl."quantity" FROM "PurchaseLine" pl WHERE pl."purchaseId" = ${purchase.id}` as Array<{ productId: string; quantity: number }>
       for (const line of lines) {

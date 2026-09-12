@@ -8,6 +8,8 @@ const ROLES = ['ADMIN', 'GERENTE', 'CAJERA']
 type QueryDb = Pick<typeof prisma, '$queryRaw'> | Pick<Prisma.TransactionClient, '$queryRaw'>
 const int = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= 2147483647
 const note = (value: unknown) => value == null ? null : typeof value === 'string' && value.trim().length <= 500 ? value.trim() || null : undefined
+const movementKinds = ['EXPENSE', 'TRANSFER', 'SUPPLIER_ADVANCE', 'CHEQUE', 'OWNER_WITHDRAWAL', 'ADJUSTMENT'] as const
+const currencies = ['PYG', 'USD', 'BRL', 'EUR', 'USDT'] as const
 
 async function context(request: Request) {
   const session = await requireSession(request)
@@ -42,7 +44,8 @@ export async function GET(request: Request) {
     if (!int(expectedPyg)) return error('El total esperado excede el rango permitido.', 422)
     row[0].expectedPyg = expectedPyg
   }
-  return json(row[0])
+  const movements = await prisma.cashMovement.findMany({ where: { tenantId: ctx.session.user.tenantId, ...(ctx.session.user.role === 'ADMIN' ? {} : { branchId: ctx.branchId }) }, orderBy: { createdAt: 'desc' }, take: 100, include: { account: { select: { id: true, name: true, currency: true } } } })
+  return json({ ...row[0], movements })
 }
 
 export async function POST(request: Request) {
@@ -76,6 +79,38 @@ export async function POST(request: Request) {
     })
     if (!result) return error('No hay una caja abierta para esta sucursal.', 409)
     return json({ ...result.row, differencePyg: countedPyg - result.expectedPyg })
+  }
+  if (action === 'movement') {
+    const kind = body.kind; const direction = body.direction; const currency = body.currency ?? 'PYG'
+    const originalAmount = Number(body.originalAmount); const exchangeRatePyg = Number(body.exchangeRatePyg ?? 1)
+    const description = typeof body.description === 'string' ? body.description.trim() : ''
+    const counterparty = body.counterparty == null || body.counterparty === '' ? null : typeof body.counterparty === 'string' && body.counterparty.trim().length <= 200 ? body.counterparty.trim() : undefined
+    const reference = body.reference == null || body.reference === '' ? null : typeof body.reference === 'string' && body.reference.trim().length <= 200 ? body.reference.trim() : undefined
+    const dueAt = body.dueAt ? new Date(String(body.dueAt)) : null
+    if (!movementKinds.includes(kind) || !['IN', 'OUT'].includes(direction) || !currencies.includes(currency) || !Number.isFinite(originalAmount) || originalAmount <= 0 || !Number.isFinite(exchangeRatePyg) || exchangeRatePyg <= 0 || (currency === 'PYG' && exchangeRatePyg !== 1) || !description || description.length > 500 || counterparty === undefined || reference === undefined || (dueAt && !Number.isFinite(dueAt.getTime()))) return error('Movimiento financiero inválido.')
+    const amountPyg = Math.round(originalAmount * exchangeRatePyg); if (!int(amountPyg) || amountPyg === 0) return error('Monto convertido fuera de rango.')
+    const accountId = body.accountId == null || body.accountId === '' ? null : typeof body.accountId === 'string' ? body.accountId : undefined
+    if (accountId === undefined) return error('Cuenta inválida.')
+    try {
+      const movement = await prisma.$transaction(async tx => {
+        if (accountId) {
+          const account = await tx.paymentAccount.findFirst({ where: { id: accountId, tenantId: ctx.session.user.tenantId, isActive: true } })
+          if (!account || account.currency !== currency) throw new Error('Cuenta no válida para la moneda indicada.')
+        }
+        const created = await tx.cashMovement.create({ data: { tenantId: ctx.session.user.tenantId, branchId: ctx.branchId, accountId, createdById: ctx.session.user.id, kind, direction, currency, originalAmount: String(originalAmount), exchangeRatePyg: String(exchangeRatePyg), amountPyg, counterparty, reference, description, dueAt, status: kind === 'CHEQUE' ? 'PENDING' : 'CLEARED', clearedAt: kind === 'CHEQUE' ? null : new Date() }, include: { account: { select: { id: true, name: true, currency: true } } } })
+        await tx.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: 'CASH_MOVEMENT_RECORDED', entity: 'CashMovement', entityId: created.id, metadata: { kind, direction, currency, originalAmount, exchangeRatePyg, amountPyg, accountId } } })
+        return created
+      })
+      return json(movement, { status: 201 })
+    } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo registrar el movimiento.', 409) }
+  }
+  if (action === 'clear-movement') {
+    const id = typeof body.id === 'string' ? body.id : ''
+    if (!id) return error('Movimiento obligatorio.')
+    const updated = await prisma.cashMovement.updateMany({ where: { id, tenantId: ctx.session.user.tenantId, ...(ctx.session.user.role === 'ADMIN' ? {} : { branchId: ctx.branchId }), status: 'PENDING' }, data: { status: 'CLEARED', clearedAt: new Date() } })
+    if (!updated.count) return error('Movimiento pendiente no encontrado.', 404)
+    await prisma.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: 'CASH_MOVEMENT_CLEARED', entity: 'CashMovement', entityId: id, metadata: {} } })
+    return json({ id, status: 'CLEARED' })
   }
   return error('Acción de caja inválida.')
 }

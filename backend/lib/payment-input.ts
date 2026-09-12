@@ -21,7 +21,7 @@ export function decimalInput(value: unknown, name: string, scale: number, allowZ
 export type TradeInInput = { serial: string; model: string; conditionNotes: string }
 type NormalizedPayment = {
   method: PaymentMethod; status: PaymentStatus; amountPyg: number; reference: string | null;
-  accountId?: string; accountSnapshot?: Prisma.InputJsonObject; currency?: 'PYG' | 'USD';
+  accountId?: string; accountSnapshot?: Prisma.InputJsonObject; currency?: 'PYG' | 'USD' | 'BRL' | 'EUR' | 'USDT';
   originalAmount?: Prisma.Decimal; exchangeRatePyg?: Prisma.Decimal;
   tradeIn?: TradeInInput;
 }
@@ -51,11 +51,11 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
       if (!account) throw new InputError('Cuenta de pago no encontrada o inactiva.', 409)
       snapshot = accountSnapshot(account)
     }
-    const currency = snapshot.currency as 'PYG' | 'USD'
+    const currency = snapshot.currency as 'PYG' | 'USD' | 'BRL' | 'EUR' | 'USDT'
     const method = snapshot.kind as PaymentMethod
     if (input.method !== undefined && input.method !== method) throw new InputError('El método no coincide con la cuenta.')
     if (input.currency !== undefined && input.currency !== currency) throw new InputError('La moneda no coincide con la cuenta.')
-    const originalAmount = decimalInput(input.originalAmount, 'originalAmount', currency === 'PYG' ? 0 : 2)
+    const originalAmount = decimalInput(input.originalAmount, 'originalAmount', currency === 'PYG' ? 0 : 8)
     const exchangeRatePyg = decimalInput(input.exchangeRatePyg ?? (currency === 'PYG' ? 1 : undefined), 'exchangeRatePyg', 6)
     if (currency === 'PYG' && !exchangeRatePyg.eq(1)) throw new InputError('La cotización PYG debe ser 1.')
     const converted = originalAmount.mul(exchangeRatePyg).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)

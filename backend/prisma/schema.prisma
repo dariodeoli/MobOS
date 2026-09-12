@@ -14,6 +14,7 @@ model Tenant {
   cashSessions        CashSession[]
   purchases           PurchaseOrder[]
   warrantyCases       WarrantyCase[]
+  cashMovements       CashMovement[]
   id                  String           @id @default(cuid())
   name                String
   email               String?          @unique
@@ -55,6 +56,7 @@ model Branch {
   cashSessions   CashSession[]
   purchases      PurchaseOrder[]
   warrantyCases  WarrantyCase[]
+  cashMovements  CashMovement[]
   id             String          @id @default(cuid())
   tenantId       String
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -93,8 +95,13 @@ model User {
   pinHash             String
   role                UserRole        @default(VENDEDOR)
   status              UserStatus      @default(ACTIVE)
+  // Subconjunto opcional del rol: restringe, nunca amplía permisos.
+  permissions         Json?
+  // Horario semanal opcional, expresado en una zona IANA. Null = sin restricción.
+  accessSchedule      Json?
   failedLoginAttempts Int             @default(0)
   lockedUntil         DateTime?
+  lastAccessAt        DateTime?
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -572,6 +579,8 @@ model PaymentAccount {
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
   payments      Payment[]
+  cashMovements CashMovement[]
+  purchasePayments PurchasePayment[]
 
   @@index([tenantId, isActive])
 }
@@ -592,6 +601,10 @@ model TradeInDevice {
   valuePyg       Int
   status         TradeInStatus @default(RECEIVED)
   repairCostPyg  Int           @default(0)
+  diagnosis      String?
+  technicianName String?
+  accessories    Json          @default("[]")
+  photos         Json          @default("[]")
   notes          String?
   productId      String?       @unique
   product        Product?      @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -654,6 +667,57 @@ model CashSession {
   @@index([tenantId, branchId, openedAt])
 }
 
+// Libro de movimientos no ligados a una venta: gastos, cheques, adelantos y
+// transferencias. Cada registro conserva la moneda/cotización de su fecha.
+model CashMovement {
+  id              String          @id @default(cuid())
+  tenantId        String
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId        String?
+  branch          Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  accountId       String?
+  account         PaymentAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  createdById     String
+  kind            CashMovementKind
+  direction       CashDirection
+  currency        PaymentCurrency @default(PYG)
+  originalAmount  Decimal         @db.Decimal(18, 2)
+  exchangeRatePyg Decimal         @default(1) @db.Decimal(18, 6)
+  amountPyg       Int
+  counterparty    String?
+  reference       String?
+  description     String
+  status          CashMovementStatus @default(PENDING)
+  dueAt           DateTime?
+  clearedAt       DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([tenantId, branchId, createdAt])
+  @@index([tenantId, status, dueAt])
+  @@index([accountId, createdAt])
+}
+
+enum CashMovementKind {
+  EXPENSE
+  TRANSFER
+  SUPPLIER_ADVANCE
+  CHEQUE
+  OWNER_WITHDRAWAL
+  ADJUSTMENT
+}
+
+enum CashDirection {
+  IN
+  OUT
+}
+
+enum CashMovementStatus {
+  PENDING
+  CLEARED
+  VOID
+}
+
 enum PurchaseStatus {
   DRAFT
   RECEIVED
@@ -673,7 +737,16 @@ model PurchaseOrder {
   createdBy    User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
   shippingPyg  Int            @default(0)
   customsPyg   Int            @default(0)
+  insurancePyg Int            @default(0)
+  taxesPyg     Int            @default(0)
+  otherCostsPyg Int           @default(0)
+  currency     PaymentCurrency @default(PYG)
+  exchangeRatePyg Decimal     @default(1) @db.Decimal(18, 6)
+  originalSubtotal Decimal?   @db.Decimal(18, 2)
+  dueAt        DateTime?
+  supplierReference String?
   lines        PurchaseLine[]
+  payments     PurchasePayment[]
 
   @@index([tenantId, createdAt])
   @@index([tenantId, status])
@@ -690,6 +763,25 @@ model PurchaseLine {
 
   @@index([purchaseId])
   @@index([productId])
+}
+
+model PurchasePayment {
+  id              String          @id @default(cuid())
+  tenantId        String
+  purchaseId      String
+  purchase        PurchaseOrder   @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  accountId       String?
+  account         PaymentAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  amountPyg       Int
+  currency        PaymentCurrency @default(PYG)
+  originalAmount  Decimal         @db.Decimal(18, 2)
+  exchangeRatePyg Decimal         @default(1) @db.Decimal(18, 6)
+  reference       String?
+  paidAt          DateTime        @default(now())
+  createdById     String
+  createdAt       DateTime        @default(now())
+
+  @@index([tenantId, purchaseId, paidAt])
 }
 
 enum WarrantyStatus {
@@ -712,6 +804,12 @@ model WarrantyCase {
   description     String
   status          WarrantyStatus @default(RECEIVED)
   responsibleName String?
+  diagnosis       String?
+  technicianName  String?
+  parts           Json           @default("[]")
+  photos          Json           @default("[]")
+  resolution      String?
+  repairCostPyg   Int            @default(0)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @default(now()) @updatedAt
   expiresAt       DateTime?

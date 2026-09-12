@@ -8,6 +8,17 @@ const rank = (status: string) => STATUSES.indexOf(status as (typeof STATUSES)[nu
 const canManage = (role: string) => role === 'ADMIN' || role === 'GERENTE'
 const withinLimit = (value: unknown) => typeof value === 'string' && value.trim().length <= 2000
 const validDate = (value: unknown) => value === undefined || value === null || (typeof value === 'string' && Number.isFinite(new Date(value).getTime()))
+const list = (value: unknown, name: string) => {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value) || value.length > 20 || value.some(item => typeof item !== 'string' || !item.trim() || item.length > 500)) throw new Error(`${name} debe ser una lista de hasta 20 textos.`)
+  return value.map(item => item.trim())
+}
+const optionalText = (value: unknown, name: string, limit = 2000) => {
+  if (value === undefined) return undefined
+  if (value === null || value === '') return null
+  if (typeof value !== 'string' || value.trim().length > limit) throw new Error(`${name} debe ser texto de hasta ${limit} caracteres.`)
+  return value.trim() || null
+}
 
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
@@ -52,7 +63,8 @@ export async function POST(request: Request) {
         if (!item.length) throw new Error('Ítem de venta fuera del tenant o sucursal.')
       }
       const id = randomUUID()
-      await tx.$executeRaw`INSERT INTO "WarrantyCase" ("id", "tenantId", "branchId", "orderItemId", "customerName", "serial", "description", "responsibleName", "expiresAt") VALUES (${id}, ${tenant}, ${branchId}, ${body.orderItemId || null}, ${customerName}, ${serial}, ${description}, ${typeof body.responsibleName === 'string' ? body.responsibleName.trim() : null}, ${body.expiresAt ? new Date(body.expiresAt) : null})`
+      const diagnosis = optionalText(body.diagnosis, 'diagnosis'); const technicianName = optionalText(body.technicianName, 'technicianName', 200); const photos = list(body.photos, 'photos'); const parts = list(body.parts, 'parts')
+      await tx.warrantyCase.create({ data: { id, tenantId: tenant, branchId, orderItemId: body.orderItemId || null, customerName, serial, description, responsibleName: typeof body.responsibleName === 'string' ? body.responsibleName.trim() : null, expiresAt: body.expiresAt ? new Date(body.expiresAt) : null, diagnosis: diagnosis ?? null, technicianName: technicianName ?? null, ...(photos ? { photos } : {}), ...(parts ? { parts } : {}) } })
       await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${tenant}, ${session.user.id}, 'WARRANTY_CREATED', 'WarrantyCase', ${id}, ${JSON.stringify({ serial, branchId })}::jsonb)`
       return tx.$queryRaw`SELECT * FROM "WarrantyCase" WHERE "id" = ${id}`
     })
@@ -75,9 +87,11 @@ export async function PATCH(request: Request) {
       if (!STATUSES.includes(next) || rank(next) < rank(current[0].status) || rank(next) > rank(current[0].status) + 1) throw new Error('Transición de garantía no permitida.')
       if (body.description !== undefined && !withinLimit(body.description)) throw new Error('La descripción no puede superar 2000 caracteres.')
       if (body.responsibleName !== undefined && !withinLimit(body.responsibleName)) throw new Error('El responsable no puede superar 2000 caracteres.')
-      await tx.$executeRaw`UPDATE "WarrantyCase" SET "status" = ${next}::"WarrantyStatus", "responsibleName" = COALESCE(${typeof body.responsibleName === 'string' ? body.responsibleName.trim() : null}, "responsibleName"), "description" = COALESCE(${typeof body.description === 'string' ? body.description.trim() : null}, "description"), "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ${body.id} AND "tenantId" = ${tenant}`
+      const diagnosis = optionalText(body.diagnosis, 'diagnosis'); const technicianName = optionalText(body.technicianName, 'technicianName', 200); const resolution = optionalText(body.resolution, 'resolution'); const photos = list(body.photos, 'photos'); const parts = list(body.parts, 'parts'); const repairCostPyg = body.repairCostPyg === undefined ? undefined : Number(body.repairCostPyg)
+      if (repairCostPyg !== undefined && (!Number.isSafeInteger(repairCostPyg) || repairCostPyg < 0 || repairCostPyg > 2147483647)) throw new Error('Costo de reparación inválido.')
+      const updated = await tx.warrantyCase.update({ where: { id: body.id }, data: { status: next, ...(typeof body.responsibleName === 'string' ? { responsibleName: body.responsibleName.trim() || null } : {}), ...(typeof body.description === 'string' ? { description: body.description.trim() } : {}), ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(resolution !== undefined ? { resolution } : {}), ...(photos !== undefined ? { photos } : {}), ...(parts !== undefined ? { parts } : {}), ...(repairCostPyg !== undefined ? { repairCostPyg } : {}) } })
       await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${tenant}, ${session.user.id}, 'WARRANTY_UPDATED', 'WarrantyCase', ${body.id}, ${JSON.stringify({ from: current[0].status, to: next })}::jsonb)`
-      return tx.$queryRaw`SELECT * FROM "WarrantyCase" WHERE "id" = ${body.id} AND "tenantId" = ${tenant}`
+      return updated
     })
     return json(Array.isArray(result) ? result[0] : result)
   } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo actualizar la garantía.', 409) }

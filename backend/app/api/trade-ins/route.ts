@@ -9,6 +9,17 @@ const transitions: Record<TradeInStatus, TradeInStatus[]> = {
   READY: ['REPAIR', 'STOCK', 'SOLD_EXTERNAL'], STOCK: [], SOLD_EXTERNAL: [],
 }
 const canManage = (role: string) => role === 'ADMIN' || role === 'GERENTE'
+const textOrNull = (value: unknown, field: string, limit = 2000) => {
+  if (value === undefined) return undefined
+  if (value === null || value === '') return null
+  if (typeof value !== 'string' || value.trim().length > limit) throw new InputError(`${field} debe ser texto de hasta ${limit} caracteres.`)
+  return value.trim() || null
+}
+const stringList = (value: unknown, field: string) => {
+  if (value === undefined) return undefined
+  if (!Array.isArray(value) || value.length > 20 || value.some(item => typeof item !== 'string' || item.trim().length === 0 || item.length > 500)) throw new InputError(`${field} debe ser una lista de hasta 20 textos.`)
+  return value.map(item => item.trim())
+}
 function includeRelations(admin: boolean): Prisma.TradeInDeviceInclude {
   return {
     order: { select: { id: true, orderNumber: true, customer: { select: { id: true, name: true, phone: true } } } },
@@ -58,6 +69,10 @@ export async function PATCH(request: Request) {
     const body = objectInput(await request.json())
     const id = textInput(body.id, 'id', 200)
     const notes = body.notes === undefined ? undefined : textInput(body.notes, 'notes')
+    const diagnosis = textOrNull(body.diagnosis, 'diagnosis')
+    const technicianName = textOrNull(body.technicianName, 'technicianName', 200)
+    const accessories = stringList(body.accessories, 'accessories')
+    const photos = stringList(body.photos, 'photos')
     const increment = body.repairCostPyg === undefined ? 0 : body.repairCostPyg
     if (!Number.isSafeInteger(increment) || Number(increment) < 0 || Number(increment) > INT_MAX || (body.repairCostPyg !== undefined && increment === 0)) throw new InputError('repairCostPyg debe ser un incremento entero positivo.')
     const result = await prisma.$transaction(async tx => {
@@ -68,7 +83,7 @@ export async function PATCH(request: Request) {
       const next = (body.status ?? current.status) as TradeInStatus
       if (!Object.hasOwn(transitions, next) || (body.status !== undefined && !transitions[current.status].includes(next))) throw new InputError('Transición de trade-in no permitida.', 409)
       if (current.status === 'STOCK' || current.status === 'SOLD_EXTERNAL') throw new InputError('El equipo ya tiene una salida registrada.', 409)
-      if (!body.status && notes === undefined && !increment) throw new InputError('Faltan cambios.')
+      if (!body.status && notes === undefined && !increment && diagnosis === undefined && technicianName === undefined && accessories === undefined && photos === undefined) throw new InputError('Faltan cambios.')
       if (increment && current.status !== 'REPAIR' && next !== 'REPAIR') throw new InputError('Los costos se registran durante reparación.', 409)
       const repairCostPyg = current.repairCostPyg + Number(increment)
       if (!Number.isSafeInteger(repairCostPyg) || repairCostPyg > INT_MAX) throw new InputError('Costo acumulado fuera de rango.')
@@ -86,12 +101,12 @@ export async function PATCH(request: Request) {
           imei: current.serial, condition: 'USED', stock: 1, pricePyg: Number(body.pricePyg), destination: body.destination as ProductDestination } })
         productId = product.id
       }
-      const updated = await tx.tradeInDevice.update({ where: { id }, data: { status: next, notes, productId, ...(increment ? { repairCostPyg: { increment: Number(increment) } } : {}) }, include: includeRelations(admin) })
+      const updated = await tx.tradeInDevice.update({ where: { id }, data: { status: next, notes, productId, ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(accessories !== undefined ? { accessories } : {}), ...(photos !== undefined ? { photos } : {}), ...(increment ? { repairCostPyg: { increment: Number(increment) } } : {}) }, include: includeRelations(admin) })
       if (increment) await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'TRADE_IN_REPAIR_COST_ADDED', entity: 'TradeInDevice', entityId: id,
         metadata: { incrementPyg: Number(increment), beforePyg: current.repairCostPyg, afterPyg: repairCostPyg, notes: notes ?? null } } })
       await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: next === 'STOCK' ? 'TRADE_IN_PUBLISHED' : next === 'SOLD_EXTERNAL' ? 'TRADE_IN_SOLD_EXTERNAL' : 'TRADE_IN_UPDATED', entity: 'TradeInDevice', entityId: id,
         metadata: { from: current.status, to: next, notes: notes ?? null, previousNotes: current.notes, productId: productId ?? null,
-          ...(next === 'STOCK' ? { pricePyg: Number(body.pricePyg), destination: body.destination as string } : {}) } } })
+          ...(next === 'STOCK' ? { pricePyg: Number(body.pricePyg), destination: body.destination as string } : {}), ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(accessories !== undefined ? { accessoriesCount: accessories.length } : {}), ...(photos !== undefined ? { photosCount: photos.length } : {}) } } })
       return updated
     })
     return json(result)

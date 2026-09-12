@@ -11,7 +11,7 @@ function accountData(input: Record<string, unknown>, create: boolean) {
     if (input[field] !== undefined) data[field] = input[field] === null || input[field] === '' ? null : textInput(input[field], field, 200)
   }
   if (create || input.currency !== undefined) {
-    if (!['PYG', 'USD'].includes(input.currency as string)) throw new InputError('Moneda inválida.')
+    if (!['PYG', 'USD', 'BRL', 'EUR', 'USDT'].includes(input.currency as string)) throw new InputError('Moneda inválida.')
     data.currency = input.currency as PaymentCurrency
   }
   if (create || input.kind !== undefined) {

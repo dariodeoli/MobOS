@@ -4,7 +4,7 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { purchasesApi } from '@/lib/api/purchases'
 import { loadDemoPurchases, createDemoPurchase, receiveDemoPurchase } from '@/lib/demoPurchases'
 import { gs, formatGsInput, parseGsInput } from '@/utils/calculos'
-import { Badge, Button, Card, Input } from '@/components/ui'
+import { Badge, Button, Card, Input, Select } from '@/components/ui'
 
 const emptyLine = { productId: '', quantity: '1', unitCostPyg: '0' }
 
@@ -28,6 +28,11 @@ export default function Compras() {
   const [branchId, setBranchId] = useState('')
   const [shippingPyg, setShippingPyg] = useState('0')
   const [customsPyg, setCustomsPyg] = useState('0')
+  const [insurancePyg, setInsurancePyg] = useState('0')
+  const [taxesPyg, setTaxesPyg] = useState('0')
+  const [otherCostsPyg, setOtherCostsPyg] = useState('0')
+  const [currency, setCurrency] = useState('PYG')
+  const [exchangeRatePyg, setExchangeRatePyg] = useState('1')
   const [line, setLine] = useState(emptyLine)
   const [busy, setBusy] = useState(!demo)
   const [error, setError] = useState('')
@@ -44,12 +49,12 @@ export default function Compras() {
   async function create(e) {
     e.preventDefault(); setError(''); setMessage('')
     if (!supplierName.trim() || !line.productId || !Number.isSafeInteger(Number(line.quantity)) || Number(line.quantity) <= 0 || !Number.isSafeInteger(Number(line.unitCostPyg)) || Number(line.unitCostPyg) < 0) return setError('Proveedor, producto, cantidad y costo son obligatorios.')
-    const payload = { supplierName: supplierName.trim(), branchId: branchId || undefined, shippingPyg: Number(shippingPyg), customsPyg: Number(customsPyg), lines: [{ productId: line.productId, quantity: Number(line.quantity), unitCostPyg: Number(line.unitCostPyg) }] }
+    const payload = { supplierName: supplierName.trim(), branchId: branchId || undefined, shippingPyg: Number(shippingPyg), customsPyg: Number(customsPyg), insurancePyg: Number(insurancePyg), taxesPyg: Number(taxesPyg), otherCostsPyg: Number(otherCostsPyg), currency, exchangeRatePyg: Number(exchangeRatePyg), lines: [{ productId: line.productId, quantity: Number(line.quantity), unitCostPyg: Number(line.unitCostPyg) }] }
     setBusy(true)
     try {
       if (demo) { const created = { ...payload, id: `demo-purchase-${Date.now()}`, status: 'DRAFT', createdAt: new Date().toISOString(), receivedAt: null, lines: [{ ...payload.lines[0], id: `demo-line-${Date.now()}`, productName: products.find((p) => p.id === line.productId)?.nombre } ] }; createDemoPurchase(created); setPurchases(loadDemoPurchases()) }
       else { const created = await purchasesApi.create(payload); setPurchases((items) => [created, ...items]) }
-      setSupplierName(''); setLine(emptyLine); setMessage('Compra creada.')
+      setSupplierName(''); setLine(emptyLine); setInsurancePyg('0'); setTaxesPyg('0'); setOtherCostsPyg('0'); setMessage('Compra creada.')
     } catch (err) { setError(err?.message || 'No se pudo crear la compra.') } finally { setBusy(false) }
   }
   async function receive(purchase) {
@@ -66,8 +71,8 @@ export default function Compras() {
       <form onSubmit={create} className="space-y-3">
         <div className="grid gap-2 sm:grid-cols-2"><Input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="Proveedor" /><Input value={branchId} onChange={(e) => setBranchId(e.target.value)} placeholder="Sucursal (opcional)" /></div>
         <ProductPicker products={products} line={line} onChange={setLine} />
-        <div className="grid gap-2 sm:grid-cols-2"><Input inputMode="numeric" value={formatGsInput(shippingPyg)} onChange={(e) => setShippingPyg(parseGsInput(e.target.value))} placeholder="Flete ₲" /><Input inputMode="numeric" value={formatGsInput(customsPyg)} onChange={(e) => setCustomsPyg(parseGsInput(e.target.value))} placeholder="Aduana ₲" /></div>
-        <div className="flex items-center justify-between text-sm text-mute"><span>Total línea: {gs(lineTotal || 0)}</span><Button type="submit" disabled={busy}>Crear pedido</Button></div>
+        <div className="grid gap-2 sm:grid-cols-2"><Input inputMode="numeric" value={formatGsInput(shippingPyg)} onChange={(e) => setShippingPyg(parseGsInput(e.target.value))} placeholder="Flete ₲" /><Input inputMode="numeric" value={formatGsInput(customsPyg)} onChange={(e) => setCustomsPyg(parseGsInput(e.target.value))} placeholder="Aduana ₲" /><Input inputMode="numeric" value={formatGsInput(insurancePyg)} onChange={(e) => setInsurancePyg(parseGsInput(e.target.value))} placeholder="Seguro ₲" /><Input inputMode="numeric" value={formatGsInput(taxesPyg)} onChange={(e) => setTaxesPyg(parseGsInput(e.target.value))} placeholder="Impuestos ₲" /><Input inputMode="numeric" value={formatGsInput(otherCostsPyg)} onChange={(e) => setOtherCostsPyg(parseGsInput(e.target.value))} placeholder="Otros costos ₲" /><div className="grid grid-cols-2 gap-2"><Select value={currency} onChange={(e) => setCurrency(e.target.value)}>{['PYG', 'USD', 'BRL', 'EUR', 'USDT'].map((item) => <option key={item}>{item}</option>)}</Select><Input inputMode="decimal" disabled={currency === 'PYG'} value={exchangeRatePyg} onChange={(e) => setExchangeRatePyg(e.target.value)} placeholder="Cotización PYG" /></div></div>
+        <div className="flex items-center justify-between text-sm text-mute"><span>Total estimado: {gs(lineTotal + Number(shippingPyg) + Number(customsPyg) + Number(insurancePyg) + Number(taxesPyg) + Number(otherCostsPyg) || 0)}</span><Button type="submit" disabled={busy}>Crear pedido</Button></div>
       </form>
       {error && <p className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
       {message && <p className="mt-3 rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">{message}</p>}
