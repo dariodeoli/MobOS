@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRight, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { useSesion } from '@/lib/sesion'
 import { publicUrls } from '@/lib/urls'
+import { APP_CREDIT, APP_CREDIT_URL, APP_VERSION } from '@/lib/brand'
 
 const demoProfiles = [
   {
@@ -169,6 +170,9 @@ export default function DemoAccess() {
           </div>
         </section>
       </div>
+      <footer className="relative mx-auto mt-4 max-w-6xl text-center text-xs text-slate-500">
+        {APP_VERSION} · <a href={APP_CREDIT_URL} target="_blank" rel="noreferrer" className="text-[#15D7B8] hover:underline">{APP_CREDIT}</a>
+      </footer>
     </main>
   )
 }

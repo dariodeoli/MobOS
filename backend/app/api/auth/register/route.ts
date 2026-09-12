@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '../../../../lib/prisma'
 import { authenticateCompany } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
+import { COOKIE_COMPANY, sessionCookieOptions } from '../../../../lib/google-oauth'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -38,5 +39,7 @@ export async function POST(request: Request) {
 
   const session = await authenticateCompany({ email, password, deviceId })
   if (!session) return error('La tienda fue creada, pero no se pudo abrir la sesión. Iniciá sesión con tus credenciales.', 500)
-  return json({ companyToken: session.accessToken, expiresAt: session.expiresAt, tenant: session.tenant, sellers: session.sellers, scope: session.scope }, { status: 201 })
+  const response = json({ expiresAt: session.expiresAt, tenant: session.tenant, sellers: session.sellers, scope: session.scope }, { status: 201 })
+  response.cookies.set(COOKIE_COMPANY, session.accessToken, sessionCookieOptions(7 * 24 * 60 * 60))
+  return response
 }

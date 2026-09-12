@@ -1,57 +1,36 @@
-import { api, API_URL, TOKEN_KEY } from './client'
+import { api, API_URL } from './client'
 
-const COMPANY_TOKEN_KEY = 'owncoding_hub_company_token'
 const COMPANY_CONTEXT_KEY = 'owncoding_hub_company_context'
+const LEGACY_KEYS = ['owncoding_hub_access_token', 'owncoding_hub_company_token']
 
-export function getAccessToken() {
-  try {
-    return localStorage.getItem(TOKEN_KEY)
-  } catch {
-    return null
-  }
-}
-
-export function setAccessToken(token) {
-  if (!token) return clearSession()
-  try {
-    localStorage.setItem(TOKEN_KEY, token)
-  } catch {
-    // La API sigue funcionando con un token administrado por el consumidor.
-  }
-}
-
-export function clearAccessToken() {
-  try { localStorage.removeItem(TOKEN_KEY) } catch {}
-}
-
-export function getCompanyToken() {
-  try { return localStorage.getItem(COMPANY_TOKEN_KEY) } catch { return null }
-}
+// Compatibilidad sin conservar secretos: las exportaciones viejas se vuelven
+// no-op y se limpian en el primer uso de la versión con cookies.
+export function getAccessToken() { return null }
+export function setAccessToken() { clearLegacyTokens() }
+export function clearAccessToken() { clearLegacyTokens() }
+export function getCompanyToken() { return null }
 
 export function getCompanyContext() {
   try { return JSON.parse(localStorage.getItem(COMPANY_CONTEXT_KEY) || 'null') } catch { return null }
 }
 
-export function setCompanyToken(token) {
-  if (!token) return clearCompanyToken()
-  localStorage.setItem(COMPANY_TOKEN_KEY, token)
-}
+export function setCompanyToken() { clearLegacyTokens() }
 
 function setCompanyContext(context) {
   try { localStorage.setItem(COMPANY_CONTEXT_KEY, JSON.stringify(context)) } catch {}
 }
 
 export function clearCompanyToken() {
-  try { localStorage.removeItem(COMPANY_TOKEN_KEY); localStorage.removeItem(COMPANY_CONTEXT_KEY) } catch {}
+  try { localStorage.removeItem(COMPANY_CONTEXT_KEY); clearLegacyTokens() } catch {}
 }
 
 export function clearSession() {
-  try {
-    localStorage.removeItem(TOKEN_KEY)
-  } catch {
-    // Puede ocurrir en contextos sin almacenamiento disponible.
-  }
+  clearLegacyTokens()
   clearCompanyToken()
+}
+
+function clearLegacyTokens() {
+  try { LEGACY_KEYS.forEach(key => localStorage.removeItem(key)) } catch {}
 }
 
 /** Sesiones del API propio de MobOS. */
@@ -70,27 +49,23 @@ export const sessionApi = {
   },
   loginCompany: async (credentials) => {
     const session = await api.post('/api/auth/login', credentials)
-    if (!session?.companyToken) throw new Error('El servidor no devolvió un token de empresa válido.')
-    setCompanyToken(session.companyToken)
-    setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [] })
+    if (!session?.tenant) throw new Error('El servidor no pudo abrir la sesión de la empresa.')
+    clearLegacyTokens()
+    setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], cookieSession: true })
     return session
   },
   registerCompany: async (details) => {
     const session = await api.post('/api/auth/register', details)
-    if (!session?.companyToken) throw new Error('El servidor no devolvió una sesión de empresa válida.')
-    setCompanyToken(session.companyToken)
-    setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [] })
+    if (!session?.tenant) throw new Error('El servidor no pudo abrir la sesión de la empresa.')
+    clearLegacyTokens()
+    setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], cookieSession: true })
     return session
   },
   loginSeller: async (credentials) => {
-    const companyToken = getCompanyToken()
-    if (!companyToken && !getCompanyContext()?.cookieSession) throw new Error('Primero hay que autenticar la empresa.')
-    const session = await api.post('/api/auth/pin', credentials, {
-      credentials: 'include',
-      headers: { Authorization: companyToken ? `Bearer ${companyToken}` : '' },
-    })
-    if (!session?.accessToken) throw new Error('El servidor no devolvió una sesión válida.')
-    setAccessToken(session.accessToken)
+    if (!getCompanyContext()?.cookieSession) throw new Error('Primero hay que autenticar la empresa.')
+    const session = await api.post('/api/auth/pin', credentials)
+    if (!session?.user) throw new Error('El servidor no devolvió una sesión válida.')
+    clearLegacyTokens()
     return session
   },
   // Alias temporal para consumidores que ya conocen el flujo PIN.
@@ -98,12 +73,7 @@ export const sessionApi = {
   me: () => api.get('/api/auth/me'),
   logoutSeller: () => api.post('/api/auth/logout'),
   logoutCompany: () => {
-    const companyToken = getCompanyToken()
-    return companyToken
-      ? api.post('/api/auth/logout', undefined, { headers: { Authorization: `Bearer ${companyToken}` } })
-      : getCompanyContext()?.cookieSession
-        ? api.post('/api/auth/logout', undefined, { credentials: 'include', headers: { Authorization: '' } })
-        : Promise.resolve({ ok: true })
+    return getCompanyContext()?.cookieSession ? api.post('/api/auth/logout') : Promise.resolve({ ok: true })
   },
   logout: async () => {
     const results = await Promise.allSettled([sessionApi.logoutSeller(), sessionApi.logoutCompany()])

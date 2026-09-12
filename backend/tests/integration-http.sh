@@ -167,6 +167,24 @@ request() {
   fi
 }
 
+# Las credenciales de producción no se devuelven en JSON. Este helper extrae
+# la cookie emitida por el servidor únicamente dentro del arnés temporal para
+# seguir verificando los límites entre sesión de empresa y sesión de vendedor.
+auth_cookie() {
+  local method="$1" path="$2" expected="$3" body="$4" output="$5" token="$6" cookie_name="$7"
+  local headers="$RUN_ROOT/headers.$RANDOM"
+  local -a args=(--silent --show-error --request "$method" --output "$output" --dump-header "$headers" --write-out '%{http_code}')
+  if [[ -n "$token" ]]; then args+=(--header "Authorization: Bearer $token"); fi
+  if [[ -n "$body" ]]; then args+=(--header 'Content-Type: application/json' --data "$body"); fi
+  local status
+  status="$(curl "${args[@]}" "$BASE_URL$path")"
+  if [[ "$status" != "$expected" ]]; then echo "FALLÓ $method $path: esperado HTTP $expected, recibido $status" >&2; exit 1; fi
+  local value
+  value="$(grep -i "^set-cookie: $cookie_name=" "$headers" | sed -E "s/^[Ss]et-[Cc]ookie: $cookie_name=([^;]*).*/\\1/" | tail -n 1)"
+  if [[ -z "$value" ]]; then echo "No se emitió la cookie HttpOnly esperada: $cookie_name" >&2; exit 1; fi
+  printf '%s' "$value"
+}
+
 json_field() {
   node - "$1" "$2" <<'NODE'
 const fs = require('node:fs')
@@ -266,9 +284,7 @@ out="$(response_file)"; request GET /api/products 401 '' "$out" '' tenant-a-it
 out="$(response_file)"; request GET /api/orders 401 '' "$out" '' tenant-a-it
 
 echo "2/11 Login de empresa y companyToken sin acceso a datos..."
-out="$(response_file)"; request POST /api/auth/login 200 '{"email":"company-a-it@example.invalid","password":"company-password-it","deviceId":"device-a-it","branchId":"branch-a-it"}' "$out" '' ''
-COMPANY_TOKEN_A="$(json_field "$out" companyToken)"
-if [[ -z "$COMPANY_TOKEN_A" ]]; then echo "Login de empresa no devolvió companyToken." >&2; exit 1; fi
+out="$(response_file)"; COMPANY_TOKEN_A="$(auth_cookie POST /api/auth/login 200 '{"email":"company-a-it@example.invalid","password":"company-password-it","deviceId":"device-a-it","branchId":"branch-a-it"}' "$out" '' mobos_company_session)"
 assert_login_tenant "$out" || { echo "Login no devolvió el tenant esperado." >&2; exit 1; }
 out="$(response_file)"; request GET /api/products 401 '' "$out" "$COMPANY_TOKEN_A" ''
 out="$(response_file)"; request GET /api/orders 401 '' "$out" "$COMPANY_TOKEN_A" ''
@@ -276,9 +292,7 @@ out="$(response_file)"; request GET /api/auth/me 401 '' "$out" "$COMPANY_TOKEN_A
 
 echo "3/11 PIN bcrypt, vendedor ajeno y aislamiento por sesión..."
 out="$(response_file)"; request POST /api/auth/pin 401 '{"sellerId":"user-b-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
-out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-a-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
-TOKEN_A="$(json_field "$out" accessToken)"
-if [[ -z "$TOKEN_A" ]]; then echo "Login PIN no devolvió accessToken." >&2; exit 1; fi
+out="$(response_file)"; TOKEN_A="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-a-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; request GET /api/products 200 '' "$out" "$TOKEN_A" tenant-b-it
 assert_products_for_tenant "$out" || { echo "El header de otra empresa alteró el tenant de la sesión." >&2; exit 1; }
 
@@ -342,8 +356,7 @@ out="$(response_file)"; request GET /api/orders 200 '' "$out" "$TOKEN_A" tenant-
 assert_confirmed_payment_total "$out" IT-CONCURRENT-001 60000 || { echo "Los pagos concurrentes superaron o duplicaron el total confirmado." >&2; exit 1; }
 
 node "$BACKEND_ROOT/tests/new-modules.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
-out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
-ADMIN_TOKEN="$(json_field "$out" accessToken)"
+out="$(response_file)"; ADMIN_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; request PATCH /api/products 200 '{"id":"prod-a-rollback-it","costPyg":55000}' "$out" "$ADMIN_TOKEN" ''
 if [[ "$(json_field "$out" costPyg)" != "55000" ]]; then echo "PATCH no guardó el costo del producto." >&2; exit 1; fi
 out="$(response_file)"; request PATCH /api/products 400 '{"id":"prod-a-rollback-it","costPyg":-1}' "$out" "$ADMIN_TOKEN" ''
@@ -356,10 +369,8 @@ SELLER_PRIVACY_SELLER_ID="user-a-it" SELLER_PRIVACY_OTHER_ORDER_ID="$PRIVATE_ORD
 node "$BACKEND_ROOT/tests/new-modules-functional.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
-out="$(response_file)"; request POST /api/auth/login 200 '{"email":"company-b-it@example.invalid","password":"company-password-it","deviceId":"checkout-b-it","branchId":"branch-b-it"}' "$out" '' ''
-CHECKOUT_COMPANY_B="$(json_field "$out" companyToken)"
-out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-b-it","pin":"2468"}' "$out" "$CHECKOUT_COMPANY_B" ''
-CHECKOUT_SELLER_B="$(json_field "$out" accessToken)"
+out="$(response_file)"; CHECKOUT_COMPANY_B="$(auth_cookie POST /api/auth/login 200 '{"email":"company-b-it@example.invalid","password":"company-password-it","deviceId":"checkout-b-it","branchId":"branch-b-it"}' "$out" '' mobos_company_session)"
+out="$(response_file)"; CHECKOUT_SELLER_B="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-b-it","pin":"2468"}' "$out" "$CHECKOUT_COMPANY_B" mobos_seller_session)"
 MOBOS_IT_EXECUTE=1 node "$BACKEND_ROOT/tests/checkout-customer.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A" "$CHECKOUT_SELLER_B"
 MOBOS_SECURITY_PAYMENT_ID="$PAYMENT_PROOF_ID" node "$BACKEND_ROOT/tests/security-regression.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
 

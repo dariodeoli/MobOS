@@ -1,20 +1,6 @@
 import { ApiError } from './errors'
 
 const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-const TOKEN_KEY = 'owncoding_hub_access_token'
-const TENANT_KEY = 'mobos_tenant_id'
-
-function readToken() {
-  try {
-    return localStorage.getItem(TOKEN_KEY)
-  } catch {
-    return null
-  }
-}
-
-function readTenant() {
-  try { return localStorage.getItem(TENANT_KEY) || import.meta.env.VITE_TENANT_ID || null } catch { return import.meta.env.VITE_TENANT_ID || null }
-}
 
 async function readBody(response) {
   const type = response.headers.get('content-type') || ''
@@ -31,17 +17,16 @@ export async function request(path, options = {}) {
 
   const { body, headers, ...init } = options
   const multipart = typeof FormData !== 'undefined' && body instanceof FormData
-  const token = readToken()
-  const tenant = readTenant()
   let response
   try {
     response = await fetch(`${API_URL}/${String(path).replace(/^\//, '')}`, {
       ...init,
+      // La sesión vive en cookies HttpOnly del API. Nunca persistimos ni
+      // reconstruimos tokens de acceso desde JavaScript.
+      credentials: 'include',
       headers: {
         Accept: 'application/json',
         ...(body !== undefined && !multipart ? { 'Content-Type': 'application/json' } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(tenant ? { 'x-tenant-id': tenant } : {}),
         ...headers,
       },
       body: body === undefined || typeof body === 'string' || multipart ? body : JSON.stringify(body),
@@ -72,4 +57,4 @@ export const api = {
   delete: (path, options) => request(path, { ...options, method: 'DELETE' }),
 }
 
-export { API_URL, TOKEN_KEY }
+export { API_URL }

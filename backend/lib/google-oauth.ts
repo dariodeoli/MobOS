@@ -4,11 +4,20 @@ import { createCipheriv, createDecipheriv, createHash, createPublicKey, randomBy
 export class AuthFlowError extends Error {
   constructor(public code: string, message: string, public status = 400) { super(message) }
 }
+function appOrigin() {
+  try {
+    const app = new URL(process.env.MOBOS_APP_URL || 'http://localhost:5173')
+    const local = process.env.NODE_ENV !== 'production' && app.protocol === 'http:' && app.hostname === 'localhost'
+    if (app.username || app.password || app.search || app.hash || (app.protocol !== 'https:' && !local)) return null
+    return app
+  } catch { return null }
+}
 export function authConfig() {
   const required = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI', 'MOBOS_AUTH_SECRET', 'MOBOS_APP_URL'] as const
   if (required.some(key => !process.env[key])) throw new AuthFlowError('not_configured', 'El acceso con Google todavía no está configurado en el servidor.', 503)
   const callback = new URL(process.env.GOOGLE_REDIRECT_URI!)
-  const app = new URL(process.env.MOBOS_APP_URL!)
+  const app = appOrigin()
+  if (!app) throw new AuthFlowError('not_configured', 'La configuración de las URL de acceso no es válida.', 503)
   for (const url of [callback, app]) {
     if (url.username || url.password || url.search || url.hash || (url.protocol !== 'https:' && !(process.env.NODE_ENV !== 'production' && url.protocol === 'http:' && url.hostname === 'localhost'))) throw new AuthFlowError('not_configured', 'La configuración de las URL de acceso no es válida.', 503)
   }
@@ -17,15 +26,27 @@ export function authConfig() {
 }
 export const COOKIE_FLOW = 'mobos_google_flow'
 export const COOKIE_IDENTITY = 'mobos_google_identity'
-export const COOKIE_COMPANY = 'mobos_google_company'
+// Las sesiones de empresa y de operador son opacas y viven exclusivamente en
+// cookies HttpOnly. El navegador nunca necesita leer ni persistir el token.
+export const COOKIE_COMPANY = 'mobos_company_session'
+export const COOKIE_SELLER = 'mobos_seller_session'
+function sessionCookieSecure() {
+  return appOrigin()?.protocol === 'https:' || process.env.NODE_ENV === 'production'
+}
+export function sessionCookieOptions(maxAge = 600) {
+  return { httpOnly: true, secure: sessionCookieSecure(), sameSite: 'lax' as const, path: '/', maxAge }
+}
 export function cookieOptions(maxAge = 600) {
-  return { httpOnly: true, secure: authConfig().secure, sameSite: 'lax' as const, path: '/api/auth', maxAge }
+  // El flujo OAuth sí exige toda su configuración; correo/contraseña no debe
+  // depender de que Google esté habilitado.
+  authConfig()
+  return sessionCookieOptions(maxAge)
 }
 export function readCookie(request: Request, name: string) {
   return request.headers.get('cookie')?.split(';').map(x => x.trim()).find(x => x.startsWith(`${name}=`))?.slice(name.length + 1) || ''
 }
 export function sameOrigin(request: Request) {
-  return request.headers.get('origin') === authConfig().app
+  return request.headers.get('origin') === appOrigin()?.origin
 }
 export function seal(purpose: string, value: object) {
   const iv = randomBytes(12)

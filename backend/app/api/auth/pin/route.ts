@@ -1,6 +1,7 @@
 import { authenticateSeller } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { AuthFlowError } from '../../../../lib/google-oauth'
+import { COOKIE_SELLER, sessionCookieOptions } from '../../../../lib/google-oauth'
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +11,9 @@ export async function POST(request: Request) {
     if (!body.sellerId && !body.userId) return error('El vendedor es obligatorio.', 400)
     const result = await authenticateSeller(request, body)
     if (!result) return error('PIN inválido.', 401)
-    return json({ accessToken: result.accessToken, user: result.user })
+    const response = json({ user: result.user })
+    response.cookies.set(COOKIE_SELLER, result.accessToken, sessionCookieOptions(7 * 24 * 60 * 60))
+    return response
   } catch (err) {
     return error(err instanceof AuthFlowError ? err.message : 'No se pudo validar el acceso. Intentá nuevamente.', err instanceof AuthFlowError ? err.status : 503)
   }
