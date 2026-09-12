@@ -30,7 +30,7 @@ export default function Status() {
   const checkHealth = useCallback(async () => {
     setHealth((current) => ({ ...current, state: 'checking', database: 'checking' }))
     try {
-      const response = await fetch(`${publicUrls.api}/api/health`, { cache: 'no-store' })
+      const response = await fetch(`${publicUrls.api}/api/health?checkedAt=${Date.now()}`, { cache: 'no-store' })
       const result = await response.json().catch(() => null)
       if (!response.ok || !result?.ok) throw new Error('Healthcheck unavailable')
       setHealth({ state: 'operational', checkedAt: new Date(), database: result.services?.database === 'operational' ? 'operational' : 'attention' })

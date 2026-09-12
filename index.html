@@ -9,6 +9,17 @@
     <link rel="mask-icon" href="/mobos-icon.svg?v=1.0.21" color="#15D7B8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#15D7B8" />
+    <script>
+      ;(() => {
+        const destinations = {
+          'controlaria.online': 'https://moboss.online',
+          'www.controlaria.online': 'https://moboss.online',
+          'app.controlaria.online': 'https://app.moboss.online',
+        }
+        const destination = destinations[window.location.hostname]
+        if (destination) window.location.replace(`${destination}${window.location.pathname}${window.location.search}${window.location.hash}`)
+      })()
+    </script>
     <meta name="color-scheme" content="dark light" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
