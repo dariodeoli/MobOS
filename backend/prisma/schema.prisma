@@ -149,6 +149,7 @@ model Product {
   imei      String?
   condition ProductCondition @default(NEW)
   pricePyg  Int
+  costPyg   Int?
   stock     Int           @default(0)
   isActive  Boolean       @default(true)
   createdAt DateTime      @default(now())
@@ -232,6 +233,7 @@ model OrderItem {
   description String
   quantity    Int     @default(1)
   unitPricePyg Int
+  unitCostPyg Int?
   totalPyg    Int
 
   @@index([orderId])

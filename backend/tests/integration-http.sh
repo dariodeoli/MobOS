@@ -110,6 +110,8 @@ INSERT INTO "Product" ("id", "tenantId", "branchId", "sku", "name", "category", 
   ('prod-a-concurrent-it', 'tenant-a-it', 'branch-a-it', 'SKU-A-CONCURRENT-IT', 'Synthetic Product A Concurrent', 'Test', 100000, 3, true, CURRENT_TIMESTAMP),
   ('prod-a-crossbranch-it', 'tenant-a-it', 'branch-a2-it', 'SKU-A-CROSSBRANCH-IT', 'Synthetic Product A Cross Branch', 'Test', 100000, 2, true, CURRENT_TIMESTAMP),
   ('prod-b-it', 'tenant-b-it', 'branch-b-it', 'SKU-B-IT', 'Synthetic Product B', 'Test', 100000, 7, true, CURRENT_TIMESTAMP);
+
+UPDATE "Product" SET "costPyg" = 70000 WHERE "id" = 'prod-a-order-it';
 SQL
 
 (
@@ -202,6 +204,27 @@ if (!row || Number(row.stock) !== Number(expected)) process.exit(1)
 NODE
 }
 
+assert_order_cost_snapshot() {
+  node - "$1" "$2" "$3" <<'NODE'
+const fs = require('node:fs')
+const [file, orderNumber, expected] = process.argv.slice(2)
+const rows = JSON.parse(fs.readFileSync(file, 'utf8'))
+const order = rows.find((item) => item.orderNumber === orderNumber)
+const item = order?.items?.[0]
+if (!item || Number(item.unitCostPyg) !== Number(expected)) process.exit(1)
+NODE
+}
+
+assert_product_cost() {
+  node - "$1" "$2" "$3" <<'NODE'
+const fs = require('node:fs')
+const [file, productId, expected] = process.argv.slice(2)
+const rows = JSON.parse(fs.readFileSync(file, 'utf8'))
+const row = rows.find((item) => item.id === productId)
+if (!row || Number(row.costPyg) !== Number(expected)) process.exit(1)
+NODE
+}
+
 assert_pending_payment() {
   node - "$1" "$2" <<'NODE'
 const fs = require('node:fs')
@@ -266,6 +289,11 @@ if [[ "$(json_field "$out" sellerId)" != "user-a-it" || "$(json_field "$out" ten
   echo "La orden no quedó forzada al vendedor/tenant de la sesión." >&2
   exit 1
 fi
+out="$(response_file)"; request GET /api/orders 200 '' "$out" "$TOKEN_A" tenant-a-it
+assert_order_cost_snapshot "$out" IT-ORDER-001 70000 || { echo "La venta no congeló el costo del producto." >&2; exit 1; }
+out="$(response_file)"; request GET /api/products 200 '' "$out" "$TOKEN_A" tenant-a-it
+assert_product_cost "$out" prod-a-order-it 70000 || { echo "El costo del producto no se devolvió en el catálogo." >&2; exit 1; }
+echo "4b/11 Costo del producto y foto del costo en la venta OK..."
 
 echo "5/11 Orden de misma empresa en sucursal ajena se rechaza..."
 out="$(response_file)"
@@ -316,6 +344,11 @@ assert_confirmed_payment_total "$out" IT-CONCURRENT-001 60000 || { echo "Los pag
 node "$BACKEND_ROOT/tests/new-modules.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
 out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 ADMIN_TOKEN="$(json_field "$out" accessToken)"
+out="$(response_file)"; request PATCH /api/products 200 '{"id":"prod-a-rollback-it","costPyg":55000}' "$out" "$ADMIN_TOKEN" ''
+if [[ "$(json_field "$out" costPyg)" != "55000" ]]; then echo "PATCH no guardó el costo del producto." >&2; exit 1; fi
+out="$(response_file)"; request PATCH /api/products 400 '{"id":"prod-a-rollback-it","costPyg":-1}' "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"; request PATCH /api/products 200 '{"id":"prod-a-rollback-it","costPyg":null}' "$out" "$ADMIN_TOKEN" ''
+node -e 'const fs=require("node:fs");const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(!("costPyg" in p)||p.costPyg!==null)process.exit(1)' "$out" || { echo "PATCH no permitió limpiar el costo." >&2; exit 1; }
 out="$(response_file)"; request POST /api/orders 201 '{"orderNumber":"ADMIN-PRIVATE","items":[{"productId":"prod-a-order-it","description":"Private admin test","quantity":1,"unitPricePyg":100000}],"payment":{"method":"CASH","amountPyg":1000}}' "$out" "$ADMIN_TOKEN" ''
 PRIVATE_ORDER_ID="$(json_field "$out" id)"
 PRIVATE_PAYMENT_ID="$(node -e 'const fs=require("fs");console.log(JSON.parse(fs.readFileSync(process.argv[1],"utf8")).payments[0].id)' "$out")"

@@ -74,16 +74,19 @@ export async function POST(request: Request) {
         if (!safeInt(quantity, 1) || !safeInt(price) || !Number.isSafeInteger(quantity * price)) throw new Error('Cantidad y precio inválidos.')
         const promotion = item.couponCode === undefined ? undefined : await quotePromotion(tx, tenant, branchId, { ...item, quantity }, true)
         if (promotion && price !== promotion.unitPricePyg) throw new InputError('El precio del cupón cambió o fue alterado. Volvé a aplicarlo.', 409)
+        let unitCostPyg: number | undefined
         if (item.productId) {
           const product = await tx.product.findFirst({ where: { id: item.productId, tenantId: tenant, isActive: true } })
           if (!product) throw new Error(`Producto no encontrado: ${item.productId}`)
           if ((branchId === null && product.branchId !== null) || (branchId && product.branchId !== null && product.branchId !== branchId)) throw new Error('El producto pertenece a otra sucursal.')
+          // Foto del costo: la ganancia histórica no cambia si luego se actualiza el costo.
+          if (product.costPyg !== null && product.costPyg !== undefined) unitCostPyg = product.costPyg
           const updated = await tx.product.updateMany({ where: { id: product.id, tenantId: tenant, isActive: true, ...(branchId ? { OR: [{ branchId }, { branchId: null }] } : { branchId: null }), stock: { gte: quantity } }, data: { stock: { decrement: quantity } } })
           if (!updated.count) throw new Error('Stock insuficiente o producto fuera de la sucursal.')
         }
         const line = quantity * price; subtotal += line
         if (!Number.isSafeInteger(subtotal)) throw new Error('Total fuera de rango seguro.')
-        normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, totalPyg: line, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
+        normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(unitCostPyg === undefined ? {} : { unitCostPyg }), totalPyg: line, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
       }
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery

@@ -757,7 +757,7 @@ async function hydrateApi() {
     api.get('/api/products'), api.get('/api/orders'), ctx.rol === 'dueno' ? api.get('/api/users') : Promise.resolve([]),
   ])
   if (!apiMode() || version !== apiHydrationVersion || identity !== `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`) return
-  cache.productos = (products || []).map((p) => ({ ...p, nombre: p.name, precioVenta: p.pricePyg, precioCosto: 0, activo: p.isActive !== false }))
+  cache.productos = (products || []).map(mapProductoApi)
   cache.ventas = (orders || []).map(mapOrdenApi)
   cache.vendedores = (users || []).map((u) => ({ ...u, nombre: u.name, activo: u.status === 'ACTIVE' }))
   cache.mayoristas = []; cache.gastos = []; cache.ads = []; cache.auditoria = []
@@ -765,11 +765,34 @@ async function hydrateApi() {
   notify()
 }
 
+// El costo del producto vive en la API como `costPyg`. Sin este mapeo la
+// ganancia se mostraba igual a las ventas (costo 0) cuando la sesión es real.
+export function mapProductoApi(p) {
+  return { ...p, nombre: p.name, precioVenta: p.pricePyg, precioCosto: num(p.costPyg), activo: p.isActive !== false }
+}
+
+// Traduce el formato de la interfaz al contrato de la API.
+export function payloadProductoApi(payload = {}) {
+  const { nombre, precioVenta, precioCosto, ...resto } = payload
+  return {
+    ...resto,
+    ...(nombre !== undefined ? { name: nombre } : {}),
+    ...(precioVenta !== undefined ? { pricePyg: num(precioVenta) } : {}),
+    ...(precioCosto !== undefined
+      ? { costPyg: precioCosto === '' || precioCosto === null ? null : num(precioCosto) }
+      : {}),
+  }
+}
+
 function mapOrdenApi(o) {
   const pagos = (o.payments || []).map((p) => ({ ...p, monto: p.amountPyg, medioPago: p.method }))
   const totalPagado = pagos.filter((p) => p.status === 'CONFIRMED').reduce((sum, p) => sum + num(p.monto), 0)
   const total = num(o.totalPyg)
-  return { ...o, codigo: o.orderNumber, precio: total, vendedorId: o.sellerId, clienteId: o.customerId, cliente: o.customer?.name || '', fecha: o.createdAt?.slice(0, 10) || '', creadoEn: o.createdAt, productoNombre: (o.items || []).map((item) => item.description).filter(Boolean).join(', '), pagos, totalPagado, totalPendiente: Math.max(0, total - totalPagado), estadoPago: totalPagado >= total ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente' }
+  const items = o.items || []
+  // Foto del costo guardada en la venta: se prefiere sobre el costo actual.
+  const conCosto = items.filter((item) => item.unitCostPyg !== null && item.unitCostPyg !== undefined)
+  const costoVenta = conCosto.reduce((sum, item) => sum + num(item.unitCostPyg) * num(item.quantity), 0)
+  return { ...o, codigo: o.orderNumber, precio: total, vendedorId: o.sellerId, clienteId: o.customerId, cliente: o.customer?.name || '', fecha: o.createdAt?.slice(0, 10) || '', creadoEn: o.createdAt, productoId: items[0]?.productId || null, productoNombre: items.map((item) => item.description).filter(Boolean).join(', '), ...(conCosto.length ? { precioCosto: costoVenta } : {}), pagos, totalPagado, totalPendiente: Math.max(0, total - totalPagado), estadoPago: totalPagado >= total ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente' }
 }
 
 function getCompanyName() {
@@ -1245,17 +1268,17 @@ export function getProductos() {
 }
 export async function addProductoApi(payload) {
   if (!apiMode()) throw new Error('addProductoApi solo está disponible con una sesión API real.')
-  const created = await api.post('/api/products', payload)
+  const created = await api.post('/api/products', payloadProductoApi(payload))
   if (!created?.id) throw new Error('El backend no devolvió un producto confirmado.')
-  cache.productos.push({ ...created, nombre: created.name, precioVenta: created.pricePyg, activo: created.isActive !== false })
+  cache.productos.push(mapProductoApi(created))
   notify()
   return created
 }
 export async function updateProductoApi(id, cambios) {
   if (!apiMode()) throw new Error('updateProductoApi solo está disponible con una sesión API real.')
-  const updated = await api.patch('/api/products', { id, ...cambios })
+  const updated = await api.patch('/api/products', { id, ...payloadProductoApi(cambios) })
   if (!updated?.id) throw new Error('El backend no devolvió un producto confirmado.')
-  const mapped = { ...updated, nombre: updated.name, precioVenta: updated.pricePyg, activo: updated.isActive !== false }
+  const mapped = mapProductoApi(updated)
   const index = cache.productos.findIndex((product) => product.id === id)
   if (index >= 0) cache.productos[index] = mapped
   notify()

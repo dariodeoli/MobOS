@@ -13,7 +13,7 @@ function FilaProducto({ p }) {
   const [draft, setDraft] = useState({ precioVenta: p.precioVenta ?? '', stock: p.stock ?? '' })
   const set = (campo) => async (e) => {
     if (apiMode) {
-      const field = campo === 'precioVenta' ? 'pricePyg' : campo === 'stock' ? 'stock' : null
+      const field = campo === 'precioVenta' ? 'pricePyg' : campo === 'precioCosto' ? 'costPyg' : campo === 'stock' ? 'stock' : null
       if (!field) return
       setBusy(true); setError('')
       try { await updateProductoApi(p.id, { [field]: num(e.target.value) }); window.dispatchEvent(new Event('mobos:catalog-updated')) } catch (err) { setError(err?.message || 'No se pudo guardar.') } finally { setBusy(false) }
@@ -61,7 +61,7 @@ function FilaProducto({ p }) {
         </label>
         <label className="block">
           <span className="text-[10px] font-bold uppercase text-mute">Costo ₲</span>
-          <Input disabled={apiMode} title={apiMode ? 'Este campo aún no existe en la API.' : undefined}
+          <Input
             inputMode="numeric"
             defaultValue={p.precioCosto || ''}
             onBlur={set('precioCosto')}
@@ -93,7 +93,7 @@ function FilaProducto({ p }) {
         <Badge color={margen > 0 ? 'green' : 'slate'}>Margen {gs(margen)}</Badge>
         {num(p.stock) <= 3 && <Badge color="orange">Stock bajo</Badge>}
       </div>
-      {apiMode && <p className="mt-2 text-[11px] text-mute">Costo, mayorista y comisión no están disponibles todavía en la API.</p>}
+      {apiMode && <p className="mt-2 text-[11px] text-mute">Mayorista y comisión todavía no están disponibles en la API; el costo sí se guarda.</p>}
       {busy && <p className="mt-1 text-xs text-mute">Guardando…</p>}
       {error && <p className="mt-1 text-xs text-bad">{error}</p>}
     </div>
