@@ -1,106 +1,79 @@
-import { useState } from 'react'
-import { listGastos, addGasto, deleteGasto, CATEGORIAS_GASTO } from '@/lib/storage'
-import { fechaClave, num, gs } from '@/utils/calculos'
-import { Card, Button, Input, Label, Select, Badge, MoneyInput } from '@/components/ui'
-import Icon from '@/components/shared/Icon'
+import { useEffect, useState } from 'react'
+import { api } from '@/lib/api'
+import { useSesion } from '@/lib/sesion'
+import { isDemoRuntime } from '@/lib/demoMode'
+import { getPaymentAccounts } from '@/lib/paymentAccounts'
+import { listGastos, addGasto } from '@/lib/storage'
+import { fechaClave, gs } from '@/utils/calculos'
+import { formatGsInput, parseGsInput } from '@/utils/moneda'
+import { Card, Button, Input, Label, Select, Badge } from '@/components/ui'
 
-const VACIO = () => ({
-  monto: '',
-  motivo: '',
-  fecha: fechaClave(),
-  categoria: 'Otros',
-})
+const EMPTY = () => ({ originalAmount: '', description: '', date: fechaClave(), currency: 'PYG', exchangeRatePyg: '1', accountId: '', kind: 'EXPENSE', counterparty: '', reference: '', dueAt: '' })
+const CURRENCIES = ['PYG', 'USD', 'BRL', 'EUR', 'USDT']
+const KINDS = { EXPENSE: 'Gasto', CHEQUE: 'Cheque emitido/cobrado', SUPPLIER_ADVANCE: 'Adelanto a proveedor', TRANSFER: 'Transferencia', OWNER_WITHDRAWAL: 'Retiro del dueño', ADJUSTMENT: 'Ajuste' }
 
 export default function Gastos() {
-  const gastos = listGastos()
-  const [f, setF] = useState(VACIO)
-  const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }))
+  const { esDemo, sucursal } = useSesion()
+  const [form, setForm] = useState(EMPTY)
+  const [rows, setRows] = useState([])
+  const [accounts, setAccounts] = useState([])
+  const [loading, setLoading] = useState(!esDemo)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const branch = sucursal?.id ? `?branchId=${encodeURIComponent(sucursal.id)}` : ''
 
-  function guardar(e) {
-    e.preventDefault()
-    if (num(f.monto) <= 0 || !f.motivo.trim()) return
-    addGasto({ ...f, monto: num(f.monto) })
-    setF(VACIO())
+  async function load() {
+    if (isDemoRuntime) { setRows(listGastos()); setLoading(false); return }
+    setLoading(true)
+    try {
+      const [finance, paymentAccounts] = await Promise.all([api.get(`/api/finance${branch}`), getPaymentAccounts()])
+      setRows(finance.movements || []); setAccounts(paymentAccounts || [])
+    } catch (error) { setMessage(error.message || 'No se pudieron cargar los movimientos.') } finally { setLoading(false) }
   }
+  useEffect(() => { load() }, [esDemo, sucursal?.id])
+  const set = (key, value) => setForm(current => ({ ...current, [key]: value }))
+  const activeAccounts = accounts.filter(account => account.isActive && account.currency === form.currency)
 
-  const total = gastos.reduce((a, g) => a + num(g.monto), 0)
+  async function save(event) {
+    event.preventDefault(); setMessage('')
+    const originalAmount = form.currency === 'PYG' ? parseGsInput(form.originalAmount) : form.originalAmount
+    if (!Number(originalAmount) || !form.description.trim()) { setMessage('Completá monto y descripción.'); return }
+    setBusy(true)
+    try {
+      if (isDemoRuntime) {
+        addGasto({ monto: Number(originalAmount), motivo: form.description, fecha: form.date, categoria: 'Otros' })
+        setRows(listGastos()); setForm(EMPTY()); return
+      }
+      await api.post(`/api/finance${branch}`, { action: 'movement', kind: form.kind, direction: 'OUT', currency: form.currency, originalAmount, exchangeRatePyg: form.currency === 'PYG' ? 1 : form.exchangeRatePyg, accountId: form.accountId || null, description: form.description, counterparty: form.counterparty || null, reference: form.reference || null, dueAt: form.kind === 'CHEQUE' && form.dueAt ? form.dueAt : null })
+      setForm(EMPTY()); await load()
+    } catch (error) { setMessage(error.message || 'No se pudo guardar el movimiento.') } finally { setBusy(false) }
+  }
+  async function updateStatus(id, action) {
+    setBusy(true); setMessage('')
+    try { await api.post(`/api/finance${branch}`, { action, id }); await load() } catch (error) { setMessage(error.message || 'No se pudo actualizar el movimiento.') } finally { setBusy(false) }
+  }
+  const total = rows.filter(row => row.kind === 'EXPENSE' && row.status !== 'VOID').reduce((sum, row) => sum + Number(row.amountPyg || row.monto || 0), 0)
 
-  return (
-    <div className="space-y-4">
-      <Card>
-        <h2 className="font-bold mb-3">Registrar gasto</h2>
-        <form onSubmit={guardar} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <Label>Monto</Label>
-            <MoneyInput
-              value={f.monto}
-              onValueChange={(monto) => setF((s) => ({ ...s, monto }))}
-              placeholder="Ej: 250000"
-            />
-          </div>
-          <div>
-            <Label>Fecha</Label>
-            <Input type="date" value={f.fecha} onChange={set('fecha')} />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Motivo</Label>
-            <Input
-              value={f.motivo}
-              onChange={set('motivo')}
-              placeholder="Ej: Compra de mercadería, alquiler…"
-              autoCapitalize="sentences"
-            />
-          </div>
-          <div>
-            <Label>Categoría</Label>
-            <Select value={f.categoria} onChange={set('categoria')}>
-              {CATEGORIAS_GASTO.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div className="flex items-end">
-            <Button type="submit" className="w-full">
-              Guardar gasto
-            </Button>
-          </div>
-        </form>
-      </Card>
-
-      <Card className="p-0 overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-ink-600">
-          <h3 className="font-bold">Historial de gastos</h3>
-          <Badge color="red">Total: {gs(total)}</Badge>
-        </div>
-        {gastos.length === 0 ? (
-          <div className="p-8 text-center text-mute text-sm">Sin gastos registrados.</div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
-            {gastos.map((g) => (
-              <div key={g.id} className="rounded-xl border border-ink-600 p-3 flex flex-col gap-2">
-                <div className="flex items-start justify-between gap-1">
-                  <div className="font-semibold text-sm min-w-0 truncate">{g.motivo}</div>
-                  <button
-                    onClick={() => deleteGasto(g.id)}
-                    className="text-mute hover:text-bad p-1 shrink-0"
-                    title="Eliminar"
-                  >
-                    <Icon name="trash" className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-xs text-mute flex items-center gap-1.5">
-                    {g.fecha} <Badge color="slate">{g.categoria}</Badge>
-                  </div>
-                  <span className="font-bold text-bad text-sm shrink-0">{gs(g.monto)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
-  )
+  return <div className="space-y-4">
+    <Card>
+      <h2 className="font-bold">Registrar salida, cheque o adelanto</h2>
+      <p className="mt-1 text-sm text-mute">La cotización queda congelada al guardar. Los cheques quedan pendientes hasta cobrarse o anularse.</p>
+      {message && <p role="alert" className="mt-3 rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{message}</p>}
+      <form onSubmit={save} className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div><Label>Monto {form.currency === 'PYG' ? '(Gs)' : `(${form.currency})`}</Label><Input required inputMode="decimal" value={form.currency === 'PYG' ? formatGsInput(form.originalAmount) : form.originalAmount} onChange={event => set('originalAmount', form.currency === 'PYG' ? formatGsInput(event.target.value) : event.target.value)} placeholder={form.currency === 'PYG' ? '250.000' : '0.00'} /></div>
+        <div><Label>Moneda</Label><Select value={form.currency} onChange={event => setForm(current => ({ ...current, currency: event.target.value, accountId: '', originalAmount: '', exchangeRatePyg: event.target.value === 'PYG' ? '1' : current.exchangeRatePyg }))}>{CURRENCIES.map(currency => <option key={currency}>{currency}</option>)}</Select></div>
+        {form.currency !== 'PYG' && <div><Label>Cotización congelada en Gs.</Label><Input required inputMode="decimal" value={form.exchangeRatePyg} onChange={event => set('exchangeRatePyg', event.target.value)} placeholder="7.500" /></div>}
+        <div><Label>Tipo</Label><Select value={form.kind} onChange={event => set('kind', event.target.value)}>{Object.entries(KINDS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
+        <div><Label>Cuenta (opcional)</Label><Select value={form.accountId} onChange={event => set('accountId', event.target.value)}><option value="">Sin cuenta asignada</option>{activeAccounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}</Select></div>
+        {form.kind === 'CHEQUE' && <div><Label>Fecha prevista de cobro</Label><Input type="date" value={form.dueAt} onChange={event => set('dueAt', event.target.value)} /></div>}
+        <div className="md:col-span-2"><Label>Descripción</Label><Input required value={form.description} onChange={event => set('description', event.target.value)} placeholder="Ej. Seguro de mercadería" /></div>
+        <div><Label>Contraparte</Label><Input value={form.counterparty} onChange={event => set('counterparty', event.target.value)} placeholder="Proveedor o beneficiario" /></div>
+        <div><Label>Referencia</Label><Input value={form.reference} onChange={event => set('reference', event.target.value)} placeholder="N.º transferencia o cheque" /></div>
+        <div className="flex items-end"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar movimiento'}</Button></div>
+      </form>
+    </Card>
+    <Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink-600 p-4"><h3 className="font-bold">Libro financiero</h3><Badge color="red">Gastos: {gs(total)}</Badge></div>
+      {loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <p className="p-8 text-center text-sm text-mute">Sin movimientos registrados.</p> : <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">{rows.map(row => <div key={row.id} className="rounded-xl border border-ink-600 p-3"><div className="flex items-start justify-between gap-2"><strong className="text-sm">{row.description || row.motivo}</strong><Badge color={row.status === 'CLEARED' ? 'green' : row.status === 'VOID' ? 'slate' : 'yellow'}>{row.status || 'REGISTRADO'}</Badge></div><p className="mt-2 text-xs text-mute">{KINDS[row.kind] || row.category || 'Gasto'} · {row.currency || 'PYG'} · {row.counterparty || 'Sin contraparte'}</p><p className="mt-2 font-bold text-bad">{row.currency === 'PYG' ? gs(row.originalAmount || row.monto) : `${row.currency} ${row.originalAmount}`}</p>{row.currency && row.currency !== 'PYG' && <p className="text-xs text-mute">Cotización congelada: {row.exchangeRatePyg} · {gs(row.amountPyg)}</p>}{row.kind === 'CHEQUE' && row.status === 'PENDING' && !isDemoRuntime && <div className="mt-3 flex gap-2"><Button type="button" variant="outline" disabled={busy} onClick={() => updateStatus(row.id, 'clear')}>Marcar cobrado</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => updateStatus(row.id, 'void')}>Anular</Button></div>}</div>)}</div>}
+    </Card>
+  </div>
 }

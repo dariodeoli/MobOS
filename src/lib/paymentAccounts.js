@@ -26,7 +26,7 @@ function validate(data, partial = false) {
     } else result[key] = value
   }
   if ('name' in result && !result.name) throw new Error('Ingresá un nombre para la cuenta.')
-  if ('currency' in result && !['PYG', 'USD'].includes(result.currency)) throw new Error('Elegí Gs o USD.')
+  if ('currency' in result && !['PYG', 'USD', 'BRL', 'EUR', 'USDT'].includes(result.currency)) throw new Error('Elegí una moneda válida.')
   if ('kind' in result && !KINDS.includes(result.kind)) throw new Error('Elegí un medio de pago válido.')
   if ('isActive' in result && typeof result.isActive !== 'boolean') throw new Error('Estado de cuenta inválido.')
   if ('feePercent' in result) {
