@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { Button, Card, Input, Label } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -212,6 +213,7 @@ export default function Login() {
               autoComplete={crear ? 'new-password' : 'current-password'}
             />
           </div>
+          <div className="-mt-1 text-right"><Link to="/restablecer-contrasena" className="text-xs font-semibold text-[#15D7B8] hover:text-white">¿Olvidaste tu contraseña?</Link></div>
           </>}
 
           {error && (

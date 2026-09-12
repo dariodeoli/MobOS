@@ -13,6 +13,7 @@ import { APP_CREDIT, APP_CREDIT_URL, APP_VERSION } from '@/lib/brand'
 import Landing from '@/pages/Landing'
 import DemoAccess from '@/pages/DemoAccess'
 import Status from '@/pages/Status'
+import RecuperarContrasena from '@/pages/RecuperarContrasena'
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -164,6 +165,7 @@ export default function App() {
       <Routes>
         <Route path="/demo" element={<DemoAccess />} />
         <Route path="/login" element={<SoloFuera />} />
+        <Route path="/restablecer-contrasena" element={<RecuperarContrasena />} />
         <Route
           path="/"
           element={

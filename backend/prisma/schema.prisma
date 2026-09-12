@@ -43,12 +43,27 @@ model Tenant {
   stockVisibilityReceived InventoryVisibilityGrant[] @relation("StockVisibilityRecipient")
   stockLocations          StockLocation[]
   messageTemplates        MessageTemplate[]
+  passwordResetTokens     PasswordResetToken[]
 }
 
 model GoogleIdentity {
   subject  String @id
   tenantId String @unique
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Tokens de recuperación de contraseña de la empresa. Solo se almacena su
+// hash y cada uso invalida todos los tokens anteriores de la misma empresa.
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, expiresAt])
 }
 
 model Branch {
