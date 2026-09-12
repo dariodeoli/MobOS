@@ -15,4 +15,5 @@ export const resources = {
   orders: { list: () => api.get('/api/orders'), create: data => api.post('/api/orders', data), get: id => api.get(`/api/orders/${encodeURIComponent(id)}`), updateDelivery: (id, data) => api.patch(`/api/orders/${encodeURIComponent(id)}`, data) },
   payments: { create: data => api.post('/api/payments', data) },
   users: { list: () => api.get('/api/users'), create: data => api.post('/api/users', data) },
+  sessions: { list: () => api.get('/api/sessions'), revoke: sessionId => api.delete('/api/sessions', { body: { sessionId } }) },
 }
