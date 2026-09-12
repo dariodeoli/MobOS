@@ -6,32 +6,8 @@ import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { publicUrls } from '@/lib/urls'
 import { sessionApi } from '@/lib/api/session'
-
-function GoogleMark() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 18 18" className="h-[18px] w-[18px] shrink-0">
-      <path fill="#EA4335" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.482h4.844a4.14 4.14 0 0 1-1.796 2.716v2.258h2.909c1.703-1.568 2.683-3.878 2.683-6.615Z" />
-      <path fill="#4285F4" d="M9 18c2.43 0 4.467-.806 5.957-2.18l-2.91-2.258c-.806.54-1.836.86-3.047.86-2.344 0-4.328-1.584-5.037-3.71H.956v2.331A9 9 0 0 0 9 18Z" />
-      <path fill="#FBBC05" d="M3.963 10.712A5.412 5.412 0 0 1 3.681 9c0-.594.102-1.171.282-1.712V4.957H.956A9 9 0 0 0 0 9c0 1.452.348 2.827.956 4.043l3.007-2.331Z" />
-      <path fill="#34A853" d="M9 3.578c1.322 0 2.508.454 3.441 1.345l2.581-2.582C13.463.891 11.426 0 9 0A9 9 0 0 0 .956 4.957l3.007 2.331C4.672 5.162 6.656 3.578 9 3.578Z" />
-    </svg>
-  )
-}
-
-function OAuthDivider() {
-  return <div className="flex items-center gap-3 py-0.5 text-[10px] font-semibold uppercase tracking-[.14em] text-slate-500"><span className="h-px flex-1 bg-white/10" />o continuá con<span className="h-px flex-1 bg-white/10" /></div>
-}
-
-function GoogleButton({ create, busy, onClick }) {
-  const label = create ? 'Crear con Google' : 'Continuar con Google'
-  return (
-    <button type="button" onClick={onClick} disabled={busy} className="group relative flex h-10 w-full items-center justify-center rounded-lg border border-white/15 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm transition hover:-translate-y-px hover:border-white hover:bg-slate-50 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#15D7B8] disabled:cursor-wait disabled:opacity-70">
-      {busy ? <span className="h-[18px] w-[18px] animate-spin rounded-full border-2 border-slate-300 border-t-[#4285F4]" /> : <GoogleMark />}
-      <span className="ml-3">{busy ? 'Conectando con Google…' : label}</span>
-      {!busy && <span aria-hidden="true" className="absolute right-4 text-base text-slate-400 transition-transform group-hover:translate-x-0.5">→</span>}
-    </button>
-  )
-}
+import AuthLayout from '@/components/auth/AuthLayout'
+import GoogleButton, { OAuthDivider } from '@/components/auth/GoogleButton'
 
 export default function Login() {
   const { entrarEmpresa, entrarVendedor } = useSesion()
@@ -174,15 +150,7 @@ export default function Login() {
   const crear = modo === 'crear'
 
   return (
-    <main className="relative min-h-[calc(100dvh-44px)] overflow-x-hidden bg-[#071018] text-white lg:h-[calc(100dvh-44px)] lg:overflow-hidden">
-      <div className="pointer-events-none absolute -left-40 -top-40 h-96 w-96 rounded-full bg-[#15D7B8]/15 blur-3xl" />
-      <div className="mx-auto grid min-h-[calc(100dvh-44px)] max-w-7xl items-center gap-8 px-5 py-6 lg:h-[calc(100dvh-44px)] lg:grid-cols-[1fr_410px] lg:px-10 lg:py-4">
-      <section className="hidden lg:block">
-        <img src="/logo-dark.svg" alt="MobOS" className="h-10 w-auto" />
-        <p className="mt-10 text-xs font-bold uppercase tracking-[.2em] text-[#15D7B8]">Sistema operativo para tiendas móviles</p>
-        <h1 className="mt-4 max-w-xl text-5xl font-bold leading-[.94] tracking-[-.06em] xl:text-6xl">Vendé rápido.<br /><span className="text-[#15D7B8]">Controlá mejor.</span></h1>
-        <p className="mt-5 max-w-lg text-base leading-7 text-slate-400 xl:text-lg xl:leading-8">POS, stock, caja y clientes conectados en una sola operación para que tu equipo se mueva con claridad.</p>
-      </section>
+    <AuthLayout>
       <section className="login-panel mx-auto w-full max-w-[410px] rounded-[2rem] border border-white/10 bg-[#0b1822]/95 p-5 shadow-2xl shadow-[#15D7B8]/5 sm:p-6 lg:p-5">
       <a href={publicUrls.landing} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-[#15D7B8] transition hover:text-white">← Volver al inicio</a>
       <img src="/logo-dark.svg" alt="MobOS" className="mb-1 w-36" />
@@ -287,7 +255,6 @@ export default function Login() {
       </Card>
 
       </section>
-      </div>
-    </main>
+    </AuthLayout>
   )
 }

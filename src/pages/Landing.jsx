@@ -16,8 +16,8 @@ import {
   Users,
 } from "lucide-react";
 import { useState } from "react";
-import { APP_VERSION, APP_CREDIT, APP_CREDIT_URL } from "@/lib/brand";
 import { publicUrls } from "@/lib/urls";
+import ProductFooter from '@/components/app/ProductFooter'
 
 const modules = [
   [
@@ -488,21 +488,13 @@ export default function Landing() {
           </div>
         </section>
       </main>
-      <footer className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-5 py-8 text-xs text-slate-500">
-        <span className="flex items-center gap-2">
+      <ProductFooter
+        className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 border-t-0 px-5 py-8 text-xs"
+        leading={<span className="flex items-center gap-2">
           <Store size={14} className="text-[#15D7B8]" />
-          <b className="text-white">Controlaria · MobOS</b>
-        </span>
-        <span>{APP_VERSION}</span>
-        <a
-          href={APP_CREDIT_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="font-semibold text-[#15D7B8] hover:underline"
-        >
-          {APP_CREDIT}
-        </a>
-      </footer>
+          <b className="text-white">MobOS</b>
+        </span>}
+      />
     </div>
   );
 }

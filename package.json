@@ -1,12 +1,15 @@
 {
   "name": "mobos",
   "private": true,
-  "version": "1.0.38",
+  "version": "1.0.39",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "release:prepare": "node scripts/release.mjs",
+    "release:smoke": "node scripts/smoke.mjs",
+    "release:publish": "node scripts/release.mjs --publish --deploy"
   },
   "dependencies": {
     "clsx": "^2.1.1",

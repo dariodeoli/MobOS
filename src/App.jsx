@@ -9,7 +9,8 @@ import CentroControl from '@/pages/CentroControl'
 import Celulares from '@/pages/Celulares'
 import Comparador from '@/pages/Comparador'
 import TradeIn from '@/pages/TradeIn'
-import { APP_CREDIT, APP_CREDIT_URL, APP_VERSION } from '@/lib/brand'
+import { applyPageMetadata } from '@/lib/seo'
+import ProductFooter from '@/components/app/ProductFooter'
 import Landing from '@/pages/Landing'
 import DemoAccess from '@/pages/DemoAccess'
 import Status from '@/pages/Status'
@@ -90,11 +91,9 @@ function AreaProtegida({ owner = false, children }) {
 function AppFooter() {
   const { esDemo, salir } = useSesion()
   return (
-    <footer className="mobos-footer border-t border-ink-600 bg-ink-900 px-4 py-3 text-center text-[11px] text-mute">
-      <span>© 2026 MobOS · {APP_VERSION}</span>{' · '}
+    <ProductFooter className="border-ink-600 bg-ink-900 text-mute">
       {esDemo && <span>Usuario demo · Datos de prueba <button onClick={salir} className="mx-2 underline">Salir de demo</button> · </span>}
-      <a href={APP_CREDIT_URL} target="_blank" rel="noreferrer" className="text-fono-light hover:underline">{APP_CREDIT}</a>
-    </footer>
+    </ProductFooter>
   )
 }
 
@@ -102,31 +101,7 @@ function MetadatosPagina({ publicPage = false }) {
   const { pathname } = useLocation()
 
   useEffect(() => {
-    const origin = window.location.origin
-    const secciones = {
-      '/control/resumen': 'Resumen',
-      '/control/reportes': 'Reportes',
-      '/control/ganancias': 'Ganancias',
-      '/pos/cargar': 'Punto de venta',
-      '/pos/clientes': 'Clientes',
-      '/pos/pedidos': 'Pedidos',
-      '/login': 'Acceso',
-      '/demo': 'Demo interactiva',
-      '/status': 'Estado del sistema',
-    }
-    const seccion = secciones[pathname]
-    document.title = publicPage && pathname === '/'
-      ? 'MobOS · Control total para tu tienda móvil'
-      : `${seccion || 'Gestión de tienda'} · MobOS`
-
-    const setMeta = (selector, attribute, value) => {
-      const element = document.head.querySelector(selector)
-      if (element) element.setAttribute(attribute, value)
-    }
-    const canonical = document.head.querySelector('link[rel="canonical"]')
-    if (canonical) canonical.setAttribute('href', `${origin}${pathname}`)
-    setMeta('meta[property="og:url"]', 'content', `${origin}${pathname}`)
-    setMeta('meta[name="robots"]', 'content', publicPage ? 'index, follow' : 'noindex, nofollow')
+    applyPageMetadata({ pathname, publicPage })
   }, [publicPage, pathname])
 
   return null
