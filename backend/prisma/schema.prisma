@@ -202,6 +202,9 @@ model InventoryUnit {
   originalCost Decimal? @db.Decimal(14, 2)
   exchangeRatePyg Decimal? @db.Decimal(14, 4)
   notes String?
+  reservedUntil DateTime?
+  reservationCustomer String?
+  reservedById String?
   status InventoryUnitStatus @default(AVAILABLE)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -209,6 +212,7 @@ model InventoryUnit {
   @@unique([tenantId, serial])
   @@index([tenantId, productId, status])
   @@index([tenantId, branchId, status])
+  @@index([tenantId, status, reservedUntil])
 }
 
 model StockTransfer {

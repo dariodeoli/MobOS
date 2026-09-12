@@ -24,6 +24,7 @@ const unitDetails = (body: any, fallback: { condition: string; costPyg?: number 
 export async function GET(request: Request) {
   const tenant = await tenantId(request); if (!tenant) return error('Falta sesión.', 401)
   const session = await requireSession(request); if (!session) return error('Sesión inválida.', 401)
+  await prisma.inventoryUnit.updateMany({ where: { tenantId: tenant, status: 'RESERVED', reservedUntil: { lte: new Date() } }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservedById: null } })
   const p = new URL(request.url).searchParams; const q = p.get('q') || ''
   const branchFilter = ['VENDEDOR', 'CAJERA'].includes(session.user.role) ? { OR: [{ branchId: session.user.branchId }, { branchId: null }] } : undefined
   const searchFilter = q ? { OR: [{ name: { contains: q, mode: 'insensitive' as const } }, { sku: { contains: q, mode: 'insensitive' as const } }, { imei: { contains: q } }] } : undefined
