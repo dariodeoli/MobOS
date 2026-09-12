@@ -540,6 +540,9 @@ enum PaymentMethod {
 enum PaymentCurrency {
   PYG
   USD
+  BRL
+  EUR
+  USDT
 }
 
 enum PaymentAccountKind {

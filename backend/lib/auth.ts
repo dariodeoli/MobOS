@@ -13,6 +13,7 @@ export type AuthUser = {
   name: string
   role: string
   branchId: string | null
+  permissions: string[]
 }
 
 export type SessionContext = {
@@ -22,6 +23,78 @@ export type SessionContext = {
 
 type LoginInput = { email?: unknown; password?: unknown; deviceId?: unknown; branchId?: unknown }
 type PinInput = { sellerId?: unknown; userId?: unknown; pin?: unknown }
+
+export const USER_ROLES = ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA'] as const
+export type UserRole = (typeof USER_ROLES)[number]
+
+// This is a strict allow-list. Existing server-side role checks remain the
+// authority; configured permissions can only reduce the baseline of a role.
+const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
+  ADMIN: ['*'],
+  GERENTE: ['dashboard:read', 'reports:read', 'products:manage', 'stock:manage', 'orders:manage', 'customers:manage', 'purchases:manage', 'cash:manage', 'warranties:manage', 'tradeins:manage', 'promotions:manage'],
+  VENDEDOR: ['pos:use', 'orders:own', 'customers:manage', 'products:read', 'stock:read', 'promotions:read', 'tradeins:receive'],
+  CAJERA: ['pos:use', 'orders:branch', 'customers:manage', 'products:read', 'stock:read', 'payments:manage'],
+}
+
+type ScheduleWindow = { days: number[]; start: string; end: string }
+export type AccessSchedule = { timezone: string; windows: ScheduleWindow[] }
+const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/
+const weekDays: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
+
+export function effectivePermissions(role: string, configured: unknown): string[] {
+  const baseline = ROLE_PERMISSIONS[role as UserRole] || []
+  if (baseline.includes('*')) return ['*']
+  if (!Array.isArray(configured)) return [...baseline]
+  const allowed = new Set(configured.filter((permission): permission is string => typeof permission === 'string'))
+  return baseline.filter(permission => allowed.has(permission))
+}
+
+export function normalizeAccessSchedule(input: unknown): AccessSchedule | null {
+  if (input === null || input === undefined) return null
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Horario de acceso inválido.')
+  const raw = input as Record<string, unknown>
+  const timezone = typeof raw.timezone === 'string' ? raw.timezone.trim() : ''
+  if (!timezone || timezone.length > 100) throw new Error('Zona horaria inválida.')
+  try { new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format() } catch { throw new Error('Zona horaria inválida.') }
+  if (!Array.isArray(raw.windows) || raw.windows.length > 28) throw new Error('Definí entre 0 y 28 rangos de horario.')
+  const windows = raw.windows.map((value): ScheduleWindow => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Rango de horario inválido.')
+    const row = value as Record<string, unknown>
+    if (!Array.isArray(row.days) || !row.days.length || row.days.length > 7 || typeof row.start !== 'string' || typeof row.end !== 'string' || !timePattern.test(row.start) || !timePattern.test(row.end) || row.start === row.end) throw new Error('Rango de horario inválido.')
+    const days = [...new Set(row.days)].sort().map(day => {
+      if (!Number.isInteger(day) || day < 0 || day > 6) throw new Error('Día de horario inválido.')
+      return day
+    })
+    return { days, start: row.start, end: row.end }
+  })
+  return { timezone, windows }
+}
+
+function localWeekdayAndMinutes(timezone: string, now: Date) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: timezone, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now)
+  const get = (type: string) => parts.find(part => part.type === type)?.value || ''
+  return { day: weekDays[get('weekday')], minutes: Number(get('hour')) * 60 + Number(get('minute')) }
+}
+
+function toMinutes(value: string) {
+  const [hour, minute] = value.split(':').map(Number)
+  return hour * 60 + minute
+}
+
+export function isAccessAllowed(schedule: unknown, now = new Date()) {
+  if (!schedule) return true
+  try {
+    const normalized = normalizeAccessSchedule(schedule)
+    if (!normalized || !normalized.windows.length) return false
+    const { day, minutes } = localWeekdayAndMinutes(normalized.timezone, now)
+    const previousDay = (day + 6) % 7
+    return normalized.windows.some(window => {
+      const start = toMinutes(window.start); const end = toMinutes(window.end)
+      if (start < end) return window.days.includes(day) && minutes >= start && minutes < end
+      return (window.days.includes(day) && minutes >= start) || (window.days.includes(previousDay) && minutes < end)
+    })
+  } catch { return false }
+}
 
 export function isSessionUsable(session: { revokedAt: Date | null; expiresAt: Date; tenantId: string; user: { status: string; tenantId: string } }, now = new Date()) {
   return !session.revokedAt && session.expiresAt > now && session.user.status === 'ACTIVE' && session.user.tenantId === session.tenantId
@@ -95,9 +168,9 @@ export async function authenticateSeller(request: Request, input: PinInput) {
   if (!parent || !sellerId || !/^\d{4}$/.test(pin)) return null
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<Array<{
-      id: string; tenantId: string; name: string; role: string; branchId: string | null; pinHash: string; status: string; failedLoginAttempts: number; lockedUntil: Date | null
+      id: string; tenantId: string; name: string; role: string; branchId: string | null; pinHash: string; status: string; permissions: unknown; accessSchedule: unknown; failedLoginAttempts: number; lockedUntil: Date | null
     }>>`
-      SELECT "id", "tenantId", "name", "role", "branchId", "pinHash", "status", "failedLoginAttempts", "lockedUntil"
+      SELECT "id", "tenantId", "name", "role", "branchId", "pinHash", "status", "permissions", "accessSchedule", "failedLoginAttempts", "lockedUntil"
       FROM "User"
       WHERE "id" = ${sellerId} AND "tenantId" = ${parent.tenantId} AND "status" = 'ACTIVE'
         AND (${parent.branchId}::text IS NULL OR "branchId" = ${parent.branchId})
@@ -107,6 +180,10 @@ export async function authenticateSeller(request: Request, input: PinInput) {
     const user = rows[0]
     if (!user) return null
     const now = new Date()
+    if (!isAccessAllowed(user.accessSchedule, now)) {
+      await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: 'SELLER_SCHEDULE_DENIED', entity: 'User', entityId: user.id, metadata: { branchId: parent.branchId } } })
+      return null
+    }
     const lockExpired = user.lockedUntil !== null && user.lockedUntil <= now
     const attempts = lockExpired ? 0 : user.failedLoginAttempts
     if (lockExpired) await tx.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
@@ -121,15 +198,15 @@ export async function authenticateSeller(request: Request, input: PinInput) {
       await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: lockedUntil ? 'SELLER_PIN_LOCKED' : 'SELLER_PIN_FAILED', entity: 'User', entityId: user.id, metadata: { failedLoginAttempts, branchId: parent.branchId } } })
       return null
     }
-    await tx.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
+    await tx.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null, lastAccessAt: now } })
     const session = await createSession(tx, parent.tenantId, user.id, 'SELLER', parent.deviceId, parent.branchId)
     await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: 'SELLER_PIN_VERIFIED', entity: 'Session', entityId: session.sessionId, metadata: { branchId: parent.branchId } } })
     return { ...session, user: sessionUser(user) }
   })
 }
 
-function sessionUser(user: { id: string; tenantId: string; name: string; role: string; branchId: string | null }): AuthUser {
-  return { id: user.id, tenantId: user.tenantId, name: user.name, role: user.role, branchId: user.branchId }
+function sessionUser(user: { id: string; tenantId: string; name: string; role: string; branchId: string | null; permissions?: unknown }): AuthUser {
+  return { id: user.id, tenantId: user.tenantId, name: user.name, role: user.role, branchId: user.branchId, permissions: effectivePermissions(user.role, user.permissions) }
 }
 
 export async function requireSession(request: Request): Promise<SessionContext | null> {
@@ -139,6 +216,15 @@ export async function requireSession(request: Request): Promise<SessionContext |
   const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(match[1]) }, include: { user: true } })
   const now = new Date()
   if (!session || session.level !== 'SELLER' || !session.userId || !session.user || !isSessionUsable({ ...session, user: session.user }, now)) return null
+  if (!isAccessAllowed(session.user.accessSchedule, now)) {
+    await prisma.$transaction(async tx => {
+      const active = await tx.session.findFirst({ where: { id: session.id, revokedAt: null }, select: { id: true } })
+      if (!active) return
+      await tx.session.update({ where: { id: session.id }, data: { revokedAt: now } })
+      await tx.auditLog.create({ data: { tenantId: session.tenantId, userId: session.userId, action: 'SELLER_SESSION_SCHEDULE_REVOKED', entity: 'Session', entityId: session.id } })
+    })
+    return null
+  }
   await prisma.session.update({ where: { id: session.id }, data: { lastSeenAt: now } })
   return { sessionId: session.id, user: sessionUser(session.user) }
 }
@@ -150,6 +236,9 @@ export async function revokeSession(request: Request) {
   if (!match && (!cookie || !sameOrigin(request))) return false
   const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(match ? match[1] : cookie) } })
   if (!session || session.revokedAt) return false
-  await prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } })
+  await prisma.$transaction(async tx => {
+    await tx.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } })
+    await tx.auditLog.create({ data: { tenantId: session.tenantId, userId: session.userId, action: 'SESSION_REVOKED', entity: 'Session', entityId: session.id, metadata: { level: session.level, reason: 'logout' } } })
+  })
   return true
 }

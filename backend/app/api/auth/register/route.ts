@@ -28,7 +28,8 @@ export async function POST(request: Request) {
       const existing = await tx.tenant.findUnique({ where: { email }, select: { id: true } })
       if (existing) throw new Error('EMAIL_EXISTS')
       const tenant = await tx.tenant.create({ data: { name: companyName, email, passwordHash, slug: `tienda-${randomBytes(16).toString('hex')}` } })
-      await tx.user.create({ data: { tenantId: tenant.id, name: adminName, email, pinHash, role: 'ADMIN' } })
+      const admin = await tx.user.create({ data: { tenantId: tenant.id, name: adminName, email, pinHash, role: 'ADMIN' } })
+      await tx.auditLog.create({ data: { tenantId: tenant.id, userId: admin.id, action: 'COMPANY_REGISTERED', entity: 'Tenant', entityId: tenant.id } })
     })
   } catch (cause) {
     if (cause instanceof Error && cause.message === 'EMAIL_EXISTS') return error('Ya existe una tienda registrada con ese correo. Iniciá sesión o usá otro correo.', 409)

@@ -60,7 +60,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   const familias = agruparProductos(productos)
   const vendedores = getVendedores().filter((v) => v.activo)
   const [f, setF] = useState(() => VACIO(sesion?.vendedorId || localStorage.getItem(ULTIMO_VENDEDOR)))
-  const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
+  const [customer, setCustomer] = useState({ name: '', phone: '', countryCode: '+595', email: '', document: '', addresses: [] })
   const [nuevoProd, setNuevoProd] = useState(false)
   const [nombreProd, setNombreProd] = useState('')
   const [coloresNuevos, setColoresNuevos] = useState([])
@@ -335,7 +335,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     try {
     if (!esDemo) {
       const order = await guardarOrdenApi({
-        ...(customer.id ? { customerId: customer.id } : { customer: { name: f.cliente.trim(), ...(customer.phone?.trim() ? { phone: customer.phone.trim() } : {}), ...(customer.address?.trim() ? { address: customer.address.trim() } : {}) } }),
+        ...(customer.id ? { customerId: customer.id } : { customer: { name: f.cliente.trim(), ...(customer.phone?.trim() ? { phone: customer.phone.trim() } : {}), ...(customer.countryCode ? { countryCode: customer.countryCode } : {}), ...(customer.email?.trim() ? { email: customer.email.trim() } : {}), ...(customer.document?.trim() ? { document: customer.document.trim() } : {}), ...(customer.addresses?.length ? { addresses: customer.addresses.filter(address => address.address?.trim()).map((address, index) => ({ label: address.label?.trim() || `Dirección ${index + 1}`, address: address.address.trim(), ...(address.city?.trim() ? { city: address.city.trim() } : {}), ...(address.notes?.trim() ? { notes: address.notes.trim() } : {}), isDefault: address.isDefault === true })) } : {}) } }),
         items: orderItems,
         payments,
         discountPyg: gsNum(descuento), deliveryPyg: gsNum(f.montoDelivery),
@@ -386,7 +386,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     }
 
     localStorage.setItem(ULTIMO_VENDEDOR, f.vendedorId)
-    setCustomer({ name: '', phone: '', address: '' })
+    setCustomer({ name: '', phone: '', countryCode: '+595', email: '', document: '', addresses: [] })
     setItems([])
     setDescuento('')
     setPagos([])

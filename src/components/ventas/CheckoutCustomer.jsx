@@ -1,24 +1,51 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
-import { Input } from '@/components/ui'
+import { Button, Input } from '@/components/ui'
+
+const emptyAddress = () => ({ label: 'Principal', address: '', city: '', notes: '', isDefault: true })
+const customerValue = (customer) => ({
+  id: customer.id, name: customer.name || '', phone: customer.phone || '', countryCode: customer.countryCode || '+595',
+  email: customer.email || '', document: customer.document || '',
+  addresses: Array.isArray(customer.addresses) ? customer.addresses.map(({ id, ...address }) => address) : [],
+})
 
 export default function CheckoutCustomer({ value, onChange, esDemo }) {
   const [matches, setMatches] = useState([])
   const [error, setError] = useState('')
   useEffect(() => {
     let active = true
+    const query = (value.name || '').trim()
+    if (!query) { setMatches([]); return () => { active = false } }
     const timer = setTimeout(async () => {
       try {
-        const rows = esDemo ? JSON.parse(localStorage.getItem('mobos:demo-customers:v1') || '[]') : await api.get(`/api/customers?q=${encodeURIComponent(value.name || '')}`)
-        if (active) { setMatches(rows.filter(c => `${c.name} ${c.phone || ''}`.toLowerCase().includes((value.name || '').toLowerCase())).slice(0, 5)); setError('') }
+        const rows = esDemo ? JSON.parse(localStorage.getItem('mobos:demo-customers:v1') || '[]') : await api.get(`/api/customers?q=${encodeURIComponent(query)}`)
+        if (active) { setMatches(rows.filter(customer => `${customer.name} ${customer.phone || ''} ${customer.document || ''}`.toLowerCase().includes(query.toLowerCase())).slice(0, 5)); setError('') }
       } catch { if (active) setError('No se pudo consultar clientes. Reintentá antes de confirmar.') }
     }, 250)
     return () => { active = false; clearTimeout(timer) }
   }, [value.name, esDemo])
+
+  const set = (field) => (event) => onChange({ ...value, [field]: event.target.value })
+  const setAddress = (index, field, next) => onChange({ ...value, addresses: value.addresses.map((address, position) => position === index ? { ...address, [field]: next } : address) })
+  const addAddress = () => onChange({ ...value, addresses: [...(value.addresses || []), { ...emptyAddress(), label: `Dirección ${(value.addresses?.length || 0) + 1}`, isDefault: !value.addresses?.length }] })
+  const removeAddress = (index) => onChange({ ...value, addresses: value.addresses.filter((_, position) => position !== index).map((address, position) => ({ ...address, isDefault: position === 0 ? true : address.isDefault })) })
+
   return <div className="space-y-3 md:col-span-2">
-    <label className="block text-sm font-semibold">Cliente<Input aria-label="Nombre o teléfono del cliente" value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={e => onChange({ name: e.target.value, phone: '', address: '' })} /></label>
-    {!value.id && value.name && <div className="space-y-1">{matches.map(c => <button type="button" key={c.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => onChange({ ...c, address: c.address || (c.notes?.startsWith('Dirección: ') ? c.notes.slice(11) : '') })}>{c.name}<span className="ml-3 text-mute">{c.phone}</span></button>)}{!matches.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará al confirmar la venta.</p>}</div>}
+    <label className="block text-sm font-semibold">Cliente<Input aria-label="Nombre, teléfono, CI o RUC del cliente" value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ name: event.target.value, phone: '', countryCode: '+595', email: '', document: '', addresses: [] })} /></label>
+    {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => onChange(customerValue(customer))}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}</button>)}{!matches.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará automáticamente al confirmar la venta.</p>}</div>}
+    {value.id && <p className="rounded-lg border border-fono/20 bg-fono/5 px-3 py-2 text-xs text-fono-light">Cliente seleccionado. Podés usar una dirección existente o agregar una nueva para este pedido.</p>}
     {error && <p role="alert" className="text-sm text-bad">{error}</p>}
-    <details><summary className="cursor-pointer text-sm text-fono-light">Teléfono y dirección opcionales</summary><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-xs text-mute">Teléfono<Input aria-label="Teléfono del cliente" type="tel" value={value.phone || ''} readOnly={Boolean(value.id)} onChange={e => onChange({ ...value, phone: e.target.value })} /></label><label className="text-xs text-mute">Dirección<Input aria-label="Dirección del cliente" value={value.address || ''} readOnly={Boolean(value.id)} onChange={e => onChange({ ...value, address: e.target.value })} /></label></div></details>
+    <details className="rounded-xl border border-ink-600 p-3"><summary className="cursor-pointer text-sm font-medium text-fono-light">Datos de contacto, RUC/CI y direcciones</summary>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label className="text-xs text-mute">Código país<Input aria-label="Código de país" value={value.countryCode || '+595'} onChange={set('countryCode')} placeholder="+595" /></label>
+        <label className="text-xs text-mute">Teléfono<Input aria-label="Teléfono del cliente" type="tel" value={value.phone || ''} onChange={set('phone')} placeholder="0981 123 456" /></label>
+        <label className="text-xs text-mute">CI o RUC<Input aria-label="CI o RUC del cliente" value={value.document || ''} onChange={set('document')} placeholder="80012345-6" /></label>
+        <label className="text-xs text-mute">Correo<Input aria-label="Correo del cliente" type="email" value={value.email || ''} onChange={set('email')} placeholder="cliente@correo.com" /></label>
+      </div>
+      <div className="mt-4 space-y-3"><div className="flex items-center justify-between"><strong className="text-sm">Direcciones</strong><Button type="button" variant="outline" onClick={addAddress}>+ Dirección</Button></div>
+        {!value.addresses?.length && <p className="text-xs text-mute">Sin dirección cargada. Podés continuar con retiro en tienda.</p>}
+        {(value.addresses || []).map((address, index) => <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-3 sm:grid-cols-2"><label className="text-xs text-mute">Etiqueta<Input value={address.label || ''} onChange={event => setAddress(index, 'label', event.target.value)} placeholder="Casa, trabajo…" /></label><label className="text-xs text-mute">Ciudad<Input value={address.city || ''} onChange={event => setAddress(index, 'city', event.target.value)} placeholder="Asunción" /></label><label className="text-xs text-mute sm:col-span-2">Dirección<Input value={address.address || ''} onChange={event => setAddress(index, 'address', event.target.value)} placeholder="Calle, número y referencia" /></label><div className="flex items-center justify-between gap-2 sm:col-span-2"><label className="text-xs text-mute">Notas<Input value={address.notes || ''} onChange={event => setAddress(index, 'notes', event.target.value)} placeholder="Horario, piso, referencia" /></label><button type="button" className="self-end text-xs text-bad hover:underline" onClick={() => removeAddress(index)}>Quitar</button></div></div>)}
+      </div>
+    </details>
   </div>
 }
