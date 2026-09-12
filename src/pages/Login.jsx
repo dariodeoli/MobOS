@@ -183,7 +183,7 @@ export default function Login() {
         <h1 className="mt-4 max-w-xl text-5xl font-bold leading-[.94] tracking-[-.06em] xl:text-6xl">Vendé rápido.<br /><span className="text-[#15D7B8]">Controlá mejor.</span></h1>
         <p className="mt-5 max-w-lg text-base leading-7 text-slate-400 xl:text-lg xl:leading-8">POS, stock, caja y clientes conectados en una sola operación para que tu equipo se mueva con claridad.</p>
       </section>
-      <section className="mx-auto w-full max-w-[410px] rounded-[2rem] border border-white/10 bg-[#0b1822]/95 p-5 shadow-2xl shadow-[#15D7B8]/5 sm:p-6 lg:p-5">
+      <section className="login-panel mx-auto w-full max-w-[410px] rounded-[2rem] border border-white/10 bg-[#0b1822]/95 p-5 shadow-2xl shadow-[#15D7B8]/5 sm:p-6 lg:p-5">
       <a href={publicUrls.landing} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-[#15D7B8] transition hover:text-white">← Volver al inicio</a>
       <img src="/logo-dark.svg" alt="MobOS" className="mb-1 w-36" />
       <p className="mb-4 text-sm text-mute">Sistema de ventas para tiendas</p>
