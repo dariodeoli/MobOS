@@ -1,4 +1,4 @@
-import { api, TOKEN_KEY } from './client'
+import { api, API_URL, TOKEN_KEY } from './client'
 
 const COMPANY_TOKEN_KEY = 'owncoding_hub_company_token'
 const COMPANY_CONTEXT_KEY = 'owncoding_hub_company_context'
@@ -56,6 +56,18 @@ export function clearSession() {
 
 /** Sesiones del API propio de MobOS. */
 export const sessionApi = {
+  startGoogle: async (create = false) => {
+    if (!API_URL) throw new Error('La URL del servidor no está configurada.')
+    const status = await api.get('/api/auth/google?status=1')
+    if (!status?.configured) throw new Error('El acceso con Google todavía no está configurado.')
+    window.location.assign(`${API_URL}/api/auth/google?intent=${create ? 'create' : 'login'}`)
+  },
+  completeGoogle: async (body) => {
+    const session = await api.post('/api/auth/google/complete', body, { credentials: 'include', headers: { Authorization: '' } })
+    clearSession()
+    setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], cookieSession: true })
+    return session
+  },
   loginCompany: async (credentials) => {
     const session = await api.post('/api/auth/login', credentials)
     if (!session?.companyToken) throw new Error('El servidor no devolvió un token de empresa válido.')
@@ -65,9 +77,10 @@ export const sessionApi = {
   },
   loginSeller: async (credentials) => {
     const companyToken = getCompanyToken()
-    if (!companyToken) throw new Error('Primero hay que autenticar la empresa.')
+    if (!companyToken && !getCompanyContext()?.cookieSession) throw new Error('Primero hay que autenticar la empresa.')
     const session = await api.post('/api/auth/pin', credentials, {
-      headers: { Authorization: `Bearer ${companyToken}` },
+      credentials: 'include',
+      headers: { Authorization: companyToken ? `Bearer ${companyToken}` : '' },
     })
     if (!session?.accessToken) throw new Error('El servidor no devolvió una sesión válida.')
     setAccessToken(session.accessToken)
@@ -81,7 +94,9 @@ export const sessionApi = {
     const companyToken = getCompanyToken()
     return companyToken
       ? api.post('/api/auth/logout', undefined, { headers: { Authorization: `Bearer ${companyToken}` } })
-      : Promise.resolve({ ok: true })
+      : getCompanyContext()?.cookieSession
+        ? api.post('/api/auth/logout', undefined, { credentials: 'include', headers: { Authorization: '' } })
+        : Promise.resolve({ ok: true })
   },
   logout: async () => {
     const results = await Promise.allSettled([sessionApi.logoutSeller(), sessionApi.logoutCompany()])

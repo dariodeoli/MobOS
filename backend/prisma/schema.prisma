@@ -7,6 +7,8 @@ datasource db {
 }
 
 model Tenant {
+  googleIdentity GoogleIdentity?
+  promotions Promotion[]
   paymentAccounts PaymentAccount[]
   tradeInDevices TradeInDevice[]
   cashSessions CashSession[]
@@ -33,6 +35,12 @@ model Tenant {
   paymentProofs PaymentProof[]
   paymentReconciliations PaymentReconciliation[]
   auditLogs AuditLog[]
+}
+
+model GoogleIdentity {
+  subject String @id
+  tenantId String @unique
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model Branch {
@@ -214,6 +222,7 @@ enum OrderStatus {
 }
 
 model OrderItem {
+  promotionSnapshot Json?
   warrantyCases WarrantyCase[]
   id          String  @id @default(cuid())
   orderId     String
@@ -226,6 +235,25 @@ model OrderItem {
   totalPyg    Int
 
   @@index([orderId])
+}
+
+model Promotion {
+  id String @id @default(cuid())
+  tenantId String
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code String
+  name String
+  kind String
+  value Int
+  productId String?
+  startsAt DateTime
+  endsAt DateTime
+  maxUnits Int?
+  usedUnits Int @default(0)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([tenantId, code])
 }
 
 model Payment {

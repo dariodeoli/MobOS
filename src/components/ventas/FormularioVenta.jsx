@@ -14,10 +14,14 @@ import {
 import { fechaClave, num, gs, gsInput } from '@/utils/calculos'
 import { cn } from '@/lib/utils'
 import { allocateCheckout } from '@/utils/checkout'
+import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
+import { validateDemoPromotionItems, recordDemoPromotionUsage } from '@/lib/demoPromotions'
 import { api } from '@/lib/api/client'
 import { agruparProductos } from '@/utils/colores'
 import { Button, Card, Input, Label, Select, Textarea, Badge } from '@/components/ui'
 import SelectorColor from './SelectorColor'
+import CheckoutCustomer from './CheckoutCustomer'
+import ProductPrice from './ProductPrice'
 import Icon from '@/components/shared/Icon'
 import SelectorMedioPago from '@/components/shared/SelectorMedioPago'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
@@ -40,6 +44,7 @@ const VACIO = (vendedorId) => ({
   fecha: fechaClave(),
   fechaManual: false, // true si el usuario eligió una fecha distinta a mano
   precio: '',
+  couponCode: null,
   medioPago: MEDIOS_PAGO[0],
   entrega: ENTREGA[0],
   montoDelivery: '',
@@ -48,12 +53,13 @@ const VACIO = (vendedorId) => ({
 
 const PAGO_VACIO = { medioPago: MEDIOS_PAGO[0], cuenta: '', monto: '' }
 
-export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito = false }) {
+export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito = false, tradeInDraft, onTradeInConsumed }) {
   const { sesion, esDemo } = useSesion()
   const productos = getProductos().filter((p) => p.activo)
   const familias = agruparProductos(productos)
   const vendedores = getVendedores().filter((v) => v.activo)
   const [f, setF] = useState(() => VACIO(sesion?.vendedorId || localStorage.getItem(ULTIMO_VENDEDOR)))
+  const [customer, setCustomer] = useState({ name: '', phone: '', address: '' })
   const [nuevoProd, setNuevoProd] = useState(false)
   const [nombreProd, setNombreProd] = useState('')
   const [coloresNuevos, setColoresNuevos] = useState([])
@@ -76,6 +82,18 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   const guardadoEnCurso = useRef(false)
   const [guardadoIncompleto, setGuardadoIncompleto] = useState(false)
   const usaCuentas = Boolean(cuentas?.length)
+  const appliedTradeIn = useRef(null)
+
+  useEffect(() => {
+    if (!tradeInDraft || !cuentas || appliedTradeIn.current === tradeInDraft.id) return
+    try {
+      const payment = tradeInDraftPayment(tradeInDraft, cuentas, pagos)
+      appliedTradeIn.current = tradeInDraft.id
+      setPagos(current => [...current, payment])
+      setErrorVenta('')
+      onTradeInConsumed?.()
+    } catch (error) { setErrorVenta(error.message) }
+  }, [tradeInDraft, cuentas, pagos, onTradeInConsumed])
 
   useEffect(() => {
     let vigente = true
@@ -121,9 +139,10 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         productoId: f.productoId,
         nombre: nombreDe(f.productoId),
         precio: gsNum(f.precio),
+        couponCode: f.couponCode,
       },
     ])
-    setF((s) => ({ ...s, productoId: '', precio: '' }))
+    setF((s) => ({ ...s, productoId: '', precio: '', couponCode: null }))
     setFamiliaActiva(null)
   }
   function quitarItem(key) {
@@ -131,6 +150,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   }
 
   const totalCarrito = items.reduce((a, it) => a + it.precio, 0)
+  const tieneCupon = Boolean(f.couponCode || items.some(it => it.couponCode))
   const precioActual = f.productoId && gsNum(f.precio) > 0 ? gsNum(f.precio) : 0
   const subtotal = totalCarrito + precioActual
   const totalGeneral = Math.max(0, subtotal - gsNum(descuento) + gsNum(f.montoDelivery))
@@ -184,7 +204,8 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     setF((s) => ({
       ...s,
       productoId: p.id,
-      precio: p && p.precioVenta > 0 ? String(p.precioVenta) : s.precio,
+      precio: p && p.precioVenta > 0 ? String(p.precioVenta) : '',
+      couponCode: null,
     }))
   }
 
@@ -260,13 +281,16 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     // Lista final = lo agregado al carrito + lo que esté seleccionado ahora.
     const lista = [...items]
     if (f.productoId && gsNum(f.precio) > 0) {
-      lista.push({ productoId: f.productoId, precio: gsNum(f.precio) })
+      lista.push({ productoId: f.productoId, precio: gsNum(f.precio), couponCode: f.couponCode })
     }
     if (!sesion?.vendedorId || !f.cliente.trim() || lista.length === 0 || totalPagado > totalGeneral) return
+    const orderItems = lista.map(it => ({ productId: it.productoId, description: nombreDe(it.productoId), quantity: 1, unitPricePyg: it.precio, ...(it.couponCode ? { couponCode: it.couponCode } : {}) }))
     setErrorVenta('')
     let lineas
     let payments
     try {
+      if (tieneCupon && gsNum(descuento) > 0) throw new Error('Quitá el descuento extra para utilizar un cupón. No son acumulables.')
+      if (esDemo) validateDemoPromotionItems(orderItems, productos, gsNum(descuento))
       if (!cuentas || errorCuentas) throw new Error(errorCuentas || 'Esperá a que terminen de cargar las cuentas.')
       if (!usaCuentas && pagos.some(p => !String(p.monto).trim() || gsNum(p.monto) <= 0)) throw new Error('Ingresá un monto positivo en cada pago o quitá la fila vacía.')
       payments = usaCuentas ? pagos.map((p) => accountPayment(p, cuentas)) : pagos.map(p => ({
@@ -307,13 +331,9 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     let ventaPersistida = false
     try {
     if (!esDemo) {
-      const nombre = f.cliente.trim()
-      const encontrados = await api.get(`/api/customers?q=${encodeURIComponent(nombre)}`)
-      let cliente = encontrados.find(c => c.name.toLocaleLowerCase() === nombre.toLocaleLowerCase())
-      if (!cliente) cliente = await api.post('/api/customers', { name: nombre })
       const order = await guardarOrdenApi({
-        customerId: cliente.id,
-        items: lista.map(it => ({ productId: it.productoId, description: nombreDe(it.productoId), quantity: 1, unitPricePyg: it.precio })),
+        ...(customer.id ? { customerId: customer.id } : { customer: { name: f.cliente.trim(), ...(customer.phone?.trim() ? { phone: customer.phone.trim() } : {}), ...(customer.address?.trim() ? { address: customer.address.trim() } : {}) } }),
+        items: orderItems,
         payments,
         discountPyg: gsNum(descuento), deliveryPyg: gsNum(f.montoDelivery),
         deliveryNotes: f.observacion, deliveryType: f.entrega,
@@ -323,13 +343,20 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     } else {
       const validation = await validateDemoTradeIns(payments)
       if (validation === false || validation?.error || validation?.ok === false) throw new Error(validation?.error || 'No se pudo validar el canje.')
+      const clientesDemo = JSON.parse(localStorage.getItem('mobos:demo-customers:v1') || '[]')
+      const clienteDemo = customer.id ? customer : clientesDemo.find(c => c.name.toLowerCase() === customer.name.trim().toLowerCase() && (!customer.phone || c.phone === customer.phone)) || { ...customer, name: customer.name.trim(), id: crypto.randomUUID() }
       const ventas = []
       for (const [i, it] of lineas.entries()) {
       const venta = await addVenta({
         compraId,
         vendedorId: sesion.vendedorId,
         cliente: f.cliente,
+        clienteId: clienteDemo.id,
+        clienteTelefono: clienteDemo.phone,
+        clienteDireccion: clienteDemo.address,
+        vendedorNombre: sesion.nombre,
         productoId: it.productoId,
+        couponCode: lista[i]?.couponCode || null,
         estadoPago: pendiente === 0 ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente',
         fecha: fechaVenta,
         precio: it.precio,
@@ -348,12 +375,15 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
       ventaPersistida = true
       ventas.push(venta)
       }
+      if (!clientesDemo.some(c => c.id === clienteDemo.id)) localStorage.setItem('mobos:demo-customers:v1', JSON.stringify([...clientesDemo, clienteDemo]))
       const order = { ...ventas[0], id: ventas[0].id, compraId, cliente: f.cliente.trim(), vendedorId: sesion.vendedorId, seller: { id: sesion.vendedorId, name: sesion.nombre }, fecha: fechaVenta, totalPyg: totalGeneral, payments, ventas }
       const result = await recordDemoTradeIns(order, payments)
       if (result === false || result?.error || result?.ok === false) throw new Error(result?.error || 'No se pudo registrar el canje demo.')
+      recordDemoPromotionUsage(orderItems, productos, gsNum(descuento))
     }
 
     localStorage.setItem(ULTIMO_VENDEDOR, f.vendedorId)
+    setCustomer({ name: '', phone: '', address: '' })
     setItems([])
     setDescuento('')
     setPagos([])
@@ -409,6 +439,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
       </div>
 
       {ok && <p role="status" aria-live="polite" className="mb-4 rounded-xl border border-ok/30 bg-ok/10 p-4 text-ok">Venta registrada correctamente. Ya podés cargar la siguiente.</p>}
+      {paso !== 3 && pagos.some(p => p.tradeIn) && <p role="status" className="mb-4 rounded-xl border border-fono/30 bg-fono/10 p-3 text-sm">Canje preparado como parte de pago. Revisá sus datos y el saldo pendiente en Cobrar.</p>}
       <form onSubmit={guardar} className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
         {errorVenta && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-red-300 md:col-span-2">{errorVenta}</p>}
         <nav aria-label="Pasos de la venta" className="grid grid-cols-3 gap-1 rounded-2xl border border-ink-600 bg-ink-900/50 p-1 md:col-span-2">
@@ -416,58 +447,8 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         </nav>
         <div className="flex items-center justify-between text-xs text-mute md:col-span-2"><span>Paso {paso} de 3</span>{paso === 3 && <span className="text-fono-light">Revisá los montos antes de confirmar</span>}</div>
         <div className={paso === 1 ? 'contents' : 'hidden'}>
-        {/* Vendedor */}
-        <div className={nuevoVend ? 'md:col-span-2' : ''}>
-          <Label>Vendedor</Label>
-          {sesion?.vendedorId ? (
-            <Input value={sesion.nombre || 'Vendedor autenticado'} readOnly aria-label="Vendedor de la sesión" />
-          ) : nuevoVend ? (
-            <div className="flex gap-2">
-              <Input
-                autoFocus
-                value={nombreVend}
-                onChange={(e) => setNombreVend(e.target.value)}
-                placeholder="Nombre del nuevo vendedor"
-                autoCapitalize="words"
-                autoCorrect="off"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    crearVendedor()
-                  }
-                }}
-              />
-              <Button type="button" onClick={crearVendedor}>
-                Agregar
-              </Button>
-              <Button type="button" variant="ghost" onClick={() => setNuevoVend(false)}>
-                <Icon name="close" className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
-            <Select value={f.vendedorId} onChange={elegirVendedor}>
-              <option value="">— ¿Quién hace esta venta? —</option>
-              {vendedores.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.nombre}
-                </option>
-              ))}
-              <option value="__nuevo__">Agregar vendedor…</option>
-            </Select>
-          )}
-        </div>
-
-        {/* Cliente */}
-        <div>
-          <Label>Cliente</Label>
-          <Input
-            value={f.cliente}
-            onChange={set('cliente')}
-            placeholder="Nombre del cliente"
-            autoCapitalize="words"
-            autoCorrect="off"
-          />
-        </div>
+        <div className="md:col-span-2 rounded-xl border border-ink-600 p-3 text-sm"><span className="text-mute">Vendedor de esta venta</span><strong className="ml-3">{sesion?.nombre || 'Ingresá con tu PIN'}</strong><p className="mt-1 text-xs text-mute">Asignado automáticamente a tu sesión.</p></div>
+        <CheckoutCustomer esDemo={esDemo} value={customer} onChange={c => { setCustomer(c); setF(current => ({ ...current, cliente: c.name })) }} />
 
         {/* Producto */}
         <div className="rounded-2xl border border-fono/20 bg-fono/[.04] p-4 md:col-span-2">
@@ -540,22 +521,13 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
                 <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
                 <Input value={busquedaProducto} onChange={(e) => setBusquedaProducto(e.target.value)} placeholder="Buscar producto…" aria-label="Buscar producto por texto" className="pl-9" />
               </div>
-              <Select value={valorSelect} onChange={elegirProducto} aria-label="Seleccionar producto">
-                <option value="">— Seleccionar producto —</option>
-                {familiasVisibles.map((fam) =>
-                  fam.items.length > 1 ? (
-                    <option key={fam.base} value={'fam:' + fam.base}>
-                      {fam.base} · {fam.items.length} colores
-                    </option>
-                  ) : (
-                    <option key={fam.items[0].id} value={fam.items[0].id}>
-                      {fam.items[0].nombre}
-                    </option>
-                  ),
-                )}
-                {familiasVisibles.length === 0 && <option disabled>No encontramos ese producto</option>}
-                <option value="__nuevo__">Agregar otro producto…</option>
-              </Select>
+              <div className="grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2" aria-label="Resultados de productos">
+                {familiasVisibles.map(fam => { const p = fam.items[0]; return <button type="button" key={fam.base} onClick={() => elegirProducto({ target: { value: fam.items.length > 1 ? 'fam:' + fam.base : p.id } })} className="flex min-h-20 items-center gap-3 rounded-xl border border-ink-600 p-3 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono">
+                  {p.imagen || p.imageUrl ? <img src={p.imagen || p.imageUrl} alt="" loading="lazy" className="h-12 w-12 rounded-lg object-cover" /> : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light"><Icon name="box" className="h-6 w-6" /></span>}
+                  <span><strong className="block text-sm">{fam.base}</strong><span className="block text-xs text-mute">{fam.items.length > 1 ? fam.items.length + ' variantes · desde ' : ''}{gs(Math.min(...fam.items.map(item => num(item.precioVenta))))}</span></span>
+                </button> })}
+                {!familiasVisibles.length && <p className="p-3 text-sm text-mute">No encontramos productos. Probá otro nombre.</p>}
+              </div>
               {familiaActiva && (
                 <div className="flex items-center gap-2 mt-2">
                   {itemActivo ? (
@@ -576,16 +548,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
           )}
         </div>
 
-        {/* Precio + botón agregar (misma fila) */}
-        <div>
-          <Label>Precio (₲)</Label>
-          <Input
-            inputMode="numeric"
-            value={gsInput(f.precio)}
-            onChange={set('precio')}
-            placeholder="Ej: 110.000"
-          />
-        </div>
+        {f.productoId && <ProductPrice key={f.productoId} esDemo={esDemo} product={productos.find(p => p.id === f.productoId)} price={f.precio} onChange={(precio, coupon = null) => setF(current => ({ ...current, precio, couponCode: typeof coupon === 'string' ? coupon : coupon?.couponCode || null }))} />}
         <div className="flex items-end">
           <Button
             type="button"
@@ -607,7 +570,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
           <div className="md:col-span-2 rounded-xl border border-ink-600 divide-y divide-ink-600">
             {items.map((it) => (
               <div key={it.key} className="flex items-center justify-between gap-2 px-3 py-1.5">
-                <span className="text-sm font-medium truncate">{it.nombre}</span>
+                <span className="text-sm font-medium truncate">{it.nombre}{it.couponCode && <small className="ml-2 text-fono-light">Cupón {it.couponCode}</small>}</span>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-sm font-bold text-fono">{gs(it.precio)}</span>
                   <button
@@ -634,6 +597,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         <div>
           <Label>Descuento extra (Gs)</Label>
           <Input inputMode="numeric" value={gsInput(descuento)} onChange={(e) => setDescuento(e.target.value)} placeholder="0" />
+          {tieneCupon && <p className="mt-1 text-xs text-fono-light">Esta venta tiene cupón: el descuento extra debe quedar en cero.</p>}
         </div>
 
         {/* Fecha */}

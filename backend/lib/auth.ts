@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
+import { COOKIE_COMPANY, readCookie, sameOrigin } from './google-oauth'
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_MINUTES = 15
@@ -74,8 +75,9 @@ export async function authenticateCompany(input: LoginInput) {
 async function companySession(request: Request) {
   const authorization = request.headers.get('authorization')
   const match = authorization?.match(/^Bearer\s+(.+)$/i)
-  if (!match) return null
-  const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(match[1]) } })
+  const cookie = readCookie(request, COOKIE_COMPANY)
+  if (!match && (!cookie || !sameOrigin(request))) return null
+  const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(match ? match[1] : cookie) } })
   if (!session || session.level !== 'COMPANY' || session.revokedAt || session.expiresAt <= new Date()) return null
   return session
 }
@@ -132,8 +134,9 @@ export async function requireSession(request: Request): Promise<SessionContext |
 export async function revokeSession(request: Request) {
   const authorization = request.headers.get('authorization')
   const match = authorization?.match(/^Bearer\s+(.+)$/i)
-  if (!match) return false
-  const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(match[1]) } })
+  const cookie = readCookie(request, COOKIE_COMPANY)
+  if (!match && (!cookie || !sameOrigin(request))) return false
+  const session = await prisma.session.findUnique({ where: { tokenHash: hashToken(match ? match[1] : cookie) } })
   if (!session || session.revokedAt) return false
   await prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } })
   return true

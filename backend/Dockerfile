@@ -23,4 +23,4 @@ COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/next.config.* ./
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 CMD wget -qO- http://127.0.0.1:3000/api/health || exit 1
-CMD ["npm", "run", "start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && exec npm run start"]

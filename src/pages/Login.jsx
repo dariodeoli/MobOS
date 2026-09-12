@@ -4,6 +4,7 @@ import { Button, Card, Input, Label } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { APP_VERSION } from '@/lib/brand'
+import { sessionApi } from '@/lib/api/session'
 
 export default function Login() {
   const { entrarEmpresa, entrarVendedor } = useSesion()
@@ -23,6 +24,40 @@ export default function Login() {
   const [pin, setPin] = useState('')
   const [nombreEmpresa, setNombreEmpresa] = useState('')
   const pinSubmit = useRef(false)
+  const googleStarted = useRef(false)
+  const [googleReady, setGoogleReady] = useState(false)
+  const [adminPin, setAdminPin] = useState('')
+  const [confirmOwnership, setConfirmOwnership] = useState(false)
+
+  function showCompany(result) {
+    const lista = result.sellers || []
+    setNombreEmpresa(result.tenant?.name || '')
+    setVendedores(lista)
+    setVendedorId(lista.length === 1 ? lista[0].id : '')
+    setModo('entrar'); setEtapa('vendedor'); setGoogleReady(false)
+    setError(lista.length ? '' : 'La empresa no tiene usuarios activos disponibles.')
+  }
+
+  useEffect(() => {
+    if (googleStarted.current) return
+    googleStarted.current = true
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('auth_error')) {
+      setError(params.get('auth_error') === 'cancelled' ? 'Cancelaste el acceso con Google. Podés volver a intentarlo.' : 'No se pudo verificar el acceso con Google. Volvé a intentarlo; si persiste, revisá la configuración del servidor.')
+    }
+    if (params.get('google') === 'ready') {
+      setCargando(true)
+      sessionApi.completeGoogle({ action: 'login' }).then(showCompany).catch(err => {
+        if (err.code === 'onboarding_required') { setModo('crear'); setGoogleReady(true); setError('') }
+        else if (err.code === 'start_create') { setModo('crear'); setGoogleReady(false); setError(''); setOk(err.message) }
+        else setError(err.message || 'No se pudo completar el acceso con Google.')
+      }).finally(() => setCargando(false))
+    }
+    if (params.has('google') || params.has('auth_error')) {
+      params.delete('google'); params.delete('auth_error')
+      window.history.replaceState({}, '', `${window.location.pathname}${params.size ? `?${params}` : ''}`)
+    }
+  }, [])
 
   const set = (campo) => (e) => setF((x) => ({ ...x, [campo]: e.target.value }))
 
@@ -48,8 +83,14 @@ export default function Login() {
     setOk('')
 
     if (modo === 'crear') {
-      setOk('La creación de cuentas está temporalmente disponible por contacto con el equipo de MobOS. No se envió ningún correo.')
-      setCargando(false)
+      if (!googleReady) {
+        try { await sessionApi.startGoogle(true) } catch (err) { setError(err.message) }
+        return
+      }
+      setCargando(true)
+      try { showCompany(await sessionApi.completeGoogle({ action: 'create', companyName: f.nombreEmpresa, adminName: f.nombrePersona, password: f.clave, pin: adminPin, confirmOwnership })) }
+      catch (err) { setError(err.message || 'No se pudo crear la tienda.') }
+      finally { setCargando(false) }
       return
     }
     if (!f.correo.trim() || !f.clave) {
@@ -124,7 +165,14 @@ export default function Login() {
         </p>
 
         <form onSubmit={enviar} className="space-y-3.5">
-          {crear && <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-4 text-sm leading-6 text-slate-300">La creación de cuentas está temporalmente disponible por contacto con el equipo de MobOS. Este formulario no envía correos ni crea cuentas todavía.</div>}
+          {crear && <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-4 text-sm leading-6 text-slate-300">{googleReady ? 'Completá el alta de tu tienda. La contraseña habilita la empresa; tu PIN identifica al administrador.' : 'Verificá tu identidad con Google para crear una tienda nueva. Luego elegirás contraseña de empresa y PIN de administrador.'}</div>}
+          {crear && googleReady && <>
+            <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} autoComplete="organization" /></div>
+            <div><Label htmlFor="admin-name">Nombre del administrador</Label><Input id="admin-name" required maxLength={100} value={f.nombrePersona} onChange={set('nombrePersona')} autoComplete="name" /></div>
+            <div><Label htmlFor="new-password">Contraseña de empresa</Label><Input id="new-password" type="password" required minLength={12} maxLength={72} value={f.clave} onChange={set('clave')} autoComplete="new-password" /></div>
+            <div><Label htmlFor="admin-pin">PIN del administrador</Label><Input id="admin-pin" type="password" inputMode="numeric" pattern="[0-9]{4}" required maxLength={4} value={adminPin} onChange={e => setAdminPin(e.target.value.replace(/\D/g, ''))} autoComplete="new-password" /></div>
+            <label className="flex gap-2 text-sm"><input type="checkbox" required checked={confirmOwnership} onChange={e => setConfirmOwnership(e.target.checked)} />Confirmo que estoy creando mi propia tienda y seré su administrador.</label>
+          </>}
 
           {modo === 'entrar' && etapa === 'vendedor' ? (
             <>
@@ -132,7 +180,7 @@ export default function Login() {
               <div><Label htmlFor="seller-pin">PIN del vendedor</Label><Input id="seller-pin" autoFocus type="password" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => { setError(''); setPin(e.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="4 dígitos" autoComplete="one-time-code" /></div>
               <button type="button" onClick={() => { setEtapa('empresa'); setPin(''); setError('') }} className="text-sm text-mute hover:text-white">← Volver a empresa</button>
             </>
-          ) : <>
+          ) : !crear && <>
           <div>
             <Label htmlFor="mail">Correo</Label>
             <Input
@@ -174,8 +222,9 @@ export default function Login() {
           )}
 
           <Button type="submit" className="w-full" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>
-            {cargando ? 'Un momento…' : crear ? 'Crear mi tienda' : 'Continuar'}
+            {cargando ? 'Un momento…' : crear ? googleReady ? 'Crear mi tienda' : 'Crear con Google' : 'Continuar'}
           </Button>
+          {!crear && etapa === 'empresa' && <Button type="button" className="w-full" disabled={cargando} onClick={async () => { try { await sessionApi.startGoogle() } catch (err) { setError(err.message) } }}>Entrar con Google</Button>}
         </form>
       </Card>
 

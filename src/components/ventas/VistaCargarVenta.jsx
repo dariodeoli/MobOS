@@ -36,7 +36,7 @@ function Caja({ className, children }) {
   )
 }
 
-export default function VistaCargarVenta({ vendedoresById = {} }) {
+export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, onTradeInConsumed }) {
   const { sesion, esDemo } = useSesion()
   const ventas = listVentas()
   const prods = productosById()
@@ -68,13 +68,13 @@ export default function VistaCargarVenta({ vendedoresById = {} }) {
   const filas = d.ultimas.slice((pag - 1) * POR_PAGINA, pag * POR_PAGINA)
   const nombreProd = (v) => v.productoNombre || prods[v.productoId]?.nombre || '—'
 
-  if (!sesion?.esPropietario) return <div className="mx-auto w-full max-w-4xl"><FormularioVenta /></div>
+  if (!sesion?.esPropietario) return <div className="mx-auto w-full max-w-4xl"><FormularioVenta tradeInDraft={tradeInDraft} onTradeInConsumed={onTradeInConsumed} /></div>
 
   return (
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
       {/* ── Columna principal ────────────────────────────────────── */}
       <div className="flex min-w-0 flex-col gap-5">
-        <FormularioVenta ocultarCarrito onCarrito={setCarrito} />
+        <FormularioVenta ocultarCarrito onCarrito={setCarrito} tradeInDraft={tradeInDraft} onTradeInConsumed={onTradeInConsumed} />
 
         {/* Últimas cargadas */}
         <Caja className="overflow-hidden">
