@@ -11,8 +11,13 @@ const statuses = new Set(['DRAFT', 'RECEIVED'])
 const safePyg = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= INT_MAX
 const boundedText = (value: unknown, max = MAX_TEXT) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max
 const currencies = new Set(['PYG', 'USD', 'BRL', 'EUR', 'USDT'])
-const decimal = (value: unknown, decimals = 2) => typeof value === 'number' || typeof value === 'string'
-  ? /^\d+(?:\.\d+)?$/.test(String(value)) && String(value).split('.')[1]?.length <= decimals : false
+const decimal = (value: unknown, decimals = 2) => {
+  if (typeof value !== 'number' && typeof value !== 'string') return false
+  const raw = String(value)
+  if (!/^\d+(?:\.\d+)?$/.test(raw)) return false
+  const fraction = raw.split('.')[1]
+  return !fraction || fraction.length <= decimals
+}
 
 function scope(session: { user: { role: string; branchId: string | null } }) {
   return session.user.role === 'ADMIN' ? null : (session.user.branchId || '')
