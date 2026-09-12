@@ -1,0 +1,9 @@
+# Never send local runtime credentials to the Docker build context.
+.env
+.env.*
+!.env.example
+
+# Local and generated artifacts.
+node_modules
+.next
+npm-debug.log*
