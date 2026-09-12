@@ -2,11 +2,21 @@ import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { InventoryUnitStatus, PaymentCurrency, ProductCondition } from '@prisma/client'
+import { INVENTORY_REMOVED, INVENTORY_RESTORED, removedInventoryUnitIds } from '../../../lib/inventory'
 
 const serialKey = (value: string) => value.trim().toUpperCase().replace(/[\s-]+/g, '')
 const canSeeBranch = (role: string, assigned: string | null, branchId: string | null) => !['VENDEDOR', 'CAJERA'].includes(role) || assigned === branchId
 const canManageBranch = (role: string, assigned: string | null, branchId: string) => role === 'ADMIN' || (role === 'GERENTE' && assigned === branchId)
 const text = (value: unknown, max = 500) => typeof value === 'string' ? value.trim().slice(0, max) || null : null
+const reason = (value: unknown) => typeof value === 'string' && value.trim().length >= 3 && value.trim().length <= 500 ? value.trim() : null
+
+async function removedIdsForTenant(tenant: string) {
+  const events = await prisma.auditLog.findMany({
+    where: { tenantId: tenant, entity: 'InventoryUnit', action: { in: [INVENTORY_REMOVED, INVENTORY_RESTORED] } },
+    select: { entityId: true, action: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 5000,
+  })
+  return removedInventoryUnitIds(events)
+}
 
 function unitData(body: any) {
   const condition = body.condition === undefined ? undefined : Object.values(ProductCondition).includes(body.condition) ? body.condition : null
@@ -44,10 +54,21 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams
   const branchId = params.get('branchId')
   if (branchId && !canSeeBranch(session.user.role, session.user.branchId, branchId)) return error('No autorizado para esa sucursal.', 403)
+  const view = params.get('view') || 'active'
+  if (!['active', 'removed', 'all'].includes(view)) return error('Vista de inventario inválida.')
+  // No revelar qué se retiró a gerentes, cajeras o vendedores. Devolver una
+  // colección vacía permite que el panel común siga cargando sin filtrar datos.
+  if (view === 'removed' && session.user.role !== 'ADMIN') return json([])
   const raw = (params.get('q') || '').replace(/^MOBOS:/i, '')
   const query = raw ? serialKey(raw) : ''
+  const removedIds = await removedIdsForTenant(tenant)
+  const removalFilter = view === 'removed'
+    ? { id: { in: [...removedIds] } }
+    : view === 'active' && removedIds.size
+      ? { id: { notIn: [...removedIds] } }
+      : {}
   const units = await prisma.inventoryUnit.findMany({
-    where: { tenantId: tenant, ...(branchId ? { branchId } : session.user.branchId ? { branchId: session.user.branchId } : {}), ...(query ? { OR: [{ serial: { contains: query, mode: 'insensitive' } }, { product: { sku: { contains: query, mode: 'insensitive' } } }, { product: { name: { contains: raw, mode: 'insensitive' } } }] } : {}) },
+    where: { tenantId: tenant, ...removalFilter, ...(branchId ? { branchId } : session.user.branchId ? { branchId: session.user.branchId } : {}), ...(query ? { OR: [{ serial: { contains: query, mode: 'insensitive' } }, { product: { sku: { contains: query, mode: 'insensitive' } } }, { product: { name: { contains: raw, mode: 'insensitive' } } }] } : {}) },
     include: { product: { select: { id: true, name: true, sku: true, pricePyg: true } }, branch: { select: { id: true, name: true } }, location: { select: { id: true, name: true, code: true } } },
     orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }], take: 100,
   })
@@ -90,17 +111,43 @@ export async function PATCH(request: Request) {
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }
   const id = text(body.id, 128)
   if (!id) return error('Unidad obligatoria.')
+  const action = body.action === undefined ? 'adjust' : body.action
+  if (!['adjust', 'remove', 'restore'].includes(action)) return error('Acción de inventario inválida.')
+  const adjustmentReason = reason(body.reason)
+  if (action !== 'adjust' && !adjustmentReason) return error('Indicá un motivo de entre 3 y 500 caracteres.')
   try {
     const updated = await prisma.$transaction(async tx => {
-      const before = await tx.inventoryUnit.findFirst({ where: { id, tenantId: tenant }, select: { id: true, branchId: true, status: true, serial: true, locationId: true } })
+      const before = await tx.inventoryUnit.findFirst({ where: { id, tenantId: tenant }, select: { id: true, branchId: true, status: true, serial: true, locationId: true, productId: true } })
       if (!before || !before.branchId) throw new Error('Unidad no encontrada.')
       if (!canManageBranch(session.user.role, session.user.branchId, before.branchId)) throw new Error('No autorizado para esa sucursal.')
+      const removalEvents = await tx.auditLog.findMany({ where: { tenantId: tenant, entity: 'InventoryUnit', entityId: id, action: { in: [INVENTORY_REMOVED, INVENTORY_RESTORED] } }, select: { entityId: true, action: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] })
+      const removed = removedInventoryUnitIds(removalEvents).has(id)
+      if (action === 'remove') {
+        if (removed) throw new Error('La unidad ya fue eliminada de forma recuperable.')
+        if (before.status !== 'AVAILABLE') throw new Error('Solo se puede eliminar una unidad disponible. Liberá reservas o completá el flujo correspondiente.')
+        const decremented = await tx.product.updateMany({ where: { id: before.productId, tenantId: tenant, stock: { gte: 1 } }, data: { stock: { decrement: 1 } } })
+        if (decremented.count !== 1) throw new Error('El stock cambió mientras se eliminaba la unidad.')
+        const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'DEFECTIVE', reservedUntil: null, reservationCustomer: null, reservedById: null } })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_REMOVED, entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, statusBefore: before.status, locationId: before.locationId } } })
+        return data
+      }
+      if (action === 'restore') {
+        if (session.user.role !== 'ADMIN') throw new Error('Solo un administrador general puede restaurar inventario eliminado.')
+        if (!removed) throw new Error('La unidad no está en eliminados recuperables.')
+        const incremented = await tx.product.updateMany({ where: { id: before.productId, tenantId: tenant, stock: { lt: 2147483647 } }, data: { stock: { increment: 1 } } })
+        if (incremented.count !== 1) throw new Error('No se pudo restaurar el stock de la unidad.')
+        const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservedById: null } })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_RESTORED, entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, restoredTo: 'AVAILABLE', locationId: before.locationId } } })
+        return data
+      }
+      if (!adjustmentReason) throw new Error('Indicá un motivo de ajuste de entre 3 y 500 caracteres.')
+      if (removed) throw new Error('Restaurá la unidad antes de ajustarla.')
       const locationId = body.locationId === undefined ? undefined : body.locationId === '' || body.locationId === null ? null : text(body.locationId, 128)
       if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId: before.branchId, isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
       const requestedStatus = body.status === undefined ? undefined : Object.values(InventoryUnitStatus).includes(body.status) ? body.status : null
       if (requestedStatus === null || requestedStatus === 'RESERVED' || requestedStatus === 'SOLD' || (before.status === 'RESERVED' && requestedStatus !== undefined)) throw new Error('Ese estado se gestiona desde reserva o venta.')
       const data = await tx.inventoryUnit.update({ where: { id }, data: { ...unitData(body), ...(locationId !== undefined ? { locationId } : {}), ...(requestedStatus !== undefined ? { status: requestedStatus, ...(requestedStatus === 'AVAILABLE' ? { reservedUntil: null, reservationCustomer: null, reservedById: null } : {}) } : {}) } })
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_UPDATED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, before: { locationId: before.locationId, status: before.status }, after: { locationId: data.locationId, status: data.status } } } })
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_ADJUSTED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, before: { locationId: before.locationId, status: before.status }, after: { locationId: data.locationId, status: data.status } } } })
       return data
     })
     return json(updated)
