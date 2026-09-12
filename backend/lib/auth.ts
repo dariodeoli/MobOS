@@ -59,10 +59,15 @@ export async function authenticateCompany(input: LoginInput) {
     const lockExpired = tenant.lockedUntil !== null && tenant.lockedUntil <= now
     const attempts = lockExpired ? 0 : tenant.failedLoginAttempts
     if (lockExpired) await tx.tenant.update({ where: { id: tenant.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
-    if (tenant.lockedUntil && !lockExpired) return null
+    if (tenant.lockedUntil && !lockExpired) {
+      await tx.auditLog.create({ data: { tenantId: tenant.id, action: 'COMPANY_SIGN_IN_BLOCKED', entity: 'Tenant', entityId: tenant.id, metadata: { branchId } } })
+      return null
+    }
     if (!(await bcrypt.compare(password, tenant.passwordHash))) {
       const failedLoginAttempts = attempts + 1
-      await tx.tenant.update({ where: { id: tenant.id }, data: { failedLoginAttempts, lockedUntil: failedLoginAttempts >= MAX_FAILED_ATTEMPTS ? new Date(now.getTime() + LOCKOUT_MINUTES * 60 * 1000) : null } })
+      const lockedUntil = failedLoginAttempts >= MAX_FAILED_ATTEMPTS ? new Date(now.getTime() + LOCKOUT_MINUTES * 60 * 1000) : null
+      await tx.tenant.update({ where: { id: tenant.id }, data: { failedLoginAttempts, lockedUntil } })
+      await tx.auditLog.create({ data: { tenantId: tenant.id, action: lockedUntil ? 'COMPANY_SIGN_IN_LOCKED' : 'COMPANY_SIGN_IN_FAILED', entity: 'Tenant', entityId: tenant.id, metadata: { failedLoginAttempts, branchId } } })
       return null
     }
     await tx.tenant.update({ where: { id: tenant.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
@@ -105,10 +110,15 @@ export async function authenticateSeller(request: Request, input: PinInput) {
     const lockExpired = user.lockedUntil !== null && user.lockedUntil <= now
     const attempts = lockExpired ? 0 : user.failedLoginAttempts
     if (lockExpired) await tx.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
-    if (user.lockedUntil && !lockExpired) return null
+    if (user.lockedUntil && !lockExpired) {
+      await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: 'SELLER_PIN_BLOCKED', entity: 'User', entityId: user.id, metadata: { branchId: parent.branchId } } })
+      return null
+    }
     if (!(await bcrypt.compare(pin, user.pinHash))) {
       const failedLoginAttempts = attempts + 1
-      await tx.user.update({ where: { id: user.id }, data: { failedLoginAttempts, lockedUntil: failedLoginAttempts >= MAX_FAILED_ATTEMPTS ? new Date(now.getTime() + LOCKOUT_MINUTES * 60 * 1000) : null } })
+      const lockedUntil = failedLoginAttempts >= MAX_FAILED_ATTEMPTS ? new Date(now.getTime() + LOCKOUT_MINUTES * 60 * 1000) : null
+      await tx.user.update({ where: { id: user.id }, data: { failedLoginAttempts, lockedUntil } })
+      await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: lockedUntil ? 'SELLER_PIN_LOCKED' : 'SELLER_PIN_FAILED', entity: 'User', entityId: user.id, metadata: { failedLoginAttempts, branchId: parent.branchId } } })
       return null
     }
     await tx.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
