@@ -27,6 +27,7 @@ import SelectorMedioPago from '@/components/shared/SelectorMedioPago'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import PaymentAccountFields, { accountPayment, updateAccountPayment } from './PaymentAccountFields'
+import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
 // en cada venta (suelen ser ráfagas de la misma persona).
@@ -46,6 +47,7 @@ const VACIO = (vendedorId) => ({
   precio: '',
   couponCode: null,
   soldWithoutInsurance: false,
+  serials: [],
   medioPago: MEDIOS_PAGO[0],
   entrega: ENTREGA[0],
   montoDelivery: '',
@@ -80,6 +82,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   const [cuentas, setCuentas] = useState(null)
   const [errorCuentas, setErrorCuentas] = useState('')
   const [intentoCuentas, setIntentoCuentas] = useState(0)
+  const [serialRequired, setSerialRequired] = useState(false)
   const guardadoEnCurso = useRef(false)
   const [guardadoIncompleto, setGuardadoIncompleto] = useState(false)
   const usaCuentas = Boolean(cuentas?.length)
@@ -132,7 +135,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     return productos.find((p) => p.id === id)?.nombre || ''
   }
   function agregarItem() {
-    if (!f.productoId || gsNum(f.precio) <= 0) return
+    if (!f.productoId || gsNum(f.precio) <= 0 || (serialRequired && !f.serials.length)) return
     setItems((arr) => [
       ...arr,
       {
@@ -142,9 +145,11 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         precio: gsNum(f.precio),
         couponCode: f.couponCode,
         soldWithoutInsurance: f.soldWithoutInsurance,
+        serials: f.serials,
       },
     ])
-    setF((s) => ({ ...s, productoId: '', precio: '', couponCode: null, soldWithoutInsurance: false }))
+    setF((s) => ({ ...s, productoId: '', precio: '', couponCode: null, soldWithoutInsurance: false, serials: [] }))
+    setSerialRequired(false)
     setFamiliaActiva(null)
   }
   function quitarItem(key) {
@@ -167,7 +172,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     if (!onCarrito) return
     const actual =
       f.productoId && gsNum(f.precio) > 0
-        ? [{ key: '__actual__', nombre: nombreDe(f.productoId), precio: gsNum(f.precio) }]
+        ? [{ key: '__actual__', nombre: nombreDe(f.productoId), precio: gsNum(f.precio), serials: f.serials }]
         : []
     onCarrito({ items: [...items, ...actual], quitar: quitarItem })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -209,7 +214,9 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
       precio: p && p.precioVenta > 0 ? String(p.precioVenta) : '',
       couponCode: null,
       soldWithoutInsurance: false,
+      serials: [],
     }))
+    setSerialRequired(false)
   }
 
   function elegirProducto(e) {
@@ -284,10 +291,10 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     // Lista final = lo agregado al carrito + lo que esté seleccionado ahora.
     const lista = [...items]
     if (f.productoId && gsNum(f.precio) > 0) {
-      lista.push({ productoId: f.productoId, precio: gsNum(f.precio), couponCode: f.couponCode, soldWithoutInsurance: f.soldWithoutInsurance })
+      lista.push({ productoId: f.productoId, precio: gsNum(f.precio), couponCode: f.couponCode, soldWithoutInsurance: f.soldWithoutInsurance, serials: f.serials })
     }
     if (!sesion?.vendedorId || !f.cliente.trim() || lista.length === 0 || totalPagado > totalGeneral) return
-    const orderItems = lista.map(it => ({ productId: it.productoId, description: nombreDe(it.productoId), quantity: 1, unitPricePyg: it.precio, soldWithoutInsurance: Boolean(it.soldWithoutInsurance), ...(it.couponCode ? { couponCode: it.couponCode } : {}) }))
+    const orderItems = lista.map(it => ({ productId: it.productoId, description: nombreDe(it.productoId), quantity: 1, unitPricePyg: it.precio, soldWithoutInsurance: Boolean(it.soldWithoutInsurance), ...(it.serials?.length ? { inventoryUnitSerials: it.serials } : {}), ...(it.couponCode ? { couponCode: it.couponCode } : {}) }))
     setErrorVenta('')
     let lineas
     let payments
@@ -552,6 +559,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         </div>
 
         {f.productoId && <ProductPrice key={f.productoId} esDemo={esDemo} product={productos.find(p => p.id === f.productoId)} price={f.precio} onChange={(precio, coupon = null) => setF(current => ({ ...current, precio, couponCode: typeof coupon === 'string' ? coupon : coupon?.couponCode || null }))} />}
+        {f.productoId && !esDemo && <div className="md:col-span-2"><SerialUnitPicker product={productos.find(p => p.id === f.productoId)} customerName={customer.name || f.cliente} selectedSerials={f.serials} onChange={serials => setF(current => ({ ...current, serials }))} onRequiresSerial={setSerialRequired} disabled={guardando} /></div>}
         {f.productoId && Number(productos.find(p => p.id === f.productoId)?.insuranceRate || 0) > 0 && <label className="flex items-center gap-2 text-sm text-mute"><input type="checkbox" checked={f.soldWithoutInsurance} onChange={(e) => setF((s) => ({ ...s, soldWithoutInsurance: e.target.checked }))} className="h-4 w-4 accent-fono" /> Vendido sin seguro — no descontar seguro del margen</label>}
         <div className="flex items-end">
           <Button
@@ -559,7 +567,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
             variant="outline"
             className="min-h-11 w-full"
             onClick={agregarItem}
-            disabled={!f.productoId || gsNum(f.precio) <= 0}
+            disabled={!f.productoId || gsNum(f.precio) <= 0 || (serialRequired && !f.serials.length)}
           >
             Agregar a la lista
           </Button>
@@ -574,7 +582,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
           <div className="md:col-span-2 rounded-xl border border-ink-600 divide-y divide-ink-600">
             {items.map((it) => (
               <div key={it.key} className="flex items-center justify-between gap-2 px-3 py-1.5">
-                <span className="text-sm font-medium truncate">{it.nombre}{it.couponCode && <small className="ml-2 text-fono-light">Cupón {it.couponCode}</small>}{it.soldWithoutInsurance && <small className="ml-2 text-warn">Sin seguro</small>}</span>
+                <span className="text-sm font-medium truncate">{it.nombre}{it.serials?.length > 0 && <small className="ml-2 text-fono-light">IMEI ••••{it.serials[0].slice(-4)}</small>}{it.couponCode && <small className="ml-2 text-fono-light">Cupón {it.couponCode}</small>}{it.soldWithoutInsurance && <small className="ml-2 text-warn">Sin seguro</small>}</span>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-sm font-bold text-fono">{gs(it.precio)}</span>
                   <button

@@ -21,6 +21,8 @@ model Tenant {
   passwordHash        String?
   failedLoginAttempts Int              @default(0)
   lockedUntil         DateTime?
+  archivedAt          DateTime?
+  archivedReason      String?
   slug                String           @unique
   settings            Json             @default("{}")
   createdAt           DateTime         @default(now())
@@ -145,11 +147,14 @@ model Session {
   tokenHash  String       @unique
   expiresAt  DateTime
   revokedAt  DateTime?
+  // Reautenticación sensible de corta duración para exportar, revocar o archivar.
+  reauthenticatedAt DateTime?
   createdAt  DateTime     @default(now())
   lastSeenAt DateTime     @default(now())
 
   @@index([tenantId, userId])
   @@index([expiresAt])
+  @@index([tenantId, reauthenticatedAt])
 }
 
 enum SessionLevel {
@@ -439,6 +444,9 @@ model OrderItem {
   extraCostPyg         Int            @default(0)
   soldWithoutInsurance Boolean        @default(false)
   totalPyg             Int
+  // IMEI/seriales físicos vendidos por esta línea. El producto sigue siendo
+  // un modelo único; la trazabilidad queda en cada unidad seleccionada.
+  serials              Json           @default("[]")
 
   @@index([orderId])
 }

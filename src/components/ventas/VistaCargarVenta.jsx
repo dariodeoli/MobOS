@@ -231,7 +231,7 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
               <div className="divide-y divide-ink-600">
                 {carrito.items.map((it) => (
                   <div key={it.key} className="flex items-center justify-between gap-2 px-5 py-2.5">
-                    <span className="min-w-0 truncate text-sm">{it.nombre}</span>
+                    <span className="min-w-0 truncate text-sm">{it.nombre}{it.serials?.length > 0 && <small className="ml-2 text-xs text-fono-light">••••{it.serials[0].slice(-4)}</small>}</span>
                     <div className="flex shrink-0 items-center gap-2">
                       <span className="text-sm font-medium tabular-nums">{gs(it.precio)}</span>
                       {it.key !== '__actual__' && carrito.quitar && (

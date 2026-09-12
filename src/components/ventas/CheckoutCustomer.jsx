@@ -12,6 +12,9 @@ const customerValue = (customer) => ({
 export default function CheckoutCustomer({ value, onChange, esDemo }) {
   const [matches, setMatches] = useState([])
   const [error, setError] = useState('')
+  const [rucLookup, setRucLookup] = useState(null)
+  const [rucError, setRucError] = useState('')
+  const [rucLoading, setRucLoading] = useState(false)
   useEffect(() => {
     let active = true
     const query = (value.name || '').trim()
@@ -29,6 +32,18 @@ export default function CheckoutCustomer({ value, onChange, esDemo }) {
   const setAddress = (index, field, next) => onChange({ ...value, addresses: value.addresses.map((address, position) => position === index ? { ...address, [field]: next } : address) })
   const addAddress = () => onChange({ ...value, addresses: [...(value.addresses || []), { ...emptyAddress(), label: `Dirección ${(value.addresses?.length || 0) + 1}`, isDefault: !value.addresses?.length }] })
   const removeAddress = (index) => onChange({ ...value, addresses: value.addresses.filter((_, position) => position !== index).map((address, position) => ({ ...address, isDefault: position === 0 ? true : address.isDefault })) })
+  const consultRuc = async () => {
+    if (!value.document?.trim()) return
+    if (esDemo) { setRucError('La demo no consume consultas reales de RUC. Podés cargar los datos manualmente.'); return }
+    setRucLoading(true); setRucError(''); setRucLookup(null)
+    try { setRucLookup(await api.get(`/api/ruc?ruc=${encodeURIComponent(value.document)}`)) }
+    catch (cause) { setRucError(cause?.message || 'No se pudo consultar el RUC. Podés continuar con carga manual.') }
+    finally { setRucLoading(false) }
+  }
+  const applyRuc = () => {
+    if (!rucLookup?.result) return
+    onChange({ ...value, name: rucLookup.result.name || value.name, document: rucLookup.result.fullRuc || value.document })
+  }
 
   return <div className="space-y-3 md:col-span-2">
     <label className="block text-sm font-semibold">Cliente<Input aria-label="Nombre, teléfono, CI o RUC del cliente" value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ name: event.target.value, phone: '', countryCode: '+595', email: '', document: '', addresses: [] })} /></label>
@@ -39,8 +54,13 @@ export default function CheckoutCustomer({ value, onChange, esDemo }) {
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <label className="text-xs text-mute">Código país<Input aria-label="Código de país" value={value.countryCode || '+595'} onChange={set('countryCode')} placeholder="+595" /></label>
         <label className="text-xs text-mute">Teléfono<Input aria-label="Teléfono del cliente" type="tel" value={value.phone || ''} onChange={set('phone')} placeholder="0981 123 456" /></label>
-        <label className="text-xs text-mute">CI o RUC<Input aria-label="CI o RUC del cliente" value={value.document || ''} onChange={set('document')} placeholder="80012345-6" /></label>
+        <label className="text-xs text-mute">CI o RUC<Input aria-label="CI o RUC del cliente" value={value.document || ''} onChange={event => { setRucLookup(null); setRucError(''); onChange({ ...value, document: event.target.value }) }} placeholder="80012345-6" /></label>
         <label className="text-xs text-mute">Correo<Input aria-label="Correo del cliente" type="email" value={value.email || ''} onChange={set('email')} placeholder="cliente@correo.com" /></label>
+      </div>
+      <div className="mt-3 rounded-xl border border-ink-600 bg-ink-800/30 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2"><div><strong className="text-sm">Consulta RUC Paraguay</strong><p className="mt-1 text-xs text-mute">Verificá los datos antes de aplicarlos. La consulta no guarda información por sí sola.</p></div><Button type="button" variant="outline" disabled={!value.document?.trim() || rucLoading} onClick={consultRuc}>{rucLoading ? 'Consultando…' : 'Consultar RUC'}</Button></div>
+        {rucError && <p role="alert" className="mt-2 text-xs text-bad">{rucError}</p>}
+        {rucLookup?.result && <div className="mt-3 rounded-lg border border-fono/25 bg-fono/5 p-3 text-sm"><p><strong>{rucLookup.result.name}</strong></p><p className="mt-1 text-xs text-mute">RUC {rucLookup.result.fullRuc}{rucLookup.result.state ? ` · ${rucLookup.result.state}` : ''}</p><p className="mt-2 text-xs text-mute">Fuente: {rucLookup.source.provider} · {new Date(rucLookup.source.queriedAt).toLocaleString('es-PY')}</p><div className="mt-3 flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={applyRuc}>Aplicar nombre y RUC</Button><a className="self-center text-xs text-fono-light hover:underline" href={rucLookup.source.documentationUrl} target="_blank" rel="noreferrer">Fuente y documentación</a></div></div>}
       </div>
       <div className="mt-4 space-y-3"><div className="flex items-center justify-between"><strong className="text-sm">Direcciones</strong><Button type="button" variant="outline" onClick={addAddress}>+ Dirección</Button></div>
         {!value.addresses?.length && <p className="text-xs text-mute">Sin dirección cargada. Podés continuar con retiro en tienda.</p>}
