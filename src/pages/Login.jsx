@@ -132,6 +132,7 @@ export default function Login() {
         <p className="mt-7 max-w-lg text-lg leading-8 text-slate-400">POS, stock, caja y clientes conectados en una sola operación para que tu equipo se mueva con claridad.</p>
       </section>
       <section className="mx-auto w-full max-w-md rounded-[2rem] border border-white/10 bg-[#0b1822]/95 p-6 shadow-2xl shadow-[#15D7B8]/5 sm:p-8">
+      <a href="https://controlaria.online" className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-[#15D7B8] transition hover:text-white">← Volver al inicio</a>
       <img src="/logo-dark.svg" alt="MobOS" className="mb-2 w-44" />
       <p className="mb-8 text-sm text-mute">Sistema de ventas para tiendas</p>
 
