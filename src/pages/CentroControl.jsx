@@ -7,6 +7,7 @@ import { Button, Card } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { APP_NAME } from '@/lib/brand'
 import Resumen from '@/components/control/Resumen'
+import Reportes from '@/components/control/Reportes'
 import Inventario from '@/components/control/Inventario'
 import ProductosIncompletos from '@/components/control/ProductosIncompletos'
 import Ganancias from '@/components/control/Ganancias'
@@ -31,6 +32,7 @@ const SECCIONES = [
     titulo: 'Análisis',
     items: [
       ['resumen', 'Resumen', Resumen, 'chart'],
+      ['reportes', 'Reportes', Reportes, 'report'],
       ['ganancias', 'Ganancias', Ganancias, 'trending'],
       ['ganadores', 'Ganadores', Ganadores, 'trophy'],
       ['asistente', 'Asistente', Asistente, 'sparkles'],

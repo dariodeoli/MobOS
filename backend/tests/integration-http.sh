@@ -362,6 +362,27 @@ CHECKOUT_SELLER_B="$(json_field "$out" accessToken)"
 MOBOS_IT_EXECUTE=1 node "$BACKEND_ROOT/tests/checkout-customer.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A" "$CHECKOUT_SELLER_B"
 MOBOS_SECURITY_PAYMENT_ID="$PAYMENT_PROOF_ID" node "$BACKEND_ROOT/tests/security-regression.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
 
+echo "Reportes por producto, categoría, vendedor y día..."
+REPORTS_TO="$(node -e 'process.stdout.write(new Date().toISOString().slice(0,10))')"
+REPORTS_FROM="$(node -e 'process.stdout.write(new Date(Date.now() - 29 * 86400000).toISOString().slice(0,10))')"
+out="$(response_file)"; request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=product" 401 '' "$out" '' tenant-a-it
+out="$(response_file)"; request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=product" 403 '' "$out" "$TOKEN_A" ''
+out="$(response_file)"; request GET "/api/reports?from=$REPORTS_TO&to=$REPORTS_FROM" 400 '' "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"; request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=inexistente" 400 '' "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"; request GET "/api/reports?from=2026-02-30&to=$REPORTS_TO" 400 '' "$out" "$ADMIN_TOKEN" ''
+REPORTS_ORDERS="$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COUNT(*) FROM \"Order\" WHERE \"tenantId\" = 'tenant-a-it' AND \"status\" <> 'CANCELLED';")"
+REPORTS_TOTAL="$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COALESCE(SUM(\"totalPyg\"), 0) FROM \"Order\" WHERE \"tenantId\" = 'tenant-a-it' AND \"status\" <> 'CANCELLED';")"
+for reports_group in product category seller day; do
+  out="$(response_file)"
+  request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=$reports_group" 200 '' "$out" "$ADMIN_TOKEN" ''
+  node "$BACKEND_ROOT/tests/reports-http.mjs" "$out" "$REPORTS_TOTAL" "$REPORTS_ORDERS" "$reports_group"
+done
+out="$(response_file)"
+request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=product&branchId=branch-b-it" 404 '' "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"
+request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=product&branchId=branch-a-it" 200 '' "$out" "$ADMIN_TOKEN" ''
+node "$BACKEND_ROOT/tests/reports-http.mjs" "$out" "$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COALESCE(SUM(\"totalPyg\"), 0) FROM \"Order\" WHERE \"tenantId\" = 'tenant-a-it' AND \"branchId\" = 'branch-a-it' AND \"status\" <> 'CANCELLED';")" "$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COUNT(*) FROM \"Order\" WHERE \"tenantId\" = 'tenant-a-it' AND \"branchId\" = 'branch-a-it' AND \"status\" <> 'CANCELLED';")" product
+
 echo "10/11 Bloqueo de login empresarial después de cinco intentos..."
 out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-lock-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 for _ in 1 2 3 4 5; do
