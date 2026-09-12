@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { listAds, addAds, deleteAds } from '@/lib/storage'
 import { fechaClave, num, gs } from '@/utils/calculos'
-import { Card, Button, Input, Label, Select, Badge } from '@/components/ui'
+import { Card, Button, Input, Label, Select, Badge, MoneyInput } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 
 const PLATAFORMAS = ['Meta Ads', 'Instagram', 'Facebook', 'Google Ads', 'TikTok', 'Otro']
@@ -63,11 +63,10 @@ export default function Ads() {
         </p>
         <form onSubmit={guardar} className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <Label>Monto ₲</Label>
-            <Input
-              inputMode="numeric"
+            <Label>Monto</Label>
+            <MoneyInput
               value={f.monto}
-              onChange={set('monto')}
+              onValueChange={(monto) => setF((s) => ({ ...s, monto }))}
               placeholder="Ej: 150000"
             />
           </div>

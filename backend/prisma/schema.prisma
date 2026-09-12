@@ -188,6 +188,17 @@ model InventoryUnit {
   branchId String?
   branch Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
   serial String
+  // Un único modelo puede tener unidades nuevas o seminuevas con historial propio.
+  // Esto evita crear un producto distinto por cada IMEI.
+  condition ProductCondition @default(NEW)
+  batteryHealth Int?
+  supplierName String?
+  purchasedAt DateTime?
+  costPyg Int?
+  costCurrency PaymentCurrency @default(PYG)
+  originalCost Decimal? @db.Decimal(14, 2)
+  exchangeRatePyg Decimal? @db.Decimal(14, 4)
+  notes String?
   status InventoryUnitStatus @default(AVAILABLE)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

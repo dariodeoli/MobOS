@@ -1,8 +1,25 @@
 import { prisma } from '../../../lib/prisma'
+import { PaymentCurrency, ProductCondition } from '@prisma/client'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 
 const serialKey = (value: unknown) => typeof value === 'string' ? value.trim().toUpperCase().replace(/[\s-]+/g, '') : ''
+const unitDetails = (body: any, fallback: { condition: string; costPyg?: number }) => {
+  const raw = body.unit || body
+  const batteryHealth = raw.batteryHealth === undefined || raw.batteryHealth === null || raw.batteryHealth === '' ? null : Number(raw.batteryHealth)
+  if (batteryHealth !== null && (!Number.isSafeInteger(batteryHealth) || batteryHealth < 0 || batteryHealth > 100)) throw new Error('La batería debe estar entre 0 y 100%.')
+  const purchasedAt = raw.purchasedAt ? new Date(raw.purchasedAt) : null
+  if (purchasedAt && Number.isNaN(purchasedAt.getTime())) throw new Error('Fecha de compra inválida.')
+  const costCurrency: PaymentCurrency = raw.costCurrency === 'USD' ? PaymentCurrency.USD : PaymentCurrency.PYG
+  const originalCost = raw.originalCost === undefined || raw.originalCost === null || raw.originalCost === '' ? null : Number(raw.originalCost)
+  const exchangeRatePyg = raw.exchangeRatePyg === undefined || raw.exchangeRatePyg === null || raw.exchangeRatePyg === '' ? null : Number(raw.exchangeRatePyg)
+  if (originalCost !== null && (!Number.isFinite(originalCost) || originalCost < 0)) throw new Error('Costo original inválido.')
+  if (exchangeRatePyg !== null && (!Number.isFinite(exchangeRatePyg) || exchangeRatePyg <= 0)) throw new Error('Cotización inválida.')
+  const costPyg = raw.costPyg === undefined || raw.costPyg === '' ? fallback.costPyg ?? null : Number(raw.costPyg)
+  if (costPyg !== null && (!Number.isSafeInteger(costPyg) || costPyg < 0 || costPyg > 2147483647)) throw new Error('Costo en guaraníes inválido.')
+  const condition: ProductCondition = Object.values(ProductCondition).includes(raw.condition) ? raw.condition : fallback.condition as ProductCondition
+  return { condition, batteryHealth, supplierName: typeof raw.supplierName === 'string' && raw.supplierName.trim() ? raw.supplierName.trim().slice(0, 160) : null, purchasedAt, costPyg, costCurrency, originalCost, exchangeRatePyg, notes: typeof raw.unitNotes === 'string' ? raw.unitNotes.trim().slice(0, 500) || null : null }
+}
 
 export async function GET(request: Request) {
   const tenant = await tenantId(request); if (!tenant) return error('Falta sesión.', 401)
@@ -32,7 +49,7 @@ export async function POST(request: Request) {
     const data = await prisma.$transaction(async tx => {
       if (serial && await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { id: true } })) throw new Error('Ese IMEI/serial ya existe.')
       const product = await tx.product.create({ data: { tenantId: tenant, sku: b.sku.trim(), name: b.name.trim(), category: b.category, imei: serial || null, condition: b.condition || 'NEW', pricePyg: price, costPyg: cost, stock, branchId } })
-      if (serial) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId, serial } })
+      if (serial) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId, serial, ...unitDetails(b, { condition: product.condition, costPyg: cost }) } })
       return product
     })
     return json(data, { status: 201 })
@@ -58,7 +75,9 @@ export async function PATCH(request: Request) {
       if (serial !== undefined) {
         const existing = await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { productId: true } })
         if (existing && existing.productId !== product.id) throw new Error('Ese IMEI/serial ya existe.')
-        if (!existing) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId: product.branchId, serial } })
+        const details = unitDetails(b, { condition: product.condition, costPyg: product.costPyg ?? undefined })
+        if (!existing) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId: product.branchId, serial, ...details } })
+        else await tx.inventoryUnit.update({ where: { tenantId_serial: { tenantId: tenant, serial } }, data: details })
       }
       return tx.product.update({ where: { id: product.id }, data: { ...(typeof b.name === 'string' && b.name.trim() ? { name: b.name.trim() } : {}), ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(price !== undefined ? { pricePyg: price } : {}), ...(cost !== undefined ? { costPyg: cost } : {}), ...(stock !== undefined ? { stock } : {}), ...(b.category !== undefined ? { category: b.category || null } : {}), ...(serial !== undefined ? { imei: serial } : {}), ...(b.condition !== undefined ? { condition: b.condition } : {}) } })
     })

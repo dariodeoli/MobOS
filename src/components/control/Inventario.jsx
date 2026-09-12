@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getProductos, updateProducto, deleteProducto, addProducto, addProductoVariante, addProductoApi, updateProductoApi, modoDatosActual } from '@/lib/storage'
 import { num, gs } from '@/utils/calculos'
-import { Card, Button, Input, Badge } from '@/components/ui'
+import { Card, Button, Input, Badge, MoneyInput } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { deleteProductoApi } from '@/lib/api/products'
 
@@ -10,16 +10,16 @@ function FilaProducto({ p }) {
   const apiMode = modoDatosActual() === 'api'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [draft, setDraft] = useState({ precioVenta: p.precioVenta ?? '', stock: p.stock ?? '' })
-  const set = (campo) => async (e) => {
+  const [draft, setDraft] = useState({ precioVenta: p.precioVenta ?? '', precioMayorista: p.precioMayorista ?? '', precioCosto: p.precioCosto ?? '', comision: p.comision ?? '', stock: p.stock ?? '' })
+  const set = (campo, value) => async () => {
     if (apiMode) {
       const field = campo === 'precioVenta' ? 'pricePyg' : campo === 'precioCosto' ? 'costPyg' : campo === 'stock' ? 'stock' : null
       if (!field) return
       setBusy(true); setError('')
-      try { await updateProductoApi(p.id, { [field]: num(e.target.value) }); window.dispatchEvent(new Event('mobos:catalog-updated')) } catch (err) { setError(err?.message || 'No se pudo guardar.') } finally { setBusy(false) }
+      try { await updateProductoApi(p.id, { [field]: num(value) }); window.dispatchEvent(new Event('mobos:catalog-updated')) } catch (err) { setError(err?.message || 'No se pudo guardar.') } finally { setBusy(false) }
       return
     }
-    updateProducto(p.id, { [campo]: num(e.target.value) })
+    updateProducto(p.id, { [campo]: num(value) })
   }
 
   return (
@@ -41,39 +41,38 @@ function FilaProducto({ p }) {
       </div>
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
-          <span className="text-[10px] font-bold uppercase text-mute">Precio venta ₲</span>
-          <Input
-            inputMode="numeric"
+          <span className="text-[10px] font-bold uppercase text-mute">Precio venta</span>
+          <MoneyInput
             value={draft.precioVenta}
-            onChange={(e) => setDraft((d) => ({ ...d, precioVenta: e.target.value }))}
-            onBlur={set('precioVenta')}
+            onValueChange={(value) => setDraft((d) => ({ ...d, precioVenta: value }))}
+            onBlur={set('precioVenta', draft.precioVenta)}
             placeholder="0"
           />
         </label>
         <label className="block">
-          <span className="text-[10px] font-bold uppercase text-mute">Precio mayorista ₲</span>
-          <Input disabled={apiMode} title={apiMode ? 'Este campo aún no existe en la API.' : undefined}
-            inputMode="numeric"
-            defaultValue={p.precioMayorista || ''}
-            onBlur={set('precioMayorista')}
+          <span className="text-[10px] font-bold uppercase text-mute">Precio mayorista</span>
+          <MoneyInput disabled={apiMode} title={apiMode ? 'Este campo aún no existe en la API.' : undefined}
+            value={draft.precioMayorista}
+            onValueChange={(value) => setDraft((d) => ({ ...d, precioMayorista: value }))}
+            onBlur={set('precioMayorista', draft.precioMayorista)}
             placeholder="0"
           />
         </label>
         <label className="block">
-          <span className="text-[10px] font-bold uppercase text-mute">Costo ₲</span>
-          <Input
-            inputMode="numeric"
-            defaultValue={p.precioCosto || ''}
-            onBlur={set('precioCosto')}
+          <span className="text-[10px] font-bold uppercase text-mute">Costo</span>
+          <MoneyInput
+            value={draft.precioCosto}
+            onValueChange={(value) => setDraft((d) => ({ ...d, precioCosto: value }))}
+            onBlur={set('precioCosto', draft.precioCosto)}
             placeholder="0"
           />
         </label>
         <label className="block">
-          <span className="text-[10px] font-bold uppercase text-mute">Comisión ₲</span>
-          <Input disabled={apiMode} title={apiMode ? 'Este campo aún no existe en la API.' : undefined}
-            inputMode="numeric"
-            defaultValue={p.comision || ''}
-            onBlur={set('comision')}
+          <span className="text-[10px] font-bold uppercase text-mute">Comisión</span>
+          <MoneyInput disabled={apiMode} title={apiMode ? 'Este campo aún no existe en la API.' : undefined}
+            value={draft.comision}
+            onValueChange={(value) => setDraft((d) => ({ ...d, comision: value }))}
+            onBlur={set('comision', draft.comision)}
             placeholder="0"
           />
         </label>

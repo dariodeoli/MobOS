@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import { cn } from '@/lib/utils'
+import { formatGsInput, parseGsInput } from '@/utils/moneda'
 
 // ── Button ──────────────────────────────────────────────────────────
 const VARIANTS = {
@@ -35,6 +36,30 @@ export function Input({ className, ...props }) {
       )}
       {...props}
     />
+  )
+}
+
+// Campo monetario central: PYG se escribe siempre con separador de miles;
+// USD conserva decimales. Entrega el número limpio al formulario padre.
+export function MoneyInput({ currency = 'PYG', value, onValueChange, className, ...props }) {
+  const isPyg = currency === 'PYG'
+  const display = isPyg ? formatGsInput(value) : String(value ?? '')
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-xs font-semibold text-mute">
+        {isPyg ? 'Gs.' : 'US$'}
+      </span>
+      <Input
+        {...props}
+        inputMode={isPyg ? 'numeric' : 'decimal'}
+        value={display}
+        onChange={(event) => {
+          const next = event.target.value
+          onValueChange?.(isPyg ? (next.trim() ? parseGsInput(next) : '') : next.replace(/[^\d.,]/g, '').replace(',', '.'))
+        }}
+        className={cn('pl-12 tabular-nums', className)}
+      />
+    </div>
   )
 }
 

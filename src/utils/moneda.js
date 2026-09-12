@@ -10,7 +10,7 @@ const USD_FORMATTER = new Intl.NumberFormat('es-PY', {
 
 export function formatGs(value) {
   const amount = Number(value)
-  return `Gs ${GS_FORMATTER.format(Number.isFinite(amount) ? Math.round(amount) : 0)}`
+  return `Gs. ${GS_FORMATTER.format(Number.isFinite(amount) ? Math.round(amount) : 0)}`
 }
 
 // Presentación editable: conserva solo dígitos y agrega separadores de miles.
@@ -28,5 +28,11 @@ export function parseGsInput(value) {
 // Solo formatea un monto ya expresado en USD; nunca convierte desde PYG.
 export function formatUsd(value) {
   const amount = Number(value)
-  return `USD ${USD_FORMATTER.format(Number.isFinite(amount) ? amount : 0)}`
+  return `US$ ${USD_FORMATTER.format(Number.isFinite(amount) ? amount : 0)}`
+}
+
+// Formato único de presentación. No convierte monedas: cada movimiento conserva
+// su moneda y, cuando aplica, su cotización congelada en el backend.
+export function formatMoney(value, currency = 'PYG') {
+  return currency === 'USD' ? formatUsd(value) : formatGs(value)
 }
