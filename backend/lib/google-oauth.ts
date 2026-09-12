@@ -75,6 +75,13 @@ export function beginGoogle(intent: string) {
   url.search = new URLSearchParams({ client_id: config.clientId, redirect_uri: config.callback, response_type: 'code', scope: 'openid email profile', state: flow.state, nonce: flow.nonce, code_challenge: createHash('sha256').update(flow.verifier).digest('base64url'), code_challenge_method: 'S256', prompt: 'select_account' }).toString()
   return { url, cookie: seal('flow', flow) }
 }
+
+export function validGoogleFlow(flow: unknown): flow is { state: string; verifier: string; nonce: string; intent: 'login' | 'create' } {
+  if (!flow || typeof flow !== 'object' || Array.isArray(flow)) return false
+  const value = flow as Record<string, unknown>
+  const entropy = (input: unknown) => typeof input === 'string' && /^[A-Za-z0-9_-]{40,128}$/.test(input)
+  return entropy(value.state) && entropy(value.verifier) && entropy(value.nonce) && (value.intent === 'login' || value.intent === 'create')
+}
 export type GoogleIdentity = { sub: string; email: string; name: string }
 export async function verifyGoogleToken(token: string, nonce: string): Promise<GoogleIdentity> {
   const parts = token.split('.')

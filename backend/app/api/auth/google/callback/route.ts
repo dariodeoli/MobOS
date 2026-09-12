@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { authConfig, AuthFlowError, cookieOptions, COOKIE_FLOW, COOKIE_IDENTITY, exchangeGoogle, matchesState, readCookie, seal, unseal } from '../../../../../lib/google-oauth'
+import { authConfig, AuthFlowError, cookieOptions, COOKIE_FLOW, COOKIE_IDENTITY, exchangeGoogle, matchesState, readCookie, seal, unseal, validGoogleFlow } from '../../../../../lib/google-oauth'
 
 export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
@@ -10,6 +10,7 @@ export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams
     const flow = unseal('flow', readCookie(request, COOKIE_FLOW))
+    if (!validGoogleFlow(flow)) throw new AuthFlowError('state', 'Solicitud inválida.')
     if (!matchesState(params.get('state') || '', flow.state)) throw new AuthFlowError('state', 'Solicitud inválida.')
     if (params.has('error')) throw new AuthFlowError('cancelled', 'Acceso cancelado.')
     const code = params.get('code')

@@ -6,6 +6,13 @@ import { COOKIE_COMPANY, COOKIE_SELLER, readCookie, sameOrigin } from './google-
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_MINUTES = 15
 const SESSION_DAYS = 7
+const AUTH_RATE_WINDOW_MS = 15 * 60 * 1000
+
+export class AuthRateLimitError extends Error {
+  constructor(public retryAfterSeconds: number) {
+    super('Demasiados intentos. Esperá unos minutos e intentá nuevamente.')
+  }
+}
 
 export type AuthUser = {
   id: string
@@ -47,6 +54,60 @@ export function effectivePermissions(role: string, configured: unknown): string[
   if (!Array.isArray(configured)) return [...baseline]
   const allowed = new Set(configured.filter((permission): permission is string => typeof permission === 'string'))
   return baseline.filter(permission => allowed.has(permission))
+}
+
+/** Server-side permission check. `*` is reserved for the ADMIN baseline. */
+export function hasPermission(user: Pick<AuthUser, 'permissions'>, permission: string) {
+  return user.permissions.includes('*') || user.permissions.includes(permission)
+}
+
+export function canAccessAny(user: Pick<AuthUser, 'permissions'>, permissions: readonly string[]) {
+  return permissions.some(permission => hasPermission(user, permission))
+}
+
+function trustedClientIp(request: Request) {
+  // Proxies append X-Forwarded-For. It is trusted only when Hub is explicitly
+  // declared as the proxy; otherwise an arbitrary client header is never used.
+  if (process.env.MOBOS_TRUST_PROXY !== 'true') return null
+  // A trusted proxy appends the client address. The right-most hop prevents a
+  // caller from selecting somebody else's bucket via a forged first value.
+  const candidate = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || request.headers.get('x-real-ip')?.trim() || ''
+  return /^[0-9a-f:.]{3,64}$/i.test(candidate) ? candidate : null
+}
+
+export function authRequestMetadata(request: Request) {
+  const userAgent = request.headers.get('user-agent')?.slice(0, 240) || undefined
+  const requestId = request.headers.get('x-request-id')?.slice(0, 120) || undefined
+  const ip = trustedClientIp(request)
+  return {
+    ...(userAgent ? { userAgent } : {}),
+    ...(requestId ? { requestId } : {}),
+    // Pseudonymous correlation for audit trails, never an IP address in clear.
+    ...(ip ? { clientNetworkHash: hashToken(`network:${ip}`) } : {}),
+  }
+}
+
+/**
+ * Persistent rate limit for unauthenticated entry points. Account/PIN locks
+ * remain the authority; this limits distributed guessing when Hub forwards a
+ * verified client IP (`MOBOS_TRUST_PROXY=true`).
+ */
+export async function enforceAuthRateLimit(request: Request, scope: string, maxAttempts: number, windowMs = AUTH_RATE_WINDOW_MS) {
+  const ip = trustedClientIp(request)
+  if (!ip) return
+  const fingerprint = hashToken(`auth-rate:${scope}:${ip}`)
+  const now = new Date()
+  const since = new Date(now.getTime() - windowMs)
+  await prisma.$transaction(async tx => {
+    await tx.authAttempt.deleteMany({ where: { scope, fingerprint, createdAt: { lt: since } } })
+    const count = await tx.authAttempt.count({ where: { scope, fingerprint, createdAt: { gte: since } } })
+    if (count >= maxAttempts) {
+      const oldest = await tx.authAttempt.findFirst({ where: { scope, fingerprint, createdAt: { gte: since } }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } })
+      const retryAfterSeconds = Math.max(1, Math.ceil(((oldest?.createdAt.getTime() ?? now.getTime()) + windowMs - now.getTime()) / 1000))
+      throw new AuthRateLimitError(retryAfterSeconds)
+    }
+    await tx.authAttempt.create({ data: { scope, fingerprint } })
+  })
 }
 
 export function normalizeAccessSchedule(input: unknown): AccessSchedule | null {
@@ -115,12 +176,13 @@ async function createSession(tx: any, tenantId: string, userId: string | null, l
   return { accessToken, expiresAt, sessionId: session.id }
 }
 
-export async function authenticateCompany(input: LoginInput) {
+export async function authenticateCompany(input: LoginInput, request?: Request) {
   const email = String(input.email ?? '').trim().toLowerCase()
   const password = String(input.password ?? '')
   const deviceId = String(input.deviceId ?? '').trim()
   const branchId = input.branchId ? String(input.branchId) : null
   if (!email || !password || !deviceId) return null
+  const auditMetadata = request ? authRequestMetadata(request) : {}
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<Array<{ id: string; name: string; slug: string; email: string; passwordHash: string | null; failedLoginAttempts: number; lockedUntil: Date | null }>>`
       SELECT "id", "name", "slug", "email", "passwordHash", "failedLoginAttempts", "lockedUntil"
@@ -133,20 +195,20 @@ export async function authenticateCompany(input: LoginInput) {
     const attempts = lockExpired ? 0 : tenant.failedLoginAttempts
     if (lockExpired) await tx.tenant.update({ where: { id: tenant.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
     if (tenant.lockedUntil && !lockExpired) {
-      await tx.auditLog.create({ data: { tenantId: tenant.id, action: 'COMPANY_SIGN_IN_BLOCKED', entity: 'Tenant', entityId: tenant.id, metadata: { branchId } } })
+      await tx.auditLog.create({ data: { tenantId: tenant.id, action: 'COMPANY_SIGN_IN_BLOCKED', entity: 'Tenant', entityId: tenant.id, metadata: { branchId, ...auditMetadata } } })
       return null
     }
     if (!(await bcrypt.compare(password, tenant.passwordHash))) {
       const failedLoginAttempts = attempts + 1
       const lockedUntil = failedLoginAttempts >= MAX_FAILED_ATTEMPTS ? new Date(now.getTime() + LOCKOUT_MINUTES * 60 * 1000) : null
       await tx.tenant.update({ where: { id: tenant.id }, data: { failedLoginAttempts, lockedUntil } })
-      await tx.auditLog.create({ data: { tenantId: tenant.id, action: lockedUntil ? 'COMPANY_SIGN_IN_LOCKED' : 'COMPANY_SIGN_IN_FAILED', entity: 'Tenant', entityId: tenant.id, metadata: { failedLoginAttempts, branchId } } })
+      await tx.auditLog.create({ data: { tenantId: tenant.id, action: lockedUntil ? 'COMPANY_SIGN_IN_LOCKED' : 'COMPANY_SIGN_IN_FAILED', entity: 'Tenant', entityId: tenant.id, metadata: { failedLoginAttempts, branchId, ...auditMetadata } } })
       return null
     }
     await tx.tenant.update({ where: { id: tenant.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
     const sellers = await tx.user.findMany({ where: { tenantId: tenant.id, status: 'ACTIVE', ...(branchId ? { branchId } : {}), OR: [{ branchId: null }, { branch: { isActive: true } }] }, select: { id: true, name: true, branchId: true }, orderBy: { name: 'asc' } })
     const session = await createSession(tx, tenant.id, null, 'COMPANY', deviceId, branchId)
-    await tx.auditLog.create({ data: { tenantId: tenant.id, action: 'COMPANY_SIGNED_IN', entity: 'Session', entityId: session.sessionId, metadata: { branchId } } })
+    await tx.auditLog.create({ data: { tenantId: tenant.id, action: 'COMPANY_SIGNED_IN', entity: 'Session', entityId: session.sessionId, metadata: { branchId, ...auditMetadata } } })
     return { ...session, tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug }, sellers, scope: 'device:company' as const }
   })
 }
@@ -166,6 +228,7 @@ export async function authenticateSeller(request: Request, input: PinInput) {
   const sellerId = String(input.sellerId ?? input.userId ?? '')
   const pin = String(input.pin ?? '')
   if (!parent || !sellerId || !/^\d{4}$/.test(pin)) return null
+  const auditMetadata = authRequestMetadata(request)
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<Array<{
       id: string; tenantId: string; name: string; role: string; branchId: string | null; pinHash: string; status: string; permissions: unknown; accessSchedule: unknown; failedLoginAttempts: number; lockedUntil: Date | null
@@ -181,26 +244,26 @@ export async function authenticateSeller(request: Request, input: PinInput) {
     if (!user) return null
     const now = new Date()
     if (!isAccessAllowed(user.accessSchedule, now)) {
-      await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: 'SELLER_SCHEDULE_DENIED', entity: 'User', entityId: user.id, metadata: { branchId: parent.branchId } } })
+      await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: 'SELLER_SCHEDULE_DENIED', entity: 'User', entityId: user.id, metadata: { branchId: parent.branchId, ...auditMetadata } } })
       return null
     }
     const lockExpired = user.lockedUntil !== null && user.lockedUntil <= now
     const attempts = lockExpired ? 0 : user.failedLoginAttempts
     if (lockExpired) await tx.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
     if (user.lockedUntil && !lockExpired) {
-      await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: 'SELLER_PIN_BLOCKED', entity: 'User', entityId: user.id, metadata: { branchId: parent.branchId } } })
+      await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: 'SELLER_PIN_BLOCKED', entity: 'User', entityId: user.id, metadata: { branchId: parent.branchId, ...auditMetadata } } })
       return null
     }
     if (!(await bcrypt.compare(pin, user.pinHash))) {
       const failedLoginAttempts = attempts + 1
       const lockedUntil = failedLoginAttempts >= MAX_FAILED_ATTEMPTS ? new Date(now.getTime() + LOCKOUT_MINUTES * 60 * 1000) : null
       await tx.user.update({ where: { id: user.id }, data: { failedLoginAttempts, lockedUntil } })
-      await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: lockedUntil ? 'SELLER_PIN_LOCKED' : 'SELLER_PIN_FAILED', entity: 'User', entityId: user.id, metadata: { failedLoginAttempts, branchId: parent.branchId } } })
+      await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: lockedUntil ? 'SELLER_PIN_LOCKED' : 'SELLER_PIN_FAILED', entity: 'User', entityId: user.id, metadata: { failedLoginAttempts, branchId: parent.branchId, ...auditMetadata } } })
       return null
     }
     await tx.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null, lastAccessAt: now } })
     const session = await createSession(tx, parent.tenantId, user.id, 'SELLER', parent.deviceId, parent.branchId)
-    await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: 'SELLER_PIN_VERIFIED', entity: 'Session', entityId: session.sessionId, metadata: { branchId: parent.branchId } } })
+    await tx.auditLog.create({ data: { tenantId: parent.tenantId, userId: user.id, action: 'SELLER_PIN_VERIFIED', entity: 'Session', entityId: session.sessionId, metadata: { branchId: parent.branchId, ...auditMetadata } } })
     return { ...session, user: sessionUser(user) }
   })
 }
@@ -218,11 +281,12 @@ export async function requireSession(request: Request): Promise<SessionContext |
   const now = new Date()
   if (!session || session.level !== 'SELLER' || !session.userId || !session.user || !isSessionUsable({ ...session, user: session.user }, now)) return null
   if (!isAccessAllowed(session.user.accessSchedule, now)) {
+    const auditMetadata = authRequestMetadata(request)
     await prisma.$transaction(async tx => {
       const active = await tx.session.findFirst({ where: { id: session.id, revokedAt: null }, select: { id: true } })
       if (!active) return
       await tx.session.update({ where: { id: session.id }, data: { revokedAt: now } })
-      await tx.auditLog.create({ data: { tenantId: session.tenantId, userId: session.userId, action: 'SELLER_SESSION_SCHEDULE_REVOKED', entity: 'Session', entityId: session.id } })
+      await tx.auditLog.create({ data: { tenantId: session.tenantId, userId: session.userId, action: 'SELLER_SESSION_SCHEDULE_REVOKED', entity: 'Session', entityId: session.id, metadata: auditMetadata } })
     })
     return null
   }
@@ -236,12 +300,13 @@ export async function revokeSession(request: Request) {
   const cookies = [readCookie(request, COOKIE_SELLER), readCookie(request, COOKIE_COMPANY)].filter(Boolean)
   if (!match && (!cookies.length || !sameOrigin(request))) return false
   const tokens = match ? [match[1]] : cookies
+  const auditMetadata = authRequestMetadata(request)
   const sessions = await prisma.session.findMany({ where: { tokenHash: { in: tokens.map(hashToken) }, revokedAt: null } })
   if (!sessions.length) return false
   await prisma.$transaction(async tx => {
     for (const session of sessions) {
       await tx.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } })
-      await tx.auditLog.create({ data: { tenantId: session.tenantId, userId: session.userId, action: 'SESSION_REVOKED', entity: 'Session', entityId: session.id, metadata: { level: session.level, reason: 'logout' } } })
+      await tx.auditLog.create({ data: { tenantId: session.tenantId, userId: session.userId, action: 'SESSION_REVOKED', entity: 'Session', entityId: session.id, metadata: { level: session.level, reason: 'logout', ...auditMetadata } } })
     }
   })
   return true

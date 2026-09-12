@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs'
-import { hashToken } from '../../../../lib/auth'
+import { authRequestMetadata, hashToken } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { prisma } from '../../../../lib/prisma'
 
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     if (!consumed.count) throw new Error('El enlace ya fue utilizado.')
     await tx.tenant.update({ where: { id: reset.tenantId }, data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null } })
     await tx.session.updateMany({ where: { tenantId: reset.tenantId, revokedAt: null }, data: { revokedAt: now } })
-    await tx.auditLog.create({ data: { tenantId: reset.tenantId, action: 'PASSWORD_RESET_COMPLETED', entity: 'Tenant', entityId: reset.tenantId, metadata: {} } })
+    await tx.auditLog.create({ data: { tenantId: reset.tenantId, action: 'PASSWORD_RESET_COMPLETED', entity: 'Tenant', entityId: reset.tenantId, metadata: authRequestMetadata(request) } })
   })
   return json({ ok: true, message: 'Contraseña actualizada. Volvé a iniciar sesión.' })
 }

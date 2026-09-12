@@ -90,6 +90,7 @@ try {
   Date.now = () => realNow() + 601_000
   assert.throws(() => oauth.unseal('identity', sealed)); checks++
   Date.now = realNow
+  ok(!oauth.validGoogleFlow({ state: 'short', verifier: 'short', nonce: 'short', intent: 'login' }), 'malformed OAuth flow is rejected before exchange')
   for (const bad of [{ email_verified: false }, { aud: 'other' }, { iss: 'https://evil.test' }, { nonce: 'other' }, { exp: 1 }, { sub: '' }, { azp: 'other' }]) {
     await assert.rejects(() => oauth.verifyGoogleToken(jwt('nonce', bad), 'nonce')); checks++
   }
@@ -112,11 +113,26 @@ try {
   await post(pin, { sellerId: admin.id, pin: '7391' }, companyCookie, 401, 'https://evil.test')
   const signedIn = await post(pin, { sellerId: admin.id, pin: '7391', tenantId: 'attacker' }, companyCookie)
   ok(signedIn.data.user.tenantId === tenantId && signedIn.data.user.role === 'ADMIN', 'cookie to PIN correct company')
+  ok(auth.hasPermission(signedIn.data.user, 'orders:manage') && !auth.hasPermission({ permissions: ['products:read'] }, 'orders:manage'), 'server permission helper only accepts effective grants')
+  const scheduled = await prisma.user.create({ data: { tenantId, name: 'Fuera de horario', pinHash: admin.pinHash, role: 'VENDEDOR', accessSchedule: { timezone: 'America/Asuncion', windows: [] } } })
+  await post(pin, { sellerId: scheduled.id, pin: '7391' }, companyCookie, 401)
+  ok(!!await prisma.auditLog.findFirst({ where: { userId: scheduled.id, action: 'SELLER_SCHEDULE_DENIED' } }), 'schedule denial is audited server-side')
+  const locked = await prisma.user.create({ data: { tenantId, name: 'Bloqueable', pinHash: admin.pinHash, role: 'VENDEDOR' } })
+  for (let index = 0; index < 5; index++) await post(pin, { sellerId: locked.id, pin: '0000' }, companyCookie, 401)
+  await post(pin, { sellerId: locked.id, pin: '7391' }, companyCookie, 401)
+  const lockedRecord = await prisma.user.findUnique({ where: { id: locked.id }, select: { lockedUntil: true, failedLoginAttempts: true } })
+  ok(lockedRecord.lockedUntil > new Date() && lockedRecord.failedLoginAttempts === 5, 'PIN locks after five failures and rejects the correct code during lock')
+  ok(!!await prisma.auditLog.findFirst({ where: { userId: locked.id, action: 'SELLER_PIN_LOCKED' } }), 'PIN lock is auditable')
   await prisma.tenant.create({ data: { id: 'other', name: 'Other', slug: 'other', email: 'existing@example.test' } })
   const foreign = await prisma.user.create({ data: { tenantId: 'other', name: 'Other', pinHash: admin.pinHash, role: 'VENDEDOR' } })
   await post(pin, { sellerId: foreign.id, pin: '7391' }, companyCookie, 401)
   const traditional = await post(login, { email: 'one@example.test', password: onboarding.password, deviceId: 'password-test' })
   ok(traditional.data.tenant.id === tenantId, 'company password works after Google signup')
+  process.env.MOBOS_TRUST_PROXY = 'true'
+  for (let index = 0; index < 20; index++) await post(login, { email: 'one@example.test', password: 'wrong-password', deviceId: `rate-${index}` }, '', 401, undefined, { 'X-Forwarded-For': '203.0.113.7' })
+  await post(login, { email: 'one@example.test', password: 'wrong-password', deviceId: 'rate-last' }, '', 429, undefined, { 'X-Forwarded-For': '203.0.113.7' })
+  ok(await prisma.authAttempt.count({ where: { scope: 'company-login' } }) === 20, 'proxy-verified source is persistently rate limited')
+  delete process.env.MOBOS_TRUST_PROXY
   const again = await post(complete, { action: 'login' }, await identity('login', { email: 'changed@example.test' }))
   ok(again.data.tenant.id === tenantId && await prisma.tenant.count() === 2, 'stable sub login, no new tenant or privilege changes')
   await post(complete, onboarding, await identity('create', { sub: 'unlinked', email: 'existing@example.test' }), 409)
