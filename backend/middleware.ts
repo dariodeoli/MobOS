@@ -7,6 +7,7 @@ export function middleware(request: NextRequest) {
     const destino = new URL(request.url)
     destino.protocol = 'https:'
     destino.host = 'api.moboss.online'
+    destino.port = ''
     return NextResponse.redirect(destino, 308)
   }
 
