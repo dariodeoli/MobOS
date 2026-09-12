@@ -11,7 +11,7 @@ Esquema coordinado con el agente de promociones: modelo `GoogleIdentity` con sub
 | `GOOGLE_CLIENT_ID` | ID del cliente OAuth web WEEM autorizado para pruebas |
 | `GOOGLE_CLIENT_SECRET` | Secreto de ese mismo cliente, solo en variables privadas del backend MobOS |
 | `GOOGLE_REDIRECT_URI` | URL pública HTTPS del backend MobOS + `/api/auth/google/callback` |
-| `MOBOS_APP_URL` | Origen exacto del frontend, sin ruta; por ejemplo `https://app.controlaria.online` |
+| `MOBOS_APP_URL` | Origen exacto del frontend, sin ruta; por ejemplo `https://app.moboss.online` |
 | `MOBOS_AUTH_SECRET` | 32 bytes aleatorios codificados como 64 caracteres hexadecimales; exclusivo de MobOS |
 | `DATABASE_URL` | PostgreSQL propio de MobOS, nunca WEEM |
 

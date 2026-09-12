@@ -131,9 +131,31 @@ function MetadatosPagina({ publicPage = false }) {
   return null
 }
 
+function RedireccionDominio({ destino }) {
+  useEffect(() => {
+    window.location.replace(destino)
+  }, [destino])
+
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-ink p-6 text-center text-sm text-mute">
+      Redirigiendo a MobOS…
+    </div>
+  )
+}
+
 export default function App() {
   const host = typeof window !== 'undefined' ? window.location.hostname : ''
-  const landing = ['controlaria.online', 'www.controlaria.online', 'moboss.online', 'www.moboss.online'].includes(host)
+  const dominioAnterior = {
+    'controlaria.online': 'https://moboss.online',
+    'www.controlaria.online': 'https://moboss.online',
+    'app.controlaria.online': 'https://app.moboss.online',
+  }[host]
+  if (dominioAnterior) {
+    const ruta = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    return <RedireccionDominio destino={`${dominioAnterior}${ruta}`} />
+  }
+
+  const landing = ['moboss.online', 'www.moboss.online'].includes(host)
   const status = typeof window !== 'undefined' && window.location.pathname === '/status'
   if (landing) return <><MetadatosPagina publicPage />{status ? <Status /> : <Landing />}</>
   return (

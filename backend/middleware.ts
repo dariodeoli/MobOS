@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
+  const hostname = request.headers.get('host')?.split(':')[0]?.toLowerCase()
+  if (hostname === 'api.controlaria.online') {
+    const destino = new URL(request.url)
+    destino.protocol = 'https:'
+    destino.host = 'api.moboss.online'
+    return NextResponse.redirect(destino, 308)
+  }
+
   const origin = request.headers.get('origin') || ''
   const allowed = ['https://app.controlaria.online', 'https://controlaria.online', 'https://app.moboss.online', 'https://moboss.online', 'http://localhost:5173']
   const response = request.method === 'OPTIONS' ? new NextResponse(null, { status: 204 }) : NextResponse.next()
