@@ -2,8 +2,7 @@
 
 ## Decisión
 
-La fuente de verdad productiva será PostgreSQL dentro de OwnCoding Hub. MobOS no
-usará Supabase para nuevas funcionalidades.
+La fuente de verdad productiva es PostgreSQL dentro de OwnCoding Hub.
 
 ## Base de implementación
 
@@ -23,13 +22,11 @@ Se reutilizará la arquitectura de `mobile-system`:
 4. Añadir PIN con hash, sesiones, permisos y aislamiento por empresa.
 5. Publicar API y configurar `VITE_API_URL` en el frontend.
 6. Migrar datos del almacenamiento actual y verificar conciliación.
-7. Desactivar escrituras nuevas hacia Supabase.
+7. Verificar que el frontend no tenga accesos directos a bases de datos ni secretos.
 
 ## Estado
 
-- [x] Decisión de infraestructura documentada.
-- [x] Modelo base existente localizado en `mobile-system/prisma/schema.prisma`.
-- [ ] PostgreSQL MobOS creado en Hub.
-- [ ] Backend MobOS publicado en Hub.
-- [ ] Frontend conectado a la API.
-- [ ] Migración y pruebas de aislamiento completadas.
+- [x] PostgreSQL MobOS creado en Hub.
+- [x] Backend MobOS publicado en Hub.
+- [x] Frontend conectado a la API propia.
+- [ ] Pruebas de aislamiento y permisos completas en producción.

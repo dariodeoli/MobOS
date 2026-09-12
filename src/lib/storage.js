@@ -1,24 +1,18 @@
 // ════════════════════════════════════════════════════════════════════
-// CAPA ÚNICA DE DATOS — Mobtock
-// Backend: Supabase (tiempo real entre dispositivos) con caché en memoria.
+// CAPA DE COMPATIBILIDAD LOCAL — MobOS
+// El backend productivo es la API propia sobre PostgreSQL. Esta capa mantiene
+// únicamente los datos locales que necesita el demo y módulos aún en transición.
 // La API exportada es SINCRÓNICA (igual que antes con localStorage): los
 // componentes la usan sin async. Por dentro:
 //   - cache en memoria = fuente de verdad para la UI
 //   - espejo en localStorage = pintado instantáneo y modo offline
-//   - Supabase = persistencia + realtime hacia/desde otros dispositivos
-// Si faltan las env de Supabase, la app sigue andando 100% local.
-// Nadie más debe tocar localStorage ni Supabase directamente.
+// Nadie más debe tocar localStorage directamente.
 // ════════════════════════════════════════════════════════════════════
 
 import { num } from '@/utils/calculos'
 import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from './demoMode'
-
-// La persistencia real del frontend usa OwnCoding Hub. Se conserva este
-// export por compatibilidad con consumidores legacy, pero ya no existe un
-// cliente Supabase en esta capa.
-export const supabase = null
 
 export const ESTADOS_CELULAR = ['Nuevo', 'Seminuevo']
 
@@ -363,7 +357,6 @@ const FEEDS = new Set(['ventas', 'gastos', 'ads', 'auditoria'])
 // Colecciones que las sucursales de una misma empresa COMPARTEN: el catálogo
 // y la lista de precios se cargan una vez y valen para todos los locales. El
 // resto (ventas, gastos, stock, equipo) es de cada sucursal.
-const COMPARTIDAS = new Set(['productos', 'celulares', 'comparadorImg'])
 
 // ── Contexto: a qué empresa y sucursal pertenece lo que se lee y escribe ──
 // Lo setea setContexto() después del login. Sin empresa, la capa de datos
@@ -457,7 +450,7 @@ function notify() {
   })
 }
 
-// Sync entre pestañas del mismo dispositivo (incluso sin Supabase).
+// Sync entre pestañas del mismo dispositivo para el demo/local.
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
     if (ctx.empresaId && e.key === mirrorKey()) {
@@ -470,161 +463,7 @@ if (typeof window !== 'undefined') {
   })
 }
 
-// ── Orden de las colecciones ────────────────────────────────────────
-function sortColeccion(coll, arr) {
-  const a = [...arr]
-  if (FEEDS.has(coll)) {
-    a.sort((x, y) => (y._ts || '').localeCompare(x._ts || ''))
-  } else {
-    a.sort((x, y) => (x._ts || '').localeCompare(y._ts || ''))
-  }
-  return a.map(({ _ts, ...o }) => o)
-}
-
-// ════════════════════════════════════════════════════════════════════
-// SUPABASE: hidratación, escritura y realtime
-// ════════════════════════════════════════════════════════════════════
-// ── Cola de escrituras pendientes ───────────────────────────────────
-// Si un envío a Supabase falla (ej. corte de internet), lo guardamos y lo
-// reintentamos. Así una venta cargada NUNCA se pierde por un fallo de red.
-const PENDING_KEY = 'fono:pending:v1'
-let pendientes =
-  safeParse(typeof localStorage !== 'undefined' ? localStorage.getItem(PENDING_KEY) : null) || []
-function savePendientes() {
-  try {
-    localStorage.setItem(PENDING_KEY, JSON.stringify(pendientes))
-  } catch {
-    /* noop */
-  }
-}
-function enqueue(item) {
-  // La empresa viaja con el pendiente: si se reintenta después de cambiar de
-  // tienda, tiene que escribirse igual en la que lo originó.
-  const it = { empresa_id: ctx.empresaId, sucursal_id: ctx.sucursalId, ...item }
-  // Evita duplicados de la misma entidad: se queda con la última versión.
-  pendientes = pendientes.filter(
-    (p) =>
-      !(
-        p.t === it.t &&
-        p.empresa_id === it.empresa_id &&
-        p.collection === it.collection &&
-        (p.obj?.id || p.id) === (it.obj?.id || it.id)
-      ),
-  )
-  pendientes.push(it)
-  savePendientes()
-}
-// ¿La entidad `id` de `collection` está pendiente de subir? (para no borrarla al refrescar)
-function estaPendiente(collection, id) {
-  return pendientes.some(
-    (p) =>
-      p.empresa_id === ctx.empresaId &&
-      p.collection === collection &&
-      (p.obj?.id || p.id) === id,
-  )
-}
-export async function flushPendientes() {
-  if (!supabase || pendientes.length === 0) return
-  const cola = pendientes
-  pendientes = []
-  savePendientes()
-  for (const it of cola) {
-    // Un pendiente sin empresa es de la versión anterior a multiempresa: se
-    // descarta en vez de escribirlo en la tienda equivocada.
-    if (!it.empresa_id) continue
-    try {
-      let res
-      if (it.t === 'ent') {
-        const row = {
-          empresa_id: it.empresa_id,
-          sucursal_id: COMPARTIDAS.has(it.collection) ? null : it.sucursal_id,
-          collection: it.collection,
-          id: it.obj.id,
-          data: it.obj,
-        }
-        if (it.obj.creadoEn) row.created_at = it.obj.creadoEn
-        res = await supabase.from('entities').upsert(row)
-      } else if (it.t === 'entdel') {
-        res = await supabase
-          .from('entities')
-          .delete()
-          .eq('empresa_id', it.empresa_id)
-          .eq('collection', it.collection)
-          .eq('id', it.id)
-      } else if (it.t === 'kv') {
-        res = await supabase.from('kv').upsert({
-          empresa_id: it.empresa_id,
-          key: it.key,
-          value: it.value,
-          updated_at: new Date().toISOString(),
-        })
-      }
-      if (res?.error) throw res.error
-    } catch {
-      enqueue(it) // sigue fallando: lo dejamos para el próximo intento
-    }
-  }
-}
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => flushPendientes())
-}
-
-// Inserta/actualiza una entidad (fila) en Supabase; si falla, la encola.
-function remoteUpsertEnt(collection, obj) {
-  if (!supabase || !ctx.empresaId) return
-  const row = {
-    empresa_id: ctx.empresaId,
-    // Las compartidas no viven en una sucursal: son de toda la empresa.
-    sucursal_id: COMPARTIDAS.has(collection) ? null : ctx.sucursalId,
-    collection,
-    id: obj.id,
-    data: obj,
-  }
-  if (obj.creadoEn) row.created_at = obj.creadoEn
-  supabase
-    .from('entities')
-    .upsert(row)
-    .then(
-      ({ error }) => {
-        if (error) enqueue({ t: 'ent', collection, obj })
-      },
-      () => enqueue({ t: 'ent', collection, obj }),
-    )
-}
-function remoteDeleteEnt(collection, id) {
-  if (!supabase || !ctx.empresaId) return
-  supabase
-    .from('entities')
-    .delete()
-    .eq('empresa_id', ctx.empresaId)
-    .eq('collection', collection)
-    .eq('id', id)
-    .then(
-      ({ error }) => {
-        if (error) enqueue({ t: 'entdel', collection, id })
-      },
-      () => enqueue({ t: 'entdel', collection, id }),
-    )
-}
-function remoteUpsertKv(key, value) {
-  if (!supabase || !ctx.empresaId) return
-  supabase
-    .from('kv')
-    .upsert({
-      empresa_id: ctx.empresaId,
-      key,
-      value,
-      updated_at: new Date().toISOString(),
-    })
-    .then(
-      ({ error }) => {
-        if (error) enqueue({ t: 'kv', key, value })
-      },
-      () => enqueue({ t: 'kv', key, value }),
-    )
-}
-
-// Mutaciones locales optimistas (cache + espejo + notify) y luego remoto.
+// Mutaciones locales del demo (cache + espejo + notify).
 function entUpsert(collection, obj) {
   if (apiMode()) throw new Error(`La mutación legacy de ${collection} no está disponible en modo API.`)
   const arr = cache[collection]
@@ -634,120 +473,20 @@ function entUpsert(collection, obj) {
   else cache[collection] = [...arr, obj]
   persistMirror()
   notify()
-  remoteUpsertEnt(collection, obj)
 }
 function entDelete(collection, id) {
   if (apiMode()) throw new Error(`La eliminación legacy de ${collection} no está disponible en modo API.`)
   cache[collection] = cache[collection].filter((o) => o.id !== id)
   persistMirror()
   notify()
-  remoteDeleteEnt(collection, id)
 }
 function kvSet(key, value) {
   if (apiMode()) throw new Error(`La mutación legacy de ${key} no está disponible en modo API.`)
   cache[key] = value
   persistMirror()
   notify()
-  remoteUpsertKv(key, value)
 }
-
-// Aplica un cambio recibido por realtime a la caché (sin reescribir remoto).
-function aplicarEnt(payload) {
-  const { eventType } = payload
-  if (eventType === 'DELETE') {
-    const { collection, id } = payload.old || {}
-    if (collection && cache[collection]) {
-      cache[collection] = cache[collection].filter((o) => o.id !== id)
-    }
-  } else {
-    const { collection, id, data, sucursal_id: suc } = payload.new || {}
-    if (!collection || !cache[collection]) return
-    // Un movimiento de otra sucursal no entra en la vista actual. (suc null =
-    // compartido por toda la empresa, ese sí entra siempre.)
-    if (suc && ctx.sucursalId && suc !== ctx.sucursalId) return
-    const arr = cache[collection]
-    const i = arr.findIndex((o) => o.id === id)
-    if (i >= 0) arr[i] = data
-    else if (FEEDS.has(collection)) arr.unshift(data)
-    else arr.push(data)
-  }
-  persistMirror()
-  notify()
-}
-function aplicarKv(payload) {
-  if (payload.eventType === 'DELETE') return
-  const { key, value } = payload.new || {}
-  if (key === 'tradein' || key === 'config') {
-    cache[key] = value
-    persistMirror()
-    notify()
-  }
-}
-
-// Baja TODAS las filas de `entities` paginando de a 1000 (Supabase/PostgREST
-// devuelve como máximo 1000 por request; sin esto, se perdían las más nuevas).
-async function fetchAllEntities() {
-  const PAGE = 1000
-  let desde = 0
-  let todo = []
-  for (;;) {
-    // La RLS ya limita a las empresas del usuario, pero filtramos igual: el
-    // dueño de varias tiendas no debe mezclar los datos de una con otra.
-    // sucursal_id null = compartida por toda la empresa (catálogo, precios).
-    let q = supabase
-      .from('entities')
-      .select('collection,id,data,created_at,sucursal_id')
-      .eq('empresa_id', ctx.empresaId)
-    if (ctx.sucursalId) q = q.or(`sucursal_id.is.null,sucursal_id.eq.${ctx.sucursalId}`)
-    const { data, error } = await q
-      .order('created_at', { ascending: true })
-      .range(desde, desde + PAGE - 1)
-    if (error) throw error
-    if (!data || data.length === 0) break
-    todo = todo.concat(data)
-    if (data.length < PAGE) break
-    desde += PAGE
-  }
-  return todo
-}
-
-let hidratado = false
 let apiHydrationVersion = 0
-async function hydrate() {
-  if (!supabase || hidratado || !ctx.empresaId) return
-  hidratado = true
-  try {
-    const [ents, { data: kvs }] = await Promise.all([
-      fetchAllEntities(),
-      supabase.from('kv').select('key,value').eq('empresa_id', ctx.empresaId),
-    ])
-
-    if (ents) {
-      const porColl = Object.fromEntries(COLLECTIONS.map((c) => [c, []]))
-      ents.forEach((r) => {
-        if (porColl[r.collection]) porColl[r.collection].push({ ...r.data, _ts: r.created_at })
-      })
-      COLLECTIONS.forEach((c) => {
-        cache[c] = sortColeccion(c, porColl[c])
-      })
-    }
-
-    const kvPresent = new Set()
-    if (kvs) {
-      kvs.forEach((r) => {
-        kvPresent.add(r.key)
-        if (r.key === 'tradein' || r.key === 'config') cache[r.key] = r.value
-      })
-    }
-
-    await seedSiVacio(kvPresent)
-    persistMirror()
-    notify()
-    subscribeRealtime()
-  } catch (e) {
-    console.warn('[storage] hidratación falló, sigo en modo local:', e?.message || e)
-  }
-}
 
 async function hydrateApi() {
   if (!apiMode()) return
@@ -799,174 +538,27 @@ function getCompanyName() {
   try { return JSON.parse(localStorage.getItem('owncoding_hub_company_context') || 'null')?.tenant?.name || APP_NAME } catch { return APP_NAME }
 }
 
-// Vuelve a bajar todo de Supabase y refresca la vista. Se usa para mantener el
-// sistema al día (al volver a la pestaña y cada pocos minutos), aunque el
-// realtime no haya empujado algún cambio.
-// Hora del servidor (ms) leída del header HTTP `Date` de Supabase. Sirve para
-// detectar si el reloj del equipo está mal (y por eso guardaría mal las fechas).
+// Hora del servidor: la fuente operativa es el API; el demo no requiere reloj remoto.
 export async function horaServidorMs() {
   return null
 }
 
 export async function refrescar() {
-  if (!ctx.empresaId) return
-  if (apiMode()) {
-    await hydrateApi()
-    return
-  }
-  if (!supabase) return
-  // Primero reintentamos lo que quedó sin subir, para no perderlo.
-  await flushPendientes()
-  try {
-    const [ents, { data: kvs }] = await Promise.all([
-      fetchAllEntities(),
-      supabase.from('kv').select('key,value').eq('empresa_id', ctx.empresaId),
-    ])
-    if (ents) {
-      const porColl = Object.fromEntries(COLLECTIONS.map((c) => [c, []]))
-      ents.forEach((r) => {
-        if (porColl[r.collection]) porColl[r.collection].push({ ...r.data, _ts: r.created_at })
-      })
-      COLLECTIONS.forEach((c) => {
-        cache[c] = sortColeccion(c, porColl[c])
-      })
-      // Re-aplica lo que todavía está pendiente de subir, para que NO desaparezca
-      // de la vista mientras se reintenta el envío.
-      pendientes.forEach((it) => {
-        if (it.empresa_id !== ctx.empresaId) return
-        if (it.t === 'ent' && cache[it.collection]) {
-          const arr = cache[it.collection]
-          const i = arr.findIndex((o) => o.id === it.obj.id)
-          if (i >= 0) arr[i] = it.obj
-          else arr.push(it.obj)
-        }
-      })
-    }
-    if (kvs) {
-      kvs.forEach((r) => {
-        if (r.key === 'tradein' || r.key === 'config') cache[r.key] = r.value
-      })
-    }
-    persistMirror()
-    notify()
-  } catch (e) {
-    console.warn('[storage] refresco falló:', e?.message || e)
-  }
-}
-
-// Primer arranque: si Supabase está vacío, sembramos defaults (o importamos
-// datos viejos de localStorage de la versión anterior, si existieran).
-const LEGACY = {
-  productos: 'fono:productos:v1',
-  vendedores: 'fono:vendedores:v1',
-  ventas: 'fono:ventas:v1',
-  gastos: 'fono:gastos:v1',
-  ads: 'fono:ads:v1',
-  celulares: 'fono:celulares:v1',
-  tradein: 'fono:tradein:v1',
-  config: 'fono:config:v1',
-}
-function readLegacy(coll) {
-  try {
-    return safeParse(localStorage.getItem(LEGACY[coll]))
-  } catch {
-    return null
-  }
-}
-async function bulkInsert(collection, arr) {
-  if (!supabase || !arr.length) return
-  const rows = arr.map((o) => {
-    const row = { collection, id: o.id, data: o }
-    if (o.creadoEn) row.created_at = o.creadoEn
-    return row
-  })
-  await supabase
-    .from('entities')
-    .upsert(rows)
-    .then(logErr(`seed ${collection}`))
-}
-
-async function seedSiVacio(kvPresent) {
-  // Catálogos con defaults
-  if (cache.productos.length === 0) {
-    const legacy = readLegacy('productos')
-    cache.productos = legacy?.length ? legacy : clone(PRODUCTOS_DEFAULT)
-    await bulkInsert('productos', cache.productos)
-  }
-  if (cache.vendedores.length === 0) {
-    const legacy = readLegacy('vendedores')
-    cache.vendedores = legacy?.length ? legacy : clone(VENDEDORES_DEFAULT)
-    await bulkInsert('vendedores', cache.vendedores)
-  }
-  // Feeds y celulares: sin defaults, pero importamos datos viejos si hay.
-  for (const c of ['ventas', 'gastos', 'ads', 'celulares']) {
-    if (cache[c].length === 0) {
-      const legacy = readLegacy(c)
-      if (legacy?.length) {
-        cache[c] = sortColeccion(
-          c,
-          legacy.map((o) => ({ ...o, _ts: o.creadoEn })),
-        )
-        await bulkInsert(c, legacy)
-      }
-    }
-  }
-  // KV
-  if (!kvPresent.has('config')) {
-    const legacy = readLegacy('config')
-    cache.config = { ...CONFIG_DEFAULT, ...(legacy || {}) }
-    remoteUpsertKv('config', cache.config)
-  }
-  if (!kvPresent.has('tradein')) {
-    const legacy = readLegacy('tradein')
-    cache.tradein = { ...clone(TRADEIN_DEFAULT), ...(legacy || {}) }
-    remoteUpsertKv('tradein', cache.tradein)
-  }
-}
-
-let canal = null
-function subscribeRealtime() {
-  if (!supabase || !ctx.empresaId) return
-  desconectarRealtime()
-  // El filtro evita recibir (y tener que descartar) los cambios de las otras
-  // empresas. La RLS igual no los dejaría pasar, pero mejor no pedirlos.
-  const filtro = `empresa_id=eq.${ctx.empresaId}`
-  canal = supabase
-    .channel(`fono-${ctx.empresaId}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'entities', filter: filtro },
-      aplicarEnt,
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'kv', filter: filtro },
-      aplicarKv,
-    )
-    .subscribe()
-}
-function desconectarRealtime() {
-  if (canal) {
-    supabase?.removeChannel(canal)
-    canal = null
-  }
+  if (ctx.empresaId && apiMode()) await hydrateApi()
 }
 
 // ════════════════════════════════════════════════════════════════════
 // MULTIEMPRESA — sesión, empresas y sucursales
-// Nada de esto se guarda en el navegador salvo la sesión de Supabase y la
-// última sucursal elegida: quién puede ver qué lo decide la base (RLS).
+// La autorización y el aislamiento los decide la API; aquí solo se recuerda
+// la última sucursal elegida para la experiencia local.
 // ════════════════════════════════════════════════════════════════════
 const SUC_KEY = 'fono:sucursal'
 
-// Entra a una empresa/sucursal: limpia lo anterior, levanta el espejo de esta
-// y arranca la sincronización. Es el único punto por donde se cambia de tienda.
+// Entra a una empresa/sucursal y carga la fuente de datos correspondiente.
 export async function setContexto({ empresaId, sucursalId, userId, rol, fuente = 'legacy' }) {
   apiHydrationVersion += 1
   const cambioEmpresa = ctx.empresaId !== empresaId
   if (fuente === 'api' && (ctx.userId !== userId || ctx.rol !== rol || cambioEmpresa)) vaciarCache()
-  desconectarRealtime()
-  hidratado = false
   ctx.empresaId = empresaId || null
   ctx.sucursalId = sucursalId || null
   ctx.userId = userId || null
@@ -987,7 +579,6 @@ export async function setContexto({ empresaId, sucursalId, userId, rol, fuente =
   if (cambioEmpresa && !apiMode()) bootFromMirror()
   notify()
   if (apiMode()) await hydrateApi()
-  else await hydrate()
 }
 
 export function sucursalGuardada() {
@@ -999,189 +590,12 @@ export function sucursalGuardada() {
 }
 
 export async function salirDeTodo() {
-  desconectarRealtime()
-  hidratado = false
   ctx.empresaId = null
   ctx.sucursalId = null
   ctx.userId = null
   ctx.rol = null
   vaciarCache()
   notify()
-  await supabase?.auth.signOut()
-}
-
-// ── Autenticación ───────────────────────────────────────────────────
-export async function sesionSupabase() {
-  if (!supabase) return null
-  const { data } = await supabase.auth.getSession()
-  return data?.session || null
-}
-
-export async function entrarConCorreo(correo, clave) {
-  if (!supabase) return { error: 'Supabase no está configurado.' }
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: correo.trim(),
-    password: clave,
-  })
-  if (error) {
-    return {
-      error:
-        error.message === 'Invalid login credentials'
-          ? 'Correo o contraseña incorrectos.'
-          : error.message,
-    }
-  }
-  return { user: data.user }
-}
-
-// Crea la cuenta, la empresa y su primera sucursal, y deja al que registra
-// como dueño. Todo en la misma llamada para que no queden cuentas sin empresa.
-export async function registrarEmpresa({ nombreEmpresa, nombrePersona, correo, clave }) {
-  if (!supabase) return { error: 'Supabase no está configurado.' }
-  const { data, error } = await supabase.auth.signUp({
-    email: correo.trim(),
-    password: clave,
-    options: { data: { nombre: nombrePersona } },
-  })
-  if (error) return { error: error.message }
-  if (!data.user) return { error: 'No se pudo crear el usuario.' }
-
-  const { data: empresaId, error: e2 } = await supabase.rpc('crear_empresa', {
-    p_nombre: nombreEmpresa.trim(),
-    p_nombre_persona: (nombrePersona || '').trim(),
-  })
-  if (e2) return { error: e2.message }
-  return { user: data.user, empresaId }
-}
-
-// ── Empresas y sucursales del usuario ───────────────────────────────
-export async function misEmpresas() {
-  if (!supabase) return []
-  const { data, error } = await supabase
-    .from('miembros')
-    .select('rol, sucursal_id, empresa_id, empresas(id, nombre, slug)')
-  if (error || !data) return []
-  return data
-    .filter((m) => m.empresas)
-    .map((m) => ({
-      id: m.empresas.id,
-      nombre: m.empresas.nombre,
-      slug: m.empresas.slug,
-      rol: m.rol,
-      sucursalId: m.sucursal_id,
-    }))
-}
-
-export async function sucursalesDe(empresaId) {
-  if (!supabase || !empresaId) return []
-  const { data, error } = await supabase
-    .from('sucursales')
-    .select('id, nombre, activa')
-    .eq('empresa_id', empresaId)
-    .eq('activa', true)
-    .order('creada_en', { ascending: true })
-  return error || !data ? [] : data
-}
-
-export async function crearSucursal(nombre) {
-  if (!supabase || !ctx.empresaId) return { error: 'Sin empresa activa.' }
-  const { data, error } = await supabase
-    .from('sucursales')
-    .insert({ empresa_id: ctx.empresaId, nombre: nombre.trim() })
-    .select('id, nombre')
-    .single()
-  return error ? { error: error.message } : { sucursal: data }
-}
-
-export async function renombrarSucursal(id, nombre) {
-  if (!supabase) return { error: 'Supabase no está configurado.' }
-  const { error } = await supabase
-    .from('sucursales')
-    .update({ nombre: nombre.trim() })
-    .eq('id', id)
-  return error ? { error: error.message } : {}
-}
-
-// ── Equipo ──────────────────────────────────────────────────────────
-export async function miembrosDeEmpresa() {
-  if (!supabase || !ctx.empresaId) return []
-  const { data, error } = await supabase
-    .from('miembros')
-    .select('user_id, rol, nombre, sucursal_id')
-    .eq('empresa_id', ctx.empresaId)
-  return error || !data ? [] : data
-}
-
-export async function cambiarMiClave(nueva) {
-  if (!supabase) return { error: 'Supabase no está configurado.' }
-  const { error } = await supabase.auth.updateUser({ password: nueva })
-  return error ? { error: error.message } : {}
-}
-
-// ── Invitaciones ────────────────────────────────────────────────────
-// El dueño anota el correo; cuando esa persona crea su cuenta, entra sola.
-export async function listInvitaciones() {
-  if (!supabase || !ctx.empresaId) return []
-  const { data, error } = await supabase
-    .from('invitaciones')
-    .select('correo, rol, nombre, sucursal_id, creada_en')
-    .eq('empresa_id', ctx.empresaId)
-    .order('creada_en', { ascending: true })
-  return error || !data ? [] : data
-}
-
-export async function invitar({ correo, rol = 'vendedor', nombre = '', sucursalId }) {
-  if (!supabase || !ctx.empresaId) return { error: 'Sin empresa activa.' }
-  const { error } = await supabase.from('invitaciones').upsert({
-    empresa_id: ctx.empresaId,
-    correo: correo.trim().toLowerCase(),
-    rol,
-    nombre: nombre.trim() || null,
-    sucursal_id: sucursalId || ctx.sucursalId,
-  })
-  return error ? { error: error.message } : {}
-}
-
-export async function cancelarInvitacion(correo) {
-  if (!supabase || !ctx.empresaId) return { error: 'Sin empresa activa.' }
-  const { error } = await supabase
-    .from('invitaciones')
-    .delete()
-    .eq('empresa_id', ctx.empresaId)
-    .eq('correo', correo.trim().toLowerCase())
-  return error ? { error: error.message } : {}
-}
-
-export async function cambiarRol(userId, rol) {
-  if (!supabase || !ctx.empresaId) return { error: 'Sin empresa activa.' }
-  const { error } = await supabase
-    .from('miembros')
-    .update({ rol })
-    .eq('empresa_id', ctx.empresaId)
-    .eq('user_id', userId)
-  return error ? { error: error.message } : {}
-}
-
-export async function quitarMiembro(userId) {
-  if (!supabase || !ctx.empresaId) return { error: 'Sin empresa activa.' }
-  if (userId === ctx.userId) return { error: 'No te podés quitar a vos mismo.' }
-  const { error } = await supabase
-    .from('miembros')
-    .delete()
-    .eq('empresa_id', ctx.empresaId)
-    .eq('user_id', userId)
-  return error ? { error: error.message } : {}
-}
-
-// ── Cotización del dólar (global, compartida por todas las empresas) ──
-export async function cotizacionDolar() {
-  if (!supabase) return null
-  const { data, error } = await supabase
-    .from('cotizacion')
-    .select('compra, venta, actualizado')
-    .eq('id', 1)
-    .maybeSingle()
-  return error ? null : data
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1259,8 +673,8 @@ export function listAuditoria() {
 // ── PRODUCTOS ───────────────────────────────────────────────────────
 export function getProductos() {
   if (apiMode()) return cache.productos
-  // Modo 100% local (sin Supabase): sembramos defaults la primera vez.
-  if (!isDemoRuntime && !supabase && cache.productos.length === 0) {
+  // Modo local: sembramos defaults la primera vez.
+  if (!isDemoRuntime && cache.productos.length === 0) {
     cache.productos = clone(PRODUCTOS_DEFAULT)
     persistMirror()
   }
@@ -1286,18 +700,9 @@ export async function updateProductoApi(id, cambios) {
 }
 export function saveProductos(productos) {
   if (apiMode()) throw new Error('Productos: escritura API todavía no está disponible.')
-  const removidos = cache.productos.filter((p) => !productos.some((n) => n.id === p.id))
   cache.productos = productos
   persistMirror()
   notify()
-  if (supabase) {
-    if (productos.length)
-      supabase
-        .from('entities')
-        .upsert(productos.map((o) => ({ collection: 'productos', id: o.id, data: o })))
-        .then(logErr('save productos'))
-    removidos.forEach((p) => remoteDeleteEnt('productos', p.id))
-  }
 }
 export function addProducto(nombre, categoria = 'Otros') {
   if (apiMode()) throw new Error('Productos: escritura API todavía no está disponible.')
@@ -1344,7 +749,7 @@ export function deleteProducto(id) {
 
 // ── VENDEDORES ──────────────────────────────────────────────────────
 export function getVendedores() {
-  if (!isDemoRuntime && !supabase && cache.vendedores.length === 0) {
+  if (!isDemoRuntime && cache.vendedores.length === 0) {
     cache.vendedores = isDemoRuntime
       ? [{ id: 'demo-user', nombre: 'Usuario demo', activo: true, metaDiaria: 1000000 }]
       : clone(VENDEDORES_DEFAULT)
@@ -1397,18 +802,9 @@ export function prepararDatosDemo() {
   notify()
 }
 export function saveVendedores(vendedores) {
-  const removidos = cache.vendedores.filter((v) => !vendedores.some((n) => n.id === v.id))
   cache.vendedores = vendedores
   persistMirror()
   notify()
-  if (supabase) {
-    if (vendedores.length)
-      supabase
-        .from('entities')
-        .upsert(vendedores.map((o) => ({ collection: 'vendedores', id: o.id, data: o })))
-        .then(logErr('save vendedores'))
-    removidos.forEach((v) => remoteDeleteEnt('vendedores', v.id))
-  }
 }
 export function addVendedor(nombre) {
   const nuevo = {
@@ -1687,17 +1083,9 @@ export function saveTradein(cambios) {
 export function resetTradein() {
   kvSet('tradein', clone(TRADEIN_DEFAULT))
 }
-// Dispara la Edge Function que actualiza la cotización ahora mismo (manual). El
-// valor nuevo llega por realtime y re-renderiza la UI. Devuelve { ok, rate, ... }.
+// La actualización de cotización se integrará con el endpoint propio de finanzas.
 export async function actualizarDolar() {
-  if (!supabase) return { ok: false, error: 'Sin conexión a Supabase' }
-  try {
-    const { data, error } = await supabase.functions.invoke('actualizar-dolar')
-    if (error) return { ok: false, error: error.message || String(error) }
-    return data || { ok: false, error: 'Sin respuesta' }
-  } catch (e) {
-    return { ok: false, error: e?.message || String(e) }
-  }
+  return { ok: false, error: 'La actualización de cotización todavía no está disponible en la API.' }
 }
 
 // ── IMÁGENES DEL COMPARADOR ─────────────────────────────────────────

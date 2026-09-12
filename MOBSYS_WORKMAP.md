@@ -132,7 +132,7 @@ Objetivo: dejar lista la base segura antes de migrar operaciones.
 - [ ] Verificar disponibilidad de `MobOS`/`MobOS Retail` en dominio y marca.
 - [ ] Centralizar nombre, logo, favicon, colores, tipografías y metadatos.
 - [ ] Crear `organizations`, `branches`, `organization_users` y membresías.
-- [ ] Implementar Supabase Auth.
+- [ ] Completar autenticación propia: Google, correo/contraseña, PIN, roles y auditoría.
 - [ ] Implementar PIN individual con hash, intentos fallidos y bloqueo temporal.
 - [ ] Crear roles y permisos por acción.
 - [ ] Crear policies RLS por empresa y sucursal.
@@ -269,8 +269,7 @@ Salida: el sistema recomienda qué comprar, a quién contactar y qué margen cor
 
 ### Infraestructura de persistencia
 
-MobOS no usará Supabase como base principal. La persistencia productiva se alojará en
-OwnCoding Hub, siguiendo el patrón ya operativo de miBilletera:
+MobOS usa PostgreSQL administrado en OwnCoding Hub, con backend propio y Prisma:
 
 - PostgreSQL administrado dentro del proyecto de OwnCoding Hub.
 - Backend propio desplegado en Hub (API y autenticación del lado servidor).
@@ -280,8 +279,7 @@ OwnCoding Hub, siguiendo el patrón ya operativo de miBilletera:
 - `DATABASE_URL`, secretos de autenticación y claves internas quedan únicamente en
   variables privadas del backend de Hub.
 
-La carpeta `supabase/` se conserva solo como referencia histórica hasta completar la
-migración; no debe recibir nuevas funcionalidades ni considerarse la fuente de verdad.
+No existe un cliente ni una carpeta de persistencia alternativa dentro del repositorio.
 
 ```text
 organization

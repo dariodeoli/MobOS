@@ -19,8 +19,8 @@ export function SesionProvider({ children }) {
   const [usuario, setUsuario] = useState(null); const [empresas, setEmpresas] = useState([]); const [empresa, setEmpresa] = useState(null); const [sucursales, setSucursales] = useState([]); const [sucursal, setSucursal] = useState(null); const [vendedores, setVendedores] = useState([])
   const activarSesion = useCallback(async (rawUser, { prepararLegacy = false } = {}) => {
     const user = adaptarUsuario(rawUser); const emp = adaptarEmpresa(rawUser); const suc = rawUser.branchId ? { id: rawUser.branchId, nombre: rawUser.branchName || 'Sucursal' } : null
-    // El storage actual sigue siendo legacy (Supabase/local optimistic). No lo
-    // inicializamos para sesiones API reales: así no aparenta persistencia API.
+    // Los datos reales se hidratan desde la API; el almacenamiento local queda
+    // reservado al demo y a los módulos que aún están en transición.
     await setContexto({ empresaId: emp.id, sucursalId: suc?.id || null, userId: user.id, rol: emp.rol, fuente: prepararLegacy ? 'legacy' : 'api' })
     setUsuario(user); setEmpresa(emp); setEmpresas([emp]); setSucursal(suc); setSucursales(suc ? [suc] : []); setVendedores(getCompanyContext()?.sellers || []); setEstado('dentro')
   }, [])
