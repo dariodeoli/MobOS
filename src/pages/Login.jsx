@@ -29,6 +29,8 @@ export default function Login() {
   const googleStarted = useRef(false)
   const [googleReady, setGoogleReady] = useState(false)
   const [setupPin, setSetupPin] = useState('')
+  const [signupErrors, setSignupErrors] = useState({})
+  const [signupTouched, setSignupTouched] = useState({})
 
   function showCompany(result) {
     const lista = result.sellers || []
@@ -60,12 +62,40 @@ export default function Login() {
     }
   }, [])
 
-  const set = (campo) => (e) => setF((x) => ({ ...x, [campo]: e.target.value }))
+  function signupFieldError(campo, value) {
+    if (campo === 'nombreEmpresa') return value.trim() ? '' : 'Ingresá el nombre de tu tienda.'
+    if (campo === 'correo') return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) ? '' : 'Ingresá un correo válido.'
+    if (campo === 'clave') {
+      if (value.length < 8) return 'Usá al menos 8 caracteres.'
+      if (new TextEncoder().encode(value).length > 72) return 'La contraseña puede tener hasta 72 caracteres.'
+    }
+    return ''
+  }
+
+  function validateSignup() {
+    const next = Object.fromEntries(['nombreEmpresa', 'correo', 'clave'].map(campo => [campo, signupFieldError(campo, f[campo])]).filter(([, message]) => message))
+    setSignupTouched({ nombreEmpresa: true, correo: true, clave: true })
+    setSignupErrors(next)
+    return Object.keys(next).length === 0
+  }
+
+  const set = (campo) => (e) => {
+    const value = e.target.value
+    setF((x) => ({ ...x, [campo]: value }))
+    if (modo === 'crear' && signupTouched[campo]) setSignupErrors((errors) => ({ ...errors, [campo]: signupFieldError(campo, value) }))
+  }
+
+  const touchSignup = (campo) => () => {
+    setSignupTouched((touched) => ({ ...touched, [campo]: true }))
+    setSignupErrors((errors) => ({ ...errors, [campo]: signupFieldError(campo, f[campo]) }))
+  }
 
   function cambiarModo(m) {
     setModo(m)
     setError('')
     setOk('')
+    setSignupErrors({})
+    setSignupTouched({})
   }
 
   async function iniciarGoogle(create = false) {
@@ -96,6 +126,7 @@ export default function Login() {
     setOk('')
 
     if (modo === 'crear') {
+      if (!googleReady && !validateSignup()) return
       setCargando(true)
       try {
         if (googleReady) showCompany(await sessionApi.completeGoogle({ action: 'create', companyName: f.nombreEmpresa }))
@@ -151,7 +182,7 @@ export default function Login() {
 
   return (
     <AuthLayout>
-      <section className="login-panel mx-auto w-full max-w-[410px] rounded-[2rem] border border-white/10 bg-[#0b1822]/95 p-5 shadow-2xl shadow-[#15D7B8]/5 sm:p-6 lg:p-5">
+      <section className="login-panel mx-auto w-full max-w-[450px] rounded-[2rem] border border-white/10 bg-[#0b1822]/95 p-5 shadow-2xl shadow-[#15D7B8]/5 sm:p-6 lg:p-5">
       <a href={publicUrls.landing} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-[#15D7B8] transition hover:text-white">← Volver al inicio</a>
       <img src="/logo-dark.svg" alt="MobOS" className="mb-1 w-36" />
       <p className="mb-4 text-sm text-mute">Sistema de ventas para tiendas</p>
@@ -183,9 +214,9 @@ export default function Login() {
 
         <form onSubmit={enviar} className="space-y-2.5">
           {crear && <>
-            <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} autoComplete="organization" /></div>
-            {!googleReady && <div><Label htmlFor="new-email">Correo de acceso</Label><Input id="new-email" type="email" required value={f.correo} onChange={set('correo')} autoComplete="email" /></div>}
-            {!googleReady && <div><Label htmlFor="new-password">Contraseña de empresa</Label><PasswordInput id="new-password" required minLength={12} maxLength={72} value={f.clave} onChange={set('clave')} autoComplete="new-password" /></div>}
+            <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} onBlur={touchSignup('nombreEmpresa')} aria-invalid={Boolean(signupErrors.nombreEmpresa)} aria-describedby={signupErrors.nombreEmpresa ? 'company-name-error' : undefined} autoComplete="organization" />{signupErrors.nombreEmpresa && <p id="company-name-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.nombreEmpresa}</p>}</div>
+            {!googleReady && <div><Label htmlFor="new-email">Correo de acceso</Label><Input id="new-email" type="email" required value={f.correo} onChange={set('correo')} onBlur={touchSignup('correo')} aria-invalid={Boolean(signupErrors.correo)} aria-describedby={signupErrors.correo ? 'new-email-error' : undefined} autoComplete="email" />{signupErrors.correo && <p id="new-email-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.correo}</p>}</div>}
+            {!googleReady && <div><Label htmlFor="new-password">Contraseña de empresa</Label><PasswordInput id="new-password" required minLength={8} maxLength={72} value={f.clave} onChange={set('clave')} onBlur={touchSignup('clave')} aria-invalid={Boolean(signupErrors.clave)} aria-describedby={signupErrors.clave ? 'new-password-error' : undefined} autoComplete="new-password" />{signupErrors.clave && <p id="new-password-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.clave}</p>}</div>}
           </>}
 
           {modo === 'entrar' && etapa === 'setup' ? (

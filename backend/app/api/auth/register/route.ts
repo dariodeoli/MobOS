@@ -19,8 +19,8 @@ export async function POST(request: Request) {
   const password = String(body.password ?? '')
   const deviceId = String(body.deviceId ?? '').trim()
 
-  if (!companyName || companyName.length > 100 || !emailPattern.test(email) || password.length < 12 || Buffer.byteLength(password) > 72 || !deviceId) {
-    return error('Completá el nombre de la tienda, un correo válido y una contraseña de al menos 12 caracteres.', 400)
+  if (!companyName || companyName.length > 100 || !emailPattern.test(email) || password.length < 8 || Buffer.byteLength(password) > 72 || !deviceId) {
+    return error('Completá el nombre de la tienda, un correo válido y una contraseña de entre 8 y 72 caracteres.', 400)
   }
 
   try {

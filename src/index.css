@@ -45,10 +45,10 @@ tbody tr:hover { background-color: rgba(21, 215, 184, .035); }
 @media (min-width: 1024px) and (max-height: 1000px) {
   /* El panel conserva margen real arriba y abajo en notebooks: se reduce sin
      desplazarlo, para quedar centrado entre la barra y el footer. */
-  .login-panel { transform: scale(.90); transform-origin: center; }
+  .login-panel { transform: scale(.92); transform-origin: center; }
 }
 @media (min-width: 1024px) and (max-height: 820px) {
-  .login-panel { transform: scale(.82); }
+  .login-panel { transform: scale(.84); }
 }
 button, input, select, textarea { touch-action: manipulation; }
 
