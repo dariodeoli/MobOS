@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
+import { useSesion } from '@/lib/sesion'
 import { cn } from '@/lib/utils'
 import { Button, Card } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -72,6 +73,7 @@ const TODAS = SECCIONES.flatMap((s) => s.items)
 export default function CentroControl() {
   useLive()
   useAutoRefrescar()
+  const { empresa } = useSesion()
   const navigate = useNavigate()
   const { tab: routeTab } = useParams()
   const [tab, setTab] = useState(() => TODAS.some(([key]) => key === routeTab) ? routeTab : 'resumen')
@@ -118,7 +120,10 @@ export default function CentroControl() {
         <div className="flex h-full flex-col pt-safe">
           <div className="flex h-16 items-center gap-2.5 px-5">
             <img src="/logo-dark.svg" alt={APP_NAME} className="h-5" />
-            <span className="text-sm font-medium text-mute">Control</span>
+            <div className="min-w-0">
+              <span className="block text-[11px] font-medium uppercase tracking-wider text-mute/70">Control</span>
+              <span className="block truncate text-sm font-semibold text-white" title={empresa?.nombre || 'Mi tienda'}>{empresa?.nombre || 'Mi tienda'}</span>
+            </div>
           </div>
 
           <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
