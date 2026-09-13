@@ -1,6 +1,12 @@
 import { ApiError } from './errors'
 
-const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+// La variable del Hub tiene prioridad, salvo el host legado: un build con la
+// URL anterior provoca un redirect entre orígenes y el navegador bloquea el
+// inicio OAuth antes de llegar a Google.
+const configuredApiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+const API_URL = configuredApiUrl === 'https://api.controlaria.online'
+  ? 'https://api.moboss.online'
+  : configuredApiUrl
 
 async function readBody(response) {
   const type = response.headers.get('content-type') || ''
