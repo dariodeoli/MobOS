@@ -46,6 +46,19 @@ tbody tr:hover { background-color: rgba(21, 215, 184, .035); }
 @media (min-width: 1024px) and (max-height: 900px) {
   .auth-shell-grid { align-items: start; }
 }
+@media (min-width: 1024px) and (max-height: 820px) {
+  .auth-shell-grid {
+    align-items: center;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+  .login-panel { padding: 1.5rem; }
+  .login-panel > a { margin-bottom: .75rem; }
+  .login-panel > img { width: 9rem; }
+  .login-panel > p { margin-bottom: 1rem; }
+  .login-panel > h1 { font-size: 1.35rem; }
+  .auth-form > :not([hidden]) ~ :not([hidden]) { margin-top: .75rem; }
+}
 button, input, select, textarea { touch-action: manipulation; }
 
 /* Scrollbars discretas, a tono con el tema oscuro */
