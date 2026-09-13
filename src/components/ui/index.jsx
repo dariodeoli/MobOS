@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { formatGsInput, parseGsInput } from '@/utils/moneda'
+import Icon from '@/components/shared/Icon'
 
 // ── Button ──────────────────────────────────────────────────────────
 const VARIANTS = {
@@ -36,6 +37,27 @@ export function Input({ className, ...props }) {
       )}
       {...props}
     />
+  )
+}
+
+// Campo de contraseña reutilizable: mantiene el valor oculto por defecto y
+// permite comprobarlo puntualmente sin perder foco ni accesibilidad.
+export function PasswordInput({ className, ...props }) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <div className="relative">
+      <Input {...props} type={visible ? 'text' : 'password'} className={cn('pr-11', className)} />
+      <button
+        type="button"
+        onClick={() => setVisible(current => !current)}
+        className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-lg text-mute transition hover:text-white focus-visible:z-10"
+        aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        aria-pressed={visible}
+        title={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+      >
+        <Icon name={visible ? 'eyeOff' : 'eye'} className="h-4.5 w-4.5" />
+      </button>
+    </div>
   )
 }
 

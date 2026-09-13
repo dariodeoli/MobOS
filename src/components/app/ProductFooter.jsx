@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 
 export function ProductFooter({ className, leading, children }) {
   return (
-    <footer className={cn('mobos-footer border-t border-white/10 px-4 py-3 text-center text-[11px] text-slate-500', className)}>
+    <footer className={cn('mobos-footer border-t border-white/10 bg-transparent px-4 py-3 text-center text-[11px] text-slate-500', className)}>
       {leading}
       <span>© 2026 {APP_NAME} · {APP_VERSION}</span>{' · '}
       {children}

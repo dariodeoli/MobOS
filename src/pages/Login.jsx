@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
-import { Button, Card, Input, Label } from '@/components/ui'
+import { Button, Card, Input, Label, PasswordInput } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { publicUrls } from '@/lib/urls'
@@ -179,26 +179,21 @@ export default function Login() {
         <h1 className="mb-1 text-base font-semibold">
           {crear ? 'Creá la cuenta de tu tienda' : 'Entrá a tu tienda'}
         </h1>
-        <p className="mb-3 text-sm leading-5 text-mute">
-          {crear
-            ? 'Tu tienda arranca vacía y separada de cualquier otra. Nadie más ve tus datos.'
-            : 'Con el correo y la contraseña que te dio el dueño de la tienda.'}
-        </p>
+        {!crear && <p className="mb-3 text-sm leading-5 text-mute">Con el correo y la contraseña que te dio el dueño de la tienda.</p>}
 
         <form onSubmit={enviar} className="space-y-2.5">
-          {crear && <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-3 text-xs leading-5 text-slate-300">{googleReady ? 'Solo falta ponerle un nombre a tu tienda. Después configurás tu PIN y el resto cuando ya estés dentro.' : 'Empezá con lo esencial. El PIN, perfil, sucursales y medios de pago los configurás después.'}</div>}
           {crear && <>
             <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} autoComplete="organization" /></div>
             {!googleReady && <div><Label htmlFor="new-email">Correo de acceso</Label><Input id="new-email" type="email" required value={f.correo} onChange={set('correo')} autoComplete="email" /></div>}
-            {!googleReady && <div><Label htmlFor="new-password">Contraseña de empresa</Label><Input id="new-password" type="password" required minLength={12} maxLength={72} value={f.clave} onChange={set('clave')} autoComplete="new-password" /></div>}
+            {!googleReady && <div><Label htmlFor="new-password">Contraseña de empresa</Label><PasswordInput id="new-password" required minLength={12} maxLength={72} value={f.clave} onChange={set('clave')} autoComplete="new-password" /></div>}
           </>}
 
           {modo === 'entrar' && etapa === 'setup' ? (
-            <><div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 px-4 py-3"><span className="text-xs text-slate-500">Tienda creada</span><strong className="mt-1 block text-sm text-[#15D7B8]">{nombreEmpresa || 'Tu tienda'}</strong></div><div><Label htmlFor="setup-pin">Elegí tu PIN de administrador</Label><Input id="setup-pin" autoFocus required type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={setupPin} onChange={(event) => { setError(''); setSetupPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="4 dígitos" autoComplete="new-password" /></div><p className="text-xs leading-5 text-slate-500">Este PIN abre el modo ventas y te identifica en cada operación. El resto lo configurás dentro de la app.</p></>
+            <><div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 px-4 py-3"><span className="text-xs text-slate-500">Tienda creada</span><strong className="mt-1 block text-sm text-[#15D7B8]">{nombreEmpresa || 'Tu tienda'}</strong></div><div><Label htmlFor="setup-pin">Elegí tu PIN de administrador</Label><PasswordInput id="setup-pin" autoFocus required inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={setupPin} onChange={(event) => { setError(''); setSetupPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="4 dígitos" autoComplete="new-password" /></div><p className="text-xs leading-5 text-slate-500">Este PIN abre el modo ventas y te identifica en cada operación. El resto lo configurás dentro de la app.</p></>
           ) : modo === 'entrar' && etapa === 'vendedor' ? (
             <>
               <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 px-4 py-3"><span className="text-xs text-slate-500">Empresa</span><strong className="mt-1 block text-sm text-[#15D7B8]">{nombreEmpresa || 'Tu empresa'}</strong></div><div><Label htmlFor="seller">Vendedor</Label><select id="seller" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="mt-1 w-full rounded-xl border border-ink-500 bg-ink px-3 py-3 text-white"><option value="">Seleccioná tu usuario</option>{vendedores.map((v) => <option key={v.id} value={v.id}>{v.name || v.nombre || v.email}</option>)}</select></div>
-              <div><Label htmlFor="seller-pin">PIN del vendedor</Label><Input id="seller-pin" autoFocus type="password" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => { setError(''); setPin(e.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="4 dígitos" autoComplete="one-time-code" /></div>
+              <div><Label htmlFor="seller-pin">PIN del vendedor</Label><PasswordInput id="seller-pin" autoFocus inputMode="numeric" maxLength={4} value={pin} onChange={(e) => { setError(''); setPin(e.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="4 dígitos" autoComplete="one-time-code" /></div>
               <button type="button" onClick={() => { setEtapa('empresa'); setPin(''); setError('') }} className="text-sm text-mute hover:text-white">← Volver a empresa</button>
             </>
           ) : !crear && <>
@@ -218,9 +213,8 @@ export default function Login() {
 
           <div>
             <Label htmlFor="pass">Contraseña</Label>
-            <Input
+            <PasswordInput
               id="pass"
-              type="password"
               value={f.clave}
               onChange={set('clave')}
               placeholder={crear ? 'Mínimo 8 caracteres' : '••••••••'}

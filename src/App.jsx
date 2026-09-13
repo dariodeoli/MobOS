@@ -91,7 +91,7 @@ function AreaProtegida({ owner = false, children }) {
 function AppFooter() {
   const { esDemo, salir } = useSesion()
   return (
-    <ProductFooter className="border-ink-600 bg-ink-900 text-mute">
+    <ProductFooter className="border-ink-600 text-mute">
       {esDemo && <span>Usuario demo · Datos de prueba <button onClick={salir} className="mx-2 underline">Salir de demo</button> · </span>}
     </ProductFooter>
   )
