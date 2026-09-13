@@ -8,6 +8,7 @@ import { gs, num } from '@/utils/calculos'
 import { formatGsInput, parseGsInput } from '@/utils/moneda'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
+import NumericKeypad from '@/components/shared/NumericKeypad'
 
 const METHODS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta / POS', CREDIT: 'Crédito' }
 
@@ -140,7 +141,7 @@ export default function PagosPedido({ venta, onClose }) {
     {pending > 0 && <form onSubmit={register} className="mb-6 space-y-3 rounded-xl border border-fono/20 bg-fono/5 p-4">
       <h3 className="font-semibold">Registrar pago parcial o total</h3>
       <label className="block text-xs text-mute">Cuenta de destino<select aria-label="Cuenta de destino" className="mt-1 w-full rounded-lg border border-ink-500 bg-ink p-2" value={accountId} onChange={e => { setAccountId(e.target.value); setAmount(''); setRate('') }}><option value="">Método manual sin cuenta</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.accountNumber || a.kind}</option>)}</select></label>
-      <label className="block text-xs text-mute">Monto en {account?.currency === 'USD' ? 'dólares' : 'guaraníes'}<Input aria-label="Monto del pago" value={amount} inputMode="decimal" onChange={e => setAmount(account?.currency === 'USD' ? e.target.value : formatGsInput(e.target.value))} placeholder={account?.currency === 'USD' ? '10.50' : 'Gs 0'} /></label>
+      <label className="block text-xs text-mute">Monto en {account?.currency === 'USD' ? 'dólares' : 'guaraníes'}<Input aria-label="Monto del pago" value={amount} inputMode="decimal" onChange={e => setAmount(account?.currency === 'USD' ? e.target.value : formatGsInput(e.target.value))} placeholder={account?.currency === 'USD' ? '10.50' : 'Gs 0'} />{account?.currency !== 'USD' && <NumericKeypad value={amount.replace(/\D/g, '')} onChange={v => setAmount(formatGsInput(v))} />}</label>
       {account?.currency === 'USD' && <label className="block text-xs text-mute">Cotización: Gs por USD<Input inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} placeholder="7500" /></label>}
       {account?.kind === 'TRADE_IN' && <div className="space-y-2"><Input aria-label="IMEI o serial" placeholder="IMEI / serial" value={device.serial} onChange={e => setDevice(d => ({ ...d, serial: e.target.value }))} /><Input aria-label="Modelo recibido" placeholder="Modelo recibido" value={device.model} onChange={e => setDevice(d => ({ ...d, model: e.target.value }))} /><Input placeholder="Estado y observaciones" value={device.conditionNotes} onChange={e => setDevice(d => ({ ...d, conditionNotes: e.target.value }))} /></div>}
       {!account && <label className="block text-xs text-mute">Método<select className="mt-1 w-full rounded-lg border border-ink-500 bg-ink p-2" value={method} onChange={e => setMethod(e.target.value)}>{Object.entries(METHODS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>}

@@ -108,6 +108,7 @@ export default function PanelVendedor() {
   const [pin, setPin] = useState('')
   const [cambioError, setCambioError] = useState('')
   const [cambiando, setCambiando] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('mobos:sidebar-collapsed') === '1')
   const cambioEnCurso = useRef(false)
   const vendsById = vendedoresById()
 
@@ -122,6 +123,14 @@ export default function PanelVendedor() {
       setVista('cargar')
     } else { setVista(id); navigate(`/pos/${id}`) }
     setMenuAbierto(false)
+  }
+
+  function toggleSidebar() {
+    setSidebarCollapsed((current) => {
+      const next = !current
+      localStorage.setItem('mobos:sidebar-collapsed', next ? '1' : '0')
+      return next
+    })
   }
 
   const hoy = fechaClave()
@@ -176,22 +185,23 @@ export default function PanelVendedor() {
       {/* ── Lateral ──────────────────────────────────────────────── */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 flex w-[264px] shrink-0 flex-col border-r border-white/10 bg-[#0b1822] transition-transform lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-40 flex w-[264px] shrink-0 flex-col border-r border-white/10 bg-[#101722] transition-[width,transform] duration-200 lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0',
+          sidebarCollapsed && 'lg:w-[76px]',
           menuAbierto ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="flex h-20 items-center gap-3 border-b border-white/10 px-5 pt-safe">
+        <div className={cn('flex h-20 items-center gap-3 border-b border-white/10 px-5 pt-safe', sidebarCollapsed && 'lg:justify-center lg:px-3')}>
           <img src="/mobos-icon.svg" alt="" className="h-10 w-10 shrink-0 rounded-xl" />
-          <div className="flex flex-col leading-tight">
+          <div className={cn('flex flex-col leading-tight', sidebarCollapsed && 'lg:hidden')}>
             <span className="text-base font-bold tracking-tight">{APP_NAME}</span>
             <span className="text-[11px] text-slate-400">{esDemo ? 'Tienda de demostración' : 'Centro de operaciones'}</span>
           </div>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-7 overflow-y-auto p-4">
+        <nav className={cn('flex flex-1 flex-col gap-7 overflow-y-auto p-4', sidebarCollapsed && 'lg:p-3')}>
           {(esOwner ? OWNER_NAV : SELLER_NAV).map((g) => (
             <div key={g.titulo} className="flex flex-col gap-0.5">
-              <div className="px-3 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[.08em] text-mute/70">
+              <div className={cn('px-3 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[.08em] text-mute/70', sidebarCollapsed && 'lg:hidden')}>
                 {g.titulo}
               </div>
               {g.items.map(([id, label, ico]) => {
@@ -200,8 +210,10 @@ export default function PanelVendedor() {
                   <button
                     key={id}
                     onClick={() => ir(id)}
+                    aria-current={activo ? 'page' : undefined}
                     className={cn(
-                      'flex w-full items-center gap-2.5 rounded-[10px] border px-3 py-2.5 text-left transition',
+                      'group flex w-full items-center gap-2.5 rounded-[10px] border px-3 py-2.5 text-left transition',
+                      sidebarCollapsed && 'lg:justify-center lg:px-0',
                       activo
                         ? 'border-fono/35 bg-fono/[.14] font-medium text-white'
                         : 'border-transparent text-mute hover:bg-ink-700 hover:text-white',
@@ -211,8 +223,9 @@ export default function PanelVendedor() {
                       name={ico}
                       className={cn('h-4 w-4 shrink-0', activo && 'text-fono-light')}
                     />
-                    <span className="flex-1">{label}</span>
-                    {activo && <span className="h-[5px] w-[5px] rounded-full bg-fono" />}
+                    <span className={cn('flex-1', sidebarCollapsed && 'lg:hidden')}>{label}</span>
+                    {activo && <span className={cn('h-[5px] w-[5px] rounded-full bg-fono', sidebarCollapsed && 'lg:hidden')} />}
+                    <span className="pointer-events-none absolute left-[68px] hidden rounded-md bg-[#172131] px-2 py-1 text-xs text-white shadow-lg group-hover:lg:block">{label}</span>
                   </button>
                 )
               })}
@@ -220,7 +233,7 @@ export default function PanelVendedor() {
           ))}
         </nav>
 
-        {esOwner && <div className="flex flex-col gap-2.5 border-t border-fono/20 p-3.5 pb-safe">
+        {esOwner && <div className={cn('flex flex-col gap-2.5 border-t border-fono/20 p-3.5 pb-safe', sidebarCollapsed && 'lg:hidden')}>
           <div className="rounded-2xl border border-fono/20 bg-gradient-to-br from-fono/10 to-ink-800 p-4">
             <div className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-white/60">
               Vendido hoy
@@ -231,6 +244,16 @@ export default function PanelVendedor() {
             </div>
           </div>
         </div>}
+        <div className={cn('border-t border-white/10 p-3.5 pb-safe', sidebarCollapsed && 'lg:p-3')}>
+          <div className={cn('mb-2 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[.03] p-3', sidebarCollapsed && 'lg:justify-center lg:border-0 lg:bg-transparent lg:p-0')} title={empresa?.nombre || 'Empresa'}>
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#38BDF8]/15 text-[#38BDF8]"><Icon name="store" className="h-4 w-4" /></span>
+            <span className={cn('min-w-0', sidebarCollapsed && 'lg:hidden')}><strong className="block truncate text-xs text-white">{empresa?.nombre || 'Mi tienda'}</strong><small className="block truncate text-[10px] text-mute">{sucursal?.nombre || 'Todas las sucursales'}</small></span>
+          </div>
+          <button type="button" onClick={abrirCambio} className={cn('flex min-h-11 w-full items-center gap-2 rounded-xl p-2 text-left transition hover:bg-white/5', sidebarCollapsed && 'lg:justify-center lg:p-0')} title={sesion?.nombre || 'Usuario'}>
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#05F19C] text-sm font-bold text-[#090D16]">{(sesion?.nombre || 'U').charAt(0).toUpperCase()}</span>
+            <span className={cn('min-w-0', sidebarCollapsed && 'lg:hidden')}><strong className="block truncate text-xs text-white">{sesion?.nombre || 'Usuario'}</strong><small className="block truncate text-[10px] uppercase tracking-wider text-mute">{esOwner ? 'Dueño' : 'Vendedor'}</small></span>
+          </button>
+        </div>
       </aside>
 
       {menuAbierto && (
@@ -251,10 +274,7 @@ export default function PanelVendedor() {
             >
               <Icon name="menu" className="h-5 w-5" />
             </button>
-            <div className="hidden sm:block"><span className="block text-[11px] font-bold uppercase tracking-[.18em] text-[#15D7B8]">{APP_NAME}</span><span className="mt-1 block truncate text-lg font-semibold tracking-tight">{LABELS[vista]}</span></div>
-            <button onClick={abrirCambio} className="ml-1.5 whitespace-nowrap rounded-full border border-fono/30 bg-fono/[.12] px-2.5 py-1 text-[11.5px] font-medium text-fono-light transition hover:bg-fono/20" title="Cambiar vendedor">
-              {sesion?.nombre || (sesion?.esPropietario ? 'Dueño' : 'Vendedor')} · Cambiar
-            </button>
+          <div className="hidden sm:block"><span className="block text-[11px] font-bold uppercase tracking-[.18em] text-[#05F19C]">{APP_NAME}</span><span className="mt-1 block truncate text-lg font-semibold tracking-tight">{LABELS[vista]}</span></div>
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -272,10 +292,13 @@ export default function PanelVendedor() {
                 <span className="hidden sm:inline">Cargar venta</span>
               </button>
             )}
+            <button onClick={toggleSidebar} className="hidden rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-white lg:inline-flex" title={sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'} aria-label={sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'}><Icon name="menu" className="h-4 w-4" /></button>
+            <button onClick={abrirCambio} className="hidden min-h-11 rounded-lg border border-fono/30 bg-fono/[.12] px-3 py-2 text-xs font-medium text-fono-light transition hover:bg-fono/20 sm:inline-flex" title="Cambiar vendedor" aria-label="Cambiar vendedor"><Icon name="users" className="h-4 w-4" /><span className="hidden md:inline">Cambiar vendedor</span></button>
             <button
               onClick={salir}
               className="rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-white"
               title="Salir"
+              aria-label="Salir"
             >
               <Icon name="logout" className="h-4 w-4" />
             </button>

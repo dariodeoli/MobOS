@@ -8,7 +8,7 @@ import {
 } from '@/lib/storage'
 import { colorHex } from '@/utils/colores'
 import { procesarImagenCelular } from '@/utils/imagen'
-import { Card, Button, Input, Label, Select } from '@/components/ui'
+import { Card, Button, Input, Label, Select, Modal } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 
 // Sugerencias de color para autocompletar (datalist).
@@ -44,6 +44,7 @@ export default function ImagenesComparador() {
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState('')
+  const [eliminando, setEliminando] = useState(null)
 
   // Modelos disponibles (de la lista de celulares), más nuevo arriba.
   const modelos = [...new Set(listCelulares().map((c) => c.modelo))].sort(
@@ -52,7 +53,7 @@ export default function ImagenesComparador() {
 
   // Procesa una lista de archivos/imágenes y los agrega a la cola.
   async function agregarArchivos(fileList) {
-    const files = [...(fileList || [])].filter((f) => f.type?.startsWith('image/'))
+    const files = [...(fileList || [])].filter((f) => f.type?.startsWith('image/') && f.size <= 10 * 1024 * 1024)
     if (!files.length) return
     setError('')
     setAviso('')
@@ -160,7 +161,7 @@ export default function ImagenesComparador() {
             (dragOver ? 'border-fono bg-fono/10' : 'border-ink-500 hover:border-fono')
           }
         >
-          <div className="text-3xl mb-1"></div>
+          <Icon name="image" className="mx-auto mb-2 h-8 w-8 text-fono" />
           <div className="font-semibold text-sm text-white">
             Pegá con Ctrl+V, arrastrá las fotos acá, o tocá para elegir
           </div>
@@ -198,7 +199,7 @@ export default function ImagenesComparador() {
               <div key={p.key} className="rounded-xl border border-ink-600 p-3 space-y-2">
                 <div className="flex items-start gap-3">
                   <div className="h-20 w-20 shrink-0 rounded-lg bg-ink-700 flex items-center justify-center overflow-hidden">
-                    <img src={p.src} alt="" className="max-h-full max-w-full object-contain" />
+                      <img src={p.src} alt={`Vista previa de ${p.modelo || 'imagen'}`} className="max-h-full max-w-full object-contain" />
                   </div>
                   <div className="flex-1 min-w-0 space-y-1.5">
                     <Select
@@ -269,8 +270,8 @@ export default function ImagenesComparador() {
                       <span className="text-xs font-medium truncate">{colorNombre}</span>
                     </div>
                     <button
-                      onClick={() => deleteComparadorImagen(m, colorNombre)}
-                      className="text-mute hover:text-bad p-1 shrink-0"
+                      onClick={() => setEliminando({ modelo: m, color: colorNombre })}
+                      className="min-h-11 min-w-11 text-mute hover:text-bad p-1 shrink-0"
                       title="Eliminar imagen"
                     >
                       <Icon name="trash" className="h-4 w-4" />
@@ -282,6 +283,10 @@ export default function ImagenesComparador() {
           </Card>
         ))
       )}
+      <Modal open={Boolean(eliminando)} onClose={() => setEliminando(null)} title="Eliminar imagen">
+        <p className="text-sm text-mute">¿Querés eliminar la imagen de {eliminando?.modelo} · {eliminando?.color}? Esta acción no se puede deshacer.</p>
+        <div className="mt-5 flex justify-end gap-2"><Button variant="ghost" onClick={() => setEliminando(null)}>Cancelar</Button><Button variant="danger" onClick={() => { deleteComparadorImagen(eliminando.modelo, eliminando.color); setEliminando(null) }}>Eliminar</Button></div>
+      </Modal>
     </div>
   )
 }

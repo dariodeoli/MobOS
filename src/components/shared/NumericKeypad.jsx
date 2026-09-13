@@ -1,0 +1,14 @@
+import { Delete } from 'lucide-react'
+
+const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0']
+
+export default function NumericKeypad({ value = '', onChange, max }) {
+  function append(key) {
+    const next = `${value || ''}${key}`.replace(/^0+(?=\d)/, '')
+    onChange(max ? next.slice(0, max) : next)
+  }
+  return <div className="mt-2 grid max-w-[19rem] grid-cols-3 gap-2" aria-label="Teclado numérico de cobro">
+    {KEYS.map((key) => <button key={key} type="button" onClick={() => append(key)} className="min-h-11 rounded-xl border border-white/10 bg-white/[.04] text-lg font-semibold text-white transition hover:border-[#05F19C]/60 hover:bg-[#05F19C]/10 active:scale-[.97]" aria-label={`Agregar ${key}`}>{key}</button>)}
+    <button type="button" onClick={() => onChange((value || '').slice(0, -1))} className="min-h-11 rounded-xl border border-white/10 bg-white/[.04] text-slate-300 transition hover:border-[#05F19C]/60 hover:bg-[#05F19C]/10 active:scale-[.97]" aria-label="Borrar último dígito"><Delete className="mx-auto h-5 w-5" aria-hidden="true" /></button>
+  </div>
+}

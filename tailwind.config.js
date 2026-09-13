@@ -7,19 +7,19 @@ export default {
         // ── Tema oscuro ────────────────────────────────────────────────
         // Fondos: negro real → superficies elevadas
         ink: {
-          DEFAULT: '#071018', // fondo alineado a la landing
-          800: '#0D1B25', // superficie base
-          700: '#142733', // superficie elevada
-          600: '#203744', // inputs y separadores
-          500: '#34505E', // bordes
+          DEFAULT: '#090D16',
+          800: '#101722',
+          700: '#172131',
+          600: '#263448',
+          500: '#3A4D67',
         },
         // Verde MobOS de marca
         fono: {
-          DEFAULT: '#15D7B8',
-          dark: '#0E8F88',
-          light: '#72F3D6',
-          glow: '#15D7B8',
-          soft: 'rgba(21,215,184,.12)', // fondo tenue para chips/activos
+          DEFAULT: '#05F19C',
+          dark: '#04B978',
+          light: '#7CFFC9',
+          glow: '#05F19C',
+          soft: 'rgba(5,241,156,.12)',
         },
         ok: '#22C55E',
         bad: '#EF4444',
@@ -29,6 +29,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        display: ['Space Grotesk', 'Inter', 'sans-serif'],
       },
       boxShadow: {
         card: '0 1px 2px rgba(0,0,0,.4)',

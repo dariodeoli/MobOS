@@ -29,6 +29,7 @@ import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import PaymentAccountFields, { accountPayment, updateAccountPayment } from './PaymentAccountFields'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
 import { printOrderReceipt } from '@/components/shared/OrderReceipt'
+import NumericKeypad from '@/components/shared/NumericKeypad'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
 // en cada venta (suelen ser ráfagas de la misma persona).
@@ -659,7 +660,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
               {usaCuentas ? <PaymentAccountFields payment={p} accounts={cuentas} onChange={(change) => setPagos((a) => a.map((x, j) => j === i ? updateAccountPayment(x, change, cuentas) : x))} /> : <>
               <div><Label>Medio</Label><SelectorMedioPago value={p.medioPago} onChange={(v) => setPagos((a) => a.map((x, j) => j === i ? { ...x, medioPago: v } : x))} /></div>
               <div><Label>Cuenta</Label><Input value={p.cuenta} onChange={(e) => setPagos((a) => a.map((x, j) => j === i ? { ...x, cuenta: e.target.value } : x))} placeholder="Ej. Ueno principal" /></div>
-              <div><Label>Monto (Gs)</Label><Input inputMode="numeric" value={gsInput(p.monto)} onChange={(e) => setPagos((a) => a.map((x, j) => j === i ? { ...x, monto: e.target.value } : x))} /></div>
+              <div><Label>Monto (Gs)</Label><Input inputMode="numeric" value={gsInput(p.monto)} onChange={(e) => setPagos((a) => a.map((x, j) => j === i ? { ...x, monto: e.target.value } : x))} /><NumericKeypad value={String(p.monto || '').replace(/\D/g, '')} onChange={(v) => setPagos((a) => a.map((x, j) => j === i ? { ...x, monto: v } : x))} /></div>
               </>}
               <Button type="button" variant="ghost" onClick={() => setPagos((a) => a.filter((_, j) => j !== i))}><Icon name="trash" className="h-4 w-4" /></Button>
             </div>
