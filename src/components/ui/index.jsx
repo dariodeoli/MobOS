@@ -55,7 +55,7 @@ export function PasswordInput({ className, ...props }) {
         aria-pressed={visible}
         title={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
       >
-        <Icon name={visible ? 'eyeOff' : 'eye'} className="h-4.5 w-4.5" />
+        <Icon name={visible ? 'eyeOff' : 'eye'} className="h-4 w-4" />
       </button>
     </div>
   )
