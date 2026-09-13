@@ -32,7 +32,7 @@ Cookies nuevas: HttpOnly, SameSite=Lax, Secure en HTTPS, sin Domain. Frontend y 
 - `GET /api/auth/google?intent=login|create`: inicia Google con state, nonce y PKCE S256 ligados a cookie cifrada de 10 minutos.
 - `GET /api/auth/google/callback`: valida identidad firmada de Google; vuelve a `/login?google=ready` o `/login?auth_error=<código>`. Nunca envía credenciales en URL.
 - `POST /api/auth/google/complete`, `credentials: include`, Origin frontend exacto: `{action:"login"}` o `{action:"create", companyName, adminName, password, pin, confirmOwnership:true}`. Devuelve tenant/sellers/scope y cookie HttpOnly de empresa. Alta requiere iniciar con `intent=create`.
-- Alta: contraseña de empresa de al menos 12 caracteres y máximo 72 bytes, PIN de administrador de 4 dígitos. Empresa y ADMIN nuevos dentro de una transacción. Sin vincular por correo, elevar usuarios existentes ni importar datos.
+- Alta: contraseña de empresa de al menos 8 caracteres y máximo 72 bytes, PIN de administrador de 4 dígitos. Empresa y ADMIN nuevos dentro de una transacción. Sin vincular por correo, elevar usuarios existentes ni importar datos.
 - `POST /api/auth/pin`: mantiene PIN individual; acepta cookie de empresa con validación de Origin. La sesión individual existente sigue usando Bearer.
 
 Google habilita el dispositivo para una empresa; para operar sigue siendo necesario seleccionar usuario y validar PIN. Las empresas anteriores continúan con contraseña; la vinculación de dueño existente queda fuera de este alta.

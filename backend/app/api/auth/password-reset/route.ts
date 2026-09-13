@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null)
   const token = typeof body?.token === 'string' ? body.token : ''
   const password = typeof body?.password === 'string' ? body.password : ''
-  if (!/^[a-f0-9]{64}$/i.test(token) || password.length < 12 || Buffer.byteLength(password) > 72) return error('El enlace o la contraseña no son válidos.', 400)
+  if (!/^[a-f0-9]{64}$/i.test(token) || password.length < 8 || Buffer.byteLength(password) > 72) return error('El enlace o la contraseña no son válidos.', 400)
   const now = new Date()
   const reset = await prisma.passwordResetToken.findFirst({ where: { tokenHash: hashToken(token), usedAt: null, expiresAt: { gt: now } } })
   if (!reset) return error('El enlace venció o ya fue utilizado. Pedí uno nuevo.', 400)
