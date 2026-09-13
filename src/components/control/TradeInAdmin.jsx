@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { getTradein, saveTradein, resetTradein, actualizarDolar } from '@/lib/storage'
 import { num, gs } from '@/utils/calculos'
-import { Card, Button, Input, Label, Badge } from '@/components/ui'
+import { Card, Button, ConfirmDialog, Input, Label, Badge } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 
 // "hace 2 h", "hace 5 min", "recién" — para mostrar cuándo se actualizó.
@@ -55,6 +55,7 @@ export default function TradeInAdmin() {
   const [nuevoDev, setNuevoDev] = useState(DEV_VACIO)
   const [actualizando, setActualizando] = useState(false)
   const [aviso, setAviso] = useState(null) // { ok, texto }
+  const [confirmar, setConfirmar] = useState(null)
 
   async function actualizarAhora() {
     setActualizando(true)
@@ -94,8 +95,7 @@ export default function TradeInAdmin() {
 
   function borrarDev(idx) {
     const dev = cfg.devices[idx]
-    if (!confirm(`¿Eliminar ${dev.model} del Trade-In?`)) return
-    guardar({ devices: cfg.devices.filter((_, i) => i !== idx) })
+    setConfirmar({ tipo: 'eliminar', idx, model: dev.model })
   }
 
   function agregarDev(e) {
@@ -113,13 +113,7 @@ export default function TradeInAdmin() {
   }
 
   function restaurar() {
-    if (
-      !confirm(
-        '¿Restaurar toda la configuración de Trade-In a los valores por defecto? Se perderán tus cambios.',
-      )
-    )
-      return
-    resetTradein()
+    setConfirmar({ tipo: 'restaurar' })
   }
 
   return (
@@ -295,6 +289,19 @@ export default function TradeInAdmin() {
           Restaurar valores por defecto
         </Button>
       </div>
+      <ConfirmDialog
+        open={Boolean(confirmar)}
+        onCancel={() => setConfirmar(null)}
+        onConfirm={() => {
+          if (confirmar?.tipo === 'eliminar') guardar({ devices: cfg.devices.filter((_, i) => i !== confirmar.idx) })
+          if (confirmar?.tipo === 'restaurar') resetTradein()
+          setConfirmar(null)
+        }}
+        title={confirmar?.tipo === 'restaurar' ? '¿Restaurar Trade-In?' : '¿Eliminar equipo de Trade-In?'}
+        description={confirmar?.tipo === 'restaurar' ? 'Se perderán los cambios de la configuración actual y se recuperarán los valores por defecto.' : `Se eliminará ${confirmar?.model || 'este equipo'} de la configuración de Trade-In.`}
+        confirmLabel={confirmar?.tipo === 'restaurar' ? 'Restaurar valores' : 'Eliminar equipo'}
+        variant="danger"
+      />
     </div>
   )
 }

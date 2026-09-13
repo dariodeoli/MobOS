@@ -80,7 +80,9 @@ function SoloPropietario({ children }) {
 
 function InicioPorRol() {
   const { sesion } = useSesion()
-  return <Navigate to="/pos/cargar" replace />
+  // El dueño entra a la lectura diaria del negocio; quien vende entra directo
+  // al flujo de venta. Ambos viven en la misma aplicación y navegación.
+  return <Navigate to={sesion?.esPropietario ? "/pos/resumen" : "/pos/cargar"} replace />
 }
 
 // Conserva enlaces anteriores, pero toda la operación vive ahora bajo /pos.

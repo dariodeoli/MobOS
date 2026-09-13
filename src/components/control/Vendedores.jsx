@@ -15,7 +15,7 @@ import {
   num,
   gs,
 } from '@/utils/calculos'
-import { Card, Button, Input, Badge } from '@/components/ui'
+import { Card, Button, ConfirmDialog, Input, Badge } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 
 const MESES = [
@@ -43,6 +43,7 @@ export default function Vendedores() {
   const ventas = listVentas()
   const prods = productosById()
   const [nuevo, setNuevo] = useState('')
+  const [confirmarEliminar, setConfirmarEliminar] = useState(null)
 
   // Nombres por id (incluye vendedores ya eliminados que tienen ventas viejas).
   const nombreById = Object.fromEntries(vendedores.map((v) => [v.id, v.nombre]))
@@ -126,14 +127,7 @@ export default function Vendedores() {
                       )}
                     </button>
                     <button
-                      onClick={() => {
-                        if (
-                          confirm(
-                            `¿Eliminar a "${v.nombre}"? Las ventas que ya cargó se mantienen.`,
-                          )
-                        )
-                          deleteVendedor(v.id)
-                      }}
+                      onClick={() => setConfirmarEliminar(v)}
                       className="text-ink-500 hover:text-bad text-sm transition"
                       title="Eliminar vendedor"
                     >
@@ -226,6 +220,15 @@ export default function Vendedores() {
           </div>
         </Card>
       )}
+      <ConfirmDialog
+        open={Boolean(confirmarEliminar)}
+        onCancel={() => setConfirmarEliminar(null)}
+        onConfirm={() => { deleteVendedor(confirmarEliminar.id); setConfirmarEliminar(null) }}
+        title="¿Eliminar vendedor?"
+        description={`Se eliminará a ${confirmarEliminar?.nombre || 'este vendedor'}. Las ventas ya registradas se conservan en el historial.`}
+        confirmLabel="Eliminar vendedor"
+        variant="danger"
+      />
     </div>
   )
 }

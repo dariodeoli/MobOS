@@ -176,6 +176,34 @@ export function Modal({ open, onClose, title, children, className }) {
   )
 }
 
+// Confirmación propia de MobOS. Evita confirm()/alert() del navegador y
+// conserva foco, Escape, clic afuera y lectura accesible en toda la app.
+export function ConfirmDialog({
+  open,
+  onCancel,
+  onConfirm,
+  title = 'Confirmar acción',
+  description,
+  confirmLabel = 'Confirmar',
+  variant = 'primary',
+  busy = false,
+}) {
+  return (
+    <Modal open={open} onClose={busy ? undefined : onCancel} title={title} className="max-w-md">
+      <div className="space-y-5">
+        <div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl', variant === 'danger' ? 'bg-bad/10 text-bad' : 'bg-fono/10 text-fono-light')}>
+          <Icon name={variant === 'danger' ? 'alert' : 'check'} className="h-5 w-5" />
+        </div>
+        <p className="text-sm leading-6 text-mute">{description}</p>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>Cancelar</Button>
+          <Button type="button" variant={variant} onClick={onConfirm} disabled={busy}>{busy ? 'Procesando…' : confirmLabel}</Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 // ── Badge ───────────────────────────────────────────────────────────
 const BADGE = {
   blue: 'bg-fono/15 text-fono-light border-fono/25',

@@ -10,7 +10,7 @@ import {
   esModeloViejo,
   ESTADOS_CELULAR,
 } from '@/lib/storage'
-import { Card, Button, Input, Label, Select, Badge } from '@/components/ui'
+import { Card, Button, ConfirmDialog, Input, Label, Select, Badge } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 
 const VACIO = () => ({ modelo: '', capacidad: '', color: '', estado: 'Nuevo', precio: '' })
@@ -34,32 +34,6 @@ const TEMA = {
     card: 'border-warn/25 bg-ink-800',
     badge: 'orange',
   },
-}
-
-// Ventana de confirmación propia de la app (no usa el confirm() del navegador,
-// que se puede desactivar sin querer al tildar "impedir más diálogos").
-function ConfirmDialog({ mensaje, onOk, onCancel }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={onCancel}
-    >
-      <Card className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-        <div className="text-center text-3xl mb-2">
-          <Icon name="alert" className="h-4 w-4" />
-        </div>
-        <p className="text-center text-sm text-white mb-4">{mensaje}</p>
-        <div className="flex gap-2">
-          <Button variant="ghost" className="flex-1" onClick={onCancel}>
-            Cancelar
-          </Button>
-          <Button variant="danger" className="flex-1" onClick={onOk}>
-            Eliminar
-          </Button>
-        </div>
-      </Card>
-    </div>
-  )
 }
 
 function TarjetaCelular({ c, tema, onEliminar, valorPrecio, onPrecioChange, editado }) {
@@ -337,8 +311,12 @@ export default function Celulares({ registrarDirty }) {
 
       {confirmar && (
         <ConfirmDialog
-          mensaje={confirmar.mensaje}
-          onOk={() => {
+          open
+          title="¿Eliminar celular?"
+          description={confirmar.mensaje}
+          confirmLabel="Eliminar celular"
+          variant="danger"
+          onConfirm={() => {
             confirmar.onOk()
             setConfirmar(null)
           }}
