@@ -1,11 +1,10 @@
 import { useEffect } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { SesionProvider, useSesion } from '@/lib/sesion'
 import { Button } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import Login from '@/pages/Login'
 import PanelVendedor from '@/pages/PanelVendedor'
-import CentroControl from '@/pages/CentroControl'
 import Celulares from '@/pages/Celulares'
 import Comparador from '@/pages/Comparador'
 import TradeIn from '@/pages/TradeIn'
@@ -81,7 +80,20 @@ function SoloPropietario({ children }) {
 
 function InicioPorRol() {
   const { sesion } = useSesion()
-  return <Navigate to={sesion?.esPropietario ? '/control/resumen' : '/pos/cargar'} replace />
+  return <Navigate to="/pos/cargar" replace />
+}
+
+// Conserva enlaces anteriores, pero toda la operación vive ahora bajo /pos.
+function ControlRedirect() {
+  const { tab } = useParams()
+  const destino = {
+    reportes: 'analisis', ganancias: 'analisis', ganadores: 'analisis', asistente: 'analisis',
+    caja: 'finanzas', gastos: 'finanzas', ads: 'finanzas', publicidad: 'finanzas',
+    vendedores: 'equipo', historial: 'equipo', config: 'equipo', configuracion: 'equipo',
+    incompletos: 'productos', imagenes: 'productos', celulares: 'productos',
+    garantias: 'servicio', tradein: 'tradein-admin',
+  }[tab] || tab || 'resumen'
+  return <Navigate to={`/pos/${destino}`} replace />
 }
 
 function AreaProtegida({ owner = false, children }) {
@@ -150,7 +162,7 @@ export default function App() {
           }
         />
         <Route path="/pos/:vista?" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
-        <Route path="/control/:tab?" element={<AreaProtegida owner><CentroControl /></AreaProtegida>} />
+        <Route path="/control/:tab?" element={<AreaProtegida owner><ControlRedirect /></AreaProtegida>} />
         <Route path="/celulares" element={<AreaProtegida owner><Celulares /></AreaProtegida>} />
         <Route path="/comparador" element={<AreaProtegida owner><Comparador /></AreaProtegida>} />
         <Route path="/tradein" element={<AreaProtegida owner><TradeIn /></AreaProtegida>} />

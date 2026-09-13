@@ -6,15 +6,7 @@ import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import { useReloj } from '@/hooks/useReloj'
 import { vendedoresById, listVentas, getVendedores } from '@/lib/storage'
 import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
-import PanelDia from '@/components/ventas/PanelDia'
-import Mayoristas from '@/components/ventas/Mayoristas'
 import VistaCargarVenta from '@/components/ventas/VistaCargarVenta'
-import ControlResumen from '@/components/ventas/ControlResumen'
-import ResumenDia from '@/components/ventas/ResumenDia'
-import ResumenWidgets from '@/components/ventas/ResumenWidgets'
-import DeliveryHoy from '@/components/ventas/DeliveryHoy'
-import FormularioVenta from '@/components/ventas/FormularioVenta'
-import ListaVentasDia from '@/components/ventas/ListaVentasDia'
 import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import { APP_NAME } from '@/lib/brand'
@@ -23,8 +15,23 @@ import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
 import SellerOrders from '@/components/ventas/SellerOrders'
 import SellerTools from '@/components/ventas/SellerTools'
+import ResumenControl from '@/components/control/Resumen'
+import Reportes from '@/components/control/Reportes'
+import Inventario from '@/components/control/Inventario'
+import Ganancias from '@/components/control/Ganancias'
+import Gastos from '@/components/control/Gastos'
+import Ads from '@/components/control/Ads'
+import Ganadores from '@/components/control/Ganadores'
+import Vendedores from '@/components/control/Vendedores'
+import TradeInPipeline from '@/components/control/TradeInPipeline'
+import Asistente from '@/components/control/Asistente'
+import Historial from '@/components/control/Historial'
+import Config from '@/components/control/Config'
+import Caja from '@/components/control/Caja'
+import Compras from '@/components/control/Compras'
+import Garantias from '@/components/control/Garantias'
 
-const SELLER_NAV = [{ titulo: 'Mi operación', items: [
+const SELLER_NAV = [{ titulo: 'Vender', items: [
   ['cargar', 'Cargar venta', 'receipt'],
   ['clientes', 'Clientes', 'users'],
   ['pedidos', 'Mis pedidos', 'box'],
@@ -33,28 +40,35 @@ const SELLER_NAV = [{ titulo: 'Mi operación', items: [
   ['cotizador', 'Trade-In', 'refresh'],
 ] }]
 
-// Navegación agrupada del lateral.
-const NAV = [
+// Una sola aplicación: los permisos definen qué módulos aparecen, no una
+// segunda "zona" visual. Los módulos extensos se agrupan en vistas internas.
+const OWNER_NAV = [
   {
-    titulo: 'Ventas',
+    titulo: 'Vender',
     items: [
       ['cargar', 'Cargar venta', 'receipt'],
+      ['clientes', 'Clientes', 'users'],
+      ['pedidos', 'Pedidos', 'box'],
       ['promociones', 'Promociones', 'store'],
-      ['mayorista', 'Mayoristas', 'store'],
-      ['panel', 'Panel del día', 'chart'],
-      ['resumen', 'Resumen del día', 'trending'],
     ],
   },
   {
-    titulo: 'Equipo',
-    items: [['control', 'Centro de control', 'users']],
+    titulo: 'Catálogo y stock',
+    items: [
+      ['productos', 'Productos', 'phone'],
+      ['inventario', 'Inventario', 'box'],
+      ['compras', 'Compras', 'store'],
+      ['tradein-admin', 'Trade-In', 'refresh'],
+      ['servicio', 'Garantías y servicio', 'phone'],
+    ],
   },
   {
-    titulo: 'Herramientas',
+    titulo: 'Gestión',
     items: [
-      ['precios', 'Lista de precios', 'phone'],
-      ['comparar', 'Comparar modelos', 'box'],
-      ['tradein', 'Trade-In', 'refresh'],
+      ['resumen', 'Resumen', 'chart'],
+      ['analisis', 'Análisis', 'report'],
+      ['finanzas', 'Finanzas', 'receipt'],
+      ['equipo', 'Equipo y configuración', 'users'],
     ],
   },
 ]
@@ -63,14 +77,16 @@ const LABELS = {
   clientes: 'Clientes', pedidos: 'Mis pedidos', productos: 'Productos',
   promociones: 'Promociones', cotizador: 'Trade-In',
   cargar: 'Cargar venta',
-  control: 'Centro de control',
-  mayorista: 'Mayoristas',
-  panel: 'Panel del día',
-  resumen: 'Resumen del día',
+  resumen: 'Resumen general', analisis: 'Análisis', finanzas: 'Finanzas',
+  equipo: 'Equipo y configuración', inventario: 'Inventario', compras: 'Compras',
+  'tradein-admin': 'Trade-In', servicio: 'Garantías y servicio',
 }
-const RUTAS = { precios: 'celulares', comparar: 'comparador', tradein: 'trade-in' }
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+
+function Subtabs({ value, onChange, items }) {
+  return <div className="mb-5 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-[#0b1822] p-2">{items.map(([id, label]) => <button key={id} type="button" onClick={() => onChange(id)} className={cn('rounded-xl px-3 py-2 text-sm font-medium transition', value === id ? 'bg-fono text-[#071018]' : 'text-mute hover:bg-white/5 hover:text-white')}>{label}</button>)}</div>
+}
 
 export default function PanelVendedor() {
   useLive()
@@ -82,6 +98,9 @@ export default function PanelVendedor() {
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const [vista, setVista] = useState(routeVista || 'cargar')
   const [tradeIn, setTradeIn] = useState(null)
+  const [analisisTab, setAnalisisTab] = useState('reportes')
+  const [finanzasTab, setFinanzasTab] = useState('caja')
+  const [equipoTab, setEquipoTab] = useState('vendedores')
   const identidad = `${usuario?.tenantId}:${usuario?.branchId}:${sesion?.vendedorId}:${usuario?.role}:${esDemo}`
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [cambiarAbierto, setCambiarAbierto] = useState(false)
@@ -93,22 +112,15 @@ export default function PanelVendedor() {
   const vendsById = vendedoresById()
 
   useEffect(() => {
-    if (!esOwner && !SELLER_NAV[0].items.some(([id]) => id === vista)) setVista('cargar')
+    const accesibles = (esOwner ? OWNER_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id)
+    if (!accesibles.includes(vista)) setVista('cargar')
   }, [esOwner, vista])
   useEffect(() => { if (routeVista && routeVista !== vista) setVista(routeVista) }, [routeVista, vista])
 
-  function abrirControl() {
-    if (sesion?.esPropietario) navigate('/control/resumen')
-  }
-
   function ir(id) {
-    if (id === 'control') {
-      if (esOwner) navigate('/control/resumen')
-    } else if (!esOwner && !SELLER_NAV[0].items.some(([key]) => key === id)) {
+    if (!esOwner && !SELLER_NAV[0].items.some(([key]) => key === id)) {
       setVista('cargar')
-    }
-    else if (RUTAS[id]) navigate(`/${RUTAS[id]}`)
-    else { setVista(id); navigate(`/pos/${id}`) }
+    } else { setVista(id); navigate(`/pos/${id}`) }
     setMenuAbierto(false)
   }
 
@@ -177,7 +189,7 @@ export default function PanelVendedor() {
         </div>
 
         <nav className="flex flex-1 flex-col gap-7 overflow-y-auto p-4">
-          {(esOwner ? NAV : SELLER_NAV).map((g) => (
+          {(esOwner ? OWNER_NAV : SELLER_NAV).map((g) => (
             <div key={g.titulo} className="flex flex-col gap-0.5">
               <div className="px-3 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[.08em] text-mute/70">
                 {g.titulo}
@@ -260,16 +272,6 @@ export default function PanelVendedor() {
                 <span className="hidden sm:inline">Cargar venta</span>
               </button>
             )}
-            {esOwner && (
-              <button
-                onClick={abrirControl}
-                className="inline-flex h-[34px] items-center gap-1.5 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[13px] text-mute transition hover:text-white"
-                title="Centro de control"
-              >
-                <Icon name="chart" className="h-4 w-4" />
-                <span className="hidden lg:inline">Control</span>
-              </button>
-            )}
             <button
               onClick={salir}
               className="rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-white"
@@ -307,22 +309,14 @@ export default function PanelVendedor() {
             <div hidden={vista !== 'cotizador'}><SellerTools vista="cotizador" onCargarVenta={(draft) => { setTradeIn({ ...draft, id: crypto.randomUUID(), identidad }); setVista('cargar'); navigate('/pos/cargar') }} /></div>
           </div>
 
-          {esOwner && vista === 'mayorista' && <Mayoristas />}
-
-          {vista === 'control' &&
-            (esOwner ? (
-              <ControlResumen onAbrirPanel={() => navigate('/control')} />
-            ) : (
-              <p className="py-10 text-center text-sm text-mute">Acceso solo para el dueño.</p>
-            ))}
-
-          {esOwner && vista === 'panel' && <PanelDia vendedoresById={vendsById} />}
-
-          {esOwner && vista === 'resumen' && (
-            <div className="mx-auto max-w-6xl">
-              <ResumenDia />
-            </div>
-          )}
+          {esOwner && vista === 'inventario' && <div className="mx-auto max-w-7xl"><Inventario /></div>}
+          {esOwner && vista === 'compras' && <div className="mx-auto max-w-7xl"><Compras /></div>}
+          {esOwner && vista === 'tradein-admin' && <div className="mx-auto max-w-7xl"><TradeInPipeline /></div>}
+          {esOwner && vista === 'servicio' && <div className="mx-auto max-w-7xl"><Garantias /></div>}
+          {esOwner && vista === 'resumen' && <div className="mx-auto max-w-7xl"><ResumenControl /></div>}
+          {esOwner && vista === 'analisis' && <div className="mx-auto max-w-7xl"><Subtabs value={analisisTab} onChange={setAnalisisTab} items={[["reportes", "Reportes"], ["ganancias", "Ganancias"], ["ganadores", "Ganadores"], ["asistente", "Asistente"]]} />{analisisTab === 'reportes' && <Reportes />}{analisisTab === 'ganancias' && <Ganancias />}{analisisTab === 'ganadores' && <Ganadores />}{analisisTab === 'asistente' && <Asistente />}</div>}
+          {esOwner && vista === 'finanzas' && <div className="mx-auto max-w-7xl"><Subtabs value={finanzasTab} onChange={setFinanzasTab} items={[["caja", "Caja"], ["gastos", "Gastos"], ["publicidad", "Publicidad"]]} />{finanzasTab === 'caja' && <Caja />}{finanzasTab === 'gastos' && <Gastos />}{finanzasTab === 'publicidad' && <Ads />}</div>}
+          {esOwner && vista === 'equipo' && <div className="mx-auto max-w-7xl"><Subtabs value={equipoTab} onChange={setEquipoTab} items={[["vendedores", "Vendedores"], ["historial", "Historial"], ["configuracion", "Configuración"]]} />{equipoTab === 'vendedores' && <Vendedores />}{equipoTab === 'historial' && <Historial />}{equipoTab === 'configuracion' && <Config />}</div>}
         </main>
       </div>
 
