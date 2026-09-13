@@ -43,7 +43,9 @@ tbody tr:hover { background-color: rgba(21, 215, 184, .035); }
 /* El acceso conserva todos sus controles dentro del viewport en notebooks bajos.
    En móvil permanece natural y desplazable para no comprometer la legibilidad. */
 @media (min-width: 1024px) and (max-height: 820px) {
-  .login-panel { transform: scale(.86); transform-origin: center; }
+  /* El footer queda fijo fuera del área de acceso: elevamos el panel para que
+     la última acción nunca quede detrás de él en notebooks bajos. */
+  .login-panel { transform: translateY(-4.5rem) scale(.86); transform-origin: center top; }
 }
 button, input, select, textarea { touch-action: manipulation; }
 
