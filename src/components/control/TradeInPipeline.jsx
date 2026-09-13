@@ -11,6 +11,13 @@ function Reference({ value }) {
   return <span className="break-all">{value || '—'}</span>
 }
 
+function safePhotoUrl(value) {
+  try {
+    const url = new URL(value)
+    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : null
+  } catch { return null }
+}
+
 function Device({ item, busy, onSave }) {
   const transitions = TRADE_IN_TRANSITIONS[item.status] || []
   const [status, setStatus] = useState(transitions[0] || '')
@@ -18,6 +25,10 @@ function Device({ item, busy, onSave }) {
   const [repairCostPyg, setRepairCostPyg] = useState('')
   const [pricePyg, setPricePyg] = useState('')
   const [destination, setDestination] = useState('NORMAL')
+  const [diagnosis, setDiagnosis] = useState(item.diagnosis || '')
+  const [technicianName, setTechnicianName] = useState(item.technicianName || '')
+  const [accessoriesText, setAccessoriesText] = useState((item.accessories || []).join('\n'))
+  const [photosText, setPhotosText] = useState((item.photos || []).join('\n'))
   const blocked = busy || Boolean(item.publicationState)
   const sourceOrder = item.order || { id: item.orderId, orderNumber: item.orderNumber, customer: { name: item.customerName }, seller: { name: item.sellerName } }
   const resaleOrders = [...new Map((item.product?.orderItems || []).filter((line) => line.order?.id || line.orderId)
@@ -30,6 +41,10 @@ function Device({ item, busy, onSave }) {
   async function submit(event) {
     event.preventDefault()
     await onSave(item, { id: item.id, status, notes,
+      diagnosis,
+      technicianName,
+      accessories: accessoriesText.split(/\n|,/).map((value) => value.trim()).filter(Boolean),
+      photos: photosText.split('\n').map((value) => value.trim()).filter(Boolean),
       ...(canAddRepairCost && repairCostPyg !== '' && Number(repairCostPyg) !== 0 ? { repairCostPyg } : {}),
       ...(status === 'STOCK' ? { pricePyg, destination } : {}) })
   }
@@ -47,6 +62,13 @@ function Device({ item, busy, onSave }) {
       {price != null && <div><dt className="text-mute">Precio publicado</dt><dd>{gs(price)}</dd></div>}
       {publishedDestination && <div><dt className="text-mute">Destino</dt><dd>{TRADE_IN_DESTINATIONS[publishedDestination] || publishedDestination}</dd></div>}
     </dl>
+    {(item.diagnosis || item.technicianName || item.accessories?.length || item.photos?.length) && <section className="rounded-lg border border-ink-600 p-3 text-sm">
+      <h4 className="font-medium">Diagnóstico y recepción</h4>
+      {item.diagnosis && <p className="mt-2 whitespace-pre-wrap text-mute">{item.diagnosis}</p>}
+      {item.technicianName && <p className="mt-2 text-mute">Técnico: {item.technicianName}</p>}
+      {item.accessories?.length > 0 && <p className="mt-2 text-mute">Accesorios: {item.accessories.join(', ')}</p>}
+      {item.photos?.length > 0 && <p className="mt-2 text-mute">Fotos: {item.photos.map(safePhotoUrl).filter(Boolean).map((url, index) => <a key={url} className="mr-3 text-fono-light underline" href={url} target="_blank" rel="noreferrer">Foto {index + 1}</a>)}</p>}
+    </section>}
     <details className="text-sm"><summary className="cursor-pointer font-medium">Referencias e historial</summary>
       <dl className="mt-3 grid gap-2 sm:grid-cols-2">
         <div><dt className="text-mute">Venta de origen</dt><dd><a className="break-all text-fono-light underline" href={`#${orderAnchor(sourceOrder)}`}>{sourceOrder.orderNumber || sourceOrder.id}</a></dd></div>
@@ -83,6 +105,10 @@ function Device({ item, busy, onSave }) {
           <label className="space-y-1 text-sm"><span>Precio de venta (₲)</span><Input type="number" min="1" step="1" required value={pricePyg} onChange={(event) => setPricePyg(event.target.value)} /></label>
           <label className="space-y-1 text-sm"><span>Destino</span><Select value={destination} onChange={(event) => setDestination(event.target.value)}>{Object.entries(TRADE_IN_DESTINATIONS).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</Select></label>
         </>}
+        <label className="space-y-1 text-sm sm:col-span-2"><span>Diagnóstico</span><Textarea rows={2} value={diagnosis} placeholder="Estado técnico, batería, detalles de revisión…" onChange={(event) => setDiagnosis(event.target.value)} /></label>
+        <label className="space-y-1 text-sm"><span>Técnico responsable</span><Input value={technicianName} placeholder="Nombre del técnico" onChange={(event) => setTechnicianName(event.target.value)} /></label>
+        <label className="space-y-1 text-sm"><span>Accesorios recibidos</span><Input value={accessoriesText} placeholder="Caja, cable, cargador…" onChange={(event) => setAccessoriesText(event.target.value)} /></label>
+        <label className="space-y-1 text-sm sm:col-span-2"><span>Enlaces de fotos</span><Textarea rows={2} value={photosText} placeholder="Una URL https:// por línea" onChange={(event) => setPhotosText(event.target.value)} /><span className="block text-xs text-mute">Los enlaces quedan en la trazabilidad. La carga directa de archivos se habilitará al configurar almacenamiento privado.</span></label>
         <label className="space-y-1 text-sm sm:col-span-2"><span>{status === 'SOLD_EXTERNAL' ? 'Comprador y destino (obligatorio)' : 'Notas del movimiento'}</span><Textarea rows={2} required={status === 'SOLD_EXTERNAL'} value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
         <Button type="submit" disabled={blocked}>{busy ? 'Guardando…' : status === 'STOCK' ? 'Publicar y sumar 1 unidad' : 'Guardar movimiento'}</Button>
       </fieldset>
