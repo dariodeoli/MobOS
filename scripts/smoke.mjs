@@ -17,6 +17,9 @@ async function check(url, expectation) {
   console.log(`✓ ${url}`)
 }
 
-await check(`${appOrigin}/login?release=${version}`, `v${version}`)
+// El footer antepone la “v” en tiempo de ejecución; el bundle contiene el
+// valor de version.json sin prefijo. Validar el valor estable evita falsos
+// negativos después de un despliegue sano.
+await check(`${appOrigin}/login?release=${version}`, version)
 if (apiOrigin) await check(`${apiOrigin}/api/health`)
 console.log(`Smoke test correcto: MobOS v${version}.`)
