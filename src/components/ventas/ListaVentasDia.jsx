@@ -96,7 +96,7 @@ export default function ListaVentasDia({
         ).length
 
   return (
-    <Card className="p-0">
+    <Card className="overflow-hidden p-0">
       {pagoPedido && <PagosPedido venta={pagoPedido} onClose={() => setPagoPedido(null)} />}
       {/* ── Encabezado ───────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-600 px-5 py-4">
@@ -132,7 +132,7 @@ export default function ListaVentasDia({
             </button>
           )}
         </div>
-        <div className="flex gap-1 overflow-x-auto">
+        <div className="flex flex-wrap gap-1">
           {FILTROS.map(([k, label]) => (
             <button
               key={k}
@@ -164,7 +164,7 @@ export default function ListaVentasDia({
       ) : (
         <>
           {/* ── Tarjetas (móvil) ─────────────────────────────────── */}
-          <div className="divide-y divide-ink-600 md:hidden">
+          <div className="divide-y divide-ink-600 xl:hidden">
             {grupos.map((g) => {
               const v = g.items[0]
               const varios = g.items.length > 1
@@ -214,19 +214,30 @@ export default function ListaVentasDia({
           </div>
 
           {/* ── Tabla (escritorio) ───────────────────────────────── */}
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full text-sm">
+          <div className="hidden min-w-0 xl:block">
+            <table className="w-full table-fixed text-sm">
+              <colgroup>
+                <col className={mostrarVendedor ? 'w-[11%]' : 'w-[13%]'} />
+                <col className={mostrarVendedor ? 'w-[14%]' : 'w-[18%]'} />
+                <col className={mostrarVendedor ? 'w-[10%]' : 'w-[11%]'} />
+                <col className={mostrarVendedor ? 'w-[10%]' : 'w-[12%]'} />
+                <col className={mostrarVendedor ? 'w-[9%]' : 'w-[10%]'} />
+                <col className={mostrarVendedor ? 'w-[9%]' : 'w-[10%]'} />
+                {mostrarVendedor && <col className="w-[10%]" />}
+                <col className={mostrarVendedor ? 'w-[17%]' : 'w-[16%]'} />
+                <col className="w-[10%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-ink-600 text-left text-xs font-medium text-mute">
-                  <th className="px-5 py-3">Cliente</th>
-                  <th className="px-5 py-3">Producto</th>
-                  <th className="px-5 py-3">Estado</th>
-                  <th className="px-5 py-3 text-right">Precio</th>
-                  <th className="px-5 py-3">Medio de pago</th>
-                  <th className="px-5 py-3">Entrega</th>
-                  {mostrarVendedor && <th className="px-5 py-3">Vendedor</th>}
-                  <th className="px-5 py-3">Nota</th>
-                  <th className="px-5 py-3" />
+                  <th className="px-3 py-3">Cliente</th>
+                  <th className="px-3 py-3">Producto</th>
+                  <th className="px-3 py-3">Estado</th>
+                  <th className="px-3 py-3 text-right">Precio</th>
+                  <th className="px-3 py-3">Pago</th>
+                  <th className="px-3 py-3">Entrega</th>
+                  {mostrarVendedor && <th className="px-3 py-3">Vendedor</th>}
+                  <th className="px-3 py-3">Nota</th>
+                  <th className="px-3 py-3" />
                 </tr>
               </thead>
               <tbody>
@@ -246,7 +257,7 @@ export default function ListaVentasDia({
                         {idx === 0 && (
                           <td
                             rowSpan={g.items.length}
-                            className="border-r border-ink-600/60 px-5 py-3 align-top"
+                            className="border-r border-ink-600/60 px-3 py-3 align-top"
                           >
                             <div className="font-medium">{v.cliente || '—'}</div>
                             {varios && (
@@ -256,8 +267,8 @@ export default function ListaVentasDia({
                             )}
                           </td>
                         )}
-                        <td className="px-5 py-3 text-mute">{nombreProd(v)}</td>
-                        <td className="px-5 py-3">
+                        <td className="break-words px-3 py-3 text-mute">{nombreProd(v)}</td>
+                        <td className="px-3 py-3">
                           <span
                             className={cn(
                               'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium',
@@ -270,13 +281,13 @@ export default function ListaVentasDia({
                             {pagado ? 'Pagado' : num(v.totalPagado) > 0 ? 'Parcial' : 'Pendiente'}
                           </span>
                         </td>
-                        <td className="px-5 py-3 text-right font-semibold">{gs(v.precio)}</td>
+                        <td className="px-3 py-3 text-right font-semibold">{gs(v.precio)}</td>
                         {idx === 0 ? (
                           <>
-                            <td rowSpan={g.items.length} className="px-5 py-3 align-top">
+                            <td rowSpan={g.items.length} className="px-3 py-3 align-top">
                               <MedioPago medio={v.medioPago} />
                             </td>
-                            <td rowSpan={g.items.length} className="px-5 py-3 align-top text-mute">
+                            <td rowSpan={g.items.length} className="px-3 py-3 align-top text-mute">
                               {v.entrega === 'Retiro en tienda' ? (
                                 <span className="inline-flex items-center gap-1.5">
                                   <Icon name="store" className="h-4 w-4" /> Tienda
@@ -294,21 +305,21 @@ export default function ListaVentasDia({
                             {mostrarVendedor && (
                               <td
                                 rowSpan={g.items.length}
-                                className="px-5 py-3 align-top text-mute"
+                                className="break-words px-3 py-3 align-top text-mute"
                               >
                                 {vendedoresById[v.vendedorId] || '—'}
                               </td>
                             )}
                             <td
                               rowSpan={g.items.length}
-                              className="max-w-[180px] truncate px-5 py-3 align-top text-xs italic text-mute"
+                              className="truncate px-3 py-3 align-top text-xs italic text-mute"
                             >
                               {v.observacion || ''}
                             </td>
                           </>
                         ) : null}
-                        <td className="px-5 py-3 text-right">
-                          <button className="mb-2 whitespace-nowrap rounded-lg border border-fono/30 px-3 py-2 text-xs text-fono-light" onClick={() => setPagoPedido(v)}>Pagos y comprobantes</button>
+                        <td className="px-3 py-3 text-right">
+                          <button className="mb-2 w-full rounded-lg border border-fono/30 px-2 py-2 text-xs leading-tight text-fono-light" onClick={() => setPagoPedido(v)}>Pagos</button>
                           {puedeBorrar ? (
                             <button
                               onClick={() => setConfirmar(v)}
