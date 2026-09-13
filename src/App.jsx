@@ -145,7 +145,8 @@ export default function App() {
     return <RedireccionDominio destino={`${dominioAnterior}${ruta}`} />
   }
 
-  const landing = ['moboss.online', 'www.moboss.online'].includes(host)
+  const landingPreview = import.meta.env.DEV && window.location.pathname === '/landing-preview'
+  const landing = ['moboss.online', 'www.moboss.online'].includes(host) || landingPreview
   const status = typeof window !== 'undefined' && window.location.pathname === '/status'
   if (landing) return <><MetadatosPagina publicPage />{status ? <Status /> : <Landing />}</>
   return (

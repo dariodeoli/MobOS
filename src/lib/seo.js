@@ -15,9 +15,14 @@ export const pageLabels = {
 export function applyPageMetadata({ pathname, publicPage }) {
   const origin = window.location.origin
   const label = pageLabels[pathname]
-  document.title = publicPage && pathname === '/'
+  const landing = publicPage && pathname === '/'
+  const title = landing
     ? `${APP_NAME} · Control total para tu tienda móvil`
     : `${label || 'Gestión de tienda'} · ${APP_NAME}`
+  const description = landing
+    ? 'POS, inventario por IMEI, caja, clientes, compras, garantías y posventa para tiendas de celulares y accesorios.'
+    : `${label || 'Gestión'} en ${APP_NAME}, el sistema operativo para tiendas móviles.`
+  document.title = title
 
   const setMeta = (selector, attribute, value) => document.head.querySelector(selector)?.setAttribute(attribute, value)
   document.head.querySelector('link[rel="canonical"]')?.setAttribute('href', `${origin}${pathname}`)
@@ -27,5 +32,10 @@ export function applyPageMetadata({ pathname, publicPage }) {
     if (href) link.setAttribute('href', `${href}?v=${version}`)
   })
   setMeta('meta[property="og:url"]', 'content', `${origin}${pathname}`)
+  setMeta('meta[property="og:title"]', 'content', title)
+  setMeta('meta[property="og:description"]', 'content', description)
+  setMeta('meta[name="twitter:title"]', 'content', title)
+  setMeta('meta[name="twitter:description"]', 'content', description)
+  setMeta('meta[name="description"]', 'content', description)
   setMeta('meta[name="robots"]', 'content', publicPage ? 'index, follow' : 'noindex, nofollow')
 }

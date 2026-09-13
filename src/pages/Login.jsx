@@ -182,13 +182,13 @@ export default function Login() {
 
   return (
     <AuthLayout>
-      <section className="login-panel mx-auto w-full max-w-[450px] rounded-[2rem] border border-white/10 bg-[#0b1822]/95 p-5 shadow-2xl shadow-[#15D7B8]/5 sm:p-6 lg:p-5">
-      <a href={publicUrls.landing} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-[#15D7B8] transition hover:text-white">← Volver al inicio</a>
-      <img src="/logo-dark.svg" alt="MobOS" className="mb-1 w-36" />
-      <p className="mb-4 text-sm text-mute">Sistema de ventas para tiendas</p>
+      <section className="login-panel mx-auto w-full max-w-[520px] rounded-[2rem] border border-white/10 bg-[#0b1822]/95 p-6 shadow-2xl shadow-[#15D7B8]/5 sm:p-8">
+      <a href={publicUrls.landing} className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-[#15D7B8] transition hover:text-white">← Volver al inicio</a>
+      <img src="/logo-dark.svg" alt="MobOS" className="mb-1 w-44" />
+      <p className="mb-5 text-sm text-mute">Sistema de ventas para tiendas</p>
 
-      <Card className="w-full max-w-md p-4 lg:p-4">
-        <div className="mb-3 flex rounded-lg border border-ink-500 p-0.5">
+      <Card className="w-full max-w-none p-5 sm:p-6">
+        <div className="mb-4 flex rounded-xl border border-ink-500 p-1">
           {[
             ['entrar', 'Entrar'],
             ['crear', 'Crear mi tienda'],
@@ -198,7 +198,7 @@ export default function Login() {
               type="button"
               onClick={() => cambiarModo(k)}
               className={cn(
-                'flex-1 rounded-[6px] py-1.5 text-sm font-medium transition',
+                'flex-1 rounded-lg py-2 text-sm font-medium transition',
                 modo === k ? 'bg-fono text-white' : 'text-mute hover:text-white',
               )}
             >
@@ -207,12 +207,12 @@ export default function Login() {
           ))}
         </div>
 
-        <h1 className="mb-1 text-base font-semibold">
+        <h1 className="mb-1 text-lg font-semibold">
           {crear ? 'Creá la cuenta de tu tienda' : 'Entrá a tu tienda'}
         </h1>
         {!crear && <p className="mb-3 text-sm leading-5 text-mute">Con el correo y la contraseña que te dio el dueño de la tienda.</p>}
 
-        <form onSubmit={enviar} className="space-y-2.5">
+        <form onSubmit={enviar} className="space-y-3.5">
           {crear && <>
             <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} onBlur={touchSignup('nombreEmpresa')} aria-invalid={Boolean(signupErrors.nombreEmpresa)} aria-describedby={signupErrors.nombreEmpresa ? 'company-name-error' : undefined} autoComplete="organization" />{signupErrors.nombreEmpresa && <p id="company-name-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.nombreEmpresa}</p>}</div>
             {!googleReady && <div><Label htmlFor="new-email">Correo de acceso</Label><Input id="new-email" type="email" required value={f.correo} onChange={set('correo')} onBlur={touchSignup('correo')} aria-invalid={Boolean(signupErrors.correo)} aria-describedby={signupErrors.correo ? 'new-email-error' : undefined} autoComplete="email" />{signupErrors.correo && <p id="new-email-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.correo}</p>}</div>}

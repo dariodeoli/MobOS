@@ -1,19 +1,22 @@
 import {
   ArrowRight,
   BarChart3,
+  Building2,
   Check,
   ChevronDown,
   CircleDollarSign,
   CreditCard,
   Fingerprint,
-  MapPin,
+  MessageCircle,
   Package,
+  QrCode,
   ReceiptText,
   ScanLine,
   ShieldCheck,
   Smartphone,
   Store,
-  Users,
+  Truck,
+  Wrench,
 } from "lucide-react";
 import { useState } from "react";
 import { publicUrls } from "@/lib/urls";
@@ -26,8 +29,8 @@ const modules = [
     ReceiptText,
   ],
   [
-    "Inventario por unidad",
-    "IMEI, serial, batería, condición, costo y ubicación: cada equipo conserva su propia historia.",
+    "Stock por unidad y ubicación",
+    "IMEI, serial, batería, condición, sucursal y depósito con reservas, transferencias y verificación física.",
     ScanLine,
   ],
   [
@@ -36,18 +39,33 @@ const modules = [
     CreditCard,
   ],
   [
-    "Sucursales sin confusión",
-    "Disponibilidad, reservas, tránsito, ubicaciones y transferencias sin mezclar stock.",
-    MapPin,
+    "Compras e importaciones",
+    "Proveedores, crédito, anticipos, flete, seguro, impuestos y costo final distribuido por equipo o lote.",
+    Truck,
   ],
   [
-    "Clientes y posventa",
-    "Historial, direcciones, pedidos, mensajes, garantías y equipos recibidos en un perfil.",
-    Users,
+    "Clientes conectados",
+    "RUC o CI, varias direcciones, historial, pedidos, plantillas de WhatsApp y seguimiento público.",
+    MessageCircle,
+  ],
+  [
+    "Trade-in y servicio técnico",
+    "Recepción, diagnóstico, técnico, costos, garantía y reingreso del equipo al stock con trazabilidad.",
+    Wrench,
+  ],
+  [
+    "Etiquetas y comprobantes",
+    "Impresión térmica o A4, IMEI visible, últimos cuatro dígitos, código de barras y QR.",
+    QrCode,
+  ],
+  [
+    "Sucursales sin confusión",
+    "Disponibilidad, tránsito y depósitos separados, con movimientos auditables entre locales.",
+    Building2,
   ],
   [
     "Control para dueños",
-    "Márgenes, rendimiento por vendedor, reportes y auditoría para decidir con datos.",
+    "Ventas, margen real, caja, rendimiento, permisos y auditoría para decidir con datos.",
     BarChart3,
   ],
 ];
@@ -174,20 +192,7 @@ export default function Landing() {
             <a href="#accesos">Accesos</a>
             <a href="#precio">Precio</a>
           </nav>
-          <div className="flex gap-2">
-            <a
-              href={`${app}/demo`}
-              className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-[#15D7B8] sm:block"
-            >
-              Probar demo
-            </a>
-            <a
-              href={`${app}/login`}
-              className="rounded-xl bg-[#15D7B8] px-3.5 py-2 text-sm font-bold text-[#061019]"
-            >
-              Empezar <ArrowRight className="ml-1 inline" size={15} />
-            </a>
-          </div>
+          <a href="/status" className="text-sm font-semibold text-slate-400 transition hover:text-[#15D7B8]">Estado del sistema</a>
         </div>
       </header>
       <main>
@@ -198,7 +203,7 @@ export default function Landing() {
             <div>
               <p className="inline-flex items-center gap-2 rounded-full border border-[#15D7B8]/25 bg-[#15D7B8]/[.08] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.16em] text-[#15D7B8]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#15D7B8]" />
-                Sistema operativo para tiendas móviles
+                Operación completa para tiendas móviles
               </p>
               <h1 className="mt-6 text-5xl font-bold leading-[.91] tracking-[-.065em] sm:text-6xl lg:text-7xl">
                 Vendé con ritmo.
@@ -206,9 +211,9 @@ export default function Landing() {
                 <span className="text-[#15D7B8]">Controlá con certeza.</span>
               </h1>
               <p className="mt-7 max-w-xl text-lg leading-8 text-slate-400">
-                MobOS une ventas, inventario, caja, clientes y posventa. Lo que
-                hoy vive repartido entre Shopify, planillas y chats, en una
-                operación clara.
+                MobOS conecta POS, inventario por IMEI, caja, compras,
+                clientes, trade-in y servicio técnico. Una sola operación,
+                desde que entra un equipo hasta que termina la posventa.
               </p>
               <div className="mt-9 flex flex-wrap gap-3">
                 <a
@@ -241,14 +246,14 @@ export default function Landing() {
           <div className="mx-auto grid max-w-7xl gap-6 px-5 py-7 sm:grid-cols-3">
             <p className="text-sm text-slate-400">
               <b className="block text-lg text-white">Una venta, un flujo.</b>
-              Cliente, cobro, stock, caja y garantía conectados.
+                Cliente, cobro, stock, caja, entrega y garantía conectados.
             </p>
             <p className="text-sm text-slate-400">
-              <b className="block text-lg text-white">PYG, USD y más.</b>Costos
-              y ventas conservan moneda y cotización.
+              <b className="block text-lg text-white">PYG, USD y más.</b> Ventas,
+              compras y saldos conservan moneda y cotización.
             </p>
             <p className="text-sm text-slate-400">
-              <b className="block text-lg text-white">Diseñado para móvil.</b>El
+              <b className="block text-lg text-white">Diseñado para móvil.</b> El
               vendedor opera desde teléfono o computadora.
             </p>
           </div>
@@ -322,11 +327,11 @@ export default function Landing() {
             </p>
             <div className="mt-4 flex flex-wrap items-end justify-between gap-5">
               <h2 className="max-w-2xl text-4xl font-bold tracking-[-.04em] sm:text-5xl">
-                Menos herramientas separadas. Más contexto en cada decisión.
+                Todo el recorrido del equipo, en un mismo lugar.
               </h2>
               <p className="max-w-sm text-sm leading-6 text-slate-400">
-                Cada apartado comparte los datos correctos, sin duplicar
-                existencias ni perder la historia de un equipo.
+                Del proveedor al inventario, de la venta a la garantía: cada
+                movimiento conserva responsables, costos y referencias.
               </p>
             </div>
             <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -413,8 +418,8 @@ export default function Landing() {
                 Todo el control que tu tienda necesita.
               </h2>
               <p className="mt-4 max-w-xl leading-7 text-[#073d40]">
-                POS, usuarios, sucursales, productos, pagos, caja, inventario y
-                actualizaciones en un mismo plan.
+                POS, usuarios, sucursales, inventario, compras, pagos, caja,
+                clientes, trade-in, garantías y reportes en un mismo plan.
               </p>
             </div>
             <div className="rounded-2xl bg-[#061019] p-6 text-white shadow-2xl">
