@@ -7,6 +7,16 @@ const text = (value: unknown, max = 128) => typeof value === 'string' && value.t
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
+  // Vista del proveedor: los permisos que esta empresa otorgó. Permite a la
+  // interfaz de configuración mostrar y revocar sin exponer IDs en pantalla.
+  if (new URL(request.url).searchParams.get('mine') === 'true') {
+    const grants = await prisma.inventoryVisibilityGrant.findMany({
+      where: { providerTenantId: session.user.tenantId },
+      include: { recipientTenant: { select: { id: true, name: true, slug: true } } },
+      orderBy: [{ isActive: 'desc' }, { recipientTenant: { name: 'asc' } }],
+    })
+    return json(grants.map(grant => ({ id: grant.id, isActive: grant.isActive, createdAt: grant.createdAt, recipientTenant: grant.recipientTenant })))
+  }
   const grants = await prisma.inventoryVisibilityGrant.findMany({
     where: { recipientTenantId: session.user.tenantId, isActive: true },
     include: { providerTenant: { select: { id: true, name: true } } },
