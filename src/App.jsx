@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { SesionProvider, useSesion } from '@/lib/sesion'
-import { Button } from '@/components/ui'
+import { Button, ToastProvider } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import Login from '@/pages/Login'
 import PanelVendedor from '@/pages/PanelVendedor'
@@ -151,27 +151,29 @@ export default function App() {
   if (landing) return <><MetadatosPagina publicPage />{status ? <Status /> : <Landing />}</>
   return (
     <SesionProvider>
-      <MetadatosPagina />
-      <Routes>
-        <Route path="/demo" element={<DemoAccess />} />
-        <Route path="/login" element={<SoloFuera />} />
-        <Route path="/restablecer-contrasena" element={<RecuperarContrasena />} />
-        <Route
-          path="/"
-          element={
-            <Protegida>
-              <InicioPorRol />
-            </Protegida>
-          }
-        />
-        <Route path="/pos/:vista?" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
-        <Route path="/control/:tab?" element={<AreaProtegida owner><ControlRedirect /></AreaProtegida>} />
-        <Route path="/celulares" element={<AreaProtegida owner><Celulares /></AreaProtegida>} />
-        <Route path="/comparador" element={<AreaProtegida owner><Comparador /></AreaProtegida>} />
-        <Route path="/tradein" element={<AreaProtegida owner><TradeIn /></AreaProtegida>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      <AppFooter />
+      <ToastProvider>
+        <MetadatosPagina />
+        <Routes>
+          <Route path="/demo" element={<DemoAccess />} />
+          <Route path="/login" element={<SoloFuera />} />
+          <Route path="/restablecer-contrasena" element={<RecuperarContrasena />} />
+          <Route
+            path="/"
+            element={
+              <Protegida>
+                <InicioPorRol />
+              </Protegida>
+            }
+          />
+          <Route path="/pos/:vista?" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
+          <Route path="/control/:tab?" element={<AreaProtegida owner><ControlRedirect /></AreaProtegida>} />
+          <Route path="/celulares" element={<AreaProtegida owner><Celulares /></AreaProtegida>} />
+          <Route path="/comparador" element={<AreaProtegida owner><Comparador /></AreaProtegida>} />
+          <Route path="/tradein" element={<AreaProtegida owner><TradeIn /></AreaProtegida>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        <AppFooter />
+      </ToastProvider>
     </SesionProvider>
   )
 }

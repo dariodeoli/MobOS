@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { formatGsInput, parseGsInput } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
@@ -131,6 +131,17 @@ export function Label({ className, ...props }) {
   )
 }
 
+// ── Eyebrow ─────────────────────────────────────────────────────────
+// Etiqueta superior pequeña; la clase repetida del repo para secciones.
+export function Eyebrow({ className, ...props }) {
+  return (
+    <div
+      className={cn('text-xs font-bold uppercase tracking-[.18em] text-fono-light', className)}
+      {...props}
+    />
+  )
+}
+
 // ── Card ────────────────────────────────────────────────────────────
 export function Card({ className, ...props }) {
   return (
@@ -241,6 +252,225 @@ export function Dot({ color = 'slate', pulse = false, className }) {
       )}
       <span className={cn('relative inline-flex h-2 w-2 rounded-full', DOT[color])} />
     </span>
+  )
+}
+
+// ── Drawer ──────────────────────────────────────────────────────────
+// Panel lateral móvil: overlay, foco atrapado, Esc y clic afuera. Mismo
+// nivel de robustez que el Modal; entra deslizándose desde el costado.
+export function Drawer({ open, onClose, title, children, side = 'right', className }) {
+  const panel = useRef(null)
+  const close = useRef(onClose)
+  close.current = onClose
+  const titleId = useId()
+  useEffect(() => {
+    if (!open) return undefined
+    const previous = document.activeElement
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    panel.current?.focus()
+    const onKey = (e) => {
+      if (e.key === 'Escape') close.current?.()
+      if (e.key !== 'Tab') return
+      const nodes = [...(panel.current?.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]') || [])].filter(el => el.getClientRects().length)
+      const first = nodes[0], last = nodes[nodes.length - 1]
+      if (!first) { e.preventDefault(); return }
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === panel.current)) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = overflow; previous?.focus?.() }
+  }, [open])
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
+      <div
+        ref={panel}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className={cn(
+          'absolute inset-y-0 flex max-h-full w-full max-w-md flex-col overflow-hidden border-ink-600 bg-ink-800 shadow-2xl',
+          side === 'left' ? 'left-0 border-r' : 'right-0 border-l',
+          className,
+        )}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-ink-600 p-4">
+          <h2 id={titleId} className="text-base font-bold text-white">{title}</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-white" aria-label="Cerrar">×</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+// ── Toasts globales ─────────────────────────────────────────────────
+const ToastContext = createContext(null)
+let toastCounter = 0
+const TOAST_ICON = { success: 'check', error: 'alert', info: 'info' }
+const TOAST_TONE = { success: 'text-ok', error: 'text-bad', info: 'text-fono-light' }
+
+export function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([])
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  const dismiss = useCallback((id) => setToasts(current => current.filter(toast => toast.id !== id)), [])
+  const toast = useCallback((variant, title, description) => {
+    const id = `toast-${++toastCounter}`
+    setToasts(current => [...current, { id, variant: TOAST_ICON[variant] ? variant : 'info', title, description }])
+    setTimeout(() => dismiss(id), 4000)
+  }, [dismiss])
+  const value = useCallback({
+    success: (title, description) => toast('success', title, description),
+    error: (title, description) => toast('error', title, description),
+    info: (title, description) => toast('info', title, description),
+  }, [toast])
+  if (!mounted) return children
+  return (
+    <ToastContext.Provider value={value}>
+      {children}
+      <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-full max-w-sm flex-col gap-2" aria-live="polite" role="status">
+        {toasts.map(toast => (
+          <div key={toast.id} className={cn('pointer-events-auto flex items-start gap-3 rounded-xl border bg-ink-700 p-3.5 shadow-card', toast.variant === 'error' ? 'border-bad/40' : toast.variant === 'success' ? 'border-ok/40' : 'border-ink-500')}>
+            <Icon name={TOAST_ICON[toast.variant]} className={cn('mt-0.5 h-4 w-4', TOAST_TONE[toast.variant])} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-white">{toast.title}</p>
+              {toast.description && <p className="mt-0.5 text-xs text-mute">{toast.description}</p>}
+            </div>
+            <button type="button" onClick={() => dismiss(toast.id)} className="rounded-md p-1 text-mute transition hover:bg-ink-600 hover:text-white" aria-label="Cerrar aviso">×</button>
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  )
+}
+
+export function useToast() {
+  const context = useContext(ToastContext)
+  if (!context) return { success: () => {}, error: () => {}, info: () => {} }
+  return context
+}
+
+// ── Skeleton ────────────────────────────────────────────────────────
+export function Skeleton({ className }) {
+  return <div className={cn('animate-pulse rounded-lg bg-white/5', className)} aria-hidden="true" />
+}
+
+// ── EmptyState ──────────────────────────────────────────────────────
+export function EmptyState({ icon = 'box', title, description, action, compact = false, className }) {
+  return (
+    <div className={cn('flex flex-col items-center justify-center px-6 text-center', compact ? 'py-6' : 'py-12', className)}>
+      <div className="grid h-12 w-12 place-items-center rounded-2xl border border-ink-500 bg-ink-700 text-mute">
+        <Icon name={icon} className="h-5 w-5" />
+      </div>
+      {title && <p className="mt-3 text-sm font-semibold text-white">{title}</p>}
+      {description && <p className="mt-1 max-w-xs text-xs leading-5 text-mute">{description}</p>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  )
+}
+
+// ── ErrorState ──────────────────────────────────────────────────────
+export function ErrorState({ title = 'Algo salió mal', description, onRetry }) {
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+      <div className="grid h-12 w-12 place-items-center rounded-2xl border border-bad/25 bg-bad/10 text-bad">
+        <Icon name="alert" className="h-5 w-5" />
+      </div>
+      <p className="mt-3 text-sm font-semibold text-white">{title}</p>
+      {description && <p className="mt-1 max-w-xs text-xs leading-5 text-mute">{description}</p>}
+      {onRetry && (
+        <Button type="button" variant="outline" onClick={onRetry} className="mt-4">
+          Reintentar
+        </Button>
+      )}
+    </div>
+  )
+}
+
+// ── PageHeader ──────────────────────────────────────────────────────
+export function PageHeader({ title, subtitle, actions, backTo }) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 items-center gap-3">
+        {backTo && (
+          <button
+            type="button"
+            onClick={backTo}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-ink-500 text-mute transition hover:border-fono hover:bg-fono/10 hover:text-white"
+            aria-label="Volver"
+          >
+            <Icon name="back" className="h-4 w-4" />
+          </button>
+        )}
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-bold">{title}</h1>
+          {subtitle && <p className="mt-1 truncate text-sm text-mute">{subtitle}</p>}
+        </div>
+      </div>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+    </div>
+  )
+}
+
+// ── DataTable ───────────────────────────────────────────────────────
+// En md+ una tabla real con cabecera; en móvil tarjetas apiladas vía
+// mobileCard(row). Sin mobileCard, el móvil muestra un EmptyState chico.
+export function DataTable({ columns, rows, emptyLabel = 'Sin datos para mostrar.', loading = false, mobileCard, className }) {
+  if (loading) {
+    return (
+      <div className={cn('space-y-2 p-4', className)} aria-busy="true">
+        <Skeleton className="h-4 w-1/3" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+    )
+  }
+  if (!rows?.length) return <EmptyState title={emptyLabel} description="" className={className} />
+  return (
+    <div className={className}>
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 z-10 bg-ink-800">
+            <tr className="border-b border-ink-600 text-left text-xs uppercase tracking-wider text-mute">
+              {columns.map(column => (
+                <th key={column.key} className={cn('px-4 py-3 font-medium', column.align === 'right' && 'text-right', column.align === 'center' && 'text-center')}>{column.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(row => (
+              <tr key={row.id ?? row.key ?? JSON.stringify(row)} className="border-b border-ink-600/60 last:border-0">
+                {columns.map(column => (
+                  <td key={column.key} className={cn('px-4 py-3 text-white', column.align === 'right' && 'text-right', column.align === 'center' && 'text-center')}>
+                    {column.render ? column.render(row) : row[column.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="grid grid-cols-1 gap-3 p-4 md:hidden">
+        {mobileCard
+          ? rows.map(row => <div key={row.id ?? row.key ?? JSON.stringify(row)}>{mobileCard(row)}</div>)
+          : <EmptyState icon="filter" title={emptyLabel} />}
+      </div>
+    </div>
+  )
+}
+
+// ── FormField ───────────────────────────────────────────────────────
+export function FormField({ label, hint, error, children, htmlFor }) {
+  return (
+    <div>
+      {label && <Label htmlFor={htmlFor}>{label}</Label>}
+      {children}
+      {error ? <p role="alert" className="mt-1.5 text-xs text-bad">{error}</p> : hint ? <p className="mt-1.5 text-xs text-mute">{hint}</p> : null}
+    </div>
   )
 }
 
