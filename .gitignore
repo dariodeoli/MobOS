@@ -20,3 +20,12 @@ npm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# Playwright (Phase 1 QA)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Estado de sesión del arnés E2E (cookies HttpOnly sembradas)
+/e2e/.auth/

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "release:prepare": "node scripts/release.mjs",
     "release:smoke": "node scripts/smoke.mjs",
-    "release:publish": "node scripts/release.mjs --publish --deploy"
+    "release:publish": "node scripts/release.mjs --publish --deploy",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -23,6 +24,7 @@
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
