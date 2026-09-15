@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { getProductos } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
@@ -12,11 +12,24 @@ export default function SellerCatalog() {
   const { esDemo } = useSesion()
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState('')
+  const searchRef = useRef(null)
   const data = useSellerData(`/api/products?q=${encodeURIComponent(search)}`, productFields, demoProducts, esDemo)
   const rows = esDemo ? data.rows.filter((row) => `${row.name} ${row.sku}`.toLowerCase().includes(search.toLowerCase())) : data.rows
+  useEffect(() => {
+    if (window.__mobosFocusSearch) {
+      delete window.__mobosFocusSearch
+      searchRef.current?.focus()
+    }
+    function onFocusSearch() {
+      delete window.__mobosFocusSearch
+      searchRef.current?.focus()
+    }
+    window.addEventListener('mobos:focus-search', onFocusSearch)
+    return () => window.removeEventListener('mobos:focus-search', onFocusSearch)
+  }, [])
   return <SellerSection title="Productos" description="Catálogo de consulta: precio de venta y stock. Buscá para acotar los resultados (hasta 100 por consulta).">
     <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); setSearch(query.trim()); data.refresh() }}>
-      <Input aria-label="Buscar productos" placeholder="Nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />
+      <Input ref={searchRef} aria-label="Buscar productos" placeholder="Nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />
       <Button>Buscar</Button>
     </form>
     <SellerFeedback {...data} empty={!rows.length} />

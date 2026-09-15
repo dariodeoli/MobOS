@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { Button, Input } from '@/components/ui'
@@ -38,9 +38,26 @@ export default function SellerCustomers() {
   const [rucLoading, setRucLoading] = useState(false)
   const [rucError, setRucError] = useState('')
   const [profileCustomer, setProfileCustomer] = useState(null)
+  const formRef = useRef(null)
+  const nombreRef = useRef(null)
   const data = useSellerData(`/api/customers?q=${encodeURIComponent(search)}`, customerFields, readDemoCustomers, esDemo)
   const templateData = useSellerData('/api/message-templates', templateFields, readDemoTemplates, esDemo)
   const rows = esDemo ? data.rows.filter((row) => `${row.name} ${(row.phones || []).join(' ')}`.toLowerCase().includes(search.toLowerCase())) : data.rows
+
+  useEffect(() => {
+    if (window.__mobosNewCustomer) {
+      delete window.__mobosNewCustomer
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      nombreRef.current?.focus()
+    }
+    function onNewCustomer() {
+      delete window.__mobosNewCustomer
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      nombreRef.current?.focus()
+    }
+    window.addEventListener('mobos:new-customer', onNewCustomer)
+    return () => window.removeEventListener('mobos:new-customer', onNewCustomer)
+  }, [])
 
   async function create(event) {
     event.preventDefault()
@@ -83,9 +100,9 @@ export default function SellerCustomers() {
     {!data.loading && !data.error && <ul className="grid gap-3 sm:grid-cols-2">{rows.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={templateData.rows} onViewProfile={esDemo ? undefined : setProfileCustomer} />)}</ul>}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={() => setProfileCustomer(null)} />
     {!templateData.loading && templateData.error && <p className="rounded-xl border border-amber-400/30 bg-amber-300/10 p-3 text-sm text-amber-100">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</p>}
-    <form onSubmit={create} className="space-y-4 rounded-2xl border border-fore/10 bg-fore/[.02] p-5">
+    <form ref={formRef} onSubmit={create} className="space-y-4 rounded-2xl border border-fore/10 bg-fore/[.02] p-5">
       <h2 className="text-lg font-semibold">Nuevo cliente</h2>
-      <label className="block space-y-2"><span>Nombre</span><Input required maxLength={120} disabled={saving} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
+      <label className="block space-y-2"><span>Nombre</span><Input ref={nombreRef} required maxLength={120} disabled={saving} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
       <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-2"><span>RUC o CI <small className="text-mute">(opcional)</small></span><Input maxLength={100} disabled={saving} value={form.document} onChange={(event) => { setForm({ ...form, document: event.target.value }); setRucResult(null); setRucError('') }} placeholder="80012345-6" /></label><label className="block space-y-2"><span>Correo <small className="text-mute">(opcional)</small></span><Input type="email" maxLength={200} disabled={saving} value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="cliente@correo.com" /></label></div>
       {!esDemo && <div className="flex flex-wrap items-center gap-2"><button type="button" disabled={saving || rucLoading || !form.document.trim()} className="rounded-xl border border-fono/40 px-3 py-2 text-sm font-semibold text-fono-light disabled:opacity-40" onClick={lookupRuc}>{rucLoading ? 'Consultando RUC…' : 'Consultar RUC'}</button><span className="text-xs text-mute">La razón social se aplica solo si la confirmás.</span></div>}
       {rucResult && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fono/25 bg-fono/5 p-3 text-sm"><span><b>{rucResult.name}</b><br /><span className="text-mute">RUC {rucResult.fullRuc}</span></span><button type="button" className="font-semibold text-fono-light" onClick={() => { setForm({ ...form, name: rucResult.name, document: rucResult.fullRuc || form.document }); setRucResult(null) }}>Usar estos datos</button></div>}

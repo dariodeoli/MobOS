@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Drawer, Eyebrow, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -45,7 +45,28 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
   )
 }
 
-function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, onSwitchUser, collapsed }) {
+function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, onSwitchUser, onLogout, onLockRequest, collapsed }) {
+  const clicsRef = useRef([])
+  const clicsTimer = useRef(null)
+  useEffect(() => () => clearTimeout(clicsTimer.current), [])
+
+  function manejarClicUsuario() {
+    const ahora = Date.now()
+    clicsRef.current = clicsRef.current.filter((t) => ahora - t < 800)
+    clicsRef.current.push(ahora)
+    if (clicsRef.current.length >= 3) {
+      clicsRef.current = []
+      clearTimeout(clicsTimer.current)
+      onLockRequest?.()
+      return
+    }
+    clearTimeout(clicsTimer.current)
+    clicsTimer.current = setTimeout(() => {
+      clicsRef.current = []
+      onSwitchUser?.()
+    }, 300)
+  }
+
   return (
     <div className={cn('border-t border-fore/10 p-3.5 pb-safe', collapsed && 'lg:p-3')}>
       <div
@@ -63,25 +84,68 @@ function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, onSwitchUser,
           <small className="block truncate text-[10px] text-mute">{sucursal?.nombre || 'Todas las sucursales'}</small>
         </span>
       </div>
+      <div className={cn('flex items-center gap-1', collapsed && 'lg:flex-col')}>
+        <button
+          type="button"
+          onClick={manejarClicUsuario}
+          className={cn(
+            'flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl p-2 text-left transition hover:bg-fore/5',
+            collapsed && 'lg:flex-none',
+          )}
+          title={sesionNombre || 'Usuario'}
+          aria-label="Cambiar de vendedor"
+        >
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-fono text-sm font-bold text-onbrand">
+            {(sesionNombre || 'U').charAt(0).toUpperCase()}
+          </span>
+          <span className={cn('min-w-0', collapsed && 'lg:hidden')}>
+            <strong className="block truncate text-xs text-fore">{sesionNombre || 'Usuario'}</strong>
+            <small className="block truncate text-[10px] uppercase tracking-wider text-mute">
+              {esOwner ? 'Dueño' : 'Vendedor'}
+            </small>
+          </span>
+          <Icon name="refresh" className={cn('ml-auto h-3.5 w-3.5 shrink-0 text-mute', collapsed && 'lg:hidden')} />
+        </button>
+        {onLogout && (
+          <button
+            type="button"
+            onClick={onLogout}
+            className={cn(
+              'grid h-11 w-11 shrink-0 place-items-center rounded-xl text-mute transition hover:bg-fore/5 hover:text-fore',
+              collapsed && 'lg:h-8 lg:w-8',
+            )}
+            title="Cerrar sesión"
+            aria-label="Cerrar sesión"
+          >
+            <Icon name="logout" className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function StatsPanel({ title = 'Vendido hoy', collapsed, onToggle, children }) {
+  return (
+    <div className="flex flex-col gap-2.5 border-t border-fono/20 p-3.5 pb-safe">
       <button
         type="button"
-        onClick={onSwitchUser}
-        className={cn(
-          'flex min-h-11 w-full items-center gap-2 rounded-xl p-2 text-left transition hover:bg-fore/5',
-          collapsed && 'lg:justify-center lg:p-0',
-        )}
-        title={sesionNombre || 'Usuario'}
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-0.5 text-left transition hover:bg-fore/5"
+        title={collapsed ? `Mostrar ${title}` : `Ocultar ${title}`}
       >
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-fono text-sm font-bold text-onbrand">
-          {(sesionNombre || 'U').charAt(0).toUpperCase()}
-        </span>
-        <span className={cn('min-w-0', collapsed && 'lg:hidden')}>
-          <strong className="block truncate text-xs text-fore">{sesionNombre || 'Usuario'}</strong>
-          <small className="block truncate text-[10px] uppercase tracking-wider text-mute">
-            {esOwner ? 'Dueño' : 'Vendedor'}
-          </small>
-        </span>
+        <span className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-fore/60">{title}</span>
+        <Icon
+          name="chevron"
+          className={cn('h-3.5 w-3.5 shrink-0 text-mute transition-transform duration-200', collapsed && '-rotate-90')}
+        />
       </button>
+      {!collapsed && (
+        <div className="rounded-2xl border border-fono/20 bg-gradient-to-br from-fono/10 to-ink-800 p-4">
+          {children}
+        </div>
+      )}
     </div>
   )
 }
@@ -103,9 +167,22 @@ export default function AppShell({
   sesionNombre,
   esOwner = false,
   onSwitchUser,
+  onLogout,
+  onLockRequest,
   sidebarStats,
+  onStatsToggle,
+  statsCollapsed,
 }) {
   const [menuAbierto, setMenuAbierto] = useState(false)
+  const [statsCollapsedInterno, setStatsCollapsedInterno] = useState(() => localStorage.getItem('mobos:stats-collapsed') === '1')
+  const statsCerrado = onStatsToggle ? Boolean(statsCollapsed) : statsCollapsedInterno
+
+  function alternarStats() {
+    const next = !statsCerrado
+    if (onStatsToggle) { onStatsToggle(next); return }
+    setStatsCollapsedInterno(next)
+    localStorage.setItem('mobos:stats-collapsed', next ? '1' : '0')
+  }
 
   function navegar(id) {
     onNavigate(id)
@@ -120,6 +197,16 @@ export default function AppShell({
           collapsed && 'lg:w-[76px]',
         )}
       >
+        {onToggleCollapsed && (
+          <button
+            onClick={onToggleCollapsed}
+            className="absolute right-2 top-2 z-10 hidden rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-fore lg:inline-flex"
+            title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+            aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+          >
+            <Icon name="menu" className="h-4 w-4" />
+          </button>
+        )}
         <div className={cn('flex h-20 items-center gap-3 border-b border-fore/10 px-5 pt-safe', collapsed && 'lg:justify-center lg:px-3')}>
           <img src="/mobos-icon.svg" alt="" className="h-10 w-10 shrink-0 rounded-xl" />
           <div className={cn('flex flex-col leading-tight', collapsed && 'lg:hidden')}>
@@ -129,8 +216,10 @@ export default function AppShell({
         </div>
         <NavGroup nav={nav} active={active} onNavigate={navegar} collapsed={collapsed} />
         {sidebarStats && (
-          <div className={cn('flex flex-col gap-2.5 border-t border-fono/20 p-3.5 pb-safe', collapsed && 'lg:hidden')}>
-            {sidebarStats}
+          <div className={collapsed && 'lg:hidden'}>
+            <StatsPanel collapsed={statsCerrado} onToggle={alternarStats}>
+              {sidebarStats}
+            </StatsPanel>
           </div>
         )}
         <SidebarFooter
@@ -139,6 +228,8 @@ export default function AppShell({
           sesionNombre={sesionNombre}
           esOwner={esOwner}
           onSwitchUser={onSwitchUser}
+          onLogout={onLogout}
+          onLockRequest={onLockRequest}
           collapsed={collapsed}
         />
       </aside>
@@ -150,7 +241,13 @@ export default function AppShell({
         side="left"
       >
         <NavGroup nav={nav} active={active} onNavigate={navegar} collapsed={false} scrollable={false} />
-        {sidebarStats && <div className="mt-4 flex flex-col gap-2.5 border-t border-fono/20 pt-3.5">{sidebarStats}</div>}
+        {sidebarStats && (
+          <div className="-mx-4 mt-4 border-t border-fono/20 sm:-mx-5">
+            <StatsPanel collapsed={statsCerrado} onToggle={alternarStats}>
+              {sidebarStats}
+            </StatsPanel>
+          </div>
+        )}
         <div className="-mx-4 -mb-4 mt-4 sm:-mx-5 sm:-mb-5">
           <SidebarFooter
             empresa={empresa}
@@ -158,6 +255,8 @@ export default function AppShell({
             sesionNombre={sesionNombre}
             esOwner={esOwner}
             onSwitchUser={onSwitchUser}
+            onLogout={onLogout}
+            onLockRequest={onLockRequest}
             collapsed={false}
           />
         </div>
@@ -184,14 +283,6 @@ export default function AppShell({
           <div className="flex items-center gap-2.5">
             {headerActions}
             <ThemeToggle />
-            <button
-              onClick={onToggleCollapsed}
-              className="hidden rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-fore lg:inline-flex"
-              title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-              aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-            >
-              <Icon name="menu" className="h-4 w-4" />
-            </button>
           </div>
         </header>
 

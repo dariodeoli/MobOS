@@ -1,16 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import { useReloj } from '@/hooks/useReloj'
 import { vendedoresById, listVentas } from '@/lib/storage'
+import { sessionApi } from '@/lib/api'
 import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
 import VistaCargarVenta from '@/components/ventas/VistaCargarVenta'
 import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
-import { Eyebrow, PasswordInput, useToast } from '@/components/ui'
+import { Button, ConfirmDialog, Eyebrow, Modal, PasswordInput, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
@@ -108,7 +109,15 @@ export default function PanelVendedor() {
   const [pin, setPin] = useState('')
   const [cambiando, setCambiando] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('mobos:sidebar-collapsed') === '1')
+  const [locked, setLocked] = useState(false)
+  const [lockPin, setLockPin] = useState('')
+  const [lockError, setLockError] = useState('')
+  const [lockBusy, setLockBusy] = useState(false)
+  const [salirAbierto, setSalirAbierto] = useState(false)
+  const [saliendo, setSaliendo] = useState(false)
+  const [ayudaAbierto, setAyudaAbierto] = useState(false)
   const cambioEnCurso = useRef(false)
+  const lockEnCurso = useRef(false)
   const vendsById = vendedoresById()
   const toast = useToast()
 
@@ -147,6 +156,84 @@ export default function PanelVendedor() {
     setPin('')
     setCambiarAbierto(true)
   }
+
+  function pedirBloqueo() {
+    setLockPin('')
+    setLockError('')
+    setLockBusy(false)
+    setLocked(true)
+  }
+
+  const intentarDesbloqueo = useCallback(async (pinIntento) => {
+    if (lockEnCurso.current) return
+    lockEnCurso.current = true
+    setLockBusy(true)
+    setLockError('')
+    try {
+      if (esDemo) {
+        const esperado = esOwner ? '3001' : '2001'
+        if (pinIntento !== esperado) throw new Error('PIN inválido. Probá de nuevo.')
+      } else {
+        await sessionApi.loginSeller({ sellerId: sesion?.vendedorId, pin: pinIntento })
+      }
+      setLocked(false)
+      setLockPin('')
+    } catch (err) {
+      setLockError(err?.message || 'PIN inválido. Probá de nuevo.')
+      setLockPin('')
+    } finally {
+      lockEnCurso.current = false
+      setLockBusy(false)
+    }
+  }, [esDemo, esOwner, sesion?.vendedorId])
+
+  useEffect(() => {
+    if (locked && lockPin.length === 4) intentarDesbloqueo(lockPin)
+  }, [locked, lockPin, intentarDesbloqueo])
+
+  async function confirmarSalir() {
+    setSaliendo(true)
+    try { await salir() } finally { setSaliendo(false) }
+  }
+
+  const irRef = useRef(ir)
+  irRef.current = ir
+  const atajosCtx = useRef({})
+  atajosCtx.current = { locked, cambiarAbierto, ayudaAbierto, salirAbierto, esOwner }
+  useEffect(() => {
+    function onKey(event) {
+      const { locked: bloqueado, cambiarAbierto: cambio, ayudaAbierto: ayuda, salirAbierto: saliendo2, esOwner: owner } = atajosCtx.current
+      if (bloqueado) return
+      const target = event.target
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) return
+      }
+      if (cambio || ayuda || saliendo2) return
+      if (event.key === 'F1') {
+        event.preventDefault()
+        irRef.current('cargar')
+      } else if (event.key === 'F2') {
+        event.preventDefault()
+        irRef.current('productos')
+        window.__mobosFocusSearch = true
+        window.dispatchEvent(new CustomEvent('mobos:focus-search'))
+      } else if (event.key === 'F3') {
+        event.preventDefault()
+        irRef.current('clientes')
+        window.__mobosNewCustomer = true
+        window.dispatchEvent(new CustomEvent('mobos:new-customer'))
+      } else if (event.key === 'F4') {
+        event.preventDefault()
+        const navActual = owner ? OWNER_NAV : SELLER_NAV
+        const accesibles = navActual.flatMap((group) => group.items).map(([id]) => id)
+        if (accesibles.includes('cotizador')) irRef.current('cotizador')
+        else toast.info('Atajo F4', 'La vista de Trade-In no está disponible en esta sesión.')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toast])
 
   useEffect(() => {
     if (!cambiarAbierto) return undefined
@@ -194,16 +281,15 @@ export default function PanelVendedor() {
         sesionNombre={sesion?.nombre}
         esOwner={esOwner}
         onSwitchUser={abrirCambio}
+        onLogout={() => setSalirAbierto(true)}
+        onLockRequest={pedirBloqueo}
         sidebarStats={esOwner && (
-          <div className="rounded-2xl border border-fono/20 bg-gradient-to-br from-fono/10 to-ink-800 p-4">
-            <div className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-fore/60">
-              Vendido hoy
-            </div>
-            <div className="mt-2 text-[22px] font-semibold tracking-tight text-fono-light tabular-nums">{gs(totalHoy)}</div>
+          <>
+            <div className="mt-1 text-[22px] font-semibold tracking-tight text-fono-light tabular-nums">{gs(totalHoy)}</div>
             <div className="mt-1 text-[11.5px] text-fore/60">
               {delDia.length} ventas · {activos} {activos === 1 ? 'vendedor' : 'vendedores'}
             </div>
-          </div>
+          </>
         )}
         headerActions={(
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-2.5">
@@ -221,14 +307,13 @@ export default function PanelVendedor() {
                 <span className="hidden sm:inline">Cargar venta</span>
               </button>
             )}
-            <button onClick={abrirCambio} className="hidden min-h-11 rounded-lg border border-fono/30 bg-fono/[.12] px-3 py-2 text-xs font-medium text-fono-light transition hover:bg-fono/20 sm:inline-flex" title="Cambiar vendedor" aria-label="Cambiar vendedor"><Icon name="users" className="h-4 w-4" /><span className="hidden md:inline">Cambiar vendedor</span></button>
             <button
-              onClick={salir}
-              className="rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-fore"
-              title="Salir"
-              aria-label="Salir"
+              onClick={() => setAyudaAbierto(true)}
+              className="rounded-lg px-2.5 py-2 text-sm font-semibold text-mute transition hover:bg-ink-700 hover:text-fore"
+              title="Atajos de teclado"
+              aria-label="Atajos de teclado"
             >
-              <Icon name="logout" className="h-4 w-4" />
+              ?
             </button>
           </div>
         )}
@@ -272,6 +357,76 @@ export default function PanelVendedor() {
       </AppShell>
 
       {cambiarAbierto && <div className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4" onMouseDown={(event) => event.target === event.currentTarget && !cambiando && setCambiarAbierto(false)}><section role="dialog" aria-modal="true" aria-labelledby="cambiar-vendedor-title" className="w-full max-w-md rounded-3xl border border-fore/10 bg-ink p-6 shadow-2xl"><div className="flex items-start justify-between gap-4"><div><Eyebrow>Sesión segura</Eyebrow><h2 id="cambiar-vendedor-title" className="mt-2 text-2xl font-bold">Cambiar vendedor</h2></div><button onClick={() => setCambiarAbierto(false)} disabled={cambiando} className="rounded-lg px-2 py-1 text-2xl text-mute hover:text-fore" aria-label="Cerrar">×</button></div><p className="mt-2 text-sm text-mute">Elegí quién registra la próxima venta y confirmá su PIN.</p><label htmlFor="seller-switch" className="mt-6 block text-sm font-semibold">Vendedor</label><select id="seller-switch" value={sellerId} onChange={(event) => setSellerId(event.target.value)} disabled={cambiando} className="mt-2 w-full rounded-xl border border-fore/10 bg-paper px-3 py-3 text-fore outline-none focus:border-fono-dark">{opcionesVendedor.map((seller) => <option key={seller.id} value={seller.id}>{seller.name || seller.nombre || seller.email}</option>)}</select>{esDemo ? <><p className="mt-4 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-3 text-xs text-mute">PIN demo vendedor: <strong className="text-fore">2001</strong> · dueño: <strong className="text-fore">3001</strong></p><label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">PIN demo</label><PasswordInput id="seller-switch-pin" autoFocus inputMode="numeric" maxLength={4} value={pin} disabled={cambiando} onChange={(event) => { setPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} className="mt-2 h-14 md:h-14 w-full rounded-xl border border-fore/10 bg-paper text-center text-3xl tracking-[.5em] outline-none focus:border-fono-dark" /> </> : <><label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">PIN del vendedor</label><PasswordInput id="seller-switch-pin" autoFocus inputMode="numeric" maxLength={4} value={pin} disabled={cambiando} onChange={(event) => { setPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} className="mt-2 h-14 md:h-14 w-full rounded-xl border border-fore/10 bg-paper text-center text-3xl tracking-[.5em] outline-none focus:border-fono-dark" /> </>}<p className="mt-5 text-xs text-mute">Esc para cerrar · tocar afuera también cierra</p></section></div>}
+
+      {locked && (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-paper p-4">
+          <section role="dialog" aria-modal="true" aria-labelledby="lock-title" className="w-full max-w-sm rounded-3xl border border-fore/10 bg-ink p-6 text-center shadow-2xl">
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-fono/10 text-fono-light">
+              <Icon name="lock" className="h-5 w-5" />
+            </span>
+            <Eyebrow className="mt-4">Bloqueado</Eyebrow>
+            <h2 id="lock-title" className="mt-2 text-xl font-bold">{sesion?.nombre || 'Sesión protegida'}</h2>
+            {sesion?.vendedorId ? (
+              <>
+                <p className="mt-2 text-sm text-mute">Ingresá tu PIN de 4 dígitos para volver a la operación.</p>
+                <PasswordInput
+                  id="lock-pin"
+                  autoFocus
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={lockPin}
+                  disabled={lockBusy}
+                  onChange={(event) => { setLockPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }}
+                  className="mt-5 h-14 w-full rounded-xl border border-fore/10 bg-paper text-center text-3xl tracking-[.5em] outline-none focus:border-fono-dark"
+                />
+                {lockError && <p role="alert" className="mt-3 text-sm text-red-300">{lockError}</p>}
+                <Button
+                  type="button"
+                  className="mt-5 w-full"
+                  disabled={lockBusy || lockPin.length !== 4}
+                  onClick={() => intentarDesbloqueo(lockPin)}
+                >
+                  {lockBusy ? 'Verificando…' : 'Desbloquear'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="mt-2 text-sm text-mute">Sesión protegida. No hay un vendedor activo que pueda desbloquear.</p>
+                <Button type="button" className="mt-5 w-full" onClick={() => window.location.reload()}>Recargar la app</Button>
+              </>
+            )}
+          </section>
+        </div>
+      )}
+
+      <Modal open={ayudaAbierto} onClose={() => setAyudaAbierto(false)} title="Atajos de teclado" className="max-w-md">
+        <div className="space-y-2.5">
+          {[
+            ['F1', 'Nueva venta'],
+            ['F2', 'Buscar producto'],
+            ['F3', 'Crear cliente'],
+            ['F4', 'Cotizar equipo (Trade-In)'],
+            ['Esc', 'Cerrar modales y diálogos'],
+          ].map(([tecla, descripcion]) => (
+            <div key={tecla} className="flex items-center justify-between gap-4 rounded-xl border border-fore/10 bg-fore/[.02] px-3.5 py-2.5">
+              <span className="text-sm text-fore">{descripcion}</span>
+              <kbd className="shrink-0 rounded-md border border-ink-500 bg-ink-700 px-2 py-0.5 text-xs font-semibold text-mute">{tecla}</kbd>
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 text-xs text-mute">Los atajos no funcionan mientras escribís en un campo o tenés un diálogo abierto.</p>
+      </Modal>
+
+      <ConfirmDialog
+        open={salirAbierto}
+        onCancel={() => setSalirAbierto(false)}
+        onConfirm={confirmarSalir}
+        title="¿Cerrar sesión?"
+        description="Vas a salir de la sesión actual. Las ventas sin confirmar no se pierden, pero tendrás que volver a ingresar para seguir operando."
+        confirmLabel="Salir"
+        variant="danger"
+        busy={saliendo}
+      />
     </>
   )
 }
