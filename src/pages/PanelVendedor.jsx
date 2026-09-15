@@ -10,7 +10,7 @@ import VistaCargarVenta from '@/components/ventas/VistaCargarVenta'
 import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
-import { Eyebrow, useToast } from '@/components/ui'
+import { Eyebrow, PasswordInput, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
@@ -86,7 +86,7 @@ const LABELS = {
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
 
 function Subtabs({ value, onChange, items }) {
-  return <div className="mb-5 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-[#0b1822] p-2">{items.map(([id, label]) => <button key={id} type="button" onClick={() => onChange(id)} className={cn('rounded-xl px-3 py-2 text-sm font-medium transition', value === id ? 'bg-fono text-[#071018]' : 'text-mute hover:bg-white/5 hover:text-white')}>{label}</button>)}</div>
+  return <div className="mb-5 flex flex-wrap gap-2 rounded-2xl border border-fore/10 bg-ink p-2">{items.map(([id, label]) => <button key={id} type="button" onClick={() => onChange(id)} className={cn('rounded-xl px-3 py-2 text-sm font-medium transition', value === id ? 'bg-fono text-onbrand' : 'text-mute hover:bg-fore/5 hover:text-fore')}>{label}</button>)}</div>
 }
 
 export default function PanelVendedor() {
@@ -196,18 +196,18 @@ export default function PanelVendedor() {
         onSwitchUser={abrirCambio}
         sidebarStats={esOwner && (
           <div className="rounded-2xl border border-fono/20 bg-gradient-to-br from-fono/10 to-ink-800 p-4">
-            <div className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-white/60">
+            <div className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-fore/60">
               Vendido hoy
             </div>
             <div className="mt-2 text-[22px] font-semibold tracking-tight text-fono-light tabular-nums">{gs(totalHoy)}</div>
-            <div className="mt-1 text-[11.5px] text-white/60">
+            <div className="mt-1 text-[11.5px] text-fore/60">
               {delDia.length} ventas · {activos} {activos === 1 ? 'vendedor' : 'vendedores'}
             </div>
           </div>
         )}
         headerActions={(
-          <>
-            <SelectorSucursal />
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2.5">
+            <SelectorSucursal className="max-sm:hidden" />
             <div className="hidden h-[34px] items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[12.5px] text-mute md:flex">
               <Icon name="calendar" className="h-[15px] w-[15px]" />
               <span className="whitespace-nowrap">{fechaLarga}</span>
@@ -215,7 +215,7 @@ export default function PanelVendedor() {
             {vista !== 'cargar' && (
               <button
                 onClick={() => { setVista('cargar'); navigate('/pos/cargar') }}
-                className="inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono px-3.5 text-[13px] font-semibold text-white transition hover:bg-fono-dark"
+                className="inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono px-3.5 text-[13px] font-semibold text-onbrand transition hover:bg-fono-dark"
               >
                 <Icon name="plus" className="h-[15px] w-[15px]" />
                 <span className="hidden sm:inline">Cargar venta</span>
@@ -224,13 +224,13 @@ export default function PanelVendedor() {
             <button onClick={abrirCambio} className="hidden min-h-11 rounded-lg border border-fono/30 bg-fono/[.12] px-3 py-2 text-xs font-medium text-fono-light transition hover:bg-fono/20 sm:inline-flex" title="Cambiar vendedor" aria-label="Cambiar vendedor"><Icon name="users" className="h-4 w-4" /><span className="hidden md:inline">Cambiar vendedor</span></button>
             <button
               onClick={salir}
-              className="rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-white"
+              className="rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-fore"
               title="Salir"
               aria-label="Salir"
             >
               <Icon name="logout" className="h-4 w-4" />
             </button>
-          </>
+          </div>
         )}
       >
         {desfaseHoras > 0 && (
@@ -241,12 +241,12 @@ export default function PanelVendedor() {
           </div>
         )}
 
-        <main className="flex-1 bg-gradient-to-b from-[#071018] to-[#09151d] p-4 md:p-8">
+        <main className="flex-1 bg-gradient-to-b from-paper to-paper p-4 md:p-8">
           <div key={`venta:${identidad}`} hidden={vista !== 'cargar'}>
             {tradeIn?.identidad === identidad && <div role="status" className="mx-auto mb-5 max-w-4xl space-y-2 rounded-2xl border border-fono/30 bg-fono/10 p-4">
               <p className="font-semibold">Canje acordado: {tradeIn.model} · {gs(tradeIn.value)}</p>
               <p>IMEI / serial: {tradeIn.imei}</p>
-              <p className="text-sm text-slate-300">Preparando el canje como parte de pago. El equipo ingresará a la pipeline al confirmar la venta.</p>
+              <p className="text-sm text-mute">Preparando el canje como parte de pago. El equipo ingresará a la pipeline al confirmar la venta.</p>
               <button className="text-sm underline" onClick={() => setTradeIn(null)}>Descartar ficha</button>
             </div>}
             <VistaCargarVenta vendedoresById={vendsById} tradeInDraft={tradeIn?.identidad === identidad ? tradeIn : null} onTradeInConsumed={() => setTradeIn(null)} />
@@ -260,18 +260,18 @@ export default function PanelVendedor() {
             <div hidden={vista !== 'cotizador'}><SellerTools vista="cotizador" onCargarVenta={(draft) => { setTradeIn({ ...draft, id: crypto.randomUUID(), identidad }); setVista('cargar'); navigate('/pos/cargar') }} /></div>
           </div>
 
-          {esOwner && vista === 'inventario' && <div className="mx-auto max-w-7xl"><Inventario /></div>}
-          {esOwner && vista === 'compras' && <div className="mx-auto max-w-7xl"><Compras /></div>}
-          {esOwner && vista === 'tradein-admin' && <div className="mx-auto max-w-7xl"><TradeInPipeline /></div>}
-          {esOwner && vista === 'servicio' && <div className="mx-auto max-w-7xl"><Garantias /></div>}
-          {esOwner && vista === 'resumen' && <div className="mx-auto max-w-7xl"><ResumenControl /></div>}
-          {esOwner && vista === 'analisis' && <div className="mx-auto max-w-7xl"><Subtabs value={analisisTab} onChange={setAnalisisTab} items={[["reportes", "Reportes"], ["ganancias", "Ganancias"], ["ganadores", "Ganadores"], ["asistente", "Asistente"]]} />{analisisTab === 'reportes' && <Reportes />}{analisisTab === 'ganancias' && <Ganancias />}{analisisTab === 'ganadores' && <Ganadores />}{analisisTab === 'asistente' && <Asistente />}</div>}
-          {esOwner && vista === 'finanzas' && <div className="mx-auto max-w-7xl"><Subtabs value={finanzasTab} onChange={setFinanzasTab} items={[["caja", "Caja"], ["gastos", "Gastos"], ["publicidad", "Publicidad"]]} />{finanzasTab === 'caja' && <Caja />}{finanzasTab === 'gastos' && <Gastos />}{finanzasTab === 'publicidad' && <Ads />}</div>}
-          {esOwner && vista === 'equipo' && <div className="mx-auto max-w-7xl"><Subtabs value={equipoTab} onChange={setEquipoTab} items={[["vendedores", "Vendedores"], ["historial", "Historial"], ["configuracion", "Configuración"]]} />{equipoTab === 'vendedores' && <Vendedores />}{equipoTab === 'historial' && <Historial />}{equipoTab === 'configuracion' && <Config />}</div>}
+          {esOwner && vista === 'inventario' && <Inventario />}
+          {esOwner && vista === 'compras' && <Compras />}
+          {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
+          {esOwner && vista === 'servicio' && <Garantias />}
+          {esOwner && vista === 'resumen' && <ResumenControl />}
+          {esOwner && vista === 'analisis' && <div><Subtabs value={analisisTab} onChange={setAnalisisTab} items={[["reportes", "Reportes"], ["ganancias", "Ganancias"], ["ganadores", "Ganadores"], ["asistente", "Asistente"]]} />{analisisTab === 'reportes' && <Reportes />}{analisisTab === 'ganancias' && <Ganancias />}{analisisTab === 'ganadores' && <Ganadores />}{analisisTab === 'asistente' && <Asistente />}</div>}
+          {esOwner && vista === 'finanzas' && <div><Subtabs value={finanzasTab} onChange={setFinanzasTab} items={[["caja", "Caja"], ["gastos", "Gastos"], ["publicidad", "Publicidad"]]} />{finanzasTab === 'caja' && <Caja />}{finanzasTab === 'gastos' && <Gastos />}{finanzasTab === 'publicidad' && <Ads />}</div>}
+          {esOwner && vista === 'equipo' && <div><Subtabs value={equipoTab} onChange={setEquipoTab} items={[["vendedores", "Vendedores"], ["historial", "Historial"], ["configuracion", "Configuración"]]} />{equipoTab === 'vendedores' && <Vendedores />}{equipoTab === 'historial' && <Historial />}{equipoTab === 'configuracion' && <Config />}</div>}
         </main>
       </AppShell>
 
-      {cambiarAbierto && <div className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4" onMouseDown={(event) => event.target === event.currentTarget && !cambiando && setCambiarAbierto(false)}><section role="dialog" aria-modal="true" aria-labelledby="cambiar-vendedor-title" className="w-full max-w-md rounded-3xl border border-white/10 bg-[#0b1822] p-6 shadow-2xl"><div className="flex items-start justify-between gap-4"><div><Eyebrow>Sesión segura</Eyebrow><h2 id="cambiar-vendedor-title" className="mt-2 text-2xl font-bold">Cambiar vendedor</h2></div><button onClick={() => setCambiarAbierto(false)} disabled={cambiando} className="rounded-lg px-2 py-1 text-2xl text-slate-500 hover:text-white" aria-label="Cerrar">×</button></div><p className="mt-2 text-sm text-slate-400">Elegí quién registra la próxima venta y confirmá su PIN.</p><label htmlFor="seller-switch" className="mt-6 block text-sm font-semibold">Vendedor</label><select id="seller-switch" value={sellerId} onChange={(event) => setSellerId(event.target.value)} disabled={cambiando} className="mt-2 w-full rounded-xl border border-white/10 bg-[#071018] px-3 py-3 text-white outline-none focus:border-[#15D7B8]">{opcionesVendedor.map((seller) => <option key={seller.id} value={seller.id}>{seller.name || seller.nombre || seller.email}</option>)}</select>{esDemo ? <><p className="mt-4 rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 p-3 text-xs text-slate-400">PIN demo vendedor: <strong className="text-white">2001</strong> · dueño: <strong className="text-white">3001</strong></p><label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">PIN demo</label><input id="seller-switch-pin" autoFocus type="password" inputMode="numeric" maxLength={4} value={pin} disabled={cambiando} onChange={(event) => { setPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} className="mt-2 w-full rounded-xl border border-white/10 bg-[#071018] p-4 text-center text-3xl tracking-[.5em] outline-none focus:border-[#15D7B8]" /> </> : <><label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">PIN del vendedor</label><input id="seller-switch-pin" autoFocus type="password" inputMode="numeric" maxLength={4} value={pin} disabled={cambiando} onChange={(event) => { setPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} className="mt-2 w-full rounded-xl border border-white/10 bg-[#071018] p-4 text-center text-3xl tracking-[.5em] outline-none focus:border-[#15D7B8]" /> </>}<p className="mt-5 text-xs text-slate-500">Esc para cerrar · tocar afuera también cierra</p></section></div>}
+      {cambiarAbierto && <div className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4" onMouseDown={(event) => event.target === event.currentTarget && !cambiando && setCambiarAbierto(false)}><section role="dialog" aria-modal="true" aria-labelledby="cambiar-vendedor-title" className="w-full max-w-md rounded-3xl border border-fore/10 bg-ink p-6 shadow-2xl"><div className="flex items-start justify-between gap-4"><div><Eyebrow>Sesión segura</Eyebrow><h2 id="cambiar-vendedor-title" className="mt-2 text-2xl font-bold">Cambiar vendedor</h2></div><button onClick={() => setCambiarAbierto(false)} disabled={cambiando} className="rounded-lg px-2 py-1 text-2xl text-mute hover:text-fore" aria-label="Cerrar">×</button></div><p className="mt-2 text-sm text-mute">Elegí quién registra la próxima venta y confirmá su PIN.</p><label htmlFor="seller-switch" className="mt-6 block text-sm font-semibold">Vendedor</label><select id="seller-switch" value={sellerId} onChange={(event) => setSellerId(event.target.value)} disabled={cambiando} className="mt-2 w-full rounded-xl border border-fore/10 bg-paper px-3 py-3 text-fore outline-none focus:border-fono-dark">{opcionesVendedor.map((seller) => <option key={seller.id} value={seller.id}>{seller.name || seller.nombre || seller.email}</option>)}</select>{esDemo ? <><p className="mt-4 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-3 text-xs text-mute">PIN demo vendedor: <strong className="text-fore">2001</strong> · dueño: <strong className="text-fore">3001</strong></p><label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">PIN demo</label><PasswordInput id="seller-switch-pin" autoFocus inputMode="numeric" maxLength={4} value={pin} disabled={cambiando} onChange={(event) => { setPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} className="mt-2 h-14 md:h-14 w-full rounded-xl border border-fore/10 bg-paper text-center text-3xl tracking-[.5em] outline-none focus:border-fono-dark" /> </> : <><label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">PIN del vendedor</label><PasswordInput id="seller-switch-pin" autoFocus inputMode="numeric" maxLength={4} value={pin} disabled={cambiando} onChange={(event) => { setPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} className="mt-2 h-14 md:h-14 w-full rounded-xl border border-fore/10 bg-paper text-center text-3xl tracking-[.5em] outline-none focus:border-fono-dark" /> </>}<p className="mt-5 text-xs text-mute">Esc para cerrar · tocar afuera también cierra</p></section></div>}
     </>
   )
 }

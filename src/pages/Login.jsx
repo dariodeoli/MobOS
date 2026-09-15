@@ -7,6 +7,7 @@ import { publicUrls } from '@/lib/urls'
 import { sessionApi } from '@/lib/api/session'
 import AuthLayout from '@/components/auth/AuthLayout'
 import GoogleButton, { OAuthDivider } from '@/components/auth/GoogleButton'
+import ThemeLogo from '@/components/app/ThemeLogo'
 
 export default function Login() {
   const { entrarEmpresa, entrarVendedor } = useSesion()
@@ -181,40 +182,40 @@ export default function Login() {
 
   return (
     <AuthLayout>
-      <section className="login-panel mx-auto w-full max-w-[560px] rounded-[2rem] border border-white/10 bg-[#0b1822]/95 p-6 shadow-2xl shadow-[#15D7B8]/5 sm:p-9">
-        <a href={publicUrls.landing} className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-[#15D7B8] transition hover:text-white">← Volver al inicio</a>
-        <img src="/logo-dark.svg" alt="MobOS" className="mb-1 w-48" />
-        <p className="mb-7 text-sm text-mute">Sistema de ventas para tiendas</p>
+      <section className="login-panel mx-auto w-full max-w-[560px] rounded-[2rem] border border-fore/10 bg-ink/95 p-5 shadow-2xl shadow-fono/5 sm:p-6 lg:p-7">
+        <a href={publicUrls.landing} className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-fono-dark transition hover:text-fore lg:mb-3">← Volver al inicio</a>
+        <ThemeLogo className="mb-1 w-48" />
+        <p className="mb-5 text-sm text-mute lg:mb-4">Sistema de ventas para tiendas</p>
 
         <h1 className="mb-1 text-2xl font-semibold sm:text-[1.7rem]">
           {crear ? 'Creá la cuenta de tu tienda' : 'Entrá a tu tienda'}
         </h1>
-        {!crear && <p className="mb-6 text-sm leading-6 text-mute">Usá Google o ingresá con el correo de tu tienda.</p>}
-        {crear && <p className="mb-6 text-sm leading-6 text-mute">Empezá con Google o creá tu acceso con correo.</p>}
+        {!crear && <p className="mb-5 text-sm leading-6 text-mute lg:mb-4">Usá Google o ingresá con el correo de tu tienda.</p>}
+        {crear && <p className="mb-5 text-sm leading-6 text-mute lg:mb-4">Empezá con Google o creá tu acceso con correo.</p>}
 
-        <form onSubmit={enviar} className="auth-form space-y-4">
+        <form onSubmit={enviar} className="auth-form space-y-4 lg:space-y-3">
           {crear && !googleReady && <><GoogleButton create busy={cargando} onClick={() => iniciarGoogle(true)} /><OAuthDivider /></>}
           {!crear && etapa === 'empresa' && <><GoogleButton busy={cargando} onClick={() => iniciarGoogle()} /><OAuthDivider /></>}
 
           {crear && <>
-            <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input className="h-14 rounded-xl px-4" id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} onBlur={touchSignup('nombreEmpresa')} aria-invalid={Boolean(signupErrors.nombreEmpresa)} aria-describedby={signupErrors.nombreEmpresa ? 'company-name-error' : undefined} autoComplete="organization" placeholder="Nombre de tu tienda" />{signupErrors.nombreEmpresa && <p id="company-name-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.nombreEmpresa}</p>}</div>
-            {!googleReady && <div><Label htmlFor="new-email">Correo de acceso</Label><Input className="h-14 rounded-xl px-4" id="new-email" type="email" required value={f.correo} onChange={set('correo')} onBlur={touchSignup('correo')} aria-invalid={Boolean(signupErrors.correo)} aria-describedby={signupErrors.correo ? 'new-email-error' : undefined} autoComplete="email" placeholder="vos@tutienda.com" />{signupErrors.correo && <p id="new-email-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.correo}</p>}</div>}
-            {!googleReady && <div><Label htmlFor="new-password">Contraseña de empresa</Label><PasswordInput className="h-14 rounded-xl px-4 pr-11" id="new-password" required minLength={8} maxLength={72} value={f.clave} onChange={set('clave')} onBlur={touchSignup('clave')} aria-invalid={Boolean(signupErrors.clave)} aria-describedby={signupErrors.clave ? 'new-password-error' : undefined} autoComplete="new-password" placeholder="Mínimo 8 caracteres" />{signupErrors.clave && <p id="new-password-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.clave}</p>}</div>}
+            <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input className="h-14 rounded-xl px-4 lg:h-12" id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} onBlur={touchSignup('nombreEmpresa')} aria-invalid={Boolean(signupErrors.nombreEmpresa)} aria-describedby={signupErrors.nombreEmpresa ? 'company-name-error' : undefined} autoComplete="organization" placeholder="Nombre de tu tienda" />{signupErrors.nombreEmpresa && <p id="company-name-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.nombreEmpresa}</p>}</div>
+            {!googleReady && <div><Label htmlFor="new-email">Correo de acceso</Label><Input className="h-14 rounded-xl px-4 lg:h-12" id="new-email" type="email" required value={f.correo} onChange={set('correo')} onBlur={touchSignup('correo')} aria-invalid={Boolean(signupErrors.correo)} aria-describedby={signupErrors.correo ? 'new-email-error' : undefined} autoComplete="email" placeholder="vos@tutienda.com" />{signupErrors.correo && <p id="new-email-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.correo}</p>}</div>}
+            {!googleReady && <div><Label htmlFor="new-password">Contraseña de empresa</Label><PasswordInput className="h-14 rounded-xl px-4 pr-11 lg:h-12" id="new-password" required minLength={8} maxLength={72} value={f.clave} onChange={set('clave')} onBlur={touchSignup('clave')} aria-invalid={Boolean(signupErrors.clave)} aria-describedby={signupErrors.clave ? 'new-password-error' : undefined} autoComplete="new-password" placeholder="Mínimo 8 caracteres" /><p className="mt-1 text-xs text-mute">Establecé una contraseña de al menos 8 caracteres.</p>{signupErrors.clave && <p id="new-password-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.clave}</p>}</div>}
           </>}
 
           {modo === 'entrar' && etapa === 'setup' ? (
-            <><div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 px-4 py-3"><span className="text-xs text-slate-500">Tienda creada</span><strong className="mt-1 block text-sm text-[#15D7B8]">{nombreEmpresa || 'Tu tienda'}</strong></div><div className="pt-1"><h2 className="text-base font-semibold text-white">Elegí tu PIN de administrador</h2><p className="mt-1 text-xs leading-5 text-slate-500">Este PIN abre el modo ventas y te identifica en cada operación. El resto lo configurás dentro de la app.</p><Label className="mt-4" htmlFor="setup-pin">PIN de 4 dígitos</Label><PasswordInput id="setup-pin" autoFocus required inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={setupPin} onChange={(event) => { setError(''); setSetupPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="••••" autoComplete="new-password" className="h-16 pr-12 text-center text-3xl tracking-[.45em]" /><p className="mt-2 text-center text-xs font-medium text-[#15D7B8]">Usá solo 4 dígitos.</p></div></>
+            <><div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Tienda creada</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu tienda'}</strong></div><div className="pt-1"><h2 className="text-base font-semibold text-fore">Elegí tu PIN de administrador</h2><p className="mt-1 text-xs leading-5 text-mute">Este PIN abre el modo ventas y te identifica en cada operación. El resto lo configurás dentro de la app.</p><Label className="mt-4" htmlFor="setup-pin">PIN de 4 dígitos</Label><PasswordInput id="setup-pin" autoFocus required inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={setupPin} onChange={(event) => { setError(''); setSetupPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="••••" autoComplete="new-password" className="h-16 pr-12 text-center text-3xl tracking-[.45em] lg:h-14" /><p className="mt-2 text-center text-xs font-medium text-fono-dark">Usá solo 4 dígitos.</p></div></>
           ) : modo === 'entrar' && etapa === 'vendedor' ? (
             <>
-              <div className="rounded-xl border border-[#15D7B8]/20 bg-[#15D7B8]/5 px-4 py-3"><span className="text-xs text-slate-500">Empresa</span><strong className="mt-1 block text-sm text-[#15D7B8]">{nombreEmpresa || 'Tu empresa'}</strong></div><div><Label htmlFor="seller">Vendedor</Label><select id="seller" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="mt-1 w-full rounded-xl border border-ink-500 bg-ink px-3 py-3 text-white"><option value="">Seleccioná tu usuario</option>{vendedores.map((v) => <option key={v.id} value={v.id}>{v.name || v.nombre || v.email}</option>)}</select></div>
+              <div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Empresa</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu empresa'}</strong></div><div><Label htmlFor="seller">Vendedor</Label><select id="seller" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="mt-1 w-full rounded-xl border border-ink-500 bg-paper px-3 py-3 text-fore"><option value="">Seleccioná tu usuario</option>{vendedores.map((v) => <option key={v.id} value={v.id}>{v.name || v.nombre || v.email}</option>)}</select></div>
               <div><Label htmlFor="seller-pin">PIN del vendedor</Label><PasswordInput id="seller-pin" autoFocus inputMode="numeric" maxLength={4} value={pin} onChange={(e) => { setError(''); setPin(e.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="4 dígitos" autoComplete="one-time-code" /></div>
-              <button type="button" onClick={() => { setEtapa('empresa'); setPin(''); setError('') }} className="text-sm text-mute hover:text-white">← Volver a empresa</button>
+              <button type="button" onClick={() => { setEtapa('empresa'); setPin(''); setError('') }} className="text-sm text-mute hover:text-fore">← Volver a empresa</button>
             </>
           ) : !crear && <>
           <div>
             <Label htmlFor="mail">Correo</Label>
             <Input
-              className="h-14 rounded-xl px-4"
+              className="h-14 rounded-xl px-4 lg:h-12"
               id="mail"
               type="email"
               value={f.correo}
@@ -229,7 +230,7 @@ export default function Login() {
           <div>
             <Label htmlFor="pass">Contraseña</Label>
             <PasswordInput
-              className="h-14 rounded-xl px-4 pr-11"
+              className="h-14 rounded-xl px-4 pr-11 lg:h-12"
               id="pass"
               value={f.clave}
               onChange={set('clave')}
@@ -237,7 +238,7 @@ export default function Login() {
               autoComplete={crear ? 'new-password' : 'current-password'}
             />
           </div>
-          <div className="-mt-1 text-right"><Link to="/restablecer-contrasena" className="text-xs font-semibold text-[#15D7B8] hover:text-white">¿Olvidaste tu contraseña?</Link></div>
+          <div className="-mt-1 text-right"><Link to="/restablecer-contrasena" className="text-xs text-mute hover:text-fore">¿Olvidaste tu contraseña? Recuperar</Link></div>
           </>}
 
           {error && (
@@ -256,8 +257,8 @@ export default function Login() {
           <Button type="submit" className="h-14 w-full rounded-xl text-base" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>
             {cargando ? 'Un momento…' : crear ? 'Crear mi tienda' : etapa === 'setup' ? 'Activar mi tienda' : 'Continuar'}
           </Button>
-          {(crear || etapa === 'empresa') && <p className="pt-3 text-center text-sm text-slate-400">
-            {crear ? <>¿Ya tenés una tienda? <button type="button" onClick={() => cambiarModo('entrar')} className="font-semibold text-[#15D7B8] hover:text-white hover:underline">Entrá a tu cuenta</button></> : <>¿Sos nuevo en MobOS? <button type="button" onClick={() => cambiarModo('crear')} className="font-semibold text-[#15D7B8] hover:text-white hover:underline">Creá tu tienda</button></>}
+          {(crear || etapa === 'empresa') && <p className="pt-3 text-center text-sm text-mute">
+            {crear ? <>¿Ya tenés una tienda? <button type="button" onClick={() => cambiarModo('entrar')} className="font-semibold text-fono-dark hover:text-fore hover:underline">Entrá a tu cuenta</button></> : <>¿Sos nuevo en MobOS? <button type="button" onClick={() => cambiarModo('crear')} className="font-semibold text-fono-dark hover:text-fore hover:underline">Creá tu tienda</button></>}
           </p>}
         </form>
       </section>
