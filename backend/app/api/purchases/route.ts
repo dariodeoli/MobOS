@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
-import { distributePurchaseCosts, purchaseTotals } from '../../../lib/purchases'
+import { applyPurchaseLineOverrides, distributePurchaseCosts, purchaseTotals } from '../../../lib/purchases'
+import type { PurchaseLineCostOverride } from '../../../lib/purchases'
 
 const INT_MAX = 2147483647
 const MAX_TEXT = 160
@@ -98,14 +99,14 @@ export async function PATCH(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
-  const body = await request.json(); if (!boundedText(body.id, MAX_ID) || !['receive', 'pay'].includes(body.action)) return error('Compra y acción válida son obligatorias.')
+  const body = await request.json(); if (!boundedText(body.id, MAX_ID) || !['receive', 'pay', 'advance', 'update-costs'].includes(body.action)) return error('Compra y acción válida son obligatorias.')
   try {
     const result = await prisma.$transaction(async tx => {
       const rows = await tx.$queryRaw<Array<{ id: string; branchId: string | null; status: string }>>`SELECT "id", "branchId", "status" FROM "PurchaseOrder" WHERE "id" = ${body.id} AND "tenantId" = ${tenant} FOR UPDATE`
       const purchase = rows[0]
       const branchId = scope(session)
       if (!purchase || (branchId !== null && purchase.branchId !== branchId)) throw new Error('Compra no encontrada.')
-      if (body.action === 'pay') {
+      if (body.action === 'pay' || body.action === 'advance') {
         const accountId = boundedText(body.accountId, MAX_ID) ? String(body.accountId) : null
         const currency = body.currency ?? 'PYG'; const originalAmount = Number(body.originalAmount); const exchangeRatePyg = Number(body.exchangeRatePyg ?? 1)
         if (!accountId || !currencies.has(currency) || !decimal(body.originalAmount) || originalAmount <= 0 || !decimal(exchangeRatePyg, 6) || exchangeRatePyg <= 0 || (currency === 'PYG' && exchangeRatePyg !== 1)) throw new Error('Cuenta, moneda, monto y cotización válidos son obligatorios.')
@@ -113,10 +114,44 @@ export async function PATCH(request: Request) {
         if (!account || account.currency !== currency) throw new Error('Cuenta de pago no válida para la moneda indicada.')
         const amountPyg = Math.round(originalAmount * exchangeRatePyg)
         if (!safePyg(amountPyg) || amountPyg === 0) throw new Error('Monto convertido fuera de rango.')
-        const kind = body.kind === 'ADVANCE' ? 'ADVANCE' : 'SETTLEMENT'
+        const kind = body.action === 'advance' || body.kind === 'ADVANCE' ? 'ADVANCE' : 'SETTLEMENT'
+        if (kind === 'ADVANCE') {
+          const balanceRows = await tx.$queryRaw<Array<{ finalCostPyg: number; paidPyg: number }>>`SELECT COALESCE((SELECT SUM(pl."finalTotalCostPyg")::int FROM "PurchaseLine" pl WHERE pl."purchaseId" = ${purchase.id}), 0) AS "finalCostPyg", COALESCE((SELECT SUM(pp."amountPyg")::int FROM "PurchasePayment" pp WHERE pp."purchaseId" = ${purchase.id}), 0) AS "paidPyg"`
+          if (amountPyg > balanceRows[0].finalCostPyg - balanceRows[0].paidPyg) throw new Error('El anticipo supera el saldo pendiente de la compra.')
+        }
         const payment = await tx.purchasePayment.create({ data: { tenantId: tenant, purchaseId: purchase.id, accountId, amountPyg, currency, originalAmount: String(originalAmount), exchangeRatePyg: String(exchangeRatePyg), reference: body.reference ? String(body.reference).slice(0, 200) : null, kind, createdById: session.user.id } })
-        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_PAYMENT_RECORDED', entity: 'PurchaseOrder', entityId: purchase.id, metadata: { paymentId: payment.id, accountId, currency, originalAmount, exchangeRatePyg, amountPyg, kind } } })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: kind === 'ADVANCE' ? 'PURCHASE_ADVANCE' : 'PURCHASE_PAYMENT_RECORDED', entity: 'PurchaseOrder', entityId: purchase.id, metadata: { paymentId: payment.id, accountId, currency, originalAmount, exchangeRatePyg, amountPyg, kind } } })
         return { payment, status: purchase.status }
+      }
+      if (body.action === 'update-costs') {
+        if (purchase.status !== 'DRAFT') throw new Error('Solo se pueden editar costos antes de recibir la compra.')
+        const inputLines = Array.isArray(body.lines) ? body.lines : []
+        if (inputLines.length === 0 || inputLines.length > MAX_LINES) throw new Error('Líneas de costo inválidas.')
+        const overrides: Record<string, PurchaseLineCostOverride> = {}
+        for (const item of inputLines) {
+          const lineId = item?.id
+          const unitCostPyg = Number(item?.unitCostPyg)
+          const allocatedFeesPyg = Number(item?.allocatedFeesPyg ?? 0)
+          if (!boundedText(lineId, MAX_ID) || !safePyg(unitCostPyg) || !safePyg(allocatedFeesPyg)) throw new Error('Línea de costo inválida.')
+          overrides[String(lineId)] = { id: String(lineId), unitCostPyg, allocatedFeesPyg }
+        }
+        const current = await tx.$queryRaw<Array<{ id: string; quantity: number; unitCostPyg: number; baseTotalPyg: number; allocatedShippingPyg: number; allocatedCustomsPyg: number; allocatedInsurancePyg: number; allocatedTaxesPyg: number; allocatedOtherCostsPyg: number; allocatedExtraCostPyg: number; finalTotalCostPyg: number; finalUnitCostPyg: number }>>`SELECT "id", "quantity", "unitCostPyg", "baseTotalPyg", "allocatedShippingPyg", "allocatedCustomsPyg", "allocatedInsurancePyg", "allocatedTaxesPyg", "allocatedOtherCostsPyg", "allocatedExtraCostPyg", "finalTotalCostPyg", "finalUnitCostPyg" FROM "PurchaseLine" WHERE "purchaseId" = ${purchase.id} FOR UPDATE`
+        const currentById = new Map(current.map(line => [line.id, line]))
+        for (const lineId of Object.keys(overrides)) if (!currentById.has(lineId)) throw new Error('Línea de compra no encontrada.')
+        const updated = applyPurchaseLineOverrides(current, overrides)
+        for (const line of updated) if (!safePyg(line.baseTotalPyg) || !safePyg(line.finalTotalCostPyg) || !safePyg(line.finalUnitCostPyg)) throw new Error('Costo acumulado fuera de rango.')
+        const { finalCostPyg } = purchaseTotals(updated)
+        if (!safePyg(finalCostPyg)) throw new Error('Costo acumulado fuera de rango.')
+        for (const lineId of Object.keys(overrides)) {
+          const before = currentById.get(lineId)
+          const after = updated.find(line => line.id === lineId)
+          if (!before || !after) continue
+          const snapshot = (line: typeof before) => ({ unitCostPyg: line.unitCostPyg, baseTotalPyg: line.baseTotalPyg, allocatedShippingPyg: line.allocatedShippingPyg, allocatedCustomsPyg: line.allocatedCustomsPyg, allocatedInsurancePyg: line.allocatedInsurancePyg, allocatedTaxesPyg: line.allocatedTaxesPyg, allocatedOtherCostsPyg: line.allocatedOtherCostsPyg, allocatedExtraCostPyg: line.allocatedExtraCostPyg, finalTotalCostPyg: line.finalTotalCostPyg, finalUnitCostPyg: line.finalUnitCostPyg })
+          await tx.$executeRaw`UPDATE "PurchaseLine" SET "unitCostPyg" = ${after.unitCostPyg}, "baseTotalPyg" = ${after.baseTotalPyg}, "allocatedShippingPyg" = 0, "allocatedCustomsPyg" = 0, "allocatedInsurancePyg" = 0, "allocatedTaxesPyg" = 0, "allocatedOtherCostsPyg" = 0, "allocatedExtraCostPyg" = ${after.allocatedExtraCostPyg}, "finalTotalCostPyg" = ${after.finalTotalCostPyg}, "finalUnitCostPyg" = ${after.finalUnitCostPyg} WHERE "id" = ${lineId} AND "purchaseId" = ${purchase.id}`
+          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_COSTS_UPDATED', entity: 'PurchaseLine', entityId: lineId, metadata: { purchaseOrderId: purchase.id, lineId, before: snapshot(before), after: snapshot(after) } } })
+        }
+        const paidRows = await tx.$queryRaw<Array<{ paidPyg: number }>>`SELECT COALESCE(SUM("amountPyg")::int, 0) AS "paidPyg" FROM "PurchasePayment" WHERE "purchaseId" = ${purchase.id}`
+        return { id: purchase.id, status: purchase.status, lines: updated, finalCostPyg, paidPyg: paidRows[0].paidPyg, outstandingPyg: finalCostPyg - paidRows[0].paidPyg }
       }
       if (purchase.status !== 'DRAFT') throw new Error('La compra ya fue recibida.')
       const lines = await tx.$queryRaw`SELECT pl."productId", pl."quantity" FROM "PurchaseLine" pl WHERE pl."purchaseId" = ${purchase.id}` as Array<{ productId: string; quantity: number }>

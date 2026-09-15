@@ -874,18 +874,24 @@ model PurchaseOrder {
 }
 
 model Supplier {
-  id         String   @id @default(cuid())
-  tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name       String
-  document   String?
-  phone      String?
-  email      String?
-  notes      String?
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  purchases  PurchaseOrder[]
+  id           String         @id @default(cuid())
+  tenantId     String
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  document     String?
+  phone        String?
+  address      String?
+  city         String?
+  email        String?
+  // Persona de contacto de la ficha del proveedor.
+  contactName  String?
+  // Términos de pago libres, por ejemplo 'CONTADO' o '7 días'.
+  paymentTerms String?
+  notes        String?
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  purchases    PurchaseOrder[]
 
   @@unique([tenantId, name])
   @@index([tenantId, isActive, name])

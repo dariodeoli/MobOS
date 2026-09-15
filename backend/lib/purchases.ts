@@ -62,3 +62,28 @@ export function purchaseTotals(lines: ReturnType<typeof distributePurchaseCosts>
   const paidPyg = payments.reduce((sum, payment) => sum + Number(payment.amountPyg || 0), 0)
   return { finalCostPyg, paidPyg, outstandingPyg: finalCostPyg - paidPyg }
 }
+
+export type PurchaseLineCostOverride = { id: string; unitCostPyg: number; allocatedFeesPyg: number }
+
+/** Sobrescribe el costo base y los gastos asignados de líneas puntuales. El
+ * desglose por rubro ya no es recuperable, así que queda consolidado en
+ * allocatedExtraCostPyg; los totales se recalculan con la misma lógica que
+ * distributePurchaseCosts (base = cantidad × costo unitario). */
+export function applyPurchaseLineOverrides<T extends { id: string; quantity: number }>(lines: T[], overrides: Record<string, PurchaseLineCostOverride>) {
+  return lines.map(line => {
+    const override = overrides[line.id]
+    if (!override) return line
+    const baseTotalPyg = line.quantity * override.unitCostPyg
+    const finalTotalCostPyg = baseTotalPyg + override.allocatedFeesPyg
+    return {
+      ...line,
+      unitCostPyg: override.unitCostPyg,
+      baseTotalPyg,
+      allocatedShippingPyg: 0, allocatedCustomsPyg: 0, allocatedInsurancePyg: 0,
+      allocatedTaxesPyg: 0, allocatedOtherCostsPyg: 0,
+      allocatedExtraCostPyg: override.allocatedFeesPyg,
+      finalTotalCostPyg,
+      finalUnitCostPyg: Math.round(finalTotalCostPyg / line.quantity),
+    }
+  })
+}
