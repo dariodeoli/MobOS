@@ -29,8 +29,24 @@ export function SesionProvider({ children }) {
   }, [activarSesion])
   useEffect(() => {
     let vivo = true
+    let intentos = 0
     if (isDemoRuntime) { if (demoSessionActive()) entrarDemo(); else setEstado('fuera'); return () => { vivo = false } }
-    sessionApi.me().then(async (result) => { if (vivo && result?.user) await activarSesion(result.user); else if (vivo) { clearSession(); setEstado('fuera') } }).catch((error) => { if (!vivo) return; if (error?.status === 401) { clearSession(); setEstado('fuera') } else { console.error('[sesion] no se pudo validar la sesión real:', error); setEstado('fuera') } })
+    // Un error de red no debe expulsar al usuario: se reintenta la validación
+    // unas veces y solo se cierra la sesión visual ante un 401 real.
+    const validar = async () => {
+      try {
+        const result = await sessionApi.me()
+        if (!vivo) return
+        if (result?.user) await activarSesion(result.user)
+        else { clearSession(); setEstado('fuera') }
+      } catch (error) {
+        if (!vivo) return
+        if (error?.status === 401) { clearSession(); setEstado('fuera') }
+        else if (intentos < 4) { intentos += 1; setTimeout(() => { if (vivo) validar() }, 3000) }
+        else { console.error('[sesion] no se pudo validar la sesión real:', error); setEstado('fuera') }
+      }
+    }
+    validar()
     return () => { vivo = false }
   }, [activarSesion, entrarDemo])
   useEffect(() => { setActor(usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, esPropietario: empresa?.rol === 'dueno' } : null) }, [usuario, empresa])
@@ -38,7 +54,7 @@ export function SesionProvider({ children }) {
   async function entrarVendedor(credentials) { const result = await sessionApi.loginSeller(credentials); await activarSesion(result.user); return result }
   async function cambiarVendedor(credentials) { const result = await sessionApi.switchSeller(credentials); await activarSesion(result.user); return result }
   async function entrar(session) { if (!session?.user) throw new Error('Usá el flujo de autenticación de MobOS.'); await activarSesion(session.user) }
-  async function salir() { if (isDemoRuntime) { clearDemoSession(); clearSession(); await setContexto({ fuente: 'legacy' }); window.location.assign('/login'); return }; await sessionApi.logout(); await setContexto({ fuente: 'legacy' }); setUsuario(null); setEmpresa(null); setEmpresas([]); setSucursal(null); setSucursales([]); setVendedores([]); setEstado('fuera') }
+  async function salir() { if (isDemoRuntime) { clearDemoSession(); clearSession(); await setContexto({ fuente: 'legacy' }); window.location.assign('/login'); return }; try { await sessionApi.logout() } catch (error) { console.error('[sesion] el cierre remoto falló:', error) } await setContexto({ fuente: 'legacy' }); setUsuario(null); setEmpresa(null); setEmpresas([]); setSucursal(null); setSucursales([]); setVendedores([]); setEstado('fuera') }
   const sesion = usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, correo: usuario.email, esPropietario: empresa?.rol === 'dueno', rol: empresa?.rol || null } : null
   return <SesionContext.Provider value={{ estado, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal: async () => {}, cambiarEmpresa: async () => {}, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
 }

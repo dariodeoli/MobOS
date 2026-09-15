@@ -45,8 +45,10 @@ export default function ListaVentasDia({
   filtro: filtroControlado,
   onFiltroChange,
 }) {
-  const { sesion } = useSesion()
-  const puedeBorrar = !!sesion?.esPropietario
+  const { sesion, esDemo } = useSesion()
+  // En modo API las ventas viven en el backend y aún no hay endpoint de
+  // eliminación; el borrado local solo aplica a la demo.
+  const puedeBorrar = !!sesion?.esPropietario && esDemo
   const prods = productosById()
   const [filtroInterno, setFiltroInterno] = useState('todas')
   const [busqueda, setBusqueda] = useState('')

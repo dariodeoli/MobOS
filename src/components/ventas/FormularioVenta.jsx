@@ -139,6 +139,7 @@ export default function FormularioVenta({
   onTradeInConsumed,
 }) {
   const { sesion, esDemo } = useSesion()
+  const puedeDescontar = esDemo || ['dueno', 'GERENTE'].includes(sesion?.rol)
   const productos = getProductos().filter(p => p.activo)
   const familias = agruparProductos(productos)
   // Carrito persistido: se restaura una sola vez al montar el formulario.
@@ -537,6 +538,8 @@ export default function FormularioVenta({
     try {
       if (tieneCupon && gsNum(descuento) > 0)
         throw new Error('Quitá el descuento extra para utilizar un cupón. No son acumulables.')
+      if (!puedeDescontar && gsNum(descuento) > 0)
+        throw new Error('Solo administradores y gerentes pueden aplicar descuentos.')
       if (esDemo) validateDemoPromotionItems(orderItems, productos, gsNum(descuento))
       if (!cuentas || errorCuentas)
         throw new Error(errorCuentas || 'Esperá a que terminen de cargar las cuentas.')
@@ -1248,7 +1251,17 @@ export default function FormularioVenta({
           {/* Estado de pago */}
           <div>
             <Label>Descuento extra (Gs)</Label>
-            <MoneyInput value={descuento} onValueChange={setDescuento} placeholder="0" />
+            <MoneyInput
+              value={descuento}
+              onValueChange={setDescuento}
+              placeholder="0"
+              disabled={!puedeDescontar}
+            />
+            {!puedeDescontar && (
+              <p className="mt-1 text-xs text-mute">
+                Solo administradores y gerentes pueden aplicar descuentos.
+              </p>
+            )}
             {tieneCupon && (
               <p className="mt-1 text-xs text-fono-light">
                 Esta venta tiene cupón: el descuento extra debe quedar en cero.

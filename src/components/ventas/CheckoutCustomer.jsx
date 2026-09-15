@@ -46,7 +46,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo }) {
   }
 
   return <div className="space-y-3 md:col-span-2">
-    <label className="block text-sm font-semibold">Cliente<Input aria-label="Nombre, teléfono, CI o RUC del cliente" value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ name: event.target.value, phone: '', countryCode: '+595', email: '', document: '', addresses: [] })} /></label>
+    <label className="block text-sm font-semibold">Cliente<Input aria-label="Nombre, teléfono, CI o RUC del cliente" value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...value, id: undefined, name: event.target.value })} /></label>
     {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => onChange(customerValue(customer))}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}</button>)}{!matches.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará automáticamente al confirmar la venta.</p>}</div>}
     {value.id && <p className="rounded-lg border border-fono/20 bg-fono/5 px-3 py-2 text-xs text-fono-light">Cliente seleccionado. Podés usar una dirección existente o agregar una nueva para este pedido.</p>}
     {error && <p role="alert" className="text-sm text-bad">{error}</p>}

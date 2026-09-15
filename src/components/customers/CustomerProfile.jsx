@@ -83,7 +83,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
     setEditingNote(null)
     setFollowForm({ kind: 'CALL', dueAt: '', note: '' })
     api
-      .get(`customers/${customer.id}`)
+      .get(`/api/customers/${customer.id}`)
       .then((data) => { if (active) { setProfile(data); setLoading(false) } })
       .catch((cause) => {
         if (active) setError(cause?.message || 'No se pudo cargar el perfil del cliente.')
@@ -112,10 +112,10 @@ export default function CustomerProfile({ customer, open, onClose }) {
     setNoteBusy(true)
     try {
       if (editingNote) {
-        await api.patch(`customers/${customer.id}/notes`, { id: editingNote.id, content })
+        await api.patch(`/api/customers/${customer.id}/notes`, { id: editingNote.id, content })
         toast.success('Nota actualizada')
       } else {
-        await api.post(`customers/${customer.id}/notes`, { content })
+        await api.post(`/api/customers/${customer.id}/notes`, { content })
         toast.success('Nota guardada')
       }
       setNewNote('')
@@ -132,7 +132,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
     if (!pendingDelete || deleteBusy) return
     setDeleteBusy(true)
     try {
-      await api.delete(`customers/${customer.id}/notes`, { id: pendingDelete.id })
+      await api.delete(`/api/customers/${customer.id}/notes`, { id: pendingDelete.id })
       toast.success('Nota eliminada')
       setPendingDelete(null)
       refresh()
@@ -149,7 +149,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
     if (!note || followBusy) return
     setFollowBusy(true)
     try {
-      await api.post(`customers/${customer.id}/follow-ups`, { kind: followForm.kind, note, dueAt: followForm.dueAt || undefined })
+      await api.post(`/api/customers/${customer.id}/follow-ups`, { kind: followForm.kind, note, dueAt: followForm.dueAt || undefined })
       toast.success('Seguimiento agendado')
       setFollowForm({ kind: 'CALL', dueAt: '', note: '' })
       refresh()
@@ -164,7 +164,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
     if (item.doneAt || followDoneId) return
     setFollowDoneId(item.id)
     try {
-      await api.patch(`customers/${customer.id}/follow-ups`, { id: item.id, doneAt: new Date().toISOString() })
+      await api.patch(`/api/customers/${customer.id}/follow-ups`, { id: item.id, doneAt: new Date().toISOString() })
       toast.success('Seguimiento marcado como hecho')
       refresh()
     } catch (cause) {
@@ -178,7 +178,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
     if (!pendingDelete || deleteBusy) return
     setDeleteBusy(true)
     try {
-      await api.delete(`customers/${customer.id}/follow-ups`, { id: pendingDelete.id })
+      await api.delete(`/api/customers/${customer.id}/follow-ups`, { id: pendingDelete.id })
       toast.success('Seguimiento eliminado')
       setPendingDelete(null)
       refresh()

@@ -7,18 +7,19 @@ import { refrescar } from '@/lib/storage'
 //  - al refrescar, la vista recalcula "hoy", así el sistema rota de día solo.
 export function useAutoRefrescar(ms = 180000) {
   useEffect(() => {
-    refrescar()
+    const segura = () => { Promise.resolve(refrescar()).catch(() => {}) }
+    segura()
     const onVisible = () => {
-      if (document.visibilityState === 'visible') refrescar()
+      if (document.visibilityState === 'visible') segura()
     }
     document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('focus', refrescar)
+    window.addEventListener('focus', segura)
     const id = setInterval(() => {
-      if (document.visibilityState === 'visible') refrescar()
+      if (document.visibilityState === 'visible') segura()
     }, ms)
     return () => {
       document.removeEventListener('visibilitychange', onVisible)
-      window.removeEventListener('focus', refrescar)
+      window.removeEventListener('focus', segura)
       clearInterval(id)
     }
   }, [ms])

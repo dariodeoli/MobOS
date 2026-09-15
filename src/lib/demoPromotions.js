@@ -16,7 +16,7 @@ export function quoteDemoPromotion(product, quantity, code) {
   const p = readDemoPromotions().find(row => row.code === code.trim().toUpperCase())
   const now = Date.now()
   if (!p || !p.isActive || +new Date(p.startsAt) > now || +new Date(p.endsAt) <= now) throw new Error('Cupón inexistente, inactivo o fuera de vigencia.')
-  if (!Number.isSafeInteger(quantity) || quantity < 1 || (p.productId && p.productId !== product.id) || (p.maxUnits !== null && p.usedUnits + quantity > p.maxUnits)) throw new Error('Cupón no aplicable o agotado.')
+  if (!Number.isSafeInteger(quantity) || quantity < 1 || (p.productId && p.productId !== product.id) || (p.maxUnits !== null && (p.usedUnits || 0) + quantity > p.maxUnits)) throw new Error('Cupón no aplicable o agotado.')
   const base = Number(product.precioVenta)
   if (!Number.isSafeInteger(base) || base < 0) throw new Error('Precio inválido.')
   return { couponCode: p.code, unitPricePyg: Math.max(0, base - (p.kind === 'PERCENT' ? Math.round(base * p.value / 100) : p.value)) }

@@ -506,15 +506,22 @@ export default function PanelVendedor() {
               <Subtabs
                 value={finanzasTab}
                 onChange={setFinanzasTab}
-                items={[
-                  ['caja', 'Caja'],
-                  ['gastos', 'Gastos'],
-                  ['publicidad', 'Publicidad'],
-                ]}
+                items={
+                  esDemo
+                    ? [
+                        ['caja', 'Caja'],
+                        ['gastos', 'Gastos'],
+                        ['publicidad', 'Publicidad'],
+                      ]
+                    : [
+                        ['caja', 'Caja'],
+                        ['gastos', 'Gastos'],
+                      ]
+                }
               />
               {finanzasTab === 'caja' && <Caja />}
               {finanzasTab === 'gastos' && <Gastos />}
-              {finanzasTab === 'publicidad' && <Ads />}
+              {esDemo && finanzasTab === 'publicidad' && <Ads />}
             </div>
           )}
           {esOwner && vista === 'equipo' && (
@@ -522,14 +529,21 @@ export default function PanelVendedor() {
               <Subtabs
                 value={equipoTab}
                 onChange={setEquipoTab}
-                items={[
-                  ['vendedores', 'Vendedores'],
-                  ['historial', 'Historial'],
-                  ['configuracion', 'Configuración'],
-                ]}
+                items={
+                  esDemo
+                    ? [
+                        ['vendedores', 'Vendedores'],
+                        ['historial', 'Historial'],
+                        ['configuracion', 'Configuración'],
+                      ]
+                    : [
+                        ['vendedores', 'Vendedores'],
+                        ['configuracion', 'Configuración'],
+                      ]
+                }
               />
               {equipoTab === 'vendedores' && <Vendedores />}
-              {equipoTab === 'historial' && <Historial />}
+              {esDemo && equipoTab === 'historial' && <Historial />}
               {equipoTab === 'configuracion' && <Config />}
             </div>
           )}
