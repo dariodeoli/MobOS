@@ -25,15 +25,15 @@ export function useSellerData(path, project, demoRead, esDemo) {
 }
 
 export function SellerSection({ title, description, children }) {
-  return <section className="mx-auto max-w-5xl space-y-5">
-    <div><h1 className="text-2xl font-bold">{title}</h1><p className="mt-2 text-sm text-slate-400">{description}</p></div>
+  return <section className="space-y-5">
+    <div><h1 className="text-2xl font-bold">{title}</h1><p className="mt-2 text-sm text-mute">{description}</p></div>
     {children}
   </section>
 }
 
 export function SellerFeedback({ loading, error, empty, refresh }) {
-  if (loading) return <p role="status" className="py-6 text-slate-400">Cargando…</p>
+  if (loading) return <p role="status" className="py-6 text-mute">Cargando…</p>
   if (error) return <div role="alert" className="space-y-3 py-4"><p>{error}</p><Button onClick={refresh}>Reintentar</Button></div>
-  if (empty) return <p role="status" className="rounded-xl border border-white/10 p-6 text-slate-400">No hay resultados.</p>
+  if (empty) return <p role="status" className="rounded-xl border border-fore/10 p-6 text-mute">No hay resultados.</p>
   return null
 }

@@ -98,7 +98,7 @@ export default function Historial() {
               className={
                 'rounded-full px-3 py-1.5 text-xs font-bold transition border-2 ' +
                 (filtro === k
-                  ? 'border-fono bg-fono text-white'
+                  ? 'border-fono bg-fono text-onbrand'
                   : 'border-ink-600 text-mute hover:border-fono hover:text-fono')
               }
             >
@@ -148,7 +148,7 @@ export default function Historial() {
                         <div key={i} className="text-xs text-mute">
                           <span className="font-semibold text-mute">{c.campo}:</span>{' '}
                           <span className="line-through">{valorCambio(c.campo, c.de)}</span>{' '}
-                          <span className="text-white">{valorCambio(c.campo, c.a)}</span>
+                          <span className="text-fore">{valorCambio(c.campo, c.a)}</span>
                         </div>
                       ))}
                     </div>

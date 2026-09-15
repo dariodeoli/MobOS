@@ -33,14 +33,14 @@ export default function SellerPromotions() {
   }
   return <SellerSection title="Promociones" description={esDemo ? 'Demo ficticia local. Usá DEMO10 al elegir un producto.' : 'Aplicá el código en el precio del producto. Se verifica nuevamente al registrar la venta.'}>
     <SellerFeedback {...data} empty={!data.rows.length} />
-    <ul className="grid gap-3 sm:grid-cols-2">{data.rows.map(p => <li key={p.id} className="space-y-2 rounded-xl border border-white/10 p-4">
+    <ul className="grid gap-3 sm:grid-cols-2">{data.rows.map(p => <li key={p.id} className="space-y-2 rounded-xl border border-fore/10 p-4">
       <h2 className="font-semibold">{p.name} · {p.code}</h2>
       <p>{p.kind === 'PERCENT' ? `${p.value}%` : gs(p.value)} por unidad · {p.productId ? products.find(product => product.id === p.productId)?.nombre || 'Producto específico' : 'Todos los productos'}</p>
       <p className="text-sm text-mute">{new Date(p.startsAt).toLocaleString('es-PY')} — {new Date(p.endsAt).toLocaleString('es-PY')}</p>
       <p>{!p.isActive ? 'Inactiva' : Date.now() >= +new Date(p.endsAt) ? 'Vencida' : Date.now() < +new Date(p.startsAt) ? 'Programada' : 'Activa'} · {p.maxUnits === null ? 'Sin límite de unidades' : `${Math.max(0, p.maxUnits - p.usedUnits)} unidades disponibles`}</p>
       {admin && <Button type="button" disabled={busy} onClick={() => mutate(() => esDemo ? toggleDemoPromotion(p.id, !p.isActive) : api.patch('/api/promotions', { id: p.id, isActive: !p.isActive }))}>{p.isActive ? 'Desactivar' : 'Activar'}</Button>}
     </li>)}</ul>
-    {admin && <form onSubmit={create} className="space-y-3 rounded-xl border border-white/10 p-4">
+    {admin && <form onSubmit={create} className="space-y-3 rounded-xl border border-fore/10 p-4">
       <h2 className="font-semibold">Crear cupón</h2>
       {['code', 'name'].map(key => <label className="block" key={key}>{{ code: 'Código', name: 'Nombre' }[key]}<Input required pattern={key === 'code' ? '[A-Za-z0-9_-]{2,40}' : undefined} maxLength={key === 'code' ? 40 : 120} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label>)}
       <label className="block">Productos incluidos<Select value={form.productId} onChange={e => setForm({ ...form, productId: e.target.value })}><option value="">Todos los productos</option>{products.map(product => <option key={product.id} value={product.id}>{product.nombre}</option>)}</Select></label>

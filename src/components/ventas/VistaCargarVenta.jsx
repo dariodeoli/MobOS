@@ -69,7 +69,7 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
   const filas = d.ultimas.slice((pag - 1) * POR_PAGINA, pag * POR_PAGINA)
   const nombreProd = (v) => v.productoNombre || prods[v.productoId]?.nombre || '—'
 
-  if (!sesion?.esPropietario) return <div className="mx-auto w-full max-w-4xl"><FormularioVenta tradeInDraft={tradeInDraft} onTradeInConsumed={onTradeInConsumed} /></div>
+  if (!sesion?.esPropietario) return <div className="w-full"><FormularioVenta tradeInDraft={tradeInDraft} onTradeInConsumed={onTradeInConsumed} /></div>
 
   return (
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
@@ -172,11 +172,11 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
               </div>
 
               {paginas > 1 && (
-                <div className="flex items-center justify-between gap-2 px-5 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
                   <button
                     onClick={() => setPagina((p) => Math.max(1, p - 1))}
                     disabled={pag === 1}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-xs text-mute transition hover:text-white disabled:opacity-30"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-xs text-mute transition hover:text-fore disabled:opacity-30"
                   >
                     <Icon name="chevron" className="h-3.5 w-3.5 rotate-90" /> Anterior
                   </button>
@@ -188,8 +188,8 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
                         className={cn(
                           'h-8 w-8 rounded-lg text-xs transition',
                           n === pag
-                            ? 'bg-fono font-semibold text-white'
-                            : 'text-mute hover:bg-ink-700 hover:text-white',
+                            ? 'bg-fono font-semibold text-onbrand'
+                            : 'text-mute hover:bg-ink-700 hover:text-fore',
                         )}
                       >
                         {n}
@@ -199,7 +199,7 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
                   <button
                     onClick={() => setPagina((p) => Math.min(paginas, p + 1))}
                     disabled={pag === paginas}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-xs text-mute transition hover:text-white disabled:opacity-30"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-xs text-mute transition hover:text-fore disabled:opacity-30"
                   >
                     Siguiente <Icon name="chevron" className="h-3.5 w-3.5 -rotate-90" />
                   </button>
@@ -256,14 +256,14 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
         </Caja>
 
         {/* Acumulado del día */}
-        <div className="rounded-[14px] border border-fono/40 bg-blue-blur p-[18px]">
-          <div className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-white/60">
+        <div className="rounded-[14px] border border-fono/40 bg-gradient-to-br from-fono-dark via-fono to-fono p-[18px]">
+          <div className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-onbrand/75">
             Acumulado del día
           </div>
-          <div className="mt-1.5 text-[28px] font-semibold tracking-tight tabular-nums">
+          <div className="mt-1.5 text-[28px] font-semibold tracking-tight tabular-nums text-onbrand">
             {gs(d.total)}
           </div>
-          <div className="mt-1.5 text-[11.5px] text-white/60">
+          <div className="mt-1.5 text-[11.5px] text-onbrand/75">
             {d.cant} {d.cant === 1 ? 'venta' : 'ventas'} · ticket {gs(d.ticket)}
           </div>
         </div>

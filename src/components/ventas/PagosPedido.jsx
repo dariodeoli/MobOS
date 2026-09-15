@@ -135,8 +135,8 @@ export default function PagosPedido({ venta, onClose }) {
   return <Modal open onClose={() => !busy && onClose()} title={`Pagos · ${order.codigo || order.cliente || 'Pedido'}`} className="max-w-2xl">
     <p className="mb-5 text-sm text-mute">Cada cobro conserva su fecha y referencia. Un archivo adjunto no confirma una transferencia.</p>
     <div className="mb-5 grid grid-cols-2 gap-3">
-      <div className="rounded-xl border border-white/10 p-4"><p className="text-xs text-mute">Pagado</p><strong className="mt-1 block text-xl text-fono-light">{gs(order.totalPagado)}</strong></div>
-      <div className="rounded-xl border border-white/10 p-4"><p className="text-xs text-mute">Pendiente</p><strong className="mt-1 block text-xl">{gs(pending)}</strong></div>
+      <div className="rounded-xl border border-fore/10 p-4"><p className="text-xs text-mute">Pagado</p><strong className="mt-1 block text-xl text-fono-light">{gs(order.totalPagado)}</strong></div>
+      <div className="rounded-xl border border-fore/10 p-4"><p className="text-xs text-mute">Pendiente</p><strong className="mt-1 block text-xl">{gs(pending)}</strong></div>
     </div>
     {pending > 0 && <form onSubmit={register} className="mb-6 space-y-3 rounded-xl border border-fono/20 bg-fono/5 p-4">
       <h3 className="font-semibold">Registrar pago parcial o total</h3>
@@ -150,14 +150,14 @@ export default function PagosPedido({ venta, onClose }) {
     </form>}
     <div className="space-y-3"><h3 className="font-semibold">Cronología de pagos y comprobantes</h3>
       {!payments.length && <p className="text-sm text-mute">Todavía no hay pagos registrados.</p>}
-      {payments.map(p => <article key={p.id} className="rounded-xl border border-white/10 p-4">
+      {payments.map(p => <article key={p.id} className="rounded-xl border border-fore/10 p-4">
         <div className="flex justify-between gap-3"><strong>{gs(p.monto)}</strong><span className="text-xs text-mute">{METHODS[p.medioPago] || p.medioPago}</span></div>
         <p className="mt-1 text-xs text-mute">{new Date(p.fecha || p.paidAt || p.createdAt).toLocaleString('es-PY')} · {p.cuenta || p.reference || 'Sin referencia'}</p>
         {p.accountSnapshot && <p className="mt-1 text-xs text-fono-light">{p.accountSnapshot.name} · {p.accountSnapshot.bank} · {p.accountSnapshot.accountNumber} · {p.currency} {p.originalAmount} · cotización {p.exchangeRatePyg}</p>}
         <p className="my-2 text-xs text-amber-300">Conciliación: {(reconciliations[p.id]?.state || p.reconciliationState) === 'VERIFIED' ? 'Verificada' : (reconciliations[p.id]?.state || p.reconciliationState) === 'REJECTED' ? 'Rechazada' : 'Pendiente de revisión'}</p>
         {(proofs[p.id] || []).map(file => <button key={file.id} className="mb-2 block text-sm text-fono-light underline" onClick={() => download(p.id, file)}>{file.name || file.fileName || 'Descargar comprobante'}</button>)}
         <label className="block text-xs text-mute">Adjuntar comprobante · JPG, PNG, WebP o PDF · hasta 5 MB<input disabled={busy} type="file" className="mt-2 block w-full text-xs" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={e => { upload(p.id, e.target.files?.[0]); e.target.value = '' }} /></label>
-        {canReconcile && <div className="mt-3 border-t border-white/10 pt-3"><Input aria-label={`Comentario de conciliación ${p.id}`} placeholder="Comentario interno de conciliación" maxLength={2000} value={notes[p.id] || ''} onChange={e => setNotes(prev => ({ ...prev, [p.id]: e.target.value }))} /><div className="mt-2 flex gap-2"><Button disabled={busy} onClick={() => reconcile(p.id, 'VERIFIED')}>Verificar</Button><button disabled={busy} className="rounded-lg border border-red-400/30 px-3 text-sm text-red-300" onClick={() => reconcile(p.id, 'REJECTED')}>Rechazar</button></div></div>}
+        {canReconcile && <div className="mt-3 border-t border-fore/10 pt-3"><Input aria-label={`Comentario de conciliación ${p.id}`} placeholder="Comentario interno de conciliación" maxLength={2000} value={notes[p.id] || ''} onChange={e => setNotes(prev => ({ ...prev, [p.id]: e.target.value }))} /><div className="mt-2 flex gap-2"><Button disabled={busy} onClick={() => reconcile(p.id, 'VERIFIED')}>Verificar</Button><button disabled={busy} className="rounded-lg border border-red-400/30 px-3 text-sm text-red-300" onClick={() => reconcile(p.id, 'REJECTED')}>Rechazar</button></div></div>}
         {(p.reconciliationHistory || []).map((entry, index) => <p key={index} className="mt-2 text-xs text-mute">{entry.user} · {new Date(entry.at).toLocaleString('es-PY')} · {entry.state}: {entry.note}</p>)}
         {reconciliations[p.id]?.note && <p className="mt-2 text-xs text-mute">{reconciliations[p.id].note}</p>}
       </article>)}

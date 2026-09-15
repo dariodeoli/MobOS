@@ -80,7 +80,7 @@ export default function TradeIn() {
 
   return (
     <div className="min-h-dvh bg-ink-700">
-      <header className="sticky top-0 z-30 bg-fono text-white pt-safe shadow-md">
+      <header className="sticky top-0 z-30 bg-fono text-onbrand pt-safe shadow-md">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold">Trade-In</div>
           <div className="flex items-center gap-3">
@@ -89,7 +89,7 @@ export default function TradeIn() {
             </span>
             <Button
               variant="ghost"
-              className="text-white hover:bg-ink-800/15"
+              className="text-onbrand hover:bg-ink-800/15"
               onClick={() => navigate('/')}
             >
               Volver
@@ -343,7 +343,7 @@ export default function TradeIn() {
 function Paso({ n, children }) {
   return (
     <div className="flex items-center gap-2 mb-2">
-      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-fono text-white text-xs font-bold">
+      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-fono text-onbrand text-xs font-bold">
         {n}
       </span>
       <h2 className="font-bold">{children}</h2>
@@ -410,17 +410,17 @@ function Resultado({ s, resultado, config, onReset, onSalir }) {
 
   return (
     <div className="min-h-dvh bg-ink-700">
-      <header className="sticky top-0 z-30 bg-fono text-white pt-safe shadow-md">
+      <header className="sticky top-0 z-30 bg-fono text-onbrand pt-safe shadow-md">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="font-bold">Resultado del Trade-In</div>
-          <Button variant="ghost" className="text-white hover:bg-ink-800/15" onClick={onSalir}>
+          <Button variant="ghost" className="text-onbrand hover:bg-ink-800/15" onClick={onSalir}>
             Volver
           </Button>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto p-4 space-y-3">
-        <Card className="bg-gradient-to-br from-fono-dark via-fono to-fono-accent text-white border-0 text-center py-7">
+        <Card className="bg-gradient-to-br from-fono-dark via-fono to-fono-accent text-onbrand border-0 text-center py-7">
           <div className="text-xs uppercase tracking-wide opacity-75 font-bold">
             Valor de Trade-In
           </div>

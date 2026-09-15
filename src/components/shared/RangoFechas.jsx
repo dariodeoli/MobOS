@@ -121,7 +121,7 @@ export default function RangoFechas({ valor, onChange, className }) {
     <div className={cn('relative', className)} ref={ref}>
       <button
         onClick={() => setAbierto((v) => !v)}
-        className="inline-flex h-9 items-center gap-2 rounded-lg border border-ink-500 bg-ink-800 px-3 text-sm text-white transition hover:border-fono"
+        className="inline-flex h-9 items-center gap-2 rounded-lg border border-ink-500 bg-ink-800 px-3 text-sm text-fore transition hover:border-fono"
       >
         <Icon name="calendar" className="h-4 w-4 text-mute" />
         {etiquetaRango(valor)}
@@ -144,8 +144,8 @@ export default function RangoFechas({ valor, onChange, className }) {
                 className={cn(
                   'rounded-lg px-2.5 py-1.5 text-sm transition',
                   valor.preset === p.id
-                    ? 'bg-fono/20 font-medium text-white ring-1 ring-fono/40'
-                    : 'text-mute hover:bg-ink-700 hover:text-white',
+                    ? 'bg-fono/20 font-medium text-fore ring-1 ring-fono/40'
+                    : 'text-mute hover:bg-ink-700 hover:text-fore',
                 )}
               >
                 {p.label}
@@ -163,7 +163,7 @@ export default function RangoFechas({ valor, onChange, className }) {
                 value={valor.desde}
                 max={fechaClave()}
                 onChange={(e) => setManual('desde', e.target.value)}
-                className="h-9 w-full rounded-lg border border-ink-500 bg-ink px-2 text-sm text-white outline-none focus:border-fono"
+                className="h-9 w-full rounded-lg border border-ink-500 bg-paper px-2 text-sm text-fore outline-none focus:border-fono"
               />
               <span className="text-mute">–</span>
               <input
@@ -171,7 +171,7 @@ export default function RangoFechas({ valor, onChange, className }) {
                 value={valor.hasta}
                 max={fechaClave()}
                 onChange={(e) => setManual('hasta', e.target.value)}
-                className="h-9 w-full rounded-lg border border-ink-500 bg-ink px-2 text-sm text-white outline-none focus:border-fono"
+                className="h-9 w-full rounded-lg border border-ink-500 bg-paper px-2 text-sm text-fore outline-none focus:border-fono"
               />
             </div>
           </div>

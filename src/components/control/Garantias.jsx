@@ -47,7 +47,7 @@ export default function Garantias() {
       <div className="space-y-4">
         <div>
           <Label htmlFor="foto-caso">Agregar foto (JPG/PNG, hasta 5 MiB)</Label>
-          <input id="foto-caso" type="file" accept="image/*" onChange={subirFoto} disabled={subiendo} className="block w-full text-sm text-mute file:mr-3 file:rounded-lg file:border file:border-ink-500 file:bg-ink-700 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-ink-600 disabled:opacity-40" />
+          <input id="foto-caso" type="file" accept="image/*" onChange={subirFoto} disabled={subiendo} className="block w-full text-sm text-mute file:mr-3 file:rounded-lg file:border file:border-ink-500 file:bg-ink-700 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-fore hover:file:bg-ink-600 disabled:opacity-40" />
         </div>
         {subiendo && <Skeleton className="h-10 w-full" />}
         {fotosError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-xs text-bad">{fotosError}</p>}
@@ -56,7 +56,7 @@ export default function Garantias() {
         {fotos.length > 0 && (
           <div className="grid gap-2 sm:grid-cols-2">
             {fotos.map(foto => (
-              <a key={foto.id} href={`${API_URL}/api/warranties/${fotosDe.id}/photos/${foto.id}`} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-2 rounded-lg border border-ink-600 px-3 py-2 text-sm text-white transition hover:border-fono hover:bg-fono/5">
+              <a key={foto.id} href={`${API_URL}/api/warranties/${fotosDe.id}/photos/${foto.id}`} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-2 rounded-lg border border-ink-600 px-3 py-2 text-sm text-fore transition hover:border-fono hover:bg-fono/5">
                 <span className="min-w-0 truncate">{foto.label || foto.fileName}</span>
                 <span className="shrink-0 text-xs text-mute">{new Date(foto.createdAt).toLocaleDateString('es-PY')} · {Math.max(1, Math.round((foto.sizeBytes || 0) / 1024))} KB</span>
               </a>

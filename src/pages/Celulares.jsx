@@ -7,6 +7,7 @@ import { gs } from '@/utils/calculos'
 import { Button, Card } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { APP_NAME } from '@/lib/brand'
+import ThemeLogo from '@/components/app/ThemeLogo'
 
 // Agrupa por modelo (más nuevo arriba; capacidad ascendente dentro de cada uno).
 function agrupar(celulares) {
@@ -47,7 +48,7 @@ function BloqueCondicion({ titulo, items, tema }) {
                     <span className="font-semibold">{c.capacidad}</span>
                     {c.color && <span className="text-mute">· {c.color}</span>}
                   </div>
-                  <div className="font-extrabold text-white">{gs(c.precio)}</div>
+                  <div className="font-extrabold text-fore">{gs(c.precio)}</div>
                 </div>
               ))}
             </div>
@@ -102,12 +103,12 @@ export default function Celulares() {
 
   return (
     <div className="min-h-dvh bg-ink-700">
-      <header className="sticky top-0 z-30 bg-fono text-white pt-safe shadow-md">
+      <header className="sticky top-0 z-30 bg-fono text-onbrand pt-safe shadow-md">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold">Lista de Precios</div>
           <Button
             variant="ghost"
-            className="text-white hover:bg-ink-800/15"
+            className="text-onbrand hover:bg-ink-800/15"
             onClick={() => navigate('/')}
           >
             Volver
@@ -147,8 +148,8 @@ export default function Celulares() {
         {conPrecio.length > 0 && (
           <div ref={ref} className="rounded-2xl bg-ink-800 overflow-hidden border border-ink-600">
             {/* Encabezado branded */}
-            <div className="bg-gradient-to-br from-fono-dark via-fono to-fono-accent text-white p-5">
-            <img src="/logo-dark.svg" alt={APP_NAME} className="h-8 mb-2" />
+            <div className="bg-gradient-to-br from-fono-dark via-fono to-fono-accent text-onbrand p-5">
+            <ThemeLogo className="h-8 mb-2" />
               <div className="text-lg font-extrabold">Lista de Precios</div>
               <div className="text-xs opacity-80">Actualizado: {hoy}</div>
             </div>

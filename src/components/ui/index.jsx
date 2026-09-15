@@ -5,11 +5,11 @@ import Icon from '@/components/shared/Icon'
 
 // ── Button ──────────────────────────────────────────────────────────
 const VARIANTS = {
-  primary: 'bg-fono text-ink hover:bg-fono-light',
+  primary: 'bg-fono text-onbrand hover:bg-fono-light',
   success: 'bg-ok text-black hover:brightness-110',
-  danger: 'bg-bad text-white hover:brightness-110',
-  outline: 'bg-transparent text-white border border-ink-500 hover:border-fono hover:bg-fono/10',
-  ghost: 'bg-transparent text-mute hover:bg-ink-700 hover:text-white',
+  danger: 'bg-bad text-fore hover:brightness-110',
+  outline: 'bg-transparent text-fore border border-ink-500 hover:border-fono hover:bg-fono/10',
+  ghost: 'bg-transparent text-mute hover:bg-ink-700 hover:text-fore',
 }
 export function Button({ className, variant = 'primary', ...props }) {
   return (
@@ -30,7 +30,7 @@ export function Input({ className, ...props }) {
   return (
     <input
       className={cn(
-        'w-full rounded-lg border border-ink-500 bg-ink-800 px-3.5 text-white',
+        'w-full rounded-lg border border-ink-500 bg-ink-800 px-3.5 text-fore',
         'h-11 md:h-9 text-base md:text-sm outline-none transition',
         'focus:border-fono focus:ring-1 focus:ring-fono/40 placeholder:text-mute/60',
         className,
@@ -50,7 +50,7 @@ export function PasswordInput({ className, ...props }) {
       <button
         type="button"
         onClick={() => setVisible(current => !current)}
-        className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-lg text-mute transition hover:text-white focus-visible:z-10"
+        className="absolute inset-y-0 right-0 grid w-11 place-items-center rounded-r-lg text-mute transition hover:text-fore focus-visible:z-10"
         aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
         aria-pressed={visible}
         title={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
@@ -90,10 +90,10 @@ export function Select({ className, children, ...props }) {
   return (
     <select
       className={cn(
-        'w-full rounded-lg border border-ink-500 bg-ink-800 px-3 text-white',
+        'w-full rounded-lg border border-ink-500 bg-ink-800 px-3 text-fore',
         'h-11 md:h-9 text-base md:text-sm outline-none transition cursor-pointer',
         'focus:border-fono focus:ring-1 focus:ring-fono/40',
-        '[&>option]:bg-ink-800 [&>option]:text-white',
+        '[&>option]:bg-ink-800 [&>option]:text-fore',
         className,
       )}
       {...props}
@@ -108,7 +108,7 @@ export function Textarea({ className, ...props }) {
   return (
     <textarea
       className={cn(
-        'w-full rounded-lg border border-ink-500 bg-ink-800 px-3.5 py-2.5 text-white',
+        'w-full rounded-lg border border-ink-500 bg-ink-800 px-3.5 py-2.5 text-fore',
         'text-base md:text-sm outline-none transition focus:border-fono focus:ring-1 focus:ring-fono/40',
         'placeholder:text-mute/60 resize-none',
         className,
@@ -178,8 +178,8 @@ export function Modal({ open, onClose, title, children, className }) {
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
       <div ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={cn('max-h-[min(90dvh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-ink-600 bg-ink-800 p-4 shadow-2xl sm:p-6', className)}>
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 id={titleId} className="text-base font-bold text-white">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-white" aria-label="Cerrar">×</button>
+          <h2 id={titleId} className="text-base font-bold text-fore">{title}</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-fore" aria-label="Cerrar">×</button>
         </div>
         {children}
       </div>
@@ -297,8 +297,8 @@ export function Drawer({ open, onClose, title, children, side = 'right', classNa
         )}
       >
         <div className="flex items-center justify-between gap-3 border-b border-ink-600 p-4">
-          <h2 id={titleId} className="text-base font-bold text-white">{title}</h2>
-          <button type="button" onClick={onClose} className="rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-white" aria-label="Cerrar">×</button>
+          <h2 id={titleId} className="text-base font-bold text-fore">{title}</h2>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-mute hover:bg-ink-700 hover:text-fore" aria-label="Cerrar">×</button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 sm:p-5">{children}</div>
       </div>
@@ -331,15 +331,15 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-full max-w-sm flex-col gap-2" aria-live="polite" role="status">
+      <div className="pointer-events-none fixed bottom-4 left-4 right-4 z-[60] flex max-w-sm flex-col gap-2 sm:left-auto sm:w-full" aria-live="polite" role="status">
         {toasts.map(toast => (
           <div key={toast.id} className={cn('pointer-events-auto flex items-start gap-3 rounded-xl border bg-ink-700 p-3.5 shadow-card', toast.variant === 'error' ? 'border-bad/40' : toast.variant === 'success' ? 'border-ok/40' : 'border-ink-500')}>
             <Icon name={TOAST_ICON[toast.variant]} className={cn('mt-0.5 h-4 w-4', TOAST_TONE[toast.variant])} />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-white">{toast.title}</p>
+              <p className="text-sm font-semibold text-fore">{toast.title}</p>
               {toast.description && <p className="mt-0.5 text-xs text-mute">{toast.description}</p>}
             </div>
-            <button type="button" onClick={() => dismiss(toast.id)} className="rounded-md p-1 text-mute transition hover:bg-ink-600 hover:text-white" aria-label="Cerrar aviso">×</button>
+            <button type="button" onClick={() => dismiss(toast.id)} className="rounded-md p-1 text-mute transition hover:bg-ink-600 hover:text-fore" aria-label="Cerrar aviso">×</button>
           </div>
         ))}
       </div>
@@ -355,7 +355,7 @@ export function useToast() {
 
 // ── Skeleton ────────────────────────────────────────────────────────
 export function Skeleton({ className }) {
-  return <div className={cn('animate-pulse rounded-lg bg-white/5', className)} aria-hidden="true" />
+  return <div className={cn('animate-pulse rounded-lg bg-fore/5', className)} aria-hidden="true" />
 }
 
 // ── EmptyState ──────────────────────────────────────────────────────
@@ -365,7 +365,7 @@ export function EmptyState({ icon = 'box', title, description, action, compact =
       <div className="grid h-12 w-12 place-items-center rounded-2xl border border-ink-500 bg-ink-700 text-mute">
         <Icon name={icon} className="h-5 w-5" />
       </div>
-      {title && <p className="mt-3 text-sm font-semibold text-white">{title}</p>}
+      {title && <p className="mt-3 text-sm font-semibold text-fore">{title}</p>}
       {description && <p className="mt-1 max-w-xs text-xs leading-5 text-mute">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
@@ -379,7 +379,7 @@ export function ErrorState({ title = 'Algo salió mal', description, onRetry }) 
       <div className="grid h-12 w-12 place-items-center rounded-2xl border border-bad/25 bg-bad/10 text-bad">
         <Icon name="alert" className="h-5 w-5" />
       </div>
-      <p className="mt-3 text-sm font-semibold text-white">{title}</p>
+      <p className="mt-3 text-sm font-semibold text-fore">{title}</p>
       {description && <p className="mt-1 max-w-xs text-xs leading-5 text-mute">{description}</p>}
       {onRetry && (
         <Button type="button" variant="outline" onClick={onRetry} className="mt-4">
@@ -399,7 +399,7 @@ export function PageHeader({ title, subtitle, actions, backTo }) {
           <button
             type="button"
             onClick={backTo}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-ink-500 text-mute transition hover:border-fono hover:bg-fono/10 hover:text-white"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-ink-500 text-mute transition hover:border-fono hover:bg-fono/10 hover:text-fore"
             aria-label="Volver"
           >
             <Icon name="back" className="h-4 w-4" />
@@ -445,7 +445,7 @@ export function DataTable({ columns, rows, emptyLabel = 'Sin datos para mostrar.
             {rows.map(row => (
               <tr key={row.id ?? row.key ?? JSON.stringify(row)} className="border-b border-ink-600/60 last:border-0">
                 {columns.map(column => (
-                  <td key={column.key} className={cn('px-4 py-3 text-white', column.align === 'right' && 'text-right', column.align === 'center' && 'text-center')}>
+                  <td key={column.key} className={cn('px-4 py-3 text-fore', column.align === 'right' && 'text-right', column.align === 'center' && 'text-center')}>
                     {column.render ? column.render(row) : row[column.key]}
                   </td>
                 ))}
@@ -481,12 +481,12 @@ export function Stat({ label, valor, delta, sub, destacado = false, className })
     <div
       className={cn(
         'relative overflow-hidden rounded-xl border p-4',
-        destacado ? 'border-fono/30 bg-blue-blur' : 'border-ink-600 bg-ink-800',
+        destacado ? 'border-fono/30 bg-gradient-to-br from-fono-dark via-fono to-fono' : 'border-ink-600 bg-ink-800',
         className,
       )}
     >
-      <div className="text-[11px] font-medium uppercase tracking-wider text-mute">{label}</div>
-      <div className="mt-1.5 text-2xl font-semibold tracking-tight text-white md:text-3xl">
+      <div className={cn('text-[11px] font-medium uppercase tracking-wider', destacado ? 'text-onbrand/75' : 'text-mute')}>{label}</div>
+      <div className={cn('mt-1.5 text-2xl font-semibold tracking-tight md:text-3xl', destacado ? 'text-onbrand' : 'text-fore')}>
         {valor}
       </div>
       <div className="mt-1.5 flex items-center gap-2 text-xs">
@@ -495,7 +495,7 @@ export function Stat({ label, valor, delta, sub, destacado = false, className })
             {sube ? '' : ''} {Math.abs(delta).toFixed(1)}%
           </span>
         )}
-        {sub && <span className="text-mute">{sub}</span>}
+        {sub && <span className={destacado ? 'text-onbrand/75' : 'text-mute'}>{sub}</span>}
       </div>
     </div>
   )

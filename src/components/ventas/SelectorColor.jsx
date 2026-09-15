@@ -26,7 +26,7 @@ export default function SelectorColor({ base, items, onPick, onCancel }) {
               aria-label={`Elegir ${it.color || it.nombre}`}
               className="min-h-16 rounded-xl border-2 border-ink-600 p-3 text-left transition hover:border-fono hover:bg-fono/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fono active:scale-[.98]"
             >
-              <div className="font-bold text-sm text-white">{it.color || it.nombre}</div>
+              <div className="font-bold text-sm text-fore">{it.color || it.nombre}</div>
               {it.precioVenta > 0 && (
                 <div className="text-xs text-fono font-semibold mt-0.5">{gs(it.precioVenta)}</div>
               )}

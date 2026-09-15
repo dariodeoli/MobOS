@@ -7,7 +7,7 @@ import Icon from '@/components/shared/Icon'
 const TONO = {
   bueno: 'text-ok',
   malo: 'text-bad',
-  neutro: 'text-white',
+  neutro: 'text-fore',
 }
 
 function Respuesta({ r }) {
@@ -25,13 +25,13 @@ function Respuesta({ r }) {
       <div className="divide-y divide-ink-600">
         {r.filas.map((f, i) => (
           <div key={i} className="flex items-center justify-between gap-3 py-2">
-            <span className={'text-sm ' + (f.fuerte ? 'font-bold text-white' : 'text-mute')}>
+            <span className={'text-sm ' + (f.fuerte ? 'font-bold text-fore' : 'text-mute')}>
               {f.k}
             </span>
             <span
               className={
                 (f.fuerte ? 'text-lg font-extrabold ' : 'text-sm font-semibold ') +
-                (TONO[f.tono] || 'text-white')
+                (TONO[f.tono] || 'text-fore')
               }
             >
               {f.v}

@@ -121,12 +121,12 @@ export default function ListaVentasDia({
               setPagina(1)
             }}
             placeholder="Buscar por cliente, producto o vendedor…"
-            className="h-9 w-full rounded-lg border border-ink-500 bg-ink pl-9 pr-8 text-sm text-white outline-none transition focus:border-fono placeholder:text-mute/60"
+            className="h-9 w-full rounded-lg border border-ink-500 bg-paper pl-9 pr-8 text-sm text-fore outline-none transition focus:border-fono placeholder:text-mute/60"
           />
           {busqueda && (
             <button
               onClick={() => setBusqueda('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mute transition hover:text-white"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mute transition hover:text-fore"
             >
               <Icon name="close" className="h-4 w-4" />
             </button>
@@ -142,7 +142,7 @@ export default function ListaVentasDia({
               }}
               className={cn(
                 'whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition',
-                filtro === k ? 'bg-ink-600 font-medium text-white' : 'text-mute hover:text-white',
+                filtro === k ? 'bg-ink-600 font-medium text-fore' : 'text-mute hover:text-fore',
               )}
             >
               {label}
@@ -213,7 +213,7 @@ export default function ListaVentasDia({
           </div>
 
           {/* ── Tabla (escritorio) ───────────────────────────────── */}
-          <div className="hidden min-w-0 xl:block">
+          <div className="hidden min-w-0 overflow-x-auto xl:block">
             <table className="w-full table-fixed text-sm">
               <colgroup>
                 <col className={mostrarVendedor ? 'w-[11%]' : 'w-[13%]'} />
@@ -341,7 +341,7 @@ export default function ListaVentasDia({
 
           {/* ── Paginación ─────────────────────────────────────────── */}
           {paginas > 1 && (
-            <div className="flex items-center justify-between gap-3 border-t border-ink-600 px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-600 px-5 py-3">
               <button
                 onClick={() => setPagina(pag - 1)}
                 disabled={pag <= 1}
@@ -362,8 +362,8 @@ export default function ListaVentasDia({
                         className={cn(
                           'h-8 min-w-8 rounded-lg px-2 text-sm transition',
                           n === pag
-                            ? 'bg-fono/20 font-medium text-white ring-1 ring-fono/40'
-                            : 'text-mute hover:bg-ink-700 hover:text-white',
+                            ? 'bg-fono/20 font-medium text-fore ring-1 ring-fono/40'
+                            : 'text-mute hover:bg-ink-700 hover:text-fore',
                         )}
                       >
                         {n}
@@ -409,7 +409,7 @@ export default function ListaVentasDia({
                   deleteVenta(confirmar.id)
                   setConfirmar(null)
                 }}
-                className="h-9 flex-1 rounded-lg bg-bad text-sm font-semibold text-white transition hover:brightness-110"
+                className="h-9 flex-1 rounded-lg bg-bad text-sm font-semibold text-fore transition hover:brightness-110"
               >
                 Eliminar
               </button>

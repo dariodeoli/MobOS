@@ -33,7 +33,7 @@ export default function SelectorSucursal({ className }) {
           value={empresa.id}
           onChange={(e) => cambiarEmpresa(e.target.value)}
           title="Empresa"
-          className="h-[34px] max-w-[160px] cursor-pointer rounded-[9px] border border-fono/30 bg-ink-800 px-2.5 text-[12.5px] text-white outline-none focus:border-fono [&>option]:bg-ink-800"
+          className="h-[34px] max-w-[160px] cursor-pointer rounded-[9px] border border-fono/30 bg-ink-800 px-2.5 text-[12.5px] text-fore outline-none focus:border-fono [&>option]:bg-ink-800"
         >
           {empresas.map((e) => (
             <option key={e.id} value={e.id}>
@@ -47,7 +47,7 @@ export default function SelectorSucursal({ className }) {
           value={sucursal?.id || ''}
           onChange={(e) => cambiarSucursal(e.target.value)}
           title="Sucursal"
-          className="h-[34px] max-w-[160px] cursor-pointer rounded-[9px] border border-fono/30 bg-ink-800 px-2.5 text-[12.5px] text-white outline-none focus:border-fono [&>option]:bg-ink-800"
+          className="h-[34px] max-w-[160px] cursor-pointer rounded-[9px] border border-fono/30 bg-ink-800 px-2.5 text-[12.5px] text-fore outline-none focus:border-fono [&>option]:bg-ink-800"
         >
           {sucursales.map((s) => (
             <option key={s.id} value={s.id}>

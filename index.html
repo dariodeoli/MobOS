@@ -2,6 +2,11 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      try {
+        if (localStorage.getItem('mobos:theme') === 'dark') document.documentElement.classList.add('dark')
+      } catch {}
+    </script>
     <link rel="icon" href="/mobos-icon.svg" type="image/svg+xml" sizes="any" />
     <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
     <link rel="shortcut icon" href="/mobos-icon.svg" type="image/svg+xml" />

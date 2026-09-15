@@ -238,22 +238,22 @@ export default function CustomerProfile({ customer, open, onClose }) {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Total comprado</p>
-              <p className="mt-1 text-lg font-semibold text-white">{formatGs(totalComprado)}</p>
+              <p className="mt-1 text-lg font-semibold text-fore">{formatGs(totalComprado)}</p>
             </div>
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Saldo pendiente</p>
               <div className="mt-1 flex items-center gap-2">
-                <p className="text-lg font-semibold text-white">{formatGs(deuda)}</p>
+                <p className="text-lg font-semibold text-fore">{formatGs(deuda)}</p>
                 <Badge color={deuda > 0 ? 'red' : 'green'}>{deuda > 0 ? 'Deuda' : 'Al día'}</Badge>
               </div>
             </div>
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Órdenes</p>
-              <p className="mt-1 text-lg font-semibold text-white">{orders.length}</p>
+              <p className="mt-1 text-lg font-semibold text-fore">{orders.length}</p>
             </div>
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Garantías activas</p>
-              <p className="mt-1 text-lg font-semibold text-white">{garantiasActivas}</p>
+              <p className="mt-1 text-lg font-semibold text-fore">{garantiasActivas}</p>
             </div>
           </div>
 
@@ -265,7 +265,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 role="tab"
                 aria-selected={tab === item.key}
                 onClick={() => setTab(item.key)}
-                className={`shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === item.key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-white'}`}
+                className={`shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === item.key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-fore'}`}
               >
                 {item.label} ({tabCounts[item.key]})
               </button>
@@ -295,9 +295,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
                       </div>
                       <p className="mt-1 text-xs text-mute">{fecha(row.createdAt)}{row.branchName ? ` · ${row.branchName}` : ''}</p>
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                        <span className="text-mute">Total <b className="text-white">{formatGs(row.totalPyg)}</b></span>
+                        <span className="text-mute">Total <b className="text-fore">{formatGs(row.totalPyg)}</b></span>
                         <span className="text-mute">Pagado <b className="text-ok">{formatGs(row.paidPyg)}</b></span>
-                        <span className="text-mute">Saldo <b className={Number(row.balancePyg) > 0 ? 'text-warn' : 'text-white'}>{formatGs(row.balancePyg)}</b></span>
+                        <span className="text-mute">Saldo <b className={Number(row.balancePyg) > 0 ? 'text-warn' : 'text-fore'}>{formatGs(row.balancePyg)}</b></span>
                       </div>
                     </div>
                   )}

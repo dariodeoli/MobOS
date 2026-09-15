@@ -433,8 +433,8 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
       {paso !== 3 && pagos.some(p => p.tradeIn) && <p role="status" className="mb-4 rounded-xl border border-fono/30 bg-fono/10 p-3 text-sm">Canje preparado como parte de pago. Revisá sus datos y el saldo pendiente en Cobrar.</p>}
       <form onSubmit={guardar} className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
         {errorVenta && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-red-300 md:col-span-2">{errorVenta}</p>}
-        <nav aria-label="Pasos de la venta" className="grid grid-cols-3 gap-1 rounded-2xl border border-ink-600 bg-ink-900/50 p-1 md:col-span-2">
-          {pasos.map((nombre, index) => { const n = index + 1; return <button key={nombre} type="button" onClick={() => n <= paso && setPaso(n)} disabled={n > paso} className={cn('min-h-11 rounded-xl px-2 text-left text-xs font-semibold transition sm:px-3', paso === n ? 'bg-fono text-white shadow-lg shadow-fono/15' : n < paso ? 'text-fono-light hover:bg-fono/10' : 'cursor-not-allowed text-mute/60')}><span className="mr-1.5 text-[10px] opacity-70">0{n}</span>{nombre}</button> })}
+        <nav aria-label="Pasos de la venta" className="grid grid-cols-3 gap-1 rounded-2xl border border-ink-600 bg-ink-800/50 p-1 md:col-span-2">
+          {pasos.map((nombre, index) => { const n = index + 1; return <button key={nombre} type="button" onClick={() => n <= paso && setPaso(n)} disabled={n > paso} className={cn('min-h-11 rounded-xl px-2 text-left text-xs font-semibold transition sm:px-3', paso === n ? 'bg-fono text-onbrand shadow-lg shadow-fono/15' : n < paso ? 'text-fono-light hover:bg-fono/10' : 'cursor-not-allowed text-mute/60')}><span className="mr-1.5 text-[10px] opacity-70">0{n}</span>{nombre}</button> })}
         </nav>
         <div className="flex items-center justify-between text-xs text-mute md:col-span-2"><span>Paso {paso} de 3</span>{paso === 3 && <span className="text-fono-light">Revisá los montos antes de confirmar</span>}</div>
         <div className={paso === 1 ? 'contents' : 'hidden'}>
@@ -640,7 +640,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
             </div>
           ))}
           <div className="grid grid-cols-3 gap-2 border-t border-fono/20 pt-3 text-sm">
-            <span className="text-mute">Total<strong className="mt-1 block text-base text-white">{gs(totalGeneral)}</strong></span>
+            <span className="text-mute">Total<strong className="mt-1 block text-base text-fore">{gs(totalGeneral)}</strong></span>
             <span className="text-mute">Pagado<strong className="mt-1 block text-base text-ok">{gs(totalPagado)}</strong></span>
             <span className="text-mute">Pendiente<strong className={cn('mt-1 block text-base', pendiente ? 'text-warn' : 'text-ok')}>{gs(pendiente)}</strong></span>
           </div>

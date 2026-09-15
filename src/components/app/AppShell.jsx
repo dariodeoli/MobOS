@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Drawer, Eyebrow, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import ThemeToggle from '@/components/app/ThemeToggle'
 import { APP_NAME } from '@/lib/brand'
 
 function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = true }) {
@@ -27,14 +28,14 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
                   'group flex w-full items-center gap-2.5 rounded-[10px] border px-3 py-2.5 text-left transition',
                   collapsed && 'lg:justify-center lg:px-0',
                   activo
-                    ? 'border-fono/35 bg-fono/[.14] font-medium text-white'
-                    : 'border-transparent text-mute hover:bg-ink-700 hover:text-white',
+                    ? 'border-fono/35 bg-fono/[.14] font-medium text-fore'
+                    : 'border-transparent text-mute hover:bg-ink-700 hover:text-fore',
                 )}
               >
                 <Icon name={ico} className={cn('h-4 w-4 shrink-0', activo && 'text-fono-light')} />
                 <span className={cn('flex-1', collapsed && 'lg:hidden')}>{label}</span>
                 {activo && <span className={cn('h-[5px] w-[5px] rounded-full bg-fono', collapsed && 'lg:hidden')} />}
-                <span className="pointer-events-none absolute left-[68px] hidden rounded-md bg-ink-700 px-2 py-1 text-xs text-white shadow-lg group-hover:lg:block">{label}</span>
+                <span className="pointer-events-none absolute left-[68px] hidden rounded-md bg-ink-700 px-2 py-1 text-xs text-fore shadow-lg group-hover:lg:block">{label}</span>
               </button>
             )
           })}
@@ -46,10 +47,10 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
 
 function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, onSwitchUser, collapsed }) {
   return (
-    <div className={cn('border-t border-white/10 p-3.5 pb-safe', collapsed && 'lg:p-3')}>
+    <div className={cn('border-t border-fore/10 p-3.5 pb-safe', collapsed && 'lg:p-3')}>
       <div
         className={cn(
-          'mb-2 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[.03] p-3',
+          'mb-2 flex items-center gap-2 rounded-xl border border-fore/10 bg-fore/[.03] p-3',
           collapsed && 'lg:justify-center lg:border-0 lg:bg-transparent lg:p-0',
         )}
         title={empresa?.nombre || 'Empresa'}
@@ -58,7 +59,7 @@ function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, onSwitchUser,
           <Icon name="store" className="h-4 w-4" />
         </span>
         <span className={cn('min-w-0', collapsed && 'lg:hidden')}>
-          <strong className="block truncate text-xs text-white">{empresa?.nombre || 'Mi tienda'}</strong>
+          <strong className="block truncate text-xs text-fore">{empresa?.nombre || 'Mi tienda'}</strong>
           <small className="block truncate text-[10px] text-mute">{sucursal?.nombre || 'Todas las sucursales'}</small>
         </span>
       </div>
@@ -66,16 +67,16 @@ function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, onSwitchUser,
         type="button"
         onClick={onSwitchUser}
         className={cn(
-          'flex min-h-11 w-full items-center gap-2 rounded-xl p-2 text-left transition hover:bg-white/5',
+          'flex min-h-11 w-full items-center gap-2 rounded-xl p-2 text-left transition hover:bg-fore/5',
           collapsed && 'lg:justify-center lg:p-0',
         )}
         title={sesionNombre || 'Usuario'}
       >
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-fono text-sm font-bold text-ink">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-fono text-sm font-bold text-onbrand">
           {(sesionNombre || 'U').charAt(0).toUpperCase()}
         </span>
         <span className={cn('min-w-0', collapsed && 'lg:hidden')}>
-          <strong className="block truncate text-xs text-white">{sesionNombre || 'Usuario'}</strong>
+          <strong className="block truncate text-xs text-fore">{sesionNombre || 'Usuario'}</strong>
           <small className="block truncate text-[10px] uppercase tracking-wider text-mute">
             {esOwner ? 'Dueño' : 'Vendedor'}
           </small>
@@ -112,14 +113,14 @@ export default function AppShell({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-ink text-sm text-white lg:flex-row">
+    <div className="flex min-h-dvh flex-col bg-paper text-sm text-fore lg:flex-row">
       <aside
         className={cn(
-          'hidden w-[264px] shrink-0 flex-col border-r border-white/10 bg-ink-800 transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-dvh',
+          'hidden w-[264px] shrink-0 flex-col border-r border-fore/10 bg-ink-800 transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-dvh',
           collapsed && 'lg:w-[76px]',
         )}
       >
-        <div className={cn('flex h-20 items-center gap-3 border-b border-white/10 px-5 pt-safe', collapsed && 'lg:justify-center lg:px-3')}>
+        <div className={cn('flex h-20 items-center gap-3 border-b border-fore/10 px-5 pt-safe', collapsed && 'lg:justify-center lg:px-3')}>
           <img src="/mobos-icon.svg" alt="" className="h-10 w-10 shrink-0 rounded-xl" />
           <div className={cn('flex flex-col leading-tight', collapsed && 'lg:hidden')}>
             <span className="text-base font-bold tracking-tight">{APP_NAME}</span>
@@ -163,11 +164,11 @@ export default function AppShell({
       </Drawer>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-20 items-center justify-between gap-4 border-b border-white/10 bg-ink/85 px-4 pt-safe backdrop-blur md:px-8">
+        <header className="sticky top-0 z-20 flex h-20 items-center justify-between gap-4 border-b border-fore/10 bg-paper/85 px-4 pt-safe backdrop-blur md:px-8">
           <div className="flex min-w-0 items-center gap-2">
             <button
               onClick={() => setMenuAbierto(true)}
-              className="-ml-1 rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-white lg:hidden"
+              className="-ml-1 rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-fore lg:hidden"
               title="Menú"
               aria-label="Menú"
             >
@@ -182,9 +183,10 @@ export default function AppShell({
 
           <div className="flex items-center gap-2.5">
             {headerActions}
+            <ThemeToggle />
             <button
               onClick={onToggleCollapsed}
-              className="hidden rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-white lg:inline-flex"
+              className="hidden rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-fore lg:inline-flex"
               title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
               aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
             >

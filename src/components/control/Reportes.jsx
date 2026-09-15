@@ -131,7 +131,7 @@ export default function Reportes() {
         <div className="flex items-start gap-3">
           <Icon name="info" className="mt-0.5 h-5 w-5 text-fono" />
           <div>
-            <div className="font-semibold text-white">Reportes sobre datos reales</div>
+            <div className="font-semibold text-fore">Reportes sobre datos reales</div>
             <p className="mt-1 text-sm text-mute">
               Este apartado lee las ventas, los cobros y los costos reales de tu tienda. La demo es una
               copia aislada en este navegador y no se conecta a la base, así que acá no se muestran
@@ -184,7 +184,7 @@ export default function Reportes() {
           <div className="flex items-start gap-3">
             <Icon name="alert" className="mt-0.5 h-5 w-5 text-bad" />
             <div className="flex-1">
-              <div className="font-semibold text-white">No se pudo cargar el reporte</div>
+              <div className="font-semibold text-fore">No se pudo cargar el reporte</div>
               <p className="mt-1 text-sm text-mute">{error}</p>
             </div>
             <Button variant="outline" onClick={cargar}>Reintentar</Button>
@@ -228,11 +228,11 @@ export default function Reportes() {
                   <tbody>
                     {datosComisiones.sellers.map((fila) => (
                       <tr key={fila.sellerId} className="border-b border-ink-700/60 last:border-0">
-                        <td className="px-4 py-3 font-medium text-white">{fila.sellerName || 'Sin vendedor'}</td>
+                        <td className="px-4 py-3 font-medium text-fore">{fila.sellerName || 'Sin vendedor'}</td>
                         <td className="px-4 py-3 text-right tabular-nums text-mute">{gs(fila.totalPyg)}</td>
                         <td className="px-4 py-3 text-right tabular-nums text-mute">{gs(fila.marginPyg)}</td>
                         <td className="px-4 py-3 text-right tabular-nums text-mute">{fila.commissionPct === null ? '—' : `${fila.commissionPct}%`}</td>
-                        <td className="px-4 py-3 text-right tabular-nums font-semibold text-white">{gs(fila.commissionPyg)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums font-semibold text-fore">{gs(fila.commissionPyg)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -244,7 +244,7 @@ export default function Reportes() {
                 {datosComisiones.sellers.map((fila) => (
                   <Card key={fila.sellerId}>
                     <div className="flex items-start justify-between gap-3">
-                      <div className="font-semibold text-white">{fila.sellerName || 'Sin vendedor'}</div>
+                      <div className="font-semibold text-fore">{fila.sellerName || 'Sin vendedor'}</div>
                       <Badge color={fila.commissionPct === null ? 'slate' : 'green'}>{fila.commissionPct === null ? 'Sin regla' : `${fila.commissionPct}%`}</Badge>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
@@ -333,7 +333,7 @@ export default function Reportes() {
                             key={c.key}
                             className={
                               c.tipo === 'texto'
-                                ? 'px-4 py-3 font-medium text-white'
+                                ? 'px-4 py-3 font-medium text-fore'
                                 : 'px-4 py-3 text-right tabular-nums text-mute'
                             }
                           >
@@ -351,7 +351,7 @@ export default function Reportes() {
                 {grupos.map((g) => (
                   <Card key={g.key}>
                     <div className="flex items-start justify-between gap-3">
-                      <div className="font-semibold text-white">{g.label}</div>
+                      <div className="font-semibold text-fore">{g.label}</div>
                       <Badge color="slate">{g.units} u.</Badge>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
@@ -385,7 +385,7 @@ function Linea({ label, valor }) {
   return (
     <div className="rounded-lg bg-ink-700/40 px-3 py-2">
       <div className="text-[11px] uppercase tracking-wider text-mute">{label}</div>
-      <div className="font-semibold tabular-nums text-white">{valor}</div>
+      <div className="font-semibold tabular-nums text-fore">{valor}</div>
     </div>
   )
 }

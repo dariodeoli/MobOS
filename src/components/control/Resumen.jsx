@@ -173,7 +173,7 @@ export default function Resumen() {
             <div className="flex h-44 items-end gap-1.5">
               {d.serie.map(([f, v]) => (
                 <div key={f} className="group relative flex h-full flex-1 flex-col items-center justify-end gap-1.5">
-                  <div className="pointer-events-none absolute -top-8 z-10 hidden whitespace-nowrap rounded-md border border-ink-500 bg-ink px-2 py-1 text-xs group-hover:block">
+                  <div className="pointer-events-none absolute -top-8 z-10 hidden whitespace-nowrap rounded-md border border-ink-500 bg-paper px-2 py-1 text-xs group-hover:block">
                     {gs(v)}
                   </div>
                   <div
@@ -230,7 +230,7 @@ export default function Resumen() {
               >
                 <span className="w-5 text-center text-xs font-medium text-mute">{i + 1}</span>
                 <Dot color={i === 0 ? 'green' : v.total > 0 ? 'blue' : 'slate'} />
-                <span className="w-32 shrink-0 truncate text-sm font-medium">{v.nombre}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium sm:w-32 sm:flex-none">{v.nombre}</span>
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-600">
                   <div
                     className={cn('h-full rounded-full', i === 0 ? 'bg-ok' : 'bg-blue-line')}
@@ -238,17 +238,17 @@ export default function Resumen() {
                   />
                 </div>
                 <span className="w-10 text-right text-xs text-mute">{v.n}</span>
-                <span className="w-28 text-right text-sm font-semibold">{gs(v.total)}</span>
+                <span className="w-24 text-right text-sm font-semibold sm:w-28">{gs(v.total)}</span>
                 <span className="hidden w-28 text-right text-sm text-ok sm:block">{gs(v.com)}</span>
               </div>
             ))}
             <div className="mt-2 flex items-center gap-3 border-t border-ink-600 px-2 pt-3 text-xs text-mute">
               <span className="w-5" />
               <span className="w-2" />
-              <span className="w-32 shrink-0">Total</span>
+              <span className="min-w-0 flex-1 truncate sm:w-32 sm:flex-none">Total</span>
               <span className="flex-1" />
               <span className="w-10 text-right">{d.act.length}</span>
-              <span className="w-28 text-right font-semibold text-white">{gs(d.total)}</span>
+              <span className="w-24 text-right font-semibold text-fore sm:w-28">{gs(d.total)}</span>
               <span className="hidden w-28 text-right text-ok sm:block">{gs(d.comision)}</span>
             </div>
           </div>

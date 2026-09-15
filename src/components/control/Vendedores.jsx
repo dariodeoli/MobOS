@@ -346,7 +346,7 @@ function SeccionComisiones() {
                 ) : (
                   <>
                     <Badge color="green">{regla.percentPyg}%</Badge>
-                    <button type="button" onClick={() => { setEditandoId(regla.id); setBorrador(String(regla.percentPyg)) }} className="text-mute hover:text-white transition" title="Editar porcentaje"><Icon name="edit" className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => { setEditandoId(regla.id); setBorrador(String(regla.percentPyg)) }} className="text-mute hover:text-fore transition" title="Editar porcentaje"><Icon name="edit" className="h-4 w-4" /></button>
                     <button type="button" onClick={() => setEliminando(regla)} className="text-ink-500 hover:text-bad transition" title="Eliminar regla"><Icon name="trash" className="h-4 w-4" /></button>
                   </>
                 )}

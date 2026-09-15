@@ -45,15 +45,15 @@ export default function SellerOrders() {
       <Button onClick={data.refresh} disabled={data.loading}>Actualizar</Button></div>
     <SellerFeedback {...data} empty={!rows.length} />
     {actionError && <p role="alert" className="mt-3 text-sm text-red-300">{actionError}</p>}
-    {!data.loading && !data.error && <ul className="space-y-3">{rows.map((row) => <li key={row.id} className="break-words rounded-2xl border border-white/10 p-5">
+    {!data.loading && !data.error && <ul className="space-y-3">{rows.map((row) => <li key={row.id} className="break-words rounded-2xl border border-fore/10 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">{row.number}</h2>
         <span className="rounded-full border border-fono/30 bg-fono/10 px-3 py-1 text-xs text-fono-light">{STATUS[row.status] || 'Estado no informado'}</span></div>
-      <p className="mt-3">{row.customer}</p><p className="mt-1 text-slate-400">{row.products || 'Sin detalle de productos'}</p>
+      <p className="mt-3">{row.customer}</p><p className="mt-1 text-mute">{row.products || 'Sin detalle de productos'}</p>
       <p className="mt-3 font-semibold text-fono-light">Total del pedido: {row.total != null && Number.isFinite(Number(row.total)) ? gs(row.total) : 'No disponible'}</p>
-      {row.paymentStatus && <p className="mt-2 text-sm text-slate-400">Pago: {row.paymentStatus}</p>}
-      <p className="mt-2 text-sm text-slate-400">Entrega: <strong className="text-fono-light">{FULFILLMENT[row.fulfillmentStatus] || row.fulfillmentStatus}</strong></p>
-      <p className="mt-3 text-xs text-slate-400">{row.date && !Number.isNaN(Date.parse(row.date)) ? new Date(row.date).toLocaleDateString('es-PY') : 'Fecha no disponible'}</p>
-      <div className="mt-4 flex flex-wrap gap-2"><Button type="button" onClick={() => printOrderReceipt(row)}>Imprimir comprobante</Button>{!esDemo && <label className="text-xs text-slate-400">Estado de entrega<Select aria-label={`Estado de entrega ${row.number}`} className="mt-1" value={row.fulfillmentStatus} disabled={savingId === row.id} onChange={event => updateFulfillment(row, event.target.value)}>{Object.entries(FULFILLMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>}</div>
+      {row.paymentStatus && <p className="mt-2 text-sm text-mute">Pago: {row.paymentStatus}</p>}
+      <p className="mt-2 text-sm text-mute">Entrega: <strong className="text-fono-light">{FULFILLMENT[row.fulfillmentStatus] || row.fulfillmentStatus}</strong></p>
+      <p className="mt-3 text-xs text-mute">{row.date && !Number.isNaN(Date.parse(row.date)) ? new Date(row.date).toLocaleDateString('es-PY') : 'Fecha no disponible'}</p>
+      <div className="mt-4 flex flex-wrap gap-2"><Button type="button" onClick={() => printOrderReceipt(row)}>Imprimir comprobante</Button>{!esDemo && <label className="text-xs text-mute">Estado de entrega<Select aria-label={`Estado de entrega ${row.number}`} className="mt-1" value={row.fulfillmentStatus} disabled={savingId === row.id} onChange={event => updateFulfillment(row, event.target.value)}>{Object.entries(FULFILLMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>}</div>
     </li>)}</ul>}
   </SellerSection>
 }

@@ -70,19 +70,19 @@ function Columna({ info, valor, onModelo, onColor, modelos }) {
       ) : (
         <div className="text-center text-xs text-mute">Sin colores cargados</div>
       )}
-      {color && <div className="mt-2 text-center text-sm font-medium text-white">{color}</div>}
+      {color && <div className="mt-2 text-center text-sm font-medium text-fore">{color}</div>}
 
       <div className="mt-4 border-t border-ink-600 pt-3">
         {info?.min > 0 && (
           <div className="mb-2 text-center text-sm text-mute">
-            Desde <span className="font-extrabold text-white">{gs(info.min)}</span>
+            Desde <span className="font-extrabold text-fore">{gs(info.min)}</span>
           </div>
         )}
         <div className="space-y-1">
           {info?.capacidades?.map(({ capacidad, precio }) => (
             <div key={capacidad} className="flex items-center justify-between text-sm">
               <span className="text-mute">{capacidad}</span>
-              <span className="font-bold text-white">{precio > 0 ? gs(precio) : '—'}</span>
+              <span className="font-bold text-fore">{precio > 0 ? gs(precio) : '—'}</span>
             </div>
           ))}
         </div>
@@ -165,12 +165,12 @@ export default function Comparador() {
 
   return (
     <div className="min-h-dvh bg-ink-700">
-      <header className="sticky top-0 z-30 bg-fono text-white pt-safe shadow-md">
+      <header className="sticky top-0 z-30 bg-fono text-onbrand pt-safe shadow-md">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
           <div className="flex items-center gap-2 font-bold">Comparar modelos</div>
           <Button
             variant="ghost"
-            className="text-white hover:bg-ink-800/15"
+            className="text-onbrand hover:bg-ink-800/15"
             onClick={() => navigate('/celulares')}
           >
             Lista de precios
@@ -187,7 +187,7 @@ export default function Comparador() {
               onClick={() => setCondicion(key)}
               className={cn(
                 'rounded-lg px-4 py-1.5 text-sm font-bold transition',
-                condicion === key ? 'bg-fono text-white shadow-sm' : 'text-mute hover:text-fono',
+                condicion === key ? 'bg-fono text-onbrand shadow-sm' : 'text-mute hover:text-fono',
               )}
             >
               {label}

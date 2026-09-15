@@ -20,10 +20,10 @@ export default function SellerCatalog() {
       <Button>Buscar</Button>
     </form>
     <SellerFeedback {...data} empty={!rows.length} />
-    {!data.loading && !data.error && <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{rows.map((row) => <li key={row.id} className="min-w-0 break-words rounded-2xl border border-white/10 bg-white/[.02] p-5">
-      <h2 className="font-semibold">{row.name}</h2><p className="mt-1 text-xs text-slate-400">SKU: {row.sku || 'No disponible'}</p>
+    {!data.loading && !data.error && <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{rows.map((row) => <li key={row.id} className="min-w-0 break-words rounded-2xl border border-fore/10 bg-fore/[.02] p-5">
+      <h2 className="font-semibold">{row.name}</h2><p className="mt-1 text-xs text-mute">SKU: {row.sku || 'No disponible'}</p>
       <p className="mt-4 text-xl font-semibold text-fono-light">{row.price != null && Number.isFinite(Number(row.price)) ? gs(row.price) : 'Precio no disponible'}</p>
-      <p className="mt-2 text-sm text-slate-400">Stock: {row.stock ?? 'No disponible'}</p>
+      <p className="mt-2 text-sm text-mute">Stock: {row.stock ?? 'No disponible'}</p>
     </li>)}</ul>}
   </SellerSection>
 }

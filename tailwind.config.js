@@ -1,31 +1,35 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        // ── Tema oscuro ────────────────────────────────────────────────
-        // Fondos: negro real → superficies elevadas
+        // ── Tema por CSS vars (paleta clara en :root, oscura en html.dark) ──
+        paper: 'rgb(var(--c-paper) / <alpha-value>)',
+        fore: 'rgb(var(--c-fore) / <alpha-value>)',
         ink: {
-          DEFAULT: '#090D16',
-          800: '#101722',
-          700: '#172131',
-          600: '#263448',
-          500: '#3A4D67',
+          DEFAULT: 'rgb(var(--c-ink) / <alpha-value>)',
+          800: 'rgb(var(--c-ink-800) / <alpha-value>)',
+          700: 'rgb(var(--c-ink-700) / <alpha-value>)',
+          600: 'rgb(var(--c-ink-600) / <alpha-value>)',
+          500: 'rgb(var(--c-ink-500) / <alpha-value>)',
         },
         // Verde MobOS de marca
         fono: {
-          DEFAULT: '#05F19C',
-          dark: '#04B978',
-          light: '#7CFFC9',
-          glow: '#05F19C',
+          DEFAULT: 'rgb(var(--c-fono) / <alpha-value>)',
+          dark: 'rgb(var(--c-fono-dark) / <alpha-value>)',
+          light: 'rgb(var(--c-fono-light) / <alpha-value>)',
+          glow: 'rgb(var(--c-fono-glow) / <alpha-value>)',
           soft: 'rgba(5,241,156,.12)',
         },
-        ok: '#22C55E',
-        bad: '#EF4444',
-        warn: '#F59E0B',
+        ok: 'rgb(var(--c-ok) / <alpha-value>)',
+        bad: 'rgb(var(--c-bad) / <alpha-value>)',
+        warn: 'rgb(var(--c-warn) / <alpha-value>)',
         // Texto
-        mute: '#8A93A3',
+        mute: 'rgb(var(--c-mute) / <alpha-value>)',
+        // Texto oscuro sobre verde de marca (en ambos temas)
+        onbrand: 'rgb(var(--c-onbrand) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],

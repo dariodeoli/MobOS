@@ -58,7 +58,7 @@ export default function Ganancias() {
         <div
           className={
             'text-4xl font-extrabold mt-1 tracking-tight ' +
-            (positivo ? 'text-ok' : negativo ? 'text-bad' : 'text-white')
+            (positivo ? 'text-ok' : negativo ? 'text-bad' : 'text-fore')
           }
         >
           {gs(g.ganancia)}
@@ -84,7 +84,7 @@ export default function Ganancias() {
           <Linea label="Meta Ads" valor={g.totalAds} signo="−" color="text-mute" />
           <div className="border-t border-ink-600 pt-2 flex items-center justify-between font-extrabold">
             <span>{positivo ? '' : negativo ? '' : ''} Resultado</span>
-            <span className={positivo ? 'text-ok' : negativo ? 'text-bad' : 'text-white'}>
+            <span className={positivo ? 'text-ok' : negativo ? 'text-bad' : 'text-fore'}>
               {gs(g.ganancia)}
             </span>
           </div>
@@ -165,7 +165,7 @@ function CalendarioGanancias({ datos }) {
             >
               ‹
             </button>
-            <span className="text-sm font-bold text-white">
+            <span className="text-sm font-bold text-fore">
               {MESES[mes]} {anio}
             </span>
             <button
@@ -220,7 +220,7 @@ function CalendarioGanancias({ datos }) {
           {detalle ? (
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-white">
+                <span className="text-sm font-bold text-fore">
                   {detalle.estado === 'ganancia'
                     ? 'Ganancia'
                     : detalle.estado === 'perdida'
@@ -237,7 +237,7 @@ function CalendarioGanancias({ datos }) {
                       ? 'text-ok'
                       : detalle.estado === 'perdida'
                         ? 'text-bad'
-                        : 'text-white')
+                        : 'text-fore')
                   }
                 >
                   {gs(detalle.ganancia)}
