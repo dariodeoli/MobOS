@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
-import { listVentas, getVendedores, productosById, listGastos } from '@/lib/storage'
-import { comisionDeVentas, num, gs } from '@/utils/calculos'
+import { useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { listVentas, getVendedores, productosById, getProductos, listGastos } from '@/lib/storage'
+import { comisionDeVentas, cobradoDeVenta, num, gs } from '@/utils/calculos'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
 import RangoFechas, {
   rangoPorDefecto,
@@ -8,8 +9,21 @@ import RangoFechas, {
   etiquetaRango,
 } from '@/components/shared/RangoFechas'
 import MedioPago from '@/components/shared/MedioPago'
-import { Card, Badge, Dot, EmptyState } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
+import { Card, Badge, Dot, EmptyState, Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
+
+// Products at or below this stock count are flagged in the low-stock widget.
+const UMBRAL_STOCK_BAJO = 3
+
+// Quick actions shown next to the period selector. They reuse the same routes
+// PanelVendedor uses from its sidebar (`/pos/<vista>`).
+const ACCIONES = [
+  { label: 'Cargar venta', ruta: '/pos/cargar', icon: 'plus' },
+  { label: 'Nueva compra', ruta: '/pos/compras', icon: 'box' },
+  // Finanzas opens on the "Caja" subtab by default in PanelVendedor.
+  { label: 'Abrir caja', ruta: '/pos/finanzas', icon: 'wallet' },
+]
 
 // Métrica al estilo del tablero: rótulo, número grande, indicador de tendencia
 // y una línea de contexto abajo. Van en fila separadas por divisores.
@@ -40,37 +54,43 @@ function Metrica({ label, valor, delta, sub, tono = 'blue' }) {
 }
 
 const enRango = (v, r) => v.fecha >= r.desde && v.fecha <= r.hasta
-const suma = (arr, f = (x) => num(x.precio)) => arr.reduce((a, x) => a + f(x), 0)
+const suma = (arr, f = x => num(x.precio)) => arr.reduce((a, x) => a + f(x), 0)
 const variacion = (hoy, antes) => (antes > 0 ? ((hoy - antes) / antes) * 100 : null)
 
 export default function Resumen() {
+  const navigate = useNavigate()
   const ventas = listVentas()
   const vendedores = getVendedores()
   const gastos = listGastos()
   const prods = productosById()
+  const catalogo = getProductos()
   const [rango, setRango] = useState(rangoPorDefecto)
+  const [filtroLista, setFiltroLista] = useState('todas')
+  const listaRef = useRef(null)
 
   const vendedoresById = useMemo(
-    () => Object.fromEntries(vendedores.map((v) => [v.id, v.nombre])),
+    () => Object.fromEntries(vendedores.map(v => [v.id, v.nombre])),
     [vendedores],
   )
 
   const d = useMemo(() => {
     const prev = rangoAnterior(rango)
-    const act = ventas.filter((v) => enRango(v, rango))
-    const ant = ventas.filter((v) => enRango(v, prev))
-    const gastosR = gastos.filter((g) => enRango(g, rango))
+    const act = ventas.filter(v => enRango(v, rango))
+    const ant = ventas.filter(v => enRango(v, prev))
+    const gastosR = gastos.filter(g => enRango(g, rango))
 
     const total = suma(act)
     const totalAnt = suma(ant)
     const comision = comisionDeVentas(act, prods)
-    const delivery = suma(act, (x) => num(x.montoDelivery))
+    const delivery = suma(act, x => num(x.montoDelivery))
     const ticket = act.length ? total / act.length : 0
     const ticketAnt = ant.length ? totalAnt / ant.length : 0
+    const cobrado = act.reduce((sum, v) => sum + cobradoDeVenta(v), 0)
+    const pendiente = Math.max(0, total - cobrado)
 
     // Por vendedor
     const porVend = {}
-    act.forEach((v) => {
+    act.forEach(v => {
       const k = v.vendedorId || 'sin'
       porVend[k] ??= { n: 0, total: 0, com: 0 }
       porVend[k].n++
@@ -83,7 +103,7 @@ export default function Resumen() {
 
     // Por medio de pago
     const porMedio = {}
-    act.forEach((v) => {
+    act.forEach(v => {
       const k = v.medioPago || '—'
       porMedio[k] = (porMedio[k] || 0) + num(v.precio)
     })
@@ -93,10 +113,10 @@ export default function Resumen() {
 
     // Serie diaria (para el mini-gráfico)
     const porDia = {}
-    act.forEach((v) => (porDia[v.fecha] = (porDia[v.fecha] || 0) + num(v.precio)))
+    act.forEach(v => (porDia[v.fecha] = (porDia[v.fecha] || 0) + num(v.precio)))
     const serie = Object.entries(porDia).sort(([a], [b]) => a.localeCompare(b))
 
-    const pagadas = act.filter((v) => v.estadoPago === 'Pagado').length
+    const pagadas = act.filter(v => v.estadoPago === 'Pagado').length
 
     return {
       act,
@@ -106,18 +126,36 @@ export default function Resumen() {
       delivery,
       ticket,
       ticketAnt,
+      cobrado,
+      pendiente,
       ranking,
       medios,
       serie,
       pagadas,
       sinPagar: act.length - pagadas,
-      gastos: suma(gastosR, (x) => num(x.monto)),
+      gastos: suma(gastosR, x => num(x.monto)),
       prev,
     }
   }, [ventas, gastos, prods, rango, vendedoresById])
 
   const maxSerie = Math.max(...d.serie.map(([, v]) => v), 1)
-  const maxVend = Math.max(...d.ranking.map((r) => r.total), 1)
+  const maxVend = Math.max(...d.ranking.map(r => r.total), 1)
+
+  // Low-stock products, worst first. Computed per render (no memo) so that
+  // in-place stock mutations coming from API-mode sales are picked up at once.
+  const stockBajo = catalogo
+    .filter(p => num(p.stock) <= UMBRAL_STOCK_BAJO)
+    .sort((a, b) => num(a.stock) - num(b.stock))
+    .slice(0, 8)
+
+  const pctCobrado = d.total > 0 ? (d.cobrado / d.total) * 100 : 0
+  const pctPendiente = Math.max(0, 100 - pctCobrado)
+
+  // Applies the "Pendientes" filter on the sales list and brings it into view.
+  function irAPendientes() {
+    setFiltroLista('pendientes')
+    setTimeout(() => listaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
+  }
 
   return (
     <div className="space-y-5">
@@ -129,7 +167,28 @@ export default function Resumen() {
             Acá ves el movimiento de la tienda en el período elegido.
           </p>
         </div>
-        <RangoFechas valor={rango} onChange={setRango} />
+        <div className="flex flex-wrap items-center gap-2">
+          {ACCIONES.map(a => (
+            <Button
+              key={a.label}
+              variant="outline"
+              className="h-9 px-3 text-xs font-medium"
+              onClick={() => navigate(a.ruta)}
+            >
+              <Icon name={a.icon} className="h-4 w-4" />
+              {a.label}
+            </Button>
+          ))}
+          <Button
+            variant="outline"
+            className="h-9 px-3 text-xs font-medium"
+            onClick={irAPendientes}
+          >
+            <Icon name="receipt" className="h-4 w-4" />
+            Cobrar pendientes
+          </Button>
+          <RangoFechas valor={rango} onChange={setRango} />
+        </div>
       </div>
 
       {/* ── Métricas (fila con divisores) ────────────────────────── */}
@@ -160,6 +219,55 @@ export default function Resumen() {
         />
       </div>
 
+      {/* ── Cobrado vs pendiente ─────────────────────────────────── */}
+      <Card>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-medium">Cobrado vs pendiente</h2>
+          <div className="flex flex-wrap gap-1.5">
+            <Badge color="green">{d.pagadas} pagadas</Badge>
+            <Badge color="red">{d.sinPagar} pendientes</Badge>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-x-10 gap-y-3">
+          <div className="flex items-center gap-2.5">
+            <Dot color="green" />
+            <div>
+              <div className="text-xs text-mute">Cobrado</div>
+              <div className="text-xl font-semibold tracking-tight text-ok tabular-nums">
+                {gs(d.cobrado)}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={irAPendientes}
+            disabled={d.sinPagar === 0}
+            title={d.sinPagar === 0 ? 'No hay ventas pendientes' : 'Ver pendientes en el detalle'}
+            className="group flex items-center gap-2.5 rounded-lg text-left transition disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Dot color="red" />
+            <div>
+              <div className="flex items-center gap-1 text-xs text-mute">
+                Pendiente
+                <Icon
+                  name="chevron"
+                  className="h-3 w-3 rotate-180 transition group-hover:translate-x-0.5"
+                />
+              </div>
+              <div className="text-xl font-semibold tracking-tight text-bad tabular-nums">
+                {gs(d.pendiente)}
+              </div>
+            </div>
+          </button>
+        </div>
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-ink-600">
+          <div className="flex h-full">
+            <div className="bg-ok" style={{ width: `${pctCobrado}%` }} />
+            <div className="bg-bad" style={{ width: `${pctPendiente}%` }} />
+          </div>
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         {/* ── Evolución diaria ───────────────────────────────────── */}
         <Card className="xl:col-span-2">
@@ -172,7 +280,10 @@ export default function Resumen() {
           ) : (
             <div className="flex h-44 items-end gap-1.5">
               {d.serie.map(([f, v]) => (
-                <div key={f} className="group relative flex h-full flex-1 flex-col items-center justify-end gap-1.5">
+                <div
+                  key={f}
+                  className="group relative flex h-full flex-1 flex-col items-center justify-end gap-1.5"
+                >
                   <div className="pointer-events-none absolute -top-8 z-10 hidden whitespace-nowrap rounded-md border border-ink-500 bg-paper px-2 py-1 text-xs group-hover:block">
                     {gs(v)}
                   </div>
@@ -194,7 +305,7 @@ export default function Resumen() {
             <EmptyState compact icon="box" title="Sin datos" />
           ) : (
             <div className="space-y-3">
-              {d.medios.map((m) => (
+              {d.medios.map(m => (
                 <div key={m.medio}>
                   <div className="mb-1.5 flex items-center justify-between gap-2">
                     <MedioPago medio={m.medio} alto="h-4" />
@@ -213,6 +324,44 @@ export default function Resumen() {
         </Card>
       </div>
 
+      {/* ── Stock bajo ───────────────────────────────────────────── */}
+      <Card>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-medium">Stock bajo</h2>
+          <Badge color="orange">≤ {UMBRAL_STOCK_BAJO} unidades</Badge>
+        </div>
+        {stockBajo.length === 0 ? (
+          <div className="py-8 text-center text-sm text-mute">
+            Todos los productos tienen stock suficiente
+          </div>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {stockBajo.map(p => {
+              const stock = num(p.stock)
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-2.5 rounded-lg border border-ink-600 bg-ink-700/40 px-3 py-2.5"
+                >
+                  <Dot color={stock <= 0 ? 'red' : 'orange'} />
+                  <span className="min-w-0 flex-1 truncate text-sm">{p.nombre}</span>
+                  <Badge color={stock <= 0 ? 'red' : 'orange'} className="shrink-0">
+                    {stock <= 0 ? 'Sin stock' : `${stock} u.`}
+                  </Badge>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/pos/inventario')}
+                    className="flex shrink-0 items-center gap-1 rounded-lg border border-ink-500 px-2 py-1 text-xs text-mute transition hover:border-fono hover:text-white"
+                  >
+                    Ver inventario
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </Card>
+
       {/* ── Vendedores ───────────────────────────────────────────── */}
       <Card>
         <div className="mb-4 flex items-center justify-between">
@@ -230,7 +379,9 @@ export default function Resumen() {
               >
                 <span className="w-5 text-center text-xs font-medium text-mute">{i + 1}</span>
                 <Dot color={i === 0 ? 'green' : v.total > 0 ? 'blue' : 'slate'} />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium sm:w-32 sm:flex-none">{v.nombre}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium sm:w-32 sm:flex-none">
+                  {v.nombre}
+                </span>
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-600">
                   <div
                     className={cn('h-full rounded-full', i === 0 ? 'bg-ok' : 'bg-blue-line')}
@@ -256,12 +407,16 @@ export default function Resumen() {
       </Card>
 
       {/* ── Detalle de ventas ────────────────────────────────────── */}
-      <ListaVentasDia
-        rango={rango}
-        mostrarVendedor
-        vendedoresById={vendedoresById}
-        titulo="Detalle de ventas"
-      />
+      <div ref={listaRef} className="scroll-mt-24">
+        <ListaVentasDia
+          rango={rango}
+          mostrarVendedor
+          vendedoresById={vendedoresById}
+          titulo="Detalle de ventas"
+          filtro={filtroLista}
+          onFiltroChange={setFiltroLista}
+        />
+      </div>
     </div>
   )
 }

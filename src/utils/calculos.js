@@ -74,18 +74,31 @@ export function desdeDePeriodo(periodo) {
 // Cada venta: { vendedorId, fecha (YYYY-MM-DD), precio, ... }
 export function ventasDelDia(ventas, clave = fechaClave(), vendedorId = null) {
   return ventas.filter(
-    (v) => v.fecha === clave && (vendedorId == null || v.vendedorId === vendedorId),
+    v => v.fecha === clave && (vendedorId == null || v.vendedorId === vendedorId),
   )
 }
 
 export function ventasDeRango(ventas, desde, vendedorId = null) {
-  return ventas.filter(
-    (v) => v.fecha >= desde && (vendedorId == null || v.vendedorId === vendedorId),
-  )
+  return ventas.filter(v => v.fecha >= desde && (vendedorId == null || v.vendedorId === vendedorId))
 }
 
 export function sumaPrecios(ventas) {
   return ventas.reduce((acc, v) => acc + num(v.precio), 0)
+}
+
+// Pagos confirmados de una venta: las entradas explícitas de `pagos` cuentan
+// salvo que tengan `status` distinto de CONFIRMED (modo API); las ventas sin
+// array de pagos caen a estadoPago/totalPagado (entradas legacy/demo).
+// "Cobrado" = dinero efectivamente recibido.
+export function cobradoDeVenta(v) {
+  const pagos = Array.isArray(v.pagos) ? v.pagos : []
+  if (pagos.length) {
+    return pagos.reduce(
+      (sum, p) => (p.status && p.status !== 'CONFIRMED' ? sum : sum + num(p.monto)),
+      0,
+    )
+  }
+  return v.estadoPago === 'Pagado' ? num(v.totalPagado ?? v.precio) : 0
 }
 
 // ── Totales para el tablero ─────────────────────────────────────────
@@ -136,8 +149,8 @@ export function comisionDeVentas(ventas, productosById) {
 export function calcularGanancia(periodo, { ventas, gastos, ads, prodsById }) {
   const desde = desdeDePeriodo(periodo)
   const vs = ventasDeRango(ventas, desde)
-  const gs_ = gastos.filter((g) => g.fecha >= desde)
-  const ads_ = ads.filter((a) => a.fecha >= desde)
+  const gs_ = gastos.filter(g => g.fecha >= desde)
+  const ads_ = ads.filter(a => a.fecha >= desde)
 
   const ingresos = sumaPrecios(vs)
   // Preferimos el costo "foto" guardado en la venta; si no existe (ventas
@@ -164,16 +177,16 @@ export function calcularGanancia(periodo, { ventas, gastos, ads, prodsById }) {
 // ── Ganancia de un solo día (clave YYYY-MM-DD) ──────────────────────
 // Mismo cálculo que calcularGanancia pero filtrando por fecha exacta.
 export function calcularGananciaDia(clave, { ventas, gastos, ads, prodsById }) {
-  const vs = ventas.filter((v) => v.fecha === clave)
+  const vs = ventas.filter(v => v.fecha === clave)
   const ingresos = sumaPrecios(vs)
   const costoMercaderia = vs.reduce(
     (acc, v) => acc + num(v.precioCosto ?? prodsById[v.productoId]?.precioCosto),
     0,
   )
   const totalGastos = gastos
-    .filter((g) => g.fecha === clave)
+    .filter(g => g.fecha === clave)
     .reduce((acc, g) => acc + num(g.monto), 0)
-  const totalAds = ads.filter((a) => a.fecha === clave).reduce((acc, a) => acc + num(a.monto), 0)
+  const totalAds = ads.filter(a => a.fecha === clave).reduce((acc, a) => acc + num(a.monto), 0)
   const ganancia = ingresos - costoMercaderia - totalGastos - totalAds
   const sinDatos = vs.length === 0 && totalGastos === 0 && totalAds === 0
   return {
@@ -192,7 +205,7 @@ export function productosGanadores(periodo, ventas, prodsById, limite = 5) {
   const desde = desdeDePeriodo(periodo)
   const vs = ventasDeRango(ventas, desde)
   const acc = {}
-  vs.forEach((v) => {
+  vs.forEach(v => {
     if (!acc[v.productoId]) acc[v.productoId] = { cantidad: 0, monto: 0 }
     acc[v.productoId].cantidad += 1
     acc[v.productoId].monto += num(v.precio)

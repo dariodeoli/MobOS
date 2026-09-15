@@ -373,7 +373,7 @@ export const hayContexto = () => Boolean(ctx.empresaId)
 const MIRROR_BASE = 'fono:cache:v3'
 const mirrorKey = () => `${MIRROR_BASE}:${ctx.empresaId || 'sin-empresa'}`
 
-const clone = (x) => JSON.parse(JSON.stringify(x))
+const clone = x => JSON.parse(JSON.stringify(x))
 function safeParse(raw) {
   if (raw == null) return null
   try {
@@ -400,7 +400,7 @@ const cache = {
 
 // Deja la caché en blanco (al entrar a otra empresa o al cerrar sesión).
 function vaciarCache() {
-  COLLECTIONS.forEach((c) => {
+  COLLECTIONS.forEach(c => {
     cache[c] = []
   })
   cache.tradein = clone(TRADEIN_DEFAULT)
@@ -420,7 +420,7 @@ function bootFromMirror() {
   }
   // Garantiza que toda colección sea un array (por si un espejo viejo guardó
   // otra forma, ej. comparadorImg que antes era un objeto).
-  COLLECTIONS.forEach((c) => {
+  COLLECTIONS.forEach(c => {
     if (!Array.isArray(cache[c])) cache[c] = []
   })
 }
@@ -441,7 +441,7 @@ export function subscribe(fn) {
   return () => listeners.delete(fn)
 }
 function notify() {
-  listeners.forEach((fn) => {
+  listeners.forEach(fn => {
     try {
       fn()
     } catch {
@@ -452,7 +452,7 @@ function notify() {
 
 // Sync entre pestañas del mismo dispositivo para el demo/local.
 if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (e) => {
+  window.addEventListener('storage', e => {
     if (ctx.empresaId && e.key === mirrorKey()) {
       const m = safeParse(e.newValue)
       if (m && typeof m === 'object') {
@@ -465,18 +465,20 @@ if (typeof window !== 'undefined') {
 
 // Mutaciones locales del demo (cache + espejo + notify).
 function entUpsert(collection, obj) {
-  if (apiMode()) throw new Error(`La mutación legacy de ${collection} no está disponible en modo API.`)
+  if (apiMode())
+    throw new Error(`La mutación legacy de ${collection} no está disponible en modo API.`)
   const arr = cache[collection]
-  const i = arr.findIndex((o) => o.id === obj.id)
-  if (i >= 0) cache[collection] = arr.map((item, index) => index === i ? obj : item)
+  const i = arr.findIndex(o => o.id === obj.id)
+  if (i >= 0) cache[collection] = arr.map((item, index) => (index === i ? obj : item))
   else if (FEEDS.has(collection)) cache[collection] = [obj, ...arr]
   else cache[collection] = [...arr, obj]
   persistMirror()
   notify()
 }
 function entDelete(collection, id) {
-  if (apiMode()) throw new Error(`La eliminación legacy de ${collection} no está disponible en modo API.`)
-  cache[collection] = cache[collection].filter((o) => o.id !== id)
+  if (apiMode())
+    throw new Error(`La eliminación legacy de ${collection} no está disponible en modo API.`)
+  cache[collection] = cache[collection].filter(o => o.id !== id)
   persistMirror()
   notify()
 }
@@ -493,13 +495,27 @@ async function hydrateApi() {
   const version = apiHydrationVersion
   const identity = `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`
   const [products, orders, users] = await Promise.all([
-    api.get('/api/products'), api.get('/api/orders'), ctx.rol === 'dueno' ? api.get('/api/users') : Promise.resolve([]),
+    api.get('/api/products'),
+    api.get('/api/orders'),
+    ctx.rol === 'dueno' ? api.get('/api/users') : Promise.resolve([]),
   ])
-  if (!apiMode() || version !== apiHydrationVersion || identity !== `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`) return
+  if (
+    !apiMode() ||
+    version !== apiHydrationVersion ||
+    identity !== `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`
+  )
+    return
   cache.productos = (products || []).map(mapProductoApi)
   cache.ventas = (orders || []).map(mapOrdenApi)
-  cache.vendedores = (users || []).map((u) => ({ ...u, nombre: u.name, activo: u.status === 'ACTIVE' }))
-  cache.mayoristas = []; cache.gastos = []; cache.ads = []; cache.auditoria = []
+  cache.vendedores = (users || []).map(u => ({
+    ...u,
+    nombre: u.name,
+    activo: u.status === 'ACTIVE',
+  }))
+  cache.mayoristas = []
+  cache.gastos = []
+  cache.ads = []
+  cache.auditoria = []
   cache.config = { ...CONFIG_DEFAULT, nombreTienda: getCompanyName() }
   notify()
 }
@@ -507,7 +523,13 @@ async function hydrateApi() {
 // El costo del producto vive en la API como `costPyg`. Sin este mapeo la
 // ganancia se mostraba igual a las ventas (costo 0) cuando la sesión es real.
 export function mapProductoApi(p) {
-  return { ...p, nombre: p.name, precioVenta: p.pricePyg, precioCosto: num(p.costPyg), activo: p.isActive !== false }
+  return {
+    ...p,
+    nombre: p.name,
+    precioVenta: p.pricePyg,
+    precioCosto: num(p.costPyg),
+    activo: p.isActive !== false,
+  }
 }
 
 // Traduce el formato de la interfaz al contrato de la API.
@@ -524,18 +546,49 @@ export function payloadProductoApi(payload = {}) {
 }
 
 function mapOrdenApi(o) {
-  const pagos = (o.payments || []).map((p) => ({ ...p, monto: p.amountPyg, medioPago: p.method }))
-  const totalPagado = pagos.filter((p) => p.status === 'CONFIRMED').reduce((sum, p) => sum + num(p.monto), 0)
+  const pagos = (o.payments || []).map(p => ({ ...p, monto: p.amountPyg, medioPago: p.method }))
+  const totalPagado = pagos
+    .filter(p => p.status === 'CONFIRMED')
+    .reduce((sum, p) => sum + num(p.monto), 0)
   const total = num(o.totalPyg)
   const items = o.items || []
   // Foto del costo guardada en la venta: se prefiere sobre el costo actual.
-  const conCosto = items.filter((item) => item.unitCostPyg !== null && item.unitCostPyg !== undefined)
-  const costoVenta = conCosto.reduce((sum, item) => sum + num(item.unitCostPyg) * num(item.quantity), 0)
-  return { ...o, codigo: o.orderNumber, precio: total, vendedorId: o.sellerId, clienteId: o.customerId, cliente: o.customer?.name || '', fecha: o.createdAt?.slice(0, 10) || '', creadoEn: o.createdAt, productoId: items[0]?.productId || null, productoNombre: items.map((item) => item.description).filter(Boolean).join(', '), ...(conCosto.length ? { precioCosto: costoVenta } : {}), pagos, totalPagado, totalPendiente: Math.max(0, total - totalPagado), estadoPago: totalPagado >= total ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente' }
+  const conCosto = items.filter(item => item.unitCostPyg !== null && item.unitCostPyg !== undefined)
+  const costoVenta = conCosto.reduce(
+    (sum, item) => sum + num(item.unitCostPyg) * num(item.quantity),
+    0,
+  )
+  return {
+    ...o,
+    codigo: o.orderNumber,
+    precio: total,
+    vendedorId: o.sellerId,
+    clienteId: o.customerId,
+    cliente: o.customer?.name || '',
+    fecha: o.createdAt?.slice(0, 10) || '',
+    creadoEn: o.createdAt,
+    productoId: items[0]?.productId || null,
+    productoNombre: items
+      .map(item => item.description)
+      .filter(Boolean)
+      .join(', '),
+    ...(conCosto.length ? { precioCosto: costoVenta } : {}),
+    pagos,
+    totalPagado,
+    totalPendiente: Math.max(0, total - totalPagado),
+    estadoPago: totalPagado >= total ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente',
+  }
 }
 
 function getCompanyName() {
-  try { return JSON.parse(localStorage.getItem('owncoding_hub_company_context') || 'null')?.tenant?.name || APP_NAME } catch { return APP_NAME }
+  try {
+    return (
+      JSON.parse(localStorage.getItem('owncoding_hub_company_context') || 'null')?.tenant?.name ||
+      APP_NAME
+    )
+  } catch {
+    return APP_NAME
+  }
 }
 
 // Hora del servidor: la fuente operativa es el API; el demo no requiere reloj remoto.
@@ -630,8 +683,7 @@ const CAMPOS_AUDIT = {
 }
 
 function resumenVenta(v) {
-  const prod =
-    v?.productoNombre || cache.productos.find((p) => p.id === v?.productoId)?.nombre || '—'
+  const prod = v?.productoNombre || cache.productos.find(p => p.id === v?.productoId)?.nombre || '—'
   return { cliente: v?.cliente || '—', producto: prod, precio: num(v?.precio) }
 }
 
@@ -640,7 +692,7 @@ function resumenVenta(v) {
 // autor es quien tiene la sesión (el dueño, único que puede eliminar).
 function actorDeVenta(venta) {
   if (venta?.vendedorId) {
-    const v = cache.vendedores.find((x) => x.id === venta.vendedorId)
+    const v = cache.vendedores.find(x => x.id === venta.vendedorId)
     if (v) return { id: v.id, nombre: v.nombre, esPropietario: false }
   }
   return actorActual
@@ -693,7 +745,7 @@ export async function updateProductoApi(id, cambios) {
   const updated = await api.patch('/api/products', { id, ...payloadProductoApi(cambios) })
   if (!updated?.id) throw new Error('El backend no devolvió un producto confirmado.')
   const mapped = mapProductoApi(updated)
-  const index = cache.productos.findIndex((product) => product.id === id)
+  const index = cache.productos.findIndex(product => product.id === id)
   if (index >= 0) cache.productos[index] = mapped
   notify()
   return updated
@@ -724,21 +776,34 @@ export function addProducto(nombre, categoria = 'Otros') {
   return nuevo
 }
 export function addProductoVariante(productoBase, atributos = {}) {
-  const base = typeof productoBase === 'string' ? cache.productos.find((p) => p.id === productoBase) : productoBase
+  const base =
+    typeof productoBase === 'string'
+      ? cache.productos.find(p => p.id === productoBase)
+      : productoBase
   if (!base) return null
-  const detalle = Object.entries(atributos).filter(([, v]) => String(v).trim()).map(([k, v]) => `${k}: ${v}`).join(' · ')
+  const detalle = Object.entries(atributos)
+    .filter(([, v]) => String(v).trim())
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(' · ')
   const nuevo = addProducto(`${base.nombre}${detalle ? ` · ${detalle}` : ''}`, base.categoria)
-  updateProducto(nuevo.id, { ...base, id: nuevo.id, nombre: nuevo.nombre, varianteDe: base.id, atributos, stock: 0 })
+  updateProducto(nuevo.id, {
+    ...base,
+    id: nuevo.id,
+    nombre: nuevo.nombre,
+    varianteDe: base.id,
+    atributos,
+    stock: 0,
+  })
   return nuevo
 }
 export function productosById() {
   const map = {}
-  getProductos().forEach((p) => (map[p.id] = p))
+  getProductos().forEach(p => (map[p.id] = p))
   return map
 }
 export function updateProducto(id, cambios) {
   if (apiMode()) throw new Error('Productos: escritura API todavía no está disponible.')
-  const actual = cache.productos.find((p) => p.id === id)
+  const actual = cache.productos.find(p => p.id === id)
   if (!actual) return
   entUpsert('productos', { ...actual, ...cambios })
 }
@@ -763,41 +828,188 @@ export function prepararDatosDemo() {
   if (!isDemoRuntime || ctx.empresaId !== 'mobos-demo') return
   const version = num(cache.config.demoSeedVersion)
   const hoy = new Date()
-  const fecha = (dias) => { const d = new Date(hoy); d.setDate(d.getDate() - dias); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+  const fecha = dias => {
+    const d = new Date(hoy)
+    d.setDate(d.getDate() - dias)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
   const producto = (id, nombre, categoria, precioVenta, precioCosto, stock, atributos = {}) => ({
-    ...prod(nombre, categoria), id, precioVenta, precioCosto, comision: Math.round(precioVenta * 0.01), stock, atributos,
+    ...prod(nombre, categoria),
+    id,
+    precioVenta,
+    precioCosto,
+    comision: Math.round(precioVenta * 0.01),
+    stock,
+    atributos,
   })
   const seeds = [
-    producto('demo-iphone-15-pro-256-titanio', 'iPhone 15 Pro 256GB Titanio', 'Celulares', 6850000, 5300000, 4, { modelo: 'iPhone 15 Pro', color: 'Titanio', capacidad: '256GB', estado: 'Nuevo' }),
-    producto('demo-iphone-15-pro-256-negro', 'iPhone 15 Pro 256GB Negro', 'Celulares', 6750000, 5250000, 2, { modelo: 'iPhone 15 Pro', color: 'Negro', capacidad: '256GB', estado: 'Nuevo' }),
-    producto('demo-iphone-15-128-azul', 'iPhone 15 128GB Azul', 'Celulares', 4850000, 3900000, 3, { modelo: 'iPhone 15', color: 'Azul', capacidad: '128GB', estado: 'Nuevo' }),
-    producto('demo-iphone-14-pro-256-plata', 'iPhone 14 Pro 256GB Plata', 'Celulares', 4950000, 4000000, 1, { modelo: 'iPhone 14 Pro', color: 'Plata', capacidad: '256GB', estado: 'Seminuevo' }),
-    producto('demo-funda-magsafe-transparente', 'Funda MagSafe Transparente', 'Accesorios', 180000, 70000, 23, { compatible: 'iPhone 15 Pro' }),
-    producto('demo-funda-silicona-negra', 'Funda Silicona Negra', 'Accesorios', 150000, 55000, 14, { compatible: 'iPhone 15 / 15 Pro' }),
-    producto('demo-cargador-usbc-20w', 'Cargador USB-C 20W', 'Accesorios', 220000, 120000, 10, { compatible: 'USB-C' }),
-    producto('demo-airpods-pro-2-usbc', 'AirPods Pro 2 USB-C', 'Audio', 1850000, 1300000, 3, { estado: 'Nuevo' }),
+    producto(
+      'demo-iphone-15-pro-256-titanio',
+      'iPhone 15 Pro 256GB Titanio',
+      'Celulares',
+      6850000,
+      5300000,
+      4,
+      { modelo: 'iPhone 15 Pro', color: 'Titanio', capacidad: '256GB', estado: 'Nuevo' },
+    ),
+    producto(
+      'demo-iphone-15-pro-256-negro',
+      'iPhone 15 Pro 256GB Negro',
+      'Celulares',
+      6750000,
+      5250000,
+      2,
+      { modelo: 'iPhone 15 Pro', color: 'Negro', capacidad: '256GB', estado: 'Nuevo' },
+    ),
+    producto('demo-iphone-15-128-azul', 'iPhone 15 128GB Azul', 'Celulares', 4850000, 3900000, 3, {
+      modelo: 'iPhone 15',
+      color: 'Azul',
+      capacidad: '128GB',
+      estado: 'Nuevo',
+    }),
+    producto(
+      'demo-iphone-14-pro-256-plata',
+      'iPhone 14 Pro 256GB Plata',
+      'Celulares',
+      4950000,
+      4000000,
+      1,
+      { modelo: 'iPhone 14 Pro', color: 'Plata', capacidad: '256GB', estado: 'Seminuevo' },
+    ),
+    producto(
+      'demo-funda-magsafe-transparente',
+      'Funda MagSafe Transparente',
+      'Accesorios',
+      180000,
+      70000,
+      23,
+      { compatible: 'iPhone 15 Pro' },
+    ),
+    producto('demo-funda-silicona-negra', 'Funda Silicona Negra', 'Accesorios', 150000, 55000, 14, {
+      compatible: 'iPhone 15 / 15 Pro',
+    }),
+    producto('demo-cargador-usbc-20w', 'Cargador USB-C 20W', 'Accesorios', 220000, 120000, 10, {
+      compatible: 'USB-C',
+    }),
+    producto('demo-airpods-pro-2-usbc', 'AirPods Pro 2 USB-C', 'Audio', 1850000, 1300000, 3, {
+      estado: 'Nuevo',
+    }),
   ]
   const productoPorId = new Map()
-  const productoPorNombre = new Map(cache.productos.map((item) => [item.nombre.trim().toLowerCase(), item]))
+  const productoPorNombre = new Map(
+    cache.productos.map(item => [item.nombre.trim().toLowerCase(), item]),
+  )
   const nuevosProductos = []
   for (const item of seeds) {
     const existente = productoPorNombre.get(item.nombre.trim().toLowerCase())
     const elegido = existente || item
     productoPorId.set(item.id, elegido.id)
-    if (!existente && !cache.productos.some((actual) => actual.id === item.id)) nuevosProductos.push(item)
+    if (!existente && !cache.productos.some(actual => actual.id === item.id))
+      nuevosProductos.push(item)
   }
   const ventas = [
-    { id: 'demo-venta-hoy-full', fecha: fecha(0), creadoEn: `${fecha(0)}T10:15:00`, cliente: 'María González', productoId: 'demo-iphone-15-pro-256-titanio', productoNombre: 'iPhone 15 Pro 256GB Titanio', precio: 6850000, precioCosto: 5300000, comision: 50000, vendedorId: 'demo-user', medioPago: 'DINERO', pagos: [{ id: 'demo-pago-hoy-full', medioPago: 'DINERO', cuenta: '', monto: 6850000, fecha: `${fecha(0)}T10:15:00` }], totalPagado: 6850000, totalPendiente: 0, estadoPago: 'Pagado', entrega: 'Retiro en tienda', montoDelivery: 0, observacion: 'Venta demo completa' },
-    { id: 'demo-venta-hoy-partial', fecha: fecha(0), creadoEn: `${fecha(0)}T11:20:00`, cliente: 'Carlos Benítez', productoId: 'demo-funda-magsafe-transparente', productoNombre: 'Funda MagSafe Transparente', precio: 180000, precioCosto: 70000, comision: 10000, vendedorId: 'demo-user', medioPago: 'DINERO', pagos: [{ id: 'demo-pago-hoy-partial-a', medioPago: 'DINERO', cuenta: '', monto: 50000, fecha: `${fecha(0)}T11:20:00` }, { id: 'demo-pago-hoy-partial-b', medioPago: 'UENO BANK', cuenta: 'Caja demo', monto: 30000, fecha: `${fecha(0)}T11:21:00` }], totalPagado: 80000, totalPendiente: 100000, estadoPago: 'Parcial', entrega: 'Retiro en tienda', montoDelivery: 0, observacion: 'Seña demo combinada' },
-    { id: 'demo-venta-ayer-pending', fecha: fecha(1), creadoEn: `${fecha(1)}T16:40:00`, cliente: 'Lucía Franco', productoId: 'demo-airpods-pro-2-usbc', productoNombre: 'AirPods Pro 2 USB-C', precio: 1850000, precioCosto: 1300000, comision: 30000, vendedorId: 'demo-user', medioPago: 'DINERO', pagos: [], totalPagado: 0, totalPendiente: 1880000, estadoPago: 'Pendiente', entrega: 'Delivery', montoDelivery: 30000, observacion: 'Pendiente de cobro demo' },
+    {
+      id: 'demo-venta-hoy-full',
+      fecha: fecha(0),
+      creadoEn: `${fecha(0)}T10:15:00`,
+      cliente: 'María González',
+      productoId: 'demo-iphone-15-pro-256-titanio',
+      productoNombre: 'iPhone 15 Pro 256GB Titanio',
+      precio: 6850000,
+      precioCosto: 5300000,
+      comision: 50000,
+      vendedorId: 'demo-user',
+      medioPago: 'DINERO',
+      pagos: [
+        {
+          id: 'demo-pago-hoy-full',
+          medioPago: 'DINERO',
+          cuenta: '',
+          monto: 6850000,
+          fecha: `${fecha(0)}T10:15:00`,
+        },
+      ],
+      totalPagado: 6850000,
+      totalPendiente: 0,
+      estadoPago: 'Pagado',
+      entrega: 'Retiro en tienda',
+      montoDelivery: 0,
+      observacion: 'Venta demo completa',
+    },
+    {
+      id: 'demo-venta-hoy-partial',
+      fecha: fecha(0),
+      creadoEn: `${fecha(0)}T11:20:00`,
+      cliente: 'Carlos Benítez',
+      productoId: 'demo-funda-magsafe-transparente',
+      productoNombre: 'Funda MagSafe Transparente',
+      precio: 180000,
+      precioCosto: 70000,
+      comision: 10000,
+      vendedorId: 'demo-user',
+      medioPago: 'DINERO',
+      pagos: [
+        {
+          id: 'demo-pago-hoy-partial-a',
+          medioPago: 'DINERO',
+          cuenta: '',
+          monto: 50000,
+          fecha: `${fecha(0)}T11:20:00`,
+        },
+        {
+          id: 'demo-pago-hoy-partial-b',
+          medioPago: 'UENO BANK',
+          cuenta: 'Caja demo',
+          monto: 30000,
+          fecha: `${fecha(0)}T11:21:00`,
+        },
+      ],
+      totalPagado: 80000,
+      totalPendiente: 100000,
+      estadoPago: 'Parcial',
+      entrega: 'Retiro en tienda',
+      montoDelivery: 0,
+      observacion: 'Seña demo combinada',
+    },
+    {
+      id: 'demo-venta-ayer-pending',
+      fecha: fecha(1),
+      creadoEn: `${fecha(1)}T16:40:00`,
+      cliente: 'Lucía Franco',
+      productoId: 'demo-airpods-pro-2-usbc',
+      productoNombre: 'AirPods Pro 2 USB-C',
+      precio: 1850000,
+      precioCosto: 1300000,
+      comision: 30000,
+      vendedorId: 'demo-user',
+      medioPago: 'DINERO',
+      pagos: [],
+      totalPagado: 0,
+      totalPendiente: 1880000,
+      estadoPago: 'Pendiente',
+      entrega: 'Delivery',
+      montoDelivery: 30000,
+      observacion: 'Pendiente de cobro demo',
+    },
   ]
-  const ventasDemo = ventas.map((item) => ({ ...item, productoId: productoPorId.get(item.productoId) || item.productoId })).filter((item) => !cache.ventas.some((actual) => actual.id === item.id))
+  const ventasDemo = ventas
+    .map(item => ({ ...item, productoId: productoPorId.get(item.productoId) || item.productoId }))
+    .filter(item => !cache.ventas.some(actual => actual.id === item.id))
   if (version < 2) {
     cache.productos = [...cache.productos, ...nuevosProductos]
-    cache.vendedores = cache.vendedores.some((item) => item.id === 'demo-user') ? cache.vendedores : [...cache.vendedores, { id: 'demo-user', nombre: 'Usuario demo', activo: true, metaDiaria: 1000000 }]
+    cache.vendedores = cache.vendedores.some(item => item.id === 'demo-user')
+      ? cache.vendedores
+      : [
+          ...cache.vendedores,
+          { id: 'demo-user', nombre: 'Usuario demo', activo: true, metaDiaria: 1000000 },
+        ]
     cache.ventas = [...ventasDemo, ...cache.ventas]
   }
-  cache.config = { ...cache.config, nombreTienda: cache.config.nombreTienda || 'MobOS Tienda Demo', demoSeedVersion: 2 }
+  cache.config = {
+    ...cache.config,
+    nombreTienda: cache.config.nombreTienda || 'MobOS Tienda Demo',
+    demoSeedVersion: 2,
+  }
   persistMirror()
   notify()
 }
@@ -817,7 +1029,7 @@ export function addVendedor(nombre) {
   return nuevo
 }
 export function updateVendedor(id, cambios) {
-  const actual = cache.vendedores.find((v) => v.id === id)
+  const actual = cache.vendedores.find(v => v.id === id)
   if (!actual) return
   entUpsert('vendedores', { ...actual, ...cambios })
 }
@@ -826,7 +1038,7 @@ export function deleteVendedor(id) {
 }
 export function vendedoresById() {
   const map = {}
-  getVendedores().forEach((v) => (map[v.id] = v.nombre))
+  getVendedores().forEach(v => (map[v.id] = v.nombre))
   return map
 }
 
@@ -834,25 +1046,35 @@ export function vendedoresById() {
 export function listVentas() {
   return cache.ventas
 }
-export async function guardarOrdenApi(payload) {
+export async function guardarOrdenApi(payload, opciones = {}) {
   if (!apiMode()) throw new Error('guardarOrdenApi solo está disponible con una sesión API real.')
-  if (!payload || typeof payload !== 'object') throw new Error('El payload de la orden es obligatorio.')
-  const order = await api.post('/api/orders', payload)
+  if (!payload || typeof payload !== 'object')
+    throw new Error('El payload de la orden es obligatorio.')
+  // Idempotency-Key opcional: reintentos de la misma venta reutilizan la orden
+  // ya creada en vez de duplicarla. El path demo no lo usa.
+  const order = await api.post(
+    '/api/orders',
+    payload,
+    opciones.idempotencyKey
+      ? { headers: { 'Idempotency-Key': opciones.idempotencyKey } }
+      : undefined,
+  )
   if (!order?.id) throw new Error('El backend no devolvió una orden confirmada.')
   const venta = mapOrdenApi(order)
-  const i = cache.ventas.findIndex((item) => item.id === venta.id)
-  if (i >= 0) cache.ventas = cache.ventas.map((item, index) => index === i ? venta : item)
+  const i = cache.ventas.findIndex(item => item.id === venta.id)
+  if (i >= 0) cache.ventas = cache.ventas.map((item, index) => (index === i ? venta : item))
   else cache.ventas = [venta, ...cache.ventas]
   for (const item of order.items || []) {
-    const product = cache.productos.find((p) => p.id === item.productId)
+    const product = cache.productos.find(p => p.id === item.productId)
     if (product) product.stock = Math.max(0, num(product.stock) - num(item.quantity))
   }
   notify()
   return order
 }
 export function addVenta(venta) {
-  if (apiMode()) throw new Error('Órdenes: creación API requiere la integración de FormularioVenta.')
-  const prod = venta.productoId ? cache.productos.find((p) => p.id === venta.productoId) : null
+  if (apiMode())
+    throw new Error('Órdenes: creación API requiere la integración de FormularioVenta.')
+  const prod = venta.productoId ? cache.productos.find(p => p.id === venta.productoId) : null
   const nueva = {
     id: 'venta-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     creadoEn: new Date().toISOString(),
@@ -863,7 +1085,7 @@ export function addVenta(venta) {
     ...venta,
   }
   const pagos = Array.isArray(venta.pagos) ? venta.pagos : []
-  nueva.pagos = pagos.map((p) => ({
+  nueva.pagos = pagos.map(p => ({
     ...p,
     id: p.id || 'p-' + Math.random().toString(36).slice(2, 9),
     medioPago: p.medioPago || MEDIOS_PAGO[0],
@@ -872,19 +1094,23 @@ export function addVenta(venta) {
     fecha: p.fecha || new Date().toISOString(),
   }))
   nueva.totalPagado = nueva.pagos.reduce((s, p) => s + num(p.monto), 0)
-  nueva.totalPendiente = Math.max(0, num(nueva.precio) + num(nueva.montoDelivery) - nueva.totalPagado)
-  nueva.estadoPago = nueva.totalPendiente === 0 ? 'Pagado' : nueva.totalPagado > 0 ? 'Parcial' : 'Pendiente'
+  nueva.totalPendiente = Math.max(
+    0,
+    num(nueva.precio) + num(nueva.montoDelivery) - nueva.totalPagado,
+  )
+  nueva.estadoPago =
+    nueva.totalPendiente === 0 ? 'Pagado' : nueva.totalPagado > 0 ? 'Parcial' : 'Pendiente'
   entUpsert('ventas', nueva)
   moverStock(nueva.productoId, -1)
   logAuditoria('crear', nueva)
   return nueva
 }
 export function updateVenta(id, cambios) {
-  const actual = cache.ventas.find((v) => v.id === id)
+  const actual = cache.ventas.find(v => v.id === id)
   if (!actual) return
   const merged = { ...actual, ...cambios }
   const difs = []
-  Object.keys(cambios).forEach((k) => {
+  Object.keys(cambios).forEach(k => {
     if (CAMPOS_AUDIT[k] && actual[k] !== cambios[k]) {
       difs.push({ campo: CAMPOS_AUDIT[k], de: actual[k], a: cambios[k] })
     }
@@ -893,7 +1119,7 @@ export function updateVenta(id, cambios) {
   logAuditoria('editar', merged, difs)
 }
 export function deleteVenta(id) {
-  const v = cache.ventas.find((x) => x.id === id)
+  const v = cache.ventas.find(x => x.id === id)
   entDelete('ventas', id)
   if (v) moverStock(v.productoId, +1) // se repone lo que había salido
   logAuditoria('eliminar', v || { id })
@@ -905,7 +1131,7 @@ export function deleteVenta(id) {
 // inventario del sistema coincida con el físico.
 export function moverStock(productoId, delta) {
   if (!productoId || !delta) return
-  const p = cache.productos.find((x) => x.id === productoId)
+  const p = cache.productos.find(x => x.id === productoId)
   if (!p) return
   entUpsert('productos', { ...p, stock: num(p.stock) + delta })
 }
@@ -927,7 +1153,7 @@ export function addMayorista({ nombre, ruc = '', contacto = '', tel = '' }) {
   return nuevo
 }
 export function updateMayorista(id, cambios) {
-  const actual = cache.mayoristas.find((m) => m.id === id)
+  const actual = cache.mayoristas.find(m => m.id === id)
   if (actual) entUpsert('mayoristas', { ...actual, ...cambios })
 }
 export function deleteMayorista(id) {
@@ -939,16 +1165,23 @@ export function listVentasMay() {
 }
 // Registra una venta mayorista con varias líneas y descuenta el stock de cada
 // producto por la cantidad vendida.
-export function addVentaMayorista({ mayoristaId, lineas, medioPago, estadoPago, observacion, fecha }) {
-  const items = (lineas || []).filter((l) => l.productoId && num(l.cantidad) > 0)
+export function addVentaMayorista({
+  mayoristaId,
+  lineas,
+  medioPago,
+  estadoPago,
+  observacion,
+  fecha,
+}) {
+  const items = (lineas || []).filter(l => l.productoId && num(l.cantidad) > 0)
   if (!mayoristaId || items.length === 0) return null
   const nueva = {
     id: 'vmay-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     codigo: 'MAY-' + String(cache.ventasMay.length + 1).padStart(4, '0'),
     mayoristaId,
     fecha: fecha || new Date().toISOString().slice(0, 10),
-    lineas: items.map((l) => {
-      const p = cache.productos.find((x) => x.id === l.productoId)
+    lineas: items.map(l => {
+      const p = cache.productos.find(x => x.id === l.productoId)
       return {
         productoId: l.productoId,
         nombre: p?.nombre || 'Producto',
@@ -965,17 +1198,17 @@ export function addVentaMayorista({ mayoristaId, lineas, medioPago, estadoPago, 
   nueva.total = nueva.lineas.reduce((a, l) => a + l.cantidad * l.precioUnit, 0)
   nueva.unidades = nueva.lineas.reduce((a, l) => a + l.cantidad, 0)
   entUpsert('ventasMay', nueva)
-  nueva.lineas.forEach((l) => moverStock(l.productoId, -l.cantidad))
+  nueva.lineas.forEach(l => moverStock(l.productoId, -l.cantidad))
   return nueva
 }
 export function updateVentaMay(id, cambios) {
-  const actual = cache.ventasMay.find((v) => v.id === id)
+  const actual = cache.ventasMay.find(v => v.id === id)
   if (actual) entUpsert('ventasMay', { ...actual, ...cambios })
 }
 export function deleteVentaMay(id) {
-  const v = cache.ventasMay.find((x) => x.id === id)
+  const v = cache.ventasMay.find(x => x.id === id)
   entDelete('ventasMay', id)
-  if (v) (v.lineas || []).forEach((l) => moverStock(l.productoId, +num(l.cantidad)))
+  if (v) (v.lineas || []).forEach(l => moverStock(l.productoId, +num(l.cantidad)))
 }
 
 // ── GASTOS ──────────────────────────────────────────────────────────
@@ -1033,7 +1266,7 @@ export function addCelular(cel) {
   return nuevo
 }
 export function updateCelular(id, cambios) {
-  const actual = cache.celulares.find((c) => c.id === id)
+  const actual = cache.celulares.find(c => c.id === id)
   if (!actual) return
   entUpsert('celulares', { ...actual, ...cambios })
 }
@@ -1045,12 +1278,12 @@ export function deleteCelular(id) {
 // puede existir como Nuevo y como Seminuevo a la vez.
 export function cargarLineupIphone() {
   const existentes = new Set(
-    cache.celulares.map((c) => `${c.modelo}|${c.capacidad}|${c.estado}`.toLowerCase()),
+    cache.celulares.map(c => `${c.modelo}|${c.capacidad}|${c.estado}`.toLowerCase()),
   )
   let n = 0
   const seed = (lineup, estado) => {
     lineup.forEach(([modelo, caps]) => {
-      caps.forEach((cap) => {
+      caps.forEach(cap => {
         const key = `${modelo}|${cap}|${estado}`.toLowerCase()
         if (!existentes.has(key)) {
           existentes.add(key)
@@ -1085,7 +1318,10 @@ export function resetTradein() {
 }
 // La actualización de cotización se integrará con el endpoint propio de finanzas.
 export async function actualizarDolar() {
-  return { ok: false, error: 'La actualización de cotización todavía no está disponible en la API.' }
+  return {
+    ok: false,
+    error: 'La actualización de cotización todavía no está disponible en la API.',
+  }
 }
 
 // ── IMÁGENES DEL COMPARADOR ─────────────────────────────────────────

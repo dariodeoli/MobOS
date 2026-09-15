@@ -167,6 +167,37 @@ request() {
   fi
 }
 
+# Igual que request() pero envía además el header Idempotency-Key.
+request_key() {
+  local method="$1"
+  local path="$2"
+  local expected="$3"
+  local body="${4:-}"
+  local output="$5"
+  local token="${6:-}"
+  local tenant="${7:-tenant-a-it}"
+  local key="$8"
+  local -a args=(--silent --show-error --request "$method" --output "$output" --write-out '%{http_code}')
+  if [[ -n "$tenant" ]]; then
+    args+=(--header "x-tenant-id: $tenant")
+  fi
+  if [[ -n "$token" ]]; then
+    args+=(--header "Authorization: Bearer $token")
+  fi
+  if [[ -n "$key" ]]; then
+    args+=(--header "Idempotency-Key: $key")
+  fi
+  if [[ -n "$body" ]]; then
+    args+=(--header 'Content-Type: application/json' --data "$body")
+  fi
+  local status
+  status="$(curl "${args[@]}" "$BASE_URL$path")"
+  if [[ "$status" != "$expected" ]]; then
+    echo "FALLÓ $method $path: esperado HTTP $expected, recibido $status" >&2
+    exit 1
+  fi
+}
+
 # Las credenciales de producción no se devuelven en JSON. Este helper extrae
 # la cookie emitida por el servidor únicamente dentro del arnés temporal para
 # seguir verificando los límites entre sesión de empresa y sesión de vendedor.
@@ -308,6 +339,25 @@ assert_order_cost_snapshot "$out" IT-ORDER-001 70000 || { echo "La venta no cong
 out="$(response_file)"; request GET /api/products 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_product_cost "$out" prod-a-order-it 70000 || { echo "El costo del producto no se devolvió en el catálogo." >&2; exit 1; }
 echo "4b/11 Costo del producto y foto del costo en la venta OK..."
+
+echo "4c/11 Idempotencia de órdenes: misma clave reutiliza la orden sin descontar stock de nuevo..."
+IDEM_KEY_A="it-order-idempotency-0001a"
+IDEM_BODY='{"orderNumber":"IT-IDEM-001","items":[{"productId":"prod-a-order-it","description":"Synthetic Product A Idem","quantity":1,"unitPricePyg":100000}],"payment":{"method":"CASH","amountPyg":100000}}'
+IDEM_BODY_B='{"orderNumber":"IT-IDEM-002","items":[{"productId":"prod-a-order-it","description":"Synthetic Product A Idem B","quantity":1,"unitPricePyg":100000}],"payment":{"method":"CASH","amountPyg":100000}}'
+out="$(response_file)"; request_key POST /api/orders 201 "$IDEM_BODY" "$out" "$TOKEN_A" tenant-a-it "$IDEM_KEY_A"
+IDEM_ORDER_ID="$(json_field "$out" id)"
+out="$(response_file)"; request_key POST /api/orders 200 "$IDEM_BODY" "$out" "$TOKEN_A" tenant-a-it "$IDEM_KEY_A"
+if [[ "$(json_field "$out" id)" != "$IDEM_ORDER_ID" ]]; then
+  echo "La misma Idempotency-Key devolvió una orden distinta." >&2
+  exit 1
+fi
+out="$(response_file)"; request_key POST /api/orders 201 "$IDEM_BODY_B" "$out" "$TOKEN_A" tenant-a-it "it-order-idempotency-0002b"
+if [[ "$(json_field "$out" id)" == "$IDEM_ORDER_ID" ]]; then
+  echo "Una Idempotency-Key distinta reutilizó la orden anterior." >&2
+  exit 1
+fi
+out="$(response_file)"; request GET /api/stock 200 '' "$out" "$TOKEN_A" tenant-a-it
+assert_stock "$out" prod-a-order-it 7 || { echo "El replay idempotente descontó stock de nuevo." >&2; exit 1; }
 
 echo "5/11 Orden de misma empresa en sucursal ajena se rechaza..."
 out="$(response_file)"

@@ -548,6 +548,7 @@ model Order {
   sellerId          String
   seller            User              @relation(fields: [sellerId], references: [id])
   orderNumber       String
+  idempotencyKey    String?
   publicToken       String            @unique @default(cuid())
   status            OrderStatus       @default(PENDING)
   fulfillmentStatus FulfillmentStatus @default(PROCESSING)
@@ -564,6 +565,7 @@ model Order {
   payments Payment[]
 
   @@unique([tenantId, orderNumber])
+  @@unique([tenantId, idempotencyKey])
   @@index([tenantId, status])
   @@index([branchId])
 }
