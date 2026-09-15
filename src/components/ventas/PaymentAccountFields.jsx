@@ -1,6 +1,5 @@
-import { Input, Label, Select, Textarea } from '@/components/ui'
+import { Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
 import { gs } from '@/utils/calculos'
-import { formatGsInput, parseGsInput } from '@/utils/moneda'
 
 const decimal = (value) => {
   const text = String(value ?? '').trim().replace(',', '.')
@@ -52,8 +51,8 @@ export default function PaymentAccountFields({ payment, accounts, onChange }) {
       </Select>
       {account && <p className="mt-1 text-xs text-mute">{[account.bank, account.accountNumber, account.holder].filter(Boolean).join(' · ')}</p>}
     </div>
-    <div><Label>Monto original ({account?.currency || 'moneda de la cuenta'})</Label><Input aria-label="Monto original" disabled={!account} inputMode={account?.currency === 'USD' ? 'decimal' : 'numeric'} value={account?.currency === 'PYG' ? formatGsInput(payment.originalAmount) : payment.originalAmount || ''} onChange={(e) => onChange({ originalAmount: account?.currency === 'PYG' ? (e.target.value.trim() ? String(parseGsInput(e.target.value)) : '') : e.target.value })} placeholder={account?.currency === 'USD' ? '0.00' : '0'} /></div>
-    {account?.currency === 'USD' && <div><Label>Cotización manual (₲ por USD)</Label><Input aria-label="Cotización manual USD a PYG" inputMode="decimal" value={payment.exchangeRatePyg || ''} onChange={(e) => onChange({ exchangeRatePyg: e.target.value })} placeholder="Ingresar cotización" /></div>}
+    <div><Label>Monto original ({account?.currency || 'moneda de la cuenta'})</Label><MoneyInput aria-label="Monto original" disabled={!account} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={account?.currency === 'USD' ? '0,00' : '0'} /></div>
+    {account?.currency === 'USD' && <div><Label>Cotización manual (₲ por USD)</Label><MoneyInput aria-label="Cotización manual USD a PYG" currency="USD" symbol="Gs." value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v })} placeholder="Ingresar cotización" /></div>}
     <p className="text-sm sm:col-span-2">Equivalente: {gs(Number(payment.monto) || 0)}</p>
     {account?.kind === 'TRADE_IN' && <>
       <div><Label>Serial / IMEI del canje *</Label><Input aria-label="Serial del canje" value={payment.tradeIn?.serial || ''} onChange={(e) => onChange({ tradeIn: { ...payment.tradeIn, serial: e.target.value } })} /></div>

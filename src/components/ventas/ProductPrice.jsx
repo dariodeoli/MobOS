@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { quoteDemoPromotion } from '@/lib/demoPromotions'
-import { Input } from '@/components/ui'
-import { gs, gsInput } from '@/utils/calculos'
+import { Input, MoneyInput } from '@/components/ui'
+import { gs } from '@/utils/calculos'
 
 export default function ProductPrice({ product, price, onChange: notify, quantity = 1, esDemo = false }) {
   const [code, setCode] = useState('')
@@ -38,7 +38,7 @@ export default function ProductPrice({ product, price, onChange: notify, quantit
   return <div className="space-y-3 rounded-2xl border border-fono/30 bg-fono/5 p-4 md:col-span-2">
     <p className="font-semibold">{product.nombre}</p><p className="text-sm text-mute">Precio base: {gs(base)}</p>
     <div className="flex flex-wrap gap-2">{[['price','Precio manual'],['percent','Descuento %'],['amount','Descuento Gs']].map(([id,label]) => <button type="button" key={id} aria-pressed={mode === id} className={`rounded-lg border px-3 py-2 text-sm ${mode === id ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600'}`} onClick={() => { setMode(id); setDiscount(''); setError(''); onChange(String(base)) }}>{label}</button>)}</div>
-    {mode === 'price' ? <label className="block text-xs text-mute">Precio de venta<Input aria-label="Precio de venta" inputMode="numeric" value={gsInput(price)} onChange={e => onChange(e.target.value)} /></label> : <label className="block text-xs text-mute">{mode === 'percent' ? 'Porcentaje (0–100)' : 'Monto a descontar'}<Input aria-label="Descuento del producto" inputMode="decimal" value={mode === 'amount' ? gsInput(discount) : discount} onChange={e => change(e.target.value)} /></label>}
+    {mode === 'price' ? <label className="block text-xs text-mute">Precio de venta<MoneyInput aria-label="Precio de venta" value={price} onValueChange={v => onChange(v)} /></label> : <label className="block text-xs text-mute">{mode === 'percent' ? 'Porcentaje (0–100)' : 'Monto a descontar'}{mode === 'percent' ? <Input aria-label="Descuento del producto" inputMode="decimal" value={discount} onChange={e => change(e.target.value)} /> : <MoneyInput aria-label="Descuento del producto" value={discount} onValueChange={v => change(String(v ?? ''))} />}</label>}
     <p className="text-lg font-bold text-fono-light">Precio final: {gs(Number(String(price).replace(/\D/g, '')) || 0)}</p>
     {error && <p role="alert" className="text-sm text-bad">{error}</p>}
     <div className="flex flex-wrap gap-2"><label className="text-xs text-mute">Cupón<Input aria-label="Código de cupón" maxLength={40} value={code} onChange={e => { setCode(e.target.value); onChange(String(base)) }} /></label><button type="button" disabled={busy || !code.trim()} onClick={applyCoupon} className="rounded-lg border px-3 py-2 text-sm">{busy ? 'Validando…' : 'Aplicar cupón'}</button>{applied && <button type="button" onClick={() => { setCode(''); onChange(String(base)) }}>Quitar {applied}</button>}</div>

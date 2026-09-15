@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { formatGsInput, parseGsInput } from '@/utils/moneda'
+import { formatGsInput, parseGsInput, formatUsdInput, parseUsdInput } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
 
 // ── Button ──────────────────────────────────────────────────────────
@@ -62,24 +62,28 @@ export function PasswordInput({ className, ...props }) {
 }
 
 // Campo monetario central: PYG se escribe siempre con separador de miles;
-// USD conserva decimales. Entrega el número limpio al formulario padre.
-export function MoneyInput({ currency = 'PYG', value, onValueChange, className, ...props }) {
+// el resto de las monedas conserva 2 decimales (coma es-PY). Entrega el
+// número limpio al formulario padre. `symbol` sobreescribe el prefijo cuando
+// el campo muestra un importe en una moneda distinta a su etiqueta.
+const MONEY_SYMBOL = { PYG: 'Gs.', USD: 'US$', BRL: 'R$', EUR: '€', USDT: 'USDT' }
+export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, className, ...props }) {
   const isPyg = currency === 'PYG'
-  const display = isPyg ? formatGsInput(value) : String(value ?? '')
+  const prefix = symbol || MONEY_SYMBOL[currency] || currency
+  const display = isPyg ? formatGsInput(value) : formatUsdInput(value)
   return (
     <div className="relative">
       <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-xs font-semibold text-mute">
-        {isPyg ? 'Gs.' : 'US$'}
+        {prefix}
       </span>
       <Input
         {...props}
         inputMode={isPyg ? 'numeric' : 'decimal'}
         value={display}
         onChange={(event) => {
-          const next = event.target.value
-          onValueChange?.(isPyg ? (next.trim() ? parseGsInput(next) : '') : next.replace(/[^\d.,]/g, '').replace(',', '.'))
+          const next = event.target.value.replace(/[^\d.,]/g, '')
+          onValueChange?.(isPyg ? (next.trim() ? parseGsInput(next) : '') : parseUsdInput(next))
         }}
-        className={cn('pl-12 tabular-nums', className)}
+        className={cn(prefix.length > 3 ? 'pl-14' : 'pl-12', 'tabular-nums', className)}
       />
     </div>
   )

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Modal, Input, Select, Button } from '@/components/ui'
+import { Modal, Input, Select, Button, MoneyInput } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import { api, API_URL } from '@/lib/api'
 import { listVentas, updateVenta, refrescar } from '@/lib/storage'
@@ -141,8 +141,8 @@ export default function PagosPedido({ venta, onClose }) {
     {pending > 0 && <form onSubmit={register} className="mb-6 space-y-3 rounded-xl border border-fono/20 bg-fono/5 p-4">
       <h3 className="font-semibold">Registrar pago parcial o total</h3>
       <label className="block text-xs text-mute">Cuenta de destino<Select aria-label="Cuenta de destino" className="mt-1" value={accountId} onChange={e => { setAccountId(e.target.value); setAmount(''); setRate('') }}><option value="">Método manual sin cuenta</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.accountNumber || a.kind}</option>)}</Select></label>
-      <label className="block text-xs text-mute">Monto en {account?.currency === 'USD' ? 'dólares' : 'guaraníes'}<Input aria-label="Monto del pago" value={amount} inputMode="decimal" onChange={e => setAmount(account?.currency === 'USD' ? e.target.value : formatGsInput(e.target.value))} placeholder={account?.currency === 'USD' ? '10.50' : 'Gs 0'} />{account?.currency !== 'USD' && <NumericKeypad value={amount.replace(/\D/g, '')} onChange={v => setAmount(formatGsInput(v))} />}</label>
-      {account?.currency === 'USD' && <label className="block text-xs text-mute">Cotización: Gs por USD<Input inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} placeholder="7500" /></label>}
+      <label className="block text-xs text-mute">Monto en {account?.currency === 'USD' ? 'dólares' : 'guaraníes'}<MoneyInput aria-label="Monto del pago" currency={account?.currency === 'USD' ? 'USD' : 'PYG'} value={amount} onValueChange={v => setAmount(v === '' ? '' : String(v))} placeholder={account?.currency === 'USD' ? '10,50' : 'Gs 0'} />{account?.currency !== 'USD' && <NumericKeypad value={String(amount || '').replace(/\D/g, '')} onChange={v => setAmount(formatGsInput(v))} />}</label>
+      {account?.currency === 'USD' && <label className="block text-xs text-mute">Cotización: Gs por USD<MoneyInput currency="USD" symbol="Gs." value={rate} onValueChange={setRate} placeholder="7500" /></label>}
       {account?.kind === 'TRADE_IN' && <div className="space-y-2"><Input aria-label="IMEI o serial" placeholder="IMEI / serial" value={device.serial} onChange={e => setDevice(d => ({ ...d, serial: e.target.value }))} /><Input aria-label="Modelo recibido" placeholder="Modelo recibido" value={device.model} onChange={e => setDevice(d => ({ ...d, model: e.target.value }))} /><Input placeholder="Estado y observaciones" value={device.conditionNotes} onChange={e => setDevice(d => ({ ...d, conditionNotes: e.target.value }))} /></div>}
       {!account && <label className="block text-xs text-mute">Método<Select className="mt-1" value={method} onChange={e => setMethod(e.target.value)}>{Object.entries(METHODS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></label>}
       <label className="block text-xs text-mute">Cuenta / referencia<Input value={reference} onChange={e => setReference(e.target.value)} maxLength={200} placeholder="Banco, cuenta o referencia de operación" /></label>

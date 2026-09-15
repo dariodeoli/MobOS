@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Badge, Button, Card, Input, Select, Textarea } from '@/components/ui'
+import { Badge, Button, Card, Input, MoneyInput, Select, Textarea } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import { gs } from '@/utils/calculos'
 import {
@@ -100,9 +100,9 @@ function Device({ item, busy, onSave }) {
     {transitions.length > 0 && <form onSubmit={submit}>
       <fieldset disabled={blocked} className="grid gap-3 border-t border-ink-600 pt-4 sm:grid-cols-2">
         <label className="space-y-1 text-sm"><span>Mover a</span><Select value={status} onChange={(event) => setStatus(event.target.value)}>{transitions.map((next) => <option key={next} value={next}>{TRADE_IN_STATUSES[next]}</option>)}</Select></label>
-        {canAddRepairCost && <label className="space-y-1 text-sm"><span>Costo adicional (₲, opcional)</span><Input type="number" min="0" step="1" value={repairCostPyg} placeholder="Importe a sumar al total" onChange={(event) => setRepairCostPyg(event.target.value)} /></label>}
+        {canAddRepairCost && <label className="space-y-1 text-sm"><span>Costo adicional (₲, opcional)</span><MoneyInput value={repairCostPyg} placeholder="Importe a sumar al total" onValueChange={setRepairCostPyg} /></label>}
         {status === 'STOCK' && <>
-          <label className="space-y-1 text-sm"><span>Precio de venta (₲)</span><Input type="number" min="1" step="1" required value={pricePyg} onChange={(event) => setPricePyg(event.target.value)} /></label>
+          <label className="space-y-1 text-sm"><span>Precio de venta (₲)</span><MoneyInput required value={pricePyg} onValueChange={setPricePyg} /></label>
           <label className="space-y-1 text-sm"><span>Destino</span><Select value={destination} onChange={(event) => setDestination(event.target.value)}>{Object.entries(TRADE_IN_DESTINATIONS).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</Select></label>
         </>}
         <label className="space-y-1 text-sm sm:col-span-2"><span>Diagnóstico</span><Textarea rows={2} value={diagnosis} placeholder="Estado técnico, batería, detalles de revisión…" onChange={(event) => setDiagnosis(event.target.value)} /></label>

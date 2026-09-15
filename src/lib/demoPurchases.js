@@ -24,3 +24,20 @@ export function receiveDemoPurchase(id) {
   write(items.map((item) => item.id === id ? updated : item))
   return updated
 }
+
+export function updateDemoPurchaseCosts(id, lines) {
+  const items = read(); const purchase = items.find((item) => item.id === id)
+  if (!purchase || purchase.status !== 'DRAFT') throw new Error('Solo se pueden editar los costos de un borrador.')
+  const byId = Object.fromEntries(lines.map((line) => [line.id, line]))
+  const updated = {
+    ...purchase,
+    lines: (purchase.lines || []).map((line) => {
+      const next = byId[line.id]
+      if (!next) return line
+      const unitCostPyg = Number(next.unitCostPyg)
+      return { ...line, unitCostPyg, finalTotalCostPyg: Number(line.quantity) * unitCostPyg }
+    }),
+  }
+  write(items.map((item) => item.id === id ? updated : item))
+  return updated
+}

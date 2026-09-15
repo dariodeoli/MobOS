@@ -15,7 +15,7 @@ import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
 import { validateDemoPromotionItems, recordDemoPromotionUsage } from '@/lib/demoPromotions'
 import { agruparProductos } from '@/utils/colores'
-import { Button, Card, Input, Label, Select, Textarea, Badge } from '@/components/ui'
+import { Button, Card, Input, Label, Select, Textarea, Badge, MoneyInput } from '@/components/ui'
 import SelectorColor from './SelectorColor'
 import CheckoutCustomer from './CheckoutCustomer'
 import ProductPrice from './ProductPrice'
@@ -589,7 +589,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         {/* Estado de pago */}
         <div>
           <Label>Descuento extra (Gs)</Label>
-          <Input inputMode="numeric" value={gsInput(descuento)} onChange={(e) => setDescuento(e.target.value)} placeholder="0" />
+          <MoneyInput value={descuento} onValueChange={setDescuento} placeholder="0" />
           {tieneCupon && <p className="mt-1 text-xs text-fono-light">Esta venta tiene cupón: el descuento extra debe quedar en cero.</p>}
         </div>
 
@@ -634,7 +634,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
               {usaCuentas ? <PaymentAccountFields payment={p} accounts={cuentas} onChange={(change) => setPagos((a) => a.map((x, j) => j === i ? updateAccountPayment(x, change, cuentas) : x))} /> : <>
               <div><Label>Medio</Label><SelectorMedioPago value={p.medioPago} onChange={(v) => setPagos((a) => a.map((x, j) => j === i ? { ...x, medioPago: v } : x))} /></div>
               <div><Label>Cuenta</Label><Input value={p.cuenta} onChange={(e) => setPagos((a) => a.map((x, j) => j === i ? { ...x, cuenta: e.target.value } : x))} placeholder="Ej. Ueno principal" /></div>
-              <div><Label>Monto (Gs)</Label><Input inputMode="numeric" value={gsInput(p.monto)} onChange={(e) => setPagos((a) => a.map((x, j) => j === i ? { ...x, monto: e.target.value } : x))} /><NumericKeypad value={String(p.monto || '').replace(/\D/g, '')} onChange={(v) => setPagos((a) => a.map((x, j) => j === i ? { ...x, monto: v } : x))} /></div>
+              <div><Label>Monto (Gs)</Label><Input inputMode="numeric" value={gsInput(p.monto)} onChange={(e) => setPagos((a) => a.map((x, j) => j === i ? { ...x, monto: e.target.value.replace(/\D/g, '') } : x))} /><NumericKeypad value={String(p.monto || '').replace(/\D/g, '')} onChange={(v) => setPagos((a) => a.map((x, j) => j === i ? { ...x, monto: v } : x))} /></div>
               </>}
               <Button type="button" variant="ghost" onClick={() => setPagos((a) => a.filter((_, j) => j !== i))}><Icon name="trash" className="h-4 w-4" /></Button>
             </div>
@@ -665,10 +665,9 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
           <Label>
             {f.entrega === 'Encomienda' ? 'Costo de la encomienda (₲)' : 'Monto del delivery (₲)'}
           </Label>
-          <Input
-            inputMode="numeric"
-            value={gsInput(f.montoDelivery)}
-            onChange={set('montoDelivery')}
+          <MoneyInput
+            value={f.montoDelivery}
+            onValueChange={(v) => setF((s) => ({ ...s, montoDelivery: v }))}
             placeholder="0 si retira en tienda"
             disabled={f.entrega === 'Retiro en tienda'}
           />

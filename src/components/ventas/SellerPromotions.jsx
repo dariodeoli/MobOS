@@ -4,7 +4,7 @@ import { api } from '@/lib/api/client'
 import { readDemoPromotions, saveDemoPromotion, toggleDemoPromotion } from '@/lib/demoPromotions'
 import { gs } from '@/utils/calculos'
 import { getProductos } from '@/lib/storage'
-import { Button, Input, Select } from '@/components/ui'
+import { Button, Input, MoneyInput, Select } from '@/components/ui'
 import { SellerSection, SellerFeedback, useSellerData } from './SellerData'
 
 const project = ({ id, code, name, kind, value, productId, startsAt, endsAt, maxUnits, usedUnits, isActive }) => ({ id, code, name, kind, value, productId, startsAt, endsAt, maxUnits, usedUnits, isActive })
@@ -45,7 +45,8 @@ export default function SellerPromotions() {
       {['code', 'name'].map(key => <label className="block" key={key}>{{ code: 'Código', name: 'Nombre' }[key]}<Input required pattern={key === 'code' ? '[A-Za-z0-9_-]{2,40}' : undefined} maxLength={key === 'code' ? 40 : 120} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label>)}
       <label className="block">Productos incluidos<Select value={form.productId} onChange={e => setForm({ ...form, productId: e.target.value })}><option value="">Todos los productos</option>{products.map(product => <option key={product.id} value={product.id}>{product.nombre}</option>)}</Select></label>
       <label className="block">Tipo<Select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })}><option value="PERCENT">Porcentaje</option><option value="FIXED">Monto Gs. por unidad</option></Select></label>
-      {['value','maxUnits'].map(key => <label className="block" key={key}>{key === 'value' ? 'Descuento' : 'Límite de unidades (opcional)'}<Input type="number" step="1" min="1" max={key === 'value' && form.kind === 'PERCENT' ? 100 : 2147483647} required={key === 'value'} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label>)}
+      <label className="block">Descuento{form.kind === 'FIXED' ? <MoneyInput required value={form.value} onValueChange={v => setForm({ ...form, value: v })} /> : <Input inputMode="numeric" type="number" step="1" min="1" max={100} required value={form.value} onChange={e => setForm({ ...form, value: e.target.value.replace(/\D/g, '') })} />}</label>
+      <label className="block">Límite de unidades (opcional)<Input inputMode="numeric" type="number" step="1" min="1" max={2147483647} value={form.maxUnits} onChange={e => setForm({ ...form, maxUnits: e.target.value.replace(/\D/g, '') })} /></label>
       {['startsAt','endsAt'].map(key => <label className="block" key={key}>{key === 'startsAt' ? 'Inicio (hora local)' : 'Fin (hora local)'}<Input required type="datetime-local" value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label>)}
       <p className="text-sm text-mute">No acumulable con descuento global. Para cambiar condiciones, desactivá el cupón y creá otro código.</p>
       <Button disabled={busy}>Crear cupón</Button>

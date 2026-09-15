@@ -25,6 +25,30 @@ export function parseGsInput(value) {
   return digits ? Number(digits) : 0
 }
 
+const USD_INPUT_FORMATTER = new Intl.NumberFormat('es-PY', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+// Presentación editable para monedas decimales (USD/BRL/EUR/USDT):
+// separador de miles con punto y 2 decimales con coma (es-PY).
+export function formatUsdInput(value) {
+  const text = String(value ?? '').trim()
+  if (!text) return ''
+  const amount = Number(text)
+  return Number.isFinite(amount) ? USD_INPUT_FORMATTER.format(amount) : ''
+}
+
+// Convierte el texto del campo a un string decimal limpio (punto como
+// separador decimal), en el mismo estilo que parseGsInput para guaraníes.
+export function parseUsdInput(value) {
+  const text = String(value ?? '').trim()
+  if (!text) return ''
+  const normalized = text.replace(/\./g, '').replace(',', '.')
+  if (!/^\d+(\.\d+)?$/.test(normalized)) return ''
+  return String(Number(normalized))
+}
+
 // Solo formatea un monto ya expresado en USD; nunca convierte desde PYG.
 export function formatUsd(value) {
   const amount = Number(value)

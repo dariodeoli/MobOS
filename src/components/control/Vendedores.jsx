@@ -15,7 +15,7 @@ import {
   num,
   gs,
 } from '@/utils/calculos'
-import { Card, Button, ConfirmDialog, Input, Badge, Select, Skeleton, EmptyState, useToast } from '@/components/ui'
+import { Card, Button, ConfirmDialog, Input, Badge, Select, Skeleton, EmptyState, MoneyInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
@@ -141,12 +141,7 @@ export default function Vendedores() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
                   <label className="block col-span-2 md:col-span-1">
                     <span className="text-[10px] font-bold uppercase text-mute">Meta diaria ₲</span>
-                    <Input
-                      inputMode="numeric"
-                      defaultValue={v.metaDiaria || ''}
-                      onBlur={(e) => updateVendedor(v.id, { metaDiaria: num(e.target.value) })}
-                      placeholder="0"
-                    />
+                    <MetaDiaria vendedor={v} />
                   </label>
                   <Mini label="Hoy" valor={t.hoy} />
                   <Mini label="Comisión hoy" valor={com} />
@@ -243,6 +238,18 @@ function Mini({ label, valor }) {
       <div className="text-[10px] font-bold uppercase text-mute">{label}</div>
       <div className="text-sm font-bold text-fono">{gs(valor)}</div>
     </div>
+  )
+}
+
+function MetaDiaria({ vendedor }) {
+  const [valor, setValor] = useState(vendedor.metaDiaria || '')
+  return (
+    <MoneyInput
+      value={valor}
+      onValueChange={setValor}
+      onBlur={() => updateVendedor(vendedor.id, { metaDiaria: num(valor) })}
+      placeholder="0"
+    />
   )
 }
 
