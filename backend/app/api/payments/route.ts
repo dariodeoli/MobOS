@@ -2,6 +2,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { InputError, matchesPayment, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
+import { enforceRateLimit } from '../../../lib/rate-limit'
 
 const INT_MAX = 2147483647
 class PaymentScopeError extends Error {
@@ -11,6 +12,8 @@ class PaymentScopeError extends Error {
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  const limited = enforceRateLimit(request, 'payments', 120, 60_000)
+  if (limited) return limited
   const idempotencyKey = request.headers.get('Idempotency-Key') || null
   if (idempotencyKey && !/^[a-zA-Z0-9_-]{16,100}$/.test(idempotencyKey)) return error('Identificador de operación inválido.')
   try {

@@ -5,6 +5,7 @@ import { requireSession } from '../../../lib/auth'
 import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
 import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
+import { enforceRateLimit } from '../../../lib/rate-limit'
 
 // Detalle devuelto tanto al crear como al reutilizar una orden idempotente.
 const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
@@ -54,6 +55,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  const limited = enforceRateLimit(request, 'orders', 120, 60_000)
+  if (limited) return limited
   const idempotencyKey = request.headers.get('Idempotency-Key') || null
   if (idempotencyKey && !/^[a-zA-Z0-9_-]{16,100}$/.test(idempotencyKey)) return error('Identificador de operación inválido.')
   try {

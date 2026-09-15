@@ -116,7 +116,9 @@ SQL
 
 (
   cd "$BACKEND_ROOT"
-  NODE_ENV=test DATABASE_URL="$DATABASE_URL" "$BACKEND_ROOT/node_modules/.bin/next" start -H 127.0.0.1 -p "$API_PORT" >"$SERVER_LOG" 2>&1
+  # exec: SERVER_PID queda como el proceso next real, para que el cleanup
+  # pueda terminarlo sin dejar servidores huérfanos en el puerto temporal.
+  NODE_ENV=test MOBOS_TRUST_PROXY=true DATABASE_URL="$DATABASE_URL" exec "$BACKEND_ROOT/node_modules/.bin/next" start -H 127.0.0.1 -p "$API_PORT" >"$SERVER_LOG" 2>&1
 ) &
 SERVER_PID=$!
 
@@ -310,24 +312,24 @@ request_status() {
   curl "${args[@]}" "$BASE_URL$path"
 }
 
-echo "1/11 HTTP sin token devuelve 401..."
+echo "1/13 HTTP sin token devuelve 401..."
 out="$(response_file)"; request GET /api/products 401 '' "$out" '' tenant-a-it
 out="$(response_file)"; request GET /api/orders 401 '' "$out" '' tenant-a-it
 
-echo "2/11 Login de empresa y companyToken sin acceso a datos..."
+echo "2/13 Login de empresa y companyToken sin acceso a datos..."
 out="$(response_file)"; COMPANY_TOKEN_A="$(auth_cookie POST /api/auth/login 200 '{"email":"company-a-it@example.invalid","password":"company-password-it","deviceId":"device-a-it","branchId":"branch-a-it"}' "$out" '' mobos_company_session)"
 assert_login_tenant "$out" || { echo "Login no devolvió el tenant esperado." >&2; exit 1; }
 out="$(response_file)"; request GET /api/products 401 '' "$out" "$COMPANY_TOKEN_A" ''
 out="$(response_file)"; request GET /api/orders 401 '' "$out" "$COMPANY_TOKEN_A" ''
 out="$(response_file)"; request GET /api/auth/me 401 '' "$out" "$COMPANY_TOKEN_A" ''
 
-echo "3/11 PIN bcrypt, vendedor ajeno y aislamiento por sesión..."
+echo "3/13 PIN bcrypt, vendedor ajeno y aislamiento por sesión..."
 out="$(response_file)"; request POST /api/auth/pin 401 '{"sellerId":"user-b-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 out="$(response_file)"; TOKEN_A="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-a-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; request GET /api/products 200 '' "$out" "$TOKEN_A" tenant-b-it
 assert_products_for_tenant "$out" || { echo "El header de otra empresa alteró el tenant de la sesión." >&2; exit 1; }
 
-echo "4/11 Orden fuerza seller autenticado..."
+echo "4/13 Orden fuerza seller autenticado..."
 out="$(response_file)"
 request POST /api/orders 201 '{"sellerId":"user-a-2-it","branchId":"branch-a-it","orderNumber":"IT-ORDER-001","items":[{"productId":"prod-a-order-it","description":"Synthetic Product A Order","quantity":1,"unitPricePyg":100000}]}' "$out" "$TOKEN_A" tenant-b-it
 if [[ "$(json_field "$out" sellerId)" != "user-a-it" || "$(json_field "$out" tenantId)" != "tenant-a-it" ]]; then
@@ -338,9 +340,9 @@ out="$(response_file)"; request GET /api/orders 200 '' "$out" "$TOKEN_A" tenant-
 assert_order_cost_snapshot "$out" IT-ORDER-001 70000 || { echo "La venta no congeló el costo del producto." >&2; exit 1; }
 out="$(response_file)"; request GET /api/products 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_product_cost "$out" prod-a-order-it 70000 || { echo "El costo del producto no se devolvió en el catálogo." >&2; exit 1; }
-echo "4b/11 Costo del producto y foto del costo en la venta OK..."
+echo "4b/13 Costo del producto y foto del costo en la venta OK..."
 
-echo "4c/11 Idempotencia de órdenes: misma clave reutiliza la orden sin descontar stock de nuevo..."
+echo "4c/13 Idempotencia de órdenes: misma clave reutiliza la orden sin descontar stock de nuevo..."
 IDEM_KEY_A="it-order-idempotency-0001a"
 IDEM_BODY='{"orderNumber":"IT-IDEM-001","items":[{"productId":"prod-a-order-it","description":"Synthetic Product A Idem","quantity":1,"unitPricePyg":100000}],"payment":{"method":"CASH","amountPyg":100000}}'
 IDEM_BODY_B='{"orderNumber":"IT-IDEM-002","items":[{"productId":"prod-a-order-it","description":"Synthetic Product A Idem B","quantity":1,"unitPricePyg":100000}],"payment":{"method":"CASH","amountPyg":100000}}'
@@ -359,23 +361,23 @@ fi
 out="$(response_file)"; request GET /api/stock 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_stock "$out" prod-a-order-it 7 || { echo "El replay idempotente descontó stock de nuevo." >&2; exit 1; }
 
-echo "5/11 Orden de misma empresa en sucursal ajena se rechaza..."
+echo "5/13 Orden de misma empresa en sucursal ajena se rechaza..."
 out="$(response_file)"
 request POST /api/orders 409 '{"sellerId":"user-a-it","branchId":"branch-a2-it","orderNumber":"IT-CROSS-BRANCH-001","items":[{"productId":"prod-a-crossbranch-it","description":"Synthetic Product A Cross Branch","quantity":1,"unitPricePyg":100000}]}' "$out" "$TOKEN_A" tenant-a-it
 
-echo "6/11 Stock insuficiente revierte toda la transacción..."
+echo "6/13 Stock insuficiente revierte toda la transacción..."
 out="$(response_file)"
 request POST /api/orders 409 '{"sellerId":"user-a-it","branchId":"branch-a-it","orderNumber":"IT-ROLLBACK-001","items":[{"productId":"prod-a-rollback-it","description":"Synthetic Product A Rollback","quantity":3,"unitPricePyg":100000}]}' "$out" "$TOKEN_A" tenant-a-it
 out="$(response_file)"; request GET /api/stock 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_stock "$out" prod-a-rollback-it 2 || { echo "El stock cambió a pesar del rollback." >&2; exit 1; }
 
-echo "7/11 Sobrepago rechaza y revierte stock..."
+echo "7/13 Sobrepago rechaza y revierte stock..."
 out="$(response_file)"
 request POST /api/orders 409 '{"sellerId":"user-a-it","branchId":"branch-a-it","orderNumber":"IT-OVERPAY-001","items":[{"productId":"prod-a-overpay-it","description":"Synthetic Product A Overpay","quantity":1,"unitPricePyg":100000}],"payment":{"method":"CASH","amountPyg":100001}}' "$out" "$TOKEN_A" tenant-a-it
 out="$(response_file)"; request GET /api/stock 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_stock "$out" prod-a-overpay-it 5 || { echo "El stock cambió después de rechazar el sobrepago." >&2; exit 1; }
 
-echo "8/11 Pago pendiente no confirma la orden..."
+echo "8/13 Pago pendiente no confirma la orden..."
 out="$(response_file)"
 request POST /api/orders 201 '{"orderNumber":"IT-PENDING-001","items":[{"productId":"prod-a-pending-it","description":"Synthetic Product A Pending","quantity":1,"unitPricePyg":100000}]}' "$out" "$TOKEN_A" tenant-a-it
 PENDING_ORDER_ID="$(json_field "$out" id)"
@@ -387,7 +389,7 @@ out="$(response_file)"; request GET /api/orders 200 '' "$out" "$TOKEN_A" tenant-
 assert_pending_payment "$out" IT-PENDING-001 || { echo "El pago pendiente confirmó o alteró incorrectamente la orden." >&2; exit 1; }
 node "$BACKEND_ROOT/tests/payment-retry.mjs" "$BASE_URL" "$TOKEN_A" "$PENDING_ORDER_ID"
 
-echo "9/11 Pagos concurrentes no permiten sobrepagar..."
+echo "9/13 Pagos concurrentes no permiten sobrepagar..."
 out="$(response_file)"
 request POST /api/orders 201 '{"orderNumber":"IT-CONCURRENT-001","items":[{"productId":"prod-a-concurrent-it","description":"Synthetic Product A Concurrent","quantity":1,"unitPricePyg":100000}]}' "$out" "$TOKEN_A" tenant-a-it
 CONCURRENT_ORDER_ID="$(json_field "$out" id)"
@@ -447,7 +449,33 @@ out="$(response_file)"
 request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=product&branchId=branch-a-it" 200 '' "$out" "$ADMIN_TOKEN" ''
 node "$BACKEND_ROOT/tests/reports-http.mjs" "$out" "$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COALESCE(SUM(\"totalPyg\"), 0) FROM \"Order\" WHERE \"tenantId\" = 'tenant-a-it' AND \"branchId\" = 'branch-a-it' AND \"status\" <> 'CANCELLED';")" "$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COUNT(*) FROM \"Order\" WHERE \"tenantId\" = 'tenant-a-it' AND \"branchId\" = 'branch-a-it' AND \"status\" <> 'CANCELLED';")" product
 
-echo "10/11 Bloqueo de login empresarial después de cinco intentos..."
+echo "10/13 Límite de reportes de error por IP: 429 con Retry-After..."
+# MOBOS_TRUST_PROXY=true habilita la resolución de IP desde x-forwarded-for
+# (como en producción detrás del Hub). Solo estas solicitudes envían el
+# encabezado, de modo que los demás tests siguen sin límite por IP.
+ERRORS_HEADERS="$(response_file)"
+errors_last=""
+for _ in $(seq 1 31); do
+  errors_last="$(curl --silent --show-error --request POST --output /dev/null --dump-header "$ERRORS_HEADERS" --write-out '%{http_code}' --header 'Content-Type: application/json' --header 'x-forwarded-for: 198.51.100.10' --data '{"message":"synthetic rate limit check","url":"/api/errors","kind":"unhandled"}' "$BASE_URL/api/errors")"
+done
+if [[ "$errors_last" != "429" ]] || ! grep -qi '^retry-after:' "$ERRORS_HEADERS" || ! grep -qi '^x-request-id:' "$ERRORS_HEADERS"; then
+  echo "El límite de /api/errors no devolvió 429 con Retry-After y X-Request-Id (último estado: $errors_last)." >&2
+  exit 1
+fi
+out="$(response_file)"; request GET /api/errors 200 '' "$out" "$ADMIN_TOKEN" ''
+node - "$out" <<'NODE'
+const fs = require('node:fs')
+const rows = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
+const posted = rows.filter((row) => row.message === 'synthetic rate limit check')
+const requestIdOk = posted.every((row) => /^[A-Za-z0-9-]{8,64}$/.test(String(row.requestId)))
+if (!Array.isArray(rows) || posted.length < 30 || rows.some((row) => 'stack' in row) || !requestIdOk) process.exit(1)
+NODE
+if [[ "$?" != "0" ]]; then echo "GET /api/errors no listó los reportes sin stack y con requestId del middleware." >&2; exit 1; fi
+
+echo "11/13 Restauración de backup en cluster nuevo..."
+node "$BACKEND_ROOT/tests/backup-restore.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$PG_BIN" "$DATABASE_URL" "$RUN_ROOT/backups"
+
+echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
 out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-lock-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 for _ in 1 2 3 4 5; do
   out="$(response_file)"; request POST /api/auth/login 401 '{"email":"company-a-it@example.invalid","password":"wrong-company-password","deviceId":"device-lock-it"}' "$out" '' ''
@@ -459,10 +487,10 @@ if [[ "$lock_state" != "5:set" ]]; then
 fi
 out="$(response_file)"; request POST /api/auth/login 401 '{"email":"company-a-it@example.invalid","password":"company-password-it","deviceId":"device-lock-it"}' "$out" '' ''
 
-echo "11/11 Logout invalida companyToken y accessToken..."
+echo "13/13 Logout invalida companyToken y accessToken..."
 out="$(response_file)"; request POST /api/auth/logout 200 '' "$out" "$TOKEN_A" ''
 out="$(response_file)"; request GET /api/products 401 '' "$out" "$TOKEN_A" ''
 out="$(response_file)"; request POST /api/auth/logout 200 '' "$out" "$COMPANY_TOKEN_A" ''
 out="$(response_file)"; request POST /api/auth/pin 401 '{"sellerId":"user-a-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 
-echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos y logout."
+echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración y logout."

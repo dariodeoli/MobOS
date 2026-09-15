@@ -71,7 +71,7 @@ export function canAccessAny(user: Pick<AuthUser, 'permissions'>, permissions: r
   return permissions.some(permission => hasPermission(user, permission))
 }
 
-function trustedClientIp(request: Request) {
+export function trustedClientIp(request: Request) {
   // Proxies append X-Forwarded-For. It is trusted only when Hub is explicitly
   // declared as the proxy; otherwise an arbitrary client header is never used.
   if (process.env.MOBOS_TRUST_PROXY !== 'true') return null
