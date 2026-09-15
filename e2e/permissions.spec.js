@@ -1,6 +1,6 @@
 // Role-based navigation: what a seller can and cannot see inside /pos.
-// Reads the actual nav logic of PanelVendedor.jsx (SELLER_NAV vs OWNER_NAV)
-// and SoloPropietario in App.jsx.
+// Reads the actual nav logic of PanelVendedor.jsx (SELLER_NAV vs OWNER_NAV),
+// SoloPropietario in App.jsx, and the single-redirect vista guard.
 
 import { test, expect } from '@playwright/test'
 
@@ -28,32 +28,18 @@ test.describe('seller permissions', () => {
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
   })
 
-  // BUG pos-vista-loop-seller: PanelVendedor.jsx keeps two competing effects:
-  // one resets an inaccessible routeVista to "cargar", the other restores
-  // routeVista whenever it differs from the current vista. For a seller on
-  // /pos/inventario the state alternates forever (header flips between
-  // "Cargar venta" and "Inventario", no crash) and the URL never redirects.
-  // Expected: a single redirect to /pos/cargar, like the ir() guard does.
-  // TODO: converge the vista state (navigate away or derive vista from an
-  // access check) instead of fighting between the two effects.
-  test('direct owner URL /pos/inventario loops the seller panel instead of redirecting (known bug)', async ({ page }) => {
+  // Fixed in the Phase-3 merge: PanelVendedor.jsx now redirects once
+  // (navigate('/pos/cargar', { replace: true })) when the URL points to a
+  // vista outside the seller's reach, instead of the old two-effects loop
+  // that alternated the header state forever without ever leaving the URL.
+  test('direct owner URL /pos/inventario redirects the seller to /pos/cargar once', async ({ page }) => {
     await page.goto('/pos/inventario')
-    await page.waitForTimeout(1500)
 
-    // The URL never leaves the owner view: no redirect happens.
-    expect(new URL(page.url()).pathname).toBe('/pos/inventario')
+    // Single clean redirect, no loop: the URL leaves the owner view.
+    await expect(page).toHaveURL(/\/pos\/cargar$/)
+    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
-    // Evidence of the live update loop: the header label flips between the
-    // two vistas while the effects keep re-scheduling each other.
-    const samples = []
-    for (let i = 0; i < 12; i++) {
-      samples.push(await page.evaluate(() => document.querySelector('header span.text-lg')?.textContent || ''))
-      await page.waitForTimeout(200)
-    }
-    expect(samples.some((s) => s.includes('Cargar venta')), 'checkout vista must appear in the loop').toBe(true)
-    expect(samples.some((s) => s.includes('Inventario')), 'owner vista must appear in the loop (it should never render)').toBe(true)
-
-    // The owner content never stays mounted.
-    await expect(page.getByText('Escanear IMEI, SKU o buscar modelo')).toHaveCount(0)
+    // The owner content is never mounted for a seller.
+    await expect(page.getByPlaceholder('Escanear IMEI, SKU o buscar modelo')).toHaveCount(0)
   })
 })

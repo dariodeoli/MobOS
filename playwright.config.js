@@ -1,8 +1,10 @@
 import { defineConfig } from '@playwright/test'
 
 // Phase 1 E2E QA harness. The backend serves the API on http://localhost:3001
-// and the frontend on http://localhost:5173 (the only origin in the backend
-// CORS allowlist for local development).
+// and the frontend on http://localhost:5175 — the only local origin in the
+// backend CORS allowlist (MOBOS_LOCAL_APP_ORIGIN in backend/lib/identity.ts)
+// and the Vite default port from vite.config.js. MOBOS_APP_URL is set to the
+// same origin so cookie-based auth passes the backend sameOrigin() check.
 const CI = Boolean(process.env.CI)
 
 export default defineConfig({
@@ -17,7 +19,7 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5175',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -51,7 +53,7 @@ export default defineConfig({
     },
     {
       command: 'bash e2e/bin/start-frontend.sh',
-      url: 'http://localhost:5173',
+      url: 'http://localhost:5175',
       timeout: 120_000,
       reuseExistingServer: false,
     },

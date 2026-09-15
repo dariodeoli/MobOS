@@ -27,8 +27,10 @@ export async function loginAsSeller(page, { sellerName, pin } = {}) {
   await completeSellerPin(page, { sellerName, pin })
 }
 
-// Logout via the sidebar button; lands back on /login.
+// Logout via the sidebar button (aria-label "Cerrar sesión") and the
+// confirmation dialog; lands back on /login.
 export async function logout(page) {
-  await page.getByLabel('Salir').click()
+  await page.getByLabel('Cerrar sesión').click()
+  await page.getByRole('button', { name: 'Salir', exact: true }).click()
   await expect(page).toHaveURL(/\/login$/)
 }

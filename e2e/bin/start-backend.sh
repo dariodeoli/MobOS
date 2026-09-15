@@ -50,12 +50,12 @@ ENV_FILE="$BACKEND_ROOT/.env"
 write_env() {
   cat > "$ENV_FILE" <<EOF
 DATABASE_URL=$DATABASE_URL
-MOBOS_APP_URL=http://localhost:5173
+MOBOS_APP_URL=http://localhost:5175
 EOF
 }
 if [[ ! -f "$ENV_FILE" ]]; then
   write_env
-elif ! grep -q "^DATABASE_URL=$DATABASE_URL\$" "$ENV_FILE" || ! grep -q "^MOBOS_APP_URL=http://localhost:5173\$" "$ENV_FILE"; then
+elif ! grep -q "^DATABASE_URL=$DATABASE_URL\$" "$ENV_FILE" || ! grep -q "^MOBOS_APP_URL=http://localhost:5175\$" "$ENV_FILE"; then
   echo "[e2e] backend/.env differs from required values; rewriting."
   write_env
 fi
@@ -63,7 +63,11 @@ fi
 # ── Prisma client + migrations ────────────────────────────────────────────
 # Prisma 7 does not auto-load .env; prisma.config.ts reads process.env, so the
 # URL must be exported into the CLI subprocess.
-if [[ ! -d "$BACKEND_ROOT/node_modules/.prisma" ]]; then
+# The client is regenerated whenever the schema is newer than the generated
+# client (a stale client predating the latest schema breaks idempotent
+# lookups such as prisma.order.findUnique({ tenantId_idempotencyKey })).
+PRISMA_CLIENT="$BACKEND_ROOT/node_modules/.prisma/client/index.d.ts"
+if [[ ! -d "$BACKEND_ROOT/node_modules/.prisma" ]] || [[ "$BACKEND_ROOT/prisma/schema.prisma" -nt "$PRISMA_CLIENT" ]]; then
   echo "[e2e] Generating Prisma client…"
   (cd "$BACKEND_ROOT" && DATABASE_URL="$DATABASE_URL" npx prisma generate --schema prisma/schema.prisma >/dev/null)
 fi
@@ -74,5 +78,5 @@ echo "[e2e] Applying Prisma migrations…"
 echo "[e2e] Starting backend (Next.js) on port 3001…"
 cd "$BACKEND_ROOT"
 export DATABASE_URL
-export MOBOS_APP_URL="http://localhost:5173"
+export MOBOS_APP_URL="http://localhost:5175"
 exec npm run dev
