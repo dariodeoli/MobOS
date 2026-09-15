@@ -1,9 +1,18 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
 import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
+
+// Detalle devuelto tanto al crear como al reutilizar una orden idempotente.
+const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
+  items: true,
+  payments: true,
+  customer: { include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } },
+  seller: { select: { id: true, name: true } },
+})
 
 const INT_MAX = 2147483647
 const safeInt = (value: unknown, minimum = 0): value is number => Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= INT_MAX
@@ -45,7 +54,15 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  const idempotencyKey = request.headers.get('Idempotency-Key') || null
+  if (idempotencyKey && !/^[a-zA-Z0-9_-]{16,100}$/.test(idempotencyKey)) return error('Identificador de operación inválido.')
   try {
+  // Reintento de la misma operación: se devuelve la orden ya creada sin
+  // volver a descontar stock ni duplicar pagos.
+  if (idempotencyKey) {
+    const previous = await prisma.order.findUnique({ where: { tenantId_idempotencyKey: { tenantId: tenant, idempotencyKey } }, include: orderDetail })
+    if (previous) return json(previous)
+  }
   let payload: unknown
   try { payload = await request.json() } catch { throw new InputError('JSON inválido.') }
   const body = objectInput(payload); const items = Array.isArray(body.items) ? body.items : []; const payments = Array.isArray(body.payments) ? body.payments : (body.payment ? [body.payment] : [])
@@ -166,15 +183,25 @@ export async function POST(request: Request) {
         const amount = normalizedPayment.amountPyg; const status = normalizedPayment.status
         if (status === 'CONFIRMED') { confirmed += amount; if (!Number.isSafeInteger(confirmed) || confirmed > total) throw new Error('Los pagos superan el total.') }
       }
-      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber: typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : `MOB-${Date.now()}`, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber: typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : `MOB-${Date.now()}${Math.random().toString(36).slice(2, 6).padEnd(4, '0')}`, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
       if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
       if (soldUnits.length) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNITS_SOLD', entity: 'Order', entityId: order.id, metadata: { serials: soldUnits.map(unit => unit.serial), productIds: [...new Set(soldUnits.map(unit => unit.productId))] } } })
       for (const { tradeIn, ...paymentData } of normalizedPayments) {
         const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id } })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
       }
-      return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: { items: true, payments: true, customer: { include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } }, seller: { select: { id: true, name: true } } } })
+      return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: orderDetail })
     })
     return json(result, { status: 201 })
-  } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo crear la venta.', e instanceof InputError ? e.status : 409) }
+  } catch (e) {
+    // Dos reintentos concurrentes con la misma clave: el segundo choca con el
+    // índice único; se devuelve entonces la orden que ganó la carrera.
+    if (idempotencyKey && (e as { code?: string })?.code === 'P2002') {
+      try {
+        const previous = await prisma.order.findUnique({ where: { tenantId_idempotencyKey: { tenantId: tenant, idempotencyKey } }, include: orderDetail })
+        if (previous) return json(previous)
+      } catch { /* cae al error genérico */ }
+    }
+    return error(e instanceof Error ? e.message : 'No se pudo crear la venta.', e instanceof InputError ? e.status : 409)
+  }
 }

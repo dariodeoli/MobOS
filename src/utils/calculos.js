@@ -88,6 +88,21 @@ export function sumaPrecios(ventas) {
   return ventas.reduce((acc, v) => acc + num(v.precio), 0)
 }
 
+// Pagos confirmados de una venta: las entradas explícitas de `pagos` cuentan
+// salvo que tengan `status` distinto de CONFIRMED (modo API); las ventas sin
+// array de pagos caen a estadoPago/totalPagado (entradas legacy/demo).
+// "Cobrado" = dinero efectivamente recibido.
+export function cobradoDeVenta(v) {
+  const pagos = Array.isArray(v.pagos) ? v.pagos : []
+  if (pagos.length) {
+    return pagos.reduce(
+      (sum, p) => (p.status && p.status !== 'CONFIRMED' ? sum : sum + num(p.monto)),
+      0,
+    )
+  }
+  return v.estadoPago === 'Pagado' ? num(v.totalPagado ?? v.precio) : 0
+}
+
 // ── Totales para el tablero ─────────────────────────────────────────
 export function totalesVendedor(ventas, vendedorId) {
   const hoy = sumaPrecios(ventasDelDia(ventas, fechaClave(), vendedorId))

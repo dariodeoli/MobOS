@@ -46,13 +46,24 @@ export default function ListaVentasDia({
   fecha = fechaClave(),
   rango = null,
   titulo = null,
+  filtro: filtroControlado,
+  onFiltroChange,
 }) {
   const { sesion } = useSesion()
   const puedeBorrar = !!sesion?.esPropietario
   const prods = productosById()
-  const [filtro, setFiltro] = useState('todas')
+  const [filtroInterno, setFiltroInterno] = useState('todas')
   const [busqueda, setBusqueda] = useState('')
   const [pagina, setPagina] = useState(1)
+  // Optional controlled filter: when the parent passes `filtro`, it owns the
+  // selected tab (e.g. the dashboard's "pending" shortcut); otherwise the
+  // component keeps its own state as before.
+  const filtro = filtroControlado ?? filtroInterno
+  function cambiarFiltro(k) {
+    setFiltroInterno(k)
+    setPagina(1)
+    onFiltroChange?.(k)
+  }
   const [confirmar, setConfirmar] = useState(null)
   const [pagoPedido, setPagoPedido] = useState(null)
 
@@ -136,10 +147,7 @@ export default function ListaVentasDia({
           {FILTROS.map(([k, label]) => (
             <button
               key={k}
-              onClick={() => {
-                setFiltro(k)
-                setPagina(1)
-              }}
+              onClick={() => cambiarFiltro(k)}
               className={cn(
                 'whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition',
                 filtro === k ? 'bg-ink-600 font-medium text-fore' : 'text-mute hover:text-fore',

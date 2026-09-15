@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, productosById } from '@/lib/storage'
-import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
+import { ventasDelDia, totalesVendedor, cobradoDeVenta, fechaClave, num, gs } from '@/utils/calculos'
 import FormularioVenta from './FormularioVenta'
 import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
@@ -47,6 +47,12 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
   const d = useMemo(() => {
     const hoy = ventasDelDia(ventas, fechaClave())
     const total = hoy.reduce((a, v) => a + num(v.precio), 0)
+    // Cobrado vs pendiente de hoy para el vendedor de la sesión (los pagos
+    // confirmados son los que importan, no lo facturado).
+    const delVendedor = ventasDelDia(ventas, fechaClave(), sesion?.vendedorId)
+    const cobrado = delVendedor.reduce((sum, v) => sum + cobradoDeVenta(v), 0)
+    const pagadas = delVendedor.filter((v) => v.estadoPago === 'Pagado').length
+    const pendiente = Math.max(0, totalesVendedor(ventas, sesion?.vendedorId).hoy - cobrado)
     // Las últimas cargadas, de la más reciente a la más vieja.
     const ultimas = [...ventas]
       .sort((a, b) => (b.creadoEn || '').localeCompare(a.creadoEn || ''))
@@ -60,8 +66,12 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
       ticket: hoy.length ? total / hoy.length : 0,
       ultimas,
       nro,
+      cobrado,
+      pendiente,
+      pagadas,
+      pendientes: delVendedor.length - pagadas,
     }
-  }, [ventas])
+  }, [ventas, sesion?.vendedorId])
 
   const totalCompra = carrito.items.reduce((a, it) => a + it.precio, 0)
   const paginas = Math.max(1, Math.ceil(d.ultimas.length / POR_PAGINA))
@@ -69,7 +79,32 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
   const filas = d.ultimas.slice((pag - 1) * POR_PAGINA, pag * POR_PAGINA)
   const nombreProd = (v) => v.productoNombre || prods[v.productoId]?.nombre || '—'
 
-  if (!sesion?.esPropietario) return <div className="w-full"><FormularioVenta tradeInDraft={tradeInDraft} onTradeInConsumed={onTradeInConsumed} /></div>
+  if (!sesion?.esPropietario) return (
+    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
+      <div className="flex min-w-0 flex-col gap-5">
+        <FormularioVenta tradeInDraft={tradeInDraft} onTradeInConsumed={onTradeInConsumed} />
+      </div>
+      <div className="flex flex-col gap-4 xl:sticky xl:top-5">
+        <Caja className="overflow-hidden">
+          <div className="border-b border-fono/20 bg-fono/[.05] px-5 py-4">
+            <span className="font-semibold tracking-tight">Tu día</span>
+          </div>
+          <div className="grid grid-cols-2 divide-x divide-ink-600">
+            <div className="min-w-0 p-4">
+              <div className="text-[11px] font-medium uppercase tracking-wider text-mute">Cobrado</div>
+              <div className="mt-1 truncate text-lg font-semibold tracking-tight text-ok tabular-nums">{gs(d.cobrado)}</div>
+              <div className="mt-0.5 text-[11px] text-mute">{d.pagadas} {d.pagadas === 1 ? 'pagada' : 'pagadas'}</div>
+            </div>
+            <div className="min-w-0 p-4">
+              <div className="text-[11px] font-medium uppercase tracking-wider text-mute">Pendiente</div>
+              <div className="mt-1 truncate text-lg font-semibold tracking-tight text-bad tabular-nums">{gs(d.pendiente)}</div>
+              <div className="mt-0.5 text-[11px] text-mute">{d.pendientes} {d.pendientes === 1 ? 'pendiente' : 'pendientes'}</div>
+            </div>
+          </div>
+        </Caja>
+      </div>
+    </div>
+  )
 
   return (
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
