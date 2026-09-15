@@ -1,14 +1,10 @@
 // Full POS checkout through the real API as the seeded seller (PIN 2468):
-// search product → add to cart → review → partial payment + second payment
-// account → save → success banner → sale appears in /pos/pedidos.
+// search product → add to cart → review → split payment across two payment
+// accounts → save → success banner → sale appears in /pos/pedidos.
 //
-// BUG legacy-payments-no-accountid: when a tenant has no payment accounts,
-// FormularioVenta falls back to the legacy payment rows, which send
-// originalAmount/exchangeRatePyg WITHOUT accountId; the backend rejects that
-// with "Los campos de moneda requieren accountId." (backend/lib/payment-input.ts)
-// and the seller cannot save the sale. That path is exercised indirectly by
-// the seeded tenant only after removing the accounts. TODO: fix the legacy
-// mapping (send method/amountPyg only) or drop the legacy fallback.
+// The checkout uses the account-based payment rows (Cuenta de cobro +
+// Monto original); the legacy method-only fallback only renders when the
+// tenant has no payment accounts and is not exercised here.
 
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
@@ -35,37 +31,34 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(page.getByText(SEED.products.cable.name).last()).toBeVisible()
   await page.getByRole('button', { name: 'Ir a cobrar' }).click()
 
-  // Step 3: payments. The seeded tenant has two PYG accounts, so the
-  // account-based rows are used (Cuenta de cobro + Monto original).
+  // Step 3: payments. The seeded tenant has two PYG accounts (CASH and
+  // TRANSFER), so the account-based rows are used.
   const addPayment = page.getByRole('button', { name: '+ Agregar pago' })
   await expect(addPayment).toBeEnabled()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
-  const rows = paymentsSection.locator('> div.grid').filter({ has: page.locator('input') })
+  const accountSelects = paymentsSection.getByLabel('Cuenta de cobro')
+  const amountInputs = paymentsSection.getByLabel('Monto original')
 
-  // Partial payment on the first account.
+  // Partial payment on the first account (cash).
   await addPayment.click()
-  await expect(rows).toHaveCount(1)
-  await rows.nth(0).getByLabel('Cuenta de cobro').selectOption({ index: 1 })
-  await rows.nth(0).getByLabel('Monto original').fill('25000')
-  await expect(rows.nth(0).getByText('Equivalente: Gs 25.000')).toBeVisible()
+  await expect(accountSelects).toHaveCount(1)
+  await accountSelects.nth(0).selectOption({ label: 'Caja E2E · PYG · CASH' })
+  await amountInputs.nth(0).fill('25000')
+  await expect(paymentsSection.getByText('Equivalente: Gs 25.000')).toBeVisible()
 
   // Second payment account covers the remainder.
   await addPayment.click()
-  await expect(rows).toHaveCount(2)
-  await rows.nth(1).getByLabel('Cuenta de cobro').selectOption({ index: 2 })
-  await rows.nth(1).getByLabel('Monto original').fill('20000')
-  await expect(rows.nth(1).getByText('Equivalente: Gs 20.000')).toBeVisible()
+  await expect(accountSelects).toHaveCount(2)
+  await accountSelects.nth(1).selectOption({ label: 'Transferencia E2E · PYG · TRANSFER' })
+  await amountInputs.nth(1).fill('20000')
+  await expect(paymentsSection.getByText('Equivalente: Gs 20.000')).toBeVisible()
 
   // Totals must balance before saving.
-  await expect(page.locator('span').filter({ hasText: 'Pendiente' }).first().getByText('0')).toBeVisible()
+  const pendiente = paymentsSection.getByText('Pendiente').first()
+  await expect(pendiente.locator('strong')).toHaveText('Gs 0')
 
-  // BUG delivery-notes-required: the backend rejects empty deliveryNotes
-  // ("Observaciones de entrega debe ser texto no vacío de hasta 2000
-  // caracteres.") and the form always sends the field, so a sale without an
-  // observation note fails. TODO: send undefined when empty (form) or accept
-  // empty strings (backend). Until then the note is required.
-  await page.getByPlaceholder('Notas, color, envío vía encomienda, etc.').fill('Venta E2E automatizada')
-
+  // Delivery notes are optional: the backend accepts an omitted empty note
+  // (fixed in the Phase-3 merge), so no observation is required here.
   await page.getByRole('button', { name: /^Guardar venta/ }).click()
 
   // Success banner with print actions.
