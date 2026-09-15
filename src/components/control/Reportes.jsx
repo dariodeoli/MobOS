@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
+import { useSesion } from '@/lib/sesion'
 import { gs } from '@/utils/calculos'
-import { Badge, Button, Card, Select, Stat } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Select, Stat } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import RangoFechas, { PRESETS, etiquetaRango } from '@/components/shared/RangoFechas'
 import {
@@ -24,9 +25,13 @@ const TZ_OFFSET = -180
 export default function Reportes() {
   const [rango, setRango] = useState(rangoInicial)
   const [grupo, setGrupo] = useState('product')
+  const [tipo, setTipo] = useState('ventas')
   const [datos, setDatos] = useState(null)
+  const [datosComisiones, setDatosComisiones] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const { sesion, sucursal } = useSesion()
+  const puedeComisiones = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
 
   // Descarta respuestas atrasadas cuando cambia el período o la agrupación.
   const pedidoRef = useRef(0)
@@ -49,19 +54,28 @@ export default function Reportes() {
     setCargando(true)
     setError('')
     try {
-      const respuesta = await api.get(
-        `/api/reports?from=${desde}&to=${hasta}&groupBy=${grupo}&tzOffset=${TZ_OFFSET}`,
-      )
-      if (pedidoRef.current !== id) return
-      setDatos(respuesta)
+      if (tipo === 'comisiones') {
+        const params = new URLSearchParams({ type: 'commissions', from: desde, to: hasta, tzOffset: String(TZ_OFFSET) })
+        if (sucursal?.id) params.set('branchId', sucursal.id)
+        const respuesta = await api.get(`/api/reports?${params}`)
+        if (pedidoRef.current !== id) return
+        setDatosComisiones(respuesta)
+      } else {
+        const respuesta = await api.get(
+          `/api/reports?from=${desde}&to=${hasta}&groupBy=${grupo}&tzOffset=${TZ_OFFSET}`,
+        )
+        if (pedidoRef.current !== id) return
+        setDatos(respuesta)
+      }
     } catch (e) {
       if (pedidoRef.current !== id) return
       setDatos(null)
+      setDatosComisiones(null)
       setError(e?.message || 'No se pudo generar el reporte.')
     } finally {
       if (pedidoRef.current === id) setCargando(false)
     }
-  }, [rango, grupo])
+  }, [rango, grupo, tipo, sucursal?.id])
 
   useEffect(() => {
     cargar()
@@ -73,6 +87,29 @@ export default function Reportes() {
   const porLinea = esGrupoPorLinea(grupo)
 
   function exportar() {
+    if (tipo === 'comisiones') {
+      if (!datosComisiones) return
+      const encabezados = ['Vendedor', 'Ventas', 'Margen', '% comisión', 'Comisión']
+      const filas = (datosComisiones.sellers || []).map((fila) => [
+        fila.sellerName || 'Sin vendedor',
+        fila.totalPyg ?? '',
+        fila.marginPyg ?? '',
+        fila.commissionPct ?? '',
+        fila.commissionPyg ?? '',
+      ])
+      const csv = filasCsv(encabezados, filas)
+      // BOM para que Excel respete los acentos.
+      const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const enlace = document.createElement('a')
+      enlace.href = url
+      enlace.download = `mobos-reporte-comisiones-${datosComisiones.from || 'inicio'}-a-${datosComisiones.to || 'hoy'}.csv`
+      document.body.appendChild(enlace)
+      enlace.click()
+      enlace.remove()
+      URL.revokeObjectURL(url)
+      return
+    }
     if (!datos) return
     const { encabezados, filas } = filasReporte(datos, grupo)
     const csv = filasCsv(encabezados, filas)
@@ -112,20 +149,26 @@ export default function Reportes() {
       <Card className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <RangoFechas valor={rango} onChange={setRango} />
-          <Select value={grupo} onChange={(e) => setGrupo(e.target.value)} className="h-9 w-auto">
-            {GRUPOS.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.plural}
-              </option>
-            ))}
+          <Select value={tipo} onChange={(e) => setTipo(e.target.value)} className="h-9 w-auto">
+            <option value="ventas">Ventas</option>
+            {puedeComisiones && <option value="comisiones">Comisiones por vendedor</option>}
           </Select>
+          {tipo !== 'comisiones' && (
+            <Select value={grupo} onChange={(e) => setGrupo(e.target.value)} className="h-9 w-auto">
+              {GRUPOS.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.plural}
+                </option>
+              ))}
+            </Select>
+          )}
           <Button variant="outline" onClick={cargar} disabled={cargando}>
             <Icon name="refresh" className={cargando ? 'animate-spin' : ''} />
             {cargando ? 'Cargando…' : 'Actualizar'}
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={exportar} disabled={!datos || !grupos.length}>
+          <Button variant="outline" onClick={exportar} disabled={!datos && !datosComisiones}>
             <Icon name="download" />
             Exportar CSV
           </Button>
@@ -149,7 +192,81 @@ export default function Reportes() {
         </Card>
       )}
 
-      {totales && (
+      {datosComisiones && tipo === 'comisiones' && (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Stat label="Ventas del período" valor={gs(datosComisiones.totals?.totalPyg || 0)} sub={`${etiquetaRango(rango)}`} />
+            <Stat label="Margen" valor={gs(datosComisiones.totals?.marginPyg || 0)} sub="Sobre ventas con costo congelado" />
+            <Stat label="Comisión total" valor={gs(datosComisiones.totals?.commissionPyg || 0)} sub="Según reglas vigentes" />
+          </div>
+
+          {datosComisiones.truncated && <Badge color="red">El período supera el tope de ventas analizadas</Badge>}
+
+          {!datosComisiones.sellers?.length ? (
+            <Card>
+              <EmptyState
+                icon="report"
+                title="Sin ventas en el período"
+                description="Probá con otro rango de fechas o revisá que las ventas estén confirmadas en el POS."
+                className="p-0"
+              />
+            </Card>
+          ) : (
+            <>
+              {/* Tabla en pantallas grandes */}
+              <Card className="hidden overflow-x-auto p-0 md:block">
+                <table className="w-full min-w-[640px] text-sm">
+                  <thead>
+                    <tr className="border-b border-ink-600 text-left text-[11px] uppercase tracking-wider text-mute">
+                      <th className="px-4 py-3">Vendedor</th>
+                      <th className="px-4 py-3 text-right">Ventas</th>
+                      <th className="px-4 py-3 text-right">Margen</th>
+                      <th className="px-4 py-3 text-right">% comisión</th>
+                      <th className="px-4 py-3 text-right">Comisión</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {datosComisiones.sellers.map((fila) => (
+                      <tr key={fila.sellerId} className="border-b border-ink-700/60 last:border-0">
+                        <td className="px-4 py-3 font-medium text-white">{fila.sellerName || 'Sin vendedor'}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-mute">{gs(fila.totalPyg)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-mute">{gs(fila.marginPyg)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums text-mute">{fila.commissionPct === null ? '—' : `${fila.commissionPct}%`}</td>
+                        <td className="px-4 py-3 text-right tabular-nums font-semibold text-white">{gs(fila.commissionPyg)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
+
+              {/* Tarjetas en móvil */}
+              <div className="space-y-3 md:hidden">
+                {datosComisiones.sellers.map((fila) => (
+                  <Card key={fila.sellerId}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="font-semibold text-white">{fila.sellerName || 'Sin vendedor'}</div>
+                      <Badge color={fila.commissionPct === null ? 'slate' : 'green'}>{fila.commissionPct === null ? 'Sin regla' : `${fila.commissionPct}%`}</Badge>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                      <Linea label="Ventas" valor={gs(fila.totalPyg)} />
+                      <Linea label="Órdenes" valor={fila.orders} />
+                      <Linea label="Margen" valor={gs(fila.marginPyg)} />
+                      <Linea label="Comisión" valor={gs(fila.commissionPyg)} />
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+
+          <p className="text-xs text-mute">
+            La comisión se calcula sobre el margen de cada venta usando las reglas vigentes; la regla por usuario prevalece
+            sobre la de rol. Generado {datosComisiones.generatedAt ? new Date(datosComisiones.generatedAt).toLocaleString('es-PY') : ''}.
+          </p>
+        </>
+      )}
+
+      {totales && tipo !== 'comisiones' && (
         <>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Stat
@@ -186,12 +303,13 @@ export default function Reportes() {
           </div>
 
           {grupos.length === 0 ? (
-            <Card className="py-10 text-center">
-              <Icon name="report" className="mx-auto h-6 w-6 text-mute" />
-              <div className="mt-3 font-semibold text-white">Sin ventas en el período</div>
-              <p className="mt-1 text-sm text-mute">
-                Probá con otro rango de fechas o revisá que las ventas estén confirmadas en el POS.
-              </p>
+            <Card>
+              <EmptyState
+                icon="report"
+                title="Sin ventas en el período"
+                description="Probá con otro rango de fechas o revisá que las ventas estén confirmadas en el POS."
+                className="p-0"
+              />
             </Card>
           ) : (
             <>

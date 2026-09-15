@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   getVendedores,
   addVendedor,
@@ -15,8 +15,10 @@ import {
   num,
   gs,
 } from '@/utils/calculos'
-import { Card, Button, ConfirmDialog, Input, Badge } from '@/components/ui'
+import { Card, Button, ConfirmDialog, Input, Badge, Select, Skeleton, EmptyState, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { api } from '@/lib/api/client'
+import { useSesion } from '@/lib/sesion'
 
 const MESES = [
   'Enero',
@@ -42,6 +44,7 @@ export default function Vendedores() {
   const vendedores = getVendedores()
   const ventas = listVentas()
   const prods = productosById()
+  const { esDemo, sesion } = useSesion()
   const [nuevo, setNuevo] = useState('')
   const [confirmarEliminar, setConfirmarEliminar] = useState(null)
 
@@ -220,6 +223,7 @@ export default function Vendedores() {
           </div>
         </Card>
       )}
+      {!esDemo && sesion?.esPropietario && <SeccionComisiones />}
       <ConfirmDialog
         open={Boolean(confirmarEliminar)}
         onCancel={() => setConfirmarEliminar(null)}
@@ -239,5 +243,128 @@ function Mini({ label, valor }) {
       <div className="text-[10px] font-bold uppercase text-mute">{label}</div>
       <div className="text-sm font-bold text-fono">{gs(valor)}</div>
     </div>
+  )
+}
+
+function SeccionComisiones() {
+  const toast = useToast()
+  const [reglas, setReglas] = useState(null)
+  const [usuarios, setUsuarios] = useState([])
+  const [nueva, setNueva] = useState({ userId: '', percentPyg: '' })
+  const [editandoId, setEditandoId] = useState(null)
+  const [borrador, setBorrador] = useState('')
+  const [eliminando, setEliminando] = useState(null)
+  const [ocupado, setOcupado] = useState(false)
+  const [error, setError] = useState('')
+
+  const cargar = useCallback(async () => {
+    setError('')
+    try {
+      const [nextReglas, nextUsuarios] = await Promise.all([api.get('/api/commission-rules'), api.get('/api/users')])
+      setReglas(nextReglas || [])
+      setUsuarios(nextUsuarios || [])
+    } catch (cause) { setError(cause?.message || 'No se pudieron cargar las reglas de comisión.') }
+  }, [])
+  useEffect(() => { cargar() }, [cargar])
+
+  async function crear(event) {
+    event.preventDefault()
+    if (!nueva.userId || ocupado) return
+    setOcupado(true); setError('')
+    try {
+      await api.post('/api/commission-rules', { userId: nueva.userId, percentPyg: Number(nueva.percentPyg) })
+      setNueva({ userId: '', percentPyg: '' })
+      toast.success('Regla de comisión creada.')
+      await cargar()
+    } catch (cause) { setError(cause?.message || 'No se pudo crear la regla.') } finally { setOcupado(false) }
+  }
+
+  async function guardar(regla) {
+    const percent = Number(borrador)
+    if (!Number.isInteger(percent) || percent < 0 || percent > 100) { setError('El porcentaje debe ser un entero entre 0 y 100.'); return }
+    setOcupado(true); setError('')
+    try {
+      await api.patch('/api/commission-rules', { id: regla.id, percentPyg: percent })
+      setEditandoId(null)
+      toast.success('Regla de comisión actualizada.')
+      await cargar()
+    } catch (cause) { setError(cause?.message || 'No se pudo actualizar la regla.') } finally { setOcupado(false) }
+  }
+
+  async function confirmarEliminar() {
+    setOcupado(true); setError('')
+    try {
+      await api.delete('/api/commission-rules', { body: { id: eliminando.id } })
+      setEliminando(null)
+      toast.success('Regla de comisión eliminada.')
+      await cargar()
+    } catch (cause) { setError(cause?.message || 'No se pudo eliminar la regla.') } finally { setOcupado(false) }
+  }
+
+  const nombreUsuario = id => usuarios.find(usuario => usuario.id === id)?.name || 'Usuario eliminado'
+
+  return (
+    <Card>
+      <h2 className="font-bold mb-1">Comisiones</h2>
+      <p className="text-sm text-mute mb-4">
+        Reglas de comisión sobre el <strong>margen</strong> de cada venta. La regla por usuario prevalece sobre la de rol.
+      </p>
+      <form onSubmit={crear} className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-end">
+        <div className="flex-1">
+          <span className="block text-[10px] font-bold uppercase text-mute mb-1">Vendedor</span>
+          <Select value={nueva.userId} onChange={event => setNueva({ ...nueva, userId: event.target.value })} required>
+            <option value="">Elegí el vendedor</option>
+            {usuarios.map(usuario => <option key={usuario.id} value={usuario.id}>{usuario.name} · {usuario.role}</option>)}
+          </Select>
+        </div>
+        <div className="sm:w-36">
+          <span className="block text-[10px] font-bold uppercase text-mute mb-1">% comisión</span>
+          <Input inputMode="numeric" min={0} max={100} value={nueva.percentPyg} onChange={event => setNueva({ ...nueva, percentPyg: event.target.value.replace(/\D/g, '').slice(0, 3) })} placeholder="0" required />
+        </div>
+        <Button type="submit" disabled={ocupado}>{ocupado ? 'Guardando…' : 'Agregar regla'}</Button>
+      </form>
+      {error && <p role="alert" className="mb-4 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {reglas === null ? (
+        <div className="space-y-2" aria-busy="true"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+      ) : reglas.length === 0 ? (
+        <EmptyState compact icon="tag" title="Sin reglas de comisión." description="Agregá una regla para empezar a calcular comisiones por margen." />
+      ) : (
+        <div className="space-y-2">
+          {reglas.map(regla => (
+            <div key={regla.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold">{regla.userId ? (regla.user?.name || nombreUsuario(regla.userId)) : `Rol ${regla.role}`}</div>
+                <div className="mt-0.5 text-xs text-mute">{regla.userId ? 'Regla por usuario' : 'Regla por rol'}</div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {editandoId === regla.id ? (
+                  <>
+                    <Input inputMode="numeric" value={borrador} onChange={event => setBorrador(event.target.value.replace(/\D/g, '').slice(0, 3))} className="h-8 w-20 px-2 text-right text-sm" aria-label="Porcentaje de comisión" />
+                    <Button type="button" variant="success" disabled={ocupado} className="h-8 px-2 text-xs" onClick={() => guardar(regla)}>Guardar</Button>
+                    <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setEditandoId(null)}>Cancelar</Button>
+                  </>
+                ) : (
+                  <>
+                    <Badge color="green">{regla.percentPyg}%</Badge>
+                    <button type="button" onClick={() => { setEditandoId(regla.id); setBorrador(String(regla.percentPyg)) }} className="text-mute hover:text-white transition" title="Editar porcentaje"><Icon name="edit" className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => setEliminando(regla)} className="text-ink-500 hover:text-bad transition" title="Eliminar regla"><Icon name="trash" className="h-4 w-4" /></button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <ConfirmDialog
+        open={Boolean(eliminando)}
+        onCancel={() => setEliminando(null)}
+        onConfirm={confirmarEliminar}
+        busy={ocupado}
+        title="¿Eliminar regla?"
+        description="La regla dejará de aplicarse al calcular comisiones. Las ventas ya calculadas no cambian."
+        confirmLabel="Eliminar regla"
+        variant="danger"
+      />
+    </Card>
   )
 }
