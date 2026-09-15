@@ -54,7 +54,7 @@ function Metrica({ label, valor, delta, sub, tono = 'blue' }) {
 }
 
 const enRango = (v, r) => v.fecha >= r.desde && v.fecha <= r.hasta
-const suma = (arr, f = (x) => num(x.precio)) => arr.reduce((a, x) => a + f(x), 0)
+const suma = (arr, f = x => num(x.precio)) => arr.reduce((a, x) => a + f(x), 0)
 const variacion = (hoy, antes) => (antes > 0 ? ((hoy - antes) / antes) * 100 : null)
 
 export default function Resumen() {
@@ -69,20 +69,20 @@ export default function Resumen() {
   const listaRef = useRef(null)
 
   const vendedoresById = useMemo(
-    () => Object.fromEntries(vendedores.map((v) => [v.id, v.nombre])),
+    () => Object.fromEntries(vendedores.map(v => [v.id, v.nombre])),
     [vendedores],
   )
 
   const d = useMemo(() => {
     const prev = rangoAnterior(rango)
-    const act = ventas.filter((v) => enRango(v, rango))
-    const ant = ventas.filter((v) => enRango(v, prev))
-    const gastosR = gastos.filter((g) => enRango(g, rango))
+    const act = ventas.filter(v => enRango(v, rango))
+    const ant = ventas.filter(v => enRango(v, prev))
+    const gastosR = gastos.filter(g => enRango(g, rango))
 
     const total = suma(act)
     const totalAnt = suma(ant)
     const comision = comisionDeVentas(act, prods)
-    const delivery = suma(act, (x) => num(x.montoDelivery))
+    const delivery = suma(act, x => num(x.montoDelivery))
     const ticket = act.length ? total / act.length : 0
     const ticketAnt = ant.length ? totalAnt / ant.length : 0
     const cobrado = act.reduce((sum, v) => sum + cobradoDeVenta(v), 0)
@@ -90,7 +90,7 @@ export default function Resumen() {
 
     // Por vendedor
     const porVend = {}
-    act.forEach((v) => {
+    act.forEach(v => {
       const k = v.vendedorId || 'sin'
       porVend[k] ??= { n: 0, total: 0, com: 0 }
       porVend[k].n++
@@ -103,7 +103,7 @@ export default function Resumen() {
 
     // Por medio de pago
     const porMedio = {}
-    act.forEach((v) => {
+    act.forEach(v => {
       const k = v.medioPago || '—'
       porMedio[k] = (porMedio[k] || 0) + num(v.precio)
     })
@@ -113,10 +113,10 @@ export default function Resumen() {
 
     // Serie diaria (para el mini-gráfico)
     const porDia = {}
-    act.forEach((v) => (porDia[v.fecha] = (porDia[v.fecha] || 0) + num(v.precio)))
+    act.forEach(v => (porDia[v.fecha] = (porDia[v.fecha] || 0) + num(v.precio)))
     const serie = Object.entries(porDia).sort(([a], [b]) => a.localeCompare(b))
 
-    const pagadas = act.filter((v) => v.estadoPago === 'Pagado').length
+    const pagadas = act.filter(v => v.estadoPago === 'Pagado').length
 
     return {
       act,
@@ -133,18 +133,18 @@ export default function Resumen() {
       serie,
       pagadas,
       sinPagar: act.length - pagadas,
-      gastos: suma(gastosR, (x) => num(x.monto)),
+      gastos: suma(gastosR, x => num(x.monto)),
       prev,
     }
   }, [ventas, gastos, prods, rango, vendedoresById])
 
   const maxSerie = Math.max(...d.serie.map(([, v]) => v), 1)
-  const maxVend = Math.max(...d.ranking.map((r) => r.total), 1)
+  const maxVend = Math.max(...d.ranking.map(r => r.total), 1)
 
   // Low-stock products, worst first. Computed per render (no memo) so that
   // in-place stock mutations coming from API-mode sales are picked up at once.
   const stockBajo = catalogo
-    .filter((p) => num(p.stock) <= UMBRAL_STOCK_BAJO)
+    .filter(p => num(p.stock) <= UMBRAL_STOCK_BAJO)
     .sort((a, b) => num(a.stock) - num(b.stock))
     .slice(0, 8)
 
@@ -168,7 +168,7 @@ export default function Resumen() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {ACCIONES.map((a) => (
+          {ACCIONES.map(a => (
             <Button
               key={a.label}
               variant="outline"
@@ -280,7 +280,10 @@ export default function Resumen() {
           ) : (
             <div className="flex h-44 items-end gap-1.5">
               {d.serie.map(([f, v]) => (
-                <div key={f} className="group relative flex h-full flex-1 flex-col items-center justify-end gap-1.5">
+                <div
+                  key={f}
+                  className="group relative flex h-full flex-1 flex-col items-center justify-end gap-1.5"
+                >
                   <div className="pointer-events-none absolute -top-8 z-10 hidden whitespace-nowrap rounded-md border border-ink-500 bg-paper px-2 py-1 text-xs group-hover:block">
                     {gs(v)}
                   </div>
@@ -302,7 +305,7 @@ export default function Resumen() {
             <EmptyState compact icon="box" title="Sin datos" />
           ) : (
             <div className="space-y-3">
-              {d.medios.map((m) => (
+              {d.medios.map(m => (
                 <div key={m.medio}>
                   <div className="mb-1.5 flex items-center justify-between gap-2">
                     <MedioPago medio={m.medio} alto="h-4" />
@@ -333,7 +336,7 @@ export default function Resumen() {
           </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
-            {stockBajo.map((p) => {
+            {stockBajo.map(p => {
               const stock = num(p.stock)
               return (
                 <div
@@ -376,7 +379,9 @@ export default function Resumen() {
               >
                 <span className="w-5 text-center text-xs font-medium text-mute">{i + 1}</span>
                 <Dot color={i === 0 ? 'green' : v.total > 0 ? 'blue' : 'slate'} />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium sm:w-32 sm:flex-none">{v.nombre}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium sm:w-32 sm:flex-none">
+                  {v.nombre}
+                </span>
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-600">
                   <div
                     className={cn('h-full rounded-full', i === 0 ? 'bg-ok' : 'bg-blue-line')}
