@@ -5,8 +5,6 @@ import {
   addProducto,
   addVenta,
   guardarOrdenApi,
-  getVendedores,
-  addVendedor,
   MEDIOS_PAGO,
   ESTADOS_PAGO,
   ENTREGA,
@@ -16,7 +14,6 @@ import { cn } from '@/lib/utils'
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
 import { validateDemoPromotionItems, recordDemoPromotionUsage } from '@/lib/demoPromotions'
-import { api } from '@/lib/api/client'
 import { agruparProductos } from '@/utils/colores'
 import { Button, Card, Input, Label, Select, Textarea, Badge } from '@/components/ui'
 import SelectorColor from './SelectorColor'
@@ -62,7 +59,6 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   const { sesion, esDemo } = useSesion()
   const productos = getProductos().filter((p) => p.activo)
   const familias = agruparProductos(productos)
-  const vendedores = getVendedores().filter((v) => v.activo)
   const [f, setF] = useState(() => VACIO(sesion?.vendedorId || localStorage.getItem(ULTIMO_VENDEDOR)))
   const [customer, setCustomer] = useState({ name: '', phone: '', countryCode: '+595', email: '', document: '', addresses: [] })
   const [nuevoProd, setNuevoProd] = useState(false)
@@ -72,8 +68,6 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
   const [familiaActiva, setFamiliaActiva] = useState(null) // { base, items } cuando se eligió una familia con colores
   const [busquedaProducto, setBusquedaProducto] = useState('')
   const [modalColor, setModalColor] = useState(false)
-  const [nuevoVend, setNuevoVend] = useState(false)
-  const [nombreVend, setNombreVend] = useState('')
   const [ok, setOk] = useState(false)
   const [items, setItems] = useState([]) // carrito: varios productos del mismo cliente
   const [descuento, setDescuento] = useState('')
@@ -181,8 +175,6 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, f.productoId, f.precio])
 
-  // Lo que muestra el <Select>: la familia (si hay color elegido) o el id directo.
-  const valorSelect = familiaActiva ? 'fam:' + familiaActiva.base : f.productoId
   // Producto/color elegido actualmente (para el chip).
   const itemActivo =
     familiaActiva && f.productoId ? familiaActiva.items.find((it) => it.id === f.productoId) : null
@@ -191,24 +183,6 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     if (!query) return true
     return [fam.base, ...fam.items.map((item) => item.nombre)].some((text) => text.toLocaleLowerCase().includes(query))
   })
-
-  function elegirVendedor(e) {
-    const v = e.target.value
-    if (v === '__nuevo__') {
-      setNuevoVend(true)
-      return
-    }
-    setF((s) => ({ ...s, vendedorId: v }))
-  }
-
-  function crearVendedor() {
-    const nombre = nombreVend.trim()
-    if (!nombre) return
-    const v = addVendedor(nombre)
-    setNuevoVend(false)
-    setNombreVend('')
-    setF((s) => ({ ...s, vendedorId: v.id }))
-  }
 
   function aplicarProducto(p) {
     setF((s) => ({

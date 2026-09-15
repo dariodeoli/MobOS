@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
-import { buttonClass, fieldClass, SellerFeedback, SellerSection, useSellerData } from './SellerData'
+import { Button, Input, Select } from '@/components/ui'
+import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import { api } from '@/lib/api/client'
 import { printOrderReceipt } from '@/components/shared/OrderReceipt'
 
@@ -40,8 +41,8 @@ export default function SellerOrders() {
     try { await api.patch(`/api/orders/${encodeURIComponent(row.id)}`, { fulfillmentStatus }); await data.refresh() } catch (error) { setActionError(error.message || 'No se pudo actualizar la entrega.') } finally { setSavingId('') }
   }
   return <SellerSection title="Mis pedidos" description="Consultá los pedidos registrados con tu usuario y su estado. La API devuelve hasta 100 pedidos recientes.">
-    <div className="flex gap-2"><input aria-label="Buscar en mis pedidos" className={fieldClass} placeholder="Pedido, cliente o producto" value={query} onChange={(event) => setQuery(event.target.value)} />
-      <button className={buttonClass} onClick={data.refresh} disabled={data.loading}>Actualizar</button></div>
+    <div className="flex gap-2"><Input aria-label="Buscar en mis pedidos" placeholder="Pedido, cliente o producto" value={query} onChange={(event) => setQuery(event.target.value)} />
+      <Button onClick={data.refresh} disabled={data.loading}>Actualizar</Button></div>
     <SellerFeedback {...data} empty={!rows.length} />
     {actionError && <p role="alert" className="mt-3 text-sm text-red-300">{actionError}</p>}
     {!data.loading && !data.error && <ul className="space-y-3">{rows.map((row) => <li key={row.id} className="break-words rounded-2xl border border-white/10 p-5">
@@ -52,7 +53,7 @@ export default function SellerOrders() {
       {row.paymentStatus && <p className="mt-2 text-sm text-slate-400">Pago: {row.paymentStatus}</p>}
       <p className="mt-2 text-sm text-slate-400">Entrega: <strong className="text-fono-light">{FULFILLMENT[row.fulfillmentStatus] || row.fulfillmentStatus}</strong></p>
       <p className="mt-3 text-xs text-slate-400">{row.date && !Number.isNaN(Date.parse(row.date)) ? new Date(row.date).toLocaleDateString('es-PY') : 'Fecha no disponible'}</p>
-      <div className="mt-4 flex flex-wrap gap-2"><button className={buttonClass} type="button" onClick={() => printOrderReceipt(row)}>Imprimir comprobante</button>{!esDemo && <label className="text-xs text-slate-400">Estado de entrega<select aria-label={`Estado de entrega ${row.number}`} className={`${fieldClass} mt-1`} value={row.fulfillmentStatus} disabled={savingId === row.id} onChange={event => updateFulfillment(row, event.target.value)}>{Object.entries(FULFILLMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>}</div>
+      <div className="mt-4 flex flex-wrap gap-2"><Button type="button" onClick={() => printOrderReceipt(row)}>Imprimir comprobante</Button>{!esDemo && <label className="text-xs text-slate-400">Estado de entrega<Select aria-label={`Estado de entrega ${row.number}`} className="mt-1" value={row.fulfillmentStatus} disabled={savingId === row.id} onChange={event => updateFulfillment(row, event.target.value)}>{Object.entries(FULFILLMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>}</div>
     </li>)}</ul>}
   </SellerSection>
 }

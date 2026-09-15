@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { getProductos } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
-import { buttonClass, fieldClass, SellerFeedback, SellerSection, useSellerData } from './SellerData'
+import { Button, Input } from '@/components/ui'
+import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 
 export const productFields = (row) => ({ id: row.id, name: row.name || row.nombre || '', sku: row.sku || '', price: row.pricePyg ?? row.precioVenta, stock: row.stock })
 const demoProducts = () => getProductos().filter((row) => row.activo !== false)
@@ -15,8 +16,8 @@ export default function SellerCatalog() {
   const rows = esDemo ? data.rows.filter((row) => `${row.name} ${row.sku}`.toLowerCase().includes(search.toLowerCase())) : data.rows
   return <SellerSection title="Productos" description="Catálogo de consulta: precio de venta y stock. Buscá para acotar los resultados (hasta 100 por consulta).">
     <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); setSearch(query.trim()); data.refresh() }}>
-      <input aria-label="Buscar productos" className={fieldClass} placeholder="Nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />
-      <button className={buttonClass}>Buscar</button>
+      <Input aria-label="Buscar productos" placeholder="Nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />
+      <Button>Buscar</Button>
     </form>
     <SellerFeedback {...data} empty={!rows.length} />
     {!data.loading && !data.error && <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{rows.map((row) => <li key={row.id} className="min-w-0 break-words rounded-2xl border border-white/10 bg-white/[.02] p-5">

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { listAuditoria } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
-import { Card, Badge, Input } from '@/components/ui'
+import { Card, Badge, Input, EmptyState } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 
 const ACCION = {
@@ -114,10 +114,7 @@ export default function Historial() {
         </div>
 
         {items.length === 0 ? (
-          <div className="p-8 text-center text-mute text-sm">
-            <div className="text-4xl mb-2"></div>
-            Todavía no hay movimientos registrados.
-          </div>
+          <EmptyState compact icon="clock" title="Todavía no hay movimientos registrados." />
         ) : (
           <div className="divide-y divide-ink-600">
             {items.map((m) => {

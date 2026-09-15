@@ -8,7 +8,6 @@ import {
   MEDIOS_PAGO,
   ESTADOS_PAGO,
 } from '@/lib/storage'
-import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
 import { calcularTradein } from '@/utils/tradein'
 import { fechaClave, num, gs } from '@/utils/calculos'
@@ -33,7 +32,6 @@ const ESTADO0 = {
 export default function TradeIn() {
   useLive()
   const navigate = useNavigate()
-  const { sesion } = useSesion()
   const config = getTradein()
 
   const [s, setS] = useState(ESTADO0)
@@ -74,7 +72,6 @@ export default function TradeIn() {
         s={s}
         resultado={resultado}
         config={config}
-        sesion={sesion}
         onReset={reset}
         onSalir={() => navigate('/')}
       />
@@ -375,7 +372,7 @@ function Opcion({ sel, onClick, icon, titulo, sub, danger }) {
 }
 
 // ── Resultado + conversión a venta ──────────────────────────────────
-function Resultado({ s, resultado, config, sesion, onReset, onSalir }) {
+function Resultado({ s, resultado, config, onReset, onSalir }) {
   const celulares = listCelulares().filter((c) => c.activo && c.precio > 0)
   const vendedores = getVendedores().filter((v) => v.activo)
   const [celId, setCelId] = useState('')

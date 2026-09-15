@@ -1,4 +1,5 @@
-export { api, request, API_URL } from './client'
+import { api, request, API_URL } from './client'
+export { api, request, API_URL }
 export { ApiError, isApiError } from './errors'
 export { clearAccessToken, clearCompanyToken, clearSession, getAccessToken, getCompanyContext, getCompanyToken, setAccessToken, setCompanyToken, sessionApi } from './session'
 

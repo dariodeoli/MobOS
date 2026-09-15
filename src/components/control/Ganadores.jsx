@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { listVentas, productosById } from '@/lib/storage'
 import { productosGanadores, gs } from '@/utils/calculos'
 import { PeriodoTabs } from '@/components/control/Ganancias'
-import { Card, Badge } from '@/components/ui'
+import { Card, Badge, EmptyState } from '@/components/ui'
 
 const MEDALLA = ['', '', '']
 
@@ -16,9 +16,7 @@ export default function Ganadores() {
       <Card>
         <h2 className="font-bold mb-3">Productos ganadores</h2>
         {top.length === 0 ? (
-          <div className="py-8 text-center text-mute text-sm">
-            Todavía no hay ventas en este período.
-          </div>
+          <EmptyState compact icon="box" title="Todavía no hay ventas en este período." />
         ) : (
           <div className="space-y-2">
             {top.map((p, i) => (

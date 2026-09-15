@@ -5,7 +5,7 @@ import { fechaClave, num, gs } from '@/utils/calculos'
 import { fmtLargo } from '@/components/shared/RangoFechas'
 import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
-import { Card, Badge, Dot } from '@/components/ui'
+import { Card, Badge, Dot, EmptyState } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import PagosPedido from './PagosPedido'
 
@@ -153,14 +153,13 @@ export default function ListaVentasDia({
       </div>
 
       {ventas.length === 0 ? (
-        <div className="px-5 py-16 text-center">
-          <Icon name="receipt" className="mx-auto mb-3 h-8 w-8 text-ink-500" />
-          <p className="text-sm text-mute">
-            {filtro === 'todas'
-              ? 'No hay ventas en este período.'
-              : 'Ninguna venta con este filtro.'}
-          </p>
-        </div>
+        <EmptyState
+          icon="receipt"
+          title={filtro === 'todas'
+            ? 'No hay ventas en este período.'
+            : 'Ninguna venta con este filtro.'}
+          className="py-16"
+        />
       ) : (
         <>
           {/* ── Tarjetas (móvil) ─────────────────────────────────── */}

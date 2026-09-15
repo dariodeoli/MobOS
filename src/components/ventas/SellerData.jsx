@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
-
-export const fieldClass = 'w-full rounded-xl border border-white/15 bg-[#071018] px-3 py-3 text-white focus:border-fono focus:outline-none'
-export const buttonClass = 'rounded-xl bg-fono px-4 py-3 font-semibold text-white disabled:opacity-50'
+import { Button } from '@/components/ui'
 
 // Callers project explicit public fields before retaining API data in state.
 export function useSellerData(path, project, demoRead, esDemo) {
@@ -35,7 +33,7 @@ export function SellerSection({ title, description, children }) {
 
 export function SellerFeedback({ loading, error, empty, refresh }) {
   if (loading) return <p role="status" className="py-6 text-slate-400">Cargando…</p>
-  if (error) return <div role="alert" className="space-y-3 py-4"><p>{error}</p><button className={buttonClass} onClick={refresh}>Reintentar</button></div>
+  if (error) return <div role="alert" className="space-y-3 py-4"><p>{error}</p><Button onClick={refresh}>Reintentar</Button></div>
   if (empty) return <p role="status" className="rounded-xl border border-white/10 p-6 text-slate-400">No hay resultados.</p>
   return null
 }

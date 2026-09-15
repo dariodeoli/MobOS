@@ -1,15 +1,14 @@
 import { useMemo, useState } from 'react'
 import { listVentas, getVendedores, productosById, listGastos } from '@/lib/storage'
-import { comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
+import { comisionDeVentas, num, gs } from '@/utils/calculos'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
 import RangoFechas, {
   rangoPorDefecto,
   rangoAnterior,
   etiquetaRango,
 } from '@/components/shared/RangoFechas'
-import Icon from '@/components/shared/Icon'
 import MedioPago from '@/components/shared/MedioPago'
-import { Card, Badge, Dot, Stat } from '@/components/ui'
+import { Card, Badge, Dot, EmptyState } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 // Métrica al estilo del tablero: rótulo, número grande, indicador de tendencia
@@ -169,7 +168,7 @@ export default function Resumen() {
             <Badge color="blue">{d.serie.length} días con ventas</Badge>
           </div>
           {d.serie.length === 0 ? (
-            <div className="py-14 text-center text-sm text-mute">Sin ventas en este período</div>
+            <EmptyState compact icon="box" title="Sin ventas en este período" />
           ) : (
             <div className="flex h-44 items-end gap-1.5">
               {d.serie.map(([f, v]) => (
@@ -192,7 +191,7 @@ export default function Resumen() {
         <Card>
           <h2 className="mb-4 font-medium">Medios de pago</h2>
           {d.medios.length === 0 ? (
-            <div className="py-14 text-center text-sm text-mute">Sin datos</div>
+            <EmptyState compact icon="box" title="Sin datos" />
           ) : (
             <div className="space-y-3">
               {d.medios.map((m) => (
@@ -221,7 +220,7 @@ export default function Resumen() {
           <span className="text-xs text-mute">{etiquetaRango(rango)}</span>
         </div>
         {d.ranking.length === 0 ? (
-          <div className="py-10 text-center text-sm text-mute">Sin ventas en este período</div>
+          <EmptyState compact icon="box" title="Sin ventas en este período" />
         ) : (
           <div className="space-y-1">
             {d.ranking.map((v, i) => (

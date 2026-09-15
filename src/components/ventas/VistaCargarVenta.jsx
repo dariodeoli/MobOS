@@ -5,6 +5,7 @@ import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
 import FormularioVenta from './FormularioVenta'
 import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
+import { EmptyState } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 const POR_PAGINA = 8
@@ -88,10 +89,7 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
           </div>
 
           {d.ultimas.length === 0 ? (
-            <div className="px-5 py-14 text-center">
-              <Icon name="receipt" className="mx-auto mb-3 h-8 w-8 text-ink-500" />
-              <p className="text-sm text-mute">Todavía no hay ventas cargadas.</p>
-            </div>
+            <EmptyState icon="receipt" title="Todavía no hay ventas cargadas." className="py-14" />
           ) : (
             <>
               <div className="overflow-x-auto">

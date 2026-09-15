@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { listAds, addAds, deleteAds } from '@/lib/storage'
 import { fechaClave, num, gs } from '@/utils/calculos'
-import { Card, Button, Input, Label, Select, Badge, MoneyInput } from '@/components/ui'
+import { Card, Button, Input, Label, Select, Badge, MoneyInput, EmptyState } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 
 const PLATAFORMAS = ['Meta Ads', 'Instagram', 'Facebook', 'Google Ads', 'TikTok', 'Otro']
@@ -121,7 +121,7 @@ export default function Ads() {
           <Badge color="orange">Total: {gs(total)}</Badge>
         </div>
         {ads.length === 0 ? (
-          <div className="p-8 text-center text-mute text-sm">Sin inversiones registradas.</div>
+          <EmptyState compact icon="box" title="Sin inversiones registradas." />
         ) : (
           <div className="divide-y divide-ink-600">
             {ads.map((a) => (

@@ -57,7 +57,7 @@ export const PRESETS = [
 export const rangoPorDefecto = () => ({ ...PRESETS[0].calc(), preset: 'hoy' })
 
 export function fmtCorto(f) {
-  const [y, m, d] = (f || '').split('-')
+  const [, m, d] = (f || '').split('-')
   return d ? `${d}/${m}` : f
 }
 export function fmtLargo(f) {
