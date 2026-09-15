@@ -39,10 +39,12 @@ export async function POST(request: Request) {
   const b = await request.json(); const price = Number(b.pricePyg ?? b.price ?? 0); const stock = Number(b.stock ?? 0)
   const cost = b.costPyg === undefined || b.costPyg === null || b.costPyg === '' ? undefined : Number(b.costPyg)
   const insuranceRate = b.insuranceRate === undefined || b.insuranceRate === null || b.insuranceRate === '' ? undefined : Number(b.insuranceRate)
+  const reorderPoint = b.reorderPoint === undefined ? undefined : b.reorderPoint === null || b.reorderPoint === '' ? null : Number(b.reorderPoint)
   if (typeof b.sku !== 'string' || !b.sku.trim() || typeof b.name !== 'string' || !b.name.trim()) return error('SKU y nombre son obligatorios.')
   if (!Number.isSafeInteger(price) || price < 0 || price > 2147483647 || !Number.isSafeInteger(stock) || stock < 0 || stock > 2147483647) return error('Precio y stock deben ser enteros válidos.')
   if (cost !== undefined && (!Number.isSafeInteger(cost) || cost < 0 || cost > 2147483647)) return error('El costo debe ser un entero válido.')
   if (insuranceRate !== undefined && (!Number.isFinite(insuranceRate) || insuranceRate < 0 || insuranceRate > 100)) return error('El seguro debe ser un porcentaje entre 0 y 100.')
+  if (reorderPoint !== undefined && reorderPoint !== null && (!Number.isSafeInteger(reorderPoint) || reorderPoint < 0 || reorderPoint > 2147483647)) return error('El umbral de reposición debe ser un entero válido.')
   const branchId = b.branchId || session.user.branchId || null
   if (branchId && !(await prisma.branch.findFirst({ where: { id: branchId, tenantId: tenant, isActive: true }, select: { id: true } }))) return error('Sucursal no encontrada.', 404)
   if (session.user.branchId && branchId !== session.user.branchId) return error('No autorizado para esa sucursal.', 403)
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
     const data = await prisma.$transaction(async tx => {
       if (serial && await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { id: true } })) throw new Error('Ese IMEI/serial ya existe.')
       if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId, isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
-      const product = await tx.product.create({ data: { tenantId: tenant, sku: b.sku.trim(), name: b.name.trim(), category: b.category, imei: serial || null, condition: b.condition || 'NEW', pricePyg: price, costPyg: cost, insuranceRate, stock, branchId } })
+      const product = await tx.product.create({ data: { tenantId: tenant, sku: b.sku.trim(), name: b.name.trim(), category: b.category, imei: serial || null, condition: b.condition || 'NEW', pricePyg: price, costPyg: cost, insuranceRate, stock, branchId, ...(reorderPoint !== undefined ? { reorderPoint } : {}) } })
       if (serial) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId, locationId, serial, ...unitDetails(b, { condition: product.condition, costPyg: cost }) } })
       return product
     })
@@ -70,9 +72,11 @@ export async function PATCH(request: Request) {
   const price = b.pricePyg === undefined ? undefined : Number(b.pricePyg); const stock = b.stock === undefined ? undefined : Number(b.stock)
   const cost = b.costPyg === undefined ? undefined : b.costPyg === null || b.costPyg === '' ? null : Number(b.costPyg)
   const insuranceRate = b.insuranceRate === undefined ? undefined : b.insuranceRate === null || b.insuranceRate === '' ? null : Number(b.insuranceRate)
+  const reorderPoint = b.reorderPoint === undefined ? undefined : b.reorderPoint === null || b.reorderPoint === '' ? null : Number(b.reorderPoint)
   if ((price !== undefined && (!Number.isSafeInteger(price) || price < 0 || price > 2147483647)) || (stock !== undefined && (!Number.isSafeInteger(stock) || stock < 0 || stock > 2147483647))) return error('Precio y stock deben ser enteros válidos.')
   if (cost !== undefined && cost !== null && (!Number.isSafeInteger(cost) || cost < 0 || cost > 2147483647)) return error('El costo debe ser un entero válido.')
   if (insuranceRate !== undefined && insuranceRate !== null && (!Number.isFinite(insuranceRate) || insuranceRate < 0 || insuranceRate > 100)) return error('El seguro debe ser un porcentaje entre 0 y 100.')
+  if (reorderPoint !== undefined && reorderPoint !== null && (!Number.isSafeInteger(reorderPoint) || reorderPoint < 0 || reorderPoint > 2147483647)) return error('El umbral de reposición debe ser un entero válido.')
   const product = await prisma.product.findFirst({ where: { id: b.id, tenantId: tenant, isActive: true } })
   if (!product) return error('Producto no encontrado.', 404)
   if ((session.user.branchId === null && product.branchId !== null) || (session.user.branchId && product.branchId !== null && product.branchId !== session.user.branchId)) return error('No autorizado para esa sucursal.', 403)
@@ -89,7 +93,7 @@ export async function PATCH(request: Request) {
         if (!existing) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId: product.branchId, locationId: locationId ?? null, serial, ...details } })
         else await tx.inventoryUnit.update({ where: { tenantId_serial: { tenantId: tenant, serial } }, data: { ...details, ...(locationId !== undefined ? { locationId } : {}) } })
       }
-      return tx.product.update({ where: { id: product.id }, data: { ...(typeof b.name === 'string' && b.name.trim() ? { name: b.name.trim() } : {}), ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(price !== undefined ? { pricePyg: price } : {}), ...(cost !== undefined ? { costPyg: cost } : {}), ...(insuranceRate !== undefined ? { insuranceRate } : {}), ...(stock !== undefined ? { stock } : {}), ...(b.category !== undefined ? { category: b.category || null } : {}), ...(serial !== undefined ? { imei: serial } : {}), ...(b.condition !== undefined ? { condition: b.condition } : {}) } })
+      return tx.product.update({ where: { id: product.id }, data: { ...(typeof b.name === 'string' && b.name.trim() ? { name: b.name.trim() } : {}), ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(price !== undefined ? { pricePyg: price } : {}), ...(cost !== undefined ? { costPyg: cost } : {}), ...(insuranceRate !== undefined ? { insuranceRate } : {}), ...(stock !== undefined ? { stock } : {}), ...(reorderPoint !== undefined ? { reorderPoint } : {}), ...(b.category !== undefined ? { category: b.category || null } : {}), ...(serial !== undefined ? { imei: serial } : {}), ...(b.condition !== undefined ? { condition: b.condition } : {}) } })
     })
     return json(data)
   } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo actualizar el producto.', 409) }

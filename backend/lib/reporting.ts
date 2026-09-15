@@ -107,6 +107,107 @@ export type ReportQuery = {
   offsetMinutes: number
 }
 
+// ---- Comisiones por vendedor -------------------------------------------------
+//
+// La comisión se calcula sobre el MARGEN de la venta: la suma de (total de
+// línea - costo) de las líneas con costo conocido. Las líneas sin costo no
+// aportan margen y se informan aparte, igual que en el reporte de ganancia.
+// La regla por usuario prevalece sobre la regla por rol; sin regla no hay
+// comisión (porcentaje nulo en el resultado).
+
+export type CommissionRuleLike = {
+  userId?: string | null
+  role?: string | null
+  percentPyg?: number | null
+}
+
+export type SellerProfile = { name?: string | null; role?: string | null }
+
+export type CommissionSellerRow = {
+  sellerId: string
+  sellerName: string
+  role: string | null
+  orders: number
+  totalPyg: number
+  marginPyg: number
+  salesWithoutCostPyg: number
+  linesWithoutCost: number
+  commissionPct: number | null
+  commissionPyg: number
+}
+
+export function aggregateCommissions(
+  orders: OrderLike[],
+  rules: CommissionRuleLike[],
+  sellers: Record<string, SellerProfile> = {},
+): { sellers: CommissionSellerRow[]; totals: { totalPyg: number; marginPyg: number; commissionPyg: number } } {
+  const ruleByUser = new Map<string, number>()
+  const ruleByRole = new Map<string, number>()
+  for (const rule of rules) {
+    const percent = entero(rule.percentPyg)
+    if (percent === null || percent > 100) continue
+    if (rule.userId) ruleByUser.set(rule.userId, percent)
+    if (rule.role) ruleByRole.set(rule.role, percent)
+  }
+
+  type AcumuladorComision = Omit<CommissionSellerRow, 'commissionPct' | 'commissionPyg'>
+  const acumulados = new Map<string, AcumuladorComision>()
+  const acumular = (sellerId: string, label: string, role: string | null): AcumuladorComision => {
+    let acumulador = acumulados.get(sellerId)
+    if (!acumulador) {
+      acumulador = { sellerId, sellerName: label, role, orders: 0, totalPyg: 0, marginPyg: 0, salesWithoutCostPyg: 0, linesWithoutCost: 0 }
+      acumulados.set(sellerId, acumulador)
+    } else if (acumulador.sellerName === 'Sin vendedor' && label !== 'Sin vendedor') {
+      acumulador.sellerName = label
+    }
+    return acumulador
+  }
+
+  for (const orden of orders) {
+    if (orden.status === 'CANCELLED') continue
+    const sellerId = orden.sellerId || 'sin-vendedor'
+    const profile = sellers[sellerId]
+    const acumulador = acumular(sellerId, orden.sellerName?.trim() || profile?.name?.trim() || 'Sin vendedor', profile?.role ?? null)
+    acumulador.orders += 1
+    acumulador.totalPyg = suma(acumulador.totalPyg, entero(orden.totalPyg) ?? 0)
+    const items = Array.isArray(orden.items) ? orden.items : []
+    let marginOrden = 0
+    for (const item of items) {
+      const cantidad = entero(item.quantity, 1) ?? 0
+      const totalLinea = entero(item.totalPyg) ?? 0
+      const costoUnitario = item.unitCostPyg === null || item.unitCostPyg === undefined ? null : entero(item.unitCostPyg)
+      if (costoUnitario === null) {
+        acumulador.linesWithoutCost += 1
+        acumulador.salesWithoutCostPyg = suma(acumulador.salesWithoutCostPyg, totalLinea)
+        continue
+      }
+      marginOrden = suma(marginOrden, Math.max(0, totalLinea - costoUnitario * cantidad))
+    }
+    acumulador.marginPyg = suma(acumulador.marginPyg, marginOrden)
+  }
+
+  const sellersRows: CommissionSellerRow[] = [...acumulados.values()].map(acumulador => {
+    const percent = acumulador.sellerId === 'sin-vendedor' ? null : ruleByUser.get(acumulador.sellerId) ?? ruleByRole.get(acumulador.role ?? '') ?? null
+    return {
+      ...acumulador,
+      commissionPct: percent,
+      commissionPyg: percent === null ? 0 : Math.round((acumulador.marginPyg * percent) / 100),
+    }
+  })
+  sellersRows.sort((a, b) => b.totalPyg - a.totalPyg || a.sellerName.localeCompare(b.sellerName))
+
+  const totals = sellersRows.reduce(
+    (sum, row) => ({
+      totalPyg: suma(sum.totalPyg, row.totalPyg),
+      marginPyg: suma(sum.marginPyg, row.marginPyg),
+      commissionPyg: suma(sum.commissionPyg, row.commissionPyg),
+    }),
+    { totalPyg: 0, marginPyg: 0, commissionPyg: 0 },
+  )
+
+  return { sellers: sellersRows, totals }
+}
+
 export class ReportInputError extends Error {}
 
 function entero(value: unknown, minimo = 0): number | null {

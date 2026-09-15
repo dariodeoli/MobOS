@@ -5,22 +5,27 @@ import {
   MAX_REPORT_ORDERS,
   REPORT_ROLES,
   ReportInputError,
+  aggregateCommissions,
   aggregateReport,
   dayBounds,
   parseReportQuery,
 } from '../../../lib/reporting'
 
-// Reportes por producto, categoría, vendedor o día.
+// Reportes por producto, categoría, vendedor o día, y comisiones por vendedor.
 //
 // Alcance: ADMIN y GERENTE, siempre dentro de su propia empresa. El reporte no
 // recalcula nada histórico: usa los importes y el costo congelado de cada línea.
 // Un `branchId` opcional acota a una sucursal activa de la misma empresa.
+// Con `type=commissions` se devuelve la comisión por vendedor según las reglas
+// vigentes (por usuario o por rol), calculada sobre el margen de cada venta.
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (!(REPORT_ROLES as readonly string[]).includes(session.user.role)) return error('No autorizado.', 403)
 
   const url = new URL(request.url)
+  const type = (url.searchParams.get('type') || '').trim()
+  if (type && type !== 'commissions') return error('Tipo de reporte inválido.')
   const parsed = parseReportQuery(url.searchParams)
   if (!parsed.ok) return error(parsed.error)
   const { from, to, groupBy, offsetMinutes } = parsed.value
@@ -57,7 +62,7 @@ export async function GET(request: Request) {
           },
         },
         payments: { select: { status: true, amountPyg: true, accountSnapshot: true } },
-        seller: { select: { id: true, name: true } },
+        seller: { select: { id: true, name: true, role: true } },
       },
       orderBy: { createdAt: 'asc' },
       take: MAX_REPORT_ORDERS + 1,
@@ -65,6 +70,54 @@ export async function GET(request: Request) {
 
     const truncated = orders.length > MAX_REPORT_ORDERS
     const usadas = truncated ? orders.slice(0, MAX_REPORT_ORDERS) : orders
+
+    if (type === 'commissions') {
+      const rules = await prisma.commissionRule.findMany({
+        where: { tenantId: session.user.tenantId },
+        select: { userId: true, role: true, percentPyg: true },
+      })
+      const sellers: Record<string, { name: string | null; role: string | null }> = {}
+      for (const order of usadas) {
+        if (!order.sellerId || sellers[order.sellerId]) continue
+        sellers[order.sellerId] = { name: order.seller?.name ?? null, role: order.seller?.role ?? null }
+      }
+      const commissions = aggregateCommissions(
+        usadas.map((orden) => ({
+          id: orden.id,
+          status: orden.status,
+          subtotalPyg: orden.subtotalPyg,
+          discountPyg: orden.discountPyg,
+          deliveryPyg: orden.deliveryPyg,
+          totalPyg: orden.totalPyg,
+          sellerId: orden.sellerId,
+          sellerName: orden.seller?.name ?? null,
+          createdAt: orden.createdAt,
+          items: orden.items.map((item) => ({
+            productId: item.productId,
+            description: item.description,
+            productName: item.product?.name ?? null,
+            category: item.product?.category ?? null,
+            quantity: item.quantity,
+            unitCostPyg: item.unitCostPyg,
+            totalPyg: item.totalPyg,
+          })),
+        })),
+        rules.map((rule) => ({ userId: rule.userId, role: rule.role, percentPyg: rule.percentPyg })),
+        sellers,
+      )
+      return json({
+        from,
+        to,
+        type: 'commissions',
+        offsetMinutes,
+        branchId,
+        truncated,
+        generatedAt: new Date().toISOString(),
+        rules: rules.map((rule) => ({ userId: rule.userId, role: rule.role, percentPyg: rule.percentPyg })),
+        ...commissions,
+      })
+    }
+
     const reporte = aggregateReport(
       usadas.map((orden) => ({
         id: orden.id,

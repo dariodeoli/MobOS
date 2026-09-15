@@ -369,6 +369,7 @@ SELLER_PRIVACY_SELLER_ID="user-a-it" SELLER_PRIVACY_OTHER_ORDER_ID="$PRIVATE_ORD
 node "$BACKEND_ROOT/tests/new-modules-functional.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+node "$BACKEND_ROOT/tests/mobos-1.2.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 out="$(response_file)"; CHECKOUT_COMPANY_B="$(auth_cookie POST /api/auth/login 200 '{"email":"company-b-it@example.invalid","password":"company-password-it","deviceId":"checkout-b-it","branchId":"branch-b-it"}' "$out" '' mobos_company_session)"
 out="$(response_file)"; CHECKOUT_SELLER_B="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-b-it","pin":"2468"}' "$out" "$CHECKOUT_COMPANY_B" mobos_seller_session)"
 MOBOS_IT_EXECUTE=1 node "$BACKEND_ROOT/tests/checkout-customer.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A" "$CHECKOUT_SELLER_B"
