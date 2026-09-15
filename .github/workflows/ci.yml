@@ -1,0 +1,143 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (lint + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+
+  backend:
+    name: Backend (typecheck + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Generate Prisma client
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/mobos
+        run: npx prisma generate
+      - name: Typecheck
+        working-directory: backend
+        run: npx tsc --noEmit
+      - name: Build
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/mobos
+        run: npm run build
+
+  integration:
+    name: Integration (backend harness, isolated Postgres)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install PostgreSQL binaries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql postgresql-client
+          pg_config --version
+      - name: Expose Postgres binaries to the harness
+        run: |
+          PG_BINDIR="$(pg_config --bindir)"
+          sudo mkdir -p /opt/homebrew/bin
+          for binary in initdb pg_ctl createdb psql; do
+            source="${PG_BINDIR}/${binary}"
+            if [[ ! -x "$source" && -x "/usr/bin/${binary}" ]]; then source="/usr/bin/${binary}"; fi
+            sudo ln -sf "$source" "/opt/homebrew/bin/${binary}"
+            test -x "/opt/homebrew/bin/${binary}"
+          done
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Generate Prisma client
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/mobos
+        run: npx prisma generate
+      - name: Build backend (harness requires .next/BUILD_ID)
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/mobos
+        run: npm run build
+      - name: Run integration suite (own ephemeral Postgres cluster)
+        working-directory: backend
+        env:
+          MOBOS_IT_EXECUTE: "1"
+          PG_BIN: /opt/homebrew/bin
+        run: bash tests/integration-http.sh
+
+  e2e:
+    name: E2E (Playwright + self-hosted backend/Postgres)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install PostgreSQL binaries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql postgresql-client
+          pg_config --version
+      - name: Expose Postgres binaries to the harness
+        run: |
+          PG_BINDIR="$(pg_config --bindir)"
+          sudo mkdir -p /opt/homebrew/bin
+          for binary in initdb pg_ctl createdb psql; do
+            source="${PG_BINDIR}/${binary}"
+            if [[ ! -x "$source" && -x "/usr/bin/${binary}" ]]; then source="/usr/bin/${binary}"; fi
+            sudo ln -sf "$source" "/opt/homebrew/bin/${binary}"
+            test -x "/opt/homebrew/bin/${binary}"
+          done
+      - name: Install root dependencies
+        run: npm ci
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E suite
+        run: npm run test:e2e
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14
