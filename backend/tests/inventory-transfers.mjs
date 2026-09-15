@@ -37,7 +37,7 @@ assert.ok(transfer, 'El traslado no quedó en el historial.')
 result = await request('/api/transfers', 'POST', { sourceBranchId: 'branch-a-it', destinationBranchId: 'branch-a2-it', lines: [{ productId: source.id, quantity: 1, serials: [serial] }] })
 assert.equal(result.response.status, 409, 'No se debe transferir de nuevo una unidad ya trasladada.')
 
-result = await request(`/api/inventory-units?q=${encodeURIComponent(serial)}`)
+result = await request(`/api/inventory-units?branchId=branch-a2-it&q=${encodeURIComponent(serial)}`)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 const movedUnit = result.payload.find(item => item.serial === normalizedSerial)
 assert.ok(movedUnit, 'La unidad trasladada debe poder encontrarse por IMEI exacto.')
@@ -46,11 +46,11 @@ result = await request('/api/inventory-units', 'PATCH', { id: movedUnit.id, acti
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 assert.equal(result.payload.status, 'DEFECTIVE')
 
-result = await request(`/api/inventory-units?q=${encodeURIComponent(serial)}`)
+result = await request(`/api/inventory-units?branchId=branch-a2-it&q=${encodeURIComponent(serial)}`)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 assert.equal(result.payload.length, 0, 'La baja no debe aparecer en el inventario operativo.')
 
-result = await request(`/api/inventory-units?view=removed&q=${encodeURIComponent(serial)}`)
+result = await request(`/api/inventory-units?branchId=branch-a2-it&view=removed&q=${encodeURIComponent(serial)}`)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 assert.equal(result.payload.length, 1, 'La baja debe aparecer en eliminados recuperables.')
 

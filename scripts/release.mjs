@@ -42,17 +42,49 @@ if (!publish) {
   process.exit(0)
 }
 
+let webhook = null
+if (deploy) {
+  webhook = process.env.MOBOS_DEPLOY_WEBHOOK
+  if (!webhook) {
+    throw new Error('Falta MOBOS_DEPLOY_WEBHOOK en el entorno privado. No se creó el commit ni se hizo push.')
+  }
+  let parsed
+  try {
+    parsed = new URL(webhook)
+  } catch {
+    throw new Error('MOBOS_DEPLOY_WEBHOOK no es una URL válida. No se creó el commit ni se hizo push.')
+  }
+  if (parsed.protocol !== 'https:') {
+    throw new Error('MOBOS_DEPLOY_WEBHOOK debe ser HTTPS. No se creó el commit ni se hizo push.')
+  }
+}
+
 command('git', ['add', 'version.json', 'package.json', 'package-lock.json', 'backend/package.json', 'backend/package-lock.json', 'src/lib/brand.js'])
 command('git', ['commit', '-m', `chore(release): v${next}`])
 command('git', ['push', 'origin', 'main'])
 
 if (deploy) {
-  const webhook = process.env.MOBOS_DEPLOY_WEBHOOK
-  if (!webhook) {
-    console.warn('\nNo se solicitó el despliegue: falta MOBOS_DEPLOY_WEBHOOK en el entorno privado.')
-  } else {
-    const response = await fetch(webhook, { method: 'POST' })
-    if (!response.ok) throw new Error(`El webhook de despliegue respondió ${response.status}.`)
-    console.log('\nWebhook de OwnCoding Hub enviado. Ejecutá npm run release:smoke al finalizar el despliegue.')
+  const DELAYS_MS = [1000, 4000, 12000]
+  for (let attempt = 0; attempt <= DELAYS_MS.length; attempt += 1) {
+    let response
+    try {
+      response = await fetch(webhook, { method: 'POST' })
+    } catch {
+      throw new Error('No se pudo conectar con el webhook de despliegue. La versión ya está pusheada; reintentá el deploy manualmente.')
+    }
+    if (response.ok) {
+      console.log('\nWebhook de OwnCoding Hub enviado. Ejecutá npm run release:smoke al finalizar el despliegue.')
+      break
+    }
+    if (response.status === 429 && attempt < DELAYS_MS.length) {
+      const retryAfter = Number(response.headers.get('retry-after')) || DELAYS_MS[attempt] / 1000
+      console.warn(`\nEl webhook respondió 429. Reintentando en ${Math.ceil(retryAfter)} s…`)
+      await new Promise((resolve) => setTimeout(resolve, Math.ceil(retryAfter) * 1000))
+      continue
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(`El webhook de despliegue rechazó la solicitud (${response.status}). Verificá que el token de la URL siga vigente. La versión ya está pusheada.`)
+    }
+    throw new Error(`El webhook de despliegue respondió ${response.status}. La versión ya está pusheada; reintentá el deploy manualmente.`)
   }
 }

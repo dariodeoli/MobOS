@@ -210,6 +210,7 @@ const BADGE = {
   green: 'bg-ok/15 text-ok border-ok/25',
   red: 'bg-bad/15 text-bad border-bad/25',
   orange: 'bg-warn/15 text-warn border-warn/25',
+  yellow: 'bg-warn/15 text-warn border-warn/25',
   slate: 'bg-ink-600 text-mute border-ink-500',
 }
 export function Badge({ className, color = 'slate', ...props }) {

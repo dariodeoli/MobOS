@@ -92,7 +92,7 @@ export default function PanelVendedor() {
   useLive()
   useAutoRefrescar()
   const desfaseHoras = useReloj()
-  const { sesion, usuario, vendedores, cambiarVendedor, entrarDemo, esDemo, salir } = useSesion()
+  const { sesion, usuario, vendedores, cambiarVendedor, entrarDemo, esDemo, salir, empresa, sucursal } = useSesion()
   const navigate = useNavigate()
   const { vista: routeVista } = useParams()
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')

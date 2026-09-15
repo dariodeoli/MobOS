@@ -1,10 +1,10 @@
-import { prisma } from '../../../../../lib/prisma'
-import { error, json } from '../../../../../lib/http'
+import { NextResponse } from 'next/server'
 
-export async function GET(_: Request, { params }: { params: { token: string } }) {
-  const token = params.token?.trim(); if (!token || token.length > 200) return error('Pedido no encontrado.', 404)
-  const order = await prisma.order.findUnique({ where: { publicToken: token }, include: { items: { select: { description: true, quantity: true, unitPricePyg: true, totalPyg: true } }, customer: { select: { name: true } }, branch: { select: { name: true, address: true, city: true, phone: true, instagram: true } }, tenant: { select: { name: true, slug: true } } } })
-  if (!order) return error('Pedido no encontrado.', 404)
-  // El token no enumerable es la autorización. Aun así se omiten teléfono, dirección, pagos y vendedor.
-  return json({ orderNumber: order.orderNumber, createdAt: order.createdAt, financialStatus: order.status, fulfillmentStatus: order.fulfillmentStatus, totalPyg: order.totalPyg, customerName: order.customer?.name || 'Cliente', items: order.items, store: { name: order.tenant.name, slug: order.tenant.slug, branch: order.branch } })
+// Ruta histórica de tracking público. El comprobante vigente apunta a
+// /api/orders/public/[token], que expone la vista mínima. Se conserva un
+// redirect para no romper los QR de comprobantes ya entregados.
+export async function GET(request: Request, { params }: { params: { token: string } }) {
+  const token = params.token?.trim()
+  if (!token || token.length > 200) return NextResponse.json({ message: 'Pedido no encontrado.' }, { status: 404 })
+  return NextResponse.redirect(new URL(`/api/orders/public/${encodeURIComponent(token)}`, request.url), 308)
 }

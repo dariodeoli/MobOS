@@ -46,7 +46,11 @@ export async function request(path, options = {}) {
 
   const payload = await readBody(response)
   if (!response.ok) {
-    throw new ApiError(payload?.message || `La API respondió con ${response.status}.`, {
+    const retryAfter = response.status === 429 ? Number(response.headers.get('retry-after')) : 0
+    const retryHint = Number.isFinite(retryAfter) && retryAfter > 0
+      ? ` Reintentá en ${Math.ceil(retryAfter)} s.`
+      : response.status === 429 ? ' Reintentá en unos segundos.' : ''
+    throw new ApiError(`${payload?.message || `La API respondió con ${response.status}.`}${retryHint}`, {
       status: response.status,
       code: payload?.code || (response.status === 401 ? 'UNAUTHORIZED' : 'API_ERROR'),
       details: payload?.details ?? payload,
