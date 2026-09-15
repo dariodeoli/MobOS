@@ -2,7 +2,16 @@ import { formatGs, formatGsInput, parseGsInput, formatUsd } from './moneda.js'
 
 // ── Coerción y formato ──────────────────────────────────────────────
 export function num(v) {
-  const n = typeof v === 'string' ? parseFloat(v.replace(/[^\d.-]/g, '')) : Number(v)
+  if (typeof v === 'string') {
+    // "1.234.567" (miles con puntos) debe leerse completo, no como 1,234:
+    // si hay más de un punto, todos son separadores de miles.
+    const texto = v.replace(/\s/g, '').replace(/[^\d.,-]/g, '')
+    const puntos = (texto.match(/\./g) || []).length
+    const limpio = puntos > 1 ? texto.replace(/\./g, '') : texto.replace(/,/g, '.')
+    const n = parseFloat(limpio)
+    return Number.isFinite(n) ? n : 0
+  }
+  const n = Number(v)
   return Number.isFinite(n) ? n : 0
 }
 

@@ -57,6 +57,7 @@ const PAGO_VACIO = { medioPago: MEDIOS_PAGO[0], cuenta: '', monto: '' }
 
 export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito = false, tradeInDraft, onTradeInConsumed }) {
   const { sesion, esDemo } = useSesion()
+  const puedeDescontar = esDemo || ['dueno', 'GERENTE'].includes(sesion?.rol)
   const productos = getProductos().filter((p) => p.activo)
   const familias = agruparProductos(productos)
   const [f, setF] = useState(() => VACIO(sesion?.vendedorId || localStorage.getItem(ULTIMO_VENDEDOR)))
@@ -277,12 +278,12 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     let payments
     try {
       if (tieneCupon && gsNum(descuento) > 0) throw new Error('Quitá el descuento extra para utilizar un cupón. No son acumulables.')
+      if (!puedeDescontar && gsNum(descuento) > 0) throw new Error('Solo administradores y gerentes pueden aplicar descuentos.')
       if (esDemo) validateDemoPromotionItems(orderItems, productos, gsNum(descuento))
       if (!cuentas || errorCuentas) throw new Error(errorCuentas || 'Esperá a que terminen de cargar las cuentas.')
       if (!usaCuentas && pagos.some(p => !String(p.monto).trim() || gsNum(p.monto) <= 0)) throw new Error('Ingresá un monto positivo en cada pago o quitá la fila vacía.')
       payments = usaCuentas ? pagos.map((p) => accountPayment(p, cuentas)) : pagos.map(p => ({
         method: /efectivo/i.test(p.medioPago) ? 'CASH' : /tarjeta|pos/i.test(p.medioPago) ? 'CARD' : 'TRANSFER',
-        originalAmount: gsNum(p.monto), exchangeRatePyg: 1,
         amountPyg: gsNum(p.monto), status: 'CONFIRMED', reference: [p.medioPago, p.cuenta].filter(Boolean).join(' · '),
       }))
       if (esDemo) payments = payments.map((p) => {
@@ -589,7 +590,8 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         {/* Estado de pago */}
         <div>
           <Label>Descuento extra (Gs)</Label>
-          <MoneyInput value={descuento} onValueChange={setDescuento} placeholder="0" />
+          <MoneyInput value={descuento} onValueChange={setDescuento} placeholder="0" disabled={!puedeDescontar} />
+          {!puedeDescontar && <p className="mt-1 text-xs text-mute">Solo administradores y gerentes pueden aplicar descuentos.</p>}
           {tieneCupon && <p className="mt-1 text-xs text-fono-light">Esta venta tiene cupón: el descuento extra debe quedar en cero.</p>}
         </div>
 

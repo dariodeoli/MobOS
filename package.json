@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint src scripts",
     "lint:fix": "eslint src scripts --fix",
+    "test": "node --test \"src/**/*.test.js\"",
     "format": "prettier --write \"src/**/*.{js,jsx,css}\" \"scripts/**/*.mjs\"",
     "release:prepare": "node scripts/release.mjs",
     "release:smoke": "node scripts/smoke.mjs",

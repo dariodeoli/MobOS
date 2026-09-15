@@ -125,7 +125,13 @@ export default function PanelVendedor() {
     const accesibles = (esOwner ? OWNER_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id)
     if (!accesibles.includes(vista)) setVista('cargar')
   }, [esOwner, vista])
-  useEffect(() => { if (routeVista && routeVista !== vista) setVista(routeVista) }, [routeVista, vista])
+  // Sincroniza la URL con la vista, pero solo hacia vistas accesibles: un
+  // vendedor que abre una URL de dueño se queda en "cargar" sin loop.
+  useEffect(() => {
+    if (!routeVista || routeVista === vista) return
+    const accesibles = (esOwner ? OWNER_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id)
+    if (accesibles.includes(routeVista)) setVista(routeVista)
+  }, [routeVista, vista, esOwner])
 
   function ir(id) {
     if (!esOwner && !SELLER_NAV[0].items.some(([key]) => key === id)) {
@@ -351,8 +357,8 @@ export default function PanelVendedor() {
           {esOwner && vista === 'servicio' && <Garantias />}
           {esOwner && vista === 'resumen' && <ResumenControl />}
           {esOwner && vista === 'analisis' && <div><Subtabs value={analisisTab} onChange={setAnalisisTab} items={[["reportes", "Reportes"], ["ganancias", "Ganancias"], ["ganadores", "Ganadores"], ["asistente", "Asistente"]]} />{analisisTab === 'reportes' && <Reportes />}{analisisTab === 'ganancias' && <Ganancias />}{analisisTab === 'ganadores' && <Ganadores />}{analisisTab === 'asistente' && <Asistente />}</div>}
-          {esOwner && vista === 'finanzas' && <div><Subtabs value={finanzasTab} onChange={setFinanzasTab} items={[["caja", "Caja"], ["gastos", "Gastos"], ["publicidad", "Publicidad"]]} />{finanzasTab === 'caja' && <Caja />}{finanzasTab === 'gastos' && <Gastos />}{finanzasTab === 'publicidad' && <Ads />}</div>}
-          {esOwner && vista === 'equipo' && <div><Subtabs value={equipoTab} onChange={setEquipoTab} items={[["vendedores", "Vendedores"], ["historial", "Historial"], ["configuracion", "Configuración"]]} />{equipoTab === 'vendedores' && <Vendedores />}{equipoTab === 'historial' && <Historial />}{equipoTab === 'configuracion' && <Config />}</div>}
+          {esOwner && vista === 'finanzas' && <div><Subtabs value={finanzasTab} onChange={setFinanzasTab} items={esDemo ? [["caja", "Caja"], ["gastos", "Gastos"], ["publicidad", "Publicidad"]] : [["caja", "Caja"], ["gastos", "Gastos"]]} />{finanzasTab === 'caja' && <Caja />}{finanzasTab === 'gastos' && <Gastos />}{esDemo && finanzasTab === 'publicidad' && <Ads />}</div>}
+          {esOwner && vista === 'equipo' && <div><Subtabs value={equipoTab} onChange={setEquipoTab} items={esDemo ? [["vendedores", "Vendedores"], ["historial", "Historial"], ["configuracion", "Configuración"]] : [["vendedores", "Vendedores"], ["configuracion", "Configuración"]]} />{equipoTab === 'vendedores' && <Vendedores />}{esDemo && equipoTab === 'historial' && <Historial />}{equipoTab === 'configuracion' && <Config />}</div>}
         </main>
       </AppShell>
 

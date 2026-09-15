@@ -47,8 +47,10 @@ export default function ListaVentasDia({
   rango = null,
   titulo = null,
 }) {
-  const { sesion } = useSesion()
-  const puedeBorrar = !!sesion?.esPropietario
+  const { sesion, esDemo } = useSesion()
+  // En modo API las ventas viven en el backend y aún no hay endpoint de
+  // eliminación; el borrado local solo aplica a la demo.
+  const puedeBorrar = !!sesion?.esPropietario && esDemo
   const prods = productosById()
   const [filtro, setFiltro] = useState('todas')
   const [busqueda, setBusqueda] = useState('')

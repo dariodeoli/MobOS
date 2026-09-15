@@ -492,14 +492,16 @@ async function hydrateApi() {
   if (!apiMode()) return
   const version = apiHydrationVersion
   const identity = `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`
-  const [products, orders, users] = await Promise.all([
+  const puedeVerFinanzas = ['dueno', 'GERENTE', 'CAJERA'].includes(ctx.rol)
+  const [products, orders, users, finance] = await Promise.all([
     api.get('/api/products'), api.get('/api/orders'), ctx.rol === 'dueno' ? api.get('/api/users') : Promise.resolve([]),
+    puedeVerFinanzas ? api.get('/api/finance').catch(() => null) : Promise.resolve(null),
   ])
   if (!apiMode() || version !== apiHydrationVersion || identity !== `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`) return
   cache.productos = (products || []).map(mapProductoApi)
   cache.ventas = (orders || []).map(mapOrdenApi)
   cache.vendedores = (users || []).map((u) => ({ ...u, nombre: u.name, activo: u.status === 'ACTIVE' }))
-  cache.mayoristas = []; cache.gastos = []; cache.ads = []; cache.auditoria = []
+  cache.mayoristas = []; cache.gastos = mapGastosApi(finance); cache.ads = []; cache.auditoria = []
   cache.config = { ...CONFIG_DEFAULT, nombreTienda: getCompanyName() }
   notify()
 }
@@ -523,15 +525,34 @@ export function payloadProductoApi(payload = {}) {
   }
 }
 
+// Fecha comercial del día en Paraguay (UTC-3, igual que reportes y backend)
+// para que las ventas nocturnas no caigan en el día siguiente por UTC.
+function fechaLocalApi(iso) {
+  if (!iso) return ''
+  return new Date(new Date(iso).getTime() - 180 * 60000).toISOString().slice(0, 10)
+}
+
+// Traduce movimientos de caja reales al formato legacy de "gastos" para que
+// Ganancias, Resumen y el Asistente descuenten gastos también en modo API.
+function mapGastosApi(finance) {
+  return (finance?.movements || [])
+    .filter((row) => row.kind === 'EXPENSE' && row.direction === 'OUT' && row.status !== 'VOID')
+    .map((row) => ({ id: row.id, monto: Number(row.amountPyg || 0), motivo: row.description || 'Gasto', fecha: fechaLocalApi(row.createdAt), categoria: 'Gastos' }))
+}
+
 function mapOrdenApi(o) {
   const pagos = (o.payments || []).map((p) => ({ ...p, monto: p.amountPyg, medioPago: p.method }))
   const totalPagado = pagos.filter((p) => p.status === 'CONFIRMED').reduce((sum, p) => sum + num(p.monto), 0)
   const total = num(o.totalPyg)
   const items = o.items || []
   // Foto del costo guardada en la venta: se prefiere sobre el costo actual.
+  // Solo se usa cuando todas las líneas tienen costo; si alguna línea no lo
+  // tiene, se deja caer al costo actual del producto para no inflar la ganancia.
   const conCosto = items.filter((item) => item.unitCostPyg !== null && item.unitCostPyg !== undefined)
+  const costoCompleto = items.length > 0 && conCosto.length === items.length
   const costoVenta = conCosto.reduce((sum, item) => sum + num(item.unitCostPyg) * num(item.quantity), 0)
-  return { ...o, codigo: o.orderNumber, precio: total, vendedorId: o.sellerId, clienteId: o.customerId, cliente: o.customer?.name || '', fecha: o.createdAt?.slice(0, 10) || '', creadoEn: o.createdAt, productoId: items[0]?.productId || null, productoNombre: items.map((item) => item.description).filter(Boolean).join(', '), ...(conCosto.length ? { precioCosto: costoVenta } : {}), pagos, totalPagado, totalPendiente: Math.max(0, total - totalPagado), estadoPago: totalPagado >= total ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente' }
+  const medioPago = [...new Set(pagos.map((p) => p.medioPago).filter(Boolean))].join(' · ')
+  return { ...o, codigo: o.orderNumber, precio: total, vendedorId: o.sellerId, clienteId: o.customerId, cliente: o.customer?.name || '', fecha: fechaLocalApi(o.createdAt), creadoEn: o.createdAt, productoId: items[0]?.productId || null, productoNombre: items.map((item) => item.description).filter(Boolean).join(', '), ...(costoCompleto ? { precioCosto: costoVenta } : {}), medioPago, pagos, totalPagado, totalPendiente: Math.max(0, total - totalPagado), estadoPago: totalPagado >= total ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente' }
 }
 
 function getCompanyName() {
