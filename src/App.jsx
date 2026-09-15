@@ -9,7 +9,6 @@ import Celulares from '@/pages/Celulares'
 import Comparador from '@/pages/Comparador'
 import TradeIn from '@/pages/TradeIn'
 import { applyPageMetadata } from '@/lib/seo'
-import ProductFooter from '@/components/app/ProductFooter'
 import Landing from '@/pages/Landing'
 import DemoAccess from '@/pages/DemoAccess'
 import Status from '@/pages/Status'
@@ -20,14 +19,14 @@ import RecuperarContrasena from '@/pages/RecuperarContrasena'
 function SinEmpresa() {
   const { sesion, salir } = useSesion()
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-ink p-6 text-center">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-paper p-6 text-center">
       <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-fono/15">
         <Icon name="store" className="h-5 w-5 text-fono-light" />
       </div>
       <div>
-        <h1 className="text-lg font-semibold text-white">Todavía no estás en ninguna tienda</h1>
+        <h1 className="text-lg font-semibold text-fore">Todavía no estás en ninguna tienda</h1>
         <p className="mx-auto mt-2 max-w-sm text-sm text-mute">
-          Tu cuenta <strong className="text-white">{sesion?.correo}</strong> está creada, pero el
+          Tu cuenta <strong className="text-fore">{sesion?.correo}</strong> está creada, pero el
           dueño de la tienda todavía no te sumó al equipo. Pedile que te agregue con este mismo
           correo.
         </p>
@@ -43,7 +42,7 @@ function SinEmpresa() {
 // al login en ese instante, al recargar la página te sacaría siempre.
 function Cargando() {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-ink">
+    <div className="flex min-h-dvh items-center justify-center bg-paper">
       <div className="flex items-center gap-3 text-sm text-mute">
         <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink-500 border-t-fono" />
         Cargando tu tienda…
@@ -102,15 +101,6 @@ function AreaProtegida({ owner = false, children }) {
   return owner ? <SoloPropietario>{children}</SoloPropietario> : <Protegida>{children}</Protegida>
 }
 
-function AppFooter() {
-  const { esDemo, salir } = useSesion()
-  return (
-    <ProductFooter className="border-ink-600 text-mute">
-      {esDemo && <span>Usuario demo · Datos de prueba <button onClick={salir} className="mx-2 underline">Salir de demo</button> · </span>}
-    </ProductFooter>
-  )
-}
-
 function MetadatosPagina({ publicPage = false }) {
   const { pathname } = useLocation()
 
@@ -127,7 +117,7 @@ function RedireccionDominio({ destino }) {
   }, [destino])
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-ink p-6 text-center text-sm text-mute">
+    <div className="flex min-h-dvh items-center justify-center bg-paper p-6 text-center text-sm text-mute">
       Redirigiendo a MobOS…
     </div>
   )
@@ -172,7 +162,6 @@ export default function App() {
           <Route path="/tradein" element={<AreaProtegida owner><TradeIn /></AreaProtegida>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        <AppFooter />
       </ToastProvider>
     </SesionProvider>
   )
