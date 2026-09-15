@@ -1,8 +1,14 @@
 User-agent: *
 Allow: /
 Disallow: /control/
+Disallow: /control
 Disallow: /pos/
+Disallow: /pos
 Disallow: /login
+Disallow: /restablecer-contrasena
 Disallow: /demo
+Disallow: /celulares
+Disallow: /comparador
+Disallow: /tradein
 
 Sitemap: https://moboss.online/sitemap.xml

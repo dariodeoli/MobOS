@@ -3,7 +3,9 @@
   "short_name": "MobOS",
   "description": "Ventas, inventario, caja y clientes para tiendas móviles.",
   "lang": "es-PY",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#071018",
   "theme_color": "#15D7B8",
@@ -12,7 +14,7 @@
       "src": "/mobos-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/mobos-icon-192.png",
@@ -24,7 +26,7 @@
       "src": "/mobos-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

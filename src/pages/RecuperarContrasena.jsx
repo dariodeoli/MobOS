@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { api } from '@/lib/api'
+import { consumeActionToken } from '@/lib/actionToken'
 import { Button, Card, Input, Label, PasswordInput } from '@/components/ui'
 import { APP_VERSION } from '@/lib/brand'
 import ThemeLogo from '@/components/app/ThemeLogo'
 
 export default function RecuperarContrasena() {
-  const [params] = useSearchParams()
-  const token = params.get('token') || ''
+  const [token] = useState(() => consumeActionToken())
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')

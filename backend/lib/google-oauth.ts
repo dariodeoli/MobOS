@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, createPublicKey, randomBytes, timingSafeEqual, verify } from 'node:crypto'
+import { MOBOS_IDENTITY, MOBOS_LOCAL_APP_ORIGIN } from './identity'
 
 // This module is imported only by server routes. Never expose these variables via VITE_/NEXT_PUBLIC_.
 export class AuthFlowError extends Error {
@@ -6,7 +7,7 @@ export class AuthFlowError extends Error {
 }
 function appOrigin() {
   try {
-    const app = new URL(process.env.MOBOS_APP_URL || 'http://localhost:5173')
+    const app = new URL(process.env.MOBOS_APP_URL || MOBOS_LOCAL_APP_ORIGIN)
     const local = process.env.NODE_ENV !== 'production' && app.protocol === 'http:' && app.hostname === 'localhost'
     if (app.username || app.password || app.search || app.hash || (app.protocol !== 'https:' && !local)) return null
     return app
@@ -21,6 +22,7 @@ export function authConfig() {
   for (const url of [callback, app]) {
     if (url.username || url.password || url.search || url.hash || (url.protocol !== 'https:' && !(process.env.NODE_ENV !== 'production' && url.protocol === 'http:' && url.hostname === 'localhost'))) throw new AuthFlowError('not_configured', 'La configuración de las URL de acceso no es válida.', 503)
   }
+  if (process.env.NODE_ENV === 'production' && (callback.origin !== MOBOS_IDENTITY.urls.api || app.origin !== MOBOS_IDENTITY.urls.app)) throw new AuthFlowError('not_configured', 'La configuración de las URL de acceso no coincide con los dominios de MobOS.', 503)
   if (callback.pathname !== '/api/auth/google/callback' || app.pathname !== '/' || !/^[a-f0-9]{64}$/i.test(process.env.MOBOS_AUTH_SECRET!)) throw new AuthFlowError('not_configured', 'La configuración de Google o de la clave de sesión no es válida.', 503)
   return { clientId: process.env.GOOGLE_CLIENT_ID!, clientSecret: process.env.GOOGLE_CLIENT_SECRET!, callback: callback.href, app: app.origin, secure: callback.protocol === 'https:', key: Buffer.from(process.env.MOBOS_AUTH_SECRET!, 'hex') }
 }

@@ -43,10 +43,12 @@ if (!publish) {
 }
 
 let webhook = null
+let deployToken = null
 if (deploy) {
   webhook = process.env.MOBOS_DEPLOY_WEBHOOK
-  if (!webhook) {
-    throw new Error('Falta MOBOS_DEPLOY_WEBHOOK en el entorno privado. No se creó el commit ni se hizo push.')
+  deployToken = process.env.MOBOS_DEPLOY_TOKEN
+  if (!webhook || !deployToken) {
+    throw new Error('Faltan MOBOS_DEPLOY_WEBHOOK o MOBOS_DEPLOY_TOKEN en el entorno privado. No se creó el commit ni se hizo push.')
   }
   let parsed
   try {
@@ -68,7 +70,10 @@ if (deploy) {
   for (let attempt = 0; attempt <= DELAYS_MS.length; attempt += 1) {
     let response
     try {
-      response = await fetch(webhook, { method: 'POST' })
+      response = await fetch(webhook, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${deployToken}` },
+      })
     } catch {
       throw new Error('No se pudo conectar con el webhook de despliegue. La versión ya está pusheada; reintentá el deploy manualmente.')
     }

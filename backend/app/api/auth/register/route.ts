@@ -4,6 +4,8 @@ import { prisma } from '../../../../lib/prisma'
 import { authenticateCompany, AuthRateLimitError, authRequestMetadata, enforceAuthRateLimit } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { COOKIE_COMPANY, sessionCookieOptions } from '../../../../lib/google-oauth'
+import { issueEmailVerification } from '../../../../lib/email-actions'
+import { logEmailOutcome } from '../../../../lib/email'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -27,13 +29,15 @@ export async function POST(request: Request) {
     // The first PIN is deliberately impossible to use. The owner chooses it
     // after the account exists, keeping the sign-up form to three fields.
     const [passwordHash, pinHash] = await Promise.all([bcrypt.hash(password, 12), bcrypt.hash(randomBytes(32).toString('hex'), 12)])
-    await prisma.$transaction(async (tx) => {
+    const tenantId = await prisma.$transaction(async (tx) => {
       const existing = await tx.tenant.findUnique({ where: { email }, select: { id: true } })
       if (existing) throw new Error('EMAIL_EXISTS')
       const tenant = await tx.tenant.create({ data: { name: companyName, email, passwordHash, slug: `tienda-${randomBytes(16).toString('hex')}`, settings: { onboarding: { adminPinPending: true } } } })
       const admin = await tx.user.create({ data: { tenantId: tenant.id, name: 'Administrador', email, pinHash, role: 'ADMIN' } })
       await tx.auditLog.create({ data: { tenantId: tenant.id, userId: admin.id, action: 'COMPANY_REGISTERED', entity: 'Tenant', entityId: tenant.id, metadata: authRequestMetadata(request) } })
+      return tenant.id
     })
+    await issueEmailVerification(tenantId, request).catch(() => logEmailOutcome('email-verification', 'delivery-failed'))
   } catch (cause) {
     if (cause instanceof Error && cause.message === 'EMAIL_EXISTS') return error('Ya existe una tienda registrada con ese correo. Iniciá sesión o usá otro correo.', 409)
     return error('No se pudo crear la tienda. Probá nuevamente.', 500)

@@ -13,6 +13,8 @@ import Landing from '@/pages/Landing'
 import DemoAccess from '@/pages/DemoAccess'
 import Status from '@/pages/Status'
 import RecuperarContrasena from '@/pages/RecuperarContrasena'
+import AceptarInvitacion from '@/pages/AceptarInvitacion'
+import VerificarCorreo from '@/pages/VerificarCorreo'
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -147,6 +149,8 @@ export default function App() {
           <Route path="/demo" element={<DemoAccess />} />
           <Route path="/login" element={<SoloFuera />} />
           <Route path="/restablecer-contrasena" element={<RecuperarContrasena />} />
+          <Route path="/aceptar-invitacion" element={<AceptarInvitacion />} />
+          <Route path="/verificar-correo" element={<VerificarCorreo />} />
           <Route
             path="/"
             element={

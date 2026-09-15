@@ -3,6 +3,8 @@ import { prisma } from '../../../../../lib/prisma'
 import { authRequestMetadata, hashToken } from '../../../../../lib/auth'
 import { googleCompany } from '../../../../../lib/google-company'
 import { AuthFlowError, COOKIE_COMPANY, COOKIE_IDENTITY, cookieOptions, readCookie, sameOrigin, unseal } from '../../../../../lib/google-oauth'
+import { sendWelcomeOnce } from '../../../../../lib/email-actions'
+import { logEmailOutcome } from '../../../../../lib/email'
 
 export const dynamic = 'force-dynamic'
 export async function POST(request: Request) {
@@ -20,6 +22,7 @@ export async function POST(request: Request) {
     if (previous) await prisma.session.updateMany({ where: { tokenHash: hashToken(previous), level: 'COMPANY' }, data: { revokedAt: new Date() } })
     const sellers = await prisma.user.findMany({ where: { tenantId: result.tenant.id, status: 'ACTIVE', OR: [{ branchId: null }, { branch: { isActive: true } }] }, select: { id: true, name: true, branchId: true }, orderBy: { name: 'asc' } })
     await prisma.auditLog.create({ data: { tenantId: result.tenant.id, action: body?.action === 'create' ? 'GOOGLE_COMPANY_CREATED_OR_SIGNED_IN' : 'GOOGLE_COMPANY_SIGNED_IN', entity: 'Session', metadata: { provider: 'google', ...authRequestMetadata(request) } } })
+    await sendWelcomeOnce(result.tenant.id).catch(() => logEmailOutcome('welcome', 'delivery-failed'))
     const response = NextResponse.json({ tenant: result.tenant, sellers, onboardingRequired: result.onboardingRequired, scope: 'device:company', cookieSession: true }, { headers: { 'Cache-Control': 'no-store' } })
     response.cookies.set(COOKIE_COMPANY, result.token, cookieOptions(7 * 86400))
     response.cookies.set(COOKIE_IDENTITY, '', cookieOptions(0))

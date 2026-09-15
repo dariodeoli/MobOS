@@ -182,6 +182,13 @@ async function createSession(tx: any, tenantId: string, userId: string | null, l
   return { accessToken, expiresAt, sessionId: session.id }
 }
 
+export async function createInvitedSellerSession(tx: any, user: { id: string; tenantId: string; name: string; role: string; branchId: string | null; permissions?: unknown }, deviceId: string) {
+  const normalizedDeviceId = deviceId.trim().slice(0, 200)
+  if (!normalizedDeviceId) throw new Error('INVALID_DEVICE')
+  const session = await createSession(tx, user.tenantId, user.id, 'SELLER', normalizedDeviceId, user.branchId)
+  return { ...session, user: sessionUser(user) }
+}
+
 export async function authenticateCompany(input: LoginInput, request?: Request) {
   const email = String(input.email ?? '').trim().toLowerCase()
   const password = String(input.password ?? '')

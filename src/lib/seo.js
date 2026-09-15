@@ -1,41 +1,45 @@
 import { APP_NAME, APP_VERSION } from '@/lib/brand'
+import { landingStructuredData, resolvePageMetadata } from '@/lib/metadataPolicy'
 
-export const pageLabels = {
-  '/control/resumen': 'Resumen',
-  '/control/reportes': 'Reportes',
-  '/control/ganancias': 'Ganancias',
-  '/pos/cargar': 'Punto de venta',
-  '/pos/clientes': 'Clientes',
-  '/pos/pedidos': 'Pedidos',
-  '/login': 'Acceso',
-  '/demo': 'Demo interactiva',
-  '/status': 'Estado del sistema',
+const STRUCTURED_DATA_ID = 'mobos-structured-data'
+
+function setMeta(selector, value) {
+  document.head.querySelector(selector)?.setAttribute('content', value)
+}
+
+function syncStructuredData(landing) {
+  const current = document.getElementById(STRUCTURED_DATA_ID)
+  if (!landing) {
+    current?.remove()
+    return
+  }
+
+  const script = current || document.createElement('script')
+  script.id = STRUCTURED_DATA_ID
+  script.type = 'application/ld+json'
+  script.textContent = JSON.stringify(landingStructuredData(APP_NAME))
+  if (!current) document.head.appendChild(script)
 }
 
 export function applyPageMetadata({ pathname, publicPage }) {
-  const origin = window.location.origin
-  const label = pageLabels[pathname]
-  const landing = publicPage && pathname === '/'
-  const title = landing
-    ? `${APP_NAME} · Control total para tu tienda móvil`
-    : `${label || 'Gestión de tienda'} · ${APP_NAME}`
-  const description = landing
-    ? 'POS, inventario por IMEI, caja, clientes, compras, garantías y posventa para tiendas de celulares y accesorios.'
-    : `${label || 'Gestión'} en ${APP_NAME}, el sistema operativo para tiendas móviles.`
-  document.title = title
+  const metadata = resolvePageMetadata({ pathname, publicPage, appName: APP_NAME })
+  document.title = metadata.title
 
-  const setMeta = (selector, attribute, value) => document.head.querySelector(selector)?.setAttribute(attribute, value)
-  document.head.querySelector('link[rel="canonical"]')?.setAttribute('href', `${origin}${pathname}`)
+  document.head.querySelector('link[rel="canonical"]')?.setAttribute('href', metadata.canonical)
   const version = APP_VERSION.replace(/^v/, '')
   document.head.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"], link[rel="mask-icon"]').forEach((link) => {
     const href = link.getAttribute('href')?.split('?')[0]
     if (href) link.setAttribute('href', `${href}?v=${version}`)
   })
-  setMeta('meta[property="og:url"]', 'content', `${origin}${pathname}`)
-  setMeta('meta[property="og:title"]', 'content', title)
-  setMeta('meta[property="og:description"]', 'content', description)
-  setMeta('meta[name="twitter:title"]', 'content', title)
-  setMeta('meta[name="twitter:description"]', 'content', description)
-  setMeta('meta[name="description"]', 'content', description)
-  setMeta('meta[name="robots"]', 'content', publicPage ? 'index, follow' : 'noindex, nofollow')
+  setMeta('meta[property="og:url"]', metadata.canonical)
+  setMeta('meta[property="og:title"]', metadata.title)
+  setMeta('meta[property="og:description"]', metadata.description)
+  setMeta('meta[property="og:image"]', metadata.socialImage)
+  setMeta('meta[property="og:image:secure_url"]', metadata.socialImage)
+  setMeta('meta[name="twitter:title"]', metadata.title)
+  setMeta('meta[name="twitter:description"]', metadata.description)
+  setMeta('meta[name="twitter:image"]', metadata.socialImage)
+  setMeta('meta[name="description"]', metadata.description)
+  setMeta('meta[name="robots"]', metadata.robots)
+  syncStructuredData(metadata.landing)
 }

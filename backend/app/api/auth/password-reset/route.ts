@@ -15,6 +15,7 @@ export async function POST(request: Request) {
   await prisma.$transaction(async tx => {
     const consumed = await tx.passwordResetToken.updateMany({ where: { id: reset.id, usedAt: null }, data: { usedAt: now } })
     if (!consumed.count) throw new Error('El enlace ya fue utilizado.')
+    await tx.emailOutbox.updateMany({ where: { aggregateType: 'PasswordResetToken', aggregateId: reset.id, sentAt: null }, data: { cancelledAt: now, lockedAt: null, recipient: '', payload: '' } })
     await tx.tenant.update({ where: { id: reset.tenantId }, data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null } })
     await tx.session.updateMany({ where: { tenantId: reset.tenantId, revokedAt: null }, data: { revokedAt: now } })
     await tx.auditLog.create({ data: { tenantId: reset.tenantId, action: 'PASSWORD_RESET_COMPLETED', entity: 'Tenant', entityId: reset.tenantId, metadata: authRequestMetadata(request) } })

@@ -1,257 +1,116 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  getVendedores,
-  addVendedor,
-  updateVendedor,
-  deleteVendedor,
-  listVentas,
-  productosById,
-} from '@/lib/storage'
-import {
-  totalesVendedor,
-  ventasDelDia,
-  comisionDeVentas,
-  fechaClave,
-  num,
-  gs,
-} from '@/utils/calculos'
-import { Card, Button, ConfirmDialog, Input, Badge, Select, Skeleton, EmptyState, MoneyInput, useToast } from '@/components/ui'
-import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
+import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas, productosById, refrescar } from '@/lib/storage'
+import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
+import { Card, Button, ConfirmDialog, Input, Select, Badge, Label, Skeleton, EmptyState, useToast } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
 
-const MESES = [
-  'Enero',
-  'Febrero',
-  'Marzo',
-  'Abril',
-  'Mayo',
-  'Junio',
-  'Julio',
-  'Agosto',
-  'Septiembre',
-  'Octubre',
-  'Noviembre',
-  'Diciembre',
-]
-// 'YYYY-MM' 'Julio 2026'
-function mesLabel(clave) {
-  const [y, m] = (clave || '').split('-')
-  return `${MESES[Number(m) - 1] || m} ${y}`
-}
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+const ROLE_LABELS = { ADMIN: 'Administrador', GERENTE: 'Gerente', VENDEDOR: 'Vendedor', CAJERA: 'Cajera' }
+const INVITE_STATUS = { PENDING: ['Pendiente', 'orange'], ACCEPTED: ['Aceptada', 'green'], EXPIRED: ['Vencida', 'slate'], REVOKED: ['Revocada', 'red'] }
+function mesLabel(clave) { const [y, m] = (clave || '').split('-'); return `${MESES[Number(m) - 1] || m} ${y}` }
 
 export default function Vendedores() {
+  const { esDemo, sesion } = useSesion()
   const vendedores = getVendedores()
   const ventas = listVentas()
   const prods = productosById()
-  const { esDemo, sesion } = useSesion()
-  const [nuevo, setNuevo] = useState('')
+  const [revision, setRevision] = useState(0)
+  const [directo, setDirecto] = useState({ name: '', email: '', role: 'VENDEDOR', pin: '' })
+  const [invitacion, setInvitacion] = useState({ name: '', email: '', role: 'VENDEDOR' })
+  const [invitaciones, setInvitaciones] = useState([])
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
   const [confirmarEliminar, setConfirmarEliminar] = useState(null)
+  const [confirmarRevocar, setConfirmarRevocar] = useState(null)
 
-  // Nombres por id (incluye vendedores ya eliminados que tienen ventas viejas).
-  const nombreById = Object.fromEntries(vendedores.map((v) => [v.id, v.nombre]))
+  async function cargarInvitaciones() {
+    if (esDemo) return
+    try { setInvitaciones(await api.get('/api/user-invitations')) } catch (cause) { setError(cause?.message || 'No se pudieron cargar las invitaciones.') }
+  }
+  useEffect(() => { cargarInvitaciones() }, [esDemo])
+  function notifySuccess(value) { setError(''); setMessage(value); window.setTimeout(() => setMessage(''), 4500) }
+  async function refreshTeam() { if (!esDemo) await refrescar(); setRevision(value => value + 1) }
 
-  // Agrupa ventas por mes y vendedor: { 'YYYY-MM': { vendedorId: [ventas] } }.
+  async function crearDirecto(event) {
+    event.preventDefault(); setError(''); setMessage('')
+    const name = directo.name.trim()
+    if (!name) return setError('Ingresá el nombre del integrante.')
+    if (!esDemo && !/^\d{4}$/.test(directo.pin)) return setError('Ingresá un PIN de exactamente 4 dígitos.')
+    setBusy(true)
+    try {
+      if (esDemo) addVendedor(name)
+      else await api.post('/api/users', { ...directo, name, email: directo.email.trim().toLowerCase() || null })
+      setDirecto({ name: '', email: '', role: 'VENDEDOR', pin: '' }); await refreshTeam(); notifySuccess('Integrante agregado correctamente.')
+    } catch (cause) { setError(cause?.message || 'No se pudo agregar el integrante.') }
+    finally { setBusy(false) }
+  }
+
+  async function invitar(event) {
+    event.preventDefault(); setError(''); setMessage('')
+    if (!invitacion.name.trim()) return setError('Ingresá el nombre del integrante.')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invitacion.email.trim())) return setError('Ingresá un correo válido.')
+    setBusy(true)
+    try {
+      const result = await api.post('/api/user-invitations', { ...invitacion, name: invitacion.name.trim(), email: invitacion.email.trim().toLowerCase() })
+      setInvitacion({ name: '', email: '', role: 'VENDEDOR' }); await cargarInvitaciones(); notifySuccess(result.deliveryState === 'sent' ? 'Invitación enviada correctamente.' : 'Invitación guardada. El correo quedó pendiente; volvé a intentar el reenvío en unos minutos.')
+    } catch (cause) { setError(cause?.message || 'No se pudo enviar la invitación.') }
+    finally { setBusy(false) }
+  }
+
+  async function actualizarUsuario(id, changes) {
+    setError('')
+    try { if (esDemo) updateVendedor(id, changes); else await api.patch('/api/users', { id, ...changes }); await refreshTeam(); notifySuccess('Integrante actualizado.') }
+    catch (cause) { setError(cause?.message || 'No se pudo actualizar el integrante.') }
+  }
+  async function eliminarUsuario() {
+    const target = confirmarEliminar; if (!target) return
+    setBusy(true)
+    try { if (esDemo) deleteVendedor(target.id); else await api.patch('/api/users', { id: target.id, status: 'INACTIVE' }); setConfirmarEliminar(null); await refreshTeam(); notifySuccess(esDemo ? 'Vendedor eliminado.' : 'Integrante desactivado.') }
+    catch (cause) { setError(cause?.message || 'No se pudo completar la acción.') }
+    finally { setBusy(false) }
+  }
+  async function resend(invite) {
+    setBusy(true); setError('')
+    try { const result = await api.post(`/api/user-invitations/${encodeURIComponent(invite.id)}/resend`, {}); await cargarInvitaciones(); notifySuccess(result.deliveryState === 'sent' ? 'Invitación reenviada.' : 'El correo sigue pendiente. Podés volver a intentar más tarde.') }
+    catch (cause) { setError(cause?.message || 'No se pudo reenviar la invitación.') }
+    finally { setBusy(false) }
+  }
+  async function revokeInvitation() {
+    if (!confirmarRevocar) return
+    setBusy(true); setError('')
+    try { await api.post(`/api/user-invitations/${encodeURIComponent(confirmarRevocar.id)}/revoke`, {}); setConfirmarRevocar(null); await cargarInvitaciones(); notifySuccess('Invitación revocada.') }
+    catch (cause) { setError(cause?.message || 'No se pudo revocar la invitación.') }
+    finally { setBusy(false) }
+  }
+
+  const nombreById = Object.fromEntries(vendedores.map(v => [v.id, v.nombre]))
   const porMes = {}
-  ventas.forEach((v) => {
-    const mes = (v.fecha || '').slice(0, 7)
-    if (!mes) return
-    const vid = v.vendedorId || 'sin'
-    if (!porMes[mes]) porMes[mes] = {}
-    if (!porMes[mes][vid]) porMes[mes][vid] = []
-    porMes[mes][vid].push(v)
-  })
+  ventas.forEach(v => { const mes = (v.fecha || '').slice(0, 7); if (!mes) return; const vid = v.vendedorId || 'sin'; porMes[mes] ||= {}; porMes[mes][vid] ||= []; porMes[mes][vid].push(v) })
   const meses = Object.keys(porMes).sort().reverse()
-
-  // Meses desplegados (abierto el más reciente por defecto).
   const [abiertos, setAbiertos] = useState(() => new Set(meses.slice(0, 1)))
-  function toggleMes(mes) {
-    setAbiertos((prev) => {
-      const s = new Set(prev)
-      s.has(mes) ? s.delete(mes) : s.add(mes)
-      return s
-    })
-  }
+  function toggleMes(mes) { setAbiertos(prev => { const next = new Set(prev); next.has(mes) ? next.delete(mes) : next.add(mes); return next }) }
 
-  function crear(e) {
-    e.preventDefault()
-    const nombre = nuevo.trim()
-    if (!nombre) return
-    addVendedor(nombre)
-    setNuevo('')
-  }
+  return <div className="space-y-4" data-revision={revision}>
+    {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
+    {message && <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{message}</p>}
+    {!esDemo && <Card><h2 className="font-bold">Invitar por correo</h2><p className="mt-1 text-sm text-mute">La persona recibe un enlace seguro y elige su propio PIN. Nunca enviamos credenciales por correo.</p><form onSubmit={invitar} className="mt-4 grid gap-3 md:grid-cols-4"><div><Label htmlFor="invite-name">Nombre</Label><Input id="invite-name" value={invitacion.name} onChange={event => setInvitacion({ ...invitacion, name: event.target.value })} onBlur={() => !invitacion.name.trim() && setError('Ingresá el nombre del integrante.')} required /></div><div><Label htmlFor="invite-email">Correo</Label><Input id="invite-email" type="email" value={invitacion.email} onChange={event => setInvitacion({ ...invitacion, email: event.target.value })} required /></div><div><Label htmlFor="invite-role">Rol</Label><Select id="invite-role" value={invitacion.role} onChange={event => setInvitacion({ ...invitacion, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Enviar invitación</Button></div></form></Card>}
 
-  return (
-    <div className="space-y-4">
-      <Card>
-        <h2 className="font-bold mb-1">‍ Funcionarios y metas</h2>
-        <p className="text-sm text-mute mb-4">
-          Fijá la <strong>meta diaria</strong> de cada vendedor y agregá nuevos cuando contrates. La
-          meta se guarda al salir del campo.
-        </p>
-        <form onSubmit={crear} className="flex gap-2 mb-4">
-          <Input
-            value={nuevo}
-            onChange={(e) => setNuevo(e.target.value)}
-            placeholder="Nombre del nuevo vendedor"
-            autoCapitalize="words"
-          />
-          <Button type="submit">Agregar</Button>
-        </form>
+    <Card><h2 className="font-bold">Agregar directamente</h2><p className="mt-1 text-sm text-mute">{esDemo ? 'Agregá vendedores al entorno demo.' : 'Opción compatible para alta inmediata con un PIN definido por el administrador.'}</p><form onSubmit={crearDirecto} className="mt-4 grid gap-3 md:grid-cols-5"><div><Label htmlFor="direct-name">Nombre</Label><Input id="direct-name" value={directo.name} onChange={event => setDirecto({ ...directo, name: event.target.value })} required /></div>{!esDemo && <><div><Label htmlFor="direct-email">Correo</Label><Input id="direct-email" type="email" value={directo.email} onChange={event => setDirecto({ ...directo, email: event.target.value })} /></div><div><Label htmlFor="direct-role">Rol</Label><Select id="direct-role" value={directo.role} onChange={event => setDirecto({ ...directo, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div><Label htmlFor="direct-pin">PIN temporal</Label><Input id="direct-pin" inputMode="numeric" maxLength={4} value={directo.pin} onChange={event => setDirecto({ ...directo, pin: event.target.value.replace(/\D/g, '').slice(0, 4) })} required /></div></>}<div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Agregar</Button></div></form></Card>
 
-        <div className="space-y-2.5">
-          {vendedores.map((v) => {
-            const t = totalesVendedor(ventas, v.id)
-            const com = comisionDeVentas(ventasDelDia(ventas, fechaClave(), v.id), prods)
-            return (
-              <div key={v.id} className="rounded-xl border border-ink-600 p-3">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <label className="relative h-10 w-10 shrink-0 cursor-pointer overflow-hidden rounded-full border border-ink-500 bg-ink-700" title="Agregar foto">
-                      {v.foto ? <img src={v.foto} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center text-mute"><Icon name="user" className="h-4 w-4" /></span>}
-                      <input type="file" accept="image/*" className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => updateVendedor(v.id, { foto: reader.result }); reader.readAsDataURL(file) }} />
-                    </label>
-                    <input
-                      defaultValue={v.nombre}
-                      onBlur={(e) => updateVendedor(v.id, { nombre: e.target.value.trim() || v.nombre })}
-                      className="min-w-0 max-w-[12rem] font-bold text-sm bg-transparent outline-none border-b border-transparent focus:border-fono"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => updateVendedor(v.id, { activo: !v.activo })}
-                      className="text-xs"
-                      title={v.activo ? 'Desactivar' : 'Activar'}
-                    >
-                      {v.activo ? (
-                        <Badge color="green">Activo</Badge>
-                      ) : (
-                        <Badge color="slate">Inactivo</Badge>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setConfirmarEliminar(v)}
-                      className="text-ink-500 hover:text-bad text-sm transition"
-                      title="Eliminar vendedor"
-                    >
-                      <Icon name="trash" className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
-                  <label className="block col-span-2 md:col-span-1">
-                    <span className="text-[10px] font-bold uppercase text-mute">Meta diaria ₲</span>
-                    <MetaDiaria vendedor={v} />
-                  </label>
-                  <Mini label="Hoy" valor={t.hoy} />
-                  <Mini label="Comisión hoy" valor={com} />
-                  <Mini label="Mes" valor={t.mes} />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </Card>
+    {!esDemo && invitaciones.length > 0 && <Card><h2 className="font-bold">Invitaciones</h2><div className="mt-4 space-y-2">{invitaciones.map(invite => { const [label, color] = INVITE_STATUS[invite.status] || [invite.status, 'slate']; const canResend = invite.status === 'PENDING' && new Date(invite.resendAvailableAt) <= new Date(); return <div key={invite.id} className="flex flex-col gap-3 rounded-xl border border-ink-600 p-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="truncate text-sm">{invite.name}</strong><Badge color={color}>{label}</Badge><Badge>{ROLE_LABELS[invite.role] || invite.role}</Badge></div><p className="mt-1 truncate text-xs text-mute">{invite.email}</p></div>{invite.status === 'PENDING' && <div className="flex gap-2"><Button type="button" variant="outline" disabled={busy || !canResend} onClick={() => resend(invite)}>{canResend ? 'Reenviar' : 'Reenvío en espera'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => setConfirmarRevocar(invite)}>Revocar</Button></div>}</div> })}</div></Card>}
 
-      {/* Historial mensual por vendedor */}
-      {meses.length > 0 && (
-        <Card>
-          <h2 className="font-bold mb-1">Historial mensual por vendedor</h2>
-          <p className="text-sm text-mute mb-4">
-            Cuánto vendió cada uno y su <strong>comisión total</strong> en cada mes.
-          </p>
-          <div className="space-y-4">
-            {meses.map((mes) => {
-              const filas = Object.entries(porMes[mes])
-                .map(([vid, lista]) => ({
-                  vid,
-                  nombre: nombreById[vid] || 'Sin vendedor',
-                  total: lista.reduce((a, x) => a + num(x.precio), 0),
-                  com: comisionDeVentas(lista, prods),
-                  cant: lista.length,
-                }))
-                .sort((a, b) => b.total - a.total)
-              const totalMes = filas.reduce((a, f) => a + f.total, 0)
-              const comMes = filas.reduce((a, f) => a + f.com, 0)
+    <Card><h2 className="font-bold mb-1">Funcionarios y metas</h2><p className="text-sm text-mute mb-4">Administrá el estado del equipo y la meta diaria de cada vendedor.</p><div className="space-y-2.5">{vendedores.map(v => { const t = totalesVendedor(ventas, v.id); const com = comisionDeVentas(ventasDelDia(ventas, fechaClave(), v.id), prods); return <div key={v.id} className="rounded-xl border border-ink-600 p-3"><div className="mb-2 flex items-center justify-between gap-2"><div className="min-w-0"><input aria-label={`Nombre de ${v.nombre}`} defaultValue={v.nombre} onBlur={event => { const name = event.target.value.trim(); if (name && name !== v.nombre) actualizarUsuario(v.id, esDemo ? { nombre: name } : { name }) }} className="min-h-11 min-w-0 max-w-[15rem] bg-transparent text-sm font-bold outline-none border-b border-transparent focus:border-fono" /><div className="text-xs text-mute">{ROLE_LABELS[v.role] || 'Vendedor'}</div></div><div className="flex items-center gap-2"><button type="button" onClick={() => actualizarUsuario(v.id, esDemo ? { activo: !v.activo } : { status: v.activo ? 'INACTIVE' : 'ACTIVE' })} className="flex min-h-11 items-center" aria-label={v.activo ? `Desactivar a ${v.nombre}` : `Activar a ${v.nombre}`}><Badge color={v.activo ? 'green' : 'slate'}>{v.activo ? 'Activo' : 'Inactivo'}</Badge></button><button type="button" onClick={() => setConfirmarEliminar(v)} className="grid h-11 w-11 place-items-center rounded-lg text-ink-500 hover:bg-bad/10 hover:text-bad" aria-label={esDemo ? `Eliminar a ${v.nombre}` : `Desactivar a ${v.nombre}`}><Icon name="trash" className="h-4 w-4" /></button></div></div><div className="grid grid-cols-2 items-end gap-2 md:grid-cols-4"><label className="col-span-2 block md:col-span-1"><span className="text-[10px] font-bold uppercase text-mute">Meta diaria ₲</span><Input inputMode="numeric" defaultValue={v.metaDiaria || ''} onBlur={event => esDemo && updateVendedor(v.id, { metaDiaria: num(event.target.value) })} placeholder="0" disabled={!esDemo} /></label><Mini label="Hoy" valor={t.hoy} /><Mini label="Comisión hoy" valor={com} /><Mini label="Mes" valor={t.mes} /></div></div> })}</div></Card>
 
-              const abierto = abiertos.has(mes)
-              return (
-                <div key={mes} className="rounded-xl border border-ink-600 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => toggleMes(mes)}
-                    className="w-full flex items-center justify-between gap-2 bg-ink-700 px-4 py-2.5 hover:bg-ink-700 transition text-left"
-                  >
-                    <span className="flex items-center gap-2 font-bold text-sm capitalize">
-                      <span className="text-mute text-xs">{abierto ? '▼' : '▶'}</span>
-                      {mesLabel(mes)}
-                    </span>
-                    <div className="flex items-center gap-2 text-xs">
-                      <Badge color="blue">Vendido {gs(totalMes)}</Badge>
-                      <Badge color="green">Comisión {gs(comMes)}</Badge>
-                    </div>
-                  </button>
-                  {abierto && (
-                    <div className="divide-y divide-ink-600 border-t border-ink-600">
-                      {filas.map((f) => (
-                        <div
-                          key={f.vid}
-                          className="flex items-center justify-between gap-2 px-4 py-2.5"
-                        >
-                          <div className="min-w-0">
-                            <div className="font-semibold text-sm truncate">{f.nombre}</div>
-                            <div className="text-xs text-mute">
-                              {f.cant} {f.cant === 1 ? 'venta' : 'ventas'}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 shrink-0 text-sm">
-                            <span className="font-bold text-fono">{gs(f.total)}</span>
-                            <Badge color="green">Comisión {gs(f.com)}</Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </Card>
-      )}
-      {!esDemo && sesion?.esPropietario && <SeccionComisiones />}
-      <ConfirmDialog
-        open={Boolean(confirmarEliminar)}
-        onCancel={() => setConfirmarEliminar(null)}
-        onConfirm={() => { deleteVendedor(confirmarEliminar.id); setConfirmarEliminar(null) }}
-        title="¿Eliminar vendedor?"
-        description={`Se eliminará a ${confirmarEliminar?.nombre || 'este vendedor'}. Las ventas ya registradas se conservan en el historial.`}
-        confirmLabel="Eliminar vendedor"
-        variant="danger"
-      />
-    </div>
-  )
+    {meses.length > 0 && <Card><h2 className="font-bold mb-1">Historial mensual por vendedor</h2><div className="mt-4 space-y-4">{meses.map(mes => { const filas = Object.entries(porMes[mes]).map(([vid, lista]) => ({ vid, nombre: nombreById[vid] || 'Sin vendedor', total: lista.reduce((a, x) => a + num(x.precio), 0), com: comisionDeVentas(lista, prods), cant: lista.length })).sort((a, b) => b.total - a.total); const abierto = abiertos.has(mes); return <div key={mes} className="overflow-hidden rounded-xl border border-ink-600"><button type="button" onClick={() => toggleMes(mes)} className="flex min-h-11 w-full items-center justify-between gap-2 bg-ink-700 px-4 text-left"><span className="font-bold text-sm capitalize">{abierto ? '▼' : '▶'} {mesLabel(mes)}</span><Badge color="blue">Vendido {gs(filas.reduce((a, f) => a + f.total, 0))}</Badge></button>{abierto && <div className="divide-y divide-ink-600 border-t border-ink-600">{filas.map(f => <div key={f.vid} className="flex items-center justify-between gap-2 px-4 py-3"><div><div className="font-semibold text-sm">{f.nombre}</div><div className="text-xs text-mute">{f.cant} ventas</div></div><div className="text-right"><div className="font-bold text-fono">{gs(f.total)}</div><div className="text-xs text-ok">Comisión {gs(f.com)}</div></div></div>)}</div>}</div> })}</div></Card>}
+    {!esDemo && sesion?.esPropietario && <SeccionComisiones />}
+    <ConfirmDialog open={Boolean(confirmarEliminar)} onCancel={() => setConfirmarEliminar(null)} onConfirm={eliminarUsuario} busy={busy} title={esDemo ? '¿Eliminar vendedor?' : '¿Desactivar integrante?'} description={esDemo ? `Se eliminará a ${confirmarEliminar?.nombre || 'este vendedor'}. Las ventas se conservan.` : `${confirmarEliminar?.nombre || 'Este integrante'} ya no podrá ingresar. Su historial se conserva.`} confirmLabel={esDemo ? 'Eliminar vendedor' : 'Desactivar integrante'} variant="danger" />
+    <ConfirmDialog open={Boolean(confirmarRevocar)} onCancel={() => setConfirmarRevocar(null)} onConfirm={revokeInvitation} busy={busy} title="¿Revocar invitación?" description={`El enlace enviado a ${confirmarRevocar?.email || 'este correo'} dejará de funcionar.`} confirmLabel="Revocar invitación" variant="danger" />
+  </div>
 }
-
-function Mini({ label, valor }) {
-  return (
-    <div className="text-center rounded-lg bg-ink-700 py-2">
-      <div className="text-[10px] font-bold uppercase text-mute">{label}</div>
-      <div className="text-sm font-bold text-fono">{gs(valor)}</div>
-    </div>
-  )
-}
-
-function MetaDiaria({ vendedor }) {
-  const [valor, setValor] = useState(vendedor.metaDiaria || '')
-  return (
-    <MoneyInput
-      value={valor}
-      onValueChange={setValor}
-      onBlur={() => updateVendedor(vendedor.id, { metaDiaria: num(valor) })}
-      placeholder="0"
-    />
-  )
-}
+function Mini({ label, valor }) { return <div className="rounded-lg bg-ink-700 py-2 text-center"><div className="text-[10px] font-bold uppercase text-mute">{label}</div><div className="text-sm font-bold text-fono">{gs(valor)}</div></div> }
 
 function SeccionComisiones() {
   const toast = useToast()
