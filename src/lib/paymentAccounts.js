@@ -4,7 +4,7 @@ import { isDemoRuntime } from './demoMode'
 const ENDPOINT = '/api/payment-accounts'
 const DEMO_KEY = 'mobos:demo-payment-accounts:v1'
 const KINDS = ['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX']
-const defaults = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0 }
+const defaults = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, settlementDays: 0 }
 const seed = [
   { ...defaults, id: 'demo-cash-pyg', name: 'Caja demo · Gs' },
   { ...defaults, id: 'demo-cash-usd', name: 'Caja demo · USD', currency: 'USD' },
@@ -35,6 +35,11 @@ function validate(data, partial = false) {
       throw new Error('La comisión debe estar entre 0 y 100%.')
     }
     result.feePercent = Number(fee)
+  }
+  if ('settlementDays' in result) {
+    const days = Number(result.settlementDays)
+    if (!Number.isSafeInteger(days) || days < 0 || days > 90) throw new Error('Los días en acreditarse deben estar entre 0 y 90.')
+    result.settlementDays = days
   }
   if (result.kind === 'TRANSFER' && (!partial || ['bank', 'holder', 'accountNumber'].every(key => key in result))) {
     if (!result.bank || !result.holder || !result.accountNumber) throw new Error('Completá banco, titular y número de cuenta para transferencias.')

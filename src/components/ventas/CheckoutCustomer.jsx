@@ -8,6 +8,7 @@ const emptyAddress = () => ({ label: 'Principal', address: '', city: '', departm
 const customerValue = (customer) => ({
   id: customer.id, name: customer.name || '', phone: customer.phone || '', countryCode: customer.countryCode || '+595',
   email: customer.email || '', document: customer.document || '',
+  pricingTier: customer.pricingTier || 'RETAIL', creditLimitPyg: customer.creditLimitPyg ?? null, creditDays: customer.creditDays ?? null,
   addresses: Array.isArray(customer.addresses) ? customer.addresses.map(({ id, ...address }) => address) : [],
 })
 

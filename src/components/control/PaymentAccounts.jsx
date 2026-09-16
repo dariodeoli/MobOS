@@ -4,8 +4,8 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount } from '@/lib/paymentAccounts'
 import { Badge, Button, Card, Input, Label, Select } from '@/components/ui'
 
-const KINDS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta', TRADE_IN: 'Canje' }
-const EMPTY = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0 }
+const KINDS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta', TRADE_IN: 'Canje', PIX: 'Pix' }
+const EMPTY = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, settlementDays: 0 }
 const TEMPLATES = [
   { name: 'Caja Gs', kind: 'CASH', currency: 'PYG' },
   { name: 'Caja USD', kind: 'CASH', currency: 'USD' },
@@ -106,6 +106,7 @@ function AccountManager() {
           <div><Label htmlFor="pa-holder">Titular {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-holder" required={form.kind === 'TRANSFER'} maxLength={200} value={form.holder} onChange={event => change('holder', event.target.value)} /></div>
           <div><Label htmlFor="pa-number">Número de cuenta {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-number" type="text" required={form.kind === 'TRANSFER'} maxLength={200} value={form.accountNumber} onChange={event => change('accountNumber', event.target.value)} /></div>
           <div><Label htmlFor="pa-fee">Comisión (%)</Label><Input id="pa-fee" type="number" required min="0" max="100" step="any" value={form.feePercent} onChange={event => change('feePercent', event.target.value)} /></div>
+          <div><Label htmlFor="pa-settlement">Días en acreditarse</Label><Input id="pa-settlement" type="number" required min="0" max="90" value={form.settlementDays} onChange={event => change('settlementDays', event.target.value)} /><p className="mt-1 text-[11px] text-mute">Tarjeta suele tardar 1-3 días hábiles; efectivo 0.</p></div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isActive} onChange={event => change('isActive', event.target.checked)} />Cuenta activa</label>
         </fieldset>
         <p className="text-xs text-mute">La plantilla solo completa el formulario; guardá para crear la cuenta.</p>
@@ -115,7 +116,7 @@ function AccountManager() {
         {accounts.map(account => <div key={account.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ink-600 p-3">
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2"><span className="break-words font-medium">{account.name}</span><Badge color={account.isActive ? 'green' : 'slate'}>{account.isActive ? 'Activa' : 'Inactiva'}</Badge></div>
-            <p className="text-sm text-mute">{KINDS[account.kind] || account.kind} · {account.currency === 'PYG' ? 'Gs' : account.currency} · Comisión {account.feePercent ?? 0}%</p>
+            <p className="text-sm text-mute">{KINDS[account.kind] || account.kind} · {account.currency === 'PYG' ? 'Gs' : account.currency} · Comisión {account.feePercent ?? 0}%{account.settlementDays > 0 ? ` · acredita en ${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : ''}</p>
             {(account.bank || account.holder || account.accountNumber) && <p className="break-all text-sm text-mute">{[account.bank, account.holder, account.accountNumber].filter(Boolean).join(' · ')}</p>}
           </div>
           <div className="flex flex-wrap gap-2">
