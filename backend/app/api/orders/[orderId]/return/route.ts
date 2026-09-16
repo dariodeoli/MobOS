@@ -18,8 +18,14 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
       const order = await tx.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: { payments: true } })
       if (!order || !canAccessOrder(session.user, order)) throw new InputError('Pedido no encontrado.', 404)
       if (order.status === 'CANCELLED') throw new InputError('Este pedido ya fue devuelto o cancelado.', 409)
-      if (requestData.replacementOrderId) {
-        const replacement = await tx.order.findFirst({ where: { id: requestData.replacementOrderId, tenantId: tenant }, select: { id: true } })
+      let replacementOrderId = requestData.replacementOrderId
+      if (!replacementOrderId && requestData.replacementOrderNumber) {
+        const replacement = await tx.order.findFirst({ where: { tenantId: tenant, orderNumber: requestData.replacementOrderNumber }, select: { id: true } })
+        if (!replacement) throw new InputError('El número de pedido de cambio no pertenece a esta empresa.', 404)
+        replacementOrderId = replacement.id
+      }
+      if (replacementOrderId) {
+        const replacement = await tx.order.findFirst({ where: { id: replacementOrderId, tenantId: tenant }, select: { id: true } })
         if (!replacement) throw new InputError('El pedido de cambio no pertenece a esta empresa.', 404)
       }
       const confirmed = order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((sum, payment) => sum + payment.amountPyg, 0)
