@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount } from '@/lib/paymentAccounts'
+import { BANCOS_PARAGUAY } from '@/lib/bancos-paraguay'
 import { Badge, Button, Card, Input, Label, Select } from '@/components/ui'
 
 const KINDS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta', TRADE_IN: 'Canje', PIX: 'Pix' }
@@ -102,7 +103,7 @@ function AccountManager() {
           <div className="sm:col-span-2"><Label htmlFor="pa-name">Nombre</Label><Input id="pa-name" autoFocus required maxLength={200} value={form.name} onChange={event => change('name', event.target.value)} placeholder="Ej. Caja principal" /></div>
           <div><Label htmlFor="pa-kind">Medio de pago</Label><Select id="pa-kind" value={form.kind} onChange={event => change('kind', event.target.value)}>{Object.entries(KINDS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
           <div><Label htmlFor="pa-currency">Moneda</Label><Select id="pa-currency" value={form.currency} onChange={event => change('currency', event.target.value)}><option value="PYG">Gs · Guaraníes</option><option value="USD">USD · Dólares</option><option value="BRL">BRL · Reales</option><option value="EUR">EUR · Euros</option><option value="USDT">USDT · Tether</option></Select></div>
-          <div><Label htmlFor="pa-bank">Banco {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-bank" required={form.kind === 'TRANSFER'} maxLength={200} value={form.bank} onChange={event => change('bank', event.target.value)} /></div>
+          <div><Label htmlFor="pa-bank">Banco {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-bank" list="pa-bank-options" required={form.kind === 'TRANSFER'} maxLength={200} value={form.bank} onChange={event => change('bank', event.target.value)} placeholder="Buscá entre los bancos de Paraguay o escribí otro" /><datalist id="pa-bank-options">{BANCOS_PARAGUAY.map(bank => <option key={bank} value={bank} />)}</datalist></div>
           <div><Label htmlFor="pa-holder">Titular {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-holder" required={form.kind === 'TRANSFER'} maxLength={200} value={form.holder} onChange={event => change('holder', event.target.value)} /></div>
           <div><Label htmlFor="pa-number">Número de cuenta {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-number" type="text" required={form.kind === 'TRANSFER'} maxLength={200} value={form.accountNumber} onChange={event => change('accountNumber', event.target.value)} /></div>
           <div><Label htmlFor="pa-fee">Comisión (%)</Label><Input id="pa-fee" type="number" required min="0" max="100" step="any" value={form.feePercent} onChange={event => change('feePercent', event.target.value)} /></div>

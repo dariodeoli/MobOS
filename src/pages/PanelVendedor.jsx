@@ -30,6 +30,7 @@ import Asistente from '@/components/control/Asistente'
 import Historial from '@/components/control/Historial'
 import Config from '@/components/control/Config'
 import Caja from '@/components/control/Caja'
+import PaymentAccounts from '@/components/control/PaymentAccounts'
 import Creditos from '@/components/control/Creditos'
 import Compras from '@/components/control/Compras'
 import Garantias from '@/components/control/Garantias'
@@ -514,17 +515,20 @@ export default function PanelVendedor() {
                     ? [
                         ['caja', 'Caja'],
                         ['gastos', 'Gastos'],
+                        ['bancos', 'Bancos y cuentas'],
                         ['publicidad', 'Publicidad'],
                       ]
                     : [
                         ['caja', 'Caja'],
                         ['gastos', 'Gastos'],
+                        ['bancos', 'Bancos y cuentas'],
                         ['creditos', 'Créditos'],
                       ]
                 }
               />
               {finanzasTab === 'caja' && <Caja />}
               {finanzasTab === 'gastos' && <Gastos />}
+              {finanzasTab === 'bancos' && <PaymentAccounts />}
               {finanzasTab === 'creditos' && <Creditos />}
               {esDemo && finanzasTab === 'publicidad' && <Ads />}
             </div>
