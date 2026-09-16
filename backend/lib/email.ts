@@ -68,27 +68,33 @@ function actionLink(path: string, token?: string) {
   return link.toString()
 }
 
-function template(input: { eyebrow: string; title: string; body: string; action?: { label: string; url: string }; footer: string }) {
+const EMAIL_VERSION = 'v1.1.0'
+
+function template(input: { eyebrow: string; title: string; body: string; lead?: string; action?: { label: string; url: string }; footer: string }) {
+  const leadText = input.lead ? `${input.lead}\n\n` : ''
   const actionText = input.action ? `\n\n${input.action.label}: ${input.action.url}` : ''
-  const text = `${input.title}\n\n${input.body}${actionText}\n\n${input.footer}`
-  const actionHtml = input.action
-    ? `<p style="margin:28px 0"><a href="${escapeHtml(input.action.url)}" style="display:inline-block;padding:13px 20px;border-radius:10px;background:#38bdf8;color:#071018;text-decoration:none;font-weight:700">${escapeHtml(input.action.label)}</a></p>`
+  const text = `${input.eyebrow.toUpperCase()}\nMobOS\n\n${input.title}\n\n${leadText}${input.body}${actionText}\n\n${input.footer}\n\nMobOS · app.moboss.online · Email ${EMAIL_VERSION}`
+  const leadHtml = input.lead
+    ? `<p style="margin:0 0 16px;color:#0b1822;font-weight:700;line-height:1.65">${escapeHtml(input.lead)}</p>`
     : ''
-  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#071018;color:#e5eef5;font-family:Arial,sans-serif"><div style="max-width:600px;margin:0 auto;padding:32px 20px"><div style="border:1px solid #203442;border-radius:16px;background:#0b1822;padding:30px"><p style="margin:0 0 12px;color:#38bdf8;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">${escapeHtml(input.eyebrow)}</p><h1 style="margin:0 0 18px;font-size:26px;line-height:1.2">${escapeHtml(input.title)}</h1><p style="margin:0;color:#b6c5cf;line-height:1.65">${escapeHtml(input.body)}</p>${actionHtml}<p style="margin:24px 0 0;color:#7f929f;font-size:13px;line-height:1.6">${escapeHtml(input.footer)}</p></div><p style="color:#607481;font-size:12px;text-align:center">MobOS · app.moboss.online</p></div></body></html>`
+  const actionHtml = input.action
+    ? `<p style="margin:28px 0 0"><a href="${escapeHtml(input.action.url)}" style="display:inline-block;padding:14px 24px;border-radius:10px;background:#05f19c;color:#062118;text-decoration:none;font-weight:700;font-size:15px">${escapeHtml(input.action.label)}</a></p>`
+    : ''
+  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#ffffff;color:#0b1822;font-family:Arial,Helvetica,sans-serif"><div style="max-width:600px;margin:0 auto;padding:32px 20px"><div style="border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;background:#ffffff"><div style="background:#05f19c;padding:28px"><p style="margin:0 0 6px;color:#062118;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase">${escapeHtml(input.eyebrow)}</p><p style="margin:0;color:#062118;font-size:30px;font-weight:800;letter-spacing:-.02em">MobOS</p></div><div style="padding:28px"><h1 style="margin:0 0 18px;font-size:24px;line-height:1.25;color:#0b1822">${escapeHtml(input.title)}</h1>${leadHtml}<p style="margin:0;color:#1e293b;line-height:1.65">${escapeHtml(input.body)}</p>${actionHtml}<p style="margin:24px 0 0;color:#64748b;font-size:13px;line-height:1.6">${escapeHtml(input.footer)}</p></div></div><p style="color:#64748b;font-size:12px;text-align:center">MobOS · app.moboss.online · Email ${EMAIL_VERSION}</p></div></body></html>`
   return { html, text }
 }
 
 export function passwordRecoveryEmail(input: { to: string; companyName: string; token: string }) {
   const link = actionLink('/restablecer-contrasena', input.token)
   if (!link || !emailPattern.test(input.to)) return null
-  const content = template({ eyebrow: 'Seguridad de la cuenta', title: 'Restablecé tu contraseña', body: `Recibimos una solicitud para restablecer la contraseña de ${input.companyName}.`, action: { label: 'Restablecer contraseña', url: link }, footer: 'Este enlace vence en 30 minutos y funciona una sola vez. Si no fuiste vos, ignorá este correo.' })
-  return { to: input.to, subject: `Restablecé tu contraseña de ${input.companyName}`, ...content }
+  const content = template({ eyebrow: 'Seguridad de la cuenta', title: 'Recuperá tu contraseña', body: `Recibimos una solicitud para recuperar la contraseña de ${input.companyName}.`, action: { label: 'Restablecer contraseña', url: link }, footer: 'Este enlace vence en 30 minutos y funciona una sola vez. Si no fuiste vos, ignorá este correo.' })
+  return { to: input.to, subject: `Recuperá tu contraseña de ${input.companyName}`, ...content }
 }
 
 export function emailVerificationEmail(input: { to: string; companyName: string; token: string }) {
   const link = actionLink('/verificar-correo', input.token)
   if (!link || !emailPattern.test(input.to)) return null
-  const content = template({ eyebrow: 'Confirmación de correo', title: 'Verificá el correo de tu tienda', body: `Confirmá que este correo pertenece a ${input.companyName}. Podés seguir usando MobOS mientras tanto.`, action: { label: 'Verificar correo', url: link }, footer: 'El enlace vence en 60 minutos y funciona una sola vez.' })
+  const content = template({ eyebrow: 'Confirmación de correo', title: 'Verificá tu correo', body: `Confirmá que este correo pertenece a ${input.companyName}. Podés seguir usando MobOS mientras tanto.`, action: { label: 'Verificar correo', url: link }, footer: 'Este enlace vence en 60 minutos y funciona una sola vez.' })
   return { to: input.to, subject: 'Verificá tu correo de MobOS', ...content }
 }
 
@@ -102,6 +108,6 @@ export function welcomeEmail(input: { to: string; companyName: string; tenantId:
 export function teamInvitationEmail(input: { to: string; inviteeName: string; companyName: string; inviterName: string; token: string; invitationId: string }) {
   const link = actionLink('/aceptar-invitacion', input.token)
   if (!link || !emailPattern.test(input.to)) return null
-  const content = template({ eyebrow: 'Invitación al equipo', title: `Te invitaron a ${input.companyName}`, body: `${input.inviterName} invitó a ${input.inviteeName} a trabajar con el equipo en MobOS.`, action: { label: 'Aceptar invitación', url: link }, footer: 'El enlace vence en 7 días. Al aceptar vas a elegir tu propio PIN de 4 dígitos. MobOS nunca envía PIN ni contraseñas por correo.' })
+  const content = template({ eyebrow: 'Invitación al equipo', title: `Te invitaron a ${input.companyName}`, lead: `${input.inviterName} te invitó a trabajar con el equipo en MobOS.`, body: 'Al aceptar, tu cuenta va a quedar lista para organizar ventas, inventario y equipo en un solo lugar.', action: { label: 'Aceptar invitación', url: link }, footer: 'El enlace vence en 7 días. Al aceptar, vas a elegir tu propio PIN de 4 dígitos. MobOS nunca envía PIN ni contraseñas por correo.' })
   return { to: input.to, subject: `Invitación al equipo de ${input.companyName}`, ...content }
 }
