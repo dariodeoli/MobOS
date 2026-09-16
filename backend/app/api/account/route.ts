@@ -81,6 +81,23 @@ export async function PATCH(request: Request) {
       })
       return json({ ok: true, archivedAt: now })
     }
+    if (action === 'updateProfile') {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      const name = body.name === undefined ? undefined : input(body.name, 'Nombre de la tienda', 2, 120)
+      const email = body.email === undefined ? undefined : input(body.email, 'Correo de la empresa', 3, 160)
+      if (name === undefined && email === undefined) return error('Indicá el nombre o el correo a actualizar.', 400)
+      if (email !== undefined && !emailPattern.test(email)) return error('El correo de la empresa no es válido.', 400)
+      const current = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { name: true, email: true } })
+      if (!current) return error('Empresa no encontrada.', 404)
+      const nextName = name ?? current.name
+      const nextEmail = email ? email.toLowerCase() : current.email
+      if (nextEmail !== current.email && await prisma.tenant.findFirst({ where: { email: nextEmail, id: { not: session.user.tenantId } }, select: { id: true } })) return error('Ese correo ya lo usa otra empresa.', 409)
+      await prisma.$transaction(async tx => {
+        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { name: nextName, email: nextEmail } })
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_PROFILE_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { before: { name: current.name, email: current.email }, after: { name: nextName, email: nextEmail } } } })
+      })
+      return json({ ok: true, name: nextName, email: nextEmail })
+    }
     return error('Acción de cuenta no admitida.', 400)
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo actualizar la cuenta.', 400) }
 }
