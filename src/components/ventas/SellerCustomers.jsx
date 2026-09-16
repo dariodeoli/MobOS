@@ -4,10 +4,39 @@ import { api } from '@/lib/api/client'
 import { Button, Input, Modal } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
+import { parseDelimited } from '@/utils/csv'
+
+const RUC_RE = /\d[\d.\s]{2,}-\d+/
+
+// Convierte filas del export tipo Shopify en fichas para el endpoint de import.
+function filasParaImportar(texto) {
+  const filas = parseDelimited(texto)
+  if (filas.length < 2) return []
+  const encabezados = (filas[0] || []).map((celda) => String(celda).trim())
+  const comoFila = (fila) => Object.fromEntries(encabezados.map((clave, indice) => [clave, String(fila[indice] ?? '').trim()]))
+  return filas.slice(1).map(comoFila).map((row) => {
+    const nombre = `${row['First Name'] || ''} ${row['Last Name'] || ''}`.trim()
+    const telefono = String(row['Phone'] || row['Default Address Phone'] || '').replace(/[\s-]/g, '')
+    const rucFuente = `${row['Default Address Company'] || ''} ${row['Note'] || ''} ${row['Default Address Address1'] || ''}`
+    const documento = (rucFuente.match(RUC_RE) || [null])[0]
+    const direccion = `${row['Default Address Address1'] || ''} ${row['Default Address Address2'] || ''}`.trim()
+    const ciudad = row['Default Address City'] || ''
+    const tags = String(row['Tags'] || '').split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20)
+    return {
+      name: nombre || telefono || '',
+      document: documento || undefined,
+      phone: telefono || undefined,
+      email: row['Email'] || undefined,
+      externalId: row['Customer ID'] || undefined,
+      tags,
+      addresses: (direccion || ciudad) ? [{ label: 'Principal', address: direccion || 'Sin dirección', ...(ciudad ? { city: ciudad } : {}), country: 'Paraguay', isDefault: true }] : [],
+    }
+  }).filter((row) => row.name || row.phone)
+}
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import CustomerCommunicationCard from '@/components/customers/CustomerCommunicationCard'
 import CustomerProfile from '@/components/customers/CustomerProfile'
-import { customerMetadata, DEMO_MESSAGE_TEMPLATES, readCustomerMetadata } from '@/components/customers/customerMessaging'
+import { customerMetadata, DEMO_MESSAGE_TEMPLATES, readCustomerMetadata, whatsappUrl } from '@/components/customers/customerMessaging'
 
 export const DEMO_CUSTOMERS_KEY = 'mobos:demo-customers:v1'
 const emptyCustomer = { name: '', document: '', email: '', phones: [''], addresses: [{ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay' }], acceptsEmailMarketing: false, acceptsSmsMarketing: false, acceptsWhatsappMarketing: false, taxExempt: false, tags: '' }
@@ -41,6 +70,12 @@ export default function SellerCustomers() {
   const [rucError, setRucError] = useState('')
   const [profileCustomer, setProfileCustomer] = useState(null)
   const [crearAbierto, setCrearAbierto] = useState(false)
+  const [importAbierto, setImportAbierto] = useState(false)
+  const [importTexto, setImportTexto] = useState('')
+  const [importBusy, setImportBusy] = useState(false)
+  const [importResultado, setImportResultado] = useState(null)
+  const [importError, setImportError] = useState('')
+  const [seguimientos, setSeguimientos] = useState([])
   const nombreRef = useRef(null)
   const data = useSellerData(`/api/customers?q=${encodeURIComponent(search)}`, customerFields, readDemoCustomers, esDemo)
   const templateData = useSellerData('/api/message-templates', templateFields, readDemoTemplates, esDemo)
@@ -103,6 +138,27 @@ export default function SellerCustomers() {
     } catch (cause) { setRucError(cause?.message || 'No se pudo consultar el RUC. Podés completar los datos manualmente.') } finally { setRucLoading(false) }
   }
 
+  async function importar(event) {
+    event.preventDefault()
+    if (importBusy || esDemo) return
+    const filas = filasParaImportar(importTexto)
+    if (!filas.length) { setImportError('No se detectaron filas válidas. La primera línea debe tener los encabezados.'); return }
+    setImportBusy(true); setImportError(''); setImportResultado(null)
+    try {
+      const resultado = await api.post('/api/customers', { rows: filas.slice(0, 500) })
+      setImportResultado(resultado)
+      setImportTexto('')
+      data.refresh()
+    } catch (cause) { setImportError(cause?.message || 'No se pudo importar.') } finally { setImportBusy(false) }
+  }
+
+  const filasImportadas = filasParaImportar(importTexto)
+
+  useEffect(() => {
+    if (esDemo) return
+    api.get('/api/follow-ups?due=today').then(setSeguimientos).catch(() => setSeguimientos([]))
+  }, [esDemo])
+
   return <SellerSection title="Clientes" description={esDemo ? 'Demo local: ingresá únicamente datos ficticios.' : 'Buscá por nombre o teléfono. La API devuelve hasta 50 coincidencias.'}>
     <div className="flex flex-wrap items-center gap-2">
       <form onSubmit={(event) => { event.preventDefault(); setSearch(query.trim()); data.refresh() }} className="flex min-w-0 flex-1 gap-2">
@@ -110,11 +166,36 @@ export default function SellerCustomers() {
         <Button>Buscar</Button>
       </form>
       <Button type="button" onClick={abrirCrear}>+ Crear cliente</Button>
+      {!esDemo && <Button type="button" variant="outline" onClick={() => { setImportAbierto(true); setImportError(''); setImportResultado(null) }}>Importar</Button>}
     </div>
     <SellerFeedback {...data} empty={!rows.length} />
+    {seguimientos.length > 0 && (
+      <section className="rounded-xl border border-warn/25 bg-warn/5 p-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-warn">Seguimientos para hoy ({seguimientos.length})</h3>
+        <div className="mt-2 space-y-2">{seguimientos.map((seguimiento) => (
+          <article key={seguimiento.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 p-2.5">
+            <div className="min-w-0">
+              <b className="text-sm">{seguimiento.customer?.name || 'Cliente'}</b>
+              <p className="mt-0.5 text-xs text-mute">{seguimiento.kind === 'CALL' ? 'Llamada' : seguimiento.kind === 'WHATSAPP' ? 'WhatsApp' : seguimiento.kind === 'VISIT' ? 'Visita' : 'Otro'} · {seguimiento.dueAt ? new Date(seguimiento.dueAt).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : 'Sin fecha'} · {seguimiento.note}</p>
+            </div>
+            {seguimiento.customer?.phone && <a className="rounded-lg bg-ok px-3 py-2 text-xs font-semibold text-black" href={whatsappUrl(seguimiento.customer.phone, `Hola ${seguimiento.customer.name}, te escribimos de MobOS.`, seguimiento.customer.countryCode)} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
+          </article>
+        ))}</div>
+      </section>
+    )}
     {!data.loading && !data.error && <ul className="grid gap-3 sm:grid-cols-2">{rows.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={templateData.rows} onViewProfile={esDemo ? undefined : setProfileCustomer} />)}</ul>}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={() => setProfileCustomer(null)} />
     {!templateData.loading && templateData.error && <p className="rounded-xl border border-amber-400/30 bg-amber-300/10 p-3 text-sm text-amber-100">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</p>}
+    <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" className="max-w-2xl">
+      <form onSubmit={importar} className="space-y-3">
+        <p className="text-sm text-mute">Pegá las filas del export (la primera línea son los encabezados). Se reconocen: Customer ID, First/Last Name, Email, Phone, Default Address (Company, Address1, Address2, City), Note y Tags. Los duplicados por RUC, teléfono o ID no se vuelven a crear.</p>
+        <textarea rows={10} className="w-full rounded-xl border border-ink-500 bg-paper p-3 font-mono text-xs text-fore outline-none focus:border-fono" value={importTexto} onChange={(event) => setImportTexto(event.target.value)} placeholder={'Customer ID\tFirst Name\tLast Name\tEmail\t…'} />
+        {filasImportadas.length > 0 && !importResultado && <p className="text-xs text-fono-light">Se detectaron {filasImportadas.length} filas para importar.</p>}
+        {importError && <p role="alert" className="text-sm text-red-300">{importError}</p>}
+        {importResultado && <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{importResultado.created} clientes creados · {importResultado.skipped} omitidos (duplicados o inválidos) · {importResultado.total} filas procesadas.</p>}
+        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" disabled={importBusy} onClick={() => setImportAbierto(false)}>Cerrar</Button><Button type="submit" disabled={importBusy || !filasImportadas.length}>{importBusy ? 'Importando…' : 'Importar clientes'}</Button></div>
+      </form>
+    </Modal>
     <Modal open={crearAbierto} onClose={() => !saving && setCrearAbierto(false)} title="Crear cliente" className="max-w-2xl">
       <form onSubmit={create} className="space-y-4">
         <label className="block space-y-2"><span>Nombre</span><Input ref={nombreRef} required autoFocus maxLength={120} disabled={saving} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
