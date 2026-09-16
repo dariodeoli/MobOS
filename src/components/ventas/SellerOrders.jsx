@@ -32,6 +32,7 @@ export default function SellerOrders() {
   const products = esDemo ? productosById() : {}
   const data = useSellerData('/api/orders', orderFields, listVentas, esDemo)
   const veTodos = ['ADMIN', 'GERENTE'].includes(sesion?.rol || usuario?.role)
+  const esAdminVentas = Boolean(sesion?.esPropietario || veTodos)
   const rows = data.rows.filter((row) => !veTodos && Boolean(sesion?.vendedorId) ? row.sellerId === sesion.vendedorId : true)
     .map((row) => ({ ...row, products: row.products || products[row.productId]?.nombre || products[row.productId]?.name || '' }))
     .filter((row) => `${row.number} ${row.customer} ${row.products}`.toLowerCase().includes(query.toLowerCase()))
@@ -41,7 +42,7 @@ export default function SellerOrders() {
     setSavingId(row.id); setActionError('')
     try { await api.patch(`/api/orders/${encodeURIComponent(row.id)}`, { fulfillmentStatus }); await data.refresh() } catch (error) { setActionError(error.message || 'No se pudo actualizar la entrega.') } finally { setSavingId('') }
   }
-  return <SellerSection title="Mis pedidos" description="Consultá los pedidos registrados con tu usuario y su estado. La API devuelve hasta 100 pedidos recientes.">
+  return <SellerSection title={esAdminVentas ? 'Pedidos' : 'Mis pedidos'} description={esAdminVentas ? 'Todos los pedidos de la tienda, con su estado y entrega. La API devuelve hasta 100 pedidos recientes.' : 'Consultá los pedidos registrados con tu usuario y su estado. La API devuelve hasta 100 pedidos recientes.'}>
     <div className="flex gap-2"><Input aria-label="Buscar en mis pedidos" placeholder="Pedido, cliente o producto" value={query} onChange={(event) => setQuery(event.target.value)} />
       <Button onClick={data.refresh} disabled={data.loading}>Actualizar</Button></div>
     <SellerFeedback {...data} empty={!rows.length} />
