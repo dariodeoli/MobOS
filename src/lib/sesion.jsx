@@ -1,9 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { isDemoRuntime, demoSessionActive, demoSessionRole, saveDemoSession, clearDemoSession } from './demoMode'
-import { clearSession, getCompanyContext, sessionApi } from '@/lib/api'
+import { clearSession, getCompanyContext, sessionApi, resources } from '@/lib/api'
 import { setActor, setContexto, prepararDatosDemo } from '@/lib/storage'
 
 const SesionContext = createContext(null)
+
+function sucursalKey(empresaId) { return `mobos:sucursal-activa:${empresaId}` }
+function leerSucursalActiva(empresaId) { try { return localStorage.getItem(sucursalKey(empresaId)) } catch { return null } }
+function guardarSucursalActiva(empresaId, sucursalId) { try { localStorage.setItem(sucursalKey(empresaId), sucursalId) } catch { /* sin persistencia, la sesión sigue válida */ } }
 
 function adaptarUsuario(user) {
   return { ...user, id: user?.id, email: user?.email || null, user_metadata: { nombre: user?.name || user?.user_metadata?.nombre || user?.email || '' } }
@@ -22,7 +26,24 @@ export function SesionProvider({ children }) {
     // Los datos reales se hidratan desde la API; el almacenamiento local queda
     // reservado al demo y a los módulos que aún están en transición.
     await setContexto({ empresaId: emp.id, sucursalId: suc?.id || null, userId: user.id, rol: emp.rol, fuente: prepararLegacy ? 'legacy' : 'api' })
-    setUsuario(user); setEmpresa(emp); setEmpresas([emp]); setSucursal(suc); setSucursales(suc ? [suc] : []); setVendedores(getCompanyContext()?.sellers || []); setEstado('dentro')
+    let listaSucursales = suc ? [suc] : []
+    let sucursalActiva = suc
+    // Los dueños y gerentes pueden no tener sucursal asignada (cuentas viejas).
+    // Se hidrata la lista desde la API y se conserva la elección previa.
+    if ((rawUser.role === 'ADMIN' || rawUser.role === 'GERENTE') && emp.id !== 'mobos-demo') {
+      try {
+        const branches = await resources.inventoryBranches.list()
+        if (Array.isArray(branches) && branches.length) {
+          listaSucursales = branches
+          const guardada = leerSucursalActiva(emp.id)
+          sucursalActiva = branches.find((b) => b.id === rawUser.branchId) || branches.find((b) => b.id === guardada) || (branches.length === 1 ? branches[0] : null)
+          if (sucursalActiva) guardarSucursalActiva(emp.id, sucursalActiva.id)
+        }
+      } catch {
+        // Sin catálogo de sucursales la sesión sigue siendo válida.
+      }
+    }
+    setUsuario(user); setEmpresa(emp); setEmpresas([emp]); setSucursal(sucursalActiva); setSucursales(listaSucursales); setVendedores(getCompanyContext()?.sellers || []); setEstado('dentro')
   }, [])
   const entrarDemo = useCallback(async (role = demoSessionRole()) => {
     saveDemoSession(role); await activarSesion({ id: 'demo-user', email: 'demo@example.invalid', name: role === 'ADMIN' ? 'Dueño demo' : 'Vendedor demo', tenantId: 'mobos-demo', role, branchId: 'mobos-demo-central', branchName: 'Tienda demo' }, { prepararLegacy: true }); prepararDatosDemo()
@@ -55,7 +76,17 @@ export function SesionProvider({ children }) {
   async function cambiarVendedor(credentials) { const result = await sessionApi.switchSeller(credentials); await activarSesion(result.user); return result }
   async function entrar(session) { if (!session?.user) throw new Error('Usá el flujo de autenticación de MobOS.'); await activarSesion(session.user) }
   async function salir() { if (isDemoRuntime) { clearDemoSession(); clearSession(); await setContexto({ fuente: 'legacy' }); window.location.assign('/login'); return }; try { await sessionApi.logout() } catch (error) { console.error('[sesion] el cierre remoto falló:', error) } await setContexto({ fuente: 'legacy' }); setUsuario(null); setEmpresa(null); setEmpresas([]); setSucursal(null); setSucursales([]); setVendedores([]); setEstado('fuera') }
+  async function cambiarSucursal(sucursalId) {
+    const destino = sucursales.find((s) => s.id === sucursalId)
+    if (!destino) return
+    setSucursal(destino)
+    guardarSucursalActiva(empresa?.id, destino.id)
+  }
+  async function cambiarEmpresa() {
+    // El cambio de empresa requiere reautenticación (la sesión del operador
+    // pertenece a una empresa). Se conserva la API para no romper el selector.
+  }
   const sesion = usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, correo: usuario.email, esPropietario: empresa?.rol === 'dueno', rol: empresa?.rol || null } : null
-  return <SesionContext.Provider value={{ estado, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal: async () => {}, cambiarEmpresa: async () => {}, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
+  return <SesionContext.Provider value={{ estado, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal, cambiarEmpresa, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
 }
 export function useSesion() { return useContext(SesionContext) }
