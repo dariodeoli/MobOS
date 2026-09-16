@@ -20,7 +20,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BACKEND_ROOT="$REPO_ROOT/backend"
 PG_BIN="/opt/homebrew/bin"
 
-for binary in initdb pg_ctl createdb psql; do
+for binary in initdb pg_ctl createdb psql pg_dump pg_restore; do
   if [[ ! -x "$PG_BIN/$binary" ]]; then
     echo "Falta el binario PostgreSQL requerido: $PG_BIN/$binary" >&2
     exit 1

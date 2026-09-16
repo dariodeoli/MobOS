@@ -74,7 +74,7 @@ jobs:
         run: |
           PG_BINDIR="$(pg_config --bindir)"
           sudo mkdir -p /opt/homebrew/bin
-          for binary in initdb pg_ctl createdb psql; do
+          for binary in initdb pg_ctl createdb psql pg_dump pg_restore; do
             source="${PG_BINDIR}/${binary}"
             if [[ ! -x "$source" && -x "/usr/bin/${binary}" ]]; then source="/usr/bin/${binary}"; fi
             sudo ln -sf "$source" "/opt/homebrew/bin/${binary}"
@@ -118,7 +118,7 @@ jobs:
         run: |
           PG_BINDIR="$(pg_config --bindir)"
           sudo mkdir -p /opt/homebrew/bin
-          for binary in initdb pg_ctl createdb psql; do
+          for binary in initdb pg_ctl createdb psql pg_dump pg_restore; do
             source="${PG_BINDIR}/${binary}"
             if [[ ! -x "$source" && -x "/usr/bin/${binary}" ]]; then source="/usr/bin/${binary}"; fi
             sudo ln -sf "$source" "/opt/homebrew/bin/${binary}"

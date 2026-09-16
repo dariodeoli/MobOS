@@ -123,8 +123,8 @@ async function ensureProducts(ctx, adminToken) {
         if (!patch.ok()) throw new Error(`product stock reset failed (${key}): HTTP ${patch.status()}`)
       }
     } else {
-      const body = { sku: product.sku, name: product.name, category: product.category, pricePyg: product.pricePyg, stock: product.stock, costPyg: product.costPyg }
-      if (product.imei) body.imei = product.imei, body.branchId = SEED.branchId, body.condition = 'NEW'
+      const body = { sku: product.sku, name: product.name, category: product.category, pricePyg: product.pricePyg, stock: product.stock, costPyg: product.costPyg, branchId: SEED.branchId }
+      if (product.imei) body.imei = product.imei, body.condition = 'NEW'
       const created = await ctx.post('/api/products', { headers: bearer(adminToken), data: body })
       if (!created.ok()) throw new Error(`product create failed (${key}): HTTP ${created.status()} ${await created.text()}`)
       product.id = (await created.json()).id
