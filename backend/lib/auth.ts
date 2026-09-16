@@ -245,20 +245,46 @@ export async function authenticateSeller(request: Request, input: PinInput) {
   const parent = await companySession(request)
   const sellerId = String(input.sellerId ?? input.userId ?? '')
   const pin = String(input.pin ?? '')
-  if (!parent || !sellerId || !/^\d{4}$/.test(pin)) return null
+  if (!parent || !/^\d{4}$/.test(pin)) return null
   const auditMetadata = authRequestMetadata(request)
   return prisma.$transaction(async (tx) => {
-    const rows = await tx.$queryRaw<Array<{
+    type SellerRow = {
       id: string; tenantId: string; name: string; role: string; branchId: string | null; pinHash: string; status: string; permissions: unknown; accessSchedule: unknown; failedLoginAttempts: number; lockedUntil: Date | null
-    }>>`
-      SELECT "id", "tenantId", "name", "role", "branchId", "pinHash", "status", "permissions", "accessSchedule", "failedLoginAttempts", "lockedUntil"
-      FROM "User"
-      WHERE "id" = ${sellerId} AND "tenantId" = ${parent.tenantId} AND "status" = 'ACTIVE'
-        AND (${parent.branchId}::text IS NULL OR "branchId" = ${parent.branchId})
-        AND ("branchId" IS NULL OR EXISTS (SELECT 1 FROM "Branch" b WHERE b."id" = "User"."branchId" AND b."isActive" = true))
-      FOR UPDATE
-    `
-    const user = rows[0]
+    }
+    let user: SellerRow | null = null
+    if (sellerId) {
+      const rows = await tx.$queryRaw<SellerRow[]>`
+        SELECT "id", "tenantId", "name", "role", "branchId", "pinHash", "status", "permissions", "accessSchedule", "failedLoginAttempts", "lockedUntil"
+        FROM "User"
+        WHERE "id" = ${sellerId} AND "tenantId" = ${parent.tenantId} AND "status" = 'ACTIVE'
+          AND (${parent.branchId}::text IS NULL OR "branchId" = ${parent.branchId})
+          AND ("branchId" IS NULL OR EXISTS (SELECT 1 FROM "Branch" b WHERE b."id" = "User"."branchId" AND b."isActive" = true))
+        FOR UPDATE
+      `
+      user = rows[0] ?? null
+    } else {
+      // El PIN identifica al vendedor: se prueba contra los usuarios activos
+      // de la empresa (pocos por tenant). Los PINs son únicos por empresa, y
+      // ante cualquier duplicado el acceso se rechaza hasta que el
+      // administrador asigne PINs distintos: nunca se entra con un PIN ambiguo.
+      const candidates = await tx.user.findMany({
+        where: { tenantId: parent.tenantId, status: 'ACTIVE', ...(parent.branchId ? { branchId: parent.branchId } : {}) },
+        select: { id: true, tenantId: true, name: true, role: true, branchId: true, pinHash: true, status: true, permissions: true, accessSchedule: true, failedLoginAttempts: true, lockedUntil: true },
+      })
+      const matches: SellerRow[] = []
+      for (const candidate of candidates) {
+        if (await bcrypt.compare(pin, candidate.pinHash)) matches.push(candidate)
+      }
+      if (matches.length > 1) {
+        await tx.auditLog.create({ data: { tenantId: parent.tenantId, action: 'SELLER_PIN_DUPLICATED', entity: 'Tenant', entityId: parent.tenantId, metadata: { count: matches.length, branchId: parent.branchId, ...auditMetadata } } })
+        return { duplicated: true }
+      }
+      user = matches[0] ?? null
+      if (!user) {
+        await tx.auditLog.create({ data: { tenantId: parent.tenantId, action: 'SELLER_PIN_UNKNOWN', entity: 'Tenant', entityId: parent.tenantId, metadata: { branchId: parent.branchId, ...auditMetadata } } })
+        return null
+      }
+    }
     if (!user) return null
     const now = new Date()
     if (!isAccessAllowed(user.accessSchedule, now)) {
