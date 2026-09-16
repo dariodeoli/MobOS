@@ -637,6 +637,7 @@ export default function FormularioVenta({
                               label: address.label?.trim() || `Dirección ${index + 1}`,
                               address: address.address.trim(),
                               ...(address.city?.trim() ? { city: address.city.trim() } : {}),
+                              ...(address.department?.trim() ? { department: address.department.trim() } : {}),
                               ...(address.notes?.trim() ? { notes: address.notes.trim() } : {}),
                               isDefault: address.isDefault === true,
                             })),

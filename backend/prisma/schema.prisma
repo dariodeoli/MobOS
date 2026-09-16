@@ -547,6 +547,7 @@ model CustomerAddress {
   label      String   @default("Principal")
   address    String
   city       String?
+  department String?
   notes      String?
   isDefault  Boolean  @default(false)
   createdAt  DateTime @default(now())

@@ -36,6 +36,7 @@ function inlineAddresses(value: unknown) {
     const address = textInput(input.address, 'Dirección', 400)
     return { label: typeof input.label === 'string' && input.label.trim() ? textInput(input.label, 'Etiqueta', 80) : `Dirección ${index + 1}`,
       address, city: input.city === undefined || input.city === null || input.city === '' ? null : textInput(input.city, 'Ciudad', 100),
+      department: input.department === undefined || input.department === null || input.department === '' ? null : textInput(input.department, 'Departamento', 100),
       notes: input.notes === undefined || input.notes === null || input.notes === '' ? null : textInput(input.notes, 'Notas de dirección', 400), isDefault: input.isDefault === true }
   })
   return rows.map((row, index) => ({ ...row, isDefault: row.isDefault || (index === 0 && !rows.some(item => item.isDefault)) }))
