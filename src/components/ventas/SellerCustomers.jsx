@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { Button, Input, Modal } from '@/components/ui'
+import { Button, Input, Modal, Select, Badge } from '@/components/ui'
+import { gs } from '@/utils/calculos'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import { parseDelimited } from '@/utils/csv'
@@ -76,6 +77,9 @@ export default function SellerCustomers() {
   const [importResultado, setImportResultado] = useState(null)
   const [importError, setImportError] = useState('')
   const [seguimientos, setSeguimientos] = useState([])
+  const [vista, setVista] = useState(() => localStorage.getItem('mobos:clientes-vista') || 'grid')
+  const [orden, setOrden] = useState('recientes')
+  const [resumen, setResumen] = useState(null)
   const nombreRef = useRef(null)
   const data = useSellerData(`/api/customers?q=${encodeURIComponent(search)}`, customerFields, readDemoCustomers, esDemo)
   const templateData = useSellerData('/api/message-templates', templateFields, readDemoTemplates, esDemo)
@@ -153,11 +157,20 @@ export default function SellerCustomers() {
   }
 
   const filasImportadas = filasParaImportar(importTexto)
+  const resumenMostrar = esDemo ? { total: rows.length, wholesalers: rows.filter((row) => row.wholesale).length, retail: rows.filter((row) => !row.wholesale).length } : resumen
+  const ordenados = [...rows].sort((a, b) => {
+    if (orden === 'nombre') return a.name.localeCompare(b.name)
+    if (orden === 'total') return Number(b.stats?.totalSpentPyg || 0) - Number(a.stats?.totalSpentPyg || 0)
+    const ultimo = (fila) => fila.stats?.lastOrderAt ? new Date(fila.stats.lastOrderAt).getTime() : fila.createdAt ? new Date(fila.createdAt).getTime() : 0
+    return ultimo(b) - ultimo(a)
+  })
 
   useEffect(() => {
     if (esDemo) return
     api.get('/api/follow-ups?due=today').then(setSeguimientos).catch(() => setSeguimientos([]))
+    api.get('/api/customers/summary').then(setResumen).catch(() => setResumen(null))
   }, [esDemo])
+
 
   return <SellerSection title="Clientes" description={esDemo ? 'Demo local: ingresá únicamente datos ficticios.' : 'Buscá por nombre o teléfono. La API devuelve hasta 50 coincidencias.'}>
     <div className="flex flex-wrap items-center gap-2">
@@ -165,9 +178,19 @@ export default function SellerCustomers() {
         <Input aria-label="Buscar clientes" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre o teléfono" />
         <Button>Buscar</Button>
       </form>
+      <Select aria-label="Ordenar clientes" className="h-9 w-auto" value={orden} onChange={(event) => setOrden(event.target.value)}>
+        <option value="recientes">Recientes</option>
+        <option value="nombre">Nombre</option>
+        <option value="total">Total gastado</option>
+      </Select>
+      <div className="flex overflow-hidden rounded-lg border border-ink-600">
+        <button type="button" aria-pressed={vista === 'grid'} className={`px-3 py-1.5 text-xs font-semibold ${vista === 'grid' ? 'bg-fono/15 text-fono-light' : 'text-mute'}`} onClick={() => { setVista('grid'); localStorage.setItem('mobos:clientes-vista', 'grid') }}>Cuadrícula</button>
+        <button type="button" aria-pressed={vista === 'list'} className={`px-3 py-1.5 text-xs font-semibold ${vista === 'list' ? 'bg-fono/15 text-fono-light' : 'text-mute'}`} onClick={() => { setVista('list'); localStorage.setItem('mobos:clientes-vista', 'list') }}>Lista</button>
+      </div>
       <Button type="button" onClick={abrirCrear}>+ Crear cliente</Button>
       {!esDemo && <Button type="button" variant="outline" onClick={() => { setImportAbierto(true); setImportError(''); setImportResultado(null) }}>Importar</Button>}
     </div>
+    {resumenMostrar && <div className="flex flex-wrap items-center gap-2 text-sm"><Badge color="blue">{resumenMostrar.total} clientes</Badge><Badge color="orange">{resumenMostrar.wholesalers} mayoristas</Badge><Badge color="slate">{resumenMostrar.retail} cliente final</Badge></div>}
     <SellerFeedback {...data} empty={!rows.length} />
     {seguimientos.length > 0 && (
       <section className="rounded-xl border border-warn/25 bg-warn/5 p-3">
@@ -183,7 +206,8 @@ export default function SellerCustomers() {
         ))}</div>
       </section>
     )}
-    {!data.loading && !data.error && <ul className="grid gap-3 sm:grid-cols-2">{rows.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={templateData.rows} onViewProfile={esDemo ? undefined : setProfileCustomer} />)}</ul>}
+    {!data.loading && !data.error && vista === 'grid' && <ul className="grid gap-3 sm:grid-cols-2">{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={templateData.rows} onViewProfile={esDemo ? undefined : setProfileCustomer} />)}</ul>}
+    {!data.loading && !data.error && vista === 'list' && <ul className="space-y-2">{ordenados.map((row) => <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><b className="truncate text-sm">{row.name}</b><Badge color={row.wholesale ? 'blue' : 'slate'}>{row.wholesale ? 'Mayorista' : 'Cliente final'}</Badge></div><p className="mt-0.5 font-mono text-[11px] text-mute">ID …{String(row.id || '').slice(-6)}{row.phone ? ` · ${row.phone}` : ''}</p><p className="mt-1 text-xs text-mute">{row.stats ? `${row.stats.orders} pedido${row.stats.orders === 1 ? '' : 's'} · total ${gs(row.stats.totalSpentPyg || 0)} · último ${row.stats.lastOrderAt ? new Date(row.stats.lastOrderAt).toLocaleDateString('es-PY') : '—'} · registrado ${row.createdAt ? new Date(row.createdAt).toLocaleDateString('es-PY') : '—'}` : `Registrado ${row.createdAt ? new Date(row.createdAt).toLocaleDateString('es-PY') : '—'}`}</p></div><div className="flex shrink-0 gap-2">{!esDemo && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => setProfileCustomer(row)}>Ver perfil</Button>}{row.phones?.[0] && <a className="rounded-lg bg-ok px-3 py-2 text-xs font-semibold text-black" href={`https://wa.me/${String(row.countryCode || '+595').replace(/\D/g, '')}${String(row.phones[0]).replace(/\D/g, '').replace(/^0+/, '')}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>}</div></li>)}</ul>}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={() => setProfileCustomer(null)} />
     {!templateData.loading && templateData.error && <p className="rounded-xl border border-amber-400/30 bg-amber-300/10 p-3 text-sm text-amber-100">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</p>}
     <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" className="max-w-2xl">
