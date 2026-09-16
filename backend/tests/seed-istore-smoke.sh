@@ -45,6 +45,10 @@ SQL
 "$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$BACKEND_ROOT/prisma/migrations/20260917010000_istore_orders_seed/migration.sql" >/dev/null
 "$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$BACKEND_ROOT/prisma/migrations/20260917010000_istore_orders_seed/migration.sql" >/dev/null
 
+# Compleción: PIN de vendedores y precios de venta + idempotencia.
+"$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$BACKEND_ROOT/prisma/migrations/20260918000000_istore_seed_completion/migration.sql" >/dev/null
+"$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$BACKEND_ROOT/prisma/migrations/20260918000000_istore_seed_completion/migration.sql" >/dev/null
+
 count() { "$PG_BIN/psql" "$DATABASE_URL" -At -c "$1"; }
 
 PRODUCTS="$(count "SELECT count(*) FROM \"Product\" WHERE \"tenantId\"='tenant-seed'")"
@@ -63,10 +67,18 @@ CUSTOMERS="$(count "SELECT count(*) FROM \"Customer\" WHERE \"tenantId\"='tenant
 SOLD_UNITS="$(count "SELECT count(*) FROM \"InventoryUnit\" WHERE \"tenantId\"='tenant-seed' AND status='SOLD'")"
 PAID_SUM="$(count "SELECT COALESCE(SUM(p.\"amountPyg\"),0) FROM \"Payment\" p JOIN \"Order\" o ON o.id = p.\"orderId\" WHERE o.\"tenantId\"='tenant-seed' AND p.status='CONFIRMED'")"
 BILLING="$(count "SELECT count(*) FROM \"Order\" WHERE \"tenantId\"='tenant-seed' AND \"billingName\" IS NOT NULL")"
+PINNED_USERS="$(count "SELECT count(*) FROM \"User\" WHERE \"tenantId\"='tenant-seed' AND \"pinHash\" LIKE '\$2b\$%'")"
+PRICED_PRODUCTS="$(count "SELECT count(*) FROM \"Product\" WHERE \"tenantId\"='tenant-seed' AND \"pricePyg\" > 0")"
+PRICE_17PRO="$(count "SELECT \"pricePyg\" FROM \"Product\" WHERE \"tenantId\"='tenant-seed' AND \"sku\" = 'IPH-17PRO-256GB-PLATA-NEW' LIMIT 1")"
+CLAUDIA_HASH="$(count "SELECT \"pinHash\" FROM \"User\" WHERE \"tenantId\"='tenant-seed' AND \"name\" = 'Claudia Carrillo' LIMIT 1")"
+BACKEND_ROOT="$BACKEND_ROOT" node -e "const bcrypt=require(process.env.BACKEND_ROOT+'/node_modules/bcryptjs'); if(!bcrypt.compareSync('0001', process.argv[1])) process.exit(1)" "$CLAUDIA_HASH" || { echo "FALLA: PIN 0001 no coincide"; exit 1; }
+EDGAR_HASH="$(count "SELECT \"pinHash\" FROM \"User\" WHERE \"tenantId\"='tenant-seed' AND \"name\" = 'Edgar Castillo' LIMIT 1")"
+BACKEND_ROOT="$BACKEND_ROOT" node -e "const bcrypt=require(process.env.BACKEND_ROOT+'/node_modules/bcryptjs'); if(!bcrypt.compareSync('0006', process.argv[1])) process.exit(1)" "$EDGAR_HASH" || { echo "FALLA: PIN 0006 no coincide"; exit 1; }
 
 echo "productos=$PRODUCTS unidades=$UNITS (disponibles=$AVAILABLE reservadas=$RESERVED vendidas=$SOLD transito=$TRANSIT)"
 echo "proveedores=$SUPPLIERS ubicaciones=$LOCATIONS desajustes_stock_serializado=$STOCK_CHECK"
 echo "pedidos=$ORDERS lineas=$ORDER_ITEMS pagos=$PAYMENTS clientes=$CUSTOMERS unidades_vendidas=$SOLD_UNITS cobrado_confirmado=$PAID_SUM factura_otro_titular=$BILLING"
+echo "pines_asignados=$PINNED_USERS precios_cargados=$PRICED_PRODUCTS precio_17pro_silver=$PRICE_17PRO"
 
 [[ "$PRODUCTS" -ge 800 ]] || { echo "FALLA: catálogo incompleto"; exit 1; }
 [[ "$UNITS" -ge 150 ]] || { echo "FALLA: unidades incompletas"; exit 1; }
@@ -81,4 +93,7 @@ echo "pedidos=$ORDERS lineas=$ORDER_ITEMS pagos=$PAYMENTS clientes=$CUSTOMERS un
 [[ "$SOLD_UNITS" -ge 45 ]] || { echo "FALLA: unidades vendidas incompletas"; exit 1; }
 [[ "$PAID_SUM" -gt 50000000 ]] || { echo "FALLA: monto cobrado inconsistente"; exit 1; }
 [[ "$BILLING" -ge 1 ]] || { echo "FALLA: falta la factura a otro titular"; exit 1; }
+[[ "$PINNED_USERS" -eq 7 ]] || { echo "FALLA: PIN de vendedores incompleto"; exit 1; }
+[[ "$PRICED_PRODUCTS" -ge 30 ]] || { echo "FALLA: precios de venta incompletos"; exit 1; }
+[[ "$PRICE_17PRO" -eq 7950000 ]] || { echo "FALLA: precio de 17 Pro Silver inesperado"; exit 1; }
 echo "seed-istore-smoke: OK"
