@@ -17,7 +17,9 @@ export async function loginCompany(page, { email = SEED.company.email, password 
 // Complete the seller PIN step and wait for the role-based landing page.
 // The PIN alone identifies the seller (PINs are unique per company).
 export async function completeSellerPin(page, { pin = SEED.sellers[0].pin } = {}) {
-  await page.getByLabel('PIN de vendedor', { exact: true }).fill(pin)
+  // pressSequentially: el PinInput controlado transforma y auto-envía en el
+  // 4.º dígito; fill() pelea contra esos re-renders y queda colgado.
+  await page.locator('#seller-pin').pressSequentially(pin)
   // The form auto-submits on the 4th digit; the seller lands on /pos/cargar.
   await expect(page).toHaveURL(/\/pos\/cargar$/)
 }

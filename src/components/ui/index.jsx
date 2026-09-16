@@ -64,10 +64,11 @@ export function PasswordInput({ className, ...props }) {
 // PIN de 4 dígitos: campo compacto y centrado tipo código, con animación de
 // foco y avance automático al completar. Diseñado para no ocupar el ancho
 // completo del formulario.
-export function PinInput({ value, onChange, onComplete, autoFocus = false, inputRef, ariaLabel = 'PIN de 4 dígitos', className }) {
+export function PinInput({ value, onChange, onComplete, autoFocus = false, inputRef, ariaLabel = 'PIN de 4 dígitos', className, id }) {
   return (
     <input
       ref={inputRef}
+      id={id}
       type="text"
       inputMode="numeric"
       autoComplete="one-time-code"
