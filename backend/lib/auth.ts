@@ -264,21 +264,22 @@ export async function authenticateSeller(request: Request, input: PinInput) {
       user = rows[0] ?? null
     } else {
       // El PIN identifica al vendedor: se prueba contra los usuarios activos
-      // de la empresa (pocos por tenant). Prioridad ADMIN > GERENTE > CAJERA >
-      // VENDEDOR y, dentro del mismo rol, el más antiguo, para resolver
-      // colisiones de PIN.
+      // de la empresa (pocos por tenant). Los PINs son únicos por empresa, y
+      // ante cualquier duplicado el acceso se rechaza hasta que el
+      // administrador asigne PINs distintos: nunca se entra con un PIN ambiguo.
       const candidates = await tx.user.findMany({
         where: { tenantId: parent.tenantId, status: 'ACTIVE', ...(parent.branchId ? { branchId: parent.branchId } : {}) },
-        select: { id: true, tenantId: true, name: true, role: true, branchId: true, pinHash: true, status: true, permissions: true, accessSchedule: true, failedLoginAttempts: true, lockedUntil: true, createdAt: true },
+        select: { id: true, tenantId: true, name: true, role: true, branchId: true, pinHash: true, status: true, permissions: true, accessSchedule: true, failedLoginAttempts: true, lockedUntil: true },
       })
-      const priority = { ADMIN: 0, GERENTE: 1, CAJERA: 2, VENDEDOR: 3 }
-      const sorted = [...candidates].sort((a, b) => (priority[a.role] ?? 4) - (priority[b.role] ?? 4) || a.createdAt.getTime() - b.createdAt.getTime())
-      for (const candidate of sorted) {
-        if (await bcrypt.compare(pin, candidate.pinHash)) {
-          user = { id: candidate.id, tenantId: candidate.tenantId, name: candidate.name, role: candidate.role, branchId: candidate.branchId, pinHash: candidate.pinHash, status: candidate.status, permissions: candidate.permissions, accessSchedule: candidate.accessSchedule, failedLoginAttempts: candidate.failedLoginAttempts, lockedUntil: candidate.lockedUntil }
-          break
-        }
+      const matches: SellerRow[] = []
+      for (const candidate of candidates) {
+        if (await bcrypt.compare(pin, candidate.pinHash)) matches.push(candidate)
       }
+      if (matches.length > 1) {
+        await tx.auditLog.create({ data: { tenantId: parent.tenantId, action: 'SELLER_PIN_DUPLICATED', entity: 'Tenant', entityId: parent.tenantId, metadata: { count: matches.length, branchId: parent.branchId, ...auditMetadata } } })
+        return { duplicated: true }
+      }
+      user = matches[0] ?? null
       if (!user) {
         await tx.auditLog.create({ data: { tenantId: parent.tenantId, action: 'SELLER_PIN_UNKNOWN', entity: 'Tenant', entityId: parent.tenantId, metadata: { branchId: parent.branchId, ...auditMetadata } } })
         return null

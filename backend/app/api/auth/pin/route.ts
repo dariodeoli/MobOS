@@ -10,6 +10,7 @@ export async function POST(request: Request) {
     if (!body) return error('Solicitud inválida.', 400)
     if (!body.pin) return error('El PIN es obligatorio.', 400)
     const result = await authenticateSeller(request, body)
+    if (result && 'duplicated' in result) return json({ code: 'PIN_DUPLICATED', message: 'Hay más de un usuario con ese PIN. Pedí al administrador que asigne PINs únicos.' }, { status: 409 })
     if (!result) return error('PIN inválido.', 401)
     const response = json({ user: result.user })
     response.cookies.set(COOKIE_SELLER, result.accessToken, sessionCookieOptions(7 * 24 * 60 * 60))

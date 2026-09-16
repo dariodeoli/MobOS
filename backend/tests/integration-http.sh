@@ -83,9 +83,10 @@ export DATABASE_URL
 (cd "$BACKEND_ROOT" && ./node_modules/.bin/prisma generate --schema prisma/schema.prisma >/dev/null)
 
 PIN_HASH="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('2468', 10))")"
+PIN_HASH_2="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('1357', 10))")"
 PASSWORD_HASH="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('company-password-it', 10))")"
 
-"$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -v pin_hash="$PIN_HASH" -v password_hash="$PASSWORD_HASH" >/dev/null <<'SQL'
+"$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -v pin_hash="$PIN_HASH" -v pin_hash_2="$PIN_HASH_2" -v password_hash="$PASSWORD_HASH" >/dev/null <<'SQL'
 INSERT INTO "Tenant" ("id", "name", "slug", "email", "passwordHash", "updatedAt") VALUES
   ('tenant-a-it', 'Tenant A Integration', 'tenant-a-it', 'company-a-it@example.invalid', :'password_hash', CURRENT_TIMESTAMP),
   ('tenant-b-it', 'Tenant B Integration', 'tenant-b-it', 'company-b-it@example.invalid', :'password_hash', CURRENT_TIMESTAMP),
@@ -101,6 +102,7 @@ INSERT INTO "User" ("id", "tenantId", "branchId", "name", "email", "pinHash", "r
   ('user-a-it', 'tenant-a-it', 'branch-a-it', 'Seller A', 'seller-a-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-a-2-it', 'tenant-a-it', 'branch-a-it', 'Seller A Two', 'seller-a-2-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-lock-it', 'tenant-a-it', 'branch-a-it', 'Seller Lock', 'seller-lock-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
+  ('user-pinunique-it', 'tenant-a-it', 'branch-a-it', 'Seller Unique Pin', 'seller-pinunique-it@example.invalid', :'pin_hash_2', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-b-it', 'tenant-b-it', 'branch-b-it', 'Seller B', 'seller-b-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-c-admin-it', 'tenant-c-it', NULL, 'Admin C', 'admin-c-it@example.invalid', :'pin_hash', 'ADMIN', 'ACTIVE', CURRENT_TIMESTAMP);
 

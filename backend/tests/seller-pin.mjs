@@ -18,9 +18,13 @@ async function pin(body) {
   return { response, payload: await response.json().catch(() => null) }
 }
 
-const ok = await pin({ pin: '2468' })
+const ok = await pin({ pin: '1357' })
 assert.equal(ok.response.status, 200, JSON.stringify(ok.payload))
-assert.equal(ok.payload.user.role, 'ADMIN', 'El PIN único debe resolver al administrador primero.')
+assert.equal(ok.payload.user.id, 'user-pinunique-it', 'El PIN único debe resolver al usuario correcto.')
+
+const duplicado = await pin({ pin: '2468' })
+assert.equal(duplicado.response.status, 409, 'Un PIN compartido por varios usuarios debe rechazarse.')
+assert.equal(duplicado.payload.code, 'PIN_DUPLICATED', JSON.stringify(duplicado.payload))
 
 const malo = await pin({ pin: '9999' })
 assert.equal(malo.response.status, 401, 'Un PIN que no pertenece a nadie debe rechazarse.')
@@ -29,4 +33,4 @@ const ambiguo = await pin({ sellerId: 'user-a-it', pin: '2468' })
 assert.equal(ambiguo.response.status, 200, JSON.stringify(ambiguo.payload))
 assert.equal(ambiguo.payload.user.id, 'user-a-it', 'El flujo con vendedor explícito sigue intacto.')
 
-console.log('seller-pin: checks OK (PIN único identifica al ADMIN, PIN desconocido 401 y vendedor explícito intacto).')
+console.log('seller-pin: checks OK (PIN único resuelve al usuario, PIN duplicado 409, PIN desconocido 401 y vendedor explícito intacto).')
