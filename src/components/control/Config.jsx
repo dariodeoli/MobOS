@@ -5,7 +5,6 @@ import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, PasswordInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
-import PaymentAccounts from './PaymentAccounts'
 
 function fmtDate(value) {
   return value ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—'
@@ -79,12 +78,12 @@ export default function Config() {
 
   return (
     <div className="space-y-4">
-      {esDueno && <PaymentAccounts />}
       <Card className="space-y-3"><div className="flex items-start gap-3">{perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}<div className="min-w-0"><h2 className="font-semibold">Sesión activa</h2><p className="mt-0.5 truncate text-sm text-mute">{perfilEmpresa?.name || sesion?.correo || sesion?.nombre || 'Usuario de MobOS'}</p></div></div><div className="flex flex-wrap gap-2 text-sm"><Badge color="blue">{empresa?.nombre || 'Mi empresa'}</Badge>{sucursal?.nombre && <Badge color="slate">{sucursal.nombre}</Badge>}{sesion?.rol && <Badge color="slate">{sesion.rol}</Badge>}</div></Card>
 
       {esDueno && <>
         <MiIdentidad />
         <SeccionTiendas account={account} />
+        <SeccionInvitaciones />
         <IdentidadCuenta reauthValidUntil={account?.reauthValidUntil} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} />
         <Card className="space-y-3"><div><h2 className="font-semibold">Confirmar identidad</h2><p className="mt-1 text-sm text-mute">Pedimos tu contraseña antes de descargar datos, cerrar la empresa o revocar dispositivos. La autorización dura 10 minutos.</p></div><div className="flex flex-col gap-2 sm:flex-row"><PasswordInput aria-label="Contraseña para reautenticar" value={password} onChange={event => setPassword(event.target.value)} placeholder="Contraseña de la empresa" className="min-w-0 flex-1" /><Button onClick={reauthenticate} disabled={busy || !password}>Verificar contraseña</Button></div>{account?.reauthValidUntil && <p className="text-xs text-ok">Acciones sensibles habilitadas hasta {fmtDate(account.reauthValidUntil)}.</p>}</Card>
 
@@ -312,6 +311,81 @@ function SeccionTiendas({ account }) {
         onCancel={() => !busy && setDialogo(null)}
         onConfirm={eliminar}
       />
+    </Card>
+  )
+}
+
+function SeccionInvitaciones() {
+  const toast = useToast()
+  const { sesion } = useSesion()
+  const [pendientes, setPendientes] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [elegida, setElegida] = useState(null)
+  const [pin, setPin] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let vivo = true
+    api.get('/api/user-invitations/pending').then((lista) => { if (vivo) setPendientes(Array.isArray(lista) ? lista : []) }).catch(() => {}).finally(() => { if (vivo) setCargando(false) })
+    return () => { vivo = false }
+  }, [])
+
+  async function aceptar(event) {
+    event.preventDefault(); setError('')
+    if (!/^\d{4}$/.test(pin)) return setError('Elegí un PIN de exactamente 4 dígitos.')
+    if (!elegida) return
+    setBusy(true)
+    try {
+      const deviceId = localStorage.getItem('mobos:device-id') || crypto.randomUUID()
+      localStorage.setItem('mobos:device-id', deviceId)
+      await api.post('/api/user-invitations/accept-by-id', { id: elegida.id, pin, deviceId })
+      toast.success('Invitación aceptada', `Ya sos parte de ${elegida.companyName}. Entrá a esa tienda con su correo y tu PIN.`)
+      setPendientes((lista) => lista.filter((inv) => inv.id !== elegida.id))
+      setElegida(null); setPin('')
+    } catch (cause) { setError(cause?.message || 'No se pudo aceptar la invitación.') } finally { setBusy(false) }
+  }
+
+  if (cargando) return null
+  if (!pendientes.length) return null
+  const rolLabel = { ADMIN: 'Dueño', GERENTE: 'Gerente', CAJERA: 'Cajera', VENDEDOR: 'Vendedor' }
+
+  return (
+    <Card className="space-y-3 border-fono/30">
+      <div>
+        <h2 className="font-semibold">Invitaciones pendientes</h2>
+        <p className="mt-1 text-sm text-mute">Tiendas que te invitaron con este correo ({sesion?.correo}). Aceptá con un PIN propio.</p>
+      </div>
+      <div className="space-y-2">
+        {pendientes.map((inv) => (
+          <div key={inv.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fono/25 bg-fono/5 p-3">
+            <div className="min-w-0">
+              <b className="truncate text-sm">{inv.companyName}</b>
+              <p className="mt-1 text-xs text-mute">{inv.inviterName} te invitó como {rolLabel[inv.role] || inv.role} · vence {new Date(inv.expiresAt).toLocaleDateString('es-PY')}</p>
+            </div>
+            <Button type="button" onClick={() => { setElegida(inv); setPin(''); setError('') }}>Aceptar</Button>
+          </div>
+        ))}
+      </div>
+      <Modal open={elegida !== null} onClose={() => !busy && setElegida(null)} title={`Unite a ${elegida?.companyName || 'la tienda'}`} className="max-w-sm">
+        <form onSubmit={aceptar} className="space-y-4">
+          <p className="text-sm text-mute">Elegí tu PIN de 4 dígitos para entrar a esta tienda. Podés usar el mismo que en tu tienda actual.</p>
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="new-password"
+            maxLength={4}
+            autoFocus
+            value={pin}
+            onChange={(event) => { setPin(event.target.value.replace(/\D/g, '').slice(0, 4)); setError('') }}
+            placeholder="••••"
+            aria-label="PIN de 4 dígitos"
+            className="mx-auto block h-20 w-48 rounded-2xl border border-ink-500 bg-paper text-center text-4xl font-bold tracking-[.5em] text-fore shadow-card transition-all duration-150 placeholder:text-mute/50 focus:scale-105 focus:border-fono focus:ring-2 focus:ring-fono/30 focus:outline-none"
+          />
+          {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+          <Button type="submit" className="w-full" disabled={busy || pin.length !== 4}>{busy ? 'Aceptando…' : 'Aceptar invitación'}</Button>
+        </form>
+      </Modal>
     </Card>
   )
 }
