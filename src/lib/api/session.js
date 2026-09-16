@@ -44,7 +44,7 @@ export const sessionApi = {
   completeGoogle: async (body) => {
     const session = await api.post('/api/auth/google/complete', body, { credentials: 'include', headers: { Authorization: '' } })
     clearSession()
-    setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], cookieSession: true })
+    setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], profile: session.profile || null, cookieSession: true })
     return session
   },
   loginCompany: async (credentials) => {

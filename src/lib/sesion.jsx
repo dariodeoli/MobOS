@@ -12,17 +12,17 @@ function guardarSucursalActiva(empresaId, sucursalId) { try { localStorage.setIt
 function adaptarUsuario(user) {
   return { ...user, id: user?.id, email: user?.email || null, user_metadata: { nombre: user?.name || user?.user_metadata?.nombre || user?.email || '' } }
 }
-function adaptarEmpresa(user) {
-  if (user.tenantId === 'mobos-demo') return { id: 'mobos-demo', nombre: 'MobOS Tienda Demo', slug: 'demo', rol: user.role === 'ADMIN' ? 'dueno' : 'VENDEDOR' }
+function adaptarEmpresa(user, tenant) {
+  if (user.tenantId === 'mobos-demo') return { id: 'mobos-demo', nombre: 'MobOS Tienda Demo', slug: 'demo', email: null, rol: user.role === 'ADMIN' ? 'dueno' : 'VENDEDOR' }
   const context = getCompanyContext()
-  return { id: user.tenantId || context?.tenant?.id, nombre: context?.tenant?.name || user.tenantName || 'Mi tienda', slug: context?.tenant?.slug || user.tenantSlug || 'mi-tienda', rol: user.role === 'ADMIN' ? 'dueno' : user.role }
+  return { id: user.tenantId || context?.tenant?.id, nombre: context?.tenant?.name || user.tenantName || 'Mi tienda', slug: context?.tenant?.slug || user.tenantSlug || 'mi-tienda', email: tenant?.email || context?.tenant?.email || user.tenantEmail || null, rol: user.role === 'ADMIN' ? 'dueno' : user.role }
 }
 
 export function SesionProvider({ children }) {
   const [estado, setEstado] = useState('cargando')
   const [usuario, setUsuario] = useState(null); const [empresas, setEmpresas] = useState([]); const [empresa, setEmpresa] = useState(null); const [sucursales, setSucursales] = useState([]); const [sucursal, setSucursal] = useState(null); const [vendedores, setVendedores] = useState([])
-  const activarSesion = useCallback(async (rawUser, { prepararLegacy = false } = {}) => {
-    const user = adaptarUsuario(rawUser); const emp = adaptarEmpresa(rawUser); const suc = rawUser.branchId ? { id: rawUser.branchId, nombre: rawUser.branchName || 'Sucursal' } : null
+  const activarSesion = useCallback(async (rawUser, { tenant, prepararLegacy = false } = {}) => {
+    const user = adaptarUsuario(rawUser); const emp = adaptarEmpresa(rawUser, tenant); const suc = rawUser.branchId ? { id: rawUser.branchId, nombre: rawUser.branchName || 'Sucursal' } : null
     // Los datos reales se hidratan desde la API; el almacenamiento local queda
     // reservado al demo y a los módulos que aún están en transición.
     await setContexto({ empresaId: emp.id, sucursalId: suc?.id || null, userId: user.id, rol: emp.rol, fuente: prepararLegacy ? 'legacy' : 'api' })
@@ -58,7 +58,7 @@ export function SesionProvider({ children }) {
       try {
         const result = await sessionApi.me()
         if (!vivo) return
-        if (result?.user) await activarSesion(result.user)
+        if (result?.user) await activarSesion(result.user, { tenant: result.tenant })
         else { clearSession(); setEstado('fuera') }
       } catch (error) {
         if (!vivo) return
@@ -72,8 +72,8 @@ export function SesionProvider({ children }) {
   }, [activarSesion, entrarDemo])
   useEffect(() => { setActor(usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, esPropietario: empresa?.rol === 'dueno' } : null) }, [usuario, empresa])
   async function entrarEmpresa(credentials) { const result = await sessionApi.loginCompany(credentials); setEmpresa(result.tenant ? { id: result.tenant.id, nombre: result.tenant.name, rol: null } : null); setEmpresas(result.tenant ? [result.tenant] : []); setVendedores(result.sellers || []); return result }
-  async function entrarVendedor(credentials) { const result = await sessionApi.loginSeller(credentials); await activarSesion(result.user); return result }
-  async function cambiarVendedor(credentials) { const result = await sessionApi.switchSeller(credentials); await activarSesion(result.user); return result }
+  async function entrarVendedor(credentials) { const result = await sessionApi.loginSeller(credentials); const contexto = await sessionApi.me().catch(() => null); await activarSesion(result.user, { tenant: contexto?.tenant }); return result }
+  async function cambiarVendedor(credentials) { const result = await sessionApi.switchSeller(credentials); const contexto = await sessionApi.me().catch(() => null); await activarSesion(result.user, { tenant: contexto?.tenant }); return result }
   async function entrar(session) { if (!session?.user) throw new Error('Usá el flujo de autenticación de MobOS.'); await activarSesion(session.user) }
   async function salir() { if (isDemoRuntime) { clearDemoSession(); clearSession(); await setContexto({ fuente: 'legacy' }); window.location.assign('/login'); return }; try { await sessionApi.logout() } catch (error) { console.error('[sesion] el cierre remoto falló:', error) } await setContexto({ fuente: 'legacy' }); setUsuario(null); setEmpresa(null); setEmpresas([]); setSucursal(null); setSucursales([]); setVendedores([]); setEstado('fuera') }
   async function cambiarSucursal(sucursalId) {
@@ -87,6 +87,7 @@ export function SesionProvider({ children }) {
     // pertenece a una empresa). Se conserva la API para no romper el selector.
   }
   const sesion = usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, correo: usuario.email, esPropietario: empresa?.rol === 'dueno', rol: empresa?.rol || null } : null
-  return <SesionContext.Provider value={{ estado, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal, cambiarEmpresa, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
+  const perfilEmpresa = getCompanyContext()?.profile || null
+  return <SesionContext.Provider value={{ estado, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, perfilEmpresa, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal, cambiarEmpresa, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
 }
 export function useSesion() { return useContext(SesionContext) }

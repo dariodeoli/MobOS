@@ -146,6 +146,7 @@ export default function PanelVendedor() {
     salir,
     empresa,
     sucursal,
+    perfilEmpresa,
   } = useSesion()
   const navigate = useNavigate()
   const { vista: routeVista } = useParams()
@@ -381,6 +382,7 @@ export default function PanelVendedor() {
         esDemo={esDemo}
         sesionNombre={sesion?.nombre}
         esOwner={esOwner}
+        perfilEmpresa={perfilEmpresa}
         onSwitchUser={abrirCambio}
         onLogout={() => setSalirAbierto(true)}
         onLockRequest={pedirBloqueo}

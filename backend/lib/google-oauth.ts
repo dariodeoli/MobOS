@@ -84,7 +84,7 @@ export function validGoogleFlow(flow: unknown): flow is { state: string; verifie
   const entropy = (input: unknown) => typeof input === 'string' && /^[A-Za-z0-9_-]{40,128}$/.test(input)
   return entropy(value.state) && entropy(value.verifier) && entropy(value.nonce) && (value.intent === 'login' || value.intent === 'create')
 }
-export type GoogleIdentity = { sub: string; email: string; name: string }
+export type GoogleIdentity = { sub: string; email: string; name: string; picture: string }
 export async function verifyGoogleToken(token: string, nonce: string): Promise<GoogleIdentity> {
   const parts = token.split('.')
   if (parts.length !== 3) throw new Error('Invalid identity')
@@ -98,7 +98,7 @@ export async function verifyGoogleToken(token: string, nonce: string): Promise<G
   const claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
   const now = Date.now() / 1000
   if (!['https://accounts.google.com', 'accounts.google.com'].includes(claims.iss) || claims.aud !== authConfig().clientId || (claims.azp && claims.azp !== authConfig().clientId) || !Number.isFinite(claims.exp) || claims.exp <= now || !Number.isFinite(claims.iat) || claims.iat > now + 60 || claims.nonce !== nonce || claims.email_verified !== true || typeof claims.sub !== 'string' || !claims.sub || claims.sub.length > 255 || typeof claims.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(claims.email)) throw new Error('Invalid identity')
-  return { sub: claims.sub, email: claims.email.toLowerCase(), name: typeof claims.name === 'string' ? claims.name.slice(0, 100) : '' }
+  return { sub: claims.sub, email: claims.email.toLowerCase(), name: typeof claims.name === 'string' ? claims.name.slice(0, 100) : '', picture: typeof claims.picture === 'string' && /^https:\/\//.test(claims.picture) && claims.picture.length <= 500 ? claims.picture : '' }
 }
 export async function exchangeGoogle(code: string, flow: { verifier: string; nonce: string }) {
   const config = authConfig()

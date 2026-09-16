@@ -83,7 +83,7 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
   )
 }
 
-function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, onSwitchUser, onLogout, onLockRequest, collapsed }) {
+function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, onSwitchUser, onLogout, onLockRequest, collapsed, perfilEmpresa }) {
   const clicsRef = useRef([])
   const clicsTimer = useRef(null)
   useEffect(() => () => clearTimeout(clicsTimer.current), [])
@@ -112,7 +112,7 @@ function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, onSwitchUser,
           'mb-1.5 flex items-center gap-2 rounded-lg border border-fore/10 bg-fore/[.03] p-2',
           collapsed && 'lg:justify-center lg:border-0 lg:bg-transparent lg:p-0',
         )}
-        title={empresa?.nombre || 'Empresa'}
+        title={empresa?.email ? `${empresa?.nombre || 'Empresa'} · ${empresa.email}` : empresa?.nombre || 'Empresa'}
       >
         <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-fono/15 text-fono-light">
           <Icon name="store" className="h-3.5 w-3.5" />
@@ -130,11 +130,15 @@ function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, onSwitchUser,
             'flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-lg p-1.5 text-left transition hover:bg-fore/5',
             collapsed && 'lg:flex-none',
           )}
-          title={sesionNombre || 'Usuario'}
+          title={perfilEmpresa?.name && perfilEmpresa.name !== sesionNombre ? perfilEmpresa.name : sesionNombre || 'Usuario'}
           aria-label="Cambiar de vendedor"
         >
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-fono text-[13px] font-bold text-onbrand">
-            {(sesionNombre || 'U').charAt(0).toUpperCase()}
+            {perfilEmpresa?.picture ? (
+              <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-7 w-7 rounded-full object-cover" />
+            ) : (
+              (sesionNombre || 'U').charAt(0).toUpperCase()
+            )}
           </span>
           <span className={cn('min-w-0', collapsed && 'lg:hidden')}>
             <strong className="block truncate text-[11.5px] text-fore">{sesionNombre || 'Usuario'}</strong>
@@ -210,6 +214,7 @@ export default function AppShell({
   sidebarStats,
   onStatsToggle,
   statsCollapsed,
+  perfilEmpresa,
 }) {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [statsCollapsedInterno, setStatsCollapsedInterno] = useState(() => localStorage.getItem('mobos:stats-collapsed') === '1')
@@ -269,6 +274,7 @@ export default function AppShell({
           onLogout={onLogout}
           onLockRequest={onLockRequest}
           collapsed={collapsed}
+          perfilEmpresa={perfilEmpresa}
         />
       </aside>
 
@@ -296,6 +302,7 @@ export default function AppShell({
             onLogout={onLogout}
             onLockRequest={onLockRequest}
             collapsed={false}
+            perfilEmpresa={perfilEmpresa}
           />
         </div>
       </Drawer>

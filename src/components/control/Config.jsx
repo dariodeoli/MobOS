@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { Button, Card, Badge, ConfirmDialog, Input, Modal, PasswordInput, useToast } from '@/components/ui'
+import { Button, Card, Badge, ConfirmDialog, Eyebrow, Input, Modal, PasswordInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PaymentAccounts from './PaymentAccounts'
@@ -61,6 +61,7 @@ export default function Config() {
       <Card className="space-y-3"><div className="flex items-start gap-3"><div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div><div><h2 className="font-semibold">Sesión activa</h2><p className="mt-0.5 text-sm text-mute">{sesion?.correo || sesion?.nombre || 'Usuario de MobOS'}</p></div></div><div className="flex flex-wrap gap-2 text-sm"><Badge color="blue">{empresa?.nombre || 'Mi empresa'}</Badge>{sucursal?.nombre && <Badge color="slate">{sucursal.nombre}</Badge>}{sesion?.rol && <Badge color="slate">{sesion.rol}</Badge>}</div></Card>
 
       {esDueno && <>
+        <IdentidadCuenta />
         <Card className="space-y-3"><div><h2 className="font-semibold">Confirmar identidad</h2><p className="mt-1 text-sm text-mute">Pedimos tu contraseña antes de descargar datos, cerrar la empresa o revocar dispositivos. La autorización dura 10 minutos.</p></div><div className="flex flex-col gap-2 sm:flex-row"><PasswordInput aria-label="Contraseña para reautenticar" value={password} onChange={event => setPassword(event.target.value)} placeholder="Contraseña de la empresa" className="min-w-0 flex-1" /><Button onClick={reauthenticate} disabled={busy || !password}>Verificar contraseña</Button></div>{account?.reauthValidUntil && <p className="text-xs text-ok">Acciones sensibles habilitadas hasta {fmtDate(account.reauthValidUntil)}.</p>}</Card>
 
         <Card className="space-y-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-semibold">Sesiones activas</h2><p className="mt-1 text-sm text-mute">Cada dispositivo se puede cerrar de forma remota.</p></div><Button variant="outline" onClick={load} disabled={busy}>Actualizar</Button></div>{!account && !failure && <p className="text-sm text-mute">Cargando sesiones…</p>}{account?.sessions?.length === 0 && <p className="text-sm text-mute">No hay sesiones activas.</p>}<div className="space-y-2">{account?.sessions?.map(active => <div key={active.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3"><div><p className="font-medium">{active.user?.name || 'Acceso de empresa'} {active.id === account.currentSessionId && <span className="ml-2 text-xs text-fono-light">Este dispositivo</span>}</p><p className="mt-1 text-xs text-mute">{active.user?.role || active.level} · {active.deviceId || 'Dispositivo no identificado'} · última actividad {fmtDate(active.lastSeenAt)}</p></div><Button variant="outline" onClick={() => setConfirmar({ tipo: 'revocar', sessionId: active.id })} disabled={busy}>Revocar</Button></div>)}</div></Card>
@@ -73,6 +74,55 @@ export default function Config() {
       {esDueno && <SeccionSucursales />}
       <ConfirmDialog open={Boolean(confirmar)} onCancel={() => setConfirmar(null)} onConfirm={async () => { const actual = confirmar; setConfirmar(null); if (actual?.tipo === 'revocar') await revoke(actual.sessionId); if (actual?.tipo === 'archivar') await archive() }} title={confirmar?.tipo === 'archivar' ? '¿Archivar esta empresa?' : '¿Revocar esta sesión?'} description={confirmar?.tipo === 'archivar' ? 'La empresa quedará cerrada de forma recuperable y se revocarán todas las sesiones activas. Las ventas y el historial se conservan.' : 'El dispositivo perderá acceso inmediatamente y deberá iniciar sesión de nuevo.'} confirmLabel={confirmar?.tipo === 'archivar' ? 'Archivar empresa' : 'Revocar sesión'} variant="danger" />
     </div>
+  )
+}
+
+function IdentidadCuenta() {
+  const toast = useToast()
+  const { empresa } = useSesion()
+  const valores = [
+    { etiqueta: 'Nombre de la tienda', valor: empresa?.nombre || null },
+    { etiqueta: 'Correo de la empresa', valor: empresa?.email || null },
+    { etiqueta: 'ID de la tienda', valor: empresa?.id || null },
+  ]
+  async function copiar(valor, etiqueta) {
+    if (!valor) return
+    let copiado = false
+    try {
+      await navigator.clipboard.writeText(valor)
+      copiado = true
+    } catch {
+      const campo = document.createElement('textarea')
+      campo.value = valor
+      campo.setAttribute('readonly', '')
+      campo.style.position = 'fixed'
+      campo.style.opacity = '0'
+      document.body.appendChild(campo)
+      campo.select()
+      try { copiado = document.execCommand('copy') } catch { copiado = false }
+      document.body.removeChild(campo)
+    }
+    if (copiado) toast.success('Copiado', `${etiqueta} quedó en el portapapeles.`)
+    else toast.error('No se pudo copiar', 'Seleccioná el valor y copialo manualmente.')
+  }
+  return (
+    <Card className="space-y-3">
+      <div>
+        <Eyebrow>Identidad de la cuenta</Eyebrow>
+        <p className="mt-1 text-sm text-mute">Los datos que identifican tu tienda ante MobOS.</p>
+      </div>
+      <div className="space-y-2">
+        {valores.map(({ etiqueta, valor }) => (
+          <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-mute">{etiqueta}</p>
+              <p className="mt-0.5 truncate text-sm text-fore">{valor || '—'}</p>
+            </div>
+            <Button type="button" variant="outline" onClick={() => copiar(valor, etiqueta)} disabled={!valor}>Copiar</Button>
+          </div>
+        ))}
+      </div>
+    </Card>
   )
 }
 
