@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { Button, Input } from '@/components/ui'
+import CityAutocomplete from '@/components/shared/CityAutocomplete'
 
-const emptyAddress = () => ({ label: 'Principal', address: '', city: '', notes: '', isDefault: true })
+const emptyAddress = () => ({ label: 'Principal', address: '', city: '', department: '', notes: '', isDefault: true })
 const customerValue = (customer) => ({
   id: customer.id, name: customer.name || '', phone: customer.phone || '', countryCode: customer.countryCode || '+595',
   email: customer.email || '', document: customer.document || '',
@@ -64,7 +65,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo }) {
       </div>
       <div className="mt-4 space-y-3"><div className="flex items-center justify-between"><strong className="text-sm">Direcciones</strong><Button type="button" variant="outline" onClick={addAddress}>+ Dirección</Button></div>
         {!value.addresses?.length && <p className="text-xs text-mute">Sin dirección cargada. Podés continuar con retiro en tienda.</p>}
-        {(value.addresses || []).map((address, index) => <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-3 sm:grid-cols-2"><label className="text-xs text-mute">Etiqueta<Input value={address.label || ''} onChange={event => setAddress(index, 'label', event.target.value)} placeholder="Casa, trabajo…" /></label><label className="text-xs text-mute">Ciudad<Input value={address.city || ''} onChange={event => setAddress(index, 'city', event.target.value)} placeholder="Asunción" /></label><label className="text-xs text-mute sm:col-span-2">Dirección<Input value={address.address || ''} onChange={event => setAddress(index, 'address', event.target.value)} placeholder="Calle, número y referencia" /></label><div className="flex items-center justify-between gap-2 sm:col-span-2"><label className="text-xs text-mute">Notas<Input value={address.notes || ''} onChange={event => setAddress(index, 'notes', event.target.value)} placeholder="Horario, piso, referencia" /></label><button type="button" className="self-end text-xs text-bad hover:underline" onClick={() => removeAddress(index)}>Quitar</button></div></div>)}
+        {(value.addresses || []).map((address, index) => <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-3 sm:grid-cols-2"><label className="text-xs text-mute">Etiqueta<Input value={address.label || ''} onChange={event => setAddress(index, 'label', event.target.value)} placeholder="Casa, trabajo…" /></label><label className="text-xs text-mute">Ciudad<CityAutocomplete esDemo={esDemo} value={address.city || ''} onSelect={(city, department) => onChange({ ...value, addresses: value.addresses.map((item, position) => position === index ? { ...item, city, department } : item) })} placeholder="Asunción" />{address.department && <span className="block truncate px-1 pt-1 text-[11px] text-fono-light">{address.department}</span>}</label><label className="text-xs text-mute sm:col-span-2">Dirección<Input value={address.address || ''} onChange={event => setAddress(index, 'address', event.target.value)} placeholder="Calle, número y referencia" /></label><div className="flex items-center justify-between gap-2 sm:col-span-2"><label className="text-xs text-mute">Notas<Input value={address.notes || ''} onChange={event => setAddress(index, 'notes', event.target.value)} placeholder="Horario, piso, referencia" /></label><button type="button" className="self-end text-xs text-bad hover:underline" onClick={() => removeAddress(index)}>Quitar</button></div></div>)}
       </div>
     </details>
   </div>

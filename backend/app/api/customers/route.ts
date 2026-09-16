@@ -15,6 +15,7 @@ function addressesInput(value: unknown) {
       label: clean(item.label, 80) || `Dirección ${index + 1}`,
       address,
       city: clean(item.city, 100) || null,
+      department: clean(item.department, 100) || null,
       notes: clean(item.notes, 400) || null,
       isDefault: item.isDefault === true,
     }
