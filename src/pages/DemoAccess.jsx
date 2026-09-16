@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRight, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { useSesion } from '@/lib/sesion'
 import { publicUrls } from '@/lib/urls'
-import { PasswordInput } from '@/components/ui'
+import { PinInput } from '@/components/ui'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import ProductFooter from '@/components/app/ProductFooter'
 
@@ -137,21 +137,14 @@ export default function DemoAccess() {
                 <span className="inline-flex items-center gap-2"><KeyRound size={14} className="text-fono-dark" /> Ingresar otro PIN</span>
               </summary>
               <label htmlFor="demo-pin" className="mt-3 block text-xs font-semibold text-mute">PIN del perfil</label>
-              <PasswordInput
+              <PinInput
                 id="demo-pin"
-                inputMode="numeric"
-                autoComplete="off"
-                maxLength={4}
                 value={pin}
-                disabled={busy}
-                onChange={(event) => {
-                  setError('')
-                  setPin(event.target.value.replace(/\D/g, '').slice(0, 4))
-                }}
-                aria-describedby="demo-pin-status"
-                className="mt-2 h-14 md:h-14 w-full rounded-xl border border-fore/10 bg-paper p-3 text-center text-2xl tracking-[.45em] outline-none transition focus:border-fono-dark"
+                onChange={(next) => { setError(''); setPin(next) }}
+                className="mt-2 disabled:opacity-50"
+                ariaLabel="PIN del perfil"
               />
-              <p id="demo-pin-status" role="status" className={`mt-2 min-h-4 text-xs ${error ? 'text-bad' : 'text-mute'}`}>
+              <p id="demo-pin-status" role="status" className={`mt-2 min-h-4 text-center text-xs ${error ? 'text-bad' : 'text-mute'}`}>
                 {busy ? 'Abriendo tu tienda demo…' : error || '2001: Vendedor · 3001: Dueño. Con 4 dígitos entrás automáticamente.'}
               </p>
             </details>

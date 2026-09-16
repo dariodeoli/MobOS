@@ -61,6 +61,34 @@ export function PasswordInput({ className, ...props }) {
   )
 }
 
+// PIN de 4 dígitos: campo compacto y centrado tipo código, con animación de
+// foco y avance automático al completar. Diseñado para no ocupar el ancho
+// completo del formulario.
+export function PinInput({ value, onChange, onComplete, autoFocus = false, inputRef, ariaLabel = 'PIN de 4 dígitos', className }) {
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      inputMode="numeric"
+      autoComplete="one-time-code"
+      maxLength={4}
+      value={value}
+      autoFocus={autoFocus}
+      onChange={(event) => {
+        const next = event.target.value.replace(/\D/g, '').slice(0, 4)
+        onChange(next)
+        if (next.length === 4) onComplete?.()
+      }}
+      placeholder="••••"
+      aria-label={ariaLabel}
+      className={cn(
+        'mx-auto block h-16 w-44 rounded-2xl border border-ink-500 bg-paper text-center text-3xl font-bold tracking-[.45em] text-fore shadow-card transition-all duration-150 placeholder:text-mute/40 focus:scale-[1.03] focus:border-fono focus:ring-2 focus:ring-fono/30 focus:outline-none',
+        className,
+      )}
+    />
+  )
+}
+
 // Campo monetario central: PYG se escribe siempre con separador de miles;
 // el resto de las monedas conserva 2 decimales (coma es-PY). Entrega el
 // número limpio al formulario padre. `symbol` sobreescribe el prefijo cuando

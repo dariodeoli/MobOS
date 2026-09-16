@@ -11,7 +11,7 @@ import VistaCargarVenta from '@/components/ventas/VistaCargarVenta'
 import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
-import { Button, ConfirmDialog, Eyebrow, Modal, PasswordInput, useToast } from '@/components/ui'
+import { Button, ConfirmDialog, Eyebrow, Modal, PasswordInput, PinInput, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
@@ -616,17 +616,12 @@ export default function PanelVendedor() {
                 <label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">
                   PIN demo
                 </label>
-                <PasswordInput
+                <PinInput
                   id="seller-switch-pin"
                   autoFocus
-                  inputMode="numeric"
-                  maxLength={4}
                   value={pin}
-                  disabled={cambiando}
-                  onChange={event => {
-                    setPin(event.target.value.replace(/\D/g, '').slice(0, 4))
-                  }}
-                  className="mt-2 h-14 md:h-14 w-full rounded-xl border border-fore/10 bg-paper text-center text-3xl tracking-[.5em] outline-none focus:border-fono-dark"
+                  onChange={next => setPin(next)}
+                  className="mt-2 disabled:opacity-50"
                 />{' '}
               </>
             ) : (
@@ -634,17 +629,12 @@ export default function PanelVendedor() {
                 <label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">
                   PIN del vendedor
                 </label>
-                <PasswordInput
+                <PinInput
                   id="seller-switch-pin"
                   autoFocus
-                  inputMode="numeric"
-                  maxLength={4}
                   value={pin}
-                  disabled={cambiando}
-                  onChange={event => {
-                    setPin(event.target.value.replace(/\D/g, '').slice(0, 4))
-                  }}
-                  className="mt-2 h-14 md:h-14 w-full rounded-xl border border-fore/10 bg-paper text-center text-3xl tracking-[.5em] outline-none focus:border-fono-dark"
+                  onChange={next => setPin(next)}
+                  className="mt-2 disabled:opacity-50"
                 />{' '}
               </>
             )}
