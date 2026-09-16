@@ -132,7 +132,7 @@ function CopiarIdTienda({ id, collapsed }) {
   )
 }
 
-function SidebarFooter({ empresa, sucursal, sesionNombre, sesionEmail, esOwner, esDemo, onSwitchUser, onLogout, onLockRequest, collapsed, perfilEmpresa }) {
+function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, esDemo, onSwitchUser, onLogout, onLockRequest, collapsed, perfilEmpresa }) {
   const clicsRef = useRef([])
   const clicsTimer = useRef(null)
   useEffect(() => () => clearTimeout(clicsTimer.current), [])
@@ -154,11 +154,13 @@ function SidebarFooter({ empresa, sucursal, sesionNombre, sesionEmail, esOwner, 
     }, 300)
   }
 
+  const nombreUsuario = perfilEmpresa?.name || sesionNombre || 'Usuario'
+
   return (
     <div className={cn('border-t border-fore/10 p-2.5 pb-safe', collapsed && 'lg:p-2')}>
       <div
         className={cn(
-          'mb-1.5 flex items-center gap-2 rounded-lg border border-fore/10 bg-fore/[.03] p-2',
+          'flex items-center gap-2 rounded-lg border border-fore/10 bg-fore/[.03] p-2',
           collapsed && 'lg:justify-center lg:border-0 lg:bg-transparent lg:p-0',
         )}
         title={empresa?.email ? `${empresa?.nombre || 'Empresa'} · ${empresa.email}` : empresa?.nombre || 'Empresa'}
@@ -166,17 +168,18 @@ function SidebarFooter({ empresa, sucursal, sesionNombre, sesionEmail, esOwner, 
         <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-fono/15 text-fono-light">
           <Icon name="store" className="h-3.5 w-3.5" />
         </span>
-        <span className={cn('min-w-0 flex-1', collapsed && 'lg:hidden')}>
-          <strong className="block truncate text-[11.5px] text-fore">{empresa?.nombre || 'Mi tienda'}</strong>
-          <small className="block truncate text-[10px] text-mute">{empresa?.email || sucursal?.nombre || 'Todas las sucursales'}</small>
+        <span className={cn('flex min-w-0 flex-1 flex-col gap-0.5', collapsed && 'lg:hidden')}>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <strong className="min-w-0 truncate text-[13px] leading-tight text-fore">{empresa?.nombre || 'Mi tienda'}</strong>
+            {esDemo && <Badge color="orange" className="shrink-0 px-1.5 py-px text-[9px] font-bold tracking-wider">DEMO</Badge>}
+          </span>
+          <span className="flex min-w-0 items-center gap-1">
+            <small className="min-w-0 truncate text-[11px] leading-tight text-mute">{empresa?.email || sucursal?.nombre || 'Todas las sucursales'}</small>
+            {!esDemo && empresa?.id && <CopiarIdTienda id={empresa.id} collapsed={collapsed} />}
+          </span>
         </span>
-        {esDemo ? (
-          <Badge color="orange" className={cn('shrink-0 px-1.5 text-[9px] font-bold tracking-wider', collapsed && 'lg:hidden')}>DEMO</Badge>
-        ) : (
-          empresa?.id && <CopiarIdTienda id={empresa.id} collapsed={collapsed} />
-        )}
       </div>
-      <div className={cn('flex items-center gap-1', collapsed && 'lg:flex-col')}>
+      <div className={cn('mt-1.5 flex items-center gap-1', collapsed && 'lg:flex-col')}>
         <button
           type="button"
           onClick={manejarClicUsuario}
@@ -184,22 +187,19 @@ function SidebarFooter({ empresa, sucursal, sesionNombre, sesionEmail, esOwner, 
             'flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-lg p-1.5 text-left transition hover:bg-fore/5',
             collapsed && 'lg:flex-none',
           )}
-          title={perfilEmpresa?.name && perfilEmpresa.name !== sesionNombre ? perfilEmpresa.name : sesionNombre || 'Usuario'}
+          title={nombreUsuario}
           aria-label="Cambiar de vendedor"
         >
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-fono text-[13px] font-bold text-onbrand">
+          <span className="grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-full bg-fono text-[13px] font-bold text-onbrand">
             {perfilEmpresa?.picture ? (
               <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-7 w-7 rounded-full object-cover" />
             ) : (
-              (sesionNombre || 'U').charAt(0).toUpperCase()
+              nombreUsuario.charAt(0).toUpperCase()
             )}
           </span>
-          <span className={cn('min-w-0', collapsed && 'lg:hidden')}>
-            <strong className="block truncate text-[11.5px] text-fore">{perfilEmpresa?.name || sesionNombre || 'Usuario'}</strong>
-            {(empresa?.email || sesionEmail) && (
-              <small className="block truncate text-[10px] text-mute">{empresa?.email || sesionEmail}</small>
-            )}
-            <small className="block truncate text-[10px] uppercase tracking-wider text-mute">
+          <span className={cn('flex min-w-0 flex-1 flex-col gap-0.5', collapsed && 'lg:hidden')}>
+            <strong className="truncate text-[13px] font-medium leading-tight text-fore">{nombreUsuario}</strong>
+            <small className="truncate text-[11px] uppercase leading-tight tracking-wider text-mute">
               {esOwner ? 'Dueño' : 'Vendedor'}
             </small>
           </span>
@@ -264,7 +264,6 @@ export default function AppShell({
   sucursal,
   esDemo = false,
   sesionNombre,
-  sesionEmail,
   esOwner = false,
   onSwitchUser,
   onLogout,
@@ -327,7 +326,6 @@ export default function AppShell({
           empresa={empresa}
           sucursal={sucursal}
           sesionNombre={sesionNombre}
-          sesionEmail={sesionEmail}
           esOwner={esOwner}
           esDemo={esDemo}
           onSwitchUser={onSwitchUser}
@@ -357,7 +355,6 @@ export default function AppShell({
             empresa={empresa}
             sucursal={sucursal}
             sesionNombre={sesionNombre}
-            sesionEmail={sesionEmail}
             esOwner={esOwner}
             esDemo={esDemo}
             onSwitchUser={onSwitchUser}

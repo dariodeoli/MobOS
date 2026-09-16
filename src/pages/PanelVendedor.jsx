@@ -381,7 +381,6 @@ export default function PanelVendedor() {
         sucursal={sucursal}
         esDemo={esDemo}
         sesionNombre={sesion?.nombre}
-        sesionEmail={sesion?.correo}
         esOwner={esOwner}
         perfilEmpresa={perfilEmpresa}
         onSwitchUser={abrirCambio}

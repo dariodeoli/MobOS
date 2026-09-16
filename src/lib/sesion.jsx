@@ -94,7 +94,10 @@ export function SesionProvider({ children }) {
     // El cambio de empresa requiere reautenticación (la sesión del operador
     // pertenece a una empresa). Se conserva la API para no romper el selector.
   }
+  function actualizarEmpresa(cambios) {
+    setEmpresa(current => (current ? { ...current, ...cambios } : current))
+  }
   const sesion = usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, correo: usuario.email, esPropietario: empresa?.rol === 'dueno', rol: empresa?.rol || null } : null
-  return <SesionContext.Provider value={{ estado, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, perfilEmpresa, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal, cambiarEmpresa, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
+  return <SesionContext.Provider value={{ estado, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, perfilEmpresa, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal, cambiarEmpresa, actualizarEmpresa, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
 }
 export function useSesion() { return useContext(SesionContext) }
