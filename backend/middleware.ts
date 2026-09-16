@@ -76,6 +76,20 @@ async function proxyPass(request: NextRequest, requestHeaders: Headers, requestI
   const response = applyResponseHeaders(new NextResponse(body, { status, headers: responseHeaders }), origin, requestId)
   const ms = Date.now() - startedAt
   if (status >= 500) logError('request_error', { requestId, method, path, status, ms })
+  // Diagnóstico temporal de accesos con cookie: un 401 inesperado en flujos
+  // autenticados se registra con origen y presencia de cookies para poder
+  // contrastar el contrato sameOrigin en producción.
+  if (status === 401 && path.startsWith('/api/')) {
+    logError('auth_401_diag', {
+      requestId, method, path, ms,
+      origin: request.headers.get('origin') || null,
+      host: request.headers.get('host') || null,
+      hasSellerCookie: /(^|;\s*)mobos_seller_session=/.test(request.headers.get('cookie') || ''),
+      hasCompanyCookie: /(^|;\s*)mobos_company_session=/.test(request.headers.get('cookie') || ''),
+      hasBearer: /^Bearer\s+/i.test(request.headers.get('authorization') || ''),
+      appUrl: process.env.MOBOS_APP_URL || null,
+    })
+  }
   return response
 }
 
