@@ -22,6 +22,7 @@ export default function Login() {
   const [cargando, setCargando] = useState(false)
   const [etapa, setEtapa] = useState('empresa')
   const [vendedores, setVendedores] = useState([])
+  const [tiendas, setTiendas] = useState([])
   const [vendedorId, setVendedorId] = useState('')
   const [pin, setPin] = useState('')
   const [nombreEmpresa, setNombreEmpresa] = useState('')
@@ -36,6 +37,7 @@ export default function Login() {
     const lista = result.sellers || []
     setNombreEmpresa(result.tenant?.name || '')
     setVendedores(lista)
+    setTiendas(result.stores || [])
     setVendedorId(lista.length === 1 ? lista[0].id : '')
     setModo('entrar'); setEtapa(result.onboardingRequired ? 'setup' : 'vendedor'); setGoogleReady(false)
     setError(lista.length ? '' : 'La empresa no tiene usuarios activos disponibles.')
@@ -50,7 +52,12 @@ export default function Login() {
     }
     if (params.get('google') === 'ready') {
       setCargando(true)
-      sessionApi.completeGoogle({ action: 'login' }).then(showCompany).catch(err => {
+      sessionApi.completeGoogle({ action: 'login' }).then(result => {
+        if (result?.storeRequired) {
+          setTiendas(result.stores || [])
+          setModo('entrar'); setEtapa('tienda'); setGoogleReady(false); setError('')
+        } else showCompany(result)
+      }).catch(err => {
         if (err.code === 'onboarding_required') { setModo('crear'); setGoogleReady(true); setError('') }
         else if (err.code === 'start_create') { setModo('crear'); setGoogleReady(false); setError(''); setOk(err.message) }
         else setError(err.message || 'No se pudo completar el acceso con Google.')
@@ -108,6 +115,23 @@ export default function Login() {
       setError(err?.message || 'No se pudo abrir el acceso con Google.')
       setCargando(false)
     }
+  }
+
+  async function elegirTienda(storeId) {
+    if (cargando || !storeId) return
+    setError('')
+    setOk('')
+    setCargando(true)
+    try {
+      const result = await sessionApi.completeGoogle({ action: 'login', storeId })
+      if (result?.storeRequired) {
+        setTiendas(result.stores || [])
+        setEtapa('tienda')
+        setError('Elegí una tienda para continuar.')
+      } else showCompany(result)
+    } catch (err) {
+      setError(err?.message || 'No se pudo abrir la tienda elegida.')
+    } finally { setCargando(false) }
   }
 
   useEffect(() => {
@@ -190,7 +214,7 @@ export default function Login() {
         <h1 className="mb-1 text-2xl font-semibold sm:text-[1.7rem]">
           {crear ? 'Creá la cuenta de tu tienda' : 'Entrá a tu tienda'}
         </h1>
-        {!crear && <p className="mb-5 text-sm leading-6 text-mute lg:mb-4">Usá Google o ingresá con el correo de tu tienda.</p>}
+        {!crear && etapa !== 'tienda' && <p className="mb-5 text-sm leading-6 text-mute lg:mb-4">Usá Google o ingresá con el correo de tu tienda.</p>}
         {crear && <p className="mb-5 text-sm leading-6 text-mute lg:mb-4">Empezá con Google o creá tu acceso con correo.</p>}
 
         <form onSubmit={enviar} className="auth-form space-y-4 lg:space-y-3">
@@ -205,6 +229,21 @@ export default function Login() {
 
           {modo === 'entrar' && etapa === 'setup' ? (
             <><div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Tienda creada</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu tienda'}</strong></div><div className="pt-1"><h2 className="text-base font-semibold text-fore">Elegí tu PIN de administrador</h2><p className="mt-1 text-xs leading-5 text-mute">Este PIN abre el modo ventas y te identifica en cada operación. El resto lo configurás dentro de la app.</p><Label className="mt-4" htmlFor="setup-pin">PIN de 4 dígitos</Label><PasswordInput id="setup-pin" autoFocus required inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={setupPin} onChange={(event) => { setError(''); setSetupPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="••••" autoComplete="new-password" className="h-16 pr-12 text-center text-3xl tracking-[.45em] lg:h-14" /><p className="mt-2 text-center text-xs font-medium text-fono-dark">Usá solo 4 dígitos.</p></div></>
+          ) : modo === 'entrar' && etapa === 'tienda' ? (
+            <div className="space-y-2">
+              <p className="text-sm leading-6 text-mute">Tu cuenta de Google tiene acceso a más de una tienda. Elegí con cuál querés entrar.</p>
+              {tiendas.length === 0 && !cargando && <p className="text-sm text-mute">No se encontraron tiendas disponibles para esta cuenta.</p>}
+              {tiendas.map((t) => (
+                <button key={t.id} type="button" onClick={() => elegirTienda(t.id)} disabled={cargando} className="flex w-full items-center justify-between gap-3 rounded-xl border border-ink-500 bg-paper px-4 py-3 text-left transition hover:border-fono hover:bg-fono/5 disabled:cursor-not-allowed disabled:opacity-30">
+                  <span className="min-w-0">
+                    <strong className="block truncate text-sm text-fore">{t.name}</strong>
+                    <span className="block truncate text-xs text-mute">{t.slug}</span>
+                  </span>
+                  <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />
+                </button>
+              ))}
+              <button type="button" onClick={() => iniciarGoogle(true)} disabled={cargando} className="w-full rounded-xl border border-dashed border-ink-500 px-4 py-3 text-sm font-semibold text-fono-light transition hover:border-fono hover:bg-fono/5 disabled:cursor-not-allowed disabled:opacity-30">+ Crear otra tienda</button>
+            </div>
           ) : modo === 'entrar' && etapa === 'vendedor' ? (
             <>
               <div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Empresa</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu empresa'}</strong></div>
@@ -258,9 +297,9 @@ export default function Login() {
             </div>
           )}
 
-          <Button type="submit" className="h-14 w-full rounded-xl text-base" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>
+          {etapa !== 'tienda' && <Button type="submit" className="h-14 w-full rounded-xl text-base" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>
             {cargando ? 'Un momento…' : crear ? 'Crear mi tienda' : etapa === 'setup' ? 'Activar mi tienda' : 'Continuar'}
-          </Button>
+          </Button>}
           {(crear || etapa === 'empresa') && <p className="pt-3 text-center text-sm text-mute">
             {crear ? <>¿Ya tenés una tienda? <button type="button" onClick={() => cambiarModo('entrar')} className="font-semibold text-fono-dark hover:text-fore hover:underline">Entrá a tu cuenta</button></> : <>¿Sos nuevo en MobOS? <button type="button" onClick={() => cambiarModo('crear')} className="font-semibold text-fono-dark hover:text-fore hover:underline">Creá tu tienda</button></>}
           </p>}

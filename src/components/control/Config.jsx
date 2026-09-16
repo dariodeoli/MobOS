@@ -1,13 +1,35 @@
 import { useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Modal, PasswordInput, useToast } from '@/components/ui'
+import { getCompanyContext, sessionApi } from '@/lib/api/session'
+import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, PasswordInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PaymentAccounts from './PaymentAccounts'
 
 function fmtDate(value) {
   return value ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—'
+}
+
+async function copiarValor(toast, valor, etiqueta) {
+  if (!valor) return
+  let copiado = false
+  try {
+    await navigator.clipboard.writeText(valor)
+    copiado = true
+  } catch {
+    const campo = document.createElement('textarea')
+    campo.value = valor
+    campo.setAttribute('readonly', '')
+    campo.style.position = 'fixed'
+    campo.style.opacity = '0'
+    document.body.appendChild(campo)
+    campo.select()
+    try { copiado = document.execCommand('copy') } catch { copiado = false }
+    document.body.removeChild(campo)
+  }
+  if (copiado) toast.success('Copiado', `${etiqueta} quedó en el portapapeles.`)
+  else toast.error('No se pudo copiar', 'Seleccioná el valor y copialo manualmente.')
 }
 
 export default function Config() {
@@ -61,6 +83,8 @@ export default function Config() {
       <Card className="space-y-3"><div className="flex items-start gap-3">{perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}<div className="min-w-0"><h2 className="font-semibold">Sesión activa</h2><p className="mt-0.5 truncate text-sm text-mute">{perfilEmpresa?.name || sesion?.correo || sesion?.nombre || 'Usuario de MobOS'}</p></div></div><div className="flex flex-wrap gap-2 text-sm"><Badge color="blue">{empresa?.nombre || 'Mi empresa'}</Badge>{sucursal?.nombre && <Badge color="slate">{sucursal.nombre}</Badge>}{sesion?.rol && <Badge color="slate">{sesion.rol}</Badge>}</div></Card>
 
       {esDueno && <>
+        <MiIdentidad />
+        <SeccionTiendas account={account} />
         <IdentidadCuenta reauthValidUntil={account?.reauthValidUntil} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} />
         <Card className="space-y-3"><div><h2 className="font-semibold">Confirmar identidad</h2><p className="mt-1 text-sm text-mute">Pedimos tu contraseña antes de descargar datos, cerrar la empresa o revocar dispositivos. La autorización dura 10 minutos.</p></div><div className="flex flex-col gap-2 sm:flex-row"><PasswordInput aria-label="Contraseña para reautenticar" value={password} onChange={event => setPassword(event.target.value)} placeholder="Contraseña de la empresa" className="min-w-0 flex-1" /><Button onClick={reauthenticate} disabled={busy || !password}>Verificar contraseña</Button></div>{account?.reauthValidUntil && <p className="text-xs text-ok">Acciones sensibles habilitadas hasta {fmtDate(account.reauthValidUntil)}.</p>}</Card>
 
@@ -90,26 +114,6 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
     { etiqueta: 'ID de la tienda', valor: empresa?.id || null },
   ]
   const reauthVigente = Boolean(reauthValidUntil && new Date(reauthValidUntil) > new Date())
-  async function copiar(valor, etiqueta) {
-    if (!valor) return
-    let copiado = false
-    try {
-      await navigator.clipboard.writeText(valor)
-      copiado = true
-    } catch {
-      const campo = document.createElement('textarea')
-      campo.value = valor
-      campo.setAttribute('readonly', '')
-      campo.style.position = 'fixed'
-      campo.style.opacity = '0'
-      document.body.appendChild(campo)
-      campo.select()
-      try { copiado = document.execCommand('copy') } catch { copiado = false }
-      document.body.removeChild(campo)
-    }
-    if (copiado) toast.success('Copiado', `${etiqueta} quedó en el portapapeles.`)
-    else toast.error('No se pudo copiar', 'Seleccioná el valor y copialo manualmente.')
-  }
   function abrir() {
     setForm({ name: empresa?.nombre || '', email: empresa?.email || '', password: '' })
     setError('')
@@ -154,7 +158,7 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
               <p className="text-xs font-semibold uppercase tracking-wider text-mute">{etiqueta}</p>
               <p className="mt-0.5 truncate text-sm text-fore">{valor || '—'}</p>
             </div>
-            <Button type="button" variant="outline" onClick={() => copiar(valor, etiqueta)} disabled={!valor}>Copiar</Button>
+            <Button type="button" variant="outline" onClick={() => copiarValor(toast, valor, etiqueta)} disabled={!valor}>Copiar</Button>
           </div>
         ))}
       </div>
@@ -178,6 +182,167 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
         </form>
       </Modal>
     </Card>
+  )
+}
+
+function MiIdentidad() {
+  const toast = useToast()
+  const { usuario, empresa, perfilEmpresa } = useSesion()
+  const valores = [
+    { etiqueta: 'Correo del dueño', valor: empresa?.email || null },
+    { etiqueta: 'ID del usuario', valor: usuario?.id || null },
+  ]
+  return (
+    <Card className="space-y-3">
+      <div>
+        <Eyebrow>Mi identidad</Eyebrow>
+        <p className="mt-1 text-sm text-mute">Tu persona dentro de MobOS: la cuenta Google dueña de esta tienda.</p>
+      </div>
+      <div className="flex items-start gap-3">
+        {perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}
+        <div className="min-w-0">
+          <h2 className="font-semibold">{perfilEmpresa?.name || usuario?.user_metadata?.nombre || 'Dueño de la tienda'}</h2>
+          {usuario?.email && <p className="mt-0.5 truncate text-sm text-mute">{usuario.email}</p>}
+        </div>
+      </div>
+      <div className="space-y-2">
+        {valores.map(({ etiqueta, valor }) => (
+          <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-mute">{etiqueta}</p>
+              <p className="mt-0.5 truncate text-sm text-fore">{valor || '—'}</p>
+            </div>
+            <Button type="button" variant="outline" onClick={() => copiarValor(toast, valor, etiqueta)} disabled={!valor}>Copiar</Button>
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+function SeccionTiendas({ account }) {
+  const toast = useToast()
+  const { salir } = useSesion()
+  const [dialogo, setDialogo] = useState(null) // 'abandonar' | 'eliminar'
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const delContexto = getCompanyContext()?.stores || []
+  const stores = Array.isArray(account?.stores) && account.stores.length ? account.stores : delContexto
+  const otras = stores.filter((store) => !store.current)
+  const hayOtra = otras.length > 0 || (stores.length > 1 && !stores.some((store) => store.current))
+
+  async function crearOtra() {
+    setError('')
+    try { await sessionApi.startGoogle(true) } catch (cause) { setError(cause?.message || 'No se pudo abrir el acceso con Google.') }
+  }
+
+  async function abandonar() {
+    if (busy) return
+    setBusy(true); setError('')
+    try {
+      await api.patch('/api/account', { action: 'leaveStore', confirm: 'ABANDONAR' })
+      setDialogo(null)
+      await salir()
+      window.location.assign('/login')
+    } catch (cause) { setError(cause?.message || 'No se pudo abandonar la tienda.') } finally { setBusy(false) }
+  }
+
+  async function eliminar({ password }) {
+    if (busy) return
+    setBusy(true); setError('')
+    try {
+      await api.post('/api/account', { password })
+      await api.patch('/api/account', { action: 'purgeStore', confirm: 'ELIMINAR' })
+      setDialogo(null)
+      await salir()
+      window.location.assign('/login')
+    } catch (cause) { setError(cause?.message || 'No se pudo eliminar la tienda.') } finally { setBusy(false) }
+  }
+
+  return (
+    <Card className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="font-semibold">Tiendas</h2>
+          <p className="mt-1 text-sm text-mute">Las tiendas de las que sos dueño con esta cuenta de Google.</p>
+        </div>
+        <Button type="button" variant="outline" onClick={crearOtra}><Icon name="plus" className="h-3.5 w-3.5" />Crear otra tienda</Button>
+      </div>
+      {error && !dialogo && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {stores.length === 0 ? <p className="text-sm text-mute">Todavía no se pudieron cargar tus tiendas. Recargá la página para volver a intentarlo.</p> : (
+        <div className="space-y-2">
+          {stores.map((store) => (
+            <div key={store.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <b className="truncate text-sm">{store.name}</b>
+                  {store.current && <Badge color="green">Actual</Badge>}
+                </div>
+                <p className="mt-1 truncate text-xs text-mute">ID: {store.id}</p>
+              </div>
+              <Button type="button" variant="outline" onClick={() => copiarValor(toast, store.id, 'ID de la tienda')} disabled={!store.id}>Copiar ID</Button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {hayOtra && <Button type="button" variant="outline" onClick={() => { setError(''); setDialogo('abandonar') }} disabled={busy}>Abandonar tienda</Button>}
+        <Button type="button" variant="outline" onClick={() => { setError(''); setDialogo('eliminar') }} disabled={busy} className="border-bad/50 text-bad hover:bg-bad/10">Eliminar tienda</Button>
+      </div>
+      <DialogoDestructivo
+        open={dialogo === 'abandonar'}
+        title="¿Abandonar esta tienda?"
+        description="Dejarás de ser dueño de esta tienda y no podrás volver a entrar con esta cuenta. La tienda necesita al menos otro administrador para seguir funcionando, y podés seguir usando tus otras tiendas. Esta acción no se puede deshacer desde la app."
+        palabra="ABANDONAR"
+        confirmLabel="Abandonar tienda"
+        busy={busy}
+        error={error}
+        onCancel={() => !busy && setDialogo(null)}
+        onConfirm={abandonar}
+      />
+      <DialogoDestructivo
+        open={dialogo === 'eliminar'}
+        title="¿Eliminar esta tienda?"
+        description="Se eliminará la tienda junto con toda su información: productos, ventas, clientes, pagos e integrantes. Esta acción es permanente e irreversible, y no se puede recuperar de ninguna forma. Para confirmar, escribí tu contraseña de empresa y la palabra ELIMINAR."
+        palabra="ELIMINAR"
+        necesitaClave
+        confirmLabel="Eliminar tienda"
+        busy={busy}
+        error={error}
+        onCancel={() => !busy && setDialogo(null)}
+        onConfirm={eliminar}
+      />
+    </Card>
+  )
+}
+
+function DialogoDestructivo({ open, title, description, palabra, necesitaClave = false, confirmLabel, busy, error, onCancel, onConfirm }) {
+  const [palabraActual, setPalabraActual] = useState('')
+  const [clave, setClave] = useState('')
+  useEffect(() => { if (open) { setPalabraActual(''); setClave('') } }, [open])
+  const lista = palabraActual.trim() === palabra && (!necesitaClave || clave)
+  return (
+    <Modal open={open} onClose={busy ? undefined : onCancel} title={title} className="max-w-md">
+      <div className="space-y-4">
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-bad/10 text-bad"><Icon name="alert" className="h-5 w-5" /></div>
+        <p className="text-sm leading-6 text-mute">{description}</p>
+        {necesitaClave && (
+          <div>
+            <Label htmlFor="dialogo-clave">Contraseña de la empresa</Label>
+            <PasswordInput id="dialogo-clave" autoFocus disabled={busy} value={clave} onChange={(event) => setClave(event.target.value)} placeholder="Para verificar tu identidad" autoComplete="current-password" />
+          </div>
+        )}
+        <div>
+          <Label htmlFor="dialogo-palabra">Escribí {palabra} para confirmar</Label>
+          <Input id="dialogo-palabra" autoFocus={!necesitaClave} disabled={busy} value={palabraActual} onChange={(event) => setPalabraActual(event.target.value)} placeholder={palabra} />
+        </div>
+        {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>Cancelar</Button>
+          <Button type="button" variant="danger" onClick={() => onConfirm(necesitaClave ? { password: clave } : {})} disabled={busy || !lista}>{busy ? 'Procesando…' : confirmLabel}</Button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 

@@ -43,8 +43,15 @@ export const sessionApi = {
   },
   completeGoogle: async (body) => {
     const session = await api.post('/api/auth/google/complete', body, { credentials: 'include', headers: { Authorization: '' } })
+    if (session?.storeRequired) {
+      // La persona tiene varias tiendas y todavía no eligió una: no hay sesión
+      // de empresa todavía, solo se recuerdan las tiendas para el selector.
+      const anterior = getCompanyContext() || {}
+      setCompanyContext({ ...anterior, stores: session.stores || [] })
+      return session
+    }
     clearSession()
-    setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], profile: session.profile || null, cookieSession: true })
+    setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], profile: session.profile || null, stores: session.stores || [], cookieSession: true })
     return session
   },
   loginCompany: async (credentials) => {
