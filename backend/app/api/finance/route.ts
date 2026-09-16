@@ -1,6 +1,7 @@
 import { prisma } from '../../../lib/prisma'
 import { requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
+import { ensureStoreBranch } from '../../../lib/store-branch'
 import { FINANCE_CURRENCIES, FinanceInputError, frozenAmountPyg, realMargin } from '../../../lib/finance'
 
 const ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
@@ -21,7 +22,8 @@ async function scope(request: Request, write = false) {
   if (!session) return { status: 401 as const }
   if (!(write ? WRITE_ROLES : ROLES).includes(session.user.role as (typeof ROLES)[number])) return { status: 403 as const }
   const requestedBranch = new URL(request.url).searchParams.get('branchId')
-  const branchId = session.user.role === 'ADMIN' ? requestedBranch || null : session.user.branchId
+  let branchId: string | null = session.user.role === 'ADMIN' ? requestedBranch || null : session.user.branchId
+  if (session.user.role !== 'ADMIN' && !branchId) branchId = await ensureStoreBranch(session)
   if (session.user.role !== 'ADMIN' && !branchId) return { status: 403 as const }
   if (branchId) {
     const branch = await prisma.branch.findFirst({ where: { id: branchId, tenantId: session.user.tenantId, isActive: true }, select: { id: true } })

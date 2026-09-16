@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
+import { ensureStoreBranch } from '../../../lib/store-branch'
 
 const ROLES = ['ADMIN', 'GERENTE', 'CAJERA']
 type QueryDb = Pick<typeof prisma, '$queryRaw'> | Pick<Prisma.TransactionClient, '$queryRaw'>
@@ -16,7 +17,8 @@ async function context(request: Request) {
   if (!session) return { error: 401 as const }
   if (!ROLES.includes(session.user.role)) return { error: 403 as const }
   const requested = new URL(request.url).searchParams.get('branchId')
-  const branchId = session.user.branchId || (session.user.role === 'ADMIN' ? requested : null)
+  let branchId: string | null = session.user.branchId || (session.user.role === 'ADMIN' ? requested : null)
+  if (!branchId) branchId = await ensureStoreBranch(session)
   if (!branchId) return { error: 403 as const }
   const branch = await prisma.branch.findFirst({ where: { id: branchId, tenantId: session.user.tenantId, isActive: true }, select: { id: true } })
   return branch ? { session, branchId } : { error: 403 as const }
