@@ -638,6 +638,7 @@ export default function FormularioVenta({
                               address: address.address.trim(),
                               ...(address.city?.trim() ? { city: address.city.trim() } : {}),
                               ...(address.department?.trim() ? { department: address.department.trim() } : {}),
+                              country: address.country?.trim() || 'Paraguay',
                               ...(address.notes?.trim() ? { notes: address.notes.trim() } : {}),
                               isDefault: address.isDefault === true,
                             })),
