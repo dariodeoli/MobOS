@@ -480,6 +480,15 @@ model Customer {
   email       String?
   document    String?
   notes       String?
+  // Identificador del cliente en un sistema anterior (migración de datos):
+  // permite importar fichas históricas sin duplicar personas.
+  externalId  String?
+  // Consentimientos de marketing explícitos; por defecto apagados.
+  acceptsEmailMarketing     Boolean  @default(false)
+  acceptsSmsMarketing       Boolean  @default(false)
+  acceptsWhatsappMarketing  Boolean  @default(false)
+  taxExempt                 Boolean  @default(false)
+  tags                      String[] @default([])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -490,6 +499,7 @@ model Customer {
 
   @@index([tenantId])
   @@index([tenantId, phone])
+  @@index([tenantId, externalId])
 }
 
 // Nota interna del equipo sobre un cliente (cliente 360°).
