@@ -178,6 +178,7 @@ model Branch {
 
 model User {
   openedCashSessions  CashSession[]   @relation("CashOpenedBy")
+  inventoryVerifications InventoryUnit[] @relation("InventoryUnitVerifier")
   closedCashSessions  CashSession[]   @relation("CashClosedBy")
   purchases           PurchaseOrder[]
   id                  String          @id @default(cuid())
@@ -389,6 +390,7 @@ model InventoryUnit {
   verificationCount   Int                 @default(0)
   // Código de la verificación física del vendedor (ej. VPC/VPM/VPE/VPS).
   verifiedByCode      String?
+  lastVerifiedBy      User?             @relation("InventoryUnitVerifier", fields: [lastVerifiedById], references: [id], onDelete: SetNull)
   status              InventoryUnitStatus @default(AVAILABLE)
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
