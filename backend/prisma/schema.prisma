@@ -61,9 +61,11 @@ model Tenant {
 }
 
 model GoogleIdentity {
-  subject  String @id
-  tenantId String @unique
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subject  String  @id
+  tenantId String  @unique
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name     String?
+  picture  String?
 }
 
 // Tokens de recuperación de contraseña de la empresa. Solo se almacena su

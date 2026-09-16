@@ -23,7 +23,7 @@ export async function googleCompany(identity: GoogleIdentity, body: any) {
         if (await tx.tenant.findUnique({ where: { email: identity.email } })) throw new AuthFlowError('existing_account', 'Este correo ya tiene una empresa. Entrá con contraseña; la vinculación con Google requiere validar al dueño.', 409)
         const created = await tx.tenant.create({ data: { name: input.companyName, email: identity.email, emailVerifiedAt: new Date(), slug: `tienda-${randomBytes(16).toString('hex')}`, settings: { onboarding: { adminPinPending: true } } } })
         await tx.user.create({ data: { tenantId: created.id, name: 'Administrador', email: identity.email, pinHash, role: 'ADMIN' } })
-        await tx.googleIdentity.create({ data: { subject: identity.sub, tenantId: created.id } })
+        await tx.googleIdentity.create({ data: { subject: identity.sub, tenantId: created.id, name: identity.name || null, picture: identity.picture || null } })
         return created
       })
       newlyCreated = true
@@ -32,6 +32,9 @@ export async function googleCompany(identity: GoogleIdentity, body: any) {
       throw error
     }
   }
+  // La identidad ya estaba vinculada: se refresca el perfil con cada acceso
+  // para que el nombre real y la foto del dueño sigan al día en la sesión.
+  if (linked) await prisma.googleIdentity.update({ where: { subject: identity.sub }, data: { name: identity.name || null, picture: identity.picture || null } })
   const token = randomBytes(32).toString('hex')
   const expiresAt = new Date(Date.now() + 7 * 86400_000)
   await prisma.session.create({ data: { tenantId: tenant.id, level: 'COMPANY', tokenHash: hashToken(token), deviceId: `google:${randomBytes(16).toString('hex')}`, expiresAt } })
