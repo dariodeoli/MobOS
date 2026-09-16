@@ -15,7 +15,7 @@ function accountData(input: Record<string, unknown>, create: boolean) {
     data.currency = input.currency as PaymentCurrency
   }
   if (create || input.kind !== undefined) {
-    if (!['CASH', 'TRANSFER', 'CARD', 'TRADE_IN'].includes(input.kind as string)) throw new InputError('Tipo de cuenta inválido. CREDIT solo es un método legacy.')
+    if (!['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX'].includes(input.kind as string)) throw new InputError('Tipo de cuenta inválido. CREDIT solo es un método legacy.')
     data.kind = input.kind as PaymentAccountKind
   }
   if (input.isActive !== undefined) {

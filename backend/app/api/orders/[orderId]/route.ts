@@ -12,6 +12,8 @@ const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
   seller: { select: { id: true, name: true } },
 })
 
+const serialKey = (value: unknown) => typeof value === 'string' ? value.trim().toUpperCase().replace(/[\s-]+/g, '').replace(/^MOBOS:/i, '') : ''
+
 export async function GET(request: Request, context: { params: Promise<{ orderId: string }> }) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
@@ -27,10 +29,59 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
   try {
     const { orderId } = await context.params
     const body = objectInput(await request.json())
-    if (Object.keys(body).some(key => !['fulfillmentStatus', 'deliveryType', 'deliveryNotes'].includes(key))) throw new InputError('Solo se puede actualizar el estado y las notas de entrega.')
-    const existing = await prisma.order.findFirst({ where: { id: orderId, tenantId: tenant }, select: { id: true, sellerId: true, branchId: true, status: true, fulfillmentStatus: true } })
+    if (Object.keys(body).some(key => !['fulfillmentStatus', 'deliveryType', 'deliveryNotes', 'action', 'itemId', 'serials', 'billingName', 'billingDocument', 'notes'].includes(key))) throw new InputError('Campo no admitido al actualizar el pedido.')
+    const existing = await prisma.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: { items: true } })
     if (!existing || !canAccessOrder(session.user, existing)) return error('Pedido no encontrado.', 404)
     if (existing.status === 'CANCELLED') throw new InputError('Un pedido cancelado no admite cambios.', 409)
+
+    // ── Entregar equipos sobre pedido: agregar IMEI/seriales a una línea ──
+    if (body.action !== undefined) {
+      if (body.action !== 'attachSerials') throw new InputError('Acción de pedido inválida.')
+      const itemId = textInput(body.itemId, 'Línea de pedido', 200)
+      if (!itemId) throw new InputError('Indicá la línea del pedido.')
+      const serials = Array.isArray(body.serials) ? body.serials.map(serialKey).filter(Boolean) : []
+      if (!serials.length || serials.length > 100 || new Set(serials).size !== serials.length) throw new InputError('Indicá entre 1 y 100 IMEI/seriales distintos.')
+      const updated = await prisma.$transaction(async tx => {
+        const item = existing.items.find(row => row.id === itemId)
+        if (!item) throw new InputError('Línea no encontrada en el pedido.')
+        if (item.serialsPending < serials.length) throw new InputError(`La línea solo espera ${item.serialsPending} IMEI/serial(es) pendiente(s).`)
+        const existingSerials = new Set(existing.items.flatMap(row => (Array.isArray(row.serials) ? row.serials : [])))
+        if (serials.some(serial => existingSerials.has(serial))) throw new InputError('Ese IMEI/serial ya está en el pedido.')
+        for (const serial of serials) {
+          if (!item.productId) continue
+          const unit = await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial, productId: item.productId } })
+          if (unit) {
+            if (!['AVAILABLE', 'RESERVED'].includes(unit.status)) throw new InputError(`El IMEI ${serial} no está disponible para esta entrega.`, 409)
+            await tx.inventoryUnit.update({ where: { id: unit.id }, data: { status: 'SOLD', reservedUntil: null, reservationCustomer: null, reservedById: null } })
+            if (unit.status === 'AVAILABLE') await tx.product.updateMany({ where: { id: item.productId, tenantId: tenant, stock: { gte: 1 } }, data: { stock: { decrement: 1 } } })
+          } else {
+            // Sobre pedido entregado: la unidad no existía en stock; se crea
+            // directamente como vendida, sin mover existencias.
+            await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: item.productId, branchId: existing.branchId, serial, condition: 'NEW', status: 'SOLD' } })
+          }
+        }
+        const saved = await tx.orderItem.update({ where: { id: item.id }, data: { serials: [...(Array.isArray(item.serials) ? item.serials : []), ...serials], serialsPending: { decrement: serials.length } } })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_SERIALS_ATTACHED', entity: 'Order', entityId: existing.id, metadata: { itemId, serials } } })
+        return saved
+      })
+      const order = await prisma.order.findFirstOrThrow({ where: { id: orderId, tenantId: tenant }, include: orderInclude })
+      return json(order)
+    }
+
+    // ── Factura a otro titular y comentario ──
+    if (body.billingName !== undefined || body.billingDocument !== undefined || body.notes !== undefined) {
+      const billingName = body.billingName === undefined ? undefined : textInput(body.billingName, 'Titular de factura', 200)
+      const billingDocument = body.billingDocument === undefined ? undefined : textInput(body.billingDocument, 'RUC de factura', 100)
+      const notes = body.notes === undefined ? undefined : textInput(body.notes, 'Comentario', 2000)
+      if (billingName === undefined && billingDocument === undefined && notes === undefined) throw new InputError('Datos de factura inválidos.')
+      const order = await prisma.$transaction(async tx => {
+        const updated = await tx.order.update({ where: { id: existing.id }, data: { ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(notes === undefined ? {} : { notes }) }, include: orderInclude })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_BILLING_UPDATED', entity: 'Order', entityId: existing.id, metadata: { billingName: updated.billingName, hasDocument: Boolean(updated.billingDocument) } } })
+        return updated
+      })
+      return json(order)
+    }
+
     const fulfillmentStatus = body.fulfillmentStatus === undefined ? undefined : validateFulfillmentTransition(existing.fulfillmentStatus, body.fulfillmentStatus)
     const deliveryType = body.deliveryType === undefined ? undefined : textInput(body.deliveryType, 'Tipo de entrega', 100)
     const deliveryNotes = body.deliveryNotes === undefined ? undefined : textInput(body.deliveryNotes, 'Observaciones de entrega', 2000)

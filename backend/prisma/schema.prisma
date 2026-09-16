@@ -591,6 +591,11 @@ model Order {
   deliveryPyg       Int               @default(0)
   deliveryType      String?
   deliveryNotes     String?
+  // Factura a otro titular (esposo/a, padre, empresa): nombre y RUC.
+  billingName       String?
+  billingDocument   String?
+  // Comentario interno de la venta.
+  notes             String?
   totalPyg          Int
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -652,6 +657,10 @@ model OrderItem {
   // IMEI/seriales físicos vendidos por esta línea. El producto sigue siendo
   // un modelo único; la trazabilidad queda en cada unidad seleccionada.
   serials              Json           @default("[]")
+  // Equipos vendidos sobre pedido sin IMEI: se completan al entregar.
+  serialsPending       Int            @default(0)
+  // La línea se vendió sin costo conocido: falta cargar el costo del producto.
+  costPending          Boolean        @default(false)
 
   @@index([orderId])
 }
@@ -763,6 +772,7 @@ enum PaymentMethod {
   CARD
   CREDIT
   TRADE_IN
+  PIX
 }
 
 enum PaymentCurrency {
@@ -778,6 +788,7 @@ enum PaymentAccountKind {
   TRANSFER
   CARD
   TRADE_IN
+  PIX
 }
 
 enum ProductDestination {

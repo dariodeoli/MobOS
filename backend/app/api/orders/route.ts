@@ -89,6 +89,17 @@ export async function POST(request: Request) {
       ...(document === undefined ? {} : { document }), addresses }
   }
   if (!items.length) return error('Productos son obligatorios.')
+  // Factura a otro titular: el cliente compra pero la factura sale a nombre
+  // de otra persona o empresa (esposo/a, padre, RUC de la empresa, etc.).
+  let billingName: string | undefined; let billingDocument: string | undefined
+  if (body.billingTo !== undefined) {
+    const input = objectInput(body.billingTo)
+    if (Object.keys(input).some(key => !['name', 'document'].includes(key))) throw new InputError('billingTo contiene campos no admitidos.')
+    billingName = input.name === undefined || input.name === '' ? undefined : textInput(input.name, 'Titular de factura', 200)
+    billingDocument = input.document === undefined || input.document === '' ? undefined : textInput(input.document, 'RUC de factura', 100)
+    if (!billingName && !billingDocument) throw new InputError('El titular de factura necesita nombre o RUC.')
+  }
+  const orderNotes = body.notes === undefined || body.notes === null || body.notes === '' ? null : textInput(body.notes, 'Comentario', 2000)
   const discount = body.discountPyg ?? 0; const delivery = body.deliveryPyg ?? 0
   if (!safeInt(discount) || !safeInt(delivery)) return error('Descuento y delivery inválidos.')
   if (discount > 0 && !canApproveOrderDiscount(session.user)) throw new InputError('Tu rol no puede aprobar descuentos. Solicitá autorización a gerencia.', 403)
@@ -124,7 +135,7 @@ export async function POST(request: Request) {
           customerId = created.id
         }
       }
-      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; totalPyg: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; promotionSnapshot?: any }> = []
+      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; totalPyg: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()
       for (const item of items) {
@@ -137,7 +148,7 @@ export async function POST(request: Request) {
         serials.forEach(serial => serialsInOrder.add(serial))
         const promotion = item.couponCode === undefined ? undefined : await quotePromotion(tx, tenant, branchId, { ...item, quantity }, true)
         if (promotion && price !== promotion.unitPricePyg) throw new InputError('El precio del cupón cambió o fue alterado. Volvé a aplicarlo.', 409)
-        let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let insurancePyg = 0; let extraCostPyg = 0
+        let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let insurancePyg = 0; let extraCostPyg = 0; let costPending = false; let serialsPending = 0
         const soldWithoutInsurance = item.soldWithoutInsurance === true
         if (item.soldWithoutInsurance !== undefined && typeof item.soldWithoutInsurance !== 'boolean') throw new InputError('"Vendido sin seguro" debe ser verdadero o falso.')
         if (item.extraCostPyg !== undefined) {
@@ -158,9 +169,20 @@ export async function POST(request: Request) {
           }
           const combinedCost = (baseUnitCostPyg ?? 0) + insurancePyg + extraCostPyg
           if ((baseUnitCostPyg !== undefined || insurancePyg > 0 || extraCostPyg > 0) && safeInt(combinedCost)) unitCostPyg = combinedCost
+          costPending = baseUnitCostPyg === undefined && insurancePyg === 0 && extraCostPyg === 0
           const trackedUnitCount = await tx.inventoryUnit.count({ where: { tenantId: tenant, productId: product.id } })
-          if (trackedUnitCount > 0 && serials.length !== quantity) throw new InputError('Seleccioná el IMEI/serial exacto de cada equipo antes de vender.')
           if (trackedUnitCount === 0 && serials.length) throw new InputError('Este producto no tiene unidades serializadas en stock.')
+          if (serials.length !== quantity) {
+            if (trackedUnitCount === 0) {
+              // Producto sin unidades serializadas: se vende por cantidad, sin IMEI.
+            } else {
+              // Venta sobre pedido: sin stock disponible, el cliente reserva y
+              // el IMEI se completa al entregar.
+              const available = await tx.inventoryUnit.count({ where: { tenantId: tenant, productId: product.id, status: 'AVAILABLE' } })
+              if (available > 0) throw new InputError('Seleccioná el IMEI/serial exacto de cada equipo antes de vender.')
+              serialsPending = quantity - serials.length
+            }
+          }
           if (serials.length) {
             const now = new Date()
             await tx.inventoryUnit.updateMany({ where: { tenantId: tenant, productId: product.id, status: 'RESERVED', reservedUntil: { lte: now } }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservedById: null } })
@@ -170,12 +192,17 @@ export async function POST(request: Request) {
             if (changed.count !== units.length) throw new InputError('Uno o más IMEI/seriales cambiaron de estado. Intentá de nuevo.', 409)
             soldUnits.push(...units.map(unit => ({ ...unit, productId: product.id })))
           }
-          const updated = await tx.product.updateMany({ where: { id: product.id, tenantId: tenant, isActive: true, ...(branchId ? { OR: [{ branchId }, { branchId: null }] } : { branchId: null }), stock: { gte: quantity } }, data: { stock: { decrement: quantity } } })
-          if (!updated.count) throw new Error('Stock insuficiente o producto fuera de la sucursal.')
+          // Solo los equipos realmente entregados descuentan stock; el tramo
+          // "sobre pedido" no tiene existencia física que descontar.
+          const decrementBy = quantity - serialsPending
+          if (decrementBy > 0) {
+            const updated = await tx.product.updateMany({ where: { id: product.id, tenantId: tenant, isActive: true, ...(branchId ? { OR: [{ branchId }, { branchId: null }] } : { branchId: null }), stock: { gte: decrementBy } }, data: { stock: { decrement: decrementBy } } })
+            if (!updated.count) throw new Error('Stock insuficiente o producto fuera de la sucursal.')
+          }
         }
         const line = quantity * price; subtotal += line
         if (!Number.isSafeInteger(subtotal)) throw new Error('Total fuera de rango seguro.')
-        normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, totalPyg: line, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
+        normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, totalPyg: line, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
       }
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery
@@ -188,7 +215,7 @@ export async function POST(request: Request) {
         const amount = normalizedPayment.amountPyg; const status = normalizedPayment.status
         if (status === 'CONFIRMED') { confirmed += amount; if (!Number.isSafeInteger(confirmed) || confirmed > total) throw new Error('Los pagos superan el total.') }
       }
-      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber: typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : `MOB-${Date.now()}${Math.random().toString(36).slice(2, 6).padEnd(4, '0')}`, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber: typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : `MOB-${Date.now()}${Math.random().toString(36).slice(2, 6).padEnd(4, '0')}`, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
       if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
       if (soldUnits.length) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNITS_SOLD', entity: 'Order', entityId: order.id, metadata: { serials: soldUnits.map(unit => unit.serial), productIds: [...new Set(soldUnits.map(unit => unit.productId))] } } })
       for (const { tradeIn, ...paymentData } of normalizedPayments) {
