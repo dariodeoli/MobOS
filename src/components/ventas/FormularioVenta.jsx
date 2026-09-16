@@ -194,6 +194,11 @@ export default function FormularioVenta({
   // Sobre pedido: vender un modelo guardado sin IMEI cuando no hay stock
   // disponible; el IMEI se completa al entregar.
   const [sobrePedido, setSobrePedido] = useState(false)
+  // Precio mayorista aplicado al producto seleccionado (cliente WHOLESALE).
+  const [precioMayorista, setPrecioMayorista] = useState(false)
+  // Venta a crédito: plazo en días y límite del cliente.
+  const [venderACredito, setVenderACredito] = useState(false)
+  const [creditoDias, setCreditoDias] = useState('')
   // Factura a otro titular (esposo/a, padre, empresa) con RUC.
   const [billingTo, setBillingTo] = useState({ name: '', document: '' })
   const [lastOrder, setLastOrder] = useState(null)
@@ -360,8 +365,17 @@ export default function FormularioVenta({
   function quitarItem(key) {
     setItems(arr => arr.filter(x => x.key !== key))
   }
+  function editarDescuento(key, patch) {
+    setItems(arr => arr.map(x => (x.key === key ? { ...x, ...patch } : x)))
+  }
+  // Descuento por línea: porcentual si hay %, si no el fijo en guaraníes.
+  const descuentoItem = it => {
+    const pct = Number(it.descuentoPct || 0)
+    if (pct > 0) return Math.round((it.precio * (it.quantity || 1) * pct) / 100)
+    return Math.min(gsNum(it.descuento || 0), it.precio * (it.quantity || 1))
+  }
 
-  const totalCarrito = items.reduce((a, it) => a + it.precio * (it.quantity || 1), 0)
+  const totalCarrito = items.reduce((a, it) => a + it.precio * (it.quantity || 1) - descuentoItem(it), 0)
   const tieneCupon = Boolean(f.couponCode || items.some(it => it.couponCode))
   const precioActual = f.productoId && gsNum(f.precio) > 0 ? gsNum(f.precio) : 0
   const subtotal = totalCarrito + precioActual
@@ -444,16 +458,19 @@ export default function FormularioVenta({
   }
 
   function aplicarProducto(p) {
+    // Cliente mayorista: el precio se precarga desde wholesalePricePyg.
+    const mayorista = customer?.pricingTier === 'WHOLESALE' && Number(p.wholesalePricePyg) > 0
     setF(s => ({
       ...s,
       productoId: p.id,
-      precio: p && p.precioVenta > 0 ? String(p.precioVenta) : '',
+      precio: mayorista ? String(p.wholesalePricePyg) : p && p.precioVenta > 0 ? String(p.precioVenta) : '',
       couponCode: null,
       soldWithoutInsurance: false,
       serials: [],
     }))
     setSerialRequired(false)
     setSobrePedido(false)
+    setPrecioMayorista(mayorista)
   }
 
   function elegirProducto(e) {
@@ -543,15 +560,20 @@ export default function FormularioVenta({
       totalPagado > totalGeneral
     )
       return
-    const orderItems = lista.map(it => ({
-      productId: it.productoId,
-      description: nombreDe(it.productoId),
-      quantity: it.quantity || 1,
-      unitPricePyg: it.precio,
-      soldWithoutInsurance: Boolean(it.soldWithoutInsurance),
-      ...(it.serials?.length ? { inventoryUnitSerials: it.serials } : {}),
-      ...(it.couponCode ? { couponCode: it.couponCode } : {}),
-    }))
+    const orderItems = lista.map(it => {
+      const pct = Number(it.descuentoPct || 0)
+      const fijo = gsNum(it.descuento || 0)
+      return {
+        productId: it.productoId,
+        description: nombreDe(it.productoId),
+        quantity: it.quantity || 1,
+        unitPricePyg: it.precio,
+        soldWithoutInsurance: Boolean(it.soldWithoutInsurance),
+        ...(it.serials?.length ? { inventoryUnitSerials: it.serials } : {}),
+        ...(it.couponCode ? { couponCode: it.couponCode } : {}),
+        ...(pct > 0 ? { discountPct: pct } : fijo > 0 ? { discountPyg: fijo } : {}),
+      }
+    })
     // El demo registra una venta por unidad: las filas con cantidad > 1 se
     // expanden para que descuento, pagos y stock se repartan por unidad.
     const listaDemo = esDemo
@@ -570,6 +592,10 @@ export default function FormularioVenta({
         throw new Error(MENSAJE_TELEFONO)
       if (!puedeDescontar && gsNum(descuento) > 0)
         throw new Error('Solo administradores y gerentes pueden aplicar descuentos.')
+      if (!puedeDescontar && items.some(it => descuentoItem(it) > 0))
+        throw new Error('Solo administradores y gerentes pueden aplicar descuentos por línea.')
+      if (venderACredito && Number(customer.creditLimitPyg || 0) <= 0)
+        throw new Error('El cliente no tiene límite de crédito habilitado. Configuralo en Clientes.')
       if (esDemo) validateDemoPromotionItems(orderItems, productos, gsNum(descuento))
       if (!cuentas || errorCuentas)
         throw new Error(errorCuentas || 'Esperá a que terminen de cargar las cuentas.')
@@ -692,6 +718,8 @@ export default function FormularioVenta({
                   },
                 }
               : {}),
+            // Venta a crédito: plazo en días; el vencimiento lo calcula el backend.
+            ...(venderACredito ? { creditDays: Number(creditoDias) || 0 } : {}),
           },
           { idempotencyKey: idempotencyKeyRef.current },
         )
@@ -1218,6 +1246,11 @@ export default function FormularioVenta({
               }
             />
           )}
+          {precioMayorista && (
+            <p className="md:col-span-2 -mt-2 rounded-lg border border-fono/25 bg-fono/5 px-3 py-1.5 text-xs font-semibold text-fono-light">
+              Precio mayorista aplicado ({customer?.name || 'cliente mayorista'}). Ajustalo si hace falta.
+            </p>
+          )}
           {f.productoId && !esDemo && (
             <div className="md:col-span-2">
               <SerialUnitPicker
@@ -1284,37 +1317,63 @@ export default function FormularioVenta({
           {!ocultarCarrito && items.length > 0 && (
             <div className="md:col-span-2 rounded-xl border border-ink-600 divide-y divide-ink-600">
               {items.map(it => (
-                <div key={it.key} className="flex items-center justify-between gap-2 px-3 py-1.5">
-                  <span className="text-sm font-medium truncate">
-                    {it.nombre}
-                    {(it.quantity || 1) > 1 && (
-                      <small className="ml-2 text-fono-light">×{it.quantity}</small>
-                    )}
-                    {it.serials?.length > 0 && (
-                      <small className="ml-2 text-fono-light">
-                        IMEI ••••{it.serials[0].slice(-4)}
-                      </small>
-                    )}
-                    {it.couponCode && (
-                      <small className="ml-2 text-fono-light">Cupón {it.couponCode}</small>
-                    )}
-                    {it.soldWithoutInsurance && (
-                      <small className="ml-2 text-warn">Sin seguro</small>
-                    )}
-                  </span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm font-bold text-fono">
-                      {gs(it.precio * (it.quantity || 1))}
+                <div key={it.key} className="px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium truncate">
+                      {it.nombre}
+                      {(it.quantity || 1) > 1 && (
+                        <small className="ml-2 text-fono-light">×{it.quantity}</small>
+                      )}
+                      {it.serials?.length > 0 && (
+                        <small className="ml-2 text-fono-light">
+                          IMEI ••••{it.serials[0].slice(-4)}
+                        </small>
+                      )}
+                      {it.couponCode && (
+                        <small className="ml-2 text-fono-light">Cupón {it.couponCode}</small>
+                      )}
+                      {it.soldWithoutInsurance && (
+                        <small className="ml-2 text-warn">Sin seguro</small>
+                      )}
+                      {it.sobrePedido && (
+                        <small className="ml-2 text-warn">Sobre pedido</small>
+                      )}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => quitarItem(it.key)}
-                      className="text-mute hover:text-bad"
-                      title="Quitar"
-                    >
-                      <Icon name="trash" className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-sm font-bold text-fono">
+                        {descuentoItem(it) > 0 && <small className="mr-1 text-warn">−{gs(descuentoItem(it))}</small>}
+                        {gs(it.precio * (it.quantity || 1) - descuentoItem(it))}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => quitarItem(it.key)}
+                        className="text-mute hover:text-bad"
+                        title="Quitar"
+                      >
+                        <Icon name="trash" className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
+                  {puedeDescontar && (
+                    <div className="mt-1.5 flex items-center gap-2 text-[11px] text-mute">
+                      <span>Descuento línea:</span>
+                      <input
+                        aria-label={`Descuento % de ${it.nombre}`}
+                        inputMode="decimal"
+                        value={it.descuentoPct || ''}
+                        onChange={e => editarDescuento(it.key, { descuentoPct: e.target.value.replace(/[^\d.,]/g, ''), descuento: '' })}
+                        placeholder="%"
+                        className="w-14 rounded-lg border border-ink-500 bg-ink-800 px-2 py-1 text-xs text-fore"
+                      />
+                      <MoneyInput
+                        aria-label={`Descuento fijo de ${it.nombre}`}
+                        value={it.descuento || ''}
+                        onValueChange={v => editarDescuento(it.key, { descuento: v === '' ? '' : String(v), descuentoPct: '' })}
+                        placeholder="Gs 0"
+                        className="w-36"
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
               <div className="flex items-center justify-between px-3 py-1.5 bg-ink-700">
@@ -1368,6 +1427,22 @@ export default function FormularioVenta({
         </div>
 
         <div className={paso === 3 ? 'contents' : 'hidden'}>
+          {/* Venta a crédito con control de mora */}
+          {Number(customer.creditLimitPyg || 0) > 0 && (
+            <div className="rounded-2xl border border-fono/25 bg-fono/5 p-4 md:col-span-2">
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" className="mt-0.5 h-4 w-4 accent-fono" checked={venderACredito} onChange={e => setVenderACredito(e.target.checked)} />
+                <span>Vender a crédito — límite {gs(Number(customer.creditLimitPyg))}{customer.creditDays ? ` · plazo estándar ${customer.creditDays} días` : ''}</span>
+              </label>
+              {venderACredito && (
+                <div className="mt-3 flex items-center gap-2">
+                  <Label>Plazo en días</Label>
+                  <Input aria-label="Días de crédito" inputMode="numeric" className="w-24" value={creditoDias} onChange={e => setCreditoDias(e.target.value.replace(/\D/g, ''))} placeholder={String(customer.creditDays ?? 30)} />
+                  <p className="text-xs text-mute">Vence {new Date(Date.now() + (Number(creditoDias) || Number(customer.creditDays) || 0) * 86400000).toLocaleDateString('es-PY')}. Podés igualmente registrar un adelanto abajo.</p>
+                </div>
+              )}
+            </div>
+          )}
           {/* Medio de pago */}
           {cuentas?.length === 0 && (
             <div>

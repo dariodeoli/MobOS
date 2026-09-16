@@ -5,11 +5,10 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character 
 
 export const trackingUrlFor = (order) => {
   if (!order?.publicToken) return ''
-  const apiOrigin = String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
-  // Puede apuntarse a una página pública branded cuando exista; mientras, el
-  // endpoint público ya entrega solo el estado seguro del pedido.
-  const publicBase = String(import.meta.env.VITE_PUBLIC_TRACKING_URL || apiOrigin).replace(/\/$/, '')
-  return publicBase ? `${publicBase}/api/orders/public/${encodeURIComponent(order.publicToken)}` : ''
+  const configured = String(import.meta.env.VITE_PUBLIC_TRACKING_URL || '').replace(/\/$/, '')
+  // El QR del comprobante abre la página pública del pedido (estado + garantías).
+  const base = configured || (typeof window !== 'undefined' ? window.location.origin : '')
+  return base ? `${base}/pedido/${encodeURIComponent(order.publicToken)}` : ''
 }
 
 export async function printOrderReceipt(order, { format = 'a4' } = {}) {

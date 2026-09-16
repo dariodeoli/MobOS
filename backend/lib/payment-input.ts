@@ -23,12 +23,13 @@ type NormalizedPayment = {
   method: PaymentMethod; status: PaymentStatus; amountPyg: number; reference: string | null;
   accountId?: string; accountSnapshot?: Prisma.InputJsonObject; currency?: 'PYG' | 'USD' | 'BRL' | 'EUR' | 'USDT';
   originalAmount?: Prisma.Decimal; exchangeRatePyg?: Prisma.Decimal;
+  settlesAt?: Date;
   tradeIn?: TradeInInput;
 }
 export function accountSnapshot(account: PaymentAccount): Prisma.InputJsonObject {
   return { id: account.id, tenantId: account.tenantId, name: account.name, bank: account.bank, holder: account.holder,
     accountNumber: account.accountNumber, currency: account.currency, kind: account.kind, isActive: account.isActive,
-    feePercent: account.feePercent.toString() }
+    feePercent: account.feePercent.toString(), settlementDays: account.settlementDays }
 }
 
 // On an idempotent replay, use the immutable snapshot: later account edits must not change the original operation.
@@ -67,6 +68,12 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
     const amountPyg = Number(input.amountPyg)
     if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > INT_MAX || !['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'TRADE_IN', 'PIX'].includes(input.method as string)) throw new InputError('Monto entero positivo y método válido son obligatorios.')
     result = { amountPyg, method: input.method as PaymentMethod, status: status as PaymentStatus, reference }
+  }
+  // Previsión de acreditación: medios con settlementDays (tarjeta, PIX) tienen
+  // fecha estimada de ingreso a la cuenta de la empresa.
+  const snapshotDays = result.accountSnapshot && typeof result.accountSnapshot === 'object' && 'settlementDays' in (result.accountSnapshot as Record<string, unknown>) ? Number((result.accountSnapshot as Record<string, unknown>).settlementDays) : 0
+  if (result.status === 'CONFIRMED' && Number.isSafeInteger(snapshotDays) && snapshotDays > 0) {
+    result.settlesAt = new Date(Date.now() + snapshotDays * 86400000)
   }
   if (result.method === 'TRADE_IN') {
     if (result.status !== 'CONFIRMED') throw new InputError('La recepción trade-in requiere pago CONFIRMED.')

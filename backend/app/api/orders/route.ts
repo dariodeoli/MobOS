@@ -135,7 +135,7 @@ export async function POST(request: Request) {
           customerId = created.id
         }
       }
-      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; totalPyg: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
+      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()
       for (const item of items) {
@@ -200,13 +200,35 @@ export async function POST(request: Request) {
             if (!updated.count) throw new Error('Stock insuficiente o producto fuera de la sucursal.')
           }
         }
-        const line = quantity * price; subtotal += line
+        const line = quantity * price
+        // Descuento por línea: fijo en guaraníes o porcentual (nunca ambos).
+        const discountPyg = item.discountPyg === undefined || item.discountPyg === '' || item.discountPyg === null ? 0 : Number(item.discountPyg)
+        if (!safeInt(discountPyg)) throw new InputError('Descuento fijo de línea inválido.')
+        const discountPct = item.discountPct === undefined || item.discountPct === '' || item.discountPct === null ? undefined : Number(item.discountPct)
+        if (discountPct !== undefined && (!Number.isFinite(discountPct) || discountPct < 0 || discountPct > 100)) throw new InputError('Porcentaje de descuento de línea inválido.')
+        if (discountPyg > 0 && discountPct !== undefined) throw new InputError('Usá descuento fijo o porcentual por línea, no ambos.')
+        const lineDiscount = discountPyg > 0 ? discountPyg : discountPct !== undefined && discountPct > 0 ? Math.round((line * discountPct) / 100) : 0
+        if (lineDiscount > line) throw new InputError('El descuento no puede superar el precio de la línea.')
+        const lineTotal = line - lineDiscount
+        subtotal += lineTotal
         if (!Number.isSafeInteger(subtotal)) throw new Error('Total fuera de rango seguro.')
-        normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, totalPyg: line, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
+        normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
       }
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery
       if (!safeInt(subtotal) || !safeInt(total)) throw new Error('Total inválido.')
+      // Venta a crédito: plazo y límite del cliente (control de mora).
+      let dueAt: Date | null = null; let creditDays: number | null = null; let creditLimit: number | null = null
+      if (body.creditDays !== undefined || body.dueAt !== undefined) {
+        const customerRow = customerId ? await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { creditLimitPyg: true, creditDays: true } }) : null
+        if (!customerRow?.creditLimitPyg) throw new InputError('El cliente no tiene límite de crédito habilitado. Configuralo en Clientes.')
+        creditLimit = customerRow.creditLimitPyg
+        const requestedDays = body.creditDays !== undefined ? Number(body.creditDays) : (customerRow.creditDays ?? undefined)
+        if (requestedDays !== undefined && (!safeInt(requestedDays) || requestedDays > 365)) throw new InputError('El plazo de crédito debe estar entre 0 y 365 días.')
+        creditDays = requestedDays ?? null
+        dueAt = body.dueAt !== undefined && typeof body.dueAt === 'string' && body.dueAt.trim() ? new Date(body.dueAt.trim()) : new Date(Date.now() + (requestedDays ?? 0) * 86400000)
+        if (Number.isNaN(dueAt.getTime())) throw new InputError('Vencimiento de crédito inválido.')
+      }
       let confirmed = 0
       const normalizedPayments = []
       for (const payment of payments) {
@@ -215,7 +237,17 @@ export async function POST(request: Request) {
         const amount = normalizedPayment.amountPyg; const status = normalizedPayment.status
         if (status === 'CONFIRMED') { confirmed += amount; if (!Number.isSafeInteger(confirmed) || confirmed > total) throw new Error('Los pagos superan el total.') }
       }
-      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber: typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : `MOB-${Date.now()}${Math.random().toString(36).slice(2, 6).padEnd(4, '0')}`, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      // Límite de crédito: pendiente histórico + lo nuevo a crédito ≤ límite.
+      if (creditLimit !== null && customerId) {
+        const outstanding = await tx.$queryRaw<Array<{ total: bigint }>>`
+          SELECT COALESCE(SUM(o."totalPyg" - COALESCE(p.confirmed, 0)), 0)::bigint AS total
+          FROM "Order" o
+          LEFT JOIN (SELECT "orderId", SUM("amountPyg") AS confirmed FROM "Payment" WHERE "tenantId" = ${tenant} AND status = 'CONFIRMED' GROUP BY "orderId") p ON p."orderId" = o."id"
+          WHERE o."tenantId" = ${tenant} AND o."customerId" = ${customerId} AND o."status" = 'PENDING'`
+        const pendingTotal = Number(outstanding[0]?.total || 0n)
+        if (!Number.isSafeInteger(pendingTotal) || pendingTotal + (total - confirmed) > creditLimit) throw new InputError('Supera el límite de crédito del cliente.', 409)
+      }
+      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber: typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : `MOB-${Date.now()}${Math.random().toString(36).slice(2, 6).padEnd(4, '0')}`, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
       if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
       if (soldUnits.length) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNITS_SOLD', entity: 'Order', entityId: order.id, metadata: { serials: soldUnits.map(unit => unit.serial), productIds: [...new Set(soldUnits.map(unit => unit.productId))] } } })
       for (const { tradeIn, ...paymentData } of normalizedPayments) {

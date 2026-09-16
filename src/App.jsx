@@ -12,6 +12,8 @@ import { applyPageMetadata } from '@/lib/seo'
 import Landing from '@/pages/Landing'
 import DemoAccess from '@/pages/DemoAccess'
 import Status from '@/pages/Status'
+import PedidoPublico from '@/pages/PedidoPublico'
+import GarantiaPublica from '@/pages/GarantiaPublica'
 import RecuperarContrasena from '@/pages/RecuperarContrasena'
 import AceptarInvitacion from '@/pages/AceptarInvitacion'
 import VerificarCorreo from '@/pages/VerificarCorreo'
@@ -151,6 +153,8 @@ export default function App() {
           <Route path="/restablecer-contrasena" element={<RecuperarContrasena />} />
           <Route path="/aceptar-invitacion" element={<AceptarInvitacion />} />
           <Route path="/verificar-correo" element={<VerificarCorreo />} />
+          <Route path="/pedido/:token" element={<PedidoPublico />} />
+          <Route path="/garantia/:token" element={<GarantiaPublica />} />
           <Route
             path="/"
             element={

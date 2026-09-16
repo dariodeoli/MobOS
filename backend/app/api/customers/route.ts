@@ -44,6 +44,11 @@ export async function POST(request: Request) {
     const phone = clean(body.phone, 100) || null
     const countryCode = typeof body.countryCode === 'string' && /^\+\d{1,4}$/.test(body.countryCode) ? body.countryCode : '+595'
     const tags = Array.isArray(body.tags) ? body.tags.map((tag) => clean(tag, 50)).filter(Boolean).slice(0, 20) : []
+    const pricingTier: 'RETAIL' | 'WHOLESALE' = body.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL'
+    const creditLimitPyg = body.creditLimitPyg === undefined || body.creditLimitPyg === '' || body.creditLimitPyg === null ? undefined : Number(body.creditLimitPyg)
+    if (creditLimitPyg !== undefined && (!Number.isSafeInteger(creditLimitPyg) || creditLimitPyg < 0 || creditLimitPyg > 2147483647)) return error('Límite de crédito inválido.')
+    const creditDays = body.creditDays === undefined || body.creditDays === '' || body.creditDays === null ? undefined : Number(body.creditDays)
+    if (creditDays !== undefined && (!Number.isSafeInteger(creditDays) || creditDays < 0 || creditDays > 365)) return error('Plazo de crédito inválido (0 a 365 días).')
     const fields = {
       name, phone, countryCode, email: clean(body.email, 200) || null, document,
       notes: clean(body.notes, 2000) || null,
@@ -53,6 +58,9 @@ export async function POST(request: Request) {
       acceptsWhatsappMarketing: body.acceptsWhatsappMarketing === true,
       taxExempt: body.taxExempt === true,
       tags,
+      pricingTier,
+      ...(creditLimitPyg !== undefined ? { creditLimitPyg } : {}),
+      ...(creditDays !== undefined ? { creditDays } : {}),
     }
     const addresses = addressesInput(body.addresses)
     const existing = document
