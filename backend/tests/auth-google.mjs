@@ -47,12 +47,12 @@ try {
   assert.equal(identityConfig.MOBOS_IDENTITY.faviconType, 'image/x-icon'); checks++
   assert.equal(identityConfig.MOBOS_IDENTITY_HEADERS.Link, '</favicon.ico>; rel="icon"; type="image/x-icon"'); checks++
   assert.deepEqual(readFileSync(join(backend, 'app/favicon.ico')), readFileSync(join(dirname(backend), 'public/favicon.ico'))); checks++
-  const canonicalCors = middleware(new Request('https://api.moboss.online/api/health', { method: 'OPTIONS', headers: { Origin: 'https://app.moboss.online' } }))
+  const canonicalCors = await middleware(new Request('https://api.moboss.online/api/health', { method: 'OPTIONS', headers: { Origin: 'https://app.moboss.online' } }))
   assert.equal(canonicalCors.headers.get('access-control-allow-origin'), 'https://app.moboss.online'); checks++
   assert.equal(canonicalCors.headers.get('link'), identityConfig.MOBOS_IDENTITY_HEADERS.Link); checks++
-  const legacyCors = middleware(new Request('https://api.moboss.online/api/health', { method: 'OPTIONS', headers: { Origin: 'https://app.controlaria.online' } }))
+  const legacyCors = await middleware(new Request('https://api.moboss.online/api/health', { method: 'OPTIONS', headers: { Origin: 'https://app.controlaria.online' } }))
   assert.equal(legacyCors.headers.get('access-control-allow-origin'), null); checks++
-  const legacyApi = middleware(new Request('https://api.controlaria.online/api/health', { headers: { Host: 'api.controlaria.online' } }))
+  const legacyApi = await middleware(new Request('https://api.controlaria.online/api/health', { headers: { Host: 'api.controlaria.online' } }))
   assert.equal(legacyApi.status, 308); checks++
   assert.equal(legacyApi.headers.get('location'), 'https://api.moboss.online/api/health'); checks++
   process.env.NODE_ENV = 'production'
