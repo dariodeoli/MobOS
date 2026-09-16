@@ -24,12 +24,26 @@ function addressesInput(value: unknown) {
   return addresses.map((address, index) => ({ ...address, isDefault: address.isDefault || (index === 0 && !addresses.some(item => item.isDefault)) }))
 }
 
+function esMayorista(customer: { name: string; tags?: string[] }) {
+  const tags = Array.isArray(customer.tags) ? customer.tags : []
+  return tags.some((tag) => tag.toLowerCase().includes('mayorista')) || customer.name.toLowerCase().includes('mayorista')
+}
+
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   const q = new URL(request.url).searchParams.get('q') || ''
   const data = await prisma.customer.findMany({ where: { tenantId: tenant, ...(q ? { OR: [{ name: { contains: q, mode: 'insensitive' } }, { phone: { contains: q } }, { document: { contains: q } }] } : {}) }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } }, orderBy: { createdAt: 'desc' }, take: 50 })
-  return json(data)
+  const ids = data.map((customer) => customer.id)
+  const stats = await prisma.order.groupBy({
+    by: ['customerId'],
+    where: { tenantId: tenant, customerId: { in: ids }, status: { not: 'CANCELLED' } },
+    _count: { _all: true },
+    _sum: { totalPyg: true },
+    _max: { createdAt: true },
+  })
+  const statsPorCliente = new Map(stats.map((fila) => [fila.customerId, { orders: fila._count._all, totalSpentPyg: fila._sum.totalPyg ?? 0, lastOrderAt: fila._max.createdAt }]))
+  return json(data.map((customer) => ({ ...customer, wholesale: esMayorista(customer), stats: statsPorCliente.get(customer.id) || { orders: 0, totalSpentPyg: 0, lastOrderAt: null } })))
 }
 
 export async function POST(request: Request) {
