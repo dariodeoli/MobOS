@@ -66,7 +66,10 @@ async function testHttp([base, admin, seller, company, otherSeller]) {
   saved = (await customers()).find(c => c.id === first.customerId)
   const parallel = await Promise.all([0, 1, 2].map(i => order({ customer: { name: i % 2 ? `${prefix} Concurrent`.toLowerCase() : `${prefix} Concurrent` }, items: [{ description: 'Service', quantity: 1, unitPricePyg: 100 }] })))
   assert.equal(new Set(parallel.map(o => o.customerId)).size, 1)
-  assert.deepEqual((await customers()).find(c => c.id === saved.id), saved)
+  // Las métricas agregadas (stats/wholesale) del listado cambian con cada
+  // pedido nuevo: se comparan las columnas estables de la ficha.
+  const fichaEstable = (fila) => { const { stats, wholesale, ...resto } = fila; return resto }
+  assert.deepEqual(fichaEstable((await customers()).find(c => c.id === saved.id)), fichaEstable(saved))
   assert.ok((await customers()).every(c => c.tenantId === saved.tenantId))
   console.log(`Checkout customer HTTP: ${checks} checks OK (atomicity, concurrency, customer selection and isolation).`)
 }

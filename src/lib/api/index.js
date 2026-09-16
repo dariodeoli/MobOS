@@ -14,7 +14,7 @@ export const resources = {
   stockLocations: { list: (branchId = '') => api.get(`/api/stock-locations${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''}`), create: data => api.post('/api/stock-locations', data), update: data => api.patch('/api/stock-locations', data) },
   sharedStock: { list: () => api.get('/api/shared-stock'), mine: () => api.get('/api/shared-stock?mine=true'), setGrant: data => api.post('/api/shared-stock', data) },
   tenants: { search: (q = '') => api.get(`/api/tenants?q=${encodeURIComponent(q)}`) },
-  transfers: { list: () => api.get('/api/transfers'), create: data => api.post('/api/transfers', data) },
+  transfers: { list: () => api.get('/api/transfers'), create: data => api.post('/api/transfers', data), update: data => api.patch('/api/transfers', data) },
   orders: { list: () => api.get('/api/orders'), create: data => api.post('/api/orders', data), get: id => api.get(`/api/orders/${encodeURIComponent(id)}`), updateDelivery: (id, data) => api.patch(`/api/orders/${encodeURIComponent(id)}`, data) },
   payments: { create: data => api.post('/api/payments', data) },
   users: { list: () => api.get('/api/users'), create: data => api.post('/api/users', data) },

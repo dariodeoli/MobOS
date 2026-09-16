@@ -8,8 +8,7 @@ const serialKey = (value: string) => value.trim().toUpperCase().replace(/[\s-]+/
 
 function permitted(role: string) { return role === 'ADMIN' || role === 'GERENTE' }
 
-export async function GET(request: Request) {
-  const tenant = await tenantId(request); const session = await requireSession(request)
+export async function GET(request: Request) {  const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!permitted(session.user.role)) return error('No autorizado.', 403)
   const where = session.user.role === 'GERENTE' && session.user.branchId
@@ -93,4 +92,25 @@ export async function POST(request: Request) {
     })
     return json(transfer, { status: 201 })
   } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo completar la transferencia.', 409) }
+}
+
+// Adjunta la guía de envío AEX a un traslado ya registrado (se conoce recién
+// al despachar). Solo ADMIN/GERENTE de la empresa, gerente desde su sucursal.
+export async function PATCH(request: Request) {
+  const tenant = await tenantId(request); const session = await requireSession(request)
+  if (!tenant || !session) return error('Falta sesión.', 401)
+  if (!permitted(session.user.role)) return error('No autorizado.', 403)
+  let body: any
+  try { body = await request.json() } catch { return error('JSON inválido.') }
+  const id = text(body?.id, 128)
+  if (!id || (body?.aexGuide !== null && body?.aexGuide !== '' && !text(body?.aexGuide, 100))) return error('Indicá el traslado y una guía válida de hasta 100 caracteres.')
+  const aexGuide = body.aexGuide === null || body.aexGuide === '' ? null : text(body.aexGuide, 100)
+  try {
+    const transfer = await prisma.stockTransfer.findFirst({ where: { id, tenantId: tenant } })
+    if (!transfer) return error('Traslado no encontrado.', 404)
+    if (session.user.role === 'GERENTE' && session.user.branchId !== transfer.sourceBranchId) return error('Solo podés editar traslados de tu sucursal.', 403)
+    const updated = await prisma.stockTransfer.update({ where: { id }, data: { aexGuide } })
+    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'TRANSFER_AEX_GUIDE_ATTACHED', entity: 'StockTransfer', entityId: id, metadata: { aexGuide } } })
+    return json(updated)
+  } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo actualizar el traslado.', 409) }
 }

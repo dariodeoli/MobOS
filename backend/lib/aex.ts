@@ -41,7 +41,6 @@ async function autorizar(): Promise<string> {
 export type AexCity = { city: string; department: string }
 
 const norm = (value: string) => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
-
 /** Devuelve null cuando no hay credenciales o el proveedor falla: el llamador
  *  cae al catálogo local. */
 export async function aexCities(query: string, limit = 10): Promise<AexCity[] | null> {
@@ -59,4 +58,31 @@ export async function aexCities(query: string, limit = 10): Promise<AexCity[] | 
   } catch {
     return null
   }
+}
+
+export type AexTrackingEvent = { fecha: string; estado: string; tipoEvento: string; observacion: string }
+
+// Seguimiento de una guía. Sin credenciales devuelve null: el llamador muestra
+// el enlace web de seguimiento. Los eventos vienen ordenados por fecha.
+export async function aexTracking(guia: string): Promise<AexTrackingEvent[] | null> {
+  if (!PUBLIC_KEY || !PRIVATE_KEY) return null
+  const numero = (guia || '').trim()
+  if (!numero) return null
+  try {
+    const token = await autorizar()
+    const respuesta = await post('/envios/tracking', { clave_publica: PUBLIC_KEY, codigo_autorizacion: token, numero_guia: numero })
+    const rows = Array.isArray(respuesta?.datos) ? respuesta.datos : []
+    return rows.map((evento: any) => ({
+      fecha: String(evento?.fecha || ''),
+      estado: String(evento?.estado || ''),
+      tipoEvento: String(evento?.tipo_evento || ''),
+      observacion: String(evento?.observacion || ''),
+    }))
+  } catch {
+    return null
+  }
+}
+
+export function aexWebTrackingUrl(guia: string) {
+  return `https://www.aex.com.py/seguimiento?guia=${encodeURIComponent((guia || '').trim())}`
 }

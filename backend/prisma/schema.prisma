@@ -467,6 +467,9 @@ model StockTransfer {
   createdById         String
   createdBy           User                @relation(fields: [createdById], references: [id], onDelete: Restrict)
   notes               String?
+  // Guía de envío AEX cuando el traslado viaja con transportadora: se adjunta
+  // al despachar y habilita el seguimiento por API.
+  aexGuide            String?
   createdAt           DateTime            @default(now())
   lines               StockTransferLine[]
 
