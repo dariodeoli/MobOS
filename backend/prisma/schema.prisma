@@ -7,7 +7,7 @@ datasource db {
 }
 
 model Tenant {
-  googleIdentity      GoogleIdentity?
+  googleStoreAccesses GoogleStoreAccess[]
   promotions          Promotion[]
   paymentAccounts     PaymentAccount[]
   tradeInDevices      TradeInDevice[]
@@ -60,12 +60,27 @@ model Tenant {
   warrantyPhotos          WarrantyPhoto[]
 }
 
+// Identidad de la PERSONA (cuenta Google). No pertenece a ninguna tienda:
+// la relación persona ↔ tienda vive en GoogleStoreAccess.
 model GoogleIdentity {
-  subject  String  @id
-  tenantId String  @unique
-  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name     String?
-  picture  String?
+  subject String  @id
+  name    String?
+  picture String?
+  stores  GoogleStoreAccess[]
+}
+
+// Acceso de una persona Google a una tienda. El dueño de la tienda es la
+// persona con owner=true; puede haber varios accesos (uno por tienda).
+model GoogleStoreAccess {
+  subject   String
+  identity  GoogleIdentity @relation(fields: [subject], references: [subject], onDelete: Cascade)
+  tenantId  String
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner     Boolean        @default(true)
+  createdAt DateTime       @default(now())
+
+  @@id([subject, tenantId])
+  @@index([tenantId])
 }
 
 // Tokens de recuperación de contraseña de la empresa. Solo se almacena su

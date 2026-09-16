@@ -14,16 +14,21 @@ export async function POST(request: Request) {
     const identity = unseal('identity', readCookie(request, COOKIE_IDENTITY))
     if (body?.action === 'create' && identity.intent !== 'create') throw new AuthFlowError('onboarding', 'Iniciá desde Crear mi tienda para confirmar el alta.', 409)
     const result = await googleCompany(identity, body).catch(error => {
-      if (error instanceof AuthFlowError && error.code === 'onboarding_required' && identity.intent !== 'create') throw new AuthFlowError('start_create', 'Esta cuenta todavía no tiene tienda. Continuá desde Crear con Google.', 409)
+      if (error instanceof AuthFlowError && (error.code === 'onboarding_required' || error.code === 'no_store') && identity.intent !== 'create') throw new AuthFlowError('start_create', 'Esta cuenta todavía no tiene tienda. Continuá desde Crear con Google.', 409)
       throw error
     })
+    // Varias tiendas y ninguna elegida: el frontend muestra el selector y
+    // vuelve a llamar con storeId. No se crea ni se rota la sesión de empresa.
+    if (result.storeRequired) {
+      return NextResponse.json({ storeRequired: true, stores: result.stores, profile: { name: identity.name || null, picture: identity.picture || null } }, { headers: { 'Cache-Control': 'no-store' } })
+    }
     // Revoke the previous Google company session when switching companies.
     const previous = readCookie(request, COOKIE_COMPANY)
     if (previous) await prisma.session.updateMany({ where: { tokenHash: hashToken(previous), level: 'COMPANY' }, data: { revokedAt: new Date() } })
     const sellers = await prisma.user.findMany({ where: { tenantId: result.tenant.id, status: 'ACTIVE', OR: [{ branchId: null }, { branch: { isActive: true } }] }, select: { id: true, name: true, branchId: true }, orderBy: { name: 'asc' } })
     await prisma.auditLog.create({ data: { tenantId: result.tenant.id, action: body?.action === 'create' ? 'GOOGLE_COMPANY_CREATED_OR_SIGNED_IN' : 'GOOGLE_COMPANY_SIGNED_IN', entity: 'Session', metadata: { provider: 'google', ...authRequestMetadata(request) } } })
     await sendWelcomeOnce(result.tenant.id).catch(() => logEmailOutcome('welcome', 'delivery-failed'))
-    const response = NextResponse.json({ tenant: result.tenant, sellers, onboardingRequired: result.onboardingRequired, scope: 'device:company', cookieSession: true, profile: { name: identity.name || null, picture: identity.picture || null } }, { headers: { 'Cache-Control': 'no-store' } })
+    const response = NextResponse.json({ tenant: result.tenant, sellers, onboardingRequired: result.onboardingRequired, scope: 'device:company', cookieSession: true, profile: { name: identity.name || null, picture: identity.picture || null }, stores: result.stores }, { headers: { 'Cache-Control': 'no-store' } })
     response.cookies.set(COOKIE_COMPANY, result.token, cookieOptions(7 * 86400))
     response.cookies.set(COOKIE_IDENTITY, '', cookieOptions(0))
     return response

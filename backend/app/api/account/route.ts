@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { googleStores } from '../../../lib/google-company'
 
 const REAUTH_WINDOW_MS = 10 * 60 * 1000
 const ADMIN_ROLE = 'ADMIN'
@@ -23,17 +24,30 @@ async function assertRecentReauth(sessionId: string, tenantId: string) {
   if (!session?.reauthenticatedAt || Date.now() - session.reauthenticatedAt.getTime() > REAUTH_WINDOW_MS) throw new Error('Reautenticá tu contraseña para continuar.')
 }
 
+async function verifyCredential(tenantId: string, userId: string, password: string) {
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { passwordHash: true } })
+  if (tenant?.passwordHash) return bcrypt.compare(password, tenant.passwordHash)
+  // Las tiendas vinculadas a Google no tienen contraseña de empresa: el
+  // dueño se reautentica con su PIN de administrador.
+  const ownerUser = await prisma.user.findUnique({ where: { id: userId }, select: { pinHash: true } })
+  if (!ownerUser?.pinHash) return false
+  return bcrypt.compare(password, ownerUser.pinHash)
+}
+
 export async function GET(request: Request) {
   const context = await adminSession(request)
   if ('error' in context) return context.error
   const { session } = context
   const now = new Date()
-  const [tenant, sessions] = await Promise.all([
+  const [tenant, sessions, ownerAccess] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true } }),
     prisma.session.findMany({ where: { tenantId: session.user.tenantId, revokedAt: null, expiresAt: { gt: now } }, orderBy: { lastSeenAt: 'desc' }, take: 50, select: { id: true, level: true, deviceId: true, branchId: true, createdAt: true, lastSeenAt: true, expiresAt: true, user: { select: { name: true, email: true, role: true } } } }),
+    prisma.googleStoreAccess.findFirst({ where: { tenantId: session.user.tenantId, owner: true }, select: { subject: true } }),
   ])
   if (!tenant) return error('Empresa no encontrada.', 404)
-  return json({ tenant, currentSessionId: session.sessionId, reauthValidUntil: null, sessions })
+  // Para el dueño Google: todas las tiendas de su persona, con la actual marcada.
+  const stores = ownerAccess ? (await googleStores(ownerAccess.subject)).map(store => ({ ...store, current: store.id === session.user.tenantId })) : null
+  return json({ tenant, currentSessionId: session.sessionId, reauthValidUntil: null, sessions, stores })
 }
 
 export async function POST(request: Request) {
@@ -42,8 +56,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as Record<string, unknown>
     const password = input(body.password, 'Contraseña', 1, 72)
-    const tenant = await prisma.tenant.findUnique({ where: { id: context.session.user.tenantId }, select: { id: true, passwordHash: true } })
-    if (!tenant?.passwordHash || !(await bcrypt.compare(password, tenant.passwordHash))) return error('No se pudo reautenticar la cuenta.', 401)
+    const tenant = await prisma.tenant.findUnique({ where: { id: context.session.user.tenantId }, select: { id: true } })
+    if (!tenant || !(await verifyCredential(context.session.user.tenantId, context.session.user.id, password))) return error('No se pudo reautenticar la cuenta.', 401)
     const now = new Date()
     await prisma.$transaction(async tx => {
       await tx.session.update({ where: { id: context.session.sessionId }, data: { reauthenticatedAt: now } })
@@ -97,6 +111,64 @@ export async function PATCH(request: Request) {
         await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_PROFILE_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { before: { name: current.name, email: current.email }, after: { name: nextName, email: nextEmail } } } })
       })
       return json({ ok: true, name: nextName, email: nextEmail })
+    }
+    if (action === 'leaveStore') {
+      if (body.confirm !== 'ABANDONAR') return error('Escribí ABANDONAR para confirmar que dejás la tienda.', 400)
+      const otherAdmin = await prisma.user.findFirst({ where: { tenantId: session.user.tenantId, role: ADMIN_ROLE, status: 'ACTIVE', id: { not: session.user.id } }, select: { id: true } })
+      if (!otherAdmin) return error('No podés salir de la tienda: tiene que quedar al menos otro administrador activo. Designá a otro administrador antes de salir.', 409)
+      const [currentUser, ownerAccess, tenantEmail] = await Promise.all([
+        prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, email: true } }),
+        prisma.googleStoreAccess.findFirst({ where: { tenantId: session.user.tenantId, owner: true }, select: { subject: true, tenantId: true } }),
+        prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { email: true } }).then(row => row?.email ?? null),
+      ])
+      // Si la persona es la dueña Google de la tienda (la creó con Google o su
+      // correo coincide con el del alta), su acceso a la tienda se retira.
+      const googleOwnerMarker = ownerAccess ? await prisma.auditLog.findFirst({ where: { tenantId: session.user.tenantId, userId: session.user.id, action: 'GOOGLE_STORE_OWNER_CREATED' }, select: { id: true } }) : null
+      const isGoogleOwner = !!ownerAccess && !!currentUser && (!!googleOwnerMarker || (!!currentUser.email && !!tenantEmail && currentUser.email === tenantEmail))
+      let userDeleted = false
+      try {
+        await prisma.$transaction(async tx => {
+          await tx.session.updateMany({ where: { userId: session.user.id, revokedAt: null }, data: { revokedAt: now } })
+          await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'LEAVE_STORE', entity: 'User', entityId: session.user.id, metadata: { userDeleted: true, googleAccessRevoked: isGoogleOwner } } })
+          await tx.user.delete({ where: { id: session.user.id } })
+          userDeleted = true
+        })
+      } catch (cause: any) {
+        // Ventas, cajas o compras con FK restrict impiden borrar el historial:
+        // el usuario queda inactivo y sus sesiones revocadas.
+        if (cause?.code !== 'P2003') throw cause
+      }
+      if (!userDeleted) {
+        await prisma.$transaction(async tx => {
+          await tx.session.updateMany({ where: { userId: session.user.id, revokedAt: null }, data: { revokedAt: now } })
+          await tx.user.update({ where: { id: session.user.id }, data: { status: 'INACTIVE' } })
+          await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'LEAVE_STORE', entity: 'User', entityId: session.user.id, metadata: { userDeleted: false, googleAccessRevoked: isGoogleOwner } } })
+        })
+      }
+      if (isGoogleOwner && ownerAccess) await prisma.googleStoreAccess.delete({ where: { subject_tenantId: { subject: ownerAccess.subject, tenantId: ownerAccess.tenantId } } })
+      return json({ ok: true })
+    }
+    if (action === 'purgeStore') {
+      if (body.confirm !== 'ELIMINAR') return error('Escribí ELIMINAR para confirmar la eliminación de la tienda.', 400)
+      const password = input(body.password, 'Contraseña', 1, 72)
+      const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true } })
+      if (!tenant || !(await verifyCredential(session.user.tenantId, session.user.id, password))) return error('No se pudo reautenticar la cuenta.', 401)
+      const [products, orders, accesses] = await Promise.all([
+        prisma.product.count({ where: { tenantId: session.user.tenantId } }),
+        prisma.order.count({ where: { tenantId: session.user.tenantId } }),
+        prisma.googleStoreAccess.findMany({ where: { tenantId: session.user.tenantId }, select: { subject: true } }),
+      ])
+      await prisma.$transaction(async tx => {
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'STORE_PURGED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { products, orders } } })
+        await tx.tenant.delete({ where: { id: session.user.tenantId } })
+      })
+      // El cascade del tenant retira los accesos; las identidades que quedan
+      // sin ninguna tienda se eliminan.
+      for (const access of accesses) {
+        const remaining = await prisma.googleStoreAccess.count({ where: { subject: access.subject } })
+        if (remaining === 0) await prisma.googleIdentity.deleteMany({ where: { subject: access.subject } })
+      }
+      return json({ ok: true })
     }
     return error('Acción de cuenta no admitida.', 400)
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo actualizar la cuenta.', 400) }
