@@ -75,6 +75,10 @@ export function trustedClientIp(request: Request) {
   // Proxies append X-Forwarded-For. It is trusted only when Hub is explicitly
   // declared as the proxy; otherwise an arbitrary client header is never used.
   if (process.env.MOBOS_TRUST_PROXY !== 'true') return null
+  // El salto interno del middleware preserva la IP real del cliente en un
+  // header propio (el X-Forwarded-For del salto apunta a 127.0.0.1).
+  const internal = request.headers.get('x-mobos-client-ip')
+  if (internal && request.headers.get('x-mobos-pass') === '1' && (request.headers.get('x-forwarded-for') || '').split(',')[0]?.trim() === '127.0.0.1') return /^[0-9a-f:.]{3,64}$/i.test(internal) ? internal : null
   // A trusted proxy appends the client address. The right-most hop prevents a
   // caller from selecting somebody else's bucket via a forged first value.
   const candidate = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() || request.headers.get('x-real-ip')?.trim() || ''

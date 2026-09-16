@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { logError } from './lib/log'
+import { INTERNAL_CLIENT_IP_HEADER, INTERNAL_COOKIE_HEADER, INTERNAL_PASS_HEADER, INTERNAL_PASS_VALUE } from './lib/internal'
 import { MOBOS_ALLOWED_APP_ORIGINS, MOBOS_IDENTITY, MOBOS_IDENTITY_HEADERS, MOBOS_LEGACY_API_HOSTS } from './lib/identity'
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/
-// Marca el salto interno: evita que el proxy vuelva a proxear su propia
-// solicitud y preserva el flujo normal de Next para ese salto.
-const INTERNAL_PASS_MARKER = 'x-mobos-pass'
 // Cabeceras hop-by-hop: no se copian sobre la respuesta proxeada.
 const HOP_BY_HOP = new Set(['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade'])
 
@@ -53,7 +51,19 @@ async function proxyPass(request: NextRequest, requestHeaders: Headers, requestI
   const path = new URL(request.url).pathname
   const forwardHeaders = new Headers(requestHeaders)
   forwardHeaders.delete('host')
-  forwardHeaders.set(INTERNAL_PASS_MARKER, '1')
+  // La cookie no sobrevive al fetch interno (undici la descarta): viaja por
+  // un header propio. La IP real del cliente se preserva aparte porque el
+  // salto interno se presenta con 127.0.0.1 en X-Forwarded-For.
+  const cookie = forwardHeaders.get('cookie')
+  const clientIp = forwardHeaders.get('x-forwarded-for') || ''
+  forwardHeaders.delete('cookie')
+  forwardHeaders.delete(INTERNAL_COOKIE_HEADER)
+  if (cookie) forwardHeaders.set(INTERNAL_COOKIE_HEADER, cookie)
+  forwardHeaders.delete('x-forwarded-for')
+  forwardHeaders.set('x-forwarded-for', '127.0.0.1')
+  forwardHeaders.delete(INTERNAL_CLIENT_IP_HEADER)
+  if (clientIp) forwardHeaders.set(INTERNAL_CLIENT_IP_HEADER, clientIp)
+  forwardHeaders.set(INTERNAL_PASS_HEADER, INTERNAL_PASS_VALUE)
   const init: RequestInit = { method, headers: forwardHeaders, redirect: 'manual' }
   if (request.body && method !== 'GET' && method !== 'HEAD') {
     init.body = request.body
@@ -114,9 +124,15 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    if (requestHeaders.has(INTERNAL_PASS_MARKER)) {
+    const peer = (requestHeaders.get('x-forwarded-for') || '').split(',')[0]?.trim() || ''
+    if (peer === '127.0.0.1' && requestHeaders.get(INTERNAL_PASS_HEADER) === INTERNAL_PASS_VALUE) {
       return NextResponse.next({ request: { headers: requestHeaders } })
     }
+    // Request externo (o marcador forjado): se limpia el canal interno y se
+    // regenera en el salto.
+    requestHeaders.delete(INTERNAL_PASS_HEADER)
+    requestHeaders.delete(INTERNAL_COOKIE_HEADER)
+    requestHeaders.delete(INTERNAL_CLIENT_IP_HEADER)
     return await proxyPass(request, requestHeaders, requestId, origin, startedAt)
   } catch (cause) {
     const ms = Date.now() - startedAt

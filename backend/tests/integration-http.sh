@@ -122,7 +122,7 @@ SQL
   cd "$BACKEND_ROOT"
   # exec: SERVER_PID queda como el proceso next real, para que el cleanup
   # pueda terminarlo sin dejar servidores huérfanos en el puerto temporal.
-  NODE_ENV=test MOBOS_TRUST_PROXY=true DATABASE_URL="$DATABASE_URL" exec "$BACKEND_ROOT/node_modules/.bin/next" start -H 127.0.0.1 -p "$API_PORT" >"$SERVER_LOG" 2>&1
+  NODE_ENV=test MOBOS_APP_URL=https://app.moboss.online MOBOS_TRUST_PROXY=true DATABASE_URL="$DATABASE_URL" exec "$BACKEND_ROOT/node_modules/.bin/next" start -H 127.0.0.1 -p "$API_PORT" >"$SERVER_LOG" 2>&1
 ) &
 SERVER_PID=$!
 
@@ -430,6 +430,7 @@ out="$(response_file)"; COMPANY_TOKEN_C="$(auth_cookie POST /api/auth/login 200 
 out="$(response_file)"; ADMIN_TOKEN_C="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-c-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_C" mobos_seller_session)"
 node "$BACKEND_ROOT/tests/store-branch.mjs" "$BASE_URL" "$ADMIN_TOKEN_C"
 node "$BACKEND_ROOT/tests/seller-pin.mjs" "$BASE_URL" "$COMPANY_TOKEN_A"
+node "$BACKEND_ROOT/tests/cookie-session.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/purchases-suppliers.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 out="$(response_file)"; CHECKOUT_COMPANY_B="$(auth_cookie POST /api/auth/login 200 '{"email":"company-b-it@example.invalid","password":"company-password-it","deviceId":"checkout-b-it","branchId":"branch-b-it"}' "$out" '' mobos_company_session)"
 out="$(response_file)"; CHECKOUT_SELLER_B="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-b-it","pin":"2468"}' "$out" "$CHECKOUT_COMPANY_B" mobos_seller_session)"

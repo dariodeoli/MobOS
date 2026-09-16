@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, createPublicKey, randomBytes, timingSafeEqual, verify } from 'node:crypto'
 import { MOBOS_IDENTITY, MOBOS_LOCAL_APP_ORIGIN } from './identity'
+import { INTERNAL_COOKIE_HEADER, INTERNAL_PASS_HEADER, INTERNAL_PASS_VALUE } from './internal'
 
 // This module is imported only by server routes. Never expose these variables via VITE_/NEXT_PUBLIC_.
 export class AuthFlowError extends Error {
@@ -45,7 +46,14 @@ export function cookieOptions(maxAge = 600) {
   return sessionCookieOptions(maxAge)
 }
 export function readCookie(request: Request, name: string) {
-  return request.headers.get('cookie')?.split(';').map(x => x.trim()).find(x => x.startsWith(`${name}=`))?.slice(name.length + 1) || ''
+  const headers = request.headers
+  // El salto interno del middleware transporta la cookie por un header propio
+  // (undici descarta `cookie`); solo se acepta en el salto marcado.
+  if (headers.get(INTERNAL_PASS_HEADER) === INTERNAL_PASS_VALUE) {
+    const interno = headers.get(INTERNAL_COOKIE_HEADER) || ''
+    return interno.split(';').map(x => x.trim()).find(x => x.startsWith(`${name}=`))?.slice(name.length + 1) || ''
+  }
+  return headers.get('cookie')?.split(';').map(x => x.trim()).find(x => x.startsWith(`${name}=`))?.slice(name.length + 1) || ''
 }
 export function sameOrigin(request: Request) {
   return request.headers.get('origin') === appOrigin()?.origin
