@@ -58,6 +58,23 @@ export default function PagosPedido({ venta, onClose }) {
   const canReturn = esDemo || ['ADMIN', 'GERENTE'].includes(usuario?.role)
   const [postventaOpen, setPostventaOpen] = useState(false)
   const [emailBusy, setEmailBusy] = useState(false)
+  const [cuotasOpen, setCuotasOpen] = useState(false)
+  const [cuotasForm, setCuotasForm] = useState({ count: '3', firstDueAt: '' })
+  const [cuotasBusy, setCuotasBusy] = useState(false)
+  const tienePlanCuotas = payments.some(p => p.status === 'PENDING' && p.dueAt)
+
+  async function crearPlanCuotas(event) {
+    event.preventDefault()
+    const count = Number(cuotasForm.count)
+    if (cuotasBusy || !Number.isInteger(count) || count < 2 || count > 24) return
+    setCuotasBusy(true); setError(''); setNotice('')
+    try {
+      await api.post(`/api/orders/${encodeURIComponent(order.id)}/installments`, { count, ...(cuotasForm.firstDueAt ? { firstDueAt: new Date(`${cuotasForm.firstDueAt}T12:00:00`).toISOString() } : {}) })
+      setCuotasOpen(false)
+      setNotice(`Plan de ${count} cuotas creado. Cada cuota queda pendiente con su vencimiento.`)
+      try { await refrescar() } catch { setNeedsRefresh(true) }
+    } catch (cause) { setError(cause?.message || 'No se pudo crear el plan de cuotas.') } finally { setCuotasBusy(false) }
+  }
 
   async function enviarComprobante() {
     if (emailBusy) return
@@ -229,6 +246,22 @@ export default function PagosPedido({ venta, onClose }) {
         <div className="flex flex-wrap gap-2"><Button type="submit" disabled={postventaBusy || postventa.reason.trim().length < 3 || (postventa.operation === 'EXCHANGE' && !postventa.replacementNumber.trim())}>{postventaBusy ? 'Registrando…' : 'Confirmar postventa'}</Button><Button type="button" variant="ghost" disabled={postventaBusy} onClick={() => setPostventaOpen(false)}>Cancelar</Button></div>
       </form>
     )}
+    {pending > 0 && canReconcile && !tienePlanCuotas && !cuotasOpen && (
+      <div className="mb-5">
+        <button type="button" className="text-sm font-semibold text-fono-light hover:underline" onClick={() => { setCuotasOpen(true); setError(''); setNotice('') }}>Crear plan de cuotas a crédito…</button>
+      </div>
+    )}
+    {cuotasOpen && (
+      <form onSubmit={crearPlanCuotas} className="mb-6 space-y-3 rounded-xl border border-fono/20 bg-fono/5 p-4">
+        <h3 className="font-semibold">Plan de cuotas</h3>
+        <p className="text-xs text-mute">Se reparte el saldo pendiente ({gs(pending)}) en cuotas mensuales a crédito, cada una con su vencimiento. Al cobrar una cuota se registra como pago normal.</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-xs text-mute">Cantidad de cuotas (2 a 24)<Input inputMode="numeric" maxLength={2} value={cuotasForm.count} onChange={event => setCuotasForm(current => ({ ...current, count: event.target.value.replace(/\D/g, '').slice(0, 2) }))} placeholder="3" /></label>
+          <label className="block text-xs text-mute">Vence la primera (opcional)<Input type="date" value={cuotasForm.firstDueAt} onChange={event => setCuotasForm(current => ({ ...current, firstDueAt: event.target.value }))} /></label>
+        </div>
+        <div className="flex flex-wrap gap-2"><Button type="submit" disabled={cuotasBusy || Number(cuotasForm.count) < 2 || Number(cuotasForm.count) > 24}>{cuotasBusy ? 'Creando…' : 'Crear plan'}</Button><Button type="button" variant="ghost" disabled={cuotasBusy} onClick={() => setCuotasOpen(false)}>Cancelar</Button></div>
+      </form>
+    )}
     {pending > 0 && <form onSubmit={register} className="mb-6 space-y-3 rounded-xl border border-fono/20 bg-fono/5 p-4">
       <h3 className="font-semibold">Registrar pago parcial o total</h3>
       <label className="block text-xs text-mute">Cuenta de destino<Select aria-label="Cuenta de destino" className="mt-1" value={accountId} onChange={e => { setAccountId(e.target.value); setAmount(''); setRate(''); setAsPending(false) }}><option value="">Método manual sin cuenta</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.accountNumber || a.kind}</option>)}</Select></label>
@@ -244,7 +277,7 @@ export default function PagosPedido({ venta, onClose }) {
       {!payments.length && <p className="text-sm text-mute">Todavía no hay pagos registrados.</p>}
       {payments.map(p => <article key={p.id} className="rounded-xl border border-fore/10 p-4">
         <div className="flex justify-between gap-3"><strong>{gs(p.monto)}</strong><span className="text-xs text-mute">{METHODS[p.medioPago] || p.medioPago}</span></div>
-        <p className="mt-1 text-xs text-mute">{new Date(p.fecha || p.paidAt || p.createdAt).toLocaleString('es-PY')} · {p.cuenta || p.reference || 'Sin referencia'}</p>
+        <p className="mt-1 text-xs text-mute">{new Date(p.fecha || p.paidAt || p.createdAt).toLocaleString('es-PY')} · {p.cuenta || p.reference || 'Sin referencia'}{p.dueAt ? ` · vence ${new Date(p.dueAt).toLocaleDateString('es-PY')}` : ''}</p>
         {p.status === undefined || p.status === 'CONFIRMED' ? <button type="button" className="mt-2 rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => printPaymentReceipt(p, order, { format: 'a4' })}>Imprimir recibo</button> : null}
         {p.accountSnapshot && <p className="mt-1 text-xs text-fono-light">{p.accountSnapshot.name} · {p.accountSnapshot.bank} · {p.accountSnapshot.accountNumber} · {p.currency} {p.originalAmount} · cotización {p.exchangeRatePyg}</p>}
         <p className="my-2 text-xs text-amber-300">Conciliación: {(reconciliations[p.id]?.state || p.reconciliationState) === 'VERIFIED' ? 'Verificada' : (reconciliations[p.id]?.state || p.reconciliationState) === 'REJECTED' ? 'Rechazada' : 'Pendiente de revisión'}</p>
