@@ -6,6 +6,8 @@ export const GRUPOS = [
   { id: 'category', label: 'Categoría', plural: 'Por categoría' },
   { id: 'seller', label: 'Vendedor', plural: 'Por vendedor' },
   { id: 'day', label: 'Día', plural: 'Por día' },
+  { id: 'payments', label: 'Pasarela', plural: 'Pagos por pasarela' },
+  { id: 'newCustomers', label: 'Mes', plural: 'Clientes nuevos vs habituales' },
 ]
 
 /** Producto y categoría se calculan por línea; día y vendedor, por orden. */
@@ -51,6 +53,25 @@ export function filasCsv(encabezados, filas) {
 
 export function columnasReporte(groupBy) {
   const primera = { key: 'label', label: etiquetaGrupo(groupBy), tipo: 'texto' }
+  if (groupBy === 'payments') {
+    return [
+      primera,
+      { key: 'orders', label: 'Transacciones', tipo: 'numero' },
+      { key: 'grossPyg', label: 'Pagos brutos', tipo: 'monto' },
+      { key: 'refundedPyg', label: 'Reembolsado', tipo: 'monto' },
+      { key: 'totalPyg', label: 'Pagos netos', tipo: 'monto' },
+    ]
+  }
+  if (groupBy === 'newCustomers') {
+    return [
+      primera,
+      { key: 'orders', label: 'Pedidos', tipo: 'numero' },
+      { key: 'customers', label: 'Clientes', tipo: 'numero' },
+      { key: 'newCustomers', label: 'Nuevos', tipo: 'numero' },
+      { key: 'returningCustomers', label: 'Habituales', tipo: 'numero' },
+      { key: 'totalPyg', label: 'Ventas totales', tipo: 'monto' },
+    ]
+  }
   if (esGrupoPorLinea(groupBy)) {
     return [
       primera,
