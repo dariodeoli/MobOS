@@ -75,15 +75,21 @@ export async function GET(request: Request) {
   return json(units)
 }
 
-// Agrega una unidad física a un modelo existente. El stock agregado y el IMEI
-// quedan en una misma transacción: no puede existir una unidad sin cantidad.
+// Agrega una o más unidades físicas a un modelo existente. El stock agregado
+// y los IMEI quedan en una misma transacción: no puede existir una unidad sin
+// cantidad. `serial` conserva el flujo individual; `serials` admite lotes de
+// hasta 100 unidades con la misma ficha de recepción.
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }
-  const productId = text(body.productId, 128); const serial = typeof body.serial === 'string' ? serialKey(body.serial) : ''
-  if (!productId || !serial) return error('Modelo e IMEI/serial son obligatorios.')
+  const productId = text(body.productId, 128)
+  const rawSerials: unknown[] = Array.isArray(body.serials) && body.serials.length ? body.serials : (body.serial !== undefined ? [body.serial] : [])
+  const serials = rawSerials.map(value => typeof value === 'string' ? serialKey(value) : '').filter(Boolean)
+  if (!productId || serials.length === 0) return error('Modelo e IMEI/serial son obligatorios.')
+  if (serials.length > 100) return error('Hasta 100 unidades por recepción.')
+  if (new Set(serials).size !== serials.length) return error('Hay IMEI/seriales repetidos en la lista.')
   const branchId = text(body.branchId, 128)
   if (!branchId || !canManageBranch(session.user.role, session.user.branchId, branchId)) return error('No autorizado para esa sucursal.', 403)
   const locationId = body.locationId === undefined || body.locationId === '' || body.locationId === null ? null : text(body.locationId, 128)
@@ -91,14 +97,19 @@ export async function POST(request: Request) {
     const created = await prisma.$transaction(async tx => {
       const product = await tx.product.findFirst({ where: { id: productId, tenantId: tenant, branchId, isActive: true }, select: { id: true, condition: true } })
       if (!product) throw new Error('El modelo no pertenece a esa sucursal.')
-      if (await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { id: true } })) throw new Error('Ese IMEI/serial ya existe.')
+      const existing = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, serial: { in: serials } }, select: { serial: true } })
+      if (existing.length) throw new Error(`Ya existen: ${existing.map(item => item.serial).join(', ')}.`)
       if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId, isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
-      const unit = await tx.inventoryUnit.create({ data: { tenantId: tenant, productId, branchId, locationId, serial, condition: product.condition, ...unitData(body) } })
-      await tx.product.update({ where: { id: productId }, data: { stock: { increment: 1 } } })
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_RECEIVED', entity: 'InventoryUnit', entityId: unit.id, metadata: { serial, productId, branchId, locationId } } })
-      return unit
+      const data = unitData(body)
+      const units = []
+      for (const serial of serials) {
+        units.push(await tx.inventoryUnit.create({ data: { tenantId: tenant, productId, branchId, locationId, serial, condition: product.condition, ...data } }))
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_RECEIVED', entity: 'InventoryUnit', entityId: units[units.length - 1].id, metadata: { serial, productId, branchId, locationId } } })
+      }
+      await tx.product.update({ where: { id: productId }, data: { stock: { increment: units.length } } })
+      return units
     })
-    return json(created, { status: 201 })
+    return json(serials.length === 1 ? created[0] : { count: created.length, units: created }, { status: 201 })
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo ingresar la unidad.', 409) }
 }
 

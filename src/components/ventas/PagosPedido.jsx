@@ -9,6 +9,21 @@ import { formatGsInput, parseGsInput } from '@/utils/moneda'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import NumericKeypad from '@/components/shared/NumericKeypad'
+import { trackingUrlFor } from '@/components/shared/OrderReceipt'
+
+// Enlace de WhatsApp para compartir el seguimiento público del pedido.
+export function whatsappTrackingLink(order, extra = '') {
+  const tracking = trackingUrlFor(order)
+  if (!tracking) return ''
+  const digits = String(order?.customer?.phone || order?.clienteTelefono || '').replace(/\D/g, '')
+  if (!digits) return ''
+  const phone = digits.replace(/^0+/, '')
+  const code = String(order?.customer?.countryCode || '+595').replace(/\D/g, '')
+  const number = phone.startsWith(code) ? phone : `${code}${phone}`
+  const name = order?.customer?.name || order?.cliente || ''
+  const message = `Hola${name ? ` ${name}` : ''}, podés seguir tu pedido ${order?.codigo || order?.orderNumber || ''} acá: ${tracking}${extra ? `\n${extra}` : ''}`
+  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
+}
 
 const METHODS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta / POS', CREDIT: 'Crédito' }
 
@@ -134,6 +149,17 @@ export default function PagosPedido({ venta, onClose }) {
 
   return <Modal open onClose={() => !busy && onClose()} title={`Pagos · ${order.codigo || order.cliente || 'Pedido'}`} className="max-w-2xl">
     <p className="mb-5 text-sm text-mute">Cada cobro conserva su fecha y referencia. Un archivo adjunto no confirma una transferencia.</p>
+    {trackingUrlFor(order) && !esDemo && (
+      <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 p-3">
+        {whatsappTrackingLink(order) ? (
+          <a className="rounded-lg bg-ok px-3 py-2 text-sm font-semibold text-black transition hover:brightness-110" href={whatsappTrackingLink(order)} target="_blank" rel="noopener noreferrer">Enviar seguimiento por WhatsApp</a>
+        ) : (
+          <span className="text-xs text-mute">El cliente no tiene teléfono: compartí el enlace a mano.</span>
+        )}
+        <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={() => { navigator.clipboard?.writeText(trackingUrlFor(order)).catch(() => {}) }}>Copiar enlace</button>
+        <span className="w-full text-xs text-mute sm:w-auto">El enlace muestra solo estado y comprobante; sin teléfonos, direcciones ni pagos.</span>
+      </div>
+    )}
     <div className="mb-5 grid grid-cols-2 gap-3">
       <div className="rounded-xl border border-fore/10 p-4"><p className="text-xs text-mute">Pagado</p><strong className="mt-1 block text-xl text-fono-light">{gs(order.totalPagado)}</strong></div>
       <div className="rounded-xl border border-fore/10 p-4"><p className="text-xs text-mute">Pendiente</p><strong className="mt-1 block text-xl">{gs(pending)}</strong></div>

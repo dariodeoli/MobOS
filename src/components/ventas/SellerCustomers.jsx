@@ -3,6 +3,7 @@ import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { Button, Input } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
+import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import CustomerCommunicationCard from '@/components/customers/CustomerCommunicationCard'
 import CustomerProfile from '@/components/customers/CustomerProfile'
@@ -67,6 +68,7 @@ export default function SellerCustomers() {
     setSaving(true); setMessage(''); setSaveError('')
     try {
       const phones = form.phones.map((phone) => phone.trim()).filter(Boolean).slice(0, 5)
+      if (phones.some((phone) => !telefonoValido(phone))) throw new Error(MENSAJE_TELEFONO)
       const addresses = form.addresses.filter((address) => address.address.trim()).map((address, index) => ({ label: address.label.trim() || `Dirección ${index + 1}`, address: address.address.trim(), ...(address.city.trim() ? { city: address.city.trim() } : {}), ...(address.department?.trim() ? { department: address.department.trim() } : {}), country: address.country?.trim() || 'Paraguay', isDefault: index === 0 }))
       if (esDemo) {
         const customer = { id: crypto.randomUUID(), name: form.name.trim(), document: form.document.trim(), email: form.email.trim(), phone: phones[0] || '', phones, countryCode: '+595', addresses }
@@ -77,8 +79,8 @@ export default function SellerCustomers() {
       }
       setForm(emptyCustomer); setRucResult(null); setRucError(''); setSearch(''); setQuery(''); data.refresh()
       setMessage(esDemo ? 'Cliente de prueba guardado en este navegador.' : 'Cliente guardado.')
-    } catch {
-      setSaveError('No se pudo confirmar el guardado. Buscá el cliente antes de reintentar.')
+    } catch (cause) {
+      setSaveError(cause?.message || 'No se pudo confirmar el guardado. Buscá el cliente antes de reintentar.')
     } finally { savingRef.current = false; setSaving(false) }
   }
 

@@ -3,7 +3,7 @@ import QRCode from 'qrcode'
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]))
 
-const trackingUrlFor = (order) => {
+export const trackingUrlFor = (order) => {
   if (!order?.publicToken) return ''
   const apiOrigin = String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
   // Puede apuntarse a una página pública branded cuando exista; mientras, el

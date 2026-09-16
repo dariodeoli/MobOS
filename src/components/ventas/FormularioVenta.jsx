@@ -26,6 +26,8 @@ import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import PaymentAccountFields, { accountPayment, updateAccountPayment } from './PaymentAccountFields'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
 import { printOrderReceipt } from '@/components/shared/OrderReceipt'
+import { whatsappTrackingLink } from './PagosPedido'
+import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
@@ -278,6 +280,7 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
     let payments
     try {
       if (tieneCupon && gsNum(descuento) > 0) throw new Error('Quitá el descuento extra para utilizar un cupón. No son acumulables.')
+      if (customer.phone?.trim() && !telefonoValido(customer.phone, customer.countryCode)) throw new Error(MENSAJE_TELEFONO)
       if (!puedeDescontar && gsNum(descuento) > 0) throw new Error('Solo administradores y gerentes pueden aplicar descuentos.')
       if (esDemo) validateDemoPromotionItems(orderItems, productos, gsNum(descuento))
       if (!cuentas || errorCuentas) throw new Error(errorCuentas || 'Esperá a que terminen de cargar las cuentas.')
@@ -430,9 +433,16 @@ export default function FormularioVenta({ onGuardado, onCarrito, ocultarCarrito 
         </span>
       </div>
 
-      {ok && <div role="status" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-ok/30 bg-ok/10 p-4 text-ok"><span>Venta registrada correctamente. Ya podés cargar la siguiente.</span>{lastOrder && <><Button type="button" variant="outline" onClick={() => printOrderReceipt(lastOrder, { format: 'a4' })}>Imprimir A4</Button><Button type="button" variant="outline" onClick={() => printOrderReceipt(lastOrder, { format: 'thermal' })}>Imprimir térmico</Button></>}</div>}
+      {ok && <div role="status" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-ok/30 bg-ok/10 p-4 text-ok"><span>Venta registrada correctamente. Ya podés cargar la siguiente.</span>{lastOrder && <>{whatsappTrackingLink(lastOrder) && <a className="rounded-lg bg-ok px-3 py-2 text-sm font-semibold text-black" href={whatsappTrackingLink(lastOrder)} target="_blank" rel="noopener noreferrer">Seguimiento por WhatsApp</a>}<Button type="button" variant="outline" onClick={() => printOrderReceipt(lastOrder, { format: 'a4' })}>Imprimir A4</Button><Button type="button" variant="outline" onClick={() => printOrderReceipt(lastOrder, { format: 'thermal' })}>Imprimir térmico</Button></>}</div>}
       {paso !== 3 && pagos.some(p => p.tradeIn) && <p role="status" className="mb-4 rounded-xl border border-fono/30 bg-fono/10 p-3 text-sm">Canje preparado como parte de pago. Revisá sus datos y el saldo pendiente en Cobrar.</p>}
-      <form onSubmit={guardar} className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
+      <form onSubmit={guardar} onKeyDown={(event) => {
+        if (event.key !== 'Enter') return
+        const target = event.target
+        if (!(target instanceof HTMLElement)) return
+        if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.tagName === 'SELECT' || target.tagName === 'A') return
+        // Enter avanza entre pasos; en "Cobrar" el Enter nativo confirma la venta.
+        if (paso < 3) { event.preventDefault(); siguientePaso() }
+      }} className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
         {errorVenta && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-red-300 md:col-span-2">{errorVenta}</p>}
         <nav aria-label="Pasos de la venta" className="grid grid-cols-3 gap-1 rounded-2xl border border-ink-600 bg-ink-800/50 p-1 md:col-span-2">
           {pasos.map((nombre, index) => { const n = index + 1; return <button key={nombre} type="button" onClick={() => n <= paso && setPaso(n)} disabled={n > paso} className={cn('min-h-11 rounded-xl px-2 text-left text-xs font-semibold transition sm:px-3', paso === n ? 'bg-fono text-onbrand shadow-lg shadow-fono/15' : n < paso ? 'text-fono-light hover:bg-fono/10' : 'cursor-not-allowed text-mute/60')}><span className="mr-1.5 text-[10px] opacity-70">0{n}</span>{nombre}</button> })}
