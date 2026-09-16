@@ -513,6 +513,7 @@ async function hydrateApi() {
     ...u,
     nombre: u.name,
     activo: u.status === 'ACTIVE',
+    metaDiaria: u.dailyGoalPyg ?? 0,
   }))
   cache.mayoristas = []
   cache.gastos = mapGastosApi(finance)

@@ -33,7 +33,7 @@ export function emailTransportConfigured() {
   return Boolean(relayUrl() && relayToken() && appUrl() && emailOutboxEncryptionConfigured())
 }
 
-export function logEmailOutcome(kind: 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation', outcome: 'delivered-to-relay' | 'delivery-failed' | 'unconfigured') {
+export function logEmailOutcome(kind: 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt', outcome: 'delivered-to-relay' | 'delivery-failed' | 'unconfigured') {
   console.info(JSON.stringify({ event: 'mobos.transactional_email', kind, outcome }))
 }
 

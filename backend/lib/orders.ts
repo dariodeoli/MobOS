@@ -42,7 +42,7 @@ export function validateFulfillmentTransition(current: string, requested: unknow
 }
 
 export function returnRequest(input: Record<string, unknown>) {
-  if (Object.keys(input).some(key => !['operation', 'reason', 'refundPyg', 'replacementOrderId'].includes(key))) throw new InputError('La devolución contiene campos no admitidos.')
+  if (Object.keys(input).some(key => !['operation', 'reason', 'refundPyg', 'replacementOrderId', 'replacementOrderNumber'].includes(key))) throw new InputError('La devolución contiene campos no admitidos.')
   const operation = textInput(input.operation, 'Operación', 20).toUpperCase()
   if (operation !== 'RETURN' && operation !== 'EXCHANGE') throw new InputError('Operación de postventa inválida.')
   const reason = textInput(input.reason, 'Motivo', 1000)
@@ -50,6 +50,7 @@ export function returnRequest(input: Record<string, unknown>) {
   const refundPyg = input.refundPyg === undefined ? undefined : Number(input.refundPyg)
   if (refundPyg !== undefined && (!Number.isSafeInteger(refundPyg) || refundPyg < 0)) throw new InputError('Monto de devolución inválido.')
   const replacementOrderId = input.replacementOrderId === undefined ? undefined : textInput(input.replacementOrderId, 'Pedido de cambio', 200)
-  if (operation === 'EXCHANGE' && !replacementOrderId) throw new InputError('Indicá el pedido que reemplaza esta venta.')
-  return { operation, reason, refundPyg, replacementOrderId }
+  const replacementOrderNumber = input.replacementOrderNumber === undefined ? undefined : textInput(input.replacementOrderNumber, 'Número de pedido de cambio', 200)
+  if (operation === 'EXCHANGE' && !replacementOrderId && !replacementOrderNumber) throw new InputError('Indicá el pedido que reemplaza esta venta.')
+  return { operation, reason, refundPyg, replacementOrderId, replacementOrderNumber }
 }
