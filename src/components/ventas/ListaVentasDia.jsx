@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { listVentas, productosById, deleteVenta } from '@/lib/storage'
+import { listVentas, productosById, deleteVenta, refrescar } from '@/lib/storage'
 import { useSesion } from '@/lib/sesion'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { fmtLargo } from '@/components/shared/RangoFechas'
 import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
-import { Card, Badge, Dot, EmptyState } from '@/components/ui'
+import { Card, Badge, Dot, EmptyState, Modal, Button, Textarea } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { api } from '@/lib/api/client'
 import PagosPedido from './PagosPedido'
 
 // Agrupa por compra (compraId); las sueltas quedan como grupo de 1.
@@ -64,6 +65,23 @@ export default function ListaVentasDia({
   }
   const [confirmar, setConfirmar] = useState(null)
   const [pagoPedido, setPagoPedido] = useState(null)
+  const [attach, setAttach] = useState(null) // { id, items: [{id, description, serialsPending}] }
+  const [attachInput, setAttachInput] = useState('')
+  const [attachBusy, setAttachBusy] = useState(false)
+  const [attachError, setAttachError] = useState('')
+
+  async function guardarImeis() {
+    if (attachBusy || !attach) return
+    const serials = attachInput.split(/[\n,;]+/).map(s => String(s).trim().toUpperCase().replace(/[\s-]+/g, '')).filter(Boolean)
+    const item = attach?.items?.[0]
+    if (!item || !serials.length) { setAttachError('Ingresá al menos un IMEI/serial.'); return }
+    setAttachBusy(true); setAttachError('')
+    try {
+      await api.patch(`/api/orders/${encodeURIComponent(attach.id)}`, { action: 'attachSerials', itemId: item.id, serials })
+      await refrescar()
+      setAttach(null); setAttachInput('')
+    } catch (cause) { setAttachError(cause?.message || 'No se pudo agregar el IMEI.') } finally { setAttachBusy(false) }
+  }
 
   const base = listVentas().filter(v => {
     const okFecha = rango ? v.fecha >= rango.desde && v.fecha <= rango.hasta : v.fecha === fecha
@@ -111,6 +129,20 @@ export default function ListaVentasDia({
   return (
     <Card className="overflow-hidden p-0">
       {pagoPedido && <PagosPedido venta={pagoPedido} onClose={() => setPagoPedido(null)} />}
+      <Modal open={attach !== null} onClose={() => !attachBusy && setAttach(null)} title="Agregar IMEI al pedido">
+        <div className="space-y-3">
+          <p className="text-sm text-mute">Completá los IMEI/seriales de los equipos vendidos sobre pedido. Al confirmar, cada unidad queda registrada como vendida en el stock.</p>
+          {attach?.items?.map(item => (
+            <div key={item.id} className="rounded-xl border border-ink-600 p-3">
+              <p className="text-sm font-semibold">{item.description}</p>
+              <p className="mt-1 text-xs text-mute">Faltan {item.serialsPending} IMEI/serial(es).</p>
+            </div>
+          ))}
+          <label className="block text-xs text-mute">IMEI / seriales (uno por línea)<Textarea aria-label="IMEI a agregar" rows={3} value={attachInput} onChange={event => setAttachInput(event.target.value)} placeholder={'359614543668631\n359614543779123'} /></label>
+          {attachError && <p role="alert" className="text-sm text-bad">{attachError}</p>}
+          <Button type="button" disabled={attachBusy} onClick={guardarImeis}>{attachBusy ? 'Guardando…' : 'Agregar IMEI'}</Button>
+        </div>
+      </Modal>
       {/* ── Encabezado ───────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-600 px-5 py-4">
         <div>
@@ -288,7 +320,30 @@ export default function ListaVentasDia({
                             )}
                           </td>
                         )}
-                        <td className="break-words px-3 py-3 text-mute">{nombreProd(v)}</td>
+                        <td className="break-words px-3 py-3 text-mute">
+                          {nombreProd(v)}
+                          {(Array.isArray(v.items) ? v.items : []).map((item, i) => {
+                            const serials = Array.isArray(item.serials) ? item.serials : []
+                            const pending = Number(item.serialsPending || 0)
+                            return (
+                              <div key={i} className="mt-0.5 text-[11px] leading-relaxed">
+                                {serials.length > 0 && (
+                                  <span className="font-semibold text-fono-light">IMEI {serials.map(s => `••••${String(s).slice(-4)}`).join(', ')}</span>
+                                )}
+                                {pending > 0 && (
+                                  <span className="ml-1 inline-flex items-center gap-1 rounded bg-warn/20 px-1.5 py-0.5 font-semibold text-warn">
+                                    <Icon name="alert" className="h-3 w-3" /> {pending} sin IMEI (sobre pedido)
+                                  </span>
+                                )}
+                                {item.costPending === true && (
+                                  <span className="ml-1 inline-flex items-center gap-1 rounded bg-sky-400/15 px-1.5 py-0.5 font-semibold text-sky-300">
+                                    <Icon name="alert" className="h-3 w-3" /> costo pendiente
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </td>
                         <td className="px-3 py-3">
                           <span
                             className={cn(
@@ -336,6 +391,8 @@ export default function ListaVentasDia({
                               className="truncate px-3 py-3 align-top text-xs italic text-mute"
                             >
                               {v.observacion || ''}
+                              {v.billingName && <span className="mt-1 block not-italic font-semibold text-fono-light">Factura a: {v.billingName}{v.billingDocument ? ` · ${v.billingDocument}` : ''}</span>}
+                              {v.notes && <span className="mt-1 block not-italic">{v.notes}</span>}
                             </td>
                           </>
                         ) : null}
@@ -346,6 +403,14 @@ export default function ListaVentasDia({
                           >
                             Pagos
                           </button>
+                          {(Array.isArray(v.items) ? v.items : []).some(item => Number(item.serialsPending || 0) > 0) && (
+                            <button
+                              className="mb-2 w-full rounded-lg border border-warn/40 px-2 py-2 text-xs leading-tight text-warn"
+                              onClick={() => { setAttach({ id: v.id, items: v.items.filter(item => Number(item.serialsPending || 0) > 0) }); setAttachInput(''); setAttachError('') }}
+                            >
+                              Agregar IMEI
+                            </button>
+                          )}
                           {puedeBorrar ? (
                             <button
                               onClick={() => setConfirmar(v)}

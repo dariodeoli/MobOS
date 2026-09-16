@@ -6,19 +6,20 @@ const decimal = (value) => {
   return /^\d+(\.\d+)?$/.test(text) ? Number(text) : NaN
 }
 
+const FOREIGN = (currency) => currency === 'USD' || currency === 'BRL'
 export function accountPayment(payment, accounts) {
   const account = accounts.find((a) => a.id === payment.accountId && a.isActive)
   if (!account) throw new Error('Elegí una cuenta activa para cada pago.')
-  if (!['USD', 'PYG'].includes(account.currency)) throw new Error('La cuenta debe estar en USD o PYG.')
+  if (!['USD', 'PYG', 'BRL'].includes(account.currency)) throw new Error('La cuenta debe estar en USD, PYG o BRL.')
   const originalAmount = account.currency === 'PYG'
     ? (/^\d+$/.test(String(payment.originalAmount)) ? Number(payment.originalAmount) : NaN)
     : decimal(payment.originalAmount)
-  const exchangeRatePyg = account.currency === 'USD' ? decimal(payment.exchangeRatePyg) : 1
+  const exchangeRatePyg = FOREIGN(account.currency) ? decimal(payment.exchangeRatePyg) : 1
   if (!Number.isFinite(originalAmount) || originalAmount <= 0 ||
       (account.currency === 'PYG' ? !Number.isSafeInteger(originalAmount) : !/^\d+(\.\d{1,2})?$/.test(String(payment.originalAmount).trim().replace(',', '.')))) {
-    throw new Error('Ingresá un monto positivo: USD admite hasta 2 decimales y PYG solo enteros.')
+    throw new Error('Ingresá un monto positivo: USD/BRL admite hasta 2 decimales y PYG solo enteros.')
   }
-  if (!Number.isFinite(exchangeRatePyg) || exchangeRatePyg <= 0) throw new Error('Ingresá una cotización manual USD → PYG mayor a cero.')
+  if (!Number.isFinite(exchangeRatePyg) || exchangeRatePyg <= 0) throw new Error('Ingresá una cotización manual mayor a cero.')
   const amountPyg = Math.round(originalAmount * exchangeRatePyg)
   if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0) throw new Error('El monto convertido en PYG no es válido.')
   const tradeIn = account.kind === 'TRADE_IN' ? {
@@ -30,12 +31,12 @@ export function accountPayment(payment, accounts) {
   return { accountId: account.id, originalAmount, exchangeRatePyg, amountPyg, method: account.kind, status: 'CONFIRMED', ...(tradeIn ? { tradeIn } : {}) }
 }
 
-// El campo legacy monto siempre representa guaraníes, incluso al ingresar USD.
+// El campo legacy monto siempre representa guaraníes, incluso al ingresar USD/BRL.
 export function updateAccountPayment(payment, change, accounts) {
   const next = { ...payment, ...change }
   const account = accounts.find((a) => a.id === next.accountId && a.isActive)
   const original = decimal(next.originalAmount)
-  const rate = account?.currency === 'USD' ? decimal(next.exchangeRatePyg) : 1
+  const rate = FOREIGN(account?.currency) ? decimal(next.exchangeRatePyg) : 1
   const amount = Math.round(original * rate)
   return { ...next, medioPago: account?.name || '', cuenta: account?.name || '', monto: account && original > 0 && rate > 0 && Number.isSafeInteger(amount) ? String(amount) : '' }
 }
@@ -47,12 +48,12 @@ export default function PaymentAccountFields({ payment, accounts, onChange }) {
       <Label>Cuenta de cobro</Label>
       <Select aria-label="Cuenta de cobro" value={payment.accountId || ''} onChange={(e) => onChange({ accountId: e.target.value, originalAmount: '', exchangeRatePyg: '', tradeIn: undefined })}>
         <option value="">Seleccionar cuenta</option>
-        {accounts.filter((a) => a.isActive && ['USD', 'PYG'].includes(a.currency)).map((a) => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.kind}</option>)}
+        {accounts.filter((a) => a.isActive && ['USD', 'PYG', 'BRL'].includes(a.currency)).map((a) => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.kind}</option>)}
       </Select>
       {account && <p className="mt-1 text-xs text-mute">{[account.bank, account.accountNumber, account.holder].filter(Boolean).join(' · ')}</p>}
     </div>
-    <div><Label>Monto original ({account?.currency || 'moneda de la cuenta'})</Label><MoneyInput aria-label="Monto original" disabled={!account} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={account?.currency === 'USD' ? '0,00' : '0'} /></div>
-    {account?.currency === 'USD' && <div><Label>Cotización manual (₲ por USD)</Label><MoneyInput aria-label="Cotización manual USD a PYG" currency="USD" symbol="Gs." value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v })} placeholder="Ingresar cotización" /></div>}
+    <div><Label>Monto original ({account?.currency || 'moneda de la cuenta'})</Label><MoneyInput aria-label="Monto original" disabled={!account} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={FOREIGN(account?.currency) ? '0,00' : '0'} /></div>
+    {FOREIGN(account?.currency) && <div><Label>Cotización manual (₲ por {account.currency})</Label><MoneyInput aria-label={`Cotización manual ${account.currency} a PYG`} currency="USD" symbol="Gs." value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v })} placeholder="Ingresar cotización" /></div>}
     <p className="text-sm sm:col-span-2">Equivalente: {gs(Number(payment.monto) || 0)}</p>
     {account?.kind === 'TRADE_IN' && <>
       <div><Label>Serial / IMEI del canje *</Label><Input aria-label="Serial del canje" value={payment.tradeIn?.serial || ''} onChange={(e) => onChange({ tradeIn: { ...payment.tradeIn, serial: e.target.value } })} /></div>

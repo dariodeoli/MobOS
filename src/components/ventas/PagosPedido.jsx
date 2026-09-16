@@ -25,7 +25,8 @@ export function whatsappTrackingLink(order, extra = '') {
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
 }
 
-const METHODS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta / POS', CREDIT: 'Crédito' }
+const METHODS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta / POS', CREDIT: 'Crédito', PIX: 'Pix' }
+const FOREIGN = (currency) => currency === 'USD' || currency === 'BRL'
 
 export default function PagosPedido({ venta, onClose }) {
   const { esDemo, usuario, sesion } = useSesion()
@@ -36,6 +37,9 @@ export default function PagosPedido({ venta, onClose }) {
   const [accounts, setAccounts] = useState([])
   const [accountId, setAccountId] = useState('')
   const [rate, setRate] = useState('')
+  const [fx, setFx] = useState(null)
+  const [fxLoading, setFxLoading] = useState(false)
+  const [asPending, setAsPending] = useState(false)
   const [device, setDevice] = useState({ serial: '', model: '', conditionNotes: '' })
   const account = accounts.find(a => a.id === accountId)
   useEffect(() => { let active = true; getPaymentAccounts().then(rows => { if (active) setAccounts(rows.filter(a => a.isActive)) }).catch(e => { if (active) setError(e.message) }); return () => { active = false } }, [])
@@ -79,12 +83,22 @@ export default function PagosPedido({ venta, onClose }) {
     } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
 
+  async function fetchFx() {
+    if (busy || fxLoading) return
+    setFxLoading(true); setError('')
+    try {
+      const result = await api.get('/api/fx')
+      setFx(result)
+      if (result.referencialDiario) setRate(String(result.referencialDiario))
+    } catch (cause) { setError(cause?.message || 'No se pudo obtener la cotización. Cargala manualmente.') } finally { setFxLoading(false) }
+  }
+
   async function register(e) {
     e.preventDefault()
     if (busy || needsRefresh) return
-    if (account?.currency === 'USD' && (!/^\d+(?:[.,]\d{1,2})?$/.test(amount.trim()) || !/^\d+(?:[.,]\d{1,6})?$/.test(rate.trim()))) { setError('Usá hasta 2 decimales para USD y 6 para la cotización.'); return }
-    const originalAmount = account?.currency === 'USD' ? Number(amount.replace(',', '.')) : parseGsInput(amount)
-    const exchangeRatePyg = account?.currency === 'USD' ? Number(rate.replace(',', '.')) : 1
+    if (FOREIGN(account?.currency) && (!/^\d+(?:[.,]\d{1,2})?$/.test(amount.trim()) || !/^\d+(?:[.,]\d{1,6})?$/.test(rate.trim()))) { setError('Usá hasta 2 decimales para el monto y 6 para la cotización.'); return }
+    const originalAmount = FOREIGN(account?.currency) ? Number(amount.replace(',', '.')) : parseGsInput(amount)
+    const exchangeRatePyg = FOREIGN(account?.currency) ? Number(rate.replace(',', '.')) : 1
     if (!Number.isFinite(originalAmount) || !Number.isFinite(exchangeRatePyg) || exchangeRatePyg <= 0) { setError('Completá el monto y la cotización.'); return }
     const value = Math.round(originalAmount * exchangeRatePyg)
     if (!Number.isSafeInteger(value) || value <= 0 || value > pending) { setError('El monto debe ser positivo y no superar el saldo pendiente.'); return }
@@ -104,7 +118,7 @@ export default function PagosPedido({ venta, onClose }) {
           throw new Error(`El pago demo se guardó, pero el equipo requiere revisión. No repitas el cobro. ${error.message}`)
         }
       } else {
-        const payload = { orderId: order.id, method: account?.kind || method, amountPyg: value, reference, ...details }
+        const payload = { orderId: order.id, method: account?.kind || method, amountPyg: value, reference, ...(asPending ? { status: 'PENDING' } : {}), ...details }
         const signature = JSON.stringify(payload)
         if (!attempt.current || attempt.current.signature !== signature) attempt.current = { signature, key: crypto.randomUUID() }
         await api.post('/api/payments', payload, { headers: { 'Idempotency-Key': attempt.current.key } })
@@ -166,9 +180,10 @@ export default function PagosPedido({ venta, onClose }) {
     </div>
     {pending > 0 && <form onSubmit={register} className="mb-6 space-y-3 rounded-xl border border-fono/20 bg-fono/5 p-4">
       <h3 className="font-semibold">Registrar pago parcial o total</h3>
-      <label className="block text-xs text-mute">Cuenta de destino<Select aria-label="Cuenta de destino" className="mt-1" value={accountId} onChange={e => { setAccountId(e.target.value); setAmount(''); setRate('') }}><option value="">Método manual sin cuenta</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.accountNumber || a.kind}</option>)}</Select></label>
-      <label className="block text-xs text-mute">Monto en {account?.currency === 'USD' ? 'dólares' : 'guaraníes'}<MoneyInput aria-label="Monto del pago" currency={account?.currency === 'USD' ? 'USD' : 'PYG'} value={amount} onValueChange={v => setAmount(v === '' ? '' : String(v))} placeholder={account?.currency === 'USD' ? '10,50' : 'Gs 0'} />{account?.currency !== 'USD' && <NumericKeypad value={String(amount || '').replace(/\D/g, '')} onChange={v => setAmount(formatGsInput(v))} />}</label>
-      {account?.currency === 'USD' && <label className="block text-xs text-mute">Cotización: Gs por USD<MoneyInput currency="USD" symbol="Gs." value={rate} onValueChange={setRate} placeholder="7500" /></label>}
+      <label className="block text-xs text-mute">Cuenta de destino<Select aria-label="Cuenta de destino" className="mt-1" value={accountId} onChange={e => { setAccountId(e.target.value); setAmount(''); setRate(''); setAsPending(false) }}><option value="">Método manual sin cuenta</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.accountNumber || a.kind}</option>)}</Select></label>
+      <label className="block text-xs text-mute">Monto en {FOREIGN(account?.currency) ? account.currency : 'guaraníes'}<MoneyInput aria-label="Monto del pago" currency={FOREIGN(account?.currency) ? account.currency : 'PYG'} value={amount} onValueChange={v => setAmount(v === '' ? '' : String(v))} placeholder={FOREIGN(account?.currency) ? '10,50' : 'Gs 0'} />{!FOREIGN(account?.currency) && <NumericKeypad value={String(amount || '').replace(/\D/g, '')} onChange={v => setAmount(formatGsInput(v))} />}</label>
+      {FOREIGN(account?.currency) && <div><label className="block text-xs text-mute">Cotización: Gs por {account.currency}<MoneyInput currency="USD" symbol="Gs." value={rate} onValueChange={setRate} placeholder="7500" /></label><button type="button" disabled={fxLoading || busy} onClick={fetchFx} className="mt-1 rounded-lg border border-fono/40 px-2 py-1 text-[11px] font-semibold text-fono-light disabled:opacity-40">{fxLoading ? 'Consultando BCP…' : 'Usar cotización BCP'}</button>{fx?.referencialDiario && <span className="ml-2 text-[11px] text-mute">BCP {fx.referencialDiario} · {fx.updated}</span>}</div>}
+      {account && <label className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" checked={asPending} onChange={e => setAsPending(e.target.checked)} /> Queda pendiente (ej. Pix recibido en cuenta personal, se confirma al pasar a la empresa)</label>}
       {account?.kind === 'TRADE_IN' && <div className="space-y-2"><Input aria-label="IMEI o serial" placeholder="IMEI / serial" value={device.serial} onChange={e => setDevice(d => ({ ...d, serial: e.target.value }))} /><Input aria-label="Modelo recibido" placeholder="Modelo recibido" value={device.model} onChange={e => setDevice(d => ({ ...d, model: e.target.value }))} /><Input placeholder="Estado y observaciones" value={device.conditionNotes} onChange={e => setDevice(d => ({ ...d, conditionNotes: e.target.value }))} /></div>}
       {!account && <label className="block text-xs text-mute">Método<Select className="mt-1" value={method} onChange={e => setMethod(e.target.value)}>{Object.entries(METHODS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></label>}
       <label className="block text-xs text-mute">Cuenta / referencia<Input value={reference} onChange={e => setReference(e.target.value)} maxLength={200} placeholder="Banco, cuenta o referencia de operación" /></label>

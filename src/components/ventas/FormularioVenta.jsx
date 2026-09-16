@@ -191,6 +191,11 @@ export default function FormularioVenta({
   const [errorCuentas, setErrorCuentas] = useState('')
   const [intentoCuentas, setIntentoCuentas] = useState(0)
   const [serialRequired, setSerialRequired] = useState(false)
+  // Sobre pedido: vender un modelo guardado sin IMEI cuando no hay stock
+  // disponible; el IMEI se completa al entregar.
+  const [sobrePedido, setSobrePedido] = useState(false)
+  // Factura a otro titular (esposo/a, padre, empresa) con RUC.
+  const [billingTo, setBillingTo] = useState({ name: '', document: '' })
   const [lastOrder, setLastOrder] = useState(null)
   const guardadoEnCurso = useRef(false)
   const [guardadoIncompleto, setGuardadoIncompleto] = useState(false)
@@ -307,7 +312,7 @@ export default function FormularioVenta({
     return productos.find(p => p.id === id)?.nombre || ''
   }
   function agregarItem() {
-    if (!f.productoId || gsNum(f.precio) <= 0 || (serialRequired && !f.serials.length)) return
+    if (!f.productoId || gsNum(f.precio) <= 0 || (serialRequired && !f.serials.length && !sobrePedido)) return
     setItems(arr => {
       // Mismo producto, cupón y condición, sin IMEI/seriales de por medio:
       // se suma la cantidad en vez de repetir la fila. Las líneas con seriales
@@ -318,7 +323,8 @@ export default function FormularioVenta({
               it.productoId === f.productoId &&
               !it.serials?.length &&
               it.couponCode === f.couponCode &&
-              Boolean(it.soldWithoutInsurance) === Boolean(f.soldWithoutInsurance),
+              Boolean(it.soldWithoutInsurance) === Boolean(f.soldWithoutInsurance) &&
+              Boolean(it.sobrePedido) === Boolean(sobrePedido),
           )
         : -1
       if (indice >= 0) {
@@ -335,6 +341,7 @@ export default function FormularioVenta({
           couponCode: f.couponCode,
           soldWithoutInsurance: f.soldWithoutInsurance,
           serials: f.serials,
+          sobrePedido,
         },
       ]
     })
@@ -347,6 +354,7 @@ export default function FormularioVenta({
       serials: [],
     }))
     setSerialRequired(false)
+    setSobrePedido(false)
     setFamiliaActiva(null)
   }
   function quitarItem(key) {
@@ -445,6 +453,7 @@ export default function FormularioVenta({
       serials: [],
     }))
     setSerialRequired(false)
+    setSobrePedido(false)
   }
 
   function elegirProducto(e) {
@@ -674,6 +683,15 @@ export default function FormularioVenta({
             // La API rechaza observaciones vacías: se omiten en vez de mandar ''.
             ...(f.observacion?.trim() ? { deliveryNotes: f.observacion } : {}),
             deliveryType: f.entrega,
+            // Factura a otro titular: solo viaja si se completó nombre o RUC.
+            ...(billingTo.name.trim() || billingTo.document.trim()
+              ? {
+                  billingTo: {
+                    ...(billingTo.name.trim() ? { name: billingTo.name.trim() } : {}),
+                    ...(billingTo.document.trim() ? { document: billingTo.document.trim() } : {}),
+                  },
+                }
+              : {}),
           },
           { idempotencyKey: idempotencyKeyRef.current },
         )
@@ -838,7 +856,7 @@ export default function FormularioVenta({
           paso === 1 &&
           f.productoId &&
           gsNum(f.precio) > 0 &&
-          !(serialRequired && !f.serials.length)
+          !(serialRequired && !f.serials.length && !sobrePedido)
         ) {
           event.preventDefault()
           agregarItem()
@@ -1030,6 +1048,8 @@ export default function FormularioVenta({
               setCustomer(c)
               setF(current => ({ ...current, cliente: c.name }))
             }}
+            billingTo={billingTo}
+            onBillingChange={setBillingTo}
           />
 
           {/* Producto */}
@@ -1208,6 +1228,17 @@ export default function FormularioVenta({
                 onRequiresSerial={setSerialRequired}
                 disabled={guardando}
               />
+              {serialRequired && !f.serials.length && Number(productos.find(p => p.id === f.productoId)?.stock || 0) === 0 && (
+                <label className="mt-2 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/5 p-3 text-sm text-mute">
+                  <input
+                    type="checkbox"
+                    checked={sobrePedido}
+                    onChange={e => setSobrePedido(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-warn"
+                  />
+                  <span>Vender <b className="text-fore">sin IMEI (sobre pedido)</b>: el cliente reserva sin stock; se completa el IMEI al entregar.</span>
+                </label>
+              )}
             </div>
           )}
           {f.productoId &&
@@ -1229,7 +1260,7 @@ export default function FormularioVenta({
               className="min-h-11 w-full"
               onClick={agregarItem}
               disabled={
-                !f.productoId || gsNum(f.precio) <= 0 || (serialRequired && !f.serials.length)
+                !f.productoId || gsNum(f.precio) <= 0 || (serialRequired && !f.serials.length && !sobrePedido)
               }
             >
               Agregar a la lista
