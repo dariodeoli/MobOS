@@ -106,6 +106,14 @@ INSERT INTO "User" ("id", "tenantId", "branchId", "name", "email", "pinHash", "r
   ('user-b-it', 'tenant-b-it', 'branch-b-it', 'Seller B', 'seller-b-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-c-admin-it', 'tenant-c-it', NULL, 'Admin C', 'admin-c-it@example.invalid', :'pin_hash', 'ADMIN', 'ACTIVE', CURRENT_TIMESTAMP);
 
+-- Invitaciones sembradas para invitation-app.mjs: el arnés no configura el
+-- relay de correo, así que POST /api/user-invitations respondería 503. Los
+-- tokenHash son valores sintéticos únicos (nunca se usan por aceptación vía id).
+INSERT INTO "UserInvitation" ("id", "tenantId", "email", "name", "role", "branchId", "inviterId", "tokenHash", "expiresAt", "sentAt", "resendAvailableAt", "updatedAt") VALUES
+  ('invite-a-b-it', 'tenant-a-it', 'seller-b-it@example.invalid', 'Seller B', 'VENDEDOR', 'branch-a-it', 'user-admin-it', '00000000000000000000000000000000000000000000000000000000000000a1', CURRENT_TIMESTAMP + INTERVAL '7 days', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('invite-b-b-it', 'tenant-b-it', 'seller-b-it@example.invalid', 'Seller B', 'VENDEDOR', 'branch-b-it', 'user-b-it', '00000000000000000000000000000000000000000000000000000000000000b2', CURRENT_TIMESTAMP + INTERVAL '7 days', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('invite-c-b-it', 'tenant-c-it', 'seller-b-it@example.invalid', 'Seller B', 'GERENTE', NULL, 'user-c-admin-it', '00000000000000000000000000000000000000000000000000000000000000c3', CURRENT_TIMESTAMP + INTERVAL '7 days', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
 INSERT INTO "Product" ("id", "tenantId", "branchId", "sku", "name", "category", "pricePyg", "stock", "isActive", "updatedAt") VALUES
   ('prod-a-order-it', 'tenant-a-it', 'branch-a-it', 'SKU-A-ORDER-IT', 'Synthetic Product A Order', 'Test', 100000, 10, true, CURRENT_TIMESTAMP),
   ('prod-a-rollback-it', 'tenant-a-it', 'branch-a-it', 'SKU-A-ROLLBACK-IT', 'Synthetic Product A Rollback', 'Test', 100000, 2, true, CURRENT_TIMESTAMP),
@@ -436,6 +444,7 @@ node "$BACKEND_ROOT/tests/purchases-suppliers.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$
 out="$(response_file)"; CHECKOUT_COMPANY_B="$(auth_cookie POST /api/auth/login 200 '{"email":"company-b-it@example.invalid","password":"company-password-it","deviceId":"checkout-b-it","branchId":"branch-b-it"}' "$out" '' mobos_company_session)"
 out="$(response_file)"; CHECKOUT_SELLER_B="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-b-it","pin":"2468"}' "$out" "$CHECKOUT_COMPANY_B" mobos_seller_session)"
 MOBOS_IT_EXECUTE=1 node "$BACKEND_ROOT/tests/checkout-customer.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A" "$CHECKOUT_SELLER_B"
+node "$BACKEND_ROOT/tests/invitation-app.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CHECKOUT_SELLER_B"
 MOBOS_SECURITY_PAYMENT_ID="$PAYMENT_PROOF_ID" node "$BACKEND_ROOT/tests/security-regression.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
 
 echo "Reportes por producto, categoría, vendedor y día..."
