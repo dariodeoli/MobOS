@@ -9,14 +9,15 @@ export async function loginCompany(page, { email = SEED.company.email, password 
   await page.getByLabel('Correo', { exact: true }).fill(email)
   await page.getByLabel('Contraseña', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Continuar', exact: true }).click()
-  // The form moves to the seller/PIN step; the seller <select> appears.
-  await expect(page.locator('#seller')).toBeVisible()
+  // The form moves to the seller PIN step; the PIN input appears (the seller
+  // select stays collapsed inside the "¿No sabés tu PIN?" details).
+  await expect(page.locator('#seller-pin')).toBeVisible()
 }
 
 // Complete the seller PIN step and wait for the role-based landing page.
-export async function completeSellerPin(page, { sellerName = SEED.sellers[0].name, pin = SEED.sellers[0].pin } = {}) {
-  await page.locator('#seller').selectOption({ label: sellerName })
-  await page.getByLabel('PIN del vendedor', { exact: true }).fill(pin)
+// The PIN alone identifies the seller (PINs are unique per company).
+export async function completeSellerPin(page, { pin = SEED.sellers[0].pin } = {}) {
+  await page.getByLabel('PIN de vendedor', { exact: true }).fill(pin)
   // The form auto-submits on the 4th digit; the seller lands on /pos/cargar.
   await expect(page).toHaveURL(/\/pos\/cargar$/)
 }

@@ -31,14 +31,17 @@ test.describe('owner panel', () => {
   })
 
   // Fixed in the Phase-3 merge: the "Agregar directamente" form now creates
-  // the seller via POST /api/users (including the 4-digit PIN).
+  // the seller via POST /api/users (including the 4-digit PIN). The PIN is
+  // unique per run: the API rejects a PIN already in use by the company, and
+  // the local E2E database persists users across runs.
   test('equipo → Vendedores creates a new seller with a PIN', async ({ page }) => {
     await page.goto('/pos/equipo')
     await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
 
     const name = `Vendedor E2E ${Date.now().toString(36)}`
+    const pin = String(1000 + Math.floor(Math.random() * 9000))
     await page.locator('#direct-name').fill(name)
-    await page.locator('#direct-pin').fill('1357')
+    await page.locator('#direct-pin').fill(pin)
     await page.getByRole('button', { name: 'Agregar', exact: true }).click()
 
     await expect(page.getByText('Integrante agregado correctamente.')).toBeVisible()
