@@ -49,6 +49,10 @@ SQL
 "$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$BACKEND_ROOT/prisma/migrations/20260918000000_istore_seed_completion/migration.sql" >/dev/null
 "$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$BACKEND_ROOT/prisma/migrations/20260918000000_istore_seed_completion/migration.sql" >/dev/null
 
+# Ubicación de unidades sembradas (Depósito 1) + idempotencia.
+"$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$BACKEND_ROOT/prisma/migrations/20260918010000_istore_units_deposito1/migration.sql" >/dev/null
+"$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$BACKEND_ROOT/prisma/migrations/20260918010000_istore_units_deposito1/migration.sql" >/dev/null
+
 count() { "$PG_BIN/psql" "$DATABASE_URL" -At -c "$1"; }
 
 PRODUCTS="$(count "SELECT count(*) FROM \"Product\" WHERE \"tenantId\"='tenant-seed'")"
@@ -74,11 +78,13 @@ CLAUDIA_HASH="$(count "SELECT \"pinHash\" FROM \"User\" WHERE \"tenantId\"='tena
 BACKEND_ROOT="$BACKEND_ROOT" node -e "const bcrypt=require(process.env.BACKEND_ROOT+'/node_modules/bcryptjs'); if(!bcrypt.compareSync('0001', process.argv[1])) process.exit(1)" "$CLAUDIA_HASH" || { echo "FALLA: PIN 0001 no coincide"; exit 1; }
 EDGAR_HASH="$(count "SELECT \"pinHash\" FROM \"User\" WHERE \"tenantId\"='tenant-seed' AND \"name\" = 'Edgar Castillo' LIMIT 1")"
 BACKEND_ROOT="$BACKEND_ROOT" node -e "const bcrypt=require(process.env.BACKEND_ROOT+'/node_modules/bcryptjs'); if(!bcrypt.compareSync('0006', process.argv[1])) process.exit(1)" "$EDGAR_HASH" || { echo "FALLA: PIN 0006 no coincide"; exit 1; }
+DEPOSITO1_UNITS="$(count "SELECT count(*) FROM \"InventoryUnit\" u JOIN \"StockLocation\" l ON l.\"id\" = u.\"locationId\" WHERE u.\"tenantId\"='tenant-seed' AND l.\"name\" = 'Depósito 1' AND u.\"status\" IN ('AVAILABLE','RESERVED')")"
+TRANSIT_WITHOUT_LOCATION="$(count "SELECT count(*) FROM \"InventoryUnit\" WHERE \"tenantId\"='tenant-seed' AND \"status\"='IN_TRANSIT' AND \"locationId\" IS NULL")"
 
 echo "productos=$PRODUCTS unidades=$UNITS (disponibles=$AVAILABLE reservadas=$RESERVED vendidas=$SOLD transito=$TRANSIT)"
 echo "proveedores=$SUPPLIERS ubicaciones=$LOCATIONS desajustes_stock_serializado=$STOCK_CHECK"
 echo "pedidos=$ORDERS lineas=$ORDER_ITEMS pagos=$PAYMENTS clientes=$CUSTOMERS unidades_vendidas=$SOLD_UNITS cobrado_confirmado=$PAID_SUM factura_otro_titular=$BILLING"
-echo "pines_asignados=$PINNED_USERS precios_cargados=$PRICED_PRODUCTS precio_17pro_silver=$PRICE_17PRO"
+echo "pines_asignados=$PINNED_USERS precios_cargados=$PRICED_PRODUCTS precio_17pro_silver=$PRICE_17PRO deposito1=$DEPOSITO1_UNITS transito_sin_ubicacion=$TRANSIT_WITHOUT_LOCATION"
 
 [[ "$PRODUCTS" -ge 800 ]] || { echo "FALLA: catálogo incompleto"; exit 1; }
 [[ "$UNITS" -ge 150 ]] || { echo "FALLA: unidades incompletas"; exit 1; }
@@ -96,4 +102,6 @@ echo "pines_asignados=$PINNED_USERS precios_cargados=$PRICED_PRODUCTS precio_17p
 [[ "$PINNED_USERS" -eq 7 ]] || { echo "FALLA: PIN de vendedores incompleto"; exit 1; }
 [[ "$PRICED_PRODUCTS" -ge 30 ]] || { echo "FALLA: precios de venta incompletos"; exit 1; }
 [[ "$PRICE_17PRO" -eq 7950000 ]] || { echo "FALLA: precio de 17 Pro Silver inesperado"; exit 1; }
+[[ "$DEPOSITO1_UNITS" -ge 120 ]] || { echo "FALLA: ubicación Depósito 1 incompleta"; exit 1; }
+[[ "$TRANSIT_WITHOUT_LOCATION" -eq 5 ]] || { echo "FALLA: tránsito debe quedar sin ubicación"; exit 1; }
 echo "seed-istore-smoke: OK"

@@ -386,6 +386,32 @@ lines.push('')
 const output = lines.join('\n')
 mkdirSync(MIGRATION_DIR, { recursive: true })
 writeFileSync(join(MIGRATION_DIR, 'migration.sql'), output)
+
+// ── Ubicación de las unidades sembradas: todas a Depósito 1 ────────────────
+// Decisión de Dario (16-09-2026): los colores de planilla no traían depósito
+// por fila; las unidades disponibles/reservadas del seed van a "Depósito 1"
+// y después se mueven a mano. Tránsito y vendidas quedan sin ubicación.
+const LOCATION_DIR = join(ROOT, 'backend/prisma/migrations/20260918010000_istore_units_deposito1')
+const seedSerials = [...new Set([...UNITS.map(unit => unit[5]), ...SERIALIZED.map(item => item.serial)])]
+const locationLines = [
+  '-- Las unidades disponibles/reservadas del seed de iStore van a "Depósito 1"',
+  '-- (decisión de Dario, 16-09-2026). Tránsito y vendidas quedan sin ubicación.',
+  '',
+  'DO $$',
+  'DECLARE',
+  '  v_tenant_id TEXT;',
+  '  v_location_id TEXT;',
+  'BEGIN',
+  "  SELECT id INTO v_tenant_id FROM \"Tenant\" WHERE lower(email) = 'dariodeoli@gmail.com' OR lower(name) LIKE '%istore%' OR lower(name) LIKE '%iphone store%' ORDER BY \"createdAt\" LIMIT 1;",
+  '  IF v_tenant_id IS NULL THEN RETURN; END IF;',
+  "  SELECT l.\"id\" INTO v_location_id FROM \"StockLocation\" l JOIN \"Branch\" b ON b.\"id\" = l.\"branchId\" WHERE l.\"tenantId\" = v_tenant_id AND l.\"name\" = 'Depósito 1' AND b.\"isActive\" = true ORDER BY l.\"createdAt\" LIMIT 1;",
+  '  IF v_location_id IS NULL THEN RETURN; END IF;',
+  `  UPDATE "InventoryUnit" SET "locationId" = v_location_id, "updatedAt" = now() WHERE "tenantId" = v_tenant_id AND "status" IN ('AVAILABLE', 'RESERVED') AND "locationId" IS NULL AND "serial" IN (${seedSerials.map(q).join(', ')});`,
+  'END $$;',
+  '',
+]
+mkdirSync(LOCATION_DIR, { recursive: true })
+writeFileSync(join(LOCATION_DIR, 'migration.sql'), locationLines.join('\n'))
 const counts = UNITS.reduce((acc, unit) => { acc[unit[11]] = (acc[unit[11]] || 0) + 1; return acc }, {})
 const serCounts = SERIALIZED.reduce((acc, item) => { acc[item.state || 'available'] = (acc[item.state || 'available'] || 0) + 1; return acc }, {})
 console.log(`Migración generada: backend/prisma/migrations/20260916030000_istore_paraguay_real_stock/migration.sql`)
