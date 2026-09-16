@@ -10,7 +10,7 @@ import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 import { trackingUrlFor } from '@/components/shared/OrderReceipt'
-import { printPaymentReceipt } from '@/components/shared/OrderReceipt'
+import { printPaymentReceipt, printOrderReceipt } from '@/components/shared/OrderReceipt'
 
 // Enlace de WhatsApp para compartir el seguimiento público del pedido.
 export function whatsappTrackingLink(order, extra = '') {
@@ -55,6 +55,35 @@ export default function PagosPedido({ venta, onClose }) {
   const payments = order.pagos || []
   const pending = num(order.totalPendiente)
   const canReconcile = esDemo || ['ADMIN', 'GERENTE', 'CAJERA'].includes(usuario?.role)
+  const canReturn = esDemo || ['ADMIN', 'GERENTE'].includes(usuario?.role)
+  const [postventaOpen, setPostventaOpen] = useState(false)
+  const [emailBusy, setEmailBusy] = useState(false)
+
+  async function enviarComprobante() {
+    if (emailBusy) return
+    setEmailBusy(true); setError(''); setNotice('')
+    try {
+      const result = await api.post(`/api/orders/${encodeURIComponent(order.id)}/receipt-email`, {})
+      setNotice(result?.already ? 'El comprobante ya estaba encolado para este pedido.' : 'Comprobante encolado. Llega al correo del cliente en unos minutos.')
+    } catch (cause) { setError(cause?.message || 'No se pudo encolar el comprobante.') } finally { setEmailBusy(false) }
+  }
+  const [postventa, setPostventa] = useState({ operation: 'RETURN', reason: '', replacementNumber: '' })
+  const [postventaBusy, setPostventaBusy] = useState(false)
+  const cobrado = payments.filter(p => p.status === undefined || p.status === 'CONFIRMED').reduce((sum, p) => sum + num(p.monto), 0)
+
+  async function registrarPostventa(event) {
+    event.preventDefault()
+    if (postventaBusy || postventa.reason.trim().length < 3) return
+    setPostventaBusy(true); setError(''); setNotice('')
+    try {
+      const payload = { operation: postventa.operation, reason: postventa.reason.trim(), ...(postventa.operation === 'RETURN' ? { refundPyg: cobrado } : { replacementOrderNumber: postventa.replacementNumber.trim() }) }
+      await api.post(`/api/orders/${encodeURIComponent(order.id)}/return`, payload)
+      setPostventaOpen(false)
+      setPostventa({ operation: 'RETURN', reason: '', replacementNumber: '' })
+      setNotice(postventa.operation === 'RETURN' ? 'Devolución registrada y cobros marcados como reembolsados. La reposición de stock se revisa aparte.' : 'Cambio registrado. El equipo devuelto queda para revisión aparte.')
+      try { await refrescar() } catch { setNeedsRefresh(true) }
+    } catch (cause) { setError(cause?.message || 'No se pudo registrar la postventa.') } finally { setPostventaBusy(false) }
+  }
 
   useEffect(() => {
     let active = true
@@ -172,6 +201,8 @@ export default function PagosPedido({ venta, onClose }) {
           <span className="text-xs text-mute">El cliente no tiene teléfono: compartí el enlace a mano.</span>
         )}
         <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={() => { navigator.clipboard?.writeText(trackingUrlFor(order)).catch(() => {}) }}>Copiar enlace</button>
+        {!esDemo && order.customer?.email && <button type="button" disabled={emailBusy} className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light disabled:opacity-40" onClick={enviarComprobante}>{emailBusy ? 'Encolando…' : 'Enviar comprobante por email'}</button>}
+        <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={() => printOrderReceipt(order, { format: 'a4' })}>Imprimir comprobante</button>
         <span className="w-full text-xs text-mute sm:w-auto">El enlace muestra solo estado y comprobante; sin teléfonos, direcciones ni pagos.</span>
       </div>
     )}
@@ -179,6 +210,25 @@ export default function PagosPedido({ venta, onClose }) {
       <div className="rounded-xl border border-fore/10 p-4"><p className="text-xs text-mute">Pagado</p><strong className="mt-1 block text-xl text-fono-light">{gs(order.totalPagado)}</strong></div>
       <div className="rounded-xl border border-fore/10 p-4"><p className="text-xs text-mute">Pendiente</p><strong className="mt-1 block text-xl">{gs(pending)}</strong></div>
     </div>
+    {canReturn && !postventaOpen && (
+      <div className="mb-5">
+        <button type="button" className="text-sm font-semibold text-bad hover:underline" onClick={() => { setPostventaOpen(true); setError(''); setNotice('') }}>Registrar cambio o devolución…</button>
+      </div>
+    )}
+    {canReturn && postventaOpen && (
+      <form onSubmit={registrarPostventa} className="mb-6 space-y-3 rounded-xl border border-bad/30 bg-bad/5 p-4">
+        <h3 className="font-semibold">Cambio o devolución</h3>
+        <p className="text-xs text-mute">La devolución completa reembolsa los pagos confirmados ({gs(cobrado)}) y cancela el pedido. El stock devuelto se revisa aparte antes de volver a venderse.</p>
+        <div className="flex gap-2">
+          {[['RETURN', 'Devolución'], ['EXCHANGE', 'Cambio por otro pedido']].map(([value, label]) => (
+            <button key={value} type="button" className={`rounded-lg border px-3 py-2 text-sm ${postventa.operation === value ? 'border-bad bg-bad/15 font-semibold text-bad' : 'border-ink-600 text-mute'}`} onClick={() => setPostventa(current => ({ ...current, operation: value }))}>{label}</button>
+          ))}
+        </div>
+        {postventa.operation === 'EXCHANGE' && <Input aria-label="Número del pedido que reemplaza" required maxLength={100} value={postventa.replacementNumber} onChange={event => setPostventa(current => ({ ...current, replacementNumber: event.target.value }))} placeholder="N.º de pedido del cambio (ej: MOB-123)" />}
+        <Input aria-label="Motivo de la postventa" required minLength={3} maxLength={1000} value={postventa.reason} onChange={event => setPostventa(current => ({ ...current, reason: event.target.value }))} placeholder="Motivo (mínimo 3 caracteres)" />
+        <div className="flex flex-wrap gap-2"><Button type="submit" disabled={postventaBusy || postventa.reason.trim().length < 3 || (postventa.operation === 'EXCHANGE' && !postventa.replacementNumber.trim())}>{postventaBusy ? 'Registrando…' : 'Confirmar postventa'}</Button><Button type="button" variant="ghost" disabled={postventaBusy} onClick={() => setPostventaOpen(false)}>Cancelar</Button></div>
+      </form>
+    )}
     {pending > 0 && <form onSubmit={register} className="mb-6 space-y-3 rounded-xl border border-fono/20 bg-fono/5 p-4">
       <h3 className="font-semibold">Registrar pago parcial o total</h3>
       <label className="block text-xs text-mute">Cuenta de destino<Select aria-label="Cuenta de destino" className="mt-1" value={accountId} onChange={e => { setAccountId(e.target.value); setAmount(''); setRate(''); setAsPending(false) }}><option value="">Método manual sin cuenta</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.accountNumber || a.kind}</option>)}</Select></label>
