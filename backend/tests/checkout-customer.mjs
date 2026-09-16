@@ -63,6 +63,7 @@ async function testHttp([base, admin, seller, company, otherSeller]) {
   await reject({ customer: { name: `${prefix} Rollback DB` }, orderNumber: first.orderNumber })
   await reject({ customer: { name: `${prefix} Rollback branch` }, items: [{ productId: 'prod-a-crossbranch-it', quantity: 1, unitPricePyg: 100 }] })
   await reject({ customer: { name: `${prefix} Rollback tenant` }, items: [{ productId: 'prod-b-it', quantity: 1, unitPricePyg: 100 }] })
+  saved = (await customers()).find(c => c.id === first.customerId)
   const parallel = await Promise.all([0, 1, 2].map(i => order({ customer: { name: i % 2 ? `${prefix} Concurrent`.toLowerCase() : `${prefix} Concurrent` }, items: [{ description: 'Service', quantity: 1, unitPricePyg: 100 }] })))
   assert.equal(new Set(parallel.map(o => o.customerId)).size, 1)
   assert.deepEqual((await customers()).find(c => c.id === saved.id), saved)
