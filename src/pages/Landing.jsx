@@ -1,21 +1,23 @@
 import {
   ArrowRight,
   BarChart3,
-  Building2,
+  BellRing,
   Check,
   ChevronDown,
   CircleDollarSign,
   CreditCard,
   Fingerprint,
+  KeyRound,
   MessageCircle,
   Package,
-  QrCode,
+  Percent,
   ReceiptText,
   ScanLine,
   ShieldCheck,
   Smartphone,
   Store,
   Truck,
+  WifiOff,
   Wrench,
 } from "lucide-react";
 import { useState } from "react";
@@ -26,49 +28,64 @@ import ThemeToggle from '@/components/app/ThemeToggle'
 
 const modules = [
   [
-    "POS que no frena la venta",
-    "Buscá, agregá, cobrá y dejá cada movimiento vinculado al vendedor que ingresó con su PIN.",
+    "Vender",
+    "POS rápido con carrito, descuentos y cobros combinados: efectivo, transferencia, tarjeta, USDT, pagos parciales y pendientes.",
     ReceiptText,
   ],
   [
-    "Stock por unidad y ubicación",
-    "IMEI, serial, batería, condición, sucursal y depósito con reservas, transferencias y verificación física.",
+    "PIN único por operador",
+    "Cada vendedor entra con su PIN de 4 dígitos: sus ventas, comisiones y permisos quedan identificados.",
+    KeyRound,
+  ],
+  [
+    "Inventario por IMEI",
+    "Historial por unidad, reservas, transferencias entre sucursales, verificación física y etiquetas QR.",
     ScanLine,
   ],
   [
-    "Caja y pagos reales",
-    "Efectivo, transferencia, POS, USDT, pagos parciales y cuentas configurables en una venta.",
-    CreditCard,
+    "Stock con alertas de reposición",
+    "Mínimos por producto para comprar a tiempo y no vender equipos que no están.",
+    BellRing,
   ],
   [
     "Compras e importaciones",
-    "Proveedores, crédito, anticipos, flete, seguro, impuestos y costo final distribuido por equipo o lote.",
+    "Proveedores, anticipos, crédito y costos de flete y aduana prorrateados al costo de cada equipo.",
     Truck,
   ],
   [
-    "Clientes conectados",
-    "RUC o CI, varias direcciones, historial, pedidos, plantillas de WhatsApp y seguimiento público.",
+    "Cliente 360°",
+    "Deuda, garantías, notas, seguimientos y contacto por WhatsApp, todo desde la ficha del cliente.",
     MessageCircle,
   ],
   [
-    "Trade-in y servicio técnico",
-    "Recepción, diagnóstico, técnico, costos, garantía y reingreso del equipo al stock con trazabilidad.",
+    "Garantías y servicio técnico",
+    "Recepción con fotos, diagnóstico, técnico asignado, costos y reingreso del equipo al stock.",
     Wrench,
   ],
   [
-    "Etiquetas y comprobantes",
-    "Impresión térmica o A4, IMEI visible, últimos cuatro dígitos, código de barras y QR.",
-    QrCode,
+    "Caja y finanzas",
+    "Apertura y cierre, conciliación de cuentas, gastos y comisiones de vendedores en un mismo panel.",
+    CreditCard,
   ],
   [
-    "Sucursales sin confusión",
-    "Disponibilidad, tránsito y depósitos separados, con movimientos auditables entre locales.",
-    Building2,
-  ],
-  [
-    "Control para dueños",
-    "Ventas, margen real, caja, rendimiento, permisos y auditoría para decidir con datos.",
+    "Reportes y exportaciones CSV",
+    "Ventas, márgenes, stock y movimientos con exportación a CSV para analizar donde quieras.",
     BarChart3,
+  ],
+  [
+    "Promociones y cotizador Trade-In",
+    "Descuentos por producto o combo y cotizador de canje para recibir equipos usados.",
+    Percent,
+  ],
+  [
+    "Modo claro/oscuro con PWA offline",
+    "App instalable en el teléfono, con tema claro u oscuro y operación disponible sin conexión.",
+    Smartphone,
+  ],
+  [
+    "Seguridad",
+    "PINs únicos, bloqueo de pantalla y auditoría de movimientos para saber quién hizo qué.",
+    ShieldCheck,
   ],
 ];
 const faqs = [
@@ -78,7 +95,19 @@ const faqs = [
   ],
   [
     "¿Cada vendedor tiene su propio acceso?",
-    "Sí. La empresa inicia sesión y cada persona abre su turno con PIN. Las ventas quedan vinculadas automáticamente.",
+    "Sí. La tienda entra con un solo correo y cada vendedor abre su turno con un PIN de 4 dígitos. Cada venta queda a su nombre y sus permisos definidos.",
+  ],
+  [
+    "¿Funciona sin internet?",
+    "Sí. MobOS es una PWA instalable: la operación sigue disponible sin conexión y se sincroniza cuando vuelve la red.",
+  ],
+  [
+    "¿Cómo cambio el PIN?",
+    "Cada vendedor lo cambia desde su perfil, y un administrador puede restablecerlo cuando sea necesario.",
+  ],
+  [
+    "¿Cómo cargo productos por IMEI?",
+    "Al crear el producto elegís manejo por IMEI o serial. Cargás unidades una a una o en lote y quedan con historial, etiqueta y QR.",
   ],
   [
     "¿Sirve para más de una sucursal?",
@@ -103,7 +132,7 @@ function Preview({ appDomain }) {
       <div className="grid min-h-[355px] grid-cols-[76px_1fr] overflow-hidden rounded-b-[1.35rem] bg-paper sm:grid-cols-[118px_1fr]">
         <aside className="border-r border-fore/5 bg-ink-800 px-2 py-4 sm:px-3">
           <b className="mb-7 hidden text-xs text-fono-dark sm:block">MOBOS</b>
-          {["Resumen", "Ventas", "Productos", "Stock", "Clientes"].map(
+          {["Resumen", "Ventas", "Productos", "Stock", "Clientes", "Caja"].map(
             (x, i) => (
               <div
                 key={x}
@@ -124,9 +153,14 @@ function Preview({ appDomain }) {
                 Buenos días, Dario
               </h3>
             </div>
-            <b className="h-fit rounded-lg bg-fono/10 px-2 py-1 text-[10px] text-fono-dark">
-              ASU · EN VIVO
-            </b>
+            <div className="flex flex-col items-end gap-1">
+              <b className="rounded-lg bg-fono/10 px-2 py-1 text-[10px] text-fono-dark">
+                ASU · EN VIVO
+              </b>
+              <b className="rounded-lg bg-fore/[.06] px-2 py-1 text-[10px] text-mute">
+                PIN · 2001
+              </b>
+            </div>
           </div>
           <div className="mt-5 grid grid-cols-2 gap-3">
             <Stat
@@ -206,33 +240,40 @@ export default function Landing() {
           <i className="absolute right-[-8%] top-40 -z-10 h-96 w-96 rounded-full bg-fono-glow/20 blur-[120px]" />
           <div className="mx-auto grid max-w-7xl gap-14 px-5 pb-20 pt-16 lg:grid-cols-[.9fr_1.1fr] lg:items-center lg:py-24">
             <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-fono/25 bg-fono/[.08] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.16em] text-fono-dark">
-                <span className="h-1.5 w-1.5 rounded-full bg-fono" />
-                Operación completa para tiendas móviles
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="inline-flex items-center gap-2 rounded-full border border-fono/25 bg-fono/[.08] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.16em] text-fono-dark">
+                  <span className="h-1.5 w-1.5 rounded-full bg-fono" />
+                  Operación completa para tiendas móviles
+                </p>
+                <p className="inline-flex items-center gap-1.5 rounded-full border border-fore/15 bg-ink px-3 py-1.5 text-[11px] font-semibold text-mute">
+                  <WifiOff size={12} className="text-fono-dark" />
+                  PWA · funciona sin conexión
+                </p>
+              </div>
               <h1 className="mt-6 font-display text-5xl font-bold leading-[.91] tracking-[-.065em] sm:text-6xl lg:text-7xl">
-                Vendé con ritmo.
+                Vendé con PIN.
                 <br />
-                <span className="text-fono-dark">Controlá con certeza.</span>
+                <span className="text-fono-dark">Controlá todo el negocio.</span>
               </h1>
               <p className="mt-7 max-w-xl text-lg leading-8 text-mute">
-                MobOS conecta POS, inventario por IMEI, caja, compras,
-                clientes, trade-in y servicio técnico. Una sola operación,
-                desde que entra un equipo hasta que termina la posventa.
+                MobOS une el POS con PIN único, el inventario por IMEI, las
+                compras e importaciones, la caja y las finanzas y el cliente
+                360°. Desde que entra un equipo hasta la posventa, todo queda
+                vinculado y auditado.
               </p>
               <div className="mt-9 flex flex-wrap gap-3">
                 <a
                   href={`${app}/login`}
                   className="rounded-xl bg-fono px-5 py-3.5 font-bold text-onbrand shadow-glow transition hover:-translate-y-0.5"
                 >
-                  Crear mi tienda{" "}
+                  Entrar{" "}
                   <ArrowRight className="ml-1 inline" size={18} />
                 </a>
                 <a
                   href={`${app}/demo`}
                   className="rounded-xl border border-fore/15 px-5 py-3.5 font-semibold transition hover:border-fono-dark/50 hover:text-fono-dark"
                 >
-                  Ver demo interactiva
+                  Probar demo
                 </a>
               </div>
               <p className="mt-7 text-xs text-mute">
@@ -250,16 +291,16 @@ export default function Landing() {
         <section className="border-y border-fore/[.07] bg-fore/[.018]">
           <div className="mx-auto grid max-w-7xl gap-6 px-5 py-7 sm:grid-cols-3">
             <p className="text-sm text-mute">
-              <b className="block font-display text-lg text-fore">Una venta, un flujo.</b>
-                Cliente, cobro, stock, caja, entrega y garantía conectados.
+              <b className="block font-display text-lg text-fore">PIN único por vendedor.</b>
+                Cada venta, descuento y comisión queda a nombre de quien atendió.
             </p>
             <p className="text-sm text-mute">
-              <b className="block font-display text-lg text-fore">PYG, USD y más.</b> Ventas,
-              compras y saldos conservan moneda y cotización.
+              <b className="block font-display text-lg text-fore">Inventario serializado por IMEI.</b>
+                Historial, reservas, transferencias y verificación física por unidad.
             </p>
             <p className="text-sm text-mute">
-              <b className="block font-display text-lg text-fore">Diseñado para móvil.</b> El
-              vendedor opera desde teléfono o computadora.
+              <b className="block font-display text-lg text-fore">Multisucursal y multidivisa.</b>
+                Locales y depósitos separados con Gs, USD, BRL, EUR y USDT.
             </p>
           </div>
         </section>
@@ -366,16 +407,16 @@ export default function Landing() {
             <div className="mt-8 space-y-4">
               {[
                 [
-                  "Dueño y administración",
-                  "Resumen, caja, costos, reportes, permisos y configuración.",
+                  "Un solo acceso de tienda",
+                  "La tienda entra con su correo (Gmail) o con Google. Sin una cuenta por persona.",
                 ],
                 [
-                  "Vendedor",
-                  "POS, clientes, productos, pedidos, promociones y trade-in.",
+                  "PIN de 4 dígitos por vendedor",
+                  "Identifica quién vendió y define qué puede ver y hacer cada uno.",
                 ],
                 [
-                  "PIN individual",
-                  "Cada venta se atribuye automáticamente a quien atendió.",
+                  "Cambio de vendedor y bloqueo",
+                  "Se pasa de un vendedor a otro sin cerrar sesión; bloqueo de pantalla opcional con triple clic.",
                 ],
               ].map(([r, d], i) => (
                 <div
@@ -401,8 +442,9 @@ export default function Landing() {
               Tu negocio separado. Tu equipo con el acceso justo.
             </h2>
             <p className="mt-6 leading-7 text-mute">
-              Creá una tienda con correo y contraseña o ingresá con Google.
-              Después cada colaborador usa su código para trabajar en su rol.
+              La tienda inicia sesión una sola vez. Después, cada vendedor abre
+              su turno con su PIN de 4 dígitos: el sistema sabe quién vende, qué
+              permisos tiene y deja todo auditado.
             </p>
             <a
               href={`${app}/login`}
@@ -423,8 +465,8 @@ export default function Landing() {
                 Todo el control que tu tienda necesita.
               </h2>
               <p className="mt-4 max-w-xl leading-7 text-onbrand/90">
-                POS, usuarios, sucursales, inventario, compras, pagos, caja,
-                clientes, trade-in, garantías y reportes en un mismo plan.
+                POS con PIN, inventario por IMEI, compras e importaciones,
+                caja, cliente 360°, garantías y reportes en un mismo plan.
               </p>
             </div>
             <div className="rounded-2xl bg-ink p-6 text-fore shadow-2xl">
