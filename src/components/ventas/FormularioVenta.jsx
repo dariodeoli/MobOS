@@ -41,6 +41,8 @@ import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import PaymentAccountFields, { accountPayment, updateAccountPayment } from './PaymentAccountFields'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
 import { printOrderReceipt } from '@/components/shared/OrderReceipt'
+import { whatsappTrackingLink } from './PagosPedido'
+import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
@@ -538,6 +540,8 @@ export default function FormularioVenta({
     try {
       if (tieneCupon && gsNum(descuento) > 0)
         throw new Error('Quitá el descuento extra para utilizar un cupón. No son acumulables.')
+      if (customer.phone?.trim() && !telefonoValido(customer.phone, customer.countryCode))
+        throw new Error(MENSAJE_TELEFONO)
       if (!puedeDescontar && gsNum(descuento) > 0)
         throw new Error('Solo administradores y gerentes pueden aplicar descuentos.')
       if (esDemo) validateDemoPromotionItems(orderItems, productos, gsNum(descuento))
@@ -885,6 +889,16 @@ export default function FormularioVenta({
           <span>Venta registrada correctamente. Ya podés cargar la siguiente.</span>
           {lastOrder && (
             <>
+              {whatsappTrackingLink(lastOrder) && (
+                <a
+                  className="rounded-lg bg-ok px-3 py-2 text-sm font-semibold text-black"
+                  href={whatsappTrackingLink(lastOrder)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Seguimiento por WhatsApp
+                </a>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -908,7 +922,21 @@ export default function FormularioVenta({
           Canje preparado como parte de pago. Revisá sus datos y el saldo pendiente en Cobrar.
         </p>
       )}
-      <form onSubmit={guardar} className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
+      <form
+        onSubmit={guardar}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter') return
+          const target = event.target
+          if (!(target instanceof HTMLElement)) return
+          if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.tagName === 'SELECT' || target.tagName === 'A') return
+          // Enter avanza entre pasos; en "Cobrar" el Enter nativo confirma la venta.
+          if (paso < 3) {
+            event.preventDefault()
+            siguientePaso()
+          }
+        }}
+        className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2"
+      >
         {errorVenta && (
           <p
             role="alert"
