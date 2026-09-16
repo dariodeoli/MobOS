@@ -25,13 +25,14 @@ const STATUS = { PENDING: 'Pendiente', COMPLETED: 'Completado', CANCELLED: 'Canc
 const FULFILLMENT = { PROCESSING: 'Preparando', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 
 export default function SellerOrders() {
-  const { sesion, esDemo } = useSesion()
+  const { sesion, esDemo, usuario } = useSesion()
   const [query, setQuery] = useState('')
   const [savingId, setSavingId] = useState('')
   const [actionError, setActionError] = useState('')
   const products = esDemo ? productosById() : {}
   const data = useSellerData('/api/orders', orderFields, listVentas, esDemo)
-  const rows = data.rows.filter((row) => Boolean(sesion?.vendedorId) && row.sellerId === sesion.vendedorId)
+  const veTodos = ['ADMIN', 'GERENTE'].includes(sesion?.rol || usuario?.role)
+  const rows = data.rows.filter((row) => !veTodos && Boolean(sesion?.vendedorId) ? row.sellerId === sesion.vendedorId : true)
     .map((row) => ({ ...row, products: row.products || products[row.productId]?.nombre || products[row.productId]?.name || '' }))
     .filter((row) => `${row.number} ${row.customer} ${row.products}`.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
