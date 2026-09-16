@@ -3,7 +3,7 @@ import { isDemoRuntime } from './demoMode'
 
 const ENDPOINT = '/api/payment-accounts'
 const DEMO_KEY = 'mobos:demo-payment-accounts:v1'
-const KINDS = ['CASH', 'TRANSFER', 'CARD', 'TRADE_IN']
+const KINDS = ['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX']
 const defaults = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0 }
 const seed = [
   { ...defaults, id: 'demo-cash-pyg', name: 'Caja demo · Gs' },
