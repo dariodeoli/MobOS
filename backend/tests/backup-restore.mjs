@@ -9,6 +9,7 @@
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import net from 'node:net'
+import os from 'node:os'
 import path from 'node:path'
 
 const [baseUrl, adminToken, pgBin, databaseUrl, backupDir] = process.argv.slice(2)
@@ -88,11 +89,12 @@ async function main() {
   // limpieza del arnés siga cubriendo solo su directorio temporal.
   const restorePort = await freePort()
   const dataDir = fs.mkdtempSync(path.join(backupDir, 'restore-cluster-'))
+  const socketDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pg-'))
   const restoreUrl = `postgresql://postgres@127.0.0.1:${restorePort}/mobos_restore`
   let clusterStarted = false
   try {
     run(bin('initdb'), ['-D', dataDir, '--username=postgres', '--auth=trust', '--no-locale', '--encoding=UTF8'])
-    pgCtl('-D', dataDir, '-o', `-h 127.0.0.1 -p ${restorePort}`, '-w', 'start')
+    pgCtl('-D', dataDir, '-o', `-h 127.0.0.1 -p ${restorePort} -k ${socketDir}`, '-w', 'start')
     clusterStarted = true
     run(bin('createdb'), ['-h', '127.0.0.1', '-p', String(restorePort), '-U', 'postgres', 'mobos_restore'])
     run(bin('pg_restore'), ['--clean', '--if-exists', `--dbname=${restoreUrl}`, dumpPath])
@@ -110,6 +112,7 @@ async function main() {
     if (clusterStarted) cleanupCluster(dataDir)
     else fs.rmSync(dataDir, { recursive: true, force: true })
     fs.rmSync(dumpPath, { force: true })
+    fs.rmSync(socketDir, { recursive: true, force: true })
   }
 
   console.log(`backup-restore: OK (${sourceProducts} productos, ${sourceOrders} órdenes restaurados e idénticos).`)

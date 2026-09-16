@@ -75,7 +75,7 @@ trap cleanup EXIT INT TERM
 
 echo "Preparando cluster PostgreSQL temporal aislado..."
 "$PG_BIN/initdb" -D "$PGDATA" --username=postgres --auth=trust --no-locale --encoding=UTF8 >/dev/null
-"$PG_BIN/pg_ctl" -D "$PGDATA" -o "-h 127.0.0.1 -p $PGPORT" -w start >/dev/null
+"$PG_BIN/pg_ctl" -D "$PGDATA" -o "-h 127.0.0.1 -p $PGPORT -k $RUN_ROOT" -w start
 "$PG_BIN/createdb" -h 127.0.0.1 -p "$PGPORT" -U postgres "$DB_NAME"
 
 export DATABASE_URL

@@ -34,7 +34,7 @@ if ! pg_running; then
     "$PG_BIN/initdb" -D "$PGDATA" --username=postgres --auth=trust --no-locale --encoding=UTF8 >/dev/null
   fi
   echo "[e2e] Starting PostgreSQL on port ${PGPORT}..."
-  "$PG_BIN/pg_ctl" -D "$PGDATA" -o "-h 127.0.0.1 -p $PGPORT" -w start >/dev/null
+  "$PG_BIN/pg_ctl" -D "$PGDATA" -o "-h 127.0.0.1 -p $PGPORT -k $PGDATA" -w start >/dev/null
 fi
 
 if ! "$PG_BIN/createdb" -h 127.0.0.1 -p "$PGPORT" -U postgres "$DB_NAME" >/dev/null 2>&1; then
