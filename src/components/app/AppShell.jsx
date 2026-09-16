@@ -4,6 +4,7 @@ import { Badge, Drawer, Eyebrow, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import ProductFooter from '@/components/app/ProductFooter'
+import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { APP_NAME } from '@/lib/brand'
 
 const NAV_GROUPS_KEY = 'mobos:nav-groups'
@@ -275,6 +276,7 @@ export default function AppShell({
   perfilEmpresa,
 }) {
   const [menuAbierto, setMenuAbierto] = useState(false)
+  const enLinea = useOnlineStatus()
   const [statsCollapsedInterno, setStatsCollapsedInterno] = useState(() => localStorage.getItem('mobos:stats-collapsed') === '1')
   const statsCerrado = onStatsToggle ? Boolean(statsCollapsed) : statsCollapsedInterno
 
@@ -393,6 +395,12 @@ export default function AppShell({
           </div>
         </header>
 
+        {!enLinea && (
+          <div role="status" className="flex items-center justify-center gap-2 bg-bad px-4 py-2 text-center text-sm font-medium">
+            <Icon name="alert" className="h-4 w-4" />
+            Sin conexión: los datos pueden estar desactualizados. Se sincroniza al reconectar.
+          </div>
+        )}
         {loading ? (
           <main className="flex-1 p-4 md:p-8">
             <div className="space-y-3">
