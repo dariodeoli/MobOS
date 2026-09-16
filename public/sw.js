@@ -5,7 +5,7 @@
    - Assets /assets/ same-origin: stale-while-revalidate con límite de tamaño.
    - API y cross-origin: no se interceptan (fetch directo, sin cache). */
 
-const CACHE_VERSION = 'mobos-shell-v1'
+const CACHE_VERSION = 'mobos-shell-v2'
 
 const SHELL_URLS = [
   '/',
@@ -59,11 +59,21 @@ self.addEventListener('fetch', (event) => {
   if (isNavigation(request)) {
     // Network-first: si hay red, servir fresca y refrescar el shell cacheado;
     // sin red, devolver el shell precacheado (SPA sigue funcionando offline).
+    // Si el HTML cambió (deploy nuevo), se limpian los assets cacheados para
+    // que la próxima carga use el build nuevo completo.
     event.respondWith(
       fetch(request)
-        .then((response) => {
+        .then(async (response) => {
           if (response && response.ok) {
             const copy = response.clone()
+            const freshText = await response.text()
+            const cachedText = await caches
+              .match('/index.html')
+              .then((cached) => (cached ? cached.text() : ''))
+              .catch(() => '')
+            if (cachedText && freshText !== cachedText) {
+              await caches.delete(CACHE_VERSION).catch(() => {})
+            }
             caches
               .open(CACHE_VERSION)
               .then((cache) => cache.put('/index.html', copy))
