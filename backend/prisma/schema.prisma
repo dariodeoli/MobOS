@@ -197,6 +197,8 @@ model User {
   failedLoginAttempts Int             @default(0)
   lockedUntil         DateTime?
   lastAccessAt        DateTime?
+  // Meta diaria de venta en guaraníes: se compara contra lo vendido hoy.
+  dailyGoalPyg        Int?
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -733,6 +735,8 @@ model Payment {
   reference       String?
   idempotencyKey  String?
   paidAt          DateTime         @default(now())
+  // Vencimiento de la cuota cuando el pago forma parte de un plan de crédito.
+  dueAt           DateTime?
   createdAt       DateTime         @default(now())
 
   proofs         PaymentProof[]
