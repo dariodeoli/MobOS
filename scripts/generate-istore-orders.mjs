@@ -2,15 +2,22 @@
 // (export Shopify, 10-09-2026 a 15-09-2026) para el entorno de prueba.
 // Uso: node scripts/generate-istore-orders.mjs
 // Escribe backend/prisma/migrations/20260917010000_istore_orders_seed/migration.sql
+// y backend/prisma/migrations/20260918000000_istore_seed_completion/migration.sql
 //
 // Incluye: catálogo delta (iPhone 18 Pro/Pro Max/18 Duo y productos del export),
 // vendedores, clientes, pedidos con líneas vinculadas a catálogo, IMEIs, pagos
-// parciales/divididos/métodos, financiación, factura a otro titular, y el
-// traspaso de unidades vendidas a estado SOLD.
+// parciales/divididos/métodos, financiación, factura a otro titular, el traspaso
+// de unidades vendidas a estado SOLD, y la segunda migración con los PIN 0001-0007
+// de los vendedores sembrados y los precios de venta reales del export.
 import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+
+const require = createRequire(import.meta.url)
+const bcrypt = require('../backend/node_modules/bcryptjs')
+const COMPLETION_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'backend/prisma/migrations/20260918000000_istore_seed_completion')
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const MIGRATION_DIR = join(ROOT, 'backend/prisma/migrations/20260917010000_istore_orders_seed')
@@ -189,9 +196,52 @@ lines.push('')
 const output = lines.join('\n')
 mkdirSync(MIGRATION_DIR, { recursive: true })
 writeFileSync(join(MIGRATION_DIR, 'migration.sql'), output)
+
+// ── Segunda migración: PINs de vendedores sembrados y precios de venta ─────
+// PINs 0001..0007 en el orden de primera aparición en las ventas. Solo se
+// pisan los placeholders 'no-login-seed'; jamás usuarios reales.
+const sellerOrder = []
+for (const order of ORDERS) if (!sellerOrder.includes(order.seller)) sellerOrder.push(order.seller)
+const PIN_BY_SELLER = Object.fromEntries(sellerOrder.map((name, index) => [name, String(index + 1).padStart(4, '0')]))
+const MAYORISTA = new Set(['MERZIN S.A GTS', 'Nestor Espinoza Mayorista S/F MYT'])
+const priceBySku = new Map()
+for (const order of ORDERS) {
+  if (MAYORISTA.has(order.customer) || order.status === 'CANCELLED') continue
+  for (const [sku, , , price] of order.items) {
+    if (!sku || !price) continue
+    priceBySku.set(sku, price) // pedidos en orden cronológico: la última venta gana
+  }
+}
+const completion = []
+completion.push('-- Completa el seed de iStore: PIN de los 7 vendedores sembrados y precios de')
+completion.push('-- venta reales del export (última venta minorista por producto). Idempotente.')
+completion.push('')
+completion.push('DO $$')
+completion.push('DECLARE')
+completion.push('  v_tenant_id TEXT;')
+completion.push('BEGIN')
+completion.push("  SELECT id INTO v_tenant_id FROM \"Tenant\" WHERE lower(email) = 'dariodeoli@gmail.com' OR lower(name) LIKE '%istore%' OR lower(name) LIKE '%iphone store%' ORDER BY \"createdAt\" LIMIT 1;")
+completion.push('  IF v_tenant_id IS NULL THEN RETURN; END IF;')
+completion.push('')
+completion.push('  -- PIN de cada vendedor sembrado (solo placeholders sin credenciales).')
+for (const [name, pin] of Object.entries(PIN_BY_SELLER)) {
+  const hash = bcrypt.hashSync(pin, 10)
+  completion.push(`  UPDATE "User" SET "pinHash" = ${q(hash)}, "updatedAt" = now() WHERE "tenantId" = v_tenant_id AND "name" = ${q(name)} AND "pinHash" = 'no-login-seed';`)
+}
+completion.push('')
+completion.push('  -- Precios de venta reales: última venta minorista por producto.')
+for (const [sku, price] of [...priceBySku.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+  completion.push(`  UPDATE "Product" SET "pricePyg" = ${price}, "updatedAt" = now() WHERE "tenantId" = v_tenant_id AND "sku" = ${q(sku)};`)
+}
+completion.push('END $$;')
+completion.push('')
+mkdirSync(COMPLETION_DIR, { recursive: true })
+writeFileSync(join(COMPLETION_DIR, 'migration.sql'), completion.join('\n'))
+
 const paidCount = ORDERS.filter(o => o.status === 'COMPLETED').length
 const pendingCount = ORDERS.filter(o => o.status === 'PENDING').length
 const cancelledCount = ORDERS.filter(o => o.status === 'CANCELLED').length
 console.log(`Migración generada: backend/prisma/migrations/20260917010000_istore_orders_seed/migration.sql`)
+console.log(`Migración generada: backend/prisma/migrations/20260918000000_istore_seed_completion/migration.sql (PINs ${sellerOrder.map(name => `${name}=${PIN_BY_SELLER[name]}`).join(', ')} · precios ${priceBySku.size})`)
 console.log(`Catálogo delta: ${EXTRA_PRODUCTS.length} productos · Pedidos: ${ORDERS.length} (pagados ${paidCount}, pendientes ${pendingCount}, cancelados ${cancelledCount})`)
 console.log(`Vendedores: ${SELLERS.length} · Clientes: ${CUSTOMERS.size} · IMEIs vendidos: ${SOLD_SERIALS.size}`)
