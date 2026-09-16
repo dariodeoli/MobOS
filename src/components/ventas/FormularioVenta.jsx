@@ -234,6 +234,23 @@ export default function FormularioVenta({
 
   const set = k => e => setF(s => ({ ...s, [k]: e.target.value }))
 
+  // Unidad preseleccionada desde Inventario (botón Vender): se restaura una
+  // sola vez y el vendedor completa el precio de venta.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('mobos:venta-handoff')
+      if (!raw) return
+      const handoff = JSON.parse(raw)
+      sessionStorage.removeItem('mobos:venta-handoff')
+      if (!handoff?.productId || Date.now() - (Number(handoff.ts) || 0) > 10 * 60 * 1000) return
+      const product = productos.find(p => p.id === handoff.productId)
+      if (!product) return
+      const serial = typeof handoff.serial === 'string' && handoff.serial.trim() ? handoff.serial.trim() : ''
+      setF(current => ({ ...current, productoId: handoff.productId, serials: serial ? [serial] : [], precio: '' }))
+      if (serial) setSerialRequired(true)
+    } catch { /* handoff corrupto: se ignora */ }
+  }, [productos])
+
   // Persiste la venta a medio armar (productos, cliente, pagos, descuento y
   // entrega) para recuperarla si se recarga la página o se cambia de vendedor.
   // Un carrito vacío se borra para no dejar basura en localStorage.
