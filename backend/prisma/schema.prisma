@@ -131,6 +131,17 @@ model ErrorReport {
   @@index([tenantId, createdAt])
 }
 
+// Catálogo de ciudades y departamentos de Paraguay, sembrado por migración,
+// para no depender de APIs externas en el autocompletado.
+model GeoCity {
+  id         String   @id @default(cuid())
+  name       String
+  department String
+  createdAt  DateTime @default(now())
+
+  @@unique([name, department])
+}
+
 model Branch {
   tradeInDevices TradeInDevice[]
   cashSessions   CashSession[]
@@ -984,6 +995,7 @@ model Supplier {
   phone        String?
   address      String?
   city         String?
+  department   String?
   email        String?
   // Persona de contacto de la ficha del proveedor.
   contactName  String?

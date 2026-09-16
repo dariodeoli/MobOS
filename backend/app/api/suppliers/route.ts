@@ -13,7 +13,7 @@ const text = (value: unknown, max: number, required = false) => {
 const laxPhone = (value: string) => /^[0-9+()\-.\s]{5,40}$/.test(value)
 const laxEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)
 
-const SUPPLIER_FIELDS = { name: 160, document: 48, phone: 40, address: 200, city: 120, email: 160, contactName: 160, paymentTerms: 120, notes: 1000 }
+const SUPPLIER_FIELDS = { name: 160, document: 48, phone: 40, address: 200, city: 120, department: 120, email: 160, contactName: 160, paymentTerms: 120, notes: 1000 }
 
 async function context(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
