@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { Drawer, Eyebrow, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ThemeToggle from '@/components/app/ThemeToggle'
+import ProductFooter from '@/components/app/ProductFooter'
 import { APP_NAME } from '@/lib/brand'
 
 function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = true }) {
@@ -296,6 +297,7 @@ export default function AppShell({
         ) : (
           children
         )}
+        <ProductFooter className="shrink-0" />
       </div>
     </div>
   )

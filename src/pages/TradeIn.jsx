@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ProductFooter from '@/components/app/ProductFooter'
 import {
   getTradein,
   listCelulares,
@@ -336,6 +337,7 @@ export default function TradeIn() {
           Calcular precio de trade-in
         </Button>
       </main>
+      <ProductFooter />
     </div>
   )
 }
@@ -541,6 +543,7 @@ function Resultado({ s, resultado, config, onReset, onSalir }) {
           Nueva cotización
         </Button>
       </main>
+      <ProductFooter />
     </div>
   )
 }
