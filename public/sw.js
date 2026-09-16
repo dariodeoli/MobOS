@@ -66,7 +66,7 @@ self.addEventListener('fetch', (event) => {
         .then(async (response) => {
           if (response && response.ok) {
             const copy = response.clone()
-            const freshText = await response.text()
+            const freshText = await copy.text().catch(() => '')
             const cachedText = await caches
               .match('/index.html')
               .then((cached) => (cached ? cached.text() : ''))
@@ -76,7 +76,7 @@ self.addEventListener('fetch', (event) => {
             }
             caches
               .open(CACHE_VERSION)
-              .then((cache) => cache.put('/index.html', copy))
+              .then((cache) => cache.put('/index.html', response.clone()))
               .catch(() => {})
           }
           return response
