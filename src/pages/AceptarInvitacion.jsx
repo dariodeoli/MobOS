@@ -41,6 +41,18 @@ export default function AceptarInvitacion() {
     if (pin.length === 4) confirmRef.current?.focus()
   }, [pin])
 
+  // Al completar el segundo PIN la invitación se acepta sola.
+  const autoRef = useRef(false)
+  useEffect(() => {
+    if (confirm.length === 4 && pin.length === 4 && !saving && !message) {
+      if (autoRef.current) return
+      autoRef.current = true
+      const form = document.getElementById('invite-form')
+      if (form) form.requestSubmit()
+      else submit(new Event('submit'))
+    }
+  }, [confirm, pin, saving, message])
+
   async function submit(event) {
     event.preventDefault(); setError(''); setMessage('')
     if (!/^[a-f0-9]{64}$/i.test(token)) return setError('La invitación no es válida. Pedí que te la reenvíen desde Configuración → Equipo.')
@@ -68,7 +80,7 @@ export default function AceptarInvitacion() {
           <p className="mt-2 text-sm leading-6 text-mute">
             Elegí tu propio PIN de acceso. Tu invitación no contiene contraseñas ni PIN temporales.
           </p>
-          <form onSubmit={submit} className="mt-6 space-y-5">
+          <form id="invite-form" onSubmit={submit} className="mt-6 space-y-5">
             <div>
               <Label htmlFor="invite-pin">PIN de 4 dígitos</Label>
               <PinBox id="invite-pin" autoFocus value={pin} onChange={(next) => { setPin(next); setError('') }} onComplete={() => confirmRef.current?.focus()} />

@@ -11,6 +11,15 @@ test('reads an action token from the fragment and scrubs history immediately', (
   assert.deepEqual(calls, [[history.state, '', '/aceptar-invitacion?source=email']])
 })
 
+test('reads an action token from the path and scrubs history immediately', () => {
+  const token = 'ef'.repeat(32)
+  const calls = []
+  const history = { state: { preserved: true }, replaceState: (...args) => calls.push(args) }
+  const result = consumeActionToken({ pathname: `/aceptar-invitacion/${token}`, search: '', hash: '' }, history)
+  assert.equal(result, token)
+  assert.deepEqual(calls, [[history.state, '', '/aceptar-invitacion/']])
+})
+
 test('accepts a legacy query token for compatibility and removes it from browser history', () => {
   const token = 'cd'.repeat(32)
   const calls = []
