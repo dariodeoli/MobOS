@@ -2,8 +2,15 @@ import { randomUUID } from 'node:crypto'
 import { prisma } from '../../../lib/prisma'
 import { requireSession } from '../../../lib/auth'
 import { error, json, tenantId } from '../../../lib/http'
+import { notifyWarrantyStatusChanged } from '../../../lib/email-notifications'
 
 const STATUSES = ['RECEIVED', 'DIAGNOSIS', 'READY', 'DELIVERED'] as const
+const STATUS_LABELS: Record<(typeof STATUSES)[number], string> = {
+  RECEIVED: 'Recibido',
+  DIAGNOSIS: 'En diagnóstico',
+  READY: 'Listo para retirar',
+  DELIVERED: 'Entregado',
+}
 const rank = (status: string) => STATUSES.indexOf(status as (typeof STATUSES)[number])
 const canManage = (role: string) => role === 'ADMIN' || role === 'GERENTE'
 const withinLimit = (value: unknown) => typeof value === 'string' && value.trim().length <= 2000
@@ -110,6 +117,7 @@ export async function PATCH(request: Request) {
       if (expiresAt === undefined && body.expiresAt !== undefined) throw new Error('La fecha de vencimiento no es válida.')
       const updated = await tx.warrantyCase.update({ where: { id: body.id }, data: { status: next, ...(typeof body.responsibleName === 'string' ? { responsibleName: body.responsibleName.trim() || null } : {}), ...(typeof body.description === 'string' ? { description: body.description.trim() } : {}), ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(resolution !== undefined ? { resolution } : {}), ...(photos !== undefined ? { photos } : {}), ...(parts !== undefined ? { parts } : {}), ...(repairCostPyg !== undefined ? { repairCostPyg } : {}), ...(coverage !== undefined ? { coverage } : {}), ...(exclusions !== undefined ? { exclusions } : {}), ...(warrantyDays !== undefined ? { warrantyDays } : {}), ...(expiresAt !== undefined ? { expiresAt } : {}) } })
       await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${tenant}, ${session.user.id}, 'WARRANTY_UPDATED', 'WarrantyCase', ${body.id}, ${JSON.stringify({ from: current[0].status, to: next })}::jsonb)`
+      await notifyWarrantyStatusChanged(tx, { tenantId: tenant, caseId: body.id, customerName: String(updated.customerName ?? ''), serial: String(updated.serial ?? ''), statusLabel: STATUS_LABELS[next as (typeof STATUSES)[number]] })
       return updated
     })
     return json(Array.isArray(result) ? result[0] : result)

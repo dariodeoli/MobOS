@@ -771,6 +771,8 @@ model Payment {
   paidAt          DateTime         @default(now())
   // Vencimiento de la cuota cuando el pago forma parte de un plan de crédito.
   dueAt           DateTime?
+  // Cuándo se envió el recordatorio automático de cuota por vencer.
+  remindedAt      DateTime?
   // Fecha estimada de acreditación en la cuenta de la empresa (tarjetas/PIX).
   settlesAt       DateTime?
   createdAt       DateTime         @default(now())

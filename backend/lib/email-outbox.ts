@@ -4,7 +4,7 @@ import { logEmailOutcome, sendTransactionalEmail } from './email'
 import { decryptEmailOutboxPayload, encryptEmailOutboxPayload } from './email-outbox-crypto'
 import { prisma } from './prisma'
 
-export type OutboxKind = 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt'
+export type OutboxKind = 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'warranty-update' | 'reservation-due'
 type PreparedEmail = { to: string; subject: string; html: string; text: string }
 
 const LOCK_TIMEOUT_MS = 60_000
@@ -32,7 +32,7 @@ export async function withEmailOutboxTransaction<T>(entrypoint: string, work: (t
 }
 
 export async function enqueueEmail(
-  tx: Prisma.TransactionClient,
+  tx: Pick<Prisma.TransactionClient, 'emailOutbox'>,
   input: { tenantId: string; kind: OutboxKind; aggregateType: string; aggregateId: string; message: PreparedEmail },
 ) {
   const id = randomUUID()
@@ -114,6 +114,9 @@ export async function dispatchEmailOutboxJob(id: string) {
         'email-verification': 'EMAIL_VERIFICATION_DELIVERY_FAILED',
         welcome: 'WELCOME_EMAIL_DELIVERY_FAILED',
         'team-invitation': 'USER_INVITATION_DELIVERY_FAILED',
+        'payment-due': 'PAYMENT_DUE_DELIVERY_FAILED',
+        'warranty-update': 'WARRANTY_STATUS_DELIVERY_FAILED',
+        'reservation-due': 'RESERVATION_DUE_DELIVERY_FAILED',
       }[job.job.kind]
       if (action) await tx.auditLog.create({ data: { tenantId: job.job.tenantId, action: terminal ? `${action}_DEAD_LETTERED` : action, entity: job.job.aggregateType, entityId: job.job.aggregateId, metadata: { outboxId: id, attempt: nextAttempts, terminal, errorCode } } })
     })

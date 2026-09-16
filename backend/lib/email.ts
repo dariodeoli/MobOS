@@ -33,7 +33,7 @@ export function emailTransportConfigured() {
   return Boolean(relayUrl() && relayToken() && appUrl() && emailOutboxEncryptionConfigured())
 }
 
-export function logEmailOutcome(kind: 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt', outcome: 'delivered-to-relay' | 'delivery-failed' | 'unconfigured') {
+export function logEmailOutcome(kind: 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'warranty-update' | 'reservation-due', outcome: 'delivered-to-relay' | 'delivery-failed' | 'unconfigured') {
   console.info(JSON.stringify({ event: 'mobos.transactional_email', kind, outcome }))
 }
 
@@ -71,7 +71,7 @@ function actionLink(path: string, token?: string) {
   return link.toString()
 }
 
-const EMAIL_VERSION = 'v1.2.0'
+const EMAIL_VERSION = 'v1.2.1'
 
 function formatPyg(value: number) {
   return `Gs. ${Number(value).toLocaleString('es-PY')}`
@@ -130,4 +130,29 @@ export function receiptEmail(input: { to: string; customerName: string; orderNum
   const contentText = `${linesText}\nTotal: ${formatPyg(input.totalPyg)}`
   const content = template({ eyebrow: 'Comprobante de compra', title: `Comprobante ${input.orderNumber}`, lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: `Gracias por tu compra en ${company}.`, contentHtml, contentText, action: { label: 'Seguí tu pedido', url: input.trackingUrl }, footer: 'MobOS nunca envía PIN ni contraseñas por este canal.' })
   return { to: input.to, subject: `Comprobante ${input.orderNumber}`, ...content }
+}
+
+function formatDateEsPy(value: Date) {
+  return new Intl.DateTimeFormat('es-PY', { day: '2-digit', month: 'long', year: 'numeric' }).format(value)
+}
+
+export function paymentDueReminderEmail(input: { to: string; customerName: string; orderNumber: string; dueAt: Date; amountPyg: number; storeName: string }) {
+  if (!emailPattern.test(input.to) || !Number.isFinite(input.dueAt.getTime())) return null
+  const store = input.storeName.trim() || 'MobOS'
+  const content = template({ eyebrow: 'Cuota por vencer', title: 'Tu cuota vence pronto', lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: `La cuota de tu pedido ${input.orderNumber} en ${store} vence el ${formatDateEsPy(input.dueAt)} por ${formatPyg(input.amountPyg)}.`, footer: 'Pagá antes del vencimiento para mantener tu plan al día.' })
+  return { to: input.to, subject: `Tu cuota del pedido ${input.orderNumber} vence pronto`, ...content }
+}
+
+export function warrantyStatusEmail(input: { to: string; customerName: string; serial: string; storeName: string; statusLabel: string }) {
+  if (!emailPattern.test(input.to) || !input.serial.trim() || !input.statusLabel.trim()) return null
+  const store = input.storeName.trim() || 'MobOS'
+  const content = template({ eyebrow: 'Garantía y servicio', title: 'Tu equipo cambió de estado', lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: `El equipo ${input.serial} ahora está: ${input.statusLabel}.`, footer: `Cualquier consulta, respondé este correo o acercate a ${store}.` })
+  return { to: input.to, subject: `Tu equipo ${input.serial} cambió de estado`, ...content }
+}
+
+export function reservationDueEmail(input: { to: string; customerName: string; itemLabel: string; reservedUntil: Date; storeName: string }) {
+  if (!emailPattern.test(input.to) || !Number.isFinite(input.reservedUntil.getTime())) return null
+  const store = input.storeName.trim() || 'MobOS'
+  const content = template({ eyebrow: 'Reserva', title: 'Tu reserva vence pronto', lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: `El artículo ${input.itemLabel} está reservado para vos hasta el ${formatDateEsPy(input.reservedUntil)}.`, footer: `Si no lo retirás, la reserva se libera automáticamente. Te esperamos en ${store}.` })
+  return { to: input.to, subject: 'Tu reserva vence pronto', ...content }
 }
