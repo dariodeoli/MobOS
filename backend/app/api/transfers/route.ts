@@ -76,9 +76,14 @@ export async function POST(request: Request) {
         if (destination.stock > INT_MAX - line.quantity) throw new Error('El stock de destino supera el límite permitido.')
         const decreased = await tx.product.updateMany({ where: { id: source.id, tenantId: tenant, branchId: sourceBranchId, stock: { gte: line.quantity } }, data: { stock: { decrement: line.quantity } } })
         if (decreased.count !== 1) throw new Error('El stock cambió mientras se procesaba la transferencia.')
-        await tx.product.update({ where: { id: destination.id }, data: { stock: { increment: line.quantity } } })
+        // Las líneas serializadas quedan en tránsito: el stock de destino recién
+        // suma cuando el vendedor/encargado verifica físicamente la llegada.
+        if (line.serials.length === 0) {
+          if (destination.stock > INT_MAX - line.quantity) throw new Error('El stock de destino supera el límite permitido.')
+          await tx.product.update({ where: { id: destination.id }, data: { stock: { increment: line.quantity } } })
+        }
         if (line.serials.length > 0) {
-          const moved = await tx.inventoryUnit.updateMany({ where: { tenantId: tenant, productId: source.id, branchId: sourceBranchId, serial: { in: line.serials }, status: 'AVAILABLE' }, data: { productId: destination.id, branchId: destinationBranchId, locationId: destinationLocationId } })
+          const moved = await tx.inventoryUnit.updateMany({ where: { tenantId: tenant, productId: source.id, branchId: sourceBranchId, serial: { in: line.serials }, status: 'AVAILABLE' }, data: { productId: destination.id, branchId: destinationBranchId, locationId: null, status: 'IN_TRANSIT' } })
           if (moved.count !== line.serials.length) throw new Error('Un IMEI/serial cambió mientras se procesaba la transferencia.')
         }
         await tx.stockTransferLine.create({ data: { transferId: created.id, sourceProductId: source.id, destinationProductId: destination.id, quantity: line.quantity, serials: line.serials } })

@@ -380,6 +380,8 @@ model InventoryUnit {
   lastVerifiedAt      DateTime?
   lastVerifiedById    String?
   verificationCount   Int                 @default(0)
+  // Código de la verificación física del vendedor (ej. VPC/VPM/VPE/VPS).
+  verifiedByCode      String?
   status              InventoryUnitStatus @default(AVAILABLE)
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
@@ -992,6 +994,8 @@ model Supplier {
   tenantId     String
   tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name         String
+  // Abreviatura visible para vendedores en stock; el nombre real solo lo ve administración.
+  code         String?
   document     String?
   phone        String?
   address      String?

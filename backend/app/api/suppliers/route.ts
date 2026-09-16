@@ -13,7 +13,7 @@ const text = (value: unknown, max: number, required = false) => {
 const laxPhone = (value: string) => /^[0-9+()\-.\s]{5,40}$/.test(value)
 const laxEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)
 
-const SUPPLIER_FIELDS = { name: 160, document: 48, phone: 40, address: 200, city: 120, department: 120, email: 160, contactName: 160, paymentTerms: 120, notes: 1000 }
+const SUPPLIER_FIELDS = { name: 160, code: 32, document: 48, phone: 40, address: 200, city: 120, department: 120, email: 160, contactName: 160, paymentTerms: 120, notes: 1000 }
 
 async function context(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
@@ -44,6 +44,7 @@ export async function POST(request: Request) {
   if (Object.values(fields).some(value => value === undefined)) return error('Datos de proveedor inválidos.')
   if (fields.phone && !laxPhone(fields.phone)) return error('Teléfono inválido.')
   if (fields.email && !laxEmail(fields.email)) return error('Email inválido.')
+  if (fields.code && await prisma.supplier.findFirst({ where: { tenantId: auth.tenant, code: fields.code }, select: { id: true } })) return error('Ya existe un proveedor con esa abreviatura.', 409)
   const data: Record<string, string | null> = {}
   for (const [key, value] of Object.entries(fields)) if (value !== undefined) data[key] = value
   try {

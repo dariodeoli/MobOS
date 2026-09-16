@@ -27,7 +27,7 @@ const sourceAfter = result.payload.find(product => product.id === source.id)
 const destination = result.payload.find(product => product.sku === sku && product.branchId === 'branch-a2-it')
 assert.equal(sourceAfter.stock, 0)
 assert.ok(destination, 'No se creó el inventario de destino.')
-assert.equal(destination.stock, 1)
+assert.equal(destination.stock, 0, 'El stock de destino recién suma cuando se verifica la llegada del equipo.')
 
 result = await request('/api/transfers')
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
@@ -39,8 +39,22 @@ assert.equal(result.response.status, 409, 'No se debe transferir de nuevo una un
 
 result = await request(`/api/inventory-units?branchId=branch-a2-it&q=${encodeURIComponent(serial)}`)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
-const movedUnit = result.payload.find(item => item.serial === normalizedSerial)
+let movedUnit = result.payload.find(item => item.serial === normalizedSerial)
 assert.ok(movedUnit, 'La unidad trasladada debe poder encontrarse por IMEI exacto.')
+assert.equal(movedUnit.status, 'IN_TRANSIT', 'La unidad queda en tránsito hasta la verificación física en destino.')
+
+result = await request('/api/inventory-units/verify', 'POST', { serial })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.receivedInTransit, 1, 'La verificación en destino debe recibir la unidad en tránsito.')
+
+result = await request('/api/products')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.find(product => product.id === destination.id).stock, 1, 'La recepción debe sumar el stock de destino.')
+
+result = await request(`/api/inventory-units?branchId=branch-a2-it&q=${encodeURIComponent(serial)}`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+movedUnit = result.payload.find(item => item.serial === normalizedSerial)
+assert.equal(movedUnit.status, 'AVAILABLE', 'La unidad recibida queda disponible.')
 
 result = await request('/api/inventory-units', 'PATCH', { id: movedUnit.id, action: 'remove', reason: 'Prueba de baja recuperable' })
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
@@ -66,4 +80,4 @@ result = await request(`/api/inventory-units?view=removed&q=${encodeURIComponent
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 assert.equal(result.payload.length, 0, 'La unidad restaurada no debe seguir en eliminados.')
 
-console.log('inventory-transfers: 24 checks OK (IMEI, stock, transfer, recoverable removal and audited restore).')
+console.log('inventory-transfers: 31 checks OK (IMEI, stock, transfer, tránsito y recepción verificada, recuperable removal and audited restore).')
