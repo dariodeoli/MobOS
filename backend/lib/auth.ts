@@ -245,20 +245,45 @@ export async function authenticateSeller(request: Request, input: PinInput) {
   const parent = await companySession(request)
   const sellerId = String(input.sellerId ?? input.userId ?? '')
   const pin = String(input.pin ?? '')
-  if (!parent || !sellerId || !/^\d{4}$/.test(pin)) return null
+  if (!parent || !/^\d{4}$/.test(pin)) return null
   const auditMetadata = authRequestMetadata(request)
   return prisma.$transaction(async (tx) => {
-    const rows = await tx.$queryRaw<Array<{
+    type SellerRow = {
       id: string; tenantId: string; name: string; role: string; branchId: string | null; pinHash: string; status: string; permissions: unknown; accessSchedule: unknown; failedLoginAttempts: number; lockedUntil: Date | null
-    }>>`
-      SELECT "id", "tenantId", "name", "role", "branchId", "pinHash", "status", "permissions", "accessSchedule", "failedLoginAttempts", "lockedUntil"
-      FROM "User"
-      WHERE "id" = ${sellerId} AND "tenantId" = ${parent.tenantId} AND "status" = 'ACTIVE'
-        AND (${parent.branchId}::text IS NULL OR "branchId" = ${parent.branchId})
-        AND ("branchId" IS NULL OR EXISTS (SELECT 1 FROM "Branch" b WHERE b."id" = "User"."branchId" AND b."isActive" = true))
-      FOR UPDATE
-    `
-    const user = rows[0]
+    }
+    let user: SellerRow | null = null
+    if (sellerId) {
+      const rows = await tx.$queryRaw<SellerRow[]>`
+        SELECT "id", "tenantId", "name", "role", "branchId", "pinHash", "status", "permissions", "accessSchedule", "failedLoginAttempts", "lockedUntil"
+        FROM "User"
+        WHERE "id" = ${sellerId} AND "tenantId" = ${parent.tenantId} AND "status" = 'ACTIVE'
+          AND (${parent.branchId}::text IS NULL OR "branchId" = ${parent.branchId})
+          AND ("branchId" IS NULL OR EXISTS (SELECT 1 FROM "Branch" b WHERE b."id" = "User"."branchId" AND b."isActive" = true))
+        FOR UPDATE
+      `
+      user = rows[0] ?? null
+    } else {
+      // El PIN identifica al vendedor: se prueba contra los usuarios activos
+      // de la empresa (pocos por tenant). Prioridad ADMIN > GERENTE > CAJERA >
+      // VENDEDOR y, dentro del mismo rol, el más antiguo, para resolver
+      // colisiones de PIN.
+      const candidates = await tx.user.findMany({
+        where: { tenantId: parent.tenantId, status: 'ACTIVE', ...(parent.branchId ? { branchId: parent.branchId } : {}) },
+        select: { id: true, tenantId: true, name: true, role: true, branchId: true, pinHash: true, status: true, permissions: true, accessSchedule: true, failedLoginAttempts: true, lockedUntil: true, createdAt: true },
+      })
+      const priority = { ADMIN: 0, GERENTE: 1, CAJERA: 2, VENDEDOR: 3 }
+      const sorted = [...candidates].sort((a, b) => (priority[a.role] ?? 4) - (priority[b.role] ?? 4) || a.createdAt.getTime() - b.createdAt.getTime())
+      for (const candidate of sorted) {
+        if (await bcrypt.compare(pin, candidate.pinHash)) {
+          user = { id: candidate.id, tenantId: candidate.tenantId, name: candidate.name, role: candidate.role, branchId: candidate.branchId, pinHash: candidate.pinHash, status: candidate.status, permissions: candidate.permissions, accessSchedule: candidate.accessSchedule, failedLoginAttempts: candidate.failedLoginAttempts, lockedUntil: candidate.lockedUntil }
+          break
+        }
+      }
+      if (!user) {
+        await tx.auditLog.create({ data: { tenantId: parent.tenantId, action: 'SELLER_PIN_UNKNOWN', entity: 'Tenant', entityId: parent.tenantId, metadata: { branchId: parent.branchId, ...auditMetadata } } })
+        return null
+      }
+    }
     if (!user) return null
     const now = new Date()
     if (!isAccessAllowed(user.accessSchedule, now)) {

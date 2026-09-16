@@ -9,7 +9,6 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null)
     if (!body) return error('Solicitud inválida.', 400)
     if (!body.pin) return error('El PIN es obligatorio.', 400)
-    if (!body.sellerId && !body.userId) return error('El vendedor es obligatorio.', 400)
     const result = await authenticateSeller(request, body)
     if (!result) return error('PIN inválido.', 401)
     const response = json({ user: result.user })

@@ -5,6 +5,18 @@ import { effectivePermissions, normalizeAccessSchedule, requireSession, USER_ROL
 import { error, json } from '../../../lib/http'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// El PIN identifica al vendedor en el acceso de operador: no puede repetirse
+// dentro de la misma empresa. Se compara contra los hash activos (pocos por
+// tenant, por lo que el loop de bcrypt es aceptable).
+async function pinDuplicado(tenantId: string, pin: string, exceptUserId?: string) {
+  const users = await prisma.user.findMany({ where: { tenantId, status: 'ACTIVE', ...(exceptUserId ? { id: { not: exceptUserId } } : {}) }, select: { pinHash: true } })
+  for (const user of users) {
+    if (await bcrypt.compare(pin, user.pinHash)) return true
+  }
+  return false
+}
+
 const userStatuses = ['ACTIVE', 'INACTIVE', 'SUSPENDED'] as const
 const userSelect = {
   id: true, name: true, email: true, role: true, status: true, branchId: true, permissions: true, accessSchedule: true,
@@ -55,7 +67,8 @@ export async function POST(request: Request) {
   if (!name || name.length > 100 || (email && !emailPattern.test(email)) || !/^\d{4}$/.test(pin) || Object.prototype.hasOwnProperty.call(body || {}, 'pinHash') || !validRole(body?.role ?? 'VENDEDOR')) return error('Nombre, rol válido y PIN de 4 dígitos son obligatorios; pinHash no es aceptado.')
   try {
     const tenantId = access.session.user.tenantId
-    const [branchId, accessSchedule] = await Promise.all([ensureBranch(tenantId, body?.branchId), Promise.resolve(normalizeAccessSchedule(body?.accessSchedule))])
+    const [branchId, accessSchedule, pinEnUso] = await Promise.all([ensureBranch(tenantId, body?.branchId), Promise.resolve(normalizeAccessSchedule(body?.accessSchedule)), pinDuplicado(tenantId, pin)])
+    if (pinEnUso) return error('Ese PIN ya lo usa otro usuario de la empresa. Elegí otro.', 409)
     if (body?.permissions !== undefined && !validPermissions(body.permissions)) return error('Permisos inválidos.')
     const pinHash = await bcrypt.hash(pin, 12)
     const created = await prisma.$transaction(async tx => {
@@ -95,6 +108,7 @@ export async function PATCH(request: Request) {
     const resetPin = body.resetPin === true
     if (resetPin && (typeof body.pin !== 'string' || !/^\d{4}$/.test(body.pin))) return error('Para restablecer el PIN ingresá exactamente 4 dígitos.')
     if (!resetPin && body.pin !== undefined) return error('Confirmá resetPin para cambiar el PIN.', 400)
+    if (resetPin && await pinDuplicado(tenantId, body.pin, id)) return error('Ese PIN ya lo usa otro usuario de la empresa. Elegí otro.', 409)
     const changedSensitive = resetPin || current.role !== nextRole || current.status !== nextStatus || current.branchId !== branchId || JSON.stringify(current.permissions) !== JSON.stringify(permissions) || JSON.stringify(current.accessSchedule) !== JSON.stringify(accessSchedule)
     const updated = await prisma.$transaction(async tx => {
       const user = await tx.user.update({ where: { id }, data: { name, email, role: nextRole, status: nextStatus, branchId, permissions: permissions ?? Prisma.JsonNull, accessSchedule: accessSchedule ?? Prisma.JsonNull, ...(resetPin ? { pinHash: await bcrypt.hash(body.pin, 12), failedLoginAttempts: 0, lockedUntil: null } : {}) }, select: userSelect })
