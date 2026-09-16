@@ -154,6 +154,7 @@ model Branch {
   name           String
   address        String?
   city           String?
+  department     String?
   phone          String?
   instagram      String?
   isActive       Boolean         @default(true)
