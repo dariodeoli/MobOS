@@ -158,49 +158,51 @@ function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, esDemo, onSwi
   const nombreUsuario = perfilEmpresa?.name || sesionNombre || 'Usuario'
 
   return (
-    <div className={cn('border-t border-fore/10 p-2.5 pb-safe', collapsed && 'lg:p-2')}>
+    <div className={cn('border-t border-fore/10 p-3 pb-safe', collapsed && 'lg:p-2')}>
       <div
         className={cn(
-          'flex items-center gap-2 rounded-lg border border-fore/10 bg-fore/[.03] p-2',
+          'flex items-start gap-2.5 rounded-xl border border-fore/10 bg-fore/[.03] p-2.5',
           collapsed && 'lg:justify-center lg:border-0 lg:bg-transparent lg:p-0',
         )}
         title={empresa?.email ? `${empresa?.nombre || 'Empresa'} · ${empresa.email}` : empresa?.nombre || 'Empresa'}
       >
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-fono/15 text-fono-light">
-          <Icon name="store" className="h-3.5 w-3.5" />
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-fono/15 text-fono-light">
+          <Icon name="store" className="h-4 w-4" />
         </span>
-        <span className={cn('flex min-w-0 flex-1 flex-col gap-0.5', collapsed && 'lg:hidden')}>
+        <span className={cn('flex min-w-0 flex-1 flex-col gap-1', collapsed && 'lg:hidden')}>
           <span className="flex min-w-0 items-center gap-1.5">
-            <strong className="min-w-0 truncate text-[13px] leading-tight text-fore">{empresa?.nombre || 'Mi tienda'}</strong>
+            <strong className="min-w-0 truncate text-[13px] leading-snug text-fore">{empresa?.nombre || 'Mi tienda'}</strong>
             {esDemo && <Badge color="orange" className="shrink-0 px-1.5 py-px text-[9px] font-bold tracking-wider">DEMO</Badge>}
           </span>
-          <span className="flex min-w-0 items-center gap-1">
-            <small className="min-w-0 truncate text-[11px] leading-tight text-mute">{empresa?.email || sucursal?.nombre || 'Todas las sucursales'}</small>
-            {!esDemo && empresa?.id && <CopiarIdTienda id={empresa.id} collapsed={collapsed} />}
-          </span>
+          {empresa?.email ? (
+            <small className="min-w-0 truncate text-[11px] leading-snug text-mute">{empresa.email}</small>
+          ) : (
+            sucursal?.nombre && <small className="min-w-0 truncate text-[11px] leading-snug text-mute">{sucursal.nombre}</small>
+          )}
+          {!esDemo && empresa?.id && <CopiarIdTienda id={empresa.id} collapsed={collapsed} />}
         </span>
       </div>
-      <div className={cn('mt-1.5 flex items-center gap-1', collapsed && 'lg:flex-col')}>
+      <div className={cn('mt-2.5 flex items-center gap-1.5', collapsed && 'lg:mt-1 lg:flex-col')}>
         <button
           type="button"
           onClick={manejarClicUsuario}
           className={cn(
-            'flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-lg p-1.5 text-left transition hover:bg-fore/5',
+            'flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-xl p-1.5 text-left transition hover:bg-fore/5',
             collapsed && 'lg:flex-none',
           )}
           title={nombreUsuario}
           aria-label="Cambiar de vendedor"
         >
-          <span className="grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-full bg-fono text-[13px] font-bold text-onbrand">
+          <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-fono text-sm font-bold text-onbrand">
             {perfilEmpresa?.picture ? (
-              <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-7 w-7 rounded-full object-cover" />
+              <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-8 w-8 rounded-full object-cover" />
             ) : (
               nombreUsuario.charAt(0).toUpperCase()
             )}
           </span>
           <span className={cn('flex min-w-0 flex-1 flex-col gap-0.5', collapsed && 'lg:hidden')}>
-            <strong className="truncate text-[13px] font-medium leading-tight text-fore">{nombreUsuario}</strong>
-            <small className="truncate text-[11px] uppercase leading-tight tracking-wider text-mute">
+            <strong className="truncate text-[13px] font-medium leading-snug text-fore">{nombreUsuario}</strong>
+            <small className="truncate text-[10px] uppercase leading-snug tracking-wider text-mute">
               {esOwner ? 'Dueño' : 'Vendedor'}
             </small>
           </span>
@@ -211,8 +213,8 @@ function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, esDemo, onSwi
             type="button"
             onClick={onLogout}
             className={cn(
-              'grid h-10 w-10 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-fore/5 hover:text-fore',
-              collapsed && 'lg:h-7 lg:w-7',
+              'grid h-11 w-10 shrink-0 place-items-center rounded-xl text-mute transition hover:bg-fore/5 hover:text-fore',
+              collapsed && 'lg:h-8 lg:w-7',
             )}
             title="Cerrar sesión"
             aria-label="Cerrar sesión"
