@@ -1,0 +1,197 @@
+// Genera la migración SQL de las últimas 50 ventas reales de iStore Paraguay
+// (export Shopify, 10-09-2026 a 15-09-2026) para el entorno de prueba.
+// Uso: node scripts/generate-istore-orders.mjs
+// Escribe backend/prisma/migrations/20260917010000_istore_orders_seed/migration.sql
+//
+// Incluye: catálogo delta (iPhone 18 Pro/Pro Max/18 Duo y productos del export),
+// vendedores, clientes, pedidos con líneas vinculadas a catálogo, IMEIs, pagos
+// parciales/divididos/métodos, financiación, factura a otro titular, y el
+// traspaso de unidades vendidas a estado SOLD.
+import { createHash } from 'node:crypto'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const MIGRATION_DIR = join(ROOT, 'backend/prisma/migrations/20260917010000_istore_orders_seed')
+
+const slug = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+const uuid5 = name => {
+  const hex = createHash('sha1').update(`mobos-seed:${name}`).digest('hex').slice(0, 32)
+  const chars = hex.split('')
+  chars[12] = '5'
+  chars[16] = ((parseInt(chars[16], 16) & 0x3) | 0x8).toString(16)
+  const u = chars.join('')
+  return `${u.slice(0, 8)}-${u.slice(8, 12)}-${u.slice(12, 16)}-${u.slice(16, 20)}-${u.slice(20)}`
+}
+const q = value => value === null || value === undefined ? 'NULL' : `'${String(value).replace(/'/g, "''")}'`
+const capLabel = cap => (cap === 1024 ? '1TB' : `${cap}GB`)
+// La app guarda timestamps sin zona como hora UTC; el export viene en -04:00.
+const naiveUtc = (value) => value ? new Date(new Date(value).getTime() + 4 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ') : null
+
+// ── Catálogo delta ──────────────────────────────────────────────────────────
+const EXTRA_PRODUCTS = []
+for (const model of [
+  { m: '18 Pro', colors: ['Plata', 'Grafito', 'Negro', 'Blanco', 'Azul'], caps: [256, 512, 1024] },
+  { m: '18 Pro Max', colors: ['Plata', 'Grafito', 'Negro', 'Blanco', 'Azul'], caps: [256, 512, 1024] },
+  { m: '18 Duo', colors: ['Plata', 'Grafito'], caps: [256, 512, 1024] },
+]) {
+  for (const color of model.colors) for (const cap of model.caps) {
+    EXTRA_PRODUCTS.push({ name: `iPhone ${model.m} ${capLabel(cap)} ${color}`, sku: `IPH-${slug(model.m)}-${cap === 1024 ? '1TB' : `${cap}GB`}-${slug(color)}-NEW`, category: 'Celulares' })
+  }
+}
+for (const [name, category] of [
+  ['MacBook Air M5 16GB/512GB Midnight', 'Mac'], ['MacBook Pro M5 14" 16GB/512GB Negro', 'Mac'],
+  ['MacBook Neo A18 Pro 8GB/256GB Citrus 13"', 'Mac'], ['MacBook Neo A18 Pro 8GB/256GB Indigo 13"', 'Mac'],
+  ['MacBook Neo A18 Pro 8GB/256GB Blush 13"', 'Mac'], ['MacBook Neo A18 Pro 8GB/512GB Indigo 13"', 'Mac'],
+  ['iPad 11th A16 WiFi 256GB Azul', 'iPad'], ['iPad 11th A16 WiFi 256GB Rosa', 'iPad'], ['iPad 11th A16 WiFi 256GB Plata', 'iPad'],
+  ['iPad Pro M5 11" WiFi 256GB Space Black', 'iPad'], ['Apple Magic Keyboard 11" M5', 'Accesorios'],
+  ['Samsung Galaxy Watch 8 44mm Negro', 'Accesorios'], ['Powerbank Xiaomi 10.000mAh', 'Accesorios'], ['Cargador Apple Watch', 'Accesorios'],
+]) EXTRA_PRODUCTS.push({ name, sku: category === 'Mac' ? `MAC-${slug(name)}` : category === 'iPad' ? `IPD-${slug(name)}` : `ACC-${slug(name)}`, category })
+// Variantes que aparecen en las ventas y no estaban en el catálogo base.
+EXTRA_PRODUCTS.push({ name: 'iPhone 17 Pro 256GB Naranja', sku: 'IPH-17PRO-256GB-NARANJA-NEW', category: 'Celulares' })
+EXTRA_PRODUCTS.push({ name: 'iPhone 17 Pro 512GB Naranja', sku: 'IPH-17PRO-512GB-NARANJA-NEW', category: 'Celulares' })
+
+// ── Pedidos ─────────────────────────────────────────────────────────────────
+// items: [sku|null, descripción, cantidad, precio, seriales[]]
+// payments: {method, status, amountPyg, reference, paidAt}
+const ORDERS = [
+  { number: '#31791', customer: 'Oscar Montaner', phone: '595986345139', seller: 'Claudia Carrillo', createdAt: '2026-09-10 10:46:26 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['MAC-MACBOOKAIRM516GB512GBMIDNIGHT', 'MacBook Air M5 16GB/512GB Midnight NUEVO', 1, 9350000, []]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 9350000, reference: 'POS 56-1124', paidAt: '2026-09-11 13:04:49 -0400' }] },
+  { number: '#31792', customer: 'Laura María Amarilla Ayala', phone: '595971577893', seller: 'Dulce Financiación', createdAt: '2026-09-10 11:03:27 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['IPH-17PRO-256GB-PLATA-USED', 'iPhone 17 Pro 256GB Semi Silver · Garantía 6 meses', 1, 6790000, []], [null, 'Financiación', 1, 210000, []]], payments: [] },
+  { number: '#31793', customer: 'MERZIN S.A GTS', phone: '', seller: 'Inara Oliveira', createdAt: '2026-09-10 11:12:52 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['IPH-17PRO-256GB-AZUL-NEW', 'iPhone 17 Pro Blue 256GB LL', 3, 7335000, []], ['IPH-17PRO-256GB-PLATA-NEW', 'iPhone 17 Pro Silver 256GB LL', 1, 7365000, []], ['IPH-17-256GB-NEGRO-NEW', 'iPhone 17 Negro 256GB HN', 1, 5610000, []], ['IPD-IPAD11THA16WIFI256GBAZUL', 'iPad 11th (A16) Blue 256GB WiFi', 3, 3465000, []], ['IPD-IPAD11THA16WIFI256GBROSA', 'iPad 11th (A16) Rosa 256GB WiFi', 1, 3465000, []]], payments: [] },
+  { number: '#31794', customer: 'Ignacio Bacili MYT', phone: '595981830958', seller: 'Jadiyi Martinez', createdAt: '2026-09-10 11:36:46 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPD-IPAD11THA16WIFI256GBAZUL', 'iPad 11th (A16) 11" WiFi 256GB Azul NUEVO', 1, 3500000, []]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 3500000, reference: 'POS 53-1108', paidAt: '2026-09-10 12:17:21 -0400' }] },
+  { number: '#31795', customer: 'Marcelo Velilla', phone: '595991720938', seller: 'Mateo Benitez', createdAt: '2026-09-10 12:36:42 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', billing: { name: 'Maria Silvina Paiva', document: '854381-0' }, items: [['IPH-17-256GB-NEGRO-NEW', 'iPhone 17 Nuevo 256GB Negro · 1 año de garantía', 2, 5900000, ['350061830774186', '352760492418374']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 3933333, reference: 'POS 49-1114 (1/3)', paidAt: '2026-09-10 15:42:50 -0400' }, { method: 'CARD', status: 'CONFIRMED', amountPyg: 3933333, reference: 'POS 49-1114 (2/3)', paidAt: '2026-09-10 15:42:50 -0400' }, { method: 'CARD', status: 'CONFIRMED', amountPyg: 3933334, reference: 'POS 49-1114 (3/3)', paidAt: '2026-09-10 15:42:50 -0400' }] },
+  { number: '#31796', customer: 'Adolfo Rautenberg', phone: '595981502467', seller: 'Claudia Carrillo', createdAt: '2026-09-10 13:08:30 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-17PRO-256GB-PLATA-USED', 'iPhone 17 Pro 256GB Silver Seminuevo', 1, 6790000, ['350208039048603']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 2263333, reference: 'POS 56-1125 (1/3)', paidAt: '2026-09-11 16:27:23 -0400' }, { method: 'CARD', status: 'CONFIRMED', amountPyg: 2263333, reference: 'POS 56-1125 (2/3)', paidAt: '2026-09-11 16:27:23 -0400' }, { method: 'CARD', status: 'CONFIRMED', amountPyg: 2263334, reference: 'POS 56-1125 (3/3)', paidAt: '2026-09-11 16:27:23 -0400' }] },
+  { number: '#31797', customer: 'Lica - Didier Phone Tech', phone: '595992296941', seller: 'Edgar Castillo', createdAt: '2026-09-10 13:53:25 -0400', status: 'PENDING', fulfillment: 'DELIVERED', notes: 'Venta para amigo de Lica, precio normal', items: [['IPH-17PROMAX-512GB-AZUL-USED', 'iPhone 17 Pro Max 512GB Azul Seminuevo · Garantía 6 meses', 1, 8800000, ['359426262616018']]], payments: [] },
+  { number: '#31798', customer: 'Ana Cardenas', phone: '595992578160', seller: 'Edgar Castillo', createdAt: '2026-09-10 16:17:54 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-13-128GB-ESTELAR-USED', 'iPhone 13 Blanco 128GB Seminuevo · Garantía 3 meses', 1, 2050000, ['353874236540184']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 2050000, reference: 'POS 55-1171', paidAt: '2026-09-10 16:17:54 -0400' }] },
+  { number: '#31799', customer: 'Matías Ramírez', phone: '595994202476', seller: 'Edgar Castillo', createdAt: '2026-09-10 18:28:32 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-17-256GB-LILA-NEW', 'iPhone 17 Lavanda 256GB Nuevo · Garantía 1 año', 1, 5950000, ['358190682040735']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 5950000, reference: 'POS 55-1172', paidAt: '2026-09-10 18:28:33 -0400' }] },
+  { number: '#31800', customer: 'Roque Insaurralde', phone: '595983529731', seller: 'Claudia Carrillo', createdAt: '2026-09-11 09:45:59 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-17PROMAX-256GB-PLATA-USED', 'iPhone 17 Pro Max 256GB Seminuevo Silver', 1, 7100000, ['353837418653059']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 3550000, reference: 'POS 56-1126 (1/2)', paidAt: '2026-09-11 09:46:37 -0400' }, { method: 'CARD', status: 'CONFIRMED', amountPyg: 3550000, reference: 'POS 56-1126 (2/2)', paidAt: '2026-09-11 09:46:37 -0400' }] },
+  { number: '#31801', customer: 'Deisy Delgado', phone: '595994648664', seller: 'Dulce Financiación', createdAt: '2026-09-11 10:52:12 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['IPH-17PROMAX-512GB-PLATA-NEW', 'iPhone 17 Pro Max 512GB Silver · Garantía 12 meses', 1, 9700000, ['358015866854082']], [null, 'Financiación', 1, 200000, []]], payments: [] },
+  { number: '#31802', customer: 'MERZIN S.A GTS', phone: '595994700770', seller: 'Inara Oliveira', createdAt: '2026-09-11 10:58:55 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['MAC-MACBOOKPROM51416GB512GBNEGRO', "Apple MacBook Pro M5 16/512GB MDE04LL/A 14' Black", 1, 12075000, []]], payments: [] },
+  { number: '#31803', customer: 'Ana Balbuena', phone: '595981320281', seller: 'Dulce Financiación', createdAt: '2026-09-11 11:00:55 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['IPH-17PROMAX-512GB-PLATA-NEW', 'iPhone 17 Pro Max 512GB Silver · Garantía 12 meses', 1, 9900000, ['357134811709365']]], payments: [] },
+  { number: '#31804', customer: 'Cristhian Rotela', phone: '', seller: 'Jadiyi Martinez', createdAt: '2026-09-11 13:57:09 -0400', status: 'PENDING', fulfillment: 'DELIVERED', deliveryPyg: 40000, deliveryType: 'Delivery', items: [['ACC-CARGADORAPPLEWATCH', 'Cargador Apple Watch', 1, 160000, []]], payments: [] },
+  { number: '#31805', customer: 'Hugo Javier Borja Ayala', phone: '595986614791', seller: 'Claudia Carrillo', createdAt: '2026-09-11 14:06:36 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', notes: 'Fuente C4H5226GPR2PK84AA', items: [['IPH-17PRO-256GB-PLATA-NEW', 'iPhone 17 Pro 255GB Silver NUEVO', 1, 7950000, ['355175319602034']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 3975000, reference: 'POS 56-1127 (1/2)', paidAt: '2026-09-11 14:17:54 -0400' }, { method: 'CARD', status: 'CONFIRMED', amountPyg: 3975000, reference: 'POS 56-1127 (2/2)', paidAt: '2026-09-11 14:17:54 -0400' }] },
+  { number: '#31806', customer: 'Lucia Escurra', phone: '595981459239', seller: 'Claudia Carrillo', createdAt: '2026-09-11 16:41:54 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-17PRO-256GB-PLATA-NEW', 'iPhone 17 Pro 256GB Silver NUEVO', 1, 7950000, ['350687962778395']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 3975000, reference: 'POS 56-1129 (1/2)', paidAt: '2026-09-11 16:48:46 -0400' }, { method: 'CARD', status: 'CONFIRMED', amountPyg: 3975000, reference: 'POS 56-1129 (2/2)', paidAt: '2026-09-11 16:48:46 -0400' }] },
+  { number: '#31807', customer: 'Amin Zarate', phone: '595971850320', seller: 'Edgar Castillo', createdAt: '2026-09-11 16:58:42 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-16-128GB-TEAL-USED', 'iPhone 16 128GB Teal Seminuevo · Garantía 6 meses', 1, 3990000, ['359954318105041']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 3990000, reference: 'POS 55-1174', paidAt: '2026-09-11 16:58:43 -0400' }] },
+  { number: '#31808', customer: 'Natalia Davalos', phone: '595982825982', seller: 'Edgar Castillo', createdAt: '2026-09-11 17:19:50 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-17PRO-256GB-PLATA-NEW', 'iPhone 17 Pro 256GB Nuevo Silver · Garantía 1 año', 1, 7900000, ['350687963282686']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 7900000, reference: 'POS 55-1175', paidAt: '2026-09-11 17:19:51 -0400' }] },
+  { number: '#31809', customer: 'Eliana Ayala', phone: '595991913506', seller: 'Claudia Carrillo', createdAt: '2026-09-12 08:17:07 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-17-256GB-LILA-NEW', 'iPhone 17 256GB Lavanda NUEVO', 1, 6000000, ['355122334378547']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 3000000, reference: 'POS 56-1131 (1/2)', paidAt: '2026-09-12 08:33:05 -0400' }, { method: 'CASH', status: 'CONFIRMED', amountPyg: 3000000, reference: 'Efectivo 56-1131 (2/2)', paidAt: '2026-09-12 08:33:05 -0400' }] },
+  { number: '#31810', customer: 'MERZIN S.A GTS', phone: '', seller: 'Inara Oliveira', createdAt: '2026-09-12 09:56:31 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['IPH-17PRO-256GB-AZUL-NEW', 'iPhone 17 Pro Blue 256GB LL', 4, 7665000, []], ['IPH-17PRO-256GB-PLATA-NEW', 'iPhone 17 Pro Silver 256GB LL', 2, 7665000, []], ['IPH-17PROMAX-256GB-AZUL-NEW', 'iPhone 17 Pro Max Blue 256GB LL', 2, 8100000, []], ['IPH-17PROMAX-256GB-PLATA-NEW', 'iPhone 17 Pro Max Silver 256GB LL', 4, 8160000, []], ['IPH-17PROMAX-256GB-NARANJA-NEW', 'iPhone 17 Pro Max Orange 256GB LL', 1, 8200000, []], ['MAC-MACBOOKNEOA18PRO8GB256GBCITRUS13', 'MacBook Neo A18 Pro 8/256GB Citrus 13"', 1, 4685000, []], ['MAC-MACBOOKNEOA18PRO8GB256GBINDIGO13', 'MacBook Neo A18 Pro 8/256GB Indigo 13"', 1, 4720000, []], ['MAC-MACBOOKNEOA18PRO8GB256GBBLUSH13', 'MacBook Neo A18 Pro 8/256GB Blush 13"', 1, 4720000, []]], payments: [] },
+  { number: '#31811', customer: 'Eduardo Villamayor', phone: '595981233153', seller: 'Claudia Carrillo', createdAt: '2026-09-12 10:17:54 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-15PRO-256GB-TITANIOAZUL-USED', 'iPhone 15 Pro 256GB Azul Seminuevo Americano', 1, 3990000, ['354300588034468']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 3990000, reference: 'POS 56-1132', paidAt: '2026-09-12 10:21:18 -0400' }] },
+  { number: '#31812', customer: 'Dayhana Kühner', phone: '595983658656', seller: 'Claudia Carrillo', createdAt: '2026-09-12 11:04:21 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['WTC-APPLEWATCHSE202544MM', 'Apple Watch SE 2025 44mm Starlight NUEVO', 1, 1950000, ['RFGL42FCH2L', 'SKLFMV790Y9']], ['ACC-SAMSUNGGALAXYWATCH844MMNEGRO', 'Samsung Galaxy Watch 8 44mm Negro NUEVO', 1, 1400000, []], ['ACC-POWERBANKXIAOMI10000MAH', 'Powerbank Xiaomi 10.000mAh', 2, 155000, []]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 3660000, reference: 'POS 56-1134', paidAt: '2026-09-15 08:36:17 -0400' }] },
+  { number: '#31813', customer: 'Lica - Didier Phone Tech', phone: '595992296941', seller: 'Claudia Carrillo', createdAt: '2026-09-12 11:17:44 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['ACC-EARPODSC', 'EarPods Entrada C Original', 2, 192000, []]], payments: [] },
+  { number: '#31814', customer: 'María Alejandra Gonzalez', phone: '595984336458', seller: 'Sandra Sandoval', createdAt: '2026-09-12 11:45:34 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-17PRO-256GB-PLATA-NEW', 'iPhone 17 Pro Silver 256GB LL', 1, 8510000, ['354723575430672']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 4255000, reference: 'POS 57-1021 (1/2)', paidAt: '2026-09-12 11:45:47 -0400' }, { method: 'CARD', status: 'CONFIRMED', amountPyg: 4255000, reference: 'POS 57-1021 (2/2)', paidAt: '2026-09-12 11:45:47 -0400' }] },
+  { number: '#31815', customer: 'Alfredo Henke', phone: '595983167356', seller: 'Claudia Carrillo', createdAt: '2026-09-12 12:13:49 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-17-256GB-BLANCO-NEW', 'iPhone 17 256GB Blanco NUEVO', 1, 6000000, ['355122332450744']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 6000000, reference: 'POS 56-1136', paidAt: '2026-09-12 12:28:01 -0400' }] },
+  { number: '#31816', customer: 'Paz Martínez', phone: '595984654634', seller: 'Claudia Carrillo', createdAt: '2026-09-12 13:28:54 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-16E-128GB-NEGRO-USED', 'iPhone 16e 128GB Negro Seminuevo', 2, 2750000, ['350304978232868', '351418496874743']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 5500000, reference: 'POS 56-1138', paidAt: '2026-09-12 13:28:54 -0400' }] },
+  { number: '#31817', customer: 'JOSECA GONZALEZ', phone: '595981107814', seller: 'Edgar Castillo', createdAt: '2026-09-12 15:58:44 -0400', status: 'CANCELLED', fulfillment: 'PROCESSING', items: [['IPH-17PROMAX-256GB-PLATA-NEW', 'iPhone 17 Pro Max 256GB Silver Nuevo · Garantía 1 año', 1, 8590000, []], ['ACC-CARGADORMAGSAFE', 'Cargador MagSafe', 1, 190000, []]], payments: [{ method: 'CARD', status: 'REFUNDED', amountPyg: 8780000, reference: 'A Continental Kolding S.A 440019335801', paidAt: '2026-09-12 15:58:44 -0400' }] },
+  { number: '#31818', customer: 'Maik Giesbrecht', phone: '595985772553', seller: 'Edgar Castillo', createdAt: '2026-09-12 15:59:57 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-17PROMAX-256GB-PLATA-NEW', 'iPhone 17 Pro Max 256GB Silver Nuevo · Garantía 1 año', 1, 8590000, ['357134817067099']], ['ACC-CARGADORMAGSAFE', 'Cargador MagSafe', 1, 190000, []]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 8780000, reference: 'POS 55-1177', paidAt: '2026-09-12 15:59:58 -0400' }] },
+  { number: '#31819', customer: 'Jose Espinola', phone: '595982107998', seller: 'Mateo Benitez', createdAt: '2026-09-14 08:42:26 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-17PRO-256GB-PLATA-NEW', 'iPhone 17 Pro Nuevo 256GB Silver · 1 año de garantía', 1, 7950000, []]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 7950000, reference: 'POS 49-1115', paidAt: '2026-09-14 08:42:26 -0400' }] },
+  { number: '#31820', customer: 'Nestor Espinoza Mayorista S/F MYT', phone: '595982391604', seller: 'Jadiyi Martinez', createdAt: '2026-09-14 09:01:07 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', notes: 'iPad de MZ ASU', items: [['IPD-IPADPROM511WIFI256GBSPACEBLACK', 'iPad Pro M5 11" WiFi 256GB Space Black (2025) NUEVO', 1, 7550000, ['HV22VMYWDC']], ['ACC-APPLEMAGICKEYBOARD11M5', 'Apple Magic Keyboard (para iPad Pro de 11" M5)', 1, 2240000, []]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 4895000, reference: 'POS 53-1110 (1/2)', paidAt: '2026-09-15 10:34:14 -0400' }, { method: 'CARD', status: 'CONFIRMED', amountPyg: 4895000, reference: 'POS 53-1110 (2/2)', paidAt: '2026-09-15 10:34:14 -0400' }] },
+  { number: '#31821', customer: 'JET TRADE ELECTRODOMÉSTICOS S.A', phone: '59521480879', seller: 'Inara Oliveira', createdAt: '2026-09-14 10:19:38 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-17PRO-256GB-PLATA-NEW', 'iPhone 17 Pro Silver 256GB LL', 1, 7870000, []]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 7870000, reference: 'POS 52-1105', paidAt: '2026-09-14 10:19:38 -0400' }] },
+  { number: '#31822', customer: 'Jesus Alonzo', phone: '595991791821', seller: 'Mateo Benitez', createdAt: '2026-09-14 11:36:42 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', deliveryPyg: 35000, deliveryType: 'Delivery', items: [['IPH-17PROMAX-512GB-AZUL-USED', 'iPhone 17 Pro Max Seminuevo 512GB Azul · 6 meses de garantía', 1, 8800000, ['359426262624517']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 8835000, reference: 'POS 49-1116', paidAt: '2026-09-14 11:36:42 -0400' }] },
+  { number: '#31823', customer: 'Beatriz Benitez', phone: '595982505555', seller: 'Claudia Carrillo', createdAt: '2026-09-14 12:25:17 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-16-128GB-TEAL-USED', 'iPhone 16 128GB Seminuevo Teal', 1, 3990000, ['356140776460879']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 3990000, reference: 'POS 56-1139', paidAt: '2026-09-14 12:29:56 -0400' }] },
+  { number: '#31824', customer: 'Lica - Didier Phone Tech', phone: '595992296941', seller: 'Claudia Carrillo', createdAt: '2026-09-14 13:54:32 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['IPH-14PROMAX-128GB-LILAOSCURO-USED', 'iPhone 14 Pro Max 128GB Miami Lila', 1, 3420000, ['355909995629238']]], payments: [] },
+  { number: '#31825', customer: 'Lica - Didier Phone Tech', phone: '595992296941', seller: 'Claudia Carrillo', createdAt: '2026-09-14 14:01:26 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['IPH-14-128GB-LILA-USED', 'iPhone 14 128GB Lila Miami', 1, 1998000, ['352013406872280']], ['IPH-14-128GB-MEDIANOCHE-USED', 'iPhone 14 128GB Negro Miami', 1, 1980000, ['353557672330166']], ['IPH-15-128GB-NEGRO-USED', 'iPhone 15 128GB Negro Miami', 1, 2640000, ['358668285318459']], ['IPH-16E-128GB-NEGRO-USED', 'iPhone 16e 128GB Negro Miami', 1, 2340000, ['351811698316986']], ['IPH-16PRO-128GB-NATURAL-USED', 'iPhone 16 Pro 128GB Natural Miami', 1, 4290000, ['357017256428403']], ['IPH-17-256GB-AZUL-USED', 'iPhone 17 256GB Azul Miami', 1, 4410000, ['350938242307509']], ['IPH-17-256GB-AZUL-USED', 'iPhone 17 256GB Azul Miami', 1, 4620000, ['354666653967711']], ['IPH-17PROMAX-512GB-AZUL-USED', 'iPhone 17 Pro Max 512GB Azul Miami', 1, 7890000, ['358419944022466']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 8598000, reference: 'POS 56-1142', paidAt: '2026-09-14 17:35:04 -0400' }] },
+  { number: '#31826', customer: 'Elielson Nardi', phone: '595976818161', seller: 'Mateo Benitez', createdAt: '2026-09-14 14:36:23 -0400', status: 'CANCELLED', fulfillment: 'PROCESSING', items: [['IPH-17PROMAX-256GB-PLATA-NEW', 'iPhone 17 Pro Max Nuevo 256GB Silver · 1 año de garantía', 1, 8590000, []]], payments: [] },
+  { number: '#31827', customer: 'Julia Patricia Vera Ferreira', phone: '595972145770', seller: 'Edgar Castillo', createdAt: '2026-09-14 14:47:26 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-14PRO-256GB-LILAOSCURO-USED', 'iPhone 14 Pro 256GB Lila Seminuevo · Garantía 3 meses', 1, 3290000, ['358790730114927']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 3290000, reference: 'POS 55-1178', paidAt: '2026-09-14 14:47:27 -0400' }] },
+  { number: '#31828', customer: 'Jose Cantero', phone: '595981227748', seller: 'Dulce Financiación', createdAt: '2026-09-14 15:54:44 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['IPH-16PROMAX-256GB-NEGRO-USED', 'iPhone 16 Pro Max 256GB Negro Semi · Garantía 6 meses', 1, 5690000, ['358862986594936']], [null, 'Financiación', 1, 210000, []]], payments: [] },
+  { number: '#31829', customer: 'Hugo Coronel', phone: '595974145486', seller: 'Edgar Castillo', createdAt: '2026-09-14 17:08:38 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-17PROMAX-512GB-PLATA-NEW', 'iPhone 17 Pro Max 512GB Silver Nuevo · Garantía 1 año', 1, 10350000, ['358015865905414']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 10350000, reference: 'POS 55-1179', paidAt: '2026-09-14 17:08:39 -0400' }] },
+  { number: '#31830', customer: 'Edgar Castillo', phone: '595972457584', seller: 'Edgar Castillo', createdAt: '2026-09-14 17:36:41 -0400', status: 'CANCELLED', fulfillment: 'PROCESSING', items: [[null, 'Fuduhh', 1, 565632, []], [null, 'ehdasbd', 1, 9990400, []]], payments: [] },
+  { number: '#31831', customer: 'Electrocell S.R.L MYT', phone: '595987289580', seller: 'Claudia Carrillo', createdAt: '2026-09-15 08:28:16 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-17-256GB-AZUL-NEW', 'iPhone 17 256GB Nuevo Azul', 1, 6350000, ['352760499466004']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 6350000, reference: 'POS 56-1143', paidAt: '2026-09-15 10:32:42 -0400' }] },
+  { number: '#31832', customer: 'Electrocell S.R.L MYT', phone: '595987289580', seller: 'Inara Oliveira', createdAt: '2026-09-15 08:31:19 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-14-128GB-AZUL-USED', 'iPhone 14 Azul 128GB 100%', 1, 2145000, ['352604721755976']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 2145000, reference: 'POS 46-1252', paidAt: '2026-09-15 08:31:19 -0400' }] },
+  { number: '#31833', customer: 'MERZIN S.A GTS', phone: '', seller: 'Inara Oliveira', createdAt: '2026-09-15 09:39:53 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['IPH-17PRO-256GB-PLATA-NEW', 'iPhone 17 Pro Silver 256GB LL', 3, 7665000, []], ['IPH-17PRO-256GB-AZUL-NEW', 'iPhone 17 Pro Blue 256GB LL', 3, 7665000, []], ['IPH-17PRO-256GB-NARANJA-NEW', 'iPhone 17 Pro Orange 256GB LL', 1, 7665000, []], ['IPH-17PROMAX-256GB-PLATA-NEW', 'iPhone 17 Pro Max Silver 256GB LL', 2, 8130000, []], ['IPD-IPAD11THA16WIFI256GBPLATA', 'iPad 11th (A16) Silver 256GB WiFi', 2, 3555000, []], ['MAC-MACBOOKNEOA18PRO8GB256GBCITRUS13', 'MacBook Neo A18 Pro 8GB/256GB Citrus 13"', 1, 4680000, []], ['MAC-MACBOOKNEOA18PRO8GB512GBINDIGO13', 'MacBook Neo A18 Pro 8GB/512GB Indigo 13"', 1, 5398000, []]], payments: [] },
+  { number: '#31834', customer: 'Brahian Gomez', phone: '595991387773', seller: 'Dulce Financiación', createdAt: '2026-09-15 10:43:11 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['IPH-17PROMAX-256GB-PLATA-NEW', 'iPhone 17 Pro Max 256GB Silver · Garantía 12 meses', 1, 8590000, ['358015864889775']], [null, 'Financiación', 1, 110000, []]], payments: [] },
+  { number: '#31835', customer: 'Fiorella Araceli Otazu', phone: '595983841902', seller: 'Mateo Benitez', createdAt: '2026-09-15 11:08:37 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', deliveryPyg: 15000, deliveryType: 'Delivery', items: [['IPH-13-256GB-MEDIANOCHE-USED', 'iPhone 13 Seminuevo 256GB Negro · 3 meses de garantía', 1, 2350000, ['352941880936702']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 2365000, reference: 'POS 49-1118', paidAt: '2026-09-15 11:08:37 -0400' }] },
+  { number: '#31836', customer: 'Coopasi Ltda', phone: '595995380147', seller: 'Jadiyi Martinez', createdAt: '2026-09-15 12:20:12 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-13PRO-256GB-AZULSIERRA-USED', 'iPhone 13 Pro 256GB Seminuevo Azul 100%', 1, 2890000, ['356942287694601']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 2890000, reference: 'POS 53-1111', paidAt: '2026-09-15 13:13:43 -0400' }] },
+  { number: '#31837', customer: 'Gustavo Adolfo Sosa Arellano', phone: '595984835270', seller: 'Jadiyi Martinez', createdAt: '2026-09-15 13:01:39 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['IPH-15PRO-256GB-TITANIOAZUL-USED', 'iPhone 15 Pro 256GB Seminuevo Azul 85%', 1, 3990000, ['353431655062990']], ['IPH-15PRO-256GB-TITANIOAZUL-USED', 'iPhone 15 Pro 256GB Seminuevo Azul 88%', 1, 3990000, ['354070965254662']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 600000, reference: 'POS 53-1112', paidAt: '2026-09-15 13:01:40 -0400' }] },
+  { number: '#31838', customer: 'Jorge Aquino', phone: '595982428480', seller: 'Sandra Sandoval', createdAt: '2026-09-15 13:28:46 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-14PRO-256GB-NEGROESPACIAL-USED', 'iPhone 14 Pro 256GB Semi · 3 meses de garantía', 1, 3290000, ['353429716092063']]], payments: [{ method: 'CASH', status: 'CONFIRMED', amountPyg: 3290000, reference: 'Efectivo 57-1022', paidAt: '2026-09-15 13:28:47 -0400' }] },
+  { number: '#31839', customer: 'Marco Mendieta', phone: '595981112052', seller: 'Edgar Castillo', createdAt: '2026-09-15 13:53:03 -0400', status: 'COMPLETED', fulfillment: 'DELIVERED', items: [['IPH-15-128GB-VERDE-USED', 'iPhone 15 Verde 128GB Seminuevo · Garantía 3 meses', 1, 2950000, ['353887197145090']]], payments: [{ method: 'CARD', status: 'CONFIRMED', amountPyg: 2950000, reference: 'POS 55-1181', paidAt: '2026-09-15 13:53:04 -0400' }] },
+  { number: '#31840', customer: 'Guido Mattesich', phone: '595971329510', seller: 'Edgar Castillo', createdAt: '2026-09-15 18:00:06 -0400', status: 'PENDING', fulfillment: 'DELIVERED', items: [['IPH-17PRO-256GB-PLATA-NEW', 'iPhone 17 Pro 256GB Nuevo Silver · Garantía 1 año', 1, 7950000, ['354723574346440']]], payments: [] },
+]
+
+// ── Validaciones ────────────────────────────────────────────────────────────
+const SELLERS = [...new Set(ORDERS.map(order => order.seller))]
+const CUSTOMERS = new Map()
+for (const order of ORDERS) if (!CUSTOMERS.has(order.customer)) CUSTOMERS.set(order.customer, { name: order.customer, phone: order.phone || null })
+for (const order of ORDERS) for (const [sku] of order.items) if (sku && !EXTRA_PRODUCTS.some(p => p.sku === sku)) { /* SKU previo del catálogo base: se valida contra la migración anterior de forma indirecta */ }
+const SOLD_SERIALS = new Set(ORDERS.flatMap(order => order.items.flatMap(([, , , , serials]) => serials)))
+if (SOLD_SERIALS.size !== [...SOLD_SERIALS].length) throw new Error('Serials repetidos en datos.')
+
+// ── Generación SQL ──────────────────────────────────────────────────────────
+const lines = []
+lines.push('-- Últimas 50 ventas reales de iStore Paraguay (export Shopify 10-09/15-09-2026).')
+lines.push('-- Idempotente; aplica solo si existe el tenant de Dario. Vincula líneas al catálogo,')
+lines.push('-- registra vendedores, clientes, pagos divididos/parciales, IMEIs y factura a otro titular.')
+lines.push('')
+lines.push('DO $$')
+lines.push('DECLARE')
+lines.push('  v_tenant_id TEXT;')
+lines.push('  v_branch_id TEXT;')
+lines.push('BEGIN')
+lines.push("  SELECT id INTO v_tenant_id FROM \"Tenant\" WHERE lower(email) = 'dariodeoli@gmail.com' OR lower(name) LIKE '%istore%' OR lower(name) LIKE '%iphone store%' ORDER BY \"createdAt\" LIMIT 1;")
+lines.push('  IF v_tenant_id IS NULL THEN RETURN; END IF;')
+lines.push("  SELECT id INTO v_branch_id FROM \"Branch\" WHERE \"tenantId\" = v_tenant_id AND \"isActive\" = true ORDER BY ((lower(name) LIKE '%asu%') OR (lower(name) LIKE '%asunc%')) DESC, \"createdAt\" LIMIT 1;")
+lines.push('  IF v_branch_id IS NULL THEN RETURN; END IF;')
+lines.push('')
+lines.push('  -- Catálogo delta: iPhone 18 Pro / 18 Pro Max / 18 Duo y productos del export.')
+for (const product of EXTRA_PRODUCTS) {
+  lines.push(`  INSERT INTO "Product" ("id", "tenantId", "branchId", "sku", "name", "category", "condition", "pricePyg", "stock", "updatedAt") VALUES (${q(uuid5(`product:${product.sku}`))}, v_tenant_id, v_branch_id, ${q(product.sku)}, ${q(product.name)}, ${q(product.category)}, 'NEW'::"ProductCondition", 0, 0, now()) ON CONFLICT ("tenantId", "branchId", "sku") DO NOTHING;`)
+}
+lines.push('')
+lines.push('  -- Vendedores (usuarios sin PIN usable hasta que Dario asigne credenciales).')
+for (const seller of SELLERS) {
+  lines.push(`  INSERT INTO "User" ("id", "tenantId", "branchId", "name", "role", "pinHash", "updatedAt") VALUES (${q(uuid5(`user:${seller}`))}, v_tenant_id, v_branch_id, ${q(seller)}, 'VENDEDOR'::"UserRole", 'no-login-seed', now()) ON CONFLICT ("id") DO NOTHING;`)
+}
+lines.push('')
+lines.push('  -- Clientes.')
+for (const customer of CUSTOMERS.values()) {
+  lines.push(`  INSERT INTO "Customer" ("id", "tenantId", "name", "phone", "countryCode", "updatedAt") VALUES (${q(uuid5(`customer:${customer.name}`))}, v_tenant_id, ${q(customer.name)}, ${q(customer.phone)}, '+595', now()) ON CONFLICT ("id") DO NOTHING;`)
+}
+lines.push('')
+lines.push('  -- Pedidos.')
+for (const order of ORDERS) {
+  const id = uuid5(`order:${order.number}`)
+  const subtotal = order.items.reduce((sum, [, , quantity, price]) => sum + quantity * price, 0)
+  const total = subtotal + (order.deliveryPyg || 0)
+  lines.push(`  INSERT INTO "Order" ("id", "tenantId", "branchId", "customerId", "sellerId", "orderNumber", "publicToken", "status", "fulfillmentStatus", "subtotalPyg", "discountPyg", "deliveryPyg", "deliveryType", "billingName", "billingDocument", "notes", "totalPyg", "createdAt", "updatedAt") VALUES (${q(id)}, v_tenant_id, v_branch_id, (SELECT c."id" FROM "Customer" c WHERE c."tenantId" = v_tenant_id AND c."name" = ${q(order.customer)} LIMIT 1), (SELECT u."id" FROM "User" u WHERE u."tenantId" = v_tenant_id AND u."name" = ${q(order.seller)} LIMIT 1), ${q(order.number)}, ${q(uuid5(`token:${order.number}`))}, ${q(order.status)}::"OrderStatus", ${q(order.fulfillment)}::"FulfillmentStatus", ${subtotal}, 0, ${order.deliveryPyg || 0}, ${q(order.deliveryType || null)}, ${q(order.billing?.name || null)}, ${q(order.billing?.document || null)}, ${q(order.notes || null)}, ${total}, ${q(naiveUtc(order.createdAt))}, now()) ON CONFLICT ("tenantId", "orderNumber") DO NOTHING;`)
+  order.items.forEach(([sku, description, quantity, price, serials], index) => {
+    lines.push(`  INSERT INTO "OrderItem" ("id", "orderId", "productId", "description", "quantity", "unitPricePyg", "totalPyg", "serials", "serialsPending", "costPending") VALUES (${q(uuid5(`item:${order.number}:${index}`))}, ${q(id)}, ${sku ? `(SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = ${q(sku)} LIMIT 1)` : 'NULL'}, ${q(description)}, ${quantity}, ${price}, ${quantity * price}, ${q(JSON.stringify(serials))}::jsonb, 0, false) ON CONFLICT ("id") DO NOTHING;`)
+  })
+  order.payments.forEach((payment, index) => {
+    lines.push(`  INSERT INTO "Payment" ("id", "tenantId", "orderId", "method", "status", "amountPyg", "reference", "paidAt", "createdAt") VALUES (${q(uuid5(`payment:${order.number}:${index}`))}, v_tenant_id, ${q(id)}, ${q(payment.method)}::"PaymentMethod", ${q(payment.status)}::"PaymentStatus", ${payment.amountPyg}, ${q(payment.reference)}, ${q(naiveUtc(payment.paidAt))}, ${q(naiveUtc(payment.paidAt))}) ON CONFLICT ("id") DO NOTHING;`)
+  })
+}
+lines.push('')
+lines.push('  -- Unidades vendidas: las existentes pasan a SOLD y las nuevas se crean vendidas.')
+const sortedSerials = [...SOLD_SERIALS].sort()
+for (const serial of sortedSerials) {
+  lines.push(`  UPDATE "InventoryUnit" SET "status" = 'SOLD'::"InventoryUnitStatus", "reservedUntil" = NULL, "reservationCustomer" = NULL, "reservedById" = NULL WHERE "tenantId" = v_tenant_id AND "serial" = ${q(serial)} AND "status" <> 'SOLD';`)
+}
+// IMEIs que no existen como unidad: se crean SOLD contra el producto de su línea.
+const serialToSku = new Map()
+for (const order of ORDERS) for (const [sku, , , , serials] of order.items) if (sku) for (const serial of serials) serialToSku.set(serial, sku)
+for (const serial of sortedSerials) {
+  const sku = serialToSku.get(serial)
+  if (!sku) continue
+  lines.push(`  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES (${q(uuid5(`unit:${serial}`))}, v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = ${q(sku)} LIMIT 1), v_branch_id, ${q(serial)}, 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;`)
+}
+lines.push('')
+lines.push('  -- Stock: todo producto con unidades refleja las disponibles/reservadas;')
+lines.push('  -- los de cantidad (sin serie) se descuentan una sola vez.')
+lines.push(`  UPDATE "Product" p SET "stock" = COALESCE((SELECT count(*) FROM "InventoryUnit" u WHERE u."productId" = p."id" AND u."status" IN ('AVAILABLE', 'RESERVED')), 0) WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND EXISTS (SELECT 1 FROM "InventoryUnit" u2 WHERE u2."productId" = p."id");`)
+// Descuento de stock solo para mercadería SIN unidades serializadas y en
+// pedidos no cancelados; los serializados se recomputan desde sus unidades.
+for (const [sku, decrement] of new Map(ORDERS.filter(order => order.status !== 'CANCELLED').flatMap(order => order.items.filter(([sku, , , , serials]) => sku && !serials.length).map(([sku, , quantity]) => [sku, quantity])))) {
+  lines.push(`  UPDATE "Product" SET "stock" = GREATEST("stock" - ${decrement}, 0) WHERE "tenantId" = v_tenant_id AND "branchId" = v_branch_id AND "sku" = ${q(sku)} AND NOT EXISTS (SELECT 1 FROM "InventoryUnit" u WHERE u."productId" = "Product"."id");`)
+}
+lines.push('END $$;')
+lines.push('')
+
+const output = lines.join('\n')
+mkdirSync(MIGRATION_DIR, { recursive: true })
+writeFileSync(join(MIGRATION_DIR, 'migration.sql'), output)
+const paidCount = ORDERS.filter(o => o.status === 'COMPLETED').length
+const pendingCount = ORDERS.filter(o => o.status === 'PENDING').length
+const cancelledCount = ORDERS.filter(o => o.status === 'CANCELLED').length
+console.log(`Migración generada: backend/prisma/migrations/20260917010000_istore_orders_seed/migration.sql`)
+console.log(`Catálogo delta: ${EXTRA_PRODUCTS.length} productos · Pedidos: ${ORDERS.length} (pagados ${paidCount}, pendientes ${pendingCount}, cancelados ${cancelledCount})`)
+console.log(`Vendedores: ${SELLERS.length} · Clientes: ${CUSTOMERS.size} · IMEIs vendidos: ${SOLD_SERIALS.size}`)
