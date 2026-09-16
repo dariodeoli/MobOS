@@ -191,6 +191,19 @@ async function writeStorageState(file, companyToken, sellerToken) {
 
 export default async function globalSetup() {
   await mkdir(AUTH_DIR, { recursive: true })
+  // Los specs de admin crean un "Vendedor E2E …" en cada corrida. Sin
+  // limpieza se acumulan en la base persistente y el login por PIN (que
+  // compara bcrypt contra TODOS los usuarios activos) se vuelve lentísimo.
+  // Se marcan INACTIVE (no se borran: conservan auditoría y FKs). Los
+  // vendedores del seed se reconocen por su email y quedan excluidos.
+  try {
+    execFileSync(`${PG_BIN}/psql`, [
+      '-h', '127.0.0.1', '-p', '5439', '-U', 'postgres', '-d', 'mobos_e2e',
+      '-c', `UPDATE "User" SET status = 'INACTIVE' WHERE name LIKE 'Vendedor E2E%' AND email IS NULL;`,
+    ], { stdio: 'ignore' })
+  } catch {
+    // Si el prune falla, la suite sigue: el seed propio no depende de esto.
+  }
   const alreadySeeded = await access(MARKER).then(() => true).catch(() => false)
   if (alreadySeeded) {
     // Still make sure the public tracking token file exists (cheap re-check).
