@@ -1,8 +1,11 @@
 // Genera la migración SQL de las últimas 50 ventas reales de iStore Paraguay
 // (export Shopify, 10-09-2026 a 15-09-2026) para el entorno de prueba.
-// Uso: node scripts/generate-istore-orders.mjs
-// Escribe backend/prisma/migrations/20260917010000_istore_orders_seed/migration.sql
-// y backend/prisma/migrations/20260918000000_istore_seed_completion/migration.sql
+// Uso: node scripts/generate-istore-orders.mjs [tenantId] [outputSuffix]
+// - tenantId: apunta el seed a un tenant EXACTO (lookup WHERE id = ...).
+//   Sin este argumento usa el lookup por email/nombre iStore.
+// - outputSuffix: sufijo para las carpetas bajo backend/prisma/migrations/
+//   (default: las migraciones originales). Usá sufijos NUEVOS si las
+//   migraciones originales ya se aplicaron en la base destino.
 //
 // Incluye: catálogo delta (iPhone 18 Pro/Pro Max/18 Duo y productos del export),
 // vendedores, clientes, pedidos con líneas vinculadas a catálogo, IMEIs, pagos
@@ -17,10 +20,11 @@ import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
 const bcrypt = require('../backend/node_modules/bcryptjs')
-const COMPLETION_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'backend/prisma/migrations/20260918000000_istore_seed_completion')
+const [, , TARGET_TENANT_ID = '', OUTPUT_SUFFIX = ''] = process.argv
+const COMPLETION_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'backend/prisma/migrations', `${OUTPUT_SUFFIX ? `${OUTPUT_SUFFIX}_completion` : '20260918000000_istore_seed_completion'}`)
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const MIGRATION_DIR = join(ROOT, 'backend/prisma/migrations/20260917010000_istore_orders_seed')
+const MIGRATION_DIR = join(ROOT, 'backend/prisma/migrations', OUTPUT_SUFFIX || '20260917010000_istore_orders_seed')
 
 const slug = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
 const uuid5 = name => {
@@ -134,7 +138,7 @@ lines.push('DECLARE')
 lines.push('  v_tenant_id TEXT;')
 lines.push('  v_branch_id TEXT;')
 lines.push('BEGIN')
-lines.push("  SELECT id INTO v_tenant_id FROM \"Tenant\" WHERE lower(email) = 'dariodeoli@gmail.com' OR lower(name) LIKE '%istore%' OR lower(name) LIKE '%iphone store%' ORDER BY \"createdAt\" LIMIT 1;")
+lines.push("  SELECT id INTO v_tenant_id FROM \"Tenant\" WHERE " + (TARGET_TENANT_ID ? `id = '${TARGET_TENANT_ID}'` : "lower(email) = 'dariodeoli@gmail.com' OR lower(name) LIKE '%istore%' OR lower(name) LIKE '%iphone store%'") + ' ORDER BY "createdAt" LIMIT 1;')
 lines.push('  IF v_tenant_id IS NULL THEN RETURN; END IF;')
 lines.push("  SELECT id INTO v_branch_id FROM \"Branch\" WHERE \"tenantId\" = v_tenant_id AND \"isActive\" = true ORDER BY ((lower(name) LIKE '%asu%') OR (lower(name) LIKE '%asunc%')) DESC, \"createdAt\" LIMIT 1;")
 lines.push('  IF v_branch_id IS NULL THEN RETURN; END IF;')
@@ -220,7 +224,7 @@ completion.push('DO $$')
 completion.push('DECLARE')
 completion.push('  v_tenant_id TEXT;')
 completion.push('BEGIN')
-completion.push("  SELECT id INTO v_tenant_id FROM \"Tenant\" WHERE lower(email) = 'dariodeoli@gmail.com' OR lower(name) LIKE '%istore%' OR lower(name) LIKE '%iphone store%' ORDER BY \"createdAt\" LIMIT 1;")
+completion.push("  SELECT id INTO v_tenant_id FROM \"Tenant\" WHERE " + (TARGET_TENANT_ID ? `id = '${TARGET_TENANT_ID}'` : "lower(email) = 'dariodeoli@gmail.com' OR lower(name) LIKE '%istore%' OR lower(name) LIKE '%iphone store%'") + ' ORDER BY "createdAt" LIMIT 1;')
 completion.push('  IF v_tenant_id IS NULL THEN RETURN; END IF;')
 completion.push('')
 completion.push('  -- PIN de cada vendedor sembrado (solo placeholders sin credenciales).')

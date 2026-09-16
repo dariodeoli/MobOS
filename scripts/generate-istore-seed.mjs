@@ -1,6 +1,10 @@
 // Genera la migración SQL de catálogo y stock real de iStore Paraguay.
-// Uso: node scripts/generate-istore-seed.mjs
-// Escribe backend/prisma/migrations/20260916030000_istore_paraguay_real_stock/migration.sql
+// Uso: node scripts/generate-istore-seed.mjs [tenantId] [outputDir]
+// - tenantId: apunta el seed a un tenant EXACTO (lookup WHERE id = ...).
+//   Sin este argumento usa el lookup por email/nombre iStore.
+// - outputDir: nombre de carpeta bajo backend/prisma/migrations/ (default:
+//   20260916030000_istore_paraguay_real_stock). Usá un nombre NUEVO si la
+//   migración original ya se aplicó en la base destino.
 //
 // Fuente: planilla de stock de Dario (16-09-2026). Estados:
 //  - # / "Vendedor #" → VENDIDO (la nota conserva vendedor y número)
@@ -12,7 +16,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const MIGRATION_DIR = join(ROOT, 'backend/prisma/migrations/20260916030000_istore_paraguay_real_stock')
+const [, , TARGET_TENANT_ID = '', OUTPUT_SUFFIX = ''] = process.argv
+const MIGRATION_DIR = join(ROOT, 'backend/prisma/migrations', OUTPUT_SUFFIX || '20260916030000_istore_paraguay_real_stock')
 
 const slug = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
 const uuid5 = name => {
@@ -340,7 +345,7 @@ lines.push('DECLARE')
 lines.push('  v_tenant_id TEXT;')
 lines.push('  v_branch_id TEXT;')
 lines.push('BEGIN')
-lines.push("  SELECT id INTO v_tenant_id FROM \"Tenant\" WHERE lower(email) = 'dariodeoli@gmail.com' OR lower(name) LIKE '%istore%' OR lower(name) LIKE '%iphone store%' ORDER BY \"createdAt\" LIMIT 1;")
+lines.push("  SELECT id INTO v_tenant_id FROM \"Tenant\" WHERE " + (TARGET_TENANT_ID ? `id = '${TARGET_TENANT_ID}'` : "lower(email) = 'dariodeoli@gmail.com' OR lower(name) LIKE '%istore%' OR lower(name) LIKE '%iphone store%'") + ' ORDER BY "createdAt" LIMIT 1;')
 lines.push('  IF v_tenant_id IS NULL THEN RETURN; END IF;')
 lines.push("  SELECT id INTO v_branch_id FROM \"Branch\" WHERE \"tenantId\" = v_tenant_id AND \"isActive\" = true ORDER BY ((lower(name) LIKE '%asu%') OR (lower(name) LIKE '%asunc%')) DESC, \"createdAt\" LIMIT 1;")
 lines.push('  IF v_branch_id IS NULL THEN RETURN; END IF;')
@@ -391,7 +396,7 @@ writeFileSync(join(MIGRATION_DIR, 'migration.sql'), output)
 // Decisión de Dario (16-09-2026): los colores de planilla no traían depósito
 // por fila; las unidades disponibles/reservadas del seed van a "Depósito 1"
 // y después se mueven a mano. Tránsito y vendidas quedan sin ubicación.
-const LOCATION_DIR = join(ROOT, 'backend/prisma/migrations/20260918010000_istore_units_deposito1')
+const LOCATION_DIR = join(ROOT, 'backend/prisma/migrations', `${OUTPUT_SUFFIX || '20260918010000_istore_units_deposito1'}${OUTPUT_SUFFIX ? '_deposito1' : ''}`)
 const seedSerials = [...new Set([...UNITS.map(unit => unit[5]), ...SERIALIZED.map(item => item.serial)])]
 const locationLines = [
   '-- Las unidades disponibles/reservadas del seed de iStore van a "Depósito 1"',
@@ -402,7 +407,7 @@ const locationLines = [
   '  v_tenant_id TEXT;',
   '  v_location_id TEXT;',
   'BEGIN',
-  "  SELECT id INTO v_tenant_id FROM \"Tenant\" WHERE lower(email) = 'dariodeoli@gmail.com' OR lower(name) LIKE '%istore%' OR lower(name) LIKE '%iphone store%' ORDER BY \"createdAt\" LIMIT 1;",
+  "  SELECT id INTO v_tenant_id FROM \"Tenant\" WHERE " + (TARGET_TENANT_ID ? `id = '${TARGET_TENANT_ID}'` : "lower(email) = 'dariodeoli@gmail.com' OR lower(name) LIKE '%istore%' OR lower(name) LIKE '%iphone store%'") + ' ORDER BY "createdAt" LIMIT 1;',
   '  IF v_tenant_id IS NULL THEN RETURN; END IF;',
   "  SELECT l.\"id\" INTO v_location_id FROM \"StockLocation\" l JOIN \"Branch\" b ON b.\"id\" = l.\"branchId\" WHERE l.\"tenantId\" = v_tenant_id AND l.\"name\" = 'Depósito 1' AND b.\"isActive\" = true ORDER BY l.\"createdAt\" LIMIT 1;",
   '  IF v_location_id IS NULL THEN RETURN; END IF;',
