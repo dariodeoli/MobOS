@@ -111,10 +111,10 @@ export default function Login() {
   }
 
   useEffect(() => {
-    if (modo !== 'entrar' || etapa !== 'vendedor' || pin.length !== 4 || !vendedorId || cargando || pinSubmit.current) return
+    if (modo !== 'entrar' || etapa !== 'vendedor' || pin.length !== 4 || cargando || pinSubmit.current) return
     pinSubmit.current = true
     setCargando(true)
-    entrarVendedor({ sellerId: vendedorId, pin }).catch((err) => {
+    entrarVendedor(vendedorId ? { sellerId: vendedorId, pin } : { pin }).catch((err) => {
       setError(err?.message || 'PIN inválido. Probá de nuevo.')
       setPin('')
     }).finally(() => { pinSubmit.current = false; setCargando(false) })
@@ -207,8 +207,12 @@ export default function Login() {
             <><div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Tienda creada</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu tienda'}</strong></div><div className="pt-1"><h2 className="text-base font-semibold text-fore">Elegí tu PIN de administrador</h2><p className="mt-1 text-xs leading-5 text-mute">Este PIN abre el modo ventas y te identifica en cada operación. El resto lo configurás dentro de la app.</p><Label className="mt-4" htmlFor="setup-pin">PIN de 4 dígitos</Label><PasswordInput id="setup-pin" autoFocus required inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={setupPin} onChange={(event) => { setError(''); setSetupPin(event.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="••••" autoComplete="new-password" className="h-16 pr-12 text-center text-3xl tracking-[.45em] lg:h-14" /><p className="mt-2 text-center text-xs font-medium text-fono-dark">Usá solo 4 dígitos.</p></div></>
           ) : modo === 'entrar' && etapa === 'vendedor' ? (
             <>
-              <div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Empresa</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu empresa'}</strong></div><div><Label htmlFor="seller">Vendedor</Label><select id="seller" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="mt-1 w-full rounded-xl border border-ink-500 bg-paper px-3 py-3 text-fore"><option value="">Seleccioná tu usuario</option>{vendedores.map((v) => <option key={v.id} value={v.id}>{v.name || v.nombre || v.email}</option>)}</select></div>
-              <div><Label htmlFor="seller-pin">PIN del vendedor</Label><PasswordInput id="seller-pin" autoFocus inputMode="numeric" maxLength={4} value={pin} onChange={(e) => { setError(''); setPin(e.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="4 dígitos" autoComplete="one-time-code" /></div>
+              <div className="rounded-xl border border-fono-dark/20 bg-fono-dark/5 px-4 py-3"><span className="text-xs text-mute">Empresa</span><strong className="mt-1 block text-sm text-fono-dark">{nombreEmpresa || 'Tu empresa'}</strong></div>
+              <div><Label htmlFor="seller-pin">PIN de vendedor</Label><PasswordInput id="seller-pin" autoFocus inputMode="numeric" maxLength={4} value={pin} onChange={(e) => { setError(''); setPin(e.target.value.replace(/\D/g, '').slice(0, 4)) }} placeholder="4 dígitos" autoComplete="one-time-code" className="text-center text-2xl tracking-[.5em]" /><p className="mt-2 text-center text-xs text-mute">Tu PIN identifica tu usuario y tus permisos.</p></div>
+              <details className="group">
+                <summary className="cursor-pointer text-center text-xs text-mute hover:text-fore">¿No sabés tu PIN? Elegí tu usuario</summary>
+                <select id="seller" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="mt-2 w-full rounded-xl border border-ink-500 bg-paper px-3 py-3 text-fore"><option value="">Seleccioná tu usuario</option>{vendedores.map((v) => <option key={v.id} value={v.id}>{v.name || v.nombre || v.email}</option>)}</select>
+              </details>
               <button type="button" onClick={() => { setEtapa('empresa'); setPin(''); setError('') }} className="text-sm text-mute hover:text-fore">← Volver a empresa</button>
             </>
           ) : !crear && <>
