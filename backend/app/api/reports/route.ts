@@ -8,6 +8,7 @@ import {
   aggregateCommissions,
   aggregateReport,
   dayBounds,
+  localDayKey,
   parseReportQuery,
 } from '../../../lib/reporting'
 
@@ -61,7 +62,7 @@ export async function GET(request: Request) {
             product: { select: { name: true, category: true } },
           },
         },
-        payments: { select: { status: true, amountPyg: true, accountSnapshot: true } },
+        payments: { select: { status: true, amountPyg: true, method: true, accountSnapshot: true } },
         seller: { select: { id: true, name: true, role: true } },
       },
       orderBy: { createdAt: 'asc' },
@@ -118,6 +119,22 @@ export async function GET(request: Request) {
       })
     }
 
+    // Primera orden histórica de cada cliente: define "cliente nuevo" por mes
+    // en la agrupación newCustomers, sin depender del rango consultado.
+    const firstOrderMonth = new Map<string, string>()
+    if (groupBy === 'newCustomers') {
+      const primeras = await prisma.order.groupBy({
+        by: ['customerId'],
+        _min: { createdAt: true },
+        where: { tenantId: session.user.tenantId, customerId: { not: null } },
+      })
+      for (const fila of primeras) {
+        if (fila.customerId && fila._min.createdAt) {
+          firstOrderMonth.set(fila.customerId, localDayKey(fila._min.createdAt, offsetMinutes).slice(0, 7))
+        }
+      }
+    }
+
     const reporte = aggregateReport(
       usadas.map((orden) => ({
         id: orden.id,
@@ -128,6 +145,7 @@ export async function GET(request: Request) {
         totalPyg: orden.totalPyg,
         sellerId: orden.sellerId,
         sellerName: orden.seller?.name ?? null,
+        customerId: orden.customerId ?? null,
         createdAt: orden.createdAt,
         items: orden.items.map((item) => ({
           productId: item.productId,
@@ -145,10 +163,10 @@ export async function GET(request: Request) {
             ? Number(snapshot.feePercent) : 0
           const feePyg = Number.isFinite(feePercent) && feePercent > 0
             ? Math.round((pago.amountPyg * feePercent) / 100) : 0
-          return { status: pago.status, amountPyg: pago.amountPyg, feePyg }
+          return { status: pago.status, amountPyg: pago.amountPyg, feePyg, method: pago.method ?? null, accountName: snapshot && typeof snapshot.name === 'string' ? snapshot.name : null }
         }),
       })),
-      { groupBy, offsetMinutes },
+      { groupBy, offsetMinutes, firstOrderMonth },
     )
 
     const productStock = await prisma.product.findMany({

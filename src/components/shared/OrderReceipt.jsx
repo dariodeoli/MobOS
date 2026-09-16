@@ -27,3 +27,29 @@ export async function printOrderReceipt(order, { format = 'a4' } = {}) {
   popup.document.close()
   return true
 }
+
+// Recibo de un pago individual (parcial o total): sirve para entregar al
+// cliente al cobrar una parte del pedido, sin repetir el comprobante completo.
+export async function printPaymentReceipt(payment, order, { format = 'a4' } = {}) {
+  const popup = window.open('', '_blank', 'noopener,noreferrer,width=420,height=720')
+  if (!popup) return false
+  const thermal = format === 'thermal'
+  const monto = payment.amountPyg ?? payment.monto ?? 0
+  const metodo = payment.medioPago || payment.method || 'Pago'
+  const referencia = payment.cuenta || payment.reference || payment.accountSnapshot?.name || ''
+  const fecha = payment.fecha || payment.paidAt || payment.createdAt || new Date().toISOString()
+  popup.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo de pago</title><style>@page{size:${thermal ? '80mm auto' : 'A4'};margin:${thermal ? '4mm' : '16mm'}}body{font:${thermal ? '11px' : '13px'} system-ui,sans-serif;margin:0;color:#111;max-width:${thermal ? '72mm' : '760px'}}h1{font-size:${thermal ? '17px' : '22px'};margin:0 0 4px}.muted{color:#555}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.total{font-size:${thermal ? '15px' : '18px'};font-weight:700}@media print{body{margin:0}}</style></head><body><h1>Recibo de pago</h1><p class="muted">${escapeHtml(order?.orderNumber || order?.codigo || 'Pedido')} · ${escapeHtml(new Date(fecha).toLocaleString('es-PY'))}</p><p><strong>Cliente:</strong> ${escapeHtml(order?.customer?.name || order?.cliente || 'Consumidor final')}</p><div class="row"><span>Método</span><span>${escapeHtml(metodo)}</span></div>${referencia ? `<div class="row"><span>Cuenta / referencia</span><span>${escapeHtml(referencia)}</span></div>` : ''}<div class="row total"><span>Monto cobrado</span><span>${escapeHtml(gs(monto))}</span></div><p class="muted">Este recibo corresponde a un pago parcial o total del pedido.</p><script>window.onload=()=>window.print()<\/script></body></html>`)
+  popup.document.close()
+  return true
+}
+
+// Comprobante de reserva: entrega al cliente el IMEI apartado, la sucursal y
+// el vencimiento para retirar o liberar.
+export async function printReservationReceipt(reservation, { format = 'a4' } = {}) {
+  const popup = window.open('', '_blank', 'noopener,noreferrer,width=420,height=720')
+  if (!popup) return false
+  const thermal = format === 'thermal'
+  popup.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reserva</title><style>@page{size:${thermal ? '80mm auto' : 'A4'};margin:${thermal ? '4mm' : '16mm'}}body{font:${thermal ? '11px' : '13px'} system-ui,sans-serif;margin:0;color:#111;max-width:${thermal ? '72mm' : '760px'}}h1{font-size:${thermal ? '17px' : '22px'};margin:0 0 4px}.muted{color:#555}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.total{font-size:${thermal ? '15px' : '18px'};font-weight:700}@media print{body{margin:0}}</style></head><body><h1>Comprobante de reserva</h1><p><strong>Cliente:</strong> ${escapeHtml(reservation.reservationCustomer || reservation.customerName || '—')}</p><div class="row"><span>Producto</span><span>${escapeHtml(reservation.product?.name || reservation.productName || '—')}</span></div><div class="row"><span>IMEI / serial</span><span>${escapeHtml(reservation.serial || '—')}</span></div>${reservation.branch?.name ? `<div class="row"><span>Sucursal</span><span>${escapeHtml(reservation.branch.name)}</span></div>` : ''}<div class="row total"><span>Vence</span><span>${escapeHtml(reservation.reservedUntil ? new Date(reservation.reservedUntil).toLocaleString('es-PY') : '—')}</span></div><p class="muted">La unidad queda apartada hasta la fecha indicada. Pasado el vencimiento se libera automáticamente.</p><script>window.onload=()=>window.print()<\/script></body></html>`)
+  popup.document.close()
+  return true
+}

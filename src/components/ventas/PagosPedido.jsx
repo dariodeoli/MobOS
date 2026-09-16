@@ -10,6 +10,7 @@ import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 import { trackingUrlFor } from '@/components/shared/OrderReceipt'
+import { printPaymentReceipt } from '@/components/shared/OrderReceipt'
 
 // Enlace de WhatsApp para compartir el seguimiento público del pedido.
 export function whatsappTrackingLink(order, extra = '') {
@@ -179,6 +180,7 @@ export default function PagosPedido({ venta, onClose }) {
       {payments.map(p => <article key={p.id} className="rounded-xl border border-fore/10 p-4">
         <div className="flex justify-between gap-3"><strong>{gs(p.monto)}</strong><span className="text-xs text-mute">{METHODS[p.medioPago] || p.medioPago}</span></div>
         <p className="mt-1 text-xs text-mute">{new Date(p.fecha || p.paidAt || p.createdAt).toLocaleString('es-PY')} · {p.cuenta || p.reference || 'Sin referencia'}</p>
+        {p.status === undefined || p.status === 'CONFIRMED' ? <button type="button" className="mt-2 rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => printPaymentReceipt(p, order, { format: 'a4' })}>Imprimir recibo</button> : null}
         {p.accountSnapshot && <p className="mt-1 text-xs text-fono-light">{p.accountSnapshot.name} · {p.accountSnapshot.bank} · {p.accountSnapshot.accountNumber} · {p.currency} {p.originalAmount} · cotización {p.exchangeRatePyg}</p>}
         <p className="my-2 text-xs text-amber-300">Conciliación: {(reconciliations[p.id]?.state || p.reconciliationState) === 'VERIFIED' ? 'Verificada' : (reconciliations[p.id]?.state || p.reconciliationState) === 'REJECTED' ? 'Rechazada' : 'Pendiente de revisión'}</p>
         {(proofs[p.id] || []).map(file => <button key={file.id} className="mb-2 block text-sm text-fono-light underline" onClick={() => download(p.id, file)}>{file.name || file.fileName || 'Descargar comprobante'}</button>)}

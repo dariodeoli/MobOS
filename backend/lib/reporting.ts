@@ -11,7 +11,7 @@
 //   suma a los dos, sin repartir el descuento global); día y vendedor agrupan a
 //   nivel de orden, con cobros y saldo reales.
 
-export const REPORT_GROUP_BY = ['product', 'category', 'seller', 'day'] as const
+export const REPORT_GROUP_BY = ['product', 'category', 'seller', 'day', 'payments', 'newCustomers'] as const
 export type ReportGroupBy = (typeof REPORT_GROUP_BY)[number]
 
 /** Roles con acceso a reportes financieros (costos y ganancia incluidos). */
@@ -43,7 +43,7 @@ export type OrderItemLike = {
   totalPyg: number
 }
 
-export type PaymentLike = { status?: string | null; amountPyg: number }
+export type PaymentLike = { status?: string | null; amountPyg: number; method?: string | null; accountName?: string | null }
 
 export type OrderLike = {
   id: string
@@ -54,6 +54,7 @@ export type OrderLike = {
   totalPyg: number
   sellerId?: string | null
   sellerName?: string | null
+  customerId?: string | null
   createdAt: Date | string
   items?: OrderItemLike[]
   payments?: PaymentLike[]
@@ -77,6 +78,7 @@ export type ReportTotals = {
   commissionPyg: number
   netProfitPyg: number
   netMarginPct: number | null
+  refundedPyg: number
 }
 
 export type ReportGroup = {
@@ -96,6 +98,10 @@ export type ReportGroup = {
   linesWithoutCost: number
   commissionPyg: number
   netProfitPyg: number
+  refundedPyg: number
+  customers: number
+  newCustomers: number
+  returningCustomers: number
 }
 
 export type ReportResult = { totals: ReportTotals; groups: ReportGroup[] }
@@ -301,6 +307,10 @@ type Acumulador = {
   key: string
   label: string
   orderIds: Set<string>
+  customerIds: Set<string>
+  newIds: Set<string>
+  returningIds: Set<string>
+  refundedPyg: number
   units: number
   grossPyg: number
   discountPyg: number
@@ -320,6 +330,10 @@ function nuevoAcumulador(key: string, label: string): Acumulador {
     key,
     label,
     orderIds: new Set<string>(),
+    customerIds: new Set<string>(),
+    newIds: new Set<string>(),
+    returningIds: new Set<string>(),
+    refundedPyg: 0,
     units: 0,
     grossPyg: 0,
     discountPyg: 0,
@@ -347,13 +361,44 @@ function obtener(grupos: Map<string, Acumulador>, key: string, label: string): A
 }
 
 function cerrar(acumulador: Acumulador): ReportGroup {
-  const { orderIds, salesWithCostPyg, ...resto } = acumulador
+  const { orderIds, customerIds, newIds, returningIds, salesWithCostPyg, ...resto } = acumulador
   void salesWithCostPyg
   return {
     ...resto,
     orders: orderIds.size,
+    customers: customerIds.size,
+    newCustomers: newIds.size,
+    returningCustomers: returningIds.size,
     pendingPyg: Math.max(0, resto.totalPyg - resto.collectedPyg),
     netProfitPyg: Math.max(0, resto.profitPyg - resto.commissionPyg),
+  }
+}
+
+function cerrarTotales(acumulador: Acumulador): ReportTotals {
+  const group = cerrar(acumulador)
+  return {
+    orders: group.orders,
+    units: group.units,
+    grossPyg: group.grossPyg,
+    discountPyg: group.discountPyg,
+    deliveryPyg: group.deliveryPyg,
+    totalPyg: group.totalPyg,
+    collectedPyg: group.collectedPyg,
+    pendingPyg: group.pendingPyg,
+    costPyg: group.costPyg,
+    profitPyg: group.profitPyg,
+    salesWithCostPyg: acumulador.salesWithCostPyg,
+    salesWithoutCostPyg: group.salesWithoutCostPyg,
+    linesWithoutCost: group.linesWithoutCost,
+    marginPct: acumulador.salesWithCostPyg > 0
+      ? Math.round((acumulador.profitPyg / acumulador.salesWithCostPyg) * 1000) / 10
+      : null,
+    commissionPyg: group.commissionPyg,
+    netProfitPyg: group.netProfitPyg,
+    netMarginPct: acumulador.salesWithCostPyg > 0
+      ? Math.round((Math.max(0, acumulador.profitPyg - acumulador.commissionPyg) / acumulador.salesWithCostPyg) * 1000) / 10
+      : null,
+    refundedPyg: group.refundedPyg,
   }
 }
 
@@ -442,11 +487,87 @@ function claveDeCategoria(item: OrderItemLike): string {
  */
 export function aggregateReport(
   orders: OrderLike[],
-  options: { groupBy: ReportGroupBy; offsetMinutes: number },
+  options: { groupBy: ReportGroupBy; offsetMinutes: number; firstOrderMonth?: Map<string, string> },
 ): ReportResult {
   const totales = nuevoAcumulador('total', 'Total')
   const grupos = new Map<string, Acumulador>()
   const porLinea = (LINE_LEVEL_GROUPS as readonly string[]).includes(options.groupBy)
+
+  // Pagos por pasarela/cuenta: transacciones, bruto, reembolsado y neto.
+  if (options.groupBy === 'payments') {
+    const acumularPago = (acumulador: Acumulador, pago: PaymentLike) => {
+      const monto = entero(pago.amountPyg) ?? 0
+      if (pago.status === 'REFUNDED') {
+        acumulador.refundedPyg = suma(acumulador.refundedPyg, monto)
+        return
+      }
+      acumulador.orderIds.add(`pago:${acumulador.key}:${acumulador.orderIds.size}`)
+      acumulador.units = suma(acumulador.units, 1)
+      acumulador.grossPyg = suma(acumulador.grossPyg, monto)
+      acumulador.totalPyg = suma(acumulador.totalPyg, monto)
+      acumulador.collectedPyg = suma(acumulador.collectedPyg, monto)
+    }
+    for (const orden of orders) {
+      if (orden.status === 'CANCELLED') continue
+      for (const pago of Array.isArray(orden.payments) ? orden.payments : []) {
+        const key = (pago.accountName || pago.method || '').trim().toLowerCase() || 'sin-metodo'
+        const label = pago.accountName?.trim() || pago.method?.trim() || 'Sin método'
+        acumularPago(obtener(grupos, key, label), pago)
+        acumularPago(totales, pago)
+      }
+    }
+    const resultado = [...grupos.values()].map(cerrar)
+    resultado.sort((a, b) => b.totalPyg - a.totalPyg || a.label.localeCompare(b.label))
+    const neto = Math.max(0, totales.totalPyg - totales.refundedPyg)
+    return {
+      totals: {
+        orders: totales.units,
+        units: totales.units,
+        grossPyg: totales.grossPyg,
+        discountPyg: 0,
+        deliveryPyg: 0,
+        totalPyg: neto,
+        collectedPyg: neto,
+        pendingPyg: 0,
+        costPyg: 0,
+        profitPyg: 0,
+        salesWithCostPyg: 0,
+        salesWithoutCostPyg: 0,
+        linesWithoutCost: 0,
+        marginPct: null,
+        commissionPyg: 0,
+        netProfitPyg: 0,
+        netMarginPct: null,
+        refundedPyg: totales.refundedPyg,
+      },
+      groups: resultado,
+    }
+  }
+
+  // Clientes nuevos vs habituales por mes. Un cliente es "nuevo" en el mes de
+  // su primera orden histórica; el resto de sus órdenes cuentan como habitual.
+  if (options.groupBy === 'newCustomers') {
+    const mesDe = (orden: OrderLike) => localDayKey(orden.createdAt, options.offsetMinutes).slice(0, 7)
+    for (const orden of orders) {
+      if (orden.status === 'CANCELLED') continue
+      const hecho = analizarOrden(orden)
+      acumularOrden(totales, hecho)
+      const mes = mesDe(orden)
+      const acumulador = obtener(grupos, mes, mes)
+      acumularOrden(acumulador, hecho)
+      const primero = options.firstOrderMonth?.get(orden.customerId || '')
+      const nuevo = Boolean(orden.customerId && primero && primero === mes)
+      if (orden.customerId) {
+        acumulador.customerIds.add(orden.customerId)
+        ;(nuevo ? acumulador.newIds : acumulador.returningIds).add(orden.customerId)
+      } else {
+        acumulador.returningIds.add(`sin-cliente:${orden.id}`)
+      }
+    }
+    const resultado = [...grupos.values()].map(cerrar)
+    resultado.sort((a, b) => a.key.localeCompare(b.key))
+    return { totals: cerrarTotales(totales), groups: resultado }
+  }
 
   for (const orden of orders) {
     if (orden.status === 'CANCELLED') continue
@@ -498,29 +619,5 @@ export function aggregateReport(
     return referencia || a.label.localeCompare(b.label)
   })
 
-  const totals: ReportTotals = {
-    orders: totales.orderIds.size,
-    units: totales.units,
-    grossPyg: totales.grossPyg,
-    discountPyg: totales.discountPyg,
-    deliveryPyg: totales.deliveryPyg,
-    totalPyg: totales.totalPyg,
-    collectedPyg: totales.collectedPyg,
-    pendingPyg: Math.max(0, totales.totalPyg - totales.collectedPyg),
-    costPyg: totales.costPyg,
-    profitPyg: totales.profitPyg,
-    salesWithCostPyg: totales.salesWithCostPyg,
-    salesWithoutCostPyg: totales.salesWithoutCostPyg,
-    linesWithoutCost: totales.linesWithoutCost,
-    marginPct: totales.salesWithCostPyg > 0
-      ? Math.round((totales.profitPyg / totales.salesWithCostPyg) * 1000) / 10
-      : null,
-    commissionPyg: totales.commissionPyg,
-    netProfitPyg: Math.max(0, totales.profitPyg - totales.commissionPyg),
-    netMarginPct: totales.salesWithCostPyg > 0
-      ? Math.round((Math.max(0, totales.profitPyg - totales.commissionPyg) / totales.salesWithCostPyg) * 1000) / 10
-      : null,
-  }
-
-  return { totals, groups: resultado }
+  return { totals: cerrarTotales(totales), groups: resultado }
 }
