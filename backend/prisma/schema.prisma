@@ -326,6 +326,8 @@ model Product {
   imei          String?
   condition     ProductCondition   @default(NEW)
   pricePyg      Int
+  // Precio para clientes mayoristas; si es null, se usa pricePyg.
+  wholesalePricePyg Int?
   costPyg       Int?
   // Si tiene valor, prevalece sobre la política de la categoría.
   insuranceRate Decimal?           @db.Decimal(5, 2)
@@ -486,6 +488,12 @@ model Customer {
   // Identificador del cliente en un sistema anterior (migración de datos):
   // permite importar fichas históricas sin duplicar personas.
   externalId  String?
+  // Precio minorista o mayorista; el mayorista usa wholesalePricePyg del producto.
+  pricingTier CustomerPricing @default(RETAIL)
+  // Límite de crédito en guaraníes (null = sin venta a crédito).
+  creditLimitPyg Int?
+  // Plazo de crédito estándar en días para este cliente.
+  creditDays Int?
   // Consentimientos de marketing explícitos; por defecto apagados.
   acceptsEmailMarketing     Boolean  @default(false)
   acceptsSmsMarketing       Boolean  @default(false)
@@ -609,6 +617,9 @@ model Order {
   billingDocument   String?
   // Comentario interno de la venta.
   notes             String?
+  // Venta a crédito: vencimiento y plazo aplicado (control de mora).
+  dueAt             DateTime?
+  creditDays        Int?
   totalPyg          Int
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -674,6 +685,9 @@ model OrderItem {
   serialsPending       Int            @default(0)
   // La línea se vendió sin costo conocido: falta cargar el costo del producto.
   costPending          Boolean        @default(false)
+  // Descuento por línea: fijo en guaraníes o porcentual (uno de los dos).
+  discountPyg          Int            @default(0)
+  discountPct          Decimal?       @db.Decimal(5, 2)
 
   @@index([orderId])
 }
@@ -733,6 +747,8 @@ model Payment {
   reference       String?
   idempotencyKey  String?
   paidAt          DateTime         @default(now())
+  // Fecha estimada de acreditación en la cuenta de la empresa (tarjetas/PIX).
+  settlesAt       DateTime?
   createdAt       DateTime         @default(now())
 
   proofs         PaymentProof[]
@@ -804,6 +820,11 @@ enum PaymentAccountKind {
   PIX
 }
 
+enum CustomerPricing {
+  RETAIL
+  WHOLESALE
+}
+
 enum ProductDestination {
   NORMAL
   OFFER
@@ -831,6 +852,8 @@ model PaymentAccount {
   kind          PaymentAccountKind
   isActive      Boolean            @default(true)
   feePercent    Decimal            @default(0) @db.Decimal(5, 2)
+  // Días que tarda el medio en acreditar (ej. tarjeta: 1-3); 0 = inmediato.
+  settlementDays Int               @default(0)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
   payments      Payment[]
@@ -1124,6 +1147,12 @@ model WarrantyCase {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @default(now()) @updatedAt
   expiresAt       DateTime?
+  // Página pública de garantía: el cliente ve modelo, días restantes y
+  // cobertura con solo escanear el QR del comprobante.
+  publicToken     String?        @unique
+  warrantyDays    Int?
+  coverage        String?
+  exclusions      String?
 
   warrantyPhotos  WarrantyPhoto[]
 

@@ -1,0 +1,99 @@
+import assert from 'node:assert/strict'
+
+const [baseUrl, adminToken] = process.argv.slice(2)
+if (!baseUrl || !adminToken) throw new Error('Uso: orders-credit-discounts.mjs <baseUrl> <adminToken>')
+
+async function request(path, method = 'GET', body, headers = {}) {
+  const response = await fetch(`${baseUrl}${path}`, { method, headers: { Authorization: `Bearer ${adminToken}`, 'x-tenant-id': 'tenant-a-it', ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers }, ...(body ? { body: JSON.stringify(body) } : {}) })
+  const payload = await response.json().catch(() => null)
+  return { response, payload }
+}
+const publicGet = async (path) => {
+  const response = await fetch(`${baseUrl}${path}`)
+  const payload = await response.json().catch(() => null)
+  return { response, payload }
+}
+
+// Cliente mayorista con crédito.
+let result = await request('/api/customers', 'POST', { name: `Crédito Test ${Date.now()}`, phone: `59599${String(Date.now()).slice(-7)}`, pricingTier: 'WHOLESALE', creditLimitPyg: 1000000, creditDays: 30 })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const customer = result.payload
+assert.equal(customer.pricingTier, 'WHOLESALE')
+
+// Producto con precio mayorista.
+const sku = `CRED-SKU-${Date.now()}`
+result = await request('/api/products', 'POST', { sku, name: 'Equipo crédito y descuentos', pricePyg: 950000, wholesalePricePyg: 800000, stock: 10, branchId: 'branch-a-it' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const product = result.payload
+assert.equal(product.wholesalePricePyg, 800000)
+
+// Descuento fijo por línea.
+result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000, discountPyg: 100000 }], payments: [{ method: 'CASH', amountPyg: 700000 }] })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+assert.equal(result.payload.items[0].discountPyg, 100000)
+assert.equal(result.payload.totalPyg, 700000)
+assert.equal(result.payload.status, 'COMPLETED')
+
+// Descuento porcentual por línea.
+result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000, discountPct: 10 }], payments: [{ method: 'CASH', amountPyg: 720000 }] })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+assert.equal(result.payload.items[0].discountPyg, 80000)
+assert.equal(result.payload.totalPyg, 720000)
+
+// Fijo + porcentual juntos se rechaza.
+result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000, discountPyg: 10000, discountPct: 5 }], payments: [] })
+assert.equal(result.response.status, 400)
+
+// Venta a crédito con plazo.
+result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [], creditDays: 15 })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const creditOrder = result.payload
+assert.equal(creditOrder.status, 'PENDING')
+assert.ok(creditOrder.dueAt, 'La venta a crédito debe tener vencimiento.')
+assert.equal(creditOrder.creditDays, 15)
+
+// Superar el límite de crédito se rechaza.
+result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [], creditDays: 10 })
+assert.equal(result.response.status, 409, 'Debe rechazar por superar el límite de crédito.')
+
+// Cliente sin límite no puede vender a crédito.
+result = await request('/api/customers', 'POST', { name: `Sin Crédito ${Date.now()}`, phone: `59598${String(Date.now()).slice(-7)}` })
+assert.equal(result.response.status, 201)
+result = await request('/api/orders', 'POST', { customerId: result.payload.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [], creditDays: 10 })
+assert.equal(result.response.status, 400, 'Debe rechazar crédito sin límite configurado.')
+
+// Control de créditos: aparece el cliente con pendiente y mora.
+result = await request('/api/credits')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+const creditRow = result.payload.credits.find(row => row.customerId === customer.id)
+assert.ok(creditRow, 'El cliente con deuda debe aparecer en el control de créditos.')
+assert.ok(creditRow.outstandingPyg > 0)
+
+// Cuenta de tarjeta con settlementDays: el pago trae fecha de acreditación.
+result = await request('/api/payment-accounts', 'POST', { name: `Tarjeta ${Date.now()}`, kind: 'CARD', currency: 'PYG', settlementDays: 2 })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const cardAccount = result.payload
+result = await request('/api/payments', 'POST', { orderId: creditOrder.id, accountId: cardAccount.id, originalAmount: 800000, exchangeRatePyg: 1, currency: 'PYG', method: 'CARD' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+assert.ok(result.payload.settlesAt, 'El pago con tarjeta debe traer fecha de acreditación.')
+const settleDays = Math.round((new Date(result.payload.settlesAt).getTime() - Date.now()) / 86400000)
+assert.ok(settleDays === 1 || settleDays === 2, `Acreditación esperada en 1-2 días, recibido ${settleDays}.`)
+
+// Garantía con token público, cobertura y exclusiones.
+const warranty = { customerName: customer.name, serial: `WARR-${Date.now()}`, description: 'Equipo en garantía', branchId: 'branch-a-it', warrantyDays: 90, coverage: 'Defectos de fábrica\nPantalla', exclusions: 'Daños por agua\nReparaciones de terceros', orderItemId: creditOrder.items[0].id }
+result = await request('/api/warranties', 'POST', warranty)
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const warrantyRow = Array.isArray(result.payload) ? result.payload[0] : result.payload
+assert.ok(warrantyRow.publicToken, 'La garantía debe tener token público.')
+const publicWarranty = await publicGet(`/api/public/warranty/${warrantyRow.publicToken}`)
+assert.equal(publicWarranty.response.status, 200)
+assert.equal(publicWarranty.payload.serial, warranty.serial)
+assert.ok(publicWarranty.payload.daysRemaining >= 89 && publicWarranty.payload.daysRemaining <= 91, `Días restantes esperados ~90, recibido ${publicWarranty.payload.daysRemaining}.`)
+assert.ok(publicWarranty.payload.coverage.includes('Defectos de fábrica'))
+assert.ok(publicWarranty.payload.exclusions.includes('Daños por agua'))
+// El tracking público del pedido lista la garantía.
+const publicOrder = await publicGet(`/api/orders/public/${creditOrder.publicToken}`)
+assert.equal(publicOrder.response.status, 200)
+assert.ok(publicOrder.payload.warranties.some(item => item.token === warrantyRow.publicToken), 'El pedido público debe listar su garantía.')
+
+console.log('orders-credit-discounts: OK (descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta y garantía pública).')

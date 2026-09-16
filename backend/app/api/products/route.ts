@@ -39,6 +39,8 @@ export async function POST(request: Request) {
   if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
   const b = await request.json(); const price = Number(b.pricePyg ?? b.price ?? 0); const stock = Number(b.stock ?? 0)
   const cost = b.costPyg === undefined || b.costPyg === null || b.costPyg === '' ? undefined : Number(b.costPyg)
+  const wholesalePricePyg = b.wholesalePricePyg === undefined || b.wholesalePricePyg === null || b.wholesalePricePyg === '' ? null : Number(b.wholesalePricePyg)
+  if (wholesalePricePyg !== null && (!Number.isSafeInteger(wholesalePricePyg) || wholesalePricePyg < 0 || wholesalePricePyg > 2147483647)) throw new Error('Precio mayorista inválido.')
   const insuranceRate = b.insuranceRate === undefined || b.insuranceRate === null || b.insuranceRate === '' ? undefined : Number(b.insuranceRate)
   const reorderPoint = b.reorderPoint === undefined ? undefined : b.reorderPoint === null || b.reorderPoint === '' ? null : Number(b.reorderPoint)
   if (typeof b.sku !== 'string' || !b.sku.trim() || typeof b.name !== 'string' || !b.name.trim()) return error('SKU y nombre son obligatorios.')
@@ -58,7 +60,7 @@ export async function POST(request: Request) {
     const data = await prisma.$transaction(async tx => {
       if (serial && await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { id: true } })) throw new Error('Ese IMEI/serial ya existe.')
       if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId: branchId ?? '', isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
-      const product = await tx.product.create({ data: { tenantId: tenant, sku: b.sku.trim(), name: b.name.trim(), category: b.category, imei: serial || null, condition: b.condition || 'NEW', pricePyg: price, costPyg: cost, insuranceRate, stock, branchId, ...(reorderPoint !== undefined ? { reorderPoint } : {}) } })
+      const product = await tx.product.create({ data: { tenantId: tenant, sku: b.sku.trim(), name: b.name.trim(), category: b.category, imei: serial || null, condition: b.condition || 'NEW', pricePyg: price, ...(wholesalePricePyg !== null ? { wholesalePricePyg } : {}), costPyg: cost, insuranceRate, stock, branchId, ...(reorderPoint !== undefined ? { reorderPoint } : {}) } })
       if (serial) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId, locationId, serial, ...unitDetails(b, { condition: product.condition, costPyg: cost }) } })
       return product
     })
@@ -96,7 +98,7 @@ export async function PATCH(request: Request) {
         if (!existing) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId: product.branchId, locationId: locationId ?? null, serial, ...details } })
         else await tx.inventoryUnit.update({ where: { tenantId_serial: { tenantId: tenant, serial } }, data: { ...details, ...(locationId !== undefined ? { locationId } : {}) } })
       }
-      return tx.product.update({ where: { id: product.id }, data: { ...(typeof b.name === 'string' && b.name.trim() ? { name: b.name.trim() } : {}), ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(price !== undefined ? { pricePyg: price } : {}), ...(cost !== undefined ? { costPyg: cost } : {}), ...(insuranceRate !== undefined ? { insuranceRate } : {}), ...(stock !== undefined ? { stock } : {}), ...(reorderPoint !== undefined ? { reorderPoint } : {}), ...(b.category !== undefined ? { category: b.category || null } : {}), ...(serial !== undefined ? { imei: serial } : {}), ...(b.condition !== undefined ? { condition: b.condition } : {}) } })
+      return tx.product.update({ where: { id: product.id }, data: { ...(typeof b.name === 'string' && b.name.trim() ? { name: b.name.trim() } : {}), ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(price !== undefined ? { pricePyg: price } : {}), ...(b.wholesalePricePyg !== undefined ? { wholesalePricePyg: b.wholesalePricePyg === null || b.wholesalePricePyg === '' ? null : Number(b.wholesalePricePyg) } : {}), ...(cost !== undefined ? { costPyg: cost } : {}), ...(insuranceRate !== undefined ? { insuranceRate } : {}), ...(stock !== undefined ? { stock } : {}), ...(reorderPoint !== undefined ? { reorderPoint } : {}), ...(b.category !== undefined ? { category: b.category || null } : {}), ...(serial !== undefined ? { imei: serial } : {}), ...(b.condition !== undefined ? { condition: b.condition } : {}) } })
     })
     return json(data)
   } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo actualizar el producto.', 409) }

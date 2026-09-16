@@ -64,7 +64,21 @@ export async function POST(request: Request) {
       }
       const id = randomUUID()
       const diagnosis = optionalText(body.diagnosis, 'diagnosis'); const technicianName = optionalText(body.technicianName, 'technicianName', 200); const photos = list(body.photos, 'photos'); const parts = list(body.parts, 'parts')
-      await tx.warrantyCase.create({ data: { id, tenantId: tenant, branchId, orderItemId: body.orderItemId || null, customerName, serial, description, responsibleName: typeof body.responsibleName === 'string' ? body.responsibleName.trim() : null, expiresAt: body.expiresAt ? new Date(body.expiresAt) : null, diagnosis: diagnosis ?? null, technicianName: technicianName ?? null, ...(photos ? { photos } : {}), ...(parts ? { parts } : {}) } })
+      const coverage = optionalText(body.coverage, 'coverage'); const exclusions = optionalText(body.exclusions, 'exclusions')
+      const warrantyDays = body.warrantyDays === undefined || body.warrantyDays === '' || body.warrantyDays === null ? undefined : Number(body.warrantyDays)
+      if (warrantyDays !== undefined && (!Number.isSafeInteger(warrantyDays) || warrantyDays < 1 || warrantyDays > 730)) throw new Error('Los días de garantía deben estar entre 1 y 730.')
+      const publicToken = randomUUID()
+      // Sin vencimiento explícito, se deriva de los días de garantía: desde la
+      // compra si la garantía cuelga de una línea de pedido, o desde hoy.
+      let expiresAt = body.expiresAt ? new Date(body.expiresAt) : null
+      if (!expiresAt && warrantyDays) {
+        const purchase = body.orderItemId
+          ? await tx.$queryRaw<Array<{ createdAt: Date }>>`SELECT o."createdAt" FROM "Order" o JOIN "OrderItem" oi ON oi."orderId" = o."id" WHERE oi."id" = ${body.orderItemId} LIMIT 1`
+          : []
+        const base = purchase[0]?.createdAt ? new Date(purchase[0].createdAt) : new Date()
+        expiresAt = new Date(base.getTime() + warrantyDays * 86400000)
+      }
+      await tx.warrantyCase.create({ data: { id, tenantId: tenant, branchId, orderItemId: body.orderItemId || null, customerName, serial, description, responsibleName: typeof body.responsibleName === 'string' ? body.responsibleName.trim() : null, expiresAt, publicToken, warrantyDays: warrantyDays ?? null, coverage: coverage ?? null, exclusions: exclusions ?? null, diagnosis: diagnosis ?? null, technicianName: technicianName ?? null, ...(photos ? { photos } : {}), ...(parts ? { parts } : {}) } })
       await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${tenant}, ${session.user.id}, 'WARRANTY_CREATED', 'WarrantyCase', ${id}, ${JSON.stringify({ serial, branchId })}::jsonb)`
       return tx.$queryRaw`SELECT * FROM "WarrantyCase" WHERE "id" = ${id}`
     })
@@ -89,7 +103,12 @@ export async function PATCH(request: Request) {
       if (body.responsibleName !== undefined && !withinLimit(body.responsibleName)) throw new Error('El responsable no puede superar 2000 caracteres.')
       const diagnosis = optionalText(body.diagnosis, 'diagnosis'); const technicianName = optionalText(body.technicianName, 'technicianName', 200); const resolution = optionalText(body.resolution, 'resolution'); const photos = list(body.photos, 'photos'); const parts = list(body.parts, 'parts'); const repairCostPyg = body.repairCostPyg === undefined ? undefined : Number(body.repairCostPyg)
       if (repairCostPyg !== undefined && (!Number.isSafeInteger(repairCostPyg) || repairCostPyg < 0 || repairCostPyg > 2147483647)) throw new Error('Costo de reparación inválido.')
-      const updated = await tx.warrantyCase.update({ where: { id: body.id }, data: { status: next, ...(typeof body.responsibleName === 'string' ? { responsibleName: body.responsibleName.trim() || null } : {}), ...(typeof body.description === 'string' ? { description: body.description.trim() } : {}), ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(resolution !== undefined ? { resolution } : {}), ...(photos !== undefined ? { photos } : {}), ...(parts !== undefined ? { parts } : {}), ...(repairCostPyg !== undefined ? { repairCostPyg } : {}) } })
+      const coverage = optionalText(body.coverage, 'coverage'); const exclusions = optionalText(body.exclusions, 'exclusions')
+      const warrantyDays = body.warrantyDays === undefined || body.warrantyDays === '' || body.warrantyDays === null ? undefined : Number(body.warrantyDays)
+      if (warrantyDays !== undefined && (!Number.isSafeInteger(warrantyDays) || warrantyDays < 1 || warrantyDays > 730)) throw new Error('Los días de garantía deben estar entre 1 y 730.')
+      const expiresAt = body.expiresAt === undefined ? undefined : validDate(body.expiresAt) ? (body.expiresAt === null || body.expiresAt === '' ? null : new Date(body.expiresAt)) : undefined
+      if (expiresAt === undefined && body.expiresAt !== undefined) throw new Error('La fecha de vencimiento no es válida.')
+      const updated = await tx.warrantyCase.update({ where: { id: body.id }, data: { status: next, ...(typeof body.responsibleName === 'string' ? { responsibleName: body.responsibleName.trim() || null } : {}), ...(typeof body.description === 'string' ? { description: body.description.trim() } : {}), ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(resolution !== undefined ? { resolution } : {}), ...(photos !== undefined ? { photos } : {}), ...(parts !== undefined ? { parts } : {}), ...(repairCostPyg !== undefined ? { repairCostPyg } : {}), ...(coverage !== undefined ? { coverage } : {}), ...(exclusions !== undefined ? { exclusions } : {}), ...(warrantyDays !== undefined ? { warrantyDays } : {}), ...(expiresAt !== undefined ? { expiresAt } : {}) } })
       await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${tenant}, ${session.user.id}, 'WARRANTY_UPDATED', 'WarrantyCase', ${body.id}, ${JSON.stringify({ from: current[0].status, to: next })}::jsonb)`
       return updated
     })

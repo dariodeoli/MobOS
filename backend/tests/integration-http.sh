@@ -425,6 +425,7 @@ SELLER_PRIVACY_SELLER_ID="user-a-it" SELLER_PRIVACY_OTHER_ORDER_ID="$PRIVATE_ORD
 node "$BACKEND_ROOT/tests/new-modules-functional.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+node "$BACKEND_ROOT/tests/orders-credit-discounts.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/mobos-1.2.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 out="$(response_file)"; COMPANY_TOKEN_C="$(auth_cookie POST /api/auth/login 200 '{"email":"company-c-it@example.invalid","password":"company-password-it","deviceId":"device-c-it"}' "$out" '' mobos_company_session)"
 out="$(response_file)"; ADMIN_TOKEN_C="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-c-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_C" mobos_seller_session)"
