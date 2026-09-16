@@ -16,6 +16,7 @@ function addressesInput(value: unknown) {
       address,
       city: clean(item.city, 100) || null,
       department: clean(item.department, 100) || null,
+      country: clean(item.country, 100) || 'Paraguay',
       notes: clean(item.notes, 400) || null,
       isDefault: item.isDefault === true,
     }
