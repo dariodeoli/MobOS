@@ -230,7 +230,12 @@ for (const order of ORDERS) for (const [sku, , , , serials] of order.items) if (
 for (const serial of sortedSerials) {
   const sku = serialToSku.get(serial)
   if (!sku) continue
-  lines.push(`  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES (${q(uuid5(`unit:${serial}`))}, v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = ${q(sku)} LIMIT 1), v_branch_id, ${q(serial)}, 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;`)
+  // Solo se crea la unidad SOLD cuando el producto del SKU existe; los SKUs
+  // del export sin catálogo (accesorios, financiación) no generan unidad.
+  lines.push(`  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT ${q(uuid5(`unit:${serial}`))}, v_tenant_id, p."id", v_branch_id, ${q(serial)}, 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = ${q(sku)} LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;`)
 }
 lines.push('')
 lines.push('  -- Stock: todo producto con unidades refleja las disponibles/reservadas;')

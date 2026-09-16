@@ -273,36 +273,126 @@ BEGIN
   UPDATE "InventoryUnit" SET "status" = 'SOLD'::"InventoryUnitStatus", "reservedUntil" = NULL, "reservationCustomer" = NULL, "reservedById" = NULL WHERE "tenantId" = v_tenant_id AND "serial" = 'SLWH4DR62VK' AND "status" <> 'SOLD';
   UPDATE "InventoryUnit" SET "status" = 'SOLD'::"InventoryUnitStatus", "reservedUntil" = NULL, "reservationCustomer" = NULL, "reservedById" = NULL WHERE "tenantId" = v_tenant_id AND "serial" = 'sg033n6nlxm' AND "status" <> 'SOLD';
   UPDATE "InventoryUnit" SET "status" = 'SOLD'::"InventoryUnitStatus", "reservedUntil" = NULL, "reservationCustomer" = NULL, "reservedById" = NULL WHERE "tenantId" = v_tenant_id AND "serial" = 'smd9g44vp9n' AND "status" <> 'SOLD';
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('9853e3c9-1796-5b3b-af46-786bd6f320c2', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14PRO-256GB-NEGROESPACIAL-USED' LIMIT 1), v_branch_id, '351284082714192', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('870695fc-6960-5f58-8ad5-c8dec4534b3d', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14PRO-256GB-NEGROESPACIAL-USED' LIMIT 1), v_branch_id, '351284083783527', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('206028fa-a732-57cd-ba92-c740b5270246', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14PRO-256GB-NEGROESPACIAL-USED' LIMIT 1), v_branch_id, '351284085948938', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('c07a510c-4a31-555c-9cbb-5735d5423c45', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14PRO-256GB-NEGROESPACIAL-USED' LIMIT 1), v_branch_id, '351284089514322', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('819a9cf3-45c1-51cf-9835-6d757865c2fe', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-16PROMAX-256GB-NEGRO-USED' LIMIT 1), v_branch_id, '351614404705892', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('68a1d8bd-e31e-5291-a2da-a4a4b6bec217', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17-256GB-NEGRO-NEW' LIMIT 1), v_branch_id, '352000932176732', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('9c0f4bde-d6ed-50fd-92f5-69e532c5505b', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17-256GB-BLANCO-NEW' LIMIT 1), v_branch_id, '352760496826267', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('b21cabc5-f4c7-5285-b465-7578d90fe1b7', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-15PRO-256GB-TITANIOAZUL-USED' LIMIT 1), v_branch_id, '352917267584588', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('22033fd9-5ade-5e61-b42a-c01d5a60e472', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14PRO-256GB-NEGROESPACIAL-USED' LIMIT 1), v_branch_id, '353294700917828', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('303ec1c8-76c7-51b8-b178-a01c18d07aa5', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17-256GB-BLANCO-NEW' LIMIT 1), v_branch_id, '353510849839189', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('88b1c8c5-1e83-5404-9c3b-e59ba864b44d', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17PRO-256GB-AZUL-USED' LIMIT 1), v_branch_id, '353748533669344', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('642cd166-bfe2-5095-ac78-36dd436597fd', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-15PRO-256GB-TITANIOAZUL-USED' LIMIT 1), v_branch_id, '353788468362465', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('a7356747-eb04-5f5f-9416-134603633212', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17PRO-256GB-AZUL-NEW' LIMIT 1), v_branch_id, '354198267863284', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('46377acc-e615-5f4d-852d-8698abded5d4', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-16PROMAX-256GB-NEGRO-USED' LIMIT 1), v_branch_id, '354210975306793', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('9fe66871-51ad-5874-85e0-8012cef68c60', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-15PROMAX-512GB-TITANIOAZUL-USED' LIMIT 1), v_branch_id, '354379778274316', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('0cc10bbc-9ae1-510d-abd6-77d70eb49eaa', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-15PROMAX-256GB-TITANIOAZUL-USED' LIMIT 1), v_branch_id, '354689826829956', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('ebb41031-cce6-592e-8d78-241c2e6b2256', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17PRO-256GB-PLATA-NEW' LIMIT 1), v_branch_id, '354723574548540', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('0006e85a-e148-5a6a-b426-3b5622ada117', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17PRO-256GB-AZUL-USED' LIMIT 1), v_branch_id, '354996261758529', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('2b57dc4b-788a-508b-9035-5ec9df5ab727', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-13-128GB-ROSA-USED' LIMIT 1), v_branch_id, '355237868822858', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('dc25ad65-be2d-5263-b265-e984f0cd0128', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14PRO-256GB-NEGROESPACIAL-USED' LIMIT 1), v_branch_id, '357712767624850', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('4e971d15-b021-5a44-a719-b7bcdcac0d77', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17PROMAX-512GB-PLATA-NEW' LIMIT 1), v_branch_id, '358015862484181', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('2d0e9d87-ff36-556f-8193-d0186f796761', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-15PRO-256GB-TITANIOAZUL-USED' LIMIT 1), v_branch_id, '358348186693843', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('c1317a27-a321-5bc2-8ac7-01cb6982f69a', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14-128GB-LILA-USED' LIMIT 1), v_branch_id, '359608205142455', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('92ff99aa-baad-5e90-85bf-fe4e7ec82da0', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17PRO-256GB-AZUL-NEW' LIMIT 1), v_branch_id, '359917397549371', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('dd2fdee3-5afe-5576-bcc2-5f87650e9f9d', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14-128GB-MEDIANOCHE-USED' LIMIT 1), v_branch_id, '7317650833657', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('fbe254b0-803f-572e-ad1b-87bfa807b216', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'MAC-MACBOOKAIRM516GB512GBMIDNIGHT' LIMIT 1), v_branch_id, 'SK4VNFJPGH6', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('543ef785-96de-57c1-b7e0-185ecae5cac4', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'ACC-AIRPODSPRO3' LIMIT 1), v_branch_id, 'SLHY5W76QJR', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('8921ef20-c727-54a6-bd74-7e9620f8037b', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'ACC-AIRPODSPRO3' LIMIT 1), v_branch_id, 'SLWH4DR62VK', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('62f0a43b-ea36-56ec-a360-f54e9c0d1c79', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'WTC-APPLEWATCHSE202540MM' LIMIT 1), v_branch_id, 'sg033n6nlxm', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
-  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt") VALUES ('80337c11-b1f5-5ac8-a678-cacdcdbbea8f', v_tenant_id, (SELECT p."id" FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'WTC-APPLEWATCHSE202544MM' LIMIT 1), v_branch_id, 'smd9g44vp9n', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()) ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '9853e3c9-1796-5b3b-af46-786bd6f320c2', v_tenant_id, p."id", v_branch_id, '351284082714192', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14PRO-256GB-NEGROESPACIAL-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '870695fc-6960-5f58-8ad5-c8dec4534b3d', v_tenant_id, p."id", v_branch_id, '351284083783527', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14PRO-256GB-NEGROESPACIAL-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '206028fa-a732-57cd-ba92-c740b5270246', v_tenant_id, p."id", v_branch_id, '351284085948938', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14PRO-256GB-NEGROESPACIAL-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT 'c07a510c-4a31-555c-9cbb-5735d5423c45', v_tenant_id, p."id", v_branch_id, '351284089514322', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14PRO-256GB-NEGROESPACIAL-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '819a9cf3-45c1-51cf-9835-6d757865c2fe', v_tenant_id, p."id", v_branch_id, '351614404705892', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-16PROMAX-256GB-NEGRO-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '68a1d8bd-e31e-5291-a2da-a4a4b6bec217', v_tenant_id, p."id", v_branch_id, '352000932176732', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17-256GB-NEGRO-NEW' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '9c0f4bde-d6ed-50fd-92f5-69e532c5505b', v_tenant_id, p."id", v_branch_id, '352760496826267', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17-256GB-BLANCO-NEW' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT 'b21cabc5-f4c7-5285-b465-7578d90fe1b7', v_tenant_id, p."id", v_branch_id, '352917267584588', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-15PRO-256GB-TITANIOAZUL-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '22033fd9-5ade-5e61-b42a-c01d5a60e472', v_tenant_id, p."id", v_branch_id, '353294700917828', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14PRO-256GB-NEGROESPACIAL-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '303ec1c8-76c7-51b8-b178-a01c18d07aa5', v_tenant_id, p."id", v_branch_id, '353510849839189', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17-256GB-BLANCO-NEW' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '88b1c8c5-1e83-5404-9c3b-e59ba864b44d', v_tenant_id, p."id", v_branch_id, '353748533669344', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17PRO-256GB-AZUL-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '642cd166-bfe2-5095-ac78-36dd436597fd', v_tenant_id, p."id", v_branch_id, '353788468362465', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-15PRO-256GB-TITANIOAZUL-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT 'a7356747-eb04-5f5f-9416-134603633212', v_tenant_id, p."id", v_branch_id, '354198267863284', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17PRO-256GB-AZUL-NEW' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '46377acc-e615-5f4d-852d-8698abded5d4', v_tenant_id, p."id", v_branch_id, '354210975306793', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-16PROMAX-256GB-NEGRO-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '9fe66871-51ad-5874-85e0-8012cef68c60', v_tenant_id, p."id", v_branch_id, '354379778274316', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-15PROMAX-512GB-TITANIOAZUL-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '0cc10bbc-9ae1-510d-abd6-77d70eb49eaa', v_tenant_id, p."id", v_branch_id, '354689826829956', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-15PROMAX-256GB-TITANIOAZUL-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT 'ebb41031-cce6-592e-8d78-241c2e6b2256', v_tenant_id, p."id", v_branch_id, '354723574548540', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17PRO-256GB-PLATA-NEW' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '0006e85a-e148-5a6a-b426-3b5622ada117', v_tenant_id, p."id", v_branch_id, '354996261758529', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17PRO-256GB-AZUL-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '2b57dc4b-788a-508b-9035-5ec9df5ab727', v_tenant_id, p."id", v_branch_id, '355237868822858', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-13-128GB-ROSA-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT 'dc25ad65-be2d-5263-b265-e984f0cd0128', v_tenant_id, p."id", v_branch_id, '357712767624850', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14PRO-256GB-NEGROESPACIAL-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '4e971d15-b021-5a44-a719-b7bcdcac0d77', v_tenant_id, p."id", v_branch_id, '358015862484181', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17PROMAX-512GB-PLATA-NEW' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '2d0e9d87-ff36-556f-8193-d0186f796761', v_tenant_id, p."id", v_branch_id, '358348186693843', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-15PRO-256GB-TITANIOAZUL-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT 'c1317a27-a321-5bc2-8ac7-01cb6982f69a', v_tenant_id, p."id", v_branch_id, '359608205142455', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14-128GB-LILA-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '92ff99aa-baad-5e90-85bf-fe4e7ec82da0', v_tenant_id, p."id", v_branch_id, '359917397549371', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-17PRO-256GB-AZUL-NEW' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT 'dd2fdee3-5afe-5576-bcc2-5f87650e9f9d', v_tenant_id, p."id", v_branch_id, '7317650833657', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'IPH-14-128GB-MEDIANOCHE-USED' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT 'fbe254b0-803f-572e-ad1b-87bfa807b216', v_tenant_id, p."id", v_branch_id, 'SK4VNFJPGH6', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'MAC-MACBOOKAIRM516GB512GBMIDNIGHT' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '543ef785-96de-57c1-b7e0-185ecae5cac4', v_tenant_id, p."id", v_branch_id, 'SLHY5W76QJR', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'ACC-AIRPODSPRO3' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '8921ef20-c727-54a6-bd74-7e9620f8037b', v_tenant_id, p."id", v_branch_id, 'SLWH4DR62VK', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'ACC-AIRPODSPRO3' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '62f0a43b-ea36-56ec-a360-f54e9c0d1c79', v_tenant_id, p."id", v_branch_id, 'sg033n6nlxm', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'WTC-APPLEWATCHSE202540MM' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
+  INSERT INTO "InventoryUnit" ("id", "tenantId", "productId", "branchId", "serial", "condition", "status", "updatedAt")
+  SELECT '80337c11-b1f5-5ac8-a678-cacdcdbbea8f', v_tenant_id, p."id", v_branch_id, 'smd9g44vp9n', 'NEW'::"ProductCondition", 'SOLD'::"InventoryUnitStatus", now()
+  FROM "Product" p WHERE p."tenantId" = v_tenant_id AND p."branchId" = v_branch_id AND p."sku" = 'WTC-APPLEWATCHSE202544MM' LIMIT 1
+  ON CONFLICT ("tenantId", "serial") DO NOTHING;
 
   -- Stock: todo producto con unidades refleja las disponibles/reservadas;
   -- los de cantidad (sin serie) se descuentan una sola vez.
