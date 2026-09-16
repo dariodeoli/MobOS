@@ -42,11 +42,21 @@ export async function POST(request: Request) {
     const document = clean(body.document, 100) || null
     const phone = clean(body.phone, 100) || null
     const countryCode = typeof body.countryCode === 'string' && /^\+\d{1,4}$/.test(body.countryCode) ? body.countryCode : '+595'
-    const fields = { name, phone, countryCode, email: clean(body.email, 200) || null, document, notes: clean(body.notes, 2000) || null }
+    const tags = Array.isArray(body.tags) ? body.tags.map((tag) => clean(tag, 50)).filter(Boolean).slice(0, 20) : []
+    const fields = {
+      name, phone, countryCode, email: clean(body.email, 200) || null, document,
+      notes: clean(body.notes, 2000) || null,
+      externalId: clean(body.externalId, 100) || null,
+      acceptsEmailMarketing: body.acceptsEmailMarketing === true,
+      acceptsSmsMarketing: body.acceptsSmsMarketing === true,
+      acceptsWhatsappMarketing: body.acceptsWhatsappMarketing === true,
+      taxExempt: body.taxExempt === true,
+      tags,
+    }
     const addresses = addressesInput(body.addresses)
     const existing = document
       ? await prisma.customer.findFirst({ where: { tenantId: tenant, document } })
-      : phone ? await prisma.customer.findFirst({ where: { tenantId: tenant, phone } }) : null
+      : phone ? await prisma.customer.findFirst({ where: { tenantId: tenant, phone } }) : fields.externalId ? await prisma.customer.findFirst({ where: { tenantId: tenant, externalId: fields.externalId } }) : null
     const data = existing
       ? await prisma.customer.update({ where: { id: existing.id }, data: { ...fields, ...(addresses === undefined ? {} : { addresses: { deleteMany: {}, create: addresses } }) }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
       : await prisma.customer.create({ data: { tenantId: tenant, ...fields, ...(addresses ? { addresses: { create: addresses } } : {}) }, include: { addresses: true } })

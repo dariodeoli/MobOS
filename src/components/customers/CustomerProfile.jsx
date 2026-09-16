@@ -221,6 +221,13 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 {phone && <span>{phone}</span>}
                 {profile.customer?.email && <span className="truncate">{profile.customer.email}</span>}
               </p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {profile.customer?.taxExempt && <Badge color="blue">Exento de impuestos</Badge>}
+                {profile.customer?.acceptsWhatsappMarketing && <Badge color="green">WhatsApp marketing</Badge>}
+                {profile.customer?.acceptsSmsMarketing && <Badge color="green">SMS marketing</Badge>}
+                {profile.customer?.acceptsEmailMarketing && <Badge color="green">Email marketing</Badge>}
+                {(profile.customer?.tags || []).map((tag) => <Badge key={tag} color="slate">{tag}</Badge>)}
+              </div>
             </div>
             {phone && (
               <a
