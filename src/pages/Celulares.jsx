@@ -5,6 +5,7 @@ import { listCelulares, rankCelular, rankCapacidad } from '@/lib/storage'
 import { useLive } from '@/hooks/useLive'
 import { gs } from '@/utils/calculos'
 import { Button, Card } from '@/components/ui'
+import ProductFooter from '@/components/app/ProductFooter'
 import Icon from '@/components/shared/Icon'
 import { APP_NAME } from '@/lib/brand'
 import ThemeLogo from '@/components/app/ThemeLogo'
@@ -184,6 +185,7 @@ export default function Celulares() {
           Tocá <strong>Compartir por WhatsApp</strong> para enviar la imagen al cliente.
         </p>
       </main>
+      <ProductFooter />
     </div>
   )
 }

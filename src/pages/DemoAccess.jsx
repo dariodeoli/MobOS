@@ -5,6 +5,7 @@ import { useSesion } from '@/lib/sesion'
 import { publicUrls } from '@/lib/urls'
 import { PasswordInput } from '@/components/ui'
 import ThemeLogo from '@/components/app/ThemeLogo'
+import ProductFooter from '@/components/app/ProductFooter'
 
 const demoProfiles = [
   {
@@ -170,6 +171,7 @@ export default function DemoAccess() {
           </div>
         </section>
       </div>
+      <ProductFooter />
     </main>
   )
 }

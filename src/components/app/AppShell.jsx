@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { Drawer, Eyebrow, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ThemeToggle from '@/components/app/ThemeToggle'
+import ProductFooter from '@/components/app/ProductFooter'
 import { APP_NAME } from '@/lib/brand'
 
 const NAV_GROUPS_KEY = 'mobos:nav-groups'
@@ -333,6 +334,7 @@ export default function AppShell({
         ) : (
           children
         )}
+        <ProductFooter className="shrink-0" />
       </div>
     </div>
   )
