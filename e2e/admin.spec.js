@@ -112,6 +112,38 @@ test.describe('owner panel', () => {
     await expect(tarjetaVendedor.getByText('Qué no puede')).toBeVisible()
   })
 
+  // Los códigos comerciales tienen que ser cortos, secuenciales y dictables:
+  // ni el número de cotización ni el SKU llevan timestamp.
+  test('códigos comerciales: cotización COT-#0001 y SKU legible sin timestamp', async ({ page }) => {
+    await page.goto('/pos/inventario')
+    const resultado = await page.evaluate(async (api) => {
+      const post = async (path, data) => {
+        const response = await fetch(`${api}${path}`, {
+          method: 'POST', credentials: 'include',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(data),
+        })
+        return { status: response.status, body: await response.json().catch(() => null) }
+      }
+      // Nombre con prefijo ZZ para que no colisione con textos de la interfaz
+      // (los locators por texto son estrictos).
+      const sufijo = Date.now().toString(36)
+      const cotizacion = await post('/api/quotes', { customerName: `ZZ Cotizacion ${sufijo}`, items: [{ description: 'Equipo de prueba', quantity: 1, unitPricePyg: 1000000 }] })
+      const producto = { name: `ZZ Prueba ${sufijo}`, pricePyg: 100000, stock: 0, category: 'Accesorios', sku: `ZZ-PRUEBA-${sufijo.toUpperCase()}` }
+      const primero = await post('/api/products', producto)
+      const segundo = await post('/api/products', producto)
+      return { cotizacion, primero, segundo, sufijo: sufijo.toUpperCase() }
+    }, API)
+
+    expect(resultado.cotizacion.status).toBe(201)
+    expect(resultado.cotizacion.body.number).toMatch(/^COT-#\d{4,}$/)
+    // El primer producto conserva el SKU pedido: no se le agrega timestamp.
+    expect(resultado.primero.status).toBe(201)
+    expect(resultado.primero.body.sku).toBe(`ZZ-PRUEBA-${resultado.sufijo}`)
+    // El segundo, con el mismo SKU, recibe un sufijo numérico legible.
+    expect(resultado.segundo.body.sku).toBe(`${resultado.primero.body.sku}-2`)
+  })
+
   test('inventario → la batería solo acepta números', async ({ page }) => {
     await page.goto('/pos/inventario')
     await page.getByRole('button', { name: '+ Recibir unidad' }).click()
