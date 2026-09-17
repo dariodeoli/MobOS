@@ -80,6 +80,37 @@ test.describe('owner panel', () => {
   // the seller via POST /api/users (including the 4-digit PIN). The PIN is
   // unique per run: the API rejects a PIN already in use by the company, and
   // the local E2E database persists users across runs.
+
+  // Horario de acceso del integrante: se carga desde Configuración → Equipo y
+  // el backend lo aplica al iniciar sesión. El test usa un rango permisivo
+  // (todos los días, todo el día) para que, si algo falla, el vendedor
+  // sembrado no quede bloqueado en la próxima corrida.
+  test('equipo → el horario del vendedor se configura y se quita', async ({ page }) => {
+    await page.goto('/configuracion/equipo')
+    await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
+    const vendedor = SEED.sellers[0].name
+    const botonHorario = () => page.getByLabel(new RegExp(`^Horario de ${vendedor}`))
+
+    await botonHorario().click()
+    const modal = page.getByRole('dialog', { name: /Horario de acceso/ })
+    await expect(modal).toBeVisible()
+    await modal.getByRole('button', { name: '+ Rango' }).click()
+    for (const dia of ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do']) await modal.getByRole('button', { name: dia, exact: true }).click()
+    await modal.getByLabel('Desde').fill('00:00')
+    await modal.getByLabel('Hasta').fill('23:59')
+    await modal.getByRole('button', { name: 'Guardar horario' }).click()
+    await expect(page.getByText('Horario de acceso actualizado.')).toBeVisible()
+    // El botón pasa a mostrar el resumen del horario cargado.
+    await expect(botonHorario()).toBeVisible()
+
+    // Se quita para dejar el acceso libre.
+    await botonHorario().click()
+    await modal.getByRole('button', { name: 'Quitar' }).click()
+    await modal.getByRole('button', { name: 'Guardar horario' }).click()
+    await expect(page.getByText('Horario quitado: el acceso queda libre.')).toBeVisible()
+    await expect(page.getByLabel(`Horario de ${vendedor}`, { exact: true })).toBeVisible()
+  })
+
   test('equipo → Vendedores creates a new seller with a PIN', async ({ page }) => {
     await page.goto('/configuracion/equipo')
     await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
