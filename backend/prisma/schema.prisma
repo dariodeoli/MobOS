@@ -352,6 +352,11 @@ model Product {
   sku           String
   name          String
   category      String?
+  // Variante estructurada del catálogo (se completan solas desde el nombre
+  // cuando el producto incluye capacidad; editables a mano).
+  model         String?
+  color         String?
+  capacity      String?
   imei          String?
   condition     ProductCondition   @default(NEW)
   pricePyg      Int
@@ -403,6 +408,8 @@ model InventoryUnit {
   locationId          String?
   location            StockLocation?      @relation(fields: [locationId], references: [id], onDelete: SetNull)
   serial              String
+  supplierId          String?
+  supplier            Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   comments            InventoryUnitComment[]
   // Un único modelo puede tener unidades nuevas o seminuevas con historial propio.
   // Esto evita crear un producto distinto por cada IMEI.
@@ -434,6 +441,7 @@ model InventoryUnit {
   @@index([tenantId, status, reservedUntil])
   @@index([tenantId, branchId, locationId, status])
   @@index([tenantId, branchId, lastVerifiedAt])
+  @@index([tenantId, supplierId])
 }
 
 // Ubicación física dentro de una sucursal: piso de venta, depósito, vitrina,
@@ -862,8 +870,23 @@ model OrderItem {
   // Descuento por línea: fijo en guaraníes o porcentual (uno de los dos).
   discountPyg          Int            @default(0)
   discountPct          Decimal?       @db.Decimal(5, 2)
+  serialsList          OrderItemSerial[]
 
   @@index([orderId])
+}
+
+// Espejo indexado de OrderItem.serials: permite responder "¿qué venta tiene
+// este IMEI/serial?" sin escanear el JSON. Se sincroniza en cada escritura de
+// la línea; el JSON sigue siendo el dato que se muestra en el comprobante.
+model OrderItemSerial {
+  id          String    @id @default(cuid())
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  serial      String
+  createdAt   DateTime  @default(now())
+
+  @@unique([orderItemId, serial])
+  @@index([serial])
 }
 
 // Plantilla por categoría: por ejemplo Teléfonos = seguro 2%. Un producto
@@ -1236,6 +1259,7 @@ model Supplier {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   purchases    PurchaseOrder[]
+  inventoryUnits InventoryUnit[]
 
   @@unique([tenantId, name])
   @@index([tenantId, isActive, name])

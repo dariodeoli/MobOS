@@ -1,9 +1,12 @@
 import { prisma } from '../../../../lib/prisma'
+import { syncOrderItemSerials } from '../../../../lib/order-serials'
 import { Prisma } from '@prisma/client'
 import { error, json, tenantId } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
 import { canAccessOrder, validateFulfillmentTransition } from '../../../../lib/orders'
+import { serialKey } from '../../../../lib/validation'
+import { changeStock } from '../../../../lib/stock'
 
 const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
   items: true,
@@ -12,7 +15,6 @@ const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
   seller: { select: { id: true, name: true } },
 })
 
-const serialKey = (value: unknown) => typeof value === 'string' ? value.trim().toUpperCase().replace(/[\s-]+/g, '').replace(/^MOBOS:/i, '') : ''
 
 export async function GET(request: Request, context: { params: Promise<{ orderId: string }> }) {
   const tenant = await tenantId(request); const session = await requireSession(request)
@@ -71,7 +73,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
           if (unit) {
             if (!['AVAILABLE', 'RESERVED'].includes(unit.status)) throw new InputError(`El IMEI ${serial} no está disponible para esta entrega.`, 409)
             await tx.inventoryUnit.update({ where: { id: unit.id }, data: { status: 'SOLD', reservedUntil: null, reservationCustomer: null, reservedById: null } })
-            if (unit.status === 'AVAILABLE') await tx.product.updateMany({ where: { id: item.productId, tenantId: tenant, stock: { gte: 1 } }, data: { stock: { decrement: 1 } } })
+            if (unit.status === 'AVAILABLE') await changeStock(tx, { tenantId: tenant, productId: item.productId, delta: -1, message: 'El stock cambió mientras se entregaba el equipo.' })
           } else {
             // Sobre pedido entregado: la unidad no existía en stock; se crea
             // directamente como vendida, sin mover existencias.
@@ -80,6 +82,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
         }
         const saved = await tx.orderItem.update({ where: { id: item.id }, data: { serials: [...(Array.isArray(item.serials) ? item.serials : []), ...serials], serialsPending: { decrement: serials.length } } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_SERIALS_ATTACHED', entity: 'Order', entityId: existing.id, metadata: { itemId, serials } } })
+        await syncOrderItemSerials(tx, [saved])
         return saved
       })
       const order = await prisma.order.findFirstOrThrow({ where: { id: orderId, tenantId: tenant }, include: orderInclude })

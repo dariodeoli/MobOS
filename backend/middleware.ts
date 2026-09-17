@@ -25,8 +25,15 @@ function internalOrigin(request: NextRequest) {
   return url
 }
 
+// Origen de app configurado por entorno (permite entornos aislados de e2e/CI).
+function configuredAppOrigin() {
+  const value = process.env.MOBOS_APP_URL
+  if (!value) return ''
+  try { return new URL(value).origin } catch { return '' }
+}
+
 function applyResponseHeaders(response: NextResponse, origin: string, requestId: string) {
-  if ((MOBOS_ALLOWED_APP_ORIGINS as readonly string[]).includes(origin)) response.headers.set('Access-Control-Allow-Origin', origin)
+  if (origin && ((MOBOS_ALLOWED_APP_ORIGINS as readonly string[]).includes(origin) || origin === configuredAppOrigin())) response.headers.set('Access-Control-Allow-Origin', origin)
   response.headers.set('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS')
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-tenant-id, Idempotency-Key')
   response.headers.set('Vary', 'Origin')

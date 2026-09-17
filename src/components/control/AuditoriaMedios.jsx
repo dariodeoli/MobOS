@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
+import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { Card, Eyebrow, Input } from '@/components/ui'
 
-const LABELS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta / POS', PIX: 'Pix', CREDIT: 'Crédito', TRADE_IN: 'Canje' }
+const LABELS = PAYMENT_METHOD_LABELS
 
 // Control interno de cierre: cuánto entró por cada medio de pago en la sucursal
 // y el día elegidos, para contrastar contra el conteo físico al auditar.

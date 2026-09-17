@@ -14,7 +14,7 @@
 // which is origin-independent; we extract the cookie values from Set-Cookie
 // and re-inject them into storageState files as localhost cookies.
 
-import { request as pwRequest } from '@playwright/test'
+import { chromium, request as pwRequest } from '@playwright/test'
 import { mkdir, writeFile, access, rm } from 'node:fs/promises'
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
@@ -80,7 +80,7 @@ async function ensureBranch() {
   // The API has no branch-creation endpoint in this phase, so the harness
   // inserts the single test branch directly (idempotent, fixed id).
   execFileSync(`${PG_BIN}/psql`, [
-    '-h', '127.0.0.1', '-p', '5439', '-U', 'postgres', '-d', 'mobos_e2e',
+    '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
     '-v', 'ON_ERROR_STOP=1',
     '-c',
     `INSERT INTO "Branch" ("id", "tenantId", "name", "updatedAt")
@@ -143,9 +143,9 @@ async function ensurePaymentAccounts(ctx, adminToken) {
   }
 }
 
-async function ensureSeedOrder(ctx, companyToken, sellerId) {
+async function ensureSeedOrder(ctx, companyToken, sellerId, adminToken) {
   const sellerToken = await sellerSession(ctx, companyToken, sellerId, SEED.sellers[0].pin)
-  const list = await ctx.get('/api/orders', { headers: bearer(sellerToken) })
+  const list = await ctx.get('/api/orders', { headers: bearer(adminToken) })
   if (!list.ok()) throw new Error(`orders list failed: HTTP ${list.status()}`)
   const rows = await list.json()
   // The public tracking spec needs a customerName, so an older seed order
@@ -158,7 +158,7 @@ async function ensureSeedOrder(ctx, companyToken, sellerId) {
     // (e.g. one created before the harness sent a customer) with a fresh one.
     if (rows.some((o) => o.orderNumber === SEED.seedOrderNumber)) orderNumber = `${SEED.seedOrderNumber}-${Date.now()}`
     const created = await ctx.post('/api/orders', {
-      headers: bearer(sellerToken),
+      headers: bearer(adminToken),
       data: {
         orderNumber,
         customer: { name: 'Cliente E2E Seguimiento' },
@@ -198,7 +198,7 @@ export default async function globalSetup() {
   // vendedores del seed se reconocen por su email y quedan excluidos.
   try {
     execFileSync(`${PG_BIN}/psql`, [
-      '-h', '127.0.0.1', '-p', '5439', '-U', 'postgres', '-d', 'mobos_e2e',
+      '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
       '-c', `UPDATE "User" SET status = 'INACTIVE' WHERE name LIKE 'Vendedor E2E%' AND email IS NULL;`,
     ], { stdio: 'ignore' })
   } catch {
@@ -235,8 +235,8 @@ async function refreshStorageStates(ctx) {
   const seller = company.sellers.find((s) => s.name === SEED.sellers[0].name)
   const admin = company.sellers.find((s) => s.name === SEED.admin.name)
   if (!seller || !admin) throw new Error('seed users not found in company sellers')
-  const sellerToken = await ensureSeedOrder(ctx, company.token, seller.id)
   const adminToken = await sellerSession(ctx, company.token, admin.id, SEED.admin.pin)
+  const sellerToken = await ensureSeedOrder(ctx, company.token, seller.id, adminToken)
   await writeStorageState(SELLER_STATE, company.token, sellerToken)
   await writeStorageState(ADMIN_STATE, company.token, adminToken)
 }
@@ -267,11 +267,17 @@ async function seedFresh(ctx) {
   if (!assign.ok()) throw new Error(`admin branch assign failed: HTTP ${assign.status()} ${await assign.text()}`)
   adminToken = await sellerSession(ctx, companyToken, adminId, SEED.admin.pin)
 
+  // El vendedor sembrado también necesita la sucursal para que el POS vea el
+  // mismo inventario que los productos sembrados. El id sale de ensureSellers:
+  // la respuesta de login/registro sólo lista vendedores preexistentes.
+  const sellerAssign = await ctx.patch('/api/users', { headers: bearer(adminToken), data: { id: SEED.sellers[0].id, branchId: SEED.branchId } })
+  if (!sellerAssign.ok()) throw new Error(`seller branch assign failed: HTTP ${sellerAssign.status()} ${await sellerAssign.text()}`)
+
   // Re-check the serialized product now that the branch exists (it may have
   // been created without a unit in an older partial seed).
   await ensureProducts(ctx, adminToken)
 
-  const sellerToken = await ensureSeedOrder(ctx, companyToken, SEED.sellers[0].id)
+  const sellerToken = await ensureSeedOrder(ctx, companyToken, SEED.sellers[0].id, adminToken)
 
   await writeStorageState(SELLER_STATE, companyToken, sellerToken)
   await writeStorageState(ADMIN_STATE, companyToken, adminToken)
@@ -284,5 +290,17 @@ async function seedFresh(ctx) {
     products: Object.fromEntries(Object.entries(SEED.products).map(([key, p]) => [key, { id: p.id, sku: p.sku }])),
     branchId: SEED.branchId,
   }, null, 2))
+  // Precalentar Vite: la primera navegación compila módulos y puede superar
+  // los timeouts en una corrida aislada con caché fría.
+  const webBase = (process.env.MOBOS_E2E_WEB_URL || `http://localhost:${process.env.MOBOS_E2E_WEB_PORT || '5175'}`).replace(/\/$/, '')
+  try {
+    const browser = await chromium.launch()
+    const page = await browser.newPage()
+    for (const path of ['/login', '/demo']) {
+      try { await page.goto(`${webBase}${path}`, { waitUntil: 'domcontentloaded', timeout: 60000 }); await page.waitForLoadState('networkidle', { timeout: 60000 }) } catch { /* la app se calienta igual */ }
+    }
+    await browser.close()
+  } catch (error) { console.warn('[e2e] warm-up de Vite omitido:', error?.message || error) }
+
   console.log('[e2e] Seeded tenant, sellers, products and tracking order.')
 }

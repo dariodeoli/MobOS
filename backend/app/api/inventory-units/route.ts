@@ -3,8 +3,9 @@ import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { InventoryUnitStatus, PaymentCurrency, ProductCondition } from '@prisma/client'
 import { INVENTORY_REMOVED, INVENTORY_RESTORED, removedInventoryUnitIds } from '../../../lib/inventory'
+import { serialKey } from '../../../lib/validation'
+import { changeStock } from '../../../lib/stock'
 
-const serialKey = (value: string) => value.trim().toUpperCase().replace(/[\s-]+/g, '')
 const canSeeBranch = (role: string, assigned: string | null, branchId: string | null) => !['VENDEDOR', 'CAJERA'].includes(role) || assigned === branchId
 const canManageBranch = (role: string, assigned: string | null, branchId: string) => role === 'ADMIN' || (role === 'GERENTE' && assigned === branchId)
 const text = (value: unknown, max = 500) => typeof value === 'string' ? value.trim().slice(0, max) || null : null
@@ -69,8 +70,8 @@ export async function GET(request: Request) {
       : {}
   const units = await prisma.inventoryUnit.findMany({
     where: { tenantId: tenant, ...removalFilter, ...(branchId ? { branchId } : session.user.branchId ? { branchId: session.user.branchId } : {}), ...(query ? { OR: [{ serial: { contains: query, mode: 'insensitive' } }, { product: { sku: { contains: query, mode: 'insensitive' } } }, { product: { name: { contains: raw, mode: 'insensitive' } } }] } : {}) },
-    include: { product: { select: { id: true, name: true, sku: true, pricePyg: true } }, branch: { select: { id: true, name: true } }, location: { select: { id: true, name: true, code: true } }, lastVerifiedBy: { select: { id: true, name: true } } },
-    orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }], take: 500,
+    include: { product: { select: { id: true, name: true, sku: true, pricePyg: true } }, branch: { select: { id: true, name: true } }, location: { select: { id: true, name: true, code: true } }, lastVerifiedBy: { select: { id: true, name: true } }, ...(['ADMIN', 'GERENTE'].includes(session.user.role) ? { supplier: { select: { id: true, name: true, code: true } } } : {}) },
+    orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }], take: Math.min(500, Math.max(1, Number(params.get('limit')) || 500)), ...(params.get('cursor') ? { cursor: { id: params.get('cursor') as string }, skip: 1 } : {}),
   })
   return json(units)
 }
@@ -101,12 +102,19 @@ export async function POST(request: Request) {
       if (existing.length) throw new Error(`Ya existen: ${existing.map(item => item.serial).join(', ')}.`)
       if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId, isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
       const data = unitData(body)
+      // Proveedor estructurado: por id o resolviendo la abreviatura/nombre.
+      let supplierId = body.supplierId === undefined || body.supplierId === '' || body.supplierId === null ? null : text(body.supplierId, 128)
+      if (supplierId && !(await tx.supplier.findFirst({ where: { id: supplierId, tenantId: tenant }, select: { id: true } }))) throw new Error('Proveedor no encontrado.')
+      if (!supplierId && typeof body.supplierName === 'string' && body.supplierName.trim()) {
+        const byName = await tx.supplier.findFirst({ where: { tenantId: tenant, OR: [{ code: body.supplierName.trim() }, { name: body.supplierName.trim() }] }, select: { id: true } })
+        supplierId = byName?.id ?? null
+      }
       const units = []
       for (const serial of serials) {
-        units.push(await tx.inventoryUnit.create({ data: { tenantId: tenant, productId, branchId, locationId, serial, condition: product.condition, ...data } }))
+        units.push(await tx.inventoryUnit.create({ data: { tenantId: tenant, productId, branchId, locationId, serial, condition: product.condition, supplierId, ...data } }))
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_RECEIVED', entity: 'InventoryUnit', entityId: units[units.length - 1].id, metadata: { serial, productId, branchId, locationId } } })
       }
-      await tx.product.update({ where: { id: productId }, data: { stock: { increment: units.length } } })
+      await changeStock(tx, { tenantId: tenant, productId, delta: units.length })
       return units
     })
     return json(serials.length === 1 ? created[0] : { count: created.length, units: created }, { status: 201 })
@@ -136,8 +144,7 @@ export async function PATCH(request: Request) {
       if (action === 'remove') {
         if (removed) throw new Error('La unidad ya fue eliminada de forma recuperable.')
         if (before.status !== 'AVAILABLE') throw new Error('Solo se puede eliminar una unidad disponible. Liberá reservas o completá el flujo correspondiente.')
-        const decremented = await tx.product.updateMany({ where: { id: before.productId, tenantId: tenant, stock: { gte: 1 } }, data: { stock: { decrement: 1 } } })
-        if (decremented.count !== 1) throw new Error('El stock cambió mientras se eliminaba la unidad.')
+        await changeStock(tx, { tenantId: tenant, productId: before.productId, delta: -1, message: 'El stock cambió mientras se eliminaba la unidad.' })
         const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'DEFECTIVE', reservedUntil: null, reservationCustomer: null, reservedById: null } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_REMOVED, entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, statusBefore: before.status, locationId: before.locationId } } })
         return data
@@ -145,8 +152,7 @@ export async function PATCH(request: Request) {
       if (action === 'restore') {
         if (session.user.role !== 'ADMIN') throw new Error('Solo un administrador general puede restaurar inventario eliminado.')
         if (!removed) throw new Error('La unidad no está en eliminados recuperables.')
-        const incremented = await tx.product.updateMany({ where: { id: before.productId, tenantId: tenant, stock: { lt: 2147483647 } }, data: { stock: { increment: 1 } } })
-        if (incremented.count !== 1) throw new Error('No se pudo restaurar el stock de la unidad.')
+        await changeStock(tx, { tenantId: tenant, productId: before.productId, delta: 1, message: 'No se pudo restaurar el stock de la unidad.' })
         const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservedById: null } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_RESTORED, entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, restoredTo: 'AVAILABLE', locationId: before.locationId } } })
         return data

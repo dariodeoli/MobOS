@@ -1,6 +1,7 @@
 import { gs } from '@/utils/calculos'
 import { printHtml } from '@/utils/printHtml'
 import { APP_NAME } from '@/lib/brand'
+import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import QRCode from 'qrcode'
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]))
@@ -14,7 +15,7 @@ export const trackingUrlFor = (order) => {
 }
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
-const METHOD = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta / POS', CREDIT: 'Crédito', TRADE_IN: 'Canje', PIX: 'Pix' }
+const METHOD = PAYMENT_METHOD_LABELS
 
 // Hoja de estilos común para los tres comprobantes (A4 y térmico 80 mm).
 const styles = (thermal) => `

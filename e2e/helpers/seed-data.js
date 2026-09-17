@@ -2,7 +2,7 @@
 // global-setup.mjs creates this tenant/data; specs assert against it.
 
 export const SEED = {
-  api: 'http://localhost:3001',
+  api: process.env.MOBOS_E2E_API_URL || `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`,
   company: {
     name: 'Tienda E2E',
     email: 'e2e-tienda@test.local',

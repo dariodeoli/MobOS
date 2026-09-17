@@ -7,6 +7,10 @@ import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } 
 import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
 import { enforceRateLimit } from '../../../lib/rate-limit'
+import { serialKey } from '../../../lib/validation'
+import { lineDiscount as lineDiscountFor, warrantyDaysFor } from '../../../lib/pricing'
+import { changeStock } from '../../../lib/stock'
+import { syncOrderItemSerials } from '../../../lib/order-serials'
 
 // Detalle devuelto tanto al crear como al reutilizar una orden idempotente.
 const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
@@ -19,7 +23,6 @@ const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
 const INT_MAX = 2147483647
 const safeInt = (value: unknown, minimum = 0): value is number => Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= INT_MAX
 const cleanText = (value: unknown, field: string, max: number) => value === undefined ? undefined : textInput(value, field, max)
-const serialKey = (value: unknown) => typeof value === 'string' ? value.trim().toUpperCase().replace(/[\s-]+/g, '').replace(/^MOBOS:/i, '') : ''
 
 function itemSerials(value: unknown, quantity: number) {
   if (value === undefined) return [] as string[]
@@ -52,7 +55,10 @@ export async function GET(request: Request) {
     : session.user.role === 'CAJERA'
       ? { tenantId: tenant, branchId: session.user.branchId }
       : { tenantId: tenant }
-  return json(await prisma.order.findMany({ where, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 100 }))
+  const params = new URL(request.url).searchParams
+  const limit = Math.min(500, Math.max(1, Number(params.get('limit')) || 100))
+  const cursor = params.get('cursor')
+  return json(await prisma.order.findMany({ where, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: limit, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}) }))
 }
 
 export async function POST(request: Request) {
@@ -196,21 +202,16 @@ export async function POST(request: Request) {
           // Solo los equipos realmente entregados descuentan stock; el tramo
           // "sobre pedido" no tiene existencia física que descontar.
           const decrementBy = quantity - serialsPending
-          if (decrementBy > 0) {
-            const updated = await tx.product.updateMany({ where: { id: product.id, tenantId: tenant, isActive: true, ...(branchId ? { OR: [{ branchId }, { branchId: null }] } : { branchId: null }), stock: { gte: decrementBy } }, data: { stock: { decrement: decrementBy } } })
-            if (!updated.count) throw new Error('Stock insuficiente o producto fuera de la sucursal.')
-          }
+          if (decrementBy > 0) await changeStock(tx, { tenantId: tenant, productId: product.id, delta: -decrementBy, branchId, includeBranchless: true, message: 'Stock insuficiente o producto fuera de la sucursal.' })
         }
-        const line = quantity * price
-        // Descuento por línea: fijo en guaraníes o porcentual (nunca ambos).
         const discountPyg = item.discountPyg === undefined || item.discountPyg === '' || item.discountPyg === null ? 0 : Number(item.discountPyg)
-        if (!safeInt(discountPyg)) throw new InputError('Descuento fijo de línea inválido.')
         const discountPct = item.discountPct === undefined || item.discountPct === '' || item.discountPct === null ? undefined : Number(item.discountPct)
-        if (discountPct !== undefined && (!Number.isFinite(discountPct) || discountPct < 0 || discountPct > 100)) throw new InputError('Porcentaje de descuento de línea inválido.')
-        if (discountPyg > 0 && discountPct !== undefined) throw new InputError('Usá descuento fijo o porcentual por línea, no ambos.')
-        const lineDiscount = discountPyg > 0 ? discountPyg : discountPct !== undefined && discountPct > 0 ? Math.round((line * discountPct) / 100) : 0
-        if (lineDiscount > line) throw new InputError('El descuento no puede superar el precio de la línea.')
-        const lineTotal = line - lineDiscount
+        let lineDiscount = 0; let lineTotal = 0
+        try {
+          const priced = lineDiscountFor({ quantity, unitPricePyg: price, discountPyg, discountPct })
+          lineDiscount = priced.discountPyg; lineTotal = priced.totalPyg
+        } catch (pricingError) { throw new InputError(pricingError instanceof Error ? pricingError.message : 'Descuento inválido.') }
+        const line = quantity * price
         subtotal += lineTotal
         if (!Number.isSafeInteger(subtotal)) throw new Error('Total fuera de rango seguro.')
         normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
@@ -264,7 +265,7 @@ export async function POST(request: Request) {
           const serials = Array.isArray(item.serials) ? item.serials as string[] : []
           if (!serials.length || !item.productId) continue
           const product = await tx.product.findUnique({ where: { id: item.productId }, select: { condition: true, warrantyDays: true, warrantyCoverage: true, warrantyExclusions: true } })
-          const days = product?.warrantyDays ?? (product?.condition === 'NEW' ? 365 : 90)
+          const days = warrantyDaysFor({ condition: product?.condition, warrantyDays: product?.warrantyDays })
           if (!days) continue
           for (const serial of serials) {
             const exists = await tx.warrantyCase.findFirst({ where: { tenantId: tenant, serial, kind: 'COVERAGE' }, select: { id: true } })
@@ -280,6 +281,9 @@ export async function POST(request: Request) {
           }
         }
       }
+      // Espejo indexado de seriales (aunque la venta no tenga sucursal).
+      const serialItems = await tx.orderItem.findMany({ where: { orderId: order.id }, select: { id: true, serials: true } })
+      await syncOrderItemSerials(tx, serialItems)
       return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: orderDetail })
     })
     return json(result, { status: 201 })

@@ -8,7 +8,10 @@
     "start": "next start -H 0.0.0.0 -p 3000",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
-    "test:reports": "node tests/run-reporting.cjs"
+    "test:reports": "node tests/run-reporting.cjs",
+    "test:unit": "node tests/run-unit.cjs",
+    "stock:check": "node tests/stock-consistency.mjs",
+    "audit:prune": "node tests/prune-audit.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
