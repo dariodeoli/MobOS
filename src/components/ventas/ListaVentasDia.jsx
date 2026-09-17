@@ -208,7 +208,7 @@ export default function ListaVentasDia({
       ) : (
         <>
           {/* ── Tarjetas (móvil) ─────────────────────────────────── */}
-          <div className="space-y-2 p-4 xl:hidden">
+          <div className="space-y-2 p-4 min-[1200px]:hidden">
             {grupos.map(g => {
               const v = g.items[0]
               const varios = g.items.length > 1
@@ -271,7 +271,7 @@ export default function ListaVentasDia({
           </div>
 
           {/* ── Tabla (escritorio) ───────────────────────────────── */}
-          <div className="hidden min-w-0 overflow-x-auto xl:block">
+          <div className="hidden min-w-0 overflow-x-auto min-[1200px]:block">
             <table className="w-full table-fixed text-sm">
               <colgroup>
                 <col className={mostrarVendedor ? 'w-[11%]' : 'w-[13%]'} />

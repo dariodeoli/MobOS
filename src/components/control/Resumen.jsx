@@ -321,9 +321,9 @@ export default function Resumen() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 min-[1200px]:grid-cols-3">
         {/* ── Evolución diaria ───────────────────────────────────── */}
-        <Card className="xl:col-span-2">
+        <Card className="min-[1200px]:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-medium">Evolución</h2>
             <Badge color="blue">{d.serie.length} días con ventas</Badge>
