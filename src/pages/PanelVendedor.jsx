@@ -126,6 +126,19 @@ const OWNER_BOTTOM = [
   ['inventario', 'Inventario', 'box'],
 ]
 
+// Configuración: cada pestaña es una subpágina con su propio slug en la URL
+// (/pos/equipo, /pos/negocio, /pos/sucursales, /pos/seguridad…).
+const CONFIG_TABS = [
+  ['equipo', 'Equipo'],
+  ['identidad', 'Mi identidad'],
+  ['roles', 'Roles y permisos'],
+  ['historial', 'Historial'],
+  ['negocio', 'Negocio'],
+  ['sucursales', 'Sucursales'],
+  ['seguridad', 'Seguridad'],
+]
+const CONFIG_VISTAS = CONFIG_TABS.map(([id]) => id)
+
 const LABELS = {
   clientes: 'Clientes',
   pedidos: 'Mis pedidos',
@@ -138,6 +151,12 @@ const LABELS = {
   analisis: 'Análisis',
   finanzas: 'Finanzas',
   equipo: 'Configuración',
+  identidad: 'Mi identidad',
+  roles: 'Roles y permisos',
+  historial: 'Historial',
+  negocio: 'Negocio',
+  sucursales: 'Sucursales',
+  seguridad: 'Seguridad',
   garantias: 'Garantías',
   autorizaciones: 'Autorizaciones',
   inventario: 'Inventario',
@@ -215,7 +234,6 @@ export default function PanelVendedor() {
   const [tradeIn, setTradeIn] = useState(null)
   const [analisisTab, setAnalisisTab] = useState('reportes')
   const [finanzasTab, setFinanzasTab] = useState('caja')
-  const [equipoTab, setEquipoTab] = useState('vendedores')
   const identidad = `${usuario?.tenantId}:${usuario?.branchId}:${sesion?.vendedorId}:${usuario?.role}:${esDemo}`
   const [cambiarAbierto, setCambiarAbierto] = useState(false)
   const [sellerId, setSellerId] = useState('')
@@ -236,10 +254,15 @@ export default function PanelVendedor() {
   const lockEnCurso = useRef(false)
   const toast = useToast()
 
-  const accesibles = useMemo(
-    () => (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id),
-    [esOwner, esTecnico],
-  )
+  const accesibles = useMemo(() => {
+    const base = (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV)
+      .flatMap(group => group.items)
+      .map(([id]) => id)
+    if (!esOwner) return base
+    // Las subpáginas de Configuración no viven en el menú: se abren por sus
+    // pestañas, pero tienen que ser navegables y recargables por URL.
+    return [...base, ...CONFIG_VISTAS.filter(id => id !== 'historial' || esDemo)]
+  }, [esOwner, esTecnico, esDemo])
 
   // Si la URL apunta a una vista fuera del alcance del rol (ej. un vendedor en
   // /pos/inventario), se redirige a "cargar" de una sola vez. Sin el navigate
@@ -442,7 +465,7 @@ export default function PanelVendedor() {
         nav={esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV}
         bottomNav={esOwner ? OWNER_BOTTOM : esTecnico ? [] : SELLER_BOTTOM}
         onOpenMenuLabel="Menú"
-        active={vista}
+        active={CONFIG_VISTAS.includes(vista) ? 'equipo' : vista}
         onNavigate={ir}
         collapsed={sidebarCollapsed}
         onToggleCollapsed={toggleSidebar}
@@ -602,36 +625,20 @@ export default function PanelVendedor() {
               {esDemo && finanzasTab === 'publicidad' && <Ads />}
             </div>
           )}
-          {esOwner && vista === 'equipo' && (
+          {esOwner && CONFIG_VISTAS.includes(vista) && (
             <div>
               <Subtabs
-                value={equipoTab}
-                onChange={setEquipoTab}
-                items={
-                  esDemo
-                    ? [
-                        ['vendedores', 'Equipo'],
-                        ['identidad', 'Mi identidad'],
-                        ['roles', 'Roles y permisos'],
-                        ['historial', 'Historial'],
-                        ['configuracion', 'Negocio'],
-                        ['seguridad', 'Seguridad'],
-                      ]
-                    : [
-                        ['vendedores', 'Equipo'],
-                        ['identidad', 'Mi identidad'],
-                        ['roles', 'Roles y permisos'],
-                        ['configuracion', 'Negocio'],
-                        ['seguridad', 'Seguridad'],
-                      ]
-                }
+                value={vista}
+                onChange={ir}
+                items={CONFIG_TABS.filter(([id]) => id !== 'historial' || esDemo)}
               />
-              {equipoTab === 'vendedores' && <Vendedores />}
-              {equipoTab === 'identidad' && <MiIdentidad />}
-              {equipoTab === 'roles' && <RolesPermisos />}
-              {esDemo && equipoTab === 'historial' && <Historial />}
-              {equipoTab === 'configuracion' && <Config seccion="negocio" />}
-              {equipoTab === 'seguridad' && <Config seccion="seguridad" />}
+              {vista === 'equipo' && <Vendedores />}
+              {vista === 'identidad' && <MiIdentidad />}
+              {vista === 'roles' && <RolesPermisos />}
+              {esDemo && vista === 'historial' && <Historial />}
+              {vista === 'negocio' && <Config seccion="negocio" />}
+              {vista === 'sucursales' && <Config seccion="sucursales" />}
+              {vista === 'seguridad' && <Config seccion="seguridad" />}
             </div>
           )}
           </Suspense>

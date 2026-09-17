@@ -27,6 +27,12 @@ const protectedSections = {
   '/pos/analisis': 'Análisis',
   '/pos/finanzas': 'Finanzas',
   '/pos/equipo': 'Equipo',
+  '/pos/identidad': 'Mi identidad',
+  '/pos/roles': 'Roles y permisos',
+  '/pos/historial': 'Historial',
+  '/pos/negocio': 'Negocio',
+  '/pos/sucursales': 'Sucursales',
+  '/pos/seguridad': 'Seguridad',
   '/pos/servicio': 'Servicio posventa',
   '/pos/tradein-admin': 'Gestión de trade-in',
 }
