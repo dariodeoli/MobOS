@@ -3,7 +3,7 @@ import { error, json, tenantId } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { canAccessOrder } from '../../../../../lib/orders'
 
-const TIMELINE_ACTIONS = ['ORDER_FULFILLMENT_UPDATED', 'ORDER_SERIALS_ATTACHED', 'ORDER_BILLING_UPDATED', 'ORDER_DISCOUNT_APPROVED', 'ORDER_TAGS_UPDATED', 'ORDER_ARCHIVED', 'ORDER_UNARCHIVED', 'INVENTORY_UNITS_SOLD', 'ORDER_NOTIFIED_WHATSAPP']
+const TIMELINE_ACTIONS = ['ORDER_FULFILLMENT_UPDATED', 'ORDER_SERIALS_ATTACHED', 'ORDER_BILLING_UPDATED', 'ORDER_DISCOUNT_APPROVED', 'ORDER_DISCOUNT_AUTHORIZED', 'ORDER_TAGS_UPDATED', 'ORDER_ARCHIVED', 'ORDER_UNARCHIVED', 'INVENTORY_UNITS_SOLD', 'ORDER_NOTIFIED_WHATSAPP']
 
 // Cronología del pedido: pagos, cambios auditados y comentarios, más reciente
 // primero. Un solo viaje para la vista de detalle.
