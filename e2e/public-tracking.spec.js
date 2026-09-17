@@ -27,8 +27,14 @@ test.describe('public tracking API', () => {
     for (const field of ['status', 'fulfillmentStatus', 'deliveryType', 'updatedAt']) {
       expect(body, `public payload must include ${field}`).toHaveProperty(field)
     }
-    // The public view never leaks internal data.
-    for (const field of ['payments', 'publicToken', 'phone', 'address', 'sellerId', 'tenantId', 'unitCostPyg']) {
+    // El nivel rápido muestra el cobro (método e importe) pero nunca datos
+    // internos ni de contacto: el token histórico equivale a "rápido".
+    expect(body.level).toBe('rapido')
+    expect(body.payments).toBeInstanceOf(Array)
+    for (const payment of body.payments) {
+      expect(Object.keys(payment).sort()).toEqual(['amountPyg', 'method', 'methodLabel', 'paidAt'])
+    }
+    for (const field of ['publicToken', 'phone', 'address', 'sellerId', 'tenantId', 'unitCostPyg', 'customer"']) {
       expect(JSON.stringify(body), `public payload must not include ${field}`).not.toContain(field)
     }
   })
