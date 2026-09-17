@@ -4,7 +4,7 @@ import { api } from '@/lib/api/client'
 import { readDemoPromotions, saveDemoPromotion, toggleDemoPromotion } from '@/lib/demoPromotions'
 import { gs } from '@/utils/calculos'
 import { getProductos } from '@/lib/storage'
-import { Button, Input, MoneyInput, Select } from '@/components/ui'
+import { Badge, Button, Input, MoneyInput, Select } from '@/components/ui'
 import { SellerSection, SellerFeedback, useSellerData } from './SellerData'
 
 const project = ({ id, code, name, kind, value, productId, startsAt, endsAt, maxUnits, usedUnits, isActive }) => ({ id, code, name, kind, value, productId, startsAt, endsAt, maxUnits, usedUnits, isActive })
@@ -33,13 +33,16 @@ export default function SellerPromotions() {
   }
   return <SellerSection title="Promociones" description={esDemo ? 'Demo ficticia local. Usá DEMO10 al elegir un producto.' : 'Aplicá el código en el precio del producto. Se verifica nuevamente al registrar la venta.'}>
     <SellerFeedback {...data} empty={!data.rows.length} />
-    <ul className="grid gap-3 sm:grid-cols-2">{data.rows.map(p => <li key={p.id} className="space-y-2 rounded-xl border border-fore/10 p-4">
-      <h2 className="font-semibold">{p.name} · {p.code}</h2>
-      <p>{p.kind === 'PERCENT' ? `${p.value}%` : gs(p.value)} por unidad · {p.productId ? products.find(product => product.id === p.productId)?.nombre || 'Producto específico' : 'Todos los productos'}</p>
-      <p className="text-sm text-mute">{new Date(p.startsAt).toLocaleString('es-PY')} — {new Date(p.endsAt).toLocaleString('es-PY')}</p>
-      <p>{!p.isActive ? 'Inactiva' : Date.now() >= +new Date(p.endsAt) ? 'Vencida' : Date.now() < +new Date(p.startsAt) ? 'Programada' : 'Activa'} · {p.maxUnits === null ? 'Sin límite de unidades' : `${Math.max(0, p.maxUnits - p.usedUnits)} unidades disponibles`}</p>
-      {admin && <Button type="button" disabled={busy} onClick={() => mutate(() => esDemo ? toggleDemoPromotion(p.id, !p.isActive) : api.patch('/api/promotions', { id: p.id, isActive: !p.isActive }))}>{p.isActive ? 'Desactivar' : 'Activar'}</Button>}
-    </li>)}</ul>
+    <ul className="space-y-1.5">{data.rows.map(p => {
+      const estado = !p.isActive ? 'Inactiva' : Date.now() >= +new Date(p.endsAt) ? 'Vencida' : Date.now() < +new Date(p.startsAt) ? 'Programada' : 'Activa'
+      return <li key={p.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-3 py-2 transition hover:border-fono/40">
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2"><b className="truncate text-[13px]">{p.name}</b><span className="rounded border border-fono/25 bg-fono/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-fono-light">{p.code}</span><Badge color={estado === 'Activa' ? 'green' : estado === 'Vencida' ? 'slate' : estado === 'Programada' ? 'orange' : 'slate'}>{estado}</Badge></span>
+          <span className="mt-0.5 block truncate text-[11px] text-mute">{p.kind === 'PERCENT' ? `${p.value}%` : gs(p.value)} por unidad · {p.productId ? (products.find(product => product.id === p.productId)?.nombre || 'Producto específico') : 'Todos los productos'} · {new Date(p.startsAt).toLocaleDateString('es-PY')} — {new Date(p.endsAt).toLocaleDateString('es-PY')} · {p.maxUnits === null ? 'sin límite' : `${Math.max(0, p.maxUnits - p.usedUnits)} disponibles`}</span>
+        </span>
+        {admin && <Button type="button" variant="outline" className="h-8 shrink-0 px-2 text-xs" disabled={busy} onClick={() => mutate(() => esDemo ? toggleDemoPromotion(p.id, !p.isActive) : api.patch('/api/promotions', { id: p.id, isActive: !p.isActive }))}>{p.isActive ? 'Desactivar' : 'Activar'}</Button>}
+      </li>
+    })}</ul>
     {admin && <form onSubmit={create} className="space-y-3 rounded-xl border border-fore/10 p-4">
       <h2 className="font-semibold">Crear cupón</h2>
       {['code', 'name'].map(key => <label className="block" key={key}>{{ code: 'Código', name: 'Nombre' }[key]}<Input required pattern={key === 'code' ? '[A-Za-z0-9_-]{2,40}' : undefined} maxLength={key === 'code' ? 40 : 120} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label>)}
