@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const body = objectInput(await request.json())
     const orderId = textInput(body.orderId, 'orderId', 200)
     const result = await prisma.$transaction(async tx => {
-      const locked = await tx.$queryRaw<Array<{ id: string; branchId: string | null; sellerId: string; status: string; totalPyg: number }>>`SELECT "id", "branchId", "sellerId", "status", "totalPyg" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenant} FOR UPDATE`
+      const locked = await tx.$queryRaw<Array<{ id: string; branchId: string | null; sellerId: string; status: string; totalPyg: number; orderNumber: string }>>`SELECT "id", "branchId", "sellerId", "status", "totalPyg", "orderNumber" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenant} FOR UPDATE`
       const order = locked[0]
       if (!order) throw new Error('Venta no encontrada.')
       if (session.user.role === 'VENDEDOR' && order.sellerId !== session.user.id) throw new PaymentScopeError('La venta pertenece a otro vendedor.')
@@ -46,6 +46,7 @@ export async function POST(request: Request) {
       const payment = await tx.payment.create({ data: { ...normalized, tenantId: tenant, orderId: order.id, idempotencyKey } })
       await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
       if (status === 'CONFIRMED' && confirmed + amount === order.totalPyg) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PAYMENT_RECORDED', entity: 'Payment', entityId: payment.id, metadata: { orderId: order.id, orderNumber: order.orderNumber, amountPyg: amount, status: normalized.status, method: normalized.method } } })
       return payment
     })
     return json(result, { status: 201 })
