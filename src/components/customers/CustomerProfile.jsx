@@ -100,6 +100,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const warranties = profile?.warranties || []
   const notes = profile?.notes || []
   const followUps = profile?.followUps || []
+  const ultimaCompra = orders.reduce((max, order) => (order.createdAt && (!max || order.createdAt > max) ? order.createdAt : max), null)
+  const clienteDesde = profile?.customer?.createdAt || customer?.createdAt || null
   const totalComprado = orders.reduce((sum, order) => sum + Number(order.totalPyg || 0), 0)
   const deuda = Number(profile?.debtPyg ?? 0)
   const garantiasActivas = warranties.filter((item) => item.status !== 'DELIVERED').length
@@ -270,6 +272,14 @@ export default function CustomerProfile({ customer, open, onClose }) {
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Garantías activas</p>
               <p className="mt-1 text-lg font-semibold text-fore">{garantiasActivas}</p>
             </div>
+            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Última compra</p>
+              <p className="mt-1 text-sm font-semibold text-fore">{ultimaCompra ? fecha(ultimaCompra) : 'Sin compras'}</p>
+            </div>
+            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Cliente desde</p>
+              <p className="mt-1 text-sm font-semibold text-fore">{clienteDesde ? fecha(clienteDesde) : '—'}</p>
+            </div>
           </div>
 
           <div className="flex gap-2 overflow-x-auto" role="tablist">
@@ -298,8 +308,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     { key: 'orderNumber', label: 'N.º', render: (row) => <span className="font-medium">{row.orderNumber || '—'}</span> },
                     { key: 'status', label: 'Estado', render: (row) => <div className="flex flex-col gap-1">{STATUS_BADGE(ORDER_STATUS, row.status)}{FULFILLMENT_STATUS[row.fulfillmentStatus] && <span className="text-[11px] text-mute">{FULFILLMENT_STATUS[row.fulfillmentStatus].label}</span>}</div> },
                     { key: 'totalPyg', label: 'Total', align: 'right', render: (row) => formatGs(row.totalPyg) },
-                    { key: 'paidPyg', label: 'Pagado', align: 'right', render: (row) => <span className="text-ok">{formatGs(row.paidPyg)}</span> },
-                    { key: 'balancePyg', label: 'Saldo', align: 'right', render: (row) => <span className={Number(row.balancePyg) > 0 ? 'text-warn' : ''}>{formatGs(row.balancePyg)}</span> },
+                    { key: 'paidPyg', label: 'Pagado', align: 'right', render: (row) => <span className="text-ok">{formatGs(row.collectedPyg)}</span> },
+                    { key: 'balancePyg', label: 'Saldo', align: 'right', render: (row) => <span className={Number(row.pendingPyg) > 0 ? 'text-warn' : ''}>{formatGs(row.pendingPyg)}</span> },
                   ]}
                   rows={orders}
                   mobileCard={(row) => (
@@ -311,8 +321,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
                       <p className="mt-1 text-xs text-mute">{fecha(row.createdAt)}{row.branchName ? ` · ${row.branchName}` : ''}</p>
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
                         <span className="text-mute">Total <b className="text-fore">{formatGs(row.totalPyg)}</b></span>
-                        <span className="text-mute">Pagado <b className="text-ok">{formatGs(row.paidPyg)}</b></span>
-                        <span className="text-mute">Saldo <b className={Number(row.balancePyg) > 0 ? 'text-warn' : 'text-fore'}>{formatGs(row.balancePyg)}</b></span>
+                        <span className="text-mute">Pagado <b className="text-ok">{formatGs(row.collectedPyg)}</b></span>
+                        <span className="text-mute">Saldo <b className={Number(row.pendingPyg) > 0 ? 'text-warn' : 'text-fore'}>{formatGs(row.pendingPyg)}</b></span>
                       </div>
                     </div>
                   )}
