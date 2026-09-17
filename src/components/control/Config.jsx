@@ -6,6 +6,7 @@ import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, M
 import Icon from '@/components/shared/Icon'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import { ROLE_LABELS } from '@/lib/roles'
+import { soloDigitos } from '@/utils/telefono'
 
 function fmtDate(value) {
   return value ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—'
@@ -485,7 +486,7 @@ function SeccionSucursales() {
         <form onSubmit={guardar} className="space-y-3">
           <Input required maxLength={100} autoFocus disabled={busy} value={form?.name || ''} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Nombre de la sucursal" />
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input maxLength={40} disabled={busy} value={form?.phone || ''} onChange={event => setForm(current => ({ ...current, phone: event.target.value }))} placeholder="Teléfono (opcional)" />
+            <Input inputMode="numeric" maxLength={15} disabled={busy} value={form?.phone || ''} onChange={event => setForm(current => ({ ...current, phone: soloDigitos(event.target.value, 15) }))} placeholder="Teléfono (opcional)" />
             <Input maxLength={120} disabled={busy} value={form?.instagram || ''} onChange={event => setForm(current => ({ ...current, instagram: event.target.value }))} placeholder="Instagram (opcional)" />
           </div>
           <div className="space-y-1">
