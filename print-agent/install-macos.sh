@@ -11,6 +11,8 @@ CONFIG_DIR="$HOME/.mobos-print"
 CONFIG="$CONFIG_DIR/config.json"
 IMPRESORA="192.168.1.23"
 PUERTO="9100"
+# Token opcional: si lo pasás, queda fijado; si no, el agente genera uno y lo imprime.
+TOKEN="${MOBOS_PRINT_TOKEN:-}"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "Falta Node 20 o superior. Instalalo con: brew install node" >&2
@@ -23,20 +25,31 @@ mkdir -p "$DESTINO" "$HOME/Library/LaunchAgents" "$CONFIG_DIR"
 cp "$ORIGEN/server.mjs" "$ORIGEN/transportes.mjs" "$ORIGEN/cola.mjs" "$ORIGEN/config.mjs" "$ORIGEN/package.json" "$DESTINO/"
 
 # Impresora conocida: LAN de la ZKP8008 con ancho 80 mm.
-if [[ ! -f "$CONFIG" ]]; then
-  cat > "$CONFIG" <<JSON
-{
-  "impresora": "lan:${IMPRESORA}:${PUERTO}",
-  "ancho": 80,
-  "copias": 1,
-  "reintentos": 5,
-  "esperaMs": 15000,
-  "lan": ["lan:${IMPRESORA}:${PUERTO}"]
-}
-JSON
-  echo "Configuración creada con la impresora lan:${IMPRESORA}:${PUERTO} en 80 mm."
+if [[ ! -f "$CONFIG" || -n "$TOKEN" ]]; then
+  "$NODE" -e "
+    const fs = require('fs')
+    const [ruta, token] = process.argv.slice(1)
+    let actual = {}
+    try { actual = JSON.parse(fs.readFileSync(ruta, 'utf8')) } catch { actual = {} }
+    const config = {
+      impresora: 'lan:${IMPRESORA}:${PUERTO}',
+      ancho: 80,
+      copias: 1,
+      reintentos: 5,
+      esperaMs: 15000,
+      lan: ['lan:${IMPRESORA}:${PUERTO}'],
+      ...actual,
+    }
+    if (token) config.token = token
+    fs.writeFileSync(ruta, JSON.stringify(config, null, 2) + '\\n')
+  " "$CONFIG" "$TOKEN"
+  if [[ -n "$TOKEN" ]]; then
+    echo "Configuración lista con la impresora lan:${IMPRESORA}:${PUERTO} (80 mm) y el token indicado."
+  else
+    echo "Configuración creada con la impresora lan:${IMPRESORA}:${PUERTO} en 80 mm."
+  fi
 else
-  echo "Configuración existente: no se toca."
+  echo "Configuración existente: no se toca (pasá MOBOS_PRINT_TOKEN para fijar el token)."
 fi
 
 cat > "$PLIST" <<PLIST
