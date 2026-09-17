@@ -235,8 +235,8 @@ async function refreshStorageStates(ctx) {
   const seller = company.sellers.find((s) => s.name === SEED.sellers[0].name)
   const admin = company.sellers.find((s) => s.name === SEED.admin.name)
   if (!seller || !admin) throw new Error('seed users not found in company sellers')
-  const sellerToken = await ensureSeedOrder(ctx, company.token, seller.id)
   const adminToken = await sellerSession(ctx, company.token, admin.id, SEED.admin.pin)
+  const sellerToken = await ensureSeedOrder(ctx, company.token, seller.id, adminToken)
   await writeStorageState(SELLER_STATE, company.token, sellerToken)
   await writeStorageState(ADMIN_STATE, company.token, adminToken)
 }
@@ -267,13 +267,11 @@ async function seedFresh(ctx) {
   if (!assign.ok()) throw new Error(`admin branch assign failed: HTTP ${assign.status()} ${await assign.text()}`)
   adminToken = await sellerSession(ctx, companyToken, adminId, SEED.admin.pin)
 
-  // El vendedor sembrado también necesita la sucursal para que sus ventas
-  // tomen el mismo inventario que los productos sembrados.
-  const sellerRow = company.sellers.find((s) => s.name === SEED.sellers[0].name)
-  if (sellerRow?.id && sellerRow.branchId !== SEED.branchId) {
-    const sellerAssign = await ctx.patch('/api/users', { headers: bearer(adminToken), data: { id: sellerRow.id, branchId: SEED.branchId } })
-    if (!sellerAssign.ok()) throw new Error(`seller branch assign failed: HTTP ${sellerAssign.status()} ${await sellerAssign.text()}`)
-  }
+  // El vendedor sembrado también necesita la sucursal para que el POS vea el
+  // mismo inventario que los productos sembrados. El id sale de ensureSellers:
+  // la respuesta de login/registro sólo lista vendedores preexistentes.
+  const sellerAssign = await ctx.patch('/api/users', { headers: bearer(adminToken), data: { id: SEED.sellers[0].id, branchId: SEED.branchId } })
+  if (!sellerAssign.ok()) throw new Error(`seller branch assign failed: HTTP ${sellerAssign.status()} ${await sellerAssign.text()}`)
 
   // Re-check the serialized product now that the branch exists (it may have
   // been created without a unit in an older partial seed).
