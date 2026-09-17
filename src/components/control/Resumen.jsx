@@ -1,4 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { api } from '@/lib/api/client'
+import { isDemoRuntime } from '@/lib/demoMode'
 import { useNavigate } from 'react-router-dom'
 import { listVentas, getVendedores, productosById, getProductos, listGastos } from '@/lib/storage'
 import { comisionDeVentas, cobradoDeVenta, num, gs } from '@/utils/calculos'
@@ -69,6 +71,18 @@ const suma = (arr, f = x => num(x.precio)) => arr.reduce((a, x) => a + f(x), 0)
 const variacion = (hoy, antes) => (antes > 0 ? ((hoy - antes) / antes) * 100 : null)
 
 export default function Resumen() {
+  const [pendientesHoy, setPendientesHoy] = useState(null)
+  useEffect(() => {
+    if (isDemoRuntime) return
+    const limite = Date.now() + 24 * 3600 * 1000
+    Promise.allSettled([
+      api.get('/api/inventory-reservations').then((filas) => (Array.isArray(filas) ? filas.filter((fila) => new Date(fila.reservedUntil).getTime() <= limite).length : 0)),
+      api.get('/api/warranties').then((filas) => (Array.isArray(filas) ? filas.filter((fila) => fila.status !== 'DELIVERED' && fila.expiresAt && new Date(fila.expiresAt).getTime() <= Date.now()).length : 0)),
+      api.get('/api/payments/due?overdue=true').then((filas) => (Array.isArray(filas) ? filas.length : 0)),
+    ]).then((resultados) => {
+      setPendientesHoy({ reservas: resultados[0].status === 'fulfilled' ? resultados[0].value : 0, garantias: resultados[1].status === 'fulfilled' ? resultados[1].value : 0, cuotas: resultados[2].status === 'fulfilled' ? resultados[2].value : 0 })
+    })
+  }, [])
   const navigate = useNavigate()
   const ventas = listVentas()
   const vendedores = getVendedores()
@@ -174,8 +188,19 @@ export default function Resumen() {
     setTimeout(() => listaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
   }
 
+  const pendientes = pendientesHoy && (pendientesHoy.reservas > 0 || pendientesHoy.garantias > 0 || pendientesHoy.cuotas > 0)
   return (
     <div className="space-y-5">
+      {pendientes && (
+        <Card className="border-warn/30 bg-warn/5">
+          <h2 className="font-semibold text-warn">Pendientes de hoy</h2>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {pendientesHoy.reservas > 0 && <div className="rounded-xl border border-ink-600 p-3"><p className="text-xl font-bold tabular-nums text-warn">{pendientesHoy.reservas}</p><p className="text-xs text-mute">Reservas por vencer (próximas 24 h)</p></div>}
+            {pendientesHoy.garantias > 0 && <div className="rounded-xl border border-ink-600 p-3"><p className="text-xl font-bold tabular-nums text-bad">{pendientesHoy.garantias}</p><p className="text-xs text-mute">Garantías vencidas sin entregar</p></div>}
+            {pendientesHoy.cuotas > 0 && <div className="rounded-xl border border-ink-600 p-3"><p className="text-xl font-bold tabular-nums text-bad">{pendientesHoy.cuotas}</p><p className="text-xs text-mute">Cuotas vencidas por cobrar</p></div>}
+          </div>
+        </Card>
+      )}
       {/* ── Encabezado + período ─────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

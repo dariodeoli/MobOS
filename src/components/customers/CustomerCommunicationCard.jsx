@@ -13,7 +13,7 @@ export default function CustomerCommunicationCard({ customer, templates, onViewP
   return <li className="min-w-0 break-words rounded-2xl border border-fore/10 bg-fore/[.02] p-4">
     <div className="flex flex-wrap items-center gap-2">
       <h2 className="font-semibold">{customer.name}</h2>
-      <Badge color={customer.wholesale ? 'blue' : 'slate'}>{customer.wholesale ? 'Mayorista' : 'Cliente final'}</Badge>
+      <Badge color={customer.wholesale || customer.pricingTier === 'WHOLESALE' ? 'blue' : 'slate'}>{customer.wholesale || customer.pricingTier === 'WHOLESALE' ? 'Mayorista' : 'Cliente final'}</Badge>
     </div>
     <p className="mt-0.5 font-mono text-[11px] text-mute">ID …{String(customer.id || '').slice(-6)}</p>
     {(customer.stats || customer.createdAt) && <div className="mt-2 grid grid-cols-2 gap-1.5 text-xs"><span className="text-mute">Pedidos <b className="text-fore">{customer.stats?.orders ?? 0}</b></span><span className="text-mute">Total <b className="text-fore">{gs(customer.stats?.totalSpentPyg || 0)}</b></span><span className="text-mute">Último pedido <b className="text-fore">{customer.stats?.lastOrderAt ? new Date(customer.stats.lastOrderAt).toLocaleDateString('es-PY') : '—'}</b></span><span className="text-mute">Registrado <b className="text-fore">{customer.createdAt ? new Date(customer.createdAt).toLocaleDateString('es-PY') : '—'}</b></span></div>}

@@ -56,3 +56,22 @@ export async function POST(request: Request) {
     return error(e instanceof Error ? e.message : 'No se pudo registrar el pago.', 409)
   }
 }
+
+// Cuotas por cobrar: pagos PENDING con vencimiento (plan de crédito) de la
+// empresa, ordenados por fecha de vencimiento. Incluye cliente y pedido para
+// el aviso por WhatsApp. Roles: ADMIN, GERENTE y CAJERA.
+export async function GET(request: Request) {
+  const tenant = await tenantId(request); const session = await requireSession(request)
+  if (!tenant || !session) return error('Falta sesión.', 401)
+  if (!['ADMIN', 'GERENTE', 'CAJERA'].includes(session.user.role)) return error('No autorizado.', 403)
+  const overdue = new URL(request.url).searchParams.get('overdue') === 'true'
+  const local = new Date(Date.now() - 180 * 60000)
+  const finDelDia = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), 23, 59, 59, 999))
+  const rows = await prisma.payment.findMany({
+    where: { tenantId: tenant, status: 'PENDING', dueAt: { not: null }, ...(overdue ? { dueAt: { lte: finDelDia } } : {}) },
+    include: { order: { select: { id: true, orderNumber: true, customer: { select: { id: true, name: true, phone: true, countryCode: true } } } } },
+    orderBy: { dueAt: 'asc' },
+    take: 200,
+  })
+  return json(rows)
+}

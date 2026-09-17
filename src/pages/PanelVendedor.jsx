@@ -11,7 +11,7 @@ import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
 import GlobalSearch from '@/components/app/GlobalSearch'
-import { Button, ConfirmDialog, Eyebrow, Modal, PinInput, Skeleton, useToast } from '@/components/ui'
+import { Button, ConfirmDialog, Eyebrow, Input, Modal, PinInput, Skeleton, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
@@ -29,6 +29,7 @@ import Auditoria from '@/components/control/Auditoria'
 import Caja from '@/components/control/Caja'
 import PaymentAccounts from '@/components/control/PaymentAccounts'
 import Creditos from '@/components/control/Creditos'
+import Cobranzas from '@/components/control/Cobranzas'
 import RolesPermisos from '@/components/control/RolesPermisos'
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
@@ -250,6 +251,8 @@ export default function PanelVendedor() {
   const [salirAbierto, setSalirAbierto] = useState(false)
   const [saliendo, setSaliendo] = useState(false)
   const [ayudaAbierto, setAyudaAbierto] = useState(false)
+  const [paletaAbierto, setPaletaAbierto] = useState(false)
+  const [paletaFiltro, setPaletaFiltro] = useState('')
   const [busquedaAbierta, setBusquedaAbierta] = useState(false)
   const cambioEnCurso = useRef(false)
   const lockEnCurso = useRef(false)
@@ -616,6 +619,8 @@ export default function PanelVendedor() {
                         ['gastos', 'Gastos'],
                         ['bancos', 'Bancos y cuentas'],
                         ['creditos', 'Créditos'],
+                        ['cuotas', 'Cuotas'],
+                        ['publicidad', 'Publicidad'],
                       ]
                 }
               />
@@ -623,7 +628,8 @@ export default function PanelVendedor() {
               {finanzasTab === 'gastos' && <Gastos />}
               {finanzasTab === 'bancos' && <PaymentAccounts />}
               {finanzasTab === 'creditos' && <Creditos />}
-              {esDemo && finanzasTab === 'publicidad' && <Ads />}
+              {finanzasTab === 'cuotas' && <Cobranzas />}
+              {(esDemo || finanzasTab === 'publicidad') && finanzasTab === 'publicidad' && <Ads />}
             </div>
           )}
           {esOwner && CONFIG_VISTAS.includes(vista) && (
@@ -821,6 +827,14 @@ export default function PanelVendedor() {
         </p>
       </Modal>
 
+      <Modal open={paletaAbierto} onClose={() => setPaletaAbierto(false)} title="Ir a…" className="max-w-md">
+        <div className="space-y-3">
+          <Input autoFocus aria-label="Buscar sección" value={paletaFiltro} onChange={(event) => setPaletaFiltro(event.target.value)} placeholder="Escribí para filtrar secciones…" />
+          <div className="max-h-72 space-y-1 overflow-auto">{(esOwner ? OWNER_NAV : SELLER_NAV).flatMap((grupo) => grupo.items).map(([id, label]) => ({ id, label })).filter((item) => item.label.toLowerCase().includes(paletaFiltro.toLowerCase())).map((item) => (
+            <button key={item.id} type="button" className="flex w-full items-center justify-between rounded-lg border border-transparent px-3 py-2 text-left text-sm transition hover:border-fono/40 hover:bg-ink-700" onClick={() => { setPaletaAbierto(false); ir(item.id) }}>{item.label}<span className="text-[10px] text-mute">Ctrl+K</span></button>
+          ))}</div>
+        </div>
+      </Modal>
       <ConfirmDialog
         open={salirAbierto}
         onCancel={() => setSalirAbierto(false)}

@@ -2,17 +2,33 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { consumeActionToken } from '@/lib/actionToken'
-import { Button, Card, Label, PinInput } from '@/components/ui'
+import { Badge, Button, Card, Label, PinInput } from '@/components/ui'
 import ProductFooter from '@/components/app/ProductFooter'
+
+const ESTADOS = {
+  ACTIVE: { label: 'Invitación activa', color: 'green' },
+  EXPIRED: { label: 'Invitación vencida', color: 'orange' },
+  REVOKED: { label: 'Invitación revocada', color: 'red' },
+  USED: { label: 'Invitación ya utilizada', color: 'slate' },
+  INVALID: { label: 'Invitación no encontrada', color: 'red' },
+}
 
 export default function AceptarInvitacion() {
   const [token] = useState(() => consumeActionToken())
+  const [estado, setEstado] = useState(null) // { status, companyName, email, role }
   const [pin, setPin] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const confirmRef = useRef(null)
+
+  useEffect(() => {
+    if (!token) { setEstado({ status: 'INVALID' }); return }
+    api.get(`/api/user-invitations/state?token=${encodeURIComponent(token)}`)
+      .then((resultado) => setEstado(resultado))
+      .catch(() => setEstado({ status: 'INVALID' }))
+  }, [token])
 
   useEffect(() => {
     if (pin.length === 4) confirmRef.current?.focus()
@@ -47,31 +63,48 @@ export default function AceptarInvitacion() {
     }
   }, [confirm, pin, saving, message, submit])
 
+  const activa = estado?.status === 'ACTIVE'
+  const estadoInfo = estado ? ESTADOS[estado.status] || ESTADOS.INVALID : null
+
   return (
     <main className="flex min-h-dvh flex-col bg-paper text-fore">
       <div className="flex flex-1 items-center justify-center p-5">
         <Card className="w-full max-w-md">
           <img src="/logo-dark.svg" alt="MobOS" className="hidden w-40 dark:block" />
           <img src="/logo.svg" alt="MobOS" className="w-40 dark:hidden" />
-          <h1 className="mt-6 text-2xl font-bold">Sumate al equipo</h1>
-          <p className="mt-2 text-sm leading-6 text-mute">
-            Elegí tu propio PIN de acceso. Tu invitación no contiene contraseñas ni PIN temporales.
-          </p>
-          <form id="invite-form" onSubmit={submit} className="mt-6 space-y-5">
-            <div>
-              <Label htmlFor="invite-pin">PIN de 4 dígitos</Label>
-              <PinInput id="invite-pin" autoFocus value={pin} onChange={(next) => { setPin(next); setError('') }} onComplete={() => confirmRef.current?.focus()} />
-            </div>
-            <div>
-              <Label htmlFor="invite-pin-confirm">Repetir PIN</Label>
-              <PinInput id="invite-pin-confirm" inputRef={confirmRef} ariaLabel="Repetir PIN" value={confirm} onChange={(next) => { setConfirm(next); setError('') }} />
-            </div>
-            {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
-            {message && <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{message}</p>}
-            <Button type="submit" className="w-full" disabled={saving || Boolean(message)}>
-              {saving ? 'Aceptando…' : 'Aceptar invitación'}
-            </Button>
-          </form>
+          <h1 className="mt-6 text-2xl font-bold">{estado?.companyName ? `«${estado.companyName}» te invita a su equipo` : 'Sumate al equipo'}</h1>
+          {estado?.email && <p className="mt-2 text-sm text-mute">Invitación enviada a <b className="text-fore">{estado.email}</b>{estado.role ? ` · rol: ${estado.role}` : ''}.</p>}
+          {estadoInfo && <div className="mt-3"><Badge color={estadoInfo.color}>{estadoInfo.label}</Badge></div>}
+          {estado && !activa && (
+            <p className="mt-4 rounded-lg border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
+              {estado.status === 'EXPIRED' && 'Este enlace venció. Pedí que te reenvíen la invitación desde Configuración → Equipo.'}
+              {estado.status === 'REVOKED' && 'Este enlace fue revocado. Pedí que te inviten de nuevo desde Configuración → Equipo.'}
+              {estado.status === 'USED' && 'Este enlace ya fue utilizado. Si ya aceptaste, iniciá sesión con tu PIN.'}
+              {estado.status === 'INVALID' && 'El enlace no es válido. Pedí que te reenvíen la invitación desde Configuración → Equipo.'}
+            </p>
+          )}
+          {activa && (
+            <>
+              <p className="mt-2 text-sm leading-6 text-mute">
+                Elegí tu propio PIN de acceso. Tu invitación no contiene contraseñas ni PIN temporales.
+              </p>
+              <form id="invite-form" onSubmit={submit} className="mt-6 space-y-5">
+                <div>
+                  <Label htmlFor="invite-pin">PIN de 4 dígitos</Label>
+                  <PinInput id="invite-pin" autoFocus value={pin} onChange={(next) => { setPin(next); setError('') }} onComplete={() => confirmRef.current?.focus()} />
+                </div>
+                <div>
+                  <Label htmlFor="invite-pin-confirm">Repetir PIN</Label>
+                  <PinInput id="invite-pin-confirm" inputRef={confirmRef} ariaLabel="Repetir PIN" value={confirm} onChange={(next) => { setConfirm(next); setError('') }} />
+                </div>
+                {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
+                {message && <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{message}</p>}
+                <Button type="submit" className="w-full" disabled={saving || Boolean(message)}>
+                  {saving ? 'Aceptando…' : 'Aceptar invitación'}
+                </Button>
+              </form>
+            </>
+          )}
           <Link to="/login" className="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-fono-dark hover:text-fore">
             Ir al acceso
           </Link>

@@ -44,7 +44,7 @@ export function validateFulfillmentTransition(current: string, requested: unknow
 export function returnRequest(input: Record<string, unknown>) {
   if (Object.keys(input).some(key => !['operation', 'reason', 'refundPyg', 'replacementOrderId', 'replacementOrderNumber'].includes(key))) throw new InputError('La devolución contiene campos no admitidos.')
   const operation = textInput(input.operation, 'Operación', 20).toUpperCase()
-  if (operation !== 'RETURN' && operation !== 'EXCHANGE') throw new InputError('Operación de postventa inválida.')
+  if (!['RETURN', 'EXCHANGE', 'CANCEL'].includes(operation)) throw new InputError('Operación de postventa inválida.')
   const reason = textInput(input.reason, 'Motivo', 1000)
   if (reason.length < 3) throw new InputError('Indicá un motivo de al menos 3 caracteres.')
   const refundPyg = input.refundPyg === undefined ? undefined : Number(input.refundPyg)

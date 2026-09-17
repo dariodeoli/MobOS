@@ -47,6 +47,7 @@ export default function Vendedores() {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirmarEliminar, setConfirmarEliminar] = useState(null)
+  const [horario, setHorario] = useState(null)
   const [confirmarRevocar, setConfirmarRevocar] = useState(null)
   const [equipoTab, setEquipoTab] = useState('personas')
   const [invitarAbierto, setInvitarAbierto] = useState(false)
@@ -58,6 +59,7 @@ export default function Vendedores() {
   }, [esDemo])
   useEffect(() => { cargarInvitaciones() }, [cargarInvitaciones])
   function notifySuccess(value) { setError(''); setMessage(value); window.setTimeout(() => setMessage(''), 4500) }
+  function abrirHorario(v) { setHorario({ userId: v.id, timezone: v.accessSchedule?.timezone || 'America/Asuncion', windows: (v.accessSchedule?.windows || []).map((fila) => ({ days: [...(fila.days || [])], start: fila.start || '', end: fila.end || '' })) }) }
   async function refreshTeam() { if (!esDemo) await refrescar(); setRevision(value => value + 1) }
 
   async function crearDirecto(event) {
@@ -91,6 +93,18 @@ export default function Vendedores() {
     try { if (esDemo) updateVendedor(id, changes); else await api.patch('/api/users', { id, ...changes }); await refreshTeam(); notifySuccess('Integrante actualizado.') }
     catch (cause) { setError(cause?.message || 'No se pudo actualizar el integrante.') }
   }
+  async function guardarHorario(event) {
+    event.preventDefault()
+    const datos = horario
+    if (!datos?.userId) return
+    setBusy(true); setError('')
+    try {
+      const windows = datos.windows.filter((fila) => fila.days.length > 0 && fila.start && fila.end && fila.start !== fila.end)
+      await api.patch('/api/users', { id: datos.userId, accessSchedule: windows.length ? { timezone: datos.timezone || 'America/Asuncion', windows } : null })
+      setHorario(null); await refreshTeam(); notifySuccess('Horario de acceso actualizado.')
+    } catch (cause) { setError(cause?.message || 'No se pudo guardar el horario.') } finally { setBusy(false) }
+  }
+
   async function eliminarUsuario() {
     const target = confirmarEliminar; if (!target) return
     setBusy(true)
@@ -137,12 +151,32 @@ export default function Vendedores() {
 
 
     {equipoTab === 'personas' && <>
-    <Card><h2 className="font-bold mb-1">Funcionarios y metas</h2><p className="text-sm text-mute mb-4">Administrá el estado del equipo y la meta diaria de cada vendedor.</p><div className="space-y-2.5">{vendedores.map(v => { const t = totalesVendedor(ventas, v.id); const com = comisionDeVentas(ventasDelDia(ventas, fechaClave(), v.id), prods); return <div key={v.id} className="rounded-2xl border border-ink-600 p-2.5 transition hover:border-fono/40"><div className="mb-2 flex items-center justify-between gap-2"><div className="min-w-0"><input aria-label={`Nombre de ${v.nombre}`} defaultValue={v.nombre} onBlur={event => { const name = event.target.value.trim(); if (name && name !== v.nombre) actualizarUsuario(v.id, esDemo ? { nombre: name } : { name }) }} className="min-h-11 min-w-0 max-w-[15rem] bg-transparent text-sm font-bold outline-none border-b border-transparent focus:border-fono" /><div className="text-xs text-mute">{ROLE_LABELS[v.role] || 'Vendedor'}</div>{v.id && <div className="text-[10px] text-mute" title={`ID del usuario: ${v.id}`}>ID: {v.id.slice(0, 8)}</div>}</div><div className="flex items-center gap-2"><button type="button" onClick={() => actualizarUsuario(v.id, esDemo ? { activo: !v.activo } : { status: v.activo ? 'INACTIVE' : 'ACTIVE' })} className="flex min-h-11 items-center" aria-label={v.activo ? `Desactivar a ${v.nombre}` : `Activar a ${v.nombre}`}><Badge color={v.activo ? 'green' : 'slate'}>{v.activo ? 'Activo' : 'Inactivo'}</Badge></button><button type="button" onClick={() => setConfirmarEliminar(v)} className="grid h-11 w-11 place-items-center rounded-lg text-ink-500 hover:bg-bad/10 hover:text-bad" aria-label={esDemo ? `Eliminar a ${v.nombre}` : `Desactivar a ${v.nombre}`}><Icon name="trash" className="h-4 w-4" /></button></div></div><div className="mt-1 grid grid-cols-2 items-end gap-2 border-t border-ink-600/60 pt-2 md:grid-cols-4"><label className="col-span-2 block md:col-span-1"><span className="text-[10px] font-bold uppercase text-mute">Meta diaria ₲</span><MetaDiaria vendor={v} esDemo={esDemo} onGuardar={(meta) => actualizarUsuario(v.id, { dailyGoalPyg: meta })} /></label><Mini label="Hoy" valor={t.hoy} /><Mini label="Comisión hoy" valor={com} /><Mini label="Mes" valor={t.mes} /></div></div> })}</div></Card>
+    <Card><h2 className="font-bold mb-1">Funcionarios y metas</h2><p className="text-sm text-mute mb-4">Administrá el estado del equipo y la meta diaria de cada vendedor.</p><div className="space-y-2.5">{vendedores.map(v => { const t = totalesVendedor(ventas, v.id); const com = comisionDeVentas(ventasDelDia(ventas, fechaClave(), v.id), prods); return <div key={v.id} className="rounded-2xl border border-ink-600 p-2.5 transition hover:border-fono/40"><div className="mb-2 flex items-center justify-between gap-2"><div className="min-w-0"><input aria-label={`Nombre de ${v.nombre}`} defaultValue={v.nombre} onBlur={event => { const name = event.target.value.trim(); if (name && name !== v.nombre) actualizarUsuario(v.id, esDemo ? { nombre: name } : { name }) }} className="min-h-11 min-w-0 max-w-[15rem] bg-transparent text-sm font-bold outline-none border-b border-transparent focus:border-fono" /><div className="text-xs text-mute">{ROLE_LABELS[v.role] || 'Vendedor'}</div>{v.id && <div className="text-[10px] text-mute" title={`ID del usuario: ${v.id}`}>ID: {v.id.slice(0, 8)}</div>}</div><div className="flex items-center gap-2"><button type="button" onClick={() => actualizarUsuario(v.id, esDemo ? { activo: !v.activo } : { status: v.activo ? 'INACTIVE' : 'ACTIVE' })} className="flex min-h-11 items-center" aria-label={v.activo ? `Desactivar a ${v.nombre}` : `Activar a ${v.nombre}`}><Badge color={v.activo ? 'green' : 'slate'}>{v.activo ? 'Activo' : 'Inactivo'}</Badge></button><button type="button" onClick={() => abrirHorario(v)} className="flex min-h-11 items-center rounded-lg px-2 text-xs font-semibold text-mute hover:bg-ink-700 hover:text-fore" aria-label={`Horario de ${v.nombre}`} title="Horario de acceso">{v.accessSchedule?.windows?.length ? 'Horario' : 'Horario'}</button><button type="button" onClick={() => setConfirmarEliminar(v)} className="grid h-11 w-11 place-items-center rounded-lg text-ink-500 hover:bg-bad/10 hover:text-bad" aria-label={esDemo ? `Eliminar a ${v.nombre}` : `Desactivar a ${v.nombre}`}><Icon name="trash" className="h-4 w-4" /></button></div></div><div className="mt-1 grid grid-cols-2 items-end gap-2 border-t border-ink-600/60 pt-2 md:grid-cols-4"><label className="col-span-2 block md:col-span-1"><span className="text-[10px] font-bold uppercase text-mute">Meta diaria ₲</span><MetaDiaria vendor={v} esDemo={esDemo} onGuardar={(meta) => actualizarUsuario(v.id, { dailyGoalPyg: meta })} /></label><Mini label="Hoy" valor={t.hoy} /><Mini label="Comisión hoy" valor={com} /><Mini label="Mes" valor={t.mes} /></div></div> })}</div></Card>
 
     {meses.length > 0 && <Card><h2 className="font-bold mb-1">Historial mensual por vendedor</h2><div className="mt-4 space-y-4">{meses.map(mes => { const filas = Object.entries(porMes[mes]).map(([vid, lista]) => ({ vid, nombre: nombreById[vid] || 'Sin vendedor', total: lista.reduce((a, x) => a + num(x.precio), 0), com: comisionDeVentas(lista, prods), cant: lista.length })).sort((a, b) => b.total - a.total); const abierto = abiertos.has(mes); return <div key={mes} className="overflow-hidden rounded-xl border border-ink-600"><button type="button" onClick={() => toggleMes(mes)} className="flex min-h-11 w-full items-center justify-between gap-2 bg-ink-700 px-4 text-left"><span className="font-bold text-sm capitalize">{abierto ? '▼' : '▶'} {mesLabel(mes)}</span><Badge color="blue">Vendido {gs(filas.reduce((a, f) => a + f.total, 0))}</Badge></button>{abierto && <div className="divide-y divide-ink-600 border-t border-ink-600">{filas.map(f => <div key={f.vid} className="flex items-center justify-between gap-2 px-4 py-3"><div><div className="font-semibold text-sm">{f.nombre}</div><div className="text-xs text-mute">{f.cant} ventas</div></div><div className="text-right"><div className="font-bold text-fono">{gs(f.total)}</div><div className="text-xs text-ok">Comisión {gs(f.com)}</div></div></div>)}</div>}</div> })}</div></Card>}
     {!esDemo && sesion?.esPropietario && <SeccionComisiones />}
     </>}
     {equipoTab === 'invitaciones' && !esDemo && <>{!esDemo && invitaciones.length > 0 && <Card><h2 className="font-bold">Invitaciones</h2><div className="mt-4 space-y-2">{invitaciones.map(invite => { const [label, color] = INVITE_STATUS[invite.status] || [invite.status, 'slate']; const canResend = invite.status === 'PENDING' && new Date(invite.resendAvailableAt) <= new Date(); return <div key={invite.id} className="flex flex-col gap-3 rounded-xl border border-ink-600 p-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="truncate text-sm">{invite.name}</strong><Badge color={color}>{label}</Badge><Badge>{ROLE_LABELS[invite.role] || invite.role}</Badge></div><p className="mt-1 truncate text-xs text-mute">{invite.email}</p></div>{invite.status === 'PENDING' && <div className="flex gap-2"><Button type="button" variant="outline" disabled={busy || !canResend} onClick={() => resend(invite)}>{canResend ? 'Reenviar' : 'Reenvío en espera'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => setConfirmarRevocar(invite)}>Revocar</Button></div>}</div> })}</div></Card>}</>}
+    <Modal open={horario !== null} onClose={() => setHorario(null)} title="Horario de acceso" className="max-w-lg">
+      <form onSubmit={guardarHorario} className="space-y-3">
+        <p className="text-sm text-mute">Restringe los días y horas en que el integrante puede operar. Sin rangos, el acceso queda libre.</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div><Label>Zona horaria</Label><Input value={horario?.timezone || 'America/Asuncion'} onChange={(event) => setHorario((current) => ({ ...current, timezone: event.target.value }))} placeholder="America/Asuncion" /></div>
+          <div className="flex items-end"><Button type="button" variant="outline" onClick={() => setHorario((current) => ({ ...current, windows: [...(current?.windows || []), { days: [1, 2, 3, 4, 5], start: '08:00', end: '18:00' }] }))}>+ Rango</Button></div>
+        </div>
+        {(horario?.windows || []).map((fila, index) => (
+          <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-3 sm:grid-cols-[1fr_auto_auto_auto]">
+            <div className="flex flex-wrap gap-1">{['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map((dia, day) => (
+              <button key={dia} type="button" className={`rounded-lg border px-2 py-1 text-xs ${fila.days.includes(day + 1) || (day === 6 && fila.days.includes(0)) ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute'}`} onClick={() => { const valor = day === 6 ? 0 : day + 1; setHorario((current) => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, days: fila2.days.includes(valor) ? fila2.days.filter((d) => d !== valor) : [...fila2.days, valor] } : fila2) })) }}>{dia}</button>
+            ))}</div>
+            <Input type="time" value={fila.start} onChange={(event) => setHorario((current) => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, start: event.target.value } : fila2) }))} aria-label="Desde" />
+            <Input type="time" value={fila.end} onChange={(event) => setHorario((current) => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, end: event.target.value } : fila2) }))} aria-label="Hasta" />
+            <button type="button" className="self-center text-xs text-bad hover:underline" onClick={() => setHorario((current) => ({ ...current, windows: current.windows.filter((_, itemIndex) => itemIndex !== index) }))}>Quitar</button>
+          </div>
+        ))}
+        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setHorario(null)}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar horario'}</Button></div>
+      </form>
+    </Modal>
     <ConfirmDialog open={Boolean(confirmarEliminar)} onCancel={() => setConfirmarEliminar(null)} onConfirm={eliminarUsuario} busy={busy} title={esDemo ? '¿Eliminar vendedor?' : '¿Desactivar integrante?'} description={esDemo ? `Se eliminará a ${confirmarEliminar?.nombre || 'este vendedor'}. Las ventas se conservan.` : `${confirmarEliminar?.nombre || 'Este integrante'} ya no podrá ingresar. Su historial se conserva.`} confirmLabel={esDemo ? 'Eliminar vendedor' : 'Desactivar integrante'} variant="danger" />
     <ConfirmDialog open={Boolean(confirmarRevocar)} onCancel={() => setConfirmarRevocar(null)} onConfirm={revokeInvitation} busy={busy} title="¿Revocar invitación?" description={`El enlace enviado a ${confirmarRevocar?.email || 'este correo'} dejará de funcionar.`} confirmLabel="Revocar invitación" variant="danger" />
     <Modal open={invitarAbierto} onClose={() => !busy && setInvitarAbierto(false)} title="Invitar persona" className="max-w-2xl">

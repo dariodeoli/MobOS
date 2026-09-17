@@ -1,5 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { listAds, addAds, deleteAds } from '@/lib/storage'
+import { useSesion } from '@/lib/sesion'
+import { api } from '@/lib/api/client'
+import { isDemoRuntime } from '@/lib/demoMode'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { Card, Button, Input, Label, Select, Badge, MoneyInput, EmptyState } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -28,18 +31,45 @@ function mesLabel(clave) {
 
 const VACIO = () => ({ monto: '', fecha: fechaClave(), plataforma: 'Meta Ads', nota: '' })
 
+const PREFIJO = 'Publicidad:'
+
 export default function Ads() {
-  const ads = listAds()
+  const demo = isDemoRuntime
+  const { sucursal } = useSesion()
+  const [ads, setAds] = useState(demo ? listAds() : [])
+  const [cargando, setCargando] = useState(!demo)
+  const [error, setError] = useState('')
   const [f, setF] = useState(VACIO)
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }))
 
-  function guardar(e) {
+  async function cargar() {
+    if (demo) { setAds(listAds()); return }
+    setCargando(true); setError('')
+    try {
+      const branch = sucursal?.id ? `?branchId=${encodeURIComponent(sucursal.id)}` : ''
+      const payload = await api.get(`/api/finance${branch}`)
+      setAds((payload?.movements || []).filter((row) => row.kind === 'EXPENSE' && row.status !== 'VOID' && String(row.description || '').startsWith(PREFIJO)).map((row) => ({
+        id: row.id, monto: Number(row.amountPyg || 0), fecha: (row.createdAt || '').slice(0, 10),
+        plataforma: String(row.description || '').slice(PREFIJO.length).split(' · ')[0] || 'Otro',
+        nota: String(row.description || '').split(' · ').slice(1).join(' · '),
+      })))
+    } catch (cause) { setError(cause?.message || 'No se pudieron cargar las inversiones.') } finally { setCargando(false) }
+  }
+  useEffect(() => { cargar() }, [sucursal?.id])
+
+  async function guardar(e) {
     e.preventDefault()
     if (num(f.monto) <= 0) return
-    addAds({ ...f, monto: num(f.monto) })
-    setF(VACIO())
+    if (demo) { addAds({ ...f, monto: num(f.monto) }); setAds(listAds()); setF(VACIO()); return }
+    setError('')
+    try {
+      const branch = sucursal?.id ? `?branchId=${encodeURIComponent(sucursal.id)}` : ''
+      await api.post(`/api/finance${branch}`, { action: 'movement', kind: 'EXPENSE', direction: 'OUT', currency: 'PYG', originalAmount: String(num(f.monto)), exchangeRatePyg: 1, accountId: null, description: `${PREFIJO}${f.plataforma}${f.nota.trim() ? ` · ${f.nota.trim()}` : ''}` })
+      setF(VACIO()); await cargar()
+    } catch (cause) { setError(cause?.message || 'No se pudo registrar la inversión.') }
   }
 
+  function borrar(id) { deleteAds(id); setAds(listAds()) }
   const total = ads.reduce((a, x) => a + num(x.monto), 0)
 
   // Resumen por mes (YYYY-MM total y cantidad), del más nuevo al más viejo.
@@ -61,6 +91,9 @@ export default function Ads() {
           Cargá manualmente cuánto invertís en ads. Se descuenta en el tablero de ganancias para
           saber tu resultado real.
         </p>
+        {error && <p role="alert" className="mb-3 rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
+        {!demo && cargando && <p className="mb-3 text-sm text-mute">Cargando inversiones…</p>}
+        {!demo && <p className="mb-3 text-xs text-mute">Las inversiones se registran como gastos en Finanzas y se descuentan de la ganancia.</p>}
         <form onSubmit={guardar} className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <Label>Monto</Label>
@@ -132,13 +165,13 @@ export default function Ads() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-warn">{gs(a.monto)}</span>
-                  <button
-                    onClick={() => deleteAds(a.id)}
+                  {demo && <button
+                    onClick={() => borrar(a.id)}
                     className="text-mute hover:text-bad p-1"
                     title="Eliminar"
                   >
                     <Icon name="trash" className="h-4 w-4" />
-                  </button>
+                  </button>}
                 </div>
               </div>
             ))}

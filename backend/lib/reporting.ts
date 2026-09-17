@@ -11,7 +11,7 @@
 //   suma a los dos, sin repartir el descuento global); día y vendedor agrupan a
 //   nivel de orden, con cobros y saldo reales.
 
-export const REPORT_GROUP_BY = ['product', 'category', 'seller', 'day', 'payments', 'newCustomers'] as const
+export const REPORT_GROUP_BY = ['product', 'category', 'seller', 'day', 'payments', 'newCustomers', 'branch', 'customers', 'returns'] as const
 export type ReportGroupBy = (typeof REPORT_GROUP_BY)[number]
 
 /** Roles con acceso a reportes financieros (costos y ganancia incluidos). */
@@ -55,6 +55,9 @@ export type OrderLike = {
   sellerId?: string | null
   sellerName?: string | null
   customerId?: string | null
+  customerName?: string | null
+  branchId?: string | null
+  branchName?: string | null
   createdAt: Date | string
   items?: OrderItemLike[]
   payments?: PaymentLike[]
@@ -614,6 +617,16 @@ export function aggregateReport(
     if (options.groupBy === 'day') {
       const key = localDayKey(orden.createdAt, options.offsetMinutes)
       acumularOrden(obtener(grupos, key, key), hecho)
+      continue
+    }
+
+    if (options.groupBy === 'branch') {
+      acumularOrden(obtener(grupos, orden.branchId || 'sin-sucursal', orden.branchName?.trim() || 'Sin sucursal'), hecho)
+      continue
+    }
+
+    if (options.groupBy === 'customers') {
+      acumularOrden(obtener(grupos, orden.customerId || 'sin-cliente', orden.customerName?.trim() || 'Cliente sin nombre'), hecho)
       continue
     }
 

@@ -328,6 +328,39 @@ export default function Reportes() {
             </Card>
           )}
 
+          {grupo === 'product' && grupos.length > 0 && (
+            <Card className="overflow-x-auto p-0">
+              <div className="flex items-center justify-between border-b border-ink-600 p-4">
+                <h3 className="font-semibold">Curva ABC y antigüedad</h3>
+                <span className="text-xs text-mute">A: 80% acumulado · B: 95% · C: resto</span>
+              </div>
+              <table className="w-full min-w-[640px] text-sm">
+                <thead><tr className="border-b border-ink-600 text-left text-[11px] uppercase tracking-wider text-mute"><th className="px-4 py-3">Producto</th><th className="px-4 py-3 text-right">Venta</th><th className="px-4 py-3 text-right">% acum.</th><th className="px-4 py-3">Clase</th><th className="px-4 py-3 text-right">Disponibles</th><th className="px-4 py-3 text-right">Antigüedad</th></tr></thead>
+                <tbody>{(() => {
+                  const totalVenta = grupos.reduce((suma, g) => suma + Number(g.grossPyg || 0), 0) || 1
+                  let acumulado = 0
+                  const filas = [...grupos].sort((a, b) => Number(b.grossPyg || 0) - Number(a.grossPyg || 0)).map(g => {
+                    acumulado += Number(g.grossPyg || 0)
+                    const pct = (acumulado / totalVenta) * 100
+                    const clase = pct <= 80 ? 'A' : pct <= 95 ? 'B' : 'C'
+                    const dias = g.oldestUnitAt ? Math.max(0, Math.floor((Date.now() - new Date(g.oldestUnitAt).getTime()) / 86400000)) : null
+                    return { g, pct, clase, dias }
+                  })
+                  return filas.map(({ g, pct, clase, dias }) => (
+                    <tr key={g.key} className="border-b border-ink-700/60 last:border-0">
+                      <td className="px-4 py-2.5 font-medium text-fore">{g.label}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-mute">{gs(g.grossPyg)}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-mute">{pct.toFixed(1)}%</td>
+                      <td className="px-4 py-2.5"><Badge color={clase === 'A' ? 'green' : clase === 'B' ? 'orange' : 'slate'}>{clase}</Badge></td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-mute">{g.availableUnits ?? 0}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-mute">{dias === null ? '—' : `${dias} días`}</td>
+                    </tr>
+                  ))
+                })()}</tbody>
+              </table>
+            </Card>
+          )}
+
           <p className="text-xs text-mute">
             {porLinea
               ? 'Producto y categoría se calculan por línea: el descuento global y los cobros pertenecen a la orden y no se reparten. '

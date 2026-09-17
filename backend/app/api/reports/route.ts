@@ -52,6 +52,8 @@ export async function GET(request: Request) {
         ...(branchId ? { branchId } : {}),
       },
       include: {
+        branch: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true } },
         items: {
           select: {
             productId: true,
@@ -135,6 +137,35 @@ export async function GET(request: Request) {
       }
     }
 
+    if (groupBy === 'returns') {
+      const eventos = await prisma.auditLog.findMany({
+        where: { tenantId: session.user.tenantId, action: { in: ['ORDER_RETURN_RECORDED', 'ORDER_EXCHANGE_RECORDED', 'ORDER_CANCELLED'] }, createdAt: { gte: start, lt: end }, ...(branchId ? { metadata: { path: ['branchId'], equals: branchId } } : {}) },
+        select: { metadata: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+      })
+      const grupos = new Map<string, { key: string; label: string; orders: number; units: number; grossPyg: number; discountPyg: number; deliveryPyg: number; totalPyg: number; collectedPyg: number; pendingPyg: number; costPyg: number; profitPyg: number; salesWithoutCostPyg: number; linesWithoutCost: number; commissionPyg: number; netProfitPyg: number; refundedPyg: number; customers: number; newCustomers: number; returningCustomers: number; ultima: string }>()
+      for (const evento of eventos) {
+        const meta = evento.metadata && typeof evento.metadata === 'object' ? evento.metadata as Record<string, unknown> : {}
+        const motivo = String(meta.reason || 'Sin motivo').slice(0, 120)
+        const reembolso = Number(meta.refundPyg || 0)
+        const item = grupos.get(motivo) || { key: motivo, label: motivo, orders: 0, units: 0, grossPyg: 0, discountPyg: 0, deliveryPyg: 0, totalPyg: 0, collectedPyg: 0, pendingPyg: 0, costPyg: 0, profitPyg: 0, salesWithoutCostPyg: 0, linesWithoutCost: 0, commissionPyg: 0, netProfitPyg: 0, refundedPyg: 0, customers: 0, newCustomers: 0, returningCustomers: 0, ultima: '' }
+        item.orders += 1
+        item.totalPyg += reembolso
+        item.grossPyg += reembolso
+        item.refundedPyg += reembolso
+        item.ultima = !item.ultima || new Date(evento.createdAt) > new Date(item.ultima) ? evento.createdAt.toISOString().slice(0, 10) : item.ultima
+        grupos.set(motivo, item)
+      }
+      const groups = [...grupos.values()].sort((a, b) => b.orders - a.orders)
+      const totalPyg = groups.reduce((suma, item) => suma + item.totalPyg, 0)
+      return json({
+        from, to, groupBy, offsetMinutes, branchId, truncated: false, generatedAt: new Date().toISOString(),
+        totals: { orders: groups.length, units: 0, grossPyg: totalPyg, discountPyg: 0, deliveryPyg: 0, totalPyg, collectedPyg: 0, pendingPyg: 0, costPyg: 0, profitPyg: 0, salesWithCostPyg: 0, salesWithoutCostPyg: 0, linesWithoutCost: 0, marginPct: null, commissionPyg: 0, netProfitPyg: 0, netMarginPct: null, refundedPyg: totalPyg },
+        groups,
+      })
+    }
+
     const reporte = aggregateReport(
       usadas.map((orden) => ({
         id: orden.id,
@@ -146,6 +177,9 @@ export async function GET(request: Request) {
         sellerId: orden.sellerId,
         sellerName: orden.seller?.name ?? null,
         customerId: orden.customerId ?? null,
+        customerName: orden.customer?.name ?? null,
+        branchId: orden.branchId ?? null,
+        branchName: orden.branch?.name ?? null,
         createdAt: orden.createdAt,
         items: orden.items.map((item) => ({
           productId: item.productId,
@@ -169,6 +203,34 @@ export async function GET(request: Request) {
       { groupBy, offsetMinutes, firstOrderMonth },
     )
 
+    let unitAge: Map<string, { oldest: Date; available: number }> = new Map()
+    if (groupBy === 'product') {
+      const grouped = await prisma.inventoryUnit.groupBy({
+        by: ['productId'],
+        where: { tenantId: session.user.tenantId, status: 'AVAILABLE', ...(branchId ? { branchId } : {}) },
+        _min: { createdAt: true },
+        _count: { _all: true },
+      })
+      unitAge = new Map(grouped.map(row => [row.productId, { oldest: row._min.createdAt as Date, available: row._count._all }]))
+    }
+
+    // Período anterior para variación % (mismo largo, corrido hacia atrás).
+    const spanMs = end.getTime() - start.getTime()
+    const prevStart = new Date(start.getTime() - spanMs)
+    const prevEnd = new Date(start)
+    const previousOrders = await prisma.order.findMany({
+      where: { tenantId: session.user.tenantId, createdAt: { gte: prevStart, lt: prevEnd }, ...(branchId ? { branchId } : {}) },
+      include: { items: true, payments: true, customer: { select: { id: true, name: true } }, seller: { select: { id: true, name: true } }, branch: { select: { id: true, name: true } } },
+      take: MAX_REPORT_ORDERS,
+    })
+    const previousReport = aggregateReport(previousOrders.map((orden) => ({
+      id: orden.id, status: orden.status, subtotalPyg: orden.subtotalPyg, discountPyg: orden.discountPyg, deliveryPyg: orden.deliveryPyg, totalPyg: orden.totalPyg,
+      sellerId: orden.sellerId, sellerName: orden.seller?.name ?? null, customerId: orden.customerId ?? null, customerName: orden.customer?.name ?? null,
+      branchId: orden.branchId ?? null, branchName: orden.branch?.name ?? null, createdAt: orden.createdAt,
+      items: orden.items.map((item) => ({ productId: item.productId, description: item.description, productName: null, category: null, quantity: item.quantity, unitCostPyg: item.unitCostPyg, totalPyg: item.totalPyg })),
+      payments: orden.payments.map((pago) => ({ status: pago.status, amountPyg: pago.amountPyg })),
+    })), { groupBy, offsetMinutes })
+
     const productStock = await prisma.product.findMany({
       where: { tenantId: session.user.tenantId, isActive: true, ...(branchId ? { branchId } : {}) },
       select: { id: true, name: true, sku: true, stock: true },
@@ -184,6 +246,12 @@ export async function GET(request: Request) {
     const soldUnits = [...soldByProduct.values()].reduce((sum, quantity) => sum + quantity, 0)
     const shortages = productStock.filter(product => product.stock <= 0).map(product => ({ id: product.id, name: product.name, sku: product.sku, stock: product.stock }))
 
+    const reportGroups = reporte.groups.map(group => {
+      if (groupBy !== 'product') return group
+      const age = unitAge.get(group.key)
+      return { ...group, availableUnits: age?.available ?? 0, oldestUnitAt: age?.oldest?.toISOString() ?? null }
+    })
+
     return json({
       from,
       to,
@@ -192,13 +260,14 @@ export async function GET(request: Request) {
       branchId,
       truncated,
       generatedAt: new Date().toISOString(),
+      previous: { from: prevStart.toISOString().slice(0, 10), to: (new Date(prevEnd.getTime() - 1).toISOString().slice(0, 10)), totals: previousReport.totals },
       inventory: {
         onHandUnits: onHand,
         soldUnits,
         sellThroughPct: onHand + soldUnits > 0 ? Math.round((soldUnits / (onHand + soldUnits)) * 1000) / 10 : null,
         shortages,
       },
-      ...reporte,
+      groups: reportGroups, totals: reporte.totals,
     })
   } catch (e) {
     if (e instanceof ReportInputError) return error(e.message)
