@@ -214,6 +214,23 @@ export async function GET(request: Request) {
       unitAge = new Map(grouped.map(row => [row.productId, { oldest: row._min.createdAt as Date, available: row._count._all }]))
     }
 
+    // Período anterior para variación % (mismo largo, corrido hacia atrás).
+    const spanMs = end.getTime() - start.getTime()
+    const prevStart = new Date(start.getTime() - spanMs)
+    const prevEnd = new Date(start)
+    const previousOrders = await prisma.order.findMany({
+      where: { tenantId: session.user.tenantId, createdAt: { gte: prevStart, lt: prevEnd }, ...(branchId ? { branchId } : {}) },
+      include: { items: true, payments: true, customer: { select: { id: true, name: true } }, seller: { select: { id: true, name: true } }, branch: { select: { id: true, name: true } } },
+      take: MAX_REPORT_ORDERS,
+    })
+    const previousReport = aggregateReport(previousOrders.map((orden) => ({
+      id: orden.id, status: orden.status, subtotalPyg: orden.subtotalPyg, discountPyg: orden.discountPyg, deliveryPyg: orden.deliveryPyg, totalPyg: orden.totalPyg,
+      sellerId: orden.sellerId, sellerName: orden.seller?.name ?? null, customerId: orden.customerId ?? null, customerName: orden.customer?.name ?? null,
+      branchId: orden.branchId ?? null, branchName: orden.branch?.name ?? null, createdAt: orden.createdAt,
+      items: orden.items.map((item) => ({ productId: item.productId, description: item.description, productName: null, category: null, quantity: item.quantity, unitCostPyg: item.unitCostPyg, totalPyg: item.totalPyg })),
+      payments: orden.payments.map((pago) => ({ status: pago.status, amountPyg: pago.amountPyg })),
+    })), { groupBy, offsetMinutes })
+
     const productStock = await prisma.product.findMany({
       where: { tenantId: session.user.tenantId, isActive: true, ...(branchId ? { branchId } : {}) },
       select: { id: true, name: true, sku: true, stock: true },
@@ -243,6 +260,7 @@ export async function GET(request: Request) {
       branchId,
       truncated,
       generatedAt: new Date().toISOString(),
+      previous: { from: prevStart.toISOString().slice(0, 10), to: (new Date(prevEnd.getTime() - 1).toISOString().slice(0, 10)), totals: previousReport.totals },
       inventory: {
         onHandUnits: onHand,
         soldUnits,
