@@ -10,6 +10,17 @@ import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 
 const customerName = `${SEED.checkoutCustomer} ${Date.now().toString(36)}`
+const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
+
+async function orderItems(page, name) {
+  return page.evaluate(async ({ api, customer }) => {
+    const response = await fetch(`${api}/api/orders`, { credentials: 'include' })
+    if (!response.ok) return { status: response.status }
+    const rows = await response.json()
+    const order = rows.find(row => row.customer?.name === customer)
+    return order ? order.items.map(item => ({ listPricePyg: item.listPricePyg, unitPricePyg: item.unitPricePyg })) : null
+  }, { api: API, customer: name })
+}
 
 test('POS checkout with split payment registers the sale and lists it in pedidos', async ({ page }) => {
   await page.goto('/pos/cargar')
@@ -74,4 +85,34 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(sale).toBeVisible()
   await expect(sale).toContainText('artículo')
   await expect(sale.getByText('Pagado', { exact: true })).toBeVisible()
+})
+
+// Precio manual por debajo de lista: la venta guarda el precio de lista y el
+// comprobante muestra el descuento; por encima de lista se muestra normal.
+test('POS manual price below list stores the list price for the receipt', async ({ page }) => {
+  const name = `${SEED.checkoutCustomer} manual ${Date.now().toString(36)}`
+  await page.goto('/pos/cargar')
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(name)
+
+  await page.getByLabel('Buscar producto por texto').fill('Cable')
+  await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+
+  // Precio manual 40.000 sobre lista 45.000: el POS marca el descuento.
+  await page.getByLabel('Precio de venta').fill('40000')
+  await expect(page.getByText('− Gs 5.000 de descuento')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Agregar a la lista' }).click()
+  await page.getByRole('button', { name: 'Revisar carrito', exact: true }).click()
+  await page.getByRole('button', { name: 'Ir a cobrar' }).click()
+
+  const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+  await page.getByRole('button', { name: '+ Agregar pago' }).click()
+  await paymentsSection.getByLabel('Cuenta de cobro').selectOption({ label: 'Caja E2E · PYG · CASH' })
+  await paymentsSection.getByLabel('Monto original').fill('40000')
+  await expect(paymentsSection.getByText('Equivalente: Gs 40.000')).toBeVisible()
+
+  await page.getByRole('button', { name: /^Guardar venta/ }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Venta registrada correctamente.' })).toBeVisible()
+
+  await expect.poll(async () => orderItems(page, name)).toEqual([{ listPricePyg: SEED.products.cable.pricePyg, unitPricePyg: 40000 }])
 })
