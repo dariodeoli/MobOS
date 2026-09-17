@@ -11,7 +11,6 @@ import RangoFechas, {
   rangoDeParams,
   paramsDeRango,
   rangoAnterior,
-  rangoPorDefecto,
   etiquetaRango,
 } from '@/components/shared/RangoFechas'
 import MedioPago from '@/components/shared/MedioPago'
@@ -250,7 +249,7 @@ export default function Resumen() {
             <Icon name="receipt" className="h-4 w-4" />
             Cobrar pendientes
           </Button>
-          <RangoFechas valor={rango} onChange={setRango} />
+          <RangoFechas valor={rango} onChange={cambiarRango} />
         </div>
       </div>
 

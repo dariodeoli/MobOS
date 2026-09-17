@@ -56,10 +56,6 @@ const STATUS_BADGE = (map, value) => {
 const fecha = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString('es-PY') : '—')
 const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 
-function textoEvento(evento) {
-  return [evento.action, evento.detail].filter(Boolean).join(' · ')
-}
-
 const AUTH_KINDS = {
   WHOLESALE: 'Mayorista',
   CREDIT: 'Crédito',

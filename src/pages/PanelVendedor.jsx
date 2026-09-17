@@ -135,12 +135,6 @@ const TABS_ANALISIS = [
   ['ganadores', 'Ganadores'],
   ['asistente', 'Asistente'],
 ]
-const TABS_ANALISIS = [
-  ['reportes', 'Reportes'],
-  ['ganancias', 'Ganancias'],
-  ['ganadores', 'Ganadores'],
-  ['asistente', 'Asistente'],
-]
 const TABS_FINANZAS = [
   ['caja', 'Caja'],
   ['gastos', 'Gastos'],

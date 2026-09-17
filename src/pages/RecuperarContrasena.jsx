@@ -13,7 +13,6 @@ export default function RecuperarContrasena() {
   const navigate = useNavigate()
   const [token, setToken] = useState(() => consumeActionToken())
   const [email, setEmail] = useState('')
-  const navigate = useNavigate()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [message, setMessage] = useState('')
