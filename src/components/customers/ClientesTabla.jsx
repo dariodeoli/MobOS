@@ -24,7 +24,8 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
   const [abierto, setAbierto] = useState(null)
   const popover = useRef(null)
 
-  const plantilla = templates.find(item => item.id === plantillaId) || templates[0] || null
+  const delContexto = templates.filter(item => item.context === 'clientes')
+  const plantilla = templates.find(item => item.id === plantillaId) || delContexto.find(item => item.isDefault) || delContexto[0] || templates[0] || null
   useEffect(() => {
     if (plantilla?.id && plantilla.id !== plantillaId) setPlantillaId(plantilla.id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,8 +126,8 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
                     {abierto === row.id && (
                       <div className="absolute z-30 mt-2 w-64 -translate-x-2/3 translate-y-6 rounded-xl border border-ink-500 bg-paper p-2 shadow-xl" onClick={event => event.stopPropagation()}>
                         <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-mute">Plantilla de WhatsApp</p>
-                        {templates.length === 0 && <p className="px-2 py-1 text-xs text-mute">No hay plantillas cargadas.</p>}
-                        {templates.map(item => (
+                        {(delContexto.length ? delContexto : templates).length === 0 && <p className="px-2 py-1 text-xs text-mute">No hay plantillas cargadas.</p>}
+                        {(delContexto.length ? delContexto : templates).map(item => (
                           <button key={item.id} type="button" onClick={() => elegirPlantilla(item.id)} className={cn('block w-full truncate rounded-lg px-2 py-1.5 text-left text-xs transition hover:bg-ink-700', item.id === plantilla?.id ? 'text-fono-light' : 'text-fore')}>
                             {item.name}
                           </button>

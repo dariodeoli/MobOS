@@ -2,7 +2,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 
-export const CONTEXTOS = ['clientes', 'pedidos', 'servicio'] as const
+const CONTEXTOS = ['clientes', 'pedidos', 'servicio'] as const
 
 const defaults = [
   ['ready_for_pickup', 'Pedido listo para retirar', 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya está listo para retirar en {{branch_name}}.'],

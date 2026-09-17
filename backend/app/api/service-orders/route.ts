@@ -32,7 +32,16 @@ export async function GET(request: Request) {
     orderBy: { createdAt: 'desc' },
     take: 200,
   })
-  return json(orders)
+  const customerIds = [...new Set(orders.map(order => order.customerId).filter((id): id is string => Boolean(id)))]
+  const clientes = customerIds.length
+    ? await prisma.customer.findMany({ where: { tenantId: tenant, id: { in: customerIds } }, select: { id: true, phone: true, countryCode: true } })
+    : []
+  const contactoPorCliente = new Map(clientes.map(cliente => [cliente.id, cliente]))
+  return json(orders.map(order => ({
+    ...order,
+    customerPhone: order.customerId ? contactoPorCliente.get(order.customerId)?.phone || null : null,
+    customerCountryCode: order.customerId ? contactoPorCliente.get(order.customerId)?.countryCode || '+595' : '+595',
+  })))
 }
 
 export async function POST(request: Request) {

@@ -4,6 +4,7 @@ import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { coincideCliente } from '@/utils/cliente'
+import { renderMessage, whatsappUrl } from '@/components/customers/customerMessaging'
 import { cn } from '@/lib/utils'
 
 // Pipeline del taller: recepción → diagnóstico → reparación → entrega.
@@ -45,6 +46,7 @@ export default function ServicioTecnico() {
   const [busy, setBusy] = useState(false)
   const [clientes, setClientes] = useState([])
   const [servicios, setServicios] = useState([])
+  const [plantillas, setPlantillas] = useState([])
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -64,6 +66,21 @@ export default function ServicioTecnico() {
     } catch { setServicios([]) }
   }, [])
   useEffect(() => { cargarServicios() }, [cargarServicios])
+  useEffect(() => {
+    api.get('/api/message-templates?context=servicio').then(data => setPlantillas(Array.isArray(data) ? data : [])).catch(() => setPlantillas([]))
+  }, [])
+
+  // WhatsApp del taller: misma plantilla central (contexto servicio), con los
+  // datos reales del equipo y del cliente.
+  function whatsappDe(row) {
+    if (!row.customerPhone) return ''
+    const plantilla = plantillas.find(item => item.isDefault) || plantillas[0]
+    const mensaje = renderMessage(plantilla || { body: 'Hola {nombre}, te escribimos por tu equipo {producto}.' }, {
+      name: row.customerName, firstName: (row.customerName || '').split(' ')[0], orderNumber: row.id,
+      producto: row.device, usuario: '', sucursal: '',
+    })
+    return whatsappUrl(row.customerPhone, mensaje, row.customerCountryCode)
+  }
 
   async function cargarCatalogoSugerido() {
     try {
@@ -200,6 +217,7 @@ export default function ServicioTecnico() {
               <Badge color={ESTADO_TONE[row.status] || 'slate'}>{ESTADO_LABEL[row.status] || row.status}</Badge>
               <span className="flex items-center gap-1">
                 {SIGUIENTE[row.status] && <Button variant="outline" className="h-8 px-2 text-xs" onClick={() => avanzar(row)}>{ESTADO_LABEL[SIGUIENTE[row.status]]}</Button>}
+                {whatsappDe(row) && <a href={whatsappDe(row)} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp a ${row.customerName}`} className="grid h-8 w-8 place-items-center rounded-lg text-ok transition hover:bg-ok/10"><Icon name="send" className="h-4 w-4" /></a>}
                 <Button variant="ghost" className="h-8 px-2 text-xs" onClick={() => editar(row)}><Icon name="edit" className="h-3.5 w-3.5" /></Button>
               </span>
             </div>
