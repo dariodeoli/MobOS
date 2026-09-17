@@ -120,7 +120,7 @@ export default function Asistente() {
             <button
               key={s.label}
               onClick={() => consultar(s.q)}
-              className="rounded-full border-2 border-ink-600 px-3 py-1.5 text-xs font-bold text-mute hover:border-fono hover:text-fono transition"
+              className="rounded-lg border border-ink-600 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-fono/40 hover:text-fore"
             >
               {s.label}
             </button>
