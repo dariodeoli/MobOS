@@ -5,7 +5,6 @@ import AttachmentInput from '@/components/shared/AttachmentInput'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import { api, API_URL } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
-import { useSesion } from '@/lib/sesion'
 import { accessUrlFor } from '@/components/shared/OrderReceipt'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
@@ -78,9 +77,6 @@ const NIVELES_ACCESO = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detal
 
 export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onClose, onChanged }) {
   const toast = useToast()
-  const { perfilEmpresa } = useSesion()
-  // El usuario guardado puede llamarse "Administrador": mostramos la persona real.
-  const nombreActor = (name) => (name === 'Administrador' && perfilEmpresa?.name ? perfilEmpresa.name : name)
   const [accesos, setAccesos] = useState({})
   const [accesoBusy, setAccesoBusy] = useState(false)
   const [accesoMsg, setAccesoMsg] = useState('')
