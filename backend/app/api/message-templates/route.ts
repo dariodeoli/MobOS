@@ -175,10 +175,9 @@ export async function PATCH(request: Request) {
     if (!text || text.length > 1200) return error('El mensaje es obligatorio (hasta 1.200 caracteres).')
     data.body = text
   }
-  const nextCategory = (body.category !== undefined || body.context !== undefined)
-    ? (categoriaDe(body, current.category) ?? current.category)
-    : current.category
-  if (body.category !== undefined && !categoriaDe(body, nextCategory)) return error('Categoría de plantilla inválida.')
+  const nextCategory: Category = (body.category !== undefined || body.context !== undefined)
+    ? (categoriaDe(body, current.category as Category) ?? (current.category as Category))
+    : (current.category as Category)
   if (nextCategory !== current.category) {
     data.category = nextCategory
     data.context = CATEGORY_TO_CONTEXT[nextCategory]

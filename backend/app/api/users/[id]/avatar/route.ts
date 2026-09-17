@@ -4,7 +4,7 @@ import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { deleteAttachment, readAttachment, saveAttachment } from '../../../../../lib/attachment-storage'
 
-type RouteContext = { params: { userId?: string } }
+type RouteContext = { params: { id?: string } }
 const MAX_AVATAR_BYTES = 1024 * 1024
 const AVATAR_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
 const AREA = 'avatars'
@@ -50,7 +50,7 @@ const puedeEditar = (session: { user: { id: string; role: string } }, userId: st
 export async function GET(request: Request, { params }: RouteContext) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  const userId = (params.userId || '').trim().slice(0, 128)
+  const userId = (params.id || '').trim().slice(0, 128)
   if (!userId) return error('Usuario obligatorio.')
   if (!(await usuarioDelTenant(userId, session.user.tenantId))) return error('Usuario no encontrado.', 404)
   const avatar = await prisma.userAvatar.findUnique({ where: { userId } })
@@ -70,7 +70,7 @@ export async function GET(request: Request, { params }: RouteContext) {
 export async function POST(request: Request, { params }: RouteContext) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  const userId = (params.userId || '').trim().slice(0, 128)
+  const userId = (params.id || '').trim().slice(0, 128)
   if (!userId) return error('Usuario obligatorio.')
   if (!puedeEditar(session, userId)) return error('Solo podés cambiar tu propia foto.', 403)
   if (!(await usuarioDelTenant(userId, session.user.tenantId))) return error('Usuario no encontrado.', 404)
@@ -96,7 +96,7 @@ export async function POST(request: Request, { params }: RouteContext) {
 export async function DELETE(request: Request, { params }: RouteContext) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  const userId = (params.userId || '').trim().slice(0, 128)
+  const userId = (params.id || '').trim().slice(0, 128)
   if (!userId) return error('Usuario obligatorio.')
   if (!puedeEditar(session, userId)) return error('Solo podés cambiar tu propia foto.', 403)
   const avatar = await prisma.userAvatar.findUnique({ where: { userId } })
