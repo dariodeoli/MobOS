@@ -99,7 +99,7 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   // nombre + primer apellido, así que el nombre completo no se ve en la tabla.
   await page.goto('/pos/pedidos')
   await expect(page.getByRole('heading', { name: 'Mis pedidos' })).toBeVisible()
-  const sale = page.getByTestId('pedido-fila').filter({ hasText: creada.orderNumber }).first()
+  const sale = page.getByTestId('pedido-fila').filter({ hasText: codigoPedido(creada.orderNumber) }).first()
   await expect(sale).toBeVisible()
   await expect(sale).toContainText('×1')
   await expect(sale).toContainText('Cliente E2E')
@@ -108,7 +108,7 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   // Clic en la fila: abre el pedido por su id interno.
   await sale.click()
   await expect(page).toHaveURL(new RegExp(`/pos/pedidos/${creada.id}$`))
-  await expect(page.getByRole('dialog')).toContainText(creada.orderNumber)
+  await expect(page.getByRole('dialog')).toContainText(codigoPedido(creada.orderNumber))
 })
 
 // Listado de pedidos: buscador global, encabezados ordenables y filtros de cobro.
@@ -165,17 +165,17 @@ test('pedidos: clic en la fila abre el pedido por su id interno', async ({ page 
   const errores = []
   page.on('pageerror', (error) => errores.push(error.message))
 
-  await filas.filter({ hasText: primera.orderNumber }).first().click()
+  await filas.filter({ hasText: codigoPedido(primera.orderNumber) }).first().click()
   await expect(page).toHaveURL(new RegExp(`/pos/pedidos/${primera.id}$`))
 
   const detalle = page.getByRole('dialog')
   await expect(detalle).toBeVisible()
-  await expect(detalle).toContainText(primera.orderNumber)
+  await expect(detalle).toContainText(codigoPedido(primera.orderNumber))
   await expect(detalle.getByText('Artículos preparados')).toBeVisible()
 
   // Recargar sobre la URL del pedido lo vuelve a resolver por id.
   await page.reload()
-  await expect(page.getByRole('dialog')).toContainText(primera.orderNumber)
+  await expect(page.getByRole('dialog')).toContainText(codigoPedido(primera.orderNumber))
 
   await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
   await expect(page).toHaveURL(/\/pos\/pedidos$/)

@@ -1,7 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
-import { esColisionDeNumero, nextOrderNumber } from '../../../../../lib/order-number'
+import { esCodigoDuplicado, nextOrderNumber } from '../../../../../lib/order-number'
 
 // Convierte la cotización en un pedido pendiente (sin movimientos de stock:
 // el stock y los IMEI se confirman al cobrar/entregar en el POS).
@@ -49,7 +49,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     } catch (cause) {
       // Numeración secuencial por empresa: si otra venta tomó el número, se
       // reintenta una vez con el siguiente.
-      if (!esColisionDeNumero(cause)) throw cause
+      if (!esCodigoDuplicado(cause)) throw cause
       order = await convertir()
     }
     return json(order, { status: 201 })

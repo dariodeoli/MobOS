@@ -34,16 +34,17 @@ assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const product = result.payload
 assert.equal(product.wholesalePricePyg, 800000)
 
-// Numeración secuencial: dos pedidos nuevos seguidos usan MOB-#### y crecen.
+// Numeración secuencial: dos pedidos nuevos seguidos usan MOB-##### y crecen.
 result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 800000 }] })
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const primeraVenta = result.payload.orderNumber
 result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 800000 }] })
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const segundaVenta = result.payload.orderNumber
-assert.match(primeraVenta, /^MOB-\d{4,}$/, `La numeración interna debe ser MOB-####, recibido ${primeraVenta}.`)
-assert.match(segundaVenta, /^MOB-\d{4,}$/, `La numeración interna debe ser MOB-####, recibido ${segundaVenta}.`)
-assert.ok(Number(segundaVenta.slice(4)) > Number(primeraVenta.slice(4)), `La numeración debe ser creciente: ${primeraVenta} → ${segundaVenta}.`)
+assert.match(primeraVenta, /^MOB-#\d{4,}$/, `La numeración interna debe ser MOB-#####, recibido ${primeraVenta}.`)
+assert.match(segundaVenta, /^MOB-#\d{4,}$/, `La numeración interna debe ser MOB-#####, recibido ${segundaVenta}.`)
+const secuenciaVenta = (numero) => Number(String(numero).replace(/^MOB-#/, ''))
+assert.ok(secuenciaVenta(segundaVenta) > secuenciaVenta(primeraVenta), `La numeración debe ser creciente: ${primeraVenta} → ${segundaVenta}.`)
 
 // Perfil y cronología del cliente: quién lo creó y eventos unificados.
 result = await request(`/api/customers/${encodeURIComponent(customer.id)}`)
@@ -366,4 +367,4 @@ assert.equal(pagina2.response.status, 200)
 assert.ok(pagina2.payload.length <= 1, 'La página siguiente respeta el límite.')
 assert.ok(!pagina2.payload.some(row => row.id === pagina1.payload[0].id), 'La página siguiente no repite el cursor.')
 
-console.log('orders-credit-discounts: OK (numeración secuencial MOB-####, descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, plantillas por categoría, pipeline de cotizaciones y combos).')
+console.log('orders-credit-discounts: OK (numeración secuencial MOB-#####, descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, plantillas por categoría, pipeline de cotizaciones y combos).')
