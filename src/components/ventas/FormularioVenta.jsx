@@ -4,6 +4,8 @@ import {
   getProductos,
   productosById,
   addProducto,
+  addProductoApi,
+  updateProducto,
   addVenta,
   guardarOrdenApi,
   addVendedor,
@@ -165,9 +167,13 @@ export default function FormularioVenta({
       },
   )
   const [nuevoProd, setNuevoProd] = useState(false)
+  const puedeCrearProducto = esDemo || Boolean(sesion?.esPropietario) || ['ADMIN', 'GERENTE'].includes(sesion?.rol)
   const [nombreProd, setNombreProd] = useState('')
   const [coloresNuevos, setColoresNuevos] = useState([])
   const [colorInput, setColorInput] = useState('')
+  // Detalles del producto nuevo del POS: categoría, condición, precios y costo.
+  const [nuevoDetalles, setNuevoDetalles] = useState({ categoria: 'Accesorios', condicion: 'NEW', precio: '', mayorista: '', costo: '' })
+  const [creandoProd, setCreandoProd] = useState(false)
   const [familiaActiva, setFamiliaActiva] = useState(null) // { base, items } cuando se eligió una familia con colores
   const [busquedaProducto, setBusquedaProducto] = useState('')
   const [modalColor, setModalColor] = useState(false)
@@ -511,31 +517,51 @@ export default function FormularioVenta({
     setNombreProd('')
     setColoresNuevos([])
     setColorInput('')
+    setNuevoDetalles({ categoria: 'Accesorios', condicion: 'NEW', precio: '', mayorista: '', costo: '' })
   }
 
-  function crearProducto() {
+  const skuDe = texto => `${texto.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'PRODUCTO'}-${Date.now().toString(36).toUpperCase()}`
+
+  async function crearProducto() {
     const base = nombreProd.trim()
-    if (!base) return
-    if (coloresNuevos.length === 0) {
-      // Producto sin colores uno solo, queda elegido.
-      const p = addProducto(base)
-      setFamiliaActiva(null)
-      setF(s => ({ ...s, productoId: p.id }))
-    } else {
-      // Con colores creamos una variante por color ("Base Color") y abrimos
-      // la ventana para elegir cuál corresponde a esta venta.
-      const items = coloresNuevos.map(c => {
-        const p = addProducto(`${base} ${c}`)
-        return { ...p, color: c }
-      })
-      setFamiliaActiva({ base, items })
-      setF(s => ({ ...s, productoId: '' }))
-      setModalColor(true)
+    if (!base || creandoProd) return
+    const precioNuevo = gsNum(nuevoDetalles.precio)
+    const costoNuevo = nuevoDetalles.costo === '' ? undefined : gsNum(nuevoDetalles.costo)
+    const mayoristaNuevo = nuevoDetalles.mayorista === '' ? undefined : gsNum(nuevoDetalles.mayorista)
+    if (precioNuevo <= 0) { setErrorVenta('Ingresá el precio de venta del producto nuevo.'); return }
+    setCreandoProd(true); setErrorVenta('')
+    try {
+      const crear = async (nombre) => {
+        if (esDemo) {
+          const creado = addProducto(nombre, nuevoDetalles.categoria)
+          updateProducto(creado.id, { precioVenta: precioNuevo, precioCosto: costoNuevo ?? 0, condicion: nuevoDetalles.condicion, mayorista: mayoristaNuevo ?? 0 })
+          return creado
+        }
+        return addProductoApi({ nombre, sku: skuDe(nombre), precioVenta: precioNuevo, precioCosto: costoNuevo, category: nuevoDetalles.categoria, condition: nuevoDetalles.condicion, ...(mayoristaNuevo ? { wholesalePricePyg: mayoristaNuevo } : {}), stock: 0 })
+      }
+      if (coloresNuevos.length === 0) {
+        // Producto sin colores: uno solo, queda elegido para esta venta.
+        const p = await crear(base)
+        setFamiliaActiva(null)
+        setF(s => ({ ...s, productoId: p.id }))
+      } else {
+        // Con colores se crea una variante por color ("Base Color") y se elige.
+        const items = []
+        for (const c of coloresNuevos) items.push({ ...(await crear(`${base} ${c}`)), color: c })
+        setFamiliaActiva({ base, items })
+        setF(s => ({ ...s, productoId: '' }))
+        setModalColor(true)
+      }
+      setNuevoProd(false)
+      setNombreProd('')
+      setColoresNuevos([])
+      setColorInput('')
+      setNuevoDetalles({ categoria: 'Accesorios', condicion: 'NEW', precio: '', mayorista: '', costo: '' })
+    } catch (error) {
+      setErrorVenta(error?.message || 'No se pudo crear el producto.')
+    } finally {
+      setCreandoProd(false)
     }
-    setNuevoProd(false)
-    setNombreProd('')
-    setColoresNuevos([])
-    setColorInput('')
   }
 
   async function guardar(e) {
@@ -1092,66 +1118,40 @@ export default function FormularioVenta({
               </span>
             </div>
             {nuevoProd ? (
-              <div className="rounded-xl border border-ink-600 p-3 space-y-2.5">
-                <Input
-                  autoFocus
-                  value={nombreProd}
-                  onChange={e => setNombreProd(e.target.value)}
-                  placeholder="Nombre base (ej: Protector 17 Air)"
-                  autoCapitalize="words"
-                />
+              <div className="rounded-2xl border border-fono/25 bg-gradient-to-br from-fono/[.07] to-transparent p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-fono/15 text-fono-light"><Icon name="plus" className="h-4 w-4" /></span>
+                  <div><p className="text-sm font-bold">Nuevo producto</p><p className="text-[11px] text-mute">Se guarda en el catálogo y queda elegido para esta venta.</p></div>
+                </div>
+                <Input autoFocus value={nombreProd} onChange={e => setNombreProd(e.target.value)} placeholder="Nombre base (ej: Protector 17 Air)" autoCapitalize="words" />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-xs text-mute">Categoría
+                    <Select className="mt-1" value={nuevoDetalles.categoria} onChange={e => setNuevoDetalles(d => ({ ...d, categoria: e.target.value }))}>{['Accesorios', 'Celulares', 'iPad', 'Apple Watch', 'Mac', 'Otros'].map(c => <option key={c} value={c}>{c}</option>)}</Select>
+                  </label>
+                  <div className="text-xs text-mute">Condición
+                    <div className="mt-1 flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{[['NEW', 'Nuevo'], ['USED', 'Seminuevo']].map(([value, label]) => <button key={value} type="button" onClick={() => setNuevoDetalles(d => ({ ...d, condicion: value }))} className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition ${nuevoDetalles.condicion === value ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>)}</div>
+                  </div>
+                  <label className="block text-xs text-mute">Precio de venta (Gs) *<MoneyInput className="mt-1" value={nuevoDetalles.precio} onValueChange={v => setNuevoDetalles(d => ({ ...d, precio: v === '' ? '' : String(v) }))} placeholder="0" /></label>
+                  <label className="block text-xs text-mute">Precio mayorista (Gs)<MoneyInput className="mt-1" value={nuevoDetalles.mayorista} onValueChange={v => setNuevoDetalles(d => ({ ...d, mayorista: v === '' ? '' : String(v) }))} placeholder="Opcional" /></label>
+                  <label className="block text-xs text-mute">Costo (Gs)<MoneyInput className="mt-1" value={nuevoDetalles.costo} onValueChange={v => setNuevoDetalles(d => ({ ...d, costo: v === '' ? '' : String(v) }))} placeholder="Opcional" /></label>
+                </div>
                 <div>
-                  <div className="text-[11px] font-bold uppercase text-mute mb-1">
-                    Colores (opcional)
-                  </div>
+                  <div className="mb-1 text-[11px] font-bold uppercase text-mute">Colores (opcional)</div>
                   <div className="flex gap-2">
-                    <Input
-                      value={colorInput}
-                      onChange={e => setColorInput(e.target.value)}
-                      placeholder="Ej: Azul"
-                      autoCapitalize="words"
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          agregarColor()
-                        }
-                      }}
-                    />
-                    <Button type="button" variant="outline" onClick={agregarColor}>
-                      + Color
-                    </Button>
+                    <Input value={colorInput} onChange={e => setColorInput(e.target.value)} placeholder="Ej: Azul" autoCapitalize="words" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); agregarColor() } }} />
+                    <Button type="button" variant="outline" onClick={agregarColor}>+ Color</Button>
                   </div>
-                  {coloresNuevos.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {coloresNuevos.map(c => (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setColoresNuevos(s => s.filter(x => x !== c))}
-                          className="rounded-full bg-fono/10 text-fono text-xs font-bold px-2.5 py-1 hover:bg-bad/15 hover:text-bad transition"
-                          title="Quitar"
-                        >
-                          {c}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-[11px] text-mute mt-1">
-                    Sin colores: se crea un solo producto. Con colores: se crea una variante por
-                    color y vas a elegir cuál en cada venta.
-                  </p>
+                  {coloresNuevos.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{coloresNuevos.map(c => <button key={c} type="button" onClick={() => setColoresNuevos(s => s.filter(x => x !== c))} className="rounded-full bg-fono/10 px-2.5 py-1 text-xs font-bold text-fono transition hover:bg-bad/15 hover:text-bad" title="Quitar">{c}</button>)}</div>}
+                  <p className="mt-1 text-[11px] text-mute">Sin colores: un solo producto. Con colores: una variante por color para elegir en cada venta.</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button type="button" onClick={crearProducto} className="flex-1">
-                    Crear {coloresNuevos.length > 0 ? `(${coloresNuevos.length} colores)` : ''}
-                  </Button>
-                  <Button type="button" variant="ghost" onClick={cancelarNuevoProd}>
-                    <Icon name="close" className="h-4 w-4" />
-                  </Button>
+                  <Button type="button" onClick={crearProducto} disabled={creandoProd || !nombreProd.trim()} className="flex-1">{creandoProd ? 'Creando…' : `Crear${coloresNuevos.length > 0 ? ` (${coloresNuevos.length} colores)` : ''}`}</Button>
+                  <Button type="button" variant="ghost" onClick={cancelarNuevoProd} disabled={creandoProd}><Icon name="close" className="h-4 w-4" /></Button>
                 </div>
               </div>
             ) : (
               <>
+                {puedeCrearProducto && <div className="mb-2 flex justify-end"><button type="button" onClick={() => setNuevoProd(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-fono/30 px-2.5 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10"><Icon name="plus" className="h-3.5 w-3.5" /> Nuevo producto</button></div>}
                 <div className="relative mb-2">
                   <Icon
                     name="search"
