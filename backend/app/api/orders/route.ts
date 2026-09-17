@@ -27,17 +27,18 @@ const cleanText = (value: unknown, field: string, max: number) => value === unde
 // Código comercial corto y legible para humanos (MOB-#0001). El id interno
 // (UUID) sigue siendo el que relaciona pedidos, pagos y accesos públicos.
 const ORDER_NUMBER_PREFIX = 'MOB-#'
-const ORDER_NUMBER_SEQ = /^MOB-#(\d+)$/
 const ORDER_NUMBER_MAX = 99999999
 
 async function nextOrderNumber(tx: Prisma.TransactionClient, tenant: string) {
-  const ultimo = await tx.order.findFirst({
-    where: { tenantId: tenant, orderNumber: { startsWith: ORDER_NUMBER_PREFIX } },
-    orderBy: { orderNumber: 'desc' },
-    select: { orderNumber: true },
-  })
-  const secuencia = Number(String(ultimo?.orderNumber ?? '').replace(ORDER_NUMBER_SEQ, '$1')) || 0
-  if (secuencia >= ORDER_NUMBER_MAX) throw new Error('Se agotaron los números de pedido de la tienda.')
+  // El máximo se compara como número, no como texto: al pasar los 4 dígitos
+  // (MOB-#10000) el orden alfabético dejaría de coincidir con el secuencial.
+  const [ultimo] = await tx.$queryRaw<Array<{ max: bigint | null }>>`
+    SELECT MAX(CAST(SUBSTRING("orderNumber" FROM 6) AS BIGINT)) AS max
+    FROM "Order"
+    WHERE "tenantId" = ${tenant} AND "orderNumber" ~ '^MOB-#[0-9]+$'
+  `
+  const secuencia = Number(ultimo?.max ?? 0n)
+  if (!Number.isSafeInteger(secuencia) || secuencia >= ORDER_NUMBER_MAX) throw new Error('Se agotaron los números de pedido de la tienda.')
   return `${ORDER_NUMBER_PREFIX}${String(secuencia + 1).padStart(4, '0')}`
 }
 
