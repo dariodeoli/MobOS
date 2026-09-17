@@ -1,11 +1,12 @@
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { listVentas, getVendedores, productosById, getProductos, listGastos } from '@/lib/storage'
 import { comisionDeVentas, cobradoDeVenta, num, gs } from '@/utils/calculos'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
 import RangoFechas, {
-  rangoPorDefecto,
+  rangoDeParams,
+  paramsDeRango,
   rangoAnterior,
   etiquetaRango,
 } from '@/components/shared/RangoFechas'
@@ -76,7 +77,15 @@ export default function Resumen() {
   const gastos = listGastos()
   const prods = productosById()
   const catalogo = getProductos()
-  const [rango, setRango] = useState(rangoPorDefecto)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [rango, setRango] = useState(() => rangoDeParams(searchParams))
+  const cambiarRango = useCallback(
+    next => {
+      setRango(next)
+      setSearchParams(actuales => paramsDeRango(next, actuales), { replace: true })
+    },
+    [setSearchParams],
+  )
   const [filtroLista, setFiltroLista] = useUrlState('filtro', 'todas')
   const listaRef = useRef(null)
 
@@ -205,7 +214,7 @@ export default function Resumen() {
             <Icon name="receipt" className="h-4 w-4" />
             Cobrar pendientes
           </Button>
-          <RangoFechas valor={rango} onChange={setRango} />
+          <RangoFechas valor={rango} onChange={cambiarRango} />
         </div>
       </div>
 

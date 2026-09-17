@@ -1,4 +1,4 @@
-import { Button, Input, Label, MoneyInput, Select } from '@/components/ui'
+import { Button, Input, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import CheckoutCustomer from '../CheckoutCustomer'
 import ListaVenta from './ListaVenta'
@@ -86,7 +86,7 @@ export default function PasoProductos({
       <div className="rounded-2xl border border-fono/20 bg-fono/[.04] p-4 md:col-span-2">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <Label>Producto</Label>
+            <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-mute">Producto</p>
             <p className="mt-1 text-xs text-mute">
               Buscá por nombre, modelo o variante y hacé clic para sumarlo a la venta.
             </p>

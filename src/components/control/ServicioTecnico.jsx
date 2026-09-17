@@ -284,7 +284,7 @@ export default function ServicioTecnico() {
             <div><Label htmlFor="falla-reportada">Falla reportada</Label><Textarea id="falla-reportada" rows={2} value={form.reportedIssue} onChange={set('reportedIssue')} placeholder="Qué reporta el cliente" autoCapitalize="sentences" /></div>
             <div><Label htmlFor="diagnostico">Diagnóstico</Label><Textarea id="diagnostico" rows={2} value={form.diagnosis} onChange={set('diagnosis')} placeholder="Diagnóstico técnico y trabajo a realizar" autoCapitalize="sentences" /></div>
             <div>
-              <Label>Checklist de recepción ({form.deviceType})</Label>
+              <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-mute">Checklist de recepción ({form.deviceType})</p>
               <div className="mt-1 grid gap-1.5 sm:grid-cols-3">{(CHECKLISTS[form.deviceType] || CHECKLISTS.Otros).map(punto => <label key={punto} className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean((form.checklist || {})[punto])} onChange={event => setForm(current => ({ ...current, checklist: { ...(current.checklist || {}), [punto]: event.target.checked } }))} />{punto}</label>)}</div>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">

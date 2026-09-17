@@ -3,7 +3,7 @@ import { useSesion } from '@/lib/sesion'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
-import { Badge, Button, Input, Label, Modal, MoneyInput, Textarea } from '@/components/ui'
+import { Badge, Button, Input, Modal, MoneyInput, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import { cn } from '@/lib/utils'
@@ -133,7 +133,7 @@ export default function SellerQuotes() {
           <label className="block space-y-1.5 text-xs text-mute">Válida hasta<Input type="date" value={form.validUntil} onChange={event => setForm(current => ({ ...current, validUntil: event.target.value }))} /></label>
         </div>
         <div className="space-y-2">
-          <Label>Ítems</Label>
+          <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-mute">Ítems</p>
           {items.map((item, index) => <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-2.5 sm:grid-cols-[1.3fr_70px_140px_auto]">
             <span className="flex items-center gap-1">
               <ProductCombobox key={item.productId || 'vacio'} className="flex-1" products={productos} selectedId={item.productId} onSelect={producto => setItems(list => list.map((row, i) => i === index ? emptyItem(producto) : row))} placeholder="Producto del catálogo (opcional)" />

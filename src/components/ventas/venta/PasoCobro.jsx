@@ -61,8 +61,9 @@ export default function PasoCobro({
       {/* Medio de pago */}
       {cuentas?.length === 0 && (
         <div>
-          <Label>Medio de pago</Label>
+          <Label htmlFor="medio-pago-venta">Medio de pago</Label>
           <SelectorMedioPago
+            id="medio-pago-venta"
             value={f.medioPago}
             onChange={v => setF(s => ({ ...s, medioPago: v }))}
           />
@@ -73,7 +74,7 @@ export default function PasoCobro({
       <div className="space-y-3 rounded-2xl border border-fono/30 bg-gradient-to-br from-fono/[.08] to-transparent p-4 md:col-span-2">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <Label>Pagos de esta venta</Label>
+            <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-mute">Pagos de esta venta</p>
             <p className="text-[11px] text-mute">
               Podés dividir el cobro entre efectivo, cuentas y transferencias.
             </p>
@@ -144,8 +145,9 @@ export default function PasoCobro({
             ) : (
               <>
                 <div>
-                  <Label>Medio</Label>
+                  <Label htmlFor={`medio-pago-${i}`}>Medio</Label>
                   <SelectorMedioPago
+                    id={`medio-pago-${i}`}
                     value={p.medioPago}
                     onChange={v =>
                       setPagos(a => a.map((x, j) => (j === i ? { ...x, medioPago: v } : x)))
