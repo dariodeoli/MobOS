@@ -15,7 +15,7 @@
 // and re-inject them into storageState files as localhost cookies.
 
 import { request as pwRequest } from '@playwright/test'
-import { mkdir, writeFile, access } from 'node:fs/promises'
+import { mkdir, writeFile, access, rm } from 'node:fs/promises'
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -205,69 +205,84 @@ export default async function globalSetup() {
     // Si el prune falla, la suite sigue: el seed propio no depende de esto.
   }
   const alreadySeeded = await access(MARKER).then(() => true).catch(() => false)
-  if (alreadySeeded) {
-    // Still make sure the public tracking token file exists (cheap re-check).
-    await access(SEED_ORDER_FILE).then(() => {}, async () => {
-      const ctx = await pwRequest.newContext({ baseURL: API })
-      try {
-        const company = await loginCompany(ctx)
-        const seller = company.sellers.find((s) => s.name === SEED.sellers[0].name)
-        if (!seller) throw new Error(`seeded seller not found: ${SEED.sellers[0].name}`)
-        const token = await ensureSeedOrder(ctx, company.token, seller.id)
-        await writeStorageState(SELLER_STATE, company.token, token)
-      } finally {
-        await ctx.dispose()
-      }
-    })
-    return
-  }
-
   const ctx = await pwRequest.newContext({ baseURL: API })
   try {
-    const company = await registerOrLogin(ctx)
-    const companyToken = company.token
-
-    // Onboarding sets the admin PIN (idempotent: 409 means already done).
-    const onboarding = await ctx.post('/api/auth/onboarding', { headers: bearer(companyToken), data: { pin: SEED.admin.pin } })
-    if (!onboarding.ok() && onboarding.status() !== 409) throw new Error(`onboarding failed: HTTP ${onboarding.status()} ${await onboarding.text()}`)
-
-    // The login/register response lists sellers as {id, name, branchId} (no role).
-    const adminId = company.sellers.find((s) => s.name === SEED.admin.name)?.id
-    if (!adminId) throw new Error('admin user not found in company session sellers')
-    let adminToken = await sellerSession(ctx, companyToken, adminId, SEED.admin.pin)
-
-    // Branch first: serialized products need one, and the admin cash/inventory
-    // views need a branch assignment.
-    await ensureBranch()
-    await ensureSellers(ctx, adminToken)
-    await ensureProducts(ctx, adminToken)
-    await ensurePaymentAccounts(ctx, adminToken)
-
-    // Assign the branch to the admin (cash opens per branch). This revokes
-    // admin sessions, so mint a fresh one afterwards.
-    const assign = await ctx.patch('/api/users', { headers: bearer(adminToken), data: { id: adminId, branchId: SEED.branchId } })
-    if (!assign.ok()) throw new Error(`admin branch assign failed: HTTP ${assign.status()} ${await assign.text()}`)
-    adminToken = await sellerSession(ctx, companyToken, adminId, SEED.admin.pin)
-
-    // Re-check the serialized product now that the branch exists (it may have
-    // been created without a unit in an older partial seed).
-    await ensureProducts(ctx, adminToken)
-
-    const sellerToken = await ensureSeedOrder(ctx, companyToken, SEED.sellers[0].id)
-
-    await writeStorageState(SELLER_STATE, companyToken, sellerToken)
-    await writeStorageState(ADMIN_STATE, companyToken, adminToken)
-
-    await writeFile(MARKER, JSON.stringify({
-      seededAt: new Date().toISOString(),
-      tenantEmail: SEED.company.email,
-      adminId,
-      sellers: SEED.sellers.map((s) => ({ id: s.id, name: s.name, pin: s.pin })),
-      products: Object.fromEntries(Object.entries(SEED.products).map(([key, p]) => [key, { id: p.id, sku: p.sku }])),
-      branchId: SEED.branchId,
-    }, null, 2))
-    console.log('[e2e] Seeded tenant, sellers, products and tracking order.')
+    if (alreadySeeded) {
+      try {
+        await refreshStorageStates(ctx)
+        return
+      } catch (error) {
+        // La base persistente es compartida entre worktrees: otro agente
+        // pudo re-sembrar y revocar sesiones, o borrar la base. Si renovar
+        // no alcanza, se re-sembra completo.
+        console.warn(`[e2e] refresh de sesiones falló (${error?.message || error}); re-sembrando completo.`)
+        await rm(MARKER, { force: true })
+        await rm(SEED_ORDER_FILE, { force: true })
+      }
+    }
+    await seedFresh(ctx)
   } finally {
     await ctx.dispose()
   }
+}
+
+// Renueva sesiones y storage states sin mutar datos del tenant: otro
+// worktree puede correr su propio seed sobre la misma base persistente y
+// revocar nuestras sesiones (reset de PIN), o los archivos de estado pueden
+// faltar. Es barato (login + 2 PIN) e idempotente.
+async function refreshStorageStates(ctx) {
+  const company = await loginCompany(ctx)
+  const seller = company.sellers.find((s) => s.name === SEED.sellers[0].name)
+  const admin = company.sellers.find((s) => s.name === SEED.admin.name)
+  if (!seller || !admin) throw new Error('seed users not found in company sellers')
+  const sellerToken = await ensureSeedOrder(ctx, company.token, seller.id)
+  const adminToken = await sellerSession(ctx, company.token, admin.id, SEED.admin.pin)
+  await writeStorageState(SELLER_STATE, company.token, sellerToken)
+  await writeStorageState(ADMIN_STATE, company.token, adminToken)
+}
+
+async function seedFresh(ctx) {
+  const company = await registerOrLogin(ctx)
+  const companyToken = company.token
+
+  // Onboarding sets the admin PIN (idempotent: 409 means already done).
+  const onboarding = await ctx.post('/api/auth/onboarding', { headers: bearer(companyToken), data: { pin: SEED.admin.pin } })
+  if (!onboarding.ok() && onboarding.status() !== 409) throw new Error(`onboarding failed: HTTP ${onboarding.status()} ${await onboarding.text()}`)
+
+  // The login/register response lists sellers as {id, name, branchId} (no role).
+  const adminId = company.sellers.find((s) => s.name === SEED.admin.name)?.id
+  if (!adminId) throw new Error('admin user not found in company session sellers')
+  let adminToken = await sellerSession(ctx, companyToken, adminId, SEED.admin.pin)
+
+  // Branch first: serialized products need one, and the admin cash/inventory
+  // views need a branch assignment.
+  await ensureBranch()
+  await ensureSellers(ctx, adminToken)
+  await ensureProducts(ctx, adminToken)
+  await ensurePaymentAccounts(ctx, adminToken)
+
+  // Assign the branch to the admin (cash opens per branch). This revokes
+  // admin sessions, so mint a fresh one afterwards.
+  const assign = await ctx.patch('/api/users', { headers: bearer(adminToken), data: { id: adminId, branchId: SEED.branchId } })
+  if (!assign.ok()) throw new Error(`admin branch assign failed: HTTP ${assign.status()} ${await assign.text()}`)
+  adminToken = await sellerSession(ctx, companyToken, adminId, SEED.admin.pin)
+
+  // Re-check the serialized product now that the branch exists (it may have
+  // been created without a unit in an older partial seed).
+  await ensureProducts(ctx, adminToken)
+
+  const sellerToken = await ensureSeedOrder(ctx, companyToken, SEED.sellers[0].id)
+
+  await writeStorageState(SELLER_STATE, companyToken, sellerToken)
+  await writeStorageState(ADMIN_STATE, companyToken, adminToken)
+
+  await writeFile(MARKER, JSON.stringify({
+    seededAt: new Date().toISOString(),
+    tenantEmail: SEED.company.email,
+    adminId,
+    sellers: SEED.sellers.map((s) => ({ id: s.id, name: s.name, pin: s.pin })),
+    products: Object.fromEntries(Object.entries(SEED.products).map(([key, p]) => [key, { id: p.id, sku: p.sku }])),
+    branchId: SEED.branchId,
+  }, null, 2))
+  console.log('[e2e] Seeded tenant, sellers, products and tracking order.')
 }
