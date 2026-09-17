@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import bcrypt from 'bcryptjs'
+import type { Prisma, PrismaClient } from '@prisma/client'
 import { prisma } from './prisma'
 import { COOKIE_COMPANY, COOKIE_SELLER, readCookie, sameOrigin } from './google-oauth'
 
@@ -97,6 +98,30 @@ export function authRequestMetadata(request: Request) {
   }
 }
 
+/** Subconjunto del cliente Prisma que usa la ventana de intentos persistente.
+ * Sirve tanto para el cliente global como para un cliente transaccional. */
+export type AuthAttemptStore = Pick<PrismaClient, 'authAttempt'> | Pick<Prisma.TransactionClient, 'authAttempt'>
+
+/**
+ * Ventana persistente de intentos por scope + fingerprint. Borra los registros
+ * viejos, rechaza con AuthRateLimitError (y retryAfter calculado desde el
+ * intento más viejo) cuando la ventana está llena y, si no, registra el intento.
+ * Devuelve la cantidad consumida tras registrar. Reutilizada por el rate limit
+ * de login y por las cuotas RUC; nunca persiste el valor crudo del fingerprint.
+ */
+export async function consumeAuthAttemptWindow(db: AuthAttemptStore, scope: string, fingerprint: string, maxAttempts: number, windowMs: number, now = new Date()) {
+  const since = new Date(now.getTime() - windowMs)
+  await db.authAttempt.deleteMany({ where: { scope, fingerprint, createdAt: { lt: since } } })
+  const count = await db.authAttempt.count({ where: { scope, fingerprint, createdAt: { gte: since } } })
+  if (count >= maxAttempts) {
+    const oldest = await db.authAttempt.findFirst({ where: { scope, fingerprint, createdAt: { gte: since } }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } })
+    const retryAfterSeconds = Math.max(1, Math.ceil(((oldest?.createdAt.getTime() ?? now.getTime()) + windowMs - now.getTime()) / 1000))
+    throw new AuthRateLimitError(retryAfterSeconds)
+  }
+  await db.authAttempt.create({ data: { scope, fingerprint } })
+  return count + 1
+}
+
 /**
  * Persistent rate limit for unauthenticated entry points. Account/PIN locks
  * remain the authority; this limits distributed guessing when Hub forwards a
@@ -106,17 +131,8 @@ export async function enforceAuthRateLimit(request: Request, scope: string, maxA
   const ip = trustedClientIp(request)
   if (!ip) return
   const fingerprint = hashToken(`auth-rate:${scope}:${ip}`)
-  const now = new Date()
-  const since = new Date(now.getTime() - windowMs)
   await prisma.$transaction(async tx => {
-    await tx.authAttempt.deleteMany({ where: { scope, fingerprint, createdAt: { lt: since } } })
-    const count = await tx.authAttempt.count({ where: { scope, fingerprint, createdAt: { gte: since } } })
-    if (count >= maxAttempts) {
-      const oldest = await tx.authAttempt.findFirst({ where: { scope, fingerprint, createdAt: { gte: since } }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } })
-      const retryAfterSeconds = Math.max(1, Math.ceil(((oldest?.createdAt.getTime() ?? now.getTime()) + windowMs - now.getTime()) / 1000))
-      throw new AuthRateLimitError(retryAfterSeconds)
-    }
-    await tx.authAttempt.create({ data: { scope, fingerprint } })
+    await consumeAuthAttemptWindow(tx, scope, fingerprint, maxAttempts, windowMs)
   })
 }
 

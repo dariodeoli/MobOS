@@ -1,8 +1,10 @@
+import { prisma } from './prisma'
+import { AuthRateLimitError, consumeAuthAttemptWindow, hashToken } from './auth'
+import type { AuthAttemptStore } from './auth'
+
 const PROVIDER_BASE_URL = 'https://ruc.sun.com.py/api/ruc/'
 const HOUR_MS = 60 * 60 * 1000
 const MONTH_MS = 31 * 24 * HOUR_MS
-const accountHits = new Map<string, number[]>()
-const installationHits = new Map<string, number[]>()
 
 export class RucLookupError extends Error {
   constructor(public code: string, message: string, public status: number, public retryAfterSeconds?: number) { super(message) }
@@ -26,28 +28,37 @@ export function normalizeRuc(input: unknown): NormalizedRuc {
   return { input: raw, lookup: verifier === undefined ? base : `${base}-${verifier}`, formatted: verifier === undefined ? null : `${base}-${verifier}` }
 }
 
-function prune(hits: number[], cutoff: number) {
-  while (hits.length && hits[0] <= cutoff) hits.shift()
-}
+export type RucQuotaDb = { $transaction: <T>(fn: (tx: AuthAttemptStore) => Promise<T>) => Promise<T> }
 
-export function resetRucRateLimitsForTests() {
-  accountHits.clear(); installationHits.clear()
+async function consumeWindow(tx: AuthAttemptStore, scope: string, fingerprint: string, limit: number, windowMs: number, now: Date, code: 'account_rate_limited' | 'installation_rate_limited', message: string) {
+  try {
+    return await consumeAuthAttemptWindow(tx, scope, fingerprint, limit, windowMs, now)
+  } catch (cause) {
+    if (cause instanceof AuthRateLimitError) throw new RucLookupError(code, message, 429, cause.retryAfterSeconds)
+    throw cause
+  }
 }
 
 /**
- * Cuotas separadas por cuenta y por instalación autenticada. Se usan IDs de
- * sesión (no IP) porque las cajas suelen compartir salida a Internet.
+ * Cuotas separadas por cuenta y por instalación autenticada, persistidas en
+ * AuthAttempt (scope 'ruc:account' / 'ruc:installation', fingerprint derivado
+ * en servidor, sin IDs en claro). Sobreviven reinicios y se limpian por ventana
+ * en cada consumo: 1 hora por cuenta, 31 días por instalación, con los mismos
+ * máximos de siempre (RUC_ACCOUNT_HOURLY_LIMIT / RUC_INSTALLATION_MONTHLY_LIMIT).
  */
-export function consumeRucQuota(accountId: string, installationId: string, now = Date.now()) {
+export async function consumeRucQuota(accountId: string, installationId: string, options: { db?: RucQuotaDb; now?: Date } = {}) {
+  const db = (options.db ?? prisma) as RucQuotaDb
+  const now = options.now ?? new Date()
   const accountLimit = Number(process.env.RUC_ACCOUNT_HOURLY_LIMIT || 12)
   const installationLimit = Number(process.env.RUC_INSTALLATION_MONTHLY_LIMIT || 90)
-  const account = accountHits.get(accountId) || []
-  const installation = installationHits.get(installationId) || []
-  prune(account, now - HOUR_MS); prune(installation, now - MONTH_MS)
-  if (account.length >= accountLimit) throw new RucLookupError('account_rate_limited', 'Alcanzaste el límite temporal de consultas RUC. Intentá nuevamente más tarde o completá los datos manualmente.', 429, Math.max(1, Math.ceil((account[0] + HOUR_MS - now) / 1000)))
-  if (installation.length >= installationLimit) throw new RucLookupError('installation_rate_limited', 'La instalación alcanzó su cuota de consultas RUC. Podés completar los datos manualmente.', 429, Math.max(1, Math.ceil((installation[0] + MONTH_MS - now) / 1000)))
-  account.push(now); installation.push(now); accountHits.set(accountId, account); installationHits.set(installationId, installation)
-  return { accountRemaining: Math.max(0, accountLimit - account.length), installationRemaining: Math.max(0, installationLimit - installation.length) }
+  const accountFingerprint = hashToken(`ruc:account:${accountId}`)
+  const installationFingerprint = hashToken(`ruc:installation:${installationId}`)
+  const used = await db.$transaction(async tx => {
+    const accountUsed = await consumeWindow(tx, 'ruc:account', accountFingerprint, accountLimit, HOUR_MS, now, 'account_rate_limited', 'Alcanzaste el límite temporal de consultas RUC. Intentá nuevamente más tarde o completá los datos manualmente.')
+    const installationUsed = await consumeWindow(tx, 'ruc:installation', installationFingerprint, installationLimit, MONTH_MS, now, 'installation_rate_limited', 'La instalación alcanzó su cuota de consultas RUC. Podés completar los datos manualmente.')
+    return { accountUsed, installationUsed }
+  })
+  return { accountRemaining: Math.max(0, accountLimit - used.accountUsed), installationRemaining: Math.max(0, installationLimit - used.installationUsed) }
 }
 
 function text(value: unknown, limit = 240) { return typeof value === 'string' ? value.trim().slice(0, limit) : '' }

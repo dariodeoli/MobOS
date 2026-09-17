@@ -38,3 +38,15 @@ export function balanceDirection(direction: 'IN' | 'OUT', amount: number) {
   if (!Number.isFinite(amount) || amount < 0) throw new FinanceInputError('Importe inválido.')
   return direction === 'IN' ? amount : -amount
 }
+
+export type PayablePurchaseLine = { quantity: number; unitCostPyg: number; finalTotalCostPyg: number }
+export type PayablePurchase = { id: string; supplierName: string; lines: PayablePurchaseLine[]; payments: Array<{ amountPyg: number }> }
+
+/** Compra a pagar: el total es la suma del costo final congelado por línea
+ * (ya prorrateado al recibir la compra), no cantidad × costo base + gastos
+ * crudos. Consistente con purchaseTotals() de purchases.ts. */
+export function purchasePayable(purchase: PayablePurchase) {
+  const totalPyg = purchase.lines.reduce((total, line) => total + line.finalTotalCostPyg, 0)
+  const paidPyg = purchase.payments.reduce((total, payment) => total + Number(payment.amountPyg || 0), 0)
+  return { id: purchase.id, supplierName: purchase.supplierName, totalPyg, paidPyg, pendingPyg: Math.max(0, totalPyg - paidPyg) }
+}

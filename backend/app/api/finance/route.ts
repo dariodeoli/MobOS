@@ -1,8 +1,10 @@
+import type { CashDirection, CashMovementKind, PaymentCurrency } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 import { ensureStoreBranch } from '../../../lib/store-branch'
-import { FINANCE_CURRENCIES, FinanceInputError, frozenAmountPyg, realMargin } from '../../../lib/finance'
+import { FINANCE_CURRENCIES, FinanceInputError, purchasePayable, realMargin } from '../../../lib/finance'
+import { createCashMovement } from '../../../lib/cash-movements'
 
 const ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
 const WRITE_ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
@@ -41,17 +43,13 @@ export async function GET(request: Request) {
     prisma.cashMovement.findMany({ where: { tenantId, ...branchFilter }, include: { account: { select: { id: true, name: true, currency: true } } }, orderBy: { createdAt: 'desc' }, take: 150 }),
     prisma.paymentAccount.findMany({ where: { tenantId }, select: { id: true, name: true, currency: true, kind: true, feePercent: true, isActive: true } }),
     prisma.order.findMany({ where: { tenantId, ...branchFilter, status: { not: 'CANCELLED' } }, select: { id: true, totalPyg: true, payments: { select: { amountPyg: true, status: true } }, items: { select: { quantity: true, totalPyg: true, unitCostPyg: true, insurancePyg: true, extraCostPyg: true } } }, take: 5000 }),
-    prisma.purchaseOrder.findMany({ where: { tenantId, ...branchFilter }, select: { id: true, supplierName: true, shippingPyg: true, customsPyg: true, insurancePyg: true, taxesPyg: true, otherCostsPyg: true, lines: { select: { quantity: true, unitCostPyg: true } }, payments: { select: { amountPyg: true, accountId: true, originalAmount: true } } }, take: 5000 }),
+    prisma.purchaseOrder.findMany({ where: { tenantId, ...branchFilter }, select: { id: true, supplierName: true, lines: { select: { quantity: true, unitCostPyg: true, finalTotalCostPyg: true } }, payments: { select: { amountPyg: true, accountId: true, originalAmount: true } } }, take: 5000 }),
     prisma.payment.findMany({ where: { tenantId, status: 'CONFIRMED', order: branchFilter }, select: { accountId: true, originalAmount: true, amountPyg: true, currency: true } }),
     prisma.paymentReconciliation.findMany({ where: { tenantId, state: 'PENDING' }, select: { id: true, paymentId: true, createdAt: true, payment: { select: { amountPyg: true, currency: true, originalAmount: true, order: { select: { branchId: true, orderNumber: true } } } } }, take: 100 }),
   ])
   const margin = realMargin(orders.flatMap(order => order.items))
   const receivables = orders.map(order => ({ id: order.id, totalPyg: order.totalPyg, paidPyg: order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((total, payment) => total + payment.amountPyg, 0) })).map(row => ({ ...row, pendingPyg: Math.max(0, row.totalPyg - row.paidPyg) })).filter(row => row.pendingPyg > 0)
-  const payables = purchases.map(purchase => {
-    const totalPyg = purchase.lines.reduce((total, line) => total + line.quantity * line.unitCostPyg, 0) + purchase.shippingPyg + purchase.customsPyg + purchase.insurancePyg + purchase.taxesPyg + purchase.otherCostsPyg
-    const paidPyg = purchase.payments.reduce((total, payment) => total + payment.amountPyg, 0)
-    return { id: purchase.id, supplierName: purchase.supplierName, totalPyg, paidPyg, pendingPyg: Math.max(0, totalPyg - paidPyg) }
-  }).filter(row => row.pendingPyg > 0)
+  const payables = purchases.map(purchasePayable).filter(row => row.pendingPyg > 0)
   const balances = new Map(accounts.map(account => [account.id, { ...account, balance: 0 }]))
   for (const movement of movements) if (movement.status === 'CLEARED' && movement.accountId && balances.has(movement.accountId)) balances.get(movement.accountId)!.balance += (movement.direction === 'IN' ? 1 : -1) * Number(movement.originalAmount)
   for (const payment of salePayments) if (payment.accountId && balances.has(payment.accountId)) balances.get(payment.accountId)!.balance += Number(payment.originalAmount ?? payment.amountPyg)
@@ -75,7 +73,6 @@ export async function POST(request: Request) {
       const kind = body.kind as string; const direction = body.direction as string; const currency = body.currency as string
       if (!(KINDS as readonly string[]).includes(kind) || !['IN', 'OUT'].includes(direction) || !(FINANCE_CURRENCIES as readonly string[]).includes(currency)) throw new FinanceInputError('Tipo, dirección o moneda inválidos.')
       const originalAmount = String(body.originalAmount ?? ''); const exchangeRatePyg = String(body.exchangeRatePyg ?? (currency === 'PYG' ? 1 : ''))
-      const amountPyg = frozenAmountPyg(originalAmount, currency as (typeof FINANCE_CURRENCIES)[number], exchangeRatePyg)
       const description = text(body.description, 'Descripción', 500, true)!
       const accountId = text(body.accountId, 'Cuenta', 200)
       const dueAt = body.dueAt ? new Date(String(body.dueAt)) : null
@@ -85,9 +82,14 @@ export async function POST(request: Request) {
           const account = await tx.paymentAccount.findFirst({ where: { id: accountId, tenantId: ctx.session.user.tenantId, isActive: true }, select: { id: true, currency: true } })
           if (!account || account.currency !== currency) throw new FinanceInputError('La cuenta no corresponde a la moneda.')
         }
-        const created = await tx.cashMovement.create({ data: { tenantId: ctx.session.user.tenantId, branchId: ctx.branchId, accountId, createdById: ctx.session.user.id, kind: kind as any, direction: direction as any, currency: currency as any, originalAmount, exchangeRatePyg, amountPyg, counterparty: text(body.counterparty, 'Contraparte', 200), reference: text(body.reference, 'Referencia', 200), description, dueAt, status: kind === 'CHEQUE' ? 'PENDING' : 'CLEARED', clearedAt: kind === 'CHEQUE' ? null : new Date() } })
-        await tx.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: 'FINANCE_MOVEMENT_CREATED', entity: 'CashMovement', entityId: created.id, metadata: { kind, direction, currency, originalAmount, exchangeRatePyg, amountPyg } } })
-        return created
+        return createCashMovement(tx, {
+          tenantId: ctx.session.user.tenantId, branchId: ctx.branchId, createdById: ctx.session.user.id,
+          kind: kind as CashMovementKind, direction: direction as CashDirection, currency: currency as PaymentCurrency,
+          originalAmount, exchangeRatePyg,
+          counterparty: text(body.counterparty, 'Contraparte', 200),
+          reference: text(body.reference, 'Referencia', 200),
+          description, dueAt, accountId,
+        }, { auditAction: 'FINANCE_MOVEMENT_CREATED' })
       })
       return json(movement, { status: 201 })
     }

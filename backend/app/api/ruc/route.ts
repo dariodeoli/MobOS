@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     const input = new URL(request.url).searchParams.get('ruc') || ''
     const normalized = normalizeRuc(input)
     const installation = await prisma.session.findUnique({ where: { id: session.sessionId }, select: { deviceId: true } })
-    const quota = consumeRucQuota(`${session.user.tenantId}:${session.user.id}`, installation?.deviceId || session.sessionId)
+    const quota = await consumeRucQuota(`${session.user.tenantId}:${session.user.id}`, installation?.deviceId || session.sessionId)
     const lookup = await lookupRuc(normalized.lookup)
     // Audit only the minimum technical trace; no business name or raw fiscal
     // record is copied into the application database by a lookup.

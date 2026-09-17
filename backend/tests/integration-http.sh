@@ -435,6 +435,10 @@ PRIVATE_ORDER_ID="$(json_field "$out" id)"
 PRIVATE_PAYMENT_ID="$(node -e 'const fs=require("fs");console.log(JSON.parse(fs.readFileSync(process.argv[1],"utf8")).payments[0].id)' "$out")"
 SELLER_PRIVACY_SELLER_ID="user-a-it" SELLER_PRIVACY_OTHER_ORDER_ID="$PRIVATE_ORDER_ID" SELLER_PRIVACY_OTHER_PAYMENT_ID="$PRIVATE_PAYMENT_ID" node "$BACKEND_ROOT/tests/seller-privacy.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/new-modules-functional.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
+# Segunda corrida: sin re-siembra, la cuota RUC agotada sigue devolviendo 429
+# porque vive en AuthAttempt de la base, no en memoria del proceso.
+node "$BACKEND_ROOT/tests/finance-consolidated.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
 node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/orders-credit-discounts.mjs" "$BASE_URL" "$ADMIN_TOKEN"
