@@ -96,4 +96,38 @@ const publicOrder = await publicGet(`/api/orders/public/${creditOrder.publicToke
 assert.equal(publicOrder.response.status, 200)
 assert.ok(publicOrder.payload.warranties.some(item => item.token === warrantyRow.publicToken), 'El pedido público debe listar su garantía.')
 
-console.log('orders-credit-discounts: OK (descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta y garantía pública).')
+// Etiquetas del pedido.
+result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}`, 'PATCH', { tags: ['VIP', 'Entrega hoy'] })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.deepEqual(result.payload.tags, ['VIP', 'Entrega hoy'])
+result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}`, 'PATCH', { tags: ['x'.repeat(41)] })
+assert.equal(result.response.status, 400, 'Una etiqueta de más de 40 caracteres debe rechazarse.')
+
+// Archivado y desarchivado.
+result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}`, 'PATCH', { action: 'archive' })
+assert.equal(result.response.status, 200)
+assert.ok(result.payload.archivedAt, 'Archivar debe registrar fecha.')
+result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}`, 'PATCH', { action: 'unarchive' })
+assert.equal(result.response.status, 200)
+assert.equal(result.payload.archivedAt, null)
+
+// Comentario con foto y cronología.
+const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+const commentForm = new FormData()
+commentForm.append('body', 'Verificado con foto de recepción.')
+commentForm.append('file', new Blob([Buffer.from(pngBase64, 'base64')], { type: 'image/png' }), 'evidencia.png')
+const commentResponse = await fetch(`${baseUrl}/api/orders/${encodeURIComponent(creditOrder.id)}/comments`, { method: 'POST', headers: { Authorization: `Bearer ${adminToken}`, 'x-tenant-id': 'tenant-a-it' }, body: commentForm })
+const commentPayload = await commentResponse.json().catch(() => null)
+assert.equal(commentResponse.status, 201, JSON.stringify(commentPayload))
+assert.ok(commentPayload.photos?.length === 1, 'El comentario debe guardar la foto adjunta.')
+const commentId = commentPayload.id
+result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}/history`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.events.some(event => event.type === 'comment' && event.body.includes('Verificado')), 'La cronología debe incluir el comentario.')
+assert.ok(result.payload.events.some(event => event.type === 'payment'), 'La cronología debe incluir el pago.')
+assert.ok(result.payload.events.some(event => event.type === 'audit' && event.action === 'ORDER_ARCHIVED'), 'La cronología debe incluir el archivado auditado.')
+const photoResponse = await fetch(`${baseUrl}/api/orders/${encodeURIComponent(creditOrder.id)}/comments/${encodeURIComponent(commentId)}/photos/${encodeURIComponent(commentPayload.photos[0].id)}`, { headers: { Authorization: `Bearer ${adminToken}`, 'x-tenant-id': 'tenant-a-it' } })
+assert.equal(photoResponse.status, 200)
+assert.equal(photoResponse.headers.get('content-type'), 'image/png')
+
+console.log('orders-credit-discounts: OK (descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública, etiquetas, archivado y comentarios con foto).')

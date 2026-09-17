@@ -40,6 +40,8 @@ model Tenant {
   payments                Payment[]
   paymentProofs           PaymentProof[]
   paymentReconciliations  PaymentReconciliation[]
+  orderComments           OrderComment[]
+  orderCommentPhotos      OrderCommentPhoto[]
   auditLogs               AuditLog[]
   inventoryUnits          InventoryUnit[]
   stockTransfers          StockTransfer[]
@@ -195,6 +197,7 @@ model User {
   openedCashSessions  CashSession[]   @relation("CashOpenedBy")
   inventoryVerifications InventoryUnit[] @relation("InventoryUnitVerifier")
   closedCashSessions  CashSession[]   @relation("CashClosedBy")
+  orderComments       OrderComment[]
   purchases           PurchaseOrder[]
   id                  String          @id @default(cuid())
   tenantId            String
@@ -642,17 +645,56 @@ model Order {
   // Venta a crédito: vencimiento y plazo aplicado (control de mora).
   dueAt             DateTime?
   creditDays        Int?
+  // Etiquetas libres del pedido y archivado (oculta del listado activo).
+  tags              Json              @default("[]")
+  archivedAt        DateTime?
   totalPyg          Int
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
   items    OrderItem[]
   payments Payment[]
+  comments OrderComment[]
 
   @@unique([tenantId, orderNumber])
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, status])
+  @@index([tenantId, archivedAt])
   @@index([branchId])
+}
+
+// Comentario interno del pedido, con fotos adjuntas (misma política de
+// archivos que los comprobantes de pago).
+model OrderComment {
+  id        String              @id @default(cuid())
+  tenantId  String
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderId   String
+  order     Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  body      String
+  createdAt DateTime            @default(now())
+  photos    OrderCommentPhoto[]
+
+  @@index([tenantId, orderId, createdAt])
+  @@index([tenantId, createdAt])
+}
+
+model OrderCommentPhoto {
+  id        String       @id @default(cuid())
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  commentId String
+  comment   OrderComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  fileName  String
+  mimeType  String
+  sizeBytes Int
+  sha256    String
+  data      Bytes        @db.ByteA
+  createdAt DateTime     @default(now())
+
+  @@index([tenantId, commentId])
 }
 
 enum OrderStatus {

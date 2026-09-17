@@ -29,13 +29,23 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
   try {
     const { orderId } = await context.params
     const body = objectInput(await request.json())
-    if (Object.keys(body).some(key => !['fulfillmentStatus', 'deliveryType', 'deliveryNotes', 'action', 'itemId', 'serials', 'billingName', 'billingDocument', 'notes'].includes(key))) throw new InputError('Campo no admitido al actualizar el pedido.')
+    if (Object.keys(body).some(key => !['fulfillmentStatus', 'deliveryType', 'deliveryNotes', 'action', 'itemId', 'serials', 'billingName', 'billingDocument', 'notes', 'tags'].includes(key))) throw new InputError('Campo no admitido al actualizar el pedido.')
     const existing = await prisma.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: { items: true } })
     if (!existing || !canAccessOrder(session.user, existing)) return error('Pedido no encontrado.', 404)
     if (existing.status === 'CANCELLED') throw new InputError('Un pedido cancelado no admite cambios.', 409)
 
     // ── Entregar equipos sobre pedido: agregar IMEI/seriales a una línea ──
     if (body.action !== undefined) {
+      // Archivar/desarchivar: no borra nada, solo lo saca del listado activo.
+      if (body.action === 'archive' || body.action === 'unarchive') {
+        const archivedAt = body.action === 'archive' ? new Date() : null
+        const order = await prisma.$transaction(async tx => {
+          const updated = await tx.order.update({ where: { id: existing.id }, data: { archivedAt }, include: orderInclude })
+          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: archivedAt ? 'ORDER_ARCHIVED' : 'ORDER_UNARCHIVED', entity: 'Order', entityId: existing.id, metadata: {} } })
+          return updated
+        })
+        return json(order)
+      }
       if (body.action !== 'attachSerials') throw new InputError('Acción de pedido inválida.')
       const itemId = textInput(body.itemId, 'Línea de pedido', 200)
       if (!itemId) throw new InputError('Indicá la línea del pedido.')
@@ -65,6 +75,18 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
         return saved
       })
       const order = await prisma.order.findFirstOrThrow({ where: { id: orderId, tenantId: tenant }, include: orderInclude })
+      return json(order)
+    }
+
+    // ── Etiquetas del pedido ──
+    if (body.tags !== undefined) {
+      if (!Array.isArray(body.tags) || body.tags.length > 20 || body.tags.some(tag => typeof tag !== 'string' || !tag.trim() || tag.trim().length > 40)) throw new InputError('Las etiquetas son hasta 20 textos de 40 caracteres.')
+      const tags = [...new Set(body.tags.map(tag => tag.trim()))]
+      const order = await prisma.$transaction(async tx => {
+        const updated = await tx.order.update({ where: { id: existing.id }, data: { tags }, include: orderInclude })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_TAGS_UPDATED', entity: 'Order', entityId: existing.id, metadata: { tags } } })
+        return updated
+      })
       return json(order)
     }
 
