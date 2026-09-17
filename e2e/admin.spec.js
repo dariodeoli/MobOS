@@ -315,3 +315,4 @@ test("solicitudes → pedir mayorista desde la ficha y aprobarla", async ({ page
   await expect(page.getByText("Solicitud aprobada", { exact: false })).toBeVisible()
   await expect(page.getByText(nombre)).toHaveCount(0)
 })
+

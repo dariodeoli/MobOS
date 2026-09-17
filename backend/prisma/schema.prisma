@@ -437,6 +437,11 @@ model InventoryUnit {
   originalCost        Decimal?            @db.Decimal(14, 2)
   exchangeRatePyg     Decimal?            @db.Decimal(14, 4)
   notes               String?
+  // Consignación de terceros: el equipo no es de la tienda. Al venderse se le
+  // paga al consignador el monto acordado.
+  consignorName       String?
+  consignorPhone      String?
+  consignorPyg        Int?
   reservedUntil       DateTime?
   reservationCustomer String?
   reservedById        String?
