@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Badge, Drawer, Eyebrow, Skeleton } from '@/components/ui'
+import { Drawer, Eyebrow, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import ProductFooter from '@/components/app/ProductFooter'
@@ -124,56 +124,7 @@ function BottomNav({ items, active, onNavigate, onOpenMenu, menuLabel }) {
   )
 }
 
-function CopiarIdTienda({ id, collapsed }) {
-  const [copiado, setCopiado] = useState(false)
-  const timer = useRef(null)
-  useEffect(() => () => clearTimeout(timer.current), [])
-
-  async function copiar() {
-    let ok = false
-    try {
-      await navigator.clipboard.writeText(id)
-      ok = true
-    } catch {
-      const campo = document.createElement('textarea')
-      campo.value = id
-      campo.setAttribute('readonly', '')
-      campo.style.position = 'fixed'
-      campo.style.opacity = '0'
-      document.body.appendChild(campo)
-      campo.select()
-      try { ok = document.execCommand('copy') } catch { ok = false }
-      document.body.removeChild(campo)
-    }
-    if (ok) {
-      setCopiado(true)
-      clearTimeout(timer.current)
-      timer.current = setTimeout(() => setCopiado(false), 1500)
-    }
-  }
-
-  return (
-    <span className={cn('flex shrink-0 items-center gap-1', collapsed && 'lg:hidden')}>
-      <span
-        title={id}
-        className="truncate rounded border border-ink-500 bg-ink-700 px-1 py-px font-mono text-[9px] tracking-tight text-mute"
-      >
-        ID {id.slice(0, 8)}…{id.slice(-4)}
-      </span>
-      <button
-        type="button"
-        onClick={copiar}
-        title="Copiar ID de tienda"
-        aria-label="Copiar ID de tienda"
-        className="rounded p-0.5 text-mute transition hover:bg-fore/5 hover:text-fore"
-      >
-        <Icon name={copiado ? 'check' : 'copy'} className="h-3 w-3" />
-      </button>
-    </span>
-  )
-}
-
-function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, esDemo, onSwitchUser, onLogout, onLockRequest, collapsed, perfilEmpresa }) {
+function SidebarFooter({ sesionNombre, esOwner, onSwitchUser, onLogout, onLockRequest, collapsed, perfilEmpresa }) {
   const clicsRef = useRef([])
   const clicsTimer = useRef(null)
   useEffect(() => () => clearTimeout(clicsTimer.current), [])
@@ -199,29 +150,6 @@ function SidebarFooter({ empresa, sucursal, sesionNombre, esOwner, esDemo, onSwi
 
   return (
     <div className={cn('border-t border-fore/10 p-3 pb-safe', collapsed && 'lg:p-2')}>
-      <div
-        className={cn(
-          'flex items-start gap-2.5 rounded-xl border border-fore/10 bg-fore/[.03] p-2.5',
-          collapsed && 'lg:justify-center lg:border-0 lg:bg-transparent lg:p-0',
-        )}
-        title={empresa?.email ? `${empresa?.nombre || 'Empresa'} · ${empresa.email}` : empresa?.nombre || 'Empresa'}
-      >
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-fono/15 text-fono-light">
-          <Icon name="store" className="h-4 w-4" />
-        </span>
-        <span className={cn('flex min-w-0 flex-1 flex-col gap-1', collapsed && 'lg:hidden')}>
-          <span className="flex min-w-0 items-center gap-1.5">
-            <strong className="min-w-0 truncate text-[13px] leading-snug text-fore">{empresa?.nombre || 'Mi tienda'}</strong>
-            {esDemo && <Badge color="orange" className="shrink-0 px-1.5 py-px text-[9px] font-bold tracking-wider">DEMO</Badge>}
-          </span>
-          {empresa?.email ? (
-            <small className="min-w-0 truncate text-[11px] leading-snug text-mute">{empresa.email}</small>
-          ) : (
-            sucursal?.nombre && <small className="min-w-0 truncate text-[11px] leading-snug text-mute">{sucursal.nombre}</small>
-          )}
-          {!esDemo && empresa?.id && <CopiarIdTienda id={empresa.id} collapsed={collapsed} />}
-        </span>
-      </div>
       <div className={cn('mt-2.5 flex items-center gap-1.5', collapsed && 'lg:mt-1 lg:flex-col')}>
         <button
           type="button"
@@ -306,7 +234,6 @@ export default function AppShell({
   headerActions,
   loading = false,
   empresa,
-  sucursal,
   esDemo = false,
   sesionNombre,
   esOwner = false,
@@ -384,11 +311,8 @@ export default function AppShell({
           </div>
         )}
         <SidebarFooter
-          empresa={empresa}
-          sucursal={sucursal}
           sesionNombre={sesionNombre}
           esOwner={esOwner}
-          esDemo={esDemo}
           onSwitchUser={onSwitchUser}
           onLogout={onLogout}
           onLockRequest={onLockRequest}
@@ -413,11 +337,8 @@ export default function AppShell({
         )}
         <div className="-mx-4 -mb-4 mt-4 sm:-mx-5 sm:-mb-5">
           <SidebarFooter
-            empresa={empresa}
-            sucursal={sucursal}
             sesionNombre={sesionNombre}
             esOwner={esOwner}
-            esDemo={esDemo}
             onSwitchUser={onSwitchUser}
             onLogout={onLogout}
             onLockRequest={onLockRequest}

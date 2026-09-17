@@ -191,7 +191,6 @@ export default function PanelVendedor() {
     esDemo,
     salir,
     empresa,
-    sucursal,
     perfilEmpresa,
   } = useSesion()
   const navigate = useNavigate()
@@ -434,7 +433,6 @@ export default function PanelVendedor() {
         collapsed={sidebarCollapsed}
         onToggleCollapsed={toggleSidebar}
         empresa={empresa}
-        sucursal={sucursal}
         esDemo={esDemo}
         sesionNombre={sesion?.nombre}
         esOwner={esOwner}
