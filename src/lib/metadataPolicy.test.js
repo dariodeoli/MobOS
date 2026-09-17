@@ -26,15 +26,16 @@ test('authenticated and authentication routes are canonical to the app and noind
   }
 })
 
-test('configuration subpages keep their own slug in the URL and the title', () => {
+test('configuration subpages keep their own child slug in the URL and the title', () => {
   const rutas = {
-    '/pos/equipo': 'Equipo',
-    '/pos/identidad': 'Mi identidad',
-    '/pos/roles': 'Roles y permisos',
-    '/pos/historial': 'Historial',
-    '/pos/negocio': 'Negocio',
-    '/pos/sucursales': 'Sucursales',
-    '/pos/seguridad': 'Seguridad',
+    '/configuracion': 'Configuración',
+    '/configuracion/equipo': 'Equipo',
+    '/configuracion/identidad': 'Mi identidad',
+    '/configuracion/roles': 'Roles y permisos',
+    '/configuracion/historial': 'Historial',
+    '/configuracion/negocio': 'Negocio',
+    '/configuracion/sucursales': 'Sucursales',
+    '/configuracion/seguridad': 'Seguridad',
   }
   for (const [pathname, label] of Object.entries(rutas)) {
     const metadata = resolvePageMetadata({ pathname })

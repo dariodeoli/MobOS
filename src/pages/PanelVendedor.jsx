@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
@@ -227,10 +227,14 @@ export default function PanelVendedor() {
     perfilEmpresa,
   } = useSesion()
   const navigate = useNavigate()
-  const { vista: routeVista } = useParams()
+  const { pathname } = useLocation()
+  const { vista: routeVista, seccion: routeSeccion } = useParams()
+  // Las subpáginas de Configuración viven bajo /configuracion/<slug>.
+  const enConfiguracion = pathname === '/configuracion' || pathname.startsWith('/configuracion/')
+  const seccionRuta = enConfiguracion && CONFIG_VISTAS.includes(routeSeccion) ? routeSeccion : null
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
-  const [vista, setVista] = useState(routeVista || 'cargar')
+  const [vista, setVista] = useState(seccionRuta || routeVista || (enConfiguracion ? 'equipo' : 'cargar'))
   const [tradeIn, setTradeIn] = useState(null)
   const [analisisTab, setAnalisisTab] = useState('reportes')
   const [finanzasTab, setFinanzasTab] = useState('caja')
@@ -264,6 +268,16 @@ export default function PanelVendedor() {
     return [...base, ...CONFIG_VISTAS.filter(id => id !== 'historial' || esDemo)]
   }, [esOwner, esTecnico, esDemo])
 
+  // Las URLs viejas de Configuración (/pos/negocio…) se canonizan a su slug hijo.
+  useEffect(() => {
+    if (!enConfiguracion && CONFIG_VISTAS.includes(routeVista) && accesibles.includes(routeVista)) {
+      navigate(`/configuracion/${routeVista}`, { replace: true })
+    }
+  }, [enConfiguracion, routeVista, accesibles, navigate])
+  // /configuracion sin hijo (o con uno desconocido) entra por Equipo.
+  useEffect(() => {
+    if (enConfiguracion && !seccionRuta) navigate('/configuracion/equipo', { replace: true })
+  }, [enConfiguracion, seccionRuta, navigate])
   // Si la URL apunta a una vista fuera del alcance del rol (ej. un vendedor en
   // /pos/inventario), se redirige a "cargar" de una sola vez. Sin el navigate
   // acá, los dos efectos se pisan en bucle: uno fuerza 'cargar' y el otro
@@ -276,8 +290,9 @@ export default function PanelVendedor() {
   }, [accesibles, vista, navigate])
   // Sincroniza la URL → vista solo para rutas válidas del rol activo.
   useEffect(() => {
-    if (routeVista && routeVista !== vista && accesibles.includes(routeVista)) setVista(routeVista)
-  }, [routeVista, vista, accesibles])
+    const objetivo = enConfiguracion ? seccionRuta : routeVista
+    if (objetivo && objetivo !== vista && accesibles.includes(objetivo)) setVista(objetivo)
+  }, [enConfiguracion, seccionRuta, routeVista, vista, accesibles])
 
   function ir(id) {
     const sellerIds = SELLER_NAV.flatMap(group => group.items).map(([key]) => key)
@@ -285,7 +300,7 @@ export default function PanelVendedor() {
       setVista('cargar')
     } else {
       setVista(id)
-      navigate(`/pos/${id}`)
+      navigate(CONFIG_VISTAS.includes(id) ? `/configuracion/${id}` : `/pos/${id}`)
     }
   }
 

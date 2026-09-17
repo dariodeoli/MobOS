@@ -69,7 +69,7 @@ test.describe('owner panel', () => {
   })
 
   test('equipo → Vendedores lists the seeded sellers', async ({ page }) => {
-    await page.goto('/pos/equipo')
+    await page.goto('/configuracion/equipo')
     await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
     for (const seller of SEED.sellers) {
       await expect(page.getByLabel(`Nombre de ${seller.name}`)).toBeVisible()
@@ -81,7 +81,7 @@ test.describe('owner panel', () => {
   // unique per run: the API rejects a PIN already in use by the company, and
   // the local E2E database persists users across runs.
   test('equipo → Vendedores creates a new seller with a PIN', async ({ page }) => {
-    await page.goto('/pos/equipo')
+    await page.goto('/configuracion/equipo')
     await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
 
     const name = `Vendedor E2E ${Date.now().toString(36)}`
@@ -98,7 +98,7 @@ test.describe('owner panel', () => {
   })
 
   test('equipo → Roles y permisos describes each role and its matrix', async ({ page }) => {
-    await page.goto('/pos/equipo')
+    await page.goto('/configuracion/equipo')
     await page.getByRole('button', { name: 'Roles y permisos' }).click()
 
     await expect(page.getByRole('heading', { name: 'Roles y permisos' })).toBeVisible()
