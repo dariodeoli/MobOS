@@ -81,7 +81,7 @@ export default function SellerOrders() {
   const [query, setQuery] = useState('')
   const [filtro, setFiltro] = useState('activos')
   const [seleccion, setSeleccion] = useState(null)
-  const data = useSellerData('/api/orders', orderFields, listVentas, esDemo)
+  const data = useSellerData('/api/orders', orderFields, listVentas, esDemo, { limit: 50 })
   const esAdminVentas = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE'].includes(sesion?.rol) || ['ADMIN', 'GERENTE'].includes(usuario?.role))
   const todas = useMemo(() => {
     const products = esDemo ? productosById() : {}
@@ -102,6 +102,7 @@ export default function SellerOrders() {
     </div>
     <SellerFeedback {...data} empty={!rows.length} />
     {!data.loading && !data.error && <div className="space-y-2">{rows.map((row) => <FilaPedido key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
+    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más pedidos'}</button></div>}
     {seleccion && <PedidoDetalle row={seleccion} esDemo={esDemo} customerOrderCount={seleccion.customerId ? porCliente[seleccion.customerId] || 0 : 0} onClose={() => setSeleccion(null)} onChanged={data.refresh} />}
   </SellerSection>
 }

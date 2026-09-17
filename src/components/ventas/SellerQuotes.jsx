@@ -18,7 +18,7 @@ const emptyItem = (product = null) => ({ productId: product?.id || '', descripti
 export default function SellerQuotes() {
   const { esDemo } = useSesion()
   const productos = getProductos().filter(product => product.activo !== false)
-  const data = useSellerData('/api/quotes', identity, demoQuotes, esDemo)
+  const data = useSellerData('/api/quotes', identity, demoQuotes, esDemo, { limit: 50 })
   const [filtro, setFiltro] = useState('todas')
   const [query, setQuery] = useState('')
   const [crearOpen, setCrearOpen] = useState(false)
@@ -86,6 +86,7 @@ export default function SellerQuotes() {
         </span>
       </article>
     })}</div>}
+    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más cotizaciones'}</button></div>}
     <Modal open={crearOpen} onClose={() => !busy && setCrearOpen(false)} title="Nueva cotización" className="max-w-2xl">
       <form onSubmit={crear} className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">

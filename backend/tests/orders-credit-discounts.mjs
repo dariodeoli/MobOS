@@ -200,4 +200,14 @@ result = await request('/api/combos', 'PATCH', { id: combo.id, isActive: false }
 assert.equal(result.response.status, 200)
 assert.equal(result.payload.isActive, false)
 
+// Paginación por cursor (la que consume "Cargar más" en la UI): la primera
+// página respeta el límite y la siguiente arranca después del último id.
+const pagina1 = await request('/api/orders?limit=1')
+assert.equal(pagina1.response.status, 200)
+assert.equal(pagina1.payload.length, 1, 'limit=1 debe devolver una sola fila.')
+const pagina2 = await request(`/api/orders?limit=1&cursor=${pagina1.payload[0].id}`)
+assert.equal(pagina2.response.status, 200)
+assert.ok(pagina2.payload.length <= 1, 'La página siguiente respeta el límite.')
+assert.ok(!pagina2.payload.some(row => row.id === pagina1.payload[0].id), 'La página siguiente no repite el cursor.')
+
 console.log('orders-credit-discounts: OK (descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, pipeline de cotizaciones y combos).')

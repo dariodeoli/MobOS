@@ -1,27 +1,54 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { Button } from '@/components/ui'
 
 // Callers project explicit public fields before retaining API data in state.
-export function useSellerData(path, project, demoRead, esDemo) {
+// Carga paginada opcional: con `limit` pide la primera página y expone
+// `cargarMas`/`hayMas` para seguir con el cursor del último id. Sin limit el
+// comportamiento es el de siempre (trae todo de una).
+export function useSellerData(path, project, demoRead, esDemo, options = {}) {
+  const limit = options.limit
   const [revision, setRevision] = useState(0)
   const [state, setState] = useState({ rows: [], loading: true, error: '' })
+  const [page, setPage] = useState({ loading: false, hayMas: false })
+  const conLimite = useCallback((extra = '') => {
+    if (!limit) return path
+    const separador = path.includes('?') ? '&' : '?'
+    return `${path}${separador}limit=${limit}${extra}`
+  }, [path, limit])
   useEffect(() => {
     let active = true
     const controller = new AbortController()
     setState({ rows: [], loading: true, error: '' })
-    Promise.resolve().then(() => esDemo ? demoRead() : api.get(path, { signal: controller.signal }))
+    setPage({ loading: false, hayMas: false })
+    Promise.resolve().then(() => esDemo ? demoRead() : api.get(conLimite(), { signal: controller.signal }))
       .then((data) => {
         if (!Array.isArray(data)) throw new Error('Respuesta inválida')
-        if (active) setState({ rows: data.map(project), loading: false, error: '' })
+        if (!active) return
+        setState({ rows: data.map(project), loading: false, error: '' })
+        setPage({ loading: false, hayMas: Boolean(limit) && !esDemo && data.length >= limit })
       }).catch((error) => {
         if (active) setState({ rows: [], loading: false, error: [401, 403].includes(error?.status)
           ? 'Tu sesión no tiene acceso. Volvé a ingresar o consultá al responsable.'
           : 'No se pudieron cargar los datos. Intentá de nuevo.' })
       })
     return () => { active = false; controller.abort() }
-  }, [path, project, demoRead, esDemo, revision])
-  return { ...state, refresh: () => setRevision((value) => value + 1) }
+  }, [path, project, demoRead, esDemo, revision, limit, conLimite])
+  const cargarMas = async () => {
+    if (!limit || page.loading) return
+    const ultimo = state.rows[state.rows.length - 1]?.id
+    if (!ultimo) return
+    setPage({ loading: true, hayMas: page.hayMas })
+    try {
+      const data = await api.get(conLimite(`&cursor=${encodeURIComponent(ultimo)}`))
+      if (!Array.isArray(data)) throw new Error('Respuesta inválida')
+      setState((actual) => ({ ...actual, rows: [...actual.rows, ...data.map(project)] }))
+      setPage({ loading: false, hayMas: data.length >= limit })
+    } catch {
+      setPage({ loading: false, hayMas: page.hayMas })
+    }
+  }
+  return { ...state, hayMas: page.hayMas, cargandoMas: page.loading, cargarMas, refresh: () => setRevision((value) => value + 1) }
 }
 
 export function SellerSection({ title, description, children }) {
