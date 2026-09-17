@@ -12,14 +12,14 @@ const PERIODOS = [
 
 export function PeriodoTabs({ periodo, setPeriodo }) {
   return (
-    <div className="flex gap-1 bg-ink-600 p-1 rounded-xl">
+    <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
       {PERIODOS.map(([k, label]) => (
         <button
           key={k}
           onClick={() => setPeriodo(k)}
           className={
             'flex-1 rounded-lg py-2 text-sm font-bold transition ' +
-            (periodo === k ? 'bg-ink-800 text-fono shadow-sm' : 'text-mute')
+            (periodo === k ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')
           }
         >
           {label}

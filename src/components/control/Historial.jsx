@@ -96,10 +96,10 @@ export default function Historial() {
               key={k}
               onClick={() => setFiltro(k)}
               className={
-                'rounded-full px-3 py-1.5 text-xs font-bold transition border-2 ' +
+                'rounded-lg border px-3 py-1.5 text-xs font-semibold transition ' +
                 (filtro === k
-                  ? 'border-fono bg-fono text-onbrand'
-                  : 'border-ink-600 text-mute hover:border-fono hover:text-fono')
+                  ? 'border-fono/40 bg-fono/15 text-fono-light'
+                  : 'border-ink-600 text-mute hover:border-fono/40 hover:text-fore')
               }
             >
               {label}
