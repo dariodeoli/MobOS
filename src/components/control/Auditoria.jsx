@@ -88,6 +88,7 @@ const ACCIONES = {
   MESSAGE_TEMPLATE_DELETED: ['Plantilla eliminada', 'red'],
   PAYMENT_ACCOUNT_CREATED: ['Cuenta de cobro creada', 'green'],
   PAYMENT_ACCOUNT_UPDATED: ['Cuenta de cobro editada', 'slate'],
+  STOCK_TRANSFER_RECEIVED: ['Traslado recibido en destino', 'green'],
   STOCK_LOCATION_CREATED: ['Ubicación creada', 'green'],
   STOCK_LOCATION_UPDATED: ['Ubicación editada', 'slate'],
 }

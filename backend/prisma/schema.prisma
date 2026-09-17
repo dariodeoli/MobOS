@@ -511,6 +511,8 @@ model StockTransfer {
   // Guía de envío AEX cuando el traslado viaja con transportadora: se adjunta
   // al despachar y habilita el seguimiento por API.
   aexGuide            String?
+  // Se completa cuando todas las unidades del traslado llegaron a destino.
+  receivedAt          DateTime?
   createdAt           DateTime            @default(now())
   lines               StockTransferLine[]
 
