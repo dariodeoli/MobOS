@@ -57,6 +57,7 @@ const TABS = [
   { key: 'garantias', label: 'Garantías' },
   { key: 'notas', label: 'Notas' },
   { key: 'seguimientos', label: 'Seguimientos' },
+  { key: 'estadisticas', label: 'Estadísticas' },
   { key: 'cronologia', label: 'Cronología' },
 ]
 
@@ -90,6 +91,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [profile, setProfile] = useState(null)
   const [tab, setTab] = useState('compras')
   const { esDemo } = useSesion()
+  const [analitica, setAnalitica] = useState(null)
+  const [cargandoAnalitica, setCargandoAnalitica] = useState(false)
   const [solicitud, setSolicitud] = useState(null)
   const [solicitudDias, setSolicitudDias] = useState('')
   const [solicitudLimite, setSolicitudLimite] = useState('')
@@ -127,6 +130,35 @@ export default function CustomerProfile({ customer, open, onClose }) {
       await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { notes: notaInterna.trim(), publicNote: notaPublica.trim() })
       toast.success('Notas guardadas.')
     } catch (cause) { toast.error(cause?.message || 'No se pudieron guardar las notas.') } finally { setGuardandoNotas(false) }
+  }
+
+  useEffect(() => {
+    if (tab !== 'estadisticas' || analitica || esDemo || !customer?.id) return
+    let vigente = true
+    setCargandoAnalitica(true)
+    api.get(`/api/customers/${encodeURIComponent(customer.id)}/analytics`)
+      .then(data => { if (vigente) setAnalitica(data) })
+      .catch(() => { if (vigente) setAnalitica({ ordersCount: 0, totalPyg: 0, avgTicketPyg: 0, byMonth: [], topProducts: [], statement: [] }) })
+      .finally(() => { if (vigente) setCargandoAnalitica(false) })
+    return () => { vigente = false }
+  }, [tab, analitica, esDemo, customer?.id])
+
+  function descargarInforme() {
+    if (!analitica) return
+    const filas = [
+      ['Pedido', 'Fecha', 'Estado', 'Total (Gs)'],
+      ...analitica.statement.map(item => [item.orderNumber, new Date(item.createdAt).toLocaleDateString('es-PY'), item.status, item.totalPyg]),
+      [],
+      ['Compras', analitica.ordersCount],
+      ['Total (Gs)', analitica.totalPyg],
+      ['Ticket promedio (Gs)', analitica.avgTicketPyg],
+    ]
+    const csv = filas.map(fila => fila.map(celda => `"${String(celda ?? '').replace(/"/g, '""')}"`).join(';')).join('\n')
+    const enlace = document.createElement('a')
+    enlace.href = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
+    enlace.download = `cliente-${(customer?.name || 'informe').replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 40)}.csv`
+    enlace.click()
+    URL.revokeObjectURL(enlace.href)
   }
 
   const cargarEventos = useCallback(async (offset = 0) => {
@@ -538,6 +570,46 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     </li>
                   ))}
                 </ul>
+              )}
+            </div>
+          )}
+
+          {tab === 'estadisticas' && (
+            <div className="space-y-3">
+              {esDemo && <p className="text-sm text-mute">Las estadísticas se calculan con las ventas reales de la tienda.</p>}
+              {cargandoAnalitica && <Skeleton className="h-24 w-full" />}
+              {!cargandoAnalitica && analitica && (
+                <>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Compras</p><p className="mt-1 text-lg font-bold">{analitica.ordersCount}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Total comprado</p><p className="mt-1 text-lg font-bold">{formatGs(analitica.totalPyg)}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Ticket promedio</p><p className="mt-1 text-lg font-bold">{formatGs(analitica.avgTicketPyg)}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Compras por mes</p><p className="mt-1 text-lg font-bold">{analitica.purchasesPerMonth || 0}</p></div>
+                  </div>
+                  {analitica.topProducts.length > 0 && (
+                    <div className="rounded-xl border border-ink-600 p-3">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Productos que más compra</p>
+                      <ul className="mt-1 space-y-0.5 text-xs">
+                        {analitica.topProducts.map(item => (
+                          <li key={item.description} className="flex flex-wrap justify-between gap-2"><span className="min-w-0 truncate">{item.description}</span><span className="text-mute">{item.quantity} u. · {formatGs(item.totalPyg)}</span></li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {analitica.byMonth.length > 0 && (
+                    <div className="rounded-xl border border-ink-600 p-3">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Últimos meses</p>
+                      <ul className="mt-1 space-y-0.5 text-xs">
+                        {analitica.byMonth.map(item => (
+                          <li key={item.month} className="flex flex-wrap justify-between gap-2"><span>{item.month}</span><span className="text-mute">{item.count} {item.count === 1 ? 'compra' : 'compras'} · {formatGs(item.totalPyg)}</span></li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button type="button" variant="outline" onClick={descargarInforme} disabled={!analitica.statement.length}>Descargar informe (CSV)</Button>
+                  </div>
+                </>
               )}
             </div>
           )}
