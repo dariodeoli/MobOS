@@ -3,7 +3,7 @@ import { api } from '@/lib/api/client'
 import { Button, Input } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import Icon from '@/components/shared/Icon'
-import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
+import { codigoPais, soloDigitos, telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 
 const emptyAddress = () => ({ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay', notes: '', isDefault: true })
 const customerValue = (customer) => ({
@@ -71,8 +71,8 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     {error && <p role="alert" className="text-sm text-bad">{error}</p>}
     <details className="rounded-xl border border-ink-600 p-3"><summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <label className="text-xs text-mute">Código país<Input aria-label="Código de país" value={value.countryCode || '+595'} onChange={set('countryCode')} placeholder="+595" /></label>
-        <label className="text-xs text-mute">Teléfono<Input aria-label="Teléfono del cliente" type="tel" value={value.phone || ''} onChange={set('phone')} placeholder="0981 123 456" />{value.phone?.trim() && !telefonoValido(value.phone, value.countryCode) && <span className="block pt-1 text-[11px] text-bad">{MENSAJE_TELEFONO}</span>}</label>
+        <label className="text-xs text-mute">Código país<Input aria-label="Código de país" inputMode="numeric" maxLength={5} value={value.countryCode || '+595'} onChange={(event) => onChange({ ...value, countryCode: codigoPais(event.target.value) })} placeholder="+595" /></label>
+        <label className="text-xs text-mute">Teléfono<Input aria-label="Teléfono del cliente" type="tel" inputMode="numeric" maxLength={15} value={value.phone || ''} onChange={(event) => onChange({ ...value, phone: soloDigitos(event.target.value, 15) })} placeholder="0981 123 456" />{value.phone?.trim() && !telefonoValido(value.phone, value.countryCode) && <span className="block pt-1 text-[11px] text-bad">{MENSAJE_TELEFONO}</span>}</label>
         <label className="text-xs text-mute">CI o RUC<Input aria-label="CI o RUC del cliente" value={value.document || ''} onChange={event => { setRucLookup(null); setRucError(''); onChange({ ...value, document: event.target.value }) }} placeholder="80012345-6" /></label>
         <label className="text-xs text-mute">Correo<Input aria-label="Correo del cliente" type="email" value={value.email || ''} onChange={set('email')} placeholder="cliente@correo.com" /></label>
       </div>
