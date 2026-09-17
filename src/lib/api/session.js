@@ -54,6 +54,14 @@ export const sessionApi = {
     setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], profile: session.profile || null, stores: session.stores || [], cookieSession: true })
     return session
   },
+  resetPassword: async ({ token, password }) => {
+    const session = await api.post('/api/auth/password-reset', { token, password })
+    if (session?.tenant) {
+      clearLegacyTokens()
+      setCompanyContext({ tenant: session.tenant, scope: session.scope, sellers: session.sellers || [], cookieSession: true })
+    }
+    return session
+  },
   loginCompany: async (credentials) => {
     const session = await api.post('/api/auth/login', credentials)
     if (!session?.tenant) throw new Error('El servidor no pudo abrir la sesión de la empresa.')
