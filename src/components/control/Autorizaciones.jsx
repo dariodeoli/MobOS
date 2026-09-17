@@ -4,6 +4,12 @@ import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
 import { Badge, Button, Card, EmptyState, Eyebrow, FormField, Input, MoneyInput, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
+import { cn } from '@/lib/utils'
+
+// Tabla compacta: una fila por solicitud y las acciones de aprobación en la
+// misma línea. El detalle (autorizado, quién resolvió, notas) va en el title.
+const GRID_AUTORIZACIONES = 'grid min-w-[54rem] grid-cols-[minmax(8rem,1.2fr)_7rem_7rem_minmax(6rem,0.9fr)_5.5rem_6.5rem_9rem] items-center gap-x-2'
+const CELDA_AUT = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const KINDS = {
   WHOLESALE: 'Mayorista',
@@ -197,41 +203,48 @@ export default function Autorizaciones() {
         {!loading && !error && !rows.length && (
           <EmptyState compact icon="check" title="Sin solicitudes" description="Cuando un vendedor pida mayorista, crédito o plazo para un cliente, aparecerá acá." />
         )}
-        <div className="space-y-2">
-          {rows.map((row) => {
-            const estado = STATUS[row.status] || { label: row.status, color: 'slate' }
-            const propia = row.requestedById === usuario?.id
-            return (
-              <article key={row.id} className={`rounded-xl border p-3 ${row.status === 'PENDING' ? 'border-warn/30 bg-warn/5' : 'border-ink-600'}`}>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-semibold">{row.customer?.name || 'Cliente'}</p>
-                      <Badge color="blue">{KINDS[row.kind] || row.kind}</Badge>
-                      <Badge color={estado.color}>{estado.label}</Badge>
-                      {propia && row.status === 'PENDING' && <Badge color="slate">Tu solicitud</Badge>}
-                    </div>
-                    <p className="mt-1 text-xs text-mute">
-                      Pedido: {resumenValor(row.kind, row.requestedValue)}
-                      {row.status !== 'PENDING' && <> · Autorizado: {row.status === 'APPROVED' ? resumenValor(row.kind, row.resolvedValue || row.requestedValue) : '— rechazado'}</>}
-                    </p>
-                    <p className="mt-1 text-xs text-mute">
-                      Pidió {row.requestedBy?.name || 'Sistema'} · {fechaHora(row.createdAt)}
-                      {row.resolvedBy?.name ? ` · Resolvió ${row.resolvedBy.name} · ${fechaHora(row.resolvedAt)}` : ''}
-                    </p>
-                    {row.note && <p className="mt-1 text-xs text-mute">Nota del vendedor: {row.note}</p>}
-                    {row.resolvedNote && <p className="mt-1 text-xs text-mute">Respuesta: {row.resolvedNote}</p>}
-                  </div>
-                  {puedeResolver && row.status === 'PENDING' && !propia && (
-                    <div className="flex shrink-0 gap-2">
-                      <Button type="button" onClick={() => abrirAprobar(row)}>Aprobar</Button>
-                      <Button type="button" variant="ghost" onClick={() => { setRejectNote(''); setRejectTarget(row) }}>Rechazar</Button>
-                    </div>
-                  )}
-                </div>
-              </article>
-            )
-          })}
+        <div className="overflow-x-auto" data-testid="autorizaciones-tabla">
+          <div className={cn(GRID_AUTORIZACIONES, 'px-3.5 pb-2 pt-1')}>
+            <span className={CELDA_AUT}>Cliente</span>
+            <span className={CELDA_AUT}>Tipo</span>
+            <span className={CELDA_AUT}>Pedido</span>
+            <span className={CELDA_AUT}>Solicitó</span>
+            <span className={CELDA_AUT}>Fecha</span>
+            <span className={CELDA_AUT}>Estado</span>
+            <span className={cn(CELDA_AUT, 'text-right')}>Acciones</span>
+          </div>
+          <div className="space-y-1">
+            {rows.map((row) => {
+              const estado = STATUS[row.status] || { label: row.status, color: 'slate' }
+              const propia = row.requestedById === usuario?.id
+              const pedido = resumenValor(row.kind, row.requestedValue)
+              const autorizado = row.status === 'APPROVED' ? resumenValor(row.kind, row.resolvedValue || row.requestedValue) : row.status === 'PENDING' ? '' : 'rechazado'
+              const detalle = [
+                autorizado ? `Autorizado: ${autorizado}` : '',
+                `Pidió ${row.requestedBy?.name || 'Sistema'} · ${fechaHora(row.createdAt)}`,
+                row.resolvedBy?.name ? `Resolvió ${row.resolvedBy.name} · ${fechaHora(row.resolvedAt)}` : '',
+                row.note ? `Nota del vendedor: ${row.note}` : '',
+                row.resolvedNote ? `Respuesta: ${row.resolvedNote}` : '',
+              ].filter(Boolean).join(' · ')
+              return <div key={row.id} data-testid="autorizacion-fila" className={cn(GRID_AUTORIZACIONES, 'rounded-xl border px-3.5 py-2 transition', row.status === 'PENDING' ? 'border-warn/30 bg-warn/5' : 'border-ink-600 bg-ink-800/40')}>
+                <span className="truncate text-sm font-semibold" title={detalle}>{row.customer?.name || 'Cliente'}</span>
+                <Badge color="blue" className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{KINDS[row.kind] || row.kind}</Badge>
+                <span className="truncate text-xs text-mute" title={autorizado ? `Autorizado: ${autorizado}` : undefined}>{pedido}</span>
+                <span className="truncate text-xs text-mute" title={`Pidió ${row.requestedBy?.name || 'Sistema'}`}>{row.requestedBy?.name || 'Sistema'}</span>
+                <span className="truncate text-xs text-mute">{fechaHora(row.createdAt)}</span>
+                <span className="flex items-center gap-1">
+                  <Badge color={estado.color} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{estado.label}</Badge>
+                  {propia && row.status === 'PENDING' && <span className="truncate text-[10px] text-mute">Tu solicitud</span>}
+                </span>
+                <span className="flex items-center justify-end gap-1">
+                  {puedeResolver && row.status === 'PENDING' && !propia && <>
+                    <Button type="button" className="h-8 px-2 text-xs" onClick={() => abrirAprobar(row)}>Aprobar</Button>
+                    <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => { setRejectNote(''); setRejectTarget(row) }}>Rechazar</Button>
+                  </>}
+                </span>
+              </div>
+            })}
+          </div>
         </div>
       </Card>
 
