@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Drawer, Badge, Button, Input, Select, Skeleton, useToast } from '@/components/ui'
+import { Drawer, Badge, Button, Input, Money, Select, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { api, API_URL } from '@/lib/api/client'
-import { gs } from '@/utils/calculos'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
 import { printOrderReceipt } from '@/components/shared/OrderReceipt'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
@@ -14,7 +13,7 @@ const AUDIT_LABELS = {
   ORDER_FULFILLMENT_UPDATED: (meta) => `Entrega: ${FULFILLMENT[meta?.previous] || meta?.previous || '—'} → ${FULFILLMENT[meta?.current] || meta?.current || '—'}`,
   ORDER_SERIALS_ATTACHED: (meta) => `IMEI agregados al pedido: ${(meta?.serials || []).join(', ')}`,
   ORDER_BILLING_UPDATED: (meta) => meta?.billingName ? `Factura a nombre de ${meta.billingName}` : 'Datos de factura actualizados',
-  ORDER_DISCOUNT_APPROVED: (meta) => `Descuento aprobado: ${gs(Number(meta?.discountPyg || 0))}`,
+  ORDER_DISCOUNT_APPROVED: (meta) => <>Descuento aprobado: <Money value={Number(meta?.discountPyg || 0)} /></>,
   ORDER_TAGS_UPDATED: (meta) => (meta?.tags || []).length ? `Etiquetas: ${meta.tags.join(', ')}` : 'Etiquetas quitadas',
   ORDER_ARCHIVED: () => 'Pedido archivado',
   ORDER_UNARCHIVED: () => 'Pedido desarchivado',
@@ -185,8 +184,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                       {(item.costPending || Number(item.serialsPending || 0) > 0) && <p className="mt-1 flex gap-2 text-[11px] text-warn">{Number(item.serialsPending || 0) > 0 && <span>{item.serialsPending} sin IMEI (sobre pedido)</span>}{item.costPending && <span>costo pendiente</span>}</p>}
                     </div>
                     <div className="shrink-0 text-right">
-                      <p className="text-sm font-semibold">{gs(Number(item.totalPyg ?? 0))}</p>
-                      <p className="text-[11px] text-mute">{gs(Number(item.unitPricePyg ?? 0))} × {item.quantity || 1}{Number(item.discountPyg || 0) > 0 ? ` · −${gs(item.discountPyg)}` : ''}</p>
+                      <p className="text-sm font-semibold"><Money value={Number(item.totalPyg ?? 0)} /></p>
+                      <p className="text-[11px] text-mute"><Money value={Number(item.unitPricePyg ?? 0)} /> × {item.quantity || 1}{Number(item.discountPyg || 0) > 0 ? <> · −<Money value={item.discountPyg} /></> : ''}</p>
                     </div>
                   </article>
                 )
@@ -199,17 +198,17 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           <section className="rounded-2xl border border-ink-600 p-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Información de pago</h3>
             <div className="mt-3 space-y-1.5 text-sm">
-              <p className="flex justify-between"><span className="text-mute">Subtotal · {items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)} artículos</span><span className="tabular-nums">{gs(Number(order.subtotalPyg ?? total))}</span></p>
-              {Number(order.discountPyg || 0) > 0 && <p className="flex justify-between text-warn"><span>Descuento</span><span className="tabular-nums">− {gs(order.discountPyg)}</span></p>}
-              {Number(order.deliveryPyg || 0) > 0 && <p className="flex justify-between"><span className="text-mute">Envío</span><span className="tabular-nums">{gs(order.deliveryPyg)}</span></p>}
-              <p className="flex justify-between border-t border-ink-600 pt-1.5 font-bold"><span>Total</span><span className="tabular-nums">{gs(total)}</span></p>
-              <p className="flex justify-between text-ok"><span>Pagado</span><span className="tabular-nums">{gs(paid)}</span></p>
-              {pendiente > 0 && <p className="flex justify-between text-warn"><span>{order.dueAt ? `Pendiente · vence ${new Date(order.dueAt).toLocaleDateString('es-PY')}` : 'Pendiente'}</span><span className="tabular-nums">{gs(pendiente)}</span></p>}
+              <p className="flex justify-between"><span className="text-mute">Subtotal · {items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)} artículos</span><span className="tabular-nums"><Money value={Number(order.subtotalPyg ?? total)} /></span></p>
+              {Number(order.discountPyg || 0) > 0 && <p className="flex justify-between text-warn"><span>Descuento</span><span className="tabular-nums">− <Money value={order.discountPyg} /></span></p>}
+              {Number(order.deliveryPyg || 0) > 0 && <p className="flex justify-between"><span className="text-mute">Envío</span><span className="tabular-nums"><Money value={order.deliveryPyg} /></span></p>}
+              <p className="flex justify-between border-t border-ink-600 pt-1.5 font-bold"><span>Total</span><span className="tabular-nums"><Money value={total} /></span></p>
+              <p className="flex justify-between text-ok"><span>Pagado</span><span className="tabular-nums"><Money value={paid} /></span></p>
+              {pendiente > 0 && <p className="flex justify-between text-warn"><span>{order.dueAt ? `Pendiente · vence ${new Date(order.dueAt).toLocaleDateString('es-PY')}` : 'Pendiente'}</span><span className="tabular-nums"><Money value={pendiente} /></span></p>}
             </div>
             {payments.length > 0 && <div className="mt-3 space-y-2 border-t border-ink-600 pt-3">
               {payments.map(pago => <div key={pago.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="text-mute">{ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method}{pago.accountSnapshot?.name ? ` · ${pago.accountSnapshot.name}` : ''}{pago.reference ? ` · ${pago.reference}` : ''}</span>
-                <span className="flex items-center gap-2"><span className="tabular-nums font-semibold">{gs(Number(pago.amountPyg || 0))}</span><Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status}</Badge>{pago.settlesAt && <span className="text-[10px] text-mute">acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
+                <span className="flex items-center gap-2"><span className="tabular-nums font-semibold"><Money value={Number(pago.amountPyg || 0)} /></span><Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status}</Badge>{pago.settlesAt && <span className="text-[10px] text-mute">acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
               </div>)}
             </div>}
           </section>
@@ -257,7 +256,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                         <p className="mt-1 whitespace-pre-wrap text-sm">{event.body}</p>
                         {(event.photos || []).length > 0 && <div className="mt-2 flex flex-wrap gap-2">{event.photos.map(photo => <PhotoThumb key={photo.id} orderId={order.id} commentId={event.id} photo={photo} />)}</div>}
                       </>}
-                      {event.type === 'payment' && <p className="mt-1 text-sm text-mute">{ETIQUETAS_MEDIO_PAGO[event.payment.method] || event.payment.method} · <b className="text-fore">{gs(Number(event.payment.amountPyg || 0))}</b> · {PAYMENT_STATUS[event.payment.status] || event.payment.status}{event.payment.accountSnapshot?.name ? ` · ${event.payment.accountSnapshot.name}` : ''}{event.payment.reference ? ` · ${event.payment.reference}` : ''}</p>}
+                      {event.type === 'payment' && <p className="mt-1 text-sm text-mute">{ETIQUETAS_MEDIO_PAGO[event.payment.method] || event.payment.method} · <b className="text-fore"><Money value={Number(event.payment.amountPyg || 0)} /></b> · {PAYMENT_STATUS[event.payment.status] || event.payment.status}{event.payment.accountSnapshot?.name ? ` · ${event.payment.accountSnapshot.name}` : ''}{event.payment.reference ? ` · ${event.payment.reference}` : ''}</p>}
                       {event.type === 'audit' && <p className="mt-1 text-sm text-mute">{AUDIT_LABELS[event.action]?.(event.metadata) || event.action}</p>}
                       {event.type === 'created' && <p className="mt-1 text-sm text-mute">Pedido creado.</p>}
                     </div>

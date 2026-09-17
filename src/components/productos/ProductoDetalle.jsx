@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Drawer, Badge, Button, Input, Label, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Drawer, Badge, Button, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
-import { gs, num } from '@/utils/calculos'
+import { num } from '@/utils/calculos'
 
 const CONDITION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 const DESTINATION = { NORMAL: 'Normal', OFFER: 'Oferta', WHOLESALE: 'Mayorista' }
@@ -115,9 +115,9 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
           </div>
           <p className="mt-1 text-xs text-mute">{current?.branch?.name || ''}{current?.branchId && !current?.branch?.name ? 'Sucursal asignada' : ''}</p>
           <div className="mt-4 flex flex-wrap items-end gap-4">
-            <div><p className="text-xs text-mute">Precio de venta</p><p className="text-2xl font-bold tabular-nums text-fono-light">{precio(current) > 0 ? gs(precio(current)) : '—'}</p></div>
-            {mayorista(current) > 0 && <div><p className="text-xs text-mute">Mayorista</p><p className="text-lg font-semibold tabular-nums">{gs(mayorista(current))}</p></div>}
-            {current?.priceUsd != null && Number(current.priceUsd) > 0 && <div><p className="text-xs text-mute">En dólares</p><p className="text-lg font-semibold tabular-nums">US$ {Number(current.priceUsd).toLocaleString('en-US', { maximumFractionDigits: 2 })}</p></div>}
+            <div><p className="text-xs text-mute">Precio de venta</p><p className="text-2xl font-bold tabular-nums text-fono-light">{precio(current) > 0 ? <Money value={precio(current)} /> : '—'}</p></div>
+            {mayorista(current) > 0 && <div><p className="text-xs text-mute">Mayorista</p><p className="text-lg font-semibold tabular-nums"><Money value={mayorista(current)} /></p></div>}
+            {current?.priceUsd != null && Number(current.priceUsd) > 0 && <div><p className="text-xs text-mute">En dólares</p><p className="text-lg font-semibold tabular-nums"><Money value={current.priceUsd} currency="USD" /></p></div>}
             <div className="ml-auto text-right"><p className="text-xs text-mute">Stock</p><p className="text-2xl font-bold tabular-nums">{current?.stock ?? 0}</p></div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -171,7 +171,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
         <section className="rounded-2xl border border-ink-600 p-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Datos del catálogo</h3>
           <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{costo(current) > 0 ? gs(costo(current)) : 'pendiente'}</p></div>
+            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{costo(current) > 0 ? <Money value={costo(current)} /> : 'pendiente'}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Seguro</p><p className="mt-1 font-semibold">{current?.insuranceRate != null && Number(current.insuranceRate) > 0 ? `${current.insuranceRate}%` : 'sin seguro'}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Umbral de reposición</p><p className="mt-1 font-semibold">{current?.reorderPoint ?? '—'}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Condición</p><p className="mt-1 font-semibold">{CONDITION[current?.condition] || '—'}</p></div>

@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
-import { formatGs } from '@/utils/moneda'
-import { Badge, Card, EmptyState, Eyebrow, Skeleton } from '@/components/ui'
+import { Badge, Card, EmptyState, Eyebrow, Money, Skeleton } from '@/components/ui'
 
 const TONE = (row) => row.overduePyg > 0 ? 'bad' : row.limitUsagePct !== null && row.limitUsagePct >= 80 ? 'warn' : 'ok'
 
@@ -42,8 +41,8 @@ export default function Creditos() {
         </div>
         {error && <p role="alert" className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
         <div className="mt-4 grid gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-ink-600 p-3"><p className="text-xs text-mute">Total por cobrar</p><strong className="mt-1 block text-lg tabular-nums">{formatGs(totals.outstandingPyg)}</strong></div>
-          <div className="rounded-xl border border-bad/25 bg-bad/5 p-3"><p className="text-xs text-mute">En mora</p><strong className="mt-1 block text-lg tabular-nums text-bad">{formatGs(totals.overduePyg)}</strong></div>
+          <div className="rounded-xl border border-ink-600 p-3"><p className="text-xs text-mute">Total por cobrar</p><strong className="mt-1 block text-lg tabular-nums"><Money value={totals.outstandingPyg} /></strong></div>
+          <div className="rounded-xl border border-bad/25 bg-bad/5 p-3"><p className="text-xs text-mute">En mora</p><strong className="mt-1 block text-lg tabular-nums text-bad"><Money value={totals.overduePyg} /></strong></div>
           <div className="rounded-xl border border-ink-600 p-3"><p className="text-xs text-mute">Clientes con deuda</p><strong className="mt-1 block text-lg tabular-nums">{totals.customersWithDebt}</strong></div>
           <div className="rounded-xl border border-bad/25 bg-bad/5 p-3"><p className="text-xs text-mute">Clientes en mora</p><strong className="mt-1 block text-lg tabular-nums text-bad">{totals.overdueCustomers}</strong></div>
         </div>
@@ -59,12 +58,12 @@ export default function Creditos() {
                   <p className="truncate text-sm font-semibold">{row.name}{row.pricingTier === 'WHOLESALE' ? <Badge className="ml-2" color="blue">Mayorista</Badge> : null}</p>
                   <p className="mt-1 text-xs text-mute">
                     {row.pendingOrders} pedido{row.pendingOrders === 1 ? '' : 's'} pendiente{row.pendingOrders === 1 ? '' : 's'} · vence más próximo {row.oldestDueAt ? new Date(row.oldestDueAt).toLocaleDateString('es-PY') : '—'}
-                    {row.overduePyg > 0 && <span className="ml-2 font-semibold text-bad">en mora {row.maxOverdueDays} día{row.maxOverdueDays === 1 ? '' : 's'} · {formatGs(row.overduePyg)}</span>}
+                    {row.overduePyg > 0 && <span className="ml-2 font-semibold text-bad">en mora {row.maxOverdueDays} día{row.maxOverdueDays === 1 ? '' : 's'} · <Money value={row.overduePyg} /></span>}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <strong className="block tabular-nums">{formatGs(row.outstandingPyg)}</strong>
-                  <p className="text-[11px] text-mute">{row.creditLimitPyg ? `de ${formatGs(row.creditLimitPyg)} · ${row.limitUsagePct}%` : 'sin límite'}{row.creditDays ? ` · plazo ${row.creditDays} días` : ''}</p>
+                  <strong className="block tabular-nums"><Money value={row.outstandingPyg} /></strong>
+                  <p className="text-[11px] text-mute">{row.creditLimitPyg ? <>de <Money value={row.creditLimitPyg} /> · {row.limitUsagePct}%</> : 'sin límite'}{row.creditDays ? ` · plazo ${row.creditDays} días` : ''}</p>
                 </div>
               </div>
               {row.creditLimitPyg ? (

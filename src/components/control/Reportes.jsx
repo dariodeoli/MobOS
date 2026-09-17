@@ -3,7 +3,7 @@ import { api } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { useSesion } from '@/lib/sesion'
 import { gs } from '@/utils/calculos'
-import { Badge, Button, Card, EmptyState, Select, Stat } from '@/components/ui'
+import { Badge, Button, Card, DataTable, EmptyState, Select, Stat } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import RangoFechas, { PRESETS, etiquetaRango } from '@/components/shared/RangoFechas'
 import {
@@ -85,6 +85,16 @@ export default function Reportes() {
   const grupos = datos?.groups || []
   const columnas = columnasReporte(grupo)
   const porLinea = esGrupoPorLinea(grupo)
+  // Columnas para DataTable: mismos encabezados, alineación y clases por tipo
+  // que la tabla escrita a mano.
+  const columnasTabla = columnas.map((c) => ({
+    key: c.key,
+    label: c.label,
+    align: c.tipo === 'texto' ? undefined : 'right',
+    render: (g) => c.tipo === 'texto'
+      ? <span className="font-medium text-fore">{g[c.key]}</span>
+      : <span className="tabular-nums text-mute">{c.tipo === 'monto' ? gs(g[c.key]) : g[c.key]}</span>,
+  }))
 
   function exportar() {
     if (tipo === 'comisiones') {
@@ -212,37 +222,18 @@ export default function Reportes() {
               />
             </Card>
           ) : (
-            <>
-              {/* Tabla en pantallas grandes */}
-              <Card className="hidden overflow-x-auto p-0 md:block">
-                <table className="w-full min-w-[640px] text-sm">
-                  <thead>
-                    <tr className="border-b border-ink-600 text-left text-[11px] uppercase tracking-wider text-mute">
-                      <th className="px-4 py-3">Vendedor</th>
-                      <th className="px-4 py-3 text-right">Ventas</th>
-                      <th className="px-4 py-3 text-right">Margen</th>
-                      <th className="px-4 py-3 text-right">% comisión</th>
-                      <th className="px-4 py-3 text-right">Comisión</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {datosComisiones.sellers.map((fila) => (
-                      <tr key={fila.sellerId} className="border-b border-ink-700/60 last:border-0">
-                        <td className="px-4 py-3 font-medium text-fore">{fila.sellerName || 'Sin vendedor'}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-mute">{gs(fila.totalPyg)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-mute">{gs(fila.marginPyg)}</td>
-                        <td className="px-4 py-3 text-right tabular-nums text-mute">{fila.commissionPct === null ? '—' : `${fila.commissionPct}%`}</td>
-                        <td className="px-4 py-3 text-right tabular-nums font-semibold text-fore">{gs(fila.commissionPyg)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Card>
-
-              {/* Tarjetas en móvil */}
-              <div className="space-y-3 md:hidden">
-                {datosComisiones.sellers.map((fila) => (
-                  <Card key={fila.sellerId}>
+            <Card className="overflow-hidden p-0">
+              <DataTable
+                columns={[
+                  { key: 'sellerName', label: 'Vendedor', render: (fila) => <span className="font-medium text-fore">{fila.sellerName || 'Sin vendedor'}</span> },
+                  { key: 'totalPyg', label: 'Ventas', align: 'right', render: (fila) => <span className="tabular-nums text-mute">{gs(fila.totalPyg)}</span> },
+                  { key: 'marginPyg', label: 'Margen', align: 'right', render: (fila) => <span className="tabular-nums text-mute">{gs(fila.marginPyg)}</span> },
+                  { key: 'commissionPct', label: '% comisión', align: 'right', render: (fila) => <span className="tabular-nums text-mute">{fila.commissionPct === null ? '—' : `${fila.commissionPct}%`}</span> },
+                  { key: 'commissionPyg', label: 'Comisión', align: 'right', render: (fila) => <span className="tabular-nums font-semibold text-fore">{gs(fila.commissionPyg)}</span> },
+                ]}
+                rows={datosComisiones.sellers.map((fila) => ({ ...fila, key: fila.sellerId }))}
+                mobileCard={(fila) => (
+                  <Card>
                     <div className="flex items-start justify-between gap-3">
                       <div className="font-semibold text-fore">{fila.sellerName || 'Sin vendedor'}</div>
                       <Badge color={fila.commissionPct === null ? 'slate' : 'green'}>{fila.commissionPct === null ? 'Sin regla' : `${fila.commissionPct}%`}</Badge>
@@ -254,9 +245,9 @@ export default function Reportes() {
                       <Linea label="Comisión" valor={gs(fila.commissionPyg)} />
                     </div>
                   </Card>
-                ))}
-              </div>
-            </>
+                )}
+              />
+            </Card>
           )}
 
           <p className="text-xs text-mute">
@@ -312,44 +303,12 @@ export default function Reportes() {
               />
             </Card>
           ) : (
-            <>
-              {/* Tabla en pantallas grandes */}
-              <Card className="hidden overflow-x-auto p-0 md:block">
-                <table className="w-full min-w-[720px] text-sm">
-                  <thead>
-                    <tr className="border-b border-ink-600 text-left text-[11px] uppercase tracking-wider text-mute">
-                      {columnas.map((c) => (
-                        <th key={c.key} className={c.tipo === 'texto' ? 'px-4 py-3' : 'px-4 py-3 text-right'}>
-                          {c.label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {grupos.map((g) => (
-                      <tr key={g.key} className="border-b border-ink-700/60 last:border-0">
-                        {columnas.map((c) => (
-                          <td
-                            key={c.key}
-                            className={
-                              c.tipo === 'texto'
-                                ? 'px-4 py-3 font-medium text-fore'
-                                : 'px-4 py-3 text-right tabular-nums text-mute'
-                            }
-                          >
-                            {c.tipo === 'monto' ? gs(g[c.key]) : g[c.key]}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Card>
-
-              {/* Tarjetas en móvil */}
-              <div className="space-y-3 md:hidden">
-                {grupos.map((g) => (
-                  <Card key={g.key}>
+            <Card className="overflow-hidden p-0">
+              <DataTable
+                columns={columnasTabla}
+                rows={grupos}
+                mobileCard={(g) => (
+                  <Card>
                     <div className="flex items-start justify-between gap-3">
                       <div className="font-semibold text-fore">{g.label}</div>
                       <Badge color="slate">{g.units} u.</Badge>
@@ -363,9 +322,9 @@ export default function Reportes() {
                       {!porLinea && <Linea label="Saldo" valor={gs(g.pendingPyg)} />}
                     </div>
                   </Card>
-                ))}
-              </div>
-            </>
+                )}
+              />
+            </Card>
           )}
 
           <p className="text-xs text-mute">

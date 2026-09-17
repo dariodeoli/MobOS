@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { formatGsInput, parseGsInput, formatUsdInput, parseUsdInput } from '@/utils/moneda'
+import { formatGs, formatGsInput, parseGsInput, formatUsdInput, parseUsdInput } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
 
 // ── Button ──────────────────────────────────────────────────────────
@@ -115,6 +115,22 @@ export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, cla
         className={cn(prefix.length > 3 ? 'pl-14' : 'pl-12', 'tabular-nums', className)}
       />
     </div>
+  )
+}
+
+// ── Money ───────────────────────────────────────────────────────────
+// Importe de solo lectura: guaraníes con el formato canónico del repo y
+// dólares con separador en-US, sin convertir moneda. Un valor no finito
+// se muestra como raya para no inventar cifras.
+export function Money({ value, currency = 'PYG', className }) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return <span className={className}>—</span>
+  return (
+    <span className={className}>
+      {currency === 'USD'
+        ? `US$ ${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+        : formatGs(amount)}
+    </span>
   )
 }
 
