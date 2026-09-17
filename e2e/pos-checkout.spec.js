@@ -70,8 +70,8 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   // The sale shows up in the seller's order list.
   await page.goto('/pos/pedidos')
   await expect(page.getByRole('heading', { name: 'Mis pedidos' })).toBeVisible()
-  const sale = page.locator('li').filter({ hasText: customerName }).first()
+  const sale = page.getByTestId('pedido-fila').filter({ hasText: customerName }).first()
   await expect(sale).toBeVisible()
-  await expect(sale.getByText('Total del pedido:')).toBeVisible()
-  await expect(sale.getByText('Pago: Pagado')).toBeVisible()
+  await expect(sale).toContainText('artículo')
+  await expect(sale.getByText('Pagado', { exact: true })).toBeVisible()
 })

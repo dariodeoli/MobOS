@@ -48,6 +48,7 @@ function FilaPedido({ row, onClick }) {
   return (
     <button
       type="button"
+      data-testid="pedido-fila"
       onClick={onClick}
       className="group flex w-full flex-col gap-1.5 rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-2.5 text-left transition hover:border-fono/40 hover:bg-ink-700/50 sm:flex-row sm:items-center sm:gap-3"
     >

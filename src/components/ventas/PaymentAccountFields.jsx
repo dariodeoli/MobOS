@@ -55,7 +55,7 @@ export default function PaymentAccountFields({ payment, accounts, onChange }) {
     </div>
     <div><Label>Monto original ({account?.currency || 'moneda de la cuenta'})</Label><MoneyInput aria-label="Monto original" disabled={!account} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={FOREIGN(account?.currency) ? '0,00' : '0'} /></div>
     {FOREIGN(account?.currency) && <div><Label>Cotización manual (₲ por {account.currency})</Label><MoneyInput aria-label={`Cotización manual ${account.currency} a PYG`} currency="USD" symbol="Gs." value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v })} placeholder="Ingresar cotización" /></div>}
-    <p className="rounded-lg border border-fono/20 bg-fono/5 px-3 py-2 text-sm sm:col-span-2">Equivalente en guaraníes: <b className="tabular-nums text-fono-light">{gs(Number(payment.monto) || 0)}</b></p>
+    <p className="rounded-lg border border-fono/20 bg-fono/5 px-3 py-2 text-sm sm:col-span-2">Equivalente: <b className="tabular-nums text-fore">{gs(Number(payment.monto) || 0)}</b></p>
     {account?.kind === 'TRADE_IN' && <>
       <div><Label>Serial / IMEI del canje *</Label><Input aria-label="Serial del canje" value={payment.tradeIn?.serial || ''} onChange={(e) => onChange({ tradeIn: { ...payment.tradeIn, serial: e.target.value } })} /></div>
       <div><Label>Modelo del canje *</Label><Input aria-label="Modelo del canje" value={payment.tradeIn?.model || ''} onChange={(e) => onChange({ tradeIn: { ...payment.tradeIn, model: e.target.value } })} /></div>
