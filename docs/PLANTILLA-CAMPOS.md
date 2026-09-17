@@ -22,7 +22,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi` o el 
 | `Money` | Importe de solo lectura | Formato canónico; valor no numérico → `—` |
 | `PasswordInput` | Contraseña | Toggle ver/ocultar; mínimo 8, máximo 72 |
 | `PinInput` | PIN/código | 4–6 dígitos, teclado numérico, `one-time-code`, autoenvío al completar |
-| Apoyo | `Modal`, `Card`, `Badge`, `DataTable`, `PageHeader`, `EmptyState`, `Skeleton`, toasts | — |
+| Apoyo | `Modal`, `Card`, `Badge`, `DataTable`, `PageHeader`, `EmptyState`, `Skeleton`, toasts, `IconAction` | `IconAction`: acción como ícono con tooltip, tonos por acción (`ok`/`warn`/`bad`/…), `active:scale-95`, `disabled:opacity-40` |
 
 ## 3. Campos compuestos recomendados (con su regla)
 
@@ -40,6 +40,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi` o el 
 | `ColorVariantSelector` | Variante/color de un producto | — |
 | `AccountFields` | Cuenta + monto + cotización | — |
 | `ScannerInput` (cámara) | Escaneo de código/IMEI | Normaliza lo escaneado |
+| `PasteActionLink` | Campo para pegar el enlace completo cuando el token de acción no llega por la URL (relays/redirecciones); extrae el código automáticamente | Muestra el error de enlace, no el de token |
 
 ## 4. Reglas por tipo de dato
 
@@ -63,6 +64,8 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi` o el 
 - `formatMoney(value, currency)`, `formatMoneyInput`, `parseMoneyInput`, `formatPercent`, `parsePercent`.
 - `normalizeSerial(value)` (trim, sin prefijo, sin separadores, mayúsculas).
 - `normalizeSocialUser(value)` y `normalizeEmailDomainSuggestion(value)`.
+- `consumeActionToken(location, history)` (lee hash/query/path y limpia la URL) y `extractTokenFromUrl(raw)` (código desde enlaces pegados, incluidos los de tracking).
+- `parseDelimited(text)` / `filasConEncabezado(text)` para import CSV de catálogos.
 - Strings de error centralizados (un solo mensaje por regla).
 
 ## 6. Convenciones de interacción y accesibilidad
