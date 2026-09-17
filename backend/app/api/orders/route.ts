@@ -73,12 +73,26 @@ function inlineAddresses(value: unknown) {
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  const where = session.user.role === 'VENDEDOR'
+  const alcance = session.user.role === 'VENDEDOR'
     ? { tenantId: tenant, branchId: session.user.branchId, sellerId: session.user.id }
     : session.user.role === 'CAJERA'
       ? { tenantId: tenant, branchId: session.user.branchId }
       : { tenantId: tenant }
   const params = new URL(request.url).searchParams
+  const q = (params.get('q') || '').trim().slice(0, 80)
+  // Búsqueda del listado: número de pedido, cliente (nombre, teléfono, CI/RUC),
+  // factura a otro titular y vendedor, resuelta en la base y no en la página.
+  const where = q ? { ...alcance, OR: [
+    { orderNumber: { contains: q, mode: 'insensitive' as const } },
+    { customer: { is: { OR: [
+      { name: { contains: q, mode: 'insensitive' as const } },
+      { phone: { contains: q } },
+      { document: { contains: q } },
+    ] } } },
+    { billingName: { contains: q, mode: 'insensitive' as const } },
+    { billingDocument: { contains: q } },
+    { seller: { is: { name: { contains: q, mode: 'insensitive' as const } } } },
+  ] } : alcance
   const limit = Math.min(500, Math.max(1, Number(params.get('limit')) || 100))
   const cursor = params.get('cursor')
   return json(await prisma.order.findMany({ where, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: limit, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}) }))

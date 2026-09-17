@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, productosById } from '@/lib/storage'
@@ -19,6 +19,7 @@ export const orderFields = (row) => {
   const products = items.length ? items.map(item => item.description).filter(Boolean) : [row.productoNombre].filter(Boolean)
   return {
     id: row.id, sellerId: row.sellerId ?? row.vendedorId,
+    sellerName: row.seller?.name || row.vendedor || '',
     number: row.orderNumber || row.codigo || row.id,
     customer: row.customer?.name || row.cliente || 'Sin cliente',
     customerId: row.customerId || row.clienteId || null,
@@ -120,7 +121,7 @@ function CeldaSerial({ serial }) {
 }
 
 const buscable = (row) => normalizarBusqueda([
-  row.number, String(row.number).replace(/\D/g, ''), row.customer, row.billingName, row.billingDocument,
+  row.number, String(row.number).replace(/\D/g, ''), row.customer, row.sellerName, row.billingName, row.billingDocument,
   row.document, row.email, row.phone, row.notes, (row.tags || []).join(' '), row.products,
   row.seriales.join(' '), row.seriales.map(serial => String(serial).slice(-4)).join(' '), String(row.total),
 ].filter(Boolean).join(' '))
@@ -168,9 +169,16 @@ export default function SellerOrders() {
   // código comercial: si el código cambia, el enlace sigue resolviendo.
   const { orderId } = useParams()
   const [query, setQuery] = useState('')
+  const [search, setSearch] = useState('')
+  // La búsqueda del listado se resuelve en el servidor: así encuentra pedidos
+  // que todavía no están en la página cargada (número, cliente, RUC, vendedor).
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(query.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [query])
   const [filtro, setFiltro] = useState('activos')
   const [orden, setOrden] = useState({ key: 'date', dir: 'desc' })
-  const data = useSellerData('/api/orders', orderFields, listVentas, esDemo, { limit: 50 })
+  const data = useSellerData(`/api/orders${search ? `?q=${encodeURIComponent(search)}` : ''}`, orderFields, listVentas, esDemo, { limit: 50 })
   const esAdminVentas = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE'].includes(sesion?.rol) || ['ADMIN', 'GERENTE'].includes(usuario?.role))
   const todas = useMemo(() => {
     const products = esDemo ? productosById() : {}
