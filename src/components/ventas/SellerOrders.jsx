@@ -1,16 +1,18 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
-import { Button, Input, Select } from '@/components/ui'
+import { Input } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
+import { cn } from '@/lib/utils'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
-import { api } from '@/lib/api/client'
-import { printOrderReceipt } from '@/components/shared/OrderReceipt'
+import PedidoDetalle from './PedidoDetalle'
 
 export const orderFields = (row) => ({
   id: row.id, sellerId: row.sellerId ?? row.vendedorId,
   number: row.orderNumber || row.codigo || row.id,
   customer: row.customer?.name || row.cliente || 'Sin cliente',
+  customerId: row.customerId || row.clienteId || null,
   date: row.createdAt || row.creadoEn || row.fecha,
   status: row.status || 'REGISTERED', paymentStatus: row.estadoPago || (Array.isArray(row.payments) ? (() => {
     const paid = row.payments.filter(p => p.status === 'CONFIRMED').reduce((sum, p) => sum + Number(p.amountPyg || 0), 0)
@@ -20,43 +22,85 @@ export const orderFields = (row) => ({
   products: Array.isArray(row.items) ? row.items.map((item) => item.description).filter(Boolean).join(', ') : row.productoNombre || '',
   fulfillmentStatus: row.fulfillmentStatus || row.entrega || 'PROCESSING', deliveryType: row.deliveryType, publicToken: row.publicToken,
   items: row.items || [], payments: row.payments || row.pagos || [], subtotalPyg: row.subtotalPyg, discountPyg: row.discountPyg, deliveryPyg: row.deliveryPyg,
+  tags: Array.isArray(row.tags) ? row.tags : [], archivedAt: row.archivedAt || null,
 })
-const STATUS = { PENDING: 'Pendiente', COMPLETED: 'Completado', CANCELLED: 'Cancelado', REGISTERED: 'Registrado' }
 const FULFILLMENT = { PROCESSING: 'Preparando', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
+const FULFILLMENT_TONE = { PROCESSING: 'slate', IN_TRANSIT: 'blue', READY_FOR_PICKUP: 'orange', DELIVERED: 'green' }
+const PAYMENT_TONE = { Pagado: 'green', Parcial: 'orange', Pendiente: 'red' }
+const FILTROS = [['activos', 'Activos'], ['archivados', 'Archivados'], ['todos', 'Todos']]
+
+function relativeDate(value) {
+  if (!value || Number.isNaN(Date.parse(value))) return 'Sin fecha'
+  const date = new Date(value)
+  const hora = date.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' })
+  if (date.toDateString() === new Date().toDateString()) return `Hoy ${hora}`
+  if (date.toDateString() === new Date(Date.now() - 86400000).toDateString()) return `Ayer ${hora}`
+  return `${date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' })} ${hora}`
+}
+const ultimoImei = (row) => {
+  const serial = (row.items || []).flatMap(item => Array.isArray(item.serials) ? item.serials : []).pop()
+  return serial ? `••••${String(serial).slice(-4)}` : ''
+}
+
+// Fila compacta: una línea en escritorio (dos en móvil) con lo esencial.
+function FilaPedido({ row, onClick }) {
+  const cantidad = (row.items || []).reduce((sum, item) => sum + Number(item.quantity || 1), 0) || (row.products ? 1 : 0)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex w-full flex-col gap-1.5 rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-2.5 text-left transition hover:border-fono/40 hover:bg-ink-700/50 sm:flex-row sm:items-center sm:gap-3"
+    >
+      <span className="flex min-w-0 items-center gap-2 sm:flex-1">
+        <span className="shrink-0 font-mono text-xs font-bold text-fono-light">{row.number}</span>
+        <span className="hidden shrink-0 text-xs text-mute sm:inline">{relativeDate(row.date)}</span>
+        <span className="min-w-0 truncate text-sm font-semibold">{row.customer}</span>
+        <span className="hidden min-w-0 truncate text-xs text-mute lg:inline">{row.products}</span>
+      </span>
+      <span className="flex min-w-0 items-center gap-2 text-[11px] text-mute sm:justify-end">
+        <span className="sm:hidden">{relativeDate(row.date)}</span>
+        {ultimoImei(row) && <span className="rounded border border-ink-500 px-1.5 py-0.5 font-mono text-[10px] text-fono-light">{ultimoImei(row)}</span>}
+        <span>{cantidad} artículo{cantidad === 1 ? '' : 's'}</span>
+        <span className="hidden sm:inline">·</span>
+        <span className="hidden sm:inline">{row.deliveryType || 'En tienda'}</span>
+        <span className="ml-auto flex shrink-0 items-center gap-1.5 sm:ml-0">
+          <span className={cn('rounded-md border px-1.5 py-0.5 text-[10px] font-bold', PAYMENT_TONE[row.paymentStatus] === 'green' ? 'border-ok/25 bg-ok/10 text-ok' : PAYMENT_TONE[row.paymentStatus] === 'orange' ? 'border-warn/25 bg-warn/10 text-warn' : 'border-bad/25 bg-bad/10 text-bad')}>{row.paymentStatus || 'Pendiente'}</span>
+          <span className={cn('rounded-md border px-1.5 py-0.5 text-[10px] font-bold', FULFILLMENT_TONE[row.fulfillmentStatus] === 'green' ? 'border-ok/25 bg-ok/10 text-ok' : FULFILLMENT_TONE[row.fulfillmentStatus] === 'orange' ? 'border-warn/25 bg-warn/10 text-warn' : FULFILLMENT_TONE[row.fulfillmentStatus] === 'blue' ? 'border-fono/25 bg-fono/10 text-fono-light' : 'border-ink-500 bg-ink-700/40 text-mute')}>{FULFILLMENT[row.fulfillmentStatus] || row.fulfillmentStatus}</span>
+          {row.archivedAt && <span className="rounded-md border border-ink-500 px-1.5 py-0.5 text-[10px] font-bold text-mute">Archivado</span>}
+        </span>
+        <span className="shrink-0 text-sm font-bold tabular-nums text-fore">{row.total != null && Number.isFinite(Number(row.total)) ? gs(row.total) : '—'}</span>
+        <Icon name="chevron" className="h-3.5 w-3.5 shrink-0 -rotate-90 text-mute transition group-hover:text-fono-light" />
+      </span>
+    </button>
+  )
+}
 
 export default function SellerOrders() {
   const { sesion, esDemo, usuario } = useSesion()
   const [query, setQuery] = useState('')
-  const [savingId, setSavingId] = useState('')
-  const [actionError, setActionError] = useState('')
-  const products = esDemo ? productosById() : {}
+  const [filtro, setFiltro] = useState('activos')
+  const [seleccion, setSeleccion] = useState(null)
   const data = useSellerData('/api/orders', orderFields, listVentas, esDemo)
-  // El dueño real llega con sesion.rol = 'dueno' (no 'ADMIN'), por eso el
-  // permiso se calcula sobre esPropietario o el rol crudo del usuario.
   const esAdminVentas = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE'].includes(sesion?.rol) || ['ADMIN', 'GERENTE'].includes(usuario?.role))
-  const rows = data.rows.filter((row) => esAdminVentas ? true : Boolean(sesion?.vendedorId) && row.sellerId === sesion.vendedorId)
-    .map((row) => ({ ...row, products: row.products || products[row.productId]?.nombre || products[row.productId]?.name || '' }))
-    .filter((row) => `${row.number} ${row.customer} ${row.products}`.toLowerCase().includes(query.toLowerCase()))
-    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
-  async function updateFulfillment(row, fulfillmentStatus) {
-    if (esDemo || savingId) return
-    setSavingId(row.id); setActionError('')
-    try { await api.patch(`/api/orders/${encodeURIComponent(row.id)}`, { fulfillmentStatus }); await data.refresh() } catch (error) { setActionError(error.message || 'No se pudo actualizar la entrega.') } finally { setSavingId('') }
-  }
-  return <SellerSection title={esAdminVentas ? 'Pedidos' : 'Mis pedidos'} description={esAdminVentas ? 'Todos los pedidos de la tienda, con su estado y entrega. La API devuelve hasta 100 pedidos recientes.' : 'Consultá los pedidos registrados con tu usuario y su estado. La API devuelve hasta 100 pedidos recientes.'}>
-    <div className="flex gap-2"><Input aria-label="Buscar en mis pedidos" placeholder="Pedido, cliente o producto" value={query} onChange={(event) => setQuery(event.target.value)} />
-      <Button onClick={data.refresh} disabled={data.loading}>Actualizar</Button></div>
+  const todas = useMemo(() => {
+    const products = esDemo ? productosById() : {}
+    return data.rows
+      .filter((row) => esAdminVentas ? true : Boolean(sesion?.vendedorId) && row.sellerId === sesion.vendedorId)
+      .map((row) => ({ ...row, products: row.products || products[row.productId]?.nombre || products[row.productId]?.name || '' }))
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+  }, [data.rows, esAdminVentas, sesion?.vendedorId, esDemo])
+  const porCliente = useMemo(() => todas.reduce((acc, row) => { if (row.customerId) acc[row.customerId] = (acc[row.customerId] || 0) + 1; return acc }, {}), [todas])
+  const rows = useMemo(() => todas
+    .filter((row) => filtro === 'todos' ? true : filtro === 'archivados' ? Boolean(row.archivedAt) : !row.archivedAt)
+    .filter((row) => `${row.number} ${row.customer} ${row.products} ${(row.tags || []).join(' ')}`.toLowerCase().includes(query.toLowerCase())), [todas, filtro, query])
+  return <SellerSection title={esAdminVentas ? 'Pedidos' : 'Mis pedidos'} description="Cada pedido en una línea: estado, pago y entrega. Entrá para ver artículos, IMEIs, cliente y cronología.">
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS.map(([key, label]) => <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('rounded-lg px-3 py-1.5 text-xs font-semibold transition', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
+      <div className="min-w-[200px] flex-1"><Input aria-label="Buscar pedidos" placeholder="Pedido, cliente, producto o etiqueta" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
+      <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
+    </div>
     <SellerFeedback {...data} empty={!rows.length} />
-    {actionError && <p role="alert" className="mt-3 text-sm text-red-300">{actionError}</p>}
-    {!data.loading && !data.error && <ul className="space-y-3">{rows.map((row) => <li key={row.id} className="break-words rounded-2xl border border-fore/10 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">{row.number}</h2>
-        <span className="rounded-full border border-fono/30 bg-fono/10 px-3 py-1 text-xs text-fono-light">{STATUS[row.status] || 'Estado no informado'}</span></div>
-      <p className="mt-3">{row.customer}</p><p className="mt-1 text-mute">{row.products || 'Sin detalle de productos'}</p>
-      <p className="mt-3 font-semibold text-fono-light">Total del pedido: {row.total != null && Number.isFinite(Number(row.total)) ? gs(row.total) : 'No disponible'}</p>
-      {row.paymentStatus && <p className="mt-2 text-sm text-mute">Pago: {row.paymentStatus}</p>}
-      <p className="mt-2 text-sm text-mute">Entrega: <strong className="text-fono-light">{FULFILLMENT[row.fulfillmentStatus] || row.fulfillmentStatus}</strong></p>
-      <p className="mt-3 text-xs text-mute">{row.date && !Number.isNaN(Date.parse(row.date)) ? new Date(row.date).toLocaleDateString('es-PY') : 'Fecha no disponible'}</p>
-      <div className="mt-4 flex flex-wrap gap-2"><Button type="button" onClick={() => printOrderReceipt(row)}>Imprimir comprobante</Button>{!esDemo && <label className="text-xs text-mute">Estado de entrega<Select aria-label={`Estado de entrega ${row.number}`} className="mt-1" value={row.fulfillmentStatus} disabled={savingId === row.id} onChange={event => updateFulfillment(row, event.target.value)}>{Object.entries(FULFILLMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></label>}</div>
-    </li>)}</ul>}
+    {!data.loading && !data.error && <div className="space-y-2">{rows.map((row) => <FilaPedido key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
+    {seleccion && <PedidoDetalle row={seleccion} esDemo={esDemo} customerOrderCount={seleccion.customerId ? porCliente[seleccion.customerId] || 0 : 0} onClose={() => setSeleccion(null)} onChanged={data.refresh} />}
   </SellerSection>
 }
