@@ -170,6 +170,7 @@ export default function App() {
           <Route path="/aceptar-invitacion" element={<AceptarInvitacion />} />
           <Route path="/verificar-correo" element={<VerificarCorreo />} />
           <Route path="/pedido/:token" element={<PedidoPublico />} />
+          <Route path="/p/:token" element={<PedidoPublico />} />
           <Route path="/garantia/:token" element={<GarantiaPublica />} />
           <Route
             path="/"

@@ -4,7 +4,7 @@ import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { api, API_URL } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
-import { printOrderReceipt } from '@/components/shared/OrderReceipt'
+import { accessUrlFor, printOrderReceipt } from '@/components/shared/OrderReceipt'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 
 const FULFILLMENT = FULFILLMENT_LABELS
@@ -58,8 +58,13 @@ function PhotoThumb({ orderId, commentId, photo }) {
   return <button type="button" onClick={() => window.open(url, '_blank')} className="overflow-hidden rounded-lg border border-ink-600 transition hover:border-fono"><img src={url} alt={photo.fileName} className="h-16 w-16 object-cover" /></button>
 }
 
+const NIVELES_ACCESO = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detallado', 'Detallado']]
+
 export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onClose, onChanged }) {
   const toast = useToast()
+  const [accesos, setAccesos] = useState({})
+  const [accesoBusy, setAccesoBusy] = useState(false)
+  const [accesoMsg, setAccesoMsg] = useState('')
   const [detail, setDetail] = useState(null)
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(!esDemo)
@@ -84,6 +89,10 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     } catch (cause) { setError(cause?.message || 'No se pudo cargar el pedido.') } finally { setLoading(false) }
   }, [row, esDemo])
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    if (!esDemo && order?.id) cargarAccesos()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id, esDemo])
 
   const order = detail || row
   const items = order.items || []
@@ -110,6 +119,29 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     if (busy || esDemo) return
     setBusy(true); setError('')
     try { await operation(); toast.success(success); await load(); onChanged?.() } catch (cause) { setError(cause?.message || 'No se pudo actualizar el pedido.') } finally { setBusy(false) }
+  }
+  async function cargarAccesos() {
+    if (esDemo || !order?.id) return
+    try {
+      const data = await api.get(`/api/orders/${encodeURIComponent(order.id)}/access-tokens`)
+      setAccesos(Object.fromEntries((data.tokens || []).map(token => [token.level, token.token])))
+    } catch { /* sin permisos o sin red: se generan a demanda */ }
+  }
+  async function generarAcceso(level, regenerate) {
+    if (esDemo || !order?.id) return
+    setAccesoBusy(true); setAccesoMsg('')
+    try {
+      const data = await api.post(`/api/orders/${encodeURIComponent(order.id)}/access-tokens`, { level, regenerate })
+      setAccesos(current => ({ ...current, [level]: data.token }))
+      setAccesoMsg(regenerate ? 'Enlace regenerado: el anterior ya no funciona.' : 'Enlace listo para compartir.')
+    } catch (cause) {
+      setAccesoMsg(cause?.message || 'No se pudo preparar el enlace.')
+    } finally { setAccesoBusy(false) }
+  }
+  function copiarAcceso(token) {
+    const url = accessUrlFor(token)
+    if (!url) { setAccesoMsg('No se pudo armar el enlace.'); return }
+    navigator.clipboard?.writeText(url).then(() => setAccesoMsg('Enlace copiado.')).catch(() => setAccesoMsg(url))
   }
   const cambiarEntrega = (fulfillmentStatus) => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { fulfillmentStatus }), 'Entrega actualizada.')
   const alternarArchivado = () => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { action: archivado ? 'unarchive' : 'archive' }), archivado ? 'Pedido desarchivado.' : 'Pedido archivado.')
@@ -155,6 +187,35 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               {!esDemo && <button type="button" disabled={busy} onClick={alternarArchivado} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">{archivado ? 'Desarchivar' : 'Archivar'}</button>}
             </div>
           </section>
+
+          {/* Acceso del cliente: un enlace privado por nivel de información */}
+          {!esDemo && (
+            <section className="rounded-2xl border border-ink-600 p-4">
+              <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-mute"><Icon name="eye" className="h-3.5 w-3.5" /> Acceso del cliente</h3>
+              <p className="mt-1 text-xs text-mute">Cada nivel tiene su propio enlace privado. Regenerarlo invalida el anterior.</p>
+              <div className="mt-3 space-y-2">
+                {NIVELES_ACCESO.map(([level, label]) => {
+                  const token = accesos[level]
+                  return (
+                    <div key={level} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2 text-xs">
+                      <span className="font-semibold">{label}</span>
+                      <span className="flex flex-wrap items-center gap-3">
+                        {token ? (
+                          <>
+                            <button type="button" className="font-semibold text-fono-light hover:underline" onClick={() => copiarAcceso(token)}>Copiar enlace</button>
+                            <button type="button" className="text-mute hover:text-warn" disabled={accesoBusy} onClick={() => generarAcceso(level, true)}>Regenerar</button>
+                          </>
+                        ) : (
+                          <button type="button" className="font-semibold text-fono-light hover:underline" disabled={accesoBusy} onClick={() => generarAcceso(level, false)}>Generar enlace</button>
+                        )}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+              {accesoMsg && <p role="status" className="mt-2 text-xs text-fono-light">{accesoMsg}</p>}
+            </section>
+          )}
 
           {/* Etiquetas */}
           {!esDemo && (
