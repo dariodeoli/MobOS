@@ -11,10 +11,31 @@ import { resources } from '@/lib/api'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 
 const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPTED: ['Aceptada', 'orange'], CONVERTED: ['Convertida', 'green'], EXPIRED: ['Vencida', 'red'], CANCELLED: ['Cancelada', 'slate'] }
+const ABIERTAS = ['DRAFT', 'SENT', 'ACCEPTED']
 const FILTROS = [['todas', 'Todas'], ['abiertas', 'Abiertas'], ['convertidas', 'Convertidas']]
 const identity = row => row
 const demoQuotes = () => []
 const emptyItem = (product = null) => ({ productId: product?.id || '', description: product?.nombre || '', quantity: '1', unitPricePyg: product && product.precioVenta > 0 ? String(product.precioVenta) : '' })
+
+// Tabla compacta: una fila por cotización, encabezados ordenables y las
+// acciones del estado en la misma línea. Misma grilla que Pedidos y Clientes.
+const GRID = 'grid min-w-[55rem] grid-cols-[5.5rem_minmax(7rem,1fr)_minmax(8rem,1.3fr)_6.5rem_6rem_7.5rem_10rem] items-center gap-x-2'
+const fechaCorta = (value) => {
+  const date = new Date(value)
+  if (!value || Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+}
+// Vencimiento relativo: es lo que se mira para apurar la venta. La fecha exacta
+// queda en el title.
+const vencimiento = (row) => {
+  const vence = row.validUntil ? new Date(row.validUntil) : null
+  if (!vence || Number.isNaN(vence.getTime())) return { texto: '—', urgente: false, titulo: 'Sin vencimiento' }
+  const dias = Math.ceil((vence.getTime() - Date.now()) / 86400000)
+  const titulo = `Vence el ${vence.toLocaleDateString('es-PY')}`
+  if (!ABIERTAS.includes(row.status)) return { texto: fechaCorta(row.validUntil), urgente: false, titulo }
+  if (dias < 0) return { texto: 'venció', urgente: true, titulo }
+  return { texto: `en ${dias} día${dias === 1 ? '' : 's'}`, urgente: dias <= 2, titulo }
+}
 
 // Pipeline de ventas: cotizaciones con vencimiento que se convierten en pedido.
 export default function SellerQuotes() {
@@ -67,27 +88,43 @@ export default function SellerQuotes() {
     {notice && <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">{notice}</p>}
     {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
     <SellerFeedback {...data} empty={!rows.length} />
-    {!data.loading && !data.error && <div className="space-y-1.5">{rows.map(row => {
-      const [label, tone] = STATUS[row.status] || [row.status, 'slate']
-      const vence = row.validUntil ? new Date(row.validUntil) : null
-      const dias = vence ? Math.ceil((vence.getTime() - Date.now()) / 86400000) : null
-      return <article key={row.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-600 px-3.5 py-2.5 transition hover:border-fono/40">
-        <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-2"><b className="font-mono text-xs font-bold text-fono-light">{row.number}</b><span className="truncate text-sm font-semibold">{row.customerName || row.customer?.name}</span><Badge color={tone}>{label}</Badge>{vence && <span className={cn('text-[11px]', dias !== null && dias <= 2 && ['DRAFT', 'SENT', 'ACCEPTED'].includes(row.status) ? 'font-semibold text-warn' : 'text-mute')}>{dias === null ? '' : dias < 0 ? 'venció' : `vence en ${dias} día${dias === 1 ? '' : 's'}`}</span>}</span>
-          <span className="mt-0.5 block truncate text-[11px] text-mute">{(row.items || []).map(item => `${item.quantity} × ${item.description}`).join(' · ')}{row.seller?.name ? ` · ${row.seller.name}` : ''}</span>
-        </span>
-        <span className="flex shrink-0 items-center gap-2">
-          <b className="text-sm tabular-nums">{gs(row.totalPyg)}</b>
-          {!esDemo && ['DRAFT', 'SENT', 'ACCEPTED'].includes(row.status) && <>
-            {row.status === 'DRAFT' && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => accion(() => resources.quotes.update({ id: row.id, status: 'SENT' }), 'Cotización marcada como enviada.')}>Enviar</Button>}
-            {row.status === 'SENT' && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => accion(() => resources.quotes.update({ id: row.id, status: 'ACCEPTED' }), 'Cotización aceptada.')}>Aceptar</Button>}
-            {row.status === 'ACCEPTED' && <Button type="button" className="h-8 px-2 text-xs" disabled={busy} onClick={() => convertir(row)}>Convertir en pedido</Button>}
-            <button type="button" disabled={busy} className="h-8 rounded-lg border border-bad/30 px-2 text-xs font-semibold text-bad transition hover:bg-bad/10" onClick={() => accion(() => resources.quotes.update({ id: row.id, status: 'CANCELLED' }), 'Cotización cancelada.')}>Cancelar</button>
-          </>}
-          {row.order && <span className="text-[11px] text-mute">Pedido {codigoPedido(row.order.orderNumber)}</span>}
-        </span>
-      </article>
-    })}</div>}
+    {!data.loading && !data.error && <div className="overflow-x-auto" data-testid="cotizaciones-tabla">
+      <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
+        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Número</span>
+        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Cliente</span>
+        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Artículos</span>
+        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Vence</span>
+        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Estado</span>
+        <span className="truncate text-right text-[10px] font-bold uppercase tracking-wider text-mute">Total</span>
+        <span className="truncate text-right text-[10px] font-bold uppercase tracking-wider text-mute">Acciones</span>
+      </div>
+      <div className="space-y-1">
+        {rows.map(row => {
+          const [label, tone] = STATUS[row.status] || [row.status, 'slate']
+          const cliente = row.customerName || row.customer?.name || 'Sin cliente'
+          const articulos = (row.items || []).map(item => `${item.quantity} × ${item.description}`).join(' · ')
+          const vence = vencimiento(row)
+          const abierta = !esDemo && ABIERTAS.includes(row.status)
+          return <div key={row.id} data-testid="cotizacion-fila" className={cn(GRID, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
+            <span className="truncate font-mono text-xs font-bold text-fono-light" title={row.number}>{row.number}</span>
+            <span className="truncate text-sm font-semibold" title={cliente}>{cliente}</span>
+            <span className="truncate text-[11px] text-mute" title={articulos || undefined}>{articulos || '—'}</span>
+            <span className={cn('truncate text-[11px]', vence.urgente ? 'font-semibold text-warn' : 'text-mute')} title={vence.titulo}>{vence.texto}</span>
+            <Badge color={tone} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{label}</Badge>
+            <span className="truncate text-right text-sm font-bold tabular-nums text-fore">{gs(row.totalPyg)}</span>
+            <span className="flex flex-wrap items-center justify-end gap-1">
+              {row.order && <span className="truncate text-[11px] text-mute" title={`Pedido ${codigoPedido(row.order.orderNumber)}`}>Pedido {codigoPedido(row.order.orderNumber)}</span>}
+              {abierta && <>
+                {row.status === 'DRAFT' && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => accion(() => resources.quotes.update({ id: row.id, status: 'SENT' }), 'Cotización marcada como enviada.')}>Enviar</Button>}
+                {row.status === 'SENT' && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => accion(() => resources.quotes.update({ id: row.id, status: 'ACCEPTED' }), 'Cotización aceptada.')}>Aceptar</Button>}
+                {row.status === 'ACCEPTED' && <Button type="button" className="h-8 px-2 text-xs" title="Convertir en pedido" disabled={busy} onClick={() => convertir(row)}>Convertir</Button>}
+                <button type="button" disabled={busy} className="h-8 rounded-lg border border-bad/30 px-2 text-xs font-semibold text-bad transition hover:bg-bad/10" onClick={() => accion(() => resources.quotes.update({ id: row.id, status: 'CANCELLED' }), 'Cotización cancelada.')}>Cancelar</button>
+              </>}
+            </span>
+          </div>
+        })}
+      </div>
+    </div>}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más cotizaciones'}</button></div>}
     <Modal open={crearOpen} onClose={() => !busy && setCrearOpen(false)} title="Nueva cotización" className="max-w-2xl">
       <form onSubmit={crear} className="space-y-4">
