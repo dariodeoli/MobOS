@@ -86,3 +86,88 @@ export async function aexTracking(guia: string): Promise<AexTrackingEvent[] | nu
 export function aexWebTrackingUrl(guia: string) {
   return `https://www.aex.com.py/seguimiento?guia=${encodeURIComponent((guia || '').trim())}`
 }
+
+// ── Envíos completos (cotizar → solicitar → confirmar → guía) ──────────────
+// Preparado según la doc v1.5.4; se activa solo con credenciales. Sin ellas
+// (o ante falla) devuelve null y la interfaz cae al flujo web/manual.
+
+type AexCiudadRow = { codigo: string; denominacion: string }
+
+async function ciudadesConCobertura(): Promise<AexCiudadRow[] | null> {
+  if (!PUBLIC_KEY || !PRIVATE_KEY) return null
+  try {
+    const token = await autorizar()
+    const respuesta = await post('/envios/ciudades', { clave_publica: PUBLIC_KEY, codigo_autorizacion: token })
+    const rows = Array.isArray(respuesta?.datos) ? respuesta.datos : []
+    return rows.map((row: any) => ({ codigo: String(row?.codigo_ciudad || ''), denominacion: String(row?.denominacion || '').trim() })).filter((row) => row.codigo && row.denominacion)
+  } catch { return null }
+}
+
+function codigoDeCiudad(ciudades: AexCiudadRow[], ciudad: string) {
+  const normalizado = norm(ciudad)
+  const exacta = ciudades.find((row) => norm(row.denominacion) === normalizado)
+  if (exacta) return exacta.codigo
+  const parcial = ciudades.find((row) => norm(row.denominacion).includes(normalizado) || normalizado.includes(norm(row.denominacion)))
+  return parcial?.codigo || ''
+}
+
+export type AexShipmentQuote = { serviceId: number; serviceName: string; costPyg: number; deliveryHours: number | null }
+
+// Cotiza el envío de un paquete entre dos ciudades (por nombre de ciudad).
+export async function aexQuote(origen: string, destino: string, pesoKg: number): Promise<AexShipmentQuote[] | null> {
+  const ciudades = await ciudadesConCobertura()
+  if (!ciudades) return null
+  const codigoOrigen = codigoDeCiudad(ciudades, origen)
+  const codigoDestino = codigoDeCiudad(ciudades, destino)
+  if (!codigoOrigen || !codigoDestino) return null
+  try {
+    const token = await autorizar()
+    const respuesta = await post('/envios/calcular', {
+      clave_publica: PUBLIC_KEY,
+      codigo_autorizacion: token,
+      origen: codigoOrigen,
+      destino: codigoDestino,
+      codigo_tipo_carga: 'P',
+      paquetes: [{ descripcion: 'Mercadería', peso: pesoKg, largo: 30, alto: 20, ancho: 20, cantidad: 1, valor: 0 }],
+    })
+    const rows = Array.isArray(respuesta?.datos) ? respuesta.datos : []
+    return rows.map((row: any) => ({ serviceId: Number(row?.id_tipo_servicio || 0), serviceName: String(row?.tipo_servicio || 'Servicio'), costPyg: Number(row?.costo_flete || 0), deliveryHours: Number(row?.tiempo_entrega) > 0 ? Number(row.tiempo_entrega) : null }))
+  } catch { return null }
+}
+
+export type AexShipResult = { guide: string; costPyg: number; serviceName: string }
+
+// Confirma el servicio más barato y devuelve la guía. `codigoOperacion` permite
+// rastrear el traslado en el tracking de AEX.
+export async function aexShip(origen: string, destino: string, pesoKg: number, codigoOperacion: string, direccionOrigen: string, direccionDestino: string): Promise<AexShipResult | null> {
+  const cotizaciones = await aexQuote(origen, destino, pesoKg)
+  if (!cotizaciones || !cotizaciones.length) return null
+  const elegida = cotizaciones.sort((a, b) => a.costPyg - b.costPyg)[0]
+  const ciudades = await ciudadesConCobertura()
+  if (!ciudades) return null
+  const codigoOrigen = codigoDeCiudad(ciudades, origen)
+  const codigoDestino = codigoDeCiudad(ciudades, destino)
+  if (!codigoOrigen || !codigoDestino) return null
+  try {
+    const token = await autorizar()
+    const solicitud = await post('/envios/solicitar_servicio', {
+      clave_publica: PUBLIC_KEY, codigo_autorizacion: token,
+      origen: codigoOrigen, destino: codigoDestino, codigo_operacion: codigoOperacion,
+      codigo_tipo_carga: 'P',
+      paquetes: [{ descripcion: 'Mercadería', peso: pesoKg, largo: 30, alto: 20, ancho: 20, cantidad: 1, valor: 0 }],
+    })
+    const datos = (solicitud?.datos && typeof solicitud.datos === 'object' ? solicitud.datos : solicitud) as Record<string, unknown>
+    const idSolicitud = Number(datos?.id_solicitud || 0)
+    if (!idSolicitud) return null
+    const confirmacion = await post('/envios/confirmar_servicio', {
+      clave_publica: PUBLIC_KEY, codigo_autorizacion: token,
+      id_solicitud: idSolicitud, id_tipo_servicio: elegida.serviceId,
+      pickup: { direccion: direccionOrigen || 'AEX Casa Matriz', ciudad: codigoOrigen, referencias: origen },
+      entrega: { direccion: direccionDestino || 'Sucursal destino', ciudad: codigoDestino, referencias: destino },
+    })
+    const confirmado = (confirmacion?.datos && typeof confirmacion.datos === 'object' ? confirmacion.datos : confirmacion) as Record<string, unknown>
+    const guia = String(confirmado?.numero_guia || confirmado?.guia || '').trim()
+    if (!guia) return null
+    return { guide: guia, costPyg: elegida.costPyg, serviceName: elegida.serviceName }
+  } catch { return null }
+}
