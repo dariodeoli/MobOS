@@ -258,6 +258,12 @@ export default function FormularioVenta({
       if (serial) {
         setItems(arr => arr.map(it => (it.productoId === product.id ? { ...it, serials: [serial] } : it)))
       }
+      // Reserva desde Inventario: el cliente queda precargado (y la búsqueda lo ofrece).
+      const clienteReserva = typeof handoff.customerName === 'string' ? handoff.customerName.trim() : ''
+      if (clienteReserva) {
+        setCustomer(current => ({ ...current, name: clienteReserva }))
+        setF(current => ({ ...current, cliente: clienteReserva }))
+      }
     } catch { /* handoff corrupto: se ignora */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productos])

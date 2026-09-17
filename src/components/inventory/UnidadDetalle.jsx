@@ -67,6 +67,9 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, on
 
   const verifier = unit.lastVerifiedBy?.name || (unit.verifiedByCode === 'VPE' ? 'Edgar' : unit.verifiedByCode === 'VPM' ? 'Matheo' : unit.verifiedByCode) || ''
   const verifierName = verifier === 'Administrador' && perfilEmpresa?.name ? perfilEmpresa.name : verifier
+  // Antigüedad del stock: desde el ingreso de la unidad.
+  const ingreso = unit.createdAt ? new Date(unit.createdAt) : null
+  const diasEnStock = ingreso ? Math.max(0, Math.floor((Date.now() - ingreso.getTime()) / 86400000)) : null
 
   async function enviarComentario(event) {
     event.preventDefault()
@@ -112,6 +115,7 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, on
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Batería</p><p className="mt-1 font-semibold">{unit.batteryHealth ? `${unit.batteryHealth}%` : '—'}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Proveedor</p><p className="mt-1 font-semibold">{unit.supplier?.name || unit.supplierName || '—'}{unit.supplier?.name && unit.supplier?.code ? ' (' + unit.supplier.code + ')' : ''}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{money(unit.originalCost, unit.costCurrency)}{unit.costPyg ? ` · ${money(unit.costPyg, 'PYG')}` : ''}</p></div>
+            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Ingresó a stock</p><p className="mt-1 font-semibold">{ingreso ? ingreso.toLocaleDateString('es-PY') : '—'}{diasEnStock != null ? <span className="ml-2 text-xs font-normal text-mute">{diasEnStock} {diasEnStock === 1 ? 'día' : 'días'} en stock</span> : null}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Compra</p><p className="mt-1 font-semibold">{unit.purchasedAt ? new Date(unit.purchasedAt).toLocaleDateString('es-PY') : '—'}</p></div>
             {unit.reservedUntil && <div className="col-span-2 rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 p-3 text-sm"><p className="text-xs text-mute">Reserva</p><p className="mt-1 font-semibold">{unit.reservationCustomer || 'Cliente'} · vence {new Date(unit.reservedUntil).toLocaleString('es-PY')}</p></div>}
             {unit.notes && <div className="col-span-2 rounded-xl bg-ink-800/60 p-3 text-sm"><p className="text-xs text-mute">Nota</p><p className="mt-1">{unit.notes}</p></div>}
@@ -128,8 +132,8 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, on
             {unit.status === 'RESERVED' && <Button variant="outline" disabled={busy} onClick={() => ejecutar(() => onRelease(unit.serial))}>Liberar reserva</Button>}
             {unit.status !== 'SOLD' && <Button variant="outline" disabled={busy} onClick={() => ejecutar(() => onVerify(unit))}>✓ Verificado</Button>}
             <Button variant="outline" onClick={() => onLabel(unit)}>Etiqueta</Button>
-            <Button variant="outline" disabled={busy || ['SOLD', 'RESERVED', 'IN_TRANSIT'].includes(unit.status)} onClick={() => ejecutar(() => onAdjust(unit))}>{unit.status === 'DEFECTIVE' ? 'Habilitar' : 'Marcar en revisión'}</Button>
-            <Button variant="outline" disabled={busy || unit.status !== 'AVAILABLE'} onClick={() => ejecutar(() => onRemove(unit))}>Retirar</Button>
+            <Button variant="outline" disabled={busy || ['SOLD', 'RESERVED', 'IN_TRANSIT'].includes(unit.status)} onClick={() => ejecutar(() => onAdjust(unit))}>{unit.status === 'DEFECTIVE' ? 'Habilitar' : 'Enviar a revisión'}</Button>
+            <Button variant="outline" disabled={busy || unit.status !== 'AVAILABLE'} onClick={() => ejecutar(() => onRemove(unit))}>Dar de baja</Button>
           </div>
         </section>
 
