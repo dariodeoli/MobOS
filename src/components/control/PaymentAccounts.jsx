@@ -114,16 +114,15 @@ function AccountManager() {
         <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => { setForm(null); setMessage(null) }}>Cancelar</Button></div>
       </form>}
       {!loading && !loadError && <div className="space-y-2">
-        {accounts.map(account => <div key={account.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ink-600 p-3">
-          <div className="min-w-0 space-y-1">
-            <div className="flex flex-wrap items-center gap-2"><span className="break-words font-medium">{account.name}</span><Badge color={account.isActive ? 'green' : 'slate'}>{account.isActive ? 'Activa' : 'Inactiva'}</Badge></div>
-            <p className="text-sm text-mute">{KINDS[account.kind] || account.kind} · {account.currency === 'PYG' ? 'Gs' : account.currency} · Comisión {account.feePercent ?? 0}%{account.settlementDays > 0 ? ` · acredita en ${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : ''}</p>
-            {(account.bank || account.holder || account.accountNumber) && <p className="break-all text-sm text-mute">{[account.bank, account.holder, account.accountNumber].filter(Boolean).join(' · ')}</p>}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" disabled={busy || !!form} aria-label={`Editar ${account.name}`} onClick={() => openForm(account)}>Editar</Button>
-            <Button type="button" variant="ghost" disabled={busy || !!form} aria-label={`${account.isActive ? 'Desactivar' : 'Activar'} ${account.name}`} onClick={() => mutate(() => updatePaymentAccount(account.id, { isActive: !account.isActive }), account.isActive ? 'Cuenta desactivada. El historial se conserva.' : 'Cuenta activada.')}>{account.isActive ? 'Desactivar' : 'Activar'}</Button>
-          </div>
+        {accounts.map(account => <div key={account.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-3 py-2 transition hover:border-fono/40">
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-2"><b className="truncate text-[13px]">{account.name}</b><Badge color={account.isActive ? 'green' : 'slate'}>{account.isActive ? 'Activa' : 'Inactiva'}</Badge><Badge color="slate">{KINDS[account.kind] || account.kind}</Badge><Badge color="blue">{account.currency === 'PYG' ? 'Gs' : account.currency}</Badge></span>
+            <span className="mt-0.5 block truncate text-[11px] text-mute">Comisión {account.feePercent ?? 0}%{account.settlementDays > 0 ? ` · acredita en ${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : ''}{[account.bank, account.holder, account.accountNumber].filter(Boolean).length ? ` · ${[account.bank, account.holder, account.accountNumber].filter(Boolean).join(' · ')}` : ''}</span>
+          </span>
+          <span className="flex shrink-0 gap-1.5">
+            <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`Editar ${account.name}`} onClick={() => openForm(account)}>Editar</Button>
+            <Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`${account.isActive ? 'Desactivar' : 'Activar'} ${account.name}`} onClick={() => mutate(() => updatePaymentAccount(account.id, { isActive: !account.isActive }), account.isActive ? 'Cuenta desactivada. El historial se conserva.' : 'Cuenta activada.')}>{account.isActive ? 'Desactivar' : 'Activar'}</Button>
+          </span>
         </div>)}
       </div>}
     </Card>
