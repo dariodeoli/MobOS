@@ -28,6 +28,7 @@ import Historial from '@/components/control/Historial'
 import Caja from '@/components/control/Caja'
 import PaymentAccounts from '@/components/control/PaymentAccounts'
 import Creditos from '@/components/control/Creditos'
+import RolesPermisos from '@/components/control/RolesPermisos'
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
 const VistaCargarVenta = lazy(() => import('@/components/ventas/VistaCargarVenta'))
@@ -597,16 +598,19 @@ export default function PanelVendedor() {
                   esDemo
                     ? [
                         ['vendedores', 'Vendedores'],
+                        ['roles', 'Roles y permisos'],
                         ['historial', 'Historial'],
                         ['configuracion', 'Configuración'],
                       ]
                     : [
                         ['vendedores', 'Vendedores'],
+                        ['roles', 'Roles y permisos'],
                         ['configuracion', 'Configuración'],
                       ]
                 }
               />
               {equipoTab === 'vendedores' && <Vendedores />}
+              {equipoTab === 'roles' && <RolesPermisos />}
               {esDemo && equipoTab === 'historial' && <Historial />}
               {equipoTab === 'configuracion' && <Config />}
             </div>

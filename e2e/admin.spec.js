@@ -48,6 +48,21 @@ test.describe('owner panel', () => {
     await expect(page.getByLabel(`Nombre de ${name}`)).toBeVisible()
   })
 
+  test('equipo → Roles y permisos describes each role and its matrix', async ({ page }) => {
+    await page.goto('/pos/equipo')
+    await page.getByRole('button', { name: 'Roles y permisos' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Roles y permisos' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Matriz de capacidades' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'Gerente' })).toBeVisible()
+    await expect(page.getByRole('rowheader', { name: /Aplicar descuentos/ })).toBeVisible()
+
+    const tarjetaVendedor = page.locator('details', { hasText: 'Vendedor: atiende clientes' })
+    await tarjetaVendedor.locator('summary').click()
+    await expect(tarjetaVendedor.getByText('Qué puede hacer')).toBeVisible()
+    await expect(tarjetaVendedor.getByText('Qué no puede')).toBeVisible()
+  })
+
   test('finanzas → Caja can open the cash session', async ({ page }) => {
     await page.goto('/pos/finanzas')
     await expect(page.getByRole('heading', { name: 'Caja y control financiero' })).toBeVisible()

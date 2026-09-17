@@ -5,6 +5,7 @@ import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, PasswordInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
+import { ROLE_LABELS } from '@/lib/roles'
 
 function fmtDate(value) {
   return value ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—'
@@ -348,7 +349,7 @@ function SeccionInvitaciones() {
 
   if (cargando) return null
   if (!pendientes.length) return null
-  const rolLabel = { ADMIN: 'Dueño', GERENTE: 'Gerente', CAJERA: 'Cajera', VENDEDOR: 'Vendedor' }
+  const rolLabel = ROLE_LABELS
 
   return (
     <Card className="space-y-3 border-fono/30">
