@@ -8,11 +8,12 @@ import Icon from '@/components/shared/Icon'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import { cn } from '@/lib/utils'
 import { resources } from '@/lib/api'
+import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 
 const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPTED: ['Aceptada', 'orange'], CONVERTED: ['Convertida', 'green'], EXPIRED: ['Vencida', 'red'], CANCELLED: ['Cancelada', 'slate'] }
-const ABIERTAS = ['DRAFT', 'SENT', 'ACCEPTED']
-const FILTROS = [['todas', 'Todas'], ['abiertas', 'Abiertas'], ['convertidas', 'Convertidas']]
+// Chips de estado resueltos en el servidor (mismo patrón que Pedidos).
+const FILTROS = [['todas', 'Todas'], ['abiertas', 'Abiertas'], ['DRAFT', 'Borrador'], ['SENT', 'Enviada'], ['ACCEPTED', 'Aceptada'], ['CONVERTED', 'Convertida']]
 const identity = row => row
 const demoQuotes = () => []
 const emptyItem = (product = null) => ({ productId: product?.id || '', description: product?.nombre || '', quantity: '1', unitPricePyg: product && product.precioVenta > 0 ? String(product.precioVenta) : '' })
@@ -41,9 +42,20 @@ const vencimiento = (row) => {
 export default function SellerQuotes() {
   const { esDemo } = useSesion()
   const productos = getProductos().filter(product => product.activo !== false)
-  const data = useSellerData('/api/quotes', identity, demoQuotes, esDemo, { limit: 50 })
   const [filtro, setFiltro] = useState('todas')
   const [query, setQuery] = useState('')
+  // Búsqueda y estado van al servidor (cubren todas las cotizaciones del
+  // alcance del usuario, no solo la página cargada). El texto se difiere 250 ms.
+  const busqueda = useBusquedaDiferida(query)
+  const path = useMemo(() => {
+    const params = new URLSearchParams()
+    const texto = busqueda.trim()
+    if (texto) params.set('q', texto)
+    if (filtro !== 'todas') params.set('status', filtro)
+    const consulta = params.toString()
+    return `/api/quotes${consulta ? `?${consulta}` : ''}`
+  }, [filtro, busqueda])
+  const data = useSellerData(path, identity, demoQuotes, esDemo, { limit: 50 })
   const [crearOpen, setCrearOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -51,9 +63,10 @@ export default function SellerQuotes() {
   const [form, setForm] = useState({ customerName: '', validUntil: '', notes: '', discountPyg: '' })
   const [items, setItems] = useState([emptyItem()])
 
-  const rows = useMemo(() => data.rows
-    .filter(row => filtro === 'convertidas' ? row.status === 'CONVERTED' : filtro === 'abiertas' ? ['DRAFT', 'SENT', 'ACCEPTED'].includes(row.status) : true)
-    .filter(row => `${row.number} ${row.customerName} ${row.customer?.name || ''}`.toLowerCase().includes(query.toLowerCase())), [data.rows, filtro, query])
+  // La demo no pagina contra la API: sus pocas filas se filtran en memoria.
+  const rows = useMemo(() => esDemo ? data.rows
+    .filter(row => filtro === 'todas' || (filtro === 'abiertas' ? ABIERTAS.includes(row.status) : row.status === filtro))
+    .filter(row => `${row.number} ${row.customerName}`.toLowerCase().includes(query.toLowerCase())) : data.rows, [data.rows, filtro, query, esDemo])
   const itemsValidos = items.filter(item => item.description.trim() && num(item.quantity) > 0 && num(item.unitPricePyg) >= 0)
   const total = itemsValidos.reduce((sum, item) => sum + num(item.quantity) * num(item.unitPricePyg), 0) - num(form.discountPyg)
 
@@ -81,7 +94,7 @@ export default function SellerQuotes() {
   return <SellerSection title="Cotizaciones" description="Pipeline de ventas: cotizá, seguí el vencimiento y convertí en pedido cuando el cliente acepte.">
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS.map(([key, label]) => <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('rounded-lg px-3 py-1.5 text-xs font-semibold transition', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
-      <div className="min-w-[200px] flex-1"><Input aria-label="Buscar cotizaciones" placeholder="Número o cliente" value={query} onChange={event => setQuery(event.target.value)} /></div>
+      <div className="min-w-[200px] flex-1"><Input aria-label="Buscar cotizaciones" placeholder="Número, cliente o ítem" value={query} onChange={event => setQuery(event.target.value)} /></div>
       {!esDemo && <Button type="button" onClick={() => { setCrearOpen(true); setError(''); setNotice('') }}>+ Nueva cotización</Button>}
       <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
     </div>

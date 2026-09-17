@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { Button, Input, Modal, MoneyInput, Select, Badge } from '@/components/ui'
@@ -10,6 +10,7 @@ import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import { coincideCliente } from '@/utils/cliente'
 import { capitalizarPrimera } from '@/utils/texto'
 import { parseDelimited } from '@/utils/csv'
+import { cn } from '@/lib/utils'
 
 const RUC_RE = /\d[\d.\s]{2,}-\d+/
 
@@ -47,6 +48,14 @@ import { customerMetadata, DEMO_MESSAGE_TEMPLATES, readCustomerMetadata, whatsap
 
 export const DEMO_CUSTOMERS_KEY = 'mobos:demo-customers:v1'
 const emptyCustomer = { name: '', document: '', email: '', phones: [''], addresses: [{ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay' }], acceptsEmailMarketing: false, acceptsSmsMarketing: false, acceptsWhatsappMarketing: false, taxExempt: false, tags: '', pricingTier: 'RETAIL', creditLimitPyg: '', creditDays: '' }
+const FILTROS_CLIENTES = [['todos', 'Todos'], ['mayoristas', 'Mayoristas'], ['deuda', 'Con deuda'], ['credito', 'Con crédito']]
+// Filtro local para la demo (sin API): espejo acotado del filtro del servidor.
+const coincideFiltroCliente = (row, filtro) => {
+  if (filtro === 'mayoristas') return row.wholesale === true || row.pricingTier === 'WHOLESALE'
+  if (filtro === 'credito') return Number(row.creditLimitPyg || 0) > 0
+  if (filtro === 'deuda') return Number(row.stats?.orders || 0) > 0
+  return true
+}
 const templateFields = (row) => ({ id: row.id, key: row.key || '', name: row.name || 'Mensaje', body: row.body || '', category: row.category || '' })
 const readDemoTemplates = () => DEMO_MESSAGE_TEMPLATES
 export const customerFields = (row) => {
@@ -87,11 +96,21 @@ export default function SellerCustomers() {
   const [vista, setVista] = useState(() => localStorage.getItem('mobos:clientes-vista') || 'grid')
   const [orden, setOrden] = useState('recientes')
   const [resumen, setResumen] = useState(null)
+  const [filtro, setFiltro] = useState('todos')
   const nombreRef = useRef(null)
   useEffect(() => { setSearch(busquedaDiferida.trim()) }, [busquedaDiferida])
-  const data = useSellerData(`/api/customers?q=${encodeURIComponent(search)}`, customerFields, readDemoCustomers, esDemo)
+  // Búsqueda y filtros van al servidor (cubren todas las fichas del tenant, no
+  // solo la página cargada); el hook pagina con cursor para "Cargar más".
+  const path = useMemo(() => {
+    const params = new URLSearchParams()
+    if (search) params.set('q', search)
+    if (filtro !== 'todos') params.set('filtro', filtro)
+    const consulta = params.toString()
+    return `/api/customers${consulta ? `?${consulta}` : ''}`
+  }, [search, filtro])
+  const data = useSellerData(path, customerFields, readDemoCustomers, esDemo, { limit: 50 })
   const templateData = useSellerData('/api/message-templates', templateFields, readDemoTemplates, esDemo)
-  const rows = esDemo ? data.rows.filter((row) => coincideCliente(row, search)) : data.rows
+  const rows = esDemo ? data.rows.filter((row) => coincideCliente(row, search) && coincideFiltroCliente(row, filtro)) : data.rows
 
   useEffect(() => {
     function onNewCustomer() {
@@ -183,10 +202,11 @@ export default function SellerCustomers() {
   }, [esDemo])
 
 
-  return <SellerSection title="Clientes" description={esDemo ? 'Demo local: ingresá únicamente datos ficticios.' : 'Buscá por nombre o teléfono. La API devuelve hasta 50 coincidencias.'}>
+  return <SellerSection title="Clientes" description={esDemo ? 'Demo local: ingresá únicamente datos ficticios.' : 'Buscá por nombre, teléfono, RUC, correo o ciudad. Filtrá y cargá más resultados.'}>
     <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS_CLIENTES.map(([key, label]) => <button key={key} type="button" aria-pressed={filtro === key} onClick={() => setFiltro(key)} className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
       <form onSubmit={(event) => { event.preventDefault(); setSearch(busquedaDiferida.trim()) }} className="flex min-w-0 flex-1 gap-2">
-        <Input aria-label="Buscar clientes" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre o teléfono" />
+        <Input aria-label="Buscar clientes" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre, teléfono, RUC, correo o ciudad" />
         <Button>Buscar</Button>
       </form>
       <Select aria-label="Ordenar clientes" className="h-9 w-auto" value={orden} onChange={(event) => setOrden(event.target.value)}>
@@ -216,6 +236,7 @@ export default function SellerCustomers() {
     )}
     {!data.loading && !data.error && vista === 'grid' && <ul className="grid gap-3 sm:grid-cols-2">{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={plantillasClientes} onViewProfile={esDemo ? undefined : setProfileCustomer} />)}</ul>}
     {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={esDemo ? undefined : setProfileCustomer} />}
+    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={() => setProfileCustomer(null)} />
     {!templateData.loading && templateData.error && <p className="rounded-xl border border-amber-400/30 bg-amber-300/10 p-3 text-sm text-amber-100">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</p>}
     <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" className="max-w-2xl">

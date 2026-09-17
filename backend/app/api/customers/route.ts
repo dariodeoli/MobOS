@@ -1,8 +1,16 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 
 const clean = (value: unknown, max: number) => typeof value === 'string' ? value.trim().slice(0, max) : ''
+
+// Filtros del listado resueltos en el servidor sobre TODAS las fichas del
+// tenant, no solo la página cargada (mismo patrón que Pedidos).
+const FILTROS_CLIENTES = new Set(['todos', 'mayoristas', 'minoristas', 'deuda', 'credito', 'sincredito', 'conemail'])
+
+// Patrón LIKE literal: % y _ del texto buscado no actúan como comodines.
+const patronLike = (valor: string) => `%${valor.replace(/[\\%_]/g, '\\$&')}%`
 
 function addressesInput(value: unknown) {
   if (value === undefined) return undefined
@@ -32,29 +40,69 @@ function esMayorista(customer: { name: string; tags?: string[] }) {
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  const q = new URL(request.url).searchParams.get('q') || ''
-  // Búsqueda flexible: nombre, teléfono, CI/RUC, correo, datos de facturación
-  // del cliente y también pedidos facturados a otro titular (razón social/RUC),
-  // para poder llegar al cliente desde el nombre que salió en la factura.
-  const data = await prisma.customer.findMany({ where: { tenantId: tenant, ...(q ? { OR: [
-    { name: { contains: q, mode: 'insensitive' } },
-    { phone: { contains: q } },
-    { document: { contains: q } },
-    { email: { contains: q, mode: 'insensitive' } },
-    { billingName: { contains: q, mode: 'insensitive' } },
-    { billingDocument: { contains: q } },
-    { orders: { some: { OR: [{ billingName: { contains: q, mode: 'insensitive' } }, { billingDocument: { contains: q } }] } } },
-  ] } : {}) }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } }, orderBy: { createdAt: 'desc' }, take: 50 })
-  const ids = data.map((customer) => customer.id)
+  const params = new URL(request.url).searchParams
+  const filtro = params.get('filtro') || 'todos'
+  if (!FILTROS_CLIENTES.has(filtro)) return error('Filtro inválido.')
+  const q = (params.get('q') || '').trim().slice(0, 120)
+  const limit = Math.min(500, Math.max(1, Number(params.get('limit')) || 100))
+  const cursor = params.get('cursor')
+  const condiciones: Prisma.Sql[] = [Prisma.sql`c."tenantId" = ${tenant}`]
+  if (filtro === 'mayoristas') condiciones.push(Prisma.sql`c."pricingTier" = 'WHOLESALE'`)
+  else if (filtro === 'minoristas') condiciones.push(Prisma.sql`c."pricingTier" <> 'WHOLESALE'`)
+  else if (filtro === 'credito') condiciones.push(Prisma.sql`COALESCE(c."creditLimitPyg", 0) > 0`)
+  else if (filtro === 'sincredito') condiciones.push(Prisma.sql`COALESCE(c."creditLimitPyg", 0) = 0`)
+  else if (filtro === 'conemail') condiciones.push(Prisma.sql`c."email" IS NOT NULL AND c."email" <> ''`)
+  else if (filtro === 'deuda') condiciones.push(Prisma.sql`EXISTS (
+    SELECT 1 FROM "Order" o
+    LEFT JOIN (SELECT "orderId", SUM("amountPyg") AS paid FROM "Payment" WHERE "tenantId" = ${tenant} AND "status" = 'CONFIRMED' GROUP BY "orderId") p ON p."orderId" = o."id"
+    WHERE o."customerId" = c."id" AND o."tenantId" = ${tenant} AND o."status" = 'PENDING' AND o."totalPyg" - COALESCE(p."paid", 0) > 0
+  )`)
+  if (cursor) {
+    // Cursor por tupla (createdAt, id), igual que Pedidos: páginas consecutivas
+    // no repiten ni saltean fichas creadas en el mismo milisegundo.
+    const cursorRow = await prisma.customer.findFirst({ where: { id: cursor, tenantId: tenant }, select: { createdAt: true } })
+    if (!cursorRow) return json([])
+    condiciones.push(Prisma.sql`(c."createdAt" < ${cursorRow.createdAt} OR (c."createdAt" = ${cursorRow.createdAt} AND c."id" < ${cursor}))`)
+  }
+  if (q) {
+    // Búsqueda flexible: nombre, teléfono, CI/RUC, correo, datos de facturación,
+    // ciudad de las direcciones, etiquetas y también pedidos facturados a otro
+    // titular (razón social/RUC), para llegar al cliente desde la factura.
+    const texto = patronLike(q)
+    condiciones.push(Prisma.sql`(
+      c."name" ILIKE ${texto}
+      OR c."phone" ILIKE ${texto}
+      OR c."document" ILIKE ${texto}
+      OR c."email" ILIKE ${texto}
+      OR c."billingName" ILIKE ${texto}
+      OR c."billingDocument" ILIKE ${texto}
+      OR c."tags"::text ILIKE ${texto}
+      OR EXISTS (SELECT 1 FROM "CustomerAddress" a WHERE a."customerId" = c."id" AND (a."city" ILIKE ${texto} OR a."address" ILIKE ${texto}))
+      OR EXISTS (SELECT 1 FROM "Order" o WHERE o."customerId" = c."id" AND o."tenantId" = ${tenant} AND (o."billingName" ILIKE ${texto} OR o."billingDocument" ILIKE ${texto}))
+    )`)
+  }
+  const ids = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT c."id"
+    FROM "Customer" c
+    WHERE ${Prisma.join(condiciones, ' AND ')}
+    ORDER BY c."createdAt" DESC, c."id" DESC
+    LIMIT ${limit}
+  `)
+  if (!ids.length) return json([])
+  // Segunda consulta con el include de siempre; el orden lo fija la lista de
+  // ids para conservar la paginación por cursor.
+  const data = await prisma.customer.findMany({ where: { id: { in: ids.map((row) => row.id) } }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
+  const porId = new Map(data.map((customer) => [customer.id, customer]))
+  const ordenados = ids.flatMap((row) => { const customer = porId.get(row.id); return customer ? [customer] : [] })
   const stats = await prisma.order.groupBy({
     by: ['customerId'],
-    where: { tenantId: tenant, customerId: { in: ids }, status: { not: 'CANCELLED' } },
+    where: { tenantId: tenant, customerId: { in: ordenados.map((customer) => customer.id) }, status: { not: 'CANCELLED' } },
     _count: { _all: true },
     _sum: { totalPyg: true },
     _max: { createdAt: true },
   })
   const statsPorCliente = new Map(stats.map((fila) => [fila.customerId, { orders: fila._count._all, totalSpentPyg: fila._sum.totalPyg ?? 0, lastOrderAt: fila._max.createdAt }]))
-  return json(data.map((customer) => ({ ...customer, wholesale: esMayorista(customer), stats: statsPorCliente.get(customer.id) || { orders: 0, totalSpentPyg: 0, lastOrderAt: null } })))
+  return json(ordenados.map((customer) => ({ ...customer, wholesale: esMayorista(customer), stats: statsPorCliente.get(customer.id) || { orders: 0, totalSpentPyg: 0, lastOrderAt: null } })))
 }
 
 export async function POST(request: Request) {
