@@ -30,8 +30,15 @@ const CHECKLISTS = {
   'Apple Watch': ['Enciende', 'Pantalla', 'Touch', 'Corona', 'Carga', 'Batería', 'Estado físico'],
   Otros: ['Enciende', 'Funciona', 'Estado físico'],
 }
-const fecha = (value) => value ? new Date(value).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }) : '—'
+const fecha = (value) => value ? new Date(value).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '') : '—'
 const utilidad = (row) => Number(row.pricePyg || 0) - Number(row.costPyg || 0)
+// Etiqueta corta para el botón de avance: la completa queda en el title.
+const SIGUIENTE_CORTO = { RECIBIDO: 'Recibido', DIAGNOSTICO: 'Diagnóstico', CON_TECNICO: 'Con técnico', ESPERANDO_REPUESTO: 'Repuesto', REPARADO: 'Reparado', LISTO: 'Listo', ENTREGADO: 'Entregado' }
+
+// Tabla compacta: una fila por orden de servicio, encabezados ordenables y el
+// avance de estado en la misma línea.
+const GRID_SERVICIO = 'grid min-w-[63rem] grid-cols-[minmax(8rem,1.3fr)_minmax(6rem,1fr)_minmax(7rem,1.5fr)_5.5rem_5rem_5.5rem_5.5rem_6.5rem_8.5rem] items-center gap-x-2'
+const CELDA = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 export default function ServicioTecnico() {
   const toast = useToast()
@@ -40,6 +47,7 @@ export default function ServicioTecnico() {
   const [error, setError] = useState('')
   const [q, setQ] = useState('')
   const [filtro, setFiltro] = useState('activos')
+  const [orden, setOrden] = useState({ key: 'recibido', dir: 'desc' })
   const [form, setForm] = useState(null)
   const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -95,12 +103,38 @@ export default function ServicioTecnico() {
     return base
   }, [rows])
 
+  const ordenarPor = (key) => setOrden(current => current.key === key
+    ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
+    : { key, dir: ['recibido', 'precio', 'utilidad'].includes(key) ? 'desc' : 'asc' })
+  const encabezado = (key, label, extra = '') => (
+    <button type="button" onClick={() => ordenarPor(key)} className={cn('flex items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore', orden.key === key ? 'text-fono-light' : 'text-mute', extra)}>
+      {label}<span className="shrink-0">{orden.key === key ? (orden.dir === 'asc' ? '↑' : '↓') : ''}</span>
+    </button>
+  )
+  const valorOrden = (row, key) => {
+    if (key === 'equipo') return String(row.device || '')
+    if (key === 'cliente') return String(row.customerName || '')
+    if (key === 'falla') return String(row.reportedIssue || row.diagnosis || '')
+    if (key === 'tecnico') return String(row.technicianName || '')
+    if (key === 'recibido') return row.receivedAt ? new Date(row.receivedAt).getTime() : 0
+    if (key === 'precio') return Number(row.pricePyg || 0)
+    if (key === 'utilidad') return utilidad(row)
+    if (key === 'estado') return ESTADOS.findIndex(([id]) => id === row.status)
+    return 0
+  }
   const visibles = useMemo(() => {
     const texto = q.trim().toLowerCase()
-    return rows
+    const lista = rows
       .filter(row => filtro === 'activos' ? !['ENTREGADO', 'CANCELADO'].includes(row.status) : filtro === 'todos' ? true : row.status === filtro)
       .filter(row => !texto || [row.customerName, row.device, row.serial, row.reportedIssue, row.diagnosis, row.technicianName].filter(Boolean).join(' ').toLowerCase().includes(texto))
-  }, [rows, filtro, q])
+    if (orden.key === 'recientes') return lista
+    const factor = orden.dir === 'asc' ? 1 : -1
+    return [...lista].sort((a, b) => {
+      const va = valorOrden(a, orden.key); const vb = valorOrden(b, orden.key)
+      if (typeof va === 'string' || typeof vb === 'string') return String(va).localeCompare(String(vb), 'es') * factor
+      return (va - vb) * factor
+    })
+  }, [rows, filtro, q, orden])
 
   async function guardar(event) {
     event.preventDefault()
@@ -181,29 +215,41 @@ export default function ServicioTecnico() {
       {loading && <div className="space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
       {!loading && !visibles.length && <EmptyState icon="refresh" title={q ? 'Ninguna orden coincide con la búsqueda.' : 'Todavía no hay órdenes de servicio.'} />}
       {!loading && visibles.length > 0 && (
-        <div className="space-y-2">
-          {visibles.map(row => (
-            <div key={row.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-ink-600 px-3 py-2.5">
-              <span className="min-w-[10rem] flex-1 truncate">
-                <b className="block truncate text-sm">{row.device}</b>
-                <span className="mt-0.5 block truncate text-xs text-mute">{row.customerName}{row.serial ? ` · ${row.serial}` : ''}</span>
-              </span>
-              <span className="min-w-[9rem] flex-1 truncate text-xs text-mute" title={row.reportedIssue || row.diagnosis || undefined}>
-                {row.reportedIssue || row.diagnosis || 'Sin detalle'}
-              </span>
-              <span className="w-28 truncate text-xs text-mute">{row.technicianName || 'Sin técnico'}</span>
-              <span className="w-24 text-xs text-mute">{fecha(row.receivedAt)}</span>
-              <span className="w-28 text-right text-xs tabular-nums text-mute">
-                {gs(row.pricePyg || 0)}
-                <span className={cn('mt-0.5 block font-semibold', utilidad(row) >= 0 ? 'text-ok' : 'text-bad')}>{utilidad(row) >= 0 ? '+' : ''}{gs(utilidad(row))}</span>
-              </span>
-              <Badge color={ESTADO_TONE[row.status] || 'slate'}>{ESTADO_LABEL[row.status] || row.status}</Badge>
-              <span className="flex items-center gap-1">
-                {SIGUIENTE[row.status] && <Button variant="outline" className="h-8 px-2 text-xs" onClick={() => avanzar(row)}>{ESTADO_LABEL[SIGUIENTE[row.status]]}</Button>}
-                <Button variant="ghost" className="h-8 px-2 text-xs" onClick={() => editar(row)}><Icon name="edit" className="h-3.5 w-3.5" /></Button>
-              </span>
-            </div>
-          ))}
+        <div className="overflow-x-auto" data-testid="servicio-tabla">
+          <div className={cn(GRID_SERVICIO, 'px-3.5 pb-2 pt-1')}>
+            {encabezado('equipo', 'Equipo')}
+            {encabezado('cliente', 'Cliente')}
+            {encabezado('falla', 'Falla')}
+            {encabezado('tecnico', 'Técnico')}
+            {encabezado('recibido', 'Recibido')}
+            {encabezado('precio', 'Precio', 'justify-end')}
+            {encabezado('utilidad', 'Utilidad', 'justify-end')}
+            {encabezado('estado', 'Estado')}
+            <span className={cn(CELDA, 'text-right')}>Acciones</span>
+          </div>
+          <div className="space-y-1">
+            {visibles.map(row => {
+              const ganancia = utilidad(row)
+              const serial = String(row.serial || '')
+              return <div key={row.id} data-testid="servicio-fila" className={cn(GRID_SERVICIO, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
+                <span className="min-w-0">
+                  <b className="block truncate text-sm" title={row.device}>{row.device || 'Equipo'}</b>
+                  {serial && <span className="mt-0.5 block truncate font-mono text-[10px] text-mute" title={serial}>{serial.slice(0, -4)}<b className="text-fore">{serial.slice(-4)}</b></span>}
+                </span>
+                <span className="truncate text-xs text-mute" title={row.customerName}>{row.customerName || 'Sin cliente'}</span>
+                <span className="truncate text-xs text-mute" title={row.reportedIssue || row.diagnosis || undefined}>{row.reportedIssue || row.diagnosis || 'Sin detalle'}</span>
+                <span className="truncate text-xs text-mute">{row.technicianName || 'Sin técnico'}</span>
+                <span className="truncate text-xs text-mute">{fecha(row.receivedAt)}</span>
+                <span className="truncate text-right text-xs tabular-nums text-mute">{gs(row.pricePyg || 0)}</span>
+                <span className={cn('truncate text-right text-xs font-semibold tabular-nums', ganancia >= 0 ? 'text-ok' : 'text-bad')}>{ganancia >= 0 ? '+' : ''}{gs(ganancia)}</span>
+                <Badge color={ESTADO_TONE[row.status] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{ESTADO_LABEL[row.status] || row.status}</Badge>
+                <span className="flex flex-wrap items-center justify-end gap-1">
+                  {SIGUIENTE[row.status] && <Button variant="outline" className="h-8 whitespace-nowrap px-2 text-xs" title={`Pasar a ${ESTADO_LABEL[SIGUIENTE[row.status]]}`} onClick={() => avanzar(row)}>{SIGUIENTE_CORTO[SIGUIENTE[row.status]]}</Button>}
+                  <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={`Editar orden de ${row.device || 'servicio'}`} onClick={() => editar(row)}><Icon name="edit" className="h-3.5 w-3.5" /></Button>
+                </span>
+              </div>
+            })}
+          </div>
         </div>
       )}
 
