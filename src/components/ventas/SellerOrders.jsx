@@ -31,9 +31,10 @@ export default function SellerOrders() {
   const [actionError, setActionError] = useState('')
   const products = esDemo ? productosById() : {}
   const data = useSellerData('/api/orders', orderFields, listVentas, esDemo)
-  const veTodos = ['ADMIN', 'GERENTE'].includes(sesion?.rol || usuario?.role)
-  const esAdminVentas = Boolean(sesion?.esPropietario || veTodos)
-  const rows = data.rows.filter((row) => !veTodos && Boolean(sesion?.vendedorId) ? row.sellerId === sesion.vendedorId : true)
+  // El dueño real llega con sesion.rol = 'dueno' (no 'ADMIN'), por eso el
+  // permiso se calcula sobre esPropietario o el rol crudo del usuario.
+  const esAdminVentas = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE'].includes(sesion?.rol) || ['ADMIN', 'GERENTE'].includes(usuario?.role))
+  const rows = data.rows.filter((row) => esAdminVentas ? true : Boolean(sesion?.vendedorId) && row.sellerId === sesion.vendedorId)
     .map((row) => ({ ...row, products: row.products || products[row.productId]?.nombre || products[row.productId]?.name || '' }))
     .filter((row) => `${row.number} ${row.customer} ${row.products}`.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
