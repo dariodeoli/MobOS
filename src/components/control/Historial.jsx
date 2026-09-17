@@ -3,12 +3,6 @@ import { listAuditoria } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { Card, Badge, Input, EmptyState } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
-import { cn } from '@/lib/utils'
-
-// Tabla compacta del historial: una fila por movimiento y los cambios
-// (antes → después) se despliegan en la misma fila.
-const GRID_HISTORIAL = 'grid min-w-[46rem] grid-cols-[minmax(8rem,0.9fr)_minmax(7rem,0.9fr)_minmax(9rem,1.6fr)_7rem_6rem_1.5rem] items-center gap-x-2'
-const CELDA_HIST = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const ACCION = {
   crear: { label: 'Creó', color: 'green', emoji: '🆕' },
@@ -51,7 +45,6 @@ export default function Historial() {
   const log = listAuditoria()
   const [filtro, setFiltro] = useState('todas')
   const [busqueda, setBusqueda] = useState('')
-  const [abiertos, setAbiertos] = useState(() => new Set())
 
   const porAccion = filtro === 'todas' ? log : log.filter((x) => x.accion === filtro)
   const q = norm(busqueda.trim())
@@ -148,9 +141,10 @@ export default function Historial() {
                       {fechaHora(m.creadoEn)}
                     </div>
                   </div>
-                  {abierto && cambios.length > 0 && (
-                    <div className="mt-1 space-y-1 rounded-xl border border-ink-600 bg-ink-800/60 p-3">
-                      {cambios.map((c, i) => (
+
+                  {m.cambios?.length > 0 && (
+                    <div className="mt-2 rounded-lg bg-ink-700 p-2.5 space-y-1">
+                      {m.cambios.map((c, i) => (
                         <div key={i} className="text-xs text-mute">
                           <span className="font-semibold text-mute">{c.campo}:</span>{' '}
                           <span className="line-through">{valorCambio(c.campo, c.de)}</span>{' '}
@@ -160,8 +154,8 @@ export default function Historial() {
                     </div>
                   )}
                 </div>
-              })}
-            </div>
+              )
+            })}
           </div>
         )}
       </Card>
