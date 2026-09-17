@@ -91,7 +91,7 @@ export default function SellerCustomers() {
   const [orden, setOrden] = useState('recientes')
   const [resumen, setResumen] = useState(null)
   const nombreRef = useRef(null)
-  const data = useSellerData(`/api/customers?q=${encodeURIComponent(search)}`, customerFields, readDemoCustomers, esDemo)
+  const data = useSellerData(`/api/customers?q=${encodeURIComponent(search)}`, customerFields, readDemoCustomers, esDemo, { limit: 50 })
   const templateData = useSellerData('/api/message-templates', templateFields, readDemoTemplates, esDemo)
   const rows = esDemo ? data.rows.filter((row) => coincideCliente(row, search)) : data.rows
 
@@ -215,6 +215,7 @@ export default function SellerCustomers() {
     )}
     {!data.loading && !data.error && vista === 'grid' && <ul className="grid gap-3 sm:grid-cols-2">{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={templateData.rows} onViewProfile={esDemo ? undefined : setProfileCustomer} />)}</ul>}
     {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={templateData.rows} onPerfil={esDemo ? undefined : setProfileCustomer} />}
+    {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={() => setProfileCustomer(null)} />
     {!templateData.loading && templateData.error && <p className="rounded-xl border border-amber-400/30 bg-amber-300/10 p-3 text-sm text-amber-100">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</p>}
     <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" className="max-w-2xl">

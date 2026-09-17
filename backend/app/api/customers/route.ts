@@ -31,7 +31,10 @@ function esMayorista(customer: { pricingTier?: string | null }) {
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  const q = new URL(request.url).searchParams.get('q') || ''
+  const params = new URL(request.url).searchParams
+  const q = params.get('q') || ''
+  const limit = Math.min(100, Math.max(1, Number(params.get('limit')) || 50))
+  const cursor = params.get('cursor')
   // Búsqueda flexible: nombre, teléfono, CI/RUC, correo, datos de facturación
   // del cliente y también pedidos facturados a otro titular (razón social/RUC),
   // para poder llegar al cliente desde el nombre que salió en la factura.
@@ -51,7 +54,7 @@ export async function GET(request: Request) {
       { label: { contains: q, mode: 'insensitive' } },
     ] } } },
     { orders: { some: { OR: [{ billingName: { contains: q, mode: 'insensitive' } }, { billingDocument: { contains: q } }] } } },
-  ] } : {}) }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } }, orderBy: { createdAt: 'desc' }, take: 50 })
+  ] } : {}) }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: limit, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}) })
   const ids = data.map((customer) => customer.id)
   const stats = await prisma.order.groupBy({
     by: ['customerId'],
