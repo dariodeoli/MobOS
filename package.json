@@ -7,14 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint src scripts",
+    "lint": "eslint src scripts print-agent",
     "lint:fix": "eslint src scripts --fix",
-    "test": "node --test \"src/**/*.test.js\"",
+    "test": "node --test \"src/**/*.test.js\" \"print-agent/**/*.test.mjs\"",
     "format": "prettier --write \"src/**/*.{js,jsx,css}\" \"scripts/**/*.mjs\"",
     "release:prepare": "node scripts/release.mjs",
     "release:smoke": "node scripts/smoke.mjs",
     "release:publish": "node scripts/release.mjs --publish --deploy",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:print-agent": "npm --prefix print-agent test"
   },
   "dependencies": {
     "clsx": "^2.1.1",
