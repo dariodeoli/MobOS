@@ -9,6 +9,7 @@ import { Card, Badge, Dot, EmptyState, Modal, Button, Textarea } from '@/compone
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api/client'
 import PagosPedido from './PagosPedido'
+import { serialEnmascarado } from '@/utils/serial'
 
 // Agrupa por compra (compraId); las sueltas quedan como grupo de 1.
 function agruparCompras(ventas) {
@@ -332,7 +333,7 @@ export default function ListaVentasDia({
                             return (
                               <div key={i} className="mt-0.5 text-[11px] leading-relaxed">
                                 {serials.length > 0 && (
-                                  <span className="font-semibold text-fono-light">IMEI {serials.map(s => `••••${String(s).slice(-4)}`).join(', ')}</span>
+                                  <span className="font-semibold text-fono-light">IMEI {serials.map(s => serialEnmascarado(s)).join(', ')}</span>
                                 )}
                                 {pending > 0 && (
                                   <span className="ml-1 inline-flex items-center gap-1 rounded bg-warn/20 px-1.5 py-0.5 font-semibold text-warn">

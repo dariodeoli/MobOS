@@ -9,6 +9,7 @@ import { api, API_URL } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { getDemoWarranties, saveDemoWarranties } from '@/lib/demoWarranties'
 import { cn } from '@/lib/utils'
+import SerialTexto from '@/components/shared/SerialTexto'
 
 const STATES = [['RECEIVED', 'Recibido'], ['DIAGNOSIS', 'En diagnóstico'], ['READY', 'Listo'], ['DELIVERED', 'Entregado']]
 const label = Object.fromEntries(STATES)
@@ -113,7 +114,7 @@ export default function Garantias() {
           const detalle = [item.diagnosis ? `Diagnóstico: ${item.diagnosis}` : '', item.responsibleName ? `Resp: ${item.responsibleName}` : '', item.parts?.length ? `Repuestos: ${item.parts.join(', ')}` : '', item.photos?.length ? `${item.photos.length} foto(s)` : ''].filter(Boolean).join(' · ')
           return <div key={item.id} data-testid="garantia-fila" className={cn(GRID_GARANTIAS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
             <span className="truncate text-sm font-semibold" title={item.customerName}>{item.customerName || 'Sin cliente'}</span>
-            <span className="min-w-0 truncate font-mono text-[11px] text-fono-light" title={serial}>{serial ? <>{serial.slice(0, -4)}<b className="text-fore">{serial.slice(-4)}</b></> : '—'}</span>
+            <SerialTexto serial={serial} className="truncate text-[11px] text-fono-light" />
             <span className="truncate text-xs text-mute" title={[item.description, detalle].filter(Boolean).join(' · ')}>{item.description || '—'}{detalle ? <span className="text-mute/70"> · {detalle}</span> : null}</span>
             <span className="truncate text-xs text-mute">{item.technicianName || '—'}</span>
             <span className={cn('truncate text-xs', vence.urgente ? 'font-semibold text-warn' : 'text-mute')} title={vence.titulo}>{vence.texto}</span>

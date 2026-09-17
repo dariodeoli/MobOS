@@ -25,6 +25,7 @@ import Ads from '@/components/control/Ads'
 import Ganadores from '@/components/control/Ganadores'
 import Asistente from '@/components/control/Asistente'
 import Historial from '@/components/control/Historial'
+import Auditoria from '@/components/control/Auditoria'
 import Caja from '@/components/control/Caja'
 import PaymentAccounts from '@/components/control/PaymentAccounts'
 import Creditos from '@/components/control/Creditos'
@@ -132,7 +133,7 @@ const CONFIG_TABS = [
   ['equipo', 'Equipo'],
   ['identidad', 'Mi identidad'],
   ['roles', 'Roles y permisos'],
-  ['historial', 'Historial'],
+  ['historial', 'Auditoría'],
   ['negocio', 'Negocio'],
   ['sucursales', 'Sucursales'],
   ['seguridad', 'Seguridad'],
@@ -153,7 +154,7 @@ const LABELS = {
   equipo: 'Configuración',
   identidad: 'Mi identidad',
   roles: 'Roles y permisos',
-  historial: 'Historial',
+  historial: 'Auditoría',
   negocio: 'Negocio',
   sucursales: 'Sucursales',
   seguridad: 'Seguridad',
@@ -261,8 +262,8 @@ export default function PanelVendedor() {
     if (!esOwner) return base
     // Las subpáginas de Configuración no viven en el menú: se abren por sus
     // pestañas, pero tienen que ser navegables y recargables por URL.
-    return [...base, ...CONFIG_VISTAS.filter(id => id !== 'historial' || esDemo)]
-  }, [esOwner, esTecnico, esDemo])
+    return [...base, ...CONFIG_VISTAS]
+  }, [esOwner, esTecnico])
 
   // Si la URL apunta a una vista fuera del alcance del rol (ej. un vendedor en
   // /pos/inventario), se redirige a "cargar" de una sola vez. Sin el navigate
@@ -630,12 +631,12 @@ export default function PanelVendedor() {
               <Subtabs
                 value={vista}
                 onChange={ir}
-                items={CONFIG_TABS.filter(([id]) => id !== 'historial' || esDemo)}
+                items={CONFIG_TABS}
               />
               {vista === 'equipo' && <Vendedores />}
               {vista === 'identidad' && <MiIdentidad />}
               {vista === 'roles' && <RolesPermisos />}
-              {esDemo && vista === 'historial' && <Historial />}
+              {vista === 'historial' && (esDemo ? <Historial /> : <Auditoria />)}
               {vista === 'negocio' && <Config seccion="negocio" />}
               {vista === 'sucursales' && <Config seccion="sucursales" />}
               {vista === 'seguridad' && <Config seccion="seguridad" />}

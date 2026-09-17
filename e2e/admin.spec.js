@@ -194,6 +194,23 @@ test.describe('owner panel', () => {
     await expect(page.getByText('Orden de servicio actualizada.').or(page.getByText('Diagnóstico', { exact: true }).first())).toBeVisible()
   })
 
+  // La auditoría real (antes solo existía en la demo).
+  test('auditoría: lista los movimientos del negocio y filtra por área', async ({ page }) => {
+    await page.goto('/pos/historial')
+    await expect(page.getByRole('heading', { name: 'Auditoría' })).toBeVisible()
+    const tabla = page.getByTestId('auditoria-tabla')
+    await expect(tabla).toBeVisible()
+    const filas = page.getByTestId('auditoria-fila')
+    await expect(filas.first()).toBeVisible()
+
+    await page.getByLabel('Filtrar por área').selectOption('InventoryUnit')
+    await expect(filas.first()).toBeVisible()
+    await expect(tabla).toContainText('Inventario')
+
+    const { scrollWidth, clientWidth } = await tabla.evaluate(node => ({ scrollWidth: node.scrollWidth, clientWidth: node.clientWidth }))
+    expect(scrollWidth, 'la tabla de auditoría no debe pedir scroll horizontal').toBeLessThanOrEqual(clientWidth + 1)
+  })
+
   test('finanzas → Caja can open the cash session', async ({ page }) => {
     await page.goto('/pos/finanzas')
     await expect(page.getByRole('heading', { name: 'Caja y control financiero' })).toBeVisible()

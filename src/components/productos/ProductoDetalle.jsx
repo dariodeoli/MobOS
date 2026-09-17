@@ -4,6 +4,7 @@ import Icon from '@/components/shared/Icon'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { api } from '@/lib/api/client'
 import { num } from '@/utils/calculos'
+import SerialTexto from '@/components/shared/SerialTexto'
 
 const CONDITION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 const DESTINATION = { NORMAL: 'Normal', OFFER: 'Oferta', WHOLESALE: 'Mayorista' }
@@ -163,7 +164,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
             </div>
             <div className="mt-3 max-h-64 space-y-1.5 overflow-y-auto">
               {units.map(unit => <div key={unit.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 px-3 py-2 text-xs">
-                <span className="font-mono">{String(unit.serial).slice(0, -4)}<b>{String(unit.serial).slice(-4)}</b></span>
+                <SerialTexto serial={unit.serial} />
                 <span className="flex items-center gap-2 text-mute">{unit.batteryHealth ? `${unit.batteryHealth}% · ` : ''}{unit.location?.name || 'Sin ubicación'}<Badge color={UNIT_TONE[unit.status] || 'slate'}>{UNIT_STATUS[unit.status] || unit.status}</Badge></span>
               </div>)}
             </div>

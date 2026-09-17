@@ -5,6 +5,7 @@ import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { coincideCliente } from '@/utils/cliente'
 import { cn } from '@/lib/utils'
+import SerialTexto from '@/components/shared/SerialTexto'
 
 // Pipeline del taller: recepción → diagnóstico → reparación → entrega.
 const ESTADOS = [
@@ -234,7 +235,7 @@ export default function ServicioTecnico() {
               return <div key={row.id} data-testid="servicio-fila" className={cn(GRID_SERVICIO, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
                 <span className="min-w-0">
                   <b className="block truncate text-sm" title={row.device}>{row.device || 'Equipo'}</b>
-                  {serial && <span className="mt-0.5 block truncate font-mono text-[10px] text-mute" title={serial}>{serial.slice(0, -4)}<b className="text-fore">{serial.slice(-4)}</b></span>}
+                  {serial && <SerialTexto serial={serial} className="mt-0.5 truncate text-[10px] text-mute" />}
                 </span>
                 <span className="truncate text-xs text-mute" title={row.customerName}>{row.customerName || 'Sin cliente'}</span>
                 <span className="truncate text-xs text-mute" title={row.reportedIssue || row.diagnosis || undefined}>{row.reportedIssue || row.diagnosis || 'Sin detalle'}</span>
