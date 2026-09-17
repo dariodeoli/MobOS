@@ -934,7 +934,6 @@ model MessageTemplate {
   context    String   @default("clientes")
   isDefault  Boolean  @default(false)
   isActive  Boolean  @default(true)
-  isDefault Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1605,20 +1604,7 @@ model CustomerRequest {
 
 // Titulares de factura que el cliente ya usó: se proponen en la próxima venta
 // y la búsqueda puede encontrar al cliente por esa razón social.
-model CustomerBillingIdentity {
-  id         String   @id @default(cuid())
-  tenantId   String
-  customerId String
-  name       String
-  document   String?
-  uses       Int      @default(0)
-  lastUsedAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
 
-  @@unique([customerId, name, document])
-  @@index([tenantId, name])
-}
 
 // Logo de la empresa para comprobantes y documentos. Los bytes viven en el
 // volumen de adjuntos (MOBOS_STORAGE_DIR) con respaldo en `data`.
