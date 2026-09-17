@@ -124,7 +124,7 @@ function BottomNav({ items, active, onNavigate, onOpenMenu, menuLabel }) {
   )
 }
 
-function SidebarFooter({ sesionNombre, esOwner, onSwitchUser, onLogout, onLockRequest, collapsed, perfilEmpresa }) {
+function SidebarFooter({ sesionNombre, esOwner, onSwitchUser, onLockRequest, collapsed, perfilEmpresa }) {
   const clicsRef = useRef([])
   const clicsTimer = useRef(null)
   useEffect(() => () => clearTimeout(clicsTimer.current), [])
@@ -176,20 +176,6 @@ function SidebarFooter({ sesionNombre, esOwner, onSwitchUser, onLogout, onLockRe
           </span>
           <Icon name="refresh" className={cn('ml-auto h-3 w-3 shrink-0 text-mute', collapsed && 'lg:hidden')} />
         </button>
-        {onLogout && (
-          <button
-            type="button"
-            onClick={onLogout}
-            className={cn(
-              'grid h-11 w-10 shrink-0 place-items-center rounded-xl text-mute transition hover:bg-fore/5 hover:text-fore',
-              collapsed && 'lg:h-8 lg:w-7',
-            )}
-            title="Cerrar sesión"
-            aria-label="Cerrar sesión"
-          >
-            <Icon name="logout" className="h-3.5 w-3.5" />
-          </button>
-        )}
       </div>
     </div>
   )
@@ -314,7 +300,6 @@ export default function AppShell({
           sesionNombre={sesionNombre}
           esOwner={esOwner}
           onSwitchUser={onSwitchUser}
-          onLogout={onLogout}
           onLockRequest={onLockRequest}
           collapsed={collapsed}
           perfilEmpresa={perfilEmpresa}
@@ -340,7 +325,6 @@ export default function AppShell({
             sesionNombre={sesionNombre}
             esOwner={esOwner}
             onSwitchUser={onSwitchUser}
-            onLogout={onLogout}
             onLockRequest={onLockRequest}
             collapsed={false}
             perfilEmpresa={perfilEmpresa}
@@ -368,8 +352,21 @@ export default function AppShell({
           </div>
 
           <div className="flex items-center gap-2.5">
-            {headerActions}
+            {/* Tema junto al nombre de la tienda (primer acción del header). */}
             <ThemeToggle />
+            {headerActions}
+            {/* Cerrar sesión: primero de la derecha. */}
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
+                title="Cerrar sesión"
+                aria-label="Cerrar sesión"
+              >
+                <Icon name="logout" className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </header>
 
