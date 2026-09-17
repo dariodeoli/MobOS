@@ -5,6 +5,8 @@ import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, PasswordInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
+import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
+import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import { ROLE_LABELS } from '@/lib/roles'
 
 function fmtDate(value) {
@@ -436,7 +438,12 @@ function SeccionSucursales() {
   useEffect(() => { cargar() }, [])
 
   function abrir(branch) {
-    setForm(branch ? { id: branch.id, name: branch.name, address: branch.address || '', city: branch.city || '', department: branch.department || '', phone: branch.phone || '', instagram: branch.instagram || '' } : { id: null, name: '', address: '', city: '', department: '', phone: '', instagram: '' })
+    // El teléfono se guarda como string único: al abrir se separa en código de
+    // país y número para editarlos con PhoneField.
+    const telefono = parseTelefono(branch?.phone)
+    setForm(branch
+      ? { id: branch.id, name: branch.name, address: branch.address || '', city: branch.city || '', department: branch.department || '', countryCode: telefono.countryCode, phone: telefono.phone, instagram: normalizarInstagram(branch.instagram) }
+      : { id: null, name: '', address: '', city: '', department: '', countryCode: '+595', phone: '', instagram: '' })
     setFormOpen(true)
   }
 
@@ -450,7 +457,7 @@ function SeccionSucursales() {
         address: form.address?.trim() || null,
         city: form.city?.trim() || null,
         department: form.department?.trim() || null,
-        phone: form.phone?.trim() || null,
+        phone: componerTelefono({ countryCode: form.countryCode, phone: form.phone }),
         instagram: form.instagram?.trim() || null,
       }
       if (form.id) await api.patch('/api/branches', { id: form.id, ...payload })
@@ -485,8 +492,8 @@ function SeccionSucursales() {
         <form onSubmit={guardar} className="space-y-3">
           <Input required maxLength={100} autoFocus disabled={busy} value={form?.name || ''} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Nombre de la sucursal" />
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input maxLength={40} disabled={busy} value={form?.phone || ''} onChange={event => setForm(current => ({ ...current, phone: event.target.value }))} placeholder="Teléfono (opcional)" />
-            <Input maxLength={120} disabled={busy} value={form?.instagram || ''} onChange={event => setForm(current => ({ ...current, instagram: event.target.value }))} placeholder="Instagram (opcional)" />
+            <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => setForm(current => ({ ...current, countryCode }))} onChange={phone => setForm(current => ({ ...current, phone }))} placeholder="Teléfono (opcional)" />
+            <InstagramField disabled={busy} value={form?.instagram || ''} onChange={instagram => setForm(current => ({ ...current, instagram }))} placeholder="Instagram (opcional)" />
           </div>
           <div className="space-y-1">
             <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => setForm(current => ({ ...current, city, department }))} placeholder="Ciudad" />
