@@ -47,7 +47,9 @@ const verifiedLabel = (unit, perfil) => {
   const crudo = unit.lastVerifiedBy?.name || VERIFIER_NAMES[unit.verifiedByCode] || ''
   const quien = crudo === 'Administrador' && perfil?.name ? perfil.name : crudo
   if (!fecha) return null
-  return { fecha, quien, inicial: (quien || 'V').charAt(0).toUpperCase() }
+  // En la tabla se muestran solo las iniciales; el nombre completo va en el tooltip.
+  const iniciales = (quien || unit.verifiedByCode || 'V').split(/\s+/).filter(Boolean).map(parte => parte[0]).slice(0, 2).join('').toUpperCase() || 'V'
+  return { fecha, quien, iniciales }
 }
 
 const LOCATION_TONES = ['#22d3ee', '#a78bfa', '#fbbf24', '#34d399', '#f472b6', '#60a5fa']
@@ -140,8 +142,10 @@ function TarjetaUnidad({ unit, perfilEmpresa, onClick }) {
       {unit.location?.name ? <span className="truncate rounded border border-ink-500 px-1.5 py-0.5">{unit.location.name}</span> : null}
       {unit.supplierName ? <span className="rounded border border-ink-500 px-1.5 py-0.5">{unit.supplierName}</span> : null}
     </span>
-    <span className="mt-2 flex items-center justify-between text-[11px] text-mute">
-      <span className="truncate">{v ? `VP ${v.quien || unit.verifiedByCode || '—'}` : 'Sin verificación'}</span>
+    <span className="mt-2 flex items-center justify-between gap-2 text-[11px] text-mute">
+      <span className="flex min-w-0 items-center gap-1.5" title={v ? `${v.quien || unit.verifiedByCode || '—'} · ${fechaVerificacion(unit.lastVerifiedAt)}` : undefined}>
+        {v ? <><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink-700 text-[8px] font-bold text-fore">{v.iniciales}</span><span className="truncate">VP · {fechaVerificacion(unit.lastVerifiedAt)}</span></> : <span className="truncate">Sin verificación</span>}
+      </span>
       <span className="shrink-0 font-semibold text-fore">{unit.originalCost ? formatCost(unit) : ''}</span>
     </span>
     {unit.reservationCustomer ? <span className="mt-1 truncate text-[11px] font-semibold text-[#a78bfa]">Atajado por {unit.reservationCustomer}</span> : null}
