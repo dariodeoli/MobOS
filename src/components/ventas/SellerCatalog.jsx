@@ -7,6 +7,7 @@ import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import ProductoDetalle from '@/components/productos/ProductoDetalle'
+import ListGridToggle from '@/components/shared/ListGridToggle'
 
 export const productFields = (row) => ({ ...row, id: row.id, name: row.name || row.nombre || '', sku: row.sku || '', price: row.pricePyg ?? row.precioVenta, stock: row.stock })
 const demoProducts = () => getProductos().filter((row) => row.activo !== false)
@@ -38,6 +39,26 @@ function FilaProducto({ row, onClick }) {
   )
 }
 
+// Tarjeta compacta para la vista de cuadrícula.
+function TarjetaProducto({ row, onClick }) {
+  const stock = Number(row.stock ?? 0)
+  return (
+    <button type="button" onClick={onClick} className="group flex w-full flex-col rounded-2xl border border-fore/10 bg-ink-800/40 p-4 text-left transition hover:border-fono/40 hover:bg-ink-700/50">
+      <span className="flex items-start justify-between gap-2">
+        <b className="min-w-0 truncate text-sm">{row.name}</b>
+        <Badge color={CONDITION_TONE[row.condition] || 'slate'}>{CONDITION[row.condition] || 'Nuevo'}</Badge>
+      </span>
+      <span className="mt-1 block truncate font-mono text-[11px] text-mute">{row.sku || 'Sin SKU'}{row.category ? ` · ${row.category}` : ''}</span>
+      <span className="mt-3 text-xl font-bold tabular-nums text-fono-light">{precio(row) > 0 ? gs(precio(row)) : '—'}</span>
+      {mayorista(row) > 0 && <span className="mt-0.5 text-[11px] text-mute">Mayorista {gs(mayorista(row))}</span>}
+      <span className="mt-3 flex items-center justify-between">
+        <span className={cn('rounded-md border px-2 py-0.5 text-[10px] font-bold', stock > 0 ? 'border-ok/25 bg-ok/10 text-ok' : 'border-ink-500 bg-ink-700/40 text-mute')}>{stock} en stock</span>
+        <Icon name="chevron" className="h-3.5 w-3.5 -rotate-90 text-mute transition group-hover:text-fono-light" />
+      </span>
+    </button>
+  )
+}
+
 export default function SellerCatalog() {
   const { esDemo, sesion, usuario } = useSesion()
   const [query, setQuery] = useState('')
@@ -45,6 +66,7 @@ export default function SellerCatalog() {
   const [categoria, setCategoria] = useState('todas')
   const [condicion, setCondicion] = useState('todas')
   const [soloStock, setSoloStock] = useState(false)
+  const [vista, setVista] = useState(() => localStorage.getItem('mobos:productos-vista') || 'list')
   const [seleccion, setSeleccion] = useState(null)
   const searchRef = useRef(null)
   const data = useSellerData(`/api/products?q=${encodeURIComponent(search)}`, productFields, demoProducts, esDemo)
@@ -86,10 +108,12 @@ export default function SellerCatalog() {
       <Select aria-label="Filtrar por categoría" className="w-auto" value={categoria} onChange={(event) => setCategoria(event.target.value)}><option value="todas">Todas las categorías</option>{categorias.map(item => <option key={item} value={item}>{item}</option>)}</Select>
       <Select aria-label="Filtrar por condición" className="w-auto" value={condicion} onChange={(event) => setCondicion(event.target.value)}><option value="todas">Nueva y seminueva</option><option value="NEW">Nuevos</option><option value="USED">Seminuevos</option><option value="REFURBISHED">Reacondicionados</option></Select>
       <button type="button" onClick={() => setSoloStock(value => !value)} className={cn('rounded-lg border px-3 py-2 text-xs font-semibold transition', soloStock ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>Con stock</button>
+      <ListGridToggle value={vista} onChange={(next) => { setVista(next); localStorage.setItem('mobos:productos-vista', next) }} />
       <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
     </div>
     <SellerFeedback {...data} empty={!rows.length} />
-    {!data.loading && !data.error && <div className="space-y-2">{rows.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
+    {!data.loading && !data.error && vista === 'list' && <div className="space-y-2">{rows.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
+    {!data.loading && !data.error && vista === 'grid' && <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
     {seleccion && <ProductoDetalle product={seleccion} canManage={canManage} esDemo={esDemo} onClose={() => setSeleccion(null)} onChanged={data.refresh} onSell={vender} />}
   </SellerSection>
 }

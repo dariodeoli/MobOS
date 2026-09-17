@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Modal, Input, Select, Button, MoneyInput } from '@/components/ui'
+import { Modal, Input, Select, Button, MoneyInput, Badge } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import { api, API_URL } from '@/lib/api'
 import { listVentas, updateVenta, refrescar } from '@/lib/storage'
@@ -224,8 +224,9 @@ export default function PagosPedido({ venta, onClose }) {
       </div>
     )}
     <div className="mb-5 grid grid-cols-2 gap-3">
-      <div className="rounded-xl border border-fore/10 p-4"><p className="text-xs text-mute">Pagado</p><strong className="mt-1 block text-xl text-fono-light">{gs(order.totalPagado)}</strong></div>
-      <div className="rounded-xl border border-fore/10 p-4"><p className="text-xs text-mute">Pendiente</p><strong className="mt-1 block text-xl">{gs(pending)}</strong></div>
+      <div className="rounded-2xl border border-ok/25 bg-gradient-to-br from-ok/10 to-transparent p-4"><p className="text-xs text-mute">Pagado</p><strong className="mt-1 block text-xl tabular-nums text-ok">{gs(order.totalPagado)}</strong></div>
+      <div className={`rounded-2xl border p-4 ${pending > 0 ? 'border-warn/25 bg-gradient-to-br from-warn/10 to-transparent' : 'border-ink-600'}`}><p className="text-xs text-mute">Pendiente</p><strong className={`mt-1 block text-xl tabular-nums ${pending > 0 ? 'text-warn' : ''}`}>{gs(pending)}</strong></div>
+      <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-ink-700"><div className="h-full rounded-full bg-ok transition-all" style={{ width: `${Number(order.precio || order.totalPyg || 0) > 0 ? Math.min(100, Math.round((Number(order.totalPagado || 0) / Number(order.precio || order.totalPyg || 1)) * 100)) : 0}%` }} /></div>
     </div>
     {canReturn && !postventaOpen && (
       <div className="mb-5">
@@ -273,20 +274,30 @@ export default function PagosPedido({ venta, onClose }) {
       <label className="block text-xs text-mute">Cuenta / referencia<Input value={reference} onChange={e => setReference(e.target.value)} maxLength={200} placeholder="Banco, cuenta o referencia de operación" /></label>
       <Button disabled={busy || needsRefresh} type="submit">{busy ? 'Guardando…' : 'Registrar pago'}</Button>
     </form>}
-    <div className="space-y-3"><h3 className="font-semibold">Cronología de pagos y comprobantes</h3>
+    <div className="space-y-3"><h3 className="text-xs font-bold uppercase tracking-wider text-mute">Cronología de pagos y comprobantes</h3>
       {!payments.length && <p className="text-sm text-mute">Todavía no hay pagos registrados.</p>}
-      {payments.map(p => <article key={p.id} className="rounded-xl border border-fore/10 p-4">
-        <div className="flex justify-between gap-3"><strong>{gs(p.monto)}</strong><span className="text-xs text-mute">{METHODS[p.medioPago] || p.medioPago}</span></div>
-        <p className="mt-1 text-xs text-mute">{new Date(p.fecha || p.paidAt || p.createdAt).toLocaleString('es-PY')} · {p.cuenta || p.reference || 'Sin referencia'}{p.dueAt ? ` · vence ${new Date(p.dueAt).toLocaleDateString('es-PY')}` : ''}{p.settlesAt ? ` · se acredita el ${new Date(p.settlesAt).toLocaleDateString('es-PY')}` : ''}</p>
-        {p.status === undefined || p.status === 'CONFIRMED' ? <button type="button" className="mt-2 rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => printPaymentReceipt(p, order, { format: 'a4' })}>Imprimir recibo</button> : null}
+      {payments.map(p => {
+        const conciliacion = reconciliations[p.id]?.state || p.reconciliationState
+        const concTone = conciliacion === 'VERIFIED' ? 'green' : conciliacion === 'REJECTED' ? 'red' : 'orange'
+        const concLabel = conciliacion === 'VERIFIED' ? 'Conciliada' : conciliacion === 'REJECTED' ? 'Rechazada' : 'Por conciliar'
+        return <article key={p.id} className="rounded-2xl border border-ink-600 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <strong className="text-base tabular-nums">{gs(p.monto)}</strong>
+            <Badge color="slate">{METHODS[p.medioPago] || p.medioPago}</Badge>
+            <Badge color={concTone}>{concLabel}</Badge>
+            {p.dueAt && <Badge color="orange">Vence {new Date(p.dueAt).toLocaleDateString('es-PY')}</Badge>}
+          </div>
+          {p.status === undefined || p.status === 'CONFIRMED' ? <button type="button" className="rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => printPaymentReceipt(p, order, { format: 'a4' })}>Imprimir recibo</button> : null}
+        </div>
+        <p className="mt-1 text-xs text-mute">{new Date(p.fecha || p.paidAt || p.createdAt).toLocaleString('es-PY')} · {p.cuenta || p.reference || 'Sin referencia'}{p.settlesAt ? ` · se acredita el ${new Date(p.settlesAt).toLocaleDateString('es-PY')}` : ''}</p>
         {p.accountSnapshot && <p className="mt-1 text-xs text-fono-light">{p.accountSnapshot.name} · {p.accountSnapshot.bank} · {p.accountSnapshot.accountNumber} · {p.currency} {p.originalAmount} · cotización {p.exchangeRatePyg}</p>}
-        <p className="my-2 text-xs text-amber-300">Conciliación: {(reconciliations[p.id]?.state || p.reconciliationState) === 'VERIFIED' ? 'Verificada' : (reconciliations[p.id]?.state || p.reconciliationState) === 'REJECTED' ? 'Rechazada' : 'Pendiente de revisión'}</p>
-        {(proofs[p.id] || []).map(file => <button key={file.id} className="mb-2 block text-sm text-fono-light underline" onClick={() => download(p.id, file)}>{file.name || file.fileName || 'Descargar comprobante'}</button>)}
-        <label className="block text-xs text-mute">Adjuntar comprobante · JPG, PNG, WebP o PDF · hasta 5 MB<input disabled={busy} type="file" className="mt-2 block w-full text-xs" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={e => { upload(p.id, e.target.files?.[0]); e.target.value = '' }} /></label>
+        {(proofs[p.id] || []).map(file => <button key={file.id} className="mt-2 block text-sm text-fono-light underline" onClick={() => download(p.id, file)}>{file.name || file.fileName || 'Descargar comprobante'}</button>)}
+        <label className="mt-2 block text-xs text-mute">Adjuntar comprobante · JPG, PNG, WebP o PDF · hasta 5 MB<input disabled={busy} type="file" className="mt-2 block w-full text-xs" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={e => { upload(p.id, e.target.files?.[0]); e.target.value = '' }} /></label>
         {canReconcile && <div className="mt-3 border-t border-fore/10 pt-3"><Input aria-label={`Comentario de conciliación ${p.id}`} placeholder="Comentario interno de conciliación" maxLength={2000} value={notes[p.id] || ''} onChange={e => setNotes(prev => ({ ...prev, [p.id]: e.target.value }))} /><div className="mt-2 flex gap-2"><Button disabled={busy} onClick={() => reconcile(p.id, 'VERIFIED')}>Verificar</Button><button disabled={busy} className="rounded-lg border border-red-400/30 px-3 text-sm text-red-300" onClick={() => reconcile(p.id, 'REJECTED')}>Rechazar</button></div></div>}
         {(p.reconciliationHistory || []).map((entry, index) => <p key={index} className="mt-2 text-xs text-mute">{entry.user} · {new Date(entry.at).toLocaleString('es-PY')} · {entry.state}: {entry.note}</p>)}
         {reconciliations[p.id]?.note && <p className="mt-2 text-xs text-mute">{reconciliations[p.id].note}</p>}
-      </article>)}
+      </article>})}
     </div>
     {error && <p role="alert" className="mt-4 text-sm text-red-300">{error}</p>}
     {notice && <p role="status" className="mt-4 text-sm text-fono-light">{notice}</p>}

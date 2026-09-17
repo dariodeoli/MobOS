@@ -4,6 +4,7 @@ import { api } from '@/lib/api/client'
 import { Button, Input, Modal, Select, Badge } from '@/components/ui'
 import { gs } from '@/utils/calculos'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
+import ListGridToggle from '@/components/shared/ListGridToggle'
 import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import { parseDelimited } from '@/utils/csv'
 
@@ -183,10 +184,7 @@ export default function SellerCustomers() {
         <option value="nombre">Nombre</option>
         <option value="total">Total gastado</option>
       </Select>
-      <div className="flex overflow-hidden rounded-lg border border-ink-600">
-        <button type="button" aria-pressed={vista === 'grid'} className={`px-3 py-1.5 text-xs font-semibold ${vista === 'grid' ? 'bg-fono/15 text-fono-light' : 'text-mute'}`} onClick={() => { setVista('grid'); localStorage.setItem('mobos:clientes-vista', 'grid') }}>Cuadrícula</button>
-        <button type="button" aria-pressed={vista === 'list'} className={`px-3 py-1.5 text-xs font-semibold ${vista === 'list' ? 'bg-fono/15 text-fono-light' : 'text-mute'}`} onClick={() => { setVista('list'); localStorage.setItem('mobos:clientes-vista', 'list') }}>Lista</button>
-      </div>
+      <ListGridToggle value={vista} onChange={(next) => { setVista(next); localStorage.setItem('mobos:clientes-vista', next) }} />
       <Button type="button" onClick={abrirCrear}>+ Crear cliente</Button>
       {!esDemo && <Button type="button" variant="outline" onClick={() => { setImportAbierto(true); setImportError(''); setImportResultado(null) }}>Importar</Button>}
     </div>
