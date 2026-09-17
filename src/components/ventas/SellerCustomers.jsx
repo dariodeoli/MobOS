@@ -10,6 +10,8 @@ import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import { coincideCliente } from '@/utils/cliente'
 import { capitalizarPrimera } from '@/utils/texto'
 import { parseDelimited } from '@/utils/csv'
+import { descargarCsv } from '@/utils/descargarCsv'
+import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 
 const RUC_RE = /\d[\d.\s]{2,}-\d+/
@@ -97,6 +99,8 @@ export default function SellerCustomers() {
   const [orden, setOrden] = useState('recientes')
   const [resumen, setResumen] = useState(null)
   const [filtro, setFiltro] = useState('todos')
+  const [exportando, setExportando] = useState(false)
+  const [exportError, setExportError] = useState('')
   const nombreRef = useRef(null)
   useEffect(() => { setSearch(busquedaDiferida.trim()) }, [busquedaDiferida])
   // Búsqueda y filtros van al servidor (cubren todas las fichas del tenant, no
@@ -159,6 +163,14 @@ export default function SellerCustomers() {
     } finally { savingRef.current = false; setSaving(false) }
   }
 
+  async function exportar() {
+    if (esDemo) return
+    setExportando(true); setExportError('')
+    try {
+      await descargarCsv('customers', { q: search || undefined, filtro: filtro !== 'todos' ? filtro : undefined }, 'mobos-clientes.csv')
+    } catch (cause) { setExportError(cause?.message || 'No se pudo exportar el CSV.') } finally { setExportando(false) }
+  }
+
   async function lookupRuc() {
     if (!form.document.trim() || esDemo) return
     setRucLoading(true); setRucError(''); setRucResult(null)
@@ -216,8 +228,10 @@ export default function SellerCustomers() {
       </Select>
       <ListGridToggle value={vista} onChange={(next) => { setVista(next); localStorage.setItem('mobos:clientes-vista', next) }} />
       <Button type="button" onClick={abrirCrear}>+ Crear cliente</Button>
+      {!esDemo && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
       {!esDemo && <Button type="button" variant="outline" onClick={() => { setImportAbierto(true); setImportError(''); setImportResultado(null) }}>Importar</Button>}
     </div>
+    {exportError && <p role="alert" className="text-sm text-bad">{exportError}</p>}
     {resumenMostrar && <div className="flex flex-wrap items-center gap-2 text-sm"><Badge color="blue">{resumenMostrar.total} clientes</Badge><Badge color="orange">{resumenMostrar.wholesalers} mayoristas</Badge><Badge color="slate">{resumenMostrar.retail} cliente final</Badge></div>}
     <SellerFeedback {...data} empty={!rows.length} />
     {seguimientos.length > 0 && (

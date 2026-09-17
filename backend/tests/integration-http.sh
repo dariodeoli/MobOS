@@ -481,6 +481,14 @@ out="$(response_file)"
 request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=product&branchId=branch-a-it" 200 '' "$out" "$ADMIN_TOKEN" ''
 node "$BACKEND_ROOT/tests/reports-http.mjs" "$out" "$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COALESCE(SUM(\"totalPyg\"), 0) FROM \"Order\" WHERE \"tenantId\" = 'tenant-a-it' AND \"branchId\" = 'branch-a-it' AND \"status\" <> 'CANCELLED';")" "$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COUNT(*) FROM \"Order\" WHERE \"tenantId\" = 'tenant-a-it' AND \"branchId\" = 'branch-a-it' AND \"status\" <> 'CANCELLED';")" product
 
+echo "Exportaciones CSV por módulo (cabeceras, BOM y alcance por rol)..."
+node "$BACKEND_ROOT/tests/exports.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+EXPORTS_AUDIT="$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COUNT(*) FROM \"AuditLog\" WHERE \"action\" = 'DATA_EXPORTED' AND \"entity\" = 'customers';")"
+if [[ "$EXPORTS_AUDIT" -lt 1 ]]; then
+  echo "La exportación de clientes no dejó la auditoría DATA_EXPORTED." >&2
+  exit 1
+fi
+
 echo "10/13 Límite de reportes de error por IP: 429 con Retry-After..."
 # MOBOS_TRUST_PROXY=true habilita la resolución de IP desde x-forwarded-for
 # (como en producción detrás del Hub). Solo estas solicitudes envían el

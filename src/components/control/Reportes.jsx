@@ -7,6 +7,7 @@ import { Badge, Button, Card, DataTable, EmptyState, Select, Stat } from '@/comp
 import Icon from '@/components/shared/Icon'
 import RangoFechas, { PRESETS, etiquetaRango } from '@/components/shared/RangoFechas'
 import { formatPercent } from '@/components/shared/PercentField'
+import { descargarCsv } from '@/utils/descargarCsv'
 import {
   GRUPOS,
   columnasReporte,
@@ -31,6 +32,8 @@ export default function Reportes() {
   const [datosComisiones, setDatosComisiones] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [exportando, setExportando] = useState(false)
+  const [exportError, setExportError] = useState('')
   const { sesion, sucursal } = useSesion()
   const puedeComisiones = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
 
@@ -97,28 +100,19 @@ export default function Reportes() {
       : <span className="tabular-nums text-mute">{c.tipo === 'monto' ? gs(g[c.key]) : g[c.key]}</span>,
   }))
 
-  function exportar() {
+  async function exportar() {
     if (tipo === 'comisiones') {
-      if (!datosComisiones) return
-      const encabezados = ['Vendedor', 'Ventas', 'Margen', '% comisión', 'Comisión']
-      const filas = (datosComisiones.sellers || []).map((fila) => [
-        fila.sellerName || 'Sin vendedor',
-        fila.totalPyg ?? '',
-        fila.marginPyg ?? '',
-        formatPercent(fila.commissionPct),
-        fila.commissionPyg ?? '',
-      ])
-      const csv = filasCsv(encabezados, filas)
-      // BOM para que Excel respete los acentos.
-      const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const enlace = document.createElement('a')
-      enlace.href = url
-      enlace.download = `mobos-reporte-comisiones-${datosComisiones.from || 'inicio'}-a-${datosComisiones.to || 'hoy'}.csv`
-      document.body.appendChild(enlace)
-      enlace.click()
-      enlace.remove()
-      URL.revokeObjectURL(url)
+      // Las comisiones se exportan en el servidor para que el CSV respete el
+      // período y el alcance por sucursal exactamente igual que la tabla.
+      setExportando(true); setExportError('')
+      try {
+        const { desde, hasta } = rango
+        await descargarCsv(
+          'commissions',
+          { desde, hasta, ...(sucursal?.id ? { branchId: sucursal.id } : {}) },
+          `mobos-reporte-comisiones-${desde || 'inicio'}-a-${hasta || 'hoy'}.csv`,
+        )
+      } catch (e) { setExportError(e?.message || 'No se pudo exportar el CSV.') } finally { setExportando(false) }
       return
     }
     if (!datos) return
@@ -179,9 +173,9 @@ export default function Reportes() {
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={exportar} disabled={!datos && !datosComisiones}>
+          <Button variant="outline" className="h-9 px-3 text-xs" onClick={exportar} disabled={exportando || (!datos && !datosComisiones)}>
             <Icon name="download" />
-            Exportar CSV
+            {exportando ? 'Exportando…' : 'Exportar CSV'}
           </Button>
           <Button variant="outline" onClick={() => window.print()} disabled={!datos || !grupos.length}>
             <Icon name="report" />
@@ -189,6 +183,15 @@ export default function Reportes() {
           </Button>
         </div>
       </Card>
+
+      {exportError && (
+        <Card className="border-bad/40 bg-bad/10">
+          <div className="flex items-start gap-3">
+            <Icon name="alert" className="mt-0.5 h-5 w-5 text-bad" />
+            <p className="text-sm text-bad">{exportError}</p>
+          </div>
+        </Card>
+      )}
 
       {error && (
         <Card className="border-bad/40 bg-bad/10">

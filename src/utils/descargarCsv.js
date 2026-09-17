@@ -1,0 +1,31 @@
+import { API_URL } from '@/lib/api/client'
+
+// Descarga un CSV de /api/exports/<módulo> con la sesión de cookies. El nombre
+// del archivo lo elige quien llama: entre orígenes distintos el navegador no
+// expone Content-Disposition, así que no se puede leer del encabezado.
+export async function descargarCsv(modulo, filtros = {}, nombreArchivo) {
+  const params = new URLSearchParams()
+  for (const [clave, valor] of Object.entries(filtros)) {
+    if (valor === undefined || valor === null || valor === '') continue
+    params.set(clave, String(valor))
+  }
+  const consulta = params.toString()
+  const response = await fetch(`${API_URL}/api/exports/${encodeURIComponent(modulo)}${consulta ? `?${consulta}` : ''}`, { credentials: 'include' })
+  if (!response.ok) {
+    let mensaje = 'No se pudo exportar el CSV.'
+    try {
+      const payload = await response.json()
+      if (payload?.message) mensaje = payload.message
+    } catch { /* la respuesta de error no traía JSON */ }
+    throw new Error(mensaje)
+  }
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const enlace = document.createElement('a')
+  enlace.href = url
+  enlace.download = nombreArchivo || `mobos-${modulo}.csv`
+  document.body.appendChild(enlace)
+  enlace.click()
+  enlace.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}

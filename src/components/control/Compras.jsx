@@ -12,6 +12,7 @@ import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import EmailField from '@/components/shared/EmailField'
 import Icon from '@/components/shared/Icon'
+import { descargarCsv } from '@/utils/descargarCsv'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import { cn } from '@/lib/utils'
@@ -96,7 +97,7 @@ export default function Compras() {
   const [lineCostEdits, setLineCostEdits] = useState({})
   const [expandida, setExpandida] = useState(null)
   const [orden, setOrden] = useState({ key: 'fecha', dir: 'desc' })
-  const [busy, setBusy] = useState(!demo); const [error, setError] = useState(''); const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(!demo); const [error, setError] = useState(''); const [message, setMessage] = useState(''); const [exportando, setExportando] = useState(false)
 
   const load = useCallback(async () => {
     setBusy(true); setError('')
@@ -147,6 +148,12 @@ export default function Compras() {
     } catch (err) { setError(err?.message || 'No se pudo crear la compra.') } finally { setBusy(false) }
   }
   async function receive(purchase) { setBusy(true); setError(''); try { if (demo) { receiveDemoPurchase(purchase.id); setPurchases(loadDemoPurchases()) } else { await purchasesApi.receive(purchase.id); await load() }; setMessage('Compra recibida y stock actualizado.') } catch (err) { setError(err?.message || 'No se pudo recibir la compra.') } finally { setBusy(false) } }
+
+  async function exportar() {
+    if (demo) return
+    setExportando(true); setError('')
+    try { await descargarCsv('purchases', {}, 'mobos-compras.csv') } catch (cause) { setError(cause?.message || 'No se pudo exportar el CSV.') } finally { setExportando(false) }
+  }
 
   async function openPayment(purchase) {
     setError(''); setPaymentPurchase(purchase); setPagoRegistrado(null)
@@ -230,7 +237,7 @@ export default function Compras() {
   }, [purchases, orden])
 
   return <div className="space-y-4">
-    <Card><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="mb-1 font-bold">Compras e importaciones</h2><p className="mb-4 text-sm text-mute">Anticipos, crédito y costos finales auditables por equipo o lote.</p></div><Button type="button" variant="outline" onClick={() => setSuppliersOpen(true)}>Proveedores</Button></div>
+    <Card><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="mb-1 font-bold">Compras e importaciones</h2><p className="mb-4 text-sm text-mute">Anticipos, crédito y costos finales auditables por equipo o lote.</p></div><div className="flex flex-wrap gap-2">{!demo && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}<Button type="button" variant="outline" onClick={() => setSuppliersOpen(true)}>Proveedores</Button></div></div>
       <form onSubmit={create} className="space-y-3"><div className="grid gap-2 sm:grid-cols-2"><Select aria-label="Proveedor" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">Elegí un proveedor</option>{suppliers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="new">＋ Nuevo proveedor</option></Select><div><Select aria-label="Sucursal de recepción" value={branchId} onChange={(e) => { branchTouched.current = true; setBranchId(e.target.value) }}>{branchOptions.length === 0 ? <option value="">Sin sucursal definida</option> : <><option value="">Sin sucursal (general)</option>{branchOptions.map(branch => <option key={branch.id} value={branch.id}>{branch.nombre || branch.name}</option>)}</>}</Select><p className="mt-1 px-1 text-xs text-mute">Es tu sucursal donde entra el stock, no la del proveedor.</p></div></div>
         {supplierId === 'new' && <div className="grid gap-2 sm:grid-cols-2"><Input required value={newSupplier.name} onChange={(e) => setNewSupplier(s => ({ ...s, name: e.target.value }))} placeholder="Nombre del proveedor" /><PhoneField countryCode={newSupplier.countryCode || '+595'} phone={newSupplier.phone || ''} onCountryCodeChange={(countryCode) => setNewSupplier(s => ({ ...s, countryCode }))} onChange={(phone) => setNewSupplier(s => ({ ...s, phone }))} placeholder="Teléfono (opcional)" /><div className="space-y-1"><CityAutocomplete value={newSupplier.city} onSelect={(city, department) => setNewSupplier(s => ({ ...s, city, department }))} placeholder="Ciudad (opcional)" />{newSupplier.department && <p className="px-1 text-xs text-fono-light">Departamento: {newSupplier.department}</p>}</div><Input value={newSupplier.address} onChange={(e) => setNewSupplier(s => ({ ...s, address: e.target.value }))} placeholder="Dirección (opcional)" /></div>}
         <div className="space-y-2">{lines.map((line, index) => <ProductLine key={index} products={products} line={line} currency={currency} onChange={(value) => updateLine(index, value)} onSelectProduct={(product) => chooseProduct(index, product)} onCreateProduct={createProduct} canRemove={lines.length > 1} onRemove={() => setLines(items => items.filter((_, itemIndex) => itemIndex !== index))} />)}<Button type="button" variant="outline" onClick={() => setLines(items => [...items, emptyLine()])}>+ Agregar línea / lote</Button></div>
