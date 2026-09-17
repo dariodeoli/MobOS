@@ -27,15 +27,29 @@ export const accessUrlFor = (token) => {
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 
-// Hoja de estilos común para los tres comprobantes (A4 y térmico 80 mm).
-const styles = (thermal) => `
-  @page{size:${thermal ? '58mm auto' : 'A4'};margin:${thermal ? '3mm' : '16mm'}}
+// Hoja de estilos común para los comprobantes (A4 y térmica 55/80 mm).
+// ZKTeco ZKP8008: rollos de 80 mm; se imprime en 55 mm mientras el papel sea
+// de ese ancho y en 80 mm cuando se pase a rollos completos.
+const THERMAL_WIDTHS = { 'thermal-55': 55, 'thermal-80': 80, thermal: 55 }
+const thermalWidth = (format) => THERMAL_WIDTHS[format] || 0
+const styles = (format) => {
+  const width = thermalWidth(format)
+  const page = width ? `${width}mm auto` : 'A4'
+  const margin = width ? '3mm' : '16mm'
+  const bodyMax = width ? `${width - 6}mm` : '760px'
+  const baseFont = width ? '10px/1.45' : '13px/1.6'
+  const brandSize = width ? '12px' : '13px'
+  const h1Size = width ? '15px' : '20px'
+  const totalSize = width ? '14px' : '16px'
+  const qrSize = width ? `${width === 80 ? 42 : 32}mm` : '42mm'
+  return `
+  @page{size:${page};margin:${margin}}
   *{box-sizing:border-box}
-  body{font:${thermal ? '10px/1.45' : '13px/1.6'} ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;margin:0;color:#0f1720;max-width:${thermal ? '52mm' : '760px'}}
+  body{font:${baseFont} ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;margin:0;color:#0f1720;max-width:${bodyMax}}
   .brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:2px solid #0c8876;padding-bottom:8px;margin-bottom:14px}
-  .brand b{font-size:${thermal ? '12px' : '13px'};color:#0c8876;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+  .brand b{font-size:${brandSize};color:#0c8876;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
   .brand span{font-size:10px;color:#66707a;text-transform:uppercase;letter-spacing:.12em}
-  h1{font-size:${thermal ? '15px' : '20px'};margin:0 0 2px;letter-spacing:-.01em}
+  h1{font-size:${h1Size};margin:0 0 2px;letter-spacing:-.01em}
   .muted{color:#66707a}
   .meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;margin:6px 0 0}
   .card{border:1px solid #e3e8ec;border-radius:10px;padding:10px 12px;margin:10px 0}
@@ -45,24 +59,29 @@ const styles = (thermal) => `
   td,th{padding:6px 0;border-bottom:1px dashed #d5dbe0;vertical-align:top}
   td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
   .totals td{border:0;padding:3px 0}
-  .totals tr:last-child td{font-weight:700;font-size:${thermal ? '14px' : '16px'};border-top:1px solid #0f1720;padding-top:6px}
+  .totals tr:last-child td{font-weight:700;font-size:${totalSize};border-top:1px solid #0f1720;padding-top:6px}
   .tag{display:inline-block;border:1px solid #0c8876;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;color:#0c8876}
-  .qr{display:block;width:${thermal ? '32mm' : '42mm'};height:${thermal ? '32mm' : '42mm'};margin:10px auto 6px}
+  .qr{display:block;width:${qrSize};height:${qrSize};margin:10px auto 6px}
   .small{font-size:10px;word-break:break-all;text-align:center}
   footer{margin-top:14px;border-top:1px solid #e3e8ec;padding-top:8px;font-size:10px;color:#66707a;text-align:center}
   @media print{body{margin:0}}
 `
+}
 
 const header = (title, when) => `<div class="brand"><b>${escapeHtml(APP_NAME)}</b><span>${escapeHtml(title)}</span></div><h1>${escapeHtml(title)}</h1><p class="muted">${escapeHtml(when)}</p>`
 const footer = () => `<footer>Conservá este comprobante para cambios y garantía. Documento generado por ${escapeHtml(APP_NAME)}.</footer>`
 
 // Niveles de comprobante y formatos físicos, independientes entre sí.
 export const NIVELES_COMPROBANTE = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detallado', 'Detallado']]
-export const FORMATOS_COMPROBANTE = [['a4', 'A4'], ['thermal', '58 mm']]
+export const FORMATOS_COMPROBANTE = [['a4', 'A4'], ['thermal-55', '55 mm (térmica)'], ['thermal-80', '80 mm (térmica)']]
 const PREF_NIVEL = 'mobos:comprobante:nivel'
 const PREF_FORMATO = 'mobos:comprobante:formato'
 export const nivelPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_NIVEL)) || 'completo'
-export const formatoPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_FORMATO)) || 'a4'
+export const formatoPreferido = () => {
+  const guardado = typeof localStorage !== 'undefined' ? localStorage.getItem(PREF_FORMATO) : null
+  if (guardado === 'thermal') return 'thermal-55'
+  return guardado || 'a4'
+}
 export const recordarPreferencia = (nivel, formato) => {
   try { localStorage.setItem(PREF_NIVEL, nivel); localStorage.setItem(PREF_FORMATO, formato) } catch { /* sin almacenamiento */ }
 }
@@ -85,7 +104,6 @@ export async function buildOrderReceiptHtml(order, { level = 'completo', format 
   const link = token ? accessUrlFor(token) : trackingUrlFor(order)
   let qr = ''
   try { if (link) qr = await QRCode.toDataURL(link, { errorCorrectionLevel: 'M', margin: 1, width: 200 }) } catch { /* el enlace queda impreso igual */ }
-  const thermal = format === 'thermal'
   const total = Number(order.totalPyg ?? order.total ?? 0)
   const pendiente = Math.max(0, total - Number(paid || order.totalPagado || 0))
   const empresa = order.tenant?.name || order.empresaNombre || ''
@@ -118,7 +136,7 @@ export async function buildOrderReceiptHtml(order, { level = 'completo', format 
     ? `<p class="muted">Entrega: ${escapeHtml(order.deliveryType || '—')}${order.deliveryNotes ? ` · ${escapeHtml(order.deliveryNotes)}` : ''}</p>`
     : ''
 
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(thermal)}</style></head><body>
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(format)}</style></head><body>
     ${header('Comprobante de compra', `${order.orderNumber || order.codigo || 'Pedido'} · ${when ? new Date(when).toLocaleString('es-PY') : ''}`)}
     ${empresaCard}
     ${contactoCliente}
@@ -150,12 +168,11 @@ export async function printOrderReceipt(order, options = {}) {
 // Recibo de un pago individual (parcial o total): sirve para entregar al
 // cliente al cobrar una parte del pedido, sin repetir el comprobante completo.
 export async function printPaymentReceipt(payment, order, { format = 'a4' } = {}) {
-  const thermal = format === 'thermal'
   const monto = payment.amountPyg ?? payment.monto ?? 0
   const metodo = ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago'
   const referencia = payment.cuenta || payment.reference || payment.accountSnapshot?.name || ''
   const fecha = payment.fecha || payment.paidAt || payment.createdAt || new Date().toISOString()
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo de pago</title><style>${styles(thermal)}</style></head><body>
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo de pago</title><style>${styles(format)}</style></head><body>
     ${header('Recibo de pago', `${codigoPedido(order?.orderNumber || order?.codigo) || 'Pedido'} · ${new Date(fecha).toLocaleString('es-PY')}`)}
     <div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(order?.customer?.name || order?.cliente || 'Consumidor final')}</strong></div></div>
     <table class="totals">
@@ -173,8 +190,7 @@ export async function printPaymentReceipt(payment, order, { format = 'a4' } = {}
 // Comprobante de reserva: entrega al cliente el IMEI apartado, la sucursal y
 // el vencimiento para retirar o liberar.
 export async function printReservationReceipt(reservation, { format = 'a4' } = {}) {
-  const thermal = format === 'thermal'
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reserva</title><style>${styles(thermal)}</style></head><body>
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reserva</title><style>${styles(format)}</style></head><body>
     ${header('Comprobante de reserva', reservation.reservedUntil ? `Vence ${new Date(reservation.reservedUntil).toLocaleString('es-PY')}` : '')}
     <div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(reservation.reservationCustomer || reservation.customerName || '—')}</strong></div></div>
     <table class="totals">
