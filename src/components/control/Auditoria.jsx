@@ -9,7 +9,9 @@ import { cn } from '@/lib/utils'
 // Etiqueta humana por acción. Lo que no está en el mapa se muestra tal cual
 // (el código crudo), que sigue siendo mejor que ocultarlo.
 const ACCIONES = {
+  ORDER_CREATED: ['Venta registrada', 'green'],
   ORDER_DISCOUNT_APPROVED: ['Descuento aprobado', 'orange'],
+  PAYMENT_RECORDED: ['Cobro registrado', 'green'],
   ORDER_ARCHIVED: ['Pedido archivado', 'slate'],
   ORDER_UNARCHIVED: ['Pedido desarchivado', 'slate'],
   ORDER_NOTIFIED_WHATSAPP: ['Aviso al cliente por WhatsApp', 'blue'],

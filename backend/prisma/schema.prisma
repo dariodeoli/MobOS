@@ -576,6 +576,8 @@ model Customer {
 
   orders        Order[]
   quotes        Quote[]
+  warrantyCases WarrantyCase[] @relation("WarrantyCaseCustomer")
+  serviceOrders ServiceOrder[] @relation("ServiceOrderCustomer")
   addresses     CustomerAddress[]
   customerNotes CustomerNote[]
   followUps     CustomerFollowUp[]
@@ -1482,6 +1484,8 @@ model WarrantyCase {
   branch          Branch         @relation(fields: [branchId], references: [id], onDelete: Restrict)
   orderItemId     String?
   orderItem       OrderItem?     @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  customerId      String?
+  customer        Customer?      @relation("WarrantyCaseCustomer", fields: [customerId], references: [id], onDelete: SetNull)
   customerName    String
   serial          String
   description     String
@@ -1511,6 +1515,7 @@ model WarrantyCase {
   @@index([tenantId, branchId])
   @@index([tenantId, status])
   @@index([tenantId, kind])
+  @@index([customerId])
 }
 
 // Foto de un caso de garantía: guardada en la base con el mismo criterio que
@@ -1541,6 +1546,7 @@ model ServiceOrder {
   tenantId       String
   branchId       String?
   customerId     String?
+  customer       Customer?      @relation("ServiceOrderCustomer", fields: [customerId], references: [id], onDelete: SetNull)
   customerName   String
   device         String
   serial         String?
@@ -1561,6 +1567,7 @@ model ServiceOrder {
 
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
+  @@index([customerId])
 }
 
 // Catálogo de servicios técnicos: nombre, tipo de dispositivo y precio sugerido.

@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
+import { resolveCustomerId } from '../../../lib/customer-link'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
       data: {
         tenantId: tenant,
         branchId: session.user.branchId || null,
-        customerId: clean(body.customerId, 200),
+        customerId: await resolveCustomerId(prisma, tenant, body.customerId, customerName),
         customerName,
         device,
         serviceName: clean(body.serviceName, 200),

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { prisma } from '../../../lib/prisma'
+import { resolveCustomerId } from '../../../lib/customer-link'
 import { requireSession } from '../../../lib/auth'
 import { error, json, tenantId } from '../../../lib/http'
 import { notifyWarrantyStatusChanged } from '../../../lib/email-notifications'
@@ -65,6 +66,10 @@ export async function POST(request: Request) {
   if (!canManage(session.user.role)) return error('No autorizado.', 403)
   const body = await request.json()
   const customerName = typeof body.customerName === 'string' ? body.customerName.trim() : ''
+  // La ficha se resuelve por id o, si no vino, por nombre exacto e inequívoco:
+  // así la garantía queda ligada al cliente y aparece en su perfil aunque el
+  // nombre se escriba con otra tilde después.
+  const customerId = await resolveCustomerId(prisma, tenant, body.customerId, customerName)
   const serial = typeof body.serial === 'string' ? body.serial.trim() : ''
   const description = typeof body.description === 'string' ? body.description.trim() : ''
   const branchId = typeof body.branchId === 'string' ? body.branchId : session.user.branchId
@@ -96,8 +101,8 @@ export async function POST(request: Request) {
         const base = purchase[0]?.createdAt ? new Date(purchase[0].createdAt) : new Date()
         expiresAt = new Date(base.getTime() + warrantyDays * 86400000)
       }
-      await tx.warrantyCase.create({ data: { id, tenantId: tenant, branchId, orderItemId: body.orderItemId || null, customerName, serial, description, responsibleName: typeof body.responsibleName === 'string' ? body.responsibleName.trim() : null, expiresAt, publicToken, warrantyDays: warrantyDays ?? null, coverage: coverage ?? null, exclusions: exclusions ?? null, diagnosis: diagnosis ?? null, technicianName: technicianName ?? null, ...(photos ? { photos } : {}), ...(parts ? { parts } : {}) } })
-      await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${tenant}, ${session.user.id}, 'WARRANTY_CREATED', 'WarrantyCase', ${id}, ${JSON.stringify({ serial, branchId })}::jsonb)`
+      await tx.warrantyCase.create({ data: { id, tenantId: tenant, branchId, orderItemId: body.orderItemId || null, ...(customerId ? { customerId } : {}), customerName, serial, description, responsibleName: typeof body.responsibleName === 'string' ? body.responsibleName.trim() : null, expiresAt, publicToken, warrantyDays: warrantyDays ?? null, coverage: coverage ?? null, exclusions: exclusions ?? null, diagnosis: diagnosis ?? null, technicianName: technicianName ?? null, ...(photos ? { photos } : {}), ...(parts ? { parts } : {}) } })
+      await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${tenant}, ${session.user.id}, 'WARRANTY_CREATED', 'WarrantyCase', ${id}, ${JSON.stringify({ serial, branchId, ...(customerId ? { customerId } : {}) })}::jsonb)`
       return tx.$queryRaw`SELECT * FROM "WarrantyCase" WHERE "id" = ${id}`
     })
     return json(Array.isArray(row) ? row[0] : row, { status: 201 })

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
@@ -10,6 +10,7 @@ import Cronologia from '@/components/shared/Cronologia'
 import { cn } from '@/lib/utils'
 import { resources } from '@/lib/api'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
+import { internationalPhone } from '@/utils/telefono'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 
 const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPTED: ['Aceptada', 'orange'], CONVERTED: ['Convertida', 'green'], EXPIRED: ['Vencida', 'red'], CANCELLED: ['Cancelada', 'slate'] }
@@ -63,7 +64,9 @@ export default function SellerQuotes() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [form, setForm] = useState({ customerName: '', validUntil: '', notes: '', discountPyg: '' })
+  const [form, setForm] = useState({ customerName: '', customerId: '', validUntil: '', notes: '', discountPyg: '' })
+  const [clientes, setClientes] = useState([])
+  const clienteTimer = useRef(null)
   const [items, setItems] = useState([emptyItem()])
 
   // La demo no pagina contra la API: sus pocas filas se filtran en memoria.
@@ -78,18 +81,33 @@ export default function SellerQuotes() {
     setBusy(true); setError(''); setNotice('')
     try { await operacion(); setNotice(exito); await data.refresh() } catch (cause) { setError(cause?.message || 'No se pudo completar la acción.') } finally { setBusy(false) }
   }
+  // Elegir un cliente existente deja la cotización ligada a su ficha: al
+  // convertirla en pedido el cliente viaja con ella. El texto libre sigue
+  // sirviendo para cotizar a alguien que todavía no es cliente.
+  function buscarCliente(texto) {
+    setForm(current => ({ ...current, customerName: texto, customerId: '' }))
+    if (clienteTimer.current) clearTimeout(clienteTimer.current)
+    clienteTimer.current = setTimeout(async () => {
+      const q = texto.trim()
+      if (q.length < 2) { setClientes([]); return }
+      try { setClientes((await resources.customers.list(q)) || []) } catch { setClientes([]) }
+    }, 250)
+  }
+  useEffect(() => () => { if (clienteTimer.current) clearTimeout(clienteTimer.current) }, [])
+
   async function crear(event) {
     event.preventDefault()
     if (!form.customerName.trim() || !itemsValidos.length) { setError('Indicá el cliente y al menos un ítem válido.'); return }
     await accion(async () => {
       await resources.quotes.create({
         customerName: form.customerName.trim(),
+        ...(form.customerId ? { customerId: form.customerId } : {}),
         validUntil: form.validUntil || undefined,
         notes: form.notes.trim() || undefined,
         discountPyg: num(form.discountPyg),
         items: itemsValidos.map(item => ({ ...(item.productId ? { productId: item.productId } : {}), description: item.description.trim(), quantity: num(item.quantity), unitPricePyg: num(item.unitPricePyg) })),
       })
-      setForm({ customerName: '', validUntil: '', notes: '', discountPyg: '' }); setItems([emptyItem()]); setCrearOpen(false)
+      setForm({ customerName: '', customerId: '', validUntil: '', notes: '', discountPyg: '' }); setClientes([]); setItems([emptyItem()]); setCrearOpen(false)
     }, 'Cotización creada. Podés enviarla y convertirla en pedido cuando el cliente acepte.')
   }
   const convertir = row => accion(async () => { const order = await resources.quotes.convert(row.id); setNotice(`Cotización ${row.number} convertida en el pedido ${codigoPedido(order.orderNumber)} (queda pendiente de cobro en Pedidos).`) }, 'Conversión completada.')
@@ -146,7 +164,13 @@ export default function SellerQuotes() {
     <Modal open={crearOpen} onClose={() => !busy && setCrearOpen(false)} title="Nueva cotización" className="max-w-2xl">
       <form onSubmit={crear} className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block space-y-1.5 text-xs text-mute">Cliente<Input required maxLength={200} value={form.customerName} onChange={event => setForm(current => ({ ...current, customerName: event.target.value }))} placeholder="Nombre o empresa" /></label>
+          <label className="block space-y-1.5 text-xs text-mute">Cliente
+            <div className="relative">
+              <Input required maxLength={200} autoComplete="off" value={form.customerName} onChange={event => buscarCliente(event.target.value)} placeholder="Nombre o empresa" />
+              {form.customerId && <span className="mt-1 block text-[11px] text-fono-light">Cliente de la ficha: la cotización queda ligada a su perfil.</span>}
+              {!form.customerId && clientes.length > 0 && <ul className="absolute z-10 mt-1 max-h-44 w-full overflow-auto rounded-xl border border-ink-500 bg-ink-800 shadow-xl">{clientes.slice(0, 6).map(cliente => <li key={cliente.id}><button type="button" className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-ink-700" onClick={() => { setForm(current => ({ ...current, customerId: cliente.id, customerName: cliente.name })); setClientes([]) }}><span className="min-w-0 truncate font-medium text-fore">{cliente.name}</span><span className="shrink-0 text-xs text-mute">{[cliente.phone ? `+${internationalPhone(cliente.phone, cliente.countryCode)}` : '', cliente.document ? `CI/RUC ${cliente.document}` : ''].filter(Boolean).join(' · ')}</span></button></li>)}</ul>}
+            </div>
+          </label>
           <label className="block space-y-1.5 text-xs text-mute">Válida hasta<Input type="date" value={form.validUntil} onChange={event => setForm(current => ({ ...current, validUntil: event.target.value }))} /></label>
         </div>
         <div className="space-y-2">
