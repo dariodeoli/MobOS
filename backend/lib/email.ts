@@ -81,7 +81,7 @@ function template(input: { eyebrow: string; title: string; body: string; lead?: 
   const leadText = input.lead ? `${input.lead}\n\n` : ''
   const contentText = input.contentText ? `\n\n${input.contentText}` : ''
   const actionText = input.action ? `\n\n${input.action.label}: ${input.action.url}` : ''
-  const text = `${input.eyebrow.toUpperCase()}\nMobOS\n\n${input.title}\n\n${leadText}${input.body}${contentText}${actionText}\n\n${input.footer}\n\napp.moboss.online · Email ${EMAIL_VERSION}`
+  const text = `${input.eyebrow.toUpperCase()}\n\n${input.title}\n\n${leadText}${input.body}${contentText}${actionText}\n\n${input.footer}\n\napp.moboss.online · Email ${EMAIL_VERSION}`
   const leadHtml = input.lead
     ? `<p style="margin:0 0 16px;color:#0b1822;font-weight:700;line-height:1.65">${escapeHtml(input.lead)}</p>`
     : ''
@@ -89,7 +89,7 @@ function template(input: { eyebrow: string; title: string; body: string; lead?: 
     ? `<p style="margin:28px 0 0"><a href="${escapeHtml(input.action.url)}" style="display:inline-block;padding:14px 28px;border-radius:14px;background:#05f19c;color:#062118;text-decoration:none;font-weight:700;font-size:15px">${escapeHtml(input.action.label)}</a></p>`
     : ''
   // contentHtml es HTML de confianza interna: quien lo provee ya escapó su entrada.
-  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#ffffff;color:#0b1822;font-family:Arial,Helvetica,sans-serif"><div style="max-width:600px;margin:0 auto;padding:32px 20px"><div style="border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;background:#ffffff"><div style="background:#05f19c;padding:28px 32px"><p style="margin:0 0 8px;color:#062118;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase">${escapeHtml(input.eyebrow)}</p><p style="margin:0;color:#062118;font-size:32px;font-weight:800;letter-spacing:-.02em">MobOS</p></div><div style="padding:32px"><h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#0b1822">${escapeHtml(input.title)}</h1>${leadHtml}<p style="margin:0;color:#1e293b;line-height:1.65">${escapeHtml(input.body)}</p>${input.contentHtml || ''}${actionHtml}<p style="margin:28px 0 0;padding-top:20px;border-top:1px solid #e2e8f0;color:#64748b;font-size:13px;line-height:1.6">${escapeHtml(input.footer)}</p></div></div><p style="color:#64748b;font-size:12px;text-align:center;margin:20px 0 0">app.moboss.online · Email ${EMAIL_VERSION}</p></div></body></html>`
+  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#ffffff;color:#0b1822;font-family:Arial,Helvetica,sans-serif"><div style="max-width:600px;margin:0 auto;padding:32px 20px"><div style="border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;background:#ffffff"><div style="background:#05f19c;padding:28px 32px"><p style="margin:0;color:#062118;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase">${escapeHtml(input.eyebrow)}</p></div><div style="padding:32px"><h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#0b1822">${escapeHtml(input.title)}</h1>${leadHtml}<p style="margin:0;color:#1e293b;line-height:1.65">${escapeHtml(input.body)}</p>${input.contentHtml || ''}${actionHtml}<p style="margin:28px 0 0;padding-top:20px;border-top:1px solid #e2e8f0;color:#64748b;font-size:13px;line-height:1.6">${escapeHtml(input.footer)}</p></div></div><p style="color:#64748b;font-size:12px;text-align:center;margin:20px 0 0">app.moboss.online · Email ${EMAIL_VERSION}</p></div></body></html>`
   return { html, text }
 }
 
