@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { listVentas, getVendedores, productosById, getProductos, listGastos } from '@/lib/storage'
+import { api } from '@/lib/api/client'
 import { comisionDeVentas, cobradoDeVenta, num, gs } from '@/utils/calculos'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
 import RangoFechas, {
@@ -77,7 +78,15 @@ export default function Resumen() {
   const catalogo = getProductos()
   const [rango, setRango] = useState(rangoPorDefecto)
   const [filtroLista, setFiltroLista] = useState('todas')
+  const [creditos, setCreditos] = useState(null)
   const listaRef = useRef(null)
+
+  // Aviso de cobranzas del inicio: vencido y por vencer en los próximos 7 días.
+  useEffect(() => {
+    let vigente = true
+    api.get('/api/credits').then(data => { if (vigente) setCreditos(data?.totals || null) }).catch(() => { if (vigente) setCreditos(null) })
+    return () => { vigente = false }
+  }, [])
 
   const vendedoresById = useMemo(
     () => Object.fromEntries(vendedores.map(v => [v.id, v.nombre])),
@@ -253,6 +262,29 @@ export default function Resumen() {
               </div>
             </div>
             <Button variant="outline" onClick={() => navigate('/pos/analisis')}>Ver análisis</Button>
+          </div>
+        </Card>
+      )}
+
+      {creditos && (creditos.overduePyg > 0 || creditos.dueSoonPyg > 0) && (
+        <Card className="border-warn/30 bg-warn/5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-2.5">
+              <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-warn">
+                  Créditos por cobrar: {gs(creditos.outstandingPyg)}
+                  {creditos.overduePyg > 0 ? ` · ${gs(creditos.overduePyg)} vencido` : ''}
+                </p>
+                <p className="mt-1 text-xs text-mute">
+                  {creditos.overdueCustomers > 0
+                    ? `${creditos.overdueCustomers} ${creditos.overdueCustomers === 1 ? 'cliente con saldo vencido' : 'clientes con saldo vencido'}`
+                    : 'Sin saldos vencidos'}
+                  {creditos.dueSoonPyg > 0 ? ` · ${gs(creditos.dueSoonPyg)} vence en los próximos 7 días (${creditos.dueSoonCustomers} ${creditos.dueSoonCustomers === 1 ? 'cliente' : 'clientes'})` : ''}.
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" onClick={() => navigate('/pos/finanzas')}>Ver créditos</Button>
           </div>
         </Card>
       )}
