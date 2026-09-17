@@ -147,6 +147,11 @@ export async function POST(request: Request) {
           customerId = created.id
         }
       }
+      // La factura a otro titular queda en la ficha del cliente: la próxima
+      // venta la propone y la búsqueda puede encontrar por esa razón social.
+      if (customerId && (billingName || billingDocument)) {
+        await tx.customer.update({ where: { id: customerId }, data: { ...(billingName ? { billingName } : {}), ...(billingDocument ? { billingDocument } : {}) } })
+      }
       let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()

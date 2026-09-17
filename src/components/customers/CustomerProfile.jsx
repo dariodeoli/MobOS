@@ -223,6 +223,12 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 {phone && <span>{phone}</span>}
                 {profile.customer?.email && <span className="truncate">{profile.customer.email}</span>}
               </p>
+              {(profile.customer?.billingName || profile.customer?.billingDocument) && (
+                <p className="mt-1 text-xs text-mute">
+                  Factura a: <b className="text-fore">{profile.customer.billingName || 'Sin razón social'}</b>
+                  {profile.customer.billingDocument ? ` · RUC ${profile.customer.billingDocument}` : ''}
+                </p>
+              )}
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {profile.customer?.taxExempt && <Badge color="blue">Exento de impuestos</Badge>}
                 {profile.customer?.acceptsWhatsappMarketing && <Badge color="green">WhatsApp marketing</Badge>}

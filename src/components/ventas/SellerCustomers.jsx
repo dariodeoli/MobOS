@@ -6,6 +6,7 @@ import { gs } from '@/utils/calculos'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import ListGridToggle from '@/components/shared/ListGridToggle'
 import { codigoPais, soloDigitos, telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
+import { coincideCliente } from '@/utils/cliente'
 import { parseDelimited } from '@/utils/csv'
 
 const RUC_RE = /\d[\d.\s]{2,}-\d+/
@@ -50,7 +51,7 @@ export const customerFields = (row) => {
   const phones = Array.from(new Set([phone, ...(row.phones || []), ...metadata.phones].filter(Boolean)))
   const legacyAddress = typeof row.notes === 'string' && row.notes.startsWith('Dirección: ') ? row.notes.slice('Dirección: '.length) : ''
   const addresses = Array.isArray(row.addresses) ? row.addresses : row.address || legacyAddress ? [{ id: 'legacy', label: 'Principal', address: row.address || legacyAddress }] : []
-  return { id: row.id, name: row.name || '', document: row.document || '', email: row.email || '', phone, phones, countryCode: row.countryCode || '+595', address: addresses[0]?.address || '', addresses, externalId: row.externalId || '', acceptsEmailMarketing: row.acceptsEmailMarketing === true, acceptsSmsMarketing: row.acceptsSmsMarketing === true, acceptsWhatsappMarketing: row.acceptsWhatsappMarketing === true, taxExempt: row.taxExempt === true, tags: Array.isArray(row.tags) ? row.tags : [], pricingTier: row.pricingTier || 'RETAIL', creditLimitPyg: row.creditLimitPyg ?? null, creditDays: row.creditDays ?? null }
+  return { id: row.id, name: row.name || '', document: row.document || '', email: row.email || '', phone, phones, countryCode: row.countryCode || '+595', billingName: row.billingName || '', billingDocument: row.billingDocument || '', address: addresses[0]?.address || '', addresses, externalId: row.externalId || '', acceptsEmailMarketing: row.acceptsEmailMarketing === true, acceptsSmsMarketing: row.acceptsSmsMarketing === true, acceptsWhatsappMarketing: row.acceptsWhatsappMarketing === true, taxExempt: row.taxExempt === true, tags: Array.isArray(row.tags) ? row.tags : [], pricingTier: row.pricingTier || 'RETAIL', creditLimitPyg: row.creditLimitPyg ?? null, creditDays: row.creditDays ?? null }
 }
 export function readDemoCustomers() {
   const rows = JSON.parse(localStorage.getItem(DEMO_CUSTOMERS_KEY) || '[]')
@@ -84,7 +85,7 @@ export default function SellerCustomers() {
   const nombreRef = useRef(null)
   const data = useSellerData(`/api/customers?q=${encodeURIComponent(search)}`, customerFields, readDemoCustomers, esDemo)
   const templateData = useSellerData('/api/message-templates', templateFields, readDemoTemplates, esDemo)
-  const rows = esDemo ? data.rows.filter((row) => `${row.name} ${(row.phones || []).join(' ')}`.toLowerCase().includes(search.toLowerCase())) : data.rows
+  const rows = esDemo ? data.rows.filter((row) => coincideCliente(row, search)) : data.rows
 
   useEffect(() => {
     function onNewCustomer() {
