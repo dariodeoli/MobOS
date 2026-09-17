@@ -26,14 +26,14 @@ export function useSellerData(path, project, demoRead, esDemo) {
 
 export function SellerSection({ title, description, children }) {
   return <section className="space-y-5">
-    <div><h1 className="text-2xl font-bold">{title}</h1><p className="mt-2 text-sm text-mute">{description}</p></div>
+    <div><h1 className="text-2xl font-bold tracking-tight">{title}</h1><p className="mt-1.5 text-sm text-mute">{description}</p></div>
     {children}
   </section>
 }
 
 export function SellerFeedback({ loading, error, empty, refresh }) {
-  if (loading) return <p role="status" className="py-6 text-mute">Cargando…</p>
-  if (error) return <div role="alert" className="space-y-3 py-4"><p>{error}</p><Button onClick={refresh}>Reintentar</Button></div>
-  if (empty) return <p role="status" className="rounded-xl border border-fore/10 p-6 text-mute">No hay resultados.</p>
+  if (loading) return <div role="status" className="space-y-2 py-4" aria-busy="true"><span className="block h-14 animate-pulse rounded-xl bg-ink-700" /><span className="block h-14 animate-pulse rounded-xl bg-ink-700" /><span className="block h-14 animate-pulse rounded-xl bg-ink-700" /></div>
+  if (error) return <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-sm text-bad"><p>{error}</p><Button variant="outline" onClick={refresh}>Reintentar</Button></div>
+  if (empty) return <div role="status" className="rounded-2xl border border-fore/10 bg-ink-800/30 p-8 text-center text-mute">No hay resultados.</div>
   return null
 }
