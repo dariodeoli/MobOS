@@ -34,8 +34,10 @@ function MetaDiaria({ vendor, esDemo, onGuardar }) {
   )
 }
 
-export default function Vendedores() {
+// La pestaña activa llega por URL (/configuracion/equipo, /configuracion/invitaciones).
+export default function Vendedores({ seccion = 'equipo' }) {
   const { esDemo, sesion } = useSesion()
+  const equipoTab = seccion === 'invitaciones' ? 'invitaciones' : 'personas'
   const vendedores = getVendedores()
   const ventas = listVentas()
   const prods = productosById()
@@ -48,7 +50,6 @@ export default function Vendedores() {
   const [busy, setBusy] = useState(false)
   const [confirmarEliminar, setConfirmarEliminar] = useState(null)
   const [confirmarRevocar, setConfirmarRevocar] = useState(null)
-  const [equipoTab, setEquipoTab] = useState('personas')
   const [invitarAbierto, setInvitarAbierto] = useState(false)
   const [modoInvitacion, setModoInvitacion] = useState('correo')
 
@@ -122,12 +123,7 @@ export default function Vendedores() {
   return <div className="space-y-4" data-revision={revision}>
     {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
     {message && <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{message}</p>}
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
-        {[['personas', 'Personas'], ['invitaciones', `Invitaciones${invitaciones.length ? ` (${invitaciones.length})` : ''}`]].map(([key, label]) => (
-          <button key={key} type="button" onClick={() => setEquipoTab(key)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${equipoTab === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>
-        ))}
-      </div>
+    <div className="flex flex-wrap items-center justify-end gap-2">
       <Button onClick={() => setInvitarAbierto(true)}>+ Invitar persona</Button>
     </div>
 

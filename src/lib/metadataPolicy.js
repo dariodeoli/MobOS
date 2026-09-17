@@ -29,6 +29,7 @@ const protectedSections = {
   '/pos/equipo': 'Equipo',
   '/configuracion': 'Configuración',
   '/configuracion/equipo': 'Equipo',
+  '/configuracion/invitaciones': 'Invitaciones',
   '/configuracion/identidad': 'Mi identidad',
   '/configuracion/roles': 'Roles y permisos',
   '/configuracion/historial': 'Historial',

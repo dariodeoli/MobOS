@@ -157,6 +157,7 @@ const SUBPAGINAS = {
     vista: 'equipo',
     tabs: [
       ['equipo', 'Equipo'],
+      ['invitaciones', 'Invitaciones'],
       ['identidad', 'Mi identidad'],
       ['roles', 'Roles y permisos'],
       ['historial', 'Historial'],
@@ -179,7 +180,14 @@ const SUBPAGINA_DE_TAB = Object.fromEntries(
 // Pestañas visibles según el modo: historial solo en demo, créditos fuera de demo.
 function tabsDeSubpagina(slug, esDemo) {
   const tabs = SUBPAGINAS[slug]?.tabs || []
-  if (slug === 'configuracion') return tabs.filter(([id]) => id !== 'historial' || esDemo)
+  if (slug === 'configuracion') {
+    // Historial es de la demo; Invitaciones necesita el API real.
+    return tabs.filter(([id]) => {
+      if (id === 'historial') return esDemo
+      if (id === 'invitaciones') return !esDemo
+      return true
+    })
+  }
   if (slug === 'finanzas') return tabs.filter(([id]) => (id === 'creditos' ? !esDemo : id === 'publicidad' ? esDemo : true))
   return tabs
 }
@@ -196,6 +204,7 @@ const LABELS = {
   analisis: 'Análisis',
   finanzas: 'Finanzas',
   equipo: 'Configuración',
+  invitaciones: 'Invitaciones',
   identidad: 'Mi identidad',
   roles: 'Roles y permisos',
   historial: 'Historial',
@@ -701,7 +710,7 @@ export default function PanelVendedor() {
           {esOwner && apartado === 'configuracion' && (
             <div>
               <Subtabs value={vista} onChange={irASubtab} items={tabsApartado} />
-              {vista === 'equipo' && <Vendedores />}
+              {(vista === 'equipo' || vista === 'invitaciones') && <Vendedores seccion={vista} />}
               {vista === 'identidad' && <MiIdentidad />}
               {vista === 'roles' && <RolesPermisos />}
               {esDemo && vista === 'historial' && <Historial />}
