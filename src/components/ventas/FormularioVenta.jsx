@@ -467,6 +467,16 @@ export default function FormularioVenta({
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, f.cliente])
+  // Escaneo de etiqueta de precio (MOBOS:PROD:<sku>): agrega el producto al
+  // carrito directo, sin buscarlo a mano. El lector USB escribe como teclado.
+  useEffect(() => {
+    const match = busquedaProducto.trim().toUpperCase().match(/^MOBOS:PROD:([A-Z0-9-]+)$/)
+    if (!match) return
+    const producto = productos.find(item => String(item.sku || '').toUpperCase() === match[1])
+    if (producto) { agregarProducto(producto); setBusquedaProducto('') }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busquedaProducto, productos])
+
   const familiasVisibles = familias.filter(fam => {
     const query = busquedaProducto.trim().toLocaleLowerCase()
     if (!query) return true
