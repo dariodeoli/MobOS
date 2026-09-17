@@ -37,6 +37,7 @@ model Tenant {
   products                Product[]
   customers               Customer[]
   orders                  Order[]
+  orderAccessTokens       OrderAccessToken[]
   payments                Payment[]
   paymentProofs           PaymentProof[]
   paymentReconciliations  PaymentReconciliation[]
@@ -744,12 +745,32 @@ model Order {
   payments Payment[]
   comments OrderComment[]
   quotes   Quote[]
+  accessTokens OrderAccessToken[]
 
   @@unique([tenantId, orderNumber])
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, status])
   @@index([tenantId, archivedAt])
   @@index([branchId])
+}
+
+// Acceso público del pedido por nivel de información. Cada token es aleatorio,
+// no enumerable y autoriza UNA vista (rapido | completo | detallado); se puede
+// revocar y regenerar sin tocar el pedido. El token viejo deja de funcionar.
+model OrderAccessToken {
+  id        String    @id @default(cuid())
+  orderId   String
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  level     String    @default("rapido")
+  token     String    @unique
+  createdBy String?
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([orderId, level])
+  @@index([tenantId, level])
 }
 
 // Comentario interno del pedido, con fotos adjuntas (misma política de

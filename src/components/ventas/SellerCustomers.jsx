@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { Button, Input, Modal, MoneyInput, Select, Badge } from '@/components/ui'
-import { gs } from '@/utils/calculos'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField from '@/components/shared/PhoneField'
 import EmailField from '@/components/shared/EmailField'
 import ListGridToggle from '@/components/shared/ListGridToggle'
-import { internationalPhone, telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
+import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import { coincideCliente } from '@/utils/cliente'
 import { capitalizarPrimera } from '@/utils/texto'
 import { parseDelimited } from '@/utils/csv'
@@ -41,6 +40,7 @@ function filasParaImportar(texto) {
 }
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import CustomerCommunicationCard from '@/components/customers/CustomerCommunicationCard'
+import ClientesTabla from '@/components/customers/ClientesTabla'
 import CustomerProfile from '@/components/customers/CustomerProfile'
 import { customerMetadata, DEMO_MESSAGE_TEMPLATES, readCustomerMetadata, whatsappUrl } from '@/components/customers/customerMessaging'
 
@@ -54,7 +54,7 @@ export const customerFields = (row) => {
   const phones = Array.from(new Set([phone, ...(row.phones || []), ...metadata.phones].filter(Boolean)))
   const legacyAddress = typeof row.notes === 'string' && row.notes.startsWith('Dirección: ') ? row.notes.slice('Dirección: '.length) : ''
   const addresses = Array.isArray(row.addresses) ? row.addresses : row.address || legacyAddress ? [{ id: 'legacy', label: 'Principal', address: row.address || legacyAddress }] : []
-  return { id: row.id, name: row.name || '', document: row.document || '', email: row.email || '', phone, phones, countryCode: row.countryCode || '+595', address: addresses[0]?.address || '', addresses, externalId: row.externalId || '', acceptsEmailMarketing: row.acceptsEmailMarketing === true, acceptsSmsMarketing: row.acceptsSmsMarketing === true, acceptsWhatsappMarketing: row.acceptsWhatsappMarketing === true, taxExempt: row.taxExempt === true, tags: Array.isArray(row.tags) ? row.tags : [], pricingTier: row.pricingTier || 'RETAIL', creditLimitPyg: row.creditLimitPyg ?? null, creditDays: row.creditDays ?? null }
+  return { id: row.id, name: row.name || '', document: row.document || '', email: row.email || '', phone, phones, countryCode: row.countryCode || '+595', billingName: row.billingName || '', billingDocument: row.billingDocument || '', notes: typeof row.notes === 'string' ? row.notes : '', address: addresses[0]?.address || '', addresses, externalId: row.externalId || '', acceptsEmailMarketing: row.acceptsEmailMarketing === true, acceptsSmsMarketing: row.acceptsSmsMarketing === true, acceptsWhatsappMarketing: row.acceptsWhatsappMarketing === true, taxExempt: row.taxExempt === true, tags: Array.isArray(row.tags) ? row.tags : [], pricingTier: row.pricingTier || 'RETAIL', creditLimitPyg: row.creditLimitPyg ?? null, creditDays: row.creditDays ?? null }
 }
 export function readDemoCustomers() {
   const rows = JSON.parse(localStorage.getItem(DEMO_CUSTOMERS_KEY) || '[]')
@@ -209,7 +209,7 @@ export default function SellerCustomers() {
       </section>
     )}
     {!data.loading && !data.error && vista === 'grid' && <ul className="grid gap-3 sm:grid-cols-2">{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={templateData.rows} onViewProfile={esDemo ? undefined : setProfileCustomer} />)}</ul>}
-    {!data.loading && !data.error && vista === 'list' && <ul className="space-y-2">{ordenados.map((row) => <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><b className="truncate text-sm">{row.name}</b><Badge color={row.wholesale ? 'blue' : 'slate'}>{row.wholesale ? 'Mayorista' : 'Cliente final'}</Badge></div><p className="mt-0.5 font-mono text-[11px] text-mute">ID …{String(row.id || '').slice(-6)}{row.phone ? ` · ${row.phone}` : ''}</p><p className="mt-1 text-xs text-mute">{row.stats ? `${row.stats.orders} pedido${row.stats.orders === 1 ? '' : 's'} · total ${gs(row.stats.totalSpentPyg || 0)} · último ${row.stats.lastOrderAt ? new Date(row.stats.lastOrderAt).toLocaleDateString('es-PY') : '—'} · registrado ${row.createdAt ? new Date(row.createdAt).toLocaleDateString('es-PY') : '—'}` : `Registrado ${row.createdAt ? new Date(row.createdAt).toLocaleDateString('es-PY') : '—'}`}</p></div><div className="flex shrink-0 gap-2">{!esDemo && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => setProfileCustomer(row)}>Ver perfil</Button>}{row.phones?.[0] && <a className="rounded-lg bg-ok px-3 py-2 text-xs font-semibold text-black" href={`https://wa.me/${internationalPhone(row.phones[0], row.countryCode)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>}</div></li>)}</ul>}
+    {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={templateData.rows} onPerfil={esDemo ? undefined : setProfileCustomer} />}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={() => setProfileCustomer(null)} />
     {!templateData.loading && templateData.error && <p className="rounded-xl border border-amber-400/30 bg-amber-300/10 p-3 text-sm text-amber-100">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</p>}
     <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" className="max-w-2xl">

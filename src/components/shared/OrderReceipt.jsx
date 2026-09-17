@@ -7,12 +7,20 @@ import QRCode from 'qrcode'
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]))
 
+const publicBase = () =>
+  String(import.meta.env.VITE_PUBLIC_TRACKING_URL || '').replace(/\/$/, '') ||
+  (typeof window !== 'undefined' ? window.location.origin : '')
+
 export const trackingUrlFor = (order) => {
-  if (!order?.publicToken) return ''
-  const configured = String(import.meta.env.VITE_PUBLIC_TRACKING_URL || '').replace(/\/$/, '')
   // El QR del comprobante abre la página pública del pedido (estado + garantías).
-  const base = configured || (typeof window !== 'undefined' ? window.location.origin : '')
-  return base ? `${base}/pedido/${encodeURIComponent(order.publicToken)}` : ''
+  const base = publicBase()
+  return order?.publicToken && base ? `${base}/pedido/${encodeURIComponent(order.publicToken)}` : ''
+}
+
+// Enlace privado del nivel de comprobante (rápido | completo | detallado).
+export const accessUrlFor = (token) => {
+  const base = publicBase()
+  return token && base ? `${base}/p/${encodeURIComponent(token)}` : ''
 }
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
