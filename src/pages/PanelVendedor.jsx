@@ -36,6 +36,7 @@ const Reportes = lazy(() => import('@/components/control/Reportes'))
 const Inventario = lazy(() => import('@/components/control/Inventario'))
 const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
+const MiIdentidad = lazy(() => import('@/components/control/Config').then(modulo => ({ default: modulo.MiIdentidad })))
 const Vendedores = lazy(() => import('@/components/control/Vendedores'))
 const ServicioTecnico = lazy(() => import('@/components/control/ServicioTecnico'))
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
@@ -602,18 +603,21 @@ export default function PanelVendedor() {
                   esDemo
                     ? [
                         ['vendedores', 'Equipo'],
+                        ['identidad', 'Mi identidad'],
                         ['roles', 'Roles y permisos'],
                         ['historial', 'Historial'],
                         ['configuracion', 'Negocio y seguridad'],
                       ]
                     : [
                         ['vendedores', 'Equipo'],
+                        ['identidad', 'Mi identidad'],
                         ['roles', 'Roles y permisos'],
                         ['configuracion', 'Negocio y seguridad'],
                       ]
                 }
               />
               {equipoTab === 'vendedores' && <Vendedores />}
+              {equipoTab === 'identidad' && <MiIdentidad />}
               {equipoTab === 'roles' && <RolesPermisos />}
               {esDemo && equipoTab === 'historial' && <Historial />}
               {equipoTab === 'configuracion' && <Config />}

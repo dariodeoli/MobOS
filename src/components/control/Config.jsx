@@ -115,7 +115,6 @@ export default function Config() {
       <Card className="space-y-3"><div className="flex items-start gap-3">{perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}<div className="min-w-0"><h2 className="font-semibold">Sesión activa</h2><p className="mt-0.5 truncate text-sm text-mute">{perfilEmpresa?.name || sesion?.correo || sesion?.nombre || 'Usuario de MobOS'}</p></div></div><div className="flex flex-wrap gap-2 text-sm"><Badge color="blue">{empresa?.nombre || 'Mi empresa'}</Badge>{sucursal?.nombre && <Badge color="slate">{sucursal.nombre}</Badge>}{sesion?.rol && <Badge color="slate">{sesion.rol}</Badge>}</div></Card>
 
       {esDueno && <>
-        <MiIdentidad />
         <SeccionTiendas account={account} />
         <SeccionInvitaciones />
         <IdentidadCuenta reauthValidUntil={account?.reauthValidUntil} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} />
@@ -218,7 +217,7 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
   )
 }
 
-function MiIdentidad() {
+export function MiIdentidad() {
   const toast = useToast()
   const { usuario, empresa, perfilEmpresa } = useSesion()
   const valores = [
