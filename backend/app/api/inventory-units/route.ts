@@ -6,6 +6,7 @@ import { InventoryUnitStatus, PaymentCurrency, ProductCondition } from '@prisma/
 import { INVENTORY_REMOVED, INVENTORY_RESTORED, removedInventoryUnitIds } from '../../../lib/inventory'
 import { serialKey } from '../../../lib/validation'
 import { changeStock } from '../../../lib/stock'
+import { consumeAuthorization } from '../../../lib/authorizations'
 
 const canSeeBranch = (role: string, assigned: string | null, branchId: string | null) => !['VENDEDOR', 'CAJERA'].includes(role) || assigned === branchId
 const canManageBranch = (role: string, assigned: string | null, branchId: string) => role === 'ADMIN' || (role === 'GERENTE' && assigned === branchId)
@@ -140,10 +141,12 @@ export async function POST(request: Request) {
 
 // Las correcciones físicas mantienen la misma unidad y dejan una auditoría.
 // Los estados RESERVED/SOLD se controlan por sus flujos transaccionales propios.
+// Un vendedor o cajera de la sucursal puede retirar o ajustar con una
+// autorización STOCK_ADJUST aprobada para esa unidad; gerencia y administración
+// siguen operando sin autorización.
 export async function PATCH(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }
   const id = text(body.id, 128)
   if (!id) return error('Unidad obligatoria.')
@@ -151,13 +154,45 @@ export async function PATCH(request: Request) {
   if (!['adjust', 'remove', 'restore', 'move'].includes(action)) return error('Acción de inventario inválida.')
   const adjustmentReason = reason(body.reason)
   if (['remove', 'restore'].includes(action) && !adjustmentReason) return error('Indicá un motivo de entre 3 y 500 caracteres.')
+  const unit = await prisma.inventoryUnit.findFirst({ where: { id, tenantId: tenant }, select: { id: true, branchId: true } })
+  if (!unit || !unit.branchId) return error('Unidad no encontrada.', 404)
+  // Fuera del alcance de gerencia/administración solo hay dos caminos: pedir la
+  // autorización (POST /api/authorizations) o ejecutar con una ya aprobada.
+  let stockAuthorization: { id: string } | null = null
+  if (!canManageBranch(session.user.role, session.user.branchId, unit.branchId)) {
+    const ownBranch = ['VENDEDOR', 'CAJERA'].includes(session.user.role) && unit.branchId === session.user.branchId
+    if (!ownBranch) return error('No autorizado para esa sucursal.', 403)
+    if (!['adjust', 'remove'].includes(action)) return error('No autorizado.', 403)
+    const rawAuthorizationId = body.authorizationId
+    if (rawAuthorizationId === undefined || rawAuthorizationId === null || rawAuthorizationId === '') {
+      return error('Tu rol no puede retirar ni ajustar inventario. Solicitá autorización a gerencia desde esta unidad.', 403)
+    }
+    const authorizationId = text(rawAuthorizationId, 128)
+    if (!authorizationId) return error('La autorización de stock no es válida para esta unidad. Solicitá autorización a gerencia.', 403)
+    const authorization = await prisma.customerAuthorization.findFirst({ where: { id: authorizationId, tenantId: tenant, kind: 'STOCK_ADJUST', entity: 'INVENTORY_UNIT', entityId: id } })
+    if (!authorization || authorization.status !== 'APPROVED' || authorization.requestedById !== session.user.id) {
+      return error('La autorización de stock no es válida para esta unidad. Solicitá autorización a gerencia.', 403)
+    }
+    if (authorization.usedAt) return error('La autorización de stock ya se usó. Solicitá una nueva.', 403)
+    if (!authorization.resolvedAt || authorization.resolvedAt.getTime() < Date.now() - 86400000) {
+      return error('La autorización de stock venció (más de 24 h). Solicitá una nueva.', 403)
+    }
+    stockAuthorization = { id: authorization.id }
+  }
   try {
     const updated = await prisma.$transaction(async tx => {
       const before = await tx.inventoryUnit.findFirst({ where: { id, tenantId: tenant }, select: { id: true, branchId: true, status: true, serial: true, locationId: true, productId: true } })
       if (!before || !before.branchId) throw new Error('Unidad no encontrada.')
-      if (!canManageBranch(session.user.role, session.user.branchId, before.branchId)) throw new Error('No autorizado para esa sucursal.')
+      if (!canManageBranch(session.user.role, session.user.branchId, before.branchId) && !stockAuthorization) throw new Error('No autorizado para esa sucursal.')
       const removalEvents = await tx.auditLog.findMany({ where: { tenantId: tenant, entity: 'InventoryUnit', entityId: id, action: { in: [INVENTORY_REMOVED, INVENTORY_RESTORED] } }, select: { entityId: true, action: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] })
       const removed = removedInventoryUnitIds(removalEvents).has(id)
+      // Consumo dentro de la misma transacción: la autorización es de un solo
+      // uso y dos retiros concurrentes no pueden compartirla.
+      const consumirAutorizacion = async (extra: Record<string, unknown>) => {
+        if (!stockAuthorization) return
+        await consumeAuthorization(tx, { id: stockAuthorization.id, tenantId: tenant, kinds: ['STOCK_ADJUST'], userId: session.user.id, label: 'stock' })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_ADJUST_AUTHORIZED', entity: 'InventoryUnit', entityId: id, metadata: { authorizationId: stockAuthorization.id, action, reason: adjustmentReason, serial: before.serial, ...extra } } })
+      }
       // Mover de ubicación es una operación del día a día: no pide motivo de
       // ajuste, pero queda auditada igual.
       if (action === 'move') {
@@ -174,7 +209,8 @@ export async function PATCH(request: Request) {
         if (before.status !== 'AVAILABLE') throw new Error('Solo se puede eliminar una unidad disponible. Liberá reservas o completá el flujo correspondiente.')
         await changeStock(tx, { tenantId: tenant, productId: before.productId, delta: -1, message: 'El stock cambió mientras se eliminaba la unidad.' })
         const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'DEFECTIVE', reservedUntil: null, reservationCustomer: null, reservedById: null } })
-        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_REMOVED, entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, statusBefore: before.status, locationId: before.locationId } } })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_REMOVED, entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, statusBefore: before.status, locationId: before.locationId, ...(stockAuthorization ? { authorizationId: stockAuthorization.id } : {}) } } })
+        await consumirAutorizacion({ statusAfter: data.status })
         return data
       }
       if (action === 'restore') {
@@ -192,7 +228,8 @@ export async function PATCH(request: Request) {
       const requestedStatus = body.status === undefined ? undefined : Object.values(InventoryUnitStatus).includes(body.status) ? body.status : null
       if (requestedStatus === null || requestedStatus === 'RESERVED' || requestedStatus === 'SOLD' || (before.status === 'RESERVED' && requestedStatus !== undefined)) throw new Error('Ese estado se gestiona desde reserva o venta.')
       const data = await tx.inventoryUnit.update({ where: { id }, data: { ...unitData(body), ...(locationId !== undefined ? { locationId } : {}), ...(requestedStatus !== undefined ? { status: requestedStatus, ...(requestedStatus === 'AVAILABLE' ? { reservedUntil: null, reservationCustomer: null, reservedById: null } : {}) } : {}) } })
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_ADJUSTED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, before: { locationId: before.locationId, status: before.status }, after: { locationId: data.locationId, status: data.status } } } })
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_ADJUSTED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, before: { locationId: before.locationId, status: before.status }, after: { locationId: data.locationId, status: data.status }, ...(stockAuthorization ? { authorizationId: stockAuthorization.id } : {}) } } })
+      await consumirAutorizacion({ statusAfter: data.status })
       return data
     })
     return json(updated)

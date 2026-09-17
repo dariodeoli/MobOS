@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Drawer, Badge, Button, Input, Money, Select, Skeleton, useToast } from '@/components/ui'
+import { Drawer, Badge, Button, Input, Money, Select, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
+import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import { api, API_URL } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
 import { useSesion } from '@/lib/sesion'
@@ -14,7 +15,7 @@ import { gs } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
 
 const FULFILLMENT = FULFILLMENT_LABELS
-const PAYMENT_TONE = (status) => status === 'Pagado' ? 'green' : status === 'Parcial' ? 'orange' : 'red'
+const PAYMENT_TONE = (status) => status === 'Pagado' ? 'green' : status === 'Parcial' ? 'orange' : status === 'Anulado' ? 'slate' : 'red'
 const PAYMENT_STATUS = { CONFIRMED: 'Confirmado', PENDING: 'Pendiente', REFUNDED: 'Reembolsado', REJECTED: 'Rechazado' }
 const AUDIT_LABELS = {
   ORDER_FULFILLMENT_UPDATED: (meta) => `Entrega: ${FULFILLMENT[meta?.previous] || meta?.previous || '—'} → ${FULFILLMENT[meta?.current] || meta?.current || '—'}`,
@@ -22,6 +23,8 @@ const AUDIT_LABELS = {
   ORDER_BILLING_UPDATED: (meta) => meta?.billingName ? `Factura a nombre de ${meta.billingName}` : 'Datos de factura actualizados',
   ORDER_DISCOUNT_APPROVED: (meta) => <>Descuento aprobado: <Money value={Number(meta?.discountPyg || 0)} /></>,
   ORDER_DISCOUNT_AUTHORIZED: (meta) => <>Descuento autorizado: <Money value={Number(meta?.discountPyg || 0)} /> (máx. <Money value={Number(meta?.maxDiscountPyg || 0)} />)</>,
+  ORDER_PRICE_AUTHORIZED: (meta) => <>Precio bajo lista autorizado: <Money value={Number(meta?.belowListPyg || 0)} /></>,
+  ORDER_VOIDED: (meta) => `Pedido anulado${meta?.reason ? `: ${meta.reason}` : ''}${Number(meta?.restoredUnits || 0) > 0 ? ` · ${meta.restoredUnits} unidad(es) repuestas` : ''}`,
   ORDER_TAGS_UPDATED: (meta) => (meta?.tags || []).length ? `Etiquetas: ${meta.tags.join(', ')}` : 'Etiquetas quitadas',
   ORDER_ARCHIVED: () => 'Pedido archivado',
   ORDER_UNARCHIVED: () => 'Pedido desarchivado',
@@ -78,9 +81,7 @@ const NIVELES_ACCESO = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detal
 
 export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onClose, onChanged }) {
   const toast = useToast()
-  const { perfilEmpresa } = useSesion()
-  // El usuario guardado puede llamarse "Administrador": mostramos la persona real.
-  const nombreActor = (name) => (name === 'Administrador' && perfilEmpresa?.name ? perfilEmpresa.name : name)
+  const { usuario } = useSesion()
   const [accesos, setAccesos] = useState({})
   const [accesoBusy, setAccesoBusy] = useState(false)
   const [accesoMsg, setAccesoMsg] = useState('')
@@ -95,6 +96,15 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const [tagInput, setTagInput] = useState('')
   const [subiendo, setSubiendo] = useState(false)
   const [avisando, setAvisando] = useState(false)
+  // Anulación del pedido: gerencia la ejecuta directo; el vendedor necesita
+  // una autorización ORDER_VOID aprobada para ese pedido.
+  const [anularOpen, setAnularOpen] = useState(false)
+  const [anularMotivo, setAnularMotivo] = useState('')
+  const [anularError, setAnularError] = useState('')
+  const [anularBusy, setAnularBusy] = useState(false)
+  const [anularAuth, setAnularAuth] = useState(null)
+  const [anularVersion, setAnularVersion] = useState(0)
+  const puedeAnular = Boolean(usuario && (['ADMIN', 'GERENTE'].includes(usuario.role) || usuario.permissions?.includes('orders:manage')))
   const fileRef = useRef(null)
   // `order` se declara antes de los efectos: usarlo en un array de
   // dependencias después de su declaración es TDZ y rompía la vista en
@@ -123,7 +133,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const paid = payments.filter(pago => pago.status === 'CONFIRMED').reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0)
   const total = Number(order.totalPyg ?? order.total ?? 0)
   const pendiente = Math.max(0, total - paid)
-  const estadoPago = paid >= total && total > 0 ? 'Pagado' : (Number(order.creditDays || 0) > 0 && pendiente > 0 ? 'A crédito' : paid > 0 ? 'Parcial' : 'Pendiente')
+  const anulado = order.status === 'CANCELLED'
+  const estadoPago = anulado ? 'Anulado' : (paid >= total && total > 0 ? 'Pagado' : (Number(order.creditDays || 0) > 0 && pendiente > 0 ? 'A crédito' : paid > 0 ? 'Parcial' : 'Pendiente'))
   const tags = Array.isArray(order.tags) ? order.tags : []
   const archivado = Boolean(order.archivedAt)
   const contextoWhatsApp = {
@@ -186,6 +197,31 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const cambiarEntrega = (fulfillmentStatus) => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { fulfillmentStatus }), 'Entrega actualizada.')
   const alternarArchivado = () => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { action: archivado ? 'unarchive' : 'archive' }), archivado ? 'Pedido desarchivado.' : 'Pedido archivado.')
   const guardarTags = (next) => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { tags: next }), 'Etiquetas actualizadas.')
+  function abrirAnular() {
+    setAnularMotivo('')
+    setAnularError('')
+    setAnularAuth(null)
+    setAnularVersion(v => v + 1)
+    setAnularOpen(true)
+  }
+  // Con permiso de gestión anula directo; sin permiso pide la autorización y,
+  // cuando está aprobada, ejecuta POST /void consumiéndola.
+  async function confirmarAnular() {
+    const motivo = anularMotivo.trim()
+    if (motivo.length < 3) { setAnularError('Indicá un motivo de al menos 3 caracteres.'); return }
+    setAnularBusy(true); setAnularError('')
+    try {
+      if (puedeAnular || anularAuth) {
+        await api.post(`/api/orders/${encodeURIComponent(order.id)}/void`, { reason: motivo, ...(anularAuth && !puedeAnular ? { authorizationId: anularAuth.id } : {}) })
+        toast.success('Pedido anulado.', 'Las unidades vendidas volvieron a stock; los pagos quedan registrados.')
+      } else {
+        await api.post('/api/authorizations', { kind: 'ORDER_VOID', requestedValue: { orderId: order.id, kind: 'full', reason: motivo } })
+        toast.success('Solicitud enviada', 'Gerencia tiene que autorizar la anulación; después ejecutala desde acá.')
+      }
+      setAnularOpen(false)
+      await load(); onChanged?.()
+    } catch (cause) { setAnularError(cause?.message || 'No se pudo anular el pedido.') } finally { setAnularBusy(false) }
+  }
   // Descarga autenticada del comprobante de un pago (el endpoint exige sesión):
   // se pide el binario y se ofrece como archivo local, igual que en pagos.
   async function descargarComprobante(paymentId, proof) {
@@ -240,6 +276,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
               {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
               <Button variant="outline" onClick={() => setComprobante(true)}>Imprimir comprobante</Button>
+              {!esDemo && !anulado && <Button variant="outline" onClick={abrirAnular}>Anular pedido</Button>}
               {!esDemo && <button type="button" disabled={busy} onClick={alternarArchivado} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">{archivado ? 'Desarchivar' : 'Archivar'}</button>}
             </div>
           </section>
@@ -409,6 +446,38 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
         </div>
       )}
       <ComprobantePreview order={order} open={comprobante} onClose={() => setComprobante(false)} />
+      <Modal open={anularOpen} onClose={() => { if (!anularBusy) setAnularOpen(false) }} title="Anular pedido" className="max-w-lg">
+        <div className="space-y-3">
+          <p className="text-sm text-mute">
+            {order.orderNumber ? `${codigoPedido(order.orderNumber)} · ` : ''}
+            {puedeAnular
+              ? 'El pedido queda anulado y las unidades vendidas vuelven a stock. Los pagos no se reembolsan automáticamente.'
+              : 'Gerencia tiene que autorizar la anulación antes de ejecutarla.'}
+          </p>
+          <Textarea rows={3} maxLength={500} value={anularMotivo} onChange={event => setAnularMotivo(event.target.value)} placeholder="Indicá el motivo de la anulación (mínimo 3 caracteres)" />
+          {!puedeAnular && (
+            <AutorizacionBloque
+              key={anularVersion}
+              kind="ORDER_VOID"
+              entity="ORDER"
+              entityId={order.id}
+              sinMonto
+              soloEstado
+              titulo="Autorización de anulación"
+              descripcion="Pedí la autorización con el motivo; con una aprobada ejecutá la anulación."
+              onSelect={setAnularAuth}
+              bloqueado={anularBusy}
+            />
+          )}
+          {anularError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-2.5 py-2 text-xs text-bad">{anularError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setAnularOpen(false)} disabled={anularBusy}>Cancelar</Button>
+            <Button type="button" onClick={confirmarAnular} disabled={anularBusy || anularMotivo.trim().length < 3}>
+              {anularBusy ? 'Anulando…' : puedeAnular || anularAuth ? 'Anular pedido' : 'Solicitar autorización'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </Drawer>
   )
 }

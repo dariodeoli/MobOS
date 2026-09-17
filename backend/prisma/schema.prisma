@@ -600,10 +600,14 @@ model CustomerAuthorization {
   tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customerId     String?
   customer       Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  kind           String    // WHOLESALE | CREDIT | CREDIT_DAYS | DISCOUNT
+  kind           String    // WHOLESALE | CREDIT | CREDIT_DAYS | DISCOUNT | STOCK_ADJUST | ORDER_VOID | BELOW_LIST_PRICE
   status         String    @default("PENDING") // PENDING | APPROVED | REJECTED
-  requestedValue Json?     // CREDIT: { creditLimitPyg, creditDays } · CREDIT_DAYS: { creditDays } · DISCOUNT: { discountPyg }
-  resolvedValue  Json?     // lo autorizado (puede diferir: pedido 10 → autorizado 7) · DISCOUNT: { maxDiscountPyg }
+  // Sujeto afectado por la autorización (unidad, pedido, producto). Null en
+  // las condiciones comerciales del cliente, donde el sujeto es la ficha.
+  entity         String?   // INVENTORY_UNIT | ORDER | PRODUCT
+  entityId       String?
+  requestedValue Json?     // CREDIT: { creditLimitPyg, creditDays } · CREDIT_DAYS: { creditDays } · DISCOUNT: { discountPyg } · STOCK_ADJUST: { unitId, action, reason, stock } · ORDER_VOID: { orderId, kind: 'full', reason } · BELOW_LIST_PRICE: { discountPyg, discountPct?, productId?, description? }
+  resolvedValue  Json?     // lo autorizado (puede diferir: pedido 10 → autorizado 7) · DISCOUNT/BELOW_LIST_PRICE: { maxDiscountPyg } · STOCK_ADJUST/ORDER_VOID: { approved: true }
   requestedById  String
   requestedBy    User      @relation("CustomerAuthorizationRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
   resolvedById   String?
@@ -618,6 +622,7 @@ model CustomerAuthorization {
   @@index([tenantId, status])
   @@index([customerId])
   @@index([usedByOrderId])
+  @@index([tenantId, entity, entityId])
 }
 
 // Razones sociales/RUC históricos con los que el cliente pidió factura.

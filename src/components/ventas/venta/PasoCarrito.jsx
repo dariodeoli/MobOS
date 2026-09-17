@@ -2,6 +2,7 @@ import { Button, Input, Label, MoneyInput } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ListaVenta from './ListaVenta'
 import AutorizacionDescuento from './AutorizacionDescuento'
+import AutorizacionBloque from './AutorizacionBloque'
 
 export default function PasoCarrito({
   visible,
@@ -21,6 +22,9 @@ export default function PasoCarrito({
   montoDescuento,
   customer,
   onAuthDescuento,
+  montoPrecioBajo,
+  productoBajoId,
+  onAuthPrecio,
   tieneCupon,
   f,
   setF,
@@ -68,6 +72,21 @@ export default function PasoCarrito({
           monto={montoDescuento}
           customerId={customer?.id || null}
           onSelect={onAuthDescuento}
+          bloqueado={guardando}
+        />
+      )}
+
+      {!esDemo && !puedeDescontar && montoPrecioBajo > 0 && (
+        <AutorizacionBloque
+          kind="BELOW_LIST_PRICE"
+          titulo="Precio por debajo de lista"
+          descripcion="El precio manual de una línea está por debajo del precio de lista: gerencia tiene que autorizarlo."
+          requestedValue={{ discountPyg: montoPrecioBajo, ...(productoBajoId ? { productId: productoBajoId } : {}) }}
+          entity={productoBajoId ? 'PRODUCT' : undefined}
+          entityId={productoBajoId || undefined}
+          customerId={customer?.id || null}
+          monto={montoPrecioBajo}
+          onSelect={onAuthPrecio}
           bloqueado={guardando}
         />
       )}
