@@ -11,8 +11,10 @@ CONFIG_DIR="$HOME/.mobos-print"
 CONFIG="$CONFIG_DIR/config.json"
 IMPRESORA="192.168.1.23"
 PUERTO="9100"
-# Token opcional: si lo pasás, queda fijado; si no, el agente genera uno y lo imprime.
+# Token y ancho opcionales: si los pasás, quedan fijados; el ancho por defecto
+# es 58 mm (el rollo que se usa en el local) y con MOBOS_PRINT_ANCHO=80 se cambia.
 TOKEN="${MOBOS_PRINT_TOKEN:-}"
+ANCHO="${MOBOS_PRINT_ANCHO:-58}"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "Falta Node 20 o superior. Instalalo con: brew install node" >&2
@@ -32,24 +34,24 @@ if [[ ! -f "$CONFIG" || -n "$TOKEN" ]]; then
     let actual = {}
     try { actual = JSON.parse(fs.readFileSync(ruta, 'utf8')) } catch { actual = {} }
     const config = {
-      impresora: 'lan:${IMPRESORA}:${PUERTO}',
-      ancho: 80,
-      copias: 1,
-      reintentos: 5,
-      esperaMs: 15000,
-      lan: ['lan:${IMPRESORA}:${PUERTO}'],
       ...actual,
+      impresora: 'lan:${IMPRESORA}:${PUERTO}',
+      ancho: ${ANCHO},
+      copias: actual.copias || 1,
+      reintentos: actual.reintentos || 5,
+      esperaMs: actual.esperaMs || 15000,
+      lan: ['lan:${IMPRESORA}:${PUERTO}'],
     }
     if (token) config.token = token
     fs.writeFileSync(ruta, JSON.stringify(config, null, 2) + '\\n')
   " "$CONFIG" "$TOKEN"
   if [[ -n "$TOKEN" ]]; then
-    echo "Configuración lista con la impresora lan:${IMPRESORA}:${PUERTO} (80 mm) y el token indicado."
+    echo "Configuración lista con la impresora lan:${IMPRESORA}:${PUERTO} (${ANCHO} mm) y el token indicado."
   else
-    echo "Configuración creada con la impresora lan:${IMPRESORA}:${PUERTO} en 80 mm."
+    echo "Configuración creada con la impresora lan:${IMPRESORA}:${PUERTO} en ${ANCHO} mm."
   fi
 else
-  echo "Configuración existente: no se toca (pasá MOBOS_PRINT_TOKEN para fijar el token)."
+  echo "Configuración existente: no se toca (pasá MOBOS_PRINT_TOKEN o MOBOS_PRINT_ANCHO para cambiarla)."
 fi
 
 cat > "$PLIST" <<PLIST

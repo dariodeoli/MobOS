@@ -33,7 +33,7 @@ En la app, Configuración → Impresoras:
    - **USB**: `usb:<nombre de la cola>`; las colas se listan solas si están
      dadas de alta en macOS (Ajustes → Impresoras y escáneres). El agente les
      manda los mismos bytes crudos con `lp -o raw`.
-3. Elegí el ancho (80 mm viene predeterminado; también hay 58 mm) y las copias. Los tickets salen con padding a los costados y **corte automático** al final.
+3. Elegí el ancho (el instalador deja **58 mm**, el rollo del local; con `MOBOS_PRINT_ANCHO=80 bash install-macos.sh` queda en 80) y las copias. Los tickets salen con padding a los costados y **corte automático** al final.
 4. **Imprimir prueba**: sale texto, acentos, negrita, doble alto, QR y código de
    barras. Si todo eso sale bien, la impresora quedó lista.
 
@@ -41,7 +41,22 @@ En la app, Configuración → Impresoras:
 
 La impresora ya está configurada en `192.168.1.23:9100` (máscara 255.255.255.0, gateway 192.168.1.1, DHCP desactivado, ESC/POS, cortador habilitado) y el instalador la deja cargada como destino.
 
-Lo que falta es de red: **el router y la impresora tienen que compartir la subred** (`192.168.1.x`) y la computadora tiene que estar en esa misma red. Cambiar la IP de la Mac a mano solo sirve si esa red existe de verdad; si el router opera en `192.168.100.x`, lo correcto es mover la impresora a esa red (o dejar que el router entregue `192.168.1.x`) en vez de forzar la IP de la Mac. Lo más
+Lo que falta es de red: la Mac está en `192.168.100.x` y la impresora en `192.168.1.23`, así que **no se ven** aunque el agente esté andando.
+
+**Solución recomendada (definitiva):** que la impresora viva en la red del router. Dos caminos:
+- En el panel de la impresora (o en `http://192.168.1.23`), activar **DHCP** para que el router le dé una IP `192.168.100.x` (y reservarla en el router para que no cambie).
+- O darle una IP fija dentro de `192.168.100.x`, con la máscara `255.255.255.0` y el gateway del router (`192.168.100.1` o el que use).
+
+Después se actualiza el destino en Configuración → Impresoras con la IP nueva.
+
+**Parche temporal (solo si la Mac y la impresora están en el mismo switch/WiFi):** agregar a la Mac una IP secundaria en la red de la impresora, sin tocar el router:
+
+```bash
+sudo ifconfig en0 alias 192.168.1.100 netmask 255.255.255.0   # en0 = Wi-Fi o Ethernet
+nc -z -G 2 192.168.1.23 9100 && echo "la impresora responde"
+```
+
+Es temporal: se pierde al reiniciar o cambiar de red. Si el router y la impresora no comparten el mismo cableado/WiFi, este parche no sirve y hay que ir por la solución recomendada. Lo más
 cómodo es dejar la impresora con **IP fija** (o reserva DHCP) porque el agente la
 usa por IP; si cambia, hay que actualizar el destino en Configuración.
 

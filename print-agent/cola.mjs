@@ -78,5 +78,11 @@ export function crearCola({ ruta, enviar, esperaMs = 15000, reintentos = 5, log 
       }
     },
     reanudar() { programar() },
+    limpiarFallidos() {
+      const antes = trabajos.length
+      trabajos = trabajos.filter((trabajo) => trabajo.estado !== 'fallido')
+      guardar()
+      return antes - trabajos.length
+    },
   }
 }

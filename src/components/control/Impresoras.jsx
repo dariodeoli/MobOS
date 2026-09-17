@@ -12,6 +12,8 @@ export default function Impresoras() {
   const [estado, setEstado] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [probando, setProbando] = useState(false)
+  const [diagnosticando, setDiagnosticando] = useState(false)
+  const [diagnostico, setDiagnostico] = useState(null)
 
   const consultar = useCallback(async () => {
     setCargando(true)
@@ -45,6 +47,18 @@ export default function Impresoras() {
     }
   }
 
+  async function diagnosticar() {
+    if (diagnosticando) return
+    setDiagnosticando(true)
+    try {
+      const { url, token } = configImpresora()
+      const respuesta = await fetch(`${url}/diagnostico`, { headers: token ? { 'x-mobos-print-token': token } : {}, targetAddressSpace: 'local' })
+      setDiagnostico(await respuesta.json())
+    } catch (cause) {
+      setDiagnostico({ ok: false, error: cause?.message || 'No se pudo consultar el diagnóstico.' })
+    } finally { setDiagnosticando(false) }
+  }
+
   const usb = estado?.impresoras?.usb || []
   const lan = estado?.impresoras?.lan || []
 
@@ -70,7 +84,8 @@ export default function Impresoras() {
           <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 p-3 text-sm text-bad">
             La impresora <b>{estado.impresora}</b> no responde desde esta computadora. Revisá que estén en la misma red
             (por ejemplo, la Mac en <b>192.168.1.x</b> y la impresora en <b>192.168.1.23</b>): lo ideal es que el router
-            y la impresora compartan la subred, no cambiar la IP de la Mac a mano. Después tocá “Actualizar estado”.
+            y la impresora compartan la subred, no cambiar la IP de la Mac a mano. Si la impresora está conectada por USB,
+            usá la cola detectada (<b>usb:ZKP8008</b>): imprime igual y no depende de la red. Después tocá “Actualizar estado”.
           </p>
         )}
         {estado?.disponible && estado.impresoraOk === true && (
@@ -85,7 +100,11 @@ export default function Impresoras() {
         )}
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={consultar} disabled={cargando}><Icon name="refresh" className="h-3.5 w-3.5" />Actualizar estado</Button>
+          {estado?.disponible && <Button type="button" variant="ghost" onClick={diagnosticar} disabled={diagnosticando}>{diagnosticando ? 'Consultando…' : 'Diagnóstico de red'}</Button>}
         </div>
+        {diagnostico && (
+          <pre className="overflow-x-auto rounded-xl border border-ink-600 bg-ink-800 p-3 text-[11px] text-mute">{JSON.stringify(diagnostico, null, 2)}</pre>
+        )}
       </Card>
 
       <Card className="space-y-3">

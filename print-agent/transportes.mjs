@@ -67,3 +67,27 @@ export function probarConexion(destino, { timeoutMs = 1500 } = {}) {
     socket.on('connect', () => fin(true))
   })
 }
+
+// Diagnóstico de red: interfaces IPv4 de la máquina y ruta hacia la impresora.
+// Sirve para explicar un EHOSTUNREACH (sin ruta) desde la app.
+export async function diagnosticoRed(destino) {
+  const valor = String(destino || '').trim()
+  const host = valor.startsWith('usb:') ? '' : valor.replace(/^lan:/, '').split(':')[0]
+  const info = { destino: valor, host, interfaces: [], ruta: '', alcance: false }
+  try {
+    const { stdout } = await ejecutar('ifconfig', [], { timeout: 5000 })
+    info.interfaces = stdout.split('\n')
+      .map((linea) => linea.trim().match(/^inet (\d+\.\d+\.\d+\.\d+)/)?.[1])
+      .filter((ip) => ip && !ip.startsWith('127.'))
+  } catch { /* sin ifconfig */ }
+  if (host) {
+    try {
+      const { stdout } = await ejecutar('route', ['-n', 'get', host], { timeout: 5000 })
+      info.ruta = stdout.split('\n').map((linea) => linea.trim()).filter((linea) => /^(gateway|interface|route to|flags)/i.test(linea)).join(' · ')
+    } catch (error) {
+      info.ruta = String(error?.stderr || error?.message || '').trim().split('\n')[0] || 'sin ruta'
+    }
+    info.alcance = await probarConexion(valor)
+  }
+  return info
+}

@@ -16,7 +16,7 @@ export function cargarConfig() {
     puerto: Number(guardado.puerto) || Number(process.env.MOBOS_PRINT_PORT) || 17890,
     token: String(guardado.token || randomUUID().replace(/-/g, '').slice(0, 24)),
     impresora: String(guardado.impresora || ''),
-    ancho: Number(guardado.ancho) === 58 ? 58 : 80,
+    ancho: Number(guardado.ancho) === 80 ? 80 : 58, // sin configurar, 58 mm (el rollo del local)
     copias: Math.min(5, Math.max(1, Number(guardado.copias) || 1)),
     reintentos: Math.min(20, Math.max(1, Number(guardado.reintentos) || 5)),
     esperaMs: Math.min(300000, Math.max(1000, Number(guardado.esperaMs) || 15000)),

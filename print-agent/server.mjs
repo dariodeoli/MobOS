@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 import { cargarConfig, guardarConfig, RUTA_COLA } from './config.mjs'
 import { crearCola } from './cola.mjs'
-import { enviar, impresorasUsb, probarConexion } from './transportes.mjs'
+import { diagnosticoRed, enviar, impresorasUsb, probarConexion } from './transportes.mjs'
 
 const VERSION = '1.0.0'
 const config = cargarConfig()
@@ -77,6 +77,16 @@ const servidor = createServer(async (request, response) => {
       })
     }
 
+    if (request.method === 'GET' && url.pathname === '/diagnostico') {
+      if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
+      return responder(response, { ok: true, ...(await diagnosticoRed(config.impresora)) })
+    }
+
+    if (request.method === 'POST' && url.pathname === '/jobs/clear') {
+      if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
+      return responder(response, { ok: true, limpiados: cola.limpiarFallidos() })
+    }
+
     if (request.method === 'GET' && url.pathname.startsWith('/jobs/')) {
       if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
       return responder(response, { ok: true, ...cola.estado(url.pathname.slice('/jobs/'.length)) })
@@ -94,7 +104,17 @@ const servidor = createServer(async (request, response) => {
       const resultados = []
       for (let copia = 0; copia < copias; copia += 1) resultados.push(await cola.encolar({ impresora, data: ticket }))
       const pendiente = resultados.find((resultado) => resultado.encolado)
-      if (pendiente) return responder(response, { ok: true, encolado: true, jobId: pendiente.jobId, error: pendiente.error || '' }, 202)
+      if (pendiente) {
+        const sinRuta = /EHOSTUNREACH|ENETUNREACH/i.test(pendiente.error || '')
+        return responder(response, {
+          ok: true,
+          encolado: true,
+          jobId: pendiente.jobId,
+          error: sinRuta
+            ? 'Sin ruta a la impresora. Revisá que la Mac y la impresora compartan la subred (o agregá una IP secundaria con print-agent/red-mac.sh); el trabajo queda en cola.'
+            : pendiente.error || '',
+        }, 202)
+      }
       return responder(response, { ok: true, encolado: false, jobId: resultados[0]?.jobId || null })
     }
 

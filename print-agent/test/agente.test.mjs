@@ -10,6 +10,17 @@ import { fileURLToPath } from 'node:url'
 const RAIZ = fileURLToPath(new URL('..', import.meta.url))
 const TOKEN = 'token-de-prueba'
 
+// Puerto libre para no chocar con corridas anteriores ni con otros agentes.
+function puertoLibre() {
+  return new Promise((resolve) => {
+    const servidor = createServer()
+    servidor.listen(0, '127.0.0.1', () => {
+      const { port } = servidor.address()
+      servidor.close(() => resolve(port))
+    })
+  })
+}
+
 // Impresora falsa: escucha como una térmica de red y guarda lo que recibe.
 function impresoraFalsa(puerto) {
   const recibido = []
@@ -50,8 +61,8 @@ async function arrancarAgente(dir, { impresora, puerto }) {
 
 test('el agente imprime por red, encola si la impresora está caída y protege con token', async (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'mobos-print-'))
-  const puertoAgente = 17891
-  const puertoImpresora = 19100
+  const puertoAgente = await puertoLibre()
+  const puertoImpresora = await puertoLibre()
   const base = `http://127.0.0.1:${puertoAgente}`
   const cabeceras = { 'Content-Type': 'application/json', 'x-mobos-print-token': TOKEN, Origin: 'https://app.moboss.online' }
   const ticket = Buffer.from([0x1b, 0x40, 0x48, 0x6f, 0x6c, 0x61, 0x0a]).toString('base64')
@@ -103,8 +114,8 @@ test('el agente imprime por red, encola si la impresora está caída y protege c
 
 test('el agente imprime al toque cuando la impresora está disponible', async (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'mobos-print-'))
-  const puertoAgente = 17892
-  const puertoImpresora = 19101
+  const puertoAgente = await puertoLibre()
+  const puertoImpresora = await puertoLibre()
   const impresora = await impresoraFalsa(puertoImpresora)
   t.after(() => impresora.cerrar())
   const agente = await arrancarAgente(dir, { impresora: `lan:127.0.0.1:${puertoImpresora}`, puerto: puertoAgente })

@@ -9,9 +9,9 @@ export const URL_AGENTE = 'http://127.0.0.1:17890'
 
 export const configImpresora = () => {
   try {
-    return { url: URL_AGENTE, impresora: '', ancho: 80, copias: 1, token: '', ...(JSON.parse(localStorage.getItem(CLAVE_CONFIG) || '{}') || {}) }
+    return { url: URL_AGENTE, impresora: '', ancho: 58, copias: 1, token: '', ...(JSON.parse(localStorage.getItem(CLAVE_CONFIG) || '{}') || {}) }
   } catch {
-    return { url: URL_AGENTE, impresora: '', ancho: 80, copias: 1, token: '' }
+    return { url: URL_AGENTE, impresora: '', ancho: 58, copias: 1, token: '' }
   }
 }
 
