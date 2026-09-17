@@ -76,12 +76,18 @@ export async function GET(request: Request, { params }: RouteContext) {
     take: 50,
   })
 
-  const [notes, followUps] = await Promise.all([
+  const [notes, billingIdentities, followUps] = await Promise.all([
     prisma.customerNote.findMany({
       where: { tenantId: session.user.tenantId, customerId: customer.id },
       select: { id: true, content: true, createdAt: true, user: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
       take: 100,
+    }),
+    prisma.customerBillingIdentity.findMany({
+      where: { tenantId: session.user.tenantId, customerId: customer.id },
+      select: { id: true, name: true, document: true, uses: true, lastUsedAt: true },
+      orderBy: [{ uses: 'desc' }, { lastUsedAt: 'desc' }],
+      take: 20,
     }),
     prisma.customerFollowUp.findMany({
       where: { tenantId: session.user.tenantId, customerId: customer.id },
@@ -98,6 +104,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     warranties,
     notes,
     followUps,
+    billingIdentities,
   })
 }
 

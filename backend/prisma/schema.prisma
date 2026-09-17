@@ -1510,3 +1510,20 @@ model CustomerRequest {
   @@index([tenantId, status])
   @@index([customerId, createdAt])
 }
+
+// Titulares de factura que el cliente ya usó: se proponen en la próxima venta
+// y la búsqueda puede encontrar al cliente por esa razón social.
+model CustomerBillingIdentity {
+  id         String   @id @default(cuid())
+  tenantId   String
+  customerId String
+  name       String
+  document   String?
+  uses       Int      @default(0)
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([customerId, name, document])
+  @@index([tenantId, name])
+}

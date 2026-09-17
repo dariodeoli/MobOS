@@ -183,6 +183,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const mayorista = (profile?.customer?.pricingTier || customer?.pricingTier) === 'WHOLESALE'
   const clienteCredito = profile?.customer?.creditLimitPyg ?? customer?.creditLimitPyg ?? 0
   const clientePlazo = profile?.customer?.creditDays ?? customer?.creditDays ?? 0
+  const identidades = profile?.billingIdentities || []
   const ultimaCompra = orders.reduce((max, order) => (order.createdAt && (!max || order.createdAt > max) ? order.createdAt : max), null)
   const clienteDesde = profile?.customer?.createdAt || customer?.createdAt || null
   const totalComprado = orders.reduce((sum, order) => sum + Number(order.totalPyg || 0), 0)
@@ -379,6 +380,20 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 {!mayorista && <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('WHOLESALE')}>Solicitar mayorista</Button>}
                 {!(Number(clienteCredito || 0) > 0) && <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('CREDIT')}>Solicitar crédito</Button>}
               </span>
+            </div>
+          )}
+
+          {!esDemo && identidades.length > 0 && (
+            <div className="rounded-xl border border-ink-600 p-3">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Titulares de factura usados</p>
+              <ul className="mt-1 space-y-0.5 text-xs">
+                {identidades.map(item => (
+                  <li key={item.id} className="flex flex-wrap justify-between gap-2">
+                    <span className="min-w-0 truncate">{item.name}{item.document ? ` · ${item.document}` : ''}</span>
+                    <span className="text-mute">{item.uses} {item.uses === 1 ? 'venta' : 'ventas'}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 
