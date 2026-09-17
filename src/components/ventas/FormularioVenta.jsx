@@ -36,7 +36,7 @@ import { parsePercent } from '@/components/shared/PercentField'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import { accountPayment } from './PaymentAccountFields'
-import { printOrderReceipt } from '@/components/shared/OrderReceipt'
+import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import { whatsappTrackingLink } from './PagosPedido'
 import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
@@ -200,6 +200,7 @@ export default function FormularioVenta({
   // Factura a otro titular (esposo/a, padre, empresa) con RUC.
   const [billingTo, setBillingTo] = useState({ name: '', document: '' })
   const [lastOrder, setLastOrder] = useState(null)
+  const [comprobante, setComprobante] = useState(false)
   const guardadoEnCurso = useRef(false)
   const [guardadoIncompleto, setGuardadoIncompleto] = useState(false)
   // Misma clave idempotente para todos los reintentos de una misma venta;
@@ -965,19 +966,8 @@ export default function FormularioVenta({
                   Seguimiento por WhatsApp
                 </a>
               )}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => printOrderReceipt(lastOrder, { format: 'a4' })}
-              >
-                Imprimir A4
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => printOrderReceipt(lastOrder, { format: 'thermal' })}
-              >
-                Imprimir térmico
+              <Button type="button" variant="outline" onClick={() => setComprobante(true)}>
+                Imprimir comprobante
               </Button>
             </>
           )}
@@ -1264,6 +1254,7 @@ export default function FormularioVenta({
           </div>
         </div>
       </Modal>
+      {lastOrder && <ComprobantePreview order={lastOrder} open={comprobante} onClose={() => setComprobante(false)} />}
     </Card>
   )
 }

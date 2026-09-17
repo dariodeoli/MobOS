@@ -4,6 +4,7 @@ import { APP_NAME } from '@/lib/brand'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { ahorroDeLinea } from '@/utils/precioLista'
 import QRCode from 'qrcode'
+import { api } from '@/lib/api/client'
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]))
 
@@ -27,9 +28,9 @@ const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', RE
 
 // Hoja de estilos común para los tres comprobantes (A4 y térmico 80 mm).
 const styles = (thermal) => `
-  @page{size:${thermal ? '80mm auto' : 'A4'};margin:${thermal ? '5mm' : '16mm'}}
+  @page{size:${thermal ? '58mm auto' : 'A4'};margin:${thermal ? '3mm' : '16mm'}}
   *{box-sizing:border-box}
-  body{font:${thermal ? '11px/1.5' : '13px/1.6'} ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;margin:0;color:#0f1720;max-width:${thermal ? '72mm' : '760px'}}
+  body{font:${thermal ? '10px/1.45' : '13px/1.6'} ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;margin:0;color:#0f1720;max-width:${thermal ? '52mm' : '760px'}}
   .brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:2px solid #0c8876;padding-bottom:8px;margin-bottom:14px}
   .brand b{font-size:${thermal ? '12px' : '13px'};color:#0c8876;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
   .brand span{font-size:10px;color:#66707a;text-transform:uppercase;letter-spacing:.12em}
@@ -45,7 +46,7 @@ const styles = (thermal) => `
   .totals td{border:0;padding:3px 0}
   .totals tr:last-child td{font-weight:700;font-size:${thermal ? '14px' : '16px'};border-top:1px solid #0f1720;padding-top:6px}
   .tag{display:inline-block;border:1px solid #0c8876;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;color:#0c8876}
-  .qr{display:block;width:${thermal ? '40mm' : '42mm'};height:${thermal ? '40mm' : '42mm'};margin:10px auto 6px}
+  .qr{display:block;width:${thermal ? '32mm' : '42mm'};height:${thermal ? '32mm' : '42mm'};margin:10px auto 6px}
   .small{font-size:10px;word-break:break-all;text-align:center}
   footer{margin-top:14px;border-top:1px solid #e3e8ec;padding-top:8px;font-size:10px;color:#66707a;text-align:center}
   @media print{body{margin:0}}
@@ -54,25 +55,72 @@ const styles = (thermal) => `
 const header = (title, when) => `<div class="brand"><b>${escapeHtml(APP_NAME)}</b><span>${escapeHtml(title)}</span></div><h1>${escapeHtml(title)}</h1><p class="muted">${escapeHtml(when)}</p>`
 const footer = () => `<footer>Conservá este comprobante para cambios y garantía. Documento generado por ${escapeHtml(APP_NAME)}.</footer>`
 
-export async function printOrderReceipt(order, { format = 'a4' } = {}) {
+// Niveles de comprobante y formatos físicos, independientes entre sí.
+export const NIVELES_COMPROBANTE = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detallado', 'Detallado']]
+export const FORMATOS_COMPROBANTE = [['a4', 'A4'], ['thermal', '58 mm']]
+const PREF_NIVEL = 'mobos:comprobante:nivel'
+const PREF_FORMATO = 'mobos:comprobante:formato'
+export const nivelPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_NIVEL)) || 'completo'
+export const formatoPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_FORMATO)) || 'a4'
+export const recordarPreferencia = (nivel, formato) => {
+  try { localStorage.setItem(PREF_NIVEL, nivel); localStorage.setItem(PREF_FORMATO, formato) } catch { /* sin almacenamiento */ }
+}
+
+// Cada comprobante imprime el QR de su propio nivel: el token autoriza esa vista.
+export async function tokenDeNivel(orderId, level) {
+  if (!orderId) return ''
+  try {
+    const data = await api.post(`/api/orders/${encodeURIComponent(orderId)}/access-tokens`, { level })
+    return data?.token || ''
+  } catch { return '' }
+}
+
+export async function buildOrderReceiptHtml(order, { level = 'completo', format = 'a4', token = '' } = {}) {
   const items = Array.isArray(order.items) ? order.items : []
   const payments = Array.isArray(order.payments) ? order.payments : order.pagos || []
-  const paid = payments.filter(payment => payment.status === 'CONFIRMED' || payment.status === undefined).reduce((sum, payment) => sum + Number(payment.amountPyg ?? payment.monto ?? 0), 0)
+  const pagosConfirmados = payments.filter(payment => payment.status === 'CONFIRMED' || payment.status === undefined)
+  const paid = pagosConfirmados.reduce((sum, payment) => sum + Number(payment.amountPyg ?? payment.monto ?? 0), 0)
   const when = order.createdAt || order.creadoEn || order.fecha
-  const tracking = trackingUrlFor(order)
+  const link = token ? accessUrlFor(token) : trackingUrlFor(order)
   let qr = ''
-  try { if (tracking) qr = await QRCode.toDataURL(tracking, { errorCorrectionLevel: 'M', margin: 1, width: 200 }) } catch { /* El enlace sigue disponible aunque no pueda renderizarse el QR. */ }
+  try { if (link) qr = await QRCode.toDataURL(link, { errorCorrectionLevel: 'M', margin: 1, width: 200 }) } catch { /* el enlace queda impreso igual */ }
   const thermal = format === 'thermal'
   const total = Number(order.totalPyg ?? order.total ?? 0)
+  const pendiente = Math.max(0, total - Number(paid || order.totalPagado || 0))
+  const empresa = order.tenant?.name || order.empresaNombre || ''
+  const sucursal = order.branch || null
+  const cliente = order.customer || null
+  const completo = level !== 'rapido'
+  const detallado = level === 'detallado'
+
   const documento = order.billingName ? `<div class="card"><div class="label">Factura a</div><div>${escapeHtml(order.billingName)}${order.billingDocument ? ` · RUC ${escapeHtml(order.billingDocument)}` : ''}</div></div>` : ''
   const itemsRows = items.map(item => {
     const { ahorro } = ahorroDeLinea(item)
     return `<tr><td>${escapeHtml(item.description || item.nombre || 'Producto')}${ahorro > 0 ? `<br><span class="muted">descuento − ${escapeHtml(gs(ahorro))}</span>` : ''}</td><td class="num">${escapeHtml(item.quantity || 1)} × ${escapeHtml(gs(item.unitPricePyg ?? item.precio ?? 0))}</td><td class="num">${escapeHtml(gs(item.totalPyg ?? (item.quantity || 1) * (item.unitPricePyg ?? item.precio ?? 0)))}</td></tr>`
   }).join('')
-  const paymentsRows = payments.length ? `<div class="card"><div class="label">Pagos</div><table class="totals">${payments.map(payment => `<tr><td>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${payment.reference || payment.cuenta ? ` · ${escapeHtml(payment.reference || payment.cuenta)}` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>` : ''
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(thermal)}</style></head><body>
+  const contactoCliente = completo && cliente
+    ? `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente.name || order.cliente || 'Consumidor final')}</strong>${cliente.document ? ` · ${escapeHtml(cliente.document)}` : ''}${cliente.phone ? `<br>${escapeHtml(cliente.countryCode || '')} ${escapeHtml(cliente.phone)}` : ''}${cliente.email ? `<br>${escapeHtml(cliente.email)}` : ''}${(cliente.addresses || []).map(address => `<br>${escapeHtml([address.address, address.city, address.department, address.country].filter(Boolean).join(', '))}`).join('')}</div></div>`
+    : `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente?.name || order.cliente || 'Consumidor final')}</strong></div></div>`
+  const empresaCard = completo
+    ? `<div class="card"><div class="label">Empresa</div><div>${escapeHtml(empresa || APP_NAME)}${sucursal?.name ? ` · ${escapeHtml(sucursal.name)}` : ''}${sucursal?.address || sucursal?.city ? `<br>${escapeHtml([sucursal.address, sucursal.city, sucursal.department].filter(Boolean).join(', '))}` : ''}${sucursal?.phone ? `<br>${escapeHtml(sucursal.phone)}` : ''}${order.seller?.name ? `<br>Vendedor: ${escapeHtml(order.seller.name)}` : ''}</div></div>`
+    : ''
+  const pagosRows = pagosConfirmados.length
+    ? `<div class="card"><div class="label">Pagos</div><table class="totals">${pagosConfirmados.map(payment => `<tr><td>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${completo && (payment.reference || payment.cuenta || payment.accountSnapshot?.name) ? ` · ${escapeHtml(payment.reference || payment.cuenta || payment.accountSnapshot.name)}` : ''}${detallado && (payment.paidAt || payment.createdAt) ? `<br><span class="muted">${escapeHtml(new Date(payment.paidAt || payment.createdAt).toLocaleString('es-PY'))}</span>` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>`
+    : ''
+  const credito = completo && Number(order.creditDays || 0) > 0
+    ? `<p><span class="tag">A crédito · ${escapeHtml(String(order.creditDays))} días${order.dueAt ? ` · vence ${escapeHtml(new Date(order.dueAt).toLocaleDateString('es-PY'))}` : ''}</span></p>`
+    : ''
+  const cronologia = detallado && Array.isArray(order.timeline) && order.timeline.length
+    ? `<div class="card"><div class="label">Cronología</div><table class="totals">${order.timeline.map(evento => `<tr><td>${escapeHtml(evento.type === 'created' ? 'Pedido creado' : evento.type === 'payment' ? `Pago ${gs(evento.amountPyg || 0)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}` : `Entrega: ${FULFILLMENT[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`)}</td><td class="num">${escapeHtml(new Date(evento.at).toLocaleString('es-PY'))}</td></tr>`).join('')}</table></div>`
+    : ''
+  const entregaNotas = completo && (order.deliveryType || order.deliveryNotes)
+    ? `<p class="muted">Entrega: ${escapeHtml(order.deliveryType || '—')}${order.deliveryNotes ? ` · ${escapeHtml(order.deliveryNotes)}` : ''}</p>`
+    : ''
+
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(thermal)}</style></head><body>
     ${header('Comprobante de compra', `${order.orderNumber || order.codigo || 'Pedido'} · ${when ? new Date(when).toLocaleString('es-PY') : ''}`)}
-    <div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(order.customer?.name || order.cliente || 'Consumidor final')}</strong>${order.customer?.phone ? ` · ${escapeHtml(order.customer.phone)}` : ''}</div></div>
+    ${empresaCard}
+    ${contactoCliente}
     ${documento}
     <table><thead><tr><th>Producto</th><th class="num">Precio</th><th class="num">Total</th></tr></thead><tbody>${itemsRows}</tbody></table>
     <table class="totals">
@@ -81,12 +129,20 @@ export async function printOrderReceipt(order, { format = 'a4' } = {}) {
       ${Number(order.deliveryPyg || order.montoDelivery || 0) ? `<tr><td>Entrega</td><td class="num">${escapeHtml(gs(order.deliveryPyg || order.montoDelivery))}</td></tr>` : ''}
       <tr><td>Total</td><td class="num">${escapeHtml(gs(total))}</td></tr>
       <tr><td>Pagado</td><td class="num">${escapeHtml(gs(paid || order.totalPagado || 0))}</td></tr>
+      ${pendiente > 0 ? `<tr><td>Saldo pendiente</td><td class="num">${escapeHtml(gs(pendiente))}</td></tr>` : ''}
     </table>
-    ${paymentsRows}
+    ${pagosRows}
+    ${credito}
+    ${entregaNotas}
     <p><span class="tag">${escapeHtml(FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación')}</span></p>
-    ${tracking ? `${qr ? `<img class="qr" src="${qr}" alt="QR de seguimiento">` : ''}<p class="small">Seguimiento y garantía: ${escapeHtml(tracking)}</p>` : ''}
-    ${footer()}
+    ${cronologia}
+    ${link ? `${qr ? `<img class="qr" src="${qr}" alt="QR del comprobante">` : ''}<p class="small">${level === 'rapido' ? 'Seguimiento' : level === 'completo' ? 'Comprobante y seguimiento' : 'Comprobante detallado'}: ${escapeHtml(link)}</p>` : ''}
+    <footer>Documento no fiscal. Conservá este comprobante para cambios y garantía. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
   </body></html>`
+}
+
+export async function printOrderReceipt(order, options = {}) {
+  const html = await buildOrderReceiptHtml(order, options)
   return printHtml(html)
 }
 
