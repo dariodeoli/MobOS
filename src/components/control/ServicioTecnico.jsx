@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
 import { Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import SerialField from '@/components/shared/SerialField'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
@@ -42,6 +43,8 @@ const SIGUIENTE_CORTO = { RECIBIDO: 'Recibido', DIAGNOSTICO: 'Diagnóstico', CON
 // avance de estado en la misma línea.
 const GRID_SERVICIO = 'grid min-w-[63rem] grid-cols-[minmax(8rem,1.3fr)_minmax(6rem,1fr)_minmax(7rem,1.5fr)_5.5rem_5rem_5.5rem_5.5rem_6.5rem_8.5rem] items-center gap-x-2'
 const CELDA = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
+// Última plantilla elegida para el taller: se recuerda entre órdenes.
+const ULTIMA_PLANTILLA_SERVICIO = 'mobos:plantilla:servicio'
 
 export default function ServicioTecnico() {
   const toast = useToast()
@@ -247,6 +250,21 @@ export default function ServicioTecnico() {
                 <span className={cn('truncate text-right text-xs font-semibold tabular-nums', ganancia >= 0 ? 'text-ok' : 'text-bad')}>{ganancia >= 0 ? '+' : ''}{gs(ganancia)}</span>
                 <Badge color={ESTADO_TONE[row.status] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{ESTADO_LABEL[row.status] || row.status}</Badge>
                 <span className="flex flex-wrap items-center justify-end gap-1">
+                  {row.customerPhone && (
+                    <WhatsAppMenu
+                      telefono={row.customerPhone}
+                      countryCode={row.customerCountryCode || '+595'}
+                      category="SERVICE"
+                      storageKey={ULTIMA_PLANTILLA_SERVICIO}
+                      title={row.customerName}
+                      contexto={{
+                        cliente: row.customerName || '',
+                        nombre: (row.customerName || '').split(' ')[0] || '',
+                        equipo: row.device || '',
+                        estado: ESTADO_LABEL[row.status] || row.status || '',
+                      }}
+                    />
+                  )}
                   {SIGUIENTE[row.status] && <Button variant="outline" className="h-8 whitespace-nowrap px-2 text-xs" title={`Pasar a ${ESTADO_LABEL[SIGUIENTE[row.status]]}`} onClick={() => avanzar(row)}>{SIGUIENTE_CORTO[SIGUIENTE[row.status]]}</Button>}
                   <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={`Editar orden de ${row.device || 'servicio'}`} onClick={() => editar(row)}><Icon name="edit" className="h-3.5 w-3.5" /></Button>
                 </span>
