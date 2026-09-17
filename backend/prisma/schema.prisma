@@ -977,6 +977,8 @@ model Payment {
   status          PaymentStatus    @default(CONFIRMED)
   amountPyg       Int
   reference       String?
+  // Quién registró el cobro (la cronología muestra la persona real).
+  userId          String?
   idempotencyKey  String?
   paidAt          DateTime         @default(now())
   // Vencimiento de la cuota cuando el pago forma parte de un plan de crédito.

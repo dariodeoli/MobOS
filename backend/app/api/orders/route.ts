@@ -303,7 +303,7 @@ export async function POST(request: Request) {
       if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
       if (soldUnits.length) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNITS_SOLD', entity: 'Order', entityId: order.id, metadata: { serials: soldUnits.map(unit => unit.serial), productIds: [...new Set(soldUnits.map(unit => unit.productId))] } } })
       for (const { tradeIn, ...paymentData } of normalizedPayments) {
-        const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id } })
+        const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id, userId: session.user.id } })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
       }
       // Garantía automática: registra la cobertura de cada equipo serializado

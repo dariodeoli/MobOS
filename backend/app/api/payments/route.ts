@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       const paid = await tx.payment.aggregate({ where: { orderId: order.id, tenantId: tenant, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
       const confirmed = paid._sum.amountPyg || 0
       if (!Number.isSafeInteger(order.totalPyg) || order.totalPyg < 0 || order.totalPyg > INT_MAX || (status === 'CONFIRMED' && (!Number.isSafeInteger(confirmed + amount) || confirmed + amount > INT_MAX || confirmed + amount > order.totalPyg))) throw new Error('El pago supera el total de la venta.')
-      const payment = await tx.payment.create({ data: { ...normalized, tenantId: tenant, orderId: order.id, idempotencyKey } })
+      const payment = await tx.payment.create({ data: { ...normalized, tenantId: tenant, orderId: order.id, idempotencyKey, userId: session.user.id } })
       await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
       if (status === 'CONFIRMED' && confirmed + amount === order.totalPyg) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
       return payment
