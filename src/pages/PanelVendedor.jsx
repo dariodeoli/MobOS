@@ -37,7 +37,7 @@ const Inventario = lazy(() => import('@/components/control/Inventario'))
 const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
 const Vendedores = lazy(() => import('@/components/control/Vendedores'))
-const Garantias = lazy(() => import('@/components/control/Garantias'))
+const ServicioTecnico = lazy(() => import('@/components/control/ServicioTecnico'))
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
 
 // Navegación por flujo de trabajo: primero la operación del día, después el
@@ -81,7 +81,7 @@ const OWNER_NAV = [
       ['productos', 'Productos', 'phone'],
       ['compras', 'Compras', 'store'],
       ['tradein-admin', 'Trade-In', 'refresh'],
-      ['servicio', 'Garantías y servicio', 'phone'],
+      ['servicio', 'Servicio Técnico', 'refresh'],
     ],
   },
   {
@@ -129,7 +129,7 @@ const LABELS = {
   inventario: 'Inventario',
   compras: 'Compras',
   'tradein-admin': 'Trade-In',
-  servicio: 'Garantías y servicio',
+  servicio: 'Servicio Técnico',
 }
 
 const MESES = [
@@ -537,7 +537,7 @@ export default function PanelVendedor() {
           {esOwner && vista === 'inventario' && <Inventario />}
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
-          {esOwner && vista === 'servicio' && <Garantias />}
+          {esOwner && vista === 'servicio' && <ServicioTecnico />}
           {esOwner && vista === 'resumen' && <ResumenControl />}
           {esOwner && vista === 'analisis' && (
             <div>

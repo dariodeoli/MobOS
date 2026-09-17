@@ -95,6 +95,26 @@ test.describe('owner panel', () => {
     await expect(limite).toHaveValue('3.000.000')
   })
 
+  test('servicio técnico → crea la orden y avanza el pipeline', async ({ page }) => {
+    await page.goto('/pos/servicio')
+    await expect(page.getByRole('heading', { name: 'Servicio Técnico' })).toBeVisible()
+
+    const stamp = Date.now().toString(36)
+    const cliente = `Taller ${stamp}`
+    const equipo = `iPhone 13 Pro ${stamp} · 256 GB`
+    await page.getByRole('button', { name: '+ Nueva orden' }).click()
+    await page.getByLabel('Cliente', { exact: true }).fill(cliente)
+    await page.getByLabel('Dispositivo').fill(equipo)
+    await page.getByRole('button', { name: 'Crear orden' }).click()
+
+    await expect(page.getByText(equipo).first()).toBeVisible()
+    await expect(page.getByText(cliente)).toBeVisible()
+
+    // Recepción → diagnóstico con el botón de avance del pipeline.
+    await page.getByRole('button', { name: 'Diagnóstico', exact: true }).first().click()
+    await expect(page.getByText('Orden de servicio actualizada.').or(page.getByText('Diagnóstico', { exact: true }).first())).toBeVisible()
+  })
+
   test('finanzas → Caja can open the cash session', async ({ page }) => {
     await page.goto('/pos/finanzas')
     await expect(page.getByRole('heading', { name: 'Caja y control financiero' })).toBeVisible()

@@ -1424,3 +1424,32 @@ model WarrantyPhoto {
 
   @@index([tenantId, warrantyCaseId, createdAt])
 }
+
+// Orden de servicio técnico: recepción → diagnóstico → reparación → entrega,
+// con costos y rentabilidad. Los ids de sucursal/cliente/técnico se guardan
+// como texto para no acoplar el ciclo del taller a otras tablas.
+model ServiceOrder {
+  id             String    @id @default(cuid())
+  tenantId       String
+  branchId       String?
+  customerId     String?
+  customerName   String
+  device         String
+  serial         String?
+  reportedIssue  String?
+  diagnosis      String?
+  checklist      Json      @default("{}")
+  technicianId   String?
+  technicianName String?
+  status         String    @default("RECIBIDO")
+  pricePyg       Int       @default(0)
+  costPyg        Int       @default(0)
+  notes          String?
+  receivedAt     DateTime  @default(now())
+  deliveredAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+}
