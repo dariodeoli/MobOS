@@ -3,6 +3,7 @@ import { error } from '../../../../../../../../lib/http'
 import { requireSession } from '../../../../../../../../lib/auth'
 import { prisma } from '../../../../../../../../lib/prisma'
 import { canAccessOrder } from '../../../../../../../../lib/orders'
+import { readAttachment } from '../../../../../../../../lib/attachment-storage'
 import { safeDownloadName } from '../../../../../../../../app/api/payments/_lib'
 
 type RouteContext = { params: Promise<{ orderId: string; commentId: string; photoId: string }> }
@@ -16,14 +17,14 @@ export async function GET(request: Request, context: RouteContext) {
   const photo = await prisma.$transaction(async tx => {
     const found = await tx.orderCommentPhoto.findFirst({
       where: { id: photoId, commentId, tenantId: session.user.tenantId, comment: { orderId: order.id } },
-      select: { id: true, fileName: true, mimeType: true, sizeBytes: true, data: true },
+      select: { id: true, fileName: true, mimeType: true, sizeBytes: true, data: true, storageKey: true },
     })
     if (!found) return null
     await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'ORDER_COMMENT_PHOTO_DOWNLOADED', entity: 'OrderCommentPhoto', entityId: found.id, metadata: { orderId: order.id, sizeBytes: found.sizeBytes } } })
     return found
   })
   if (!photo) return error('Foto no encontrada.', 404)
-  return new NextResponse(new Uint8Array(photo.data), {
+  return new NextResponse(await readAttachment(photo), {
     status: 200,
     headers: {
       'Content-Type': photo.mimeType,

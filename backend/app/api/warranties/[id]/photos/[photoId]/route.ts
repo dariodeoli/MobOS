@@ -1,6 +1,7 @@
 import { error } from '../../../../../../lib/http'
 import { requireSession } from '../../../../../../lib/auth'
 import { prisma } from '../../../../../../lib/prisma'
+import { readAttachment } from '../../../../../../lib/attachment-storage'
 import { safeDownloadName } from '../../../../payments/_lib'
 
 type RouteContext = { params: { id: string; photoId: string } }
@@ -24,11 +25,11 @@ export async function GET(request: Request, { params }: RouteContext) {
         ...(session.user.role === 'GERENTE' ? { branchId: session.user.branchId ?? '' } : {}),
       },
     },
-    select: { data: true, fileName: true, mimeType: true, sizeBytes: true },
+    select: { data: true, storageKey: true, fileName: true, mimeType: true, sizeBytes: true },
   })
   if (!photo) return error('Foto no encontrada.', 404)
 
-  return new Response(new Uint8Array(photo.data), {
+  return new Response(await readAttachment(photo), {
     headers: {
       'Content-Type': photo.mimeType,
       'Content-Length': String(photo.sizeBytes),

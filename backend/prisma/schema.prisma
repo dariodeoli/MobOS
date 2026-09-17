@@ -767,17 +767,18 @@ model OrderComment {
 }
 
 model OrderCommentPhoto {
-  id        String       @id @default(cuid())
-  tenantId  String
-  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  commentId String
-  comment   OrderComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  fileName  String
-  mimeType  String
-  sizeBytes Int
-  sha256    String
-  data      Bytes        @db.ByteA
-  createdAt DateTime     @default(now())
+  id         String       @id @default(cuid())
+  tenantId   String
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  commentId  String
+  comment    OrderComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  sha256     String
+  data       Bytes        @db.ByteA
+  storageKey String?
+  createdAt  DateTime     @default(now())
 
   @@index([tenantId, commentId])
 }
@@ -800,17 +801,18 @@ model InventoryUnitComment {
 }
 
 model InventoryUnitCommentPhoto {
-  id        String               @id @default(cuid())
-  tenantId  String
-  tenant    Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  commentId String
-  comment   InventoryUnitComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  fileName  String
-  mimeType  String
-  sizeBytes Int
-  sha256    String
-  data      Bytes                @db.ByteA
-  createdAt DateTime             @default(now())
+  id         String               @id @default(cuid())
+  tenantId   String
+  tenant     Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  commentId  String
+  comment    InventoryUnitComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  sha256     String
+  data       Bytes                @db.ByteA
+  storageKey String?
+  createdAt  DateTime             @default(now())
 
   @@index([tenantId, commentId])
 }
@@ -971,6 +973,7 @@ model PaymentProof {
   sizeBytes    Int
   sha256       String
   data         Bytes    @db.ByteA
+  storageKey   String?
   uploadedById String
   uploadedBy   User     @relation("PaymentProofUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
   createdAt    DateTime @default(now())
@@ -1385,6 +1388,7 @@ model WarrantyPhoto {
   sizeBytes      Int
   sha256         String
   data           Bytes        @db.ByteA
+  storageKey     String?
   createdAt      DateTime     @default(now())
 
   @@index([tenantId, warrantyCaseId, createdAt])

@@ -1,6 +1,7 @@
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { prisma } from '../../../../../lib/prisma'
+import { saveAttachment } from '../../../../../lib/attachment-storage'
 import { findAccessiblePayment, MAX_MULTIPART_BODY_BYTES, readProofFile } from '../../_lib'
 
 type RouteContext = { params: { paymentId: string } }
@@ -59,6 +60,9 @@ export async function POST(request: Request, { params }: RouteContext) {
     return error('No se pudo leer el comprobante.', 400)
   }
 
+  // Write-through: si hay volumen configurado se guarda el archivo y en la
+  // base queda el storageKey; `data` se conserva como respaldo del adjunto.
+  const stored = await saveAttachment({ tenantId: session.user.tenantId, area: 'payment-proofs', fileName: file.fileName, mimeType: file.mimeType, sha256: file.sha256, data: file.data })
   const created = await prisma.$transaction(async tx => {
     const proof = await tx.paymentProof.create({
       data: {
@@ -69,6 +73,7 @@ export async function POST(request: Request, { params }: RouteContext) {
         sizeBytes: file.sizeBytes,
         sha256: file.sha256,
         data: file.data,
+        storageKey: stored.storageKey,
         uploadedById: session.user.id,
       },
       select: { id: true, fileName: true, mimeType: true, sizeBytes: true, sha256: true, createdAt: true, uploadedBy: { select: { id: true, name: true } } },

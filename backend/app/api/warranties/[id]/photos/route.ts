@@ -1,15 +1,18 @@
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { prisma } from '../../../../../lib/prisma'
+import { saveAttachment } from '../../../../../lib/attachment-storage'
 import { MAX_MULTIPART_BODY_BYTES, readProofFile } from '../../../payments/_lib'
 
 type RouteContext = { params: { id: string } }
 
 // Fotos de un caso de garantía. Mismo criterio que los comprobantes de pago:
-// multipart, MIME permitido, magic bytes, tamaño máximo y sha256. Las fotos
-// quedan guardadas en la base (ByteA) y el listado nunca devuelve bytes.
-// Alcance: igual que garantías: cargar es de ADMIN/GERENTE (GERENTE solo su
-// sucursal); listar está disponible para todos los roles menos VENDEDOR.
+// multipart, MIME permitido, magic bytes, tamaño máximo y sha256. Con volumen
+// configurado se guarda el archivo y en la base quedan los metadatos y el
+// storageKey (los bytes en `data` se conservan como respaldo); el listado nunca
+// devuelve bytes. Alcance: igual que garantías: cargar es de ADMIN/GERENTE
+// (GERENTE solo su sucursal); listar está disponible para todos los roles menos
+// VENDEDOR.
 
 async function findWarrantyCase(warrantyCaseId: string, session: { user: { tenantId: string; role: string; branchId: string | null } }) {
   const warrantyCase = await prisma.warrantyCase.findFirst({
@@ -71,6 +74,7 @@ export async function POST(request: Request, { params }: RouteContext) {
   }
 
   try {
+    const stored = await saveAttachment({ tenantId: session.user.tenantId, area: 'warranty-photos', fileName: file.fileName, mimeType: file.mimeType, sha256: file.sha256, data: file.data })
     const created = await prisma.$transaction(async tx => {
       const photo = await tx.warrantyPhoto.create({
         data: {
@@ -82,6 +86,7 @@ export async function POST(request: Request, { params }: RouteContext) {
           sizeBytes: file.sizeBytes,
           sha256: file.sha256,
           data: file.data,
+          storageKey: stored.storageKey,
         },
         select: { id: true, label: true, fileName: true, mimeType: true, sizeBytes: true, sha256: true, createdAt: true },
       })

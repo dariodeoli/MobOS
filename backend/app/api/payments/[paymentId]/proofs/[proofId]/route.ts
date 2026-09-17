@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { error } from '../../../../../../lib/http'
 import { requireSession } from '../../../../../../lib/auth'
 import { prisma } from '../../../../../../lib/prisma'
+import { readAttachment } from '../../../../../../lib/attachment-storage'
 import { findAccessiblePayment, safeDownloadName } from '../../../_lib'
 
 type RouteContext = { params: { paymentId: string; proofId: string } }
@@ -15,7 +16,7 @@ export async function GET(request: Request, { params }: RouteContext) {
   const proof = await prisma.$transaction(async tx => {
     const found = await tx.paymentProof.findFirst({
       where: { id: params.proofId, paymentId: payment.id, tenantId: session.user.tenantId },
-      select: { id: true, fileName: true, mimeType: true, sizeBytes: true, data: true },
+      select: { id: true, fileName: true, mimeType: true, sizeBytes: true, data: true, storageKey: true },
     })
     if (!found) return null
     await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'PAYMENT_PROOF_DOWNLOADED', entity: 'PaymentProof', entityId: found.id, metadata: { paymentId: payment.id, sizeBytes: found.sizeBytes } } })
@@ -23,7 +24,9 @@ export async function GET(request: Request, { params }: RouteContext) {
   })
   if (!proof) return error('Comprobante no encontrado.', 404)
 
-  return new NextResponse(new Uint8Array(proof.data), {
+  const bytes = await readAttachment(proof)
+
+  return new NextResponse(bytes, {
     status: 200,
     headers: {
       'Content-Type': proof.mimeType,
