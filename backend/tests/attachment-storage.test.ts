@@ -55,3 +55,22 @@ test('cae de vuelta a data cuando no hay storageKey o el archivo ya no existe', 
     await rm(dir, { recursive: true, force: true })
   }
 })
+
+test('adjunto genérico: separa por tenant y área, y conserva los bytes', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'mobos-attach-unit.'))
+  process.env.MOBOS_STORAGE_DIR = dir
+  const pngBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+  try {
+    const input = { area: 'attachments', fileName: 'factura-compra.png', mimeType: 'image/png', sha256: 'c'.repeat(64), data: pngBytes }
+    const first = await saveAttachment({ tenantId: 'tenant-a', ...input })
+    const other = await saveAttachment({ tenantId: 'tenant-b', ...input })
+    assert.ok(first.storageKey?.startsWith('tenant-a/attachments/'))
+    assert.ok(other.storageKey?.startsWith('tenant-b/attachments/'))
+    assert.notEqual(other.storageKey, first.storageKey)
+    assert.deepEqual(await readAttachment({ storageKey: first.storageKey, data: Uint8Array.from([0x00]) }), Uint8Array.from(pngBytes))
+    await deleteAttachment(first)
+    await assert.rejects(() => readFile(path.join(dir, first.storageKey!)))
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})

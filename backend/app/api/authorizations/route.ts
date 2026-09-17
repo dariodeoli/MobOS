@@ -179,11 +179,8 @@ export async function PATCH(request: Request) {
     const resolvedJson = action === 'approve' && current.kind !== 'WHOLESALE' ? (applied as Prisma.InputJsonValue) : null
 
     const updated = await prisma.$transaction(async tx => {
-<<<<<<< HEAD
       // DISCOUNT no toca la ficha del cliente (puede no tener cliente) y los
       // demás kinds solo aplican si la solicitud tiene cliente asociado.
-=======
->>>>>>> 5ca43a9 (feat(descuentos): autorizacion de descuentos fuera de politica para vendedores)
       if (action === 'approve' && current.customerId) {
         if (current.kind === 'WHOLESALE') {
           await tx.customer.update({ where: { id: current.customerId }, data: { pricingTier: 'WHOLESALE' } })
@@ -210,11 +207,7 @@ export async function PATCH(request: Request) {
       await tx.auditLog.create({ data: {
         tenantId: session.user.tenantId, userId: session.user.id,
         action: action === 'approve' ? 'CUSTOMER_AUTHORIZATION_APPROVED' : 'CUSTOMER_AUTHORIZATION_REJECTED',
-<<<<<<< HEAD
         entity: current.customerId ? 'Customer' : 'Order', entityId: current.customerId ?? 'discount',
-=======
-        entity: current.customerId ? 'Customer' : 'Order', entityId: current.customerId || 'discount',
->>>>>>> 5ca43a9 (feat(descuentos): autorizacion de descuentos fuera de politica para vendedores)
         metadata: {
           kind: current.kind,
           ...(current.requestedValue ? { requestedValue: current.requestedValue as Prisma.InputJsonValue } : {}),
