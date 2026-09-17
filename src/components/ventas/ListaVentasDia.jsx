@@ -208,14 +208,14 @@ export default function ListaVentasDia({
       ) : (
         <>
           {/* ── Tarjetas (móvil) ─────────────────────────────────── */}
-          <div className="divide-y divide-ink-600 xl:hidden">
+          <div className="space-y-2 p-4 xl:hidden">
             {grupos.map(g => {
               const v = g.items[0]
               const varios = g.items.length > 1
               const tot = g.items.reduce((a, x) => a + num(x.precio), 0)
               const pagado = v.estadoPago === 'Pagado'
               return (
-                <div key={g.key} className="px-5 py-4">
+                <div key={g.key} className="rounded-2xl border border-ink-600 bg-ink-800/30 px-4 py-3 transition hover:border-fono/40">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
@@ -242,6 +242,10 @@ export default function ListaVentasDia({
                       </span>
                     </div>
                   </div>
+                  {(g.items.some(item => Number(item.serialsPending || 0) > 0) || g.items.some(item => item.costPending === true)) && <div className="mt-1.5 flex flex-wrap gap-1.5 pl-4">
+                    {g.items.some(item => Number(item.serialsPending || 0) > 0) && <span className="rounded bg-warn/20 px-1.5 py-0.5 text-[10px] font-semibold text-warn">sin IMEI (sobre pedido)</span>}
+                    {g.items.some(item => item.costPending === true) && <span className="rounded bg-sky-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300">costo pendiente</span>}
+                  </div>}
                   <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-4">
                     <button
                       className="rounded-lg border border-fono/30 px-3 py-2 text-xs text-fono-light"
