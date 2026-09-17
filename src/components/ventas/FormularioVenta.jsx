@@ -1223,8 +1223,8 @@ export default function FormularioVenta({
           </div>
           {!esDemo && (
             <div>
-              <Label>PIN (4 dígitos)</Label>
-              <PinInput value={pinVend} onChange={setPinVend} />
+              <Label htmlFor="pin-vendedor">PIN (4 dígitos)</Label>
+              <PinInput id="pin-vendedor" value={pinVend} onChange={setPinVend} />
             </div>
           )}
           {errorVend && (

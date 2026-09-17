@@ -217,10 +217,11 @@ export default function PasoCobro({
         </Select>
       </div>
       <div>
-        <Label>
+        <Label htmlFor="monto-entrega">
           {f.entrega === 'Encomienda' ? 'Costo de la encomienda (₲)' : 'Monto del delivery (₲)'}
         </Label>
         <MoneyInput
+          id="monto-entrega"
           value={f.montoDelivery}
           onValueChange={v => setF(s => ({ ...s, montoDelivery: v }))}
           placeholder="0 si retira en tienda"
