@@ -12,6 +12,7 @@ import NumericKeypad from '@/components/shared/NumericKeypad'
 import { trackingUrlFor } from '@/components/shared/OrderReceipt'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { printPaymentReceipt, printOrderReceipt } from '@/components/shared/OrderReceipt'
+import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 
 // Enlace de WhatsApp para compartir el seguimiento público del pedido.
 export function whatsappTrackingLink(order, extra = '') {
@@ -156,7 +157,7 @@ export default function PagosPedido({ venta, onClose }) {
       if (tradeIn && (!device.serial.trim() || !device.model.trim() || !device.conditionNotes.trim())) throw new Error('Completá IMEI/serial, modelo y estado del teléfono recibido.')
       const details = account ? { accountId, originalAmount, exchangeRatePyg, currency: account.currency, accountSnapshot: { ...account }, tradeIn } : {}
       if (esDemo) {
-        const newPayment = { id: crypto.randomUUID(), ...details, method: account?.kind || method, medioPago: account?.name || METHODS[method], monto: value, amountPyg: value, cuenta: reference, fecha: new Date().toISOString(), reconciliationState: 'PENDING' }
+        const newPayment = { id: crypto.randomUUID(), ...details, method: account?.kind || method, medioPago: account?.name || ETIQUETAS_MEDIO_PAGO[method], monto: value, amountPyg: value, cuenta: reference, fecha: new Date().toISOString(), reconciliationState: 'PENDING' }
         await validateDemoTradeIns([newPayment])
         const updatedPayments = [...payments, newPayment]
         const paid = num(order.totalPagado) + value
@@ -271,7 +272,7 @@ export default function PagosPedido({ venta, onClose }) {
       {FOREIGN(account?.currency) && <div><label className="block text-xs text-mute">Cotización: Gs por {account.currency}<MoneyInput currency="USD" symbol="Gs." value={rate} onValueChange={setRate} placeholder="7500" /></label><button type="button" disabled={fxLoading || busy} onClick={fetchFx} className="mt-1 rounded-lg border border-fono/40 px-2 py-1 text-[11px] font-semibold text-fono-light disabled:opacity-40">{fxLoading ? 'Consultando BCP…' : 'Usar cotización BCP'}</button>{fx?.referencialDiario && <span className="ml-2 text-[11px] text-mute">BCP {fx.referencialDiario} · {fx.updated}</span>}</div>}
       {account && <label className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" checked={asPending} onChange={e => setAsPending(e.target.checked)} /> Queda pendiente (ej. Pix recibido en cuenta personal, se confirma al pasar a la empresa)</label>}
       {account?.kind === 'TRADE_IN' && <div className="space-y-2"><Input aria-label="IMEI o serial" placeholder="IMEI / serial" value={device.serial} onChange={e => setDevice(d => ({ ...d, serial: e.target.value }))} /><Input aria-label="Modelo recibido" placeholder="Modelo recibido" value={device.model} onChange={e => setDevice(d => ({ ...d, model: e.target.value }))} /><Input placeholder="Estado y observaciones" value={device.conditionNotes} onChange={e => setDevice(d => ({ ...d, conditionNotes: e.target.value }))} /></div>}
-      {!account && <label className="block text-xs text-mute">Método<Select className="mt-1" value={method} onChange={e => setMethod(e.target.value)}>{Object.entries(METHODS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></label>}
+      {!account && <label className="block text-xs text-mute">Método<Select className="mt-1" value={method} onChange={e => setMethod(e.target.value)}>{METODOS_PAGO.map(key => <option key={key} value={key}>{ETIQUETAS_MEDIO_PAGO[key]}</option>)}</Select></label>}
       <label className="block text-xs text-mute">Cuenta / referencia<Input value={reference} onChange={e => setReference(e.target.value)} maxLength={200} placeholder="Banco, cuenta o referencia de operación" /></label>
       <Button disabled={busy || needsRefresh} type="submit">{busy ? 'Guardando…' : 'Registrar pago'}</Button>
     </form>}
@@ -285,7 +286,7 @@ export default function PagosPedido({ venta, onClose }) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <strong className="text-base tabular-nums">{gs(p.monto)}</strong>
-            <Badge color="slate">{METHODS[p.medioPago] || p.medioPago}</Badge>
+            <Badge color="slate">{ETIQUETAS_MEDIO_PAGO[p.medioPago] || p.medioPago}</Badge>
             <Badge color={concTone}>{concLabel}</Badge>
             {p.dueAt && <Badge color="orange">Vence {new Date(p.dueAt).toLocaleDateString('es-PY')}</Badge>}
           </div>

@@ -53,7 +53,7 @@ export default function AuditoriaMedios() {
         {methods.map(row => (
           <article key={row.method} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold">{LABELS[row.method] || row.method}</p>
+              <p className="text-sm font-semibold">{ETIQUETAS_MEDIO_PAGO[row.method] || row.method}</p>
               <p className="text-xs text-mute">{row.count} cobro{row.count === 1 ? '' : 's'} confirmado{row.count === 1 ? '' : 's'}{row.pendingAmountPyg > 0 ? ` · ${formatGs(row.pendingAmountPyg)} pendiente` : ''}{row.refundedAmountPyg > 0 ? ` · ${formatGs(row.refundedAmountPyg)} reembolsado` : ''}</p>
             </div>
             <div className="flex items-center gap-3">

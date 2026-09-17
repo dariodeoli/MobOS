@@ -16,4 +16,7 @@ export const FULFILLMENT_LABELS = {
   IN_TRANSIT: 'En camino',
   READY_FOR_PICKUP: 'Listo para retirar',
   DELIVERED: 'Entregado',
+
+// Alias compatible con los imports previos (ETIQUETAS_MEDIO_PAGO).
+export const ETIQUETAS_MEDIO_PAGO = PAYMENT_METHOD_LABELS
 }
