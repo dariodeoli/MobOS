@@ -606,13 +606,15 @@ export default function PanelVendedor() {
                         ['identidad', 'Mi identidad'],
                         ['roles', 'Roles y permisos'],
                         ['historial', 'Historial'],
-                        ['configuracion', 'Negocio y seguridad'],
+                        ['configuracion', 'Negocio'],
+                        ['seguridad', 'Seguridad'],
                       ]
                     : [
                         ['vendedores', 'Equipo'],
                         ['identidad', 'Mi identidad'],
                         ['roles', 'Roles y permisos'],
-                        ['configuracion', 'Negocio y seguridad'],
+                        ['configuracion', 'Negocio'],
+                        ['seguridad', 'Seguridad'],
                       ]
                 }
               />
@@ -620,7 +622,8 @@ export default function PanelVendedor() {
               {equipoTab === 'identidad' && <MiIdentidad />}
               {equipoTab === 'roles' && <RolesPermisos />}
               {esDemo && equipoTab === 'historial' && <Historial />}
-              {equipoTab === 'configuracion' && <Config />}
+              {equipoTab === 'configuracion' && <Config seccion="negocio" />}
+              {equipoTab === 'seguridad' && <Config seccion="seguridad" />}
             </div>
           )}
           </Suspense>
