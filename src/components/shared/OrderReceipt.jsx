@@ -25,7 +25,7 @@ export const accessUrlFor = (token) => {
   return token && base ? `${base}/p/${encodeURIComponent(token)}` : ''
 }
 
-const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
+const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 
 // Hoja de estilos común para los tres comprobantes (A4 y térmico 80 mm).
 const styles = (thermal) => `

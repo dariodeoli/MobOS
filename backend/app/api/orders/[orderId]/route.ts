@@ -10,7 +10,12 @@ import { changeStock } from '../../../../lib/stock'
 
 const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
   items: true,
-  payments: true,
+  payments: {
+    include: {
+      proofs: { select: { id: true, fileName: true, mimeType: true, sizeBytes: true, createdAt: true }, orderBy: { createdAt: 'asc' } },
+      createdBy: { select: { id: true, name: true } },
+    },
+  },
   customer: { include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } },
   seller: { select: { id: true, name: true } },
 })

@@ -245,6 +245,7 @@ model User {
   customerNotes    CustomerNote[]
   customerFollowUps CustomerFollowUp[]
   customersCreated Customer[]      @relation("CustomerCreatedBy")
+  paymentsCreated Payment[]        @relation("PaymentCreatedBy")
   customerAuthorizationsRequested CustomerAuthorization[] @relation("CustomerAuthorizationRequestedBy")
   customerAuthorizationsResolved  CustomerAuthorization[] @relation("CustomerAuthorizationResolvedBy")
   commissionRules  CommissionRule[]
@@ -907,6 +908,7 @@ enum OrderStatus {
 enum FulfillmentStatus {
   PROCESSING
   IN_TRANSIT
+  READY_TO_SHIP
   READY_FOR_PICKUP
   DELIVERED
 }
@@ -1028,6 +1030,8 @@ model Payment {
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   orderId         String
   order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdById     String?
+  createdBy       User?            @relation("PaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   method          PaymentMethod
   status          PaymentStatus    @default(CONFIRMED)
   amountPyg       Int

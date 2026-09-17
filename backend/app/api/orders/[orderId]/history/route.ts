@@ -21,7 +21,7 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
     }),
     prisma.payment.findMany({
       where: { tenantId: tenant, orderId: order.id },
-      select: { id: true, method: true, status: true, amountPyg: true, reference: true, paidAt: true, createdAt: true, currency: true, originalAmount: true, settlesAt: true, accountSnapshot: true },
+      select: { id: true, method: true, status: true, amountPyg: true, reference: true, paidAt: true, createdAt: true, currency: true, originalAmount: true, settlesAt: true, accountSnapshot: true, createdBy: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
     }),
     prisma.orderComment.findMany({
@@ -33,7 +33,7 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
   const events = [
     { type: 'created', at: order.createdAt, id: `order-${order.id}` },
     ...audits.map(audit => ({ type: 'audit', at: audit.createdAt, id: audit.id, action: audit.action, metadata: audit.metadata, user: audit.user })),
-    ...payments.map(payment => ({ type: 'payment', at: payment.createdAt, id: payment.id, payment })),
+    ...payments.map(payment => ({ type: 'payment', at: payment.createdAt, id: payment.id, user: payment.createdBy || null, payment })),
     ...comments.map(comment => ({ type: 'comment', at: comment.createdAt, id: comment.id, body: comment.body, user: comment.user, photos: comment.photos })),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, 200)
   return json({ events })

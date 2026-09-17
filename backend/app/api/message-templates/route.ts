@@ -12,6 +12,7 @@ const CATEGORIES: Category[] = ['ORDERS', 'CUSTOMERS', 'SERVICE']
 const DEFAULTS: Record<Category, Array<[string, string, string]>> = {
   ORDERS: [
     ['ready_for_pickup', 'Pedido listo para retirar', 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya está listo para retirar en {{branch_name}}.'],
+    ['ready_to_ship', 'Pedido listo para enviar', 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya está listo para enviar.'],
     ['arrived_from_depot', 'Pedido llegó a sucursal', 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya llegó a {{branch_name}}. Te avisamos cuando esté listo para retirar.'],
     ['reservation', 'Reserva confirmada', 'Hola, {{customer_name}}. Reservamos tu pedido {{order_number}} hasta {{reservation_until}}.'],
   ],

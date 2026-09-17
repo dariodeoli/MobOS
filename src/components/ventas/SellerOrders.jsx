@@ -46,10 +46,10 @@ export const orderFields = (row) => {
     tags: Array.isArray(row.tags) ? row.tags : [], archivedAt: row.archivedAt || null,
   }
 }
-const FULFILLMENT = { PROCESSING: 'Preparando', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo p/ retirar', DELIVERED: 'Entregado' }
+const FULFILLMENT = { PROCESSING: 'Preparando', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo p/ enviar', READY_FOR_PICKUP: 'Listo p/ retirar', DELIVERED: 'Entregado' }
 const ENTREGA = { 'Retiro en tienda': 'Retiro', Delivery: 'Delivery', Encomienda: 'Encomienda' }
 const PAGO_ORDEN = { Pagado: 0, Parcial: 1, 'A crédito': 2, Pendiente: 3 }
-const ESTADO_ORDEN = { PROCESSING: 0, IN_TRANSIT: 1, READY_FOR_PICKUP: 2, DELIVERED: 3, CANCELLED: 4 }
+const ESTADO_ORDEN = { PROCESSING: 0, IN_TRANSIT: 1, READY_TO_SHIP: 2, READY_FOR_PICKUP: 3, DELIVERED: 4, CANCELLED: 5 }
 const FILTROS = [
   ['activos', 'Activos'], ['nopagados', 'No pagados'], ['pendientes', 'Pendientes'],
   ['parciales', 'Parciales'], ['credito', 'A crédito'], ['archivados', 'Archivados'], ['todos', 'Todos'],
@@ -103,9 +103,10 @@ function BadgePago({ row }) {
 function BadgeEstado({ row }) {
   if (estaCancelado(row)) return <span className="w-fit justify-self-start whitespace-nowrap rounded-md border border-bad/30 bg-bad/10 px-1.5 py-0.5 text-[10px] font-bold text-bad">Cancelado</span>
   const tono = row.fulfillmentStatus === 'DELIVERED' ? 'border-ok/25 bg-ok/10 text-ok'
-    : row.fulfillmentStatus === 'READY_FOR_PICKUP' ? 'border-warn/25 bg-warn/10 text-warn'
-      : row.fulfillmentStatus === 'IN_TRANSIT' ? 'border-fono/25 bg-fono/10 text-fono-light'
-        : 'border-ink-500 bg-ink-700/40 text-mute'
+    : row.fulfillmentStatus === 'READY_TO_SHIP' ? 'border-sky-400/25 bg-sky-400/10 text-sky-300'
+      : row.fulfillmentStatus === 'READY_FOR_PICKUP' ? 'border-warn/25 bg-warn/10 text-warn'
+        : row.fulfillmentStatus === 'IN_TRANSIT' ? 'border-fono/25 bg-fono/10 text-fono-light'
+          : 'border-ink-500 bg-ink-700/40 text-mute'
   return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', tono)}>{FULFILLMENT[row.fulfillmentStatus] || row.fulfillmentStatus || 'Preparando'}</span>
 }
 

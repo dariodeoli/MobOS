@@ -404,6 +404,8 @@ node "$BACKEND_ROOT/tests/payment-proofs.mjs" "$BASE_URL" "$TOKEN_A" "$PAYMENT_P
 out="$(response_file)"; request GET /api/orders 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_pending_payment "$out" IT-PENDING-001 || { echo "El pago pendiente confirmó o alteró incorrectamente la orden." >&2; exit 1; }
 node "$BACKEND_ROOT/tests/payment-retry.mjs" "$BASE_URL" "$TOKEN_A" "$PENDING_ORDER_ID"
+echo "8b/13 Trazabilidad: usuario del pago, comprobantes del pedido y READY_TO_SHIP..."
+node "$BACKEND_ROOT/tests/order-traceability.mjs" "$BASE_URL" "$TOKEN_A" "$PENDING_ORDER_ID" "$PAYMENT_PROOF_ID"
 
 echo "9/13 Pagos concurrentes no permiten sobrepagar..."
 out="$(response_file)"

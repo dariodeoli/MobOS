@@ -43,6 +43,16 @@ function relativeDate(value) {
   if (date.toDateString() === ayer.toDateString()) return `Ayer ${hora}`
   return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }) + ` ${hora}`
 }
+// Quién hizo el movimiento: el usuario real cuando existe; en pagos viejos
+// (sin creador guardado) cae al vendedor del pedido antes que a "Sistema".
+function nombreEvento(event, order) {
+  if (event?.user?.name) return event.user.name
+  if (event?.type === 'payment' || event?.type === 'created') return order?.seller?.name || 'Sistema'
+  return 'Sistema'
+}
+function nombrePago(pago, order) {
+  return pago?.createdBy?.name || order?.seller?.name || 'Sistema'
+}
 
 // Miniatura de una foto de comentario: se descarga con sesión y se muestra
 // como vignette; al hacer clic se abre el archivo.
@@ -172,6 +182,21 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const cambiarEntrega = (fulfillmentStatus) => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { fulfillmentStatus }), 'Entrega actualizada.')
   const alternarArchivado = () => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { action: archivado ? 'unarchive' : 'archive' }), archivado ? 'Pedido desarchivado.' : 'Pedido archivado.')
   const guardarTags = (next) => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { tags: next }), 'Etiquetas actualizadas.')
+  // Descarga autenticada del comprobante de un pago (el endpoint exige sesión):
+  // se pide el binario y se ofrece como archivo local, igual que en pagos.
+  async function descargarComprobante(paymentId, proof) {
+    try {
+      const response = await fetch(`${API_URL}/api/payments/${encodeURIComponent(paymentId)}/proofs/${encodeURIComponent(proof.id)}`, { credentials: 'include' })
+      if (!response.ok) throw new Error('No se pudo descargar el comprobante.')
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = proof.fileName || 'comprobante'
+      link.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (cause) { setError(cause?.message || 'No se pudo descargar el comprobante.') }
+  }
   async function enviarComentario(event) {
     event.preventDefault()
     if (subiendo || esDemo) return
@@ -197,7 +222,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
             <div className="flex flex-wrap items-center gap-2">
               <Badge color={PAYMENT_TONE(estadoPago)}>{estadoPago}</Badge>
-              <Badge color={order.fulfillmentStatus === 'DELIVERED' ? 'green' : order.fulfillmentStatus === 'READY_FOR_PICKUP' ? 'orange' : 'slate'}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Preparando'}</Badge>
+              <Badge color={order.fulfillmentStatus === 'DELIVERED' ? 'green' : order.fulfillmentStatus === 'READY_TO_SHIP' ? 'blue' : order.fulfillmentStatus === 'READY_FOR_PICKUP' ? 'orange' : 'slate'}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Preparando'}</Badge>
               {archivado && <Badge color="slate">Archivado</Badge>}
               {order.billingName && <Badge color="blue">Factura: {order.billingName}</Badge>}
             </div>
@@ -207,7 +232,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             {row.publicToken && !esDemo && <p className="mt-1 truncate font-mono text-[10px] text-mute">Token público: {row.publicToken}</p>}
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {!esDemo && <Select aria-label="Estado de entrega" className="max-w-[190px]" value={order.fulfillmentStatus || 'PROCESSING'} disabled={busy} onChange={event => cambiarEntrega(event.target.value)}>{Object.entries(FULFILLMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>}
-              {!esDemo && ['IN_TRANSIT', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
+              {!esDemo && ['IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
               {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
               {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
               <Button variant="outline" onClick={() => setComprobante(true)}>Imprimir comprobante</Button>
@@ -297,10 +322,32 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             {payments.length > 0 && <div className="mt-3 space-y-2 border-t border-ink-600 pt-3">
               {payments.map(pago => <div key={pago.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="text-mute">{ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method}{pago.accountSnapshot?.name ? ` · ${pago.accountSnapshot.name}` : ''}{pago.reference ? ` · ${pago.reference}` : ''}</span>
-                <span className="flex items-center gap-2"><span className="tabular-nums font-semibold"><Money value={Number(pago.amountPyg || 0)} /></span><Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status}</Badge>{pago.settlesAt && <span className="text-[10px] text-mute">acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
+                <span className="flex flex-wrap items-center gap-2"><span className="text-[10px] text-mute">Registrado por {nombrePago(pago, order)}</span><span className="tabular-nums font-semibold"><Money value={Number(pago.amountPyg || 0)} /></span><Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status}</Badge>{pago.settlesAt && <span className="text-[10px] text-mute">acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
               </div>)}
             </div>}
           </section>
+
+          {/* Comprobantes de pago: archivos adjuntos a cada cobro */}
+          {payments.some(pago => (pago.proofs || []).length > 0) && (
+            <section className="rounded-2xl border border-ink-600 p-4">
+              <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-mute"><Icon name="report" className="h-3.5 w-3.5" /> Comprobantes</h3>
+              <div className="mt-3 space-y-3">
+                {payments.filter(pago => (pago.proofs || []).length > 0).map(pago => (
+                  <div key={pago.id}>
+                    <p className="text-xs text-mute">{ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method} · <Money value={Number(pago.amountPyg || 0)} /></p>
+                    <ul className="mt-1 space-y-1">
+                      {(pago.proofs || []).map(proof => (
+                        <li key={proof.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2 text-xs">
+                          <span className="flex min-w-0 items-center gap-2"><Icon name="report" className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{proof.fileName}</span><span className="shrink-0 text-mute">{Math.max(1, Math.round((proof.sizeBytes || 0) / 1024))} KB</span></span>
+                          <button type="button" className="font-semibold text-fono-light hover:underline" onClick={() => descargarComprobante(pago.id, proof)}>Descargar</button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Cliente */}
           <section className="rounded-2xl border border-ink-600 p-4">
@@ -337,19 +384,22 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                   </div>
                 </form>
                 <div className="mt-4 space-y-4">
-                  {events.map(event => <article key={`${event.type}-${event.id}`} className="flex gap-3">
-                    <Avatar name={event.user?.name || 'Sistema'} size="sm" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold">{event.user?.name || 'Sistema'}<span className="ml-2 font-normal text-mute">{relativeDate(event.at)}</span></p>
-                      {event.type === 'comment' && <>
-                        <p className="mt-1 whitespace-pre-wrap text-sm">{event.body}</p>
-                        {(event.photos || []).length > 0 && <div className="mt-2 flex flex-wrap gap-2">{event.photos.map(photo => <PhotoThumb key={photo.id} orderId={order.id} commentId={event.id} photo={photo} />)}</div>}
-                      </>}
-                      {event.type === 'payment' && <p className="mt-1 text-sm text-mute">{ETIQUETAS_MEDIO_PAGO[event.payment.method] || event.payment.method} · <b className="text-fore"><Money value={Number(event.payment.amountPyg || 0)} /></b> · {PAYMENT_STATUS[event.payment.status] || event.payment.status}{event.payment.accountSnapshot?.name ? ` · ${event.payment.accountSnapshot.name}` : ''}{event.payment.reference ? ` · ${event.payment.reference}` : ''}</p>}
-                      {event.type === 'audit' && <p className="mt-1 text-sm text-mute">{AUDIT_LABELS[event.action]?.(event.metadata) || event.action}</p>}
-                      {event.type === 'created' && <p className="mt-1 text-sm text-mute">Pedido creado.</p>}
-                    </div>
-                  </article>)}
+                  {events.map(event => {
+                    const actor = nombreEvento(event, order)
+                    return <article key={`${event.type}-${event.id}`} className="flex gap-3">
+                      <Avatar name={actor} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold">{actor}<span className="ml-2 font-normal text-mute">{relativeDate(event.at)}</span></p>
+                        {event.type === 'comment' && <>
+                          <p className="mt-1 whitespace-pre-wrap text-sm">{event.body}</p>
+                          {(event.photos || []).length > 0 && <div className="mt-2 flex flex-wrap gap-2">{event.photos.map(photo => <PhotoThumb key={photo.id} orderId={order.id} commentId={event.id} photo={photo} />)}</div>}
+                        </>}
+                        {event.type === 'payment' && <p className="mt-1 text-sm text-mute">{ETIQUETAS_MEDIO_PAGO[event.payment.method] || event.payment.method} · <b className="text-fore"><Money value={Number(event.payment.amountPyg || 0)} /></b> · {PAYMENT_STATUS[event.payment.status] || event.payment.status}{event.payment.accountSnapshot?.name ? ` · ${event.payment.accountSnapshot.name}` : ''}{event.payment.reference ? ` · ${event.payment.reference}` : ''}</p>}
+                        {event.type === 'audit' && <p className="mt-1 text-sm text-mute">{AUDIT_LABELS[event.action]?.(event.metadata) || event.action}</p>}
+                        {event.type === 'created' && <p className="mt-1 text-sm text-mute">Pedido creado.</p>}
+                      </div>
+                    </article>
+                  })}
                   {!events.length && <p className="text-sm text-mute">Todavía no hay movimientos.</p>}
                 </div>
               </>

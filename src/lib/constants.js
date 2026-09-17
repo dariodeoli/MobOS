@@ -14,6 +14,7 @@ export const paymentMethodLabel = (value) => PAYMENT_METHOD_LABELS[value] || val
 export const FULFILLMENT_LABELS = {
   PROCESSING: 'Preparando',
   IN_TRANSIT: 'En camino',
+  READY_TO_SHIP: 'Listo p/ enviar',
   READY_FOR_PICKUP: 'Listo para retirar',
   DELIVERED: 'Entregado',
 }
