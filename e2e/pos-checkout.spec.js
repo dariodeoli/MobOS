@@ -32,11 +32,13 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await search.fill('Cable')
   const productCard = page.getByRole('button', { name: new RegExp(SEED.products.cable.name) })
   await expect(productCard).toBeVisible()
+  // Un clic agrega el producto a la lista de la venta.
   await productCard.click()
+  await expect(page.getByText('Seleccionados')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Agregar a la lista' }).click()
-  await expect(page.getByRole('button', { name: 'Revisar carrito', exact: true })).toBeEnabled()
-  await page.getByRole('button', { name: 'Revisar carrito', exact: true }).click()
+  // El botón del formulario (el lateral del resumen es otro acceso al mismo paso).
+  await expect(page.getByRole('button', { name: 'Revisar carrito', exact: true }).first()).toBeEnabled()
+  await page.getByRole('button', { name: 'Revisar carrito', exact: true }).first().click()
 
   // Step 2: cart review.
   await expect(page.getByText(SEED.products.cable.name).last()).toBeVisible()
@@ -87,6 +89,45 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(sale.getByText('Pagado', { exact: true })).toBeVisible()
 })
 
+// El país de la dirección se puede vaciar (no vuelve solo) y el resumen
+// lateral muestra el total de la venta y abre el carrito.
+test('POS clears the address country and the summary opens the cart', async ({ page }) => {
+  await page.goto('/pos/cargar')
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`${SEED.checkoutCustomer} pais ${Date.now().toString(36)}`)
+
+  await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
+  await page.getByRole('button', { name: '+ Dirección' }).click()
+  const pais = page.getByLabel('País', { exact: true })
+  await expect(pais).toHaveValue('Paraguay')
+  await pais.fill('')
+  await expect(pais).toHaveValue('')
+
+  await page.getByLabel('Buscar producto por texto').fill('Cable')
+  await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+  await expect(page.getByText('Total de esta venta')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Revisar carrito', exact: true }).last().click()
+  await expect(page.getByText('Productos de esta venta')).toBeVisible()
+})
+
+// Sin límite de productos: cada clic suma una fila a la venta y el total
+// se recalcula con los tres productos juntos.
+test('POS keeps every clicked product in the sale list', async ({ page }) => {
+  await page.goto('/pos/cargar')
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`${SEED.checkoutCustomer} tres ${Date.now().toString(36)}`)
+
+  const search = page.getByLabel('Buscar producto por texto')
+  const elegidos = [SEED.products.cable, SEED.products.funda, SEED.products.auris]
+  for (const producto of elegidos) {
+    await search.fill(producto.name)
+    await page.getByRole('button', { name: new RegExp(producto.name) }).click()
+    await expect(page.getByLabel(`Cantidad de ${producto.name}`)).toBeVisible()
+  }
+
+  const total = elegidos.reduce((sum, producto) => sum + producto.pricePyg, 0)
+  await expect(page.getByText(`Gs ${total.toLocaleString('es-PY')}`).first()).toBeVisible()
+})
+
 // Cliente: búsqueda por razón social de facturación, selección con marca
 // visible, precarga de la factura y "Quitar cliente" sin recargar la página.
 test('POS finds a customer by billing name, shows the selection and clears it', async ({ page }) => {
@@ -132,12 +173,11 @@ test('POS manual price below list stores the list price for the receipt', async 
   await page.getByLabel('Buscar producto por texto').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
 
-  // Precio manual 40.000 sobre lista 45.000: el POS marca el descuento.
-  await page.getByLabel('Precio de venta').fill('40000')
-  await expect(page.getByText('− Gs 5.000 de descuento')).toBeVisible()
+  // Precio manual 40.000 sobre lista 45.000: la fila marca el descuento.
+  await page.getByLabel(`Precio de venta de ${SEED.products.cable.name}`).fill('40000')
+  await expect(page.getByText('descuento − Gs 5.000')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Agregar a la lista' }).click()
-  await page.getByRole('button', { name: 'Revisar carrito', exact: true }).click()
+  await page.getByRole('button', { name: 'Revisar carrito', exact: true }).first().click()
   await page.getByRole('button', { name: 'Ir a cobrar' }).click()
 
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })

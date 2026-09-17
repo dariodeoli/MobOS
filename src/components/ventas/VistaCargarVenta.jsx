@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
-import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { useSesion } from '@/lib/sesion'
-import { listVentas, productosById } from '@/lib/storage'
+import { listVentas } from '@/lib/storage'
 import {
   ventasDelDia,
   totalesVendedor,
@@ -11,43 +10,8 @@ import {
   gs,
 } from '@/utils/calculos'
 import FormularioVenta from './FormularioVenta'
-import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
-import { EmptyState } from '@/components/ui'
 import { cn } from '@/lib/utils'
-
-const POR_PAGINA = 8
-// 'YYYY-MM-DD' -> 'DD/MM/YY'
-const fmtFecha = f => {
-  const [y, m, d] = (f || '').split('-')
-  return d ? `${d}/${m}/${y.slice(2)}` : '—'
-}
-const inicial = s => (s || '?').trim().charAt(0).toUpperCase()
-
-function PagosVenta({ venta }) {
-  const pagos = venta.pagos?.length ? venta.pagos : venta.payments || []
-  if (!pagos.length) return <MedioPago medio={venta.medioPago} alto="h-4" />
-  return (
-    <div className="space-y-1">
-      {pagos.map((p, i) => {
-        const cuenta = p.accountSnapshot
-        const kind = cuenta?.kind || p.method
-        if (cuenta || kind === 'TRADE_IN')
-          return (
-            <div key={p.id || i} className="text-xs text-mute">
-              <span className="font-medium">
-                {cuenta?.name || p.medioPago || ETIQUETAS_MEDIO_PAGO[kind] || 'Cuenta de pago'}
-              </span>
-              {kind && <span> · {ETIQUETAS_MEDIO_PAGO[kind] || kind}</span>}
-            </div>
-          )
-        return (
-          <MedioPago key={p.id || i} medio={p.medioPago || ETIQUETAS_MEDIO_PAGO[kind] || kind} alto="h-4" />
-        )
-      })}
-    </div>
-  )
-}
 
 function Caja({ className, children }) {
   return (
@@ -57,12 +21,41 @@ function Caja({ className, children }) {
   )
 }
 
-export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, onTradeInConsumed }) {
-  const { sesion, esDemo } = useSesion()
+// Total de la venta en curso: monto, cantidad de productos y acceso directo a
+// revisar el carrito sin tener que bajar por el formulario.
+function TotalVenta({ carrito, totalCompra, unidadesCarrito }) {
+  return (
+    <div className="rounded-[14px] border border-fono/40 bg-gradient-to-br from-fono-dark via-fono to-fono p-[18px]">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-onbrand/75">
+          Total de esta venta
+        </span>
+        <Icon name="cart" className="h-4 w-4 text-onbrand/80" />
+      </div>
+      <div className="mt-1.5 text-[28px] font-semibold tracking-tight tabular-nums text-onbrand">
+        {gs(totalCompra)}
+      </div>
+      <div className="mt-1.5 text-[11.5px] text-onbrand/75">
+        {carrito.items.length} {carrito.items.length === 1 ? 'producto' : 'productos'} ·{' '}
+        {unidadesCarrito} {unidadesCarrito === 1 ? 'unidad' : 'unidades'}
+      </div>
+      <button
+        type="button"
+        onClick={() => carrito.irARevisar?.()}
+        disabled={!carrito.puedeRevisar}
+        className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-onbrand/15 px-4 text-sm font-bold text-onbrand transition hover:bg-onbrand/25 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <Icon name="cart" className="h-4 w-4" />
+        Revisar carrito
+      </button>
+    </div>
+  )
+}
+
+export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed }) {
+  const { sesion } = useSesion()
   const ventas = listVentas()
-  const prods = productosById()
-  const [carrito, setCarrito] = useState({ items: [], quitar: null })
-  const [pagina, setPagina] = useState(1)
+  const [carrito, setCarrito] = useState({ items: [], quitar: null, irARevisar: null, puedeRevisar: false })
 
   const d = useMemo(() => {
     const hoy = ventasDelDia(ventas, fechaClave())
@@ -73,19 +66,10 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
     const cobrado = delVendedor.reduce((sum, v) => sum + cobradoDeVenta(v), 0)
     const pagadas = delVendedor.filter(v => v.estadoPago === 'Pagado').length
     const pendiente = Math.max(0, totalesVendedor(ventas, sesion?.vendedorId).hoy - cobrado)
-    // Las últimas cargadas, de la más reciente a la más vieja.
-    const ultimas = [...ventas]
-      .sort((a, b) => (b.creadoEn || '').localeCompare(a.creadoEn || ''))
-      .slice(0, 40)
-    // Número visible por venta, según el orden en que se fueron cargando.
-    const orden = [...ventas].sort((a, b) => (a.creadoEn || '').localeCompare(b.creadoEn || ''))
-    const nro = Object.fromEntries(orden.map((v, i) => [v.id, 1041 + i]))
     return {
       total,
       cant: hoy.length,
       ticket: hoy.length ? total / hoy.length : 0,
-      ultimas,
-      nro,
       cobrado,
       pendiente,
       pagadas,
@@ -93,17 +77,18 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
     }
   }, [ventas, sesion?.vendedorId])
 
-  const totalCompra = carrito.items.reduce((a, it) => a + it.precio, 0)
-  const paginas = Math.max(1, Math.ceil(d.ultimas.length / POR_PAGINA))
-  const pag = Math.min(pagina, paginas)
-  const filas = d.ultimas.slice((pag - 1) * POR_PAGINA, pag * POR_PAGINA)
-  const nombreProd = v => v.productoNombre || prods[v.productoId]?.nombre || '—'
+  const totalCompra = carrito.items.reduce((a, it) => a + it.precio * (it.quantity || 1), 0)
+  const unidadesCarrito = carrito.items.reduce((a, it) => a + (it.quantity || 1), 0)
 
   if (!sesion?.esPropietario)
     return (
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
         <div className="flex min-w-0 flex-col gap-5">
-          <FormularioVenta tradeInDraft={tradeInDraft} onTradeInConsumed={onTradeInConsumed} />
+          <FormularioVenta
+            onCarrito={setCarrito}
+            tradeInDraft={tradeInDraft}
+            onTradeInConsumed={onTradeInConsumed}
+          />
         </div>
         <div className="flex flex-col gap-4 xl:sticky xl:top-5">
           <Caja className="overflow-hidden">
@@ -135,6 +120,7 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
               </div>
             </div>
           </Caja>
+          <TotalVenta carrito={carrito} totalCompra={totalCompra} unidadesCarrito={unidadesCarrito} />
         </div>
       </div>
     )
@@ -144,162 +130,18 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
       {/* ── Columna principal ────────────────────────────────────── */}
       <div className="flex min-w-0 flex-col gap-5">
         <FormularioVenta
-          ocultarCarrito
           onCarrito={setCarrito}
           tradeInDraft={tradeInDraft}
           onTradeInConsumed={onTradeInConsumed}
         />
 
-        {/* Últimas cargadas */}
-        <Caja className="overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-fono/20 px-5 py-4">
-            <h2 className="font-semibold">Últimas cargadas</h2>
-            <span className="text-xs text-mute">
-              {d.ultimas.length === 0
-                ? 'Sin ventas'
-                : `Mostrando ${(pag - 1) * POR_PAGINA + 1} a ${Math.min(pag * POR_PAGINA, d.ultimas.length)} de ${d.ultimas.length}`}
-            </span>
-          </div>
-
-          {d.ultimas.length === 0 ? (
-            <EmptyState icon="receipt" title="Todavía no hay ventas cargadas." className="py-14" />
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-ink-600 text-left text-xs font-medium text-mute">
-                      <th className="px-5 py-3">N° venta</th>
-                      <th className="px-5 py-3">Fecha</th>
-                      <th className="px-5 py-3">Cliente</th>
-                      <th className="px-5 py-3">Producto</th>
-                      <th className="px-5 py-3 text-right">Precio</th>
-                      <th className="px-5 py-3">Medio de pago</th>
-                      <th className="px-5 py-3">Estado</th>
-                      <th className="px-5 py-3">Vendedor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filas.map(v => {
-                      const pagado = v.estadoPago === 'Pagado'
-                      return (
-                        <tr
-                          key={v.id}
-                          className="border-b border-ink-600/60 transition hover:bg-ink-700"
-                        >
-                          <td className="px-5 py-3 font-medium text-fono-light">
-                            VTA-{d.nro[v.id]}
-                          </td>
-                          <td className="whitespace-nowrap px-5 py-3 text-mute">
-                            <div className="tabular-nums">{fmtFecha(v.fecha)}</div>
-                            {v.creadoEn && (
-                              <div className="text-[11px] text-mute/70">
-                                {new Date(v.creadoEn).toLocaleTimeString('es-PY', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-2.5">
-                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink-600 text-xs font-semibold text-mute">
-                                {inicial(v.cliente)}
-                              </span>
-                              <span className="font-medium">{v.cliente || '—'}</span>
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 text-mute">
-                            {nombreProd(v)}
-                            {(() => { const serial = (v.items || []).flatMap(item => Array.isArray(item.serials) ? item.serials : []).pop(); return serial ? <span className="ml-2 rounded border border-ink-500 px-1.5 py-0.5 font-mono text-[10px] text-fono-light">••••{String(serial).slice(-4)}</span> : null })()}
-                          </td>
-                          <td className="px-5 py-3 text-right font-semibold tabular-nums">
-                            {gs(v.precio)}
-                          </td>
-                          <td className="px-5 py-3">
-                            <PagosVenta venta={v} />
-                          </td>
-                          <td className="px-5 py-3">
-                            <span
-                              className={cn(
-                                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
-                                pagado
-                                  ? 'border-ok/25 bg-ok/15 text-ok'
-                                  : 'border-bad/25 bg-bad/15 text-bad',
-                              )}
-                            >
-                              <span
-                                className={cn(
-                                  'h-1.5 w-1.5 rounded-full',
-                                  pagado ? 'bg-ok' : 'bg-bad',
-                                )}
-                              />
-                              {pagado
-                                ? 'Pagado'
-                                : v.estadoPago === 'Parcial'
-                                  ? `Parcial · ${gs(v.totalPendiente)} pendiente`
-                                  : 'Pendiente'}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3 text-mute">
-                            {v.seller?.name ||
-                              v.vendedorNombre ||
-                              (esDemo && v.vendedorId === sesion.vendedorId
-                                ? sesion.nombre
-                                : vendedoresById[v.vendedorId]) ||
-                              '—'}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {paginas > 1 && (
-                <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
-                  <button
-                    onClick={() => setPagina(p => Math.max(1, p - 1))}
-                    disabled={pag === 1}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-xs text-mute transition hover:text-fore disabled:opacity-30"
-                  >
-                    <Icon name="chevron" className="h-3.5 w-3.5 rotate-90" /> Anterior
-                  </button>
-                  <div className="flex gap-1">
-                    {Array.from({ length: paginas }, (_, i) => i + 1).map(n => (
-                      <button
-                        key={n}
-                        onClick={() => setPagina(n)}
-                        className={cn(
-                          'h-8 w-8 rounded-lg text-xs transition',
-                          n === pag
-                            ? 'bg-fono font-semibold text-onbrand'
-                            : 'text-mute hover:bg-ink-700 hover:text-fore',
-                        )}
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => setPagina(p => Math.min(paginas, p + 1))}
-                    disabled={pag === paginas}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-ink-500 px-3 text-xs text-mute transition hover:text-fore disabled:opacity-30"
-                  >
-                    Siguiente <Icon name="chevron" className="h-3.5 w-3.5 -rotate-90" />
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </Caja>
       </div>
 
       {/* ── Columna lateral ──────────────────────────────────────── */}
       <div className="flex flex-col gap-4 xl:sticky xl:top-5">
         {/* Esta compra */}
-        <Caja className="overflow-hidden shadow-xl shadow-black/10">
-          <div className="flex items-center justify-between gap-2 border-b border-fono/20 bg-fono/[.05] px-5 py-4">
+        <Caja className="flex max-h-[70vh] flex-col overflow-hidden shadow-xl shadow-black/10 xl:max-h-[calc(100dvh-18rem)]">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-fono/20 bg-fono/[.05] px-5 py-4">
             <span className="font-semibold tracking-tight">Resumen de compra</span>
             <span className="text-xs text-mute">
               {carrito.items.length} {carrito.items.length === 1 ? 'producto' : 'productos'}
@@ -311,7 +153,7 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
             </p>
           ) : (
             <>
-              <div className="divide-y divide-ink-600">
+              <div className="min-h-0 flex-1 divide-y divide-ink-600 overflow-y-auto">
                 {carrito.items.map(it => (
                   <div key={it.key} className="flex items-center justify-between gap-2 px-5 py-2.5">
                     <span className="min-w-0 truncate text-sm">
@@ -337,7 +179,7 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
                   </div>
                 ))}
               </div>
-              <div className="flex items-center justify-between border-t border-fono/20 px-5 py-3">
+              <div className="flex shrink-0 items-center justify-between border-t border-fono/20 px-5 py-3">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-mute">
                   Total
                 </span>
@@ -347,25 +189,14 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
           )}
         </Caja>
 
-        {/* Acumulado del día */}
-        <div className="rounded-[14px] border border-fono/40 bg-gradient-to-br from-fono-dark via-fono to-fono p-[18px]">
-          <div className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-onbrand/75">
-            Acumulado del día
-          </div>
-          <div className="mt-1.5 text-[28px] font-semibold tracking-tight tabular-nums text-onbrand">
-            {gs(d.total)}
-          </div>
-          <div className="mt-1.5 text-[11.5px] text-onbrand/75">
-            {d.cant} {d.cant === 1 ? 'venta' : 'ventas'} · ticket {gs(d.ticket)}
-          </div>
-        </div>
+        <TotalVenta carrito={carrito} totalCompra={totalCompra} unidadesCarrito={unidadesCarrito} />
 
         {/* Ayuda */}
         <div className="flex gap-2.5 rounded-[14px] border border-fono/25 bg-fono/[.07] p-4">
           <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0 text-fono-light" />
           <p className="text-xs leading-relaxed text-mute">
-            Si el cliente lleva varios productos, agregalos a la lista antes de guardar: quedan
-            agrupados como una sola compra y el envío se cobra una vez.
+            Cargá el cliente y agregá los productos: el total y la lista se arman solos. Antes de
+            guardar, revisá el carrito para cobrar todo junto.
           </p>
         </div>
       </div>
