@@ -64,7 +64,7 @@ export function PasswordInput({ className, ...props }) {
 // PIN de 4 dígitos: campo compacto y centrado tipo código, con animación de
 // foco y avance automático al completar. Diseñado para no ocupar el ancho
 // completo del formulario.
-export function PinInput({ value, onChange, onComplete, autoFocus = false, inputRef, ariaLabel = 'PIN de 4 dígitos', className, id }) {
+export function PinInput({ value, onChange, onComplete, autoFocus = false, disabled = false, inputRef, ariaLabel = 'PIN de 4 dígitos', className, id }) {
   return (
     <input
       ref={inputRef}
@@ -75,6 +75,7 @@ export function PinInput({ value, onChange, onComplete, autoFocus = false, input
       maxLength={4}
       value={value}
       autoFocus={autoFocus}
+      disabled={disabled}
       onChange={(event) => {
         const next = event.target.value.replace(/\D/g, '').slice(0, 4)
         onChange(next)

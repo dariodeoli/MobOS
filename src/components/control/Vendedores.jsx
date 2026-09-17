@@ -207,7 +207,7 @@ function SeccionComisiones() {
         </div>
         <div className="sm:w-36">
           <span className="block text-[10px] font-bold uppercase text-mute mb-1">% comisión</span>
-          <Input inputMode="numeric" min={0} max={100} value={nueva.percentPyg} onChange={event => setNueva({ ...nueva, percentPyg: event.target.value.replace(/\D/g, '').slice(0, 3) })} placeholder="0" required />
+          <Input inputMode="decimal" value={nueva.percentPyg} onChange={event => setNueva({ ...nueva, percentPyg: event.target.value.replace(/[^\d.,]/g, '').slice(0, 6) })} placeholder="0" required />
         </div>
         <Button type="submit" disabled={ocupado}>{ocupado ? 'Guardando…' : 'Agregar regla'}</Button>
       </form>
@@ -227,7 +227,7 @@ function SeccionComisiones() {
               <div className="flex shrink-0 items-center gap-2">
                 {editandoId === regla.id ? (
                   <>
-                    <Input inputMode="numeric" value={borrador} onChange={event => setBorrador(event.target.value.replace(/\D/g, '').slice(0, 3))} className="h-8 w-20 px-2 text-right text-sm" aria-label="Porcentaje de comisión" />
+                    <Input inputMode="decimal" value={borrador} onChange={event => setBorrador(event.target.value.replace(/[^\d.,]/g, '').slice(0, 6))} className="h-8 w-20 px-2 text-right text-sm" aria-label="Porcentaje de comisión" />
                     <Button type="button" variant="success" disabled={ocupado} className="h-8 px-2 text-xs" onClick={() => guardar(regla)}>Guardar</Button>
                     <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setEditandoId(null)}>Cancelar</Button>
                   </>

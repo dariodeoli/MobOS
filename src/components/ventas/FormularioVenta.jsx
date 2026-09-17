@@ -28,6 +28,7 @@ import {
   Input,
   Label,
   Modal,
+  PinInput,
 } from '@/components/ui'
 import SelectorColor from './SelectorColor'
 import Icon from '@/components/shared/Icon'
@@ -1256,14 +1257,7 @@ export default function FormularioVenta({
           {!esDemo && (
             <div>
               <Label>PIN (4 dígitos)</Label>
-              <Input
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-                value={pinVend}
-                onChange={e => setPinVend(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="Ej. 2468"
-              />
+              <PinInput value={pinVend} onChange={setPinVend} />
             </div>
           )}
           {errorVend && (

@@ -1,6 +1,7 @@
 import { Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
+import SerialField from '@/components/shared/SerialField'
 
 const decimal = (value) => {
   const text = String(value ?? '').trim().replace(',', '.')
@@ -57,7 +58,7 @@ export default function PaymentAccountFields({ payment, accounts, onChange }) {
     {FOREIGN(account?.currency) && <div><Label>Cotización manual (₲ por {account.currency})</Label><MoneyInput aria-label={`Cotización manual ${account.currency} a PYG`} currency="USD" symbol="Gs." value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v })} placeholder="Ingresar cotización" /></div>}
     <p className="rounded-lg border border-fono/20 bg-fono/5 px-3 py-2 text-sm sm:col-span-2">Equivalente: <b className="tabular-nums text-fore">{gs(Number(payment.monto) || 0)}</b></p>
     {account?.kind === 'TRADE_IN' && <>
-      <div><Label>Serial / IMEI del canje *</Label><Input aria-label="Serial del canje" value={payment.tradeIn?.serial || ''} onChange={(e) => onChange({ tradeIn: { ...payment.tradeIn, serial: e.target.value } })} /></div>
+      <div><Label>Serial / IMEI del canje *</Label><SerialField aria-label="Serial del canje" value={payment.tradeIn?.serial || ''} onChange={(value) => onChange({ tradeIn: { ...payment.tradeIn, serial: value } })} /></div>
       <div><Label>Modelo del canje *</Label><Input aria-label="Modelo del canje" value={payment.tradeIn?.model || ''} onChange={(e) => onChange({ tradeIn: { ...payment.tradeIn, model: e.target.value } })} /></div>
       <div className="sm:col-span-2"><Label>Condición del equipo recibido *</Label><Textarea aria-label="Condición del equipo recibido (obligatoria)" aria-required="true" rows={2} value={payment.tradeIn?.conditionNotes || ''} onChange={(e) => onChange({ tradeIn: { ...payment.tradeIn, conditionNotes: e.target.value } })} /></div>
     </>}

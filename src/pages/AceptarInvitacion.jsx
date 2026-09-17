@@ -2,31 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { consumeActionToken } from '@/lib/actionToken'
-import { Button, Card, Label } from '@/components/ui'
+import { Button, Card, Label, PinInput } from '@/components/ui'
 import ProductFooter from '@/components/app/ProductFooter'
-
-function PinBox({ id, value, onChange, onComplete, autoFocus, inputRef }) {
-  return (
-    <input
-      ref={inputRef}
-      id={id}
-      type="text"
-      inputMode="numeric"
-      autoComplete="new-password"
-      maxLength={4}
-      value={value}
-      autoFocus={autoFocus}
-      onChange={(event) => {
-        const next = event.target.value.replace(/\D/g, '').slice(0, 4)
-        onChange(next)
-        if (next.length === 4) onComplete?.()
-      }}
-      className="mx-auto block h-20 w-48 rounded-2xl border border-ink-500 bg-paper text-center text-4xl font-bold tracking-[.5em] text-fore shadow-card transition-all duration-150 placeholder:text-mute/50 focus:scale-105 focus:border-fono focus:ring-2 focus:ring-fono/30 focus:outline-none"
-      placeholder="••••"
-      aria-label={id === 'invite-pin' ? 'PIN de 4 dígitos' : 'Repetir PIN'}
-    />
-  )
-}
 
 export default function AceptarInvitacion() {
   const [token] = useState(() => consumeActionToken())
@@ -83,11 +60,11 @@ export default function AceptarInvitacion() {
           <form id="invite-form" onSubmit={submit} className="mt-6 space-y-5">
             <div>
               <Label htmlFor="invite-pin">PIN de 4 dígitos</Label>
-              <PinBox id="invite-pin" autoFocus value={pin} onChange={(next) => { setPin(next); setError('') }} onComplete={() => confirmRef.current?.focus()} />
+              <PinInput id="invite-pin" autoFocus value={pin} onChange={(next) => { setPin(next); setError('') }} onComplete={() => confirmRef.current?.focus()} />
             </div>
             <div>
               <Label htmlFor="invite-pin-confirm">Repetir PIN</Label>
-              <PinBox id="invite-pin-confirm" inputRef={confirmRef} value={confirm} onChange={(next) => { setConfirm(next); setError('') }} />
+              <PinInput id="invite-pin-confirm" inputRef={confirmRef} ariaLabel="Repetir PIN" value={confirm} onChange={(next) => { setConfirm(next); setError('') }} />
             </div>
             {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
             {message && <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{message}</p>}

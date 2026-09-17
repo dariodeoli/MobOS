@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { gs } from '@/utils/calculos'
 import { Button, Input, MoneyInput, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import SerialField from '@/components/shared/SerialField'
 import { SellerSection } from './SellerData'
 import SellerPromotions from './SellerPromotions'
 
@@ -20,7 +21,7 @@ export default function SellerTools({ vista, onCargarVenta }) {
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block space-y-1.5 text-xs text-mute">Modelo y capacidad<Input required maxLength={150} value={model} onChange={(event) => setModel(event.target.value)} placeholder="Ej. iPhone 13 128GB" /></label>
-        <label className="block space-y-1.5 text-xs text-mute">IMEI / serial<Input required maxLength={100} value={imei} onChange={(event) => setImei(event.target.value)} placeholder="35…" /></label>
+        <label className="block space-y-1.5 text-xs text-mute">IMEI / serial<SerialField required value={imei} onChange={setImei} placeholder="35…" /></label>
       </div>
       <label className="block space-y-1.5 text-xs text-mute">Condición del equipo recibido<Textarea required maxLength={2000} value={conditionNotes} onChange={(event) => setConditionNotes(event.target.value)} placeholder="Estado, accesorios y reparaciones pendientes" /></label>
       <div className="grid gap-3 sm:grid-cols-2 sm:items-end">

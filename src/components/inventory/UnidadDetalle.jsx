@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Drawer, Badge, Button, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import AttachmentInput from '@/components/shared/AttachmentInput'
 import { api, API_URL } from '@/lib/api/client'
 
 const statusLabel = { AVAILABLE: 'Disponible', RESERVED: 'Reservado', SOLD: 'Vendido', DEFECTIVE: 'En revisión', IN_TRANSIT: 'En tránsito' }
@@ -143,7 +144,7 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, on
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-ink-500 px-3 py-1.5 text-xs text-mute transition hover:border-fono hover:text-fore">
                     <Icon name="image" className="h-3.5 w-3.5" />{adjunto ? adjunto.name : 'Adjuntar foto o PDF'}
-                    <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={event => setAdjunto(event.target.files?.[0] || null)} />
+                    <AttachmentInput inputRef={fileRef} className="hidden" onSelect={file => { setAdjunto(file); setError('') }} onError={setError} />
                   </label>
                   <Button type="submit" disabled={subiendo || (!comentario.trim() && !adjunto)}>{subiendo ? 'Enviando…' : 'Comentar'}</Button>
                 </div>

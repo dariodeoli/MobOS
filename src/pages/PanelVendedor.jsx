@@ -11,7 +11,7 @@ import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
 import GlobalSearch from '@/components/app/GlobalSearch'
-import { Button, ConfirmDialog, Eyebrow, Modal, PasswordInput, PinInput, Skeleton, useToast } from '@/components/ui'
+import { Button, ConfirmDialog, Eyebrow, Modal, PinInput, Skeleton, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
@@ -721,17 +721,13 @@ export default function PanelVendedor() {
                 <p className="mt-2 text-sm text-mute">
                   Ingresá tu PIN de 4 dígitos para volver a la operación.
                 </p>
-                <PasswordInput
+                <PinInput
                   id="lock-pin"
                   autoFocus
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={lockPin}
                   disabled={lockBusy}
-                  onChange={event => {
-                    setLockPin(event.target.value.replace(/\D/g, '').slice(0, 4))
-                  }}
-                  className="mt-5 h-14 w-full rounded-xl border border-fore/10 bg-paper text-center text-3xl tracking-[.5em] outline-none focus:border-fono-dark"
+                  value={lockPin}
+                  onChange={next => setLockPin(next)}
+                  className="mt-5"
                 />
                 {lockError && (
                   <p role="alert" className="mt-3 text-sm text-red-300">

@@ -138,7 +138,7 @@ export default function ListaVentasDia({
               <p className="mt-1 text-xs text-mute">Faltan {item.serialsPending} IMEI/serial(es).</p>
             </div>
           ))}
-          <label className="block text-xs text-mute">IMEI / seriales (uno por línea)<Textarea aria-label="IMEI a agregar" rows={3} value={attachInput} onChange={event => setAttachInput(event.target.value)} placeholder={'359614543668631\n359614543779123'} /></label>
+          <label className="block text-xs text-mute">IMEI / seriales (uno por línea)<Textarea aria-label="IMEI a agregar" rows={3} value={attachInput} onChange={event => setAttachInput(event.target.value)} autoCapitalize="characters" placeholder={'359614543668631\n359614543779123'} /></label>
           {attachError && <p role="alert" className="text-sm text-bad">{attachError}</p>}
           <Button type="button" disabled={attachBusy} onClick={guardarImeis}>{attachBusy ? 'Guardando…' : 'Agregar IMEI'}</Button>
         </div>

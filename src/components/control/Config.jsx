@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
-import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, PasswordInput, useToast } from '@/components/ui'
+import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, PasswordInput, PinInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
@@ -374,18 +374,7 @@ function SeccionInvitaciones() {
       <Modal open={elegida !== null} onClose={() => !busy && setElegida(null)} title={`Unite a ${elegida?.companyName || 'la tienda'}`} className="max-w-sm">
         <form onSubmit={aceptar} className="space-y-4">
           <p className="text-sm text-mute">Elegí tu PIN de 4 dígitos para entrar a esta tienda. Podés usar el mismo que en tu tienda actual.</p>
-          <input
-            type="text"
-            inputMode="numeric"
-            autoComplete="new-password"
-            maxLength={4}
-            autoFocus
-            value={pin}
-            onChange={(event) => { setPin(event.target.value.replace(/\D/g, '').slice(0, 4)); setError('') }}
-            placeholder="••••"
-            aria-label="PIN de 4 dígitos"
-            className="mx-auto block h-20 w-48 rounded-2xl border border-ink-500 bg-paper text-center text-4xl font-bold tracking-[.5em] text-fore shadow-card transition-all duration-150 placeholder:text-mute/50 focus:scale-105 focus:border-fono focus:ring-2 focus:ring-fono/30 focus:outline-none"
-          />
+          <PinInput autoFocus value={pin} onChange={(next) => { setPin(next); setError('') }} />
           {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
           <Button type="submit" className="w-full" disabled={busy || pin.length !== 4}>{busy ? 'Aceptando…' : 'Aceptar invitación'}</Button>
         </form>
