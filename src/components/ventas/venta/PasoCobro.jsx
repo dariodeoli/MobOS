@@ -4,6 +4,7 @@ import SelectorMedioPago from '@/components/shared/SelectorMedioPago'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 import { cn } from '@/lib/utils'
 import { gs } from '@/utils/calculos'
+import { capitalizarPrimera } from '@/utils/texto'
 import { ENTREGA } from '@/lib/catalog'
 import PaymentAccountFields, { updateAccountPayment } from '../PaymentAccountFields'
 
@@ -232,7 +233,7 @@ export default function PasoCobro({
         <Textarea
           rows={1}
           value={f.observacion}
-          onChange={set('observacion')}
+          onChange={event => setF(current => ({ ...current, observacion: capitalizarPrimera(event.target.value) }))}
           placeholder="Notas, color, envío vía encomienda, etc."
           autoCapitalize="sentences"
         />
