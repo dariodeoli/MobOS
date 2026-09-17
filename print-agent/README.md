@@ -73,6 +73,31 @@ con `127.0.0.1` (es el propio navegador protegiendo al usuario). Se acepta una
 vez por navegador y listo. En Safari puede no estar disponible: en ese caso la
 app cae al diálogo de impresión de siempre.
 
+## Puente de impresión (varias computadoras y móviles)
+
+Una sola Mac siempre encendida queda como **puente**: es la única que conoce la
+impresora y las demás le mandan los trabajos.
+
+```
+Computadoras y móviles (misma red)  →  Mac puente (agente)  →  ZKP8008 (USB o LAN)
+```
+
+- En la **Mac puente**: dejá \`http://127.0.0.1:17890\` y su token.
+- En las **demás computadoras y móviles**: Configuración → Impresoras → *Dirección del agente* =
+  \`http://<IP-de-la-Mac-puente>:17890\`, con el mismo token. En móviles, además, el navegador pide
+  una vez el permiso de red local.
+- Reservá **IP fija** para la Mac puente y para la impresora en el router
+  (por ejemplo Mac \`192.168.100.20\`, impresora \`192.168.100.23\`) y que ambas estén en la misma subred.
+- El agente escucha en toda la red (\`MOBOS_PRINT_HOST=0.0.0.0\`, por defecto). Para que sea solo de
+  esta computadora, poné \`MOBOS_PRINT_HOST=127.0.0.1\`.
+- macOS va a pedir permiso de **Firewall** la primera vez que el agente acepte conexiones entrantes.
+
+### Cola centralizada (opcional, para usuarios remotos)
+
+Si además querés imprimir desde fuera del local o desde datos móviles, el próximo paso es que MobOS
+guarde el trabajo en el backend y la Mac puente lo retire sola (cola en el servidor). Mientras tanto,
+el modo puente de arriba cubre todas las computadoras y móviles que estén en la misma red del local.
+
 ## Endpoints del agente
 
 | Método | Ruta | Para qué |

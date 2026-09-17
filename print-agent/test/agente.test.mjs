@@ -32,6 +32,7 @@ function impresoraFalsa(puerto) {
   return new Promise((resolve) => {
     servidor.listen(puerto, '127.0.0.1', () => resolve({
       recibido,
+      conDatos: () => recibido.filter((buffer) => buffer.length > 0),
       cerrar: () => new Promise((listo) => servidor.close(listo)),
     }))
   })
@@ -129,6 +130,6 @@ test('el agente imprime al toque cuando la impresora está disponible', async (t
   }).then((r) => r.json())
   assert.equal(respuesta.ok, true)
   assert.equal(respuesta.encolado, false)
-  assert.ok(await esperar(() => impresora.recibido.length > 0))
-  assert.equal(impresora.recibido[0].toString(), 'TICKET')
+  assert.ok(await esperar(() => impresora.conDatos().length > 0))
+  assert.equal(impresora.conDatos()[0].toString(), 'TICKET')
 })

@@ -135,8 +135,13 @@ const servidor = createServer(async (request, response) => {
   }
 })
 
-servidor.listen(config.puerto, '127.0.0.1', () => {
-  console.log(`MobOS Print ${VERSION} escuchando en http://127.0.0.1:${config.puerto}`)
+servidor.listen(config.puerto, config.host, async () => {
+  console.log(`MobOS Print ${VERSION} escuchando en http://${config.host}:${config.puerto}`)
   console.log(`Token: ${config.token}`)
   console.log(config.impresora ? `Impresora: ${config.impresora}` : 'Sin impresora elegida: configurala desde Configuración → Impresoras.')
+  if (config.host === '0.0.0.0') {
+    const { interfaces } = await diagnosticoRed(config.impresora)
+    for (const ip of interfaces) console.log(`Puente de impresión: http://${ip}:${config.puerto} (poné esta dirección en las demás computadoras y móviles)`)
+    console.log('Si macOS pregunta si Node puede aceptar conexiones entrantes, aceptá (Firewall).')
+  }
 })

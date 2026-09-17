@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Badge, Button, Card, Eyebrow, FormField, Input, Select, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
-import { configImpresora, estadoAgente, guardarConfigImpresora, imprimirTicketDirecto } from '@/lib/printing/agent'
+import { URL_AGENTE, configImpresora, estadoAgente, guardarConfigImpresora, imprimirTicketDirecto } from '@/lib/printing/agent'
 import { ticketPrueba } from '@/lib/printing/tickets'
 
 // Impresoras: conecta la app con el agente local (print-agent) que imprime
@@ -28,7 +28,7 @@ export default function Impresoras() {
   useEffect(() => { consultar() }, [consultar])
 
   function guardar() {
-    const siguiente = guardarConfigImpresora({ impresora: config.impresora.trim(), ancho: Number(config.ancho), copias: Number(config.copias), token: config.token.trim() })
+    const siguiente = guardarConfigImpresora({ url: config.url.trim() || URL_AGENTE, impresora: config.impresora.trim(), ancho: Number(config.ancho), copias: Number(config.copias), token: config.token.trim() })
     setConfig(siguiente)
     toast.success('Impresora guardada', siguiente.impresora || 'Elegí una impresora para imprimir directo.')
   }
@@ -112,6 +112,10 @@ export default function Impresoras() {
           <h2 className="font-semibold">Impresora y formato</h2>
           <p className="mt-1 text-sm text-mute">Destino LAN como <b className="text-fore">lan:192.168.1.23:9100</b> o USB como <b className="text-fore">usb:NombreDeLaCola</b>. La térmica ya viene configurada en <b className="text-fore">192.168.1.23</b> con cortador automático: solo tiene que estar en la misma red que esta computadora.</p>
         </div>
+        <FormField label="Dirección del agente" htmlFor="impresora-agente">
+          <Input id="impresora-agente" value={config.url} onChange={event => setConfig(actual => ({ ...actual, url: event.target.value }))} placeholder="http://127.0.0.1:17890" autoCapitalize="off" spellCheck={false} />
+        </FormField>
+        <p className="text-xs text-mute">En la computadora puente dejá <b className="text-fore">http://127.0.0.1:17890</b>. En las demás computadoras y móviles, poné la IP de esa Mac en la misma red (por ejemplo <b className="text-fore">http://192.168.100.20:17890</b>): así todas imprimen por el puente.</p>
         <FormField label="Destino" htmlFor="impresora-destino">
           <Input id="impresora-destino" list="impresoras-detectadas" value={config.impresora} onChange={event => setConfig(actual => ({ ...actual, impresora: event.target.value }))} placeholder="lan:192.168.1.23:9100" autoCapitalize="off" spellCheck={false} />
         </FormField>

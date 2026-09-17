@@ -14,6 +14,9 @@ export function cargarConfig() {
   try { guardado = JSON.parse(readFileSync(RUTA_CONFIG, 'utf8')) || {} } catch { guardado = {} }
   const config = {
     puerto: Number(guardado.puerto) || Number(process.env.MOBOS_PRINT_PORT) || 17890,
+    // 0.0.0.0 = acepta conexiones de la red (modo puente de impresión);
+    // 127.0.0.1 = solo esta computadora.
+    host: String(guardado.host || process.env.MOBOS_PRINT_HOST || '0.0.0.0'),
     token: String(guardado.token || randomUUID().replace(/-/g, '').slice(0, 24)),
     impresora: String(guardado.impresora || ''),
     ancho: Number(guardado.ancho) === 80 ? 80 : 58, // sin configurar, 58 mm (el rollo del local)

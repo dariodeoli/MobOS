@@ -84,6 +84,12 @@ if [[ -f "$CONFIG" ]]; then
   "$NODE" -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).token || '')" "$CONFIG"
 fi
 
+IP_LAN="$(ipconfig getifaddr "$(route -n get default 2>/dev/null | awk '/interface:/{print $2; exit}')" 2>/dev/null || true)"
+echo
+echo "Puente de impresión (esta Mac):"
+echo "  En esta computadora:  http://127.0.0.1:17890"
+[[ -n "$IP_LAN" ]] && echo "  En las demás computadoras y móviles (misma red): http://${IP_LAN}:17890"
+echo "  Si macOS pregunta si Node puede aceptar conexiones entrantes, aceptá (Firewall)."
 echo
 echo "Red: la Mac y la impresora tienen que estar en la misma subred."
 if command -v nc >/dev/null 2>&1 && nc -z -G 2 "$IMPRESORA" "$PUERTO" >/dev/null 2>&1; then
