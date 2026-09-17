@@ -12,6 +12,7 @@ import {
 import FormularioVenta from './FormularioVenta'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
+import { serialEnmascarado } from '@/utils/serial'
 
 function Caja({ className, children }) {
   return (
@@ -160,7 +161,7 @@ export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed }) {
                       {it.nombre}
                       {it.serials?.length > 0 && (
                         <small className="ml-2 text-xs text-fono-light">
-                          ••••{it.serials[0].slice(-4)}
+                          {serialEnmascarado(it.serials[0])}
                         </small>
                       )}
                     </span>

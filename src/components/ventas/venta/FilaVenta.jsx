@@ -5,6 +5,7 @@ import PercentField from '@/components/shared/PercentField'
 import { api } from '@/lib/api/client'
 import { quoteDemoPromotion } from '@/lib/demoPromotions'
 import { gs } from '@/utils/calculos'
+import { serialEnmascarado } from '@/utils/serial'
 
 // Fila editable de la venta: cantidad, precio de venta, color/variante, IMEI,
 // descuento de línea y cupón en un solo lugar. El total se recalcula en el
@@ -73,7 +74,7 @@ export default function FilaVenta({
             <b className="truncate text-sm">{item.nombre}</b>
             {item.couponCode && <Badge color="green">Cupón {item.couponCode}</Badge>}
             {item.serials?.length > 0 && (
-              <Badge color="blue">IMEI ••••{item.serials[0].slice(-4)}</Badge>
+              <Badge color="blue">IMEI {serialEnmascarado(item.serials[0])}</Badge>
             )}
             {item.sobrePedido && <Badge color="orange">Sobre pedido</Badge>}
             {item.soldWithoutInsurance && <Badge color="slate">Sin seguro</Badge>}

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { Badge, Button, Skeleton } from '@/components/ui'
+import SerialTexto from '@/components/shared/SerialTexto'
+import { serialEnmascarado } from '@/utils/serial'
 
 const normalize = (value = '') => String(value).trim().replace(/^MOBOS:/i, '').replace(/[\s-]+/g, '').toUpperCase()
 
@@ -57,14 +59,14 @@ export default function SerialUnitPicker({ product, customerName, selectedSerial
   return <section className="mt-3 rounded-2xl border border-fono/25 bg-fono/[.04] p-3" aria-label="Unidad física para esta venta">
     <div className="flex flex-wrap items-start justify-between gap-2">
       <div><p className="text-sm font-semibold">Equipo físico / IMEI</p><p className="mt-0.5 text-xs text-mute">Elegí y reservá la unidad exacta. La reserva dura 60 minutos.</p></div>
-      <Badge color={selectedSerials.length ? 'green' : 'orange'}>{selectedSerials.length ? `IMEI ••••${selectedSerials[0].slice(-4)}` : 'Requerido'}</Badge>
+      <Badge color={selectedSerials.length ? 'green' : 'orange'}>{selectedSerials.length ? `IMEI ${serialEnmascarado(selectedSerials[0])}` : 'Requerido'}</Badge>
     </div>
     <div className="mt-3 space-y-1.5">{units.map(unit => {
       const selected = selectedSerials.includes(normalize(unit.serial))
       const available = unit.status === 'AVAILABLE' || selected
       return <div key={unit.id} className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 transition ${selected ? 'border-ok/40 bg-ok/10' : 'border-ink-600 hover:border-fono/30'}`}>
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-mono text-[12px]">IMEI {String(unit.serial).slice(0, -4)}<b className="text-fono-light">{String(unit.serial).slice(-4)}</b></span>
+          <span className="flex min-w-0 items-baseline gap-1 text-[12px]"><span className="shrink-0">IMEI</span><SerialTexto serial={unit.serial} className="truncate text-mute" tonoCola="font-bold text-fono-light" /></span>
           <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-mute">
             <Badge color={unit.condition === 'USED' ? 'orange' : 'green'}>{unit.condition === 'USED' ? 'Seminuevo' : 'Nuevo'}</Badge>
             {unit.batteryHealth ? <span>{unit.batteryHealth}%</span> : null}

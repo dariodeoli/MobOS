@@ -7,6 +7,8 @@ import { codigoPedido } from '@/utils/pedido'
 import { normalizarBusqueda, nombreCortoCliente } from '@/utils/cliente'
 import { Input } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import SerialTexto from '@/components/shared/SerialTexto'
+import { ultimos4 } from '@/utils/serial'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import PedidoDetalle from './PedidoDetalle'
 
@@ -110,20 +112,13 @@ function BadgeEstado({ row }) {
 // Serial/IMEI: completo cuando entra; si la columna queda corta se recorta la
 // cabeza y los últimos 4 caracteres siguen siempre visibles y destacados.
 function CeldaSerial({ serial }) {
-  if (!serial) return <span className="text-[11px] text-mute">—</span>
-  const texto = String(serial)
-  return (
-    <span className="flex min-w-0 items-baseline font-mono text-[11px]" title={texto}>
-      <span className="min-w-0 truncate text-mute">{texto.slice(0, -4)}</span>
-      <span className="shrink-0 font-bold text-fono-light">{texto.slice(-4)}</span>
-    </span>
-  )
+  return <SerialTexto serial={serial} className="text-[11px] text-mute" tonoCola="font-bold text-fono-light" />
 }
 
 const buscable = (row) => normalizarBusqueda([
   row.number, String(row.number).replace(/\D/g, ''), row.customer, row.billingName, row.billingDocument,
   row.document, row.email, row.phone, row.notes, (row.tags || []).join(' '), row.products,
-  row.seriales.join(' '), row.seriales.map(serial => String(serial).slice(-4)).join(' '), String(row.total),
+  row.seriales.join(' '), row.seriales.map(serial => ultimos4(serial)).join(' '), String(row.total),
 ].filter(Boolean).join(' '))
 
 function FilaPedido({ row, onClick }) {
