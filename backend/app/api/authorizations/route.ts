@@ -143,7 +143,9 @@ export async function PATCH(request: Request) {
     const resolvedJson = action === 'approve' && current.kind !== 'WHOLESALE' ? (applied as Prisma.InputJsonValue) : null
 
     const updated = await prisma.$transaction(async tx => {
-      if (action === 'approve') {
+      // DISCOUNT no toca la ficha del cliente (puede no tener cliente) y los
+      // demás kinds solo aplican si la solicitud tiene cliente asociado.
+      if (action === 'approve' && current.customerId) {
         if (current.kind === 'WHOLESALE') {
           await tx.customer.update({ where: { id: current.customerId }, data: { pricingTier: 'WHOLESALE' } })
         } else if (current.kind === 'CREDIT') {
@@ -151,7 +153,7 @@ export async function PATCH(request: Request) {
             ...(applied.creditLimitPyg === undefined ? {} : { creditLimitPyg: applied.creditLimitPyg }),
             ...(applied.creditDays === undefined ? {} : { creditDays: applied.creditDays }),
           } })
-        } else {
+        } else if (current.kind === 'CREDIT_DAYS') {
           await tx.customer.update({ where: { id: current.customerId }, data: { ...(applied.creditDays === undefined ? {} : { creditDays: applied.creditDays }) } })
         }
       }
@@ -169,7 +171,7 @@ export async function PATCH(request: Request) {
       await tx.auditLog.create({ data: {
         tenantId: session.user.tenantId, userId: session.user.id,
         action: action === 'approve' ? 'CUSTOMER_AUTHORIZATION_APPROVED' : 'CUSTOMER_AUTHORIZATION_REJECTED',
-        entity: 'Customer', entityId: current.customerId,
+        entity: current.customerId ? 'Customer' : 'Order', entityId: current.customerId ?? 'discount',
         metadata: {
           kind: current.kind,
           ...(current.requestedValue ? { requestedValue: current.requestedValue as Prisma.InputJsonValue } : {}),

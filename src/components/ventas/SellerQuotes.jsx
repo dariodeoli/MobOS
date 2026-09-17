@@ -13,6 +13,7 @@ import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 
 const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPTED: ['Aceptada', 'orange'], CONVERTED: ['Convertida', 'green'], EXPIRED: ['Vencida', 'red'], CANCELLED: ['Cancelada', 'slate'] }
 // Chips de estado resueltos en el servidor (mismo patrón que Pedidos).
+const ABIERTAS = ['DRAFT', 'SENT', 'ACCEPTED']
 const FILTROS = [['todas', 'Todas'], ['abiertas', 'Abiertas'], ['DRAFT', 'Borrador'], ['SENT', 'Enviada'], ['ACCEPTED', 'Aceptada'], ['CONVERTED', 'Convertida']]
 const identity = row => row
 const demoQuotes = () => []

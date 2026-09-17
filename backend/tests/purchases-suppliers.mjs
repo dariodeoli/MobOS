@@ -127,4 +127,31 @@ if (sellerToken) {
   assert.equal(result.response.status, 403, 'VENDEDOR no debe ver el detalle de la compra.')
 }
 
-console.log('purchases-suppliers: checks OK (proveedor ampliado, anticipos con límite, balance y costos auditados).')
+// 11. Cronología del producto: alta, compra del catálogo y alcance del vendedor.
+result = await request(`/api/products/${productA.payload.id}/history`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+const productEvents = result.payload.events
+assert.ok(Array.isArray(productEvents) && productEvents.length > 0, 'La cronología del producto debe traer eventos.')
+assert.ok(productEvents.every(event => event.id && event.type && event.action && event.createdAt && 'detail' in event && 'user' in event), 'Los eventos deben respetar el shape {id, type, action, createdAt, user, detail}.')
+assert.ok(productEvents.some(event => event.type === 'product' && event.action === 'Producto creado'), 'Falta el alta del producto en la cronología.')
+assert.ok(productEvents.some(event => event.type === 'purchase' && event.detail.includes(supplier.name)), 'Falta la compra del producto en la cronología.')
+if (sellerToken) {
+  result = await request(`/api/products/${productA.payload.id}/history`, 'GET', undefined, sellerToken)
+  assert.equal(result.response.status, 200, 'VENDEDOR debe ver la cronología de un producto de su sucursal.')
+}
+
+// 12. Cronología del proveedor: compra, pagos, ficha y alcance del vendedor.
+result = await request(`/api/suppliers/${supplier.id}/history`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+const supplierEvents = result.payload.events
+assert.ok(Array.isArray(supplierEvents) && supplierEvents.length > 0, 'La cronología del proveedor debe traer eventos.')
+assert.ok(supplierEvents.every(event => event.id && event.type && event.action && event.createdAt && 'detail' in event && 'user' in event), 'Los eventos deben respetar el shape {id, type, action, createdAt, user, detail}.')
+assert.ok(supplierEvents.some(event => event.type === 'purchase' && event.detail.includes('Gs')), 'La compra creada debe aparecer en la cronología del proveedor.')
+assert.ok(supplierEvents.some(event => event.type === 'payment'), 'Los pagos al proveedor deben aparecer en la cronología.')
+assert.ok(supplierEvents.some(event => event.type === 'supplier' && event.action === 'Proveedor creado'), 'Falta el alta del proveedor en la cronología.')
+if (sellerToken) {
+  result = await request(`/api/suppliers/${supplier.id}/history`, 'GET', undefined, sellerToken)
+  assert.equal(result.response.status, 403, 'VENDEDOR no debe ver la cronología del proveedor.')
+}
+
+console.log('purchases-suppliers: checks OK (proveedor ampliado, anticipos con límite, balance, costos auditados y cronologías de producto/proveedor).')
