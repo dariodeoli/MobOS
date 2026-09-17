@@ -1,5 +1,13 @@
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/i
 
+// Extrae el token de acción de un enlace completo pegado (incluido el enlace
+// de tracking de los relays de correo: el token de 64 hex viaja sin codificar
+// dentro de la URL). Devuelve '' si no encuentra ninguno.
+export function extractTokenFromUrl(raw = '') {
+  const match = String(raw).match(/[a-f0-9]{64}/i)
+  return match ? match[0] : ''
+}
+
 // El token de acción viaja en el PATH (/aceptar-invitacion/<token>), inmune a
 // los redirects de tracking de los relays de correo. Se mantiene la
 // compatibilidad con el fragmento (#token=...) y con el query legacy

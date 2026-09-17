@@ -4,9 +4,10 @@ import { api } from '@/lib/api'
 import { consumeActionToken } from '@/lib/actionToken'
 import { Button, Card, Label, PinInput } from '@/components/ui'
 import ProductFooter from '@/components/app/ProductFooter'
+import PegarEnlaceToken from '@/components/shared/PegarEnlaceToken'
 
 export default function AceptarInvitacion() {
-  const [token] = useState(() => consumeActionToken())
+  const [token, setToken] = useState(() => consumeActionToken())
   const [pin, setPin] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
@@ -20,7 +21,7 @@ export default function AceptarInvitacion() {
 
   const submit = useCallback(async function submit(event) {
     event.preventDefault(); setError(''); setMessage('')
-    if (!/^[a-f0-9]{64}$/i.test(token)) return setError('La invitación no es válida. Pedí que te la reenvíen desde Configuración → Equipo.')
+    if (!/^[a-f0-9]{64}$/i.test(token)) return setError('Pegá el enlace completo de tu correo para continuar.')
     if (!/^\d{4}$/.test(pin)) return setError('Elegí un PIN de exactamente 4 dígitos.')
     if (pin !== confirm) return setError('Los PIN no coinciden.')
     setSaving(true)
@@ -57,6 +58,9 @@ export default function AceptarInvitacion() {
           <p className="mt-2 text-sm leading-6 text-mute">
             Elegí tu propio PIN de acceso. Tu invitación no contiene contraseñas ni PIN temporales.
           </p>
+          {!/^[a-f0-9]{64}$/i.test(token) ? (
+            <PegarEnlaceToken onToken={(nuevo) => { setToken(nuevo); setError('') }} />
+          ) : (
           <form id="invite-form" onSubmit={submit} className="mt-6 space-y-5">
             <div>
               <Label htmlFor="invite-pin">PIN de 4 dígitos</Label>
@@ -72,6 +76,7 @@ export default function AceptarInvitacion() {
               {saving ? 'Aceptando…' : 'Aceptar invitación'}
             </Button>
           </form>
+          )}
           <Link to="/login" className="mt-5 inline-flex min-h-11 items-center text-sm font-semibold text-fono-dark hover:text-fore">
             Ir al acceso
           </Link>
