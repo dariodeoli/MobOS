@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
 import { getProductos, modoDatosActual } from '@/lib/storage'
@@ -206,7 +207,8 @@ export default function Inventario() {
       setUnits(nextUnits); setRemovedUnits(nextRemoved); setReservations(nextReservations); setTransfers(nextTransfers); setLocations(nextLocations); setBranches(nextBranches); setProducts(getProductos())
     } catch (cause) { setError(cause?.message || 'No se pudo actualizar el inventario.') } finally { setBusy(false) }
   }, [apiMode])
-  useEffect(() => { refresh('') }, [refresh])
+  const busquedaDiferida = useBusquedaDiferida(query)
+  useEffect(() => { refresh(busquedaDiferida) }, [refresh, busquedaDiferida])
   useEffect(() => { if (detalleUnidad) setDetalleUnidad(current => units.find(unit => unit.id === current.id) || current) }, [units]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!apiMode || tab !== 'compartido') return undefined
@@ -251,7 +253,7 @@ export default function Inventario() {
   const grantedIds = useMemo(() => new Set(grants.filter(grant => grant.isActive).map(grant => grant.recipientTenant?.id).filter(Boolean)), [grants])
   const receivedBySource = useMemo(() => receivedStock.reduce((acc, row) => { const key = row.sourceTenant || 'Otra empresa'; (acc[key] ||= []).push(row); return acc }, {}), [receivedStock])
   const setAndRefresh = async (operation, success) => { setBusy(true); setError(''); setNotice(''); try { await operation(); setNotice(success); await refresh(query); } catch (cause) { setError(cause?.message || 'No se pudo guardar.') } finally { setBusy(false) } }
-  async function search(event) { event.preventDefault(); await refresh(query) }
+  async function search(event) { event.preventDefault(); await refresh(busquedaDiferida) }
   async function verify(unit) { await setAndRefresh(() => resources.inventoryUnits.verify({ serial: unit.serial }), `IMEI ${unit.serial.slice(-4)} verificado.`) }
   async function receiveUnit(event) { event.preventDefault(); const lineas = receive.serial.split(/[\n,;]+/).map(normalizeScan).filter(Boolean); const ubicacion = lineas.find((linea) => linea.startsWith('UBI:')); const ubicacionValida = ubicacion && locations.some((location) => location.id === ubicacion.slice(4) && location.branchId === receive.branchId); if (ubicacionValida) setReceive((data) => ({ ...data, locationId: ubicacion.slice(4) })); const serials = lineas.filter((linea) => !linea.startsWith('UBI:')); if (!serials.length) { setError('Indicá al menos un IMEI/serial.'); return } const locationId = ubicacionValida ? ubicacion.slice(4) : receive.locationId; await setAndRefresh(async () => { await resources.inventoryUnits.create({ ...receive, locationId: locationId || null, ...(serials.length === 1 ? { serial: serials[0] } : { serials }), batteryHealth: receive.batteryHealth === '' ? undefined : Number(receive.batteryHealth), costPyg: receive.costPyg === '' ? undefined : Number(receive.costPyg) }); setReceive({ productId: '', serial: '', branchId: '', locationId: '', condition: 'NEW', batteryHealth: '', supplierName: '', costPyg: '', notes: '' }); setReceiveOpen(false) }, `${serials.length} ${serials.length === 1 ? 'unidad recibida' : 'unidades recibidas'} y stock actualizado.`) }
   async function createReservation(event) {

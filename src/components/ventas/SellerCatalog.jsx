@@ -6,6 +6,7 @@ import { Badge, Button, Input, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
+import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import ProductoDetalle from '@/components/productos/ProductoDetalle'
 import ListGridToggle from '@/components/shared/ListGridToggle'
 import ComboManager from '@/components/productos/ComboManager'
@@ -68,6 +69,7 @@ export default function SellerCatalog() {
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState('')
+  const busquedaDiferida = useBusquedaDiferida(query)
   const [categoria, setCategoria] = useState('todas')
   const [condicion, setCondicion] = useState('todas')
   const [soloStock, setSoloStock] = useState(false)
@@ -75,6 +77,7 @@ export default function SellerCatalog() {
   const [seleccion, setSeleccion] = useState(null)
   const [combosOpen, setCombosOpen] = useState(false)
   const searchRef = useRef(null)
+  useEffect(() => { setSearch(busquedaDiferida.trim()) }, [busquedaDiferida])
   const data = useSellerData(`/api/products?q=${encodeURIComponent(search)}`, productFields, demoProducts, esDemo)
   const canManage = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE'].includes(sesion?.rol) || ['ADMIN', 'GERENTE'].includes(usuario?.role))
   const rows = useMemo(() => {
@@ -104,7 +107,7 @@ export default function SellerCatalog() {
   }
   return <SellerSection title="Productos" description="Catálogo de consulta y edición: precio, mayorista, stock y equipos por IMEI.">
     <div className="flex flex-wrap items-center gap-2">
-      <form className="flex min-w-[220px] flex-1 gap-2" onSubmit={(event) => { event.preventDefault(); setSearch(query.trim()); data.refresh() }}>
+      <form className="flex min-w-[220px] flex-1 gap-2" onSubmit={(event) => { event.preventDefault(); setSearch(busquedaDiferida.trim()) }}>
         <div className="relative min-w-0 flex-1">
           <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
           <Input ref={searchRef} aria-label="Buscar productos" className="pl-9" placeholder="Nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />

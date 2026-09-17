@@ -39,6 +39,7 @@ function filasParaImportar(texto) {
   }).filter((row) => row.name || row.phone)
 }
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
+import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import CustomerCommunicationCard from '@/components/customers/CustomerCommunicationCard'
 import ClientesTabla from '@/components/customers/ClientesTabla'
 import CustomerProfile from '@/components/customers/CustomerProfile'
@@ -66,6 +67,7 @@ export default function SellerCustomers() {
   const { esDemo } = useSesion()
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState('')
+  const busquedaDiferida = useBusquedaDiferida(query)
   const [form, setForm] = useState(emptyCustomer)
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
@@ -86,6 +88,7 @@ export default function SellerCustomers() {
   const [orden, setOrden] = useState('recientes')
   const [resumen, setResumen] = useState(null)
   const nombreRef = useRef(null)
+  useEffect(() => { setSearch(busquedaDiferida.trim()) }, [busquedaDiferida])
   const data = useSellerData(`/api/customers?q=${encodeURIComponent(search)}`, customerFields, readDemoCustomers, esDemo)
   const templateData = useSellerData('/api/message-templates', templateFields, readDemoTemplates, esDemo)
   const rows = esDemo ? data.rows.filter((row) => coincideCliente(row, search)) : data.rows
@@ -182,7 +185,7 @@ export default function SellerCustomers() {
 
   return <SellerSection title="Clientes" description={esDemo ? 'Demo local: ingresá únicamente datos ficticios.' : 'Buscá por nombre o teléfono. La API devuelve hasta 50 coincidencias.'}>
     <div className="flex flex-wrap items-center gap-2">
-      <form onSubmit={(event) => { event.preventDefault(); setSearch(query.trim()); data.refresh() }} className="flex min-w-0 flex-1 gap-2">
+      <form onSubmit={(event) => { event.preventDefault(); setSearch(busquedaDiferida.trim()) }} className="flex min-w-0 flex-1 gap-2">
         <Input aria-label="Buscar clientes" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre o teléfono" />
         <Button>Buscar</Button>
       </form>
