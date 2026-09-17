@@ -38,4 +38,4 @@ export function telefonoValido(value, countryCode = '+595') {
   return local.length >= 6 && local.length <= 12
 }
 
-export const MENSAJE_TELEFONO = 'Teléfono inválido. Para Paraguay usá un móvil de 9 dígitos, ej: 0981 123 456 o +595 971 234567.'
+export const MENSAJE_TELEFONO = 'Teléfono inválido. Para Paraguay usá un móvil de 9 dígitos, ej: 981 123 456 o +595 971 234567.'

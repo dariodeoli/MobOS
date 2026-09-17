@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Input } from '@/components/ui'
 import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 
@@ -45,12 +46,15 @@ export default function PhoneField({
   onChange,
   onCountryCodeChange,
   disabled = false,
-  placeholder = '0981 123 456',
+  placeholder = '981 123 456',
   countryAriaLabel = 'Código de país',
   phoneAriaLabel = 'Teléfono',
   className,
 }) {
-  const invalido = Boolean(phone.trim()) && !telefonoValido(phone, countryCode)
+  // El mensaje aparece recién cuando el usuario sale del campo (touched):
+  // mientras escribe no lo interrumpimos.
+  const [tocado, setTocado] = useState(false)
+  const invalido = tocado && Boolean(phone.trim()) && !telefonoValido(phone, countryCode)
   return (
     <div className={className}>
       <div className="flex gap-2">
@@ -75,6 +79,7 @@ export default function PhoneField({
           onChange={(event) => onChange?.(soloNumero(event.target.value))}
           placeholder={placeholder}
           aria-label={phoneAriaLabel}
+          onBlur={() => setTocado(true)}
           className="min-w-0 flex-1"
         />
       </div>
