@@ -144,7 +144,6 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
       {/* ── Columna principal ────────────────────────────────────── */}
       <div className="flex min-w-0 flex-col gap-5">
         <FormularioVenta
-          ocultarCarrito
           onCarrito={setCarrito}
           tradeInDraft={tradeInDraft}
           onTradeInConsumed={onTradeInConsumed}
@@ -298,8 +297,8 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
       {/* ── Columna lateral ──────────────────────────────────────── */}
       <div className="flex flex-col gap-4 xl:sticky xl:top-5">
         {/* Esta compra */}
-        <Caja className="overflow-hidden shadow-xl shadow-black/10">
-          <div className="flex items-center justify-between gap-2 border-b border-fono/20 bg-fono/[.05] px-5 py-4">
+        <Caja className="flex max-h-[70vh] flex-col overflow-hidden shadow-xl shadow-black/10 xl:max-h-[calc(100dvh-18rem)]">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-fono/20 bg-fono/[.05] px-5 py-4">
             <span className="font-semibold tracking-tight">Resumen de compra</span>
             <span className="text-xs text-mute">
               {carrito.items.length} {carrito.items.length === 1 ? 'producto' : 'productos'}
@@ -311,7 +310,7 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
             </p>
           ) : (
             <>
-              <div className="divide-y divide-ink-600">
+              <div className="min-h-0 flex-1 divide-y divide-ink-600 overflow-y-auto">
                 {carrito.items.map(it => (
                   <div key={it.key} className="flex items-center justify-between gap-2 px-5 py-2.5">
                     <span className="min-w-0 truncate text-sm">
@@ -337,7 +336,7 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
                   </div>
                 ))}
               </div>
-              <div className="flex items-center justify-between border-t border-fono/20 px-5 py-3">
+              <div className="flex shrink-0 items-center justify-between border-t border-fono/20 px-5 py-3">
                 <span className="text-[11px] font-semibold uppercase tracking-wider text-mute">
                   Total
                 </span>
