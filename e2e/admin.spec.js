@@ -136,3 +136,17 @@ test.describe('owner panel', () => {
     await expect(page.getByText('Abierta', { exact: true })).toBeVisible()
   })
 })
+
+// Logo de la empresa: se sube como archivo, se ve la vista previa y se puede
+// quitar. El comprobante lo incrusta como data URL al imprimir.
+test('configuración → sube el logo de la empresa y lo quita', async ({ page }) => {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==', 'base64')
+  await page.goto('/pos/equipo')
+  await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
+  await expect(page.getByRole('heading', { name: 'Logo de la empresa' })).toBeVisible()
+  await expect(page.getByText('Sin logo')).toBeVisible()
+  await page.locator('input[type="file"][accept*="image/png"]').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png })
+  await expect(page.getByAltText('Logo de la empresa')).toBeVisible()
+  await page.getByRole('button', { name: 'Quitar', exact: true }).click()
+  await expect(page.getByText('Sin logo')).toBeVisible()
+})

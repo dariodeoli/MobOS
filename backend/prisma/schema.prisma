@@ -9,6 +9,7 @@ datasource db {
 model Tenant {
   googleStoreAccesses GoogleStoreAccess[]
   promotions          Promotion[]
+  logo                TenantLogo?
   paymentAccounts     PaymentAccount[]
   tradeInDevices      TradeInDevice[]
   cashSessions        CashSession[]
@@ -1526,4 +1527,19 @@ model CustomerBillingIdentity {
 
   @@unique([customerId, name, document])
   @@index([tenantId, name])
+}
+
+// Logo de la empresa para comprobantes y documentos. Los bytes viven en el
+// volumen de adjuntos (MOBOS_STORAGE_DIR) con respaldo en `data`.
+model TenantLogo {
+  id         String   @id @default(cuid())
+  tenantId   String   @unique
+  storageKey String?
+  data       Bytes?   @db.ByteA
+  mimeType   String
+  sha256     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }

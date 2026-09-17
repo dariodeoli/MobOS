@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
+import AttachmentInput from '@/components/shared/AttachmentInput'
+import { getLogoDataUrl, olvidarLogo } from '@/lib/tenantLogo'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, PasswordInput, PinInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -39,6 +41,9 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const { sesion, empresa, sucursal, perfilEmpresa } = useSesion()
   const esDueno = sesion?.esPropietario
   const [account, setAccount] = useState(null)
+  const [logo, setLogo] = useState('')
+  const [logoError, setLogoError] = useState('')
+  const [logoBusy, setLogoBusy] = useState(false)
   const [prefijo, setPrefijo] = useState('')
   const [inicio, setInicio] = useState('')
   const [password, setPassword] = useState('')
@@ -54,6 +59,36 @@ export default function Config({ seccion = 'negocio' } = {}) {
     try { setAccount(await api.get('/api/account')) } catch (error) { setFailure(error.message || 'No se pudo cargar la seguridad de la cuenta.') }
   }, [esDueno])
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    if (!account?.tenant?.logo?.updatedAt) { setLogo(''); return }
+    let vigente = true
+    getLogoDataUrl().then(data => { if (vigente) setLogo(data) })
+    return () => { vigente = false }
+  }, [account?.tenant?.logo?.updatedAt])
+
+  async function subirLogo(file) {
+    if (logoBusy) return
+    setLogoBusy(true); setLogoError('')
+    try {
+      const form = new FormData()
+      form.append('logo', file)
+      await api.post('/api/tenant/logo', form)
+      olvidarLogo()
+      setLogo(await getLogoDataUrl())
+      setAccount(await api.get('/api/account'))
+    } catch (cause) { setLogoError(cause?.message || 'No se pudo guardar el logo.') } finally { setLogoBusy(false) }
+  }
+
+  async function quitarLogo() {
+    if (logoBusy) return
+    setLogoBusy(true); setLogoError('')
+    try {
+      await api.delete('/api/tenant/logo')
+      olvidarLogo()
+      setLogo('')
+      setAccount(await api.get('/api/account'))
+    } catch (cause) { setLogoError(cause?.message || 'No se pudo quitar el logo.') } finally { setLogoBusy(false) }
+  }
 
   async function reauthenticate() {
     if (!password || busy) return
@@ -113,6 +148,24 @@ export default function Config({ seccion = 'negocio' } = {}) {
         </div>
         <p className="text-xs text-mute">Los pedidos ya creados conservan su número; los nuevos siguen esta secuencia.</p>
       </Card>
+        {esDueno && <Card className="space-y-3">
+          <div>
+            <h2 className="font-semibold">Logo de la empresa</h2>
+            <p className="mt-1 text-sm text-mute">Se muestra en el encabezado de los comprobantes. PNG, JPG o WebP de hasta 1 MiB.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="grid h-20 w-40 place-items-center overflow-hidden rounded-xl border border-ink-600 bg-paper">
+              {logo ? <img src={logo} alt="Logo de la empresa" className="max-h-16 max-w-36 object-contain" /> : <span className="text-xs text-mute">Sin logo</span>}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <AttachmentInput onSelect={subirLogo} onError={setLogoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={logoBusy}>
+                <Button type="button" variant="outline" disabled={logoBusy}>{logo ? 'Reemplazar logo' : 'Subir logo'}</Button>
+              </AttachmentInput>
+              {logo && <Button type="button" variant="ghost" disabled={logoBusy} onClick={quitarLogo}>Quitar</Button>}
+            </div>
+          </div>
+          {logoError && <p role="alert" className="text-sm text-bad">{logoError}</p>}
+        </Card>}
         <SeccionTiendas account={account} />
         <SeccionInvitaciones />
         <IdentidadCuenta reauthValidUntil={account?.reauthValidUntil} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} />
