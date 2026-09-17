@@ -194,6 +194,25 @@ test.describe('owner panel', () => {
     await expect(page.getByText('Orden de servicio actualizada.').or(page.getByText('Diagnóstico', { exact: true }).first())).toBeVisible()
   })
 
+  // La cotización con un cliente existente queda ligada a su ficha, así la
+  // conversión en pedido no pierde al cliente.
+  test('cotizaciones: el cliente elegido queda ligado a su ficha', async ({ page }) => {
+    await page.goto('/pos/cotizaciones')
+    const resultado = await page.evaluate(async (api) => {
+      const clientes = await fetch(`${api}/api/customers?q=E2E`, { credentials: 'include' }).then(r => r.json())
+      const cliente = clientes[0]
+      if (!cliente) return { error: 'sin clientes' }
+      const respuesta = await fetch(`${api}/api/quotes`, {
+        method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ customerId: cliente.id, customerName: cliente.name, items: [{ description: 'Equipo', quantity: 1, unitPricePyg: 500000 }] }),
+      })
+      const cotizacion = await respuesta.json()
+      return { status: respuesta.status, customerId: cotizacion.customerId, esperado: cliente.id, nombre: cliente.name }
+    }, API)
+    expect(resultado.status).toBe(201)
+    expect(resultado.customerId).toBe(resultado.esperado)
+  })
+
   // La auditoría real (antes solo existía en la demo).
   test('auditoría: lista los movimientos del negocio y filtra por área', async ({ page }) => {
     await page.goto('/pos/historial')

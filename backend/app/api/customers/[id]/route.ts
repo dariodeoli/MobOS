@@ -69,6 +69,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       tenantId: session.user.tenantId,
       ...(branchId ? { branchId } : {}),
       OR: [
+        { customerId: customer.id },
         { customerName: customer.name },
         ...(serials.length ? [{ serial: { in: serials } }] : []),
       ],
