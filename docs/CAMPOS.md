@@ -1,33 +1,61 @@
-# Campos y textfields de MobOS
+# Reglas de inputs y textfields (MobOS)
 
-Reglas vigentes para los campos del panel. Antes de crear un input nuevo, usá el componente compartido que ya cubre el caso.
+Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Antes de crear o tocar un campo, usá el componente compartido que ya cubre el caso. Este archivo es la fuente única; el skill solo la señala.
 
-## Componentes compartidos
-- `PhoneField` (`src/components/shared/PhoneField.jsx`): código de país editable (default `+595`, presets en datalist) + número que admite dígitos, espacios, guiones y paréntesis (espacio tras el código permitido: `+595  99467453`). Valida con `telefonoValido` y muestra `MENSAJE_TELEFONO`. Exporta `parseTelefono`/`componerTelefono` para el formato único `+<código> <número>`.
-- `EmailField`: sugiere dominios frecuentes (gmail, hotmail, outlook, yahoo, icloud, live) mientras se escribe; no interfiere con pegado.
-- `InstagramField`: `@` fijo no borrable, sin espacios, solo `[A-Za-z0-9._]`, máx 30; guarda el username pelado.
-- `CityAutocomplete`: ciudad con autocompletado y departamento automático; texto libre permitido.
-- `MoneyInput` / `Money` (`src/components/ui`): importes PYG con separador de miles; USD/BRL/EUR/USDT con 2 decimales; el símbolo lo dibuja el campo.
-- `PinInput`, `PasswordInput`, `NumericKeypad`, `CameraScan`, `SerialUnitPicker`, `SelectorColor`, `PaymentAccountFields`.
-- Base: `Input`, `Textarea`, `Select`, `Label`, `FormField`.
+## 1. Kit base — `src/components/ui/index.jsx`
 
-## Reglas por tipo de dato
-1. **Solo dígitos**: limpiar con `.replace(/\D/g, '')` o `soloDigitos`; `inputMode="numeric"`; `maxLength` cuando aplica (PIN 4, batería 3). Campos: batería, días/plazos, cantidades, umbral, horas de reserva, PINs.
+| Componente | Para qué | Reglas / defaults |
+|---|---|---|
+| `Input` | Texto/número/base de todo | El tipo lo define el uso (`tel`, `email`, `date`) |
+| `Textarea` | Notas, coberturas, mensajes | — |
+| `Select` | Opciones cerradas (estado, rol, medio, categoría) | Nunca texto libre para catálogos |
+| `Label` / `FormField` | Etiqueta y campo con hint/error accesible | `htmlFor` obligatorio |
+| `MoneyInput` | Importes | PYG con separador de miles; USD/BRL/EUR/USDT 2 decimales; el símbolo lo dibuja el campo; entrega número limpio por `onValueChange` |
+| `Money` | Importe de solo lectura | PYG `formatGs`, USD `US$ 1,234.5`; valor no numérico → `—` |
+| `PasswordInput` | Contraseña | Toggle ver/ocultar; 8–72 en auth |
+| `PinInput` | PIN | 4 dígitos, teclado numérico, `one-time-code`, autoenvía al 4.º |
+| `Button`, `Modal`, `Drawer`, `ConfirmDialog`, `Card`, `Badge`, `Stat`, `DataTable`, `EmptyState`, `ErrorState`, `PageHeader`, `Skeleton`, `Toast/useToast`, `Eyebrow`, `Dot` | Soporte de pantallas | — |
+
+## 2. Campos compuestos
+
+| Componente | Regla | Dónde se usa |
+|---|---|---|
+| `shared/PhoneField` (+ `parseTelefono`/`componerTelefono`) | Código de país editable (default `+595`, presets +55/+54/+56/+591/+598/+1/+34/+44/+351) + número que admite dígitos, espacios, guiones y paréntesis (espacio tras el código: `+595  99467453`). Valida con `telefonoValido` y muestra `MENSAJE_TELEFONO` | Sucursal, cliente, checkout, proveedor |
+| `shared/EmailField` | Sugiere dominios frecuentes mientras se teclea (gmail, hotmail, outlook, yahoo, icloud, live, hotmail.es, outlook.es); no interfiere con pegado, autocompletado ni `fill()`; `type="email"`; máx 200 | Login, registro, recuperación, empresa, vendedores ×2, cliente ×2, proveedor |
+| `shared/InstagramField` | `@` fijo no borrable, sin espacios, solo `[A-Za-z0-9._]`, máx 30; guarda el username pelado (el link se arma después) | Sucursal |
+| `shared/CityAutocomplete` | Ciudad con sugerencias y departamento automático; texto libre permitido | Sucursal, proveedor, direcciones de cliente y checkout |
+| `shared/ProductCombobox` | Buscar/elegir producto (y crear desde ahí) | POS, compras |
+| `shared/RangoFechas` | Desde/hasta con atajos | Reportes, caja |
+| `shared/SelectorMedioPago` + `shared/MedioPago` | Elegir medio de pago / mostrarlo | POS, pedidos |
+| `shared/NumericKeypad` | Teclado numérico grande | POS/cobros |
+| `inventory/SerialUnitPicker` | Elegir IMEIs/unidades; exige serial cuando corresponde | POS |
+| `ventas/SelectorColor` | Elegir variante/color | POS |
+| `ventas/PaymentAccountFields` | Cuenta de cobro + monto + cotización | POS |
+| `CameraScan` | Escaneo por cámara de IMEI/código (hoy local en `Inventario.jsx`) | Inventario |
+
+## 3. Reglas por tipo de dato
+
+1. **Solo dígitos**: limpieza `.replace(/\D/g, '')` o `soloDigitos`; `inputMode="numeric"`; `maxLength` cuando aplica (PIN 4, batería 3). Campos: batería, días/plazos, cantidades, umbral de reposición, horas de reserva, PINs.
 2. **Porcentajes**: `inputMode="decimal"` y limpieza `[^\d.,]` (seguro, comisión, descuento por medio, cotización).
-3. **Moneda**: PYG se guarda numérico y se escribe con separador de miles (`MoneyInput`); monedas extranjeras con 2 decimales.
-4. **IMEI/serial**: alfanumérico, `autoCapitalize="characters"`; al guardar/buscar se normaliza `trim`, sin `MOBOS:`, sin espacios ni guiones, mayúsculas (`normalizeScan`); varios separados por coma o salto de línea.
+3. **Moneda**: PYG se guarda numérico y se escribe con separador de miles (`MoneyInput`); monedas extranjeras con 2 decimales. El símbolo nunca se escribe dentro del valor.
+4. **IMEI/serial**: alfanumérico (no se restringe a dígitos), `autoCapitalize="characters"`; al guardar/buscar se normaliza `trim`, sin prefijo `MOBOS:`, sin espacios ni guiones, mayúsculas (`normalizeScan`); se aceptan varios separados por coma o salto de línea.
 5. **Teléfono**: ver `PhoneField`. Validación: Paraguay móvil `9` + 8 dígitos; otros países 6–12 dígitos. Clientes guardan `countryCode` + `phone`; sucursales y proveedores guardan `+<código> <número>`; los links wa.me usan `internationalPhone`.
 6. **Correo**: `EmailField` con sugerencias; `type="email"`, `autoComplete="email"`, máx 200.
-7. **Instagram**: ver `InstagramField`.
+7. **Instagram**: ver `InstagramField` (dato guardado sin `@`).
 8. **Ciudad**: ver `CityAutocomplete`.
-9. **Texto libre**: nombres 120, direcciones 400, notas 2000; correo 200; fechas `type="date"`; códigos con `pattern` (ej. promociones `[A-Za-z0-9_-]{2,40}`).
-10. **PIN/contraseña**: PIN siempre `PinInput` (4 dígitos, numérico, one-time-code); contraseña `PasswordInput` (8–72, toggle de visibilidad).
+9. **Texto libre**: nombres 120, direcciones 400, notas 2000; fechas `type="date"`; códigos con `pattern` (promociones `[A-Za-z0-9_-]{2,40}`).
+10. **PIN/contraseña**: PIN siempre `PinInput`; contraseña `PasswordInput`.
+11. **Adjuntos**: JPG/PNG/WebP/PDF, ≤5 MiB, verificados por *magic bytes* en backend; subida multipart.
+12. **RUC/CI**: patrón `\d[\d.\s]{2,}-\d+`; el botón "Consultar RUC" aplica la razón social solo si se confirma.
+13. **Búsquedas**: texto libre por `q`; en escaneos, normalizar a mayúsculas sin separadores (`normalizeScan`).
 
-## Dónde viven
-- `src/utils/telefono.js`: dígitos, teléfono internacional, validación y mensaje.
-- `src/utils/moneda.js`: formato y parseo de importes.
-- `src/components/ui/index.jsx`: kit base y campos (MoneyInput, Money, PinInput, PasswordInput).
-- `src/components/shared/`: PhoneField, EmailField, InstagramField, CityAutocomplete, NumericKeypad, CameraScan.
+## 4. Utilidades y validaciones
 
-## Cobertura
-`npm test` (unitarios) y `npx playwright test` (e2e: batería, teléfono, límite de crédito, checkout, paneles).
+- `src/utils/telefono.js`: `normalizarTelefono`, `internationalPhone`, `telefonoValido`, `MENSAJE_TELEFONO`.
+- `src/utils/moneda.js`: `formatGs`, `formatGsInput`, `parseGsInput`, `formatUsdInput`, `parseUsdInput`, `formatUsd`, `formatMoney`.
+- `backend/lib/validation.ts`: `serialKey` (IMEI), `digitsOnly`, `internationalPhone`.
+- `backend/app/api/payments/_lib.ts`: `MAX_PROOF_SIZE_BYTES` (5 MiB), `PROOF_MIME_TYPES` + magic bytes.
+
+## 5. Cobertura
+
+`npm test` (unitarios de frontend) · `npm run test:unit` (backend) · `npx playwright test` (e2e: batería, teléfono, límite de crédito, checkout, paneles).
