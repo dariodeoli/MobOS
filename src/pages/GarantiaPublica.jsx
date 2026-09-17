@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { internationalPhone } from '@/utils/telefono'
 import { useParams } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
 
@@ -79,7 +80,7 @@ export default function GarantiaPublica() {
                 <p className="font-bold">{warranty.store.name}</p>
                 {warranty.store.city && <p className="mt-1 text-mute">{warranty.store.city}</p>}
                 {warranty.store.phone && (
-                  <a className="mt-3 inline-block rounded-lg bg-ok px-4 py-2 font-semibold text-black" href={`https://wa.me/${String(warranty.store.phone).replace(/\D/g, '')}`} target="_blank" rel="noreferrer">
+                  <a className="mt-3 inline-block rounded-lg bg-ok px-4 py-2 font-semibold text-black" href={`https://wa.me/${internationalPhone(warranty.store.phone)}`} target="_blank" rel="noreferrer">
                     Contactar por WhatsApp
                   </a>
                 )}

@@ -1,4 +1,5 @@
 import { prisma } from '../../../../../lib/prisma'
+import { internationalPhone } from '../../../../../lib/validation'
 import { error, json, tenantId } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { canAccessOrder } from '../../../../../lib/orders'
@@ -38,8 +39,6 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
   }
   const body = template?.isActive === false ? '' : (template?.body || 'Hola, {{customer_name}}. Tu pedido {{order_number}} cambió de estado.')
   const message = `${render(body, variables)}${trackingUrl && !body.includes('{{tracking_url}}') ? `\n${trackingUrl}` : ''}`.trim()
-  const digits = String(order.customer.phone).replace(/\D/g, '').replace(/^0+/, '')
-  const country = String(order.customer.countryCode || '+595').replace(/\D/g, '')
-  const phone = digits.startsWith(country) ? digits : `${country}${digits}`
+  const phone = internationalPhone(order.customer.phone, order.customer.countryCode)
   return json({ templateKey: key, message, whatsappUrl: `https://wa.me/${phone}?text=${encodeURIComponent(message)}`, phone, notifiedAt: order.notifiedAt })
 }

@@ -6,6 +6,17 @@ export function normalizarTelefono(value) {
   return String(value || '').replace(/[^\d+]/g, '')
 }
 
+// Devuelve el teléfono en formato internacional sin signos (para wa.me).
+export function internationalPhone(value, countryCode = '+595') {
+  let digits = String(value || '').replace(/\D/g, '')
+  const code = String(countryCode || '+595').replace(/\D/g, '') || '595'
+  if (!digits) return ''
+  if (digits.startsWith('00')) digits = digits.slice(2)
+  if (digits.startsWith(code)) return digits
+  if (digits.startsWith('0')) digits = digits.slice(1)
+  return `${code}${digits}`
+}
+
 export function telefonoValido(value, countryCode = '+595') {
   const digits = String(value || '').replace(/\D/g, '')
   if (!digits) return false

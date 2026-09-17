@@ -10,6 +10,7 @@ import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 import { trackingUrlFor } from '@/components/shared/OrderReceipt'
+import { internationalPhone } from '@/utils/telefono'
 import { printPaymentReceipt, printOrderReceipt } from '@/components/shared/OrderReceipt'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 
@@ -17,11 +18,8 @@ import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 export function whatsappTrackingLink(order, extra = '') {
   const tracking = trackingUrlFor(order)
   if (!tracking) return ''
-  const digits = String(order?.customer?.phone || order?.clienteTelefono || '').replace(/\D/g, '')
-  if (!digits) return ''
-  const phone = digits.replace(/^0+/, '')
-  const code = String(order?.customer?.countryCode || '+595').replace(/\D/g, '')
-  const number = phone.startsWith(code) ? phone : `${code}${phone}`
+  const number = internationalPhone(order?.customer?.phone || order?.clienteTelefono, order?.customer?.countryCode)
+  if (!number) return ''
   const name = order?.customer?.name || order?.cliente || ''
   const message = `Hola${name ? ` ${name}` : ''}, podés seguir tu pedido ${order?.codigo || order?.orderNumber || ''} acá: ${tracking}${extra ? `\n${extra}` : ''}`
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
