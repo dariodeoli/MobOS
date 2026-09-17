@@ -42,6 +42,9 @@ test.describe('owner panel', () => {
 
     const name = `Vendedor E2E ${Date.now().toString(36)}`
     const pin = String(1000 + Math.floor(Math.random() * 9000))
+    // El alta vive en el modal de "Invitar persona" (agregar directamente).
+    await page.getByRole('button', { name: '+ Invitar persona' }).click()
+    await page.getByRole('button', { name: 'Agregar directamente' }).click()
     await page.locator('#direct-name').fill(name)
     await page.locator('#direct-pin').fill(pin)
     await page.getByRole('button', { name: 'Agregar', exact: true }).click()

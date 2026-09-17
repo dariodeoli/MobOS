@@ -90,11 +90,8 @@ const OWNER_NAV = [
       ['resumen', 'Resumen', 'chart'],
       ['analisis', 'Análisis', 'report'],
       ['finanzas', 'Finanzas', 'receipt'],
+      ['equipo', 'Configuración', 'users'],
     ],
-  },
-  {
-    titulo: 'Equipo',
-    items: [['equipo', 'Equipo y configuración', 'users']],
   },
 ]
 
@@ -135,7 +132,7 @@ const LABELS = {
   resumen: 'Resumen general',
   analisis: 'Análisis',
   finanzas: 'Finanzas',
-  equipo: 'Equipo y configuración',
+  equipo: 'Configuración',
   inventario: 'Inventario',
   compras: 'Compras',
   'tradein-admin': 'Trade-In',
@@ -604,15 +601,15 @@ export default function PanelVendedor() {
                 items={
                   esDemo
                     ? [
-                        ['vendedores', 'Vendedores'],
+                        ['vendedores', 'Equipo'],
                         ['roles', 'Roles y permisos'],
                         ['historial', 'Historial'],
-                        ['configuracion', 'Configuración'],
+                        ['configuracion', 'Negocio y seguridad'],
                       ]
                     : [
-                        ['vendedores', 'Vendedores'],
+                        ['vendedores', 'Equipo'],
                         ['roles', 'Roles y permisos'],
-                        ['configuracion', 'Configuración'],
+                        ['configuracion', 'Negocio y seguridad'],
                       ]
                 }
               />
