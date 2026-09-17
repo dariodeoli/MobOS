@@ -156,7 +156,7 @@ export default function ListaVentasDia({
       </div>
 
       {/* ── Búsqueda + filtros ───────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-ink-600 px-5 py-3">
+      <div className="flex flex-wrap items-center gap-3 border-b border-ink-600 px-3 py-2">
         <div className="relative min-w-[13rem] flex-1">
           <Icon
             name="search"
@@ -314,7 +314,7 @@ export default function ListaVentasDia({
                         {idx === 0 && (
                           <td
                             rowSpan={g.items.length}
-                            className="border-r border-ink-600/60 px-3 py-3 align-top"
+                            className="border-r border-ink-600/60 px-3 py-2 align-top"
                           >
                             <div className="font-medium">{v.cliente || '—'}</div>
                             {varios && (
@@ -364,10 +364,10 @@ export default function ListaVentasDia({
                         <td className="px-3 py-3 text-right font-semibold">{gs(v.precio)}</td>
                         {idx === 0 ? (
                           <>
-                            <td rowSpan={g.items.length} className="px-3 py-3 align-top">
+                            <td rowSpan={g.items.length} className="px-3 py-2 align-top">
                               <MedioPago medio={v.medioPago} />
                             </td>
-                            <td rowSpan={g.items.length} className="px-3 py-3 align-top text-mute">
+                            <td rowSpan={g.items.length} className="px-3 py-2 align-top text-mute">
                               {v.entrega === 'Retiro en tienda' ? (
                                 <span className="inline-flex items-center gap-1.5">
                                   <Icon name="store" className="h-4 w-4" /> Tienda
@@ -385,14 +385,14 @@ export default function ListaVentasDia({
                             {mostrarVendedor && (
                               <td
                                 rowSpan={g.items.length}
-                                className="break-words px-3 py-3 align-top text-mute"
+                                className="break-words px-3 py-2 align-top text-mute"
                               >
                                 {vendedoresById[v.vendedorId] || '—'}
                               </td>
                             )}
                             <td
                               rowSpan={g.items.length}
-                              className="truncate px-3 py-3 align-top text-xs italic text-mute"
+                              className="truncate px-3 py-2 align-top text-xs italic text-mute"
                             >
                               {v.observacion || ''}
                               {v.billingName && <span className="mt-1 block not-italic font-semibold text-fono-light">Factura a: {v.billingName}{v.billingDocument ? ` · ${v.billingDocument}` : ''}</span>}
@@ -437,7 +437,7 @@ export default function ListaVentasDia({
 
           {/* ── Paginación ─────────────────────────────────────────── */}
           {paginas > 1 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-600 px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-600 px-3 py-2">
               <button
                 onClick={() => setPagina(pag - 1)}
                 disabled={pag <= 1}

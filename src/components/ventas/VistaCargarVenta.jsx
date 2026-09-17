@@ -214,7 +214,10 @@ export default function VistaCargarVenta({ vendedoresById = {}, tradeInDraft, on
                               <span className="font-medium">{v.cliente || '—'}</span>
                             </div>
                           </td>
-                          <td className="px-5 py-3 text-mute">{nombreProd(v)}</td>
+                          <td className="px-3 py-2 text-mute">
+                            {nombreProd(v)}
+                            {(() => { const serial = (v.items || []).flatMap(item => Array.isArray(item.serials) ? item.serials : []).pop(); return serial ? <span className="ml-2 rounded border border-ink-500 px-1.5 py-0.5 font-mono text-[10px] text-fono-light">••••{String(serial).slice(-4)}</span> : null })()}
+                          </td>
                           <td className="px-5 py-3 text-right font-semibold tabular-nums">
                             {gs(v.precio)}
                           </td>
