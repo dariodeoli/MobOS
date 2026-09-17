@@ -37,27 +37,7 @@ async function autorizar(): Promise<string> {
   return token
 }
 
-export type AexCity = { city: string; department: string }
-
 const norm = (value: string) => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
-/** Devuelve null cuando no hay credenciales o el proveedor falla: el llamador
- *  cae al catálogo local. */
-export async function aexCities(query: string, limit = 10): Promise<AexCity[] | null> {
-  if (!PUBLIC_KEY || !PRIVATE_KEY) return null
-  try {
-    const token = await autorizar()
-    const respuesta = await post('/envios/ciudades', { clave_publica: PUBLIC_KEY, codigo_autorizacion: token })
-    const rows = Array.isArray(respuesta?.datos) ? respuesta.datos : []
-    const q = norm(query)
-    if (q.length < 2) return []
-    return rows
-      .filter((row: any) => norm(String(row?.denominacion || '')).includes(q) || norm(String(row?.departamento_denominacion || '')).includes(q))
-      .slice(0, limit)
-      .map((row: any) => ({ city: String(row?.denominacion || '').trim(), department: String(row?.departamento_denominacion || '').trim() }))
-  } catch {
-    return null
-  }
-}
 
 export type AexTrackingEvent = { fecha: string; estado: string; tipoEvento: string; observacion: string }
 
