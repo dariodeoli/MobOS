@@ -78,8 +78,11 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   // Success banner with print actions.
   const banner = page.getByRole('status').filter({ hasText: 'Venta registrada correctamente. Ya podés cargar la siguiente.' })
   await expect(banner).toBeVisible()
-  await expect(banner.getByRole('button', { name: 'Imprimir A4' })).toBeVisible()
-  await expect(banner.getByRole('button', { name: 'Imprimir térmico' })).toBeVisible()
+  // Vista previa del comprobante con nivel y formato elegibles.
+  await banner.getByRole('button', { name: 'Imprimir comprobante' }).click()
+  await expect(page.getByLabel('Tipo de comprobante')).toBeVisible()
+  await expect(page.getByLabel('Formato de impresión')).toBeVisible()
+  await page.keyboard.press('Escape')
 
   // El código comercial es corto y secuencial (MOB-#0001); el id interno sigue
   // siendo un UUID y es lo que resuelve la navegación.

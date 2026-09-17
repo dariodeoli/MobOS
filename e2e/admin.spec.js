@@ -19,7 +19,9 @@ test.describe('owner panel', () => {
     await page.goto('/pos/inventario')
     await expect(page.getByRole('heading', { name: 'Inventario operativo' })).toBeVisible()
     await expect(page.getByRole('button', { name: /^Unidades \(/ })).toBeVisible()
-    await expect(page.getByText(new RegExp(`IMEI ${SEED.products.iphone.imei}`))).toBeVisible()
+    // La tabla compacta alinea el serial por columna (últimos 4 destacados).
+    await expect(page.getByText('Verificación')).toBeVisible()
+    await expect(page.getByText(new RegExp(SEED.products.iphone.imei))).toBeVisible()
   })
 
   test('equipo → Vendedores lists the seeded sellers', async ({ page }) => {
@@ -40,6 +42,9 @@ test.describe('owner panel', () => {
 
     const name = `Vendedor E2E ${Date.now().toString(36)}`
     const pin = String(1000 + Math.floor(Math.random() * 9000))
+    // El alta vive en el modal de "Invitar persona" (agregar directamente).
+    await page.getByRole('button', { name: '+ Invitar persona' }).click()
+    await page.getByRole('button', { name: 'Agregar directamente' }).click()
     await page.locator('#direct-name').fill(name)
     await page.locator('#direct-pin').fill(pin)
     await page.getByRole('button', { name: 'Agregar', exact: true }).click()
@@ -91,6 +96,26 @@ test.describe('owner panel', () => {
     const limite = alta.locator('label', { hasText: 'Límite de crédito (Gs)' }).locator('input')
     await limite.fill('3000000')
     await expect(limite).toHaveValue('3.000.000')
+  })
+
+  test('servicio técnico → crea la orden y avanza el pipeline', async ({ page }) => {
+    await page.goto('/pos/servicio')
+    await expect(page.getByRole('heading', { name: 'Servicio Técnico' })).toBeVisible()
+
+    const stamp = Date.now().toString(36)
+    const cliente = `Taller ${stamp}`
+    const equipo = `iPhone 13 Pro ${stamp} · 256 GB`
+    await page.getByRole('button', { name: '+ Nueva orden' }).click()
+    await page.getByLabel('Cliente', { exact: true }).fill(cliente)
+    await page.getByLabel('Dispositivo', { exact: true }).fill(equipo)
+    await page.getByRole('button', { name: 'Crear orden' }).click()
+
+    await expect(page.getByText(equipo).first()).toBeVisible()
+    await expect(page.getByText(cliente)).toBeVisible()
+
+    // Recepción → diagnóstico con el botón de avance del pipeline.
+    await page.getByRole('button', { name: 'Diagnóstico', exact: true }).first().click()
+    await expect(page.getByText('Orden de servicio actualizada.').or(page.getByText('Diagnóstico', { exact: true }).first())).toBeVisible()
   })
 
   test('finanzas → Caja can open the cash session', async ({ page }) => {

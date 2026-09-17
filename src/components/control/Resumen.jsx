@@ -129,8 +129,14 @@ export default function Resumen() {
 
     const pagadas = act.filter(v => v.estadoPago === 'Pagado').length
 
+    // Costos pendientes: líneas vendidas sin costo cargado. Mientras existan,
+    // el margen real y las comisiones no son definitivos.
+    const lineasSinCosto = act.flatMap(v => Array.isArray(v.items) ? v.items : []).filter(it => it.costPending === true)
+    const montoSinCosto = lineasSinCosto.reduce((sum, it) => sum + num(it.totalPyg ?? num(it.unitPricePyg) * (it.quantity || 1)), 0)
+
     return {
       act,
+      sinCosto: { lineas: lineasSinCosto.length, monto: montoSinCosto },
       total,
       totalAnt,
       comision,
@@ -230,6 +236,26 @@ export default function Resumen() {
           sub={`Delivery ${gs(d.delivery)} · Gastos ${gs(d.gastos)}`}
         />
       </div>
+
+      {/* ── Costos pendientes ────────────────────────────────────── */}
+      {d.sinCosto.lineas > 0 && (
+        <Card className="border-warn/30 bg-warn/5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-2.5">
+              <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-warn">
+                  Costo pendiente: {d.sinCosto.lineas} {d.sinCosto.lineas === 1 ? 'línea' : 'líneas'} por {gs(d.sinCosto.monto)}
+                </p>
+                <p className="mt-1 text-xs text-mute">
+                  Mientras haya ventas sin costo cargado, el margen real y las comisiones pueden quedar incompletos. Cargá el costo del producto o de la línea.
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" onClick={() => navigate('/pos/analisis')}>Ver análisis</Button>
+          </div>
+        </Card>
+      )}
 
       {/* ── Cobrado vs pendiente ─────────────────────────────────── */}
       <Card>

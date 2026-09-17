@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Drawer, Badge, Button, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
+import JsBarcode from 'jsbarcode'
+import QRCode from 'qrcode'
 import { api, API_URL } from '@/lib/api/client'
 
 const statusLabel = { AVAILABLE: 'Disponible', RESERVED: 'Reservado', SOLD: 'Vendido', DEFECTIVE: 'En revisión', IN_TRANSIT: 'En tránsito' }
@@ -54,6 +56,9 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, on
   const [adjunto, setAdjunto] = useState(null)
   const [subiendo, setSubiendo] = useState(false)
   const fileRef = useRef(null)
+  const [codigos, setCodigos] = useState(null)
+  const [nota, setNota] = useState(unit.notes || '')
+  const [guardandoNota, setGuardandoNota] = useState(false)
 
   const load = useCallback(async () => {
     if (!canManage) { setLoading(false); return }
@@ -64,9 +69,38 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, on
     } catch (cause) { setError(cause?.message || 'No se pudo cargar la cronología.') } finally { setLoading(false) }
   }, [unit.id, canManage])
   useEffect(() => { load() }, [load])
+  useEffect(() => { setNota(unit.notes || '') }, [unit.notes])
+
+  // QR y código de barras de esta unidad (se generan al abrir el detalle).
+  useEffect(() => {
+    let active = true
+    const code = "MOBOS:" + unit.serial
+    ;(async () => {
+      try {
+        const qr = await QRCode.toDataURL(code, { errorCorrectionLevel: 'M', margin: 0, width: 220 })
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+        JsBarcode(svg, code, { format: 'CODE128', displayValue: false, width: 2, height: 54, margin: 0 })
+        if (active) setCodigos({ qr, barcode: svg.outerHTML })
+      } catch { if (active) setCodigos(null) }
+    })()
+    return () => { active = false }
+  }, [unit.serial])
+
+  async function guardarNota() {
+    if (guardandoNota) return
+    setGuardandoNota(true)
+    try {
+      await api.patch('/api/inventory-units', { id: unit.id, notes: nota.trim() })
+      toast.success('Nota guardada.')
+      onChanged?.()
+    } catch (cause) { toast.error(cause?.message || 'No se pudo guardar la nota.') } finally { setGuardandoNota(false) }
+  }
 
   const verifier = unit.lastVerifiedBy?.name || (unit.verifiedByCode === 'VPE' ? 'Edgar' : unit.verifiedByCode === 'VPM' ? 'Matheo' : unit.verifiedByCode) || ''
   const verifierName = verifier === 'Administrador' && perfilEmpresa?.name ? perfilEmpresa.name : verifier
+  // Antigüedad del stock: desde el ingreso de la unidad.
+  const ingreso = unit.createdAt ? new Date(unit.createdAt) : null
+  const diasEnStock = ingreso ? Math.max(0, Math.floor((Date.now() - ingreso.getTime()) / 86400000)) : null
 
   async function enviarComentario(event) {
     event.preventDefault()
@@ -112,11 +146,25 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, on
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Batería</p><p className="mt-1 font-semibold">{unit.batteryHealth ? `${unit.batteryHealth}%` : '—'}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Proveedor</p><p className="mt-1 font-semibold">{unit.supplier?.name || unit.supplierName || '—'}{unit.supplier?.name && unit.supplier?.code ? ' (' + unit.supplier.code + ')' : ''}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{money(unit.originalCost, unit.costCurrency)}{unit.costPyg ? ` · ${money(unit.costPyg, 'PYG')}` : ''}</p></div>
+            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Ingresó a stock</p><p className="mt-1 font-semibold">{ingreso ? ingreso.toLocaleDateString('es-PY') : '—'}{diasEnStock != null ? <span className="ml-2 text-xs font-normal text-mute">{diasEnStock} {diasEnStock === 1 ? 'día' : 'días'} en stock</span> : null}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Compra</p><p className="mt-1 font-semibold">{unit.purchasedAt ? new Date(unit.purchasedAt).toLocaleDateString('es-PY') : '—'}</p></div>
             {unit.reservedUntil && <div className="col-span-2 rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 p-3 text-sm"><p className="text-xs text-mute">Reserva</p><p className="mt-1 font-semibold">{unit.reservationCustomer || 'Cliente'} · vence {new Date(unit.reservedUntil).toLocaleString('es-PY')}</p></div>}
-            {unit.notes && <div className="col-span-2 rounded-xl bg-ink-800/60 p-3 text-sm"><p className="text-xs text-mute">Nota</p><p className="mt-1">{unit.notes}</p></div>}
+            <div className="col-span-2 rounded-xl bg-ink-800/60 p-3 text-sm"><p className="text-xs text-mute">Nota interna</p><div className="mt-1.5 flex flex-wrap items-center gap-2"><input aria-label="Nota interna de la unidad" maxLength={500} value={nota} onChange={event => setNota(event.target.value)} placeholder="Raya lateral, caja dañada, accesorio faltante…" className="min-h-9 min-w-[12rem] flex-1 rounded-lg border border-ink-500 bg-ink-900 px-3 text-sm text-fore outline-none focus:border-fono" /><Button type="button" variant="outline" disabled={guardandoNota || nota.trim() === (unit.notes || "")} onClick={guardarNota}>{guardandoNota ? "Guardando…" : "Guardar nota"}</Button></div></div>
           </div>
         </section>
+
+        {/* Códigos de esta unidad */}
+        {codigos && (
+          <section className="rounded-2xl border border-ink-600 p-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Códigos de esta unidad</h3>
+            <p className="mt-1 text-xs text-mute">El QR y el código de barras identifican esta unidad física (etiquetas, escaneo y verificación).</p>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white p-3">
+              <span className="min-w-0 flex-1" dangerouslySetInnerHTML={{ __html: codigos.barcode }} />
+              <img src={codigos.qr} alt={"QR de " + unit.serial} className="h-24 w-24" />
+            </div>
+            <p className="mt-2 font-mono text-[11px] text-mute">{unit.serial}</p>
+          </section>
+        )}
 
         {/* Acciones */}
         <section className="rounded-2xl border border-ink-600 p-4">
@@ -128,8 +176,8 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, on
             {unit.status === 'RESERVED' && <Button variant="outline" disabled={busy} onClick={() => ejecutar(() => onRelease(unit.serial))}>Liberar reserva</Button>}
             {unit.status !== 'SOLD' && <Button variant="outline" disabled={busy} onClick={() => ejecutar(() => onVerify(unit))}>✓ Verificado</Button>}
             <Button variant="outline" onClick={() => onLabel(unit)}>Etiqueta</Button>
-            <Button variant="outline" disabled={busy || ['SOLD', 'RESERVED', 'IN_TRANSIT'].includes(unit.status)} onClick={() => ejecutar(() => onAdjust(unit))}>{unit.status === 'DEFECTIVE' ? 'Habilitar' : 'Marcar en revisión'}</Button>
-            <Button variant="outline" disabled={busy || unit.status !== 'AVAILABLE'} onClick={() => ejecutar(() => onRemove(unit))}>Retirar</Button>
+            <Button variant="outline" disabled={busy || ['SOLD', 'RESERVED', 'IN_TRANSIT'].includes(unit.status)} onClick={() => ejecutar(() => onAdjust(unit))}>{unit.status === 'DEFECTIVE' ? 'Habilitar' : 'Enviar a revisión'}</Button>
+            <Button variant="outline" disabled={busy || unit.status !== 'AVAILABLE'} onClick={() => ejecutar(() => onRemove(unit))}>Dar de baja</Button>
           </div>
         </section>
 

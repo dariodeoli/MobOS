@@ -40,7 +40,7 @@ export async function GET(request: Request) {
   const { session } = context
   const now = new Date()
   const [tenant, sessions, ownerAccess] = await Promise.all([
-    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true } }),
+    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true, orderPrefix: true, orderNextNumber: true } }),
     prisma.session.findMany({ where: { tenantId: session.user.tenantId, revokedAt: null, expiresAt: { gt: now } }, orderBy: { lastSeenAt: 'desc' }, take: 50, select: { id: true, level: true, deviceId: true, branchId: true, createdAt: true, lastSeenAt: true, expiresAt: true, user: { select: { name: true, email: true, role: true } } } }),
     prisma.googleStoreAccess.findFirst({ where: { tenantId: session.user.tenantId, owner: true }, select: { subject: true } }),
   ])
@@ -94,6 +94,19 @@ export async function PATCH(request: Request) {
         await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_ARCHIVED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { reason } } })
       })
       return json({ ok: true, archivedAt: now })
+    }
+    if (action === 'orderNumbering') {
+      const prefix = input(body.prefix, 'Prefijo', 2, 3).toUpperCase()
+      if (!/^[A-Z]{2,3}$/.test(prefix)) return error('El prefijo debe tener 2 o 3 letras.', 400)
+      const start = Number(body.start)
+      if (!Number.isSafeInteger(start) || start < 1 || start > 99999999) return error('El número inicial debe ser un entero positivo.', 400)
+      const orderNumber = prefix + " #" + start
+      if (await prisma.order.findFirst({ where: { tenantId: session.user.tenantId, orderNumber }, select: { id: true } })) return error('Ya existe un pedido con ese número. Elegí otro inicial.', 409)
+      await prisma.$transaction(async tx => {
+        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { orderPrefix: prefix, orderNextNumber: start } })
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_ORDER_NUMBERING', entity: 'Tenant', entityId: session.user.tenantId, metadata: { prefix, start } } })
+      })
+      return json({ ok: true, prefix, nextNumber: start, preview: orderNumber })
     }
     if (action === 'updateProfile') {
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

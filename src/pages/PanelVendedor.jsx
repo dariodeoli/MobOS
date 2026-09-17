@@ -36,9 +36,11 @@ const Reportes = lazy(() => import('@/components/control/Reportes'))
 const Inventario = lazy(() => import('@/components/control/Inventario'))
 const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
+const MiIdentidad = lazy(() => import('@/components/control/Config').then(modulo => ({ default: modulo.MiIdentidad })))
 const Vendedores = lazy(() => import('@/components/control/Vendedores'))
 const Autorizaciones = lazy(() => import('@/components/control/Autorizaciones'))
 const Garantias = lazy(() => import('@/components/control/Garantias'))
+const ServicioTecnico = lazy(() => import('@/components/control/ServicioTecnico'))
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
 
 // Navegación por flujo de trabajo: primero la operación del día, después el
@@ -82,7 +84,9 @@ const OWNER_NAV = [
       ['productos', 'Productos', 'phone'],
       ['compras', 'Compras', 'store'],
       ['tradein-admin', 'Trade-In', 'refresh'],
-      ['servicio', 'Garantías y servicio', 'phone'],
+      ['servicio', 'Servicio Técnico', 'refresh'],
+      ['garantias', 'Garantías', 'wrench'],
+      ['autorizaciones', 'Autorizaciones', 'check'],
     ],
   },
   {
@@ -91,13 +95,17 @@ const OWNER_NAV = [
       ['resumen', 'Resumen', 'chart'],
       ['analisis', 'Análisis', 'report'],
       ['finanzas', 'Finanzas', 'receipt'],
+      ['equipo', 'Configuración', 'users'],
     ],
   },
+]
+
+// Taller: el técnico entra directo a las órdenes de servicio.
+const TECNICO_NAV = [
   {
-    titulo: 'Equipo',
+    titulo: 'Taller',
     items: [
-      ['equipo', 'Equipo y configuración', 'users'],
-      ['autorizaciones', 'Autorizaciones', 'check'],
+      ['servicio', 'Servicio Técnico', 'refresh'],
     ],
   },
 ]
@@ -129,12 +137,13 @@ const LABELS = {
   resumen: 'Resumen general',
   analisis: 'Análisis',
   finanzas: 'Finanzas',
-  equipo: 'Equipo y configuración',
+  equipo: 'Configuración',
+  garantias: 'Garantías',
   autorizaciones: 'Autorizaciones',
   inventario: 'Inventario',
   compras: 'Compras',
   'tradein-admin': 'Trade-In',
-  servicio: 'Garantías y servicio',
+  servicio: 'Servicio Técnico',
 }
 
 const MESES = [
@@ -201,6 +210,7 @@ export default function PanelVendedor() {
   const navigate = useNavigate()
   const { vista: routeVista } = useParams()
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
+  const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
   const [vista, setVista] = useState(routeVista || 'cargar')
   const [tradeIn, setTradeIn] = useState(null)
   const [analisisTab, setAnalisisTab] = useState('reportes')
@@ -227,8 +237,8 @@ export default function PanelVendedor() {
   const toast = useToast()
 
   const accesibles = useMemo(
-    () => (esOwner ? OWNER_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id),
-    [esOwner],
+    () => (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id),
+    [esOwner, esTecnico],
   )
 
   // Si la URL apunta a una vista fuera del alcance del rol (ej. un vendedor en
@@ -429,8 +439,8 @@ export default function PanelVendedor() {
     <>
       <AppShell
         title={LABELS[vista]}
-        nav={esOwner ? OWNER_NAV : SELLER_NAV}
-        bottomNav={esOwner ? OWNER_BOTTOM : SELLER_BOTTOM}
+        nav={esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV}
+        bottomNav={esOwner ? OWNER_BOTTOM : esTecnico ? [] : SELLER_BOTTOM}
         onOpenMenuLabel="Menú"
         active={vista}
         onNavigate={ir}
@@ -542,7 +552,8 @@ export default function PanelVendedor() {
           {esOwner && vista === 'inventario' && <Inventario />}
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
-          {esOwner && vista === 'servicio' && <Garantias />}
+          {(esOwner || esTecnico) && vista === 'servicio' && <ServicioTecnico />}
+          {esOwner && vista === 'garantias' && <Garantias />}
           {esOwner && vista === 'autorizaciones' && <Autorizaciones />}
           {esOwner && vista === 'resumen' && <ResumenControl />}
           {esOwner && vista === 'analisis' && (
@@ -599,22 +610,28 @@ export default function PanelVendedor() {
                 items={
                   esDemo
                     ? [
-                        ['vendedores', 'Vendedores'],
+                        ['vendedores', 'Equipo'],
+                        ['identidad', 'Mi identidad'],
                         ['roles', 'Roles y permisos'],
                         ['historial', 'Historial'],
-                        ['configuracion', 'Configuración'],
+                        ['configuracion', 'Negocio'],
+                        ['seguridad', 'Seguridad'],
                       ]
                     : [
-                        ['vendedores', 'Vendedores'],
+                        ['vendedores', 'Equipo'],
+                        ['identidad', 'Mi identidad'],
                         ['roles', 'Roles y permisos'],
-                        ['configuracion', 'Configuración'],
+                        ['configuracion', 'Negocio'],
+                        ['seguridad', 'Seguridad'],
                       ]
                 }
               />
               {equipoTab === 'vendedores' && <Vendedores />}
+              {equipoTab === 'identidad' && <MiIdentidad />}
               {equipoTab === 'roles' && <RolesPermisos />}
               {esDemo && equipoTab === 'historial' && <Historial />}
-              {equipoTab === 'configuracion' && <Config />}
+              {equipoTab === 'configuracion' && <Config seccion="negocio" />}
+              {equipoTab === 'seguridad' && <Config seccion="seguridad" />}
             </div>
           )}
           </Suspense>

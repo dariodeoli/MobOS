@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   const minutes = Number(body.minutes)
   const raw = Array.isArray(body.serials) ? body.serials : []
   const serials = raw.map(serialKey).filter(Boolean)
-  if (!customer || !Number.isSafeInteger(minutes) || minutes < 1 || minutes > MAX_MINUTES || !serials.length || serials.length > 20 || new Set(serials).size !== serials.length) return error('Cliente, plazo de 1 a 1.440 minutos e IMEI/seriales únicos son obligatorios.')
+  if (!Number.isSafeInteger(minutes) || minutes < 1 || minutes > MAX_MINUTES || !serials.length || serials.length > 20 || new Set(serials).size !== serials.length) return error('Plazo de 1 a 1.440 minutos e IMEI/seriales únicos son obligatorios.')
   const until = new Date(Date.now() + minutes * 60000)
   try {
     const units = await prisma.$transaction(async tx => {
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       const candidates = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, serial: { in: serials }, status: 'AVAILABLE' }, select: { id: true, branchId: true } })
       if (candidates.length !== serials.length) throw new Error('Uno o más equipos ya no están disponibles.')
       if (candidates.some(unit => !branchAllowed(session.user.role, session.user.branchId, unit.branchId))) throw new Error('No autorizado para reservar equipos de otra sucursal.')
-      const changed = await tx.inventoryUnit.updateMany({ where: { id: { in: candidates.map(unit => unit.id) }, tenantId: tenant, status: 'AVAILABLE' }, data: { status: 'RESERVED', reservedUntil: until, reservationCustomer: customer, reservedById: session.user.id } })
+      const changed = await tx.inventoryUnit.updateMany({ where: { id: { in: candidates.map(unit => unit.id) }, tenantId: tenant, status: 'AVAILABLE' }, data: { status: 'RESERVED', reservedUntil: until, reservationCustomer: customer || null, reservedById: session.user.id } })
       if (changed.count !== candidates.length) throw new Error('El stock cambió mientras se reservaba.')
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_RESERVED', entity: 'InventoryUnit', metadata: { serials, customer, minutes, reservedUntil: until.toISOString() } } })
       return tx.inventoryUnit.findMany({ where: { id: { in: candidates.map(unit => unit.id) } }, include: { product: { select: { id: true, name: true, sku: true } }, branch: { select: { id: true, name: true } } } })
