@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Card, Button, Input, Label, Textarea, Badge, EmptyState, Eyebrow, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import SerialField from '@/components/shared/SerialField'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { api, API_URL } from '@/lib/api/client'
@@ -10,6 +11,9 @@ import { getDemoWarranties, saveDemoWarranties } from '@/lib/demoWarranties'
 const STATES = [['RECEIVED', 'Recibido'], ['DIAGNOSIS', 'En diagnóstico'], ['READY', 'Listo'], ['DELIVERED', 'Entregado']]
 const label = Object.fromEntries(STATES)
 const blank = { customerName: '', serial: '', description: '', responsibleName: '', technicianName: '', diagnosis: '', partsText: '', photosText: '', branchId: '', warrantyDays: '', expiresAt: '', coverage: '', exclusions: '' }
+// El caso todavía no guarda teléfono propio: se usa el del cliente vinculado si
+// el API lo expone; sin teléfono no se muestra el menú de WhatsApp.
+const telefonoDelCaso = (item) => item.customerPhone || item.customer?.phone || ''
 
 export default function Garantias() {
   const { esDemo, sucursal } = useSesion()
@@ -48,7 +52,7 @@ export default function Garantias() {
         <b className="min-w-0 truncate text-sm">{item.customerName}</b>
         <span className="shrink-0 font-mono text-[11px] text-fono-light">{item.serial}</span>
         <Badge color={item.status === 'DELIVERED' ? 'green' : item.status === 'READY' ? 'orange' : 'slate'}>{label[item.status]}</Badge>
-        <span className="ml-auto flex shrink-0 flex-wrap gap-1.5">{item.publicToken && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/garantia/${item.publicToken}`).catch(() => {}); toast.success('Enlace de garantía del cliente copiado.') }}>Página cliente</Button>}{!esDemo && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirFotos(item)}>Fotos</Button>}{item.status !== 'DELIVERED' && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={advancingId !== null} onClick={() => advance(item)}>{advancingId === item.id ? 'Actualizando…' : 'Avanzar'}</Button>}</span>
+        <span className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">{telefonoDelCaso(item) && <WhatsAppMenu telefono={telefonoDelCaso(item)} countryCode={item.customer?.countryCode} category="SERVICE" title={item.customerName} contexto={{ cliente: item.customerName || '', nombre: item.customerName || '', equipo: item.serial || '', servicio: item.description || '', estado: label[item.status] || '', fecha: item.createdAt ? new Date(item.createdAt).toLocaleDateString('es-PY') : '' }} />}{item.publicToken && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/garantia/${item.publicToken}`).catch(() => {}); toast.success('Enlace de garantía del cliente copiado.') }}>Página cliente</Button>}{!esDemo && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirFotos(item)}>Fotos</Button>}{item.status !== 'DELIVERED' && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={advancingId !== null} onClick={() => advance(item)}>{advancingId === item.id ? 'Actualizando…' : 'Avanzar'}</Button>}</span>
       </div>
       <p className="mt-1 truncate text-xs text-mute">{item.description}{item.diagnosis ? ` · Diagnóstico: ${item.diagnosis}` : ''}{item.technicianName ? ` · Técnico: ${item.technicianName}` : ''}{item.responsibleName ? ` · Resp: ${item.responsibleName}` : ''}{item.parts?.length > 0 ? ` · Repuestos: ${item.parts.join(', ')}` : ''}{item.photos?.length > 0 ? ` · ${item.photos.length} foto(s)` : ''}</p>
     </article>)}</div>{!visible.length && <Card><EmptyState compact icon="search" title="No hay casos que coincidan con la búsqueda." /></Card>}

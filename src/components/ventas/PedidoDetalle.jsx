@@ -2,10 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Drawer, Badge, Button, Input, Money, Select, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
+import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import { api, API_URL } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
 import { accessUrlFor, printOrderReceipt } from '@/components/shared/OrderReceipt'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
+import { DEMO_MESSAGE_TEMPLATES } from '@/components/customers/customerMessaging'
+import { gs } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
 
 const FULFILLMENT = FULFILLMENT_LABELS
@@ -107,6 +110,16 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const estadoPago = paid >= total && total > 0 ? 'Pagado' : (Number(order.creditDays || 0) > 0 && pendiente > 0 ? 'A crédito' : paid > 0 ? 'Parcial' : 'Pendiente')
   const tags = Array.isArray(order.tags) ? order.tags : []
   const archivado = Boolean(order.archivedAt)
+  const contextoWhatsApp = {
+    cliente: order.customer?.name || 'cliente',
+    nombre: order.customer?.name || 'cliente',
+    pedido: order.orderNumber || '',
+    total: gs(total),
+    saldo_pendiente: gs(pendiente),
+    sucursal: order.branch?.name || '',
+    vendedor: order.seller?.name || '',
+    fecha: order.createdAt ? new Date(order.createdAt).toLocaleDateString('es-PY') : '',
+  }
 
   async function avisarPorWhatsApp() {
     if (avisando || esDemo) return
@@ -117,6 +130,13 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       await api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { action: 'markNotified' })
       await load(); onChanged?.()
     } catch (cause) { setError(cause?.message || 'No se pudo preparar el aviso.') } finally { setAvisando(false) }
+  }
+  // Envío con plantilla elegida: el API arma el mensaje con las variables del
+  // pedido, lo marca como avisado y devuelve el enlace definitivo de WhatsApp.
+  async function enviarPlantilla({ template }) {
+    const payload = await api.post(`/api/orders/${encodeURIComponent(order.id)}/whatsapp-message`, { templateKey: template.key })
+    await load(); onChanged?.()
+    return payload?.whatsappUrl || ''
   }
 
   async function accion(operation, success) {
@@ -186,6 +206,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {!esDemo && <Select aria-label="Estado de entrega" className="max-w-[190px]" value={order.fulfillmentStatus || 'PROCESSING'} disabled={busy} onChange={event => cambiarEntrega(event.target.value)}>{Object.entries(FULFILLMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>}
               {!esDemo && ['IN_TRANSIT', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
+              {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
               {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
               <Button variant="outline" onClick={() => printOrderReceipt(order)}>Imprimir comprobante</Button>
               {!esDemo && <button type="button" disabled={busy} onClick={alternarArchivado} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">{archivado ? 'Desarchivar' : 'Archivar'}</button>}

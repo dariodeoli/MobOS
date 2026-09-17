@@ -46,7 +46,7 @@ import { customerMetadata, DEMO_MESSAGE_TEMPLATES, readCustomerMetadata, whatsap
 
 export const DEMO_CUSTOMERS_KEY = 'mobos:demo-customers:v1'
 const emptyCustomer = { name: '', document: '', email: '', phones: [''], addresses: [{ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay' }], acceptsEmailMarketing: false, acceptsSmsMarketing: false, acceptsWhatsappMarketing: false, taxExempt: false, tags: '', pricingTier: 'RETAIL', creditLimitPyg: '', creditDays: '' }
-const templateFields = (row) => ({ id: row.id, name: row.name || 'Mensaje', body: row.body || '' })
+const templateFields = (row) => ({ id: row.id, key: row.key || '', name: row.name || 'Mensaje', body: row.body || '', category: row.category || '' })
 const readDemoTemplates = () => DEMO_MESSAGE_TEMPLATES
 export const customerFields = (row) => {
   const metadata = readCustomerMetadata(row.notes)
@@ -163,6 +163,9 @@ export default function SellerCustomers() {
 
   const filasImportadas = filasParaImportar(importTexto)
   const resumenMostrar = esDemo ? { total: rows.length, wholesalers: rows.filter((row) => row.wholesale).length, retail: rows.filter((row) => !row.wholesale).length } : resumen
+  // El módulo de clientes usa solo las plantillas de su contexto; las demo
+  // (sin categoría) siguen disponibles tal cual.
+  const plantillasClientes = templateData.rows.filter((item) => !item.category || item.category === 'CUSTOMERS')
   const ordenados = [...rows].sort((a, b) => {
     if (orden === 'nombre') return a.name.localeCompare(b.name)
     if (orden === 'total') return Number(b.stats?.totalSpentPyg || 0) - Number(a.stats?.totalSpentPyg || 0)
@@ -208,8 +211,8 @@ export default function SellerCustomers() {
         ))}</div>
       </section>
     )}
-    {!data.loading && !data.error && vista === 'grid' && <ul className="grid gap-3 sm:grid-cols-2">{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={templateData.rows} onViewProfile={esDemo ? undefined : setProfileCustomer} />)}</ul>}
-    {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={templateData.rows} onPerfil={esDemo ? undefined : setProfileCustomer} />}
+    {!data.loading && !data.error && vista === 'grid' && <ul className="grid gap-3 sm:grid-cols-2">{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={plantillasClientes} onViewProfile={esDemo ? undefined : setProfileCustomer} />)}</ul>}
+    {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={esDemo ? undefined : setProfileCustomer} />}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={() => setProfileCustomer(null)} />
     {!templateData.loading && templateData.error && <p className="rounded-xl border border-amber-400/30 bg-amber-300/10 p-3 text-sm text-amber-100">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</p>}
     <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" className="max-w-2xl">

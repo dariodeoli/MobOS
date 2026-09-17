@@ -1,4 +1,5 @@
 import { internationalPhone } from '@/utils/telefono'
+import { renderPlantilla } from '@/lib/whatsappPlantillas'
 
 export const DEMO_MESSAGE_TEMPLATES = [
   { id: 'demo-ready', key: 'ready_for_pickup', name: 'Pedido listo para retirar', body: 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya está listo para retirar en {{branch_name}}.' },
@@ -19,12 +20,20 @@ export function whatsappUrl(phone, message, countryCode = '+595') {
 
 export function renderMessage(template, customer) {
   const values = {
-    customer_name: customer?.name || 'cliente',
-    order_number: customer?.orderNumber || 'tu pedido',
-    branch_name: customer?.branchName || 'la tienda',
+    cliente: customer?.name || 'cliente',
+    nombre: customer?.name || 'cliente',
+    empresa: customer?.companyName || '',
+    sucursal: customer?.branchName || 'la tienda',
+    vendedor: customer?.sellerName || '',
+    saldo_pendiente: customer?.saldoPendiente ?? '',
+    ultima_compra: customer?.ultimaCompra || '',
+    pedido: customer?.orderNumber || 'tu pedido',
+    total: customer?.total || '',
+    fecha: customer?.fecha || '',
     reservation_until: customer?.reservationUntil || 'la hora acordada',
+    tracking_url: customer?.trackingUrl || '',
   }
-  return String(template?.body || '').replace(/{{\s*([a-z_]+)\s*}}/gi, (_, key) => values[key] || '')
+  return renderPlantilla(template?.body, values)
 }
 
 export function readCustomerMetadata(notes) {

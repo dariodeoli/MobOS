@@ -221,6 +221,47 @@ result = await request('/api/combos', 'PATCH', { id: combo.id, isActive: false }
 assert.equal(result.response.status, 200)
 assert.equal(result.payload.isActive, false)
 
+// Plantillas de WhatsApp por categoría: siembra, alta con clave autogenerada,
+// predeterminada única por categoría, copia y borrado acotado al tenant.
+result = await request('/api/message-templates?category=CUSTOMERS')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+const plantillasClientes = result.payload
+assert.ok(plantillasClientes.length >= 4, 'La categoría CUSTOMERS debe sembrar sus plantillas base.')
+assert.ok(plantillasClientes.every(row => row.category === 'CUSTOMERS'), 'El filtro por categoría no debe mezclar contextos.')
+const predeterminadaPrevia = plantillasClientes.find(row => row.key === 'seguimiento') || plantillasClientes[0]
+result = await request('/api/message-templates', 'PATCH', { id: predeterminadaPrevia.id, isDefault: true })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+result = await request('/api/message-templates', 'POST', { name: `Aviso mayorista ${Date.now()}`, body: 'Hola {{cliente}}, {{empresa}} tiene novedades para vos.', category: 'CUSTOMERS' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const plantillaNueva = result.payload
+assert.equal(plantillaNueva.isDefault, false)
+assert.ok(plantillaNueva.key && plantillaNueva.key.length <= 64, 'La clave autogenerada debe tener hasta 64 caracteres.')
+result = await request('/api/message-templates', 'PATCH', { id: plantillaNueva.id, isDefault: true, isActive: false })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+result = await request('/api/message-templates?category=CUSTOMERS')
+assert.equal(result.response.status, 200)
+assert.equal(result.payload[0].id, plantillaNueva.id, 'La plantilla predeterminada debe listarse primero.')
+assert.equal(result.payload[0].isActive, false)
+assert.equal(result.payload.find(row => row.id === predeterminadaPrevia.id).isDefault, false, 'Marcar una nueva predeterminada debe destildar la anterior.')
+result = await request('/api/message-templates?category=ORDERS')
+assert.equal(result.response.status, 200)
+assert.ok(result.payload.some(row => row.key === 'ready_for_pickup') && result.payload.every(row => row.category === 'ORDERS'), 'ORDERS conserva sus plantillas base.')
+// Envío con plantilla elegida: el POST arma el mensaje y marca el aviso.
+result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}/whatsapp-message`, 'POST', { templateKey: 'ready_for_pickup' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.templateKey, 'ready_for_pickup')
+assert.ok(result.payload.whatsappUrl.startsWith('https://wa.me/'), 'El POST debe devolver el enlace de WhatsApp.')
+assert.ok(result.payload.notifiedAt, 'El POST debe marcar el pedido como avisado.')
+result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}/whatsapp-message`, 'POST', { templateKey: 'no_existe' })
+assert.equal(result.response.status, 404, 'Una plantilla inexistente no puede enviarse.')
+result = await request('/api/message-templates', 'POST', { duplicateOf: plantillaNueva.id })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+assert.ok(result.payload.name.endsWith('(copia)') && result.payload.isDefault === false, 'La copia no hereda la marca de predeterminada.')
+result = await request(`/api/message-templates?id=${encodeURIComponent(plantillaNueva.id)}`, 'DELETE')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+result = await request(`/api/message-templates?id=${encodeURIComponent(plantillaNueva.id)}`, 'DELETE')
+assert.equal(result.response.status, 404, 'Borrar dos veces la misma plantilla debe dar 404.')
+
 // Paginación por cursor (la que consume "Cargar más" en la UI): la primera
 // página respeta el límite y la siguiente arranca después del último id.
 const pagina1 = await request('/api/orders?limit=1')
@@ -231,4 +272,4 @@ assert.equal(pagina2.response.status, 200)
 assert.ok(pagina2.payload.length <= 1, 'La página siguiente respeta el límite.')
 assert.ok(!pagina2.payload.some(row => row.id === pagina1.payload[0].id), 'La página siguiente no repite el cursor.')
 
-console.log('orders-credit-discounts: OK (numeración secuencial MOB-####, descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, pipeline de cotizaciones y combos).')
+console.log('orders-credit-discounts: OK (numeración secuencial MOB-####, descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, plantillas por categoría, pipeline de cotizaciones y combos).')
