@@ -39,7 +39,9 @@ En la app, Configuración → Impresoras:
 
 ## Red
 
-La impresora ya está configurada en `192.168.1.23:9100` (máscara 255.255.255.0, DHCP desactivado, ESC/POS, cortador habilitado). La computadora tiene que estar **en la misma red** (`192.168.1.x`). Lo más
+La impresora ya está configurada en `192.168.1.23:9100` (máscara 255.255.255.0, gateway 192.168.1.1, DHCP desactivado, ESC/POS, cortador habilitado) y el instalador la deja cargada como destino.
+
+Lo que falta es de red: **el router y la impresora tienen que compartir la subred** (`192.168.1.x`) y la computadora tiene que estar en esa misma red. Cambiar la IP de la Mac a mano solo sirve si esa red existe de verdad; si el router opera en `192.168.100.x`, lo correcto es mover la impresora a esa red (o dejar que el router entregue `192.168.1.x`) en vez de forzar la IP de la Mac. Lo más
 cómodo es dejar la impresora con **IP fija** (o reserva DHCP) porque el agente la
 usa por IP; si cambia, hay que actualizar el destino en Configuración.
 

@@ -66,6 +66,16 @@ export default function Impresoras() {
             No se encontró el agente en <b className="text-fore">127.0.0.1:17890</b>. Mientras tanto la app imprime con el diálogo de siempre (A4 o 58 mm). Después de instalarlo, Chrome va a pedir una vez permiso de “acceso a la red local”: hay que aceptarlo.
           </p>
         )}
+        {estado?.disponible && estado.impresora && estado.impresoraOk === false && (
+          <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 p-3 text-sm text-bad">
+            La impresora <b>{estado.impresora}</b> no responde desde esta computadora. Revisá que estén en la misma red
+            (por ejemplo, la Mac en <b>192.168.1.x</b> y la impresora en <b>192.168.1.23</b>): lo ideal es que el router
+            y la impresora compartan la subred, no cambiar la IP de la Mac a mano. Después tocá “Actualizar estado”.
+          </p>
+        )}
+        {estado?.disponible && estado.impresoraOk === true && (
+          <p className="text-xs text-ok">La impresora responde desde esta computadora.</p>
+        )}
         {estado?.disponible && (
           <div className="flex flex-wrap gap-4 text-xs text-mute">
             <span>Cola: <b className="text-fore">{estado.cola?.pendientes || 0} pendientes</b>{estado.cola?.fallidos ? ` · ${estado.cola.fallidos} fallidos` : ''}</span>

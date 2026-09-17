@@ -22,7 +22,8 @@ export function cargarConfig() {
     esperaMs: Math.min(300000, Math.max(1000, Number(guardado.esperaMs) || 15000)),
     lan: Array.isArray(guardado.lan) ? guardado.lan.filter(Boolean) : [],
   }
-  if (!existsSync(RUTA_CONFIG)) guardarConfig(config)
+  // Se guarda siempre: el token generado tiene que sobrevivir al reinicio.
+  if (!existsSync(RUTA_CONFIG) || !guardado.token) guardarConfig(config)
   return config
 }
 

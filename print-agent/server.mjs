@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 import { cargarConfig, guardarConfig, RUTA_COLA } from './config.mjs'
 import { crearCola } from './cola.mjs'
-import { enviar, impresorasUsb } from './transportes.mjs'
+import { enviar, impresorasUsb, probarConexion } from './transportes.mjs'
 
 const VERSION = '1.0.0'
 const config = cargarConfig()
@@ -28,6 +28,16 @@ function cors(request, response) {
     return true
   }
   return false
+}
+
+// Alcance de la impresora elegida, con cache corto para no golpear el puerto
+// en cada consulta del panel.
+let cacheAlcance = { hasta: 0, ok: null }
+async function impresoraResponde() {
+  if (Date.now() < cacheAlcance.hasta) return cacheAlcance.ok
+  const ok = config.impresora ? await probarConexion(config.impresora) : false
+  cacheAlcance = { hasta: Date.now() + 3000, ok }
+  return ok
 }
 
 const responder = (response, datos, status = 200) => {
@@ -62,6 +72,7 @@ const servidor = createServer(async (request, response) => {
         ancho: config.ancho,
         copias: config.copias,
         impresoras: { lan: config.lan, usb },
+        impresoraOk: await impresoraResponde(),
         cola: cola.resumen(),
       })
     }
@@ -94,6 +105,7 @@ const servidor = createServer(async (request, response) => {
         if (cuerpo?.[campo] !== undefined) config[campo] = cuerpo[campo]
       }
       guardarConfig(config)
+      cacheAlcance = { hasta: 0, ok: null }
       return responder(response, { ok: true, impresora: config.impresora, ancho: config.ancho, copias: config.copias })
     }
 

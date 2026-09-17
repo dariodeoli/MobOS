@@ -67,6 +67,7 @@ test('el agente imprime por red, encola si la impresora está caída y protege c
   const salud = await fetch(`${base}/health`, { headers: cabeceras }).then((r) => r.json())
   assert.deepEqual(salud.impresoras.lan, [`lan:127.0.0.1:${puertoImpresora}`])
   assert.equal(salud.cola.pendientes, 0)
+  assert.equal(salud.impresoraOk, false) // la impresora todavía está apagada
 
   const sinToken = await fetch(`${base}/print`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: ticket }) })
   assert.equal(sinToken.status, 401)
@@ -83,6 +84,9 @@ test('el agente imprime por red, encola si la impresora está caída y protege c
   const impresora = await impresoraFalsa(puertoImpresora)
   t.after(() => impresora.cerrar())
   assert.ok(await esperar(() => impresora.recibido.length > 0), 'la cola reintentó y llegó a la impresora')
+  await new Promise((listo) => setTimeout(listo, 3300)) // deja vencer la caché del sondeo
+  const saludEncendida = await fetch(`${base}/health`, { headers: cabeceras }).then((r) => r.json())
+  assert.equal(saludEncendida.impresoraOk, true, 'el agente detecta la impresora encendida')
   assert.deepEqual([...impresora.recibido[0]], [0x1b, 0x40, 0x48, 0x6f, 0x6c, 0x61, 0x0a])
 
   // La cola queda vacía y el trabajo figura impreso.
