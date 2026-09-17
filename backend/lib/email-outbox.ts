@@ -4,7 +4,7 @@ import { logEmailOutcome, sendTransactionalEmail } from './email'
 import { decryptEmailOutboxPayload, encryptEmailOutboxPayload } from './email-outbox-crypto'
 import { prisma } from './prisma'
 
-export type OutboxKind = 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'warranty-update' | 'reservation-due'
+export type OutboxKind = 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due'
 type PreparedEmail = { to: string; subject: string; html: string; text: string }
 
 const LOCK_TIMEOUT_MS = 60_000
@@ -115,6 +115,7 @@ export async function dispatchEmailOutboxJob(id: string) {
         welcome: 'WELCOME_EMAIL_DELIVERY_FAILED',
         'team-invitation': 'USER_INVITATION_DELIVERY_FAILED',
         'payment-due': 'PAYMENT_DUE_DELIVERY_FAILED',
+        'payment-overdue': 'PAYMENT_OVERDUE_DELIVERY_FAILED',
         'warranty-update': 'WARRANTY_STATUS_DELIVERY_FAILED',
         'reservation-due': 'RESERVATION_DUE_DELIVERY_FAILED',
       }[job.job.kind]

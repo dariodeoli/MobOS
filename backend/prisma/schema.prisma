@@ -1038,6 +1038,9 @@ model Payment {
   dueAt           DateTime?
   // Cuándo se envió el recordatorio automático de cuota por vencer.
   remindedAt      DateTime?
+  // Cuándo se avisó que la cuota ya venció. Se marca aparte para que el aviso
+  // previo al vencimiento no consuma el reclamo posterior.
+  overdueRemindedAt DateTime?
   // Fecha estimada de acreditación en la cuenta de la empresa (tarjetas/PIX).
   settlesAt       DateTime?
   createdAt       DateTime         @default(now())

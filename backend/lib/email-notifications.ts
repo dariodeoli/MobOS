@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { logEmailOutcome, paymentDueReminderEmail, reservationDueEmail, warrantyStatusEmail } from './email'
+import { logEmailOutcome, paymentDueReminderEmail, paymentOverdueEmail, reservationDueEmail, warrantyStatusEmail } from './email'
 import { enqueueEmail } from './email-outbox'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -56,6 +56,22 @@ export async function notifyPaymentDue(tx: NotificationClient, input: { tenantId
   } catch (cause) {
     logEmailOutcome('payment-due', 'unconfigured')
     console.info(JSON.stringify({ event: 'mobos.transactional_email', kind: 'payment-due', error: cause instanceof Error ? cause.message : 'unknown' }))
+    return false
+  }
+}
+
+// Aviso de cuota ya vencida. Se marca con `overdueRemindedAt`, así el
+// recordatorio previo al vencimiento no consume este reclamo. Nunca lanza.
+export async function notifyPaymentOverdue(tx: NotificationClient, input: { tenantId: string; paymentId: string; customerName: string; customerEmail: string | null; orderNumber: string; dueAt: Date; amountPyg: number }) {
+  try {
+    if (!customerEmailValid(input.customerEmail)) return false
+    const message = paymentOverdueEmail({ to: input.customerEmail, customerName: input.customerName, orderNumber: input.orderNumber, dueAt: input.dueAt, amountPyg: input.amountPyg, storeName: await storeName(tx, input.tenantId) })
+    if (!message) { logEmailOutcome('payment-overdue', 'unconfigured'); return false }
+    await enqueueEmail(tx, { tenantId: input.tenantId, kind: 'payment-overdue', aggregateType: 'Payment', aggregateId: `${input.paymentId}:overdue`, message })
+    return true
+  } catch (cause) {
+    logEmailOutcome('payment-overdue', 'unconfigured')
+    console.info(JSON.stringify({ event: 'mobos.transactional_email', kind: 'payment-overdue', error: cause instanceof Error ? cause.message : 'unknown' }))
     return false
   }
 }

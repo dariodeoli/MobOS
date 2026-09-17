@@ -33,7 +33,7 @@ export function emailTransportConfigured() {
   return Boolean(relayUrl() && relayToken() && appUrl() && emailOutboxEncryptionConfigured())
 }
 
-export function logEmailOutcome(kind: 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'warranty-update' | 'reservation-due', outcome: 'delivered-to-relay' | 'delivery-failed' | 'unconfigured') {
+export function logEmailOutcome(kind: 'password-recovery' | 'email-verification' | 'welcome' | 'team-invitation' | 'receipt' | 'payment-due' | 'payment-overdue' | 'warranty-update' | 'reservation-due', outcome: 'delivered-to-relay' | 'delivery-failed' | 'unconfigured') {
   console.info(JSON.stringify({ event: 'mobos.transactional_email', kind, outcome }))
 }
 
@@ -141,6 +141,13 @@ export function paymentDueReminderEmail(input: { to: string; customerName: strin
   const store = input.storeName.trim() || 'MobOS'
   const content = template({ eyebrow: 'Cuota por vencer', title: 'Tu cuota vence pronto', lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: `La cuota de tu pedido ${input.orderNumber} en ${store} vence el ${formatDateEsPy(input.dueAt)} por ${formatPyg(input.amountPyg)}.`, footer: 'Pagá antes del vencimiento para mantener tu plan al día.' })
   return { to: input.to, subject: `Tu cuota del pedido ${input.orderNumber} vence pronto`, ...content }
+}
+
+export function paymentOverdueEmail(input: { to: string; customerName: string; orderNumber: string; dueAt: Date; amountPyg: number; storeName: string }) {
+  if (!emailPattern.test(input.to) || !Number.isFinite(input.dueAt.getTime())) return null
+  const store = input.storeName.trim() || 'MobOS'
+  const content = template({ eyebrow: 'Cuota vencida', title: 'Tu cuota está vencida', lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: `La cuota de tu pedido ${input.orderNumber} en ${store} venció el ${formatDateEsPy(input.dueAt)} por ${formatPyg(input.amountPyg)}.`, footer: `Acercate a ${store} o respondé este correo para regularizarla.` })
+  return { to: input.to, subject: `Tu cuota del pedido ${input.orderNumber} está vencida`, ...content }
 }
 
 export function warrantyStatusEmail(input: { to: string; customerName: string; serial: string; storeName: string; statusLabel: string }) {
