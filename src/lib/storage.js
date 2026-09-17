@@ -13,13 +13,11 @@ import { num } from '@/utils/calculos'
 import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from './demoMode'
-import { LINEUP_NUEVO, LINEUP_SEMINUEVO, MEDIOS_PAGO } from './catalog'
+import { MEDIOS_PAGO } from './catalog'
 import {
   prod,
   PRODUCTOS_DEFAULT,
   VENDEDORES_DEFAULT,
-  FRASES_DEFAULT,
-  CONFIG_DEFAULT,
   TRADEIN_DEFAULT,
 } from './demo/seed'
 

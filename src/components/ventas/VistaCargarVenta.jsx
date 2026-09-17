@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
+import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, productosById } from '@/lib/storage'
 import {
@@ -15,7 +15,6 @@ import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
 import { EmptyState } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 
 const POR_PAGINA = 8
 // 'YYYY-MM-DD' -> 'DD/MM/YY'
@@ -24,7 +23,6 @@ const fmtFecha = f => {
   return d ? `${d}/${m}/${y.slice(2)}` : '—'
 }
 const inicial = s => (s || '?').trim().charAt(0).toUpperCase()
-const TIPOS_PAGO = PAYMENT_METHOD_LABELS
 
 function PagosVenta({ venta }) {
   const pagos = venta.pagos?.length ? venta.pagos : venta.payments || []

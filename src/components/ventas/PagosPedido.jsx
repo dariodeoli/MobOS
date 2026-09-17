@@ -10,7 +10,6 @@ import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 import { trackingUrlFor } from '@/components/shared/OrderReceipt'
-import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { printPaymentReceipt, printOrderReceipt } from '@/components/shared/OrderReceipt'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 
@@ -28,7 +27,7 @@ export function whatsappTrackingLink(order, extra = '') {
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
 }
 
-const METHODS = PAYMENT_METHOD_LABELS
+const METODOS_PAGO = ['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'PIX']
 const FOREIGN = (currency) => currency === 'USD' || currency === 'BRL'
 
 export default function PagosPedido({ venta, onClose }) {
