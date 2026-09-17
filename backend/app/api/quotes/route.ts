@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
@@ -9,6 +10,9 @@ const INT_MAX = 2147483647
 const STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'CONVERTED', 'EXPIRED', 'CANCELLED']
 const safeInt = (value: unknown, min = 0) => Number.isSafeInteger(value) && (value as number) >= min && (value as number) <= INT_MAX
 const text = (value: unknown, max = 300) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
+
+// Patrón LIKE literal: % y _ del texto buscado no actúan como comodines.
+const patronLike = (valor: string) => `%${valor.replace(/[\\%_]/g, '\\$&')}%`
 
 type QuoteItem = { productId?: string; description: string; quantity: number; unitPricePyg: number; totalPyg: number }
 
@@ -26,27 +30,57 @@ function normalizeItems(raw: unknown): QuoteItem[] {
   })
 }
 
-function scopeWhere(session: { user: { id: string; role: string; branchId: string | null } }, tenant: string) {
-  if (session.user.role === 'VENDEDOR') return { tenantId: tenant, sellerId: session.user.id }
-  if (session.user.role === 'CAJERA') return { tenantId: tenant, branchId: session.user.branchId }
-  if (session.user.role === 'GERENTE' && session.user.branchId) return { tenantId: tenant, branchId: session.user.branchId }
-  return { tenantId: tenant }
-}
-
 // Cotizaciones: vencidas se marcan al listar para que el estado sea confiable.
+// El listado usa el mismo patrón que Pedidos: búsqueda y estado se resuelven en
+// el servidor sobre todo el alcance del usuario, con paginación por cursor.
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   await prisma.quote.updateMany({ where: { tenantId: tenant, status: { in: ['DRAFT', 'SENT', 'ACCEPTED'] }, validUntil: { lt: new Date() } }, data: { status: 'EXPIRED' } })
-  const status = new URL(request.url).searchParams.get('status')
+  const params = new URL(request.url).searchParams
+  const status = params.get('status')
+  const q = (params.get('q') || '').trim().slice(0, 120)
+  const limit = Math.min(200, Math.max(1, Number(params.get('limit')) || 50))
+  const cursor = params.get('cursor')
+  // Alcance por rol, espejo de scopeWhere: VENDEDOR lo suyo; CAJERA su sucursal;
+  // GERENTE con sucursal la suya; ADMIN/GERENTE sin sucursal todo el tenant.
+  const condiciones: Prisma.Sql[] = [Prisma.sql`q."tenantId" = ${tenant}`]
+  if (status === 'abiertas') condiciones.push(Prisma.sql`q."status"::text IN ('DRAFT', 'SENT', 'ACCEPTED')`)
+  else if (status && STATUSES.includes(status)) condiciones.push(Prisma.sql`q."status"::text = ${status}`)
+  if (session.user.role === 'VENDEDOR') condiciones.push(Prisma.sql`q."sellerId" = ${session.user.id}`)
+  else if (session.user.role === 'CAJERA') condiciones.push(session.user.branchId ? Prisma.sql`q."branchId" = ${session.user.branchId}` : Prisma.sql`q."branchId" IS NULL`)
+  else if (session.user.role === 'GERENTE' && session.user.branchId) condiciones.push(Prisma.sql`q."branchId" = ${session.user.branchId}`)
+  if (cursor) {
+    const cursorRow = await prisma.quote.findFirst({ where: { id: cursor, tenantId: tenant }, select: { createdAt: true } })
+    if (!cursorRow) return json([])
+    condiciones.push(Prisma.sql`(q."createdAt" < ${cursorRow.createdAt} OR (q."createdAt" = ${cursorRow.createdAt} AND q."id" < ${cursor}))`)
+  }
+  if (q) {
+    // Búsqueda: número de cotización, nombre del cliente y descripción de ítems.
+    const texto = patronLike(q)
+    condiciones.push(Prisma.sql`(
+      q."number" ILIKE ${texto}
+      OR q."customerName" ILIKE ${texto}
+      OR q."items"::text ILIKE ${texto}
+      OR EXISTS (SELECT 1 FROM "Customer" c WHERE c."id" = q."customerId" AND c."name" ILIKE ${texto})
+    )`)
+  }
+  const ids = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT q."id"
+    FROM "Quote" q
+    WHERE ${Prisma.join(condiciones, ' AND ')}
+    ORDER BY q."createdAt" DESC, q."id" DESC
+    LIMIT ${limit}
+  `)
+  if (!ids.length) return json([])
+  // Segunda consulta con el include de siempre; el orden lo fija la lista de
+  // ids para conservar la paginación por cursor.
   const quotes = await prisma.quote.findMany({
-    where: { ...scopeWhere(session, tenant), ...(status && STATUSES.includes(status) ? { status: status as never } : {}) },
+    where: { id: { in: ids.map((row) => row.id) } },
     include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true } }, order: { select: { id: true, orderNumber: true } } },
-    orderBy: { createdAt: 'desc' },
-    take: Math.min(500, Math.max(1, Number(new URL(request.url).searchParams.get('limit')) || 200)),
-    ...(new URL(request.url).searchParams.get('cursor') ? { cursor: { id: String(new URL(request.url).searchParams.get('cursor')) }, skip: 1 } : {}),
   })
-  return json(quotes)
+  const porId = new Map(quotes.map((quote) => [quote.id, quote]))
+  return json(ids.flatMap((row) => { const quote = porId.get(row.id); return quote ? [quote] : [] }))
 }
 
 export async function POST(request: Request) {

@@ -6,13 +6,16 @@ import { codigoPedido } from '@/utils/pedido'
 import { Badge, Button, Input, Label, Modal, MoneyInput, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ProductCombobox from '@/components/shared/ProductCombobox'
+import Cronologia from '@/components/shared/Cronologia'
 import { cn } from '@/lib/utils'
 import { resources } from '@/lib/api'
+import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 
 const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPTED: ['Aceptada', 'orange'], CONVERTED: ['Convertida', 'green'], EXPIRED: ['Vencida', 'red'], CANCELLED: ['Cancelada', 'slate'] }
+// Chips de estado resueltos en el servidor (mismo patrón que Pedidos).
 const ABIERTAS = ['DRAFT', 'SENT', 'ACCEPTED']
-const FILTROS = [['todas', 'Todas'], ['abiertas', 'Abiertas'], ['convertidas', 'Convertidas']]
+const FILTROS = [['todas', 'Todas'], ['abiertas', 'Abiertas'], ['DRAFT', 'Borrador'], ['SENT', 'Enviada'], ['ACCEPTED', 'Aceptada'], ['CONVERTED', 'Convertida']]
 const identity = row => row
 const demoQuotes = () => []
 const emptyItem = (product = null) => ({ productId: product?.id || '', description: product?.nombre || '', quantity: '1', unitPricePyg: product && product.precioVenta > 0 ? String(product.precioVenta) : '' })
@@ -41,19 +44,32 @@ const vencimiento = (row) => {
 export default function SellerQuotes() {
   const { esDemo } = useSesion()
   const productos = getProductos().filter(product => product.activo !== false)
-  const data = useSellerData('/api/quotes', identity, demoQuotes, esDemo, { limit: 50 })
   const [filtro, setFiltro] = useState('todas')
   const [query, setQuery] = useState('')
+  // Búsqueda y estado van al servidor (cubren todas las cotizaciones del
+  // alcance del usuario, no solo la página cargada). El texto se difiere 250 ms.
+  const busqueda = useBusquedaDiferida(query)
+  const path = useMemo(() => {
+    const params = new URLSearchParams()
+    const texto = busqueda.trim()
+    if (texto) params.set('q', texto)
+    if (filtro !== 'todas') params.set('status', filtro)
+    const consulta = params.toString()
+    return `/api/quotes${consulta ? `?${consulta}` : ''}`
+  }, [filtro, busqueda])
+  const data = useSellerData(path, identity, demoQuotes, esDemo, { limit: 50 })
   const [crearOpen, setCrearOpen] = useState(false)
+  const [historial, setHistorial] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [form, setForm] = useState({ customerName: '', validUntil: '', notes: '', discountPyg: '' })
   const [items, setItems] = useState([emptyItem()])
 
-  const rows = useMemo(() => data.rows
-    .filter(row => filtro === 'convertidas' ? row.status === 'CONVERTED' : filtro === 'abiertas' ? ['DRAFT', 'SENT', 'ACCEPTED'].includes(row.status) : true)
-    .filter(row => `${row.number} ${row.customerName} ${row.customer?.name || ''}`.toLowerCase().includes(query.toLowerCase())), [data.rows, filtro, query])
+  // La demo no pagina contra la API: sus pocas filas se filtran en memoria.
+  const rows = useMemo(() => esDemo ? data.rows
+    .filter(row => filtro === 'todas' || (filtro === 'abiertas' ? ABIERTAS.includes(row.status) : row.status === filtro))
+    .filter(row => `${row.number} ${row.customerName}`.toLowerCase().includes(query.toLowerCase())) : data.rows, [data.rows, filtro, query, esDemo])
   const itemsValidos = items.filter(item => item.description.trim() && num(item.quantity) > 0 && num(item.unitPricePyg) >= 0)
   const total = itemsValidos.reduce((sum, item) => sum + num(item.quantity) * num(item.unitPricePyg), 0) - num(form.discountPyg)
 
@@ -81,7 +97,7 @@ export default function SellerQuotes() {
   return <SellerSection title="Cotizaciones" description="Pipeline de ventas: cotizá, seguí el vencimiento y convertí en pedido cuando el cliente acepte.">
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS.map(([key, label]) => <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('rounded-lg px-3 py-1.5 text-xs font-semibold transition', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
-      <div className="min-w-[200px] flex-1"><Input aria-label="Buscar cotizaciones" placeholder="Número o cliente" value={query} onChange={event => setQuery(event.target.value)} /></div>
+      <div className="min-w-[200px] flex-1"><Input aria-label="Buscar cotizaciones" placeholder="Número, cliente o ítem" value={query} onChange={event => setQuery(event.target.value)} /></div>
       {!esDemo && <Button type="button" onClick={() => { setCrearOpen(true); setError(''); setNotice('') }}>+ Nueva cotización</Button>}
       <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
     </div>
@@ -120,6 +136,7 @@ export default function SellerQuotes() {
                 {row.status === 'ACCEPTED' && <Button type="button" className="h-8 px-2 text-xs" title="Convertir en pedido" disabled={busy} onClick={() => convertir(row)}>Convertir</Button>}
                 <button type="button" disabled={busy} className="h-8 rounded-lg border border-bad/30 px-2 text-xs font-semibold text-bad transition hover:bg-bad/10" onClick={() => accion(() => resources.quotes.update({ id: row.id, status: 'CANCELLED' }), 'Cotización cancelada.')}>Cancelar</button>
               </>}
+              {!esDemo && <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setHistorial(row)}>Historial</Button>}
             </span>
           </div>
         })}
@@ -153,6 +170,9 @@ export default function SellerQuotes() {
         <label className="block space-y-1.5 text-xs text-mute">Notas<Textarea rows={2} maxLength={2000} value={form.notes} onChange={event => setForm(current => ({ ...current, notes: event.target.value }))} placeholder="Condiciones, validez, observaciones…" /></label>
         <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setCrearOpen(false)}>Cancelar</Button><Button type="submit" disabled={busy || !form.customerName.trim() || !itemsValidos.length}>{busy ? 'Guardando…' : 'Crear cotización'}</Button></div>
       </form>
+    </Modal>
+    <Modal open={historial !== null} onClose={() => setHistorial(null)} title={`Historial de ${historial?.number || 'cotización'}`}>
+      {historial && <Cronologia endpoint={`/api/quotes/${historial.id}/history`} active={historial !== null} vacio="Sin actividad" descripcionVacio="Los cambios de estado, la conversión en pedido y las notas de esta cotización aparecerán acá." />}
     </Modal>
   </SellerSection>
 }

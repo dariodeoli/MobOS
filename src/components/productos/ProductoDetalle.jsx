@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Drawer, Badge, Button, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import { printPriceLabel } from '@/components/shared/OrderReceipt'
 import Icon from '@/components/shared/Icon'
+import Cronologia from '@/components/shared/Cronologia'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { api } from '@/lib/api/client'
 import { num } from '@/utils/calculos'
@@ -28,6 +29,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [editando, setEditando] = useState(false)
+  const [cronologiaAbierta, setCronologiaAbierta] = useState(false)
   const [form, setForm] = useState(() => ({
     categoria: product?.category || 'Otros',
     condicion: product?.condition || 'NEW',
@@ -171,6 +173,20 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
               </div>)}
             </div>
           </>}
+        </section>
+
+        <section className="rounded-2xl border border-ink-600 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Cronología</h3>
+            <button type="button" onClick={() => setCronologiaAbierta(value => !value)} className="rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">{cronologiaAbierta ? 'Ocultar' : 'Ver cronología'}</button>
+          </div>
+          {cronologiaAbierta && (
+            <div className="mt-3">
+              {esDemo
+                ? <p className="text-sm text-mute">La cronología está disponible con una cuenta real.</p>
+                : <Cronologia endpoint={`/api/products/${current.id}/history`} active={cronologiaAbierta} vacio="Sin actividad" descripcionVacio="Las compras, unidades y cambios de este producto aparecerán acá." />}
+            </div>
+          )}
         </section>
 
         <section className="rounded-2xl border border-ink-600 p-4">

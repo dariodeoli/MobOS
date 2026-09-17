@@ -7,6 +7,7 @@ import { canAccessOrder } from '../../../../../lib/orders'
 // Plantilla sugerida según el estado de entrega del pedido.
 const TEMPLATE_BY_STATUS: Record<string, string> = {
   IN_TRANSIT: 'arrived_from_depot',
+  READY_TO_SHIP: 'ready_to_ship',
   READY_FOR_PICKUP: 'ready_for_pickup',
 }
 

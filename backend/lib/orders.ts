@@ -1,12 +1,13 @@
 import type { AuthUser } from './auth'
 import { InputError, textInput } from './payment-input'
 
-export const FULFILLMENT_STATES = ['PROCESSING', 'IN_TRANSIT', 'READY_FOR_PICKUP', 'DELIVERED'] as const
+export const FULFILLMENT_STATES = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED'] as const
 export type FulfillmentState = typeof FULFILLMENT_STATES[number]
 
 const nextStates: Record<FulfillmentState, readonly FulfillmentState[]> = {
-  PROCESSING: ['IN_TRANSIT', 'READY_FOR_PICKUP', 'DELIVERED'],
-  IN_TRANSIT: ['DELIVERED'],
+  PROCESSING: ['IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED'],
+  IN_TRANSIT: ['READY_TO_SHIP', 'DELIVERED'],
+  READY_TO_SHIP: ['IN_TRANSIT', 'READY_FOR_PICKUP', 'DELIVERED'],
   READY_FOR_PICKUP: ['DELIVERED'],
   DELIVERED: [],
 }

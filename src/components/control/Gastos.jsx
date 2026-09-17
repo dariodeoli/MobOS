@@ -6,9 +6,12 @@ import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { listGastos, addGasto } from '@/lib/storage'
 import { fechaClave, gs } from '@/utils/calculos'
 import { parseGsInput } from '@/utils/moneda'
-import { Card, Button, Input, Label, Select, Badge, EmptyState, MoneyInput } from '@/components/ui'
+import { Card, Button, Input, Label, Select, Badge, EmptyState, MoneyInput, Modal } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import { cn } from '@/lib/utils'
+import AttachmentInput from '@/components/shared/AttachmentInput'
+import AttachmentList from '@/components/shared/AttachmentList'
+import Cronologia from '@/components/shared/Cronologia'
 
 const EMPTY = () => ({ originalAmount: '', description: '', date: fechaClave(), currency: 'PYG', exchangeRatePyg: '1', accountId: '', kind: 'EXPENSE', counterparty: '', reference: '', dueAt: '' })
 const KINDS = { EXPENSE: 'Gasto', CHEQUE: 'Cheque emitido/cobrado', SUPPLIER_ADVANCE: 'Adelanto a proveedor', TRANSFER: 'Transferencia', OWNER_WITHDRAWAL: 'Retiro del dueño', ADJUSTMENT: 'Ajuste' }
@@ -35,6 +38,9 @@ export default function Gastos() {
   const [form, setForm] = useState(EMPTY)
   const [rows, setRows] = useState([])
   const [accounts, setAccounts] = useState([])
+  const [comprobante, setComprobante] = useState(null)
+  const [adjuntosDe, setAdjuntosDe] = useState(null)
+  const [historialDe, setHistorialDe] = useState(null)
   const [loading, setLoading] = useState(!esDemo)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -62,8 +68,16 @@ export default function Gastos() {
         addGasto({ monto: Number(originalAmount), motivo: form.description, fecha: form.date, categoria: 'Otros' })
         setRows(listGastos()); setForm(EMPTY()); return
       }
-      await api.post(`/api/finance${branch}`, { action: 'movement', kind: form.kind, direction: 'OUT', currency: form.currency, originalAmount, exchangeRatePyg: form.currency === 'PYG' ? 1 : form.exchangeRatePyg, accountId: form.accountId || null, description: form.description, counterparty: form.counterparty || null, reference: form.reference || null, dueAt: form.kind === 'CHEQUE' && form.dueAt ? form.dueAt : null })
-      setForm(EMPTY()); await load()
+      const created = await api.post(`/api/finance${branch}`, { action: 'movement', kind: form.kind, direction: 'OUT', currency: form.currency, originalAmount, exchangeRatePyg: form.currency === 'PYG' ? 1 : form.exchangeRatePyg, accountId: form.accountId || null, description: form.description, counterparty: form.counterparty || null, reference: form.reference || null, dueAt: form.kind === 'CHEQUE' && form.dueAt ? form.dueAt : null })
+      let aviso = ''
+      if (comprobante && created?.id) {
+        try {
+          const body = new FormData()
+          body.append('entity', 'EXPENSE'); body.append('entityId', created.id); body.append('file', comprobante)
+          await api.post('/api/attachments', body)
+        } catch { aviso = 'El movimiento se guardó, pero no se pudo subir el comprobante.' }
+      }
+      setForm(EMPTY()); setComprobante(null); await load(); setMessage(aviso)
     } catch (error) { setMessage(error.message || 'No se pudo guardar el movimiento.') } finally { setBusy(false) }
   }
   async function updateStatus(id, action) {
@@ -87,11 +101,12 @@ export default function Gastos() {
         <div className="md:col-span-2"><Label>Descripción</Label><Input required value={form.description} onChange={event => set('description', event.target.value)} placeholder="Ej. Seguro de mercadería" /></div>
         <div><Label>Contraparte</Label><Input value={form.counterparty} onChange={event => set('counterparty', event.target.value)} placeholder="Proveedor o beneficiario" /></div>
         <div><Label>Referencia</Label><Input value={form.reference} onChange={event => set('reference', event.target.value)} placeholder="N.º transferencia o cheque" /></div>
+        <div><Label>Comprobante (opcional)</Label><AttachmentInput className="block w-full text-xs text-mute" disabled={busy} onSelect={setComprobante} onError={setMessage} />{comprobante && <p className="mt-1 truncate text-xs text-mute">{comprobante.name}</p>}</div>
         <div className="flex items-end"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar movimiento'}</Button></div>
       </form>
     </Card>
     <Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink-600 p-4"><h3 className="font-bold">Libro financiero</h3><Badge color="red">Gastos: {gs(total)}</Badge></div>
-      {loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados." /> : <div className="overflow-x-auto p-4" data-testid="gastos-tabla">
+{loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados." /> : <div className="overflow-x-auto p-4" data-testid="gastos-tabla">
       <div className={cn(GRID_GASTOS, 'px-3.5 pb-2 pt-1')}>
         <span className={CELDA_GASTOS}>Descripción</span>
         <span className={CELDA_GASTOS}>Tipo</span>
@@ -112,10 +127,14 @@ export default function Gastos() {
           <span className={cn('truncate text-[11px]', row.kind === 'CHEQUE' && row.status === 'PENDING' && row.dueAt ? 'text-warn' : 'text-mute')} title={row.dueAt ? `Cobro previsto el ${new Date(row.dueAt).toLocaleDateString('es-PY')}` : undefined}>{row.dueAt ? fechaGasto(row.dueAt) : '—'}</span>
           <Badge color={estadoTone} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{estadoLabel}</Badge>
           <span className="truncate text-right text-sm font-bold tabular-nums text-bad">{monto}</span>
-          <span className="flex flex-wrap items-center justify-end gap-1">{row.kind === 'CHEQUE' && row.status === 'PENDING' && !isDemoRuntime && <><Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => updateStatus(row.id, 'clear')}>Cobrado</Button><Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={busy} onClick={() => updateStatus(row.id, 'void')}>Anular</Button></>}</span>
+          <span className="flex flex-wrap items-center justify-end gap-1">{!isDemoRuntime && row.id && <><Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => setAdjuntosDe(row)}>Adjuntos</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => setHistorialDe(row)}>Historial</Button></>}{row.kind === 'CHEQUE' && row.status === 'PENDING' && !isDemoRuntime && <><Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => updateStatus(row.id, 'clear')}>Cobrado</Button><Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={busy} onClick={() => updateStatus(row.id, 'void')}>Anular</Button></>}</span>
         </div>
       })}</div>
-    </div>}
-    </Card>
+    </div>}    </Card>    <Modal open={adjuntosDe !== null} onClose={() => setAdjuntosDe(null)} title="Comprobante del gasto">
+      {adjuntosDe && <AttachmentList entity="EXPENSE" entityId={adjuntosDe.id} puedeSubir titulo="Comprobantes del gasto" />}
+    </Modal>
+    <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title="Historial del gasto">
+      {historialDe && <Cronologia endpoint={`/api/expenses/${historialDe.id}/history`} active={historialDe !== null} vacio="Sin actividad" descripcionVacio="El alta, los cambios de estado y los comprobantes de este gasto aparecerán acá." />}
+    </Modal>
   </div>
 }

@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
+import { api } from '@/lib/api/client'
 import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
@@ -9,6 +10,7 @@ import { Input } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { ultimos4 } from '@/utils/serial'
+import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import PedidoDetalle from './PedidoDetalle'
 
@@ -46,10 +48,10 @@ export const orderFields = (row) => {
     tags: Array.isArray(row.tags) ? row.tags : [], archivedAt: row.archivedAt || null,
   }
 }
-const FULFILLMENT = { PROCESSING: 'Preparando', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo p/ retirar', DELIVERED: 'Entregado' }
+const FULFILLMENT = { PROCESSING: 'Preparando', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo p/ enviar', READY_FOR_PICKUP: 'Listo p/ retirar', DELIVERED: 'Entregado' }
 const ENTREGA = { 'Retiro en tienda': 'Retiro', Delivery: 'Delivery', Encomienda: 'Encomienda' }
 const PAGO_ORDEN = { Pagado: 0, Parcial: 1, 'A crédito': 2, Pendiente: 3 }
-const ESTADO_ORDEN = { PROCESSING: 0, IN_TRANSIT: 1, READY_FOR_PICKUP: 2, DELIVERED: 3, CANCELLED: 4 }
+const ESTADO_ORDEN = { PROCESSING: 0, IN_TRANSIT: 1, READY_TO_SHIP: 2, READY_FOR_PICKUP: 3, DELIVERED: 4, CANCELLED: 5 }
 const FILTROS = [
   ['activos', 'Activos'], ['nopagados', 'No pagados'], ['pendientes', 'Pendientes'],
   ['parciales', 'Parciales'], ['credito', 'A crédito'], ['archivados', 'Archivados'], ['todos', 'Todos'],
@@ -60,7 +62,10 @@ const FILTROS = [
 // espacio para cliente, artículos y serial; el total conserva su ancho porque
 // los importes necesitan lugar. La grilla sigue siendo fija: un badge corto no
 // corre la columna siguiente.
-const GRID = 'grid min-w-[60rem] grid-cols-[4.75rem_5.5rem_minmax(0,1.15fr)_minmax(0,1.6fr)_minmax(0,0.9fr)_2.5rem_4.5rem_4.25rem_6rem_8.5rem] items-center gap-x-2'
+// Anchuras fijas lo más compactas posible (fecha, cantidad, entrega, pago y
+// estado) para que la tabla entre sin scroll en pantallas de ~1024 px; el
+// scroll queda solo como respaldo en anchos muy chicos (< 46rem).
+const GRID = 'grid min-w-[46rem] grid-cols-[4.25rem_5rem_minmax(0,1.15fr)_minmax(0,1.6fr)_minmax(0,0.85fr)_2.25rem_3.75rem_3.75rem_5.25rem_7.25rem] items-center gap-x-2'
 
 function fechaCompacta(value) {
   if (!value || Number.isNaN(Date.parse(value))) return 'Sin fecha'
@@ -103,9 +108,10 @@ function BadgePago({ row }) {
 function BadgeEstado({ row }) {
   if (estaCancelado(row)) return <span className="w-fit justify-self-start whitespace-nowrap rounded-md border border-bad/30 bg-bad/10 px-1.5 py-0.5 text-[10px] font-bold text-bad">Cancelado</span>
   const tono = row.fulfillmentStatus === 'DELIVERED' ? 'border-ok/25 bg-ok/10 text-ok'
-    : row.fulfillmentStatus === 'READY_FOR_PICKUP' ? 'border-warn/25 bg-warn/10 text-warn'
-      : row.fulfillmentStatus === 'IN_TRANSIT' ? 'border-fono/25 bg-fono/10 text-fono-light'
-        : 'border-ink-500 bg-ink-700/40 text-mute'
+    : row.fulfillmentStatus === 'READY_TO_SHIP' ? 'border-sky-400/25 bg-sky-400/10 text-sky-300'
+      : row.fulfillmentStatus === 'READY_FOR_PICKUP' ? 'border-warn/25 bg-warn/10 text-warn'
+        : row.fulfillmentStatus === 'IN_TRANSIT' ? 'border-fono/25 bg-fono/10 text-fono-light'
+          : 'border-ink-500 bg-ink-700/40 text-mute'
   return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', tono)}>{FULFILLMENT[row.fulfillmentStatus] || row.fulfillmentStatus || 'Preparando'}</span>
 }
 
@@ -166,12 +172,23 @@ export default function SellerOrders() {
   const [query, setQuery] = useState('')
   const [filtro, setFiltro] = useState('activos')
   const [orden, setOrden] = useState({ key: 'date', dir: 'desc' })
-  const data = useSellerData('/api/orders', orderFields, listVentas, esDemo, { limit: 50 })
+  // Búsqueda y filtros van al servidor (cubren todos los pedidos del alcance
+  // del usuario, no solo la página cargada). El texto se difiere 250 ms.
+  const busqueda = useBusquedaDiferida(query)
+  const path = useMemo(() => {
+    const params = new URLSearchParams({ filtro })
+    const texto = busqueda.trim()
+    if (texto) params.set('q', texto)
+    return `/api/orders?${params.toString()}`
+  }, [filtro, busqueda])
+  const data = useSellerData(path, orderFields, listVentas, esDemo, { limit: 50 })
   const esAdminVentas = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE'].includes(sesion?.rol) || ['ADMIN', 'GERENTE'].includes(usuario?.role))
   const todas = useMemo(() => {
     const products = esDemo ? productosById() : {}
     return data.rows
-      .filter((row) => esAdminVentas ? true : Boolean(sesion?.vendedorId) && row.sellerId === sesion.vendedorId)
+      // En la demo no hay backend que acote por vendedor; con sesión API el
+      // alcance por rol ya lo aplica el servidor.
+      .filter((row) => esDemo && !esAdminVentas ? Boolean(sesion?.vendedorId) && row.sellerId === sesion.vendedorId : true)
       .map((row) => {
         const completa = {
           ...row,
@@ -183,18 +200,21 @@ export default function SellerOrders() {
   const porCliente = useMemo(() => todas.reduce((acc, row) => { if (row.customerId) acc[row.customerId] = (acc[row.customerId] || 0) + 1; return acc }, {}), [todas])
 
   const rows = useMemo(() => {
-    const texto = normalizarBusqueda(query)
-    const filtradas = todas.filter((row) => {
-      const completado = estaCompletado(row)
-      if (filtro === 'activos') return !completado && !estaCancelado(row)
-      if (filtro === 'archivados') return completado
-      if (filtro === 'nopagados') return row.pending > 0 && !estaCancelado(row)
-      if (filtro === 'pendientes') return pagoDe(row) === 'Pendiente' && !estaCancelado(row)
-      if (filtro === 'parciales') return pagoDe(row) === 'Parcial' && !estaCancelado(row)
-      if (filtro === 'credito') return pagoDe(row) === 'A crédito' && !estaCancelado(row)
-      return true
-    })
-    const conBusqueda = texto ? filtradas.filter((row) => row.busqueda.includes(texto)) : filtradas
+    let visibles = todas
+    if (esDemo) {
+      const texto = normalizarBusqueda(query)
+      visibles = todas.filter((row) => {
+        const completado = estaCompletado(row)
+        if (filtro === 'activos') return !completado && !estaCancelado(row)
+        if (filtro === 'archivados') return completado
+        if (filtro === 'nopagados') return row.pending > 0 && !estaCancelado(row)
+        if (filtro === 'pendientes') return pagoDe(row) === 'Pendiente' && !estaCancelado(row)
+        if (filtro === 'parciales') return pagoDe(row) === 'Parcial' && !estaCancelado(row)
+        if (filtro === 'credito') return pagoDe(row) === 'A crédito' && !estaCancelado(row)
+        return true
+      })
+      if (texto) visibles = visibles.filter((row) => row.busqueda.includes(texto))
+    }
     const factor = orden.dir === 'asc' ? 1 : -1
     const valor = (row) => {
       if (orden.key === 'number') return String(row.number).replace(/\D/g, '') || row.number
@@ -207,16 +227,31 @@ export default function SellerOrders() {
       if (orden.key === 'fulfillment') return ESTADO_ORDEN[estaCancelado(row) ? 'CANCELLED' : row.fulfillmentStatus] ?? 9
       return Number(row.total) || 0
     }
-    return [...conBusqueda].sort((a, b) => {
+    return [...visibles].sort((a, b) => {
       const va = valor(a); const vb = valor(b)
       if (typeof va === 'string' || typeof vb === 'string') return String(va).localeCompare(String(vb), 'es') * factor
       return (va - vb) * factor
     })
-  }, [todas, filtro, query, orden])
+  }, [todas, filtro, query, orden, esDemo])
 
   // El detalle sale de la fila cargada; si se entra por URL directa (recarga,
-  // enlace compartido) el drawer resuelve el pedido por su id contra la API.
-  const seleccion = useMemo(() => (orderId ? rows.find((row) => row.id === orderId) || { id: orderId } : null), [orderId, rows])
+  // enlace compartido) o el pedido quedó fuera de la página, se resuelve por
+  // su id contra la API. Si no existe, se vuelve al listado.
+  const seleccion = useMemo(() => (orderId ? rows.find((row) => row.id === orderId) || null : null), [orderId, rows])
+  const [pedidoDirecto, setPedidoDirecto] = useState(null)
+  useEffect(() => {
+    if (!orderId || seleccion) { setPedidoDirecto(null); return undefined }
+    let activo = true
+    api.get(`/api/orders/${encodeURIComponent(orderId)}`)
+      .then((row) => { if (activo) setPedidoDirecto(orderFields(row)) })
+      .catch(() => { if (activo) { setPedidoDirecto(null); navigate('/pos/pedidos', { replace: true }) } })
+    return () => { activo = false }
+  }, [orderId, seleccion, navigate])
+  const recargarDirecto = async () => {
+    if (!orderId) return
+    try { setPedidoDirecto(orderFields(await api.get(`/api/orders/${encodeURIComponent(orderId)}`))) } catch { /* el listado ya se refrescó */ }
+  }
+  const detalleAbierto = seleccion || pedidoDirecto
   const abrirPedido = (row) => navigate(`/pos/pedidos/${encodeURIComponent(row.id)}`)
   const cerrarPedido = () => navigate('/pos/pedidos')
 
@@ -253,6 +288,6 @@ export default function SellerOrders() {
       </div>
     )}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más pedidos'}</button></div>}
-    {seleccion && <PedidoDetalle key={seleccion.id} row={seleccion} esDemo={esDemo} customerOrderCount={seleccion.customerId ? porCliente[seleccion.customerId] || 0 : 0} onClose={cerrarPedido} onChanged={data.refresh} />}
+    {detalleAbierto && <PedidoDetalle key={detalleAbierto.id} row={detalleAbierto} esDemo={esDemo} customerOrderCount={detalleAbierto.customerId ? porCliente[detalleAbierto.customerId] || 0 : 0} onClose={cerrarPedido} onChanged={() => { data.refresh(); recargarDirecto() }} />}
   </SellerSection>
 }

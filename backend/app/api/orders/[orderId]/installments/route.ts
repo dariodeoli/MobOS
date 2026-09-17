@@ -32,6 +32,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
         reference: `Cuota ${index + 1}/${count}`,
         dueAt: new Date(firstDueAt.getTime() + index * 30 * DAY_MS),
         paidAt: new Date(),
+        createdById: session.user.id,
       }))
       const created = []
       for (const cuota of cuotas) created.push(await tx.payment.create({ data: cuota }))

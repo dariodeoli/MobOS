@@ -6,6 +6,7 @@ import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import SerialField from '@/components/shared/SerialField'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { api, API_URL } from '@/lib/api/client'
+import { descargarCsv } from '@/utils/descargarCsv'
 import { useSesion } from '@/lib/sesion'
 import { getDemoWarranties, saveDemoWarranties } from '@/lib/demoWarranties'
 import { cn } from '@/lib/utils'
@@ -44,9 +45,15 @@ export default function Garantias() {
   const [items, setItems] = useState([]); const [q, setQ] = useState(''); const [form, setForm] = useState(blank); const [error, setError] = useState(''); const [saving, setSaving] = useState(false); const [advancingId, setAdvancingId] = useState(null)
   const [orden, setOrden] = useState({ key: 'recientes', dir: 'desc' })
   const [fotosDe, setFotosDe] = useState(null); const [fotos, setFotos] = useState([]); const [fotosCargando, setFotosCargando] = useState(false); const [fotosError, setFotosError] = useState(''); const [subiendo, setSubiendo] = useState(false)
+  const [exportando, setExportando] = useState(false)
   const busquedaDiferida = useBusquedaDiferida(q)
   const load = useCallback(async (busqueda = '') => { try { setItems(esDemo ? getDemoWarranties() : await api.get(`/api/warranties?q=${encodeURIComponent(busqueda)}`)) } catch (e) { setError(e.message) } }, [esDemo])
   useEffect(() => { load(busquedaDiferida) }, [load, busquedaDiferida])
+  async function exportar() {
+    if (esDemo) return
+    setExportando(true); setError('')
+    try { await descargarCsv('warranties', { q: busquedaDiferida.trim() || undefined }, 'mobos-garantias.csv') } catch (e) { setError(e.message) } finally { setExportando(false) }
+  }
   const ordenarPor = (key) => setOrden(current => current.key === key
     ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
     : { key, dir: 'asc' })
@@ -94,7 +101,7 @@ export default function Garantias() {
       toast.error('No se pudo subir la foto.', cause?.message)
     } finally { setSubiendo(false) }
   }
-  return <div className="space-y-5"><div className="flex flex-wrap items-end justify-between gap-3"><div><Eyebrow>Servicio y seguimiento</Eyebrow><h2 className="mt-1 text-2xl font-bold tracking-tight">Garantías</h2><p className="mt-1 text-sm text-mute">Seguimiento por caso, sin inventar cobertura automática.</p></div><div className="relative w-full max-w-sm"><Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar cliente, serial o detalle…" className="pl-9" aria-label="Buscar garantías" /></div></div>
+  return <div className="space-y-5"><div className="flex flex-wrap items-end justify-between gap-3"><div><Eyebrow>Servicio y seguimiento</Eyebrow><h2 className="mt-1 text-2xl font-bold tracking-tight">Garantías</h2><p className="mt-1 text-sm text-mute">Seguimiento por caso, sin inventar cobertura automática.</p></div><div className="flex w-full max-w-md shrink-0 items-center gap-2"><div className="relative min-w-0 flex-1"><Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar cliente, serial o detalle…" className="pl-9" aria-label="Buscar garantías" /></div>{!esDemo && <Button type="button" variant="outline" className="h-9 shrink-0 px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}</div></div>
     <Card><form onSubmit={create} className="grid gap-3 md:grid-cols-2"><div><Label>Cliente</Label><Input required value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} placeholder="Nombre del cliente" /></div><div><Label>Serial / IMEI</Label><SerialField required value={form.serial} onChange={(value) => setForm({ ...form, serial: value })} placeholder="Serial o IMEI" /></div><div className="md:col-span-2"><Label>Descripción del caso</Label><Textarea required rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Falla reportada, revisión solicitada…" /></div><div><Label>Responsable</Label><Input value={form.responsibleName} onChange={(e) => setForm({ ...form, responsibleName: e.target.value })} placeholder="Persona responsable" /></div><div><Label>Técnico asignado</Label><Input value={form.technicianName} onChange={(e) => setForm({ ...form, technicianName: e.target.value })} placeholder="Técnico responsable" /></div><div className="md:col-span-2"><Label>Diagnóstico inicial</Label><Textarea rows={2} value={form.diagnosis} onChange={(e) => setForm({ ...form, diagnosis: e.target.value })} placeholder="Pruebas, causa probable y condición de recepción…" /></div><div><Label>Repuestos (uno por línea)</Label><Textarea rows={2} value={form.partsText} onChange={(e) => setForm({ ...form, partsText: e.target.value })} placeholder="Pantalla OLED\nBatería" /></div><div><Label>Fotos / enlaces (uno por línea)</Label><Textarea rows={2} value={form.photosText} onChange={(e) => setForm({ ...form, photosText: e.target.value })} placeholder="https://…" /></div><div><Label>Días de garantía</Label><Input inputMode="numeric" value={form.warrantyDays} onChange={(e) => setForm({ ...form, warrantyDays: e.target.value.replace(/\D/g, '') })} placeholder="Ej. 90" /></div><div><Label>Vencimiento</Label><Input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} /></div><div className="md:col-span-2"><Label>Qué cubre (una por línea)</Label><Textarea rows={2} value={form.coverage} onChange={(e) => setForm({ ...form, coverage: e.target.value })} placeholder={'Defectos de fábrica\nPantalla y batería'} /></div><div className="md:col-span-2"><Label>Qué no cubre (una por línea)</Label><Textarea rows={2} value={form.exclusions} onChange={(e) => setForm({ ...form, exclusions: e.target.value })} placeholder={'Daños por agua\nReparaciones de terceros'} /></div><Button type="submit" disabled={saving} className="md:col-span-2 min-h-11">{saving ? 'Guardando…' : 'Registrar caso'}</Button></form></Card>
     {error && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-sm text-bad">{error}</p>}
     {visible.length > 0 && <div className="overflow-x-auto" data-testid="garantias-tabla">

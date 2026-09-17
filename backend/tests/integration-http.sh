@@ -404,6 +404,8 @@ node "$BACKEND_ROOT/tests/payment-proofs.mjs" "$BASE_URL" "$TOKEN_A" "$PAYMENT_P
 out="$(response_file)"; request GET /api/orders 200 '' "$out" "$TOKEN_A" tenant-a-it
 assert_pending_payment "$out" IT-PENDING-001 || { echo "El pago pendiente confirmó o alteró incorrectamente la orden." >&2; exit 1; }
 node "$BACKEND_ROOT/tests/payment-retry.mjs" "$BASE_URL" "$TOKEN_A" "$PENDING_ORDER_ID"
+echo "8b/13 Trazabilidad: usuario del pago, comprobantes del pedido y READY_TO_SHIP..."
+node "$BACKEND_ROOT/tests/order-traceability.mjs" "$BASE_URL" "$TOKEN_A" "$PENDING_ORDER_ID" "$PAYMENT_PROOF_ID"
 
 echo "9/13 Pagos concurrentes no permiten sobrepagar..."
 out="$(response_file)"
@@ -450,6 +452,8 @@ node "$BACKEND_ROOT/tests/seller-pin.mjs" "$BASE_URL" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/cookie-session.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 MOBOS_MAINTENANCE_TOKEN="it-maintenance-token" node "$BACKEND_ROOT/tests/email-events.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL"
 node "$BACKEND_ROOT/tests/purchases-suppliers.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+node "$BACKEND_ROOT/tests/attachments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL" "$PG_BIN"
+node "$BACKEND_ROOT/tests/history-timelines.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A"
 out="$(response_file)"; CHECKOUT_COMPANY_B="$(auth_cookie POST /api/auth/login 200 '{"email":"company-b-it@example.invalid","password":"company-password-it","deviceId":"checkout-b-it","branchId":"branch-b-it"}' "$out" '' mobos_company_session)"
 out="$(response_file)"; CHECKOUT_SELLER_B="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-b-it","pin":"2468"}' "$out" "$CHECKOUT_COMPANY_B" mobos_seller_session)"
 MOBOS_IT_EXECUTE=1 node "$BACKEND_ROOT/tests/checkout-customer.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A" "$CHECKOUT_SELLER_B"
@@ -476,6 +480,14 @@ request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=product&bran
 out="$(response_file)"
 request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=product&branchId=branch-a-it" 200 '' "$out" "$ADMIN_TOKEN" ''
 node "$BACKEND_ROOT/tests/reports-http.mjs" "$out" "$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COALESCE(SUM(\"totalPyg\"), 0) FROM \"Order\" WHERE \"tenantId\" = 'tenant-a-it' AND \"branchId\" = 'branch-a-it' AND \"status\" <> 'CANCELLED';")" "$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COUNT(*) FROM \"Order\" WHERE \"tenantId\" = 'tenant-a-it' AND \"branchId\" = 'branch-a-it' AND \"status\" <> 'CANCELLED';")" product
+
+echo "Exportaciones CSV por módulo (cabeceras, BOM y alcance por rol)..."
+node "$BACKEND_ROOT/tests/exports.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+EXPORTS_AUDIT="$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COUNT(*) FROM \"AuditLog\" WHERE \"action\" = 'DATA_EXPORTED' AND \"entity\" = 'customers';")"
+if [[ "$EXPORTS_AUDIT" -lt 1 ]]; then
+  echo "La exportación de clientes no dejó la auditoría DATA_EXPORTED." >&2
+  exit 1
+fi
 
 echo "10/13 Límite de reportes de error por IP: 429 con Retry-After..."
 # MOBOS_TRUST_PROXY=true habilita la resolución de IP desde x-forwarded-for

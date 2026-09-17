@@ -3,6 +3,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { googleStores } from '../../../lib/google-company'
+import { formatOrderNumber, maxOrderSequence } from '../../../lib/order-number'
 
 const REAUTH_WINDOW_MS = 10 * 60 * 1000
 const ADMIN_ROLE = 'ADMIN'
@@ -100,13 +101,16 @@ export async function PATCH(request: Request) {
       if (!/^[A-Z]{2,3}$/.test(prefix)) return error('El prefijo debe tener 2 o 3 letras.', 400)
       const start = Number(body.start)
       if (!Number.isSafeInteger(start) || start < 1 || start > 99999999) return error('El número inicial debe ser un entero positivo.', 400)
-      const orderNumber = prefix + " #" + start
+      const orderNumber = formatOrderNumber(prefix, start)
       if (await prisma.order.findFirst({ where: { tenantId: session.user.tenantId, orderNumber }, select: { id: true } })) return error('Ya existe un pedido con ese número. Elegí otro inicial.', 409)
-      await prisma.$transaction(async tx => {
-        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { orderPrefix: prefix, orderNextNumber: start } })
+      // El contador nunca queda por debajo de lo ya usado con ese prefijo.
+      const nextNumber = await prisma.$transaction(async tx => {
+        const siguiente = Math.max(start, (await maxOrderSequence(tx, session.user.tenantId, prefix)) + 1)
+        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { orderPrefix: prefix, orderNextNumber: siguiente } })
         await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_ORDER_NUMBERING', entity: 'Tenant', entityId: session.user.tenantId, metadata: { prefix, start } } })
+        return siguiente
       })
-      return json({ ok: true, prefix, nextNumber: start, preview: orderNumber })
+      return json({ ok: true, prefix, nextNumber, preview: orderNumber })
     }
     if (action === 'updateProfile') {
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

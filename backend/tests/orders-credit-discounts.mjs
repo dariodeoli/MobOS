@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { codigoPedido } from '../../src/utils/pedido.js'
 
 const [baseUrl, adminToken, sellerToken] = process.argv.slice(2)
 if (!baseUrl || !adminToken || !sellerToken) throw new Error('Uso: orders-credit-discounts.mjs <baseUrl> <adminToken> <sellerToken>')
@@ -81,6 +82,26 @@ assert.equal(creditOrder.status, 'PENDING')
 assert.ok(creditOrder.dueAt, 'La venta a crédito debe tener vencimiento.')
 assert.equal(creditOrder.creditDays, 15)
 
+// Búsqueda y filtros del listado resueltos en el servidor: cubren todos los
+// pedidos del alcance, no solo la página cargada.
+const nombreSinAcentos = customer.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+result = await request(`/api/orders?filtro=todos&q=${encodeURIComponent(nombreSinAcentos)}`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === creditOrder.id), 'q por nombre de cliente (sin acentos) debe encontrar sus pedidos.')
+console.log('orders-credit-discounts · check q por nombre de cliente: OK')
+result = await request('/api/orders?filtro=credito')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === creditOrder.id), 'filtro=credito debe devolver el pedido a crédito.')
+console.log('orders-credit-discounts · check filtro=credito: OK')
+result = await request('/api/orders?filtro=pendientes')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(!result.payload.some(row => row.id === creditOrder.id), 'filtro=pendientes no debe devolver un pedido a crédito.')
+console.log('orders-credit-discounts · check filtro=pendientes excluye crédito: OK')
+result = await request('/api/orders?filtro=nopagados')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === creditOrder.id), 'filtro=nopagados debe incluir el pedido a crédito.')
+console.log('orders-credit-discounts · check filtro=nopagados incluye crédito: OK')
+
 // Superar el límite de crédito se rechaza.
 result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [], creditDays: 10 })
 assert.equal(result.response.status, 409, 'Debe rechazar por superar el límite de crédito.')
@@ -147,6 +168,74 @@ result = await request('/api/authorizations', 'PATCH', { id: result.payload.id, 
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 result = await request(`/api/customers/${encodeURIComponent(sinCredito.id)}`)
 assert.equal(result.payload.customer.pricingTier, 'WHOLESALE', 'El cliente debe pasar a mayorista.')
+
+// Descuento fuera de política: sin autorización el vendedor no puede descontar.
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 750000 }], discountPyg: 50000 })
+assert.equal(result.response.status, 403, 'Un vendedor no puede aplicar descuentos sin autorización.')
+
+// El vendedor pide autorización por el monto; gerencia la ve en el panel.
+result = await sellerRequest('/api/authorizations', 'POST', { customerId: customer.id, kind: 'DISCOUNT', requestedValue: { discountPyg: 50000 }, note: 'Cliente frecuente.' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const authDiscount = result.payload
+assert.equal(authDiscount.status, 'PENDING')
+assert.equal(authDiscount.requestedById, 'user-a-it')
+assert.deepEqual(authDiscount.requestedValue, { discountPyg: 50000 })
+result = await request('/api/authorizations?kind=DISCOUNT&status=PENDING')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === authDiscount.id), 'Gerencia debe ver la solicitud de descuento.')
+
+// Solo una solicitud de descuento pendiente por vendedor.
+result = await sellerRequest('/api/authorizations', 'POST', { kind: 'DISCOUNT', requestedValue: { discountPyg: 20000 } })
+assert.equal(result.response.status, 409, 'No puede haber dos solicitudes de descuento pendientes del mismo vendedor.')
+
+// Gerencia autoriza un máximo MENOR al pedido (30.000 de 50.000).
+result = await request('/api/authorizations', 'PATCH', { id: authDiscount.id, action: 'approve', resolvedValue: { maxDiscountPyg: 30000 }, resolvedNote: 'Máximo autorizado: 30.000.' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.status, 'APPROVED')
+assert.deepEqual(result.payload.resolvedValue, { maxDiscountPyg: 30000 })
+
+// Por encima del máximo autorizado la venta se rechaza con motivo accionable.
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 760000 }], discountPyg: 40000, discountAuthorizationId: authDiscount.id })
+assert.equal(result.response.status, 403, 'La autorización no puede cubrir más que el máximo autorizado.')
+assert.match(String(result.payload?.message || ''), /no alcanza/i)
+
+// Dentro del máximo: la venta se crea y la autorización queda consumida.
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 775000 }], discountPyg: 25000, discountAuthorizationId: authDiscount.id })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const discountedOrder = result.payload
+assert.equal(discountedOrder.discountPyg, 25000)
+assert.equal(discountedOrder.totalPyg, 775000)
+result = await sellerRequest('/api/authorizations?mine=1&kind=DISCOUNT')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+const authUsed = result.payload.find(row => row.id === authDiscount.id)
+assert.ok(authUsed?.usedAt, 'La autorización consumida debe quedar marcada con usedAt.')
+assert.equal(authUsed.usedByOrderId, discountedOrder.id, 'La autorización debe registrar el pedido que la usó.')
+result = await sellerRequest(`/api/orders/${encodeURIComponent(discountedOrder.id)}/history`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.events.some(event => event.action === 'ORDER_DISCOUNT_AUTHORIZED' && event.metadata?.authorizationId === authDiscount.id), 'La cronología del pedido debe auditar el descuento autorizado.')
+
+// La misma autorización no se reutiliza.
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 775000 }], discountPyg: 25000, discountAuthorizationId: authDiscount.id })
+assert.equal(result.response.status, 403, 'Una autorización usada no puede reutilizarse.')
+assert.match(String(result.payload?.message || ''), /se usó/i)
+
+// Descuento sin cliente (venta de consumidor final): se pide sin ficha y el
+// rechazo exige motivo.
+result = await sellerRequest('/api/authorizations', 'POST', { kind: 'DISCOUNT', requestedValue: { discountPyg: 10000 } })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const authSinCliente = result.payload
+assert.equal(authSinCliente.customer, null)
+result = await sellerRequest('/api/authorizations', 'PATCH', { id: authSinCliente.id, action: 'approve', resolvedValue: { maxDiscountPyg: 10000 } })
+assert.equal(result.response.status, 403, 'El vendedor no puede resolver su propia solicitud.')
+result = await request('/api/authorizations', 'PATCH', { id: authSinCliente.id, action: 'reject' })
+assert.equal(result.response.status, 400, 'El rechazo de un descuento necesita motivo.')
+result = await request('/api/authorizations', 'PATCH', { id: authSinCliente.id, action: 'reject', resolvedNote: 'Monto fuera de política.' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.status, 'REJECTED')
+
+// El monto pedido respeta el tope de la política.
+result = await sellerRequest('/api/authorizations', 'POST', { kind: 'DISCOUNT', requestedValue: { discountPyg: 150000000 } })
+assert.equal(result.response.status, 400, 'El descuento pedido debe respetar el tope de 100.000.000.')
 
 // Identidades de facturación: alta, uso como actual, duplicado y borrado.
 result = await request(`/api/customers/${encodeURIComponent(customer.id)}/billing-identities`, 'POST', { name: 'Facturación Empresa S.A.', document: '80012345-6' })
@@ -253,7 +342,13 @@ assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const serializedProduct = result.payload
 result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: serializedProduct.id, quantity: 1, unitPricePyg: 500000, inventoryUnitSerials: [warrantySerial] }], payments: [{ method: 'CASH', amountPyg: 500000 }] })
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const ventaSerializada = result.payload
 const warrantySerialKey = warrantySerial.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+// La búsqueda cubre los seriales por la tabla espejo: los últimos 4 alcanzan.
+result = await request(`/api/orders?filtro=todos&q=${encodeURIComponent(warrantySerialKey.slice(-4))}`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === ventaSerializada.id), 'q con los últimos 4 del IMEI/serial debe encontrar el pedido.')
+console.log('orders-credit-discounts · check q por últimos 4 del IMEI/serial: OK')
 result = await request(`/api/warranties?kind=COVERAGE&q=${encodeURIComponent(warrantySerialKey)}`)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 const autoWarranty = (Array.isArray(result.payload) ? result.payload : []).find(row => row.serial === warrantySerialKey)
@@ -367,11 +462,113 @@ assert.equal(pagina2.response.status, 200)
 assert.ok(pagina2.payload.length <= 1, 'La página siguiente respeta el límite.')
 assert.ok(!pagina2.payload.some(row => row.id === pagina1.payload[0].id), 'La página siguiente no repite el cursor.')
 
+// Clientes: paginación por cursor y filtros resueltos en el servidor con el
+// mismo contrato que consume "Cargar más" (limit/cursor/filtro/q).
+const clientesPagina1 = await request('/api/customers?limit=1')
+assert.equal(clientesPagina1.response.status, 200, JSON.stringify(clientesPagina1.payload))
+assert.equal(clientesPagina1.payload.length, 1, 'limit=1 debe devolver una sola ficha de cliente.')
+const clientesPagina2 = await request(`/api/customers?limit=1&cursor=${clientesPagina1.payload[0].id}`)
+assert.equal(clientesPagina2.response.status, 200, JSON.stringify(clientesPagina2.payload))
+assert.ok(clientesPagina2.payload.length <= 1, 'La página siguiente de clientes respeta el límite.')
+assert.ok(!clientesPagina2.payload.some(row => row.id === clientesPagina1.payload[0].id), 'La página siguiente de clientes no repite el cursor.')
+console.log('orders-credit-discounts · check clientes limit/cursor: OK')
+result = await request('/api/customers?filtro=mayoristas&limit=500')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.every(row => row.pricingTier === 'WHOLESALE'), 'filtro=mayoristas debe devolver solo mayoristas.')
+assert.ok(result.payload.some(row => row.id === customer.id), 'filtro=mayoristas debe incluir al cliente mayorista.')
+console.log('orders-credit-discounts · check clientes filtro=mayoristas: OK')
+
+// Deuda real: cliente con saldo pendiente en un pedido PENDING aparece en
+// filtro=deuda; con límite en credito, con correo en conemail y nunca en
+// sincredito. La búsqueda también cubre ciudad de direcciones y etiquetas.
+const marcaDeuda = Date.now()
+result = await request('/api/customers', 'POST', { name: `Deuda Check ${marcaDeuda}`, phone: `59597${String(marcaDeuda).slice(-7)}`, email: `deuda-${marcaDeuda}@example.invalid`, pricingTier: 'RETAIL', creditLimitPyg: 1000000, creditDays: 15, tags: ['etiqueta-check'], addresses: [{ label: 'Principal', address: 'Calle Falsa 123', city: 'Ciudad Check', isDefault: true }] })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const deudaCustomer = result.payload
+result = await request('/api/orders', 'POST', { customerId: deudaCustomer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [], creditDays: 15 })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+assert.equal(result.payload.status, 'PENDING')
+result = await request('/api/customers?filtro=deuda&limit=500')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === deudaCustomer.id), 'filtro=deuda debe incluir al cliente con saldo pendiente.')
+assert.ok(!result.payload.some(row => row.id === sinCredito.id), 'filtro=deuda no debe incluir clientes sin saldo pendiente.')
+console.log('orders-credit-discounts · check clientes filtro=deuda: OK')
+result = await request(`/api/customers?filtro=credito&q=${encodeURIComponent(deudaCustomer.name)}&limit=500`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === deudaCustomer.id), 'filtro=credito debe incluir al cliente con límite.')
+result = await request(`/api/customers?filtro=sincredito&q=${encodeURIComponent(deudaCustomer.name)}&limit=500`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.length, 0, 'filtro=sincredito debe excluir al cliente con límite.')
+result = await request(`/api/customers?filtro=conemail&q=${encodeURIComponent(deudaCustomer.name)}&limit=500`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === deudaCustomer.id), 'filtro=conemail debe incluir fichas con correo.')
+result = await request(`/api/customers?q=${encodeURIComponent('Ciudad Check')}&limit=500`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === deudaCustomer.id), 'q debe encontrar por ciudad de la dirección.')
+result = await request(`/api/customers?q=${encodeURIComponent('etiqueta-check')}&limit=500`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === deudaCustomer.id), 'q debe encontrar por etiqueta.')
+console.log('orders-credit-discounts · check clientes filtro credito/sincredito/conemail y q ciudad/etiqueta: OK')
+
+// Cotizaciones: paginación por cursor y filtro por estado en el servidor.
+const cotizacionesPagina1 = await request('/api/quotes?limit=1')
+assert.equal(cotizacionesPagina1.response.status, 200, JSON.stringify(cotizacionesPagina1.payload))
+assert.equal(cotizacionesPagina1.payload.length, 1, 'limit=1 debe devolver una sola cotización.')
+const cotizacionesPagina2 = await request(`/api/quotes?limit=1&cursor=${cotizacionesPagina1.payload[0].id}`)
+assert.equal(cotizacionesPagina2.response.status, 200, JSON.stringify(cotizacionesPagina2.payload))
+assert.ok(cotizacionesPagina2.payload.length <= 1, 'La página siguiente de cotizaciones respeta el límite.')
+assert.ok(!cotizacionesPagina2.payload.some(row => row.id === cotizacionesPagina1.payload[0].id), 'La página siguiente de cotizaciones no repite el cursor.')
+console.log('orders-credit-discounts · check cotizaciones limit/cursor: OK')
+result = await request('/api/quotes?status=CONVERTED&limit=200')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === quote.id), 'status=CONVERTED debe incluir la cotización convertida.')
+assert.ok(result.payload.every(row => row.status === 'CONVERTED'), 'status=CONVERTED no debe mezclar otros estados.')
+result = await request('/api/quotes?status=DRAFT&limit=200')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.every(row => row.status === 'DRAFT'), 'status=DRAFT debe devolver solo borradores.')
+assert.ok(!result.payload.some(row => row.id === quote.id), 'status=DRAFT no debe incluir la cotización convertida.')
+result = await request(`/api/quotes?q=${encodeURIComponent(quote.number)}&limit=200`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === quote.id), 'q debe encontrar la cotización por número.')
+console.log('orders-credit-discounts · check cotizaciones status y q: OK')
+
 // Garantías: el listado incluye el teléfono del cliente para avisos.
 const garantias = await request('/api/warranties?kind=COVERAGE')
 assert.equal(garantias.response.status, 200)
 const conTelefono = garantias.payload.find((row) => row.serial === warrantySerialKey)
 assert.ok(conTelefono, 'La garantía automática debe aparecer en el listado de servicio.')
 assert.ok(conTelefono.customerPhone, 'La garantía debe traer el teléfono del cliente.')
+
+// Numeración configurable por empresa: con prefijo propio el siguiente pedido
+// sale `TST-#0007` (contador transaccional) y el display lo muestra `TST #0007`.
+result = await request('/api/account', 'POST', { password: 'company-password-it' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+result = await request('/api/account', 'PATCH', { action: 'orderNumbering', prefix: 'TST', start: 7 })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.preview, 'TST-#0007')
+result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 800000 }] })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+assert.equal(result.payload.orderNumber, 'TST-#0007', `La empresa con prefijo propio debe seguir su contador, recibido ${result.payload.orderNumber}.`)
+assert.equal(codigoPedido(result.payload.orderNumber), 'TST #0007')
+console.log('orders-credit-discounts · check numeración TST-#0007 y display: OK')
+// Se restaura el prefijo por defecto sin retroceder el contador (GREATEST con
+// el máximo histórico): el resto de la suite sigue viendo MOB-#NNNN.
+const maxSecuencia = async (prefix) => {
+  const pattern = new RegExp(`^${prefix}-#(\\d+)$`)
+  let max = 0
+  let cursor
+  for (;;) {
+    const page = await request(`/api/orders?filtro=todos&limit=500${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`)
+    assert.equal(page.response.status, 200, JSON.stringify(page.payload))
+    for (const row of page.payload) {
+      const match = String(row.orderNumber || '').match(pattern)
+      if (match) max = Math.max(max, Number(match[1]))
+    }
+    if (page.payload.length < 500) return max
+    cursor = page.payload[page.payload.length - 1].id
+  }
+}
+result = await request('/api/account', 'PATCH', { action: 'orderNumbering', prefix: 'MOB', start: (await maxSecuencia('MOB')) + 1 })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 
 console.log('orders-credit-discounts: OK (numeración secuencial MOB-#####, descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, plantillas por categoría, pipeline de cotizaciones y combos).')

@@ -49,18 +49,107 @@ function inlineAddresses(value: unknown) {
   return rows.map((row, index) => ({ ...row, isDefault: row.isDefault || (index === 0 && !rows.some(item => item.isDefault)) }))
 }
 
+// Filtros del listado: misma semántica que el filtrado del cliente, resuelta
+// en el servidor sobre TODOS los pedidos del alcance del usuario.
+const FILTROS_PEDIDOS = new Set(['activos', 'nopagados', 'pendientes', 'parciales', 'credito', 'archivados', 'todos'])
+
+// Patrón LIKE literal: % y _ del texto buscado no actúan como comodines.
+const patronLike = (valor: string) => `%${valor.replace(/[\\%_]/g, '\\$&')}%`
+
+// Comparación de texto sin acentos ni mayúsculas (espejo de normalizarBusqueda
+// del cliente) sin depender de extensiones de PostgreSQL.
+const textoNormalizado = (expresion: string, valor: string) =>
+  Prisma.sql`translate(lower(${Prisma.raw(expresion)}), 'áàäâãéèëêíìïîóòöôõúùüûñç', 'aaaaaeeeeiiiiooooouuuunc') ILIKE ${patronLike(valor)}`
+
+// Clave alfanumérica: tolera separadores (#, -, espacios) en códigos y seriales.
+const textoAlfanumerico = (expresion: string, valor: string) =>
+  Prisma.sql`regexp_replace(lower(${Prisma.raw(expresion)}), '[^a-z0-9]', '', 'g') LIKE ${patronLike(valor)}`
+
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  const where = session.user.role === 'VENDEDOR'
-    ? { tenantId: tenant, branchId: session.user.branchId, sellerId: session.user.id }
-    : session.user.role === 'CAJERA'
-      ? { tenantId: tenant, branchId: session.user.branchId }
-      : { tenantId: tenant }
   const params = new URL(request.url).searchParams
+  const filtro = params.get('filtro') || 'activos'
+  if (!FILTROS_PEDIDOS.has(filtro)) return error('Filtro inválido.')
   const limit = Math.min(500, Math.max(1, Number(params.get('limit')) || 100))
   const cursor = params.get('cursor')
-  return json(await prisma.order.findMany({ where, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: limit, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}) }))
+  const q = (params.get('q') || '').trim().slice(0, 120)
+  // Alcance por rol: VENDEDOR ve lo suyo de su sucursal; CAJERA su sucursal;
+  // ADMIN/GERENTE todo el tenant. Sin sucursal asignada el alcance es NULL.
+  const condiciones: Prisma.Sql[] = [Prisma.sql`o."tenantId" = ${tenant}`]
+  if (session.user.role === 'VENDEDOR') {
+    condiciones.push(Prisma.sql`o."sellerId" = ${session.user.id}`)
+    condiciones.push(session.user.branchId ? Prisma.sql`o."branchId" = ${session.user.branchId}` : Prisma.sql`o."branchId" IS NULL`)
+  } else if (session.user.role === 'CAJERA') {
+    condiciones.push(session.user.branchId ? Prisma.sql`o."branchId" = ${session.user.branchId}` : Prisma.sql`o."branchId" IS NULL`)
+  }
+  const confirmado = Prisma.sql`COALESCE(p."paid", 0)`
+  const esPagado = Prisma.sql`(${confirmado} >= o."totalPyg" AND o."totalPyg" > 0)`
+  // "A crédito" tiene prioridad sobre Pagado/Parcial/Pendiente: plazo vigente y
+  // saldo pendiente real (los pagos posteriores pueden cancelar el crédito).
+  const esCredito = Prisma.sql`(COALESCE(o."creditDays", 0) > 0 AND o."totalPyg" - ${confirmado} > 0)`
+  const esCompletado = Prisma.sql`(o."archivedAt" IS NOT NULL OR (${esPagado} AND o."fulfillmentStatus" = 'DELIVERED'))`
+  const esCancelado = Prisma.sql`(o."status" = 'CANCELLED')`
+  if (filtro === 'activos') condiciones.push(Prisma.sql`NOT ${esCompletado} AND NOT ${esCancelado}`)
+  else if (filtro === 'archivados') condiciones.push(esCompletado)
+  else if (filtro === 'nopagados') condiciones.push(Prisma.sql`o."totalPyg" - ${confirmado} > 0 AND NOT ${esCancelado}`)
+  else if (filtro === 'pendientes') condiciones.push(Prisma.sql`NOT ${esCredito} AND ${confirmado} = 0 AND NOT ${esCancelado}`)
+  else if (filtro === 'parciales') condiciones.push(Prisma.sql`NOT ${esCredito} AND ${confirmado} > 0 AND NOT ${esPagado} AND NOT ${esCancelado}`)
+  else if (filtro === 'credito') condiciones.push(Prisma.sql`${esCredito} AND NOT ${esCancelado}`)
+  if (cursor) {
+    // Cursor por tupla (createdAt, id): el orden desempata por id para que
+    // páginas consecutivas no repitan ni salteen pedidos del mismo milisegundo.
+    const cursorRow = await prisma.order.findFirst({ where: { id: cursor, tenantId: tenant }, select: { createdAt: true } })
+    if (!cursorRow) return json([])
+    condiciones.push(Prisma.sql`(o."createdAt" < ${cursorRow.createdAt} OR (o."createdAt" = ${cursorRow.createdAt} AND o."id" < ${cursor}))`)
+  }
+  if (q) {
+    const qFold = q.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    const qCodigo = qFold.replace(/[^a-z0-9]/g, '')
+    const qDigitos = qFold.replace(/\D/g, '')
+    const soloDigitos = qDigitos.length > 0 && /^[\d\s.,-]+$/.test(qFold)
+    const texto = patronLike(q); const textoFold = patronLike(qFold)
+    const seriales: Prisma.Sql[] = [Prisma.sql`s."serial" ILIKE ${texto}`]
+    if (qCodigo) seriales.push(textoAlfanumerico('s."serial"', qCodigo))
+    const coincidencias: Prisma.Sql[] = [
+      Prisma.sql`o."orderNumber" ILIKE ${texto}`,
+      textoNormalizado('o."billingName"', qFold),
+      textoNormalizado('o."billingDocument"', qFold),
+      textoNormalizado('o."notes"', qFold),
+      textoNormalizado('c."name"', qFold),
+      textoNormalizado('c."phone"', qFold),
+      textoNormalizado('c."email"', qFold),
+      textoNormalizado('c."document"', qFold),
+      textoNormalizado('c."billingName"', qFold),
+      textoNormalizado('c."billingDocument"', qFold),
+      Prisma.sql`o."tags"::text ILIKE ${textoFold}`,
+      Prisma.sql`o."totalPyg"::text ILIKE ${textoFold}`,
+      Prisma.sql`EXISTS (SELECT 1 FROM "OrderItem" oi WHERE oi."orderId" = o."id" AND ${textoNormalizado('oi."description"', qFold)})`,
+      Prisma.sql`EXISTS (SELECT 1 FROM "OrderItem" oi2 JOIN "OrderItemSerial" s ON s."orderItemId" = oi2."id" WHERE oi2."orderId" = o."id" AND (${Prisma.join(seriales, ' OR ')}))`,
+    ]
+    if (qCodigo) coincidencias.push(textoAlfanumerico('o."orderNumber"', qCodigo))
+    if (soloDigitos) coincidencias.push(Prisma.sql`o."totalPyg"::text LIKE ${patronLike(qDigitos)}`)
+    condiciones.push(Prisma.sql`(${Prisma.join(coincidencias, ' OR ')})`)
+  }
+  const ids = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT o."id"
+    FROM "Order" o
+    LEFT JOIN "Customer" c ON c."id" = o."customerId"
+    LEFT JOIN (
+      SELECT "orderId", SUM("amountPyg") AS paid
+      FROM "Payment" WHERE "tenantId" = ${tenant} AND "status" = 'CONFIRMED'
+      GROUP BY "orderId"
+    ) p ON p."orderId" = o."id"
+    WHERE ${Prisma.join(condiciones, ' AND ')}
+    ORDER BY o."createdAt" DESC, o."id" DESC
+    LIMIT ${limit}
+  `)
+  if (!ids.length) return json([])
+  // Segunda consulta con el include de siempre; el orden lo fija la lista de
+  // ids para conservar la paginación por cursor.
+  const rows = await prisma.order.findMany({ where: { id: { in: ids.map((row) => row.id) } }, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } } })
+  const porId = new Map(rows.map((row) => [row.id, row]))
+  return json(ids.map((row) => porId.get(row.id)).filter(Boolean))
 }
 
 export async function POST(request: Request) {
@@ -111,7 +200,23 @@ export async function POST(request: Request) {
   const orderNotes = body.notes === undefined || body.notes === null || body.notes === '' ? null : textInput(body.notes, 'Comentario', 2000)
   const discount = body.discountPyg ?? 0; const delivery = body.deliveryPyg ?? 0
   if (!safeInt(discount) || !safeInt(delivery)) return error('Descuento y delivery inválidos.')
-  if (discount > 0 && !canApproveOrderDiscount(session.user)) throw new InputError('Tu rol no puede aprobar descuentos. Solicitá autorización a gerencia.', 403)
+  // Descuento fuera de política: el vendedor necesita una autorización DISCOUNT
+  // aprobada, vigente (24 h), sin usar y que alcance para el monto de esta venta.
+  let discountAuthorization: { id: string; maxDiscountPyg: number } | null = null
+  if (discount > 0 && !canApproveOrderDiscount(session.user)) {
+    const rawAuthorizationId = body.discountAuthorizationId
+    if (rawAuthorizationId === undefined || rawAuthorizationId === null || rawAuthorizationId === '') throw new InputError('Tu rol no puede aprobar descuentos. Solicitá autorización a gerencia desde el carrito.', 403)
+    const authorizationId = textInput(rawAuthorizationId, 'discountAuthorizationId', 200)
+    const authorization = await prisma.customerAuthorization.findFirst({ where: { id: authorizationId, tenantId: tenant, kind: 'DISCOUNT' } })
+    if (!authorization || authorization.status !== 'APPROVED' || authorization.requestedById !== session.user.id) throw new InputError('La autorización de descuento no es válida para esta venta. Solicitá autorización a gerencia.', 403)
+    if (authorization.usedAt) throw new InputError('La autorización de descuento ya se usó. Solicitá una nueva.', 403)
+    if (!authorization.resolvedAt || authorization.resolvedAt.getTime() < Date.now() - 86400000) throw new InputError('La autorización de descuento venció (más de 24 h). Solicitá una nueva.', 403)
+    const resolved = (authorization.resolvedValue && typeof authorization.resolvedValue === 'object' && !Array.isArray(authorization.resolvedValue) ? authorization.resolvedValue : {}) as { maxDiscountPyg?: unknown }
+    const maxDiscountPyg = Number(resolved.maxDiscountPyg)
+    if (!safeInt(maxDiscountPyg)) throw new InputError('La autorización de descuento no tiene un máximo válido. Solicitá una nueva.', 403)
+    if (discount > maxDiscountPyg) throw new InputError(`La autorización no alcanza para este descuento (máx Gs ${maxDiscountPyg.toLocaleString('es-PY')}). Solicitá una nueva.`, 403)
+    discountAuthorization = { id: authorization.id, maxDiscountPyg }
+  }
   if (discount > 0 && items.some(item => item?.couponCode !== undefined)) throw new InputError('No se puede combinar cupón y descuento global.')
     const crearPedido = () => prisma.$transaction(async tx => {
       const branchId = session.user.branchId
@@ -273,26 +378,25 @@ export async function POST(request: Request) {
         const pendingTotal = Number(outstanding[0]?.total || 0n)
         if (!Number.isSafeInteger(pendingTotal) || pendingTotal + (total - confirmed) > creditLimit) throw new InputError('Supera el límite de crédito del cliente.', 409)
       }
-      // Identificador comercial configurable ("MOB #310840"); si la empresa
-      // no lo configuró se usa la secuencia MOB-#0001.
-      let orderNumber = typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : null
-      if (!orderNumber) {
-        const numeracion = await tx.$queryRaw<Array<{ orderPrefix: string | null; orderNextNumber: number | null }>>`SELECT "orderPrefix", "orderNextNumber" FROM "Tenant" WHERE id = ${tenant} FOR UPDATE`
-        const prefijo = numeracion[0]?.orderPrefix
-        const siguiente = numeracion[0]?.orderNextNumber
-        if (prefijo && siguiente) {
-          const actualizado = await tx.$queryRaw<Array<{ orderNextNumber: number }>>`UPDATE "Tenant" SET "orderNextNumber" = "orderNextNumber" + 1 WHERE id = ${tenant} RETURNING "orderNextNumber"`
-          orderNumber = prefijo + ' #' + (actualizado[0].orderNextNumber - 1)
-        } else {
-          orderNumber = await nextOrderNumber(tx, tenant)
-        }
-      }
+      // Identificador comercial de la empresa (`PREFIX-#0001`) con el contador
+      // transaccional del tenant; un número explícito del cliente manda.
+      const orderNumber = typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : await nextOrderNumber(tx, tenant)
 
       const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      if (discountAuthorization) {
+        // Consumo atómico: dos ventas concurrentes con la misma autorización no
+        // pueden usarla dos veces; la que pierde revierte toda la transacción.
+        const claimed = await tx.customerAuthorization.updateMany({
+          where: { id: discountAuthorization.id, tenantId: tenant, kind: 'DISCOUNT', status: 'APPROVED', requestedById: session.user.id, usedAt: null },
+          data: { usedAt: new Date(), usedByOrderId: order.id },
+        })
+        if (claimed.count !== 1) throw new InputError('La autorización de descuento ya se usó. Solicitá una nueva.', 403)
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_AUTHORIZED', entity: 'Order', entityId: order.id, metadata: { authorizationId: discountAuthorization.id, maxDiscountPyg: discountAuthorization.maxDiscountPyg, discountPyg: discount, subtotalPyg: subtotal } } })
+      }
       if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
       if (soldUnits.length) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNITS_SOLD', entity: 'Order', entityId: order.id, metadata: { serials: soldUnits.map(unit => unit.serial), productIds: [...new Set(soldUnits.map(unit => unit.productId))] } } })
       for (const { tradeIn, ...paymentData } of normalizedPayments) {
-        const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id } })
+        const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id, createdById: session.user.id } })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
       }
       // Garantía automática: registra la cobertura de cada equipo serializado

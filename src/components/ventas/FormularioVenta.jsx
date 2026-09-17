@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import {
   getProductos,
@@ -185,6 +185,10 @@ export default function FormularioVenta({
     Array.isArray(cartInicial?.items) ? cartInicial.items : [],
   ) // carrito: varios productos del mismo cliente
   const [descuento, setDescuento] = useState(() => cartInicial?.descuento || '')
+  // Autorización DISCOUNT vigente que cubre el descuento global del carrito
+  // (solo para vendedores sin permiso de aprobar descuentos).
+  const [authDescuento, setAuthDescuento] = useState(null)
+  const onAuthDescuento = useCallback(auth => setAuthDescuento(auth), [])
   const [pagos, setPagos] = useState(() =>
     Array.isArray(cartInicial?.pagos) ? cartInicial.pagos : [],
   )
@@ -624,8 +628,19 @@ export default function FormularioVenta({
         throw new Error('Quitá el descuento extra para utilizar un cupón. No son acumulables.')
       if (customer.phone?.trim() && !telefonoValido(customer.phone, customer.countryCode))
         throw new Error(MENSAJE_TELEFONO)
-      if (!puedeDescontar && gsNum(descuento) > 0)
-        throw new Error('Solo administradores y gerentes pueden aplicar descuentos.')
+      const descuentoGlobal = gsNum(descuento)
+      // Descuento global sin permiso: exige una autorización DISCOUNT aprobada
+      // que alcance para el monto. Las líneas siguen bloqueadas como antes.
+      if (!puedeDescontar && descuentoGlobal > 0) {
+        if (!authDescuento)
+          throw new Error(
+            'El descuento necesita autorización de gerencia. Solicitá autorización y actualizá el estado.',
+          )
+        if (descuentoGlobal > Number(authDescuento.maxDiscountPyg || 0))
+          throw new Error(
+            `La autorización no alcanza para este descuento (máx ${gs(Number(authDescuento.maxDiscountPyg || 0))}). Solicitá una nueva.`,
+          )
+      }
       if (!puedeDescontar && items.some(it => descuentoItem(it) > 0))
         throw new Error('Solo administradores y gerentes pueden aplicar descuentos por línea.')
       if (venderACredito && Number(customer.creditLimitPyg || 0) <= 0)
@@ -739,6 +754,10 @@ export default function FormularioVenta({
             items: orderItems,
             payments,
             discountPyg: gsNum(descuento),
+            // Vendedor sin permiso: la venta viaja con la autorización aprobada.
+            ...(!puedeDescontar && gsNum(descuento) > 0 && authDescuento
+              ? { discountAuthorizationId: authDescuento.id }
+              : {}),
             deliveryPyg: gsNum(f.montoDelivery),
             // La API rechaza observaciones vacías: se omiten en vez de mandar ''.
             ...(f.observacion?.trim() ? { deliveryNotes: f.observacion } : {}),
@@ -843,6 +862,7 @@ export default function FormularioVenta({
       })
       setItems([])
       setDescuento('')
+      setAuthDescuento(null)
       setPagos([])
       setF(VACIO(f.vendedorId))
       setBusquedaProducto('')
@@ -1124,6 +1144,9 @@ export default function FormularioVenta({
           onImei={setImeiPara}
           descuento={descuento}
           setDescuento={setDescuento}
+          montoDescuento={gsNum(descuento)}
+          customer={customer}
+          onAuthDescuento={onAuthDescuento}
           tieneCupon={tieneCupon}
           f={f}
           setF={setF}

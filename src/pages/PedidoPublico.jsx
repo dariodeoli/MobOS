@@ -4,7 +4,7 @@ import { API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
 
-const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
+const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 const ORDER_STATUS = { PENDING: 'Pendiente de pago', COMPLETED: 'Pagado', CANCELLED: 'Cancelado' }
 const WARRANTY_STATUS = { RECEIVED: 'Recibido', DIAGNOSIS: 'En diagnóstico', READY: 'Listo', DELIVERED: 'Entregado' }
 const LEVELS = { rapido: 'Comprobante rápido', completo: 'Comprobante completo', detallado: 'Comprobante detallado' }
@@ -56,9 +56,9 @@ export default function PedidoPublico() {
                 <h2 className="font-semibold">{ORDER_STATUS[order.status] || order.status}</h2>
                 <span className={`rounded-lg border px-2.5 py-1 text-xs font-bold ${order.status === 'COMPLETED' ? 'border-ok/30 bg-ok/10 text-ok' : order.status === 'CANCELLED' ? 'border-bad/30 bg-bad/10 text-bad' : 'border-warn/30 bg-warn/10 text-warn'}`}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus}</span>
               </div>
-              <div className="mt-5 grid grid-cols-4 gap-2">
-                {['PROCESSING', 'IN_TRANSIT', 'READY_FOR_PICKUP', 'DELIVERED'].map((step, index) => {
-                  const current = ['PROCESSING', 'IN_TRANSIT', 'READY_FOR_PICKUP', 'DELIVERED'].indexOf(order.fulfillmentStatus)
+              <div className="mt-5 grid grid-cols-5 gap-2">
+                {['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED'].map((step, index) => {
+                  const current = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED'].indexOf(order.fulfillmentStatus)
                   const done = index <= current
                   return (
                     <div key={step} className="text-center">

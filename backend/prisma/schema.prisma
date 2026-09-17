@@ -50,6 +50,7 @@ model Tenant {
   orderCommentPhotos      OrderCommentPhoto[]
   inventoryUnitComments   InventoryUnitComment[]
   inventoryUnitCommentPhotos InventoryUnitCommentPhoto[]
+  attachments             Attachment[]
   auditLogs               AuditLog[]
   inventoryUnits          InventoryUnit[]
   stockTransfers          StockTransfer[]
@@ -238,6 +239,7 @@ model User {
   orders                         Order[]
   auditLogs                      AuditLog[]
   uploadedPaymentProofs          PaymentProof[]          @relation("PaymentProofUploader")
+  attachmentsCreated             Attachment[]            @relation("AttachmentCreatedBy")
   verifiedPaymentReconciliations PaymentReconciliation[] @relation("PaymentReconciliationVerifier")
 
   sessions         Session[]
@@ -245,6 +247,7 @@ model User {
   customerNotes    CustomerNote[]
   customerFollowUps CustomerFollowUp[]
   customersCreated Customer[]      @relation("CustomerCreatedBy")
+  paymentsCreated Payment[]        @relation("PaymentCreatedBy")
   customerAuthorizationsRequested CustomerAuthorization[] @relation("CustomerAuthorizationRequestedBy")
   customerAuthorizationsResolved  CustomerAuthorization[] @relation("CustomerAuthorizationResolvedBy")
   commissionRules  CommissionRule[]
@@ -581,19 +584,20 @@ model Customer {
   @@index([tenantId, externalId])
 }
 
-// Solicitud de autorización comercial de un cliente (mayorista, crédito o
-// plazo). La pide cualquier vendedor y la resuelve administración/gerencia;
-// lo autorizado puede diferir de lo pedido (p. ej. menos días de crédito).
+// Solicitud de autorización comercial (mayorista, crédito, plazo o descuento).
+// La pide cualquier vendedor y la resuelve administración/gerencia; lo
+// autorizado puede diferir de lo pedido (p. ej. menos días de crédito o un
+// máximo de descuento menor). Un descuento no exige cliente: cubre la venta.
 model CustomerAuthorization {
   id             String    @id @default(cuid())
   tenantId       String
   tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  customerId     String
-  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  kind           String    // WHOLESALE | CREDIT | CREDIT_DAYS
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  kind           String    // WHOLESALE | CREDIT | CREDIT_DAYS | DISCOUNT
   status         String    @default("PENDING") // PENDING | APPROVED | REJECTED
-  requestedValue Json?     // CREDIT: { creditLimitPyg, creditDays } · CREDIT_DAYS: { creditDays }
-  resolvedValue  Json?     // lo autorizado (puede diferir: pedido 10 → autorizado 7)
+  requestedValue Json?     // CREDIT: { creditLimitPyg, creditDays } · CREDIT_DAYS: { creditDays } · DISCOUNT: { discountPyg }
+  resolvedValue  Json?     // lo autorizado (puede diferir: pedido 10 → autorizado 7) · DISCOUNT: { maxDiscountPyg }
   requestedById  String
   requestedBy    User      @relation("CustomerAuthorizationRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
   resolvedById   String?
@@ -602,9 +606,12 @@ model CustomerAuthorization {
   resolvedNote   String?
   createdAt      DateTime  @default(now())
   resolvedAt     DateTime?
+  usedAt         DateTime? // DISCOUNT: consumida por una venta autorizada
+  usedByOrderId  String?   // DISCOUNT: pedido que la consumió
 
   @@index([tenantId, status])
   @@index([customerId])
+  @@index([usedByOrderId])
 }
 
 // Razones sociales/RUC históricos con los que el cliente pidió factura.
@@ -907,6 +914,7 @@ enum OrderStatus {
 enum FulfillmentStatus {
   PROCESSING
   IN_TRANSIT
+  READY_TO_SHIP
   READY_FOR_PICKUP
   DELIVERED
 }
@@ -1028,6 +1036,8 @@ model Payment {
   tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   orderId         String
   order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdById     String?
+  createdBy       User?            @relation("PaymentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   method          PaymentMethod
   status          PaymentStatus    @default(CONFIRMED)
   amountPyg       Int
@@ -1071,6 +1081,29 @@ model PaymentProof {
 
   @@index([tenantId, paymentId, createdAt])
   @@index([uploadedById, createdAt])
+}
+
+// Adjunto genérico reutilizable por cualquier módulo. `entity` + `entityId`
+// apuntan al documento dueño (gasto, compra, pago a proveedor, sesión de caja o
+// traslado) sin acoplarse a su tabla. Los bytes viven en `data` (ByteA) y, si
+// hay volumen MOBOS_STORAGE_DIR, además en disco con `storageKey`.
+model Attachment {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entity      String
+  entityId    String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  sha256      String
+  storageKey  String?
+  data        Bytes    @db.ByteA
+  createdById String?
+  createdBy   User?    @relation("AttachmentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, entity, entityId])
 }
 
 model PaymentReconciliation {
