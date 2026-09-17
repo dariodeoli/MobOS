@@ -32,10 +32,14 @@ export function renderMessage(template, customer) {
     saldo_pendiente: customer?.saldoPendiente || '',
     producto: customer?.producto || '',
     fecha: customer?.fecha || '',
+    seguimiento: customer?.seguimiento || '',
+    tracking_url: customer?.seguimiento || '',
     branch_name: customer?.branchName || 'la tienda',
     reservation_until: customer?.reservationUntil || 'la hora acordada',
   }
-  return String(template?.body || '').replace(/{{\s*([a-z_]+)\s*}}/gi, (_, key) => values[key] || '')
+  // Las plantillas aceptan {variable} y {{variable}}: el editor inserta la
+  // forma corta y los avisos viejos usan la doble llave.
+  return String(template?.body || '').replace(/\{\{?\s*([a-z_]+)\s*\}?\}/gi, (_, key) => values[key] || '')
 }
 
 export function readCustomerMetadata(notes) {

@@ -5,7 +5,7 @@ import { api } from '@/lib/api/client'
 import { renderMessage } from '@/components/customers/customerMessaging'
 
 const CONTEXTOS = [['clientes', 'Clientes'], ['pedidos', 'Pedidos'], ['servicio', 'Servicio Técnico']]
-const VARIABLES = ['{cliente}', '{nombre}', '{empresa}', '{sucursal}', '{usuario}', '{pedido}', '{total}', '{saldo_pendiente}', '{producto}', '{fecha}']
+const VARIABLES = ['{cliente}', '{nombre}', '{empresa}', '{sucursal}', '{usuario}', '{pedido}', '{total}', '{saldo_pendiente}', '{producto}', '{fecha}', '{seguimiento}']
 const VACIA = { name: '', body: '', context: 'clientes', isActive: true, isDefault: false }
 const MUESTRA = { name: 'Juan Pérez', empresa: 'iPhone Store', sucursal: 'Asunción' }
 

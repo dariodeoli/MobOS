@@ -13,17 +13,27 @@ import SerialField from '@/components/shared/SerialField'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { trackingUrlFor } from '@/components/shared/OrderReceipt'
 import { internationalPhone } from '@/utils/telefono'
+import { renderMessage } from '@/components/customers/customerMessaging'
 import { printPaymentReceipt, printOrderReceipt } from '@/components/shared/OrderReceipt'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 
-// Enlace de WhatsApp para compartir el seguimiento público del pedido.
-export function whatsappTrackingLink(order, extra = '') {
+// Enlace de WhatsApp para compartir el seguimiento público del pedido. Usa la
+// plantilla predeterminada de Pedidos cuando existe (con {seguimiento}) y si no
+// el mensaje de siempre, para que la tienda escriba con su propio texto.
+export function whatsappTrackingLink(order, extra = '', template = null) {
   const tracking = trackingUrlFor(order)
   if (!tracking) return ''
   const number = internationalPhone(order?.customer?.phone || order?.clienteTelefono, order?.customer?.countryCode)
   if (!number) return ''
   const name = order?.customer?.name || order?.cliente || ''
-  const message = `Hola${name ? ` ${name}` : ''}, podés seguir tu pedido ${order?.codigo || order?.orderNumber || ''} acá: ${tracking}${extra ? `\n${extra}` : ''}`
+  const mensajePlantilla = template?.body
+    ? renderMessage(template, {
+        name, firstName: name.split(' ')[0], orderNumber: order?.orderNumber || order?.codigo || '',
+        branchName: order?.branch?.name || order?.sucursal || '', empresa: order?.tenant?.name || '',
+        total: '', seguimiento: tracking,
+      })
+    : ''
+  const message = mensajePlantilla || `Hola${name ? ` ${name}` : ''}, podés seguir tu pedido ${order?.codigo || order?.orderNumber || ''} acá: ${tracking}${extra ? `\n${extra}` : ''}`
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
 }
 
@@ -33,9 +43,21 @@ const FOREIGN = (currency) => currency === 'USD' || currency === 'BRL'
 export default function PagosPedido({ venta, onClose }) {
   const { esDemo, usuario, sesion } = useSesion()
   const [order, setOrder] = useState(venta)
+  useEffect(() => {
+    if (esDemo) return
+    let vigente = true
+    api.get('/api/message-templates?context=pedidos')
+      .then(data => {
+        if (!vigente || !Array.isArray(data)) return
+        setPlantillaSeguimiento(data.find(item => item.isDefault) || data[0] || null)
+      })
+      .catch(() => {})
+    return () => { vigente = false }
+  }, [esDemo])
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState('TRANSFER')
   const [reference, setReference] = useState('')
+  const [plantillaSeguimiento, setPlantillaSeguimiento] = useState(null)
   const [accounts, setAccounts] = useState([])
   const [accountId, setAccountId] = useState('')
   const [rate, setRate] = useState('')
@@ -213,8 +235,8 @@ export default function PagosPedido({ venta, onClose }) {
     <p className="mb-5 text-sm text-mute">Cada cobro conserva su fecha y referencia. Un archivo adjunto no confirma una transferencia.</p>
     {trackingUrlFor(order) && !esDemo && (
       <div className="mb-5 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/5 p-3">
-        {whatsappTrackingLink(order) ? (
-          <a className="rounded-lg bg-ok px-3 py-2 text-sm font-semibold text-black transition hover:brightness-110" href={whatsappTrackingLink(order)} target="_blank" rel="noopener noreferrer">Enviar seguimiento por WhatsApp</a>
+        {whatsappTrackingLink(order, '', plantillaSeguimiento) ? (
+          <a className="rounded-lg bg-ok px-3 py-2 text-sm font-semibold text-black transition hover:brightness-110" href={whatsappTrackingLink(order, '', plantillaSeguimiento)} target="_blank" rel="noopener noreferrer">Enviar seguimiento por WhatsApp</a>
         ) : (
           <span className="text-xs text-mute">El cliente no tiene teléfono: compartí el enlace a mano.</span>
         )}
