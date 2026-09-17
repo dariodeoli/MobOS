@@ -5,9 +5,9 @@ import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas,
 import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
 import { Card, Button, ConfirmDialog, Input, Select, Badge, Label, Skeleton, EmptyState, MoneyInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { ROLE_LABELS } from '@/lib/roles'
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-const ROLE_LABELS = { ADMIN: 'Administrador', GERENTE: 'Gerente', VENDEDOR: 'Vendedor', CAJERA: 'Cajera' }
 const INVITE_STATUS = { PENDING: ['Pendiente', 'orange'], ACCEPTED: ['Aceptada', 'green'], EXPIRED: ['Vencida', 'slate'], REVOKED: ['Revocada', 'red'] }
 function mesLabel(clave) { const [y, m] = (clave || '').split('-'); return `${MESES[Number(m) - 1] || m} ${y}` }
 

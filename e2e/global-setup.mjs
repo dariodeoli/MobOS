@@ -157,15 +157,23 @@ async function ensureSeedOrder(ctx, companyToken, sellerId, adminToken) {
     // orderNumber is unique per tenant; supersede an older seed order
     // (e.g. one created before the harness sent a customer) with a fresh one.
     if (rows.some((o) => o.orderNumber === SEED.seedOrderNumber)) orderNumber = `${SEED.seedOrderNumber}-${Date.now()}`
-    const created = await ctx.post('/api/orders', {
+    const create = (number) => ctx.post('/api/orders', {
       headers: bearer(adminToken),
       data: {
-        orderNumber,
+        orderNumber: number,
         customer: { name: 'Cliente E2E Seguimiento' },
         items: [{ productId: SEED.products.cable.id, description: SEED.products.cable.name, quantity: 1, unitPricePyg: SEED.products.cable.pricePyg }],
         payment: { method: 'CASH', amountPyg: SEED.products.cable.pricePyg },
       },
     })
+    let created = await create(orderNumber)
+    // La base persistente es compartida y acumula órdenes: la lista trae las
+    // últimas 100 y una semilla vieja puede quedar fuera de la ventana. Ante
+    // el choque de número, se reintenta una vez con marca de tiempo.
+    if (created.status() === 409) {
+      orderNumber = `${SEED.seedOrderNumber}-${Date.now()}`
+      created = await create(orderNumber)
+    }
     if (!created.ok()) throw new Error(`seed order create failed: HTTP ${created.status()} ${await created.text()}`)
     token = (await created.json()).publicToken
   }
