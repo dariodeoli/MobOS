@@ -4,13 +4,16 @@ import { Button, Input } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import Icon from '@/components/shared/Icon'
 import { codigoPais, soloDigitos, telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
+import { coincideCliente, datosFacturacionCliente } from '@/utils/cliente'
 
 const emptyAddress = () => ({ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay', notes: '', isDefault: true })
+const clienteVacio = () => ({ id: undefined, name: '', phone: '', countryCode: '+595', email: '', document: '', pricingTier: 'RETAIL', creditLimitPyg: null, creditDays: null, addresses: [], billingName: '', billingDocument: '' })
 const customerValue = (customer) => ({
   id: customer.id, name: customer.name || '', phone: customer.phone || '', countryCode: customer.countryCode || '+595',
   email: customer.email || '', document: customer.document || '',
   pricingTier: customer.pricingTier || 'RETAIL', creditLimitPyg: customer.creditLimitPyg ?? null, creditDays: customer.creditDays ?? null,
   addresses: Array.isArray(customer.addresses) ? customer.addresses.map(({ id, ...address }) => address) : [],
+  billingName: customer.billingName || '', billingDocument: customer.billingDocument || '',
 })
 
 export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, onBillingChange }) {
@@ -29,12 +32,23 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     const timer = setTimeout(async () => {
       try {
         const rows = esDemo ? JSON.parse(localStorage.getItem('mobos:demo-customers:v1') || '[]') : await api.get(`/api/customers?q=${encodeURIComponent(query)}`)
-        if (active) { setMatches(rows.filter(customer => `${customer.name} ${customer.phone || ''} ${customer.document || ''}`.toLowerCase().includes(query.toLowerCase())).slice(0, 5)); setError('') }
+        if (active) { setMatches(rows.filter(customer => coincideCliente(customer, query)).slice(0, 5)); setError('') }
       } catch { if (active) setError('No se pudo consultar clientes. Reintentá antes de confirmar.') }
     }, 250)
     return () => { active = false; clearTimeout(timer) }
   }, [value.name, esDemo])
 
+  function elegirCliente(customer) {
+    onChange(customerValue(customer))
+    // La factura a otro titular que el cliente ya usó se propone de nuevo,
+    // salvo que esta venta ya tenga datos escritos.
+    const facturacion = datosFacturacionCliente(customer)
+    if (facturacion && onBillingChange && !billingTo?.name?.trim() && !billingTo?.document?.trim()) onBillingChange(facturacion)
+  }
+  function quitarCliente() {
+    setMatches([]); setError('')
+    onChange(clienteVacio())
+  }
   const set = (field) => (event) => onChange({ ...value, [field]: event.target.value })
   const setAddress = (index, field, next) => onChange({ ...value, addresses: value.addresses.map((address, position) => position === index ? { ...address, [field]: next } : address) })
   const addAddress = () => onChange({ ...value, addresses: [...(value.addresses || []), { ...emptyAddress(), label: `Dirección ${(value.addresses?.length || 0) + 1}`, isDefault: !value.addresses?.length }] })
@@ -66,8 +80,8 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
 
   return <div className="space-y-3 md:col-span-2">
     <label className="block text-sm font-semibold">Cliente<Input aria-label="Nombre, teléfono, CI o RUC del cliente" value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...value, id: undefined, name: event.target.value })} /></label>
-    {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => onChange(customerValue(customer))}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}</button>)}{!matches.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará automáticamente al confirmar la venta.</p>}</div>}
-    {value.id && <div className="flex flex-wrap items-center gap-2 rounded-lg border border-fono/20 bg-fono/5 px-3 py-2 text-xs text-fono-light"><span>Cliente seleccionado.</span>{value.pricingTier === 'WHOLESALE' && <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold">Mayorista</span>}{Number(value.creditLimitPyg || 0) > 0 && <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">Crédito hasta Gs. {Number(value.creditLimitPyg).toLocaleString('es-PY')}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}</span>}</div>}
+    {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => elegirCliente(customer)}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || customer.email || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}{datosFacturacionCliente(customer) ? <span className="ml-2 text-xs text-mute">· Factura a {customer.billingName || customer.billingDocument}</span> : null}</button>)}{!matches.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará automáticamente al confirmar la venta.</p>}</div>}
+    {value.id && <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-ok/30 bg-ok/10 px-3 py-2 text-xs"><span className="inline-flex items-center gap-1.5 font-bold text-ok"><Icon name="check" className="h-3.5 w-3.5" /> Cliente seleccionado</span><span className="font-semibold text-fore">{value.name}</span>{value.document ? <span className="text-mute">{value.document}</span> : null}{value.phone ? <span className="text-mute">{value.countryCode} {value.phone}</span> : null}{value.pricingTier === 'WHOLESALE' ? <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold text-fono-light">Mayorista</span> : null}{Number(value.creditLimitPyg || 0) > 0 ? <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">Crédito hasta Gs. {Number(value.creditLimitPyg).toLocaleString('es-PY')}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}</span> : null}<button type="button" className="ml-auto rounded-lg border border-bad/40 px-2 py-1 font-semibold text-bad transition hover:bg-bad/10" onClick={quitarCliente}>× Quitar cliente</button></div>}
     {error && <p role="alert" className="text-sm text-bad">{error}</p>}
     <details className="rounded-xl border border-ink-600 p-3"><summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
