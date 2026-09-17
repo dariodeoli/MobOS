@@ -205,6 +205,7 @@ model Branch {
 }
 
 model User {
+  avatar              UserAvatar?
   openedCashSessions  CashSession[]   @relation("CashOpenedBy")
   inventoryVerifications InventoryUnit[] @relation("InventoryUnitVerifier")
   closedCashSessions  CashSession[]   @relation("CashClosedBy")
@@ -1542,4 +1543,19 @@ model TenantLogo {
   updatedAt  DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// Foto de perfil del usuario para las cronologías y el equipo. Los bytes viven
+// en el volumen de adjuntos con respaldo en `data`.
+model UserAvatar {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  storageKey String?
+  data       Bytes?   @db.ByteA
+  mimeType   String
+  sha256     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

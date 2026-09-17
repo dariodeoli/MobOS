@@ -16,7 +16,7 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
   const [audits, payments, comments] = await Promise.all([
     prisma.auditLog.findMany({
       where: { tenantId: tenant, entity: 'Order', entityId: order.id, action: { in: TIMELINE_ACTIONS } },
-      select: { id: true, action: true, metadata: true, createdAt: true, user: { select: { id: true, name: true } } },
+      select: { id: true, action: true, metadata: true, createdAt: true, user: { select: { id: true, name: true, avatar: { select: { updatedAt: true } } } } },
       orderBy: { createdAt: 'desc' }, take: 200,
     }),
     prisma.payment.findMany({
@@ -26,7 +26,7 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
     }),
     prisma.orderComment.findMany({
       where: { tenantId: tenant, orderId: order.id },
-      include: { user: { select: { id: true, name: true } }, photos: { select: { id: true, fileName: true, mimeType: true, sizeBytes: true } } },
+      include: { user: { select: { id: true, name: true, avatar: { select: { updatedAt: true } } } }, photos: { select: { id: true, fileName: true, mimeType: true, sizeBytes: true } } },
       orderBy: { createdAt: 'desc' }, take: 200,
     }),
   ])

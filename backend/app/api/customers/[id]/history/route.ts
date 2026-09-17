@@ -41,7 +41,7 @@ export async function GET(request: Request, context: RouteContext) {
           ...(orderIds.length ? [{ entity: 'Order' as const, entityId: { in: orderIds }, action: 'ORDER_FULFILLMENT_UPDATED' }] : []),
         ],
       },
-      select: { id: true, action: true, entity: true, entityId: true, metadata: true, createdAt: true, user: { select: { id: true, name: true } } },
+      select: { id: true, action: true, entity: true, entityId: true, metadata: true, createdAt: true, user: { select: { id: true, name: true, avatar: { select: { updatedAt: true } } } } },
       orderBy: { createdAt: 'desc' },
       take: 200,
     }),
@@ -67,9 +67,10 @@ export async function GET(request: Request, context: RouteContext) {
     ...orders.flatMap(order => order.payments.map(payment => payment.userId)),
   ].filter((value): value is string => Boolean(value)))]
   const usuarios = userIds.length
-    ? await prisma.user.findMany({ where: { tenantId: session.user.tenantId, id: { in: userIds } }, select: { id: true, name: true } })
+    ? await prisma.user.findMany({ where: { tenantId: session.user.tenantId, id: { in: userIds } }, select: { id: true, name: true, avatar: { select: { updatedAt: true } } } })
     : []
   const nombrePorUsuario = new Map(usuarios.map(user => [user.id, user.name]))
+  const conFotoPorUsuario = new Map(usuarios.map(user => [user.id, Boolean(user.avatar)]))
   const orderNumberPorId = new Map(orders.map(order => [order.id, order.orderNumber]))
 
   const events = [
@@ -80,17 +81,18 @@ export async function GET(request: Request, context: RouteContext) {
     })),
     ...orders.flatMap(order => order.payments.filter(payment => payment.status === 'CONFIRMED').map(payment => ({
       type: 'payment', at: payment.paidAt || payment.createdAt, id: `payment-${payment.id}`,
-      actor: payment.userId ? nombrePorUsuario.get(payment.userId) || null : null,
+      actor: payment.userId ? nombrePorUsuario.get(payment.userId) || null : null, actorId: payment.userId || null,
       detail: 'Pago recibido', amountPyg: payment.amountPyg, method: payment.method, orderNumber: order.orderNumber,
     }))),
     ...audits.map(audit => ({
-      type: 'audit', at: audit.createdAt, id: audit.id, actor: audit.user?.name || null,
+      type: 'audit', at: audit.createdAt, id: audit.id, actor: audit.user?.name || null, actorId: audit.user?.id || null,
       action: audit.action, metadata: audit.metadata,
       orderNumber: audit.entity === 'Order' ? orderNumberPorId.get(audit.entityId || '') || null : null,
     })),
-    ...notes.map(note => ({ type: 'note', at: note.createdAt, id: `note-${note.id}`, actor: note.userId ? nombrePorUsuario.get(note.userId) || null : null, detail: note.content })),
+    ...notes.map(note => ({ type: 'note', at: note.createdAt, id: `note-${note.id}`, actor: note.userId ? nombrePorUsuario.get(note.userId) || null : null, actorId: note.userId || null, detail: note.content })),
     ...warranties.map(warranty => ({ type: 'warranty', at: warranty.createdAt, id: `warranty-${warranty.id}`, actor: null, detail: `Garantía de ${warranty.warrantyDays || 0} días`, serial: warranty.serial })),
-  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+  ].map(evento => 'actorId' in evento && evento.actorId ? { ...evento, actorHasAvatar: conFotoPorUsuario.get(evento.actorId) === true } : evento)
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
 
   return json({
     customer: { id: customer.id, name: customer.name, createdAt: customer.createdAt },

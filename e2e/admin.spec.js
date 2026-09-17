@@ -145,9 +145,9 @@ test('configuración → sube el logo de la empresa y lo quita', async ({ page }
   await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
   await expect(page.getByRole('heading', { name: 'Logo de la empresa' })).toBeVisible()
   await expect(page.getByText('Sin logo')).toBeVisible()
-  await page.locator('input[type="file"][accept*="image/png"]').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png })
+  await page.locator('input[type="file"][accept*="image/png"]').first().setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png })
   await expect(page.getByAltText('Logo de la empresa')).toBeVisible()
-  await page.getByRole('button', { name: 'Quitar', exact: true }).click()
+  await page.getByRole('button', { name: 'Quitar', exact: true }).first().click()
   await expect(page.getByText('Sin logo')).toBeVisible()
 })
 
@@ -161,4 +161,17 @@ test('pedidos → la búsqueda llega al servidor y encuentra por número', async
   await consulta
   await respuesta
   await expect(page.getByText(SEED.seedOrderNumber)).toBeVisible()
+})
+
+// Foto del usuario: se sube desde Mi identidad y queda disponible para las
+// cronologías (el avatar reemplaza a las iniciales).
+test('configuración → sube mi foto y la quita', async ({ page }) => {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==', 'base64')
+  await page.goto('/pos/equipo')
+  await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
+  await expect(page.getByText('Mi foto')).toBeVisible()
+  await page.locator('input[type="file"][accept*="image/png"]').last().setInputFiles({ name: 'yo.png', mimeType: 'image/png', buffer: png })
+  await expect(page.getByAltText('Mi foto')).toBeVisible()
+  await page.getByRole('button', { name: 'Quitar', exact: true }).last().click()
+  await expect(page.getByAltText('Mi foto')).toHaveCount(0)
 })

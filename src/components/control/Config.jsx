@@ -3,6 +3,7 @@ import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { getLogoDataUrl, olvidarLogo } from '@/lib/tenantLogo'
+import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, PasswordInput, PinInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -190,7 +191,10 @@ export default function Config({ seccion = 'negocio' } = {}) {
 
 function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
   const toast = useToast()
-  const { empresa, actualizarEmpresa } = useSesion()
+  const { empresa, actualizarEmpresa, usuario } = useSesion()
+  const [foto, setFoto] = useState('')
+  const [fotoError, setFotoError] = useState('')
+  const [fotoBusy, setFotoBusy] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [form, setForm] = useState(null) // { name, email, password }
   const [busy, setBusy] = useState(false)
@@ -201,6 +205,36 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
     { etiqueta: 'ID de la tienda', valor: empresa?.id || null },
   ]
   const reauthVigente = Boolean(reauthValidUntil && new Date(reauthValidUntil) > new Date())
+  useEffect(() => {
+    if (!usuario?.id) return
+    let vigente = true
+    getAvatarDataUrl(usuario.id).then(data => { if (vigente) setFoto(data) })
+    return () => { vigente = false }
+  }, [usuario?.id])
+
+  async function subirFoto(file) {
+    if (fotoBusy || !usuario?.id) return
+    setFotoBusy(true); setFotoError('')
+    try {
+      const form = new FormData()
+      form.append('avatar', file)
+      await api.post(`/api/users/${encodeURIComponent(usuario.id)}/avatar`, form)
+      olvidarAvatar(usuario.id)
+      setFoto(await getAvatarDataUrl(usuario.id))
+      toast.success('Foto actualizada.')
+    } catch (cause) { setFotoError(cause?.message || 'No se pudo guardar la foto.') } finally { setFotoBusy(false) }
+  }
+
+  async function quitarFoto() {
+    if (fotoBusy || !usuario?.id) return
+    setFotoBusy(true); setFotoError('')
+    try {
+      await api.delete(`/api/users/${encodeURIComponent(usuario.id)}/avatar`)
+      olvidarAvatar(usuario.id)
+      setFoto('')
+    } catch (cause) { setFotoError(cause?.message || 'No se pudo quitar la foto.') } finally { setFotoBusy(false) }
+  }
+
   function abrir() {
     setForm({ name: empresa?.nombre || '', email: empresa?.email || '', password: '' })
     setError('')
@@ -238,6 +272,22 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
         </div>
         <Button type="button" variant="outline" onClick={abrir}><Icon name="edit" className="h-3.5 w-3.5" />Editar</Button>
       </div>
+      {usuario?.id && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {foto ? <img src={foto} alt="Mi foto" className="h-10 w-10 shrink-0 rounded-full border border-ink-600 object-cover" /> : <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 text-xs font-semibold text-mute">{(usuario?.name || 'Yo').trim().split(/\s+/).slice(0, 2).map(parte => parte[0] || '').join('').toUpperCase()}</span>}
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-mute">Mi foto</p>
+            <p className="mt-0.5 text-sm text-mute">Aparece en la cronología de clientes y pedidos.</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <AttachmentInput onSelect={subirFoto} onError={setFotoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={fotoBusy}>
+            <Button type="button" variant="outline" disabled={fotoBusy}>{foto ? 'Reemplazar foto' : 'Subir foto'}</Button>
+          </AttachmentInput>
+          {foto && <Button type="button" variant="ghost" disabled={fotoBusy} onClick={quitarFoto}>Quitar</Button>}
+        </div>
+      </div>}
+      {fotoError && <p role="alert" className="text-sm text-bad">{fotoError}</p>}
       <div className="space-y-2">
         {valores.map(({ etiqueta, valor }) => (
           <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">

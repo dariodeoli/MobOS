@@ -4,6 +4,7 @@ import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { whatsappUrl } from './customerMessaging'
 import Icon from '@/components/shared/Icon'
+import ActorAvatar from './ActorAvatar'
 import {
   Badge,
   Button,
@@ -620,7 +621,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
               {!cargandoEventos && !eventos.length && <p className="text-sm text-mute">Todavía no hay movimientos.</p>}
               {eventos.map(evento => (
                 <article key={evento.id} className="flex gap-3">
-                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-fono-light" />
+                  {evento.actorId ? <ActorAvatar user={{ id: evento.actorId, name: evento.actor }} hasAvatar={evento.actorHasAvatar === true} size="sm" /> : <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-fono-light" />}
                   <div className="min-w-0">
                     <p className="text-xs font-semibold">{evento.actor || 'Sistema'}<span className="ml-2 font-normal text-mute">{new Date(evento.at).toLocaleString('es-PY')}</span></p>
                     <p className="mt-0.5 text-sm text-mute">{textoEvento(evento)}</p>
