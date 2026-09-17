@@ -180,7 +180,9 @@ export default function App() {
               </Protegida>
             }
           />
-          <Route path="/pos/:vista?" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
+          {/* El pedido individual vive en la URL por su id interno: el código
+              comercial (MOB-#0001) es solo para humanos y puede cambiar. */}
+          <Route path="/pos/:vista?/:orderId?" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/control/:tab?" element={<AreaProtegida owner><ControlRedirect /></AreaProtegida>} />
           <Route path="/celulares" element={<AreaProtegida owner><Celulares /></AreaProtegida>} />
           <Route path="/comparador" element={<AreaProtegida owner><Comparador /></AreaProtegida>} />

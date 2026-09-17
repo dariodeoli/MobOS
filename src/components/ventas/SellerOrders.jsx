@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
-import { normalizarBusqueda } from '@/utils/cliente'
+import { normalizarBusqueda, nombreCortoCliente } from '@/utils/cliente'
 import { Input } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
@@ -42,7 +43,7 @@ export const orderFields = (row) => {
     tags: Array.isArray(row.tags) ? row.tags : [], archivedAt: row.archivedAt || null,
   }
 }
-const FULFILLMENT = { PROCESSING: 'Preparando', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
+const FULFILLMENT = { PROCESSING: 'Preparando', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo p/ retirar', DELIVERED: 'Entregado' }
 const ENTREGA = { 'Retiro en tienda': 'Retiro', Delivery: 'Delivery', Encomienda: 'Encomienda' }
 const PAGO_ORDEN = { Pagado: 0, Parcial: 1, 'A crédito': 2, Pendiente: 3 }
 const ESTADO_ORDEN = { PROCESSING: 0, IN_TRANSIT: 1, READY_FOR_PICKUP: 2, DELIVERED: 3, CANCELLED: 4 }
@@ -52,7 +53,11 @@ const FILTROS = [
 ]
 
 // Grid compartido por encabezado y filas: mismas columnas, mismo ancho.
-const GRID = 'grid min-w-[64rem] grid-cols-[8.5rem_8rem_minmax(0,1.05fr)_minmax(0,1.35fr)_5.5rem_3.5rem_7rem_7rem_8.5rem_8.5rem] items-center gap-x-3'
+// Los anchos compactos (pedido, fecha, cant., entrega, pago, estado) liberan
+// espacio para cliente, artículos y serial; el total conserva su ancho porque
+// los importes necesitan lugar. La grilla sigue siendo fija: un badge corto no
+// corre la columna siguiente.
+const GRID = 'grid min-w-[60rem] grid-cols-[4.75rem_5.5rem_minmax(0,1.15fr)_minmax(0,1.6fr)_minmax(0,0.9fr)_2.5rem_4.5rem_4.25rem_6rem_8.5rem] items-center gap-x-2'
 
 function fechaCompacta(value) {
   if (!value || Number.isNaN(Date.parse(value))) return 'Sin fecha'
@@ -63,11 +68,21 @@ function fechaCompacta(value) {
   return `${dia} ${mes} · ${hora}`
 }
 
-// Versión corta para la tabla: sin capacidad ni condición, el detalle queda adentro.
-const abreviarProducto = (texto) => String(texto || '')
-  .replace(/\b\d+\s?(GB|TB)\b/gi, '')
-  .replace(/\s{2,}/g, ' ')
-  .trim()
+// Vista previa de artículos: hasta dos descripciones completas (con capacidad)
+// en una sola línea compacta y "+N" cuando el pedido trae más productos.
+const vistaArticulos = (row) => {
+  const descripciones = (row.items?.length
+    ? row.items.map(item => item.description)
+    : String(row.products || '').split(','))
+    .map(texto => String(texto || '').trim())
+    .filter(Boolean)
+  if (!descripciones.length) return { texto: '', extra: 0, completo: '' }
+  return {
+    texto: descripciones.slice(0, 2).join(' · '),
+    extra: Math.max(0, descripciones.length - 2),
+    completo: descripciones.join(' · '),
+  }
+}
 
 const pagoDe = (row) => (row.creditDays > 0 && row.pending > 0 ? 'A crédito' : row.paymentStatus || 'Pendiente')
 const estaCompletado = (row) => Boolean(row.archivedAt) || (row.paymentStatus === 'Pagado' && row.fulfillmentStatus === 'DELIVERED')
@@ -79,16 +94,29 @@ function BadgePago({ row }) {
     : estado === 'Parcial' ? 'border-warn/25 bg-warn/10 text-warn'
       : estado === 'A crédito' ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-[#a78bfa]'
         : 'border-bad/25 bg-bad/10 text-bad'
-  return <span className={cn('inline-block truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', tono)}>{estado || 'Pendiente'}</span>
+  return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', tono)}>{estado || 'Pendiente'}</span>
 }
 
 function BadgeEstado({ row }) {
-  if (estaCancelado(row)) return <span className="inline-block truncate rounded-md border border-bad/30 bg-bad/10 px-1.5 py-0.5 text-[10px] font-bold text-bad">Cancelado</span>
+  if (estaCancelado(row)) return <span className="w-fit justify-self-start whitespace-nowrap rounded-md border border-bad/30 bg-bad/10 px-1.5 py-0.5 text-[10px] font-bold text-bad">Cancelado</span>
   const tono = row.fulfillmentStatus === 'DELIVERED' ? 'border-ok/25 bg-ok/10 text-ok'
     : row.fulfillmentStatus === 'READY_FOR_PICKUP' ? 'border-warn/25 bg-warn/10 text-warn'
       : row.fulfillmentStatus === 'IN_TRANSIT' ? 'border-fono/25 bg-fono/10 text-fono-light'
         : 'border-ink-500 bg-ink-700/40 text-mute'
-  return <span className={cn('inline-block truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', tono)}>{FULFILLMENT[row.fulfillmentStatus] || row.fulfillmentStatus || 'Preparando'}</span>
+  return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', tono)}>{FULFILLMENT[row.fulfillmentStatus] || row.fulfillmentStatus || 'Preparando'}</span>
+}
+
+// Serial/IMEI: completo cuando entra; si la columna queda corta se recorta la
+// cabeza y los últimos 4 caracteres siguen siempre visibles y destacados.
+function CeldaSerial({ serial }) {
+  if (!serial) return <span className="text-[11px] text-mute">—</span>
+  const texto = String(serial)
+  return (
+    <span className="flex min-w-0 items-baseline font-mono text-[11px]" title={texto}>
+      <span className="min-w-0 truncate text-mute">{texto.slice(0, -4)}</span>
+      <span className="shrink-0 font-bold text-fono-light">{texto.slice(-4)}</span>
+    </span>
+  )
 }
 
 const buscable = (row) => normalizarBusqueda([
@@ -101,6 +129,7 @@ function FilaPedido({ row, onClick }) {
   const cancelado = estaCancelado(row)
   const tachado = cancelado ? 'line-through decoration-bad/70' : ''
   const ultimo = row.seriales.length ? String(row.seriales[row.seriales.length - 1]) : ''
+  const articulos = vistaArticulos(row)
   return (
     <button
       type="button"
@@ -114,12 +143,12 @@ function FilaPedido({ row, onClick }) {
       <div className={GRID}>
         <span className={cn('truncate font-mono text-xs font-bold text-fono-light', tachado)} title={row.number}>{row.number}</span>
         <span className={cn('truncate text-xs text-mute', tachado)}>{fechaCompacta(row.date)}</span>
-        <span className={cn('truncate text-sm font-semibold', tachado)} title={row.customer}>{row.customer}</span>
-        <span className={cn('truncate text-xs text-mute', tachado)} title={row.products}>
-          {abreviarProducto(row.products) || '—'}
-          {(row.items?.length || 0) > 1 && <span className="ml-1 text-fono-light">+{row.items.length - 1}</span>}
+        <span className={cn('truncate text-sm font-semibold', tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</span>
+        <span className={cn('truncate text-xs text-mute', tachado)} title={articulos.completo || undefined}>
+          {articulos.texto || '—'}
+          {articulos.extra > 0 && <span className="ml-1 font-semibold text-fono-light">+{articulos.extra}</span>}
         </span>
-        <span className={cn('truncate font-mono text-[11px] text-mute', tachado)} title={ultimo || undefined}>{ultimo ? `…${ultimo.slice(-4)}` : '—'}</span>
+        <CeldaSerial serial={ultimo} />
         <span className={cn('text-xs font-semibold tabular-nums', tachado)}>×{row.quantity || 1}</span>
         <span className={cn('truncate text-xs text-mute', tachado)}>{ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}</span>
         <BadgePago row={row} />
@@ -134,10 +163,13 @@ function FilaPedido({ row, onClick }) {
 
 export default function SellerOrders() {
   const { sesion, esDemo, usuario } = useSesion()
+  const navigate = useNavigate()
+  // El pedido abierto vive en la URL por su id interno (UUID), nunca por el
+  // código comercial: si el código cambia, el enlace sigue resolviendo.
+  const { orderId } = useParams()
   const [query, setQuery] = useState('')
   const [filtro, setFiltro] = useState('activos')
   const [orden, setOrden] = useState({ key: 'date', dir: 'desc' })
-  const [seleccion, setSeleccion] = useState(null)
   const data = useSellerData('/api/orders', orderFields, listVentas, esDemo, { limit: 50 })
   const esAdminVentas = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE'].includes(sesion?.rol) || ['ADMIN', 'GERENTE'].includes(usuario?.role))
   const todas = useMemo(() => {
@@ -186,6 +218,12 @@ export default function SellerOrders() {
     })
   }, [todas, filtro, query, orden])
 
+  // El detalle sale de la fila cargada; si se entra por URL directa (recarga,
+  // enlace compartido) el drawer resuelve el pedido por su id contra la API.
+  const seleccion = useMemo(() => (orderId ? rows.find((row) => row.id === orderId) || { id: orderId } : null), [orderId, rows])
+  const abrirPedido = (row) => navigate(`/pos/pedidos/${encodeURIComponent(row.id)}`)
+  const cerrarPedido = () => navigate('/pos/pedidos')
+
   const ordenarPor = (key) => setOrden((current) => current.key === key ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'date' || key === 'total' || key === 'quantity' ? 'desc' : 'asc' })
   const encabezado = (key, label, extra = '') => (
     <button type="button" onClick={() => ordenarPor(key)} className={cn('flex items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore', orden.key === key ? 'text-fono-light' : 'text-mute', extra)}>
@@ -202,7 +240,7 @@ export default function SellerOrders() {
     </div>
     <SellerFeedback {...data} empty={!rows.length} />
     {!data.loading && !data.error && (
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" data-testid="pedidos-tabla">
         <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
           {encabezado('number', 'Pedido')}
           {encabezado('date', 'Fecha')}
@@ -215,10 +253,10 @@ export default function SellerOrders() {
           {encabezado('fulfillment', 'Estado')}
           {encabezado('total', 'Total', 'justify-end')}
         </div>
-        <div className="space-y-2">{rows.map((row) => <FilaPedido key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>
+        <div className="space-y-2">{rows.map((row) => <FilaPedido key={row.id} row={row} onClick={() => abrirPedido(row)} />)}</div>
       </div>
     )}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más pedidos'}</button></div>}
-    {seleccion && <PedidoDetalle row={seleccion} esDemo={esDemo} customerOrderCount={seleccion.customerId ? porCliente[seleccion.customerId] || 0 : 0} onClose={() => setSeleccion(null)} onChanged={data.refresh} />}
+    {seleccion && <PedidoDetalle key={seleccion.id} row={seleccion} esDemo={esDemo} customerOrderCount={seleccion.customerId ? porCliente[seleccion.customerId] || 0 : 0} onClose={cerrarPedido} onChanged={data.refresh} />}
   </SellerSection>
 }

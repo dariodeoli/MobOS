@@ -26,6 +26,14 @@ export function coincideCliente(customer, query) {
   return palabras.every(palabra => buscable.includes(palabra))
 }
 
+// Nombre visible en listados: primer nombre + primer apellido. El nombre
+// completo (segundos nombres incluidos) queda en la ficha del cliente y en el
+// detalle del pedido.
+export function nombreCortoCliente(name) {
+  const partes = String(name ?? '').trim().split(/\s+/).filter(Boolean)
+  return partes.slice(0, 2).join(' ')
+}
+
 export function datosFacturacionCliente(customer = {}) {
   if (!customer.billingName && !customer.billingDocument) return null
   return { name: customer.billingName || '', document: customer.billingDocument || '' }
