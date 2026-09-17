@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto'
 import { error, json } from '../../../../lib/http'
 import { prisma } from '../../../../lib/prisma'
-import { customerEmailValid, notifyPaymentDue, notifyReservationDue } from '../../../../lib/email-notifications'
+import { customerEmailValid, notifyPaymentDue, notifyPaymentOverdue, notifyReservationDue } from '../../../../lib/email-notifications'
 
 function authorized(request: Request) {
   const expected = process.env.MOBOS_MAINTENANCE_TOKEN
@@ -16,7 +16,10 @@ const DAY_MS = 86400000
 // Called by the platform scheduler across every isolated tenant:
 // 1. recuerda cuotas a crédito que vencen en los próximos 3 días (una vez por
 //    cuota, vía Payment.remindedAt);
-// 2. avisa de reservas que vencen en las próximas 24 horas (una vez por
+// 2. reclama cuotas que YA vencieron y siguen pendientes (una vez por cuota,
+//    vía Payment.overdueRemindedAt). Antes solo se avisaba antes del
+//    vencimiento: una cuota que se pasaba de fecha no se reclamaba nunca;
+// 3. avisa de reservas que vencen en las próximas 24 horas (una vez por
 //    reserva, vía AuditLog RESERVATION_DUE_REMINDED).
 export async function POST(request: Request) {
   if (!process.env.MOBOS_MAINTENANCE_TOKEN) return error('El mantenimiento programado todavía no está configurado.', 503)
@@ -47,6 +50,28 @@ export async function POST(request: Request) {
     if (marked.count) reminded += 1
   }
 
+  const overduePayments = await prisma.payment.findMany({
+    where: { status: 'PENDING', method: 'CREDIT', overdueRemindedAt: null, dueAt: { lte: now } },
+    select: { id: true, tenantId: true, amountPyg: true, dueAt: true, order: { select: { orderNumber: true, customer: { select: { name: true, email: true } } } } },
+    orderBy: { dueAt: 'asc' },
+  })
+  let overdueReminded = 0
+  for (const payment of overduePayments) {
+    const email = payment.order?.customer?.email ?? null
+    const enqueued = await notifyPaymentOverdue(prisma, {
+      tenantId: payment.tenantId,
+      paymentId: payment.id,
+      customerName: payment.order?.customer?.name ?? '',
+      customerEmail: email,
+      orderNumber: payment.order.orderNumber,
+      dueAt: payment.dueAt as Date,
+      amountPyg: payment.amountPyg,
+    })
+    if (!customerEmailValid(email) && !enqueued) continue
+    const marked = await prisma.payment.updateMany({ where: { id: payment.id, overdueRemindedAt: null }, data: { overdueRemindedAt: new Date() } })
+    if (marked.count) overdueReminded += 1
+  }
+
   const reservationUnits = await prisma.inventoryUnit.findMany({
     where: { status: 'RESERVED', reservedUntil: { gt: now, lte: reservationsDueSoon } },
     select: { id: true, tenantId: true, serial: true, reservationCustomer: true, reservedUntil: true, product: { select: { name: true } } },
@@ -70,5 +95,5 @@ export async function POST(request: Request) {
     if (enqueued) reservationReminded += 1
   }
 
-  return json({ reminded, reservationReminded, checkedAt: now.toISOString() })
+  return json({ reminded, overdueReminded, reservationReminded, checkedAt: now.toISOString() })
 }

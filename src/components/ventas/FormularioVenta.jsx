@@ -523,7 +523,10 @@ export default function FormularioVenta({
     setNuevoDetalles({ categoria: 'Accesorios', condicion: 'NEW', precio: '', mayorista: '', costo: '' })
   }
 
-  const skuDe = texto => `${texto.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'PRODUCTO'}-${Date.now().toString(36).toUpperCase()}`
+  // SKU legible y estable a partir del nombre; si ya existe, el backend le
+  // agrega un sufijo numérico (antes se le metía un timestamp y quedaba
+  // ilegible: "CABLE-USB-C-MU5C3F2").
+  const skuDe = texto => texto.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'PRODUCTO'
 
   async function crearProducto() {
     const base = nombreProd.trim()
