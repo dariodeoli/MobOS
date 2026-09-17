@@ -6,7 +6,7 @@ import Icon from './Icon'
 
 // Desplegable de medio de pago que muestra el logo de cada banco. Reemplaza al
 // <select> nativo, que no puede renderizar imágenes dentro de sus opciones.
-export default function SelectorMedioPago({ value, onChange, className }) {
+export default function SelectorMedioPago({ value, onChange, className, id }) {
   const [abierto, setAbierto] = useState(false)
   const ref = useRef(null)
 
@@ -22,7 +22,10 @@ export default function SelectorMedioPago({ value, onChange, className }) {
   return (
     <div className={cn('relative', className)} ref={ref}>
       <button
+        id={id}
         type="button"
+        aria-haspopup="listbox"
+        aria-expanded={abierto}
         onClick={() => setAbierto((v) => !v)}
         className={cn(
           'flex h-11 w-full items-center justify-between gap-2 rounded-lg border bg-ink-800 px-3 transition md:h-9',

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { useUrlState } from '@/hooks/useUrlState'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { useSesion } from '@/lib/sesion'
 import { gs } from '@/utils/calculos'
 import { Badge, Button, Card, DataTable, EmptyState, Select, Stat } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
-import RangoFechas, { PRESETS, etiquetaRango } from '@/components/shared/RangoFechas'
+import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango, etiquetaRango } from '@/components/shared/RangoFechas'
 import { formatPercent } from '@/components/shared/PercentField'
 import { descargarCsv } from '@/utils/descargarCsv'
 import {
@@ -25,9 +27,17 @@ const rangoInicial = () => ({ ...(PRESETS.find((p) => p.id === '30d') || PRESETS
 const TZ_OFFSET = -180
 
 export default function Reportes() {
-  const [rango, setRango] = useState(rangoInicial)
-  const [grupo, setGrupo] = useState('product')
-  const [tipo, setTipo] = useState('ventas')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [rango, setRango] = useState(() => rangoDeParams(searchParams, rangoInicial))
+  const cambiarRango = useCallback(
+    next => {
+      setRango(next)
+      setSearchParams(actuales => paramsDeRango(next, actuales), { replace: true })
+    },
+    [setSearchParams],
+  )
+  const [grupo, setGrupo] = useUrlState('grupo', 'product')
+  const [tipo, setTipo] = useUrlState('tipo', 'ventas')
   const [datos, setDatos] = useState(null)
   const [datosComisiones, setDatosComisiones] = useState(null)
   const [cargando, setCargando] = useState(true)
@@ -153,7 +163,7 @@ export default function Reportes() {
     <div className="space-y-4">
       <Card className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <RangoFechas valor={rango} onChange={setRango} />
+          <RangoFechas valor={rango} onChange={cambiarRango} />
           <Select value={tipo} onChange={(e) => setTipo(e.target.value)} className="h-9 w-auto">
             <option value="ventas">Ventas</option>
             {puedeComisiones && <option value="comisiones">Comisiones por vendedor</option>}
@@ -263,7 +273,7 @@ export default function Reportes() {
 
       {totales && tipo !== 'comisiones' && (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
             <Stat
               destacado
               label="Total del período"

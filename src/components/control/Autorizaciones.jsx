@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useUrlState } from '@/hooks/useUrlState'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
@@ -52,7 +53,7 @@ function resumenValor(kind, value) {
 export default function Autorizaciones() {
   const { usuario, esDemo } = useSesion()
   const toast = useToast()
-  const [filtro, setFiltro] = useState('')
+  const [filtro, setFiltro] = useUrlState('estado', '')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')

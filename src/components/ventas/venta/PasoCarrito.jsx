@@ -45,8 +45,8 @@ export default function PasoCarrito({
 
       {/* Descuento extra */}
       <div>
-        <Label>Descuento extra (Gs)</Label>
-        <MoneyInput
+        <Label htmlFor="descuento-extra-gs">Descuento extra (Gs)</Label>
+        <MoneyInput id="descuento-extra-gs"
           value={descuento}
           onValueChange={setDescuento}
           placeholder="0"
@@ -74,8 +74,8 @@ export default function PasoCarrito({
 
       {/* Fecha */}
       <div>
-        <Label>Fecha</Label>
-        <Input
+        <Label htmlFor="fecha">Fecha</Label>
+        <Input id="fecha"
           type="date"
           value={f.fecha}
           onChange={e => setF(s => ({ ...s, fecha: e.target.value, fechaManual: true }))}

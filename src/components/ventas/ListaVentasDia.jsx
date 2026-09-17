@@ -170,11 +170,13 @@ export default function ListaVentasDia({
               setPagina(1)
             }}
             placeholder="Buscar por cliente, producto o vendedor…"
+            aria-label="Buscar ventas por cliente, producto o vendedor"
             className="h-9 w-full rounded-lg border border-ink-500 bg-paper pl-9 pr-8 text-sm text-fore outline-none transition focus:border-fono placeholder:text-mute/60"
           />
           {busqueda && (
             <button
               onClick={() => setBusqueda('')}
+              aria-label="Limpiar búsqueda"
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mute transition hover:text-fore"
             >
               <Icon name="close" className="h-4 w-4" />
@@ -209,7 +211,7 @@ export default function ListaVentasDia({
       ) : (
         <>
           {/* ── Tarjetas (móvil) ─────────────────────────────────── */}
-          <div className="space-y-2 p-4 xl:hidden">
+          <div className="space-y-2 p-4 min-[1200px]:hidden">
             {grupos.map(g => {
               const v = g.items[0]
               const varios = g.items.length > 1
@@ -245,7 +247,7 @@ export default function ListaVentasDia({
                   </div>
                   {(g.items.some(item => Number(item.serialsPending || 0) > 0) || g.items.some(item => item.costPending === true)) && <div className="mt-1.5 flex flex-wrap gap-1.5 pl-4">
                     {g.items.some(item => Number(item.serialsPending || 0) > 0) && <span className="rounded bg-warn/20 px-1.5 py-0.5 text-[10px] font-semibold text-warn">sin IMEI (sobre pedido)</span>}
-                    {g.items.some(item => item.costPending === true) && <span className="rounded bg-sky-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300">costo pendiente</span>}
+                    {g.items.some(item => item.costPending === true) && <span className="rounded bg-sky-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-info">costo pendiente</span>}
                   </div>}
                   <div className="mt-2 flex flex-wrap items-center gap-2 pl-4">
                     <IconAction icon="receipt" tone="fono" label="Pagos y comprobantes" onClick={() => setPagoPedido(v)} />
@@ -267,7 +269,7 @@ export default function ListaVentasDia({
           </div>
 
           {/* ── Tabla (escritorio) ───────────────────────────────── */}
-          <div className="hidden min-w-0 overflow-x-auto xl:block">
+          <div className="hidden min-w-0 overflow-x-auto min-[1200px]:block">
             <table className="w-full table-fixed text-sm">
               <colgroup>
                 <col className={mostrarVendedor ? 'w-[11%]' : 'w-[13%]'} />
@@ -336,7 +338,7 @@ export default function ListaVentasDia({
                                   </span>
                                 )}
                                 {item.costPending === true && (
-                                  <span className="ml-1 inline-flex items-center gap-1 rounded bg-sky-400/15 px-1.5 py-0.5 font-semibold text-sky-300">
+                                  <span className="ml-1 inline-flex items-center gap-1 rounded bg-sky-400/15 px-1.5 py-0.5 font-semibold text-info">
                                     <Icon name="alert" className="h-3 w-3" /> costo pendiente
                                   </span>
                                 )}
@@ -383,7 +385,7 @@ export default function ListaVentasDia({
                                 rowSpan={g.items.length}
                                 className="break-words px-2.5 py-1.5 align-top text-mute"
                               >
-                                {vendedoresById[v.vendedorId] || '—'}
+                                <span className="block truncate" title={vendedoresById[v.vendedorId] || undefined}>{vendedoresById[v.vendedorId] || '—'}</span>
                               </td>
                             )}
                             <td
@@ -415,7 +417,7 @@ export default function ListaVentasDia({
                               <Icon name="trash" className="h-4 w-4" />
                             </button>
                           ) : (
-                            <Icon name="lock" className="h-4 w-4 text-ink-500" />
+                            <Icon name="lock" className="h-4 w-4 text-mute" />
                           )}
                         </td>
                       </tr>
@@ -473,37 +475,18 @@ export default function ListaVentasDia({
       )}
 
       {/* ── Confirmación de borrado ──────────────────────────────── */}
-      {confirmar && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-          onClick={() => setConfirmar(null)}
-        >
-          <Card className="w-full max-w-sm" onClick={e => e.stopPropagation()}>
-            <h3 className="mb-1 font-semibold">Eliminar venta</h3>
-            <p className="mb-5 text-sm text-mute">
-              {confirmar.cliente || 'Sin cliente'} · {nombreProd(confirmar)} ·{' '}
-              {gs(confirmar.precio)}
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmar(null)}
-                className="h-9 flex-1 rounded-lg border border-ink-500 text-sm transition hover:border-fono"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  deleteVenta(confirmar.id)
-                  setConfirmar(null)
-                }}
-                className="h-9 flex-1 rounded-lg bg-bad text-sm font-semibold text-fore transition hover:brightness-110"
-              >
-                Eliminar
-              </button>
-            </div>
-          </Card>
-        </div>
-      )}
+      <ConfirmDialog
+        open={Boolean(confirmar)}
+        onCancel={() => setConfirmar(null)}
+        onConfirm={() => {
+          deleteVenta(confirmar.id)
+          setConfirmar(null)
+        }}
+        title="¿Eliminar esta venta?"
+        description={confirmar ? `${confirmar.cliente || 'Sin cliente'} · ${nombreProd(confirmar)} · ${gs(confirmar.precio)}. La venta se borra del historial del día.` : ''}
+        confirmLabel="Eliminar"
+        variant="danger"
+      />
     </Card>
   )
 }

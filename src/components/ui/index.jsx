@@ -512,8 +512,8 @@ export function DataTable({ columns, rows, emptyLabel = 'Sin datos para mostrar.
   if (!rows?.length) return <EmptyState title={emptyLabel} description="" className={className} />
   return (
     <div className={className}>
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-[13px]">
+      <div className="hidden max-h-[70vh] overflow-auto md:block">
+        <table className="w-full text-sm">
           <thead className="sticky top-0 z-10 bg-ink-800">
             <tr className="border-b border-ink-600 text-left text-xs uppercase tracking-wider text-mute">
               {columns.map(column => (

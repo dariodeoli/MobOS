@@ -484,8 +484,8 @@ function Resultado({ s, resultado, config, onReset, onSalir }) {
               {cel && !guardada && (
                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div className="sm:col-span-2">
-                    <Label>Vendedor</Label>
-                    <Select value={vendedorId} onChange={(e) => setVendedorId(e.target.value)}>
+                    <Label htmlFor="vendedor">Vendedor</Label>
+                    <Select id="vendedor" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)}>
                       <option value="">— ¿Quién hace esta venta? —</option>
                       {vendedores.map((v) => (
                         <option key={v.id} value={v.id}>
@@ -495,8 +495,8 @@ function Resultado({ s, resultado, config, onReset, onSalir }) {
                     </Select>
                   </div>
                   <div className="sm:col-span-2">
-                    <Label>Cliente</Label>
-                    <Input
+                    <Label htmlFor="cliente">Cliente</Label>
+                    <Input id="cliente"
                       value={cliente}
                       onChange={(e) => setCliente(e.target.value)}
                       placeholder="Nombre del cliente"
@@ -504,16 +504,16 @@ function Resultado({ s, resultado, config, onReset, onSalir }) {
                     />
                   </div>
                   <div>
-                    <Label>Estado de pago</Label>
-                    <Select value={estadoPago} onChange={(e) => setEstadoPago(e.target.value)}>
+                    <Label htmlFor="estado-de-pago">Estado de pago</Label>
+                    <Select id="estado-de-pago" value={estadoPago} onChange={(e) => setEstadoPago(e.target.value)}>
                       {ESTADOS_PAGO.map((x) => (
                         <option key={x}>{x}</option>
                       ))}
                     </Select>
                   </div>
                   <div>
-                    <Label>Medio de pago</Label>
-                    <Select value={medioPago} onChange={(e) => setMedioPago(e.target.value)}>
+                    <Label htmlFor="medio-de-pago">Medio de pago</Label>
+                    <Select id="medio-de-pago" value={medioPago} onChange={(e) => setMedioPago(e.target.value)}>
                       {MEDIOS_PAGO.map((x) => (
                         <option key={x}>{x}</option>
                       ))}

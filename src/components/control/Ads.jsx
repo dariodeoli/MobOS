@@ -96,20 +96,20 @@ export default function Ads() {
         {!demo && <p className="mb-3 text-xs text-mute">Las inversiones se registran como gastos en Finanzas y se descuentan de la ganancia.</p>}
         <form onSubmit={guardar} className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <Label>Monto</Label>
-            <MoneyInput
+            <Label htmlFor="monto">Monto</Label>
+            <MoneyInput id="monto"
               value={f.monto}
               onValueChange={(monto) => setF((s) => ({ ...s, monto }))}
               placeholder="Ej: 150000"
             />
           </div>
           <div>
-            <Label>Fecha</Label>
-            <Input type="date" value={f.fecha} onChange={set('fecha')} />
+            <Label htmlFor="fecha">Fecha</Label>
+            <Input id="fecha" type="date" value={f.fecha} onChange={set('fecha')} />
           </div>
           <div>
-            <Label>Plataforma</Label>
-            <Select value={f.plataforma} onChange={set('plataforma')}>
+            <Label htmlFor="plataforma">Plataforma</Label>
+            <Select id="plataforma" value={f.plataforma} onChange={set('plataforma')}>
               {PLATAFORMAS.map((p) => (
                 <option key={p} value={p}>
                   {p}

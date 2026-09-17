@@ -7,7 +7,6 @@ import { api } from '@/lib/api/client'
 import { comisionDeVentas, cobradoDeVenta, num, gs } from '@/utils/calculos'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
 import RangoFechas, {
-  rangoPorDefecto,
   rangoAnterior,
   etiquetaRango,
 } from '@/components/shared/RangoFechas'
@@ -25,7 +24,7 @@ const ACCIONES = [
   { label: 'Cargar venta', ruta: '/pos/cargar', icon: 'plus' },
   { label: 'Nueva compra', ruta: '/pos/compras', icon: 'box' },
   // Finanzas opens on the "Caja" subtab by default in PanelVendedor.
-  { label: 'Abrir caja', ruta: '/pos/finanzas', icon: 'wallet' },
+  { label: 'Abrir caja', ruta: '/finanzas/caja', icon: 'wallet' },
 ]
 
 // Métrica al estilo del tablero: rótulo, número grande, indicador de tendencia
@@ -238,7 +237,7 @@ export default function Resumen() {
             <Icon name="receipt" className="h-4 w-4" />
             Cobrar pendientes
           </Button>
-          <RangoFechas valor={rango} onChange={setRango} />
+          <RangoFechas valor={rango} onChange={cambiarRango} />
         </div>
       </div>
 
@@ -286,7 +285,7 @@ export default function Resumen() {
                 </p>
               </div>
             </div>
-            <Button variant="outline" onClick={() => navigate('/pos/analisis')}>Ver análisis</Button>
+            <Button variant="outline" onClick={() => navigate('/analisis/reportes')}>Ver análisis</Button>
           </div>
         </Card>
       )}
@@ -321,21 +320,6 @@ export default function Resumen() {
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge color="green">{d.pagadas} pagadas</Badge>
             <Badge color="red">{d.sinPagar} pendientes</Badge>
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-auto px-2 py-1 text-xs font-medium"
-              onClick={() => navigate('/pos/pedidos')}
-              disabled={d.sinPagar === 0}
-              title={
-                d.sinPagar === 0
-                  ? 'No hay ventas pendientes'
-                  : 'Cobrar las ventas pendientes en Pedidos'
-              }
-            >
-              Cobrar pendientes
-              <Icon name="chevron" className="h-3 w-3 rotate-180" />
-            </Button>
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-x-10 gap-y-3">
@@ -378,9 +362,9 @@ export default function Resumen() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 min-[1200px]:grid-cols-3">
         {/* ── Evolución diaria ───────────────────────────────────── */}
-        <Card className="xl:col-span-2">
+        <Card className="min-[1200px]:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-medium">Evolución</h2>
             <Badge color="blue">{d.serie.length} días con ventas</Badge>
@@ -444,7 +428,7 @@ export default function Resumen() {
               type="button"
               variant="ghost"
               className="h-auto px-2 py-1 text-xs font-medium"
-              onClick={() => navigate('/pos/inventario')}
+              onClick={() => navigate('/inventario/unidades')}
               title="Ver las alertas de stock en Inventario"
             >
               Ver alertas
@@ -472,7 +456,7 @@ export default function Resumen() {
                   </Badge>
                   <button
                     type="button"
-                    onClick={() => navigate('/pos/inventario')}
+                    onClick={() => navigate('/inventario/unidades')}
                     className="flex shrink-0 items-center gap-1 rounded-lg border border-ink-500 px-2 py-1 text-xs text-mute transition hover:border-fono hover:text-white"
                   >
                     Ver inventario

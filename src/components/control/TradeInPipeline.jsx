@@ -180,6 +180,6 @@ export default function TradeInPipeline() {
     {message && <p role="status" className="text-sm text-ok">{message}</p>}
     {busy && <p role="status" className="text-sm text-mute">Procesando…</p>}
     {!busy && !error && !visible.length && <Card>No hay equipos que coincidan. Los equipos aparecen después de registrarlos como pago de una venta.</Card>}
-    <div className="grid items-start gap-4 xl:grid-cols-2">{visible.map((item) => <Device key={`${item.id}:${item.status}:${item.updatedAt || ''}`} item={item} busy={busy || uncertain} onSave={save} />)}</div>
+    <div className="grid items-start gap-4 min-[1200px]:grid-cols-2">{visible.map((item) => <Device key={`${item.id}:${item.status}:${item.updatedAt || ''}`} item={item} busy={busy || uncertain} onSave={save} />)}</div>
   </div>
 }

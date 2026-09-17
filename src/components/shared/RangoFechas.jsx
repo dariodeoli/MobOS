@@ -56,6 +56,29 @@ export const PRESETS = [
 
 export const rangoPorDefecto = () => ({ ...PRESETS[0].calc(), preset: 'hoy' })
 
+// El rango vive en la URL: ?rango=hoy (atajo) o ?desde&hasta (rango a mano).
+export function rangoDeParams(params, porDefecto = rangoPorDefecto) {
+  const elegido = PRESETS.find((p) => p.id === params?.get?.('rango'))
+  if (elegido) return { ...elegido.calc(), preset: elegido.id }
+  const desde = params?.get?.('desde')
+  const hasta = params?.get?.('hasta')
+  if (desde && hasta) return { desde, hasta, preset: null }
+  return porDefecto()
+}
+
+export function paramsDeRango(rango, actuales) {
+  const next = new URLSearchParams(actuales)
+  next.delete('rango')
+  next.delete('desde')
+  next.delete('hasta')
+  if (rango?.preset) next.set('rango', rango.preset)
+  else if (rango?.desde && rango?.hasta) {
+    next.set('desde', rango.desde)
+    next.set('hasta', rango.hasta)
+  }
+  return next
+}
+
 export function fmtCorto(f) {
   const [, m, d] = (f || '').split('-')
   return d ? `${d}/${m}` : f

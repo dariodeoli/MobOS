@@ -35,7 +35,6 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 | `shared/SelectorMedioPago` + `shared/MedioPago` | Elegir medio de pago / mostrarlo | POS, pedidos |
 | `shared/NumericKeypad` | Teclado numérico grande | POS/cobros |
 | `inventory/SerialUnitPicker` | Elegir IMEIs/unidades; exige serial cuando corresponde | POS |
-| `ventas/SelectorColor` | Elegir variante/color | POS |
 | `ventas/PaymentAccountFields` | Cuenta de cobro + monto + cotización | POS |
 | `CameraScan` | Escaneo por cámara de IMEI/código (hoy local en `Inventario.jsx`) | Inventario |
 | `shared/PegarEnlaceToken` | Entrada de enlace completo cuando el token de acción no llega por la URL (relays de correo); extrae el código de 64 hex con `extractTokenFromUrl` | Invitación, recuperación, verificación de correo |

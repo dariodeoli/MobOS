@@ -101,7 +101,7 @@ function BadgePago({ row }) {
   const estado = estaCancelado(row) ? row.paymentStatus : pagoDe(row)
   const tono = estado === 'Pagado' ? 'border-ok/25 bg-ok/10 text-ok'
     : estado === 'Parcial' ? 'border-warn/25 bg-warn/10 text-warn'
-      : estado === 'A crédito' ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-[#a78bfa]'
+      : estado === 'A crédito' ? 'border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-reserved'
         : 'border-bad/25 bg-bad/10 text-bad'
   return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', tono)}>{estado || 'Pendiente'}</span>
 }

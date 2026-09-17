@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useUrlState } from '@/hooks/useUrlState'
 import { listAuditoria } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { Card, Badge, Input, EmptyState } from '@/components/ui'
@@ -43,7 +44,7 @@ function norm(s) {
 
 export default function Historial() {
   const log = listAuditoria()
-  const [filtro, setFiltro] = useState('todas')
+  const [filtro, setFiltro] = useUrlState('filtro', 'todas')
   const [busqueda, setBusqueda] = useState('')
 
   const porAccion = filtro === 'todas' ? log : log.filter((x) => x.accion === filtro)

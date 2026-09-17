@@ -18,7 +18,7 @@ test.describe('owner panel', () => {
   // the inventory units load from the API. The seeded serialized product
   // (iPhone 15 E2E Serial) owns one InventoryUnit, listed with its IMEI.
   test('inventario lists the seeded serialized unit with its IMEI', async ({ page }) => {
-    await page.goto('/pos/inventario')
+    await page.goto('/inventario/unidades')
     await expect(page.getByRole('heading', { name: 'Inventario operativo' })).toBeVisible()
     await expect(page.getByRole('button', { name: /^Inventario \(/ })).toBeVisible()
     // La tabla compacta alinea el serial por columna (últimos 4 destacados).
@@ -69,7 +69,7 @@ test.describe('owner panel', () => {
   })
 
   test('equipo → Vendedores lists the seeded sellers', async ({ page }) => {
-    await page.goto('/pos/equipo')
+    await page.goto('/configuracion/equipo')
     await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
     for (const seller of SEED.sellers) {
       await expect(page.getByLabel(`Nombre de ${seller.name}`)).toBeVisible()
@@ -81,7 +81,7 @@ test.describe('owner panel', () => {
   // unique per run: the API rejects a PIN already in use by the company, and
   // the local E2E database persists users across runs.
   test('equipo → Vendedores creates a new seller with a PIN', async ({ page }) => {
-    await page.goto('/pos/equipo')
+    await page.goto('/configuracion/equipo')
     await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
 
     const name = `Vendedor E2E ${Date.now().toString(36)}`
@@ -98,7 +98,7 @@ test.describe('owner panel', () => {
   })
 
   test('equipo → Roles y permisos describes each role and its matrix', async ({ page }) => {
-    await page.goto('/pos/equipo')
+    await page.goto('/configuracion/equipo')
     await page.getByRole('button', { name: 'Roles y permisos' }).click()
 
     await expect(page.getByRole('heading', { name: 'Roles y permisos' })).toBeVisible()
@@ -145,7 +145,7 @@ test.describe('owner panel', () => {
   })
 
   test('inventario → la batería solo acepta números', async ({ page }) => {
-    await page.goto('/pos/inventario')
+    await page.goto('/inventario/unidades')
     await page.getByRole('button', { name: '+ Recibir unidad' }).click()
 
     const bateria = page.getByPlaceholder('Batería % (opcional)')
@@ -212,7 +212,7 @@ test.describe('owner panel', () => {
   })
 
   test('finanzas → Caja can open the cash session', async ({ page }) => {
-    await page.goto('/pos/finanzas')
+    await page.goto('/finanzas/caja')
     await expect(page.getByRole('heading', { name: 'Caja y control financiero' })).toBeVisible()
 
     // Re-runs may find the cash session still open from a previous run.

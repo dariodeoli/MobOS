@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 // acciones compactas (perfil al hacer clic, WhatsApp con plantilla). Entra sin
 // scroll horizontal en desktop: todo trunca y el espacio se reparte con
 // prioridad Cliente → Total gastado → Teléfono → Tipo → resto.
-const GRID = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1fr)_2.5rem_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.45fr)_minmax(0,1.15fr)_2.5rem_minmax(0,0.7fr)] items-center gap-x-2'
+const GRID = 'grid min-w-[64rem] grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1fr)_2.5rem_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.45fr)_minmax(0,1.15fr)_2.5rem_minmax(0,0.7fr)] items-center gap-x-2'
 const ULTIMA_PLANTILLA = 'mobos:clientes:plantilla-wa'
 
 const ciudadDe = (row) => row.addresses?.find(address => address.city)?.city || ''
@@ -53,7 +53,7 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
   })
 
   return (
-    <div>
+    <div className="overflow-x-auto">
       <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
         {encabezado('cliente', 'Cliente')}
         {encabezado('tipo', 'Tipo')}

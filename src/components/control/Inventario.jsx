@@ -52,7 +52,9 @@ const verifiedLabel = (unit, perfil) => {
   const crudo = unit.lastVerifiedBy?.name || VERIFIER_NAMES[unit.verifiedByCode] || ''
   const quien = crudo === 'Administrador' && perfil?.name ? perfil.name : crudo
   if (!fecha) return null
-  return { fecha, quien, inicial: (quien || 'V').charAt(0).toUpperCase() }
+  // En la tabla se muestran solo las iniciales; el nombre completo va en el tooltip.
+  const iniciales = (quien || unit.verifiedByCode || 'V').split(/\s+/).filter(Boolean).map(parte => parte[0]).slice(0, 2).join('').toUpperCase() || 'V'
+  return { fecha, quien, iniciales }
 }
 
 const LOCATION_TONES = ['#22d3ee', '#a78bfa', '#fbbf24', '#34d399', '#f472b6', '#60a5fa']
@@ -69,7 +71,7 @@ const fechaVerificacion = (value) => {
 // Anchos medidos sobre el contenido real de cada columna: las compactas
 // (batería, proveedor, costo, estado) ceden el ancho a producto, serial y
 // verificación, que son los datos que se leen de un vistazo.
-const UNIDADES_GRID = 'grid min-w-[58rem] grid-cols-[minmax(8rem,1.6fr)_7.25rem_6.75rem_5.25rem_2.75rem_4.5rem_5.5rem_5.75rem_8rem] items-center gap-x-2'
+const UNIDADES_GRID = 'grid min-w-[60rem] grid-cols-[minmax(8rem,1.6fr)_7.25rem_6.75rem_5.25rem_2.75rem_4.5rem_5.5rem_7.5rem_8rem] items-center gap-x-2'
 const CELDA_INV = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 const GRID_RESERVAS = 'grid min-w-[44rem] grid-cols-[minmax(8rem,1.4fr)_minmax(5rem,0.9fr)_minmax(6rem,1.1fr)_6rem_15rem] items-center gap-x-2'
 const GRID_ELIMINADOS = 'grid min-w-[42rem] grid-cols-[minmax(8rem,1.4fr)_minmax(5rem,0.9fr)_minmax(7rem,1.6fr)_7rem] items-center gap-x-2'
@@ -120,8 +122,8 @@ function FilaUnidad({ unit, perfilEmpresa, onClick, onVerify, onSell, busy }) {
     <span className="truncate text-xs text-mute" title={unit.supplierName || undefined}>{unit.supplierName || '—'}</span>
     <span className="truncate text-right text-xs font-semibold tabular-nums text-fore">{unit.originalCost ? formatCost(unit) : '—'}</span>
     <span className="min-w-0">
-      <Badge color={estado.tone}>{estado.label}</Badge>
-      {unit.reservationCustomer && <span className="mt-0.5 block truncate text-[10px] font-semibold text-[#a78bfa]" title={`Reservado para ${unit.reservationCustomer}`}>{unit.reservationCustomer}</span>}
+      <Badge color={estado.tone} className="max-w-full truncate" title={estado.label}>{estado.label}</Badge>
+      {unit.reservationCustomer && <span className="mt-0.5 block truncate text-[10px] font-semibold text-reserved" title={`Reservado para ${unit.reservationCustomer}`}>{unit.reservationCustomer}</span>}
     </span>
     <span className="flex flex-wrap items-center justify-end gap-1">
       {unit.status === 'RESERVED' && <button type="button" disabled={busy} title="Cerrar la reserva y cargar la venta" onClick={event => { event.stopPropagation(); onSell?.(unit) }} className="whitespace-nowrap rounded-lg border border-fono/40 px-2 py-1 text-[10px] font-bold text-fono-light transition hover:bg-fono/10 disabled:opacity-50">Finalizar venta</button>}
@@ -145,11 +147,13 @@ function TarjetaUnidad({ unit, perfilEmpresa, onClick }) {
       {unit.location?.name ? <span className="truncate rounded border border-ink-500 px-1.5 py-0.5">{unit.location.name}</span> : null}
       {unit.supplierName ? <span className="rounded border border-ink-500 px-1.5 py-0.5">{unit.supplierName}</span> : null}
     </span>
-    <span className="mt-2 flex items-center justify-between text-[11px] text-mute">
-      <span className="truncate">{v ? `VP ${v.quien || unit.verifiedByCode || '—'}` : 'Sin verificación'}</span>
+    <span className="mt-2 flex items-center justify-between gap-2 text-[11px] text-mute">
+      <span className="flex min-w-0 items-center gap-1.5" title={v ? `${v.quien || unit.verifiedByCode || '—'} · ${fechaVerificacion(unit.lastVerifiedAt)}` : undefined}>
+        {v ? <><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink-700 text-[8px] font-bold text-fore">{v.iniciales}</span><span className="truncate">VP · {fechaVerificacion(unit.lastVerifiedAt)}</span></> : <span className="truncate">Sin verificación</span>}
+      </span>
       <span className="shrink-0 font-semibold text-fore">{unit.originalCost ? formatCost(unit) : ''}</span>
     </span>
-    {unit.reservationCustomer ? <span className="mt-1 truncate text-[11px] font-semibold text-[#a78bfa]">Atajado por {unit.reservationCustomer}</span> : null}
+    {unit.reservationCustomer ? <span className="mt-1 truncate text-[11px] font-semibold text-reserved">Atajado por {unit.reservationCustomer}</span> : null}
   </button>
 }
 const normalizeScan = (value = '') => value.trim().replace(/^MOBOS:/i, '').replace(/[\s-]+/g, '').toUpperCase()
@@ -234,9 +238,11 @@ function CameraScan({ onDetected, onClose, continuous = false }) {
   return <div className="space-y-3"><video ref={video} className="aspect-video w-full rounded-xl bg-black object-cover" muted playsInline /><p className="text-sm text-mute">{message}</p></div>
 }
 
-export default function Inventario() {
+const INVENTARIO_TABS = ['unidades', 'alertas', 'reservas', 'traslados', 'vendidos', 'transito', 'ubicaciones', 'compartido', 'eliminados']
+
+export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const [products, setProducts] = useState([]), [branches, setBranches] = useState([]), [units, setUnits] = useState([]), [removedUnits, setRemovedUnits] = useState([]), [reservations, setReservations] = useState([]), [transfers, setTransfers] = useState([]), [locations, setLocations] = useState([])
-  const [tab, setTab] = useState('unidades'), [query, setQuery] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [orden, setOrden] = useState('recientes'), [exportando, setExportando] = useState(false)
+  const [tab, setTab] = useState(tabProp && INVENTARIO_TABS.includes(tabProp) && (tabProp !== 'alertas' || canViewAlerts) ? tabProp : 'unidades'), [query, setQuery] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [orden, setOrden] = useState('recientes'), [exportando, setExportando] = useState(false)
   const [stockAlerts, setStockAlerts] = useState({ alerts: [], outOfStock: [] })
   const [alertsLoading, setAlertsLoading] = useState(false)
   const [alertsError, setAlertsError] = useState('')
@@ -272,6 +278,9 @@ export default function Inventario() {
   const canViewAlerts = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
   const canManageLocations = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
   const canManageVisibility = Boolean(sesion?.esPropietario)
+  // La pestaña activa vive en la URL (/inventario/<slug>). Sin slug válido o sin
+  // permiso para Alertas, se cae en Unidades.
+  function cambiarTab(next) { setTab(next); onTabChange?.(next) }
   const refresh = useCallback(async (search) => {
     if (!apiMode) return
     setBusy(true); setError('')
@@ -489,7 +498,7 @@ export default function Inventario() {
   if (!apiMode) return <Card><h2 className="font-bold">Inventario operativo</h2><p className="mt-2 text-sm text-mute">Ingresá con una cuenta real para controlar IMEI, reservas, ubicaciones y transferencias. La demo conserva sus datos aislados.</p></Card>
   return <div className="space-y-4"><Card className="p-4 md:p-5"><PageHeader title="Inventario operativo" subtitle="Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría." actions={<><Button onClick={() => setReceiveOpen(true)}>+ Recibir unidad</Button><Button variant="outline" onClick={() => setReserveOpen(true)}>Reservar</Button><Button variant="outline" onClick={() => setTransferOpen(true)}>Transferir</Button></>} /><form onSubmit={search} className="mt-4 flex flex-wrap gap-2"><Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" autoCapitalize="characters" className="min-w-0 flex-1" /><Select value={orden} onChange={event => setOrden(event.target.value)} className="w-auto"><option value="recientes">Recientes</option><option value="modelo-az">Modelo A→Z</option><option value="modelo-za">Modelo Z→A</option><option value="nuevos">Nuevos primero</option><option value="semis">Seminuevos primero</option><option value="mezclado">Modelos mezclados</option></Select><Button type="button" variant="outline" onClick={() => setScannerOpen(true)}>Escanear</Button><Button type="button" variant="outline" onClick={startCount}>Conteo rápido</Button><ListGridToggle value={vistaUnidades} onChange={(next) => { setVistaUnidades(next); localStorage.setItem('mobos:inventario-vista', next) }} />{disponibles.length > 0 && <Button type="button" variant="outline" onClick={() => printLabels(disponibles)}>Etiquetas ({disponibles.length})</Button>}{tab === 'unidades' && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando || busy} onClick={exportarUnidades}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}<Button type="submit" variant="outline" disabled={busy}>Buscar</Button></form><div className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">{[['unidades', `Inventario (${disponibles.length})`], ...(canViewAlerts ? [['alertas', `Alertas (${(stockAlerts.alerts?.length || 0) + (stockAlerts.outOfStock?.length || 0)})`]] : []), ['reservas', `Reservas (${reservations.length})`], ['traslados', `Traslados (${transfers.length})`], ['vendidos', `Vendidos (${vendidos.length})`], ['transito', `En tránsito (${enTransito.length})`], ['ubicaciones', `Ubicaciones (${locations.length})`], ['compartido', 'Compartido'], ['eliminados', `Eliminados (${removedUnits.length})`]].map(([key, label]) => <button key={key} onClick={() => setTab(key)} className={`shrink-0 rounded-md px-3 py-2 text-xs font-semibold ${tab === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>)}</div>{notice && <p className="mt-3 rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">{notice}</p>}{error && <p className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
     {tab === 'unidades' && vistaUnidades === 'list' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades /><div className="space-y-1">{disponibles.map(unit => <FilaUnidad key={unit.id} unit={unit} perfilEmpresa={perfilEmpresa} busy={busy} onVerify={verify} onSell={sellUnit} onClick={() => setDetalleUnidad(unit)} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en inventario.'} />}</div></div>}
-    {tab === 'unidades' && vistaUnidades === 'grid' && <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{disponibles.map(unit => <TarjetaUnidad key={unit.id} unit={unit} perfilEmpresa={perfilEmpresa} onClick={() => setDetalleUnidad(unit)} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay stock disponible.'} />}</div>}
+    {tab === 'unidades' && vistaUnidades === 'grid' && <div className="mt-4 grid gap-2 sm:grid-cols-2 min-[1200px]:grid-cols-3">{disponibles.map(unit => <TarjetaUnidad key={unit.id} unit={unit} perfilEmpresa={perfilEmpresa} onClick={() => setDetalleUnidad(unit)} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay stock disponible.'} />}</div>}
     {tab === 'vendidos' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades /><div className="space-y-1">{vendidos.map(unit => <FilaUnidad key={unit.id} unit={unit} perfilEmpresa={perfilEmpresa} busy={busy} onClick={() => setDetalleUnidad(unit)} />)}{!vendidos.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'Todavía no hay vendidos en el período.'} />}</div></div>}
     {tab === 'transito' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades /><div className="space-y-1">{enTransito.map(unit => <FilaUnidad key={unit.id} unit={unit} perfilEmpresa={perfilEmpresa} busy={busy} onClick={() => setDetalleUnidad(unit)} />)}{!enTransito.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en tránsito.'} />}</div></div>}
 {tab === 'alertas' && <div className="mt-4 space-y-4">{alertsLoading && <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}{alertsError && <p className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{alertsError}</p>}{!alertsLoading && !alertsError && !(stockAlerts.alerts?.length || stockAlerts.outOfStock?.length) && <EmptyState compact icon="check" title="Sin alertas de reposición." description="Todo el stock está por encima de su umbral." />}{!alertsLoading && stockAlerts.alerts?.length > 0 && <section><h3 className="text-xs font-bold uppercase tracking-wider text-mute">Bajo el umbral de reposición</h3><div className="mt-2 space-y-2">{stockAlerts.alerts.map(item => <article key={item.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-warn/25 bg-warn/5 px-3 py-2"><div className="min-w-0"><b className="text-sm">{item.name}</b><p className="mt-1 text-xs text-mute">{item.sku ? `SKU ${item.sku} · ` : ''}Stock {item.stock} de {item.reorderPoint}{item.branchName ? ` · ${item.branchName}` : ''}</p></div><div className="flex shrink-0 items-center gap-2"><Badge color="orange">Reponer</Badge><Button type="button" variant="outline" disabled={busy} onClick={() => { setThreshold({ id: item.id, name: item.name }); setThresholdValue(String(item.reorderPoint ?? '')) }}>Ajustar umbral</Button></div></article>)}</div></section>}{!alertsLoading && stockAlerts.outOfStock?.length > 0 && <section><h3 className="text-xs font-bold uppercase tracking-wider text-mute">Agotados</h3><div className="mt-2 space-y-2">{stockAlerts.outOfStock.map(item => <article key={item.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-bad/25 bg-bad/5 px-3 py-2"><div className="min-w-0"><b className="text-sm">{item.name}</b><p className="mt-1 text-xs text-mute">{item.sku ? `SKU ${item.sku} · ` : ''}Sin stock{item.branchName ? ` · ${item.branchName}` : ''}</p></div><div className="flex shrink-0 items-center gap-2"><Badge color="red">Agotado</Badge><Button type="button" variant="outline" disabled={busy} onClick={() => { setThreshold({ id: item.id, name: item.name }); setThresholdValue(String(item.reorderPoint ?? '')) }}>Definir umbral</Button></div></article>)}</div></section>}</div>}

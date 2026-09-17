@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
@@ -139,7 +139,63 @@ const CONFIG_TABS = [
   ['sucursales', 'Sucursales'],
   ['seguridad', 'Seguridad'],
 ]
-const CONFIG_VISTAS = CONFIG_TABS.map(([id]) => id)
+const TABS_FINANZAS = [
+  ['caja', 'Caja'],
+  ['gastos', 'Gastos'],
+  ['bancos', 'Bancos y cuentas'],
+  ['creditos', 'Créditos'],
+  ['publicidad', 'Publicidad'],
+]
+const TABS_INVENTARIO = [
+  ['unidades', 'Unidades'],
+  ['alertas', 'Alertas'],
+  ['reservas', 'Reservas'],
+  ['traslados', 'Traslados'],
+  ['vendidos', 'Vendidos'],
+  ['transito', 'En tránsito'],
+  ['ubicaciones', 'Ubicaciones'],
+  ['compartido', 'Compartido'],
+  ['eliminados', 'Eliminados'],
+]
+const SUBPAGINAS = {
+  configuracion: {
+    vista: 'equipo',
+    tabs: [
+      ['equipo', 'Equipo'],
+      ['invitaciones', 'Invitaciones'],
+      ['identidad', 'Mi identidad'],
+      ['roles', 'Roles y permisos'],
+      ['historial', 'Historial'],
+      ['negocio', 'Negocio'],
+      ['sucursales', 'Sucursales'],
+      ['seguridad', 'Seguridad'],
+    ],
+  },
+  analisis: { vista: 'analisis', tabs: TABS_ANALISIS },
+  finanzas: { vista: 'finanzas', tabs: TABS_FINANZAS },
+  inventario: { vista: 'inventario', tabs: TABS_INVENTARIO },
+}
+// El id del menú y el slug de la pestaña apuntan a la misma subpágina.
+const SUBPAGINA_DE_VISTA = Object.fromEntries(
+  Object.entries(SUBPAGINAS).map(([slug, cfg]) => [cfg.vista, slug]),
+)
+const SUBPAGINA_DE_TAB = Object.fromEntries(
+  Object.entries(SUBPAGINAS).flatMap(([slug, cfg]) => cfg.tabs.map(([id]) => [id, slug])),
+)
+// Pestañas visibles según el modo: historial solo en demo, créditos fuera de demo.
+function tabsDeSubpagina(slug, esDemo) {
+  const tabs = SUBPAGINAS[slug]?.tabs || []
+  if (slug === 'configuracion') {
+    // Historial es de la demo; Invitaciones necesita el API real.
+    return tabs.filter(([id]) => {
+      if (id === 'historial') return esDemo
+      if (id === 'invitaciones') return !esDemo
+      return true
+    })
+  }
+  if (slug === 'finanzas') return tabs.filter(([id]) => (id === 'creditos' ? !esDemo : id === 'publicidad' ? esDemo : true))
+  return tabs
+}
 
 const LABELS = {
   clientes: 'Clientes',
@@ -153,12 +209,31 @@ const LABELS = {
   analisis: 'Análisis',
   finanzas: 'Finanzas',
   equipo: 'Configuración',
+  invitaciones: 'Invitaciones',
   identidad: 'Mi identidad',
   roles: 'Roles y permisos',
   historial: 'Auditoría',
   negocio: 'Negocio',
   sucursales: 'Sucursales',
   seguridad: 'Seguridad',
+  reportes: 'Reportes',
+  ganancias: 'Ganancias',
+  ganadores: 'Ganadores',
+  asistente: 'Asistente',
+  caja: 'Caja',
+  gastos: 'Gastos',
+  bancos: 'Bancos y cuentas',
+  creditos: 'Créditos',
+  publicidad: 'Publicidad',
+  unidades: 'Unidades',
+  alertas: 'Alertas',
+  reservas: 'Reservas',
+  traslados: 'Traslados',
+  vendidos: 'Vendidos',
+  transito: 'En tránsito',
+  ubicaciones: 'Ubicaciones',
+  compartido: 'Compartido',
+  eliminados: 'Eliminados',
   garantias: 'Garantías',
   autorizaciones: 'Autorizaciones',
   inventario: 'Inventario',
@@ -229,13 +304,17 @@ export default function PanelVendedor() {
     perfilEmpresa,
   } = useSesion()
   const navigate = useNavigate()
-  const { vista: routeVista } = useParams()
+  const { pathname } = useLocation()
+  const { vista: routeVista, seccion: routeSeccion } = useParams()
+  // Los apartados con pestañas viven en /<padre>/<slug>: el padre es el primer
+  // tramo de la URL y el slug hijo define la pestaña activa.
+  const subpadre = SUBPAGINAS[pathname.split('/')[1]] ? pathname.split('/')[1] : null
+  const tabsRuta = useMemo(() => (subpadre ? tabsDeSubpagina(subpadre, esDemo) : []), [subpadre, esDemo])
+  const seccionRuta = subpadre && tabsRuta.some(([id]) => id === routeSeccion) ? routeSeccion : null
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
-  const [vista, setVista] = useState(routeVista || 'cargar')
+  const [vista, setVista] = useState(seccionRuta || routeVista || (subpadre ? tabsRuta[0][0] : 'cargar'))
   const [tradeIn, setTradeIn] = useState(null)
-  const [analisisTab, setAnalisisTab] = useState('reportes')
-  const [finanzasTab, setFinanzasTab] = useState('caja')
   const identidad = `${usuario?.tenantId}:${usuario?.branchId}:${sesion?.vendedorId}:${usuario?.role}:${esDemo}`
   const [cambiarAbierto, setCambiarAbierto] = useState(false)
   const [sellerId, setSellerId] = useState('')
@@ -268,29 +347,64 @@ export default function PanelVendedor() {
     return [...base, ...CONFIG_VISTAS]
   }, [esOwner, esTecnico])
 
+  // /pos/analisis y los slugs planos viejos (/pos/negocio…) se canonizan a /<padre>/<hijo>.
+  useEffect(() => {
+    if (subpadre) return
+    const destino = SUBPAGINA_DE_VISTA[routeVista] || SUBPAGINA_DE_TAB[routeVista]
+    if (!destino || !accesibles.includes(SUBPAGINAS[destino].vista)) return
+    const primera = tabsDeSubpagina(destino, esDemo)[0][0]
+    navigate(`/${destino}/${SUBPAGINA_DE_TAB[routeVista] ? routeVista : primera}`, { replace: true })
+  }, [subpadre, routeVista, accesibles, esDemo, navigate])
+  // Apartado sin hijo (o con uno desconocido) entra por su primera pestaña.
+  useEffect(() => {
+    if (subpadre && !seccionRuta) navigate(`/${subpadre}/${tabsRuta[0][0]}`, { replace: true })
+  }, [subpadre, seccionRuta, tabsRuta, navigate])
   // Si la URL apunta a una vista fuera del alcance del rol (ej. un vendedor en
   // /pos/inventario), se redirige a "cargar" de una sola vez. Sin el navigate
   // acá, los dos efectos se pisan en bucle: uno fuerza 'cargar' y el otro
   // vuelve a leer 'inventario' de la URL.
   useEffect(() => {
-    if (!accesibles.includes(vista)) {
+    const requerido = apartado ? SUBPAGINAS[apartado].vista : vista
+    if (!accesibles.includes(requerido)) {
       setVista('cargar')
       navigate('/pos/cargar', { replace: true })
     }
-  }, [accesibles, vista, navigate])
+  }, [apartado, accesibles, vista, navigate])
   // Sincroniza la URL → vista solo para rutas válidas del rol activo.
   useEffect(() => {
+    if (subpadre) {
+      if (seccionRuta && seccionRuta !== vista) setVista(seccionRuta)
+      return
+    }
+    if (routeVista && SUBPAGINA_DE_VISTA[routeVista]) {
+      const primera = tabsDeSubpagina(SUBPAGINA_DE_VISTA[routeVista], esDemo)[0][0]
+      if (vista !== primera) setVista(primera)
+      return
+    }
     if (routeVista && routeVista !== vista && accesibles.includes(routeVista)) setVista(routeVista)
-  }, [routeVista, vista, accesibles])
+  }, [subpadre, seccionRuta, routeVista, vista, accesibles, esDemo])
 
   function ir(id) {
     const sellerIds = SELLER_NAV.flatMap(group => group.items).map(([key]) => key)
     if (!esOwner && !sellerIds.includes(id)) {
       setVista('cargar')
-    } else {
-      setVista(id)
-      navigate(`/pos/${id}`)
+      return
     }
+    const destino = SUBPAGINA_DE_VISTA[id]
+    if (destino) {
+      const primera = tabsDeSubpagina(destino, esDemo)[0][0]
+      setVista(primera)
+      navigate(`/${destino}/${primera}`)
+      return
+    }
+    setVista(id)
+    navigate(`/pos/${id}`)
+  }
+
+  // Pestaña de un apartado: la pestaña activa vive en la URL hija.
+  function irASubtab(id) {
+    setVista(id)
+    if (apartado) navigate(`/${apartado}/${id}`)
   }
 
   function toggleSidebar() {
@@ -425,14 +539,6 @@ export default function PanelVendedor() {
   }, [toast])
 
   useEffect(() => {
-    if (!cambiarAbierto) return undefined
-    const cerrarConEscape = event =>
-      event.key === 'Escape' && !cambiando && setCambiarAbierto(false)
-    document.addEventListener('keydown', cerrarConEscape)
-    return () => document.removeEventListener('keydown', cerrarConEscape)
-  }, [cambiarAbierto, cambiando])
-
-  useEffect(() => {
     if (!cambiarAbierto || pin.length !== 4 || !sellerId || cambioEnCurso.current) return
     cambioEnCurso.current = true
     setCambiando(true)
@@ -469,7 +575,7 @@ export default function PanelVendedor() {
         nav={esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV}
         bottomNav={esOwner ? OWNER_BOTTOM : esTecnico ? [] : SELLER_BOTTOM}
         onOpenMenuLabel="Menú"
-        active={CONFIG_VISTAS.includes(vista) ? 'equipo' : vista}
+        active={apartado ? SUBPAGINAS[apartado].vista : vista}
         onNavigate={ir}
         collapsed={sidebarCollapsed}
         onToggleCollapsed={toggleSidebar}
@@ -576,32 +682,23 @@ export default function PanelVendedor() {
             </div>
           </div>
 
-          {esOwner && vista === 'inventario' && <Inventario />}
+          {esOwner && apartado === 'inventario' && <Inventario tab={vista} onTabChange={irASubtab} />}
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
           {(esOwner || esTecnico) && vista === 'servicio' && <ServicioTecnico />}
           {esOwner && vista === 'garantias' && <Garantias />}
           {esOwner && vista === 'autorizaciones' && <Autorizaciones />}
           {esOwner && vista === 'resumen' && <ResumenControl />}
-          {esOwner && vista === 'analisis' && (
+          {esOwner && apartado === 'analisis' && (
             <div>
-              <Subtabs
-                value={analisisTab}
-                onChange={setAnalisisTab}
-                items={[
-                  ['reportes', 'Reportes'],
-                  ['ganancias', 'Ganancias'],
-                  ['ganadores', 'Ganadores'],
-                  ['asistente', 'Asistente'],
-                ]}
-              />
-              {analisisTab === 'reportes' && <Reportes />}
-              {analisisTab === 'ganancias' && <Ganancias />}
-              {analisisTab === 'ganadores' && <Ganadores />}
-              {analisisTab === 'asistente' && <Asistente />}
+              <Subtabs value={vista} onChange={irASubtab} items={tabsApartado} />
+              {vista === 'reportes' && <Reportes />}
+              {vista === 'ganancias' && <Ganancias />}
+              {vista === 'ganadores' && <Ganadores />}
+              {vista === 'asistente' && <Asistente />}
             </div>
           )}
-          {esOwner && vista === 'finanzas' && (
+          {esOwner && apartado === 'finanzas' && (
             <div>
               <Subtabs
                 value={finanzasTab}
@@ -632,7 +729,7 @@ export default function PanelVendedor() {
               {(esDemo || finanzasTab === 'publicidad') && finanzasTab === 'publicidad' && <Ads />}
             </div>
           )}
-          {esOwner && CONFIG_VISTAS.includes(vista) && (
+          {esOwner && apartado === 'configuracion' && (
             <div>
               <Subtabs
                 value={vista}
@@ -652,89 +749,64 @@ export default function PanelVendedor() {
         </main>
       </AppShell>
 
-      {cambiarAbierto && (
-        <div
-          className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4"
-          onMouseDown={event =>
-            event.target === event.currentTarget && !cambiando && setCambiarAbierto(false)
-          }
+      <Modal
+        open={cambiarAbierto}
+        onClose={() => !cambiando && setCambiarAbierto(false)}
+        title="Cambiar vendedor"
+        className="max-w-md"
+      >
+        <p className="mt-2 text-sm text-mute">
+          Elegí quién registra la próxima venta y confirmá su PIN.
+        </p>
+        <label htmlFor="seller-switch" className="mt-6 block text-sm font-semibold">
+          Vendedor
+        </label>
+        <select
+          id="seller-switch"
+          value={sellerId}
+          onChange={event => setSellerId(event.target.value)}
+          disabled={cambiando}
+          className="mt-2 w-full rounded-xl border border-fore/10 bg-paper px-3 py-3 text-fore outline-none focus:border-fono-dark"
         >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="cambiar-vendedor-title"
-            className="w-full max-w-md rounded-3xl border border-fore/10 bg-ink p-6 shadow-2xl"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <Eyebrow>Sesión segura</Eyebrow>
-                <h2 id="cambiar-vendedor-title" className="mt-2 text-2xl font-bold">
-                  Cambiar vendedor
-                </h2>
-              </div>
-              <button
-                onClick={() => setCambiarAbierto(false)}
-                disabled={cambiando}
-                className="rounded-lg px-2 py-1 text-2xl text-mute hover:text-fore"
-                aria-label="Cerrar"
-              >
-                ×
-              </button>
-            </div>
-            <p className="mt-2 text-sm text-mute">
-              Elegí quién registra la próxima venta y confirmá su PIN.
+          {opcionesVendedor.map(seller => (
+            <option key={seller.id} value={seller.id}>
+              {seller.name || seller.nombre || seller.email}
+            </option>
+          ))}
+        </select>
+        {esDemo ? (
+          <>
+            <p className="mt-4 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-3 text-xs text-mute">
+              PIN demo vendedor: <strong className="text-fore">2001</strong> · dueño:{' '}
+              <strong className="text-fore">3001</strong>
             </p>
-            <label htmlFor="seller-switch" className="mt-6 block text-sm font-semibold">
-              Vendedor
+            <label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">
+              PIN demo
             </label>
-            <select
-              id="seller-switch"
-              value={sellerId}
-              onChange={event => setSellerId(event.target.value)}
-              disabled={cambiando}
-              className="mt-2 w-full rounded-xl border border-fore/10 bg-paper px-3 py-3 text-fore outline-none focus:border-fono-dark"
-            >
-              {opcionesVendedor.map(seller => (
-                <option key={seller.id} value={seller.id}>
-                  {seller.name || seller.nombre || seller.email}
-                </option>
-              ))}
-            </select>
-            {esDemo ? (
-              <>
-                <p className="mt-4 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-3 text-xs text-mute">
-                  PIN demo vendedor: <strong className="text-fore">2001</strong> · dueño:{' '}
-                  <strong className="text-fore">3001</strong>
-                </p>
-                <label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">
-                  PIN demo
-                </label>
-                <PinInput
-                  id="seller-switch-pin"
-                  autoFocus
-                  value={pin}
-                  onChange={next => setPin(next)}
-                  className="mt-2 disabled:opacity-50"
-                />{' '}
-              </>
-            ) : (
-              <>
-                <label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">
-                  PIN del vendedor
-                </label>
-                <PinInput
-                  id="seller-switch-pin"
-                  autoFocus
-                  value={pin}
-                  onChange={next => setPin(next)}
-                  className="mt-2 disabled:opacity-50"
-                />{' '}
-              </>
-            )}
-            <p className="mt-5 text-xs text-mute">Esc para cerrar · tocar afuera también cierra</p>
-          </section>
-        </div>
-      )}
+            <PinInput
+              id="seller-switch-pin"
+              autoFocus
+              value={pin}
+              onChange={next => setPin(next)}
+              className="mt-2 disabled:opacity-50"
+            />{' '}
+          </>
+        ) : (
+          <>
+            <label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">
+              PIN del vendedor
+            </label>
+            <PinInput
+              id="seller-switch-pin"
+              autoFocus
+              value={pin}
+              onChange={next => setPin(next)}
+              className="mt-2 disabled:opacity-50"
+            />{' '}
+          </>
+        )}
+        <p className="mt-5 text-xs text-mute">Esc para cerrar · tocar afuera también cierra</p>
+      </Modal>
 
       {locked && (
         <div className="fixed inset-0 z-[70] grid place-items-center bg-paper p-4">

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useUrlState } from '@/hooks/useUrlState'
 import { Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import SerialField from '@/components/shared/SerialField'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { coincideCliente } from '@/utils/cliente'
@@ -47,7 +49,7 @@ export default function ServicioTecnico() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [q, setQ] = useState('')
-  const [filtro, setFiltro] = useState('activos')
+  const [filtro, setFiltro] = useUrlState('filtro', 'activos')
   const [orden, setOrden] = useState({ key: 'recibido', dir: 'desc' })
   const [form, setForm] = useState(null)
   const [editing, setEditing] = useState(null)
@@ -259,8 +261,8 @@ export default function ServicioTecnico() {
           <form onSubmit={guardar} className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="relative">
-                <Label>Cliente *</Label>
-                <Input aria-label="Cliente" value={form.customerName} onChange={set('customerName')} placeholder="Buscar cliente o escribir el nombre" autoCapitalize="words" />
+                <Label htmlFor="cliente">Cliente *</Label>
+                <Input id="cliente" aria-label="Cliente" value={form.customerName} onChange={set('customerName')} placeholder="Buscar cliente o escribir el nombre" autoCapitalize="words" />
                 {clientes.length > 0 && (
                   <ul className="absolute z-30 mt-1 max-h-40 w-full overflow-auto rounded-xl border border-ink-500 bg-paper shadow-xl">
                     {clientes.map(cliente => (
@@ -274,25 +276,25 @@ export default function ServicioTecnico() {
                   </ul>
                 )}
               </div>
-              <div><Label>Dispositivo *</Label><Input aria-label="Dispositivo" value={form.device} onChange={set('device')} placeholder="iPhone 15 Pro · 256 GB" autoCapitalize="words" /></div>
-              <div><Label>Tipo de dispositivo</Label><Select aria-label="Tipo de dispositivo" value={form.deviceType} onChange={event => setForm(current => ({ ...current, deviceType: event.target.value, serviceName: '' }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select></div>
-              <div><Label>Servicio del catálogo</Label><Select aria-label="Servicio del catálogo" value={form.serviceName} onChange={event => { const servicio = servicios.find(item => item.name === event.target.value); setForm(current => ({ ...current, serviceName: event.target.value, ...(servicio && servicio.suggestedPricePyg > 0 ? { pricePyg: String(servicio.suggestedPricePyg) } : {}) })) }}><option value="">Sin servicio del catálogo</option>{servicios.filter(servicio => servicio.deviceType === form.deviceType).map(servicio => <option key={servicio.id} value={servicio.name}>{servicio.name}{servicio.suggestedPricePyg > 0 ? ` · ${gs(servicio.suggestedPricePyg)}` : ''}</option>)}</Select></div>
-              <div><Label>IMEI / serial</Label><Input aria-label="IMEI o serial" value={form.serial} onChange={set('serial')} placeholder="Opcional" autoCapitalize="characters" /></div>
-              <div><Label>Técnico</Label><Input aria-label="Técnico" value={form.technicianName} onChange={set('technicianName')} placeholder="Responsable del trabajo" autoCapitalize="words" /></div>
+              <div><Label htmlFor="dispositivo">Dispositivo *</Label><Input id="dispositivo" aria-label="Dispositivo" value={form.device} onChange={set('device')} placeholder="iPhone 15 Pro · 256 GB" autoCapitalize="words" /></div>
+              <div><Label htmlFor="tipo-de-dispositivo">Tipo de dispositivo</Label><Select id="tipo-de-dispositivo" aria-label="Tipo de dispositivo" value={form.deviceType} onChange={event => setForm(current => ({ ...current, deviceType: event.target.value, serviceName: '' }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select></div>
+              <div><Label htmlFor="servicio-del-catalogo">Servicio del catálogo</Label><Select id="servicio-del-catalogo" aria-label="Servicio del catálogo" value={form.serviceName} onChange={event => { const servicio = servicios.find(item => item.name === event.target.value); setForm(current => ({ ...current, serviceName: event.target.value, ...(servicio && servicio.suggestedPricePyg > 0 ? { pricePyg: String(servicio.suggestedPricePyg) } : {}) })) }}><option value="">Sin servicio del catálogo</option>{servicios.filter(servicio => servicio.deviceType === form.deviceType).map(servicio => <option key={servicio.id} value={servicio.name}>{servicio.name}{servicio.suggestedPricePyg > 0 ? ` · ${gs(servicio.suggestedPricePyg)}` : ''}</option>)}</Select></div>
+              <div><Label htmlFor="imei-serial">IMEI / serial</Label><SerialField id="imei-serial" aria-label="IMEI o serial" value={form.serial} onChange={value => setForm(current => ({ ...current, serial: value }))} placeholder="Opcional" /></div>
+              <div><Label htmlFor="tecnico">Técnico</Label><Input id="tecnico" aria-label="Técnico" value={form.technicianName} onChange={set('technicianName')} placeholder="Responsable del trabajo" autoCapitalize="words" /></div>
             </div>
-            <div><Label>Falla reportada</Label><Textarea rows={2} value={form.reportedIssue} onChange={set('reportedIssue')} placeholder="Qué reporta el cliente" autoCapitalize="sentences" /></div>
-            <div><Label>Diagnóstico</Label><Textarea rows={2} value={form.diagnosis} onChange={set('diagnosis')} placeholder="Diagnóstico técnico y trabajo a realizar" autoCapitalize="sentences" /></div>
+            <div><Label htmlFor="falla-reportada">Falla reportada</Label><Textarea id="falla-reportada" rows={2} value={form.reportedIssue} onChange={set('reportedIssue')} placeholder="Qué reporta el cliente" autoCapitalize="sentences" /></div>
+            <div><Label htmlFor="diagnostico">Diagnóstico</Label><Textarea id="diagnostico" rows={2} value={form.diagnosis} onChange={set('diagnosis')} placeholder="Diagnóstico técnico y trabajo a realizar" autoCapitalize="sentences" /></div>
             <div>
-              <Label>Checklist de recepción ({form.deviceType})</Label>
+              <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-mute">Checklist de recepción ({form.deviceType})</p>
               <div className="mt-1 grid gap-1.5 sm:grid-cols-3">{(CHECKLISTS[form.deviceType] || CHECKLISTS.Otros).map(punto => <label key={punto} className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean((form.checklist || {})[punto])} onChange={event => setForm(current => ({ ...current, checklist: { ...(current.checklist || {}), [punto]: event.target.checked } }))} />{punto}</label>)}</div>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
-              <div><Label>Estado</Label><Select value={form.status} onChange={set('status')}>{ESTADOS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</Select></div>
-              <div><Label>Precio cobrado</Label><MoneyInput value={form.pricePyg} onValueChange={value => setForm(current => ({ ...current, pricePyg: value === '' ? '' : String(value) }))} placeholder="0" /></div>
-              <div><Label>Costo total</Label><MoneyInput value={form.costPyg} onValueChange={value => setForm(current => ({ ...current, costPyg: value === '' ? '' : String(value) }))} placeholder="0" /></div>
+              <div><Label htmlFor="estado">Estado</Label><Select id="estado" value={form.status} onChange={set('status')}>{ESTADOS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</Select></div>
+              <div><Label htmlFor="precio-cobrado">Precio cobrado</Label><MoneyInput id="precio-cobrado" value={form.pricePyg} onValueChange={value => setForm(current => ({ ...current, pricePyg: value === '' ? '' : String(value) }))} placeholder="0" /></div>
+              <div><Label htmlFor="costo-total">Costo total</Label><MoneyInput id="costo-total" value={form.costPyg} onValueChange={value => setForm(current => ({ ...current, costPyg: value === '' ? '' : String(value) }))} placeholder="0" /></div>
             </div>
             <p className="text-xs text-mute">Utilidad del servicio: <b className="text-fore">{gs((Number(form.pricePyg) || 0) - (Number(form.costPyg) || 0))}</b></p>
-            <div><Label>Notas</Label><Textarea rows={2} value={form.notes} onChange={set('notes')} placeholder="Observaciones, repuestos, estado físico" autoCapitalize="sentences" /></div>
+            <div><Label htmlFor="notas">Notas</Label><Textarea id="notas" rows={2} value={form.notes} onChange={set('notes')} placeholder="Observaciones, repuestos, estado físico" autoCapitalize="sentences" /></div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" disabled={busy} onClick={() => { setForm(null); setEditing(null) }}>Cancelar</Button>
               <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear orden'}</Button>

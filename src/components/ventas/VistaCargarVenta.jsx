@@ -83,7 +83,7 @@ export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed }) {
 
   if (!sesion?.esPropietario)
     return (
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
+      <div className="grid items-start gap-5 min-[1200px]:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
         <div className="flex min-w-0 flex-col gap-5">
           <FormularioVenta
             onCarrito={setCarrito}
@@ -91,7 +91,7 @@ export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed }) {
             onTradeInConsumed={onTradeInConsumed}
           />
         </div>
-        <div className="flex flex-col gap-4 xl:sticky xl:top-5">
+        <div className="flex flex-col gap-4 min-[1200px]:sticky min-[1200px]:top-5 min-[1200px]:max-h-[calc(100dvh-2.5rem)] min-[1200px]:overflow-y-auto">
           <Caja className="overflow-hidden">
             <div className="border-b border-fono/20 bg-fono/[.05] px-5 py-4">
               <span className="font-semibold tracking-tight">Tu día</span>
@@ -127,7 +127,7 @@ export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed }) {
     )
 
   return (
-    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
+    <div className="grid items-start gap-5 min-[1200px]:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
       {/* ── Columna principal ────────────────────────────────────── */}
       <div className="flex min-w-0 flex-col gap-5">
         <FormularioVenta
@@ -139,9 +139,9 @@ export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed }) {
       </div>
 
       {/* ── Columna lateral ──────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 xl:sticky xl:top-5">
+      <div className="flex flex-col gap-4 min-[1200px]:sticky min-[1200px]:top-5 min-[1200px]:max-h-[calc(100dvh-2.5rem)] min-[1200px]:overflow-y-auto">
         {/* Esta compra */}
-        <Caja className="flex max-h-[70vh] flex-col overflow-hidden shadow-xl shadow-black/10 xl:max-h-[calc(100dvh-18rem)]">
+        <Caja className="flex max-h-[70vh] flex-col overflow-hidden shadow-xl shadow-black/10 min-[1200px]:max-h-[calc(100dvh-18rem)]">
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-fono/20 bg-fono/[.05] px-5 py-4">
             <span className="font-semibold tracking-tight">Resumen de compra</span>
             <span className="text-xs text-mute">
@@ -172,6 +172,7 @@ export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed }) {
                           onClick={() => carrito.quitar(it.key)}
                           className="text-mute transition hover:text-bad"
                           title="Quitar"
+                          aria-label={`Quitar ${it.nombre || 'producto'} de la venta`}
                         >
                           <Icon name="trash" className="h-3.5 w-3.5" />
                         </button>
