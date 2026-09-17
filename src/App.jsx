@@ -167,7 +167,7 @@ export default function App() {
           <Route path="/demo" element={<DemoAccess />} />
           <Route path="/login" element={<SoloFuera />} />
           <Route path="/restablecer-contrasena" element={<RecuperarContrasena />} />
-          <Route path="/aceptar-invitacion" element={<AceptarInvitacion />} />
+          <Route path="/aceptar-invitacion/:token?" element={<AceptarInvitacion />} />
           <Route path="/verificar-correo" element={<VerificarCorreo />} />
           <Route path="/pedido/:token" element={<PedidoPublico />} />
           <Route path="/p/:token" element={<PedidoPublico />} />

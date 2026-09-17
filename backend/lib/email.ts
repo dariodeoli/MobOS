@@ -63,11 +63,10 @@ function escapeHtml(value: string) {
 function actionLink(path: string, token?: string) {
   const origin = appUrl()
   if (!origin) return null
-  // El token viaja en el QUERY: sobrevive a los redirects de tracking de los
-  // relays de correo (WEEM), que pierden el fragmento, y el frontend lo
-  // consume y limpia de inmediato.
-  const link = new URL(path, origin)
-  if (token) link.search = new URLSearchParams({ token }).toString()
+  // El token viaja en el PATH: inmune a los redirects de tracking de los
+  // relays de correo (WEEM), que pierden query y fragmento. El frontend lo
+  // consume y limpia la URL de inmediato.
+  const link = new URL(token ? `${path}/${encodeURIComponent(token)}` : path, origin)
   return link.toString()
 }
 
