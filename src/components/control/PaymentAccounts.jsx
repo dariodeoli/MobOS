@@ -6,6 +6,11 @@ import { BANCOS_PARAGUAY } from '@/lib/bancos-paraguay'
 import { Badge, Button, Card, Input, Label, Select } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
+import { cn } from '@/lib/utils'
+
+// Tabla compacta: una fila por cuenta, con comisión, acreditación y descuento.
+const GRID_CUENTAS = 'grid min-w-[54rem] grid-cols-[minmax(9rem,1.3fr)_7rem_5rem_6.5rem_6.5rem_6.5rem_minmax(8rem,1fr)_9rem] items-center gap-x-2'
+const CELDA_CUENTAS = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const KINDS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta', TRADE_IN: 'Canje', PIX: 'Pix' }
 const EMPTY = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, settlementDays: 0, discountPct: 0 }
@@ -117,17 +122,35 @@ function AccountManager() {
         <p className="text-xs text-mute">La plantilla solo completa el formulario; guardá para crear la cuenta.</p>
         <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => { setForm(null); setMessage(null) }}>Cancelar</Button></div>
       </form>}
-      {!loading && !loadError && <div className="space-y-2">
-        {accounts.map(account => <div key={account.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-3 py-2 transition hover:border-fono/40">
-          <span className="min-w-0 flex-1">
-            <span className="flex flex-wrap items-center gap-2"><b className="truncate text-[13px]">{account.name}</b><Badge color={account.isActive ? 'green' : 'slate'}>{account.isActive ? 'Activa' : 'Inactiva'}</Badge><Badge color="slate">{KINDS[account.kind] || account.kind}</Badge><Badge color="blue">{account.currency === 'PYG' ? 'Gs' : account.currency}</Badge></span>
-            <span className="mt-0.5 block truncate text-[11px] text-mute">Comisión {formatPercent(account.feePercent ?? 0)}%{account.settlementDays > 0 ? ` · acredita en ${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : ''}{Number(account.discountPct || 0) > 0 ? ` · descuento ${formatPercent(account.discountPct)}%` : ''}{[account.bank, account.holder, account.accountNumber].filter(Boolean).length ? ` · ${[account.bank, account.holder, account.accountNumber].filter(Boolean).join(' · ')}` : ''}</span>
-          </span>
-          <span className="flex shrink-0 gap-1.5">
-            <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`Editar ${account.name}`} onClick={() => openForm(account)}>Editar</Button>
-            <Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`${account.isActive ? 'Desactivar' : 'Activar'} ${account.name}`} onClick={() => mutate(() => updatePaymentAccount(account.id, { isActive: !account.isActive }), account.isActive ? 'Cuenta desactivada. El historial se conserva.' : 'Cuenta activada.')}>{account.isActive ? 'Desactivar' : 'Activar'}</Button>
-          </span>
-        </div>)}
+      {!loading && !loadError && <div className="overflow-x-auto" data-testid="cuentas-tabla">
+        <div className={cn(GRID_CUENTAS, 'px-3.5 pb-2 pt-1')}>
+          <span className={CELDA_CUENTAS}>Cuenta</span>
+          <span className={CELDA_CUENTAS}>Tipo</span>
+          <span className={CELDA_CUENTAS}>Moneda</span>
+          <span className={CELDA_CUENTAS}>Comisión</span>
+          <span className={CELDA_CUENTAS}>Acredita</span>
+          <span className={CELDA_CUENTAS}>Descuento</span>
+          <span className={CELDA_CUENTAS}>Datos</span>
+          <span className={cn(CELDA_CUENTAS, 'text-right')}>Acciones</span>
+        </div>
+        <div className="space-y-1">
+        {accounts.map(account => {
+          const datos = [account.bank, account.holder, account.accountNumber].filter(Boolean).join(' · ')
+          return <div key={account.id} data-testid="cuenta-fila" className={cn(GRID_CUENTAS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
+            <span className="min-w-0"><b className="block truncate text-[13px] font-semibold" title={account.name}>{account.name}</b><Badge color={account.isActive ? 'green' : 'slate'} className="mt-0.5 w-fit whitespace-nowrap px-1.5 py-0 text-[10px]">{account.isActive ? 'Activa' : 'Inactiva'}</Badge></span>
+            <span className="truncate text-xs text-mute">{KINDS[account.kind] || account.kind}</span>
+            <span className="truncate text-xs text-mute">{account.currency === 'PYG' ? 'Gs' : account.currency}</span>
+            <span className="truncate text-xs tabular-nums text-mute">{formatPercent(account.feePercent ?? 0)}%</span>
+            <span className="truncate text-xs text-mute">{account.settlementDays > 0 ? `${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : 'Inmediata'}</span>
+            <span className="truncate text-xs tabular-nums text-mute">{Number(account.discountPct || 0) > 0 ? `${formatPercent(account.discountPct)}%` : '—'}</span>
+            <span className="truncate text-xs text-mute" title={datos || undefined}>{datos || '—'}</span>
+            <span className="flex items-center justify-end gap-1.5">
+              <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`Editar ${account.name}`} onClick={() => openForm(account)}>Editar</Button>
+              <Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`${account.isActive ? 'Desactivar' : 'Activar'} ${account.name}`} onClick={() => mutate(() => updatePaymentAccount(account.id, { isActive: !account.isActive }), account.isActive ? 'Cuenta desactivada. El historial se conserva.' : 'Cuenta activada.')}>{account.isActive ? 'Desactivar' : 'Activar'}</Button>
+            </span>
+          </div>
+        })}
+        </div>
       </div>}
     </Card>
   )
