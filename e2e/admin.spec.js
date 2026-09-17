@@ -248,12 +248,12 @@ test('configuración → sube el logo de la empresa y lo quita', async ({ page }
 // vendedor), así encuentra pedidos fuera de la página cargada.
 test('pedidos → la búsqueda llega al servidor y encuentra por número', async ({ page }) => {
   await page.goto('/pos/pedidos')
-  const consulta = page.waitForRequest(pedido => pedido.method() === 'GET' && pedido.url().includes('/api/orders?q='))
-  const respuesta = page.waitForResponse(res => res.url().includes('/api/orders?q=') && res.status() === 200)
+  const consulta = page.waitForRequest(pedido => pedido.method() === 'GET' && pedido.url().includes('/api/orders') && pedido.url().includes('q='))
+  const respuesta = page.waitForResponse(res => res.url().includes('/api/orders') && res.url().includes('q=') && res.status() === 200)
   await page.getByLabel('Buscar pedidos').fill(SEED.seedOrderNumber)
   await consulta
   await respuesta
-  await expect(page.getByText(SEED.seedOrderNumber)).toBeVisible()
+  await expect(page.getByText(SEED.seedOrderNumber).first()).toBeVisible()
 })
 
 // Foto del usuario: se sube desde Mi identidad y queda disponible para las
