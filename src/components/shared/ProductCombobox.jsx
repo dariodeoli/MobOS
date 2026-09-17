@@ -8,17 +8,22 @@ function productName(product) {
   return product?.nombre || product?.name || ''
 }
 
-export default function ProductCombobox({ products = [], selectedId = '', onSelect, onCreate, placeholder = 'Buscar producto…', disabled = false, className }) {
+export default function ProductCombobox({ products = [], selectedId = '', onSelect, onCreate, onQueryChange, placeholder = 'Buscar producto…', disabled = false, className }) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [highlight, setHighlight] = useState(0)
   const [creating, setCreating] = useState(false)
   const listId = useId()
 
+  function setearQuery(next) {
+    setQuery(next)
+    onQueryChange?.(next)
+  }
+
   useEffect(() => {
     if (!selectedId) return
     const selected = products.find((product) => product.id === selectedId)
-    if (selected) setQuery(productName(selected))
+    if (selected) setearQuery(productName(selected))
   }, [selectedId, products])
 
   const term = query.trim().toLowerCase()
@@ -36,7 +41,7 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
     setHighlight(0)
   }
   function choose(product) {
-    setQuery(productName(product))
+    setearQuery(productName(product))
     setOpen(false)
     setHighlight(0)
     onSelect?.(product)
@@ -47,7 +52,7 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
     try {
       const created = await onCreate(query.trim())
       if (created?.id) {
-        setQuery(productName(created))
+        setearQuery(productName(created))
         onSelect?.(created)
       }
       setOpen(false)
@@ -99,7 +104,7 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
         value={query}
         placeholder={placeholder}
         onChange={(event) => {
-          setQuery(event.target.value)
+          setearQuery(event.target.value)
           setOpen(true)
           setHighlight(0)
         }}

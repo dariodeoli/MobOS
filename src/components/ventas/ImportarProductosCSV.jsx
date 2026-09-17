@@ -28,14 +28,17 @@ function filasParaImportar(texto) {
   for (const fila of filas.slice(1)) {
     const sku = leer.sku(fila)
     const nombre = leer.nombre(fila)
-    if (!sku || !nombre) {
+    const precio = num(leer.precio(fila))
+    // Sin SKU la fila no sirve; el nombre puede faltar solo en modo
+    // actualización de precios (SKU + precio, sin crear productos).
+    if (!sku || (!nombre && !precio)) {
       sinDatos += 1
       continue
     }
     productos.push({
       sku,
       nombre,
-      precio: num(leer.precio(fila)),
+      precio,
       stock: num(leer.stock(fila)),
       categoria: leer.categoria(fila),
       condicion: leer.condicion(fila).toUpperCase(),
@@ -96,13 +99,14 @@ export default function ImportarProductosCSV({ onImportada }) {
     setError('')
     setProgreso({ hechas: 0, total: filasAImportar.length })
     let creados = 0
+    let actualizados = 0
     let omitidos = 0
     let errores = 0
     for (const [indice, fila] of filasAImportar.entries()) {
       try {
         await api.post('/api/products', {
           sku: fila.sku,
-          name: fila.nombre,
+          name: fila.nombre || fila.sku,
           pricePyg: fila.precio,
           stock: fila.stock,
           category: fila.categoria || undefined,
@@ -112,18 +116,33 @@ export default function ImportarProductosCSV({ onImportada }) {
         creados += 1
       } catch (err) {
         console.error(`[ImportarCSV] falló la fila ${indice + 1} (${fila.sku}):`, err)
-        if (esExistente(err)) omitidos += 1
+        if (esExistente(err) && fila.precio > 0) {
+          // SKU existente con precio: actualiza el precio de lista (flyer).
+          try {
+            const resultados = await api.get(`/api/products?q=${encodeURIComponent(fila.sku)}`)
+            const objetivo = (Array.isArray(resultados) ? resultados : []).find(producto => String(producto.sku || '').toLowerCase() === fila.sku.toLowerCase())
+            if (objetivo?.id) {
+              await api.patch('/api/products', { id: objetivo.id, pricePyg: fila.precio })
+              actualizados += 1
+            } else {
+              omitidos += 1
+            }
+          } catch (errUpdate) {
+            console.error(`[ImportarCSV] no se pudo actualizar ${fila.sku}:`, errUpdate)
+            errores += 1
+          }
+        } else if (esExistente(err)) omitidos += 1
         else errores += 1
       }
       setProgreso({ hechas: indice + 1, total: filasAImportar.length })
     }
     setImportando(false)
-    setResumen({ creados, omitidos, errores })
+    setResumen({ creados, actualizados, omitidos, errores })
     onImportada?.()
     if (errores === 0) {
       toast.success(
         'Importación terminada',
-        `${creados} creados · ${omitidos} ya existían (omitidos).`,
+        `${creados} creados · ${actualizados} precios actualizados · ${omitidos} omitidos.`,
       )
     } else {
       toast.error(
@@ -164,6 +183,11 @@ export default function ImportarProductosCSV({ onImportada }) {
               condición es <strong className="text-fore">NUEVO</strong> o{' '}
               <strong className="text-fore">SEMI</strong>. El precio va en guaraníes y el stock
               como número entero.
+            </p>
+            <p className="mt-2">
+              <strong className="text-fore">Actualización de precios:</strong> si el SKU ya
+              existe y la fila trae precio, se actualiza el precio de lista (ideal para pegar tu
+              flyer con <code className="rounded bg-ink-600 px-1.5 py-0.5 text-[11px] text-fore">sku,precio</code>).
             </p>
           </div>
 
@@ -276,7 +300,8 @@ export default function ImportarProductosCSV({ onImportada }) {
               <p className="text-sm font-semibold">Importación terminada</p>
               <p className="mt-2 text-sm">
                 <Badge color="green">{resumen.creados} creados</Badge>{' '}
-                <Badge color="orange">{resumen.omitidos} omitidos (ya existían)</Badge>{' '}
+                <Badge color="blue">{resumen.actualizados} precios actualizados</Badge>{' '}
+                <Badge color="orange">{resumen.omitidos} omitidos</Badge>{' '}
                 <Badge color="red">{resumen.errores} errores</Badge>
               </p>
               <p className="mt-2 text-xs text-mute">

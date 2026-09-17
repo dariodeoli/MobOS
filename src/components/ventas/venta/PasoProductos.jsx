@@ -1,5 +1,6 @@
 import { Button, Input, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import ProductCombobox from '@/components/shared/ProductCombobox'
 import CheckoutCustomer from '../CheckoutCustomer'
 import ListaVenta from './ListaVenta'
 import { gs, num } from '@/utils/calculos'
@@ -134,17 +135,20 @@ export default function PasoProductos({
           <>
             {puedeCrearProducto && <div className="mb-2 flex justify-end"><button type="button" onClick={() => setNuevoProd(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-fono/30 px-2.5 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10"><Icon name="plus" className="h-3.5 w-3.5" /> Nuevo producto</button></div>}
             <div className="relative mb-2">
+              <ProductCombobox
+                products={productos}
+                placeholder="Buscar producto…"
+                onQueryChange={(next) => setBusquedaProducto(next)}
+                onSelect={(producto) => { setBusquedaProducto(''); agregarProducto(producto) }}
+                onCreate={(text) => {
+                  if (puedeCrearProducto) { setNombreProd(text); setNuevoProd(true) }
+                  return Promise.resolve(null)
+                }}
+                className="pl-9"
+              />
               <Icon
                 name="search"
                 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute"
-              />
-              <Input
-                id="pos-busqueda-producto"
-                value={busquedaProducto}
-                onChange={e => setBusquedaProducto(e.target.value)}
-                placeholder="Buscar producto…"
-                aria-label="Buscar producto por texto"
-                className="pl-9"
               />
             </div>
             <div
