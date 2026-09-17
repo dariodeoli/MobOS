@@ -87,6 +87,41 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(sale.getByText('Pagado', { exact: true })).toBeVisible()
 })
 
+// Cliente: búsqueda por razón social de facturación, selección con marca
+// visible, precarga de la factura y "Quitar cliente" sin recargar la página.
+test('POS finds a customer by billing name, shows the selection and clears it', async ({ page }) => {
+  const stamp = Date.now().toString(36)
+  const name = `${SEED.checkoutCustomer} factura ${stamp}`
+  const razon = `Empresa E2E ${stamp}`
+  await page.goto('/pos/cargar')
+  const creado = await page.evaluate(async ({ api, name, razon }) => {
+    const response = await fetch(`${api}/api/customers`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, billingName: razon, billingDocument: '80012345-6' }),
+    })
+    return response.ok ? await response.json() : { status: response.status }
+  }, { api: API, name, razon })
+  expect(creado?.id).toBeTruthy()
+
+  const buscador = page.getByLabel('Nombre, teléfono, CI o RUC del cliente')
+
+  // La búsqueda llega por la razón social que salió en la factura.
+  await buscador.fill(razon)
+  await page.getByRole('button', { name: new RegExp(name) }).click()
+
+  const seleccion = page.getByText('Cliente seleccionado')
+  await expect(seleccion).toBeVisible()
+
+  // La factura guardada en la ficha se propone de nuevo en esta venta.
+  await page.getByText('Factura a otro titular (opcional)').click()
+  await expect(page.getByLabel('Nombre del titular de factura')).toHaveValue(razon)
+  await expect(page.getByLabel('RUC del titular de factura')).toHaveValue('80012345-6')
+
+  await page.getByRole('button', { name: '× Quitar cliente' }).click()
+  await expect(seleccion).toHaveCount(0)
+  await expect(buscador).toHaveValue('')
+})
+
 // Precio manual por debajo de lista: la venta guarda el precio de lista y el
 // comprobante muestra el descuento; por encima de lista se muestra normal.
 test('POS manual price below list stores the list price for the receipt', async ({ page }) => {
