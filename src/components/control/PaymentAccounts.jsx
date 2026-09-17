@@ -6,7 +6,7 @@ import { BANCOS_PARAGUAY } from '@/lib/bancos-paraguay'
 import { Badge, Button, Card, Input, Label, Select } from '@/components/ui'
 
 const KINDS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta', TRADE_IN: 'Canje', PIX: 'Pix' }
-const EMPTY = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, settlementDays: 0 }
+const EMPTY = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, settlementDays: 0, discountPct: 0 }
 const TEMPLATES = [
   { name: 'Caja Gs', kind: 'CASH', currency: 'PYG' },
   { name: 'Caja USD', kind: 'CASH', currency: 'USD' },
@@ -107,6 +107,7 @@ function AccountManager() {
           <div><Label htmlFor="pa-holder">Titular {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-holder" required={form.kind === 'TRANSFER'} maxLength={200} value={form.holder} onChange={event => change('holder', event.target.value)} /></div>
           <div><Label htmlFor="pa-number">Número de cuenta {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-number" type="text" required={form.kind === 'TRANSFER'} maxLength={200} value={form.accountNumber} onChange={event => change('accountNumber', event.target.value)} /></div>
           <div><Label htmlFor="pa-fee">Comisión (%)</Label><Input id="pa-fee" type="number" required min="0" max="100" step="any" value={form.feePercent} onChange={event => change('feePercent', event.target.value)} /></div>
+          <div><Label htmlFor="pa-discount">Descuento por este medio (%)</Label><Input id="pa-discount" type="number" required min="0" max="100" step="any" value={form.discountPct} onChange={event => change('discountPct', event.target.value)} /><p className="mt-1 text-[11px] text-mute">Sugerido al cobrar con este medio (ej. efectivo 5%).</p></div>
           <div><Label htmlFor="pa-settlement">Días en acreditarse</Label><Input id="pa-settlement" type="number" required min="0" max="90" value={form.settlementDays} onChange={event => change('settlementDays', event.target.value)} /><p className="mt-1 text-[11px] text-mute">Tarjeta suele tardar 1-3 días hábiles; efectivo 0.</p></div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isActive} onChange={event => change('isActive', event.target.checked)} />Cuenta activa</label>
         </fieldset>
@@ -117,7 +118,7 @@ function AccountManager() {
         {accounts.map(account => <div key={account.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-3 py-2 transition hover:border-fono/40">
           <span className="min-w-0 flex-1">
             <span className="flex flex-wrap items-center gap-2"><b className="truncate text-[13px]">{account.name}</b><Badge color={account.isActive ? 'green' : 'slate'}>{account.isActive ? 'Activa' : 'Inactiva'}</Badge><Badge color="slate">{KINDS[account.kind] || account.kind}</Badge><Badge color="blue">{account.currency === 'PYG' ? 'Gs' : account.currency}</Badge></span>
-            <span className="mt-0.5 block truncate text-[11px] text-mute">Comisión {account.feePercent ?? 0}%{account.settlementDays > 0 ? ` · acredita en ${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : ''}{[account.bank, account.holder, account.accountNumber].filter(Boolean).length ? ` · ${[account.bank, account.holder, account.accountNumber].filter(Boolean).join(' · ')}` : ''}</span>
+            <span className="mt-0.5 block truncate text-[11px] text-mute">Comisión {account.feePercent ?? 0}%{account.settlementDays > 0 ? ` · acredita en ${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : ''}{Number(account.discountPct || 0) > 0 ? ` · descuento ${account.discountPct}%` : ''}{[account.bank, account.holder, account.accountNumber].filter(Boolean).length ? ` · ${[account.bank, account.holder, account.accountNumber].filter(Boolean).join(' · ')}` : ''}</span>
           </span>
           <span className="flex shrink-0 gap-1.5">
             <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`Editar ${account.name}`} onClick={() => openForm(account)}>Editar</Button>

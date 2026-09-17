@@ -387,6 +387,9 @@ export default function FormularioVenta({
   const subtotal = totalCarrito + precioActual
   const totalGeneral = Math.max(0, subtotal - gsNum(descuento) + gsNum(f.montoDelivery))
   const totalPagado = pagos.reduce((s, p) => s + gsNum(p.monto), 0)
+  // Descuento sugerido por el medio elegido (ej. efectivo 5%).
+  const descuentoMedioPct = Math.max(0, ...pagos.map(pago => Number(cuentas?.find(cuenta => cuenta.id === pago.accountId)?.discountPct || 0)), 0)
+  const descuentoMedioGs = Math.round((subtotal * descuentoMedioPct) / 100)
   const pendiente = Math.max(0, totalGeneral - totalPagado)
 
   const cantTotal = items.reduce((a, it) => a + (it.quantity || 1), 0) + (precioActual > 0 ? 1 : 0)
@@ -1469,6 +1472,21 @@ export default function FormularioVenta({
                   Podés dividir el cobro entre efectivo, cuentas y transferencias.
                 </p>
               </div>
+              {descuentoMedioPct > 0 && subtotal > 0 && (
+                puedeDescontar ? (
+                  <button
+                    type="button"
+                    onClick={() => setDescuento(String(descuentoMedioGs))}
+                    className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-left text-xs font-semibold text-warn transition hover:bg-warn/15"
+                  >
+                    Aplicar descuento por medio ({descuentoMedioPct}% = {gs(descuentoMedioGs)})
+                  </button>
+                ) : (
+                  <p className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">
+                    El medio elegido sugiere un descuento del {descuentoMedioPct}% ({gs(descuentoMedioGs)}). Pedí autorización a gerencia para aplicarlo.
+                  </p>
+                )
+              )}
               <Button
                 type="button"
                 variant="outline"

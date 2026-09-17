@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
 import SellerOrders from '@/components/ventas/SellerOrders'
+import SellerQuotes from '@/components/ventas/SellerQuotes'
 import SellerTools from '@/components/ventas/SellerTools'
 import ResumenControl from '@/components/control/Resumen'
 import Reportes from '@/components/control/Reportes'
@@ -53,6 +54,7 @@ const SELLER_NAV = [
       ['productos', 'Productos', 'phone'],
       ['promociones', 'Promociones', 'store'],
       ['cotizador', 'Trade-In', 'refresh'],
+      ['cotizaciones', 'Cotizaciones', 'report'],
     ],
   },
 ]
@@ -65,6 +67,7 @@ const OWNER_NAV = [
       ['pedidos', 'Pedidos', 'box'],
       ['clientes', 'Clientes', 'users'],
       ['promociones', 'Promociones', 'store'],
+      ['cotizaciones', 'Cotizaciones', 'report'],
     ],
   },
   {
@@ -97,6 +100,7 @@ const SELLER_BOTTOM = [
   ['pedidos', 'Pedidos', 'box'],
   ['clientes', 'Clientes', 'users'],
   ['productos', 'Productos', 'phone'],
+  ['cotizaciones', 'Cotizaciones', 'report'],
 ]
 
 const OWNER_BOTTOM = [
@@ -111,6 +115,7 @@ const LABELS = {
   pedidos: 'Mis pedidos',
   productos: 'Productos',
   promociones: 'Promociones',
+  cotizaciones: 'Cotizaciones',
   cotizador: 'Trade-In',
   cargar: 'Cargar venta',
   resumen: 'Resumen general',
@@ -497,6 +502,7 @@ export default function PanelVendedor() {
             {vista === 'productos' && <SellerCatalog />}
             {vista === 'pedidos' && <SellerOrders />}
             {vista === 'promociones' && <SellerTools vista="promociones" />}
+            {vista === 'cotizaciones' && <SellerQuotes />}
             <div hidden={vista !== 'cotizador'}>
               <SellerTools
                 vista="cotizador"

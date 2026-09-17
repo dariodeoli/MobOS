@@ -41,6 +41,7 @@ model Tenant {
   paymentProofs           PaymentProof[]
   paymentReconciliations  PaymentReconciliation[]
   orderComments           OrderComment[]
+  quotes                  Quote[]
   orderCommentPhotos      OrderCommentPhoto[]
   inventoryUnitComments   InventoryUnitComment[]
   inventoryUnitCommentPhotos InventoryUnitCommentPhoto[]
@@ -190,6 +191,7 @@ model Branch {
   stockLocations    StockLocation[]
   outgoingTransfers StockTransfer[] @relation("TransferSourceBranch")
   incomingTransfers StockTransfer[] @relation("TransferDestinationBranch")
+  quotes            Quote[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -200,6 +202,7 @@ model User {
   inventoryVerifications InventoryUnit[] @relation("InventoryUnitVerifier")
   closedCashSessions  CashSession[]   @relation("CashClosedBy")
   orderComments       OrderComment[]
+  quotes              Quote[]
   inventoryUnitComments InventoryUnitComment[]
   purchases           PurchaseOrder[]
   id                  String          @id @default(cuid())
@@ -352,6 +355,8 @@ model Product {
   pricePyg      Int
   // Precio para clientes mayoristas; si es null, se usa pricePyg.
   wholesalePricePyg Int?
+  // Precio en dólares (opcional) para ventas/cotizaciones en USD.
+  priceUsd          Decimal?           @db.Decimal(14, 2)
   // Garantía automática al vender: días, cobertura y exclusiones.
   warrantyDays      Int?
   warrantyCoverage  String?
@@ -537,6 +542,7 @@ model Customer {
   updatedAt   DateTime @updatedAt
 
   orders        Order[]
+  quotes        Quote[]
   addresses     CustomerAddress[]
   customerNotes CustomerNote[]
   followUps     CustomerFollowUp[]
@@ -624,6 +630,46 @@ model CustomerAddress {
   @@index([customerId, isDefault])
 }
 
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  CONVERTED
+  EXPIRED
+  CANCELLED
+}
+
+// Cotización del pipeline de ventas: puede convertirse en pedido al aceptarse.
+model Quote {
+  id           String      @id @default(cuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId     String?
+  branch       Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  customerId   String?
+  customer     Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName String
+  sellerId     String
+  seller       User        @relation(fields: [sellerId], references: [id])
+  number       String
+  items        Json        @default("[]")
+  subtotalPyg  Int
+  discountPyg  Int         @default(0)
+  totalPyg     Int
+  notes        String?
+  validUntil   DateTime?
+  status       QuoteStatus @default(DRAFT)
+  orderId      String?
+  order        Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status])
+  @@index([tenantId, validUntil])
+  @@index([branchId])
+}
+
 model Order {
   tradeInDevices    TradeInDevice[]
   id                String            @id @default(cuid())
@@ -665,6 +711,7 @@ model Order {
   items    OrderItem[]
   payments Payment[]
   comments OrderComment[]
+  quotes   Quote[]
 
   @@unique([tenantId, orderNumber])
   @@unique([tenantId, idempotencyKey])

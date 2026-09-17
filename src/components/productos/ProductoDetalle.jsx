@@ -33,6 +33,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
     costo: String(costo(product) || ''),
     seguro: product?.insuranceRate != null ? String(product.insuranceRate) : '',
     umbral: product?.reorderPoint != null ? String(product.reorderPoint) : '',
+    priceUsd: product?.priceUsd != null ? String(product.priceUsd) : '',
     garantiaDias: product?.warrantyDays != null ? String(product.warrantyDays) : '',
     garantiaCubre: product?.warrantyCoverage || '',
     garantiaNoCubre: product?.warrantyExclusions || '',
@@ -68,6 +69,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
         ...(form.costo === '' ? { costPyg: null } : { costPyg: num(form.costo) }),
         ...(form.seguro === '' ? { insuranceRate: null } : { insuranceRate: Number(form.seguro.replace(',', '.')) }),
         ...(form.umbral === '' ? { reorderPoint: null } : { reorderPoint: num(form.umbral) }),
+        ...(form.priceUsd === '' ? { priceUsd: null } : { priceUsd: Number(String(form.priceUsd).replace(',', '.')) }),
         ...(form.garantiaDias === '' ? { warrantyDays: null } : { warrantyDays: num(form.garantiaDias) }),
         warrantyCoverage: form.garantiaCubre.trim(),
         warrantyExclusions: form.garantiaNoCubre.trim(),
@@ -108,6 +110,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
           <div className="mt-4 flex flex-wrap items-end gap-4">
             <div><p className="text-xs text-mute">Precio de venta</p><p className="text-2xl font-bold tabular-nums text-fono-light">{precio(current) > 0 ? gs(precio(current)) : '—'}</p></div>
             {mayorista(current) > 0 && <div><p className="text-xs text-mute">Mayorista</p><p className="text-lg font-semibold tabular-nums">{gs(mayorista(current))}</p></div>}
+            {current?.priceUsd != null && Number(current.priceUsd) > 0 && <div><p className="text-xs text-mute">En dólares</p><p className="text-lg font-semibold tabular-nums">US$ {Number(current.priceUsd).toLocaleString('en-US', { maximumFractionDigits: 2 })}</p></div>}
             <div className="ml-auto text-right"><p className="text-xs text-mute">Stock</p><p className="text-2xl font-bold tabular-nums">{current?.stock ?? 0}</p></div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -129,6 +132,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
               <div><Label>Costo (Gs)</Label><MoneyInput value={form.costo} onValueChange={value => setForm(current => ({ ...current, costo: value === '' ? '' : String(value) }))} /></div>
               <div><Label>Seguro (%)</Label><Input inputMode="decimal" value={form.seguro} onChange={event => setForm(current => ({ ...current, seguro: event.target.value.replace(/[^\d.,]/g, '') }))} placeholder="Ej. 2" /></div>
               <div><Label>Umbral de reposición</Label><Input inputMode="numeric" value={form.umbral} onChange={event => setForm(current => ({ ...current, umbral: event.target.value.replace(/\D/g, '') }))} placeholder="Ej. 3" /></div>
+              <div><Label>Precio en USD (opcional)</Label><MoneyInput currency="USD" value={form.priceUsd} onValueChange={value => setForm(current => ({ ...current, priceUsd: value === '' ? '' : String(value) }))} placeholder="0,00" /></div>
               <div><Label>Garantía (días)</Label><Input inputMode="numeric" value={form.garantiaDias} onChange={event => setForm(current => ({ ...current, garantiaDias: event.target.value.replace(/\D/g, '') }))} placeholder="Ej. 365" /><p className="mt-1 text-[11px] text-mute">Al vender se crea la garantía del equipo automáticamente.</p></div>
               <div className="sm:col-span-2"><Label>Qué cubre</Label><Textarea rows={2} value={form.garantiaCubre} onChange={event => setForm(current => ({ ...current, garantiaCubre: event.target.value }))} placeholder="Defectos de fábrica…" /></div>
               <div className="sm:col-span-2"><Label>Qué no cubre</Label><Textarea rows={2} value={form.garantiaNoCubre} onChange={event => setForm(current => ({ ...current, garantiaNoCubre: event.target.value }))} placeholder="Daños físicos, humedad…" /></div>

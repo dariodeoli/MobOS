@@ -16,6 +16,7 @@ const CONDITION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondiciona
 const CONDITION_TONE = { NEW: 'green', USED: 'orange', REFURBISHED: 'slate' }
 const precio = (row) => Number(row?.pricePyg ?? row?.precioVenta ?? 0)
 const mayorista = (row) => Number(row?.wholesalePricePyg ?? 0)
+const usd = (row) => Number(row?.priceUsd ?? 0)
 
 // Fila compacta: nombre, SKU/categoría, condición, precio y stock en una línea.
 function FilaProducto({ row, onClick }) {
@@ -28,7 +29,7 @@ function FilaProducto({ row, onClick }) {
           <Badge color={CONDITION_TONE[row.condition] || 'slate'}>{CONDITION[row.condition] || 'Nuevo'}</Badge>
           {row.category && <span className="truncate text-[11px] text-mute">{row.category}</span>}
         </span>
-        <span className="mt-0.5 block truncate font-mono text-[11px] text-mute">{row.sku || 'Sin SKU'}{mayorista(row) > 0 ? ` · mayorista ${gs(mayorista(row))}` : ''}</span>
+        <span className="mt-0.5 block truncate font-mono text-[11px] text-mute">{row.sku || 'Sin SKU'}{mayorista(row) > 0 ? ` · mayorista ${gs(mayorista(row))}` : ''}{usd(row) > 0 ? ` · US$ ${usd(row).toLocaleString('en-US', { maximumFractionDigits: 2 })}` : ''}</span>
       </span>
       <span className="flex shrink-0 items-center gap-3">
         <span className={cn('rounded-md border px-2 py-0.5 text-[10px] font-bold', stock > 0 ? 'border-ok/25 bg-ok/10 text-ok' : 'border-ink-500 bg-ink-700/40 text-mute')}>{stock} en stock</span>
@@ -51,6 +52,7 @@ function TarjetaProducto({ row, onClick }) {
       <span className="mt-1 block truncate font-mono text-[11px] text-mute">{row.sku || 'Sin SKU'}{row.category ? ` · ${row.category}` : ''}</span>
       <span className="mt-3 text-xl font-bold tabular-nums text-fono-light">{precio(row) > 0 ? gs(precio(row)) : '—'}</span>
       {mayorista(row) > 0 && <span className="mt-0.5 text-[11px] text-mute">Mayorista {gs(mayorista(row))}</span>}
+      {usd(row) > 0 && <span className="mt-0.5 text-[11px] text-mute">US$ {usd(row).toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>}
       <span className="mt-3 flex items-center justify-between">
         <span className={cn('rounded-md border px-2 py-0.5 text-[10px] font-bold', stock > 0 ? 'border-ok/25 bg-ok/10 text-ok' : 'border-ink-500 bg-ink-700/40 text-mute')}>{stock} en stock</span>
         <Icon name="chevron" className="h-3.5 w-3.5 -rotate-90 text-mute transition group-hover:text-fono-light" />

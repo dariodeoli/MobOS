@@ -13,6 +13,7 @@ export default function ProductPrice({ product, price, onChange: notify, quantit
   const [mode, setMode] = useState('price')
   const [discount, setDiscount] = useState('')
   const [error, setError] = useState('')
+  const [fxBusy, setFxBusy] = useState(false)
   const version = useRef(0)
   const current = useRef(null)
   current.current = `${product.id}:${quantity}:${price}`
@@ -29,6 +30,20 @@ export default function ProductPrice({ product, price, onChange: notify, quantit
     setError('')
     onChange(String(Math.max(0, base - Math.round(mode === 'percent' ? base * amount / 100 : amount))))
   }
+  async function usarPrecioUsd() {
+    if (fxBusy) return
+    const usd = Number(product.priceUsd || 0)
+    if (!(usd > 0)) return
+    setFxBusy(true); setError('')
+    try {
+      const fx = await api.get('/api/fx')
+      const rate = Number(fx?.referencialDiario || 0)
+      if (!(rate > 0)) throw new Error('No hay cotización disponible; cargá el precio a mano.')
+      const converted = Math.round(usd * rate)
+      setMode('price'); setDiscount(''); notify(String(converted), null)
+    } catch (cause) { setError(cause?.message || 'No se pudo convertir el precio en USD.') } finally { setFxBusy(false) }
+  }
+
   async function applyCoupon() {
     const requestVersion = ++version.current
     const identity = current.current
@@ -45,6 +60,7 @@ export default function ProductPrice({ product, price, onChange: notify, quantit
     <div className="flex flex-wrap items-end justify-between gap-2">
       <div className="min-w-0"><p className="truncate font-semibold">{product.nombre}</p><p className="text-xs text-mute">Precio base {gs(base)}{quantity > 1 ? ` · ${quantity} unidades` : ''}</p></div>
       <div className="text-right">
+        {!esDemo && Number(product.priceUsd || 0) > 0 && <button type="button" disabled={fxBusy} onClick={usarPrecioUsd} className="mb-1 rounded-lg border border-fono/40 px-2 py-1 text-[11px] font-semibold text-fono-light transition hover:bg-fono/10 disabled:opacity-40">{fxBusy ? 'Convirtiendo…' : `Usar US$ ${Number(product.priceUsd).toLocaleString('en-US', { maximumFractionDigits: 2 })} (BCP)`}</button>}
         <p className="text-[11px] uppercase tracking-wider text-mute">Precio final</p>
         <p className="text-xl font-bold tabular-nums text-fono-light">{gs(final)}</p>
         {descuentoAplicado > 0 && <p className="text-[11px] font-semibold text-warn">− {gs(descuentoAplicado)} de descuento</p>}

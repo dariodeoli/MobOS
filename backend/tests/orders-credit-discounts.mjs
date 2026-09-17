@@ -158,4 +158,32 @@ result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}`, 'PAT
 assert.equal(result.response.status, 200)
 assert.ok(result.payload.notifiedAt, 'El pedido debe registrar la fecha de aviso.')
 
-console.log('orders-credit-discounts: OK (descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto y aviso WhatsApp).')
+// Pipeline de cotizaciones: crear, estados, vencimiento y conversión a pedido.
+result = await request('/api/quotes', 'POST', { customerName: customer.name, customerId: customer.id, validUntil: new Date(Date.now() + 3 * 86400000).toISOString(), items: [{ productId: product.id, description: 'Equipo cotizado', quantity: 2, unitPricePyg: 800000 }], discountPyg: 50000 })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const quote = result.payload
+assert.equal(quote.totalPyg, 1550000)
+assert.equal(quote.status, 'DRAFT')
+result = await request('/api/quotes', 'PATCH', { id: quote.id, status: 'SENT' })
+assert.equal(result.response.status, 200)
+result = await request('/api/quotes', 'PATCH', { id: quote.id, status: 'ACCEPTED' })
+assert.equal(result.response.status, 200)
+result = await request(`/api/quotes/${encodeURIComponent(quote.id)}/convert`, 'POST', {})
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const convertedOrder = result.payload
+assert.ok(convertedOrder.orderNumber, 'La conversión debe crear un pedido.')
+result = await request('/api/quotes')
+assert.equal(result.response.status, 200)
+const convertedQuote = result.payload.find(row => row.id === quote.id)
+assert.equal(convertedQuote.status, 'CONVERTED')
+assert.equal(convertedQuote.orderId, convertedOrder.id)
+result = await request(`/api/quotes/${encodeURIComponent(quote.id)}/convert`, 'POST', {})
+assert.equal(result.response.status, 409, 'No se convierte dos veces la misma cotización.')
+result = await request('/api/quotes', 'POST', { customerName: 'Cliente vencido', validUntil: new Date(Date.now() - 86400000).toISOString(), items: [{ description: 'Ítem', quantity: 1, unitPricePyg: 1000 }] })
+assert.equal(result.response.status, 201)
+const expiredId = result.payload.id
+result = await request('/api/quotes')
+assert.equal(result.response.status, 200)
+assert.equal(result.payload.find(row => row.id === expiredId).status, 'EXPIRED', 'La cotización vencida debe marcarse sola.')
+
+console.log('orders-credit-discounts: OK (descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp y pipeline de cotizaciones).')
