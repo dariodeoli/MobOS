@@ -65,6 +65,8 @@ model Tenant {
   customerFollowUps       CustomerFollowUp[]
   commissionRules         CommissionRule[]
   warrantyPhotos          WarrantyPhoto[]
+  customerAuthorizations  CustomerAuthorization[]
+  customerBillingIdentities CustomerBillingIdentity[]
 }
 
 // Identidad de la PERSONA (cuenta Google). No pertenece a ninguna tienda:
@@ -240,6 +242,8 @@ model User {
   customerNotes    CustomerNote[]
   customerFollowUps CustomerFollowUp[]
   customersCreated Customer[]      @relation("CustomerCreatedBy")
+  customerAuthorizationsRequested CustomerAuthorization[] @relation("CustomerAuthorizationRequestedBy")
+  customerAuthorizationsResolved  CustomerAuthorization[] @relation("CustomerAuthorizationResolvedBy")
   commissionRules  CommissionRule[]
   invitationsSent UserInvitation[] @relation("InvitationInviter")
 
@@ -565,10 +569,54 @@ model Customer {
   customerNotes CustomerNote[]
   followUps     CustomerFollowUp[]
   createdBy     User?             @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  authorizations    CustomerAuthorization[]
+  billingIdentities CustomerBillingIdentity[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
   @@index([tenantId, externalId])
+}
+
+// Solicitud de autorización comercial de un cliente (mayorista, crédito o
+// plazo). La pide cualquier vendedor y la resuelve administración/gerencia;
+// lo autorizado puede diferir de lo pedido (p. ej. menos días de crédito).
+model CustomerAuthorization {
+  id             String    @id @default(cuid())
+  tenantId       String
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId     String
+  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  kind           String    // WHOLESALE | CREDIT | CREDIT_DAYS
+  status         String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  requestedValue Json?     // CREDIT: { creditLimitPyg, creditDays } · CREDIT_DAYS: { creditDays }
+  resolvedValue  Json?     // lo autorizado (puede diferir: pedido 10 → autorizado 7)
+  requestedById  String
+  requestedBy    User      @relation("CustomerAuthorizationRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  resolvedById   String?
+  resolvedBy     User?     @relation("CustomerAuthorizationResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  note           String?
+  resolvedNote   String?
+  createdAt      DateTime  @default(now())
+  resolvedAt     DateTime?
+
+  @@index([tenantId, status])
+  @@index([customerId])
+}
+
+// Razones sociales/RUC históricos con los que el cliente pidió factura.
+model CustomerBillingIdentity {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name        String
+  document    String
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@unique([tenantId, customerId, document])
+  @@index([customerId])
 }
 
 // Nota interna del equipo sobre un cliente (cliente 360°).

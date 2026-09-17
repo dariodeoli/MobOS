@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
+import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { codigoPedido } from '@/utils/pedido'
 import { whatsappUrl } from './customerMessaging'
@@ -13,6 +14,7 @@ import {
   FormField,
   Input,
   Modal,
+  MoneyInput,
   Select,
   Skeleton,
   Textarea,
@@ -50,12 +52,36 @@ const STATUS_BADGE = (map, value) => {
 const fecha = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString('es-PY') : '—')
 const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 
+const AUTH_KINDS = {
+  WHOLESALE: 'Mayorista',
+  CREDIT: 'Crédito',
+  CREDIT_DAYS: 'Días de crédito',
+}
+const AUTH_STATUS = {
+  PENDING: { label: 'Pendiente', color: 'orange' },
+  APPROVED: { label: 'Aprobada', color: 'green' },
+  REJECTED: { label: 'Rechazada', color: 'red' },
+}
+const RESOLVERS = ['ADMIN', 'GERENTE']
+const resumenValor = (kind, value) => {
+  const data = value && typeof value === 'object' ? value : {}
+  if (kind === 'WHOLESALE') return 'Pasar a mayorista'
+  const parts = []
+  if (data.creditLimitPyg !== undefined && data.creditLimitPyg !== null) parts.push(`Límite ${formatGs(data.creditLimitPyg)}`)
+  if (data.creditDays !== undefined && data.creditDays !== null) parts.push(`${data.creditDays} día${Number(data.creditDays) === 1 ? '' : 's'}`)
+  return parts.join(' · ') || '—'
+}
+const saldoOrden = (order) => Number(order?.pendingPyg ?? order?.balancePyg ?? 0)
+const pagadoOrden = (order) => Number(order?.collectedPyg ?? order?.paidPyg ?? 0)
+
 const TABS = [
   { key: 'compras', label: 'Compras' },
   { key: 'dispositivos', label: 'Dispositivos' },
   { key: 'garantias', label: 'Garantías' },
   { key: 'notas', label: 'Notas' },
   { key: 'seguimientos', label: 'Seguimientos' },
+  { key: 'comercial', label: 'Comercial' },
+  { key: 'facturacion', label: 'Facturación' },
   { key: 'cronologia', label: 'Cronología' },
 ]
 
@@ -73,6 +99,7 @@ const conCodigos = (texto) => String(texto || '').replace(/MOB-(\d+)/g, 'MOB #$1
 
 export default function CustomerProfile({ customer, open, onClose }) {
   const toast = useToast()
+  const { usuario, esDemo } = useSesion()
   const [revision, setRevision] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -90,13 +117,27 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [timelineLoading, setTimelineLoading] = useState(false)
   const [timelineError, setTimelineError] = useState('')
   const [timelineRevision, setTimelineRevision] = useState(0)
+  const [authorizations, setAuthorizations] = useState([])
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authError, setAuthError] = useState('')
+  const [requestKind, setRequestKind] = useState('')
+  const [requestForm, setRequestForm] = useState({ creditLimitPyg: '', creditDays: '', note: '' })
+  const [requestBusy, setRequestBusy] = useState(false)
+  const [resolveTarget, setResolveTarget] = useState(null)
+  const [resolveAction, setResolveAction] = useState('')
+  const [resolveForm, setResolveForm] = useState({ creditLimitPyg: '', creditDays: '', resolvedNote: '' })
+  const [resolveBusy, setResolveBusy] = useState(false)
+  const [identities, setIdentities] = useState([])
+  const [identitiesLoading, setIdentitiesLoading] = useState(false)
+  const [identitiesError, setIdentitiesError] = useState('')
+  const [identityForm, setIdentityForm] = useState(null)
+  const [identityBusy, setIdentityBusy] = useState(false)
 
   useEffect(() => {
     if (!open || !customer?.id) return undefined
     let active = true
     setLoading(true)
     setError('')
-    setTab('compras')
     setTimeline([])
     setTimelineError('')
     setProfile(null)
@@ -112,6 +153,43 @@ export default function CustomerProfile({ customer, open, onClose }) {
       })
     return () => { active = false }
   }, [open, customer?.id, revision])
+
+  // Cada apertura (u otro cliente) arranca en la pestaña de compras.
+  useEffect(() => {
+    if (open) setTab('compras')
+  }, [open, customer?.id])
+
+  // Solicitudes comerciales del cliente (mayorista, crédito, plazo).
+  useEffect(() => {
+    if (!open || !customer?.id || esDemo) return undefined
+    let active = true
+    setAuthLoading(true)
+    setAuthError('')
+    api
+      .get(`/api/authorizations?customerId=${encodeURIComponent(customer.id)}`)
+      .then((data) => { if (active) { setAuthorizations(Array.isArray(data) ? data : []); setAuthLoading(false) } })
+      .catch((cause) => {
+        if (active) setAuthError(cause?.message || 'No se pudieron cargar las solicitudes.')
+        if (active) setAuthLoading(false)
+      })
+    return () => { active = false }
+  }, [open, customer?.id, revision, esDemo])
+
+  // Identidades de facturación: se piden al abrir su pestaña.
+  useEffect(() => {
+    if (!open || !customer?.id || tab !== 'facturacion' || esDemo) return undefined
+    let active = true
+    setIdentitiesLoading(true)
+    setIdentitiesError('')
+    api
+      .get(`/api/customers/${customer.id}/billing-identities`)
+      .then((data) => { if (active) { setIdentities(Array.isArray(data) ? data : []); setIdentitiesLoading(false) } })
+      .catch((cause) => {
+        if (active) setIdentitiesError(cause?.message || 'No se pudieron cargar las identidades de facturación.')
+        if (active) setIdentitiesLoading(false)
+      })
+    return () => { active = false }
+  }, [open, customer?.id, tab, revision, esDemo])
 
   // Cronología del cliente: se pide al abrir su pestaña y al reintentar.
   useEffect(() => {
@@ -139,6 +217,14 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const totalComprado = orders.reduce((sum, order) => sum + Number(order.totalPyg || 0), 0)
   const deuda = Number(profile?.debtPyg ?? 0)
   const garantiasActivas = warranties.filter((item) => item.status !== 'DELIVERED').length
+  const pendientes = authorizations.filter((row) => row.status === 'PENDING')
+  const hayPendiente = (kind) => pendientes.some((row) => row.kind === kind)
+  const mayorista = profile?.customer?.pricingTier === 'WHOLESALE'
+  const creditoHabilitado = Number(profile?.customer?.creditLimitPyg ?? 0) > 0
+  const diasCredito = profile?.customer?.creditDays
+  const puedeResolver = RESOLVERS.includes(usuario?.role)
+  const ordenesConSaldo = orders.filter((order) => saldoOrden(order) > 0)
+  const facturaActual = Boolean(profile?.customer?.billingName || profile?.customer?.billingDocument)
 
   const dispositivos = orders.flatMap(order => (order.items || []).flatMap(item => (item.serials || []).map(serial => ({ serial, model: item.description, date: order.createdAt, orderNumber: order.orderNumber, warranty: warranties.find(warranty => warranty.serial === serial) || null }))))
   const tabCounts = { compras: orders.length, dispositivos: dispositivos.length, garantias: warranties.length, notas: notes.length, seguimientos: followUps.length }
@@ -227,8 +313,186 @@ export default function CustomerProfile({ customer, open, onClose }) {
     }
   }
 
+  async function solicitarMayorista() {
+    if (requestBusy) return
+    setRequestBusy(true)
+    try {
+      await api.post('/api/authorizations', { customerId: customer.id, kind: 'WHOLESALE' })
+      toast.success('Solicitud enviada', 'Administración la revisará y resolverá.')
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudo enviar la solicitud', cause?.message)
+    } finally {
+      setRequestBusy(false)
+    }
+  }
+
+  function abrirSolicitud(kind) {
+    setRequestForm({
+      creditLimitPyg: kind === 'CREDIT' ? (profile?.customer?.creditLimitPyg ?? '') : '',
+      creditDays: profile?.customer?.creditDays ?? '',
+      note: '',
+    })
+    setRequestKind(kind)
+  }
+
+  async function enviarSolicitud(event) {
+    event.preventDefault()
+    if (!requestKind || requestBusy) return
+    const requestedValue = {}
+    if (requestKind === 'CREDIT') {
+      const limit = Number(requestForm.creditLimitPyg)
+      if (!Number.isSafeInteger(limit) || limit < 0) {
+        toast.error('Límite inválido', 'Ingresá el límite de crédito en guaraníes.')
+        return
+      }
+      requestedValue.creditLimitPyg = limit
+    }
+    if (requestForm.creditDays !== '') {
+      const days = Number(requestForm.creditDays)
+      if (!Number.isSafeInteger(days) || days < 0 || days > 365) {
+        toast.error('Días inválidos', 'Los días de crédito deben estar entre 0 y 365.')
+        return
+      }
+      requestedValue.creditDays = days
+    } else if (requestKind === 'CREDIT_DAYS') {
+      toast.error('Días obligatorios', 'Ingresá los días de crédito solicitados.')
+      return
+    }
+    setRequestBusy(true)
+    try {
+      await api.post('/api/authorizations', {
+        customerId: customer.id,
+        kind: requestKind,
+        requestedValue,
+        ...(requestForm.note.trim() ? { note: requestForm.note.trim() } : {}),
+      })
+      toast.success('Solicitud enviada', 'Administración la revisará y resolverá.')
+      setRequestKind('')
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudo enviar la solicitud', cause?.message)
+    } finally {
+      setRequestBusy(false)
+    }
+  }
+
+  function abrirResolver(row, action) {
+    const value = row.requestedValue && typeof row.requestedValue === 'object' ? row.requestedValue : {}
+    setResolveForm({ creditLimitPyg: value.creditLimitPyg ?? '', creditDays: value.creditDays ?? '', resolvedNote: '' })
+    setResolveAction(action)
+    setResolveTarget(row)
+  }
+
+  async function confirmarResolver() {
+    if (!resolveTarget || resolveBusy) return
+    if (resolveAction === 'reject' && !resolveForm.resolvedNote.trim()) {
+      toast.error('Motivo obligatorio', 'Contale al vendedor por qué se rechaza.')
+      return
+    }
+    const body = {
+      id: resolveTarget.id,
+      action: resolveAction,
+      ...(resolveForm.resolvedNote.trim() ? { resolvedNote: resolveForm.resolvedNote.trim() } : {}),
+    }
+    if (resolveAction === 'approve' && resolveTarget.kind !== 'WHOLESALE') {
+      const resolvedValue = {}
+      if (resolveTarget.kind === 'CREDIT') {
+        const limit = Number(resolveForm.creditLimitPyg)
+        if (!Number.isSafeInteger(limit) || limit < 0) {
+          toast.error('Límite inválido', 'Ingresá el límite de crédito autorizado.')
+          return
+        }
+        resolvedValue.creditLimitPyg = limit
+      }
+      if (resolveForm.creditDays !== '') {
+        const days = Number(resolveForm.creditDays)
+        if (!Number.isSafeInteger(days) || days < 0 || days > 365) {
+          toast.error('Días inválidos', 'Los días autorizados deben estar entre 0 y 365.')
+          return
+        }
+        resolvedValue.creditDays = days
+      } else if (resolveTarget.kind === 'CREDIT_DAYS') {
+        toast.error('Días obligatorios', 'Ingresá los días autorizados (pueden ser menos de los pedidos).')
+        return
+      }
+      body.resolvedValue = resolvedValue
+    }
+    setResolveBusy(true)
+    try {
+      await api.patch('/api/authorizations', body)
+      toast.success(resolveAction === 'approve' ? 'Solicitud aprobada' : 'Solicitud rechazada', resolveAction === 'approve' ? 'El cliente quedó con la condición autorizada.' : undefined)
+      setResolveTarget(null)
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudo resolver la solicitud', cause?.message)
+    } finally {
+      setResolveBusy(false)
+    }
+  }
+
+  function abrirIdentidad(identity) {
+    setIdentityForm(identity ? { id: identity.id, name: identity.name, document: identity.document } : { name: '', document: '' })
+  }
+
+  async function guardarIdentidad(event) {
+    event.preventDefault()
+    if (!identityForm || identityBusy) return
+    const name = identityForm.name.trim()
+    const document = identityForm.document.trim()
+    if (!name || !document) {
+      toast.error('Datos incompletos', 'La razón social y el RUC son obligatorios.')
+      return
+    }
+    setIdentityBusy(true)
+    try {
+      if (identityForm.id) {
+        await api.patch(`/api/customers/${customer.id}/billing-identities`, { id: identityForm.id, name, document })
+        toast.success('Identidad actualizada')
+      } else {
+        await api.post(`/api/customers/${customer.id}/billing-identities`, { name, document })
+        toast.success('Identidad agregada')
+      }
+      setIdentityForm(null)
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudo guardar la identidad', cause?.message)
+    } finally {
+      setIdentityBusy(false)
+    }
+  }
+
+  async function usarComoActual(identity) {
+    if (identityBusy) return
+    setIdentityBusy(true)
+    try {
+      await api.patch(`/api/customers/${customer.id}/billing-identities`, { id: identity.id, useAsCurrent: true })
+      toast.success('Facturación actualizada', `Ahora factura a ${identity.name}.`)
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudo actualizar la facturación', cause?.message)
+    } finally {
+      setIdentityBusy(false)
+    }
+  }
+
+  async function removeBillingIdentity() {
+    if (!pendingDelete || deleteBusy) return
+    setDeleteBusy(true)
+    try {
+      await api.delete(`/api/customers/${customer.id}/billing-identities?id=${encodeURIComponent(pendingDelete.id)}`)
+      toast.success('Identidad eliminada')
+      setPendingDelete(null)
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudo eliminar la identidad', cause?.message)
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
+
   return (
-    <Modal open={open} onClose={onClose} title={`Cliente: ${customer?.name || ''}`} className="max-w-2xl">
+    <Modal open={open} onClose={() => { if (!requestKind && !resolveTarget && !identityForm) onClose() }} title={`Cliente: ${customer?.name || ''}`} className="max-w-2xl">
       {loading && (
         <div className="space-y-4" aria-busy="true">
           <Skeleton className="h-10 w-2/3" />
@@ -311,6 +575,21 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </div>
           </div>
 
+          {deuda > 0 && (
+            <div className="rounded-xl border border-warn/30 bg-warn/5 p-3">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Deuda por pedido</p>
+              <ul className="mt-2 space-y-1">
+                {ordenesConSaldo.map((order) => (
+                  <li key={order.id} className="flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate font-medium">{codigoPedido(order.orderNumber) || 'Pedido'}</span>
+                    <span className="shrink-0 tabular-nums text-warn">{formatGs(saldoOrden(order))}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-mute">Total pendiente: <b className="text-fore">{formatGs(deuda)}</b></p>
+            </div>
+          )}
+
           <div className="flex gap-2 overflow-x-auto" role="tablist">
             {TABS.map((item) => (
               <button
@@ -338,8 +617,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     { key: 'orderNumber', label: 'N.º', render: (row) => <span className="font-medium">{codigoPedido(row.orderNumber) || '—'}</span> },
                     { key: 'status', label: 'Estado', render: (row) => <div className="flex flex-col gap-1">{STATUS_BADGE(ORDER_STATUS, row.status)}{FULFILLMENT_STATUS[row.fulfillmentStatus] && <span className="text-[11px] text-mute">{FULFILLMENT_STATUS[row.fulfillmentStatus].label}</span>}</div> },
                     { key: 'totalPyg', label: 'Total', align: 'right', render: (row) => formatGs(row.totalPyg) },
-                    { key: 'paidPyg', label: 'Pagado', align: 'right', render: (row) => <span className="text-ok">{formatGs(row.paidPyg)}</span> },
-                    { key: 'balancePyg', label: 'Saldo', align: 'right', render: (row) => <span className={Number(row.balancePyg) > 0 ? 'text-warn' : ''}>{formatGs(row.balancePyg)}</span> },
+                    { key: 'paidPyg', label: 'Pagado', align: 'right', render: (row) => <span className="text-ok">{formatGs(pagadoOrden(row))}</span> },
+                    { key: 'balancePyg', label: 'Saldo', align: 'right', render: (row) => <span className={saldoOrden(row) > 0 ? 'text-warn' : ''}>{formatGs(saldoOrden(row))}</span> },
                   ]}
                   rows={orders}
                   mobileCard={(row) => (
@@ -348,11 +627,11 @@ export default function CustomerProfile({ customer, open, onClose }) {
                         <b>{codigoPedido(row.orderNumber) || '—'}</b>
                         {STATUS_BADGE(ORDER_STATUS, row.status)}
                       </div>
-                      <p className="mt-1 text-xs text-mute">{fecha(row.createdAt)}{row.branchName ? ` · ${row.branchName}` : ''}</p>
+                      <p className="mt-1 text-xs text-mute">{fecha(row.createdAt)}{row.branch?.name ? ` · ${row.branch.name}` : ''}</p>
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
                         <span className="text-mute">Total <b className="text-fore">{formatGs(row.totalPyg)}</b></span>
-                        <span className="text-mute">Pagado <b className="text-ok">{formatGs(row.paidPyg)}</b></span>
-                        <span className="text-mute">Saldo <b className={Number(row.balancePyg) > 0 ? 'text-warn' : 'text-fore'}>{formatGs(row.balancePyg)}</b></span>
+                        <span className="text-mute">Pagado <b className="text-ok">{formatGs(pagadoOrden(row))}</b></span>
+                        <span className="text-mute">Saldo <b className={saldoOrden(row) > 0 ? 'text-warn' : 'text-fore'}>{formatGs(saldoOrden(row))}</b></span>
                       </div>
                     </div>
                   )}
@@ -486,6 +765,146 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </div>
           )}
 
+          {tab === 'comercial' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Tipo</p>
+                  <p className="mt-1 text-sm font-semibold">{mayorista ? 'Mayorista' : 'Final'}</p>
+                </div>
+                <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Crédito habilitado</p>
+                  <p className="mt-1 text-sm font-semibold">{creditoHabilitado ? 'Sí' : 'No'}</p>
+                </div>
+                <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Días de crédito</p>
+                  <p className="mt-1 text-sm font-semibold">{diasCredito === null || diasCredito === undefined ? '—' : `${diasCredito} día${Number(diasCredito) === 1 ? '' : 's'}`}</p>
+                </div>
+                <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Límite</p>
+                  <p className="mt-1 text-sm font-semibold">{creditoHabilitado ? formatGs(profile?.customer?.creditLimitPyg) : '—'}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {!mayorista && !hayPendiente('WHOLESALE') && (
+                  <Button type="button" onClick={solicitarMayorista} disabled={requestBusy}>
+                    <Icon name="tag" className="h-4 w-4" />
+                    {requestBusy ? 'Enviando…' : 'Solicitar ser mayorista'}
+                  </Button>
+                )}
+                {!creditoHabilitado && !hayPendiente('CREDIT') && (
+                  <Button type="button" variant="outline" onClick={() => abrirSolicitud('CREDIT')}>
+                    <Icon name="wallet" className="h-4 w-4" />
+                    Solicitar habilitación de crédito
+                  </Button>
+                )}
+                {creditoHabilitado && !hayPendiente('CREDIT_DAYS') && (
+                  <Button type="button" variant="outline" onClick={() => abrirSolicitud('CREDIT_DAYS')}>
+                    <Icon name="clock" className="h-4 w-4" />
+                    Solicitar días de crédito
+                  </Button>
+                )}
+              </div>
+
+              <div>
+                <p className="text-sm font-semibold">Solicitudes</p>
+                {authLoading && <div className="mt-2 space-y-2" aria-busy="true"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
+                {!authLoading && authError && <p role="alert" className="mt-2 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{authError}</p>}
+                {!authLoading && !authError && !authorizations.length && (
+                  <p className="mt-2 text-xs text-mute">Sin solicitudes registradas para este cliente.</p>
+                )}
+                {!authLoading && !authError && authorizations.length > 0 && (
+                  <ul className="mt-2 space-y-2">
+                    {authorizations.map((row) => {
+                      const estado = AUTH_STATUS[row.status] || { label: row.status, color: 'slate' }
+                      const propia = row.requestedById === usuario?.id
+                      return (
+                        <li key={row.id} className={`rounded-xl border p-3 text-sm ${row.status === 'PENDING' ? 'border-warn/30 bg-warn/5' : 'border-ink-600 bg-ink-800'}`}>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge color="blue">{AUTH_KINDS[row.kind] || row.kind}</Badge>
+                            <Badge color={estado.color}>{estado.label}</Badge>
+                          </div>
+                          <p className="mt-1 text-xs text-mute">
+                            Pedido: {resumenValor(row.kind, row.requestedValue)}
+                            {row.status === 'APPROVED' && <> · Autorizado: {resumenValor(row.kind, row.resolvedValue || row.requestedValue)}</>}
+                            {row.status === 'REJECTED' && ' · Rechazada'}
+                          </p>
+                          <p className="mt-1 text-xs text-mute">Pidió {row.requestedBy?.name || 'Sistema'} · {fechaHora(row.createdAt)}</p>
+                          {row.note && <p className="mt-1 text-xs text-mute">Nota: {row.note}</p>}
+                          {row.resolvedNote && <p className="mt-1 text-xs text-mute">Respuesta: {row.resolvedNote}</p>}
+                          {puedeResolver && row.status === 'PENDING' && !propia && (
+                            <div className="mt-2 flex gap-2">
+                              <button type="button" className="text-xs font-semibold text-ok" onClick={() => abrirResolver(row, 'approve')}>Aprobar</button>
+                              <button type="button" className="text-xs font-semibold text-bad" onClick={() => abrirResolver(row, 'reject')}>Rechazar</button>
+                            </div>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+
+          {tab === 'facturacion' && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Factura a otro titular</p>
+                    <p className="mt-1 text-sm font-semibold">{facturaActual ? 'Sí' : 'No'}</p>
+                    {facturaActual && (
+                      <p className="mt-1 text-xs text-mute">
+                        {profile.customer?.billingName || 'Sin razón social'}
+                        {profile.customer?.billingDocument ? ` · RUC ${profile.customer.billingDocument}` : ''}
+                      </p>
+                    )}
+                  </div>
+                  <Button type="button" variant="outline" onClick={() => abrirIdentidad(null)}>
+                    <Icon name="plus" className="h-4 w-4" />
+                    Agregar identidad
+                  </Button>
+                </div>
+              </div>
+              {identitiesLoading && <div className="space-y-2" aria-busy="true"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}
+              {!identitiesLoading && identitiesError && (
+                <EmptyState compact icon="alert" title="No se pudieron cargar las identidades" description={identitiesError} action={<Button onClick={refresh}>Reintentar</Button>} />
+              )}
+              {!identitiesLoading && !identitiesError && !identities.length && (
+                <EmptyState compact icon="receipt" title="Sin identidades guardadas" description="Agregá la razón social y el RUC para volver a facturar a ese titular." />
+              )}
+              {!identitiesLoading && !identitiesError && identities.length > 0 && (
+                <ul className="space-y-2">
+                  {identities.map((identity) => {
+                    const actual = Boolean(profile.customer?.billingDocument) && identity.document === profile.customer.billingDocument
+                    return (
+                      <li key={identity.id} className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="flex flex-wrap items-center gap-2 font-medium">
+                              {identity.name || 'Sin razón social'}
+                              {actual && <Badge color="green">Actual</Badge>}
+                            </p>
+                            <p className="mt-0.5 text-xs text-mute">RUC {identity.document || '—'}</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {!actual && (
+                              <button type="button" disabled={identityBusy} className="text-xs font-semibold text-ok disabled:opacity-40" onClick={() => usarComoActual(identity)}>Usar como actual</button>
+                            )}
+                            <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => abrirIdentidad(identity)}>Editar</button>
+                            <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'billing', id: identity.id })}>Eliminar</button>
+                          </div>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
+
           {tab === 'cronologia' && (
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -558,6 +977,160 @@ export default function CustomerProfile({ customer, open, onClose }) {
         variant="danger"
         busy={deleteBusy}
       />
+      <ConfirmDialog
+        open={pendingDelete?.type === 'billing'}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={removeBillingIdentity}
+        title="Eliminar identidad de facturación"
+        description="Se quitará de las identidades guardadas. La facturación actual del cliente no cambia."
+        confirmLabel="Eliminar identidad"
+        variant="danger"
+        busy={deleteBusy}
+      />
+
+      <Modal
+        open={Boolean(requestKind)}
+        onClose={() => { if (!requestBusy) setRequestKind('') }}
+        title={requestKind === 'CREDIT' ? 'Solicitar habilitación de crédito' : 'Solicitar días de crédito'}
+        className="max-w-lg"
+      >
+        <form onSubmit={enviarSolicitud} className="space-y-4">
+          {requestKind === 'CREDIT' && (
+            <FormField label="Límite de crédito solicitado (Gs.)" htmlFor="profile-request-limit">
+              <MoneyInput
+                id="profile-request-limit"
+                value={requestForm.creditLimitPyg}
+                onValueChange={(value) => setRequestForm((form) => ({ ...form, creditLimitPyg: value }))}
+                placeholder="1.000.000"
+              />
+            </FormField>
+          )}
+          <FormField label="Días de crédito solicitados" htmlFor="profile-request-days">
+            <Input
+              id="profile-request-days"
+              type="number"
+              min={0}
+              max={365}
+              value={requestForm.creditDays}
+              onChange={(event) => setRequestForm((form) => ({ ...form, creditDays: event.target.value }))}
+              placeholder="30"
+            />
+          </FormField>
+          <FormField label="Nota (opcional)" htmlFor="profile-request-note">
+            <Textarea
+              id="profile-request-note"
+              rows={2}
+              maxLength={500}
+              value={requestForm.note}
+              onChange={(event) => setRequestForm((form) => ({ ...form, note: event.target.value }))}
+              placeholder="Motivo de la solicitud…"
+            />
+          </FormField>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setRequestKind('')} disabled={requestBusy}>Cancelar</Button>
+            <Button type="submit" disabled={requestBusy}>{requestBusy ? 'Enviando…' : 'Enviar solicitud'}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(resolveTarget)}
+        onClose={() => { if (!resolveBusy) setResolveTarget(null) }}
+        title={resolveAction === 'approve' ? 'Aprobar solicitud' : 'Rechazar solicitud'}
+        className="max-w-lg"
+      >
+        {resolveTarget && (
+          <div className="space-y-4">
+            <p className="text-sm text-mute">
+              {AUTH_KINDS[resolveTarget.kind] || resolveTarget.kind} · pedido por {resolveTarget.requestedBy?.name || 'Sistema'}: <b className="text-fore">{resumenValor(resolveTarget.kind, resolveTarget.requestedValue)}</b>
+            </p>
+            {resolveAction === 'approve' && resolveTarget.kind === 'CREDIT' && (
+              <FormField label="Límite autorizado (Gs.)" htmlFor="profile-resolve-limit">
+                <MoneyInput
+                  id="profile-resolve-limit"
+                  value={resolveForm.creditLimitPyg}
+                  onValueChange={(value) => setResolveForm((form) => ({ ...form, creditLimitPyg: value }))}
+                  placeholder="1.000.000"
+                />
+              </FormField>
+            )}
+            {resolveAction === 'approve' && (resolveTarget.kind === 'CREDIT' || resolveTarget.kind === 'CREDIT_DAYS') && (
+              <FormField
+                label={resolveTarget.kind === 'CREDIT_DAYS' ? 'Días autorizados (máximo)' : 'Días de crédito autorizados'}
+                hint={resolveTarget.kind === 'CREDIT_DAYS' ? 'Podés autorizar menos días que los pedidos: ese será el máximo habilitado.' : undefined}
+                htmlFor="profile-resolve-days"
+              >
+                <Input
+                  id="profile-resolve-days"
+                  type="number"
+                  min={0}
+                  max={365}
+                  value={resolveForm.creditDays}
+                  onChange={(event) => setResolveForm((form) => ({ ...form, creditDays: event.target.value }))}
+                  placeholder="30"
+                />
+              </FormField>
+            )}
+            <FormField label={resolveAction === 'reject' ? 'Motivo del rechazo' : 'Nota de la respuesta (opcional)'} htmlFor="profile-resolve-note">
+              <Textarea
+                id="profile-resolve-note"
+                rows={3}
+                maxLength={500}
+                value={resolveForm.resolvedNote}
+                onChange={(event) => setResolveForm((form) => ({ ...form, resolvedNote: event.target.value }))}
+                placeholder={resolveAction === 'reject' ? 'Explicá por qué no se autoriza…' : 'Condición acordada…'}
+              />
+            </FormField>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setResolveTarget(null)} disabled={resolveBusy}>Cancelar</Button>
+              <Button
+                type="button"
+                variant={resolveAction === 'reject' ? 'danger' : 'primary'}
+                onClick={confirmarResolver}
+                disabled={resolveBusy || (resolveAction === 'reject' && !resolveForm.resolvedNote.trim())}
+              >
+                {resolveBusy ? 'Guardando…' : resolveAction === 'approve' ? 'Aprobar' : 'Rechazar'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(identityForm)}
+        onClose={() => { if (!identityBusy) setIdentityForm(null) }}
+        title={identityForm?.id ? 'Editar identidad' : 'Agregar identidad'}
+        className="max-w-lg"
+      >
+        {identityForm && (
+          <form onSubmit={guardarIdentidad} className="space-y-4">
+            <FormField label="Razón social" htmlFor="profile-identity-name">
+              <Input
+                id="profile-identity-name"
+                maxLength={200}
+                value={identityForm.name}
+                onChange={(event) => setIdentityForm((form) => ({ ...form, name: event.target.value }))}
+                placeholder="Empresa S.A."
+              />
+            </FormField>
+            <FormField label="RUC / documento" htmlFor="profile-identity-document">
+              <Input
+                id="profile-identity-document"
+                maxLength={100}
+                value={identityForm.document}
+                onChange={(event) => setIdentityForm((form) => ({ ...form, document: event.target.value }))}
+                placeholder="80012345-6"
+              />
+            </FormField>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setIdentityForm(null)} disabled={identityBusy}>Cancelar</Button>
+              <Button type="submit" disabled={identityBusy || !identityForm.name.trim() || !identityForm.document.trim()}>
+                {identityBusy ? 'Guardando…' : 'Guardar'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </Modal>
   )
 }

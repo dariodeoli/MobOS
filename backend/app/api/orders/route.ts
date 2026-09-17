@@ -176,6 +176,16 @@ export async function POST(request: Request) {
       if (customerId && (billingName || billingDocument)) {
         await tx.customer.update({ where: { id: customerId }, data: { ...(billingName ? { billingName } : {}), ...(billingDocument ? { billingDocument } : {}) } })
       }
+      // Identidad de facturación reutilizable: se guarda para poder volver a
+      // facturar a ese titular sin tipearlo de nuevo. Con datos incompletos no
+      // se guarda (no se rompe la venta).
+      if (customerId && billingName && billingDocument) {
+        await tx.customerBillingIdentity.upsert({
+          where: { tenantId_customerId_document: { tenantId: tenant, customerId, document: billingDocument } },
+          update: { name: billingName },
+          create: { tenantId: tenant, customerId, name: billingName, document: billingDocument, createdById: session.user.id },
+        })
+      }
       let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()

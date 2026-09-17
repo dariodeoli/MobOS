@@ -37,6 +37,7 @@ const Inventario = lazy(() => import('@/components/control/Inventario'))
 const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
 const Vendedores = lazy(() => import('@/components/control/Vendedores'))
+const Autorizaciones = lazy(() => import('@/components/control/Autorizaciones'))
 const Garantias = lazy(() => import('@/components/control/Garantias'))
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
 
@@ -94,7 +95,10 @@ const OWNER_NAV = [
   },
   {
     titulo: 'Equipo',
-    items: [['equipo', 'Equipo y configuración', 'users']],
+    items: [
+      ['equipo', 'Equipo y configuración', 'users'],
+      ['autorizaciones', 'Autorizaciones', 'check'],
+    ],
   },
 ]
 
@@ -126,6 +130,7 @@ const LABELS = {
   analisis: 'Análisis',
   finanzas: 'Finanzas',
   equipo: 'Equipo y configuración',
+  autorizaciones: 'Autorizaciones',
   inventario: 'Inventario',
   compras: 'Compras',
   'tradein-admin': 'Trade-In',
@@ -538,6 +543,7 @@ export default function PanelVendedor() {
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
           {esOwner && vista === 'servicio' && <Garantias />}
+          {esOwner && vista === 'autorizaciones' && <Autorizaciones />}
           {esOwner && vista === 'resumen' && <ResumenControl />}
           {esOwner && vista === 'analisis' && (
             <div>

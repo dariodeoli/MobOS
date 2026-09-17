@@ -1,10 +1,17 @@
 import assert from 'node:assert/strict'
 
-const [baseUrl, adminToken] = process.argv.slice(2)
-if (!baseUrl || !adminToken) throw new Error('Uso: orders-credit-discounts.mjs <baseUrl> <adminToken>')
+const [baseUrl, adminToken, sellerToken] = process.argv.slice(2)
+if (!baseUrl || !adminToken || !sellerToken) throw new Error('Uso: orders-credit-discounts.mjs <baseUrl> <adminToken> <sellerToken>')
 
 async function request(path, method = 'GET', body, headers = {}) {
   const response = await fetch(`${baseUrl}${path}`, { method, headers: { Authorization: `Bearer ${adminToken}`, 'x-tenant-id': 'tenant-a-it', ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers }, ...(body ? { body: JSON.stringify(body) } : {}) })
+  const payload = await response.json().catch(() => null)
+  return { response, payload }
+}
+
+// Igual que request() pero con la sesión de vendedor (para autorizaciones).
+async function sellerRequest(path, method = 'GET', body) {
+  const response = await fetch(`${baseUrl}${path}`, { method, headers: { Authorization: `Bearer ${sellerToken}`, 'x-tenant-id': 'tenant-a-it', ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) })
   const payload = await response.json().catch(() => null)
   return { response, payload }
 }
@@ -80,8 +87,95 @@ assert.equal(result.response.status, 409, 'Debe rechazar por superar el límite 
 // Cliente sin límite no puede vender a crédito.
 result = await request('/api/customers', 'POST', { name: `Sin Crédito ${Date.now()}`, phone: `59598${String(Date.now()).slice(-7)}` })
 assert.equal(result.response.status, 201)
-result = await request('/api/orders', 'POST', { customerId: result.payload.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [], creditDays: 10 })
+const sinCredito = result.payload
+result = await request('/api/orders', 'POST', { customerId: sinCredito.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [], creditDays: 10 })
 assert.equal(result.response.status, 400, 'Debe rechazar crédito sin límite configurado.')
+
+// Autorizaciones comerciales: el vendedor pide plazo, gerencia autoriza un
+// máximo menor al pedido y el cliente queda con lo autorizado, auditado.
+result = await sellerRequest('/api/authorizations', 'POST', { customerId: customer.id, kind: 'CREDIT_DAYS', requestedValue: { creditDays: 10 }, note: 'Necesita 10 días para compras mayoristas.' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const authDays = result.payload
+assert.equal(authDays.status, 'PENDING')
+assert.equal(authDays.requestedById, 'user-a-it')
+assert.deepEqual(authDays.requestedValue, { creditDays: 10 })
+assert.equal(authDays.requestedBy?.name, 'Seller A')
+
+// No se permiten dos pendientes del mismo tipo para el mismo cliente.
+result = await sellerRequest('/api/authorizations', 'POST', { customerId: customer.id, kind: 'CREDIT_DAYS', requestedValue: { creditDays: 15 } })
+assert.equal(result.response.status, 409, 'Debe rechazar solicitudes duplicadas pendientes.')
+
+// El vendedor ve su solicitud, pero no puede resolverla.
+result = await sellerRequest(`/api/authorizations?customerId=${encodeURIComponent(customer.id)}&status=PENDING`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(Array.isArray(result.payload) && result.payload.some(row => row.id === authDays.id), 'El vendedor debe ver su solicitud pendiente.')
+result = await sellerRequest('/api/authorizations', 'PATCH', { id: authDays.id, action: 'approve', resolvedValue: { creditDays: 10 } })
+assert.equal(result.response.status, 403, 'Un vendedor no puede resolver su propia solicitud.')
+
+// Gerencia aprueba con 7 días: el máximo autorizado puede ser menor al pedido.
+result = await request('/api/authorizations', 'PATCH', { id: authDays.id, action: 'approve', resolvedValue: { creditDays: 7 }, resolvedNote: 'Máximo autorizado: 7 días.' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.status, 'APPROVED')
+assert.equal(result.payload.resolvedValue.creditDays, 7)
+assert.equal(result.payload.resolvedBy?.id, 'user-admin-it')
+
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.customer.creditDays, 7, 'El cliente debe quedar con los días autorizados, no con los pedidos.')
+
+// La cronología del cliente muestra la solicitud y la aprobación.
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}/timeline`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+const accionesAutorizacion = new Set((result.payload.events || []).map(event => event.action))
+assert.ok(accionesAutorizacion.has('CUSTOMER_AUTHORIZATION_REQUESTED'), 'La cronología debe incluir la solicitud.')
+assert.ok(accionesAutorizacion.has('CUSTOMER_AUTHORIZATION_APPROVED'), 'La cronología debe incluir la aprobación.')
+
+// Ni administración puede resolver una solicitud propia.
+result = await request('/api/authorizations', 'POST', { customerId: sinCredito.id, kind: 'CREDIT', requestedValue: { creditLimitPyg: 500000, creditDays: 14 } })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const authPropia = result.payload
+result = await request('/api/authorizations', 'PATCH', { id: authPropia.id, action: 'approve', resolvedValue: { creditLimitPyg: 500000, creditDays: 14 } })
+assert.equal(result.response.status, 403, 'Nadie puede resolver su propia solicitud.')
+result = await request(`/api/customers/${encodeURIComponent(sinCredito.id)}`)
+assert.equal(result.payload.customer.creditLimitPyg, null, 'La solicitud propia no debe aplicarse.')
+
+// Mayorista: la aprobación cambia el precio del cliente.
+result = await sellerRequest('/api/authorizations', 'POST', { customerId: sinCredito.id, kind: 'WHOLESALE' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+result = await request('/api/authorizations', 'PATCH', { id: result.payload.id, action: 'approve' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+result = await request(`/api/customers/${encodeURIComponent(sinCredito.id)}`)
+assert.equal(result.payload.customer.pricingTier, 'WHOLESALE', 'El cliente debe pasar a mayorista.')
+
+// Identidades de facturación: alta, uso como actual, duplicado y borrado.
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}/billing-identities`, 'POST', { name: 'Facturación Empresa S.A.', document: '80012345-6' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const billingIdentity = result.payload
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}/billing-identities`, 'PATCH', { id: billingIdentity.id, useAsCurrent: true })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}`)
+assert.equal(result.payload.customer.billingName, 'Facturación Empresa S.A.')
+assert.equal(result.payload.customer.billingDocument, '80012345-6')
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}/billing-identities`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.document === '80012345-6'), 'La identidad actual debe listarse.')
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}/billing-identities`, 'POST', { name: 'Duplicada', document: '80012345-6' })
+assert.equal(result.response.status, 409, 'El RUC debe ser único por cliente.')
+// La identidad vigente se autocrea al listar, por eso se borra una histórica.
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}/billing-identities`, 'POST', { name: 'Identidad histórica', document: '77777777-7' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const billingHistory = result.payload
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}/billing-identities?id=${encodeURIComponent(billingHistory.id)}`, 'DELETE')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}/billing-identities`)
+assert.ok(!result.payload.some(row => row.document === '77777777-7'), 'La identidad borrada no debe listarse.')
+assert.ok(result.payload.some(row => row.document === '80012345-6'), 'La facturación vigente se autocrea al listar.')
+
+// La venta con factura a otro titular guarda la identidad en la ficha.
+result = await request('/api/orders', 'POST', { customerId: customer.id, billingTo: { name: 'Titular Factura', document: '99999999-1' }, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 800000 }] })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+result = await request(`/api/customers/${encodeURIComponent(customer.id)}/billing-identities`)
+assert.ok(result.payload.some(row => row.document === '99999999-1'), 'La facturación de la venta debe guardarse como identidad.')
 
 // Control de créditos: aparece el cliente con pendiente y mora.
 result = await request('/api/credits')
