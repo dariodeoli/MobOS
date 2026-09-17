@@ -452,9 +452,14 @@ export default function FormularioVenta({
       nombre: (it.quantity || 1) > 1 ? `${it.nombre} ×${it.quantity}` : it.nombre,
       precio: it.precio * (it.quantity || 1),
     }))
-    onCarrito({ items: paraLateral, quitar: quitarItem })
+    onCarrito({
+      items: paraLateral,
+      quitar: quitarItem,
+      puedeRevisar: puedePaso2,
+      irARevisar: () => setPaso(2),
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items])
+  }, [items, f.cliente])
   const familiasVisibles = familias.filter(fam => {
     const query = busquedaProducto.trim().toLocaleLowerCase()
     if (!query) return true

@@ -4,7 +4,7 @@ import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import { useReloj } from '@/hooks/useReloj'
-import { vendedoresById, listVentas } from '@/lib/storage'
+import { listVentas } from '@/lib/storage'
 import { sessionApi } from '@/lib/api'
 import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
 import SelectorSucursal from '@/components/shared/SelectorSucursal'
@@ -219,7 +219,6 @@ export default function PanelVendedor() {
   const [busquedaAbierta, setBusquedaAbierta] = useState(false)
   const cambioEnCurso = useRef(false)
   const lockEnCurso = useRef(false)
-  const vendsById = vendedoresById()
   const toast = useToast()
 
   const accesibles = useMemo(
@@ -512,7 +511,6 @@ export default function PanelVendedor() {
               </div>
             )}
             <VistaCargarVenta
-              vendedoresById={vendsById}
               tradeInDraft={tradeIn?.identidad === identidad ? tradeIn : null}
               onTradeInConsumed={() => setTradeIn(null)}
             />
