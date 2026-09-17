@@ -42,6 +42,14 @@ export async function GET(request: Request) {
     { email: { contains: q, mode: 'insensitive' } },
     { billingName: { contains: q, mode: 'insensitive' } },
     { billingDocument: { contains: q } },
+    { tags: { has: q } },
+    { notes: { contains: q, mode: 'insensitive' } },
+    { addresses: { some: { OR: [
+      { city: { contains: q, mode: 'insensitive' } },
+      { department: { contains: q, mode: 'insensitive' } },
+      { address: { contains: q, mode: 'insensitive' } },
+      { label: { contains: q, mode: 'insensitive' } },
+    ] } } },
     { orders: { some: { OR: [{ billingName: { contains: q, mode: 'insensitive' } }, { billingDocument: { contains: q } }] } } },
   ] } : {}) }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } }, orderBy: { createdAt: 'desc' }, take: 50 })
   const ids = data.map((customer) => customer.id)
