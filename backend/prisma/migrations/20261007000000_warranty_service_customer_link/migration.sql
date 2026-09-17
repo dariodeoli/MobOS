@@ -3,7 +3,7 @@
 -- que la garantía no apareciera en el perfil del cliente. Ahora hay relación
 -- real con Customer, con relleno por nombre cuando no hay ambigüedad.
 
-ALTER TABLE "WarrantyCase" ADD COLUMN "customerId" TEXT;
+ALTER TABLE "WarrantyCase" ADD COLUMN IF NOT EXISTS "customerId" TEXT;
 
 -- ServiceOrder.customerId ya existía como texto suelto: se limpian los valores
 -- huérfanos antes de crear la clave foránea.
@@ -29,13 +29,19 @@ WHERE s."customerId" IS NULL
   AND lower(translate(c."name", 'ÁÉÍÓÚÜÑáéíóúüñ', 'AEIOUUNaeiouun')) = lower(translate(s."customerName", 'ÁÉÍÓÚÜÑáéíóúüñ', 'AEIOUUNaeiouun'))
   AND (SELECT count(*) FROM "Customer" c2 WHERE c2."tenantId" = s."tenantId" AND lower(translate(c2."name", 'ÁÉÍÓÚÜÑáéíóúüñ', 'AEIOUUNaeiouun')) = lower(translate(s."customerName", 'ÁÉÍÓÚÜÑáéíóúüñ', 'AEIOUUNaeiouun'))) = 1;
 
-ALTER TABLE "WarrantyCase"
-  ADD CONSTRAINT "WarrantyCase_customerId_fkey"
-  FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'WarrantyCase_customerId_fkey') THEN
+    ALTER TABLE "WarrantyCase"
+      ADD CONSTRAINT "WarrantyCase_customerId_fkey"
+      FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ServiceOrder_customerId_fkey') THEN
+    ALTER TABLE "ServiceOrder"
+      ADD CONSTRAINT "ServiceOrder_customerId_fkey"
+      FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-ALTER TABLE "ServiceOrder"
-  ADD CONSTRAINT "ServiceOrder_customerId_fkey"
-  FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
-CREATE INDEX "WarrantyCase_customerId_idx" ON "WarrantyCase"("customerId");
-CREATE INDEX "ServiceOrder_customerId_idx" ON "ServiceOrder"("customerId");
+CREATE INDEX IF NOT EXISTS "WarrantyCase_customerId_idx" ON "WarrantyCase"("customerId");
+CREATE INDEX IF NOT EXISTS "ServiceOrder_customerId_idx" ON "ServiceOrder"("customerId");
