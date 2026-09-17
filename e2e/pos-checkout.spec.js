@@ -80,13 +80,34 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(banner.getByRole('button', { name: 'Imprimir A4' })).toBeVisible()
   await expect(banner.getByRole('button', { name: 'Imprimir térmico' })).toBeVisible()
 
-  // The sale shows up in the seller's order list.
+  // El código comercial es corto y secuencial (MOB-#0001); el id interno sigue
+  // siendo un UUID y es lo que resuelve la navegación.
+  const creada = await page.evaluate(async ({ api, customer }) => {
+    const response = await fetch(`${api}/api/orders`, { credentials: 'include' })
+    if (!response.ok) return null
+    const rows = await response.json()
+    const order = rows.find(row => row.customer?.name === customer)
+    return order ? { orderNumber: order.orderNumber, id: order.id } : null
+  }, { api: API, customer: customerName })
+  expect(creada?.orderNumber).toMatch(/^MOB-#\d{4,}$/)
+  // El id interno no es el código comercial: la navegación no depende de él.
+  expect(creada?.id).toBeTruthy()
+  expect(creada?.id).not.toBe(creada?.orderNumber)
+
+  // La venta aparece en el listado del vendedor. La columna Cliente muestra
+  // nombre + primer apellido, así que el nombre completo no se ve en la tabla.
   await page.goto('/pos/pedidos')
   await expect(page.getByRole('heading', { name: 'Mis pedidos' })).toBeVisible()
-  const sale = page.getByTestId('pedido-fila').filter({ hasText: customerName }).first()
+  const sale = page.getByTestId('pedido-fila').filter({ hasText: creada.orderNumber }).first()
   await expect(sale).toBeVisible()
   await expect(sale).toContainText('×1')
+  await expect(sale).toContainText('Cliente E2E')
   await expect(sale.getByText('Pagado', { exact: true })).toBeVisible()
+
+  // Clic en la fila: abre el pedido por su id interno.
+  await sale.click()
+  await expect(page).toHaveURL(new RegExp(`/pos/pedidos/${creada.id}$`))
+  await expect(page.getByRole('dialog')).toContainText(creada.orderNumber)
 })
 
 // Listado de pedidos: buscador global, encabezados ordenables y filtros de cobro.
@@ -122,6 +143,42 @@ test('pedidos: buscador global, orden por columna y filtros', async ({ page }) =
   await page.getByRole('button', { name: 'Todos', exact: true }).click()
   await expect(filas.filter({ hasText: primera.orderNumber }).first()).toBeVisible()
 })
+
+// Clic en una fila: abre el pedido individual sin error. La URL usa el id
+// interno (UUID), no el código comercial, así que renombrar el código no
+// rompe enlaces ni relaciones.
+test('pedidos: clic en la fila abre el pedido por su id interno', async ({ page }) => {
+  await page.goto('/pos/pedidos')
+  const filas = page.getByTestId('pedido-fila')
+  await expect(filas.first()).toBeVisible()
+
+  const ordenes = await page.evaluate(async (api) => {
+    const response = await fetch(`${api}/api/orders`, { credentials: 'include' })
+    return response.ok ? await response.json() : []
+  }, API)
+  const primera = ordenes[0]
+  expect(primera?.id).toBeTruthy()
+
+  const errores = []
+  page.on('pageerror', (error) => errores.push(error.message))
+
+  await filas.filter({ hasText: primera.orderNumber }).first().click()
+  await expect(page).toHaveURL(new RegExp(`/pos/pedidos/${primera.id}$`))
+
+  const detalle = page.getByRole('dialog')
+  await expect(detalle).toBeVisible()
+  await expect(detalle).toContainText(primera.orderNumber)
+  await expect(detalle.getByText('Artículos preparados')).toBeVisible()
+
+  // Recargar sobre la URL del pedido lo vuelve a resolver por id.
+  await page.reload()
+  await expect(page.getByRole('dialog')).toContainText(primera.orderNumber)
+
+  await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  await expect(page).toHaveURL(/\/pos\/pedidos$/)
+  expect(errores, 'la vista del pedido no debe romper con errores de runtime').toEqual([])
+})
+
 
 // El país de la dirección se puede vaciar (no vuelve solo) y el resumen
 // lateral muestra el total de la venta y abre el carrito.
