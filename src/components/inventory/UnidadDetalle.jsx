@@ -6,7 +6,7 @@ import { api, API_URL } from '@/lib/api/client'
 const statusLabel = { AVAILABLE: 'Disponible', RESERVED: 'Reservado', SOLD: 'Vendido', DEFECTIVE: 'En revisión', IN_TRANSIT: 'En tránsito' }
 const conditionLabel = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 const badgeTone = { AVAILABLE: 'green', RESERVED: 'orange', IN_TRANSIT: 'blue', DEFECTIVE: 'slate', SOLD: 'red' }
-const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario' }
+const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario', sale: 'Venta' }
 
 const money = (value, currency) => {
   const amount = Number(value)

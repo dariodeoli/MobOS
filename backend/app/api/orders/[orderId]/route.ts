@@ -1,4 +1,5 @@
 import { prisma } from '../../../../lib/prisma'
+import { syncOrderItemSerials } from '../../../../lib/order-serials'
 import { Prisma } from '@prisma/client'
 import { error, json, tenantId } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
@@ -81,6 +82,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
         }
         const saved = await tx.orderItem.update({ where: { id: item.id }, data: { serials: [...(Array.isArray(item.serials) ? item.serials : []), ...serials], serialsPending: { decrement: serials.length } } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_SERIALS_ATTACHED', entity: 'Order', entityId: existing.id, metadata: { itemId, serials } } })
+        await syncOrderItemSerials(tx, [saved])
         return saved
       })
       const order = await prisma.order.findFirstOrThrow({ where: { id: orderId, tenantId: tenant }, include: orderInclude })

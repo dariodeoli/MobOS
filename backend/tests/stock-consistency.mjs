@@ -32,6 +32,40 @@ try {
     WHERE p."isActive" = true
       AND EXISTS (SELECT 1 FROM "InventoryUnit" u2 WHERE u2."productId" = p."id")
       AND p."stock" > (SELECT count(*) FROM "InventoryUnit" u WHERE u."productId" = p."id" AND u."status" IN ('AVAILABLE', 'RESERVED'))`
+  // Espejo indexado de seriales: cada serial del JSON de la línea debe tener
+  // su fila en OrderItemSerial (y ninguna fila suelta).
+  const mirrorMismatch = await prisma.$queryRaw`
+    SELECT oi."id"
+    FROM "OrderItem" oi
+    LEFT JOIN "OrderItemSerial" s ON s."orderItemId" = oi."id"
+    GROUP BY oi."id", oi."serials"
+    HAVING count(s."id") <> (CASE WHEN jsonb_typeof(oi."serials") = 'array' THEN jsonb_array_length(oi."serials") ELSE 0 END)
+    LIMIT 500`
+  if (mirrorMismatch.length) {
+    if (fix) {
+      await prisma.$executeRaw`
+        DELETE FROM "OrderItemSerial" s
+        WHERE NOT EXISTS (
+          SELECT 1 FROM "OrderItem" oi, jsonb_array_elements_text(oi."serials") AS v
+          WHERE oi."id" = s."orderItemId" AND v = s."serial"
+        )`
+      await prisma.$executeRaw`
+        INSERT INTO "OrderItemSerial" ("id", "orderItemId", "serial", "createdAt")
+        SELECT gen_random_uuid()::text, oi."id", v, o."createdAt"
+        FROM "OrderItem" oi
+        JOIN "Order" o ON o."id" = oi."orderId"
+        CROSS JOIN LATERAL jsonb_array_elements_text(oi."serials") AS v
+        WHERE jsonb_typeof(oi."serials") = 'array' AND v <> ''
+        ON CONFLICT ("orderItemId", "serial") DO NOTHING`
+      console.log(`order-item-serials: ${mirrorMismatch.length} línea(s) resincronizada(s) desde el JSON.`)
+    } else {
+      console.log(`order-item-serials: ${mirrorMismatch.length} línea(s) con espejo desincronizado. Volvé a correr con --fix para recomponer.`)
+      process.exit(1)
+    }
+  } else {
+    const mirrorTotal = await prisma.orderItemSerial.count()
+    console.log(`order-item-serials: OK (${mirrorTotal} serial(es) indexado(s))`)
+  }
   if (surplus[0]?.total > 0) console.log(`stock-consistency: ${surplus[0].total} producto(s) con stock mayor a las unidades (puede ser stock sin serie; revisar a mano).`)
   if (!deficits.length) {
     console.log('stock-consistency: OK (sin faltantes de stock)')

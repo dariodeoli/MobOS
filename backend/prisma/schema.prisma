@@ -865,8 +865,23 @@ model OrderItem {
   // Descuento por línea: fijo en guaraníes o porcentual (uno de los dos).
   discountPyg          Int            @default(0)
   discountPct          Decimal?       @db.Decimal(5, 2)
+  serialsList          OrderItemSerial[]
 
   @@index([orderId])
+}
+
+// Espejo indexado de OrderItem.serials: permite responder "¿qué venta tiene
+// este IMEI/serial?" sin escanear el JSON. Se sincroniza en cada escritura de
+// la línea; el JSON sigue siendo el dato que se muestra en el comprobante.
+model OrderItemSerial {
+  id          String    @id @default(cuid())
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  serial      String
+  createdAt   DateTime  @default(now())
+
+  @@unique([orderItemId, serial])
+  @@index([serial])
 }
 
 // Plantilla por categoría: por ejemplo Teléfonos = seguro 2%. Un producto

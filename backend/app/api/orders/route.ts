@@ -10,6 +10,7 @@ import { enforceRateLimit } from '../../../lib/rate-limit'
 import { serialKey } from '../../../lib/validation'
 import { lineDiscount as lineDiscountFor, warrantyDaysFor } from '../../../lib/pricing'
 import { changeStock } from '../../../lib/stock'
+import { syncOrderItemSerials } from '../../../lib/order-serials'
 
 // Detalle devuelto tanto al crear como al reutilizar una orden idempotente.
 const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
@@ -280,6 +281,9 @@ export async function POST(request: Request) {
           }
         }
       }
+      // Espejo indexado de seriales (aunque la venta no tenga sucursal).
+      const serialItems = await tx.orderItem.findMany({ where: { orderId: order.id }, select: { id: true, serials: true } })
+      await syncOrderItemSerials(tx, serialItems)
       return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: orderDetail })
     })
     return json(result, { status: 201 })

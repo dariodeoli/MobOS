@@ -22,7 +22,7 @@ export async function GET(request: Request, { params }: RouteContext) {
   if (!unit) return error('Unidad no encontrada.', 404)
   if (session.user.role === 'GERENTE' && unit.branchId !== session.user.branchId) return error('No autorizado para esa sucursal.', 403)
 
-  const [auditEvents, transferRows, commentRows] = await Promise.all([
+  const [auditEvents, transferRows, saleRows, commentRows] = await Promise.all([
     prisma.auditLog.findMany({
       where: { tenantId: session.user.tenantId, entity: 'InventoryUnit', entityId: id },
       select: { id: true, action: true, createdAt: true, metadata: true, user: { select: { id: true, name: true } } },
@@ -42,6 +42,19 @@ export async function GET(request: Request, { params }: RouteContext) {
       WHERE t."tenantId" = ${session.user.tenantId}
         AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(l."serials") AS s WHERE s = ${unit.serial})
       ORDER BY t."createdAt" ASC
+      LIMIT 500
+    `,
+    // Ventas de esta unidad por el espejo indexado de seriales: no depende de
+    // escanear JSON ni de que el evento de auditoría siga existiendo.
+    prisma.$queryRaw<Array<{ id: string; orderNumber: string; createdAt: Date; customerName: string | null; sellerName: string | null }>>`
+      SELECT o."id", o."orderNumber", o."createdAt", c."name" AS "customerName", u."name" AS "sellerName"
+      FROM "OrderItemSerial" s
+      JOIN "OrderItem" i ON i."id" = s."orderItemId"
+      JOIN "Order" o ON o."id" = i."orderId"
+      LEFT JOIN "Customer" c ON c."id" = o."customerId"
+      LEFT JOIN "User" u ON u."id" = o."sellerId"
+      WHERE o."tenantId" = ${session.user.tenantId} AND s."serial" = ${unit.serial}
+      ORDER BY o."createdAt" ASC
       LIMIT 500
     `,
     prisma.inventoryUnitComment.findMany({
@@ -68,6 +81,14 @@ export async function GET(request: Request, { params }: RouteContext) {
       createdAt: row.createdAt,
       user: { id: row.createdById, name: row.createdByName },
       detail: `Traslado de ${row.sourceBranchName} a ${row.destinationBranchName}${row.notes ? ` (${row.notes})` : ''}`,
+    })),
+    ...saleRows.map(row => ({
+      id: row.id,
+      type: 'sale' as const,
+      action: 'ORDER_SOLD',
+      createdAt: row.createdAt,
+      user: row.sellerName ? { id: '', name: row.sellerName } : null,
+      detail: `Venta ${row.orderNumber}${row.customerName ? ` · ${row.customerName}` : ''}`,
     })),
     ...commentRows.map(comment => ({
       id: comment.id,
