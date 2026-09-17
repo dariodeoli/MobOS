@@ -324,6 +324,13 @@ export default function FormularioVenta({
   function nombreDe(id) {
     return productos.find(p => p.id === id)?.nombre || ''
   }
+  // Precio de lista que corresponde a esta venta: mayorista si el cliente lo es.
+  function precioListaDe(id) {
+    const producto = productos.find(p => p.id === id)
+    if (!producto) return undefined
+    if (customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) return Number(producto.wholesalePricePyg)
+    return Number(producto.precioVenta) || 0
+  }
   function agregarCombo(combo) {
     const componentes = (Array.isArray(combo.items) ? combo.items : []).map(item => {
       const producto = productos.find(p => p.id === item.productId)
@@ -815,6 +822,7 @@ export default function FormularioVenta({
             estadoPago: pendiente === 0 ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente',
             fecha: fechaVenta,
             precio: it.precio,
+            listPricePyg: precioListaDe(it.productoId),
             medioPago: f.medioPago,
             entrega: i === 0 ? f.entrega : 'Retiro en tienda',
             montoDelivery: it.montoDelivery,
