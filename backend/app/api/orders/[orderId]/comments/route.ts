@@ -1,7 +1,9 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { enforceRateLimit } from '../../../../../lib/rate-limit'
 import { canAccessOrder } from '../../../../../lib/orders'
+import { saveAttachment } from '../../../../../lib/attachment-storage'
 import { MAX_MULTIPART_BODY_BYTES, readProofFile } from '../../../payments/_lib'
 
 async function accessibleOrder(orderId: string, tenant: string, user: { id: string; role: string; branchId: string | null }) {
@@ -35,6 +37,8 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
 export async function POST(request: Request, context: { params: Promise<{ orderId: string }> }) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  const limited = enforceRateLimit(request, 'order-comments', 30, 60_000)
+  if (limited) return limited
   const { orderId } = await context.params
   const order = await accessibleOrder(orderId, tenant, session.user)
   if (!order) return error('Pedido no encontrado.', 404)
@@ -53,11 +57,14 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
     return error('No se pudo leer el comentario.', 400)
   }
   if (!body && !file) return error('Escribí un comentario o adjuntá una foto.', 400)
+  // Write-through: con volumen configurado el archivo va al disco y en la base
+  // queda el storageKey; `data` conserva la copia de respaldo.
+  const stored = file ? await saveAttachment({ tenantId: tenant, area: 'order-comment-photos', fileName: file.fileName, mimeType: file.mimeType, sha256: file.sha256, data: file.data }) : { storageKey: null }
   const created = await prisma.$transaction(async tx => {
     const comment = await tx.orderComment.create({
       data: {
         tenantId: tenant, orderId: order.id, userId: session.user.id, body: body || 'Adjunto',
-        ...(file ? { photos: { create: { tenantId: tenant, fileName: file.fileName, mimeType: file.mimeType, sizeBytes: file.sizeBytes, sha256: file.sha256, data: file.data } } } : {}),
+        ...(file ? { photos: { create: { tenantId: tenant, fileName: file.fileName, mimeType: file.mimeType, sizeBytes: file.sizeBytes, sha256: file.sha256, data: file.data, storageKey: stored.storageKey } } } : {}),
       },
       include: { user: authorSelect, photos: photoSelect },
     })

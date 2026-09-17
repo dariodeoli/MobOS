@@ -1,7 +1,9 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { saveAttachment } from '../../../../../lib/attachment-storage'
 import { MAX_MULTIPART_BODY_BYTES, readProofFile } from '../../../payments/_lib'
+import { enforceRateLimit } from '../../../../../lib/rate-limit'
 
 const ROLES = ['ADMIN', 'GERENTE']
 
@@ -36,6 +38,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
+  const limited = enforceRateLimit(request, 'unit-comments', 30, 60_000)
+  if (limited) return limited
   const { id } = await context.params
   const unit = await accessibleUnit(id, session)
   if (!unit) return error('Unidad no encontrada.', 404)
@@ -54,11 +58,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return error('No se pudo leer el comentario.', 400)
   }
   if (!body && !file) return error('Escribí un comentario o adjuntá una foto.', 400)
+  // Write-through: con volumen configurado el archivo va al disco y en la base
+  // queda el storageKey; `data` conserva la copia de respaldo.
+  const stored = file ? await saveAttachment({ tenantId: session.user.tenantId, area: 'inventory-unit-comment-photos', fileName: file.fileName, mimeType: file.mimeType, sha256: file.sha256, data: file.data }) : { storageKey: null }
   const created = await prisma.$transaction(async tx => {
     const comment = await tx.inventoryUnitComment.create({
       data: {
         tenantId: session.user.tenantId, unitId: unit.id, userId: session.user.id, body: body || 'Adjunto',
-        ...(file ? { photos: { create: { tenantId: session.user.tenantId, fileName: file.fileName, mimeType: file.mimeType, sizeBytes: file.sizeBytes, sha256: file.sha256, data: file.data } } } : {}),
+        ...(file ? { photos: { create: { tenantId: session.user.tenantId, fileName: file.fileName, mimeType: file.mimeType, sizeBytes: file.sizeBytes, sha256: file.sha256, data: file.data, storageKey: stored.storageKey } } } : {}),
       },
       include: { user: authorSelect, photos: photoSelect },
     })

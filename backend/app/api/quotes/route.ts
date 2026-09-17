@@ -2,6 +2,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { quoteTotals } from '../../../lib/pricing'
+import { enforceRateLimit } from '../../../lib/rate-limit'
 
 const INT_MAX = 2147483647
 const STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'CONVERTED', 'EXPIRED', 'CANCELLED']
@@ -50,6 +51,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  const limited = enforceRateLimit(request, 'quotes', 60, 60_000)
+  if (limited) return limited
   let body: any; try { body = await request.json() } catch { return error('JSON inválido.') }
   const customerName = text(body?.customerName, 200)
   if (!customerName) return error('El nombre del cliente es obligatorio.')
