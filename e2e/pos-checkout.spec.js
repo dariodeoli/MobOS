@@ -85,8 +85,42 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(page.getByRole('heading', { name: 'Mis pedidos' })).toBeVisible()
   const sale = page.getByTestId('pedido-fila').filter({ hasText: customerName }).first()
   await expect(sale).toBeVisible()
-  await expect(sale).toContainText('artículo')
+  await expect(sale).toContainText('×1')
   await expect(sale.getByText('Pagado', { exact: true })).toBeVisible()
+})
+
+// Listado de pedidos: buscador global, encabezados ordenables y filtros de cobro.
+test('pedidos: buscador global, orden por columna y filtros', async ({ page }) => {
+  await page.goto('/pos/pedidos')
+  const filas = page.getByTestId('pedido-fila')
+  await expect(filas.first()).toBeVisible()
+
+  // Pedido más reciente del vendedor, según la propia API.
+  const ordenes = await page.evaluate(async (api) => {
+    const response = await fetch(`${api}/api/orders`, { credentials: 'include' })
+    return response.ok ? await response.json() : []
+  }, API)
+  const primera = ordenes[0]
+  expect(primera?.orderNumber).toBeTruthy()
+
+  const buscador = page.getByLabel('Buscar pedidos')
+  await buscador.fill(String(primera.totalPyg))
+  await expect(filas.filter({ hasText: primera.orderNumber }).first()).toBeVisible()
+  await buscador.fill('no-existe-xyz')
+  await expect(filas).toHaveCount(0)
+  await buscador.fill('')
+
+  const total = page.getByRole('button', { name: 'Total' })
+  await total.click()
+  await expect(total).toContainText('↓')
+  await total.click()
+  await expect(total).toContainText('↑')
+
+  // Filtros de cobro: "No pagados" oculta un pedido ya pagado.
+  await page.getByRole('button', { name: 'No pagados', exact: true }).click()
+  await expect(filas.filter({ hasText: primera.orderNumber })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Todos', exact: true }).click()
+  await expect(filas.filter({ hasText: primera.orderNumber }).first()).toBeVisible()
 })
 
 // El país de la dirección se puede vaciar (no vuelve solo) y el resumen
