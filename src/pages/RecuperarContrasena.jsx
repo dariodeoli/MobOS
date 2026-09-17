@@ -11,6 +11,7 @@ import ThemeLogo from '@/components/app/ThemeLogo'
 import PegarEnlaceToken from '@/components/shared/PegarEnlaceToken'
 
 export default function RecuperarContrasena() {
+  const navigate = useNavigate()
   const [token, setToken] = useState(() => consumeActionToken())
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

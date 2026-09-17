@@ -81,6 +81,31 @@ const resumenValor = (kind, value) => {
 const saldoOrden = (order) => Number(order?.pendingPyg ?? order?.balancePyg ?? 0)
 const pagadoOrden = (order) => Number(order?.collectedPyg ?? order?.paidPyg ?? 0)
 
+const AUDIT_TEXTS = {
+  CUSTOMER_CREATED: 'Cliente creado',
+  CUSTOMER_UPDATED: 'Datos del cliente actualizados',
+  CUSTOMER_NOTE_CREATED: 'Nota interna agregada',
+  CUSTOMER_NOTE_UPDATED: 'Nota interna editada',
+  CUSTOMER_NOTE_DELETED: 'Nota interna eliminada',
+  CUSTOMER_FOLLOW_UP_CREATED: 'Seguimiento agendado',
+  CUSTOMER_FOLLOW_UP_UPDATED: 'Seguimiento actualizado',
+  CUSTOMER_FOLLOW_UP_DELETED: 'Seguimiento eliminado',
+  CUSTOMER_REQUEST_CREATED: 'Solicitud comercial creada',
+  CUSTOMER_REQUEST_APPROVED: 'Solicitud comercial aprobada',
+  CUSTOMER_REQUEST_REJECTED: 'Solicitud comercial rechazada',
+  ORDER_FULFILLMENT_UPDATED: (meta) => `Entrega: ${FULFILLMENT_STATUS[meta?.previous] || meta?.previous || '—'} → ${FULFILLMENT_STATUS[meta?.current] || meta?.current || '—'}`,
+}
+
+function textoEvento(evento) {
+  if (evento.type === 'created') return 'Cliente creado'
+  if (evento.type === 'order') return `Pedido ${evento.orderNumber || ''} · ${formatGs(evento.amountPyg || 0)}`.trim()
+  if (evento.type === 'payment') return `Pago ${formatGs(evento.amountPyg || 0)} · ${evento.method || ''}${evento.orderNumber ? ` · ${evento.orderNumber}` : ''}`.trim()
+  if (evento.type === 'note') return evento.detail
+  if (evento.type === 'warranty') return evento.detail
+  const label = AUDIT_TEXTS[evento.action]
+  return typeof label === 'function' ? label(evento.metadata) : label || 'Movimiento del cliente'
+}
+
 const TABS = [
   { key: 'compras', label: 'Compras' },
   { key: 'dispositivos', label: 'Dispositivos' },
