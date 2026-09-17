@@ -24,7 +24,11 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 | `shared/EmailField` | Sugiere dominios frecuentes mientras se teclea (gmail, hotmail, outlook, yahoo, icloud, live, hotmail.es, outlook.es); no interfiere con pegado, autocompletado ni `fill()`; `type="email"`; máx 200 | Login, registro, recuperación, empresa, vendedores ×2, cliente ×2, proveedor |
 | `shared/InstagramField` | `@` fijo no borrable, sin espacios, solo `[A-Za-z0-9._]`, máx 30; guarda el username pelado (el link se arma después) | Sucursal |
 | `shared/CityAutocomplete` | Ciudad con sugerencias y departamento automático; texto libre permitido | Sucursal, proveedor, direcciones de cliente y checkout |
-| `shared/ProductCombobox` | Buscar/elegir producto (y crear desde ahí) | POS, compras |
+| `shared/PercentField` (+ `parsePercent`/`formatPercent`) | Porcentaje 0–100 con coma decimal y hasta 2 decimales (`0,2`, `12,5`): limpia a dígitos y una sola coma, máx 6 caracteres. `onChange` entrega el string con coma; al guardar usar `parsePercent` (número o `null`) y al mostrar `formatPercent` | Comisión de vendedores (acepta decimales 0–100 con coma), seguro del producto, descuento por medio de cobro, descuento de línea, cupón porcentual y descuento de producto |
+| `shared/CurrencySelect` | Moneda del sistema en un `Select` cerrado: `PYG · Gs`, `USD · Dólares`, `BRL · Reales`, `EUR · Euros`, `USDT · Tether` | Gastos, compras y cuentas de cobro |
+| `shared/SerialField` (+ `normalizarSerial`) | IMEI/serial de UNA unidad: mayúsculas, sin prefijo `MOBOS:`, sin espacios ni guiones (varios seriales se normalizan con `normalizeScan` al enviar) | Garantías, canje, herramienta del vendedor y pagos de pedido |
+| `shared/AttachmentInput` (+ validación de *magic bytes* en backend) | Adjunto JPG/PNG/WebP/PDF de hasta 5 MiB | Comprobantes y fotos de pedidos, unidades y garantías |
+| `shared/ProductCombobox` | Buscar/elegir producto (y crear desde ahí) | POS, compras, combos, cotizaciones y promociones |
 | `shared/RangoFechas` | Desde/hasta con atajos | Reportes, caja |
 | `shared/SelectorMedioPago` + `shared/MedioPago` | Elegir medio de pago / mostrarlo | POS, pedidos |
 | `shared/NumericKeypad` | Teclado numérico grande | POS/cobros |
@@ -36,7 +40,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 ## 3. Reglas por tipo de dato
 
 1. **Solo dígitos**: limpieza `.replace(/\D/g, '')` o `soloDigitos`; `inputMode="numeric"`; `maxLength` cuando aplica (PIN 4, batería 3). Campos: batería, días/plazos, cantidades, umbral de reposición, horas de reserva, PINs.
-2. **Porcentajes**: `inputMode="decimal"` y limpieza `[^\d.,]` (seguro, comisión, descuento por medio, cotización).
+2. **Porcentajes**: `PercentField` con coma decimal y hasta 2 decimales; la comisión del margen admite decimales 0–100 (ej. `0,2`) y se guarda con `parsePercent`; al mostrar, `formatPercent`. Si el dato es entero por diseño (cupones), validar el entero antes de enviar.
 3. **Moneda**: PYG se guarda numérico y se escribe con separador de miles (`MoneyInput`); monedas extranjeras con 2 decimales. El símbolo nunca se escribe dentro del valor.
 4. **IMEI/serial**: alfanumérico (no se restringe a dígitos), `autoCapitalize="characters"`; al guardar/buscar se normaliza `trim`, sin prefijo `MOBOS:`, sin espacios ni guiones, mayúsculas (`normalizeScan`); se aceptan varios separados por coma o salto de línea.
 5. **Teléfono**: ver `PhoneField`. Validación: Paraguay móvil `9` + 8 dígitos; otros países 6–12 dígitos. Clientes guardan `countryCode` + `phone`; sucursales y proveedores guardan `+<código> <número>`; los links wa.me usan `internationalPhone`.

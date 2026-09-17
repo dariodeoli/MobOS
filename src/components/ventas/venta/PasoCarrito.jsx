@@ -1,5 +1,6 @@
 import { Button, Input, Label, MoneyInput } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import PercentField from '@/components/shared/PercentField'
 import { gs } from '@/utils/calculos'
 
 export default function PasoCarrito({
@@ -65,13 +66,12 @@ export default function PasoCarrito({
               {puedeDescontar && (
                 <div className="mt-1.5 flex items-center gap-2 text-[11px] text-mute">
                   <span>Descuento línea:</span>
-                  <input
+                  <PercentField
                     aria-label={`Descuento % de ${it.nombre}`}
-                    inputMode="decimal"
                     value={it.descuentoPct || ''}
-                    onChange={e => editarDescuento(it.key, { descuentoPct: e.target.value.replace(/[^\d.,]/g, ''), descuento: '' })}
+                    onChange={value => editarDescuento(it.key, { descuentoPct: value, descuento: '' })}
                     placeholder="%"
-                    className="w-14 rounded-lg border border-ink-500 bg-ink-800 px-2 py-1 text-xs text-fore"
+                    className="w-14 px-2 py-1 text-xs"
                   />
                   <MoneyInput
                     aria-label={`Descuento fijo de ${it.nombre}`}

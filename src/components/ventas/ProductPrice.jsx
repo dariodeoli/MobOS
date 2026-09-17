@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { quoteDemoPromotion } from '@/lib/demoPromotions'
 import { Badge, Input, MoneyInput } from '@/components/ui'
+import PercentField from '@/components/shared/PercentField'
 import { gs } from '@/utils/calculos'
 
 const MODOS = [['price', 'Precio manual'], ['percent', 'Descuento %'], ['amount', 'Descuento Gs']]
@@ -72,7 +73,7 @@ export default function ProductPrice({ product, price, onChange: notify, quantit
     {mode === 'price'
       ? <label className="block text-xs text-mute">Precio de venta<MoneyInput className="mt-1" aria-label="Precio de venta" value={price} onValueChange={v => onChange(v)} /></label>
       : <label className="block text-xs text-mute">{mode === 'percent' ? 'Porcentaje (0–100)' : 'Monto a descontar'}{mode === 'percent'
-        ? <Input className="mt-1" aria-label="Descuento del producto" inputMode="decimal" value={discount} onChange={e => change(e.target.value)} placeholder="Ej. 10" />
+        ? <PercentField className="mt-1" aria-label="Descuento del producto" value={discount} onChange={change} placeholder="Ej. 10" />
         : <MoneyInput className="mt-1" aria-label="Descuento del producto" value={discount} onValueChange={v => change(String(v ?? ''))} placeholder="0" />}</label>}
     {error && <p role="alert" className="text-sm text-bad">{error}</p>}
 

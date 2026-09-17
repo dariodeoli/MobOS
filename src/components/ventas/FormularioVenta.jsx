@@ -32,6 +32,7 @@ import {
 } from '@/components/ui'
 import SelectorColor from './SelectorColor'
 import Icon from '@/components/shared/Icon'
+import { parsePercent } from '@/components/shared/PercentField'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import { accountPayment } from './PaymentAccountFields'
@@ -409,7 +410,7 @@ export default function FormularioVenta({
   }
   // Descuento por línea: porcentual si hay %, si no el fijo en guaraníes.
   const descuentoItem = it => {
-    const pct = Number(it.descuentoPct || 0)
+    const pct = parsePercent(it.descuentoPct) ?? 0
     if (pct > 0) return Math.round((it.precio * (it.quantity || 1) * pct) / 100)
     return Math.min(gsNum(it.descuento || 0), it.precio * (it.quantity || 1))
   }
@@ -623,7 +624,7 @@ export default function FormularioVenta({
     )
       return
     const orderItems = lista.map(it => {
-      const pct = Number(it.descuentoPct || 0)
+      const pct = parsePercent(it.descuentoPct) ?? 0
       const fijo = gsNum(it.descuento || 0)
       return {
         productId: it.productoId,

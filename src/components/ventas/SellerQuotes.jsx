@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
-import { Badge, Button, Input, Label, Modal, MoneyInput, Select, Textarea } from '@/components/ui'
+import { Badge, Button, Input, Label, Modal, MoneyInput, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import ProductCombobox from '@/components/shared/ProductCombobox'
 import { cn } from '@/lib/utils'
 import { resources } from '@/lib/api'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
@@ -96,7 +97,10 @@ export default function SellerQuotes() {
         <div className="space-y-2">
           <Label>Ítems</Label>
           {items.map((item, index) => <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-2.5 sm:grid-cols-[1.3fr_70px_140px_auto]">
-            <Select value={item.productId} onChange={event => { const producto = productos.find(p => p.id === event.target.value); setItems(list => list.map((row, i) => i === index ? (producto ? emptyItem(producto) : emptyItem()) : row)) }}><option value="">Producto del catálogo (opcional)</option>{productos.map(producto => <option key={producto.id} value={producto.id}>{producto.nombre}</option>)}</Select>
+            <span className="flex items-center gap-1">
+              <ProductCombobox key={item.productId || 'vacio'} className="flex-1" products={productos} selectedId={item.productId} onSelect={producto => setItems(list => list.map((row, i) => i === index ? emptyItem(producto) : row))} placeholder="Producto del catálogo (opcional)" />
+              {item.productId && <button type="button" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad" aria-label="Quitar producto del ítem" onClick={() => setItems(list => list.map((row, i) => i === index ? emptyItem() : row))}><Icon name="trash" className="h-4 w-4" /></button>}
+            </span>
             <Input inputMode="numeric" value={item.quantity} onChange={event => setItems(list => list.map((row, i) => i === index ? { ...row, quantity: event.target.value.replace(/\D/g, '') } : row))} placeholder="Cant." />
             <MoneyInput value={item.unitPricePyg} onValueChange={value => setItems(list => list.map((row, i) => i === index ? { ...row, unitPricePyg: value === '' ? '' : String(value) } : row))} placeholder="Precio unitario" />
             <button type="button" className="grid h-11 w-11 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad" onClick={() => setItems(list => list.length > 1 ? list.filter((_, i) => i !== index) : list)} aria-label="Quitar ítem"><Icon name="trash" className="h-4 w-4" /></button>

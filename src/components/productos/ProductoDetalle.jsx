@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Drawer, Badge, Button, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { api } from '@/lib/api/client'
 import { num } from '@/utils/calculos'
 
@@ -63,6 +64,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
     if (busy) return
     setBusy(true); setError('')
     try {
+      const seguro = parsePercent(form.seguro)
       const payload = {
         id: current.id,
         category: form.categoria,
@@ -73,7 +75,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
         pricePyg: num(form.precio),
         ...(form.mayorista === '' ? { wholesalePricePyg: null } : { wholesalePricePyg: num(form.mayorista) }),
         ...(form.costo === '' ? { costPyg: null } : { costPyg: num(form.costo) }),
-        ...(form.seguro === '' ? { insuranceRate: null } : { insuranceRate: Number(form.seguro.replace(',', '.')) }),
+        ...(seguro === null ? { insuranceRate: null } : { insuranceRate: seguro }),
         ...(form.umbral === '' ? { reorderPoint: null } : { reorderPoint: num(form.umbral) }),
         ...(form.priceUsd === '' ? { priceUsd: null } : { priceUsd: Number(String(form.priceUsd).replace(',', '.')) }),
         ...(form.garantiaDias === '' ? { warrantyDays: null } : { warrantyDays: num(form.garantiaDias) }),
@@ -140,7 +142,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
               <div><Label>Precio de venta (Gs)</Label><MoneyInput value={form.precio} onValueChange={value => setForm(current => ({ ...current, precio: value === '' ? '' : String(value) }))} /></div>
               <div><Label>Precio mayorista (Gs)</Label><MoneyInput value={form.mayorista} onValueChange={value => setForm(current => ({ ...current, mayorista: value === '' ? '' : String(value) }))} /></div>
               <div><Label>Costo (Gs)</Label><MoneyInput value={form.costo} onValueChange={value => setForm(current => ({ ...current, costo: value === '' ? '' : String(value) }))} /></div>
-              <div><Label>Seguro (%)</Label><Input inputMode="decimal" value={form.seguro} onChange={event => setForm(current => ({ ...current, seguro: event.target.value.replace(/[^\d.,]/g, '') }))} placeholder="Ej. 2" /></div>
+              <div><Label>Seguro (%)</Label><PercentField value={form.seguro} onChange={value => setForm(current => ({ ...current, seguro: value }))} placeholder="Ej. 2" /></div>
               <div><Label>Umbral de reposición</Label><Input inputMode="numeric" value={form.umbral} onChange={event => setForm(current => ({ ...current, umbral: event.target.value.replace(/\D/g, '') }))} placeholder="Ej. 3" /></div>
               <div><Label>Precio en USD (opcional)</Label><MoneyInput currency="USD" value={form.priceUsd} onValueChange={value => setForm(current => ({ ...current, priceUsd: value === '' ? '' : String(value) }))} placeholder="0,00" /></div>
               <div><Label>Garantía (días)</Label><Input inputMode="numeric" value={form.garantiaDias} onChange={event => setForm(current => ({ ...current, garantiaDias: event.target.value.replace(/\D/g, '') }))} placeholder="Ej. 365" /><p className="mt-1 text-[11px] text-mute">Al vender se crea la garantía del equipo automáticamente.</p></div>
@@ -172,7 +174,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
           <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Datos del catálogo</h3>
           <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{costo(current) > 0 ? <Money value={costo(current)} /> : 'pendiente'}</p></div>
-            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Seguro</p><p className="mt-1 font-semibold">{current?.insuranceRate != null && Number(current.insuranceRate) > 0 ? `${current.insuranceRate}%` : 'sin seguro'}</p></div>
+            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Seguro</p><p className="mt-1 font-semibold">{current?.insuranceRate != null && Number(current.insuranceRate) > 0 ? `${formatPercent(current.insuranceRate)}%` : 'sin seguro'}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Umbral de reposición</p><p className="mt-1 font-semibold">{current?.reorderPoint ?? '—'}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Condición</p><p className="mt-1 font-semibold">{CONDITION[current?.condition] || '—'}</p></div>
           </div>

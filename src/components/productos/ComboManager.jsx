@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Badge, Button, Input, Modal, MoneyInput, Select, useToast } from '@/components/ui'
+import { Badge, Button, Input, Modal, MoneyInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import ProductCombobox from '@/components/shared/ProductCombobox'
 import { resources } from '@/lib/api'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
@@ -64,7 +65,7 @@ export default function ComboManager({ open, onClose }) {
           </div>
           <div className="space-y-2">
             {form.components.map((component, index) => <div key={index} className="flex gap-2">
-              <Select value={component.productId} onChange={event => setForm(current => ({ ...current, components: current.components.map((row, i) => i === index ? { ...row, productId: event.target.value } : row) }))}><option value="">Producto…</option>{productos.map(product => <option key={product.id} value={product.id}>{product.nombre} · {gs(product.precioVenta)}</option>)}</Select>
+              <ProductCombobox className="flex-1" products={productos} selectedId={component.productId} onSelect={product => setForm(current => ({ ...current, components: current.components.map((row, i) => i === index ? { ...row, productId: product.id } : row) }))} placeholder="Producto…" />
               <Input className="w-20" inputMode="numeric" value={component.quantity} onChange={event => setForm(current => ({ ...current, components: current.components.map((row, i) => i === index ? { ...row, quantity: event.target.value.replace(/\D/g, '') } : row) }))} placeholder="Cant." />
               <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad" aria-label="Quitar componente" onClick={() => setForm(current => ({ ...current, components: current.components.length > 2 ? current.components.filter((_, i) => i !== index) : current.components }))}><Icon name="trash" className="h-4 w-4" /></button>
             </div>)}

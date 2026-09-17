@@ -6,6 +6,7 @@ import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } 
 import { Card, Button, ConfirmDialog, Input, Select, Badge, Label, Skeleton, EmptyState, MoneyInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
+import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { ROLE_LABELS } from '@/lib/roles'
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
@@ -160,7 +161,7 @@ function SeccionComisiones() {
     if (!nueva.userId || ocupado) return
     setOcupado(true); setError('')
     try {
-      await api.post('/api/commission-rules', { userId: nueva.userId, percentPyg: Number(nueva.percentPyg) })
+      await api.post('/api/commission-rules', { userId: nueva.userId, percentPyg: parsePercent(nueva.percentPyg) })
       setNueva({ userId: '', percentPyg: '' })
       toast.success('Regla de comisión creada.')
       await cargar()
@@ -168,8 +169,8 @@ function SeccionComisiones() {
   }
 
   async function guardar(regla) {
-    const percent = Number(borrador)
-    if (!Number.isInteger(percent) || percent < 0 || percent > 100) { setError('El porcentaje debe ser un entero entre 0 y 100.'); return }
+    const percent = parsePercent(borrador)
+    if (percent === null || percent < 0 || percent > 100) { setError('El porcentaje debe estar entre 0 y 100.'); return }
     setOcupado(true); setError('')
     try {
       await api.patch('/api/commission-rules', { id: regla.id, percentPyg: percent })
@@ -207,7 +208,7 @@ function SeccionComisiones() {
         </div>
         <div className="sm:w-36">
           <span className="block text-[10px] font-bold uppercase text-mute mb-1">% comisión</span>
-          <Input inputMode="decimal" value={nueva.percentPyg} onChange={event => setNueva({ ...nueva, percentPyg: event.target.value.replace(/[^\d.,]/g, '').slice(0, 6) })} placeholder="0" required />
+          <PercentField aria-label="Porcentaje de comisión" value={nueva.percentPyg} onChange={value => setNueva({ ...nueva, percentPyg: value })} placeholder="0" required />
         </div>
         <Button type="submit" disabled={ocupado}>{ocupado ? 'Guardando…' : 'Agregar regla'}</Button>
       </form>
@@ -227,14 +228,14 @@ function SeccionComisiones() {
               <div className="flex shrink-0 items-center gap-2">
                 {editandoId === regla.id ? (
                   <>
-                    <Input inputMode="decimal" value={borrador} onChange={event => setBorrador(event.target.value.replace(/[^\d.,]/g, '').slice(0, 6))} className="h-8 w-20 px-2 text-right text-sm" aria-label="Porcentaje de comisión" />
+                    <PercentField className="h-8 w-20 px-2 text-right text-sm" aria-label="Porcentaje de comisión" value={borrador} onChange={setBorrador} />
                     <Button type="button" variant="success" disabled={ocupado} className="h-8 px-2 text-xs" onClick={() => guardar(regla)}>Guardar</Button>
                     <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setEditandoId(null)}>Cancelar</Button>
                   </>
                 ) : (
                   <>
-                    <Badge color="green">{regla.percentPyg}%</Badge>
-                    <button type="button" onClick={() => { setEditandoId(regla.id); setBorrador(String(regla.percentPyg)) }} className="text-mute hover:text-fore transition" title="Editar porcentaje"><Icon name="edit" className="h-4 w-4" /></button>
+                    <Badge color="green">{formatPercent(regla.percentPyg)}%</Badge>
+                    <button type="button" onClick={() => { setEditandoId(regla.id); setBorrador(formatPercent(regla.percentPyg)) }} className="text-mute hover:text-fore transition" title="Editar porcentaje"><Icon name="edit" className="h-4 w-4" /></button>
                     <button type="button" onClick={() => setEliminando(regla)} className="text-ink-500 hover:text-bad transition" title="Eliminar regla"><Icon name="trash" className="h-4 w-4" /></button>
                   </>
                 )}

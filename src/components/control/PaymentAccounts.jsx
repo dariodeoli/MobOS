@@ -4,6 +4,8 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount } from '@/lib/paymentAccounts'
 import { BANCOS_PARAGUAY } from '@/lib/bancos-paraguay'
 import { Badge, Button, Card, Input, Label, Select } from '@/components/ui'
+import CurrencySelect from '@/components/shared/CurrencySelect'
+import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 
 const KINDS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta', TRADE_IN: 'Canje', PIX: 'Pix' }
 const EMPTY = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, settlementDays: 0, discountPct: 0 }
@@ -77,7 +79,8 @@ function AccountManager() {
 
   function save(event) {
     event.preventDefault()
-    mutate(() => editingId ? updatePaymentAccount(editingId, form) : createPaymentAccount(form), 'Cuenta guardada.')
+    const values = { ...form, feePercent: parsePercent(form.feePercent) ?? 0, discountPct: parsePercent(form.discountPct) ?? 0 }
+    mutate(() => editingId ? updatePaymentAccount(editingId, values) : createPaymentAccount(values), 'Cuenta guardada.')
   }
 
   return (
@@ -102,12 +105,12 @@ function AccountManager() {
         <fieldset disabled={busy} className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2"><Label htmlFor="pa-name">Nombre</Label><Input id="pa-name" autoFocus required maxLength={200} value={form.name} onChange={event => change('name', event.target.value)} placeholder="Ej. Caja principal" /></div>
           <div><Label htmlFor="pa-kind">Medio de pago</Label><Select id="pa-kind" value={form.kind} onChange={event => change('kind', event.target.value)}>{Object.entries(KINDS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
-          <div><Label htmlFor="pa-currency">Moneda</Label><Select id="pa-currency" value={form.currency} onChange={event => change('currency', event.target.value)}><option value="PYG">Gs · Guaraníes</option><option value="USD">USD · Dólares</option><option value="BRL">BRL · Reales</option><option value="EUR">EUR · Euros</option><option value="USDT">USDT · Tether</option></Select></div>
+          <div><Label htmlFor="pa-currency">Moneda</Label><CurrencySelect id="pa-currency" value={form.currency} onChange={event => change('currency', event.target.value)} /></div>
           <div><Label htmlFor="pa-bank">Banco {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-bank" list="pa-bank-options" required={form.kind === 'TRANSFER'} maxLength={200} value={form.bank} onChange={event => change('bank', event.target.value)} placeholder="Buscá entre los bancos de Paraguay o escribí otro" /><datalist id="pa-bank-options">{BANCOS_PARAGUAY.map(bank => <option key={bank} value={bank} />)}</datalist></div>
           <div><Label htmlFor="pa-holder">Titular {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-holder" required={form.kind === 'TRANSFER'} maxLength={200} value={form.holder} onChange={event => change('holder', event.target.value)} /></div>
           <div><Label htmlFor="pa-number">Número de cuenta {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-number" type="text" required={form.kind === 'TRANSFER'} maxLength={200} value={form.accountNumber} onChange={event => change('accountNumber', event.target.value)} /></div>
-          <div><Label htmlFor="pa-fee">Comisión (%)</Label><Input id="pa-fee" inputMode="decimal" required value={form.feePercent} onChange={event => change('feePercent', event.target.value.replace(/[^\d.,]/g, ''))} /></div>
-          <div><Label htmlFor="pa-discount">Descuento por este medio (%)</Label><Input id="pa-discount" inputMode="decimal" required value={form.discountPct} onChange={event => change('discountPct', event.target.value.replace(/[^\d.,]/g, ''))} /><p className="mt-1 text-[11px] text-mute">Sugerido al cobrar con este medio (ej. efectivo 5%).</p></div>
+          <div><Label htmlFor="pa-fee">Comisión (%)</Label><PercentField id="pa-fee" required value={form.feePercent} onChange={value => change('feePercent', value)} /></div>
+          <div><Label htmlFor="pa-discount">Descuento por este medio (%)</Label><PercentField id="pa-discount" required value={form.discountPct} onChange={value => change('discountPct', value)} /><p className="mt-1 text-[11px] text-mute">Sugerido al cobrar con este medio (ej. efectivo 5%).</p></div>
           <div><Label htmlFor="pa-settlement">Días en acreditarse</Label><Input id="pa-settlement" inputMode="numeric" maxLength={2} required value={form.settlementDays} onChange={event => change('settlementDays', event.target.value.replace(/\D/g, ''))} /><p className="mt-1 text-[11px] text-mute">Tarjeta suele tardar 1-3 días hábiles; efectivo 0.</p></div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isActive} onChange={event => change('isActive', event.target.checked)} />Cuenta activa</label>
         </fieldset>
@@ -118,7 +121,7 @@ function AccountManager() {
         {accounts.map(account => <div key={account.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-3 py-2 transition hover:border-fono/40">
           <span className="min-w-0 flex-1">
             <span className="flex flex-wrap items-center gap-2"><b className="truncate text-[13px]">{account.name}</b><Badge color={account.isActive ? 'green' : 'slate'}>{account.isActive ? 'Activa' : 'Inactiva'}</Badge><Badge color="slate">{KINDS[account.kind] || account.kind}</Badge><Badge color="blue">{account.currency === 'PYG' ? 'Gs' : account.currency}</Badge></span>
-            <span className="mt-0.5 block truncate text-[11px] text-mute">Comisión {account.feePercent ?? 0}%{account.settlementDays > 0 ? ` · acredita en ${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : ''}{Number(account.discountPct || 0) > 0 ? ` · descuento ${account.discountPct}%` : ''}{[account.bank, account.holder, account.accountNumber].filter(Boolean).length ? ` · ${[account.bank, account.holder, account.accountNumber].filter(Boolean).join(' · ')}` : ''}</span>
+            <span className="mt-0.5 block truncate text-[11px] text-mute">Comisión {formatPercent(account.feePercent ?? 0)}%{account.settlementDays > 0 ? ` · acredita en ${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : ''}{Number(account.discountPct || 0) > 0 ? ` · descuento ${formatPercent(account.discountPct)}%` : ''}{[account.bank, account.holder, account.accountNumber].filter(Boolean).length ? ` · ${[account.bank, account.holder, account.accountNumber].filter(Boolean).join(' · ')}` : ''}</span>
           </span>
           <span className="flex shrink-0 gap-1.5">
             <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`Editar ${account.name}`} onClick={() => openForm(account)}>Editar</Button>

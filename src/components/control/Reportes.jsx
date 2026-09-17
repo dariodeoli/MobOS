@@ -6,6 +6,7 @@ import { gs } from '@/utils/calculos'
 import { Badge, Button, Card, DataTable, EmptyState, Select, Stat } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import RangoFechas, { PRESETS, etiquetaRango } from '@/components/shared/RangoFechas'
+import { formatPercent } from '@/components/shared/PercentField'
 import {
   GRUPOS,
   columnasReporte,
@@ -104,7 +105,7 @@ export default function Reportes() {
         fila.sellerName || 'Sin vendedor',
         fila.totalPyg ?? '',
         fila.marginPyg ?? '',
-        fila.commissionPct ?? '',
+        formatPercent(fila.commissionPct),
         fila.commissionPyg ?? '',
       ])
       const csv = filasCsv(encabezados, filas)
@@ -228,7 +229,7 @@ export default function Reportes() {
                   { key: 'sellerName', label: 'Vendedor', render: (fila) => <span className="font-medium text-fore">{fila.sellerName || 'Sin vendedor'}</span> },
                   { key: 'totalPyg', label: 'Ventas', align: 'right', render: (fila) => <span className="tabular-nums text-mute">{gs(fila.totalPyg)}</span> },
                   { key: 'marginPyg', label: 'Margen', align: 'right', render: (fila) => <span className="tabular-nums text-mute">{gs(fila.marginPyg)}</span> },
-                  { key: 'commissionPct', label: '% comisión', align: 'right', render: (fila) => <span className="tabular-nums text-mute">{fila.commissionPct === null ? '—' : `${fila.commissionPct}%`}</span> },
+                  { key: 'commissionPct', label: '% comisión', align: 'right', render: (fila) => <span className="tabular-nums text-mute">{fila.commissionPct === null ? '—' : `${formatPercent(fila.commissionPct)}%`}</span> },
                   { key: 'commissionPyg', label: 'Comisión', align: 'right', render: (fila) => <span className="tabular-nums font-semibold text-fore">{gs(fila.commissionPyg)}</span> },
                 ]}
                 rows={datosComisiones.sellers.map((fila) => ({ ...fila, key: fila.sellerId }))}
@@ -236,7 +237,7 @@ export default function Reportes() {
                   <Card>
                     <div className="flex items-start justify-between gap-3">
                       <div className="font-semibold text-fore">{fila.sellerName || 'Sin vendedor'}</div>
-                      <Badge color={fila.commissionPct === null ? 'slate' : 'green'}>{fila.commissionPct === null ? 'Sin regla' : `${fila.commissionPct}%`}</Badge>
+                      <Badge color={fila.commissionPct === null ? 'slate' : 'green'}>{fila.commissionPct === null ? 'Sin regla' : `${formatPercent(fila.commissionPct)}%`}</Badge>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                       <Linea label="Ventas" valor={gs(fila.totalPyg)} />
@@ -270,7 +271,7 @@ export default function Reportes() {
             <Stat
               label="Margen real"
               valor={gs(totales.netProfitPyg ?? totales.profitPyg)}
-              sub={totales.netMarginPct === null ? 'Sin costos cargados' : `Margen neto ${totales.netMarginPct}%`}
+              sub={totales.netMarginPct === null ? 'Sin costos cargados' : `Margen neto ${formatPercent(totales.netMarginPct)}%`}
             />
             <Stat label="Costo de mercadería" valor={gs(totales.costPyg)} sub={`${totales.units} unidades`} />
           </div>
@@ -288,7 +289,7 @@ export default function Reportes() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Stat label="Rotación del período" valor={datos.inventory?.sellThroughPct === null || datos.inventory?.sellThroughPct === undefined ? '—' : `${datos.inventory.sellThroughPct}%`} sub={`${datos.inventory?.soldUnits ?? 0} unidades vendidas`} />
+            <Stat label="Rotación del período" valor={datos.inventory?.sellThroughPct === null || datos.inventory?.sellThroughPct === undefined ? '—' : `${formatPercent(datos.inventory.sellThroughPct)}%`} sub={`${datos.inventory?.soldUnits ?? 0} unidades vendidas`} />
             <Stat label="Stock actual" valor={`${datos.inventory?.onHandUnits ?? 0} u.`} sub="Productos activos de la sucursal" />
             <Stat label="Faltantes" valor={`${datos.inventory?.shortages?.length ?? 0}`} sub={(datos.inventory?.shortages || []).slice(0, 2).map((p) => p.name).join(' · ') || 'Sin faltantes'} />
           </div>
