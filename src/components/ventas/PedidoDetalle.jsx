@@ -4,10 +4,10 @@ import Icon from '@/components/shared/Icon'
 import { api, API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { printOrderReceipt } from '@/components/shared/OrderReceipt'
+import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 
 const FULFILLMENT = { PROCESSING: 'Preparando', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 const PAYMENT_TONE = (status) => status === 'Pagado' ? 'green' : status === 'Parcial' ? 'orange' : 'red'
-const METHOD_LABELS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta / POS', CREDIT: 'Crédito', TRADE_IN: 'Canje', PIX: 'Pix' }
 const PAYMENT_STATUS = { CONFIRMED: 'Confirmado', PENDING: 'Pendiente', REFUNDED: 'Reembolsado', REJECTED: 'Rechazado' }
 const AUDIT_LABELS = {
   ORDER_FULFILLMENT_UPDATED: (meta) => `Entrega: ${FULFILLMENT[meta?.previous] || meta?.previous || '—'} → ${FULFILLMENT[meta?.current] || meta?.current || '—'}`,
@@ -207,7 +207,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             </div>
             {payments.length > 0 && <div className="mt-3 space-y-2 border-t border-ink-600 pt-3">
               {payments.map(pago => <div key={pago.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span className="text-mute">{METHOD_LABELS[pago.method] || pago.method}{pago.accountSnapshot?.name ? ` · ${pago.accountSnapshot.name}` : ''}{pago.reference ? ` · ${pago.reference}` : ''}</span>
+                <span className="text-mute">{ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method}{pago.accountSnapshot?.name ? ` · ${pago.accountSnapshot.name}` : ''}{pago.reference ? ` · ${pago.reference}` : ''}</span>
                 <span className="flex items-center gap-2"><span className="tabular-nums font-semibold">{gs(Number(pago.amountPyg || 0))}</span><Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status}</Badge>{pago.settlesAt && <span className="text-[10px] text-mute">acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
               </div>)}
             </div>}
@@ -256,7 +256,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                         <p className="mt-1 whitespace-pre-wrap text-sm">{event.body}</p>
                         {(event.photos || []).length > 0 && <div className="mt-2 flex flex-wrap gap-2">{event.photos.map(photo => <PhotoThumb key={photo.id} orderId={order.id} commentId={event.id} photo={photo} />)}</div>}
                       </>}
-                      {event.type === 'payment' && <p className="mt-1 text-sm text-mute">{METHOD_LABELS[event.payment.method] || event.payment.method} · <b className="text-fore">{gs(Number(event.payment.amountPyg || 0))}</b> · {PAYMENT_STATUS[event.payment.status] || event.payment.status}{event.payment.accountSnapshot?.name ? ` · ${event.payment.accountSnapshot.name}` : ''}{event.payment.reference ? ` · ${event.payment.reference}` : ''}</p>}
+                      {event.type === 'payment' && <p className="mt-1 text-sm text-mute">{ETIQUETAS_MEDIO_PAGO[event.payment.method] || event.payment.method} · <b className="text-fore">{gs(Number(event.payment.amountPyg || 0))}</b> · {PAYMENT_STATUS[event.payment.status] || event.payment.status}{event.payment.accountSnapshot?.name ? ` · ${event.payment.accountSnapshot.name}` : ''}{event.payment.reference ? ` · ${event.payment.reference}` : ''}</p>}
                       {event.type === 'audit' && <p className="mt-1 text-sm text-mute">{AUDIT_LABELS[event.action]?.(event.metadata) || event.action}</p>}
                       {event.type === 'created' && <p className="mt-1 text-sm text-mute">Pedido creado.</p>}
                     </div>

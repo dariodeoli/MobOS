@@ -14,6 +14,7 @@ import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
 import { EmptyState } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 
 const POR_PAGINA = 8
 // 'YYYY-MM-DD' -> 'DD/MM/YY'
@@ -22,12 +23,6 @@ const fmtFecha = f => {
   return d ? `${d}/${m}/${y.slice(2)}` : '—'
 }
 const inicial = s => (s || '?').trim().charAt(0).toUpperCase()
-const TIPOS_PAGO = {
-  CASH: 'Efectivo',
-  TRANSFER: 'Transferencia',
-  CARD: 'Tarjeta',
-  TRADE_IN: 'Canje',
-}
 
 function PagosVenta({ venta }) {
   const pagos = venta.pagos?.length ? venta.pagos : venta.payments || []
@@ -41,13 +36,13 @@ function PagosVenta({ venta }) {
           return (
             <div key={p.id || i} className="text-xs text-mute">
               <span className="font-medium">
-                {cuenta?.name || p.medioPago || TIPOS_PAGO[kind] || 'Cuenta de pago'}
+                {cuenta?.name || p.medioPago || ETIQUETAS_MEDIO_PAGO[kind] || 'Cuenta de pago'}
               </span>
-              {kind && <span> · {TIPOS_PAGO[kind] || kind}</span>}
+              {kind && <span> · {ETIQUETAS_MEDIO_PAGO[kind] || kind}</span>}
             </div>
           )
         return (
-          <MedioPago key={p.id || i} medio={p.medioPago || TIPOS_PAGO[kind] || kind} alto="h-4" />
+          <MedioPago key={p.id || i} medio={p.medioPago || ETIQUETAS_MEDIO_PAGO[kind] || kind} alto="h-4" />
         )
       })}
     </div>

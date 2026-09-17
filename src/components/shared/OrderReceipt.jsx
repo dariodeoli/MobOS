@@ -2,6 +2,7 @@ import { gs } from '@/utils/calculos'
 import { printHtml } from '@/utils/printHtml'
 import { APP_NAME } from '@/lib/brand'
 import QRCode from 'qrcode'
+import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]))
 
@@ -14,7 +15,6 @@ export const trackingUrlFor = (order) => {
 }
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
-const METHOD = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta / POS', CREDIT: 'Crédito', TRADE_IN: 'Canje', PIX: 'Pix' }
 
 // Hoja de estilos común para los tres comprobantes (A4 y térmico 80 mm).
 const styles = (thermal) => `
@@ -57,7 +57,7 @@ export async function printOrderReceipt(order, { format = 'a4' } = {}) {
   const total = Number(order.totalPyg ?? order.total ?? 0)
   const documento = order.billingName ? `<div class="card"><div class="label">Factura a</div><div>${escapeHtml(order.billingName)}${order.billingDocument ? ` · RUC ${escapeHtml(order.billingDocument)}` : ''}</div></div>` : ''
   const itemsRows = items.map(item => `<tr><td>${escapeHtml(item.description || item.nombre || 'Producto')}${Number(item.discountPyg || 0) > 0 ? `<br><span class="muted">descuento − ${escapeHtml(gs(item.discountPyg))}</span>` : ''}</td><td class="num">${escapeHtml(item.quantity || 1)} × ${escapeHtml(gs(item.unitPricePyg ?? item.precio ?? 0))}</td><td class="num">${escapeHtml(gs(item.totalPyg ?? (item.quantity || 1) * (item.unitPricePyg ?? item.precio ?? 0)))}</td></tr>`).join('')
-  const paymentsRows = payments.length ? `<div class="card"><div class="label">Pagos</div><table class="totals">${payments.map(payment => `<tr><td>${escapeHtml(METHOD[payment.method] || payment.medioPago || 'Pago')}${payment.reference || payment.cuenta ? ` · ${escapeHtml(payment.reference || payment.cuenta)}` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>` : ''
+  const paymentsRows = payments.length ? `<div class="card"><div class="label">Pagos</div><table class="totals">${payments.map(payment => `<tr><td>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${payment.reference || payment.cuenta ? ` · ${escapeHtml(payment.reference || payment.cuenta)}` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>` : ''
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(thermal)}</style></head><body>
     ${header('Comprobante de compra', `${order.orderNumber || order.codigo || 'Pedido'} · ${when ? new Date(when).toLocaleString('es-PY') : ''}`)}
     <div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(order.customer?.name || order.cliente || 'Consumidor final')}</strong>${order.customer?.phone ? ` · ${escapeHtml(order.customer.phone)}` : ''}</div></div>
@@ -83,7 +83,7 @@ export async function printOrderReceipt(order, { format = 'a4' } = {}) {
 export async function printPaymentReceipt(payment, order, { format = 'a4' } = {}) {
   const thermal = format === 'thermal'
   const monto = payment.amountPyg ?? payment.monto ?? 0
-  const metodo = METHOD[payment.method] || payment.medioPago || 'Pago'
+  const metodo = ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago'
   const referencia = payment.cuenta || payment.reference || payment.accountSnapshot?.name || ''
   const fecha = payment.fecha || payment.paidAt || payment.createdAt || new Date().toISOString()
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo de pago</title><style>${styles(thermal)}</style></head><body>
