@@ -3,6 +3,12 @@ import { listAuditoria } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { Card, Badge, Input, EmptyState } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { cn } from '@/lib/utils'
+
+// Tabla compacta del historial: una fila por movimiento y los cambios
+// (antes → después) se despliegan en la misma fila.
+const GRID_HISTORIAL = 'grid min-w-[46rem] grid-cols-[minmax(8rem,0.9fr)_minmax(7rem,0.9fr)_minmax(9rem,1.6fr)_7rem_6rem_1.5rem] items-center gap-x-2'
+const CELDA_HIST = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const ACCION = {
   crear: { label: 'Creó', color: 'green', emoji: '🆕' },
@@ -45,6 +51,7 @@ export default function Historial() {
   const log = listAuditoria()
   const [filtro, setFiltro] = useState('todas')
   const [busqueda, setBusqueda] = useState('')
+  const [abiertos, setAbiertos] = useState(() => new Set())
 
   const porAccion = filtro === 'todas' ? log : log.filter((x) => x.accion === filtro)
   const q = norm(busqueda.trim())
@@ -116,35 +123,42 @@ export default function Historial() {
         {items.length === 0 ? (
           <EmptyState compact icon="clock" title="Todavía no hay movimientos registrados." />
         ) : (
-          <div className="divide-y divide-ink-600">
-            {items.map((m) => {
-              const a = ACCION[m.accion] || { label: m.accion, color: 'slate', emoji: '•' }
-              return (
-                <div key={m.id} className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge color={a.color}>
-                          {a.emoji} {a.label}
-                        </Badge>
-                        <span className="font-bold text-sm">
-                          {m.actorNombre}
-                          {m.esPropietario && <span title="Dueño"></span>}
-                        </span>
-                      </div>
-                      <div className="text-sm text-mute mt-1 truncate">
-                        {m.resumen?.cliente || '—'} · {m.resumen?.producto || '—'} ·{' '}
-                        <span className="font-semibold text-fono">{gs(m.resumen?.precio)}</span>
-                      </div>
-                    </div>
-                    <div className="text-xs text-mute shrink-0 text-right">
-                      {fechaHora(m.creadoEn)}
-                    </div>
+          <div className="overflow-x-auto p-4" data-testid="historial-tabla">
+            <div className={cn(GRID_HISTORIAL, 'px-3.5 pb-2 pt-1')}>
+              <span className={CELDA_HIST}>Acción</span>
+              <span className={CELDA_HIST}>Actor</span>
+              <span className={CELDA_HIST}>Resumen</span>
+              <span className={cn(CELDA_HIST, 'text-right')}>Monto</span>
+              <span className={cn(CELDA_HIST, 'text-right')}>Fecha</span>
+              <span />
+            </div>
+            <div className="space-y-1">
+              {items.map((m) => {
+                const a = ACCION[m.accion] || { label: m.accion, color: 'slate', emoji: '•' }
+                const abierto = abiertos.has(m.id)
+                const cambios = m.cambios || []
+                const resumen = [m.resumen?.cliente, m.resumen?.producto].filter(Boolean).join(' · ') || '—'
+                return <div key={m.id}>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    data-testid="historial-fila"
+                    onClick={() => setAbiertos(prev => { const next = new Set(prev); next.has(m.id) ? next.delete(m.id) : next.add(m.id); return next })}
+                    onKeyDown={(event) => { if (event.key === 'Enter') setAbiertos(prev => { const next = new Set(prev); next.has(m.id) ? next.delete(m.id) : next.add(m.id); return next }) }}
+                    className={cn(GRID_HISTORIAL, 'cursor-pointer rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40', abierto && 'border-fono/40')}
+                  >
+                    <span className="min-w-0"><Badge color={a.color} className="w-fit max-w-full truncate whitespace-nowrap px-1.5 py-0.5 text-[10px]">{a.emoji} {a.label}</Badge></span>
+                    <span className="truncate text-[13px] font-semibold" title={m.actorNombre}>{m.actorNombre}{m.esPropietario ? ' (dueño)' : ''}</span>
+                    <span className="truncate text-[11px] text-mute" title={resumen}>{resumen}</span>
+                    <span className="truncate text-right text-[13px] font-semibold tabular-nums text-fono">{gs(m.resumen?.precio)}</span>
+                    <span className="truncate text-right text-[11px] text-mute">{fechaHora(m.creadoEn)}</span>
+                    <span className="flex justify-end">
+                      {cambios.length > 0 && <Icon name="chevron" className={cn('h-3.5 w-3.5 shrink-0 text-mute transition', abierto ? 'rotate-180' : '-rotate-90')} />}
+                    </span>
                   </div>
-
-                  {m.cambios?.length > 0 && (
-                    <div className="mt-2 rounded-lg bg-ink-700 p-2.5 space-y-1">
-                      {m.cambios.map((c, i) => (
+                  {abierto && cambios.length > 0 && (
+                    <div className="mt-1 space-y-1 rounded-xl border border-ink-600 bg-ink-800/60 p-3">
+                      {cambios.map((c, i) => (
                         <div key={i} className="text-xs text-mute">
                           <span className="font-semibold text-mute">{c.campo}:</span>{' '}
                           <span className="line-through">{valorCambio(c.campo, c.de)}</span>{' '}
@@ -154,8 +168,8 @@ export default function Historial() {
                     </div>
                   )}
                 </div>
-              )
-            })}
+              })}
+            </div>
           </div>
         )}
       </Card>
