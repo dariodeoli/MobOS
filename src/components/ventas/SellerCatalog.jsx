@@ -21,25 +21,31 @@ const precio = (row) => Number(row?.pricePyg ?? row?.precioVenta ?? 0)
 const mayorista = (row) => Number(row?.wholesalePricePyg ?? 0)
 const usd = (row) => Number(row?.priceUsd ?? 0)
 
-// Fila compacta: nombre, SKU/categoría, condición, precio y stock en una línea.
+// Tabla compacta del catálogo: una fila por producto, encabezados ordenables y
+// el precio/stock siempre en la misma columna.
+const GRID_CATALOGO = 'grid min-w-[59rem] grid-cols-[minmax(9rem,1.6fr)_7rem_6.5rem_8rem_6.5rem_5.5rem_7rem_4.5rem] items-center gap-x-2'
+const usdTexto = (row) => usd(row) > 0 ? `US$ ${usd(row).toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '—'
+
 function FilaProducto({ row, onClick }) {
   const stock = Number(row.stock ?? 0)
   return (
-    <button type="button" onClick={onClick} className="group flex w-full items-center gap-2.5 rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-2.5 text-left transition hover:border-fono/40 hover:bg-ink-700/50">
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <b className="truncate text-sm">{row.name}</b>
-          <Badge color={CONDITION_TONE[row.condition] || 'slate'}>{CONDITION[row.condition] || 'Nuevo'}</Badge>
-          {row.category && <span className="truncate text-[11px] text-mute">{row.category}</span>}
-        </span>
-        <span className="mt-0.5 block truncate font-mono text-[11px] text-mute">{row.sku || 'Sin SKU'}{mayorista(row) > 0 ? ` · mayorista ${gs(mayorista(row))}` : ''}{usd(row) > 0 ? ` · US$ ${usd(row).toLocaleString('en-US', { maximumFractionDigits: 2 })}` : ''}</span>
-      </span>
-      <span className="flex shrink-0 items-center gap-3">
-        <span className={cn('rounded-md border px-2 py-0.5 text-[10px] font-bold', stock > 0 ? 'border-ok/25 bg-ok/10 text-ok' : 'border-ink-500 bg-ink-700/40 text-mute')}>{stock} en stock</span>
-        <span className="w-24 shrink-0 text-right text-sm font-bold tabular-nums">{precio(row) > 0 ? gs(precio(row)) : '—'}</span>
-        <Icon name="chevron" className="h-3.5 w-3.5 -rotate-90 text-mute transition group-hover:text-fono-light" />
-      </span>
-    </button>
+    <div
+      role="button"
+      tabIndex={0}
+      data-testid="producto-fila"
+      onClick={onClick}
+      onKeyDown={(event) => { if (event.key === 'Enter') onClick?.() }}
+      className={cn(GRID_CATALOGO, 'cursor-pointer rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40 hover:bg-ink-700/50')}
+    >
+      <span className="truncate text-sm font-semibold" title={row.name}>{row.name}</span>
+      <span className="truncate text-[11px] text-mute" title={row.category || undefined}>{row.category || '—'}</span>
+      <Badge color={CONDITION_TONE[row.condition] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{CONDITION[row.condition] || 'Nuevo'}</Badge>
+      <span className="truncate font-mono text-[11px] text-mute" title={row.sku || undefined}>{row.sku || 'Sin SKU'}</span>
+      <span className="truncate text-right text-[11px] tabular-nums text-mute">{mayorista(row) > 0 ? gs(mayorista(row)) : '—'}</span>
+      <span className="truncate text-right text-[11px] tabular-nums text-mute">{usdTexto(row)}</span>
+      <span className="truncate text-right text-sm font-bold tabular-nums text-fore">{precio(row) > 0 ? gs(precio(row)) : '—'}</span>
+      <span className={cn('justify-self-end rounded-md border px-1.5 py-0.5 text-[10px] font-bold tabular-nums', stock > 0 ? 'border-ok/25 bg-ok/10 text-ok' : 'border-ink-500 bg-ink-700/40 text-mute')}>{stock}</span>
+    </div>
   )
 }
 
@@ -73,6 +79,7 @@ export default function SellerCatalog() {
   const [categoria, setCategoria] = useState('todas')
   const [condicion, setCondicion] = useState('todas')
   const [soloStock, setSoloStock] = useState(false)
+  const [orden, setOrden] = useState({ key: 'recientes', dir: 'asc' })
   const [vista, setVista] = useState(() => localStorage.getItem('mobos:productos-vista') || 'list')
   const [seleccion, setSeleccion] = useState(null)
   const [combosOpen, setCombosOpen] = useState(false)
@@ -89,6 +96,34 @@ export default function SellerCatalog() {
       .filter((row) => !soloStock || Number(row.stock ?? 0) > 0)
   }, [data.rows, search, categoria, condicion, soloStock, esDemo])
   const categorias = useMemo(() => [...new Set(data.rows.map(row => row.category).filter(Boolean))].sort(), [data.rows])
+  const ordenarPor = (key) => setOrden(current => current.key === key
+    ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
+    : { key, dir: ['mayorista', 'usd', 'precio', 'stock'].includes(key) ? 'desc' : 'asc' })
+  const encabezado = (key, label, extra = '') => (
+    <button type="button" onClick={() => ordenarPor(key)} className={cn('flex items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore', orden.key === key ? 'text-fono-light' : 'text-mute', extra)}>
+      {label}<span className="shrink-0">{orden.key === key ? (orden.dir === 'asc' ? '↑' : '↓') : ''}</span>
+    </button>
+  )
+  const valorOrden = (row, key) => {
+    if (key === 'producto') return String(row.name || '')
+    if (key === 'categoria') return String(row.category || '')
+    if (key === 'condicion') return String(row.condition || '')
+    if (key === 'sku') return String(row.sku || '')
+    if (key === 'mayorista') return mayorista(row)
+    if (key === 'usd') return usd(row)
+    if (key === 'precio') return precio(row)
+    if (key === 'stock') return Number(row.stock ?? 0)
+    return 0
+  }
+  const ordenadas = useMemo(() => {
+    if (orden.key === 'recientes') return rows
+    const factor = orden.dir === 'asc' ? 1 : -1
+    return [...rows].sort((a, b) => {
+      const va = valorOrden(a, orden.key); const vb = valorOrden(b, orden.key)
+      if (typeof va === 'string' || typeof vb === 'string') return String(va).localeCompare(String(vb), 'es') * factor
+      return (va - vb) * factor
+    })
+  }, [rows, orden])
   useEffect(() => {
     if (window.__mobosFocusSearch) {
       delete window.__mobosFocusSearch
@@ -123,7 +158,19 @@ export default function SellerCatalog() {
       {esOwner && !esDemo && <ImportarProductosCSV onImportada={data.refresh} />}
     </div>
     <SellerFeedback {...data} empty={!rows.length} />
-    {!data.loading && !data.error && vista === 'list' && <div className="space-y-2">{rows.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
+    {!data.loading && !data.error && vista === 'list' && <div className="overflow-x-auto" data-testid="catalogo-tabla">
+      <div className={cn(GRID_CATALOGO, 'px-3.5 pb-2 pt-1')}>
+        {encabezado('producto', 'Producto')}
+        {encabezado('categoria', 'Categoría')}
+        {encabezado('condicion', 'Condición')}
+        {encabezado('sku', 'SKU')}
+        {encabezado('mayorista', 'Mayorista', 'justify-end')}
+        {encabezado('usd', 'USD', 'justify-end')}
+        {encabezado('precio', 'Precio', 'justify-end')}
+        {encabezado('stock', 'Stock', 'justify-end')}
+      </div>
+      <div className="space-y-1">{ordenadas.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>
+    </div>}
     {!data.loading && !data.error && vista === 'grid' && <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
     <ComboManager open={combosOpen} onClose={() => setCombosOpen(false)} />
     {seleccion && <ProductoDetalle product={seleccion} canManage={canManage} esDemo={esDemo} onClose={() => setSeleccion(null)} onChanged={data.refresh} onSell={vender} />}
