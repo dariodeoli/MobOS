@@ -28,6 +28,9 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
   const [form, setForm] = useState(() => ({
     categoria: product?.category || 'Otros',
     condicion: product?.condition || 'NEW',
+    modelo: product?.model || '',
+    color: product?.color || '',
+    capacidad: product?.capacity || '',
     precio: String(precio(product) || ''),
     mayorista: String(mayorista(product) || ''),
     costo: String(costo(product) || ''),
@@ -64,6 +67,9 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
         id: current.id,
         category: form.categoria,
         condition: form.condicion,
+        model: form.modelo.trim(),
+        color: form.color.trim(),
+        capacity: form.capacidad.trim(),
         pricePyg: num(form.precio),
         ...(form.mayorista === '' ? { wholesalePricePyg: null } : { wholesalePricePyg: num(form.mayorista) }),
         ...(form.costo === '' ? { costPyg: null } : { costPyg: num(form.costo) }),
@@ -99,6 +105,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
           <div className="flex flex-wrap items-center gap-2">
             <Badge color={current?.condition === 'NEW' ? 'green' : 'orange'}>{CONDITION[current?.condition] || current?.condition || 'Nuevo'}</Badge>
             <Badge color="slate">{current?.category || 'Sin categoría'}</Badge>
+            {(current?.capacity || current?.color || current?.model) && <Badge color="slate">{[current?.model, current?.capacity, current?.color].filter(Boolean).join(' · ')}</Badge>}
             {current?.destination && current.destination !== 'NORMAL' && <Badge color="blue">{DESTINATION[current.destination]}</Badge>}
             {current?.isActive === false && <Badge color="red">Inactivo</Badge>}
           </div>
@@ -127,6 +134,9 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
             <form onSubmit={guardarEdicion} className="mt-3 grid gap-3 sm:grid-cols-2">
               <div><Label>Categoría</Label><Select value={form.categoria} onChange={event => setForm(current => ({ ...current, categoria: event.target.value }))}>{CATEGORIAS.map(categoria => <option key={categoria} value={categoria}>{categoria}</option>)}{!CATEGORIAS.includes(form.categoria) && form.categoria && <option value={form.categoria}>{form.categoria}</option>}</Select></div>
               <div><Label>Condición</Label><Select value={form.condicion} onChange={event => setForm(current => ({ ...current, condicion: event.target.value }))}>{Object.entries(CONDITION).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
+              <div><Label>Modelo</Label><Input value={form.modelo} onChange={event => setForm(current => ({ ...current, modelo: event.target.value }))} placeholder="Ej. iPhone 15 Pro Max" /></div>
+              <div><Label>Color</Label><Input value={form.color} onChange={event => setForm(current => ({ ...current, color: event.target.value }))} placeholder="Ej. Titanio Negro" /></div>
+              <div><Label>Capacidad</Label><Input value={form.capacidad} onChange={event => setForm(current => ({ ...current, capacidad: event.target.value }))} placeholder="Ej. 256GB" /></div>
               <div><Label>Precio de venta (Gs)</Label><MoneyInput value={form.precio} onValueChange={value => setForm(current => ({ ...current, precio: value === '' ? '' : String(value) }))} /></div>
               <div><Label>Precio mayorista (Gs)</Label><MoneyInput value={form.mayorista} onValueChange={value => setForm(current => ({ ...current, mayorista: value === '' ? '' : String(value) }))} /></div>
               <div><Label>Costo (Gs)</Label><MoneyInput value={form.costo} onValueChange={value => setForm(current => ({ ...current, costo: value === '' ? '' : String(value) }))} /></div>

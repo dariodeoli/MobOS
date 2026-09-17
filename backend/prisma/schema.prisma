@@ -352,6 +352,11 @@ model Product {
   sku           String
   name          String
   category      String?
+  // Variante estructurada del catálogo (se completan solas desde el nombre
+  // cuando el producto incluye capacidad; editables a mano).
+  model         String?
+  color         String?
+  capacity      String?
   imei          String?
   condition     ProductCondition   @default(NEW)
   pricePyg      Int
