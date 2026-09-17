@@ -8,6 +8,8 @@ export const GRUPOS = [
   { id: 'day', label: 'Día', plural: 'Por día' },
   { id: 'payments', label: 'Pasarela', plural: 'Pagos por pasarela' },
   { id: 'newCustomers', label: 'Mes', plural: 'Clientes nuevos vs habituales' },
+  { id: 'branch', label: 'Sucursal', plural: 'Por sucursal' },
+  { id: 'customers', label: 'Cliente', plural: 'Mejores clientes' },
 ]
 
 /** Producto y categoría se calculan por línea; día y vendedor, por orden. */

@@ -52,6 +52,8 @@ export async function GET(request: Request) {
         ...(branchId ? { branchId } : {}),
       },
       include: {
+        branch: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true } },
         items: {
           select: {
             productId: true,
@@ -146,6 +148,9 @@ export async function GET(request: Request) {
         sellerId: orden.sellerId,
         sellerName: orden.seller?.name ?? null,
         customerId: orden.customerId ?? null,
+        customerName: orden.customer?.name ?? null,
+        branchId: orden.branchId ?? null,
+        branchName: orden.branch?.name ?? null,
         createdAt: orden.createdAt,
         items: orden.items.map((item) => ({
           productId: item.productId,

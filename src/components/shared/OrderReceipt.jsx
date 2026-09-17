@@ -26,6 +26,19 @@ export async function printTransferReceipt(transfer, { format = 'a4' } = {}) {
   return printHtml(html)
 }
 
+// Etiqueta de precio/góndola: nombre, SKU, precio (y mayorista) con QR que
+// abre el producto al escanearlo.
+export async function printPriceLabel(product, { format = 'thermal' } = {}) {
+  const code = `MOBOS:PROD:${product.sku || product.id || ''}`
+  let qr = ''
+  try { qr = await QRCode.toDataURL(code, { errorCorrectionLevel: 'M', margin: 0, width: 140 }) } catch { /* La etiqueta sigue útil sin el QR. */ }
+  const precio = Number(product.pricePyg ?? product.precioVenta ?? 0)
+  const mayorista = Number(product.wholesalePricePyg ?? 0)
+  const thermal = format === 'thermal'
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Precio ${escapeHtml(product.name || product.sku || '')}</title><style>@page{size:58mm auto;margin:2mm}body{width:54mm;margin:0;font-family:Arial,sans-serif;color:#111}.brand{color:#0c8876;font-size:9px;font-weight:900;letter-spacing:1px}.name{font-size:12px;font-weight:800;margin:2mm 0}.sku{font-size:8px;color:#555}.price{font-size:${thermal ? '26px' : '30px'};font-weight:900;margin:2mm 0}.sub{font-size:9px;color:#555}.qr{width:22mm;height:22mm;margin:2mm auto;display:block}</style></head><body><div class="brand">MOBOS · ETIQUETA DE PRECIO</div><div class="name">${escapeHtml(product.name || '')}</div>${product.sku ? `<div class="sku">${escapeHtml(product.sku)}</div>` : ''}<div class="price">${precio > 0 ? `Gs. ${precio.toLocaleString('es-PY')}` : '—'}</div>${mayorista > 0 ? `<div class="sub">Mayorista: Gs. ${mayorista.toLocaleString('es-PY')}</div>` : ''}${qr ? `<img class="qr" src="${qr}" alt="QR">` : ''}</body></html>`
+  return printHtml(html)
+}
+
 export const trackingUrlFor = (order) => {
   // El QR del comprobante abre la página pública del pedido (estado + garantías).
   const base = publicBase()
