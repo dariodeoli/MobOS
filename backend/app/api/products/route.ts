@@ -3,10 +3,13 @@ import { PaymentCurrency, ProductCondition } from '@prisma/client'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { ensureStoreBranch } from '../../../lib/store-branch'
+import { skuUnico } from '../../../lib/sku'
 import { serialKey } from '../../../lib/validation'
 
 // Variante estructurada: texto libre acotado; vacío se guarda como null.
 const variantField = (value: unknown, max: number) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
+
+
 
 const unitDetails = (body: any, fallback: { condition: string; costPyg?: number }) => {
   const raw = body.unit || body
@@ -69,7 +72,7 @@ export async function POST(request: Request) {
     const data = await prisma.$transaction(async tx => {
       if (serial && await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { id: true } })) throw new Error('Ese IMEI/serial ya existe.')
       if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId: branchId ?? '', isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
-      const product = await tx.product.create({ data: { tenantId: tenant, sku: b.sku.trim(), name: b.name.trim(), category: b.category, model: variantField(b.model, 80), color: variantField(b.color, 60), capacity: variantField(b.capacity, 20), imei: serial || null, condition: b.condition || 'NEW', pricePyg: price, ...(wholesalePricePyg !== null ? { wholesalePricePyg } : {}), priceUsd, warrantyDays, warrantyCoverage, warrantyExclusions, costPyg: cost, insuranceRate, stock, branchId, ...(reorderPoint !== undefined ? { reorderPoint } : {}) } })
+      const product = await tx.product.create({ data: { tenantId: tenant, sku: await skuUnico(tx, tenant, branchId, b.sku.trim()), name: b.name.trim(), category: b.category, model: variantField(b.model, 80), color: variantField(b.color, 60), capacity: variantField(b.capacity, 20), imei: serial || null, condition: b.condition || 'NEW', pricePyg: price, ...(wholesalePricePyg !== null ? { wholesalePricePyg } : {}), priceUsd, warrantyDays, warrantyCoverage, warrantyExclusions, costPyg: cost, insuranceRate, stock, branchId, ...(reorderPoint !== undefined ? { reorderPoint } : {}) } })
       if (serial) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId, locationId, serial, ...unitDetails(b, { condition: product.condition, costPyg: cost }) } })
       return product
     })
@@ -96,6 +99,12 @@ export async function PATCH(request: Request) {
   if ((userBranchId === null && product.branchId !== null) || (userBranchId && product.branchId !== null && product.branchId !== userBranchId)) return error('No autorizado para esa sucursal.', 403)
   const serial = b.imei === undefined ? undefined : serialKey(b.imei)
   if (serial !== undefined && (!serial || stock !== undefined && stock !== 1 || product.stock !== 1 || !product.branchId)) return error('El IMEI/serial solo se asigna a una unidad individual con stock 1.')
+  // Cambiar el SKU a uno ya usado en la sucursal chocaría con el índice único:
+  // se avisa antes en vez de devolver el error crudo de Prisma.
+  if (typeof b.sku === 'string' && b.sku.trim() && b.sku.trim() !== product.sku) {
+    const repetido = await prisma.product.findFirst({ where: { tenantId: tenant, branchId: product.branchId, sku: b.sku.trim(), id: { not: product.id } }, select: { id: true } })
+    if (repetido) return error('Ya existe otro producto con ese SKU en la sucursal.', 409)
+  }
   try {
     const data = await prisma.$transaction(async tx => {
       if (serial !== undefined) {
