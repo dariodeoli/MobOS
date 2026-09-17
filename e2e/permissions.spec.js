@@ -4,6 +4,8 @@
 
 import { test, expect } from '@playwright/test'
 
+const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
+
 test.describe('seller permissions', () => {
   test('owner-only nav items are not visible to a seller', async ({ page }) => {
     await page.goto('/pos/cargar')
@@ -18,6 +20,19 @@ test.describe('seller permissions', () => {
     for (const label of ['Inventario', 'Compras', 'Garantías y servicio', 'Resumen', 'Análisis', 'Finanzas', 'Equipo y configuración']) {
       await expect(sidebarNav.getByRole('button', { name: label, exact: true })).toHaveCount(0)
     }
+  })
+
+  // La auditoría incluye movimientos de equipo y de dinero: un vendedor no
+  // puede verla ni por la API.
+  test('la auditoría no está disponible para un vendedor', async ({ page }) => {
+    await page.goto('/pos/cargar')
+    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+    // La API exige el mismo origen de la app, así que la petición sale con el
+    // Origin de la página (como en el navegador).
+    const respuesta = await page.request.get(`${API}/api/audit`, { headers: { origin: new URL(page.url()).origin } })
+    expect(respuesta.status()).toBe(403)
+    await page.goto('/pos/historial')
+    await expect(page).toHaveURL(/\/pos\/cargar$/)
   })
 
   test('owner-protected route /control/finanzas redirects the seller to the POS', async ({ page }) => {
