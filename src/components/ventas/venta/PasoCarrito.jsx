@@ -1,6 +1,7 @@
 import { Button, Input, Label, MoneyInput } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ListaVenta from './ListaVenta'
+import AutorizacionDescuento from './AutorizacionDescuento'
 
 export default function PasoCarrito({
   visible,
@@ -17,6 +18,9 @@ export default function PasoCarrito({
   onImei,
   descuento,
   setDescuento,
+  montoDescuento,
+  customer,
+  onAuthDescuento,
   tieneCupon,
   f,
   setF,
@@ -46,11 +50,10 @@ export default function PasoCarrito({
           value={descuento}
           onValueChange={setDescuento}
           placeholder="0"
-          disabled={!puedeDescontar}
         />
         {!puedeDescontar && (
           <p className="mt-1 text-xs text-mute">
-            Solo administradores y gerentes pueden aplicar descuentos.
+            El descuento necesita autorización de gerencia: pedila acá y seguí cuando esté aprobada.
           </p>
         )}
         {tieneCupon && (
@@ -59,6 +62,15 @@ export default function PasoCarrito({
           </p>
         )}
       </div>
+
+      {!esDemo && !puedeDescontar && montoDescuento > 0 && (
+        <AutorizacionDescuento
+          monto={montoDescuento}
+          customerId={customer?.id || null}
+          onSelect={onAuthDescuento}
+          bloqueado={guardando}
+        />
+      )}
 
       {/* Fecha */}
       <div>

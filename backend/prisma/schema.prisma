@@ -582,19 +582,20 @@ model Customer {
   @@index([tenantId, externalId])
 }
 
-// Solicitud de autorización comercial de un cliente (mayorista, crédito o
-// plazo). La pide cualquier vendedor y la resuelve administración/gerencia;
-// lo autorizado puede diferir de lo pedido (p. ej. menos días de crédito).
+// Solicitud de autorización comercial (mayorista, crédito, plazo o descuento).
+// La pide cualquier vendedor y la resuelve administración/gerencia; lo
+// autorizado puede diferir de lo pedido (p. ej. menos días de crédito o un
+// máximo de descuento menor). Un descuento no exige cliente: cubre la venta.
 model CustomerAuthorization {
   id             String    @id @default(cuid())
   tenantId       String
   tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  customerId     String
-  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  kind           String    // WHOLESALE | CREDIT | CREDIT_DAYS
+  customerId     String?
+  customer       Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  kind           String    // WHOLESALE | CREDIT | CREDIT_DAYS | DISCOUNT
   status         String    @default("PENDING") // PENDING | APPROVED | REJECTED
-  requestedValue Json?     // CREDIT: { creditLimitPyg, creditDays } · CREDIT_DAYS: { creditDays }
-  resolvedValue  Json?     // lo autorizado (puede diferir: pedido 10 → autorizado 7)
+  requestedValue Json?     // CREDIT: { creditLimitPyg, creditDays } · CREDIT_DAYS: { creditDays } · DISCOUNT: { discountPyg }
+  resolvedValue  Json?     // lo autorizado (puede diferir: pedido 10 → autorizado 7) · DISCOUNT: { maxDiscountPyg }
   requestedById  String
   requestedBy    User      @relation("CustomerAuthorizationRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
   resolvedById   String?
@@ -603,9 +604,12 @@ model CustomerAuthorization {
   resolvedNote   String?
   createdAt      DateTime  @default(now())
   resolvedAt     DateTime?
+  usedAt         DateTime? // DISCOUNT: consumida por una venta autorizada
+  usedByOrderId  String?   // DISCOUNT: pedido que la consumió
 
   @@index([tenantId, status])
   @@index([customerId])
+  @@index([usedByOrderId])
 }
 
 // Razones sociales/RUC históricos con los que el cliente pidió factura.

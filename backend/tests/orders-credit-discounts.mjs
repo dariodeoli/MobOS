@@ -169,6 +169,74 @@ assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 result = await request(`/api/customers/${encodeURIComponent(sinCredito.id)}`)
 assert.equal(result.payload.customer.pricingTier, 'WHOLESALE', 'El cliente debe pasar a mayorista.')
 
+// Descuento fuera de política: sin autorización el vendedor no puede descontar.
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 750000 }], discountPyg: 50000 })
+assert.equal(result.response.status, 403, 'Un vendedor no puede aplicar descuentos sin autorización.')
+
+// El vendedor pide autorización por el monto; gerencia la ve en el panel.
+result = await sellerRequest('/api/authorizations', 'POST', { customerId: customer.id, kind: 'DISCOUNT', requestedValue: { discountPyg: 50000 }, note: 'Cliente frecuente.' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const authDiscount = result.payload
+assert.equal(authDiscount.status, 'PENDING')
+assert.equal(authDiscount.requestedById, 'user-a-it')
+assert.deepEqual(authDiscount.requestedValue, { discountPyg: 50000 })
+result = await request('/api/authorizations?kind=DISCOUNT&status=PENDING')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === authDiscount.id), 'Gerencia debe ver la solicitud de descuento.')
+
+// Solo una solicitud de descuento pendiente por vendedor.
+result = await sellerRequest('/api/authorizations', 'POST', { kind: 'DISCOUNT', requestedValue: { discountPyg: 20000 } })
+assert.equal(result.response.status, 409, 'No puede haber dos solicitudes de descuento pendientes del mismo vendedor.')
+
+// Gerencia autoriza un máximo MENOR al pedido (30.000 de 50.000).
+result = await request('/api/authorizations', 'PATCH', { id: authDiscount.id, action: 'approve', resolvedValue: { maxDiscountPyg: 30000 }, resolvedNote: 'Máximo autorizado: 30.000.' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.status, 'APPROVED')
+assert.deepEqual(result.payload.resolvedValue, { maxDiscountPyg: 30000 })
+
+// Por encima del máximo autorizado la venta se rechaza con motivo accionable.
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 760000 }], discountPyg: 40000, discountAuthorizationId: authDiscount.id })
+assert.equal(result.response.status, 403, 'La autorización no puede cubrir más que el máximo autorizado.')
+assert.match(String(result.payload?.message || ''), /no alcanza/i)
+
+// Dentro del máximo: la venta se crea y la autorización queda consumida.
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 775000 }], discountPyg: 25000, discountAuthorizationId: authDiscount.id })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const discountedOrder = result.payload
+assert.equal(discountedOrder.discountPyg, 25000)
+assert.equal(discountedOrder.totalPyg, 775000)
+result = await sellerRequest('/api/authorizations?mine=1&kind=DISCOUNT')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+const authUsed = result.payload.find(row => row.id === authDiscount.id)
+assert.ok(authUsed?.usedAt, 'La autorización consumida debe quedar marcada con usedAt.')
+assert.equal(authUsed.usedByOrderId, discountedOrder.id, 'La autorización debe registrar el pedido que la usó.')
+result = await sellerRequest(`/api/orders/${encodeURIComponent(discountedOrder.id)}/history`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.events.some(event => event.action === 'ORDER_DISCOUNT_AUTHORIZED' && event.metadata?.authorizationId === authDiscount.id), 'La cronología del pedido debe auditar el descuento autorizado.')
+
+// La misma autorización no se reutiliza.
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 775000 }], discountPyg: 25000, discountAuthorizationId: authDiscount.id })
+assert.equal(result.response.status, 403, 'Una autorización usada no puede reutilizarse.')
+assert.match(String(result.payload?.message || ''), /se usó/i)
+
+// Descuento sin cliente (venta de consumidor final): se pide sin ficha y el
+// rechazo exige motivo.
+result = await sellerRequest('/api/authorizations', 'POST', { kind: 'DISCOUNT', requestedValue: { discountPyg: 10000 } })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const authSinCliente = result.payload
+assert.equal(authSinCliente.customer, null)
+result = await sellerRequest('/api/authorizations', 'PATCH', { id: authSinCliente.id, action: 'approve', resolvedValue: { maxDiscountPyg: 10000 } })
+assert.equal(result.response.status, 403, 'El vendedor no puede resolver su propia solicitud.')
+result = await request('/api/authorizations', 'PATCH', { id: authSinCliente.id, action: 'reject' })
+assert.equal(result.response.status, 400, 'El rechazo de un descuento necesita motivo.')
+result = await request('/api/authorizations', 'PATCH', { id: authSinCliente.id, action: 'reject', resolvedNote: 'Monto fuera de política.' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.status, 'REJECTED')
+
+// El monto pedido respeta el tope de la política.
+result = await sellerRequest('/api/authorizations', 'POST', { kind: 'DISCOUNT', requestedValue: { discountPyg: 150000000 } })
+assert.equal(result.response.status, 400, 'El descuento pedido debe respetar el tope de 100.000.000.')
+
 // Identidades de facturación: alta, uso como actual, duplicado y borrado.
 result = await request(`/api/customers/${encodeURIComponent(customer.id)}/billing-identities`, 'POST', { name: 'Facturación Empresa S.A.', document: '80012345-6' })
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))

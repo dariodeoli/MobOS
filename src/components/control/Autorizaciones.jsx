@@ -15,6 +15,7 @@ const KINDS = {
   WHOLESALE: 'Mayorista',
   CREDIT: 'Crédito',
   CREDIT_DAYS: 'Días de crédito',
+  DISCOUNT: 'Descuento',
 }
 
 const STATUS = {
@@ -31,6 +32,7 @@ const FILTERS = [
 ]
 
 const RESOLVERS = ['ADMIN', 'GERENTE']
+const DISCOUNT_MAX = 100000000
 const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 
 function resumenValor(kind, value) {
@@ -39,6 +41,8 @@ function resumenValor(kind, value) {
   const parts = []
   if (data.creditLimitPyg !== undefined && data.creditLimitPyg !== null) parts.push(`Límite ${formatGs(data.creditLimitPyg)}`)
   if (data.creditDays !== undefined && data.creditDays !== null) parts.push(`${data.creditDays} día${Number(data.creditDays) === 1 ? '' : 's'}`)
+  if (data.discountPyg !== undefined && data.discountPyg !== null) parts.push(`Descuento ${formatGs(data.discountPyg)}`)
+  if (data.maxDiscountPyg !== undefined && data.maxDiscountPyg !== null) parts.push(`Máximo ${formatGs(data.maxDiscountPyg)}`)
   return parts.join(' · ') || '—'
 }
 
@@ -53,7 +57,7 @@ export default function Autorizaciones() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [approveTarget, setApproveTarget] = useState(null)
-  const [approveForm, setApproveForm] = useState({ creditLimitPyg: '', creditDays: '', resolvedNote: '' })
+  const [approveForm, setApproveForm] = useState({ creditLimitPyg: '', creditDays: '', maxDiscountPyg: '', resolvedNote: '' })
   const [rejectTarget, setRejectTarget] = useState(null)
   const [rejectNote, setRejectNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -83,6 +87,8 @@ export default function Autorizaciones() {
     setApproveForm({
       creditLimitPyg: value.creditLimitPyg ?? '',
       creditDays: value.creditDays ?? '',
+      // El máximo autorizado arranca en lo pedido; se puede bajar (o poner 0).
+      maxDiscountPyg: value.discountPyg ?? '',
       resolvedNote: '',
     })
     setApproveTarget(row)
@@ -99,6 +105,14 @@ export default function Autorizaciones() {
         return
       }
       resolvedValue.creditLimitPyg = limit
+    }
+    if (kind === 'DISCOUNT') {
+      const max = Number(approveForm.maxDiscountPyg)
+      if (!Number.isSafeInteger(max) || max < 0 || max > DISCOUNT_MAX) {
+        toast.error('Máximo inválido', 'El máximo autorizado debe ser un entero entre 0 y 100.000.000.')
+        return
+      }
+      resolvedValue.maxDiscountPyg = max
     }
     if (kind === 'CREDIT' || kind === 'CREDIT_DAYS') {
       if (approveForm.creditDays === '' && kind === 'CREDIT_DAYS') {
@@ -168,7 +182,7 @@ export default function Autorizaciones() {
             <Eyebrow>Control</Eyebrow>
             <h2 className="mt-1 font-bold">Autorizaciones comerciales</h2>
             <p className="mt-1 text-sm text-mute">
-              Pedidos de mayorista, crédito y plazo. Aprobá ajustando lo autorizado o rechazá con un motivo; queda en la cronología del cliente.
+              Pedidos de mayorista, crédito, plazo y descuentos fuera de política. Aprobá ajustando lo autorizado o rechazá con un motivo; queda en la cronología del cliente.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -201,8 +215,9 @@ export default function Autorizaciones() {
           </div>
         )}
         {!loading && !error && !rows.length && (
-          <EmptyState compact icon="check" title="Sin solicitudes" description="Cuando un vendedor pida mayorista, crédito o plazo para un cliente, aparecerá acá." />
+          <EmptyState compact icon="check" title="Sin solicitudes" description="Cuando un vendedor pida mayorista, crédito, plazo o autorización de descuento, aparecerá acá." />
         )}
+<<<<<<< HEAD
         <div className="overflow-x-auto" data-testid="autorizaciones-tabla">
           <div className={cn(GRID_AUTORIZACIONES, 'px-3.5 pb-2 pt-1')}>
             <span className={CELDA_AUT}>Cliente</span>
@@ -245,6 +260,44 @@ export default function Autorizaciones() {
               </div>
             })}
           </div>
+=======
+        <div className="space-y-2">
+          {rows.map((row) => {
+            const estado = STATUS[row.status] || { label: row.status, color: 'slate' }
+            const propia = row.requestedById === usuario?.id
+            return (
+              <article key={row.id} className={`rounded-xl border p-3 ${row.status === 'PENDING' ? 'border-warn/30 bg-warn/5' : 'border-ink-600'}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-semibold">{row.customer?.name || 'Venta sin cliente'}</p>
+                      <Badge color="blue">{KINDS[row.kind] || row.kind}</Badge>
+                      <Badge color={estado.color}>{estado.label}</Badge>
+                      {row.kind === 'DISCOUNT' && row.usedAt && <Badge color="slate">Usada</Badge>}
+                      {propia && row.status === 'PENDING' && <Badge color="slate">Tu solicitud</Badge>}
+                    </div>
+                    <p className="mt-1 text-xs text-mute">
+                      Pedido: {resumenValor(row.kind, row.requestedValue)}
+                      {row.status !== 'PENDING' && <> · Autorizado: {row.status === 'APPROVED' ? resumenValor(row.kind, row.resolvedValue || row.requestedValue) : '— rechazado'}</>}
+                    </p>
+                    <p className="mt-1 text-xs text-mute">
+                      Pidió {row.requestedBy?.name || 'Sistema'} · {fechaHora(row.createdAt)}
+                      {row.resolvedBy?.name ? ` · Resolvió ${row.resolvedBy.name} · ${fechaHora(row.resolvedAt)}` : ''}
+                    </p>
+                    {row.note && <p className="mt-1 text-xs text-mute">Nota del vendedor: {row.note}</p>}
+                    {row.resolvedNote && <p className="mt-1 text-xs text-mute">Respuesta: {row.resolvedNote}</p>}
+                  </div>
+                  {puedeResolver && row.status === 'PENDING' && !propia && (
+                    <div className="flex shrink-0 gap-2">
+                      <Button type="button" onClick={() => abrirAprobar(row)}>Aprobar</Button>
+                      <Button type="button" variant="ghost" onClick={() => { setRejectNote(''); setRejectTarget(row) }}>Rechazar</Button>
+                    </div>
+                  )}
+                </div>
+              </article>
+            )
+          })}
+>>>>>>> 5ca43a9 (feat(descuentos): autorizacion de descuentos fuera de politica para vendedores)
         </div>
       </Card>
 
@@ -262,6 +315,15 @@ export default function Autorizaciones() {
             {approveTarget.kind === 'CREDIT' && (
               <FormField label="Límite de crédito autorizado (Gs.)" htmlFor="auth-limit">
                 <MoneyInput id="auth-limit" value={approveForm.creditLimitPyg} onValueChange={(value) => setApproveForm((form) => ({ ...form, creditLimitPyg: value }))} placeholder="1.000.000" />
+              </FormField>
+            )}
+            {approveTarget.kind === 'DISCOUNT' && (
+              <FormField
+                label="Descuento máximo autorizado (Gs.)"
+                hint="Arranca en lo pedido; podés autorizar menos (o 0). La venta no podrá descontar más que este máximo."
+                htmlFor="auth-discount"
+              >
+                <MoneyInput id="auth-discount" value={approveForm.maxDiscountPyg} onValueChange={(value) => setApproveForm((form) => ({ ...form, maxDiscountPyg: value }))} placeholder="50.000" />
               </FormField>
             )}
             {(approveTarget.kind === 'CREDIT' || approveTarget.kind === 'CREDIT_DAYS') && (

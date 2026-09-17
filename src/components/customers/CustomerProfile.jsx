@@ -57,6 +57,7 @@ const AUTH_KINDS = {
   WHOLESALE: 'Mayorista',
   CREDIT: 'Crédito',
   CREDIT_DAYS: 'Días de crédito',
+  DISCOUNT: 'Descuento',
 }
 const AUTH_STATUS = {
   PENDING: { label: 'Pendiente', color: 'orange' },
@@ -70,6 +71,8 @@ const resumenValor = (kind, value) => {
   const parts = []
   if (data.creditLimitPyg !== undefined && data.creditLimitPyg !== null) parts.push(`Límite ${formatGs(data.creditLimitPyg)}`)
   if (data.creditDays !== undefined && data.creditDays !== null) parts.push(`${data.creditDays} día${Number(data.creditDays) === 1 ? '' : 's'}`)
+  if (data.discountPyg !== undefined && data.discountPyg !== null) parts.push(`Descuento ${formatGs(data.discountPyg)}`)
+  if (data.maxDiscountPyg !== undefined && data.maxDiscountPyg !== null) parts.push(`Máximo ${formatGs(data.maxDiscountPyg)}`)
   return parts.join(' · ') || '—'
 }
 const saldoOrden = (order) => Number(order?.pendingPyg ?? order?.balancePyg ?? 0)
@@ -126,7 +129,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [requestBusy, setRequestBusy] = useState(false)
   const [resolveTarget, setResolveTarget] = useState(null)
   const [resolveAction, setResolveAction] = useState('')
-  const [resolveForm, setResolveForm] = useState({ creditLimitPyg: '', creditDays: '', resolvedNote: '' })
+  const [resolveForm, setResolveForm] = useState({ creditLimitPyg: '', creditDays: '', maxDiscountPyg: '', resolvedNote: '' })
   const [resolveBusy, setResolveBusy] = useState(false)
   const [identities, setIdentities] = useState([])
   const [identitiesLoading, setIdentitiesLoading] = useState(false)
@@ -380,7 +383,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
   function abrirResolver(row, action) {
     const value = row.requestedValue && typeof row.requestedValue === 'object' ? row.requestedValue : {}
-    setResolveForm({ creditLimitPyg: value.creditLimitPyg ?? '', creditDays: value.creditDays ?? '', resolvedNote: '' })
+    setResolveForm({ creditLimitPyg: value.creditLimitPyg ?? '', creditDays: value.creditDays ?? '', maxDiscountPyg: value.discountPyg ?? '', resolvedNote: '' })
     setResolveAction(action)
     setResolveTarget(row)
   }
@@ -405,6 +408,14 @@ export default function CustomerProfile({ customer, open, onClose }) {
           return
         }
         resolvedValue.creditLimitPyg = limit
+      }
+      if (resolveTarget.kind === 'DISCOUNT') {
+        const max = Number(resolveForm.maxDiscountPyg)
+        if (!Number.isSafeInteger(max) || max < 0 || max > 100000000) {
+          toast.error('Monto inválido', 'El descuento máximo debe ser un entero entre 0 y 100.000.000.')
+          return
+        }
+        resolvedValue.maxDiscountPyg = max
       }
       if (resolveForm.creditDays !== '') {
         const days = Number(resolveForm.creditDays)
@@ -1052,6 +1063,16 @@ export default function CustomerProfile({ customer, open, onClose }) {
                   value={resolveForm.creditLimitPyg}
                   onValueChange={(value) => setResolveForm((form) => ({ ...form, creditLimitPyg: value }))}
                   placeholder="1.000.000"
+                />
+              </FormField>
+            )}
+            {resolveAction === 'approve' && resolveTarget.kind === 'DISCOUNT' && (
+              <FormField label="Descuento máximo autorizado (Gs.)" hint="Podés autorizar menos de lo pedido: ese será el máximo de la venta." htmlFor="profile-resolve-discount">
+                <MoneyInput
+                  id="profile-resolve-discount"
+                  value={resolveForm.maxDiscountPyg}
+                  onValueChange={(value) => setResolveForm((form) => ({ ...form, maxDiscountPyg: value }))}
+                  placeholder="50.000"
                 />
               </FormField>
             )}

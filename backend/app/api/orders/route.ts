@@ -200,7 +200,23 @@ export async function POST(request: Request) {
   const orderNotes = body.notes === undefined || body.notes === null || body.notes === '' ? null : textInput(body.notes, 'Comentario', 2000)
   const discount = body.discountPyg ?? 0; const delivery = body.deliveryPyg ?? 0
   if (!safeInt(discount) || !safeInt(delivery)) return error('Descuento y delivery inválidos.')
-  if (discount > 0 && !canApproveOrderDiscount(session.user)) throw new InputError('Tu rol no puede aprobar descuentos. Solicitá autorización a gerencia.', 403)
+  // Descuento fuera de política: el vendedor necesita una autorización DISCOUNT
+  // aprobada, vigente (24 h), sin usar y que alcance para el monto de esta venta.
+  let discountAuthorization: { id: string; maxDiscountPyg: number } | null = null
+  if (discount > 0 && !canApproveOrderDiscount(session.user)) {
+    const rawAuthorizationId = body.discountAuthorizationId
+    if (rawAuthorizationId === undefined || rawAuthorizationId === null || rawAuthorizationId === '') throw new InputError('Tu rol no puede aprobar descuentos. Solicitá autorización a gerencia desde el carrito.', 403)
+    const authorizationId = textInput(rawAuthorizationId, 'discountAuthorizationId', 200)
+    const authorization = await prisma.customerAuthorization.findFirst({ where: { id: authorizationId, tenantId: tenant, kind: 'DISCOUNT' } })
+    if (!authorization || authorization.status !== 'APPROVED' || authorization.requestedById !== session.user.id) throw new InputError('La autorización de descuento no es válida para esta venta. Solicitá autorización a gerencia.', 403)
+    if (authorization.usedAt) throw new InputError('La autorización de descuento ya se usó. Solicitá una nueva.', 403)
+    if (!authorization.resolvedAt || authorization.resolvedAt.getTime() < Date.now() - 86400000) throw new InputError('La autorización de descuento venció (más de 24 h). Solicitá una nueva.', 403)
+    const resolved = (authorization.resolvedValue && typeof authorization.resolvedValue === 'object' && !Array.isArray(authorization.resolvedValue) ? authorization.resolvedValue : {}) as { maxDiscountPyg?: unknown }
+    const maxDiscountPyg = Number(resolved.maxDiscountPyg)
+    if (!safeInt(maxDiscountPyg)) throw new InputError('La autorización de descuento no tiene un máximo válido. Solicitá una nueva.', 403)
+    if (discount > maxDiscountPyg) throw new InputError(`La autorización no alcanza para este descuento (máx Gs ${maxDiscountPyg.toLocaleString('es-PY')}). Solicitá una nueva.`, 403)
+    discountAuthorization = { id: authorization.id, maxDiscountPyg }
+  }
   if (discount > 0 && items.some(item => item?.couponCode !== undefined)) throw new InputError('No se puede combinar cupón y descuento global.')
     const crearPedido = () => prisma.$transaction(async tx => {
       const branchId = session.user.branchId
@@ -367,6 +383,16 @@ export async function POST(request: Request) {
       const orderNumber = typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : await nextOrderNumber(tx, tenant)
 
       const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      if (discountAuthorization) {
+        // Consumo atómico: dos ventas concurrentes con la misma autorización no
+        // pueden usarla dos veces; la que pierde revierte toda la transacción.
+        const claimed = await tx.customerAuthorization.updateMany({
+          where: { id: discountAuthorization.id, tenantId: tenant, kind: 'DISCOUNT', status: 'APPROVED', requestedById: session.user.id, usedAt: null },
+          data: { usedAt: new Date(), usedByOrderId: order.id },
+        })
+        if (claimed.count !== 1) throw new InputError('La autorización de descuento ya se usó. Solicitá una nueva.', 403)
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_AUTHORIZED', entity: 'Order', entityId: order.id, metadata: { authorizationId: discountAuthorization.id, maxDiscountPyg: discountAuthorization.maxDiscountPyg, discountPyg: discount, subtotalPyg: subtotal } } })
+      }
       if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
       if (soldUnits.length) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNITS_SOLD', entity: 'Order', entityId: order.id, metadata: { serials: soldUnits.map(unit => unit.serial), productIds: [...new Set(soldUnits.map(unit => unit.productId))] } } })
       for (const { tradeIn, ...paymentData } of normalizedPayments) {
