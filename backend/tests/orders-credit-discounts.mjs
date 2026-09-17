@@ -571,4 +571,121 @@ const maxSecuencia = async (prefix) => {
 result = await request('/api/account', 'PATCH', { action: 'orderNumbering', prefix: 'MOB', start: (await maxSecuencia('MOB')) + 1 })
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 
-console.log('orders-credit-discounts: OK (numeración secuencial MOB-#####, descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, plantillas por categoría, pipeline de cotizaciones y combos).')
+// ── Autorizaciones genéricas: venta por debajo de lista ─────────────────────
+// El precio de lista mayorista de un producto nuevo es 550.000: vender en
+// 530.000 sin autorización se rechaza con un motivo accionable.
+let resultProductoBajo = await request('/api/products', 'POST', { sku: `BAJO-SKU-${Date.now()}`, name: 'Equipo precio bajo lista', pricePyg: 600000, wholesalePricePyg: 550000, stock: 5, branchId: 'branch-a-it' })
+assert.equal(resultProductoBajo.response.status, 201, JSON.stringify(resultProductoBajo.payload))
+const productoBajoLista = resultProductoBajo.payload
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 530000 }], payments: [{ method: 'CASH', amountPyg: 530000 }] })
+assert.equal(result.response.status, 403, 'Vender bajo lista sin autorización debe rechazarse.')
+assert.match(String(result.payload?.message || ''), /debajo de lista/i)
+
+// El vendedor pide autorización por 50.000 de diferencia; gerencia autoriza
+// MENOS (30.000) y la pendiente duplicada del mismo sujeto se bloquea.
+result = await sellerRequest('/api/authorizations', 'POST', { customerId: customer.id, kind: 'BELOW_LIST_PRICE', requestedValue: { discountPyg: 50000, productId: productoBajoLista.id }, note: 'Precio especial acordado con el cliente.' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const authPrecio = result.payload
+assert.equal(authPrecio.status, 'PENDING')
+assert.equal(authPrecio.entity, 'PRODUCT')
+assert.equal(authPrecio.entityId, productoBajoLista.id)
+assert.deepEqual(authPrecio.requestedValue, { discountPyg: 50000, productId: productoBajoLista.id })
+result = await sellerRequest('/api/authorizations', 'POST', { customerId: customer.id, kind: 'BELOW_LIST_PRICE', requestedValue: { discountPyg: 10000, productId: productoBajoLista.id } })
+assert.equal(result.response.status, 409, 'No puede haber dos pendientes del mismo tipo y sujeto.')
+result = await request('/api/authorizations', 'PATCH', { id: authPrecio.id, action: 'approve', resolvedValue: { maxDiscountPyg: 30000 }, resolvedNote: 'Máximo autorizado: 30.000.' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.deepEqual(result.payload.resolvedValue, { maxDiscountPyg: 30000 })
+
+// Por encima del máximo autorizado la venta se rechaza; dentro del máximo se
+// crea, consume la autorización y audita el precio autorizado en el pedido.
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 510000 }], payments: [{ method: 'CASH', amountPyg: 510000 }], priceAuthorizationId: authPrecio.id })
+assert.equal(result.response.status, 403, 'La autorización de precio no puede cubrir más que su máximo.')
+assert.match(String(result.payload?.message || ''), /no alcanza/i)
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 530000 }], payments: [{ method: 'CASH', amountPyg: 530000 }], priceAuthorizationId: authPrecio.id })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const ventaBajoLista = result.payload
+assert.equal(ventaBajoLista.items[0].listPricePyg, 550000, 'La venta debe congelar el precio de lista.')
+result = await sellerRequest(`/api/orders/${encodeURIComponent(ventaBajoLista.id)}/history`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.events.some(event => event.action === 'ORDER_PRICE_AUTHORIZED'), 'La cronología debe auditar el precio autorizado.')
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 530000 }], payments: [{ method: 'CASH', amountPyg: 530000 }], priceAuthorizationId: authPrecio.id })
+assert.equal(result.response.status, 403, 'Una autorización de precio usada no puede reutilizarse.')
+assert.match(String(result.payload?.message || ''), /se usó/i)
+
+// ── Autorizaciones de stock: retiro de una unidad ───────────────────────────
+const serialStock = `STOCK-AUTH-${Date.now()}`
+result = await request('/api/products', 'POST', { sku: `STOCK-AUTH-SKU-${Date.now()}`, name: 'Equipo ajuste autorizado', pricePyg: 300000, stock: 1, branchId: 'branch-a-it' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const productoStock = result.payload
+result = await request('/api/inventory-units', 'POST', { productId: productoStock.id, branchId: 'branch-a-it', serial: serialStock, condition: 'NEW' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const unidadStock = Array.isArray(result.payload) ? result.payload[0] : result.payload
+
+// Sin autorización el vendedor no retira; la solicitud con motivo se aprueba.
+result = await sellerRequest('/api/inventory-units', 'PATCH', { id: unidadStock.id, action: 'remove', reason: 'Equipo dañado en exhibición' })
+assert.equal(result.response.status, 403, 'Un vendedor no puede retirar stock sin autorización.')
+assert.match(String(result.payload?.message || ''), /autorizaci/i)
+result = await sellerRequest('/api/authorizations', 'POST', { kind: 'STOCK_ADJUST', requestedValue: { unitId: unidadStock.id, action: 'remove', reason: 'Equipo dañado en exhibición' } })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const authStock = result.payload
+assert.equal(authStock.entity, 'INVENTORY_UNIT')
+assert.equal(authStock.entityId, unidadStock.id)
+result = await request('/api/authorizations', 'PATCH', { id: authStock.id, action: 'approve', resolvedValue: { approved: true }, resolvedNote: 'Autorizado el retiro.' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.deepEqual(result.payload.resolvedValue, { approved: true })
+
+// Con la autorización aprobada el retiro se ejecuta, consume la autorización y
+// el reintento queda bloqueado.
+result = await sellerRequest('/api/inventory-units', 'PATCH', { id: unidadStock.id, action: 'remove', reason: 'Equipo dañado en exhibición', authorizationId: authStock.id })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.status, 'DEFECTIVE')
+result = await sellerRequest('/api/authorizations?mine=1&kind=STOCK_ADJUST')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+const authStockUsada = result.payload.find(row => row.id === authStock.id)
+assert.ok(authStockUsada?.usedAt, 'La autorización de stock debe quedar consumida.')
+result = await sellerRequest('/api/inventory-units', 'PATCH', { id: unidadStock.id, action: 'remove', reason: 'Equipo dañado en exhibición', authorizationId: authStock.id })
+assert.equal(result.response.status, 403, 'Una autorización de stock usada no puede reutilizarse.')
+assert.match(String(result.payload?.message || ''), /se usó/i)
+
+// ── Autorizaciones de anulación: pedido del vendedor ────────────────────────
+const serialVoid = `VOID-AUTH-${Date.now()}`
+result = await request('/api/products', 'POST', { sku: `VOID-AUTH-SKU-${Date.now()}`, name: 'Equipo anulación autorizada', pricePyg: 400000, stock: 1, branchId: 'branch-a-it' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const productoVoid = result.payload
+result = await request('/api/inventory-units', 'POST', { productId: productoVoid.id, branchId: 'branch-a-it', serial: serialVoid, condition: 'NEW' })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoVoid.id, quantity: 1, unitPricePyg: 400000, inventoryUnitSerials: [serialVoid] }], payments: [{ method: 'CASH', amountPyg: 400000 }] })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const pedidoAnulable = result.payload
+assert.equal(pedidoAnulable.items[0].serials[0], serialVoid.replace(/[^A-Z0-9]/gi, '').toUpperCase())
+
+// Sin permiso el vendedor no anula; con la aprobada anula, repone la unidad y
+// el reintento queda bloqueado (el pedido ya está cancelado y la autorización
+// consumida).
+result = await sellerRequest(`/api/orders/${encodeURIComponent(pedidoAnulable.id)}/void`, 'POST', { reason: 'Cliente canceló la compra' })
+assert.equal(result.response.status, 403, 'Un vendedor no puede anular un pedido sin autorización.')
+result = await sellerRequest('/api/authorizations', 'POST', { kind: 'ORDER_VOID', requestedValue: { orderId: pedidoAnulable.id, kind: 'full', reason: 'Cliente canceló la compra' } })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const authVoid = result.payload
+assert.equal(authVoid.entity, 'ORDER')
+assert.equal(authVoid.entityId, pedidoAnulable.id)
+result = await request('/api/authorizations', 'PATCH', { id: authVoid.id, action: 'approve', resolvedValue: { approved: true }, resolvedNote: 'Autorizado.' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+result = await sellerRequest(`/api/orders/${encodeURIComponent(pedidoAnulable.id)}/void`, 'POST', { reason: 'Cliente canceló la compra', authorizationId: authVoid.id })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.status, 'CANCELLED')
+assert.equal(result.payload.restoredUnits, 1)
+result = await request('/api/orders?filtro=todos')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+const pedidoAnulado = result.payload.find(row => row.id === pedidoAnulable.id)
+assert.equal(pedidoAnulado?.status, 'CANCELLED', 'El pedido anulado debe quedar cancelado.')
+assert.ok(pedidoAnulado.payments.some(pago => pago.status === 'CONFIRMED'), 'La anulación no borra los pagos cobrados.')
+result = await request('/api/inventory-units?q=' + encodeURIComponent(serialVoid.replace(/[^A-Z0-9]/gi, '').toUpperCase()))
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+const unidadRepuesta = result.payload.find(unit => unit.serial === serialVoid.replace(/[^A-Z0-9]/gi, '').toUpperCase())
+assert.equal(unidadRepuesta?.status, 'AVAILABLE', 'La unidad vendida debe volver a disponible al anular.')
+result = await sellerRequest(`/api/orders/${encodeURIComponent(pedidoAnulable.id)}/void`, 'POST', { reason: 'Cliente canceló la compra', authorizationId: authVoid.id })
+assert.equal(result.response.status, 403, 'Un pedido ya anulado (y su autorización usada) no se anula dos veces.')
+assert.match(String(result.payload?.message || ''), /se usó/i)
+
+console.log('orders-credit-discounts: OK (numeración secuencial MOB-#####, descuentos fijo/%, mayorista, crédito con límite y mora, autorizaciones genéricas con sujeto — precio bajo lista, ajuste de stock y anulación de pedido, con consumo de un solo uso —, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, plantillas por categoría, pipeline de cotizaciones y combos).')

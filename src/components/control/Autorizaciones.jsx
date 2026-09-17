@@ -17,6 +17,24 @@ const KINDS = {
   CREDIT: 'Crédito',
   CREDIT_DAYS: 'Días de crédito',
   DISCOUNT: 'Descuento',
+  BELOW_LIST_PRICE: 'Precio bajo lista',
+  STOCK_ADJUST: 'Ajuste de stock',
+  ORDER_VOID: 'Anulación de pedido',
+}
+
+const SUJETOS = {
+  INVENTORY_UNIT: 'Unidad',
+  ORDER: 'Pedido',
+  PRODUCT: 'Producto',
+}
+
+// El sujeto reemplaza al cliente en los tipos operativos (unidad, pedido,
+// producto): el id se acorta a los últimos caracteres para la tabla.
+function sujetoDe(row) {
+  if (!row.entity) return ''
+  const label = SUJETOS[row.entity] || row.entity
+  const id = typeof row.entityId === 'string' ? row.entityId : ''
+  return id ? `${label} ${id.slice(-6)}` : label
 }
 
 const STATUS = {
@@ -39,11 +57,16 @@ const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Da
 function resumenValor(kind, value) {
   const data = value && typeof value === 'object' ? value : {}
   if (kind === 'WHOLESALE') return 'Pasar a precio mayorista'
+  if (kind === 'ORDER_VOID') return 'Anulación total del pedido'
+  if (kind === 'STOCK_ADJUST') return `${data.action === 'remove' ? 'Retirar unidad' : 'Ajustar unidad'}${data.reason ? ` · ${data.reason}` : ''}`
   const parts = []
   if (data.creditLimitPyg !== undefined && data.creditLimitPyg !== null) parts.push(`Límite ${formatGs(data.creditLimitPyg)}`)
   if (data.creditDays !== undefined && data.creditDays !== null) parts.push(`${data.creditDays} día${Number(data.creditDays) === 1 ? '' : 's'}`)
   if (data.discountPyg !== undefined && data.discountPyg !== null) parts.push(`Descuento ${formatGs(data.discountPyg)}`)
   if (data.maxDiscountPyg !== undefined && data.maxDiscountPyg !== null) parts.push(`Máximo ${formatGs(data.maxDiscountPyg)}`)
+  if (data.discountPct !== undefined && data.discountPct !== null) parts.push(`${data.discountPct}%`)
+  if (data.description) parts.push(String(data.description))
+  if (data.reason) parts.push(String(data.reason))
   return parts.join(' · ') || '—'
 }
 
@@ -107,7 +130,7 @@ export default function Autorizaciones() {
       }
       resolvedValue.creditLimitPyg = limit
     }
-    if (kind === 'DISCOUNT') {
+    if (kind === 'DISCOUNT' || kind === 'BELOW_LIST_PRICE') {
       const max = Number(approveForm.maxDiscountPyg)
       if (!Number.isSafeInteger(max) || max < 0 || max > DISCOUNT_MAX) {
         toast.error('Máximo inválido', 'El máximo autorizado debe ser un entero entre 0 y 100.000.000.')
@@ -137,7 +160,9 @@ export default function Autorizaciones() {
         ...(kind === 'WHOLESALE' ? {} : { resolvedValue }),
         ...(approveForm.resolvedNote.trim() ? { resolvedNote: approveForm.resolvedNote.trim() } : {}),
       })
-      toast.success('Solicitud aprobada', 'La condición del cliente quedó actualizada.')
+      toast.success('Solicitud aprobada', kind === 'WHOLESALE' || kind === 'CREDIT' || kind === 'CREDIT_DAYS' || kind === 'DISCOUNT'
+        ? 'La condición del cliente quedó actualizada.'
+        : 'La operación quedó autorizada para que el vendedor la ejecute.')
       setApproveTarget(null)
       load()
     } catch (cause) {
@@ -183,7 +208,7 @@ export default function Autorizaciones() {
             <Eyebrow>Control</Eyebrow>
             <h2 className="mt-1 font-bold">Autorizaciones comerciales</h2>
             <p className="mt-1 text-sm text-mute">
-              Pedidos de mayorista, crédito, plazo y descuentos fuera de política. Aprobá ajustando lo autorizado o rechazá con un motivo; queda en la cronología del cliente.
+              Pedidos de mayorista, crédito, plazo, descuentos fuera de política, ventas bajo lista, ajustes de stock y anulaciones. Aprobá ajustando lo autorizado o rechazá con un motivo; queda en la cronología del cliente, la unidad o el pedido.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -216,7 +241,7 @@ export default function Autorizaciones() {
           </div>
         )}
         {!loading && !error && !rows.length && (
-          <EmptyState compact icon="check" title="Sin solicitudes" description="Cuando un vendedor pida mayorista, crédito, plazo o autorización de descuento, aparecerá acá." />
+          <EmptyState compact icon="check" title="Sin solicitudes" description="Cuando un vendedor pida mayorista, crédito, plazo, descuento, precio bajo lista, ajuste de stock o anulación, aparecerá acá." />
         )}
         <div className="overflow-x-auto" data-testid="autorizaciones-tabla">
           <div className={cn(GRID_AUTORIZACIONES, 'px-3.5 pb-2 pt-1')}>
@@ -242,10 +267,10 @@ export default function Autorizaciones() {
                 row.resolvedNote ? `Respuesta: ${row.resolvedNote}` : '',
               ].filter(Boolean).join(' · ')
               return <div key={row.id} data-testid="autorizacion-fila" className={cn(GRID_AUTORIZACIONES, 'rounded-xl border px-3.5 py-2 transition', row.status === 'PENDING' ? 'border-warn/30 bg-warn/5' : 'border-ink-600 bg-ink-800/40')}>
-                <span className="truncate text-sm font-semibold" title={detalle}>{row.customer?.name || (row.kind === 'DISCOUNT' ? 'Venta sin cliente' : 'Cliente')}</span>
+                <span className="truncate text-sm font-semibold" title={detalle}>{row.customer?.name || sujetoDe(row) || (row.kind === 'DISCOUNT' || row.kind === 'BELOW_LIST_PRICE' ? 'Venta sin cliente' : 'Cliente')}</span>
                 <span className="flex items-center gap-1">
                   <Badge color="blue" className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{KINDS[row.kind] || row.kind}</Badge>
-                  {row.kind === 'DISCOUNT' && row.usedAt && <Badge color="slate" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Usada</Badge>}
+                  {row.usedAt && <Badge color="slate" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Usada</Badge>}
                 </span>
                 <span className="truncate text-xs text-mute" title={autorizado ? `Autorizado: ${autorizado}` : undefined}>{pedido}</span>
                 <span className="truncate text-xs text-mute" title={`Pidió ${row.requestedBy?.name || 'Sistema'}`}>{row.requestedBy?.name || 'Sistema'}</span>
@@ -275,14 +300,21 @@ export default function Autorizaciones() {
         {approveTarget && (
           <div className="space-y-4">
             <p className="text-sm text-mute">
-              {approveTarget.customer?.name || 'Cliente'} · pedido por {approveTarget.requestedBy?.name || 'Sistema'}: <b className="text-fore">{resumenValor(approveTarget.kind, approveTarget.requestedValue)}</b>
+              {approveTarget.customer?.name || sujetoDe(approveTarget) || 'Cliente'} · pedido por {approveTarget.requestedBy?.name || 'Sistema'}: <b className="text-fore">{resumenValor(approveTarget.kind, approveTarget.requestedValue)}</b>
             </p>
+            {(approveTarget.kind === 'STOCK_ADJUST' || approveTarget.kind === 'ORDER_VOID') && (
+              <p className="rounded-lg border border-fono/30 bg-fono/5 px-3 py-2 text-xs text-fono-light">
+                {approveTarget.kind === 'STOCK_ADJUST'
+                  ? 'Al aprobar, el vendedor puede ejecutar el retiro o ajuste de esa unidad una sola vez.'
+                  : 'Al aprobar, el vendedor puede anular ese pedido una sola vez; los pagos no se reembolsan automáticamente.'}
+              </p>
+            )}
             {approveTarget.kind === 'CREDIT' && (
               <FormField label="Límite de crédito autorizado (Gs.)" htmlFor="auth-limit">
                 <MoneyInput id="auth-limit" value={approveForm.creditLimitPyg} onValueChange={(value) => setApproveForm((form) => ({ ...form, creditLimitPyg: value }))} placeholder="1.000.000" />
               </FormField>
             )}
-            {approveTarget.kind === 'DISCOUNT' && (
+            {(approveTarget.kind === 'DISCOUNT' || approveTarget.kind === 'BELOW_LIST_PRICE') && (
               <FormField
                 label="Descuento máximo autorizado (Gs.)"
                 hint="Arranca en lo pedido; podés autorizar menos (o 0). La venta no podrá descontar más que este máximo."
@@ -331,7 +363,7 @@ export default function Autorizaciones() {
         {rejectTarget && (
           <div className="space-y-4">
             <p className="text-sm text-mute">
-              {rejectTarget.customer?.name || 'Cliente'} · pedido por {rejectTarget.requestedBy?.name || 'Sistema'}: <b className="text-fore">{resumenValor(rejectTarget.kind, rejectTarget.requestedValue)}</b>
+              {rejectTarget.customer?.name || sujetoDe(rejectTarget) || 'Cliente'} · pedido por {rejectTarget.requestedBy?.name || 'Sistema'}: <b className="text-fore">{resumenValor(rejectTarget.kind, rejectTarget.requestedValue)}</b>
             </p>
             <FormField label="Motivo del rechazo" htmlFor="auth-reject-note">
               <Textarea id="auth-reject-note" rows={3} maxLength={500} value={rejectNote} onChange={(event) => setRejectNote(event.target.value)} placeholder="Explicá al vendedor por qué no se autoriza…" />

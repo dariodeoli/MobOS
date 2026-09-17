@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useUrlState } from '@/hooks/useUrlState'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { listVentas, productosById } from '@/lib/storage'
@@ -173,7 +174,7 @@ export default function SellerOrders() {
   const [query, setQuery] = useState('')
   // La búsqueda del listado se resuelve en el servidor: así encuentra pedidos
   // que todavía no están en la página cargada (número, cliente, RUC, vendedor).
-  const [filtro, setFiltro] = useState('activos')
+  const [filtro, setFiltro] = useUrlState('filtro', 'activos')
   const [orden, setOrden] = useState({ key: 'date', dir: 'desc' })
   // Búsqueda y filtros van al servidor (cubren todos los pedidos del alcance
   // del usuario, no solo la página cargada). El texto se difiere 250 ms.

@@ -2,18 +2,30 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { canAccessOrder } from '../../../lib/orders'
+import {
+  AUTHORIZATION_KINDS,
+  AUTHORIZATION_RESOLVERS,
+  DISCOUNT_MAX_PYG,
+  authorizationValueOf,
+  safeIntValue,
+} from '../../../lib/authorizations'
 
-// Autorizaciones comerciales del cliente: cualquier vendedor pide cambios de
-// condición (mayorista, crédito, días) o un descuento fuera de política y
-// administración/gerencia resuelve.
+// Autorizaciones comerciales y operativas: cualquier vendedor pide cambios de
+// condición (mayorista, crédito, días), un descuento fuera de política, una
+// venta bajo lista, un ajuste de stock o la anulación de un pedido; y
+// administración/gerencia resuelve. El motor es el mismo para todos los tipos:
+// una pendiente por vendedor + tipo + sujeto, resolución única y consumo de un
+// solo uso.
 // VENDEDOR ve solo sus pedidos; ADMIN/GERENTE ven todas las del tenant.
-const KINDS = ['WHOLESALE', 'CREDIT', 'CREDIT_DAYS', 'DISCOUNT']
 const STATUSES = ['PENDING', 'APPROVED', 'REJECTED']
-const RESOLVERS = ['ADMIN', 'GERENTE']
 const INT_MAX = 2147483647
-const DISCOUNT_MAX = 100000000
+// Los tipos con sujeto propio (unidad, pedido, producto) no exigen ficha de
+// cliente: el sujeto es la operación, no la condición comercial del cliente.
+const SUBJECT_KINDS = ['BELOW_LIST_PRICE', 'STOCK_ADJUST', 'ORDER_VOID']
+const STOCK_ACTIONS = ['remove', 'adjust']
 const clean = (value: unknown, max: number) => typeof value === 'string' ? value.trim().slice(0, max) : ''
-const safeInt = (value: unknown, minimum: number, maximum: number): value is number => Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= maximum
+const safeInt = safeIntValue
 
 const authorizationDetail = Prisma.validator<Prisma.CustomerAuthorizationInclude>()({
   customer: { select: { id: true, name: true } },
@@ -27,7 +39,7 @@ type ValueShape = { creditLimitPyg?: number; creditDays?: number; discountPyg?: 
 function normalizeValue(kind: string, raw: unknown, label: string): ValueShape | string {
   if (raw === undefined || raw === null) {
     if (kind === 'WHOLESALE') return {}
-    if (kind === 'DISCOUNT') return `${label}: el monto del descuento es obligatorio.`
+    if (kind === 'DISCOUNT' || kind === 'BELOW_LIST_PRICE') return `${label}: el monto del descuento es obligatorio.`
     return kind === 'CREDIT' ? `${label}: el límite de crédito es obligatorio.` : `${label}: los días de crédito son obligatorios.`
   }
   if (typeof raw !== 'object' || Array.isArray(raw)) return `${label}: valor inválido.`
@@ -48,13 +60,13 @@ function normalizeValue(kind: string, raw: unknown, label: string): ValueShape |
       return `${label}: los días de crédito son obligatorios.`
     }
   }
-  if (kind === 'DISCOUNT') {
+  if (kind === 'DISCOUNT' || kind === 'BELOW_LIST_PRICE') {
     // El pedido pide cuánto descontar; la resolución autoriza un máximo (puede
     // ser 0 o menor a lo pedido, pero nunca un monto negativo).
     const rawAmount = input.maxDiscountPyg ?? input.discountPyg
     if (rawAmount === undefined || rawAmount === null || rawAmount === '') return `${label}: el monto del descuento es obligatorio.`
     const amount = Number(rawAmount)
-    if (!safeInt(amount, 0, DISCOUNT_MAX)) return `${label}: el descuento debe ser un entero entre 0 y ${DISCOUNT_MAX}.`
+    if (!safeInt(amount, 0, DISCOUNT_MAX_PYG)) return `${label}: el descuento debe ser un entero entre 0 y ${DISCOUNT_MAX_PYG}.`
     if (input.maxDiscountPyg !== undefined) value.maxDiscountPyg = amount
     else {
       if (amount <= 0) return `${label}: el descuento debe ser mayor a 0.`
@@ -62,6 +74,28 @@ function normalizeValue(kind: string, raw: unknown, label: string): ValueShape |
     }
   }
   return value
+}
+
+const inputObject = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+
+// Valor autorizado de los tipos con sujeto. La resolución no toca la ficha
+// del cliente: habilita la operación puntual (ajuste, anulación o precio).
+function normalizeSubjectResolution(kind: string, raw: unknown, requestedValue: unknown, label: string): Prisma.InputJsonValue | string {
+  const input = inputObject(raw)
+  const requested = authorizationValueOf(requestedValue)
+  if (kind === 'ORDER_VOID') return { approved: true }
+  if (kind === 'STOCK_ADJUST') {
+    const rawStock = input.adjustedStock ?? input.stock
+    if (rawStock === undefined || rawStock === null || rawStock === '') return { approved: true }
+    const adjustedStock = Number(rawStock)
+    if (!safeInt(adjustedStock, 0, INT_MAX)) return `${label}: la existencia autorizada debe ser un entero entre 0 y ${INT_MAX}.`
+    return { approved: true, adjustedStock }
+  }
+  // BELOW_LIST_PRICE: el máximo autorizado puede ser menor (o 0) al pedido.
+  const rawAmount = input.maxDiscountPyg ?? input.discountPyg ?? requested.discountPyg
+  const amount = Number(rawAmount)
+  if (!safeInt(amount, 0, DISCOUNT_MAX_PYG)) return `${label}: el máximo autorizado debe ser un entero entre 0 y ${DISCOUNT_MAX_PYG}.`
+  return { maxDiscountPyg: amount }
 }
 
 export async function GET(request: Request) {
@@ -73,8 +107,8 @@ export async function GET(request: Request) {
   const customerId = clean(params.get('customerId'), 128)
   const mine = params.get('mine') === '1'
   if (status && !STATUSES.includes(status)) return error('Estado de solicitud inválido.')
-  if (kind && !KINDS.includes(kind)) return error('Tipo de autorización inválido.')
-  const seeAll = RESOLVERS.includes(session.user.role)
+  if (kind && !(AUTHORIZATION_KINDS as readonly string[]).includes(kind)) return error('Tipo de autorización inválido.')
+  const seeAll = (AUTHORIZATION_RESOLVERS as readonly string[]).includes(session.user.role)
   const rows = await prisma.customerAuthorization.findMany({
     where: {
       tenantId: session.user.tenantId,
@@ -98,39 +132,116 @@ export async function POST(request: Request) {
   if (!session) return error('Falta sesión.', 401)
   try {
     const body = await request.json().catch(() => null) as Record<string, unknown> | null
-    const customerId = clean(body?.customerId, 128)
+    const requestedCustomerId = clean(body?.customerId, 128)
     const kind = clean(body?.kind, 20).toUpperCase()
     const note = clean(body?.note, 500) || null
-    if (!KINDS.includes(kind)) return error('Tipo de autorización inválido.')
-    // El descuento puede no tener cliente (venta de consumidor final); el
-    // resto de los tipos sí exige ficha para aplicar la condición.
-    if (!customerId && kind !== 'DISCOUNT') return error('Cliente obligatorio.')
-    if (customerId) {
-      const customer = await prisma.customer.findFirst({ where: { id: customerId, tenantId: session.user.tenantId }, select: { id: true } })
+    if (!(AUTHORIZATION_KINDS as readonly string[]).includes(kind)) return error('Tipo de autorización inválido.')
+    const isSubjectKind = SUBJECT_KINDS.includes(kind)
+    // El descuento y los tipos con sujeto pueden no tener cliente (venta de
+    // consumidor final, unidad o pedido); el resto sí exige ficha.
+    if (!requestedCustomerId && kind !== 'DISCOUNT' && !isSubjectKind) return error('Cliente obligatorio.')
+    if (requestedCustomerId) {
+      const customer = await prisma.customer.findFirst({ where: { id: requestedCustomerId, tenantId: session.user.tenantId }, select: { id: true } })
       if (!customer) return error('Cliente no encontrado.', 404)
     }
-    const normalized = normalizeValue(kind, body?.requestedValue, 'Solicitud')
-    if (typeof normalized === 'string') return error(normalized)
-    const requestedJson = kind === 'WHOLESALE' ? null : (normalized as Prisma.InputJsonValue)
-    const requestedValue = requestedJson ?? Prisma.DbNull
-    // Un descuento pendiente por vendedor: si ya hay uno esperando, pedir otro
-    // solo duplica la decisión de gerencia.
-    if (kind === 'DISCOUNT') {
-      const pending = await prisma.customerAuthorization.findFirst({ where: { tenantId: session.user.tenantId, requestedById: session.user.id, kind, status: 'PENDING' }, select: { id: true } })
-      if (pending) return error('Ya tenés una solicitud de descuento pendiente. Esperá a que gerencia la resuelva.', 409)
+    const customerId = requestedCustomerId || null
+    let entity: string | null = null
+    let entityId: string | null = null
+    let requestedJson: Prisma.InputJsonValue | null = null
+    if (kind === 'STOCK_ADJUST') {
+      // Retiro o ajuste con motivo sobre una unidad física, dentro del alcance
+      // del solicitante: no se puede pedir autorización sobre otra sucursal.
+      const raw = inputObject(body?.requestedValue)
+      const unitId = clean(raw.unitId, 128)
+      const action = clean(raw.action, 20)
+      const motivo = clean(raw.reason, 500)
+      if (!unitId) return error('Solicitud: la unidad es obligatoria.')
+      if (!STOCK_ACTIONS.includes(action)) return error('Solicitud: la acción de inventario es inválida.')
+      if (motivo.length < 3) return error('Solicitud: indicá un motivo de entre 3 y 500 caracteres.')
+      const unit = await prisma.inventoryUnit.findFirst({ where: { id: unitId, tenantId: session.user.tenantId }, select: { id: true, branchId: true } })
+      if (!unit) return error('Unidad no encontrada.', 404)
+      const scopeOk = session.user.role === 'ADMIN' || (unit.branchId !== null && unit.branchId === session.user.branchId)
+      if (!scopeOk) return error('No autorizado para esa sucursal.', 403)
+      let stock: number | undefined
+      if (raw.stock !== undefined && raw.stock !== null && raw.stock !== '') {
+        stock = Number(raw.stock)
+        if (!safeInt(stock, 0, INT_MAX)) return error('Solicitud: la existencia debe ser un entero entre 0 y 2147483647.')
+      }
+      entity = 'INVENTORY_UNIT'
+      entityId = unitId
+      requestedJson = { unitId, action, reason: motivo, ...(stock === undefined ? {} : { stock }) }
+    } else if (kind === 'ORDER_VOID') {
+      const raw = inputObject(body?.requestedValue)
+      const orderId = clean(raw.orderId, 128)
+      const voidKind = clean(raw.kind, 20) || 'full'
+      const motivo = clean(raw.reason, 500)
+      if (!orderId) return error('Solicitud: el pedido es obligatorio.')
+      if (voidKind !== 'full') return error('Solicitud: solo se admite la anulación total.')
+      if (motivo.length < 3) return error('Solicitud: indicá un motivo de entre 3 y 500 caracteres.')
+      const order = await prisma.order.findFirst({ where: { id: orderId, tenantId: session.user.tenantId }, select: { id: true, status: true, sellerId: true, branchId: true } })
+      if (!order || !canAccessOrder(session.user, order)) return error('Pedido no encontrado.', 404)
+      if (order.status === 'CANCELLED') return error('El pedido ya fue anulado o cancelado.', 409)
+      entity = 'ORDER'
+      entityId = orderId
+      requestedJson = { orderId, kind: 'full', reason: motivo }
+    } else if (kind === 'BELOW_LIST_PRICE') {
+      const normalized = normalizeValue(kind, body?.requestedValue, 'Solicitud')
+      if (typeof normalized === 'string') return error(normalized)
+      const raw = inputObject(body?.requestedValue)
+      const productId = clean(raw.productId, 128) || null
+      const description = clean(raw.description, 200) || null
+      if (productId) {
+        const product = await prisma.product.findFirst({ where: { id: productId, tenantId: session.user.tenantId }, select: { id: true } })
+        if (!product) return error('Producto no encontrado.', 404)
+        entity = 'PRODUCT'
+        entityId = productId
+      }
+      let discountPct: number | undefined
+      if (raw.discountPct !== undefined && raw.discountPct !== null && raw.discountPct !== '') {
+        discountPct = Number(raw.discountPct)
+        if (!safeInt(discountPct, 0, 100)) return error('Solicitud: el porcentaje debe estar entre 0 y 100.')
+      }
+      requestedJson = {
+        ...normalized,
+        ...(discountPct === undefined ? {} : { discountPct }),
+        ...(productId ? { productId } : {}),
+        ...(description ? { description } : {}),
+      }
     } else {
-      const pending = await prisma.customerAuthorization.findFirst({ where: { tenantId: session.user.tenantId, customerId, kind, status: 'PENDING' }, select: { id: true } })
-      if (pending) return error('Ya hay una solicitud pendiente de este tipo para el cliente.', 409)
+      const normalized = normalizeValue(kind, body?.requestedValue, 'Solicitud')
+      if (typeof normalized === 'string') return error(normalized)
+      requestedJson = kind === 'WHOLESALE' ? null : (normalized as Prisma.InputJsonValue)
     }
+    // Una pendiente por vendedor + tipo + sujeto: pedir otra solo duplica la
+    // decisión de gerencia.
+    const pendingWhere: Prisma.CustomerAuthorizationWhereInput = {
+      tenantId: session.user.tenantId,
+      requestedById: session.user.id,
+      kind,
+      status: 'PENDING',
+      ...(entity ? { entity, entityId } : customerId ? { customerId } : {}),
+    }
+    const pending = await prisma.customerAuthorization.findFirst({ where: pendingWhere, select: { id: true } })
+    if (pending) {
+      if (kind === 'DISCOUNT') return error('Ya tenés una solicitud de descuento pendiente. Esperá a que gerencia la resuelva.', 409)
+      if (kind === 'BELOW_LIST_PRICE') return error('Ya tenés una solicitud de precio bajo lista pendiente. Esperá a que gerencia la resuelva.', 409)
+      if (kind === 'STOCK_ADJUST') return error('Ya tenés una solicitud pendiente para esa unidad. Esperá a que gerencia la resuelva.', 409)
+      if (kind === 'ORDER_VOID') return error('Ya tenés una solicitud de anulación pendiente para ese pedido. Esperá a que gerencia la resuelva.', 409)
+      return error('Ya hay una solicitud pendiente de este tipo para el cliente.', 409)
+    }
+    const auditSubject = kind === 'STOCK_ADJUST' ? { entity: 'InventoryUnit', entityId: entityId as string }
+      : kind === 'ORDER_VOID' ? { entity: 'Order', entityId: entityId as string }
+        : kind === 'BELOW_LIST_PRICE' ? { entity: entity ? 'Product' : customerId ? 'Customer' : 'Order', entityId: entityId ?? customerId ?? 'below-list-price' }
+          : { entity: customerId ? 'Customer' : 'Order', entityId: customerId ?? 'discount' }
     const created = await prisma.$transaction(async tx => {
       const authorization = await tx.customerAuthorization.create({
-        data: { tenantId: session.user.tenantId, customerId: customerId || null, kind, requestedValue, requestedById: session.user.id, note },
+        data: { tenantId: session.user.tenantId, customerId, kind, entity, entityId, requestedValue: requestedJson ?? Prisma.DbNull, requestedById: session.user.id, note },
         include: authorizationDetail,
       })
       await tx.auditLog.create({ data: {
         tenantId: session.user.tenantId, userId: session.user.id, action: 'CUSTOMER_AUTHORIZATION_REQUESTED',
-        entity: customerId ? 'Customer' : 'Order', entityId: customerId || 'discount',
-        metadata: { kind, ...(requestedJson ? { requestedValue: requestedJson } : {}), ...(note ? { note } : {}) },
+        entity: auditSubject.entity, entityId: auditSubject.entityId,
+        metadata: { kind, ...(requestedJson ? { requestedValue: requestedJson } : {}), ...(note ? { note } : {}), ...(customerId ? { customerId } : {}), ...(entity ? { subject: { entity, entityId } } : {}) },
       } })
       return authorization
     })
@@ -144,7 +255,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!RESOLVERS.includes(session.user.role)) return error('Solo gerencia o el dueño pueden resolver solicitudes.', 403)
+  if (!(AUTHORIZATION_RESOLVERS as readonly string[]).includes(session.user.role)) return error('Solo gerencia o el dueño pueden resolver solicitudes.', 403)
   try {
     const body = await request.json().catch(() => null) as Record<string, unknown> | null
     const id = clean(body?.id, 128)
@@ -156,32 +267,45 @@ export async function PATCH(request: Request) {
     if (!current) return error('Solicitud no encontrada.', 404)
     if (current.status !== 'PENDING') return error('La solicitud ya fue resuelta.', 409)
     if (current.requestedById === session.user.id) return error('No podés resolver tu propia solicitud.', 403)
-    // Un descuento rechazado sin motivo deja al vendedor sin saber qué corregir.
-    if (action === 'reject' && current.kind === 'DISCOUNT' && !resolvedNote) return error('Indicá el motivo del rechazo.')
-
-    const requested = (current.requestedValue && typeof current.requestedValue === 'object' && !Array.isArray(current.requestedValue)
-      ? current.requestedValue
-      : {}) as ValueShape
-    let applied: ValueShape = {}
-    if (action === 'approve') {
-      const normalized = normalizeValue(current.kind, body?.resolvedValue === undefined || body?.resolvedValue === null ? requested : body.resolvedValue, 'Autorización')
-      if (typeof normalized === 'string') return error(normalized)
-      applied = normalized
-      if (current.kind === 'CREDIT_DAYS' && applied.creditDays === undefined) applied.creditDays = requested.creditDays
-      if (current.kind === 'CREDIT') {
-        if (applied.creditLimitPyg === undefined) applied.creditLimitPyg = requested.creditLimitPyg
-        if (applied.creditDays === undefined && requested.creditDays !== undefined) applied.creditDays = requested.creditDays
-      }
-      // El máximo autorizado puede ser menor (o 0) al pedido; sin resolución
-      // explícita se autoriza lo pedido.
-      if (current.kind === 'DISCOUNT') applied = { maxDiscountPyg: applied.maxDiscountPyg ?? requested.discountPyg ?? 0 }
+    const isSubjectKind = SUBJECT_KINDS.includes(current.kind)
+    // Un rechazo sin motivo deja al vendedor sin saber qué corregir.
+    if (action === 'reject' && (current.kind === 'DISCOUNT' || current.kind === 'BELOW_LIST_PRICE' || isSubjectKind) && !resolvedNote) {
+      return error('Indicá el motivo del rechazo.')
     }
-    const resolvedJson = action === 'approve' && current.kind !== 'WHOLESALE' ? (applied as Prisma.InputJsonValue) : null
+
+    const requested = authorizationValueOf(current.requestedValue)
+    let applied: ValueShape = {}
+    let resolvedJson: Prisma.InputJsonValue | null = null
+    if (action === 'approve') {
+      if (isSubjectKind) {
+        const normalized = normalizeSubjectResolution(current.kind, body?.resolvedValue ?? requested, requested, 'Autorización')
+        if (typeof normalized === 'string') return error(normalized)
+        resolvedJson = normalized
+      } else {
+        const normalized = normalizeValue(current.kind, body?.resolvedValue === undefined || body?.resolvedValue === null ? requested : body.resolvedValue, 'Autorización')
+        if (typeof normalized === 'string') return error(normalized)
+        applied = normalized
+        if (current.kind === 'CREDIT_DAYS' && applied.creditDays === undefined) applied.creditDays = requested.creditDays
+        if (current.kind === 'CREDIT') {
+          if (applied.creditLimitPyg === undefined) applied.creditLimitPyg = requested.creditLimitPyg
+          if (applied.creditDays === undefined && requested.creditDays !== undefined) applied.creditDays = requested.creditDays
+        }
+        // El máximo autorizado puede ser menor (o 0) al pedido; sin resolución
+        // explícita se autoriza lo pedido.
+        if (current.kind === 'DISCOUNT') applied = { maxDiscountPyg: applied.maxDiscountPyg ?? requested.discountPyg ?? 0 }
+        resolvedJson = current.kind === 'WHOLESALE' ? null : (applied as Prisma.InputJsonValue)
+      }
+    }
+    // Audit en la cronología del sujeto (unidad, pedido o producto) para que
+    // la resolución aparezca donde se pidió.
+    const subjectEntity = current.entity === 'INVENTORY_UNIT' ? 'InventoryUnit' : current.entity === 'ORDER' ? 'Order' : current.entity === 'PRODUCT' ? 'Product' : null
+    const auditEntity = subjectEntity ?? (current.customerId ? 'Customer' : 'Order')
+    const auditEntityId = subjectEntity ? (current.entityId ?? 'unknown') : (current.customerId ?? 'discount')
 
     const updated = await prisma.$transaction(async tx => {
-      // DISCOUNT no toca la ficha del cliente (puede no tener cliente) y los
-      // demás kinds solo aplican si la solicitud tiene cliente asociado.
-      if (action === 'approve' && current.customerId) {
+      // Las condiciones comerciales del cliente sí actualizan la ficha; los
+      // tipos con sujeto resuelven la operación puntual sin tocar al cliente.
+      if (action === 'approve' && current.customerId && !isSubjectKind) {
         if (current.kind === 'WHOLESALE') {
           await tx.customer.update({ where: { id: current.customerId }, data: { pricingTier: 'WHOLESALE' } })
         } else if (current.kind === 'CREDIT') {
@@ -207,12 +331,14 @@ export async function PATCH(request: Request) {
       await tx.auditLog.create({ data: {
         tenantId: session.user.tenantId, userId: session.user.id,
         action: action === 'approve' ? 'CUSTOMER_AUTHORIZATION_APPROVED' : 'CUSTOMER_AUTHORIZATION_REJECTED',
-        entity: current.customerId ? 'Customer' : 'Order', entityId: current.customerId ?? 'discount',
+        entity: auditEntity, entityId: auditEntityId,
         metadata: {
           kind: current.kind,
           ...(current.requestedValue ? { requestedValue: current.requestedValue as Prisma.InputJsonValue } : {}),
           ...(resolvedJson ? { resolvedValue: resolvedJson } : {}),
           ...(resolvedNote ? { resolvedNote } : {}),
+          ...(current.entity ? { subject: { entity: current.entity, entityId: current.entityId } } : {}),
+          ...(current.customerId ? { customerId: current.customerId } : {}),
         },
       } })
       return authorization

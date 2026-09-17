@@ -189,6 +189,9 @@ export default function FormularioVenta({
   // (solo para vendedores sin permiso de aprobar descuentos).
   const [authDescuento, setAuthDescuento] = useState(null)
   const onAuthDescuento = useCallback(auth => setAuthDescuento(auth), [])
+  // Autorización BELOW_LIST_PRICE vigente que cubre la diferencia entre el
+  // precio de lista y el precio manual cargado en las líneas.
+  const [authPrecio, setAuthPrecio] = useState(null)
   const [pagos, setPagos] = useState(() =>
     Array.isArray(cartInicial?.pagos) ? cartInicial.pagos : [],
   )
@@ -341,6 +344,23 @@ export default function FormularioVenta({
     if (customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) return Number(producto.wholesalePricePyg)
     return Number(producto.precioVenta) || 0
   }
+  // Venta bajo lista: diferencia acumulada entre el precio de lista y el precio
+  // manual de cada línea (espejo del control del servidor). Los cupones ya
+  // vienen cotizados por el servidor y no cuentan como precio discrecional.
+  const bajoLista = items.reduce((acc, it) => {
+    if (it.couponCode) return acc
+    const lista = precioListaDe(it.productoId)
+    if (lista === undefined) return acc
+    const gap = (Number(lista) - Number(it.precio || 0)) * (it.quantity || 1)
+    if (gap <= 0) return acc
+    acc.total += gap
+    acc.productos.add(it.productoId)
+    return acc
+  }, { total: 0, productos: new Set() })
+  const descuentoPorPrecio = bajoLista.total
+  const productoBajoId = bajoLista.productos.size === 1 ? [...bajoLista.productos][0] : null
+  // Sin diferencia bajo lista no hay nada que autorizar: se limpia la selección.
+  useEffect(() => { if (descuentoPorPrecio <= 0 && authPrecio) setAuthPrecio(null) }, [descuentoPorPrecio, authPrecio])
   function agregarCombo(combo) {
     const componentes = (Array.isArray(combo.items) ? combo.items : []).map(item => {
       const producto = productos.find(p => p.id === item.productId)
@@ -643,6 +663,18 @@ export default function FormularioVenta({
       }
       if (!puedeDescontar && items.some(it => descuentoItem(it) > 0))
         throw new Error('Solo administradores y gerentes pueden aplicar descuentos por línea.')
+      // Venta bajo lista sin permiso: exige una autorización BELOW_LIST_PRICE
+      // aprobada que cubra la diferencia total entre lista y precio cargado.
+      if (!puedeDescontar && descuentoPorPrecio > 0) {
+        if (!authPrecio)
+          throw new Error(
+            'El precio está por debajo de lista y necesita autorización de gerencia. Solicitá autorización desde el carrito y actualizá el estado.',
+          )
+        if (descuentoPorPrecio > Number(authPrecio.maxDiscountPyg || 0))
+          throw new Error(
+            `La autorización de precio no alcanza para esta venta (bajo lista ${gs(descuentoPorPrecio)}, máx ${gs(Number(authPrecio.maxDiscountPyg || 0))}). Solicitá una nueva.`,
+          )
+      }
       if (venderACredito && Number(customer.creditLimitPyg || 0) <= 0)
         throw new Error('El cliente no tiene límite de crédito habilitado. Configuralo en Clientes.')
       if (esDemo) validateDemoPromotionItems(orderItems, productos, gsNum(descuento))
@@ -757,6 +789,9 @@ export default function FormularioVenta({
             // Vendedor sin permiso: la venta viaja con la autorización aprobada.
             ...(!puedeDescontar && gsNum(descuento) > 0 && authDescuento
               ? { discountAuthorizationId: authDescuento.id }
+              : {}),
+            ...(!puedeDescontar && descuentoPorPrecio > 0 && authPrecio
+              ? { priceAuthorizationId: authPrecio.id }
               : {}),
             deliveryPyg: gsNum(f.montoDelivery),
             // La API rechaza observaciones vacías: se omiten en vez de mandar ''.
@@ -1147,6 +1182,9 @@ export default function FormularioVenta({
           montoDescuento={gsNum(descuento)}
           customer={customer}
           onAuthDescuento={onAuthDescuento}
+          montoPrecioBajo={descuentoPorPrecio}
+          productoBajoId={productoBajoId}
+          onAuthPrecio={setAuthPrecio}
           tieneCupon={tieneCupon}
           f={f}
           setF={setF}

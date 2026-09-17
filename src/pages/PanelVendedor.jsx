@@ -128,16 +128,12 @@ const OWNER_BOTTOM = [
   ['inventario', 'Inventario', 'box'],
 ]
 
-// Configuración: cada pestaña es una subpágina con su propio slug en la URL
-// (/pos/equipo, /pos/negocio, /pos/sucursales, /pos/seguridad…).
-const CONFIG_TABS = [
-  ['equipo', 'Equipo'],
-  ['identidad', 'Mi identidad'],
-  ['roles', 'Roles y permisos'],
-  ['historial', 'Auditoría'],
-  ['negocio', 'Negocio'],
-  ['sucursales', 'Sucursales'],
-  ['seguridad', 'Seguridad'],
+// Cada apartado con pestañas vive en /<padre>/<slug> (slug hijo en la URL).
+const TABS_ANALISIS = [
+  ['reportes', 'Reportes'],
+  ['ganancias', 'Ganancias'],
+  ['ganadores', 'Ganadores'],
+  ['asistente', 'Asistente'],
 ]
 const TABS_ANALISIS = [
   ['reportes', 'Reportes'],
@@ -193,7 +189,18 @@ const SUBPAGINA_DE_TAB = Object.fromEntries(
 // Pestañas visibles según el modo: historial solo en demo, créditos fuera de demo.
 function tabsDeSubpagina(slug, esDemo) {
   const tabs = SUBPAGINAS[slug]?.tabs || []
-  // Créditos y cuotas solo fuera de la demo; el resto (incluida la publicidad
+  if (slug === 'configuracion') {
+    // Invitaciones necesita el API real; en demo queda oculta.
+    return tabs.filter(([id]) => (id === 'invitaciones' ? !esDemo : true))
+  }
+  if (slug === 'finanzas') {
+    return tabs.filter(([id]) => {
+      if (id === 'publicidad') return esDemo
+      if (id === 'creditos' || id === 'cuotas') return !esDemo
+      return true
+    })
+  }
+// Créditos y cuotas solo fuera de la demo; el resto (incluida la publicidad
   // real vía Finanzas) está disponible en ambos modos.
   if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas') ? !esDemo : true))
   return tabs
@@ -340,15 +347,13 @@ export default function PanelVendedor() {
   const lockEnCurso = useRef(false)
   const toast = useToast()
 
-  const accesibles = useMemo(() => {
-    const base = (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV)
-      .flatMap(group => group.items)
-      .map(([id]) => id)
-    if (!esOwner) return base
-    // Las subpáginas de Configuración no viven en el menú: se abren por sus
-    // pestañas, pero tienen que ser navegables y recargables por URL.
-    return [...base, ...CONFIG_VISTAS]
-  }, [esOwner, esTecnico])
+  const accesibles = useMemo(
+    () => (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id),
+    [esOwner, esTecnico],
+  )
+  // Apartado activo: por URL (/analisis/reportes) o por vista suelta (/pos/analisis).
+  const apartado = subpadre || SUBPAGINA_DE_TAB[vista] || null
+  const tabsApartado = useMemo(() => (apartado ? tabsDeSubpagina(apartado, esDemo) : []), [apartado, esDemo])
 
   // /pos/analisis y los slugs planos viejos (/pos/negocio…) se canonizan a /<padre>/<hijo>.
   useEffect(() => {

@@ -262,29 +262,56 @@ test('POS finds a customer by billing name, shows the selection and clears it', 
 
 // Precio manual por debajo de lista: la venta guarda el precio de lista y el
 // comprobante muestra el descuento; por encima de lista se muestra normal.
-test('POS manual price below list stores the list price for the receipt', async ({ page }) => {
+// Solo gerencia/dueño vende bajo lista sin autorización: el vendedor ve el
+// bloque de solicitud, que se cubre en su propio test.
+test('POS manual price below list stores the list price for the receipt', async ({ browser }) => {
   const name = `${SEED.checkoutCustomer} manual ${Date.now().toString(36)}`
-  await page.goto('/pos/cargar')
-  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(name)
+  // Contexto propio con la sesión del dueño: no se cierra la sesión sembrada
+  // del vendedor (la comparten los demás tests del proyecto).
+  const context = await browser.newContext({ storageState: new URL('./.auth/admin.json', import.meta.url).pathname })
+  const page = await context.newPage()
+  try {
+    await page.goto('/pos/cargar')
+    await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(name)
 
+    await page.getByLabel('Buscar producto por texto').fill('Cable')
+    await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+
+    // Precio manual 40.000 sobre lista 45.000: la fila marca el descuento.
+    await page.getByLabel(`Precio de venta de ${SEED.products.cable.name}`).fill('40000')
+    await expect(page.getByText('descuento − Gs 5.000')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Revisar carrito', exact: true }).first().click()
+    await page.getByRole('button', { name: 'Ir a cobrar' }).click()
+
+    const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+    await page.getByRole('button', { name: '+ Agregar pago' }).click()
+    await paymentsSection.getByLabel('Cuenta de cobro').selectOption({ label: 'Caja E2E · PYG · CASH' })
+    await paymentsSection.getByLabel('Monto original').fill('40000')
+    await expect(paymentsSection.getByText('Equivalente: Gs 40.000')).toBeVisible()
+
+    await page.getByRole('button', { name: /^Guardar venta/ }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Venta registrada correctamente.' })).toBeVisible()
+
+    await expect.poll(async () => orderItems(page, name)).toEqual([{ listPricePyg: SEED.products.cable.pricePyg, unitPricePyg: 40000 }])
+  } finally {
+    await context.close()
+  }
+})
+
+// Vendedor sin permiso: bajar el precio de lista ofrece el bloque de solicitud
+// a gerencia. Con una pendiente previa del mismo producto, el bloque la
+// muestra; sin ella, el botón queda disponible para pedirla.
+test('POS shows the price authorization block for a below-list price', async ({ page }) => {
+  await page.goto('/pos/cargar')
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`${SEED.checkoutCustomer} autorización ${Date.now().toString(36)}`)
   await page.getByLabel('Buscar producto por texto').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
-
-  // Precio manual 40.000 sobre lista 45.000: la fila marca el descuento.
   await page.getByLabel(`Precio de venta de ${SEED.products.cable.name}`).fill('40000')
-  await expect(page.getByText('descuento − Gs 5.000')).toBeVisible()
-
   await page.getByRole('button', { name: 'Revisar carrito', exact: true }).first().click()
-  await page.getByRole('button', { name: 'Ir a cobrar' }).click()
 
-  const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
-  await page.getByRole('button', { name: '+ Agregar pago' }).click()
-  await paymentsSection.getByLabel('Cuenta de cobro').selectOption({ label: 'Caja E2E · PYG · CASH' })
-  await paymentsSection.getByLabel('Monto original').fill('40000')
-  await expect(paymentsSection.getByText('Equivalente: Gs 40.000')).toBeVisible()
-
-  await page.getByRole('button', { name: /^Guardar venta/ }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Venta registrada correctamente.' })).toBeVisible()
-
-  await expect.poll(async () => orderItems(page, name)).toEqual([{ listPricePyg: SEED.products.cable.pricePyg, unitPricePyg: 40000 }])
+  await expect(page.getByText('Precio por debajo de lista')).toBeVisible()
+  const solicitar = page.getByRole('button', { name: 'Solicitar autorización' })
+  if (await solicitar.count() && await solicitar.first().isEnabled()) await solicitar.first().click()
+  await expect(page.getByText('Pendiente').first()).toBeVisible()
 })

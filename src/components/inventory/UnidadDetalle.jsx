@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Drawer, Badge, Button, Input, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Drawer, Badge, Button, Input, Select, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
+import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
 import { api, API_URL } from '@/lib/api/client'
@@ -59,6 +60,14 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
   const [codigos, setCodigos] = useState(null)
   const [nota, setNota] = useState(unit.notes || '')
   const [guardandoNota, setGuardandoNota] = useState(false)
+  // Retiro/ajuste con autorización para roles que no gestionan inventario:
+  // se pide desde acá y, con una aprobada, se ejecuta sobre la unidad.
+  const [authStock, setAuthStock] = useState(null)
+  const [authStockVersion, setAuthStockVersion] = useState(0)
+  const [stockAction, setStockAction] = useState(null)
+  const [stockMotivo, setStockMotivo] = useState('')
+  const [stockError, setStockError] = useState('')
+  const [stockBusy, setStockBusy] = useState(false)
 
   const load = useCallback(async () => {
     if (!canManage) { setLoading(false); return }
@@ -117,6 +126,37 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
   }
 
   function ejecutar(accion) { accion?.(); onChanged?.() }
+
+  function abrirStock(accion) {
+    setStockMotivo('')
+    setStockError('')
+    setStockAction(accion)
+  }
+
+  // Sin autorización aprobada la acción se convierte en solicitud; con una
+  // aprobada se ejecuta el retiro/ajuste y la autorización queda consumida.
+  async function confirmarStock() {
+    const motivo = stockMotivo.trim()
+    if (motivo.length < 3) { setStockError('Indicá un motivo de al menos 3 caracteres.'); return }
+    if (!stockAction) return
+    setStockBusy(true); setStockError('')
+    try {
+      if (authStock) {
+        await api.patch('/api/inventory-units', { id: unit.id, action: stockAction, reason: motivo, authorizationId: authStock.id })
+        toast.success('Unidad actualizada con la autorización de gerencia.')
+      } else {
+        await api.post('/api/authorizations', { kind: 'STOCK_ADJUST', requestedValue: { unitId: unit.id, action: stockAction, reason: motivo } })
+        toast.success('Solicitud enviada', 'Gerencia tiene que resolverla; después ejecutá la acción desde esta unidad.')
+      }
+      setStockAction(null)
+      setStockMotivo('')
+      setAuthStockVersion(v => v + 1)
+      await load()
+      onChanged?.()
+    } catch (cause) {
+      setStockError(cause?.message || 'No se pudo completar la operación.')
+    } finally { setStockBusy(false) }
+  }
 
   return (
     <Drawer open onClose={onClose} title={unit.product?.name || 'Unidad'} className="w-full sm:max-w-xl">
@@ -190,6 +230,32 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
           </div>
         </section>
 
+        {/* Retiro/ajuste con autorización para roles que no gestionan inventario */}
+        {!canManage && !['SOLD', 'RESERVED', 'IN_TRANSIT'].includes(unit.status) && (
+          <section className="rounded-2xl border border-ink-600 p-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Autorización de stock</h3>
+            <p className="mt-1 text-xs text-mute">Tu rol no retira ni ajusta unidades directamente: pedí autorización a gerencia y ejecutala desde acá.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {unit.status === 'AVAILABLE' && <Button variant="outline" disabled={stockBusy} onClick={() => abrirStock('remove')}>Dar de baja</Button>}
+              <Button variant="outline" disabled={stockBusy} onClick={() => abrirStock('adjust')}>{unit.status === 'DEFECTIVE' ? 'Habilitar' : 'Enviar a revisión'}</Button>
+            </div>
+            <div className="mt-3">
+              <AutorizacionBloque
+                key={authStockVersion}
+                kind="STOCK_ADJUST"
+                entity="INVENTORY_UNIT"
+                entityId={unit.id}
+                sinMonto
+                soloEstado
+                titulo="Retiro o ajuste de la unidad"
+                descripcion="Pedí autorización con el motivo; con una aprobada podés ejecutar el retiro o ajuste."
+                onSelect={setAuthStock}
+                bloqueado={stockBusy}
+              />
+            </div>
+          </section>
+        )}
+
         {/* Cronología */}
         <section className="rounded-2xl border border-ink-600 p-4">
           <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-mute"><Icon name="clock" className="h-3.5 w-3.5" /> Cronología</h3>
@@ -223,6 +289,27 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
           )}
         </section>
       </div>
+
+      <Modal
+        open={Boolean(stockAction)}
+        onClose={() => { if (!stockBusy) setStockAction(null) }}
+        title={stockAction === 'remove' ? 'Dar de baja la unidad' : unit.status === 'DEFECTIVE' ? 'Habilitar unidad' : 'Marcar en revisión'}
+        className="max-w-lg"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-mute">
+            IMEI {unit.serial} · {authStock ? 'Hay una autorización aprobada: al confirmar se ejecuta la acción.' : 'Se envía la solicitud a gerencia con este motivo.'}
+          </p>
+          <Textarea rows={3} maxLength={500} value={stockMotivo} onChange={event => setStockMotivo(event.target.value)} placeholder="Indicá el motivo (mínimo 3 caracteres)" />
+          {stockError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-2.5 py-2 text-xs text-bad">{stockError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setStockAction(null)} disabled={stockBusy}>Cancelar</Button>
+            <Button type="button" onClick={confirmarStock} disabled={stockBusy || stockMotivo.trim().length < 3}>
+              {stockBusy ? 'Guardando…' : authStock ? 'Ejecutar' : 'Solicitar autorización'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </Drawer>
   )
 }

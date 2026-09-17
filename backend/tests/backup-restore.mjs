@@ -71,13 +71,16 @@ const cleanupCluster = (dataDir) => {
 async function main() {
   fs.mkdirSync(backupDir, { recursive: true })
 
-  // 1. Conteos por API y por psql sobre la base activa.
+  // 1. Conteos por API y por psql sobre la base activa. El listado por defecto
+  // de la API excluye los pedidos cancelados (anulados), así que la
+  // comparación usa los cancelados solo para la restauración.
   const apiProducts = await apiCount('/api/products')
   const apiOrders = await apiCount('/api/orders')
   const sourceProducts = psqlCount(databaseUrl, `SELECT COUNT(*) FROM "Product" WHERE "tenantId" = '${TENANT}';`)
   const sourceOrders = psqlCount(databaseUrl, `SELECT COUNT(*) FROM "Order" WHERE "tenantId" = '${TENANT}';`)
+  const sourceActiveOrders = psqlCount(databaseUrl, `SELECT COUNT(*) FROM "Order" WHERE "tenantId" = '${TENANT}' AND "status" <> 'CANCELLED';`)
   if (apiProducts !== sourceProducts) fail(`API devolvió ${apiProducts} productos pero la base tiene ${sourceProducts}`)
-  if (apiOrders !== sourceOrders) fail(`API devolvió ${apiOrders} órdenes pero la base tiene ${sourceOrders}`)
+  if (apiOrders !== sourceActiveOrders) fail(`API devolvió ${apiOrders} órdenes activas pero la base tiene ${sourceActiveOrders}`)
 
   // 2. pg_dump -Fc de la base activa.
   const dumpPath = path.join(backupDir, `backup-restore-${Date.now()}.dump`)

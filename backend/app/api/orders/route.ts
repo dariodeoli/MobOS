@@ -6,6 +6,7 @@ import { requireSession } from '../../../lib/auth'
 import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
 import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
+import { consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { serialKey } from '../../../lib/validation'
 import { lineDiscount as lineDiscountFor, warrantyDaysFor } from '../../../lib/pricing'
@@ -202,20 +203,29 @@ export async function POST(request: Request) {
   if (!safeInt(discount) || !safeInt(delivery)) return error('Descuento y delivery inválidos.')
   // Descuento fuera de política: el vendedor necesita una autorización DISCOUNT
   // aprobada, vigente (24 h), sin usar y que alcance para el monto de esta venta.
+  const canDiscount = canApproveOrderDiscount(session.user)
   let discountAuthorization: { id: string; maxDiscountPyg: number } | null = null
-  if (discount > 0 && !canApproveOrderDiscount(session.user)) {
+  if (discount > 0 && !canDiscount) {
     const rawAuthorizationId = body.discountAuthorizationId
     if (rawAuthorizationId === undefined || rawAuthorizationId === null || rawAuthorizationId === '') throw new InputError('Tu rol no puede aprobar descuentos. Solicitá autorización a gerencia desde el carrito.', 403)
     const authorizationId = textInput(rawAuthorizationId, 'discountAuthorizationId', 200)
     const authorization = await prisma.customerAuthorization.findFirst({ where: { id: authorizationId, tenantId: tenant, kind: 'DISCOUNT' } })
-    if (!authorization || authorization.status !== 'APPROVED' || authorization.requestedById !== session.user.id) throw new InputError('La autorización de descuento no es válida para esta venta. Solicitá autorización a gerencia.', 403)
-    if (authorization.usedAt) throw new InputError('La autorización de descuento ya se usó. Solicitá una nueva.', 403)
-    if (!authorization.resolvedAt || authorization.resolvedAt.getTime() < Date.now() - 86400000) throw new InputError('La autorización de descuento venció (más de 24 h). Solicitá una nueva.', 403)
-    const resolved = (authorization.resolvedValue && typeof authorization.resolvedValue === 'object' && !Array.isArray(authorization.resolvedValue) ? authorization.resolvedValue : {}) as { maxDiscountPyg?: unknown }
-    const maxDiscountPyg = Number(resolved.maxDiscountPyg)
-    if (!safeInt(maxDiscountPyg)) throw new InputError('La autorización de descuento no tiene un máximo válido. Solicitá una nueva.', 403)
-    if (discount > maxDiscountPyg) throw new InputError(`La autorización no alcanza para este descuento (máx Gs ${maxDiscountPyg.toLocaleString('es-PY')}). Solicitá una nueva.`, 403)
-    discountAuthorization = { id: authorization.id, maxDiscountPyg }
+    discountAuthorization = usableAuthorization(authorization, { userId: session.user.id, kinds: ['DISCOUNT'], label: 'descuento' })
+    if (discount > discountAuthorization.maxDiscountPyg) {
+      throw new InputError(`La autorización no alcanza para este descuento (máx Gs ${discountAuthorization.maxDiscountPyg.toLocaleString('es-PY')}). Solicitá una nueva.`, 403)
+    }
+  }
+  // Precio por debajo de lista: misma regla de un solo uso, con la autorización
+  // de tipo BELOW_LIST_PRICE que pida el vendedor desde el carrito. Se valida
+  // acá para fallar temprano y se consume dentro de la transacción.
+  let priceAuthorization: { id: string; maxDiscountPyg: number } | null = null
+  if (!canDiscount) {
+    const rawPriceAuthorizationId = body.priceAuthorizationId
+    if (rawPriceAuthorizationId !== undefined && rawPriceAuthorizationId !== null && rawPriceAuthorizationId !== '') {
+      const authorizationId = textInput(rawPriceAuthorizationId, 'priceAuthorizationId', 200)
+      const authorization = await prisma.customerAuthorization.findFirst({ where: { id: authorizationId, tenantId: tenant, kind: 'BELOW_LIST_PRICE' } })
+      priceAuthorization = usableAuthorization(authorization, { userId: session.user.id, kinds: ['BELOW_LIST_PRICE'], label: 'precio' })
+    }
   }
   if (discount > 0 && items.some(item => item?.couponCode !== undefined)) throw new InputError('No se puede combinar cupón y descuento global.')
     const crearPedido = () => prisma.$transaction(async tx => {
@@ -277,6 +287,9 @@ export async function POST(request: Request) {
       let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()
+      // Diferencia acumulada entre precio de lista y precio cargado (venta bajo
+      // lista): es lo que debe cubrir la autorización BELOW_LIST_PRICE.
+      let belowListPyg = 0
       for (const item of items) {
         objectInput(item)
         if (['coupon', 'couponCodes', 'discountCode', 'promoCode', 'promotionSnapshot'].some(key => key in item)) throw new InputError('Enviá solo couponCode como metadata del cupón.')
@@ -302,6 +315,14 @@ export async function POST(request: Request) {
           if (product.costPyg !== null && product.costPyg !== undefined) baseUnitCostPyg = product.costPyg
           // Precio de lista congelado: el mayorista del cliente si lo tiene.
           listPricePyg = pricingTier === 'WHOLESALE' && Number(product.wholesalePricePyg || 0) > 0 ? Number(product.wholesalePricePyg) : product.pricePyg
+          // El precio de cupón ya viene cotizado por el servidor: no cuenta
+          // como venta bajo lista discrecional.
+          if (item.couponCode === undefined && price < listPricePyg) {
+            const gap = (listPricePyg - price) * quantity
+            if (!Number.isSafeInteger(gap)) throw new Error('Diferencia bajo lista fuera de rango.')
+            belowListPyg += gap
+            if (!Number.isSafeInteger(belowListPyg)) throw new Error('Diferencia bajo lista fuera de rango.')
+          }
           const policy = product.category ? await tx.costPolicy.findFirst({ where: { tenantId: tenant, category: product.category, isActive: true }, select: { insuranceRate: true } }) : null
           const rate = product.insuranceRate === null || product.insuranceRate === undefined ? Number(policy?.insuranceRate ?? 0) : Number(product.insuranceRate)
           if (!soldWithoutInsurance && rate > 0) {
@@ -353,6 +374,15 @@ export async function POST(request: Request) {
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery
       if (!safeInt(subtotal) || !safeInt(total)) throw new Error('Total inválido.')
+      // Venta bajo lista sin permiso de descuento: la autorización debe cubrir
+      // la diferencia total entre lista y precio cargado.
+      const priceAuth = priceAuthorization
+      if (belowListPyg > 0 && !canDiscount) {
+        if (!priceAuth) throw new InputError('El precio está por debajo de lista y tu rol no puede autorizarlo. Solicitá autorización de precio desde el carrito.', 403)
+        if (belowListPyg > priceAuth.maxDiscountPyg) {
+          throw new InputError(`La autorización de precio no alcanza para esta venta (bajo lista Gs ${belowListPyg.toLocaleString('es-PY')}, máx Gs ${priceAuth.maxDiscountPyg.toLocaleString('es-PY')}). Solicitá una nueva.`, 403)
+        }
+      }
       // Venta a crédito: plazo y límite del cliente (control de mora).
       let dueAt: Date | null = null; let creditDays: number | null = null; let creditLimit: number | null = null
       if (body.creditDays !== undefined || body.dueAt !== undefined) {
@@ -389,15 +419,18 @@ export async function POST(request: Request) {
 
       const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREATED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, totalPyg: total, items: normalized.length, ...(customerId ? { customerId } : {}) } } })
-      if (discountAuthorization) {
+      const discountAuth = discountAuthorization
+      if (discountAuth) {
         // Consumo atómico: dos ventas concurrentes con la misma autorización no
         // pueden usarla dos veces; la que pierde revierte toda la transacción.
-        const claimed = await tx.customerAuthorization.updateMany({
-          where: { id: discountAuthorization.id, tenantId: tenant, kind: 'DISCOUNT', status: 'APPROVED', requestedById: session.user.id, usedAt: null },
-          data: { usedAt: new Date(), usedByOrderId: order.id },
-        })
-        if (claimed.count !== 1) throw new InputError('La autorización de descuento ya se usó. Solicitá una nueva.', 403)
-        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_AUTHORIZED', entity: 'Order', entityId: order.id, metadata: { authorizationId: discountAuthorization.id, maxDiscountPyg: discountAuthorization.maxDiscountPyg, discountPyg: discount, subtotalPyg: subtotal } } })
+        await consumeAuthorization(tx, { id: discountAuth.id, tenantId: tenant, kinds: ['DISCOUNT'], userId: session.user.id, label: 'descuento', usedByOrderId: order.id })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_AUTHORIZED', entity: 'Order', entityId: order.id, metadata: { authorizationId: discountAuth.id, maxDiscountPyg: discountAuth.maxDiscountPyg, discountPyg: discount, subtotalPyg: subtotal } } })
+      }
+      if (priceAuth && belowListPyg > 0) {
+        // La autorización de precio se consume una sola vez y deja auditoría
+        // del monto bajo lista que cubrió.
+        await consumeAuthorization(tx, { id: priceAuth.id, tenantId: tenant, kinds: ['BELOW_LIST_PRICE'], userId: session.user.id, label: 'precio', usedByOrderId: order.id })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_PRICE_AUTHORIZED', entity: 'Order', entityId: order.id, metadata: { authorizationId: priceAuth.id, maxDiscountPyg: priceAuth.maxDiscountPyg, belowListPyg, subtotalPyg: subtotal } } })
       }
       if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
       if (soldUnits.length) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNITS_SOLD', entity: 'Order', entityId: order.id, metadata: { serials: soldUnits.map(unit => unit.serial), productIds: [...new Set(soldUnits.map(unit => unit.productId))] } } })

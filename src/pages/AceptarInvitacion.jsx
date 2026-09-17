@@ -85,6 +85,11 @@ export default function AceptarInvitacion() {
               {estado.status === 'INVALID' && 'El enlace no es válido. Pedí que te reenvíen la invitación desde Configuración → Equipo.'}
             </p>
           )}
+          {!/^[a-f0-9]{64}$/i.test(token) && (
+            <div className="mt-6">
+              <PegarEnlaceToken onToken={(nuevo) => { setToken(nuevo); setError('') }} />
+            </div>
+          )}
           {activa && (
             <>
               <p className="mt-2 text-sm leading-6 text-mute">
