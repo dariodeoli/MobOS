@@ -24,7 +24,7 @@ export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link 
   const sucursal = order.branch || null
   const cliente = order.customer || null
 
-  t.centrado(APP_NAME).negrita().centrado('Comprobante de compra').negrita(false)
+  t.centrado(empresa || APP_NAME).negrita().centrado('Comprobante de compra').negrita(false)
   t.centrado(`${order.orderNumber || order.codigo || 'Pedido'} · ${fecha(order.createdAt || order.creadoEn || order.fecha)}`)
   t.linea()
 
@@ -109,13 +109,11 @@ export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link 
   return t.avanza(2).corte()
 }
 
-// Etiqueta de una unidad de stock: producto, estado, IMEI con los últimos 4
-// destacados y QR/código de barras para escanear.
-export function ticketEtiquetaUnidad(unit, { ancho = 80 } = {}) {
-  const t = crearTicket({ ancho }).iniciar()
+// Una etiqueta de unidad dentro de un ticket ya abierto (sirve para una suelta
+// o para un lote, sin duplicar el diseño).
+function etiquetaUnidadEn(t, unit) {
   const serial = String(unit.serial || '')
   const condicion = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }[unit.condition] || unit.condition || ''
-  const codigo = `MOBOS:${serial}`
   t.centrado(`${APP_NAME} · ETIQUETA`)
   t.linea()
   t.negrita().texto(unit.product?.name || 'Producto').negrita(false)
@@ -128,12 +126,17 @@ export function ticketEtiquetaUnidad(unit, { ancho = 80 } = {}) {
     t.centrado('IMEI / Serial')
     t.centrado(serial)
     t.avanza(1)
-    t.qr(codigo, { tamano: 7 })
-    t.barcode(codigo)
+    t.qr(`MOBOS:${serial}`, { tamano: 7 })
+    t.barcode(`MOBOS:${serial}`)
   }
   t.linea()
   t.centrado('Escaneá para buscar, vender o verificar esta unidad.')
   return t.avanza(2).corte()
+}
+
+// Etiqueta de una unidad de stock: producto, estado, IMEI y QR/código de barras.
+export function ticketEtiquetaUnidad(unit, { ancho = 80 } = {}) {
+  return etiquetaUnidadEn(crearTicket({ ancho }).iniciar(), unit)
 }
 
 // Etiqueta de precio/góndola con QR que abre el producto.
@@ -212,31 +215,10 @@ export function ticketPrueba({ ancho = 80, impresora = '' } = {}) {
   return t.avanza(2).corte()
 }
 
-// Varias etiquetas de unidad en un solo trabajo (una por página de 58 mm).
+// Varias etiquetas de unidad en un solo trabajo (una por etiqueta).
 export function ticketEtiquetasUnidad(units = [], { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
-  for (const unit of units) {
-    const serial = String(unit.serial || '')
-    const condicion = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }[unit.condition] || unit.condition || ''
-    t.centrado(`${APP_NAME} · ETIQUETA`)
-    t.linea()
-    t.negrita().texto(unit.product?.name || 'Producto').negrita(false)
-    if (condicion) t.texto(condicion)
-    if (unit.batteryHealth) t.texto(`Batería ${unit.batteryHealth}%`)
-    if (unit.location?.name) t.texto(`Ubicación: ${unit.location.name}`)
-    if (unit.supplierName) t.texto(`Proveedor: ${unit.supplierName}`)
-    t.linea()
-    if (serial) {
-      t.centrado('IMEI / Serial')
-      t.centrado(serial)
-      t.avanza(1)
-      t.qr(`MOBOS:${serial}`, { tamano: 7 })
-      t.barcode(`MOBOS:${serial}`)
-    }
-    t.linea()
-    t.centrado('Escaneá para buscar, vender o verificar esta unidad.')
-    t.avanza(2).corte()
-  }
+  for (const unit of units) etiquetaUnidadEn(t, unit)
   return t
 }
 

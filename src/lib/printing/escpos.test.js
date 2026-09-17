@@ -68,8 +68,19 @@ test('el código de barras CODE128 lleva el largo y el corte se puede omitir', (
   assert.deepEqual(bytes.slice(0, 3), [0x1b, 0x61, 0x01]) // centra el código de barras
   assert.ok(bytes.includes(0x1d) && bytes.includes(0x68) && bytes.includes(0x50))
   const marca = bytes.indexOf(0x49)
-  assert.equal(bytes[marca + 1], 5)
-  assert.equal(String.fromCharCode(...bytes.slice(marca + 2, marca + 7)), 'MOB-1')
+  assert.equal(bytes[marca + 1], 7) // {B + MOB-1
+  assert.equal(String.fromCharCode(...bytes.slice(marca + 2, marca + 9)), '{BMOB-1')
+})
+
+test('los caracteres que CP850 no tiene se reemplazan por equivalentes', () => {
+  const texto = String.fromCharCode(...crearTicket({ ancho: 58, margen: 0 }).texto('Cliente · A→B ×2 — ok “cita” …').bytes())
+  assert.ok(texto.includes('·'.charCodeAt(0) === 0xb7 ? '\u00fa' : '')) // el punto medio sale en CP850
+  assert.ok(texto.includes('->'))
+  assert.ok(texto.includes('x2'))
+  assert.ok(texto.includes('- ok'))
+  assert.ok(texto.includes('"cita"'))
+  assert.ok(texto.includes('...'))
+  assert.ok(!texto.includes('?'))
 })
 
 test('base64 devuelve los mismos bytes', () => {

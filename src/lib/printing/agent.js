@@ -8,10 +8,14 @@ const CLAVE_CONFIG = 'mobos:impresora:config'
 export const URL_AGENTE = 'http://127.0.0.1:17890'
 
 export const configImpresora = () => {
+  const base = { url: URL_AGENTE, impresora: '', ancho: 58, copias: 1, token: '' }
   try {
-    return { url: URL_AGENTE, impresora: '', ancho: 58, copias: 1, token: '', ...(JSON.parse(localStorage.getItem(CLAVE_CONFIG) || '{}') || {}) }
+    const guardado = { ...base, ...(JSON.parse(localStorage.getItem(CLAVE_CONFIG) || '{}') || {}) }
+    // Una dirección vacía guardada no debe dejar todo sin agente.
+    if (!String(guardado.url || '').trim()) guardado.url = URL_AGENTE
+    return guardado
   } catch {
-    return { url: URL_AGENTE, impresora: '', ancho: 58, copias: 1, token: '' }
+    return base
   }
 }
 
@@ -85,5 +89,8 @@ export async function imprimirTicketOFallback(ticket, html) {
     const resultado = await imprimirTicketDirecto(ticket)
     if (resultado.ok) return { ...resultado, directo: true }
   }
-  return { ok: true, directo: false, html: typeof html === 'string' ? printHtml(html) : undefined }
+  // Sin HTML de respaldo (por ejemplo, remitos y etiquetas que ya lo arman
+  // aparte) no se abre ningún diálogo en blanco: decide quien llama.
+  if (typeof html === 'string' && html.trim()) printHtml(html)
+  return { ok: true, directo: false }
 }

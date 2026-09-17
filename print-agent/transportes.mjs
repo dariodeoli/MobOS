@@ -54,10 +54,15 @@ export function enviar(destino, bytes) {
 
 // Prueba de alcance: intenta abrir el socket sin enviar nada. Sirve para
 // avisar en la app si la impresora no está en la misma red.
-export function probarConexion(destino, { timeoutMs = 1500 } = {}) {
+export async function probarConexion(destino, { timeoutMs = 1500 } = {}) {
   const valor = String(destino || '').trim()
-  if (!valor) return Promise.resolve(false)
-  if (valor.startsWith('usb:')) return Promise.resolve(true) // CUPS valida al imprimir
+  if (!valor) return false
+  if (valor.startsWith('usb:')) {
+    // La cola USB se verifica contra CUPS: si no existe, no está lista.
+    const cola = valor.slice(4)
+    const colas = await impresorasUsb()
+    return colas.includes(cola)
+  }
   const [host, puerto] = valor.replace(/^lan:/, '').split(':')
   return new Promise((resolve) => {
     const socket = connect({ host, port: Number(puerto) || 9100 })

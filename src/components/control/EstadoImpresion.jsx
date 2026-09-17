@@ -177,7 +177,7 @@ export default function EstadoImpresion() {
             {sesiones.map((activa) => (
               <div key={activa.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{activa.user?.name || 'Acceso de empresa'}{activa.id === sesiones[0]?.id ? '' : ''}</p>
+                  <p className="truncate text-sm font-semibold">{activa.user?.name || 'Acceso de empresa'}</p>
                   <p className="mt-0.5 truncate text-xs text-mute">{activa.user?.role || activa.level} · {activa.deviceId || 'Dispositivo no identificado'}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

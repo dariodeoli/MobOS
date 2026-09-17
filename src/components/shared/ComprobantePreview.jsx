@@ -57,8 +57,8 @@ export default function ComprobantePreview({ order, open, onClose }) {
     const { ancho } = configImpresora()
     const resultado = await imprimirTicketDirecto(ticketComprobante(order, { nivel, ancho, link }))
     setEnviando(false)
-    if (!resultado.ok) return
-    toast.success(resultado.encolado ? 'Comprobante encolado' : 'Comprobante enviado a la impresora')
+    if (!resultado.ok) { toast.error('No se pudo imprimir', resultado.error); return }
+    toast.success(resultado.encolado ? 'Comprobante encolado' : 'Comprobante enviado a la impresora', resultado.encolado ? 'La impresora no respondió; el puente reintenta solo.' : '')
   }
 
   return (

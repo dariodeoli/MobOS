@@ -6,15 +6,22 @@
 // traducen los caracteres españoles para que no salgan como signos raros.
 const CP850 = {
   'á': 0xa0, 'é': 0x82, 'í': 0xa1, 'ó': 0xa2, 'ú': 0xa3, 'ü': 0x81, 'ñ': 0xa4, 'Ñ': 0xa5,
-  'Á': 0xb5, 'É': 0x90, 'Í': 0xd6, 'Ó': 0xe0, 'Ú': 0xe9, 'Ü': 0x9a, '¿': 0xa8, '¡': 0xad, '°': 0xf8,
+  'Á': 0xb5, 'É': 0x90, 'Í': 0xd6, 'Ó': 0xe0, 'Ú': 0xe9, 'Ü': 0x9a, '¿': 0xa8, '¡': 0xad,
+  '°': 0xf8, '·': 0xfa, '¬': 0xac, '¼': 0xac, '½': 0xab,
 }
+
+// Lo que CP850 no tiene se reemplaza por su equivalente (si no, sale un signo
+// raro o un "?"): flechas, comillas tipográficas, guiones largos y viñetas.
+const SUSTITUCIONES = { '→': '->', '←': '<-', '…': '...', '–': '-', '—': '-', '’': "'", '‘': "'", '“': '"', '”': '"', '×': 'x', '•': '-', '✓': 'v', '\u00a0': ' ', '\u202f': ' ' }
+const normalizarParaImpresora = (texto) => String(texto ?? '')
+  .replace(/[→←…–—’‘“”×•✓\u00a0\u202f]/g, (caracter) => SUSTITUCIONES[caracter] ?? caracter)
 
 const ESC = 0x1b
 const GS = 0x1d
 
 const bytesDeTexto = (texto) => {
   const salida = []
-  for (const caracter of String(texto ?? '')) {
+  for (const caracter of normalizarParaImpresora(texto)) {
     const codigo = CP850[caracter]
     if (codigo !== undefined) { salida.push(codigo); continue }
     const punto = caracter.codePointAt(0)
@@ -122,10 +129,11 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
       partes.push(ESC, 0x61, 0x00) // vuelve a la izquierda
       return api
     },
-    // Código de barras CODE128 (GS k 73: incluye el largo).
+    // Código de barras CODE128 (GS k 73: incluye el largo). El juego de códigos
+    // B se declara con {B, como pide el estándar ESC/POS.
     barcode(datos) {
       partes.push(ESC, 0x61, 0x01)
-      const contenido = bytesDeTexto(datos)
+      const contenido = [0x7b, 0x42, ...bytesDeTexto(datos)]
       if (contenido.length && contenido.length <= 255) {
         partes.push(GS, 0x68, 0x50) // altura 80 puntos
         partes.push(GS, 0x77, 0x02) // módulo angosto

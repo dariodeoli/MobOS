@@ -47,11 +47,15 @@ const responder = (response, datos, status = 200) => {
 
 const tokenValido = (request) => !config.token || request.headers['x-mobos-print-token'] === config.token
 
-// IP del equipo que llama: sirve para saber desde qué computadora se imprimió.
-const ipDe = (request) => {
-  const reenviada = String(request.headers['x-forwarded-for'] || '').split(',')[0].trim()
-  const directa = String(request.socket?.remoteAddress || '')
-  return (reenviada || directa).replace(/^::ffff:/, '')
+// IP real del equipo que llama (la del socket: no se confía en headers que el
+// cliente puede inventar). Sirve para saber desde qué computadora se imprimió.
+const ipDe = (request) => String(request.socket?.remoteAddress || '').replace(/^::ffff:/, '')
+
+// Solo se permite imprimir a destinos configurados: evita que un cliente
+// autenticado use el agente como puente hacia otros equipos de la red.
+async function destinosPermitidos() {
+  const usb = await impresorasUsb()
+  return new Set([...config.lan, ...usb.map((cola) => `usb:${cola}`), config.impresora].filter(Boolean))
 }
 
 const leerCuerpo = (request) => new Promise((resolve, reject) => {
@@ -114,6 +118,12 @@ const servidor = createServer(async (request, response) => {
       const data = String(cuerpo?.data || '')
       const copias = Math.min(5, Math.max(1, Number(cuerpo?.copias) || config.copias))
       if (!impresora) return responder(response, { ok: false, error: 'Elegí una impresora en Configuración → Impresoras.' }, 400)
+      if (!(await destinosPermitidos()).has(impresora)) {
+        return responder(response, { ok: false, error: `La impresora ${impresora} no está configurada en este agente.` }, 400)
+      }
+      if (cola.resumen().pendientes >= 100) {
+        return responder(response, { ok: false, error: 'La cola de impresión está llena (100 trabajos): revisá la impresora antes de seguir.' }, 429)
+      }
       if (!data || !/^[A-Za-z0-9+/=]+$/.test(data)) return responder(response, { ok: false, error: 'El ticket llegó vacío o mal formado.' }, 400)
       const ticket = copias > 1 ? Buffer.from(data, 'base64').toString('base64') : data
       const resultados = []
@@ -155,6 +165,9 @@ servidor.listen(config.puerto, config.host, async () => {
   console.log(`MobOS Print ${VERSION} escuchando en http://${config.host}:${config.puerto}`)
   console.log(`Token: ${config.token}`)
   console.log(config.impresora ? `Impresora: ${config.impresora}` : 'Sin impresora elegida: configurala desde Configuración → Impresoras.')
+  if (config.host === '0.0.0.0' && !config.token) {
+    console.warn('ATENCIÓN: el agente acepta conexiones de la red y no tiene token. Cualquiera en la red podría imprimir.')
+  }
   if (config.host === '0.0.0.0') {
     const { interfaces } = await diagnosticoRed(config.impresora)
     for (const ip of interfaces) console.log(`Puente de impresión: http://${ip}:${config.puerto} (poné esta dirección en las demás computadoras y móviles)`)
