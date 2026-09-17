@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
-import { Badge, Button } from '@/components/ui'
+import { Badge, Button, Skeleton } from '@/components/ui'
 
 const normalize = (value = '') => String(value).trim().replace(/^MOBOS:/i, '').replace(/[\s-]+/g, '').toUpperCase()
 
@@ -47,15 +47,31 @@ export default function SerialUnitPicker({ product, customerName, selectedSerial
   }
 
   if (!product?.id) return null
-  if (loading) return <p className="mt-3 text-xs text-mute">Buscando unidades serializadas…</p>
+  if (loading) return <div className="mt-3 space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>
   if (!units.length && !error) return null
 
-  return <section className="mt-3 rounded-xl border border-fono/25 bg-fono/[.04] p-3" aria-label="Unidad física para esta venta">
-    <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-semibold">Equipo físico / IMEI</p><p className="mt-0.5 text-xs text-mute">Elegí y reservá la unidad exacta. La reserva dura 60 minutos.</p></div><Badge color={selectedSerials.length ? 'green' : 'orange'}>{selectedSerials.length ? `IMEI ••••${selectedSerials[0].slice(-4)}` : 'Requerido'}</Badge></div>
-    <div className="mt-3 space-y-2">{units.map(unit => {
+  return <section className="mt-3 rounded-2xl border border-fono/25 bg-fono/[.04] p-3" aria-label="Unidad física para esta venta">
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      <div><p className="text-sm font-semibold">Equipo físico / IMEI</p><p className="mt-0.5 text-xs text-mute">Elegí y reservá la unidad exacta. La reserva dura 60 minutos.</p></div>
+      <Badge color={selectedSerials.length ? 'green' : 'orange'}>{selectedSerials.length ? `IMEI ••••${selectedSerials[0].slice(-4)}` : 'Requerido'}</Badge>
+    </div>
+    <div className="mt-3 space-y-1.5">{units.map(unit => {
       const selected = selectedSerials.includes(normalize(unit.serial))
       const available = unit.status === 'AVAILABLE' || selected
-      return <div key={unit.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-2.5 ${selected ? 'border-ok/40 bg-ok/5' : 'border-ink-600'}`}><div><p className="text-sm font-medium">IMEI {unit.serial} <span className="ml-1 font-bold text-fono-light">••••{unit.serial?.slice(-4)}</span></p><p className="text-xs text-mute">{unit.condition === 'USED' ? 'Seminuevo' : 'Nuevo'}{unit.batteryHealth ? ` · Batería ${unit.batteryHealth}%` : ''}{unit.location?.name ? ` · ${unit.location.name}` : ''}</p></div><Button type="button" variant={selected ? 'outline' : 'primary'} disabled={!available || disabled || Boolean(busySerial)} onClick={() => toggle(unit)}>{busySerial === normalize(unit.serial) ? 'Actualizando…' : selected ? 'Liberar' : available ? 'Reservar este' : 'No disponible'}</Button></div>
+      return <div key={unit.id} className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 transition ${selected ? 'border-ok/40 bg-ok/10' : 'border-ink-600 hover:border-fono/30'}`}>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-mono text-[12px]">IMEI {String(unit.serial).slice(0, -4)}<b className="text-fono-light">{String(unit.serial).slice(-4)}</b></span>
+          <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-mute">
+            <Badge color={unit.condition === 'USED' ? 'orange' : 'green'}>{unit.condition === 'USED' ? 'Seminuevo' : 'Nuevo'}</Badge>
+            {unit.batteryHealth ? <span>{unit.batteryHealth}%</span> : null}
+            {unit.location?.name ? <span>· {unit.location.name}</span> : null}
+            {!available && !selected ? <span className="font-semibold text-bad">No disponible</span> : null}
+          </span>
+        </span>
+        <Button type="button" variant={selected ? 'outline' : 'primary'} className="h-8 shrink-0 px-2.5 text-xs" disabled={!available || disabled || Boolean(busySerial)} onClick={() => toggle(unit)}>
+          {busySerial === normalize(unit.serial) ? 'Actualizando…' : selected ? 'Liberar' : available ? 'Reservar este' : 'No disponible'}
+        </Button>
+      </div>
     })}</div>
     {error && <p role="alert" className="mt-2 text-xs text-bad">{error}</p>}
   </section>

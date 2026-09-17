@@ -1040,6 +1040,7 @@ export default function FormularioVenta({
         >
           {pasos.map((nombre, index) => {
             const n = index + 1
+            const completado = n < paso
             return (
               <button
                 key={nombre}
@@ -1047,20 +1048,25 @@ export default function FormularioVenta({
                 onClick={() => n <= paso && setPaso(n)}
                 disabled={n > paso}
                 className={cn(
-                  'min-h-11 rounded-xl px-2 text-left text-xs font-semibold transition sm:px-3',
+                  'flex min-h-11 items-center gap-2 rounded-xl px-2 text-left text-xs font-semibold transition sm:px-3',
                   paso === n
                     ? 'bg-fono text-onbrand shadow-lg shadow-fono/15'
-                    : n < paso
+                    : completado
                       ? 'text-fono-light hover:bg-fono/10'
                       : 'cursor-not-allowed text-mute/60',
                 )}
               >
-                <span className="mr-1.5 text-[10px] opacity-70">0{n}</span>
-                {nombre}
+                <span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold', paso === n ? 'bg-onbrand/20' : completado ? 'bg-fono/20' : 'bg-ink-700')}>
+                  {completado ? <Icon name="check" className="h-3 w-3" /> : `0${n}`}
+                </span>
+                <span className="truncate">{nombre}</span>
               </button>
             )
           })}
         </nav>
+        <div className="h-1 overflow-hidden rounded-full bg-ink-700 md:col-span-2">
+          <div className="h-full rounded-full bg-fono transition-all duration-300" style={{ width: `${(paso / 3) * 100}%` }} />
+        </div>
         <div className="flex items-center justify-between text-xs text-mute md:col-span-2">
           <span>Paso {paso} de 3</span>
           {paso === 3 && (
