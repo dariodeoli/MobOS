@@ -55,6 +55,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       branch: order.branch ? { id: order.branch.id, name: order.branch.name } : null,
       seller: order.seller ? { id: order.seller.id, name: order.seller.name } : null,
       serials,
+      items: order.items.map(item => ({ id: item.id, description: item.description, quantity: item.quantity, serials: Array.isArray(item.serials) ? item.serials as string[] : [] })),
     }
   })
   const debtPyg = orderRows.reduce((sum, order) => sum + order.pendingPyg, 0)
@@ -69,7 +70,7 @@ export async function GET(request: Request, { params }: RouteContext) {
         ...(serials.length ? [{ serial: { in: serials } }] : []),
       ],
     },
-    select: { id: true, serial: true, customerName: true, description: true, status: true, branchId: true, createdAt: true, updatedAt: true, branch: { select: { id: true, name: true } } },
+    select: { id: true, serial: true, customerName: true, description: true, status: true, branchId: true, createdAt: true, updatedAt: true, expiresAt: true, warrantyDays: true, publicToken: true, branch: { select: { id: true, name: true } } },
     orderBy: { createdAt: 'desc' },
     take: 50,
   })

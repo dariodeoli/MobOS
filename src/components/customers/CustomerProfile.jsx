@@ -51,6 +51,7 @@ const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Da
 
 const TABS = [
   { key: 'compras', label: 'Compras' },
+  { key: 'dispositivos', label: 'Dispositivos' },
   { key: 'garantias', label: 'Garantías' },
   { key: 'notas', label: 'Notas' },
   { key: 'seguimientos', label: 'Seguimientos' },
@@ -103,7 +104,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const deuda = Number(profile?.debtPyg ?? 0)
   const garantiasActivas = warranties.filter((item) => item.status !== 'DELIVERED').length
 
-  const tabCounts = { compras: orders.length, garantias: warranties.length, notas: notes.length, seguimientos: followUps.length }
+  const dispositivos = orders.flatMap(order => (order.items || []).flatMap(item => (item.serials || []).map(serial => ({ serial, model: item.description, date: order.createdAt, orderNumber: order.orderNumber, warranty: warranties.find(warranty => warranty.serial === serial) || null }))))
+  const tabCounts = { compras: orders.length, dispositivos: dispositivos.length, garantias: warranties.length, notas: notes.length, seguimientos: followUps.length }
 
   async function saveNote(event) {
     event.preventDefault()
@@ -309,6 +311,34 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     </div>
                   )}
                 />
+              )}
+            </>
+          )}
+
+          {tab === 'dispositivos' && (
+            <>
+              {!dispositivos.length ? (
+                <EmptyState compact icon="phone" title="Sin dispositivos registrados" description="Los equipos con IMEI/serial comprados por este cliente aparecen acá." />
+              ) : (
+                <ul className="space-y-2">
+                  {dispositivos.map((device) => {
+                    const vence = device.warranty?.expiresAt ? new Date(device.warranty.expiresAt) : null
+                    const dias = vence ? Math.max(0, Math.ceil((vence.getTime() - Date.now()) / 86400000)) : null
+                    return (
+                      <li key={`${device.serial}-${device.orderNumber}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{device.model || 'Equipo'}</p>
+                          <p className="mt-0.5 font-mono text-xs text-mute">IMEI {device.serial}</p>
+                          <p className="mt-0.5 text-xs text-mute">Comprado {fecha(device.date)}{device.orderNumber ? ` · ${device.orderNumber}` : ''}</p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {vence ? <Badge color={dias === 0 ? 'red' : dias <= 15 ? 'orange' : 'green'}>{dias === 0 ? 'Garantía vencida' : `${dias} días de garantía`}</Badge> : <Badge color="slate">Sin garantía cargada</Badge>}
+                          {device.warranty?.publicToken && <a className="rounded-lg border border-fono/40 px-2.5 py-1.5 text-xs font-semibold text-fono-light" href={`${window.location.origin}/garantia/${device.warranty.publicToken}`} target="_blank" rel="noreferrer">Ver garantía</a>}
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
               )}
             </>
           )}
