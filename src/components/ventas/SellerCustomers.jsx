@@ -8,6 +8,7 @@ import PhoneField from '@/components/shared/PhoneField'
 import EmailField from '@/components/shared/EmailField'
 import ListGridToggle from '@/components/shared/ListGridToggle'
 import { internationalPhone, telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
+import { coincideCliente } from '@/utils/cliente'
 import { parseDelimited } from '@/utils/csv'
 
 const RUC_RE = /\d[\d.\s]{2,}-\d+/
@@ -86,7 +87,7 @@ export default function SellerCustomers() {
   const nombreRef = useRef(null)
   const data = useSellerData(`/api/customers?q=${encodeURIComponent(search)}`, customerFields, readDemoCustomers, esDemo)
   const templateData = useSellerData('/api/message-templates', templateFields, readDemoTemplates, esDemo)
-  const rows = esDemo ? data.rows.filter((row) => `${row.name} ${(row.phones || []).join(' ')}`.toLowerCase().includes(search.toLowerCase())) : data.rows
+  const rows = esDemo ? data.rows.filter((row) => coincideCliente(row, search)) : data.rows
 
   useEffect(() => {
     function onNewCustomer() {

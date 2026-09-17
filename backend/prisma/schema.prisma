@@ -532,6 +532,10 @@ model Customer {
   countryCode String   @default("+595")
   email       String?
   document    String?
+  // Datos de facturación habituales (factura a otro titular): se recuerdan
+  // desde la última venta y la búsqueda de clientes los incluye.
+  billingName     String?
+  billingDocument String?
   notes       String?
   // Identificador del cliente en un sistema anterior (migración de datos):
   // permite importar fichas históricas sin duplicar personas.
@@ -856,6 +860,10 @@ model OrderItem {
   description          String
   quantity             Int            @default(1)
   unitPricePyg         Int
+  // Precio de lista del producto al momento de la venta (el mayorista si el
+  // cliente lo es). La UI y el comprobante muestran el descuento solo cuando
+  // la línea se vendió más barato; por encima de lista se muestra normal.
+  listPricePyg         Int?
   unitCostPyg          Int?
   baseUnitCostPyg      Int?
   insurancePyg         Int            @default(0)

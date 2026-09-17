@@ -115,7 +115,12 @@ export async function POST(request: Request) {
       const branchId = session.user.branchId
       if (branchId && !await tx.branch.findFirst({ where: { id: branchId, tenantId: tenant, isActive: true }, select: { id: true } })) throw new Error('Sucursal no encontrada.')
       let customerId = selectedCustomerId
-      if (customerId && !await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { id: true } })) throw new Error('Cliente no encontrado.')
+      let pricingTier = 'RETAIL'
+      if (customerId) {
+        const selectedCustomer = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { id: true, pricingTier: true } })
+        if (!selectedCustomer) throw new Error('Cliente no encontrado.')
+        pricingTier = selectedCustomer.pricingTier || 'RETAIL'
+      }
       if (customer) {
         // Serialize inline checkouts for this tenant/name, including when no customer exists yet.
         await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(json_build_array(${tenant}::text, lower(${customer.name}::text))::text, 0))`
@@ -142,7 +147,12 @@ export async function POST(request: Request) {
           customerId = created.id
         }
       }
-      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
+      // La factura a otro titular queda en la ficha del cliente: la próxima
+      // venta la propone y la búsqueda puede encontrar por esa razón social.
+      if (customerId && (billingName || billingDocument)) {
+        await tx.customer.update({ where: { id: customerId }, data: { ...(billingName ? { billingName } : {}), ...(billingDocument ? { billingDocument } : {}) } })
+      }
+      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()
       for (const item of items) {
@@ -155,7 +165,7 @@ export async function POST(request: Request) {
         serials.forEach(serial => serialsInOrder.add(serial))
         const promotion = item.couponCode === undefined ? undefined : await quotePromotion(tx, tenant, branchId, { ...item, quantity }, true)
         if (promotion && price !== promotion.unitPricePyg) throw new InputError('El precio del cupón cambió o fue alterado. Volvé a aplicarlo.', 409)
-        let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let insurancePyg = 0; let extraCostPyg = 0; let costPending = false; let serialsPending = 0
+        let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let listPricePyg: number | undefined; let insurancePyg = 0; let extraCostPyg = 0; let costPending = false; let serialsPending = 0
         const soldWithoutInsurance = item.soldWithoutInsurance === true
         if (item.soldWithoutInsurance !== undefined && typeof item.soldWithoutInsurance !== 'boolean') throw new InputError('"Vendido sin seguro" debe ser verdadero o falso.')
         if (item.extraCostPyg !== undefined) {
@@ -168,6 +178,8 @@ export async function POST(request: Request) {
           if ((branchId === null && product.branchId !== null) || (branchId && product.branchId !== null && product.branchId !== branchId)) throw new Error('El producto pertenece a otra sucursal.')
           // Foto del costo: la ganancia histórica no cambia si luego se actualiza el costo.
           if (product.costPyg !== null && product.costPyg !== undefined) baseUnitCostPyg = product.costPyg
+          // Precio de lista congelado: el mayorista del cliente si lo tiene.
+          listPricePyg = pricingTier === 'WHOLESALE' && Number(product.wholesalePricePyg || 0) > 0 ? Number(product.wholesalePricePyg) : product.pricePyg
           const policy = product.category ? await tx.costPolicy.findFirst({ where: { tenantId: tenant, category: product.category, isActive: true }, select: { insuranceRate: true } }) : null
           const rate = product.insuranceRate === null || product.insuranceRate === undefined ? Number(policy?.insuranceRate ?? 0) : Number(product.insuranceRate)
           if (!soldWithoutInsurance && rate > 0) {
@@ -214,7 +226,7 @@ export async function POST(request: Request) {
         const line = quantity * price
         subtotal += lineTotal
         if (!Number.isSafeInteger(subtotal)) throw new Error('Total fuera de rango seguro.')
-        normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
+        normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(listPricePyg === undefined ? {} : { listPricePyg }), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
       }
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery

@@ -17,6 +17,18 @@ export function internationalPhone(value, countryCode = '+595') {
   return `${code}${digits}`
 }
 
+// Entrada de los campos de teléfono: sin letras, espacios ni separadores.
+export function soloDigitos(value, max = 0) {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  return max > 0 ? digits.slice(0, max) : digits
+}
+
+// Código de país editable: siempre con "+" y hasta 4 dígitos (ej. +595, +55).
+export function codigoPais(value) {
+  const digits = soloDigitos(value, 4)
+  return digits ? `+${digits}` : ''
+}
+
 export function telefonoValido(value, countryCode = '+595') {
   const digits = String(value || '').replace(/\D/g, '')
   if (!digits) return false

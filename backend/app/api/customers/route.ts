@@ -33,7 +33,18 @@ export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   const q = new URL(request.url).searchParams.get('q') || ''
-  const data = await prisma.customer.findMany({ where: { tenantId: tenant, ...(q ? { OR: [{ name: { contains: q, mode: 'insensitive' } }, { phone: { contains: q } }, { document: { contains: q } }] } : {}) }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } }, orderBy: { createdAt: 'desc' }, take: 50 })
+  // Búsqueda flexible: nombre, teléfono, CI/RUC, correo, datos de facturación
+  // del cliente y también pedidos facturados a otro titular (razón social/RUC),
+  // para poder llegar al cliente desde el nombre que salió en la factura.
+  const data = await prisma.customer.findMany({ where: { tenantId: tenant, ...(q ? { OR: [
+    { name: { contains: q, mode: 'insensitive' } },
+    { phone: { contains: q } },
+    { document: { contains: q } },
+    { email: { contains: q, mode: 'insensitive' } },
+    { billingName: { contains: q, mode: 'insensitive' } },
+    { billingDocument: { contains: q } },
+    { orders: { some: { OR: [{ billingName: { contains: q, mode: 'insensitive' } }, { billingDocument: { contains: q } }] } } },
+  ] } : {}) }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } }, orderBy: { createdAt: 'desc' }, take: 50 })
   const ids = data.map((customer) => customer.id)
   const stats = await prisma.order.groupBy({
     by: ['customerId'],
@@ -65,6 +76,10 @@ export async function POST(request: Request) {
     if (creditDays !== undefined && (!Number.isSafeInteger(creditDays) || creditDays < 0 || creditDays > 365)) return error('Plazo de crédito inválido (0 a 365 días).')
     const fields = {
       name, phone, countryCode, email: clean(body.email, 200) || null, document,
+      // Solo se tocan cuando llegan: una ficha guardada no pierde sus datos de
+      // facturación por un guardado que no los incluye.
+      ...(body.billingName === undefined ? {} : { billingName: clean(body.billingName, 200) || null }),
+      ...(body.billingDocument === undefined ? {} : { billingDocument: clean(body.billingDocument, 100) || null }),
       notes: clean(body.notes, 2000) || null,
       externalId: clean(body.externalId, 100) || null,
       acceptsEmailMarketing: body.acceptsEmailMarketing === true,
