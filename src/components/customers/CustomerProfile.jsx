@@ -112,7 +112,6 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [error, setError] = useState('')
   const [profile, setProfile] = useState(null)
   const [tab, setTab] = useState('compras')
-  const { esDemo } = useSesion()
   const [analitica, setAnalitica] = useState(null)
   const [cargandoAnalitica, setCargandoAnalitica] = useState(false)
   const [solicitud, setSolicitud] = useState(null)
@@ -318,7 +317,6 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const garantiasActivas = warranties.filter((item) => item.status !== 'DELIVERED').length
   const pendientes = authorizations.filter((row) => row.status === 'PENDING')
   const hayPendiente = (kind) => pendientes.some((row) => row.kind === kind)
-  const mayorista = profile?.customer?.pricingTier === 'WHOLESALE'
   const creditoHabilitado = Number(profile?.customer?.creditLimitPyg ?? 0) > 0
   const diasCredito = profile?.customer?.creditDays
   const puedeResolver = RESOLVERS.includes(usuario?.role)
@@ -702,6 +700,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 ))}
               </ul>
               <p className="mt-2 text-xs text-mute">Total pendiente: <b className="text-fore">{formatGs(deuda)}</b></p>
+            </div>
+          )}
+
           {!esDemo && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 p-3">
               <div className="min-w-0">

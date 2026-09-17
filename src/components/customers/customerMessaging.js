@@ -1,5 +1,4 @@
 import { internationalPhone } from '@/utils/telefono'
-import { renderPlantilla } from '@/lib/whatsappPlantillas'
 
 export const DEMO_MESSAGE_TEMPLATES = [
   { id: 'demo-ready', key: 'ready_for_pickup', name: 'Pedido listo para retirar', body: 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya está listo para retirar en {{branch_name}}.' },

@@ -48,17 +48,15 @@ function relativeDate(value) {
 }
 // Quién hizo el movimiento: el usuario real cuando existe; en pagos viejos
 // (sin creador guardado) cae al vendedor del pedido antes que a "Sistema".
-function nombreEvento(event, order) {
-  if (event?.user?.name) return event.user.name
-  if (event?.type === 'payment' || event?.type === 'created') return order?.seller?.name || 'Sistema'
-  return 'Sistema'
-}
-function nombrePago(pago, order) {
-  return pago?.createdBy?.name || order?.seller?.name || 'Sistema'
-}
-
 // Miniatura de una foto de comentario: se descarga con sesión y se muestra
 // como vignette; al hacer clic se abre el archivo.
+function nombrePago(pago, order) {
+  if (pago?.user?.name) return pago.user.name
+  if (pago?.createdBy?.name) return pago.createdBy.name
+  if (order?.seller?.name) return order.seller.name
+  return 'Sistema'
+}
+
 function PhotoThumb({ orderId, commentId, photo }) {
   const [url, setUrl] = useState('')
   useEffect(() => {

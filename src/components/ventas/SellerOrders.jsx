@@ -171,13 +171,8 @@ export default function SellerOrders() {
   // código comercial: si el código cambia, el enlace sigue resolviendo.
   const { orderId } = useParams()
   const [query, setQuery] = useState('')
-  const [search, setSearch] = useState('')
   // La búsqueda del listado se resuelve en el servidor: así encuentra pedidos
   // que todavía no están en la página cargada (número, cliente, RUC, vendedor).
-  useEffect(() => {
-    const timer = setTimeout(() => setSearch(query.trim()), 300)
-    return () => clearTimeout(timer)
-  }, [query])
   const [filtro, setFiltro] = useState('activos')
   const [orden, setOrden] = useState({ key: 'date', dir: 'desc' })
   // Búsqueda y filtros van al servidor (cubren todos los pedidos del alcance
