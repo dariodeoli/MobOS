@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { coincideCliente, datosFacturacionCliente, textoBusquedaCliente } from './cliente.js'
+import { coincideCliente, datosFacturacionCliente, nombreCortoCliente, textoBusquedaCliente } from './cliente.js'
 
 const cliente = {
   name: 'Juan Pérez',
@@ -33,6 +33,14 @@ test('encuentra por los datos de facturación del cliente', () => {
 test('no coincide cuando el dato no existe y la consulta vacía acepta todo', () => {
   assert.equal(coincideCliente(cliente, 'Gómez'), false)
   assert.equal(coincideCliente(cliente, ''), true)
+})
+
+test('nombre corto: primer nombre y primer apellido', () => {
+  assert.equal(nombreCortoCliente('Dario Oliveira'), 'Dario Oliveira')
+  assert.equal(nombreCortoCliente('  Dario  José   Oliveira  Benítez '), 'Dario José')
+  assert.equal(nombreCortoCliente('MERZIN S.A GTS'), 'MERZIN S.A')
+  assert.equal(nombreCortoCliente(''), '')
+  assert.equal(nombreCortoCliente(undefined), '')
 })
 
 test('expone el texto buscable y los datos de facturación', () => {

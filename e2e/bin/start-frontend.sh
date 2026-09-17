@@ -21,7 +21,7 @@ if [[ ! -f "$ENV_FILE" ]] || ! grep -q "^VITE_API_URL=http://localhost:${API_POR
   if [[ -f "$ENV_FILE" ]] && grep -q "^VITE_API_URL=" "$ENV_FILE"; then
     sed -i '' "s|^VITE_API_URL=.*|VITE_API_URL=http://localhost:${API_PORT}|" "$ENV_FILE"
   else
-    printf 'VITE_API_URL=http://localhost:${API_PORT}\n' >> "$ENV_FILE"
+    printf 'VITE_API_URL=http://localhost:%s\n' "$API_PORT" >> "$ENV_FILE"
   fi
 fi
 

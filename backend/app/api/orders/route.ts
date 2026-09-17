@@ -24,6 +24,28 @@ const INT_MAX = 2147483647
 const safeInt = (value: unknown, minimum = 0): value is number => Number.isSafeInteger(value) && (value as number) >= minimum && (value as number) <= INT_MAX
 const cleanText = (value: unknown, field: string, max: number) => value === undefined ? undefined : textInput(value, field, max)
 
+// Código comercial corto y legible para humanos (MOB-#0001). El id interno
+// (UUID) sigue siendo el que relaciona pedidos, pagos y accesos públicos.
+const ORDER_NUMBER_PREFIX = 'MOB-#'
+const ORDER_NUMBER_SEQ = /^MOB-#(\d+)$/
+const ORDER_NUMBER_MAX = 99999999
+
+async function nextOrderNumber(tx: Prisma.TransactionClient, tenant: string) {
+  const ultimo = await tx.order.findFirst({
+    where: { tenantId: tenant, orderNumber: { startsWith: ORDER_NUMBER_PREFIX } },
+    orderBy: { orderNumber: 'desc' },
+    select: { orderNumber: true },
+  })
+  const secuencia = Number(String(ultimo?.orderNumber ?? '').replace(ORDER_NUMBER_SEQ, '$1')) || 0
+  if (secuencia >= ORDER_NUMBER_MAX) throw new Error('Se agotaron los números de pedido de la tienda.')
+  return `${ORDER_NUMBER_PREFIX}${String(secuencia + 1).padStart(4, '0')}`
+}
+
+// Dos ventas simultáneas pueden calcular el mismo número; el índice único
+// rechaza la segunda y el POST se reintenta con el siguiente.
+const esCodigoDuplicado = (e: unknown) => (e as { code?: string })?.code === 'P2002'
+  && JSON.stringify((e as { meta?: unknown })?.meta ?? {}).includes('orderNumber')
+
 function itemSerials(value: unknown, quantity: number) {
   if (value === undefined) return [] as string[]
   if (!Array.isArray(value) || value.length > quantity) throw new InputError('Los IMEI/seriales de la línea son inválidos.')
@@ -111,7 +133,7 @@ export async function POST(request: Request) {
   if (!safeInt(discount) || !safeInt(delivery)) return error('Descuento y delivery inválidos.')
   if (discount > 0 && !canApproveOrderDiscount(session.user)) throw new InputError('Tu rol no puede aprobar descuentos. Solicitá autorización a gerencia.', 403)
   if (discount > 0 && items.some(item => item?.couponCode !== undefined)) throw new InputError('No se puede combinar cupón y descuento global.')
-    const result = await prisma.$transaction(async tx => {
+    const crearPedido = () => prisma.$transaction(async tx => {
       const branchId = session.user.branchId
       if (branchId && !await tx.branch.findFirst({ where: { id: branchId, tenantId: tenant, isActive: true }, select: { id: true } })) throw new Error('Sucursal no encontrada.')
       let customerId = selectedCustomerId
@@ -261,7 +283,7 @@ export async function POST(request: Request) {
         const pendingTotal = Number(outstanding[0]?.total || 0n)
         if (!Number.isSafeInteger(pendingTotal) || pendingTotal + (total - confirmed) > creditLimit) throw new InputError('Supera el límite de crédito del cliente.', 409)
       }
-      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber: typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : `MOB-${Date.now()}${Math.random().toString(36).slice(2, 6).padEnd(4, '0')}`, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber: typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : await nextOrderNumber(tx, tenant), idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
       if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
       if (soldUnits.length) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNITS_SOLD', entity: 'Order', entityId: order.id, metadata: { serials: soldUnits.map(unit => unit.serial), productIds: [...new Set(soldUnits.map(unit => unit.productId))] } } })
       for (const { tradeIn, ...paymentData } of normalizedPayments) {
@@ -298,6 +320,15 @@ export async function POST(request: Request) {
       await syncOrderItemSerials(tx, serialItems)
       return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: orderDetail })
     })
+    // El código corto se calcula dentro de la transacción. Si otra venta ganó
+    // el número en el medio, se reintenta: la transacción fallida se revirtió
+    // entera (stock, pagos y garantías incluidos).
+    let result
+    for (let intento = 0; ; intento++) {
+      try { result = await crearPedido(); break } catch (e) {
+        if (intento >= 2 || idempotencyKey || !esCodigoDuplicado(e)) throw e
+      }
+    }
     return json(result, { status: 201 })
   } catch (e) {
     // Dos reintentos concurrentes con la misma clave: el segundo choca con el

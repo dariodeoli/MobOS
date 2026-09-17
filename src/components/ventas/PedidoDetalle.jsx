@@ -76,6 +76,10 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const [subiendo, setSubiendo] = useState(false)
   const [avisando, setAvisando] = useState(false)
   const fileRef = useRef(null)
+  // `order` se declara antes de los efectos: usarlo en un array de
+  // dependencias después de su declaración es TDZ y rompía la vista en
+  // producción ("Cannot access 'I' before initialization").
+  const order = detail || row
 
   const load = useCallback(async () => {
     if (esDemo) { setDetail(row); setLoading(false); return }
@@ -94,13 +98,12 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order?.id, esDemo])
 
-  const order = detail || row
   const items = order.items || []
   const payments = order.payments || []
   const paid = payments.filter(pago => pago.status === 'CONFIRMED').reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0)
   const total = Number(order.totalPyg ?? order.total ?? 0)
   const pendiente = Math.max(0, total - paid)
-  const estadoPago = paid >= total && total > 0 ? 'Pagado' : paid > 0 ? 'Parcial' : 'Pendiente'
+  const estadoPago = paid >= total && total > 0 ? 'Pagado' : (Number(order.creditDays || 0) > 0 && pendiente > 0 ? 'A crédito' : paid > 0 ? 'Parcial' : 'Pendiente')
   const tags = Array.isArray(order.tags) ? order.tags : []
   const archivado = Boolean(order.archivedAt)
 
