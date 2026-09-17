@@ -66,6 +66,11 @@ export default function SellerCustomers() {
   const { esDemo } = useSesion()
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState('')
+  // Búsqueda en vivo: los resultados llegan mientras se escribe.
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(query.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [query])
   const [form, setForm] = useState(emptyCustomer)
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
@@ -180,7 +185,7 @@ export default function SellerCustomers() {
   return <SellerSection title="Clientes" description={esDemo ? 'Demo local: ingresá únicamente datos ficticios.' : 'Buscá por nombre o teléfono. La API devuelve hasta 50 coincidencias.'}>
     <div className="flex flex-wrap items-center gap-2">
       <form onSubmit={(event) => { event.preventDefault(); setSearch(query.trim()); data.refresh() }} className="flex min-w-0 flex-1 gap-2">
-        <Input aria-label="Buscar clientes" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre o teléfono" />
+        <Input aria-label="Buscar clientes" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre, teléfono, RUC, correo o razón social" />
         <Button>Buscar</Button>
       </form>
       <Select aria-label="Ordenar clientes" className="h-9 w-auto" value={orden} onChange={(event) => setOrden(event.target.value)}>

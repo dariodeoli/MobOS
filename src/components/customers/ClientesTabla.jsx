@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { gs } from '@/utils/calculos'
 import { normalizarBusqueda } from '@/utils/cliente'
+import { internationalPhone } from '@/utils/telefono'
 import { whatsappUrl, renderMessage, readCustomerMetadata } from './customerMessaging'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 
 // Tabla de clientes alineada: una fila por persona, encabezados ordenables y
 // acciones compactas (perfil al hacer clic, WhatsApp con plantilla).
-const GRID = 'grid min-w-[72rem] grid-cols-[minmax(0,1.25fr)_7rem_8.5rem_minmax(0,1.1fr)_8.5rem_minmax(0,0.85fr)_4.5rem_8.5rem_3rem_6rem] items-center gap-x-3'
+const GRID = 'grid min-w-[58rem] grid-cols-[minmax(0,1.4fr)_6.5rem_9rem_3rem_7.5rem_6.5rem_4rem_8rem_3rem_5.5rem] items-center gap-x-3'
 const ULTIMA_PLANTILLA = 'mobos:clientes:plantilla-wa'
 
 const ciudadDe = (row) => row.addresses?.find(address => address.city)?.city || ''
@@ -64,7 +65,7 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
         {encabezado('cliente', 'Cliente')}
         {encabezado('tipo', 'Tipo')}
         <span className="text-[10px] font-bold uppercase tracking-wider text-mute">Teléfono</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-mute">Email</span>
+        <span className="text-center text-[10px] font-bold uppercase tracking-wider text-mute">Email</span>
         <span className="text-[10px] font-bold uppercase tracking-wider text-mute">RUC</span>
         <span className="text-[10px] font-bold uppercase tracking-wider text-mute">Ciudad</span>
         {encabezado('pedidos', 'Pedidos', 'justify-center')}
@@ -91,8 +92,8 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
               <span className={cn('inline-block w-fit truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
                 {row.wholesale ? 'Mayorista' : 'Cliente final'}
               </span>
-              <span className="truncate text-xs text-mute tabular-nums">{telefono || '—'}</span>
-              <span className="truncate text-xs text-mute" title={row.email || undefined}>{row.email || '—'}</span>
+              <span className="truncate text-xs text-mute tabular-nums">{telefono ? internationalPhone(telefono, row.countryCode) : '—'}</span>
+              <span className="text-center text-sm" title={row.email || undefined}>{row.email ? <span className="text-ok">✓</span> : <span className="text-mute">—</span>}</span>
               <span className="truncate text-xs text-mute tabular-nums">{row.document || '—'}</span>
               <span className="truncate text-xs text-mute">{ciudadDe(row) || '—'}</span>
               <span className="text-center text-xs font-semibold tabular-nums">{row.stats?.orders || 0}</span>
