@@ -27,24 +27,28 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
   return (
     <nav
       className={cn(
-        'flex flex-col gap-3',
+        'flex flex-col gap-4',
         scrollable && 'flex-1 overflow-y-auto p-3',
         collapsed && scrollable && 'lg:p-2',
       )}
     >
-      {nav.map((g) => {
+      {nav.map((g, groupIndex) => {
         const cerrado = Boolean(closedGroups[g.titulo])
+        const tieneActivo = g.items.some(([id]) => id === active)
         return (
-          <div key={g.titulo} className="flex flex-col">
+          <div key={g.titulo} className={cn('flex flex-col', groupIndex > 0 && !collapsed && 'border-t border-fore/[.07] pt-3')}>
             {!collapsed && (
               <button
                 type="button"
                 onClick={() => toggleGroup(g.titulo)}
                 aria-expanded={!cerrado}
-                className="flex w-full items-center justify-between gap-1 rounded-md px-2.5 pb-1 pt-0.5 text-left transition hover:bg-fore/5"
+                className="mb-1 flex w-full items-center justify-between gap-1 rounded-md px-2.5 py-0.5 text-left transition hover:bg-fore/5"
                 title={cerrado ? `Mostrar ${g.titulo}` : `Ocultar ${g.titulo}`}
               >
-                <span className="text-[10px] font-bold uppercase tracking-[.14em] text-fono-light/80">{g.titulo}</span>
+                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-fono-light/75">
+                  {g.titulo}
+                  {cerrado && tieneActivo && <span className="h-1.5 w-1.5 rounded-full bg-fono" aria-hidden />}
+                </span>
                 <Icon
                   name="chevron"
                   className={cn('h-3 w-3 shrink-0 text-mute transition-transform duration-200', cerrado && '-rotate-90')}
@@ -61,17 +65,18 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
                       onClick={() => onNavigate(id)}
                       aria-current={activo ? 'page' : undefined}
                       className={cn(
-                        'group flex w-full items-center gap-2 rounded-[9px] border px-2.5 py-[7px] text-left text-[13px] leading-snug transition',
+                        'group relative flex w-full items-center gap-2.5 overflow-visible rounded-[10px] border px-2.5 py-[7px] text-left text-[13px] leading-snug transition',
                         collapsed && 'lg:justify-center lg:px-0',
                         activo
-                          ? 'border-fono/35 bg-fono/[.14] font-medium text-fore'
-                          : 'border-transparent text-mute hover:bg-ink-700 hover:text-fore',
+                          ? 'border-fono/30 bg-gradient-to-r from-fono/[.16] to-fono/[.05] font-semibold text-fore'
+                          : 'border-transparent text-mute hover:bg-ink-700/70 hover:text-fore',
                       )}
                     >
-                      <Icon name={ico} className={cn('h-[15px] w-[15px] shrink-0', activo && 'text-fono-light')} />
+                      {activo && <span aria-hidden className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-fono" />}
+                      <Icon name={ico} className={cn('h-[15px] w-[15px] shrink-0 transition', activo ? 'text-fono-light' : 'group-hover:text-fore')} />
                       <span className={cn('flex-1 truncate', collapsed && 'lg:hidden')}>{label}</span>
-                      {activo && <span className={cn('h-[5px] w-[5px] rounded-full bg-fono', collapsed && 'lg:hidden')} />}
-                      <span className="pointer-events-none absolute left-[60px] hidden rounded-md bg-ink-700 px-2 py-1 text-xs text-fore shadow-lg group-hover:lg:block">{label}</span>
+                      {activo && <span className={cn('h-[5px] w-[5px] rounded-full bg-fono', collapsed && 'lg:hidden')} aria-hidden />}
+                      <span className="pointer-events-none absolute left-[calc(100%+6px)] z-30 hidden whitespace-nowrap rounded-md border border-ink-500 bg-ink-700 px-2 py-1 text-xs text-fore shadow-lg group-hover:lg:block">{label}</span>
                     </button>
                   )
                 })}
@@ -80,6 +85,41 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
           </div>
         )
       })}
+    </nav>
+  )
+}
+
+// Barra inferior para móvil/tablet: accesos directos del rol + menú completo.
+function BottomNav({ items, active, onNavigate, onOpenMenu, menuLabel }) {
+  if (!items.length && !onOpenMenu) return null
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-fore/10 bg-ink-800/95 pb-safe backdrop-blur lg:hidden" aria-label="Accesos rápidos">
+      <div className="mx-auto flex max-w-lg items-stretch justify-around">
+        {items.map(([id, label, ico]) => {
+          const activo = active === id
+          return (
+            <button
+              key={id}
+              onClick={() => onNavigate(id)}
+              aria-current={activo ? 'page' : undefined}
+              className={cn('flex min-h-[54px] flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-semibold transition', activo ? 'text-fono-light' : 'text-mute hover:text-fore')}
+            >
+              <Icon name={ico} className="h-[19px] w-[19px]" />
+              <span className="truncate">{label}</span>
+            </button>
+          )
+        })}
+        {onOpenMenu && (
+          <button
+            onClick={onOpenMenu}
+            className="flex min-h-[54px] flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-semibold text-mute transition hover:text-fore"
+            aria-label="Abrir menú completo"
+          >
+            <Icon name="menu" className="h-[19px] w-[19px]" />
+            <span>{menuLabel || 'Menú'}</span>
+          </button>
+        )}
+      </div>
     </nav>
   )
 }
@@ -256,6 +296,8 @@ export default function AppShell({
   title,
   subtitle,
   nav = [],
+  bottomNav = [],
+  onOpenMenuLabel,
   active,
   onNavigate,
   collapsed = false,
@@ -280,6 +322,8 @@ export default function AppShell({
   const enLinea = useOnlineStatus()
   const [statsCollapsedInterno, setStatsCollapsedInterno] = useState(() => localStorage.getItem('mobos:stats-collapsed') === '1')
   const statsCerrado = onStatsToggle ? Boolean(statsCollapsed) : statsCollapsedInterno
+  // Contexto de navegación para la cabecera: a qué grupo pertenece la vista.
+  const grupoActivo = nav.find(group => group.items.some(([id]) => id === active))?.titulo
 
   function alternarStats() {
     const next = !statsCerrado
@@ -301,22 +345,35 @@ export default function AppShell({
           collapsed && 'lg:w-[60px]',
         )}
       >
-        {onToggleCollapsed && (
-          <button
-            onClick={onToggleCollapsed}
-            className="absolute right-1.5 top-1.5 z-10 hidden rounded-md p-1.5 text-mute transition hover:bg-ink-700 hover:text-fore lg:inline-flex"
-            title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-            aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-          >
-            <Icon name="menu" className="h-4 w-4" />
-          </button>
-        )}
         <div className={cn('flex h-14 shrink-0 items-center gap-2.5 border-b border-fore/10 px-4 pt-safe', collapsed && 'lg:justify-center lg:px-2')}>
-          <img src="/mobos-icon.svg" alt="" className="h-8 w-8 shrink-0 rounded-lg" />
-          <div className={cn('flex min-w-0 flex-col leading-tight', collapsed && 'lg:hidden')}>
-            <span className="truncate text-[15px] font-bold tracking-tight">{APP_NAME}</span>
-            <span className="truncate text-[10px] text-mute">{esDemo ? 'Tienda de demostración' : 'Centro de operaciones'}</span>
-          </div>
+          {collapsed ? (
+            <button
+              onClick={onToggleCollapsed}
+              className="hidden h-8 w-8 shrink-0 place-items-center rounded-lg transition hover:bg-ink-700 lg:grid"
+              title="Expandir menú"
+              aria-label="Expandir menú"
+            >
+              <img src="/mobos-icon.svg" alt="" className="h-8 w-8 rounded-lg" />
+            </button>
+          ) : (
+            <>
+              <img src="/mobos-icon.svg" alt="" className="h-8 w-8 shrink-0 rounded-lg" />
+              <div className="flex min-w-0 flex-1 flex-col leading-tight">
+                <span className="truncate text-[15px] font-bold tracking-tight">{APP_NAME}</span>
+                <span className="truncate text-[10px] text-mute">{esDemo ? 'Tienda de demostración' : 'Centro de operaciones'}</span>
+              </div>
+              {onToggleCollapsed && (
+                <button
+                  onClick={onToggleCollapsed}
+                  className="hidden shrink-0 rounded-md p-1.5 text-mute transition hover:bg-ink-700 hover:text-fore lg:inline-flex"
+                  title="Colapsar menú"
+                  aria-label="Colapsar menú"
+                >
+                  <Icon name="menu" className="h-4 w-4" />
+                </button>
+              )}
+            </>
+          )}
         </div>
         <NavGroup nav={nav} active={active} onNavigate={navegar} collapsed={collapsed} />
         {sidebarStats && (
@@ -370,7 +427,7 @@ export default function AppShell({
         </div>
       </Drawer>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col pb-[72px] lg:pb-0">
         <header className="sticky top-0 z-20 flex h-20 items-center justify-between gap-4 border-b border-fore/10 bg-paper/85 px-4 pt-safe backdrop-blur md:px-8">
           <div className="flex min-w-0 items-center gap-2">
             <button
@@ -382,10 +439,11 @@ export default function AppShell({
               <Icon name="menu" className="h-5 w-5" />
             </button>
             <div className="hidden sm:block">
-              <Eyebrow>{APP_NAME}</Eyebrow>
+              <Eyebrow>{grupoActivo ? `${grupoActivo} · ${APP_NAME}` : APP_NAME}</Eyebrow>
               <span className="mt-1 block truncate text-lg font-semibold tracking-tight">{title}</span>
               {subtitle && <span className="mt-0.5 block truncate text-xs text-mute">{subtitle}</span>}
             </div>
+            <span className="min-w-0 truncate text-base font-semibold tracking-tight sm:hidden">{title}</span>
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -412,6 +470,14 @@ export default function AppShell({
         )}
         <ProductFooter className="shrink-0" />
       </div>
+
+      <BottomNav
+        items={bottomNav}
+        active={active}
+        onNavigate={navegar}
+        onOpenMenu={onOpenMenuLabel ? () => setMenuAbierto(true) : null}
+        menuLabel={onOpenMenuLabel}
+      />
     </div>
   )
 }

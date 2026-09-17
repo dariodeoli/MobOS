@@ -35,13 +35,21 @@ import Creditos from '@/components/control/Creditos'
 import Compras from '@/components/control/Compras'
 import Garantias from '@/components/control/Garantias'
 
+// Navegación por flujo de trabajo: primero la operación del día, después el
+// catálogo/stock y al final las herramientas de gestión. Los permisos definen
+// qué módulos aparecen, no una segunda "zona" visual.
 const SELLER_NAV = [
   {
     titulo: 'Vender',
     items: [
       ['cargar', 'Cargar venta', 'receipt'],
-      ['clientes', 'Clientes', 'users'],
       ['pedidos', 'Mis pedidos', 'box'],
+      ['clientes', 'Clientes', 'users'],
+    ],
+  },
+  {
+    titulo: 'Herramientas',
+    items: [
       ['productos', 'Productos', 'phone'],
       ['promociones', 'Promociones', 'store'],
       ['cotizador', 'Trade-In', 'refresh'],
@@ -49,37 +57,53 @@ const SELLER_NAV = [
   },
 ]
 
-// Una sola aplicación: los permisos definen qué módulos aparecen, no una
-// segunda "zona" visual. Los módulos extensos se agrupan en vistas internas.
 const OWNER_NAV = [
   {
-    titulo: 'Vender',
+    titulo: 'Operación',
     items: [
       ['cargar', 'Cargar venta', 'receipt'],
-      ['clientes', 'Clientes', 'users'],
       ['pedidos', 'Pedidos', 'box'],
+      ['clientes', 'Clientes', 'users'],
       ['promociones', 'Promociones', 'store'],
     ],
   },
   {
-    titulo: 'Catálogo y stock',
+    titulo: 'Stock y servicio',
     items: [
-      ['productos', 'Productos', 'phone'],
       ['inventario', 'Inventario', 'box'],
+      ['productos', 'Productos', 'phone'],
       ['compras', 'Compras', 'store'],
       ['tradein-admin', 'Trade-In', 'refresh'],
       ['servicio', 'Garantías y servicio', 'phone'],
     ],
   },
   {
-    titulo: 'Gestión',
+    titulo: 'Negocio',
     items: [
       ['resumen', 'Resumen', 'chart'],
       ['analisis', 'Análisis', 'report'],
       ['finanzas', 'Finanzas', 'receipt'],
-      ['equipo', 'Equipo y configuración', 'users'],
     ],
   },
+  {
+    titulo: 'Equipo',
+    items: [['equipo', 'Equipo y configuración', 'users']],
+  },
+]
+
+// Accesos directos de la barra inferior en móvil/tablet.
+const SELLER_BOTTOM = [
+  ['cargar', 'Vender', 'receipt'],
+  ['pedidos', 'Pedidos', 'box'],
+  ['clientes', 'Clientes', 'users'],
+  ['productos', 'Productos', 'phone'],
+]
+
+const OWNER_BOTTOM = [
+  ['resumen', 'Resumen', 'chart'],
+  ['cargar', 'Vender', 'receipt'],
+  ['pedidos', 'Pedidos', 'box'],
+  ['inventario', 'Inventario', 'box'],
 ]
 
 const LABELS = {
@@ -199,7 +223,8 @@ export default function PanelVendedor() {
   }, [routeVista, vista, accesibles])
 
   function ir(id) {
-    if (!esOwner && !SELLER_NAV[0].items.some(([key]) => key === id)) {
+    const sellerIds = SELLER_NAV.flatMap(group => group.items).map(([key]) => key)
+    if (!esOwner && !sellerIds.includes(id)) {
       setVista('cargar')
     } else {
       setVista(id)
@@ -375,6 +400,8 @@ export default function PanelVendedor() {
       <AppShell
         title={LABELS[vista]}
         nav={esOwner ? OWNER_NAV : SELLER_NAV}
+        bottomNav={esOwner ? OWNER_BOTTOM : SELLER_BOTTOM}
+        onOpenMenuLabel="Menú"
         active={vista}
         onNavigate={ir}
         collapsed={sidebarCollapsed}
