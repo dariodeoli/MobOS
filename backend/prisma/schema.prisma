@@ -866,12 +866,16 @@ model MessageTemplate {
   key       String
   name      String
   body      String
+  // Contexto de uso: clientes | pedidos | servicio.
+  context   String   @default("clientes")
+  isDefault Boolean  @default(false)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([tenantId, key])
   @@index([tenantId, isActive])
+  @@index([tenantId, context])
 }
 
 model OrderItem {

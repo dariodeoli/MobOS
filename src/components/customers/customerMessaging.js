@@ -19,8 +19,19 @@ export function whatsappUrl(phone, message, countryCode = '+595') {
 
 export function renderMessage(template, customer) {
   const values = {
+    cliente: customer?.name || 'cliente',
+    nombre: customer?.firstName || (customer?.name || 'cliente').split(' ')[0],
     customer_name: customer?.name || 'cliente',
+    empresa: customer?.empresa || 'la tienda',
+    sucursal: customer?.sucursal || customer?.branchName || 'la tienda',
+    usuario: customer?.usuario || '',
+    vendedor: customer?.vendedor || '',
+    pedido: customer?.orderNumber || 'tu pedido',
     order_number: customer?.orderNumber || 'tu pedido',
+    total: customer?.total || '',
+    saldo_pendiente: customer?.saldoPendiente || '',
+    producto: customer?.producto || '',
+    fecha: customer?.fecha || '',
     branch_name: customer?.branchName || 'la tienda',
     reservation_until: customer?.reservationUntil || 'la hora acordada',
   }

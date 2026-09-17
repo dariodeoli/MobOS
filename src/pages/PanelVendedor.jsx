@@ -37,6 +37,7 @@ const Inventario = lazy(() => import('@/components/control/Inventario'))
 const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
 const MiIdentidad = lazy(() => import('@/components/control/Config').then(modulo => ({ default: modulo.MiIdentidad })))
+const PlantillasWhatsApp = lazy(() => import('@/components/control/PlantillasWhatsApp'))
 const Vendedores = lazy(() => import('@/components/control/Vendedores'))
 const ServicioTecnico = lazy(() => import('@/components/control/ServicioTecnico'))
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
@@ -605,6 +606,7 @@ export default function PanelVendedor() {
                         ['vendedores', 'Equipo'],
                         ['identidad', 'Mi identidad'],
                         ['roles', 'Roles y permisos'],
+                        ['plantillas', 'Plantillas de WhatsApp'],
                         ['historial', 'Historial'],
                         ['configuracion', 'Negocio'],
                         ['seguridad', 'Seguridad'],
@@ -613,6 +615,7 @@ export default function PanelVendedor() {
                         ['vendedores', 'Equipo'],
                         ['identidad', 'Mi identidad'],
                         ['roles', 'Roles y permisos'],
+                        ['plantillas', 'Plantillas de WhatsApp'],
                         ['configuracion', 'Negocio'],
                         ['seguridad', 'Seguridad'],
                       ]
@@ -621,6 +624,7 @@ export default function PanelVendedor() {
               {equipoTab === 'vendedores' && <Vendedores />}
               {equipoTab === 'identidad' && <MiIdentidad />}
               {equipoTab === 'roles' && <RolesPermisos />}
+              {equipoTab === 'plantillas' && <PlantillasWhatsApp />}
               {esDemo && equipoTab === 'historial' && <Historial />}
               {equipoTab === 'configuracion' && <Config seccion="negocio" />}
               {equipoTab === 'seguridad' && <Config seccion="seguridad" />}
