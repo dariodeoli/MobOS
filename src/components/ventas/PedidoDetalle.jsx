@@ -18,6 +18,7 @@ const AUDIT_LABELS = {
   ORDER_ARCHIVED: () => 'Pedido archivado',
   ORDER_UNARCHIVED: () => 'Pedido desarchivado',
   INVENTORY_UNITS_SOLD: (meta) => `Equipos vendidos: ${(meta?.serials || []).join(', ')}`,
+  ORDER_NOTIFIED_WHATSAPP: () => 'Aviso enviado al cliente por WhatsApp',
 }
 
 function iniciales(name = '') {
@@ -67,6 +68,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const [adjunto, setAdjunto] = useState(null)
   const [tagInput, setTagInput] = useState('')
   const [subiendo, setSubiendo] = useState(false)
+  const [avisando, setAvisando] = useState(false)
   const fileRef = useRef(null)
 
   const load = useCallback(async () => {
@@ -91,6 +93,17 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const estadoPago = paid >= total && total > 0 ? 'Pagado' : paid > 0 ? 'Parcial' : 'Pendiente'
   const tags = Array.isArray(order.tags) ? order.tags : []
   const archivado = Boolean(order.archivedAt)
+
+  async function avisarPorWhatsApp() {
+    if (avisando || esDemo) return
+    setAvisando(true); setError('')
+    try {
+      const payload = await api.get(`/api/orders/${encodeURIComponent(order.id)}/whatsapp-message`)
+      if (payload?.whatsappUrl) window.open(payload.whatsappUrl, '_blank', 'noopener,noreferrer')
+      await api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { action: 'markNotified' })
+      await load(); onChanged?.()
+    } catch (cause) { setError(cause?.message || 'No se pudo preparar el aviso.') } finally { setAvisando(false) }
+  }
 
   async function accion(operation, success) {
     if (busy || esDemo) return
@@ -135,6 +148,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             {row.publicToken && !esDemo && <p className="mt-1 truncate font-mono text-[10px] text-mute">Token público: {row.publicToken}</p>}
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {!esDemo && <Select aria-label="Estado de entrega" className="max-w-[190px]" value={order.fulfillmentStatus || 'PROCESSING'} disabled={busy} onChange={event => cambiarEntrega(event.target.value)}>{Object.entries(FULFILLMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>}
+              {!esDemo && ['IN_TRANSIT', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
+              {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
               <Button variant="outline" onClick={() => printOrderReceipt(order)}>Imprimir comprobante</Button>
               {!esDemo && <button type="button" disabled={busy} onClick={alternarArchivado} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">{archivado ? 'Desarchivar' : 'Archivar'}</button>}
             </div>

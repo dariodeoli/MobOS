@@ -352,6 +352,10 @@ model Product {
   pricePyg      Int
   // Precio para clientes mayoristas; si es null, se usa pricePyg.
   wholesalePricePyg Int?
+  // Garantía automática al vender: días, cobertura y exclusiones.
+  warrantyDays      Int?
+  warrantyCoverage  String?
+  warrantyExclusions String?
   costPyg       Int?
   // Si tiene valor, prevalece sobre la política de la categoría.
   insuranceRate Decimal?           @db.Decimal(5, 2)
@@ -652,6 +656,8 @@ model Order {
   // Etiquetas libres del pedido y archivado (oculta del listado activo).
   tags              Json              @default("[]")
   archivedAt        DateTime?
+  // Última vez que se avisó al cliente por WhatsApp sobre este pedido.
+  notifiedAt        DateTime?
   totalPyg          Int
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -1223,6 +1229,11 @@ enum PurchasePaymentKind {
   SETTLEMENT
 }
 
+enum WarrantyKind {
+  SERVICE
+  COVERAGE
+}
+
 enum WarrantyStatus {
   RECEIVED
   DIAGNOSIS
@@ -1241,6 +1252,7 @@ model WarrantyCase {
   customerName    String
   serial          String
   description     String
+  kind            WarrantyKind   @default(SERVICE)
   status          WarrantyStatus @default(RECEIVED)
   responsibleName String?
   diagnosis       String?
@@ -1265,6 +1277,7 @@ model WarrantyCase {
   @@index([tenantId, serial])
   @@index([tenantId, branchId])
   @@index([tenantId, status])
+  @@index([tenantId, kind])
 }
 
 // Foto de un caso de garantía: guardada en la base con el mismo criterio que

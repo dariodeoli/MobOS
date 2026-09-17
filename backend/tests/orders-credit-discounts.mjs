@@ -130,4 +130,32 @@ const photoResponse = await fetch(`${baseUrl}/api/orders/${encodeURIComponent(cr
 assert.equal(photoResponse.status, 200)
 assert.equal(photoResponse.headers.get('content-type'), 'image/png')
 
-console.log('orders-credit-discounts: OK (descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública, etiquetas, archivado y comentarios con foto).')
+// Garantía automática al vender un equipo serializado.
+const warrantySerial = `AUTO-WARR-${Date.now()}`
+result = await request('/api/products', 'POST', { sku: `AUTO-WARR-SKU-${Date.now()}`, name: 'Equipo con garantía automática', pricePyg: 500000, stock: 1, branchId: 'branch-a-it', imei: warrantySerial })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const serializedProduct = result.payload
+result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: serializedProduct.id, quantity: 1, unitPricePyg: 500000, inventoryUnitSerials: [warrantySerial] }], payments: [{ method: 'CASH', amountPyg: 500000 }] })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const warrantySerialKey = warrantySerial.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+result = await request(`/api/warranties?kind=COVERAGE&q=${encodeURIComponent(warrantySerialKey)}`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+const autoWarranty = (Array.isArray(result.payload) ? result.payload : []).find(row => row.serial === warrantySerialKey)
+assert.ok(autoWarranty, 'La venta debe crear la garantía automáticamente.')
+assert.ok(autoWarranty.publicToken, 'La garantía automática debe tener token público.')
+const publicAuto = await publicGet(`/api/public/warranty/${autoWarranty.publicToken}`)
+assert.equal(publicAuto.response.status, 200)
+assert.ok(publicAuto.payload.daysRemaining > 0, 'La garantía automática debe tener días vigentes.')
+
+// Avisos WhatsApp por estado: mensaje con plantilla y marca de avisado.
+result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}`, 'PATCH', { fulfillmentStatus: 'READY_FOR_PICKUP' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}/whatsapp-message`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.message.includes(creditOrder.orderNumber), 'El mensaje debe citar el pedido.')
+assert.ok(result.payload.whatsappUrl.startsWith('https://wa.me/'), 'Debe generar el enlace de WhatsApp.')
+result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}`, 'PATCH', { action: 'markNotified' })
+assert.equal(result.response.status, 200)
+assert.ok(result.payload.notifiedAt, 'El pedido debe registrar la fecha de aviso.')
+
+console.log('orders-credit-discounts: OK (descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto y aviso WhatsApp).')

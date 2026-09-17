@@ -46,6 +46,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
         })
         return json(order)
       }
+      if (body.action === 'markNotified') {
+        const order = await prisma.$transaction(async tx => {
+          const updated = await tx.order.update({ where: { id: existing.id }, data: { notifiedAt: new Date() }, include: orderInclude })
+          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_NOTIFIED_WHATSAPP', entity: 'Order', entityId: existing.id, metadata: { fulfillmentStatus: existing.fulfillmentStatus } } })
+          return updated
+        })
+        return json(order)
+      }
       if (body.action !== 'attachSerials') throw new InputError('Acción de pedido inválida.')
       const itemId = textInput(body.itemId, 'Línea de pedido', 200)
       if (!itemId) throw new InputError('Indicá la línea del pedido.')

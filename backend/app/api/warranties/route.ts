@@ -32,17 +32,18 @@ export async function GET(request: Request) {
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (session.user.role === 'VENDEDOR') return error('No autorizado.', 403)
   const q = new URL(request.url).searchParams.get('q')?.trim() || ''
+  const kind = new URL(request.url).searchParams.get('kind')?.toUpperCase() === 'COVERAGE' ? 'COVERAGE' : 'SERVICE'
   const branch = session.user.role === 'ADMIN' ? null : session.user.branchId
   if (session.user.role !== 'ADMIN' && !branch) return json([])
   const rows = branch ? await prisma.$queryRaw<Array<Record<string, unknown>>>`
-    SELECT "id", "tenantId", "branchId", "orderItemId", "customerName", "serial", "description", "status", "responsibleName", "createdAt", "updatedAt", "expiresAt"
+    SELECT "id", "tenantId", "branchId", "orderItemId", "kind", "customerName", "serial", "description", "status", "responsibleName", "createdAt", "updatedAt", "expiresAt", "warrantyDays", "coverage", "exclusions", "publicToken"
     FROM "WarrantyCase"
-    WHERE "tenantId" = ${tenant} AND "branchId" = ${branch}
+    WHERE "tenantId" = ${tenant} AND "branchId" = ${branch} AND "kind" = ${kind}
       AND (${q} = '' OR "serial" ILIKE ${`%${q}%`} OR "customerName" ILIKE ${`%${q}%`} OR "description" ILIKE ${`%${q}%`})
     ORDER BY "createdAt" DESC LIMIT 100` : await prisma.$queryRaw<Array<Record<string, unknown>>>`
-    SELECT "id", "tenantId", "branchId", "orderItemId", "customerName", "serial", "description", "status", "responsibleName", "createdAt", "updatedAt", "expiresAt"
+    SELECT "id", "tenantId", "branchId", "orderItemId", "kind", "customerName", "serial", "description", "status", "responsibleName", "createdAt", "updatedAt", "expiresAt", "warrantyDays", "coverage", "exclusions", "publicToken"
     FROM "WarrantyCase"
-    WHERE "tenantId" = ${tenant}
+    WHERE "tenantId" = ${tenant} AND "kind" = ${kind}
       AND (${q} = '' OR "serial" ILIKE ${`%${q}%`} OR "customerName" ILIKE ${`%${q}%`} OR "description" ILIKE ${`%${q}%`})
     ORDER BY "createdAt" DESC LIMIT 100`
   return json(rows)

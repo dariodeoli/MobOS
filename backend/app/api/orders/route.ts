@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
@@ -253,6 +254,31 @@ export async function POST(request: Request) {
       for (const { tradeIn, ...paymentData } of normalizedPayments) {
         const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id } })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
+      }
+      // Garantía automática: registra la cobertura de cada equipo serializado
+      // (días del producto o por condición) para que el cliente la vea por QR.
+      if (branchId) {
+        const customerName = order.customerId ? (await tx.customer.findUnique({ where: { id: order.customerId }, select: { name: true } }))?.name || 'Consumidor final' : 'Consumidor final'
+        const coverageItems = await tx.orderItem.findMany({ where: { orderId: order.id }, select: { id: true, productId: true, description: true, serials: true } })
+        for (const item of coverageItems) {
+          const serials = Array.isArray(item.serials) ? item.serials as string[] : []
+          if (!serials.length || !item.productId) continue
+          const product = await tx.product.findUnique({ where: { id: item.productId }, select: { condition: true, warrantyDays: true, warrantyCoverage: true, warrantyExclusions: true } })
+          const days = product?.warrantyDays ?? (product?.condition === 'NEW' ? 365 : 90)
+          if (!days) continue
+          for (const serial of serials) {
+            const exists = await tx.warrantyCase.findFirst({ where: { tenantId: tenant, serial, kind: 'COVERAGE' }, select: { id: true } })
+            if (exists) continue
+            const id = randomUUID(); const now = new Date()
+            await tx.warrantyCase.create({ data: {
+              id, tenantId: tenant, branchId, orderItemId: item.id, kind: 'COVERAGE', customerName, serial,
+              description: item.description || 'Garantía de compra', status: 'RECEIVED',
+              publicToken: randomUUID(), warrantyDays: days, expiresAt: new Date(now.getTime() + days * 86400000),
+              coverage: product?.warrantyCoverage || 'Defectos de fábrica del equipo.',
+              exclusions: product?.warrantyExclusions || 'Daños físicos, humedad, reparaciones de terceros y desgaste por uso.',
+            } })
+          }
+        }
       }
       return tx.order.findUniqueOrThrow({ where: { id: order.id }, include: orderDetail })
     })

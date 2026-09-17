@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Drawer, Badge, Button, Input, Label, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
+import { Drawer, Badge, Button, Input, Label, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
 import { gs, num } from '@/utils/calculos'
@@ -33,6 +33,9 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
     costo: String(costo(product) || ''),
     seguro: product?.insuranceRate != null ? String(product.insuranceRate) : '',
     umbral: product?.reorderPoint != null ? String(product.reorderPoint) : '',
+    garantiaDias: product?.warrantyDays != null ? String(product.warrantyDays) : '',
+    garantiaCubre: product?.warrantyCoverage || '',
+    garantiaNoCubre: product?.warrantyExclusions || '',
   }))
 
   const loadUnits = useCallback(async () => {
@@ -65,6 +68,9 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
         ...(form.costo === '' ? { costPyg: null } : { costPyg: num(form.costo) }),
         ...(form.seguro === '' ? { insuranceRate: null } : { insuranceRate: Number(form.seguro.replace(',', '.')) }),
         ...(form.umbral === '' ? { reorderPoint: null } : { reorderPoint: num(form.umbral) }),
+        ...(form.garantiaDias === '' ? { warrantyDays: null } : { warrantyDays: num(form.garantiaDias) }),
+        warrantyCoverage: form.garantiaCubre.trim(),
+        warrantyExclusions: form.garantiaNoCubre.trim(),
       }
       const updated = await api.patch('/api/products', payload)
       setCurrent(updated)
@@ -123,6 +129,9 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
               <div><Label>Costo (Gs)</Label><MoneyInput value={form.costo} onValueChange={value => setForm(current => ({ ...current, costo: value === '' ? '' : String(value) }))} /></div>
               <div><Label>Seguro (%)</Label><Input inputMode="decimal" value={form.seguro} onChange={event => setForm(current => ({ ...current, seguro: event.target.value.replace(/[^\d.,]/g, '') }))} placeholder="Ej. 2" /></div>
               <div><Label>Umbral de reposición</Label><Input inputMode="numeric" value={form.umbral} onChange={event => setForm(current => ({ ...current, umbral: event.target.value.replace(/\D/g, '') }))} placeholder="Ej. 3" /></div>
+              <div><Label>Garantía (días)</Label><Input inputMode="numeric" value={form.garantiaDias} onChange={event => setForm(current => ({ ...current, garantiaDias: event.target.value.replace(/\D/g, '') }))} placeholder="Ej. 365" /><p className="mt-1 text-[11px] text-mute">Al vender se crea la garantía del equipo automáticamente.</p></div>
+              <div className="sm:col-span-2"><Label>Qué cubre</Label><Textarea rows={2} value={form.garantiaCubre} onChange={event => setForm(current => ({ ...current, garantiaCubre: event.target.value }))} placeholder="Defectos de fábrica…" /></div>
+              <div className="sm:col-span-2"><Label>Qué no cubre</Label><Textarea rows={2} value={form.garantiaNoCubre} onChange={event => setForm(current => ({ ...current, garantiaNoCubre: event.target.value }))} placeholder="Daños físicos, humedad…" /></div>
               <div className="flex items-end"><Button type="submit" disabled={busy} className="w-full">{busy ? 'Guardando…' : 'Guardar cambios'}</Button></div>
             </form>
           </section>
