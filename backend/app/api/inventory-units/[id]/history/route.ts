@@ -22,7 +22,7 @@ export async function GET(request: Request, { params }: RouteContext) {
   if (!unit) return error('Unidad no encontrada.', 404)
   if (session.user.role === 'GERENTE' && unit.branchId !== session.user.branchId) return error('No autorizado para esa sucursal.', 403)
 
-  const [auditEvents, transferRows] = await Promise.all([
+  const [auditEvents, transferRows, commentRows] = await Promise.all([
     prisma.auditLog.findMany({
       where: { tenantId: session.user.tenantId, entity: 'InventoryUnit', entityId: id },
       select: { id: true, action: true, createdAt: true, metadata: true, user: { select: { id: true, name: true } } },
@@ -44,6 +44,12 @@ export async function GET(request: Request, { params }: RouteContext) {
       ORDER BY t."createdAt" ASC
       LIMIT 500
     `,
+    prisma.inventoryUnitComment.findMany({
+      where: { tenantId: session.user.tenantId, unitId: unit.id },
+      include: { user: { select: { id: true, name: true } }, photos: { select: { id: true, fileName: true, mimeType: true, sizeBytes: true } } },
+      orderBy: { createdAt: 'asc' },
+      take: 200,
+    }),
   ])
 
   const events = [
@@ -62,6 +68,15 @@ export async function GET(request: Request, { params }: RouteContext) {
       createdAt: row.createdAt,
       user: { id: row.createdById, name: row.createdByName },
       detail: `Traslado de ${row.sourceBranchName} a ${row.destinationBranchName}${row.notes ? ` (${row.notes})` : ''}`,
+    })),
+    ...commentRows.map(comment => ({
+      id: comment.id,
+      type: 'comment' as const,
+      action: 'INVENTORY_UNIT_COMMENTED',
+      createdAt: comment.createdAt,
+      user: comment.user ? { id: comment.user.id, name: comment.user.name } : null,
+      detail: comment.body,
+      photos: comment.photos,
     })),
   ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 

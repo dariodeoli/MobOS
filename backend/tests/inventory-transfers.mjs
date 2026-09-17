@@ -80,4 +80,20 @@ result = await request(`/api/inventory-units?view=removed&q=${encodeURIComponent
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 assert.equal(result.payload.length, 0, 'La unidad restaurada no debe seguir en eliminados.')
 
-console.log('inventory-transfers: 31 checks OK (IMEI, stock, transfer, tránsito y recepción verificada, recuperable removal and audited restore).')
+// Comentario con foto en la unidad + cronología unificada.
+const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+const commentForm = new FormData()
+commentForm.append('body', 'Revisado con evidencia fotográfica.')
+commentForm.append('file', new Blob([Buffer.from(pngBase64, 'base64')], { type: 'image/png' }), 'unidad.png')
+const commentResponse = await fetch(`${baseUrl}/api/inventory-units/${encodeURIComponent(movedUnit.id)}/comments`, { method: 'POST', headers: { Authorization: `Bearer ${adminToken}`, 'x-tenant-id': 'tenant-a-it' }, body: commentForm })
+const commentPayload = await commentResponse.json().catch(() => null)
+assert.equal(commentResponse.status, 201, JSON.stringify(commentPayload))
+assert.equal(commentPayload.photos?.length, 1, 'El comentario debe guardar la foto adjunta.')
+
+result = await request(`/api/inventory-units/${encodeURIComponent(movedUnit.id)}/history`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.events.some(event => event.type === 'comment' && event.detail.includes('Revisado')), 'La cronología debe incluir el comentario de la unidad.')
+const unitPhoto = await fetch(`${baseUrl}/api/inventory-units/${encodeURIComponent(movedUnit.id)}/comments/${encodeURIComponent(commentPayload.id)}/photos/${encodeURIComponent(commentPayload.photos[0].id)}`, { headers: { Authorization: `Bearer ${adminToken}`, 'x-tenant-id': 'tenant-a-it' } })
+assert.equal(unitPhoto.status, 200, 'La foto de la unidad debe poder descargarse.')
+
+console.log('inventory-transfers: 35 checks OK (IMEI, stock, transfer, tránsito y recepción verificada, recuperable removal and audited restore, comentario con foto en la unidad).')
