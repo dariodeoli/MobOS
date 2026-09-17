@@ -40,6 +40,22 @@ export async function POST(request: Request) {
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_TRANSIT_RECEIVED', entity: 'InventoryUnit', entityId: unit.id, metadata: { serial: unit.serial, branchId: unit.branchId, locationId } } })
         }
       }
+      // El traslado se cierra cuando llegó su última unidad: así deja de
+      // figurar como abierto y queda la fecha real de recepción.
+      if (received) {
+        const sucursales = [...new Set(units.filter(unit => unit.status === 'IN_TRANSIT').map(unit => unit.branchId).filter(Boolean))] as string[]
+        const abiertos = sucursales.length
+          ? await tx.stockTransfer.findMany({ where: { tenantId: tenant, receivedAt: null, destinationBranchId: { in: sucursales } }, select: { id: true, lines: { select: { serials: true } } } })
+          : []
+        for (const transfer of abiertos) {
+          const delTraslado = transfer.lines.flatMap(line => Array.isArray(line.serials) ? line.serials as string[] : [])
+          if (!delTraslado.length || !delTraslado.some(serial => serials.includes(serial))) continue
+          const pendientes = await tx.inventoryUnit.count({ where: { tenantId: tenant, serial: { in: delTraslado }, status: 'IN_TRANSIT' } })
+          if (pendientes > 0) continue
+          await tx.stockTransfer.update({ where: { id: transfer.id }, data: { receivedAt: now } })
+          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'STOCK_TRANSFER_RECEIVED', entity: 'StockTransfer', entityId: transfer.id, metadata: { serials: delTraslado } } })
+        }
+      }
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_PHYSICALLY_VERIFIED', entity: 'InventoryUnit', metadata: { serials: units.map(unit => unit.serial), verifiedAt: now.toISOString(), receivedInTransit: received, locationId } } })
       return { verified: units.length, receivedInTransit: received, verifiedAt: now.toISOString(), serials: units.map(unit => unit.serial) }
     })

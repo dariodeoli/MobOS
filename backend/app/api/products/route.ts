@@ -35,7 +35,16 @@ export async function GET(request: Request) {
   const p = new URL(request.url).searchParams; const q = p.get('q') || ''
   const branchFilter = ['VENDEDOR', 'CAJERA'].includes(session.user.role) ? { OR: [{ branchId: session.user.branchId }, { branchId: null }] } : undefined
   const searchFilter = q ? { OR: [{ name: { contains: q, mode: 'insensitive' as const } }, { model: { contains: q, mode: 'insensitive' as const } }, { color: { contains: q, mode: 'insensitive' as const } }, { capacity: { contains: q, mode: 'insensitive' as const } }, { sku: { contains: q, mode: 'insensitive' as const } }, { imei: { contains: q } }] } : undefined
-  const data = await prisma.product.findMany({ where: { AND: [{ tenantId: tenant, isActive: true }, ...(branchFilter ? [branchFilter] : []), ...(searchFilter ? [searchFilter] : [])] }, orderBy: { name: 'asc' }, take: 100 })
+  // Paginado por cursor: el catálogo puede tener más de una pantalla y el
+  // orden necesita un desempate estable (nombre no es único).
+  const limit = Math.min(200, Math.max(1, Number(p.get('limit')) || 100))
+  const cursor = p.get('cursor')
+  const data = await prisma.product.findMany({
+    where: { AND: [{ tenantId: tenant, isActive: true }, ...(branchFilter ? [branchFilter] : []), ...(searchFilter ? [searchFilter] : [])] },
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    take: limit,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+  })
   return json(data)
 }
 

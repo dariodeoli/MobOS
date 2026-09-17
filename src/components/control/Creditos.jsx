@@ -2,6 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { Badge, Card, EmptyState, Eyebrow, Money, Skeleton } from '@/components/ui'
+import { cn } from '@/lib/utils'
+
+// Tabla compacta: una fila por cliente, con el uso del límite en su columna.
+const GRID_CREDITOS = 'grid min-w-[56rem] grid-cols-[minmax(9rem,1.4fr)_5rem_6rem_minmax(7rem,0.9fr)_7rem_7rem_7rem] items-center gap-x-2'
+const CELDA_CREDITOS = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
+const fechaCorta = (value) => {
+  const date = new Date(value)
+  if (!value || Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+}
 
 const TONE = (row) => row.overduePyg > 0 ? 'bad' : row.limitUsagePct !== null && row.limitUsagePct >= 80 ? 'warn' : 'ok'
 
@@ -50,29 +60,32 @@ export default function Creditos() {
       <Card>
         {busy && !data && <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}
         {!busy && rows.length === 0 && <EmptyState compact icon="wallet" title="Sin créditos pendientes." description="Las ventas a crédito aparecerán acá con su vencimiento y días de atraso." />}
-        <div className="space-y-2">
+        <div className="overflow-x-auto" data-testid="creditos-tabla">
+          <div className={cn(GRID_CREDITOS, 'px-3.5 pb-2 pt-1')}>
+            <span className={CELDA_CREDITOS}>Cliente</span>
+            <span className={CELDA_CREDITOS}>Pedidos</span>
+            <span className={CELDA_CREDITOS}>Vence</span>
+            <span className={CELDA_CREDITOS}>Límite</span>
+            <span className={CELDA_CREDITOS}>Uso</span>
+            <span className={cn(CELDA_CREDITOS, 'text-right')}>Pendiente</span>
+            <span className={cn(CELDA_CREDITOS, 'text-right')}>En mora</span>
+          </div>
+          <div className="space-y-1">
           {rows.map(row => (
-            <article key={row.customerId} className={`rounded-xl border p-3 ${TONE(row) === 'bad' ? 'border-bad/30 bg-bad/5' : TONE(row) === 'warn' ? 'border-warn/30 bg-warn/5' : 'border-ink-600'}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{row.name}{row.pricingTier === 'WHOLESALE' ? <Badge className="ml-2" color="blue">Mayorista</Badge> : null}</p>
-                  <p className="mt-1 text-xs text-mute">
-                    {row.pendingOrders} pedido{row.pendingOrders === 1 ? '' : 's'} pendiente{row.pendingOrders === 1 ? '' : 's'} · vence más próximo {row.oldestDueAt ? new Date(row.oldestDueAt).toLocaleDateString('es-PY') : '—'}
-                    {row.overduePyg > 0 && <span className="ml-2 font-semibold text-bad">en mora {row.maxOverdueDays} día{row.maxOverdueDays === 1 ? '' : 's'} · <Money value={row.overduePyg} /></span>}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <strong className="block tabular-nums"><Money value={row.outstandingPyg} /></strong>
-                  <p className="text-[11px] text-mute">{row.creditLimitPyg ? <>de <Money value={row.creditLimitPyg} /> · {row.limitUsagePct}%</> : 'sin límite'}{row.creditDays ? ` · plazo ${row.creditDays} días` : ''}</p>
-                </div>
-              </div>
-              {row.creditLimitPyg ? (
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-700">
-                  <div className={`h-full rounded-full ${row.limitUsagePct >= 80 ? 'bg-warn' : 'bg-ok'}`} style={{ width: `${row.limitUsagePct}%` }} />
-                </div>
-              ) : null}
-            </article>
+            <div key={row.customerId} data-testid="credito-fila" className={cn(GRID_CREDITOS, 'rounded-xl border bg-ink-800/40 px-3.5 py-2', TONE(row) === 'bad' ? 'border-bad/30 bg-bad/5' : TONE(row) === 'warn' ? 'border-warn/30 bg-warn/5' : 'border-ink-600')}>
+              <span className="truncate text-[13px] font-semibold" title={row.name}>{row.name}{row.pricingTier === 'WHOLESALE' ? <Badge className="ml-2" color="blue">Mayorista</Badge> : null}</span>
+              <span className="truncate text-xs tabular-nums text-mute">{row.pendingOrders}</span>
+              <span className="truncate text-xs text-mute">{fechaCorta(row.oldestDueAt)}</span>
+              <span className="truncate text-xs tabular-nums text-mute">{row.creditLimitPyg ? <Money value={row.creditLimitPyg} /> : 'sin límite'}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-xs tabular-nums text-mute">{row.limitUsagePct !== null ? `${row.limitUsagePct}%` : '—'}{row.creditDays ? ` · ${row.creditDays} d` : ''}</span>
+                {row.creditLimitPyg ? <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-ink-700"><span className={cn('block h-full rounded-full', row.limitUsagePct >= 80 ? 'bg-warn' : 'bg-ok')} style={{ width: `${row.limitUsagePct}%` }} /></span> : null}
+              </span>
+              <span className="truncate text-right text-[13px] font-semibold tabular-nums text-fore"><Money value={row.outstandingPyg} /></span>
+              <span className={cn('truncate text-right text-xs font-semibold tabular-nums', row.overduePyg > 0 ? 'text-bad' : 'text-mute')}>{row.overduePyg > 0 ? <><Money value={row.overduePyg} /><span className="ml-1 font-normal text-mute" title={`${row.maxOverdueDays} día(s) de mora`}>({row.maxOverdueDays}d)</span></> : '—'}</span>
+            </div>
           ))}
+          </div>
         </div>
       </Card>
     </div>

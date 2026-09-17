@@ -5,6 +5,10 @@ import Icon from '@/components/shared/Icon'
 import { CATEGORIAS_PLANTILLA, VARIABLES_POR_CONTEXTO } from '@/lib/whatsappPlantillas'
 import { cn } from '@/lib/utils'
 
+// Tabla compacta: una fila por plantilla, con el mensaje recortado a una línea.
+const GRID_PLANTILLAS = 'grid min-w-[52rem] grid-cols-[minmax(10rem,1.1fr)_minmax(12rem,2fr)_6.5rem_9rem] items-center gap-x-2'
+const CELDA_PLANTILLAS = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
+
 const NOMBRE_CATEGORIA = Object.fromEntries(CATEGORIAS_PLANTILLA.map((item) => [item.clave, item.nombre]))
 const MAX_CUERPO = 1200
 
@@ -111,24 +115,32 @@ export default function WhatsAppTemplates() {
       </div>
       {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
       {items === null ? <p className="text-sm text-mute">Cargando plantillas…</p> : deCategoria.length === 0 ? <p className="text-sm text-mute">Todavía no hay plantillas en esta categoría.</p> : (
-        <div className="space-y-2">
+        <div className="overflow-x-auto" data-testid="plantillas-tabla">
+          <div className={cn(GRID_PLANTILLAS, 'px-3.5 pb-2 pt-1')}>
+            <span className={CELDA_PLANTILLAS}>Plantilla</span>
+            <span className={CELDA_PLANTILLAS}>Mensaje</span>
+            <span className={CELDA_PLANTILLAS}>Estado</span>
+            <span className={cn(CELDA_PLANTILLAS, 'text-right')}>Acciones</span>
+          </div>
+          <div className="space-y-1">
           {deCategoria.map((item) => (
-            <article key={item.id} className="rounded-xl border border-ink-600 p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <b className="min-w-0 truncate text-sm">{item.name}</b>
-                {item.isDefault && <Badge color="blue"><Icon name="check" className="h-3 w-3" />Predeterminada</Badge>}
-                <span className={cn('inline-flex items-center gap-1 text-xs font-semibold', item.isActive !== false ? 'text-ok' : 'text-mute')}>
-                  <Icon name={item.isActive !== false ? 'check' : 'close'} className="h-3.5 w-3.5" />{item.isActive !== false ? 'Activa' : 'Inactiva'}
-                </span>
-                <span className="ml-auto flex shrink-0 gap-1">
+            <div key={item.id} data-testid="plantilla-fila" className={cn(GRID_PLANTILLAS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
+              <span className="flex min-w-0 items-center gap-2">
+                <b className="min-w-0 truncate text-[13px] font-semibold" title={item.name}>{item.name}</b>
+                {item.isDefault && <Badge color="blue" className="shrink-0 whitespace-nowrap px-1.5 py-0 text-[10px]"><Icon name="check" className="h-3 w-3" />Predeterminada</Badge>}
+              </span>
+              <span className="truncate text-xs text-mute" title={item.body}>{item.body}</span>
+              <span className={cn('inline-flex items-center gap-1 text-xs font-semibold', item.isActive !== false ? 'text-ok' : 'text-mute')}>
+                <Icon name={item.isActive !== false ? 'check' : 'close'} className="h-3.5 w-3.5" />{item.isActive !== false ? 'Activa' : 'Inactiva'}
+              </span>
+              <span className="flex items-center justify-end gap-1">
                   <button type="button" aria-label={`Editar ${item.name}`} title="Editar" disabled={busy} onClick={() => abrirEditor(editorDe(item))} className="grid h-8 w-8 place-items-center rounded-lg text-mute transition hover:bg-fono/10 hover:text-fono-light"><Icon name="edit" className="h-3.5 w-3.5" /></button>
                   <button type="button" aria-label={`Duplicar ${item.name}`} title="Duplicar" disabled={busy} onClick={() => duplicar(item)} className="grid h-8 w-8 place-items-center rounded-lg text-mute transition hover:bg-fono/10 hover:text-fono-light"><Icon name="copy" className="h-3.5 w-3.5" /></button>
                   <button type="button" aria-label={`Eliminar ${item.name}`} title="Eliminar" disabled={busy} onClick={() => setEliminar(item)} className="grid h-8 w-8 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad"><Icon name="trash" className="h-3.5 w-3.5" /></button>
-                </span>
-              </div>
-              <p className="mt-1 line-clamp-2 text-xs text-mute">{item.body}</p>
-            </article>
+              </span>
+            </div>
           ))}
+          </div>
         </div>
       )}
       <Modal open={editor !== null} onClose={() => !busy && setEditor(null)} title={editor?.id ? 'Editar plantilla' : 'Nueva plantilla'} className="max-w-2xl">

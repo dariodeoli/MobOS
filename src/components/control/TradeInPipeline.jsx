@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Badge, Button, Card, Input, MoneyInput, Select, Textarea } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import { gs } from '@/utils/calculos'
+import { cn } from '@/lib/utils'
+import Icon from '@/components/shared/Icon'
 import { codigoPedido } from '@/utils/pedido'
 import {
   TRADE_IN_STATUSES, TRADE_IN_DESTINATIONS, TRADE_IN_TRANSITIONS,
@@ -17,6 +19,45 @@ function safePhotoUrl(value) {
     const url = new URL(value)
     return ['http:', 'https:'].includes(url.protocol) ? url.toString() : null
   } catch { return null }
+}
+
+// Fila compacta del tablero: lo esencial del equipo. La tarjeta completa
+// (diagnóstico, accesorios, fotos, referencias, historial y acciones) se
+// despliega debajo, así el listado deja de ocupar media pantalla por equipo.
+const GRID_TRADEIN = 'grid min-w-[58rem] grid-cols-[minmax(9rem,1.3fr)_minmax(7rem,1fr)_7rem_6rem_6rem_6rem_7rem_6rem_1.5rem] items-center gap-x-2'
+const CELDA_TRADEIN = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
+const fechaTradeIn = (value) => {
+  const date = new Date(value)
+  if (!value || Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+}
+
+function FilaDevice({ item, abierto, onClick }) {
+  const publicado = item.pricePyg ?? item.product?.pricePyg
+  const invertido = tradeInValuePyg(item) + Number(item.repairCostPyg || 0)
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      data-testid="tradein-fila"
+      onClick={onClick}
+      onKeyDown={(event) => { if (event.key === 'Enter') onClick?.() }}
+      className={cn(GRID_TRADEIN, 'cursor-pointer rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40', abierto && 'border-fono/40')}
+    >
+      <span className="min-w-0">
+        <b className="block truncate text-[13px] font-semibold" title={item.model}>{item.model || 'Equipo'}</b>
+        <span className="mt-0.5 block truncate font-mono text-[10px] text-mute" title={item.serial}>{item.serial || 'Sin serial'}</span>
+      </span>
+      <span className="truncate text-xs text-mute" title={item.customerName || item.order?.customer?.name || undefined}>{item.customerName || item.order?.customer?.name || 'Sin cliente'}</span>
+      <span className="min-w-0"><Badge color={item.status === 'STOCK' ? 'green' : item.status === 'SOLD_EXTERNAL' ? 'slate' : item.status === 'REPAIR' ? 'orange' : 'blue'} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{TRADE_IN_STATUSES[item.status] || item.status}</Badge></span>
+      <span className="truncate text-xs tabular-nums text-mute">{gs(tradeInValuePyg(item))}</span>
+      <span className="truncate text-xs tabular-nums text-mute">{item.repairCostPyg ? gs(item.repairCostPyg) : '—'}</span>
+      <span className="truncate text-xs tabular-nums text-mute">{gs(invertido)}</span>
+      <span className="truncate text-xs tabular-nums text-fore">{publicado != null ? gs(publicado) : '—'}</span>
+      <span className="truncate text-xs text-mute" title={item.createdAt ? new Date(item.createdAt).toLocaleString('es-PY') : undefined}>{fechaTradeIn(item.createdAt)}</span>
+      <span className="flex justify-end"><Icon name="chevron" className={cn('h-3.5 w-3.5 shrink-0 text-mute transition', abierto ? 'rotate-180' : '-rotate-90')} /></span>
+    </div>
+  )
 }
 
 function Device({ item, busy, onSave }) {
@@ -127,6 +168,7 @@ export default function TradeInPipeline() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [uncertain, setUncertain] = useState(false)
+  const [abierto, setAbierto] = useState(null)
   const mutation = useRef(false)
   const generation = useRef(0)
 
@@ -180,6 +222,22 @@ export default function TradeInPipeline() {
     {message && <p role="status" className="text-sm text-ok">{message}</p>}
     {busy && <p role="status" className="text-sm text-mute">Procesando…</p>}
     {!busy && !error && !visible.length && <Card>No hay equipos que coincidan. Los equipos aparecen después de registrarlos como pago de una venta.</Card>}
-    <div className="grid items-start gap-4 min-[1200px]:grid-cols-2">{visible.map((item) => <Device key={`${item.id}:${item.status}:${item.updatedAt || ''}`} item={item} busy={busy || uncertain} onSave={save} />)}</div>
+    {visible.length > 0 && <div className="overflow-x-auto" data-testid="tradein-tabla">
+      <div className={cn(GRID_TRADEIN, 'px-3.5 pb-2 pt-1')}>
+        <span className={CELDA_TRADEIN}>Equipo</span>
+        <span className={CELDA_TRADEIN}>Cliente</span>
+        <span className={CELDA_TRADEIN}>Estado</span>
+        <span className={CELDA_TRADEIN}>Toma</span>
+        <span className={CELDA_TRADEIN}>Reparación</span>
+        <span className={CELDA_TRADEIN}>Invertido</span>
+        <span className={CELDA_TRADEIN}>Publicado</span>
+        <span className={CELDA_TRADEIN}>Ingresó</span>
+        <span />
+      </div>
+      <div className="space-y-1">{visible.map((item) => <div key={`${item.id}:${item.status}:${item.updatedAt || ''}`}>
+        <FilaDevice item={item} abierto={abierto === item.id} onClick={() => setAbierto(current => current === item.id ? null : item.id)} />
+        {abierto === item.id && <div className="mt-1"><Device item={item} busy={busy || uncertain} onSave={save} /></div>}
+      </div>)}</div>
+    </div>}
   </div>
 }

@@ -7,7 +7,17 @@ import { getProductos } from '@/lib/storage'
 import { Badge, Button, Input, MoneyInput, Select } from '@/components/ui'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
+import { cn } from '@/lib/utils'
 import { SellerSection, SellerFeedback, useSellerData } from './SellerData'
+
+// Tabla compacta: una fila por cupón, con vigencia y estado en su columna.
+const GRID_PROMOS = 'grid min-w-[56rem] grid-cols-[6.5rem_minmax(8rem,1.2fr)_7rem_minmax(8rem,1.2fr)_6.5rem_6.5rem_6.5rem_8rem] items-center gap-x-2'
+const CELDA_PROMOS = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
+const fechaCorta = (value) => {
+  const date = new Date(value)
+  if (!value || Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+}
 
 const project = ({ id, code, name, kind, value, productId, startsAt, endsAt, maxUnits, usedUnits, isActive }) => ({ id, code, name, kind, value, productId, startsAt, endsAt, maxUnits, usedUnits, isActive })
 const empty = { code: '', name: '', kind: 'PERCENT', value: '10', productId: '', startsAt: '', endsAt: '', maxUnits: '' }
@@ -37,16 +47,33 @@ export default function SellerPromotions() {
   }
   return <SellerSection title="Promociones" description={esDemo ? 'Demo ficticia local. Usá DEMO10 al elegir un producto.' : 'Aplicá el código en el precio del producto. Se verifica nuevamente al registrar la venta.'}>
     <SellerFeedback {...data} empty={!data.rows.length} />
-    <ul className="space-y-1.5">{data.rows.map(p => {
-      const estado = !p.isActive ? 'Inactiva' : Date.now() >= +new Date(p.endsAt) ? 'Vencida' : Date.now() < +new Date(p.startsAt) ? 'Programada' : 'Activa'
-      return <li key={p.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-3 py-2 transition hover:border-fono/40">
-        <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-2"><b className="truncate text-[13px]">{p.name}</b><span className="rounded border border-fono/25 bg-fono/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-fono-light">{p.code}</span><Badge color={estado === 'Activa' ? 'green' : estado === 'Vencida' ? 'slate' : estado === 'Programada' ? 'orange' : 'slate'}>{estado}</Badge></span>
-          <span className="mt-0.5 block truncate text-[11px] text-mute">{p.kind === 'PERCENT' ? `${formatPercent(p.value)}%` : gs(p.value)} por unidad · {p.productId ? (products.find(product => product.id === p.productId)?.nombre || 'Producto específico') : 'Todos los productos'} · {new Date(p.startsAt).toLocaleDateString('es-PY')} — {new Date(p.endsAt).toLocaleDateString('es-PY')} · {p.maxUnits === null ? 'sin límite' : `${Math.max(0, p.maxUnits - p.usedUnits)} disponibles`}</span>
-        </span>
-        {admin && <Button type="button" variant="outline" className="h-8 shrink-0 px-2 text-xs" disabled={busy} onClick={() => mutate(() => esDemo ? toggleDemoPromotion(p.id, !p.isActive) : api.patch('/api/promotions', { id: p.id, isActive: !p.isActive }))}>{p.isActive ? 'Desactivar' : 'Activar'}</Button>}
-      </li>
-    })}</ul>
+    {data.rows.length > 0 && <div className="overflow-x-auto" data-testid="promociones-tabla">
+      <div className={cn(GRID_PROMOS, 'px-3.5 pb-2 pt-1')}>
+        <span className={CELDA_PROMOS}>Código</span>
+        <span className={CELDA_PROMOS}>Nombre</span>
+        <span className={CELDA_PROMOS}>Descuento</span>
+        <span className={CELDA_PROMOS}>Alcance</span>
+        <span className={CELDA_PROMOS}>Desde</span>
+        <span className={CELDA_PROMOS}>Hasta</span>
+        <span className={CELDA_PROMOS}>Estado</span>
+        <span className={cn(CELDA_PROMOS, 'text-right')}>Acciones</span>
+      </div>
+      <div className="space-y-1">{data.rows.map(p => {
+        const estado = !p.isActive ? 'Inactiva' : Date.now() >= +new Date(p.endsAt) ? 'Vencida' : Date.now() < +new Date(p.startsAt) ? 'Programada' : 'Activa'
+        const tono = estado === 'Activa' ? 'green' : estado === 'Programada' ? 'orange' : 'slate'
+        const alcance = p.productId ? (products.find(product => product.id === p.productId)?.nombre || 'Producto específico') : 'Todos los productos'
+        return <div key={p.id} data-testid="promocion-fila" className={cn(GRID_PROMOS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
+          <span className="truncate font-mono text-[11px] font-bold text-fono-light" title={p.code}>{p.code}</span>
+          <span className="truncate text-[13px] font-semibold" title={p.name}>{p.name}</span>
+          <span className="truncate text-xs tabular-nums text-mute">{p.kind === 'PERCENT' ? `${formatPercent(p.value)}%` : gs(p.value)}</span>
+          <span className="truncate text-xs text-mute" title={alcance}>{alcance}</span>
+          <span className="truncate text-xs text-mute">{fechaCorta(p.startsAt)}</span>
+          <span className="truncate text-xs text-mute">{fechaCorta(p.endsAt)}</span>
+          <span className="min-w-0"><Badge color={tono} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]" title={p.maxUnits === null ? 'Sin límite de unidades' : `${Math.max(0, p.maxUnits - p.usedUnits)} disponibles de ${p.maxUnits}`}>{estado}</Badge></span>
+          <span className="flex items-center justify-end">{admin && <Button type="button" variant="outline" className="h-8 whitespace-nowrap px-2 text-xs" disabled={busy} onClick={() => mutate(() => esDemo ? toggleDemoPromotion(p.id, !p.isActive) : api.patch('/api/promotions', { id: p.id, isActive: !p.isActive }))}>{p.isActive ? 'Desactivar' : 'Activar'}</Button>}</span>
+        </div>
+      })}</div>
+    </div>}
     {admin && <form onSubmit={create} className="space-y-3 rounded-xl border border-fore/10 p-4">
       <h2 className="font-semibold">Crear cupón</h2>
       {['code', 'name'].map(key => <label className="block" key={key}>{{ code: 'Código', name: 'Nombre' }[key]}<Input required pattern={key === 'code' ? '[A-Za-z0-9_-]{2,40}' : undefined} maxLength={key === 'code' ? 40 : 120} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label>)}

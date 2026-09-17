@@ -4,7 +4,6 @@ import { api } from '@/lib/api'
 import { consumeActionToken } from '@/lib/actionToken'
 import { Badge, Button, Card, Label, PinInput } from '@/components/ui'
 import ProductFooter from '@/components/app/ProductFooter'
-import PegarEnlaceToken from '@/components/shared/PegarEnlaceToken'
 
 const ESTADOS = {
   ACTIVE: { label: 'Invitación activa', color: 'green' },

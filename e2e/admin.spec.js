@@ -80,6 +80,37 @@ test.describe('owner panel', () => {
   // the seller via POST /api/users (including the 4-digit PIN). The PIN is
   // unique per run: the API rejects a PIN already in use by the company, and
   // the local E2E database persists users across runs.
+
+  // Horario de acceso del integrante: se carga desde Configuración → Equipo y
+  // el backend lo aplica al iniciar sesión. El test usa un rango permisivo
+  // (todos los días, todo el día) para que, si algo falla, el vendedor
+  // sembrado no quede bloqueado en la próxima corrida.
+  test('equipo → el horario del vendedor se configura y se quita', async ({ page }) => {
+    await page.goto('/configuracion/equipo')
+    await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
+    const vendedor = SEED.sellers[0].name
+    const botonHorario = () => page.getByLabel(new RegExp(`^Horario de ${vendedor}`))
+
+    await botonHorario().click()
+    const modal = page.getByRole('dialog', { name: /Horario de acceso/ })
+    await expect(modal).toBeVisible()
+    await modal.getByRole('button', { name: '+ Rango' }).click()
+    for (const dia of ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do']) await modal.getByRole('button', { name: dia, exact: true }).click()
+    await modal.getByLabel('Desde').fill('00:00')
+    await modal.getByLabel('Hasta').fill('23:59')
+    await modal.getByRole('button', { name: 'Guardar horario' }).click()
+    await expect(page.getByText('Horario de acceso actualizado.')).toBeVisible()
+    // El botón pasa a mostrar el resumen del horario cargado.
+    await expect(botonHorario()).toBeVisible()
+
+    // Se quita para dejar el acceso libre.
+    await botonHorario().click()
+    await modal.getByRole('button', { name: 'Quitar' }).click()
+    await modal.getByRole('button', { name: 'Guardar horario' }).click()
+    await expect(page.getByText('Horario quitado: el acceso queda libre.')).toBeVisible()
+    await expect(page.getByLabel(`Horario de ${vendedor}`, { exact: true })).toBeVisible()
+  })
+
   test('equipo → Vendedores creates a new seller with a PIN', async ({ page }) => {
     await page.goto('/configuracion/equipo')
     await expect(page.getByRole('heading', { name: 'Funcionarios y metas' })).toBeVisible()
@@ -114,6 +145,36 @@ test.describe('owner panel', () => {
 
   // Los códigos comerciales tienen que ser cortos, secuenciales y dictables:
   // ni el número de cotización ni el SKU llevan timestamp.
+
+  // Reservar eligiendo un cliente de la lista deja la reserva ligada a su ficha
+  // (teléfono y RUC quedan disponibles en el perfil, sin crear fichas nuevas).
+  test('inventario: la reserva con cliente queda ligada a su ficha', async ({ page }) => {
+    await page.goto('/pos/inventario')
+    const resultado = await page.evaluate(async (api) => {
+      const clientes = await fetch(`${api}/api/customers?q=E2E`, { credentials: 'include' }).then(r => r.json())
+      const cliente = clientes[0]
+      const unidades = await fetch(`${api}/api/inventory-units`, { credentials: 'include' }).then(r => r.json())
+      const libre = unidades.find(u => u.status === 'AVAILABLE')
+      if (!cliente || !libre) return { error: 'sin datos' }
+      const antes = clientes.length
+      const respuesta = await fetch(`${api}/api/inventory-reservations`, {
+        method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ serials: [libre.serial], customerId: cliente.id, minutes: 60 }),
+      })
+      const reservadas = await respuesta.json()
+      const despues = await fetch(`${api}/api/customers?q=E2E`, { credentials: 'include' }).then(r => r.json())
+      await fetch(`${api}/api/inventory-reservations`, {
+        method: 'PATCH', credentials: 'include', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'release', serials: [libre.serial] }),
+      })
+      return { status: respuesta.status, ficha: reservadas?.[0]?.reservationCustomerRef?.id, esperado: cliente.id, antes, despues: despues.length }
+    }, API)
+    expect(resultado.status).toBe(201)
+    expect(resultado.ficha).toBe(resultado.esperado)
+    // Reservar no crea fichas.
+    expect(resultado.despues).toBe(resultado.antes)
+  })
+
   test('códigos comerciales: cotización COT-#0001 y SKU legible sin timestamp', async ({ page }) => {
     await page.goto('/pos/inventario')
     const resultado = await page.evaluate(async (api) => {

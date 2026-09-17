@@ -6,6 +6,11 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { Card, Button, Input, Label, Select, Badge, MoneyInput, EmptyState } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { cn } from '@/lib/utils'
+
+// Tablas compactas: una fila por mes y por inversión.
+const GRID_ADS = 'grid min-w-[40rem] grid-cols-[minmax(10rem,1.4fr)_6rem_8rem_8rem_4rem] items-center gap-x-2'
+const CELDA_ADS = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const PLATAFORMAS = ['Meta Ads', 'Instagram', 'Facebook', 'Google Ads', 'TikTok', 'Otro']
 
@@ -132,18 +137,25 @@ export default function Ads() {
             <h3 className="font-bold">Reporte mensual</h3>
             <Badge color="orange">Total general: {gs(total)}</Badge>
           </div>
-          <div className="divide-y divide-ink-600">
-            {meses.map(([clave, { total: t, cant }]) => (
-              <div key={clave} className="flex items-center justify-between gap-2 p-3.5">
-                <div>
-                  <div className="font-semibold text-sm capitalize">{mesLabel(clave)}</div>
-                  <div className="text-xs text-mute">
-                    {cant} {cant === 1 ? 'inversión' : 'inversiones'}
-                  </div>
+          <div className="overflow-x-auto p-4" data-testid="ads-meses-tabla">
+            <div className={cn(GRID_ADS, 'px-3.5 pb-2 pt-1')}>
+              <span className={CELDA_ADS}>Mes</span>
+              <span className={CELDA_ADS}>Inversiones</span>
+              <span className={CELDA_ADS}>Promedio</span>
+              <span className={cn(CELDA_ADS, 'text-right')}>Total</span>
+              <span />
+            </div>
+            <div className="space-y-1">
+              {meses.map(([clave, { total: t, cant }]) => (
+                <div key={clave} data-testid="ads-mes-fila" className={cn(GRID_ADS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2')}>
+                  <span className="truncate text-[13px] font-semibold capitalize" title={mesLabel(clave)}>{mesLabel(clave)}</span>
+                  <span className="truncate text-xs tabular-nums text-mute">{cant}</span>
+                  <span className="truncate text-xs tabular-nums text-mute">{gs(Math.round(t / Math.max(1, cant)))}</span>
+                  <span className="truncate text-right text-[13px] font-bold tabular-nums text-warn">{gs(t)}</span>
+                  <span />
                 </div>
-                <span className="font-extrabold text-warn">{gs(t)}</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </Card>
       )}
@@ -156,25 +168,25 @@ export default function Ads() {
         {ads.length === 0 ? (
           <EmptyState compact icon="box" title="Sin inversiones registradas." />
         ) : (
-          <div className="divide-y divide-ink-600">
-            {ads.map((a) => (
-              <div key={a.id} className="flex items-center justify-between gap-2 p-3.5">
-                <div>
-                  <div className="font-semibold text-sm">{a.plataforma}</div>
-                  <div className="text-xs text-mute">{a.fecha}</div>
+          <div className="overflow-x-auto p-4" data-testid="ads-tabla">
+            <div className={cn(GRID_ADS, 'px-3.5 pb-2 pt-1')}>
+              <span className={CELDA_ADS}>Plataforma</span>
+              <span className={CELDA_ADS}>Fecha</span>
+              <span className={CELDA_ADS}>Monto</span>
+              <span className={CELDA_ADS}>Mes</span>
+              <span className={cn(CELDA_ADS, 'text-right')}>Acciones</span>
+            </div>
+            <div className="space-y-1">
+              {ads.map((a) => (
+                <div key={a.id} data-testid="ad-fila" className={cn(GRID_ADS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2')}>
+                  <span className="truncate text-[13px] font-semibold">{a.plataforma}</span>
+                  <span className="truncate text-xs text-mute">{a.fecha}</span>
+                  <span className="truncate text-xs font-bold tabular-nums text-warn">{gs(a.monto)}</span>
+                  <span className="truncate text-xs text-mute capitalize">{a.fecha ? mesLabel(String(a.fecha).slice(0, 7)) : '—'}</span>
+                  <span className="flex items-center justify-end">{demo && <button onClick={() => borrar(a.id)} className="p-1 text-mute transition hover:text-bad" title="Eliminar" aria-label={`Eliminar inversión de ${a.plataforma}`}><Icon name="trash" className="h-4 w-4" /></button>}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-warn">{gs(a.monto)}</span>
-                  {demo && <button
-                    onClick={() => borrar(a.id)}
-                    className="text-mute hover:text-bad p-1"
-                    title="Eliminar"
-                  >
-                    <Icon name="trash" className="h-4 w-4" />
-                  </button>}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </Card>

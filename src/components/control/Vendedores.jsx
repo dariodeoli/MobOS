@@ -62,7 +62,6 @@ export default function Vendedores({ seccion = 'equipo' }) {
   }, [esDemo])
   useEffect(() => { cargarInvitaciones() }, [cargarInvitaciones])
   function notifySuccess(value) { setError(''); setMessage(value); window.setTimeout(() => setMessage(''), 4500) }
-  function abrirHorario(v) { setHorario({ userId: v.id, timezone: v.accessSchedule?.timezone || 'America/Asuncion', windows: (v.accessSchedule?.windows || []).map((fila) => ({ days: [...(fila.days || [])], start: fila.start || '', end: fila.end || '' })) }) }
   async function refreshTeam() { if (!esDemo) await refrescar(); setRevision(value => value + 1) }
 
   async function crearDirecto(event) {
@@ -96,16 +95,30 @@ export default function Vendedores({ seccion = 'equipo' }) {
     try { if (esDemo) updateVendedor(id, changes); else await api.patch('/api/users', { id, ...changes }); await refreshTeam(); notifySuccess('Integrante actualizado.') }
     catch (cause) { setError(cause?.message || 'No se pudo actualizar el integrante.') }
   }
+  // Horario de acceso: el backend lo aplica al iniciar sesión (fuera de los
+  // rangos, el integrante no puede entrar). Sin rangos queda libre.
+  function abrirHorario(v) {
+    setHorario({
+      userId: v.id,
+      nombre: v.nombre,
+      timezone: v.accessSchedule?.timezone || 'America/Asuncion',
+      windows: (v.accessSchedule?.windows || []).map(fila => ({ days: [...(fila.days || [])], start: fila.start || '', end: fila.end || '' })),
+    })
+  }
   async function guardarHorario(event) {
     event.preventDefault()
-    const datos = horario
-    if (!datos?.userId) return
+    if (!horario?.userId || busy) return
     setBusy(true); setError('')
     try {
-      const windows = datos.windows.filter((fila) => fila.days.length > 0 && fila.start && fila.end && fila.start !== fila.end)
-      await api.patch('/api/users', { id: datos.userId, accessSchedule: windows.length ? { timezone: datos.timezone || 'America/Asuncion', windows } : null })
-      setHorario(null); await refreshTeam(); notifySuccess('Horario de acceso actualizado.')
+      const windows = horario.windows.filter(fila => fila.days.length > 0 && fila.start && fila.end && fila.start !== fila.end)
+      await api.patch('/api/users', { id: horario.userId, accessSchedule: windows.length ? { timezone: horario.timezone || 'America/Asuncion', windows } : null })
+      setHorario(null); await refreshTeam(); notifySuccess(windows.length ? 'Horario de acceso actualizado.' : 'Horario quitado: el acceso queda libre.')
     } catch (cause) { setError(cause?.message || 'No se pudo guardar el horario.') } finally { setBusy(false) }
+  }
+  function resumenHorario(v) {
+    const windows = v.accessSchedule?.windows || []
+    if (!windows.length) return ''
+    return windows.map(fila => `${fila.start}-${fila.end}`).join(' · ')
   }
 
   async function eliminarUsuario() {
@@ -155,6 +168,29 @@ export default function Vendedores({ seccion = 'equipo' }) {
     {!esDemo && sesion?.esPropietario && <SeccionComisiones />}
     </>}
     {equipoTab === 'invitaciones' && !esDemo && <>{!esDemo && invitaciones.length > 0 && <Card><h2 className="font-bold">Invitaciones</h2><div className="mt-4 space-y-2">{invitaciones.map(invite => { const [label, color] = INVITE_STATUS[invite.status] || [invite.status, 'slate']; const canResend = invite.status === 'PENDING' && new Date(invite.resendAvailableAt) <= new Date(); return <div key={invite.id} className="flex flex-col gap-3 rounded-xl border border-ink-600 p-2.5 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="truncate text-[13px]">{invite.name}</strong><Badge color={color}>{label}</Badge><Badge>{ROLE_LABELS[invite.role] || invite.role}</Badge></div><p className="mt-1 truncate text-xs text-mute">{invite.email}</p></div>{invite.status === 'PENDING' && <div className="flex gap-2"><Button type="button" variant="outline" disabled={busy || !canResend} onClick={() => resend(invite)}>{canResend ? 'Reenviar' : 'Reenvío en espera'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => setConfirmarRevocar(invite)}>Revocar</Button></div>}</div> })}</div></Card>}</>}
+    <Modal open={horario !== null} onClose={() => !busy && setHorario(null)} title={`Horario de acceso${horario?.nombre ? ` · ${horario.nombre}` : ''}`} className="max-w-lg">
+      <form onSubmit={guardarHorario} className="space-y-3">
+        <p className="text-sm text-mute">Fuera de estos rangos el integrante no puede ingresar al sistema. Sin rangos, el acceso queda libre.</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div><Label htmlFor="horario-tz">Zona horaria</Label><Input id="horario-tz" value={horario?.timezone || 'America/Asuncion'} onChange={event => setHorario(current => ({ ...current, timezone: event.target.value }))} placeholder="America/Asuncion" /></div>
+          <div className="flex items-end"><Button type="button" variant="outline" onClick={() => setHorario(current => ({ ...current, windows: [...(current?.windows || []), { days: [1, 2, 3, 4, 5], start: '08:00', end: '18:00' }] }))}>+ Rango</Button></div>
+        </div>
+        {(horario?.windows || []).length === 0 && <p className="rounded-lg border border-ink-600 px-3 py-2 text-xs text-mute">Sin rangos cargados: el integrante puede ingresar cualquier día y hora.</p>}
+        {(horario?.windows || []).map((fila, index) => (
+          <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-3 sm:grid-cols-[1fr_auto_auto_auto]">
+            <div className="flex flex-wrap gap-1">{['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map((dia, day) => {
+              const valor = day === 6 ? 0 : day + 1
+              const activo = fila.days.includes(valor)
+              return <button key={dia} type="button" aria-pressed={activo} aria-label={dia} className={`rounded-lg border px-2 py-1 text-xs transition ${activo ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute'}`} onClick={() => setHorario(current => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, days: fila2.days.includes(valor) ? fila2.days.filter(d => d !== valor) : [...fila2.days, valor] } : fila2) }))}>{dia}</button>
+            })}</div>
+            <Input type="time" value={fila.start} onChange={event => setHorario(current => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, start: event.target.value } : fila2) }))} aria-label="Desde" />
+            <Input type="time" value={fila.end} onChange={event => setHorario(current => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, end: event.target.value } : fila2) }))} aria-label="Hasta" />
+            <button type="button" className="self-center text-xs text-bad hover:underline" onClick={() => setHorario(current => ({ ...current, windows: current.windows.filter((_, itemIndex) => itemIndex !== index) }))}>Quitar</button>
+          </div>
+        ))}
+        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setHorario(null)}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar horario'}</Button></div>
+      </form>
+    </Modal>
     <ConfirmDialog open={Boolean(confirmarEliminar)} onCancel={() => setConfirmarEliminar(null)} onConfirm={eliminarUsuario} busy={busy} title={esDemo ? '¿Eliminar vendedor?' : '¿Desactivar integrante?'} description={esDemo ? `Se eliminará a ${confirmarEliminar?.nombre || 'este vendedor'}. Las ventas se conservan.` : `${confirmarEliminar?.nombre || 'Este integrante'} ya no podrá ingresar. Su historial se conserva.`} confirmLabel={esDemo ? 'Eliminar vendedor' : 'Desactivar integrante'} variant="danger" />
     <ConfirmDialog open={Boolean(confirmarRevocar)} onCancel={() => setConfirmarRevocar(null)} onConfirm={revokeInvitation} busy={busy} title="¿Revocar invitación?" description={`El enlace enviado a ${confirmarRevocar?.email || 'este correo'} dejará de funcionar.`} confirmLabel="Revocar invitación" variant="danger" />
     <Modal open={invitarAbierto} onClose={() => !busy && setInvitarAbierto(false)} title="Invitar persona" className="max-w-2xl">

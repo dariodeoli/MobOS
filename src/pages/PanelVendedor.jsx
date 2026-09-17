@@ -129,74 +129,6 @@ const OWNER_BOTTOM = [
 ]
 
 // Cada apartado con pestañas vive en /<padre>/<slug> (slug hijo en la URL).
-const TABS_ANALISIS = [
-  ['reportes', 'Reportes'],
-  ['ganancias', 'Ganancias'],
-  ['ganadores', 'Ganadores'],
-  ['asistente', 'Asistente'],
-]
-const TABS_FINANZAS = [
-  ['caja', 'Caja'],
-  ['gastos', 'Gastos'],
-  ['bancos', 'Bancos y cuentas'],
-  ['creditos', 'Créditos'],
-  ['cuotas', 'Cuotas'],
-  ['publicidad', 'Publicidad'],
-]
-const TABS_INVENTARIO = [
-  ['unidades', 'Unidades'],
-  ['alertas', 'Alertas'],
-  ['reservas', 'Reservas'],
-  ['traslados', 'Traslados'],
-  ['vendidos', 'Vendidos'],
-  ['transito', 'En tránsito'],
-  ['ubicaciones', 'Ubicaciones'],
-  ['compartido', 'Compartido'],
-  ['eliminados', 'Eliminados'],
-]
-const CONFIG_VISTAS = CONFIG_TABS.map(([id]) => id)
-
-const SUBPAGINAS = {
-  configuracion: {
-    vista: 'equipo',
-    tabs: [
-      ['equipo', 'Equipo'],
-      ['identidad', 'Mi identidad'],
-      ['roles', 'Roles y permisos'],
-      ['historial', 'Auditoría'],
-      ['negocio', 'Negocio'],
-      ['sucursales', 'Sucursales'],
-      ['seguridad', 'Seguridad'],
-    ],
-  },
-  analisis: { vista: 'analisis', tabs: TABS_ANALISIS },
-  finanzas: { vista: 'finanzas', tabs: TABS_FINANZAS },
-  inventario: { vista: 'inventario', tabs: TABS_INVENTARIO },
-}
-// El id del menú y el slug de la pestaña apuntan a la misma subpágina.
-const SUBPAGINA_DE_VISTA = Object.fromEntries(
-  Object.entries(SUBPAGINAS).map(([slug, cfg]) => [cfg.vista, slug]),
-)
-const SUBPAGINA_DE_TAB = Object.fromEntries(
-  Object.entries(SUBPAGINAS).flatMap(([slug, cfg]) => cfg.tabs.map(([id]) => [id, slug])),
-)
-// Pestañas visibles según el modo: historial solo en demo, créditos fuera de demo.
-function tabsDeSubpagina(slug, esDemo) {
-  const tabs = SUBPAGINAS[slug]?.tabs || []
-  if (slug === 'configuracion') {
-    // Invitaciones necesita el API real; en demo queda oculta.
-    return tabs.filter(([id]) => (id === 'invitaciones' ? !esDemo : true))
-  }
-  if (slug === 'finanzas') {
-    return tabs.filter(([id]) => {
-      if (id === 'publicidad') return esDemo
-      if (id === 'creditos' || id === 'cuotas') return !esDemo
-      return true
-    })
-  }
-// Créditos y cuotas solo fuera de la demo; el resto (incluida la publicidad
-  // real vía Finanzas) está disponible en ambos modos.
-  if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas') ? !esDemo : true))
   return tabs
 }
 
@@ -310,7 +242,7 @@ export default function PanelVendedor() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const { vista: routeVista, seccion: routeSeccion } = useParams()
-  // Los apartados con pestañas viven en /<padre>/<slug>: el padre es el primer
+  // Las subpáginas con pestañas viven en /<padre>/<slug>: el padre es el primer
   // tramo de la URL y el slug hijo define la pestaña activa.
   const subpadre = SUBPAGINAS[pathname.split('/')[1]] ? pathname.split('/')[1] : null
   const tabsRuta = useMemo(() => (subpadre ? tabsDeSubpagina(subpadre, esDemo) : []), [subpadre, esDemo])
@@ -403,7 +335,7 @@ export default function PanelVendedor() {
     navigate(`/pos/${id}`)
   }
 
-  // Pestaña de un apartado: la pestaña activa vive en la URL hija.
+  // Pestaña de un subpadre: la pestaña activa vive en la URL hija.
   function irASubtab(id) {
     setVista(id)
     if (subpadre) navigate(`/${subpadre}/${id}`)

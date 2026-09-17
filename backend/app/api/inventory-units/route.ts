@@ -217,7 +217,7 @@ export async function PATCH(request: Request) {
         if (session.user.role !== 'ADMIN') throw new Error('Solo un administrador general puede restaurar inventario eliminado.')
         if (!removed) throw new Error('La unidad no está en eliminados recuperables.')
         await changeStock(tx, { tenantId: tenant, productId: before.productId, delta: 1, message: 'No se pudo restaurar el stock de la unidad.' })
-        const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservedById: null } })
+        const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_RESTORED, entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, restoredTo: 'AVAILABLE', locationId: before.locationId } } })
         return data
       }
