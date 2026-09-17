@@ -3,6 +3,7 @@ import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { quoteTotals } from '../../../lib/pricing'
 import { enforceRateLimit } from '../../../lib/rate-limit'
+import { esNumeroCotizacionDuplicado, nextQuoteNumber } from '../../../lib/quote-number'
 
 const INT_MAX = 2147483647
 const STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'CONVERTED', 'EXPIRED', 'CANCELLED']
@@ -65,12 +66,22 @@ export async function POST(request: Request) {
     const discount = totals.discountPyg
     const customerId = typeof body?.customerId === 'string' && body.customerId ? body.customerId : null
     if (customerId && !await prisma.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { id: true } })) return error('Cliente no encontrado.', 404)
-    const number = `COT-${Date.now().toString(36).toUpperCase()}`
-    const quote = await prisma.quote.create({ data: {
-      tenantId: tenant, branchId: session.user.branchId, customerId, customerName, sellerId: session.user.id, number,
-      items, subtotalPyg: subtotal, discountPyg: discount, totalPyg: totals.totalPyg,
-      notes: text(body?.notes, 2000), validUntil, status: 'DRAFT',
-    }, include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true } } } })
+    // El número se calcula dentro de la transacción; si otra cotización ganó
+    // el número en el medio, el índice único rechaza y se reintenta.
+    const quote = await (async () => {
+      for (let intento = 0; ; intento++) {
+        try {
+          return await prisma.$transaction(async tx => tx.quote.create({ data: {
+            tenantId: tenant, branchId: session.user.branchId, customerId, customerName, sellerId: session.user.id, number: await nextQuoteNumber(tx, tenant),
+            items, subtotalPyg: subtotal, discountPyg: discount, totalPyg: totals.totalPyg,
+            notes: text(body?.notes, 2000), validUntil, status: 'DRAFT',
+          }, include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true } } } }))
+        } catch (e) {
+          if (intento >= 2 || !esNumeroCotizacionDuplicado(e)) throw e
+        }
+      }
+    })()
+    const number = quote.number
     await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'QUOTE_CREATED', entity: 'Quote', entityId: quote.id, metadata: { number, totalPyg: quote.totalPyg } } })
     return json(quote, { status: 201 })
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo crear la cotización.', 400) }
