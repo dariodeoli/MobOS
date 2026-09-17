@@ -47,7 +47,7 @@ function FotoMini({ unitId, commentId, photo }) {
 
 // Detalle premium de una unidad de inventario: ficha completa, acciones y
 // cronología con comentarios y fotos (misma experiencia que los pedidos).
-export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, onClose, onChanged, onSell, onReserve, onVerify, onArrive, onLabel, onRelease, onAdjust, onRemove }) {
+export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, locations = [], onClose, onChanged, onSell, onReserve, onVerify, onArrive, onLabel, onRelease, onAdjust, onRemove, onMove }) {
   const toast = useToast()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -143,6 +143,14 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, on
         <section className="rounded-2xl border border-ink-600 p-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Ficha del equipo</h3>
           <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Ubicación</p>
+              {canManage
+                ? <select aria-label="Ubicación de la unidad" className="mt-1 w-full rounded-lg border border-ink-500 bg-ink-800 px-2 py-1.5 text-sm text-fore outline-none transition focus:border-fono" value={unit.locationId || ''} disabled={busy} onChange={event => ejecutar(() => onMove?.(unit, event.target.value || null))}>
+                    <option value="">Sin ubicación</option>
+                    {locations.filter(location => location.branchId === unit.branchId && location.isActive).map(location => <option key={location.id} value={location.id}>{location.name}</option>)}
+                  </select>
+                : <p className="mt-1 font-semibold">{unit.location?.name || '—'}</p>}
+            </div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Batería</p><p className="mt-1 font-semibold">{unit.batteryHealth ? `${unit.batteryHealth}%` : '—'}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Proveedor</p><p className="mt-1 font-semibold">{unit.supplier?.name || unit.supplierName || '—'}{unit.supplier?.name && unit.supplier?.code ? ' (' + unit.supplier.code + ')' : ''}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{money(unit.originalCost, unit.costCurrency)}{unit.costPyg ? ` · ${money(unit.costPyg, 'PYG')}` : ''}</p></div>
@@ -173,6 +181,7 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, on
             {unit.status === 'AVAILABLE' && <Button disabled={busy} onClick={() => ejecutar(() => onSell(unit))}>Vender</Button>}
             {unit.status === 'AVAILABLE' && <Button variant="outline" disabled={busy} onClick={() => ejecutar(() => onReserve(unit))}>Reservar</Button>}
             {unit.status === 'IN_TRANSIT' && <Button disabled={busy} onClick={() => ejecutar(() => onArrive(unit))}>Recibir en sucursal</Button>}
+            {unit.status === 'RESERVED' && <Button disabled={busy} onClick={() => ejecutar(() => onSell(unit))}>Finalizar venta</Button>}
             {unit.status === 'RESERVED' && <Button variant="outline" disabled={busy} onClick={() => ejecutar(() => onRelease(unit.serial))}>Liberar reserva</Button>}
             {unit.status !== 'SOLD' && <Button variant="outline" disabled={busy} onClick={() => ejecutar(() => onVerify(unit))}>✓ Verificado</Button>}
             <Button variant="outline" onClick={() => onLabel(unit)}>Etiqueta</Button>

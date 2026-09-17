@@ -4,6 +4,8 @@
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 
+const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
+
 test.describe('owner panel', () => {
   test('resumen shows the dashboard KPIs', async ({ page }) => {
     await page.goto('/pos/resumen')
@@ -18,10 +20,52 @@ test.describe('owner panel', () => {
   test('inventario lists the seeded serialized unit with its IMEI', async ({ page }) => {
     await page.goto('/pos/inventario')
     await expect(page.getByRole('heading', { name: 'Inventario operativo' })).toBeVisible()
-    await expect(page.getByRole('button', { name: /^Unidades \(/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Inventario \(/ })).toBeVisible()
     // La tabla compacta alinea el serial por columna (últimos 4 destacados).
     await expect(page.getByText('Verificación')).toBeVisible()
     await expect(page.getByText(new RegExp(SEED.products.iphone.imei))).toBeVisible()
+  })
+
+  // Permanencia: una unidad reservada sigue en Inventario, no desaparece del
+  // listado, y desde ahí se puede cerrar la venta.
+  test('inventario: la unidad reservada sigue en el listado', async ({ page }) => {
+    await page.goto('/pos/inventario')
+    await page.evaluate(async ({ api, serial }) => {
+      await fetch(`${api}/api/inventory-reservations`, {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'release', serials: [serial] }),
+      })
+    }, { api: API, serial: SEED.products.iphone.imei })
+    await page.reload()
+
+    const fila = () => page.getByTestId('inventario-fila').filter({ hasText: SEED.products.iphone.imei }).first()
+    await expect(fila()).toBeVisible()
+    await fila().click()
+    await page.getByRole('dialog', { name: /iPhone/ }).getByRole('button', { name: 'Reservar' }).click()
+    const modal = page.getByRole('dialog', { name: 'Reservar unidad' })
+    await expect(modal).toBeVisible()
+    // La duración se ingresa compacta: "Duración [2] horas".
+    await expect(modal.getByLabel('Duración en horas')).toHaveValue('2')
+    await expect(modal.getByText('horas', { exact: true })).toBeVisible()
+    await modal.getByRole('button', { name: 'Reservar', exact: true }).click()
+    await expect(page.getByText(/Reserva creada por 2 horas/)).toBeVisible()
+
+    // Sigue en Inventario, con su estado y el atajo para cerrar la venta.
+    const reservada = fila()
+    await expect(reservada.getByText('Reservado')).toBeVisible()
+    await expect(reservada.getByRole('button', { name: 'Finalizar venta' })).toBeVisible()
+
+    // Se libera para dejar el stock como estaba.
+    await page.evaluate(async ({ api, serial }) => {
+      await fetch(`${api}/api/inventory-reservations`, {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'release', serials: [serial] }),
+      })
+    }, { api: API, serial: SEED.products.iphone.imei })
+    await page.reload()
+    await expect(fila().getByText('Disponible')).toBeVisible()
   })
 
   test('equipo → Vendedores lists the seeded sellers', async ({ page }) => {
