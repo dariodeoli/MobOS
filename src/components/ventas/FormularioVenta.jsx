@@ -174,6 +174,8 @@ export default function FormularioVenta({
   // Detalles del producto nuevo del POS: categoría, condición, precios y costo.
   const [nuevoDetalles, setNuevoDetalles] = useState({ categoria: 'Accesorios', condicion: 'NEW', precio: '', mayorista: '', costo: '' })
   const [creandoProd, setCreandoProd] = useState(false)
+  const [combos, setCombos] = useState([])
+  const [noticeCombo, setNoticeCombo] = useState('')
   const [familiaActiva, setFamiliaActiva] = useState(null) // { base, items } cuando se eligió una familia con colores
   const [busquedaProducto, setBusquedaProducto] = useState('')
   const [modalColor, setModalColor] = useState(false)
@@ -319,9 +321,45 @@ export default function FormularioVenta({
     }
   }, [])
 
+  // Combos activos de la tienda para agregarlos como varias líneas de una vez.
+  useEffect(() => {
+    if (esDemo) { setCombos([]); return }
+    resources.combos.list().then(setCombos).catch(() => setCombos([]))
+  }, [esDemo])
+
   function nombreDe(id) {
     return productos.find(p => p.id === id)?.nombre || ''
   }
+  function agregarCombo(combo) {
+    const componentes = (Array.isArray(combo.items) ? combo.items : []).map(item => {
+      const producto = productos.find(p => p.id === item.productId)
+      return producto ? { producto, cantidad: Number(item.quantity) || 1 } : null
+    }).filter(Boolean)
+    if (componentes.length < 2) return
+    const totalLista = componentes.reduce((sum, { producto, cantidad }) => sum + (Number(producto.precioVenta) || 0) * cantidad, 0)
+    const precioCombo = Number(combo.pricePyg) || 0
+    let asignado = 0
+    const nuevas = componentes.map(({ producto, cantidad }, index) => {
+      const base = (Number(producto.precioVenta) || 0) * cantidad
+      const share = index === componentes.length - 1 ? Math.max(0, precioCombo - asignado) : Math.round(totalLista > 0 ? (precioCombo * base) / totalLista : precioCombo / componentes.length)
+      asignado += share
+      return {
+        key: `${Date.now()}-${Math.random()}`,
+        productoId: producto.id,
+        nombre: producto.nombre,
+        precio: cantidad > 0 ? Math.round(share / cantidad) : share,
+        quantity: cantidad,
+        couponCode: null,
+        soldWithoutInsurance: false,
+        serials: [],
+        sobrePedido: false,
+        combo: combo.name,
+      }
+    })
+    setItems(arr => [...arr, ...nuevas])
+    setNoticeCombo(`Combo ${combo.name} agregado: ${nuevas.length} componentes por ${gs(precioCombo)}.`)
+  }
+
   function agregarItem() {
     if (!f.productoId || gsNum(f.precio) <= 0 || (serialRequired && !f.serials.length && !sobrePedido)) return
     setItems(arr => {
@@ -1179,7 +1217,9 @@ export default function FormularioVenta({
                   className="grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2"
                   aria-label="Resultados de productos"
                 >
-                  {familiasVisibles.map(fam => {
+                  {!esDemo && combos.length > 0 && <div className="sm:col-span-2 mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/[.05] p-2.5"><span className="text-[11px] font-bold uppercase tracking-wider text-mute">Combos</span>{combos.map(combo => <button key={combo.id} type="button" onClick={() => agregarCombo(combo)} className="rounded-lg border border-fono/40 bg-ink-800 px-2.5 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10" title={(combo.items || []).map(item => productos.find(p => p.id === item.productId)?.nombre || '').filter(Boolean).join(' + ')}>{combo.name} · {gs(combo.pricePyg)}</button>)}</div>}
+                {noticeCombo && <p role="status" className="col-span-2 mb-2 rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-xs text-ok">{noticeCombo}</p>}
+                {familiasVisibles.map(fam => {
                     const p = fam.items[0]
                     return (
                       <button

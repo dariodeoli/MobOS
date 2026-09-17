@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import ProductoDetalle from '@/components/productos/ProductoDetalle'
 import ListGridToggle from '@/components/shared/ListGridToggle'
+import ComboManager from '@/components/productos/ComboManager'
 
 export const productFields = (row) => ({ ...row, id: row.id, name: row.name || row.nombre || '', sku: row.sku || '', price: row.pricePyg ?? row.precioVenta, stock: row.stock })
 const demoProducts = () => getProductos().filter((row) => row.activo !== false)
@@ -70,6 +71,7 @@ export default function SellerCatalog() {
   const [soloStock, setSoloStock] = useState(false)
   const [vista, setVista] = useState(() => localStorage.getItem('mobos:productos-vista') || 'list')
   const [seleccion, setSeleccion] = useState(null)
+  const [combosOpen, setCombosOpen] = useState(false)
   const searchRef = useRef(null)
   const data = useSellerData(`/api/products?q=${encodeURIComponent(search)}`, productFields, demoProducts, esDemo)
   const canManage = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE'].includes(sesion?.rol) || ['ADMIN', 'GERENTE'].includes(usuario?.role))
@@ -112,10 +114,12 @@ export default function SellerCatalog() {
       <button type="button" onClick={() => setSoloStock(value => !value)} className={cn('rounded-lg border px-3 py-2 text-xs font-semibold transition', soloStock ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>Con stock</button>
       <ListGridToggle value={vista} onChange={(next) => { setVista(next); localStorage.setItem('mobos:productos-vista', next) }} />
       <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
+      {canManage && !esDemo && <button type="button" onClick={() => setCombosOpen(true)} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Combos</button>}
     </div>
     <SellerFeedback {...data} empty={!rows.length} />
     {!data.loading && !data.error && vista === 'list' && <div className="space-y-2">{rows.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
     {!data.loading && !data.error && vista === 'grid' && <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
+    <ComboManager open={combosOpen} onClose={() => setCombosOpen(false)} />
     {seleccion && <ProductoDetalle product={seleccion} canManage={canManage} esDemo={esDemo} onClose={() => setSeleccion(null)} onChanged={data.refresh} onSell={vender} />}
   </SellerSection>
 }

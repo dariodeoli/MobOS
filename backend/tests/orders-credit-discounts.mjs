@@ -186,4 +186,18 @@ result = await request('/api/quotes')
 assert.equal(result.response.status, 200)
 assert.equal(result.payload.find(row => row.id === expiredId).status, 'EXPIRED', 'La cotización vencida debe marcarse sola.')
 
-console.log('orders-credit-discounts: OK (descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp y pipeline de cotizaciones).')
+// Combos: paquete con precio fijo y componentes únicos.
+result = await request('/api/combos', 'POST', { name: 'Combo prueba', pricePyg: 900000, items: [{ productId: product.id, quantity: 1 }, { productId: serializedProduct.id, quantity: 1 }] })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const combo = result.payload
+assert.equal(combo.pricePyg, 900000)
+result = await request('/api/combos')
+assert.equal(result.response.status, 200)
+assert.ok(result.payload.some(row => row.id === combo.id), 'El combo debe listarse.')
+result = await request('/api/combos', 'POST', { name: 'Combo inválido', pricePyg: 1000, items: [{ productId: product.id, quantity: 1 }] })
+assert.equal(result.response.status, 400, 'Un combo necesita al menos 2 componentes.')
+result = await request('/api/combos', 'PATCH', { id: combo.id, isActive: false })
+assert.equal(result.response.status, 200)
+assert.equal(result.payload.isActive, false)
+
+console.log('orders-credit-discounts: OK (descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, pipeline de cotizaciones y combos).')
