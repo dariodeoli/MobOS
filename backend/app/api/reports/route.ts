@@ -139,7 +139,7 @@ export async function GET(request: Request) {
 
     if (groupBy === 'returns') {
       const eventos = await prisma.auditLog.findMany({
-        where: { tenantId: session.user.tenantId, action: { in: ['ORDER_RETURN_RECORDED', 'ORDER_EXCHANGE_RECORDED'] }, createdAt: { gte: start, lt: end }, ...(branchId ? { metadata: { path: ['branchId'], equals: branchId } } : {}) },
+        where: { tenantId: session.user.tenantId, action: { in: ['ORDER_RETURN_RECORDED', 'ORDER_EXCHANGE_RECORDED', 'ORDER_CANCELLED'] }, createdAt: { gte: start, lt: end }, ...(branchId ? { metadata: { path: ['branchId'], equals: branchId } } : {}) },
         select: { metadata: true, createdAt: true },
         orderBy: { createdAt: 'desc' },
         take: 500,

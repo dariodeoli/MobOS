@@ -86,7 +86,7 @@ export default function PagosPedido({ venta, onClose }) {
       setNotice(result?.already ? 'El comprobante ya estaba encolado para este pedido.' : 'Comprobante encolado. Llega al correo del cliente en unos minutos.')
     } catch (cause) { setError(cause?.message || 'No se pudo encolar el comprobante.') } finally { setEmailBusy(false) }
   }
-  const [postventa, setPostventa] = useState({ operation: 'RETURN', reason: '', replacementNumber: '' })
+  const [postventa, setPostventa] = useState({ operation: 'RETURN', reason: '', replacementNumber: '', refundPyg: '' })
   const [postventaBusy, setPostventaBusy] = useState(false)
   const cobrado = payments.filter(p => p.status === undefined || p.status === 'CONFIRMED').reduce((sum, p) => sum + num(p.monto), 0)
 
@@ -95,11 +95,13 @@ export default function PagosPedido({ venta, onClose }) {
     if (postventaBusy || postventa.reason.trim().length < 3) return
     setPostventaBusy(true); setError(''); setNotice('')
     try {
-      const payload = { operation: postventa.operation, reason: postventa.reason.trim(), ...(postventa.operation === 'RETURN' ? { refundPyg: cobrado } : { replacementOrderNumber: postventa.replacementNumber.trim() }) }
+      const reembolso = postventa.operation === 'EXCHANGE' ? 0 : Number(String(postventa.refundPyg).replace(/\D/g, '')) || 0
+      if (postventa.operation !== 'EXCHANGE' && reembolso > cobrado) { setError('El reembolso no puede superar el total cobrado.'); return }
+      const payload = { operation: postventa.operation, reason: postventa.reason.trim(), ...(postventa.operation === 'EXCHANGE' ? { replacementOrderNumber: postventa.replacementNumber.trim() } : { refundPyg: reembolso }) }
       await api.post(`/api/orders/${encodeURIComponent(order.id)}/return`, payload)
       setPostventaOpen(false)
-      setPostventa({ operation: 'RETURN', reason: '', replacementNumber: '' })
-      setNotice(postventa.operation === 'RETURN' ? 'Devolución registrada y cobros marcados como reembolsados. La reposición de stock se revisa aparte.' : 'Cambio registrado. El equipo devuelto queda para revisión aparte.')
+      setPostventa({ operation: 'RETURN', reason: '', replacementNumber: '', refundPyg: '' })
+      setNotice(postventa.operation === 'CANCEL' ? 'Pedido cancelado y reembolso registrado.' : postventa.operation === 'RETURN' ? 'Devolución registrada con su reembolso. La reposición de stock se revisa aparte.' : 'Cambio registrado. El equipo devuelto queda para revisión aparte.')
       try { await refrescar() } catch { setNeedsRefresh(true) }
     } catch (cause) { setError(cause?.message || 'No se pudo registrar la postventa.') } finally { setPostventaBusy(false) }
   }
@@ -240,11 +242,12 @@ export default function PagosPedido({ venta, onClose }) {
         <h3 className="font-semibold">Cambio o devolución</h3>
         <p className="text-xs text-mute">La devolución completa reembolsa los pagos confirmados ({gs(cobrado)}) y cancela el pedido. El stock devuelto se revisa aparte antes de volver a venderse.</p>
         <div className="flex gap-2">
-          {[['RETURN', 'Devolución'], ['EXCHANGE', 'Cambio por otro pedido']].map(([value, label]) => (
+          {[['RETURN', 'Devolución'], ['EXCHANGE', 'Cambio por otro pedido'], ['CANCEL', 'Cancelar pedido']].map(([value, label]) => (
             <button key={value} type="button" className={`rounded-lg border px-3 py-2 text-sm ${postventa.operation === value ? 'border-bad bg-bad/15 font-semibold text-bad' : 'border-ink-600 text-mute'}`} onClick={() => setPostventa(current => ({ ...current, operation: value }))}>{label}</button>
           ))}
         </div>
         {postventa.operation === 'EXCHANGE' && <Input aria-label="Número del pedido que reemplaza" required maxLength={100} value={postventa.replacementNumber} onChange={event => setPostventa(current => ({ ...current, replacementNumber: event.target.value }))} placeholder="N.º de pedido del cambio (ej: MOB-123)" />}
+        {postventa.operation !== 'EXCHANGE' && <label className="block text-xs text-mute">Reembolso (Gs.) — total cobrado {gs(cobrado)}<MoneyInput aria-label="Monto de reembolso" currency="PYG" value={postventa.refundPyg} onValueChange={next => setPostventa(current => ({ ...current, refundPyg: next === '' ? '' : String(next) }))} placeholder={String(cobrado)} /></label>}
         <Input aria-label="Motivo de la postventa" required minLength={3} maxLength={1000} value={postventa.reason} onChange={event => setPostventa(current => ({ ...current, reason: event.target.value }))} placeholder="Motivo (mínimo 3 caracteres)" />
         <div className="flex flex-wrap gap-2"><Button type="submit" disabled={postventaBusy || postventa.reason.trim().length < 3 || (postventa.operation === 'EXCHANGE' && !postventa.replacementNumber.trim())}>{postventaBusy ? 'Registrando…' : 'Confirmar postventa'}</Button><Button type="button" variant="ghost" disabled={postventaBusy} onClick={() => setPostventaOpen(false)}>Cancelar</Button></div>
       </form>

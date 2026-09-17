@@ -29,16 +29,22 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
         if (!replacement) throw new InputError('El pedido de cambio no pertenece a esta empresa.', 404)
       }
       const confirmed = order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((sum, payment) => sum + payment.amountPyg, 0)
-      const refundPyg = requestData.refundPyg ?? (requestData.operation === 'RETURN' ? confirmed : 0)
-      if (refundPyg !== 0 && refundPyg !== confirmed) throw new InputError('Por ahora la devolución financiera debe coincidir con el total cobrado. Registrá el ajuste parcial desde Caja.', 409)
-      const isFullReturn = requestData.operation === 'RETURN' && refundPyg === confirmed
-      if (isFullReturn) {
-        await tx.payment.updateMany({ where: { orderId: order.id, tenantId: tenant, status: 'CONFIRMED' }, data: { status: 'REFUNDED' } })
+      // Reembolso total por defecto en devoluciones y cancelaciones; parcial
+      // permitido (0..confirmado). El cobro neto baja porque el pago queda
+      // registrado como REFUNDED y no suma a lo confirmado.
+      const refundPyg = requestData.refundPyg ?? (requestData.operation === 'EXCHANGE' ? 0 : confirmed)
+      if (refundPyg > confirmed) throw new InputError('El reembolso no puede superar el total cobrado.', 409)
+      if (refundPyg > 0) {
+        const metodo = order.payments.find(payment => payment.status === 'CONFIRMED')?.method ?? 'CASH'
+        await tx.payment.create({ data: { tenantId: tenant, orderId: order.id, method: metodo, status: 'REFUNDED', amountPyg: refundPyg, reference: `Reembolso ${requestData.operation === 'CANCEL' ? 'por cancelación' : 'por devolución'}: ${requestData.reason.slice(0, 120)}`, paidAt: new Date(), createdAt: new Date() } })
+      }
+      const isFullRefund = (requestData.operation === 'RETURN' || requestData.operation === 'CANCEL') && refundPyg === confirmed
+      if (isFullRefund) {
         await tx.order.update({ where: { id: order.id }, data: { status: 'CANCELLED' } })
       }
-      const action = requestData.operation === 'RETURN' ? 'ORDER_RETURN_RECORDED' : 'ORDER_EXCHANGE_RECORDED'
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action, entity: 'Order', entityId: order.id, metadata: { reason: requestData.reason, refundPyg, replacementOrderId: requestData.replacementOrderId ?? null, financialStatus: isFullReturn ? 'REFUNDED' : 'NO_FINANCIAL_CHANGE', stockAction: 'REVIEW_REQUIRED' } } })
-      return { id: order.id, operation: requestData.operation, refundedPyg: refundPyg, status: isFullReturn ? 'CANCELLED' : order.status }
+      const action = requestData.operation === 'RETURN' ? 'ORDER_RETURN_RECORDED' : requestData.operation === 'CANCEL' ? 'ORDER_CANCELLED' : 'ORDER_EXCHANGE_RECORDED'
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action, entity: 'Order', entityId: order.id, metadata: { reason: requestData.reason, refundPyg, replacementOrderId: replacementOrderId ?? null, financialStatus: refundPyg > 0 ? 'REFUNDED' : 'NO_FINANCIAL_CHANGE', stockAction: 'REVIEW_REQUIRED' } } })
+      return { id: order.id, operation: requestData.operation, refundedPyg: refundPyg, status: isFullRefund ? 'CANCELLED' : order.status }
     })
     return json(result)
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo registrar la postventa.', cause instanceof InputError ? cause.status : 400) }
