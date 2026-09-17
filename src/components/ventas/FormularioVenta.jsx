@@ -27,25 +27,19 @@ import {
   Card,
   Input,
   Label,
-  Select,
-  Textarea,
-  Badge,
   Modal,
-  MoneyInput,
 } from '@/components/ui'
 import SelectorColor from './SelectorColor'
-import CheckoutCustomer from './CheckoutCustomer'
-import ProductPrice from './ProductPrice'
 import Icon from '@/components/shared/Icon'
-import SelectorMedioPago from '@/components/shared/SelectorMedioPago'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
-import PaymentAccountFields, { accountPayment, updateAccountPayment } from './PaymentAccountFields'
-import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
+import { accountPayment } from './PaymentAccountFields'
 import { printOrderReceipt } from '@/components/shared/OrderReceipt'
 import { whatsappTrackingLink } from './PagosPedido'
 import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
-import NumericKeypad from '@/components/shared/NumericKeypad'
+import PasoProductos from './venta/PasoProductos'
+import PasoCarrito from './venta/PasoCarrito'
+import PasoCobro from './venta/PasoCobro'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
 // en cada venta (suelen ser ráfagas de la misma persona).
@@ -1123,583 +1117,107 @@ export default function FormularioVenta({
           <Atajo k="Ctrl+S" label="Guardar venta" />
           <Atajo k="Esc" label="Cerrar ventana" />
         </div>
-        <div className={paso === 1 ? 'contents' : 'hidden'}>
-          <div className="md:col-span-2 rounded-xl border border-ink-600 p-3 text-sm">
-            <span className="text-mute">Vendedor de esta venta</span>
-            <strong className="ml-3">{sesion?.nombre || 'Ingresá con tu PIN'}</strong>
-            <p className="mt-1 text-xs text-mute">Asignado automáticamente a tu sesión.</p>
-            {(esDemo || sesion?.rol === 'dueno') && (
-              <button
-                type="button"
-                className="mt-2 text-xs font-bold text-fono hover:underline"
-                onClick={() => {
-                  setNuevoVend(true)
-                  setErrorVend('')
-                  setPinVend('')
-                }}
-              >
-                ＋ Agregar vendedor
-              </button>
-            )}
-          </div>
-          <CheckoutCustomer
-            esDemo={esDemo}
-            value={customer}
-            onChange={c => {
-              setCustomer(c)
-              setF(current => ({ ...current, cliente: c.name }))
-            }}
-            billingTo={billingTo}
-            onBillingChange={setBillingTo}
-          />
+        <PasoProductos
+          visible={paso === 1}
+          sesion={sesion}
+          esDemo={esDemo}
+          customer={customer}
+          setCustomer={setCustomer}
+          billingTo={billingTo}
+          setBillingTo={setBillingTo}
+          f={f}
+          setF={setF}
+          productos={productos}
+          nuevoProd={nuevoProd}
+          setNuevoProd={setNuevoProd}
+          nombreProd={nombreProd}
+          setNombreProd={setNombreProd}
+          nuevoDetalles={nuevoDetalles}
+          setNuevoDetalles={setNuevoDetalles}
+          colorInput={colorInput}
+          setColorInput={setColorInput}
+          coloresNuevos={coloresNuevos}
+          setColoresNuevos={setColoresNuevos}
+          agregarColor={agregarColor}
+          puedeCrearProducto={puedeCrearProducto}
+          crearProducto={crearProducto}
+          creandoProd={creandoProd}
+          cancelarNuevoProd={cancelarNuevoProd}
+          busquedaProducto={busquedaProducto}
+          setBusquedaProducto={setBusquedaProducto}
+          combos={combos}
+          agregarCombo={agregarCombo}
+          noticeCombo={noticeCombo}
+          familiasVisibles={familiasVisibles}
+          elegirProducto={elegirProducto}
+          familiaActiva={familiaActiva}
+          itemActivo={itemActivo}
+          setModalColor={setModalColor}
+          precioMayorista={precioMayorista}
+          serialRequired={serialRequired}
+          setSerialRequired={setSerialRequired}
+          sobrePedido={sobrePedido}
+          setSobrePedido={setSobrePedido}
+          guardando={guardando}
+          gsNum={gsNum}
+          agregarItem={agregarItem}
+          puedePaso2={puedePaso2}
+          siguientePaso={siguientePaso}
+          setNuevoVend={setNuevoVend}
+          setErrorVend={setErrorVend}
+          setPinVend={setPinVend}
+        />
 
-          {/* Producto */}
-          <div className="rounded-2xl border border-fono/20 bg-fono/[.04] p-4 md:col-span-2">
-            <div className="mb-3 flex items-end justify-between gap-3">
-              <div>
-                <Label>Producto</Label>
-                <p className="mt-1 text-xs text-mute">Buscá por nombre, modelo o variante.</p>
-              </div>
-              <span className="text-xs font-medium text-fono-light">
-                {productos.length} disponibles
-              </span>
-            </div>
-            {nuevoProd ? (
-              <div className="rounded-2xl border border-fono/25 bg-gradient-to-br from-fono/[.07] to-transparent p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-fono/15 text-fono-light"><Icon name="plus" className="h-4 w-4" /></span>
-                  <div><p className="text-sm font-bold">Nuevo producto</p><p className="text-[11px] text-mute">Se guarda en el catálogo y queda elegido para esta venta.</p></div>
-                </div>
-                <Input autoFocus value={nombreProd} onChange={e => setNombreProd(e.target.value)} placeholder="Nombre base (ej: Protector 17 Air)" autoCapitalize="words" />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block text-xs text-mute">Categoría
-                    <Select className="mt-1" value={nuevoDetalles.categoria} onChange={e => setNuevoDetalles(d => ({ ...d, categoria: e.target.value }))}>{['Accesorios', 'Celulares', 'iPad', 'Apple Watch', 'Mac', 'Otros'].map(c => <option key={c} value={c}>{c}</option>)}</Select>
-                  </label>
-                  <div className="text-xs text-mute">Condición
-                    <div className="mt-1 flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{[['NEW', 'Nuevo'], ['USED', 'Seminuevo']].map(([value, label]) => <button key={value} type="button" onClick={() => setNuevoDetalles(d => ({ ...d, condicion: value }))} className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition ${nuevoDetalles.condicion === value ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>)}</div>
-                  </div>
-                  <label className="block text-xs text-mute">Precio de venta (Gs) *<MoneyInput className="mt-1" value={nuevoDetalles.precio} onValueChange={v => setNuevoDetalles(d => ({ ...d, precio: v === '' ? '' : String(v) }))} placeholder="0" /></label>
-                  <label className="block text-xs text-mute">Precio mayorista (Gs)<MoneyInput className="mt-1" value={nuevoDetalles.mayorista} onValueChange={v => setNuevoDetalles(d => ({ ...d, mayorista: v === '' ? '' : String(v) }))} placeholder="Opcional" /></label>
-                  <label className="block text-xs text-mute">Costo (Gs)<MoneyInput className="mt-1" value={nuevoDetalles.costo} onValueChange={v => setNuevoDetalles(d => ({ ...d, costo: v === '' ? '' : String(v) }))} placeholder="Opcional" /></label>
-                </div>
-                <div>
-                  <div className="mb-1 text-[11px] font-bold uppercase text-mute">Colores (opcional)</div>
-                  <div className="flex gap-2">
-                    <Input value={colorInput} onChange={e => setColorInput(e.target.value)} placeholder="Ej: Azul" autoCapitalize="words" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); agregarColor() } }} />
-                    <Button type="button" variant="outline" onClick={agregarColor}>+ Color</Button>
-                  </div>
-                  {coloresNuevos.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{coloresNuevos.map(c => <button key={c} type="button" onClick={() => setColoresNuevos(s => s.filter(x => x !== c))} className="rounded-full bg-fono/10 px-2.5 py-1 text-xs font-bold text-fono transition hover:bg-bad/15 hover:text-bad" title="Quitar">{c}</button>)}</div>}
-                  <p className="mt-1 text-[11px] text-mute">Sin colores: un solo producto. Con colores: una variante por color para elegir en cada venta.</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button type="button" onClick={crearProducto} disabled={creandoProd || !nombreProd.trim()} className="flex-1">{creandoProd ? 'Creando…' : `Crear${coloresNuevos.length > 0 ? ` (${coloresNuevos.length} colores)` : ''}`}</Button>
-                  <Button type="button" variant="ghost" onClick={cancelarNuevoProd} disabled={creandoProd}><Icon name="close" className="h-4 w-4" /></Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                {puedeCrearProducto && <div className="mb-2 flex justify-end"><button type="button" onClick={() => setNuevoProd(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-fono/30 px-2.5 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10"><Icon name="plus" className="h-3.5 w-3.5" /> Nuevo producto</button></div>}
-                <div className="relative mb-2">
-                  <Icon
-                    name="search"
-                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute"
-                  />
-                  <Input
-                    id="pos-busqueda-producto"
-                    value={busquedaProducto}
-                    onChange={e => setBusquedaProducto(e.target.value)}
-                    placeholder="Buscar producto…"
-                    aria-label="Buscar producto por texto"
-                    className="pl-9"
-                  />
-                </div>
-                <div
-                  className="grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2"
-                  aria-label="Resultados de productos"
-                >
-                  {!esDemo && combos.length > 0 && <div className="sm:col-span-2 mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-fono/25 bg-fono/[.05] p-2.5"><span className="text-[11px] font-bold uppercase tracking-wider text-mute">Combos</span>{combos.map(combo => <button key={combo.id} type="button" onClick={() => agregarCombo(combo)} className="rounded-lg border border-fono/40 bg-ink-800 px-2.5 py-1.5 text-xs font-semibold text-fono-light transition hover:bg-fono/10" title={(combo.items || []).map(item => productos.find(p => p.id === item.productId)?.nombre || '').filter(Boolean).join(' + ')}>{combo.name} · {gs(combo.pricePyg)}</button>)}</div>}
-                {noticeCombo && <p role="status" className="col-span-2 mb-2 rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-xs text-ok">{noticeCombo}</p>}
-                {familiasVisibles.map(fam => {
-                    const p = fam.items[0]
-                    return (
-                      <button
-                        type="button"
-                        key={fam.base}
-                        onClick={() =>
-                          elegirProducto({
-                            target: { value: fam.items.length > 1 ? 'fam:' + fam.base : p.id },
-                          })
-                        }
-                        className="flex min-h-20 items-center gap-3 rounded-xl border border-ink-600 p-3 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono"
-                      >
-                        {p.imagen || p.imageUrl ? (
-                          <img
-                            src={p.imagen || p.imageUrl}
-                            alt=""
-                            loading="lazy"
-                            className="h-12 w-12 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
-                            <Icon name="box" className="h-6 w-6" />
-                          </span>
-                        )}
-                        <span>
-                          <strong className="block text-sm">{fam.base}</strong>
-                          <span className="block text-xs text-mute">
-                            {fam.items.length > 1 ? fam.items.length + ' variantes · desde ' : ''}
-                            {gs(Math.min(...fam.items.map(item => num(item.precioVenta))))}
-                          </span>
-                        </span>
-                      </button>
-                    )
-                  })}
-                  {!familiasVisibles.length && (
-                    <p className="p-3 text-sm text-mute">
-                      No encontramos productos. Probá otro nombre.
-                    </p>
-                  )}
-                </div>
-                {familiaActiva && (
-                  <div className="flex items-center gap-2 mt-2">
-                    {itemActivo ? (
-                      <Badge color="green"> {itemActivo.color || itemActivo.nombre}</Badge>
-                    ) : (
-                      <Badge color="orange">Elegí un color</Badge>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setModalColor(true)}
-                      className="text-xs font-bold text-fono hover:underline"
-                    >
-                      Cambiar color
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+        <PasoCarrito
+          visible={paso === 2}
+          ocultarCarrito={ocultarCarrito}
+          items={items}
+          puedeDescontar={puedeDescontar}
+          descuentoItem={descuentoItem}
+          totalCarrito={totalCarrito}
+          quitarItem={quitarItem}
+          editarDescuento={editarDescuento}
+          descuento={descuento}
+          setDescuento={setDescuento}
+          tieneCupon={tieneCupon}
+          f={f}
+          setF={setF}
+          onAtras={() => setPaso(1)}
+          onSiguiente={siguientePaso}
+        />
 
-          {f.productoId && (
-            <ProductPrice
-              key={f.productoId}
-              esDemo={esDemo}
-              product={productos.find(p => p.id === f.productoId)}
-              price={f.precio}
-              onChange={(precio, coupon = null) =>
-                setF(current => ({
-                  ...current,
-                  precio,
-                  couponCode: typeof coupon === 'string' ? coupon : coupon?.couponCode || null,
-                }))
-              }
-            />
-          )}
-          {precioMayorista && (
-            <p className="md:col-span-2 -mt-2 rounded-lg border border-fono/25 bg-fono/5 px-3 py-1.5 text-xs font-semibold text-fono-light">
-              Precio mayorista aplicado ({customer?.name || 'cliente mayorista'}). Ajustalo si hace falta.
-            </p>
-          )}
-          {f.productoId && !esDemo && (
-            <div className="md:col-span-2">
-              <SerialUnitPicker
-                product={productos.find(p => p.id === f.productoId)}
-                customerName={customer.name || f.cliente}
-                selectedSerials={f.serials}
-                onChange={serials => setF(current => ({ ...current, serials }))}
-                onRequiresSerial={setSerialRequired}
-                disabled={guardando}
-              />
-              {serialRequired && !f.serials.length && Number(productos.find(p => p.id === f.productoId)?.stock || 0) === 0 && (
-                <label className="mt-2 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/5 p-3 text-sm text-mute">
-                  <input
-                    type="checkbox"
-                    checked={sobrePedido}
-                    onChange={e => setSobrePedido(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 accent-warn"
-                  />
-                  <span>Vender <b className="text-fore">sin IMEI (sobre pedido)</b>: el cliente reserva sin stock; se completa el IMEI al entregar.</span>
-                </label>
-              )}
-            </div>
-          )}
-          {f.productoId &&
-            Number(productos.find(p => p.id === f.productoId)?.insuranceRate || 0) > 0 && (
-              <label className="flex items-center gap-2 text-sm text-mute">
-                <input
-                  type="checkbox"
-                  checked={f.soldWithoutInsurance}
-                  onChange={e => setF(s => ({ ...s, soldWithoutInsurance: e.target.checked }))}
-                  className="h-4 w-4 accent-fono"
-                />{' '}
-                Vendido sin seguro — no descontar seguro del margen
-              </label>
-            )}
-          <div className="flex items-end">
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11 w-full"
-              onClick={agregarItem}
-              disabled={
-                !f.productoId || gsNum(f.precio) <= 0 || (serialRequired && !f.serials.length && !sobrePedido)
-              }
-            >
-              Agregar a la lista
-            </Button>
-          </div>
-
-          <div className="flex justify-end md:col-span-2">
-            <Button
-              type="button"
-              disabled={!puedePaso2}
-              onClick={siguientePaso}
-              className="min-h-11 w-full sm:w-auto"
-            >
-              Revisar carrito <Icon name="chevron" className="ml-2 h-4 w-4 -rotate-90" />
-            </Button>
-          </div>
-        </div>
-
-        <div className={paso === 2 ? 'contents' : 'hidden'}>
-          {/* Carrito: productos agregados al mismo cliente */}
-          {!ocultarCarrito && items.length > 0 && (
-            <div className="md:col-span-2 rounded-xl border border-ink-600 divide-y divide-ink-600">
-              {items.map(it => (
-                <div key={it.key} className="px-3 py-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium truncate">
-                      {it.nombre}
-                      {(it.quantity || 1) > 1 && (
-                        <small className="ml-2 text-fono-light">×{it.quantity}</small>
-                      )}
-                      {it.serials?.length > 0 && (
-                        <small className="ml-2 text-fono-light">
-                          IMEI ••••{it.serials[0].slice(-4)}
-                        </small>
-                      )}
-                      {it.couponCode && (
-                        <small className="ml-2 text-fono-light">Cupón {it.couponCode}</small>
-                      )}
-                      {it.soldWithoutInsurance && (
-                        <small className="ml-2 text-warn">Sin seguro</small>
-                      )}
-                      {it.sobrePedido && (
-                        <small className="ml-2 text-warn">Sobre pedido</small>
-                      )}
-                    </span>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-sm font-bold text-fono">
-                        {descuentoItem(it) > 0 && <small className="mr-1 text-warn">−{gs(descuentoItem(it))}</small>}
-                        {gs(it.precio * (it.quantity || 1) - descuentoItem(it))}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => quitarItem(it.key)}
-                        className="text-mute hover:text-bad"
-                        title="Quitar"
-                      >
-                        <Icon name="trash" className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                  {puedeDescontar && (
-                    <div className="mt-1.5 flex items-center gap-2 text-[11px] text-mute">
-                      <span>Descuento línea:</span>
-                      <input
-                        aria-label={`Descuento % de ${it.nombre}`}
-                        inputMode="decimal"
-                        value={it.descuentoPct || ''}
-                        onChange={e => editarDescuento(it.key, { descuentoPct: e.target.value.replace(/[^\d.,]/g, ''), descuento: '' })}
-                        placeholder="%"
-                        className="w-14 rounded-lg border border-ink-500 bg-ink-800 px-2 py-1 text-xs text-fore"
-                      />
-                      <MoneyInput
-                        aria-label={`Descuento fijo de ${it.nombre}`}
-                        value={it.descuento || ''}
-                        onValueChange={v => editarDescuento(it.key, { descuento: v === '' ? '' : String(v), descuentoPct: '' })}
-                        placeholder="Gs 0"
-                        className="w-36"
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
-              <div className="flex items-center justify-between px-3 py-1.5 bg-ink-700">
-                <span className="text-xs font-bold uppercase text-mute">
-                  Subtotal ({items.reduce((a, it) => a + (it.quantity || 1), 0)})
-                </span>
-                <span className="text-sm font-extrabold">{gs(totalCarrito)}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Estado de pago */}
-          <div>
-            <Label>Descuento extra (Gs)</Label>
-            <MoneyInput
-              value={descuento}
-              onValueChange={setDescuento}
-              placeholder="0"
-              disabled={!puedeDescontar}
-            />
-            {!puedeDescontar && (
-              <p className="mt-1 text-xs text-mute">
-                Solo administradores y gerentes pueden aplicar descuentos.
-              </p>
-            )}
-            {tieneCupon && (
-              <p className="mt-1 text-xs text-fono-light">
-                Esta venta tiene cupón: el descuento extra debe quedar en cero.
-              </p>
-            )}
-          </div>
-
-          {/* Fecha */}
-          <div>
-            <Label>Fecha</Label>
-            <Input
-              type="date"
-              value={f.fecha}
-              onChange={e => setF(s => ({ ...s, fecha: e.target.value, fechaManual: true }))}
-            />
-          </div>
-
-          <div className="flex justify-between gap-2 md:col-span-2">
-            <Button type="button" variant="ghost" onClick={() => setPaso(1)} className="min-h-11">
-              Atrás
-            </Button>
-            <Button type="button" onClick={siguientePaso} className="min-h-11">
-              Ir a cobrar <Icon name="chevron" className="ml-2 h-4 w-4 -rotate-90" />
-            </Button>
-          </div>
-        </div>
-
-        <div className={paso === 3 ? 'contents' : 'hidden'}>
-          {/* Venta a crédito con control de mora */}
-          {Number(customer.creditLimitPyg || 0) > 0 && (
-            <div className="rounded-2xl border border-fono/25 bg-fono/5 p-4 md:col-span-2">
-              <label className="flex items-start gap-2 text-sm">
-                <input type="checkbox" className="mt-0.5 h-4 w-4 accent-fono" checked={venderACredito} onChange={e => setVenderACredito(e.target.checked)} />
-                <span>Vender a crédito — límite {gs(Number(customer.creditLimitPyg))}{customer.creditDays ? ` · plazo estándar ${customer.creditDays} días` : ''}</span>
-              </label>
-              {venderACredito && (
-                <div className="mt-3 flex items-center gap-2">
-                  <Label>Plazo en días</Label>
-                  <Input aria-label="Días de crédito" inputMode="numeric" className="w-24" value={creditoDias} onChange={e => setCreditoDias(e.target.value.replace(/\D/g, ''))} placeholder={String(customer.creditDays ?? 30)} />
-                  <p className="text-xs text-mute">Vence {new Date(Date.now() + (Number(creditoDias) || Number(customer.creditDays) || 0) * 86400000).toLocaleDateString('es-PY')}. Podés igualmente registrar un adelanto abajo.</p>
-                </div>
-              )}
-            </div>
-          )}
-          {/* Medio de pago */}
-          {cuentas?.length === 0 && (
-            <div>
-              <Label>Medio de pago</Label>
-              <SelectorMedioPago
-                value={f.medioPago}
-                onChange={v => setF(s => ({ ...s, medioPago: v }))}
-              />
-            </div>
-          )}
-
-          {/* Pagos parciales y combinados */}
-          <div className="space-y-3 rounded-2xl border border-fono/30 bg-gradient-to-br from-fono/[.08] to-transparent p-4 md:col-span-2">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <Label>Pagos de esta venta</Label>
-                <p className="text-[11px] text-mute">
-                  Podés dividir el cobro entre efectivo, cuentas y transferencias.
-                </p>
-              </div>
-              {descuentoMedioPct > 0 && subtotal > 0 && (
-                puedeDescontar ? (
-                  <button
-                    type="button"
-                    onClick={() => setDescuento(String(descuentoMedioGs))}
-                    className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-left text-xs font-semibold text-warn transition hover:bg-warn/15"
-                  >
-                    Aplicar descuento por medio ({descuentoMedioPct}% = {gs(descuentoMedioGs)})
-                  </button>
-                ) : (
-                  <p className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">
-                    El medio elegido sugiere un descuento del {descuentoMedioPct}% ({gs(descuentoMedioGs)}). Pedí autorización a gerencia para aplicarlo.
-                  </p>
-                )
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={agregarPago}
-                disabled={!cuentas || guardando || guardadoIncompleto}
-              >
-                + Agregar pago
-              </Button>
-            </div>
-            {!cuentas && !errorCuentas && (
-              <p role="status" className="text-sm text-mute">
-                Cargando cuentas de cobro…
-              </p>
-            )}
-            {errorCuentas && (
-              <div role="alert" className="text-sm text-red-300">
-                {errorCuentas}
-                <Button type="button" variant="ghost" onClick={() => setIntentoCuentas(n => n + 1)}>
-                  Reintentar carga
-                </Button>
-              </div>
-            )}
-            {cuentas?.length === 0 && (
-              <p className="text-xs text-mute">
-                No hay cuentas configuradas. Se habilitaron los medios de pago anteriores.
-              </p>
-            )}
-            {usaCuentas &&
-              !cuentas.some(a => a.isActive && ['USD', 'PYG', 'BRL'].includes(a.currency)) && (
-                <p role="alert" className="text-sm text-warn">
-                  No hay cuentas activas en USD o PYG para recibir pagos.
-                </p>
-              )}
-            {pagos.map((p, i) => (
-              <div
-                key={i}
-                className={cn('grid grid-cols-1 gap-2 items-end sm:grid-cols-[1.2fr_1fr_1fr_auto]', !usaCuentas && 'rounded-2xl border border-ink-600 bg-ink-800/30 p-3')}
-              >
-                {usaCuentas ? (
-                  <PaymentAccountFields
-                    payment={p}
-                    accounts={cuentas}
-                    onChange={change =>
-                      setPagos(a =>
-                        a.map((x, j) => (j === i ? updateAccountPayment(x, change, cuentas) : x)),
-                      )
-                    }
-                  />
-                ) : (
-                  <>
-                    <div>
-                      <Label>Medio</Label>
-                      <SelectorMedioPago
-                        value={p.medioPago}
-                        onChange={v =>
-                          setPagos(a => a.map((x, j) => (j === i ? { ...x, medioPago: v } : x)))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label>Cuenta</Label>
-                      <Input
-                        value={p.cuenta}
-                        onChange={e =>
-                          setPagos(a =>
-                            a.map((x, j) => (j === i ? { ...x, cuenta: e.target.value } : x)),
-                          )
-                        }
-                        placeholder="Ej. Ueno principal"
-                      />
-                    </div>
-                    <div>
-                      <Label>Monto (Gs)</Label>
-                      <MoneyInput
-                        value={String(p.monto || '').replace(/\D/g, '')}
-                        onValueChange={v =>
-                          setPagos(a =>
-                            a.map((x, j) => (j === i ? { ...x, monto: v === '' ? '' : String(v) } : x)),
-                          )
-                        }
-                        placeholder="0"
-                      />
-                      <NumericKeypad
-                        value={String(p.monto || '').replace(/\D/g, '')}
-                        onChange={v =>
-                          setPagos(a => a.map((x, j) => (j === i ? { ...x, monto: v } : x)))
-                        }
-                      />
-                    </div>
-                  </>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setPagos(a => a.filter((_, j) => j !== i))}
-                >
-                  <Icon name="trash" className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-            <div className="grid grid-cols-3 gap-2 border-t border-fono/20 pt-3 text-xs text-mute">
-              <span className="rounded-xl border border-ink-600 px-3 py-2">Total<strong className="mt-0.5 block text-base tabular-nums text-fore">{gs(totalGeneral)}</strong></span>
-              <span className="rounded-xl border border-ok/25 bg-ok/10 px-3 py-2">Pagado<strong className="mt-0.5 block text-base tabular-nums text-ok">{gs(totalPagado)}</strong></span>
-              <span className={cn('rounded-xl border px-3 py-2', pendiente ? 'border-warn/25 bg-warn/10' : 'border-ink-600')}>Pendiente<strong className={cn('mt-0.5 block text-base tabular-nums', pendiente ? 'text-warn' : 'text-ok')}>{gs(pendiente)}</strong></span>
-            </div>
-          </div>
-
-          {/* Entrega + monto envío */}
-          <div>
-            <Label>Entrega</Label>
-            <Select value={f.entrega} onChange={set('entrega')}>
-              {ENTREGA.map(x => (
-                <option key={x} value={x}>
-                  {x === 'Delivery'
-                    ? 'Delivery'
-                    : x === 'Encomienda'
-                      ? 'Envío por encomienda'
-                      : 'Retiro en tienda'}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <Label>
-              {f.entrega === 'Encomienda' ? 'Costo de la encomienda (₲)' : 'Monto del delivery (₲)'}
-            </Label>
-            <MoneyInput
-              value={f.montoDelivery}
-              onValueChange={v => setF(s => ({ ...s, montoDelivery: v }))}
-              placeholder="0 si retira en tienda"
-              disabled={f.entrega === 'Retiro en tienda'}
-            />
-          </div>
-
-          {/* Observación */}
-          <div className="md:col-span-2">
-            <Label>Observación</Label>
-            <Textarea
-              rows={1}
-              value={f.observacion}
-              onChange={set('observacion')}
-              placeholder="Notas, color, envío vía encomienda, etc."
-              autoCapitalize="sentences"
-            />
-          </div>
-
-          <div className="md:col-span-2 flex items-center gap-3">
-            <Button type="button" variant="ghost" onClick={() => setPaso(2)} className="min-h-12">
-              Atrás
-            </Button>
-            <Button
-              type="submit"
-              variant="success"
-              disabled={
-                !valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto
-              }
-              className="sticky bottom-3 min-h-12 flex-1 text-base shadow-lg shadow-fono/10"
-            >
-              {guardando ? 'Guardando venta…' : 'Guardar venta'}
-              {cantTotal > 1 ? ` · ${cantTotal} productos` : ''}
-              {totalGeneral > 0 ? ` · ${gs(totalGeneral)}` : ''}
-            </Button>
-            {ok && (
-              <span
-                role="status"
-                aria-live="polite"
-                className="inline-flex items-center gap-1.5 rounded-full border border-ok/30 bg-ok/10 px-3 py-2 text-ok font-bold text-sm whitespace-nowrap"
-              >
-                <Icon name="receipt" className="h-4 w-4" /> Recibo confirmado
-              </span>
-            )}
-          </div>
-        </div>
+        <PasoCobro
+          visible={paso === 3}
+          customer={customer}
+          venderACredito={venderACredito}
+          setVenderACredito={setVenderACredito}
+          creditoDias={creditoDias}
+          setCreditoDias={setCreditoDias}
+          cuentas={cuentas}
+          usaCuentas={usaCuentas}
+          errorCuentas={errorCuentas}
+          onReintentarCuentas={() => setIntentoCuentas(n => n + 1)}
+          pagos={pagos}
+          setPagos={setPagos}
+          onAgregarPago={agregarPago}
+          guardando={guardando}
+          guardadoIncompleto={guardadoIncompleto}
+          descuentoMedioPct={descuentoMedioPct}
+          descuentoMedioGs={descuentoMedioGs}
+          subtotal={subtotal}
+          puedeDescontar={puedeDescontar}
+          setDescuento={setDescuento}
+          totalGeneral={totalGeneral}
+          totalPagado={totalPagado}
+          pendiente={pendiente}
+          f={f}
+          setF={setF}
+          set={set}
+          onAtras={() => setPaso(2)}
+          valido={valido}
+          cantTotal={cantTotal}
+          ok={ok}
+        />
       </form>
 
       {modalColor && familiaActiva && (

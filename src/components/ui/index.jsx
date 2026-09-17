@@ -424,7 +424,7 @@ export function ErrorState({ title = 'Algo salió mal', description, onRetry }) 
 }
 
 // ── PageHeader ──────────────────────────────────────────────────────
-export function PageHeader({ title, subtitle, actions, backTo }) {
+export function PageHeader({ title, subtitle, actions, backTo, eyebrow }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-center gap-3">
@@ -439,6 +439,7 @@ export function PageHeader({ title, subtitle, actions, backTo }) {
           </button>
         )}
         <div className="min-w-0">
+          {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
           <h1 className="truncate text-2xl font-bold">{title}</h1>
           {subtitle && <p className="mt-1 truncate text-sm text-mute">{subtitle}</p>}
         </div>

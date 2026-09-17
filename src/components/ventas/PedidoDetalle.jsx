@@ -3,11 +3,12 @@ import { Drawer, Badge, Button, Input, Select, Skeleton, useToast } from '@/comp
 import Icon from '@/components/shared/Icon'
 import { api, API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
+import { FULFILLMENT_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { printOrderReceipt } from '@/components/shared/OrderReceipt'
 
-const FULFILLMENT = { PROCESSING: 'Preparando', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
+const FULFILLMENT = FULFILLMENT_LABELS
 const PAYMENT_TONE = (status) => status === 'Pagado' ? 'green' : status === 'Parcial' ? 'orange' : 'red'
-const METHOD_LABELS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta / POS', CREDIT: 'Crédito', TRADE_IN: 'Canje', PIX: 'Pix' }
+const METHOD_LABELS = PAYMENT_METHOD_LABELS
 const PAYMENT_STATUS = { CONFIRMED: 'Confirmado', PENDING: 'Pendiente', REFUNDED: 'Reembolsado', REJECTED: 'Rechazado' }
 const AUDIT_LABELS = {
   ORDER_FULFILLMENT_UPDATED: (meta) => `Entrega: ${FULFILLMENT[meta?.previous] || meta?.previous || '—'} → ${FULFILLMENT[meta?.current] || meta?.current || '—'}`,

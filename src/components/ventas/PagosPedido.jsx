@@ -10,6 +10,7 @@ import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import NumericKeypad from '@/components/shared/NumericKeypad'
 import { trackingUrlFor } from '@/components/shared/OrderReceipt'
+import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { printPaymentReceipt, printOrderReceipt } from '@/components/shared/OrderReceipt'
 
 // Enlace de WhatsApp para compartir el seguimiento público del pedido.
@@ -26,7 +27,7 @@ export function whatsappTrackingLink(order, extra = '') {
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
 }
 
-const METHODS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta / POS', CREDIT: 'Crédito', PIX: 'Pix' }
+const METHODS = PAYMENT_METHOD_LABELS
 const FOREIGN = (currency) => currency === 'USD' || currency === 'BRL'
 
 export default function PagosPedido({ venta, onClose }) {

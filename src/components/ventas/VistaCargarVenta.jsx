@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, productosById } from '@/lib/storage'
 import {
@@ -22,12 +23,7 @@ const fmtFecha = f => {
   return d ? `${d}/${m}/${y.slice(2)}` : '—'
 }
 const inicial = s => (s || '?').trim().charAt(0).toUpperCase()
-const TIPOS_PAGO = {
-  CASH: 'Efectivo',
-  TRANSFER: 'Transferencia',
-  CARD: 'Tarjeta',
-  TRADE_IN: 'Canje',
-}
+const TIPOS_PAGO = PAYMENT_METHOD_LABELS
 
 function PagosVenta({ venta }) {
   const pagos = venta.pagos?.length ? venta.pagos : venta.payments || []
