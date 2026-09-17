@@ -22,7 +22,7 @@ const ACCIONES = [
   { label: 'Cargar venta', ruta: '/pos/cargar', icon: 'plus' },
   { label: 'Nueva compra', ruta: '/pos/compras', icon: 'box' },
   // Finanzas opens on the "Caja" subtab by default in PanelVendedor.
-  { label: 'Abrir caja', ruta: '/pos/finanzas', icon: 'wallet' },
+  { label: 'Abrir caja', ruta: '/finanzas/caja', icon: 'wallet' },
 ]
 
 // Métrica al estilo del tablero: rótulo, número grande, indicador de tendencia
@@ -252,7 +252,7 @@ export default function Resumen() {
                 </p>
               </div>
             </div>
-            <Button variant="outline" onClick={() => navigate('/pos/analisis')}>Ver análisis</Button>
+            <Button variant="outline" onClick={() => navigate('/analisis/reportes')}>Ver análisis</Button>
           </div>
         </Card>
       )}
@@ -387,7 +387,7 @@ export default function Resumen() {
               type="button"
               variant="ghost"
               className="h-auto px-2 py-1 text-xs font-medium"
-              onClick={() => navigate('/pos/inventario')}
+              onClick={() => navigate('/inventario/unidades')}
               title="Ver las alertas de stock en Inventario"
             >
               Ver alertas
@@ -415,7 +415,7 @@ export default function Resumen() {
                   </Badge>
                   <button
                     type="button"
-                    onClick={() => navigate('/pos/inventario')}
+                    onClick={() => navigate('/inventario/unidades')}
                     className="flex shrink-0 items-center gap-1 rounded-lg border border-ink-500 px-2 py-1 text-xs text-mute transition hover:border-fono hover:text-white"
                   >
                     Ver inventario

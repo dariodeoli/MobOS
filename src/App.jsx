@@ -183,9 +183,13 @@ export default function App() {
           {/* El pedido individual vive en la URL por su id interno: el código
               comercial (MOB-#0001) es solo para humanos y puede cambiar. */}
           <Route path="/pos/:vista?/:orderId?" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
-          {/* Configuración: cada subpágina es un slug hijo (/configuracion/negocio,
-              /configuracion/sucursales, /configuracion/seguridad…). */}
+          {/* Apartados con pestañas: cada subpágina es un slug hijo recuperable
+              (/configuracion/negocio, /analisis/reportes, /finanzas/caja,
+              /inventario/unidades…). */}
           <Route path="/configuracion/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          <Route path="/analisis/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          <Route path="/finanzas/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          <Route path="/inventario/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/control/:tab?" element={<AreaProtegida owner><ControlRedirect /></AreaProtegida>} />
           <Route path="/celulares" element={<AreaProtegida owner><Celulares /></AreaProtegida>} />
           <Route path="/comparador" element={<AreaProtegida owner><Comparador /></AreaProtegida>} />

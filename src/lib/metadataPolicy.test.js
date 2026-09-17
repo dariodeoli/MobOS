@@ -45,6 +45,23 @@ test('configuration subpages keep their own child slug in the URL and the title'
   }
 })
 
+test('tabbed sections keep their own child slug in the URL and the title', () => {
+  const rutas = {
+    '/analisis/reportes': 'Reportes',
+    '/analisis/asistente': 'Asistente',
+    '/finanzas/caja': 'Caja',
+    '/finanzas/creditos': 'Créditos',
+    '/inventario/unidades': 'Unidades',
+    '/inventario/transito': 'En tránsito',
+  }
+  for (const [pathname, label] of Object.entries(rutas)) {
+    const metadata = resolvePageMetadata({ pathname })
+    assert.equal(metadata.title, `${label} · MobOS`)
+    assert.equal(metadata.canonical, `https://app.moboss.online${pathname}`)
+    assert.equal(metadata.robots, 'noindex, nofollow')
+  }
+})
+
 test('unknown routes are noindex and canonicalize to the surface root', () => {
   const metadata = resolvePageMetadata({ pathname: '/missing', publicPage: true })
 
