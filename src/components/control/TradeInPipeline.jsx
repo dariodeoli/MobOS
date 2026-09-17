@@ -142,11 +142,12 @@ export default function TradeInPipeline() {
   }, [admin, esDemo])
 
   useEffect(() => {
+    const gen = generation
     setItems([])
     load()
     const refresh = () => { load() }
     if (esDemo) { window.addEventListener('mobos:trade-ins-updated', refresh); window.addEventListener('storage', refresh) }
-    return () => { generation.current++; window.removeEventListener('mobos:trade-ins-updated', refresh); window.removeEventListener('storage', refresh) }
+    return () => { gen.current++; window.removeEventListener('mobos:trade-ins-updated', refresh); window.removeEventListener('storage', refresh) }
   }, [load, esDemo])
 
   async function save(item, patch) {

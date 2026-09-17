@@ -1,22 +1,24 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { SesionProvider, useSesion } from '@/lib/sesion'
-import { Button, ToastProvider } from '@/components/ui'
+import { Button, Skeleton, ToastProvider } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import Login from '@/pages/Login'
 import PanelVendedor from '@/pages/PanelVendedor'
-import Celulares from '@/pages/Celulares'
-import Comparador from '@/pages/Comparador'
-import TradeIn from '@/pages/TradeIn'
 import { applyPageMetadata } from '@/lib/seo'
-import Landing from '@/pages/Landing'
 import DemoAccess from '@/pages/DemoAccess'
-import Status from '@/pages/Status'
 import PedidoPublico from '@/pages/PedidoPublico'
 import GarantiaPublica from '@/pages/GarantiaPublica'
-import RecuperarContrasena from '@/pages/RecuperarContrasena'
 import AceptarInvitacion from '@/pages/AceptarInvitacion'
 import VerificarCorreo from '@/pages/VerificarCorreo'
+
+// Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
+const Landing = lazy(() => import('@/pages/Landing'))
+const TradeIn = lazy(() => import('@/pages/TradeIn'))
+const Comparador = lazy(() => import('@/pages/Comparador'))
+const Celulares = lazy(() => import('@/pages/Celulares'))
+const Status = lazy(() => import('@/pages/Status'))
+const RecuperarContrasena = lazy(() => import('@/pages/RecuperarContrasena'))
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -50,6 +52,19 @@ function Cargando() {
       <div className="flex items-center gap-3 text-sm text-mute">
         <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink-500 border-t-fono" />
         Cargando tu tienda…
+      </div>
+    </div>
+  )
+}
+
+// Espera breve mientras una ruta secundaria descarga su código.
+function PaginaCargando() {
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-paper p-6">
+      <div className="w-full max-w-sm space-y-3">
+        <Skeleton className="h-4 w-1/3" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-16 w-full" />
       </div>
     </div>
   )
@@ -142,11 +157,12 @@ export default function App() {
   const landingPreview = import.meta.env.DEV && window.location.pathname === '/landing-preview'
   const landing = ['moboss.online', 'www.moboss.online'].includes(host) || landingPreview
   const status = typeof window !== 'undefined' && window.location.pathname === '/status'
-  if (landing) return <><MetadatosPagina publicPage />{status ? <Status /> : <Landing />}</>
+  if (landing) return <><MetadatosPagina publicPage /><Suspense fallback={<PaginaCargando />}>{status ? <Status /> : <Landing />}</Suspense></>
   return (
     <SesionProvider>
       <ToastProvider>
         <MetadatosPagina />
+        <Suspense fallback={<PaginaCargando />}>
         <Routes>
           <Route path="/demo" element={<DemoAccess />} />
           <Route path="/login" element={<SoloFuera />} />
@@ -170,6 +186,7 @@ export default function App() {
           <Route path="/tradein" element={<AreaProtegida owner><TradeIn /></AreaProtegida>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </ToastProvider>
     </SesionProvider>
   )

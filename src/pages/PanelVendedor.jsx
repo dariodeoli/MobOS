@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
@@ -7,11 +7,11 @@ import { useReloj } from '@/hooks/useReloj'
 import { vendedoresById, listVentas } from '@/lib/storage'
 import { sessionApi } from '@/lib/api'
 import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
-import VistaCargarVenta from '@/components/ventas/VistaCargarVenta'
 import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
-import { Button, ConfirmDialog, Eyebrow, Modal, PasswordInput, PinInput, useToast } from '@/components/ui'
+import GlobalSearch from '@/components/app/GlobalSearch'
+import { Button, ConfirmDialog, Eyebrow, Modal, PasswordInput, PinInput, Skeleton, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
@@ -19,22 +19,25 @@ import SellerOrders from '@/components/ventas/SellerOrders'
 import SellerQuotes from '@/components/ventas/SellerQuotes'
 import SellerTools from '@/components/ventas/SellerTools'
 import ResumenControl from '@/components/control/Resumen'
-import Reportes from '@/components/control/Reportes'
-import Inventario from '@/components/control/Inventario'
 import Ganancias from '@/components/control/Ganancias'
 import Gastos from '@/components/control/Gastos'
 import Ads from '@/components/control/Ads'
 import Ganadores from '@/components/control/Ganadores'
-import Vendedores from '@/components/control/Vendedores'
-import TradeInPipeline from '@/components/control/TradeInPipeline'
 import Asistente from '@/components/control/Asistente'
 import Historial from '@/components/control/Historial'
-import Config from '@/components/control/Config'
 import Caja from '@/components/control/Caja'
 import PaymentAccounts from '@/components/control/PaymentAccounts'
 import Creditos from '@/components/control/Creditos'
-import Compras from '@/components/control/Compras'
-import Garantias from '@/components/control/Garantias'
+
+// Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
+const VistaCargarVenta = lazy(() => import('@/components/ventas/VistaCargarVenta'))
+const Reportes = lazy(() => import('@/components/control/Reportes'))
+const Inventario = lazy(() => import('@/components/control/Inventario'))
+const Compras = lazy(() => import('@/components/control/Compras'))
+const Config = lazy(() => import('@/components/control/Config'))
+const Vendedores = lazy(() => import('@/components/control/Vendedores'))
+const Garantias = lazy(() => import('@/components/control/Garantias'))
+const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
 
 // Navegación por flujo de trabajo: primero la operación del día, después el
 // catálogo/stock y al final las herramientas de gestión. Los permisos definen
@@ -163,6 +166,17 @@ function Subtabs({ value, onChange, items }) {
   )
 }
 
+// Mientras una vista pesada descarga su código, la pantalla no queda vacía.
+function VistaCargando() {
+  return (
+    <div className="space-y-4" aria-busy="true">
+      <Skeleton className="h-8 w-56" />
+      <Skeleton className="h-40 w-full" />
+      <Skeleton className="h-24 w-full" />
+    </div>
+  )
+}
+
 export default function PanelVendedor() {
   useLive()
   useAutoRefrescar()
@@ -202,6 +216,7 @@ export default function PanelVendedor() {
   const [salirAbierto, setSalirAbierto] = useState(false)
   const [saliendo, setSaliendo] = useState(false)
   const [ayudaAbierto, setAyudaAbierto] = useState(false)
+  const [busquedaAbierta, setBusquedaAbierta] = useState(false)
   const cambioEnCurso = useRef(false)
   const lockEnCurso = useRef(false)
   const vendsById = vendedoresById()
@@ -311,8 +326,10 @@ export default function PanelVendedor() {
 
   const irRef = useRef(ir)
   irRef.current = ir
+  const abrirBusquedaRef = useRef(() => {})
+  abrirBusquedaRef.current = () => setBusquedaAbierta(true)
   const atajosCtx = useRef({})
-  atajosCtx.current = { locked, cambiarAbierto, ayudaAbierto, salirAbierto, esOwner, vista }
+  atajosCtx.current = { locked, cambiarAbierto, ayudaAbierto, salirAbierto, esOwner, vista, busquedaAbierta }
   useEffect(() => {
     function onKey(event) {
       const {
@@ -322,6 +339,7 @@ export default function PanelVendedor() {
         salirAbierto: saliendo2,
         esOwner: owner,
         vista: vistaActual,
+        busquedaAbierta: buscando,
       } = atajosCtx.current
       if (bloqueado) return
       const target = event.target
@@ -330,12 +348,15 @@ export default function PanelVendedor() {
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable)
           return
       }
-      if (cambio || ayuda || saliendo2) return
+      if (cambio || ayuda || saliendo2 || buscando) return
       // En la vista de carga, F2 y F3 pertenecen al formulario de venta
       // (buscar producto / agregar al carrito); el panel solo los usa para
       // navegar cuando la vista activa es otra.
       const enCarga = vistaActual === 'cargar'
-      if (event.key === 'F1') {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        abrirBusquedaRef.current()
+      } else if (event.key === 'F1') {
         event.preventDefault()
         irRef.current('cargar')
       } else if (event.key === 'F2') {
@@ -398,7 +419,7 @@ export default function PanelVendedor() {
         cambioEnCurso.current = false
         setCambiando(false)
       })
-  }, [pin, sellerId, cambiarAbierto, esDemo, cambiarVendedor, entrarDemo, navigate])
+  }, [pin, sellerId, cambiarAbierto, esDemo, cambiarVendedor, entrarDemo, navigate, toast])
 
   return (
     <>
@@ -471,6 +492,7 @@ export default function PanelVendedor() {
         )}
 
         <main className="flex-1 bg-gradient-to-b from-paper to-paper p-4 md:p-8">
+          <Suspense fallback={<VistaCargando />}>
           <div key={`venta:${identidad}`} hidden={vista !== 'cargar'}>
             {tradeIn?.identidad === identidad && (
               <div
@@ -589,6 +611,7 @@ export default function PanelVendedor() {
               {equipoTab === 'configuracion' && <Config />}
             </div>
           )}
+          </Suspense>
         </main>
       </AppShell>
 
@@ -748,6 +771,7 @@ export default function PanelVendedor() {
       >
         <div className="space-y-2.5">
           {[
+            ['Ctrl+K', 'Búsqueda global'],
             ['F1', 'Nueva venta'],
             ['F2', 'Buscar producto'],
             ['F3', 'Crear cliente'],
@@ -779,6 +803,12 @@ export default function PanelVendedor() {
         confirmLabel="Salir"
         variant="danger"
         busy={saliendo}
+      />
+
+      <GlobalSearch
+        open={busquedaAbierta}
+        onClose={() => setBusquedaAbierta(false)}
+        onNavigate={ir}
       />
     </>
   )

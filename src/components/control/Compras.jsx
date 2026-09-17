@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addProducto, addProductoApi, getProductos } from '@/lib/storage'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { purchasesApi } from '@/lib/api/purchases'
@@ -61,12 +61,12 @@ export default function Compras() {
   const [lineCostEdits, setLineCostEdits] = useState({})
   const [busy, setBusy] = useState(!demo); const [error, setError] = useState(''); const [message, setMessage] = useState('')
 
-  async function load() {
+  const load = useCallback(async () => {
     setBusy(true); setError('')
     try { const [purchaseRows, supplierRows, accountRows] = await Promise.all([demo ? Promise.resolve(loadDemoPurchases()) : purchasesApi.list(), demo ? Promise.resolve([]) : suppliersApi.list(), getPaymentAccounts()]); setPurchases(purchaseRows); setSuppliers(supplierRows); setAccounts(accountRows.filter(account => account.isActive)) }
     catch (err) { setError(err?.message || 'No se pudieron cargar las compras.') } finally { setBusy(false) }
-  }
-  useEffect(() => { load() }, [demo])
+  }, [demo])
+  useEffect(() => { load() }, [load])
   const estimatedTotal = useMemo(() => {
     const total = totalOf(lines, costs)
     return currency === 'PYG' ? total : Math.round(total * (Number(exchangeRatePyg) || 1))

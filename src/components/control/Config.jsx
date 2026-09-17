@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
@@ -42,12 +42,12 @@ export default function Config() {
   const [failure, setFailure] = useState('')
   const [confirmar, setConfirmar] = useState(null)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!esDueno) return
     setFailure('')
     try { setAccount(await api.get('/api/account')) } catch (error) { setFailure(error.message || 'No se pudo cargar la seguridad de la cuenta.') }
-  }
-  useEffect(() => { load() }, [esDueno])
+  }, [esDueno])
+  useEffect(() => { load() }, [load])
 
   async function reauthenticate() {
     if (!password || busy) return

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { formatGsInput, parseGsInput, formatUsdInput, parseUsdInput } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
@@ -355,11 +355,11 @@ export function ToastProvider({ children }) {
     setToasts(current => [...current, { id, variant: TOAST_ICON[variant] ? variant : 'info', title, description }])
     setTimeout(() => dismiss(id), 4000)
   }, [dismiss])
-  const value = useCallback({
+  const value = useMemo(() => ({
     success: (title, description) => toast('success', title, description),
     error: (title, description) => toast('error', title, description),
     info: (title, description) => toast('info', title, description),
-  }, [toast])
+  }), [toast])
   if (!mounted) return children
   return (
     <ToastContext.Provider value={value}>

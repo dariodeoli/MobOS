@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { Badge, Button, Skeleton } from '@/components/ui'
 
@@ -13,7 +13,7 @@ export default function SerialUnitPicker({ product, customerName, selectedSerial
   const [busySerial, setBusySerial] = useState('')
   const [error, setError] = useState('')
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!product?.id) { setUnits([]); onRequiresSerial?.(false); return }
     setLoading(true); setError('')
     try {
@@ -23,9 +23,13 @@ export default function SerialUnitPicker({ product, customerName, selectedSerial
       setUnits(matched)
       onRequiresSerial?.(matched.length > 0)
     } catch (cause) { setError(cause?.message || 'No se pudieron cargar los IMEI de este modelo.') } finally { setLoading(false) }
-  }
+  }, [product, onRequiresSerial])
 
-  useEffect(() => { load() }, [product?.id])
+  // El efecto inicial carga solo cuando cambia el producto; el ref mantiene
+  // la versión más reciente de load sin volver a disparar la descarga.
+  const loadRef = useRef(load)
+  useEffect(() => { loadRef.current = load }, [load])
+  useEffect(() => { loadRef.current() }, [product?.id])
 
   async function toggle(unit) {
     const serial = normalize(unit.serial)

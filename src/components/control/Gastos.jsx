@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
@@ -22,15 +22,15 @@ export default function Gastos() {
   const [message, setMessage] = useState('')
   const branch = sucursal?.id ? `?branchId=${encodeURIComponent(sucursal.id)}` : ''
 
-  async function load() {
+  const load = useCallback(async () => {
     if (isDemoRuntime) { setRows(listGastos()); setLoading(false); return }
     setLoading(true)
     try {
       const [finance, paymentAccounts] = await Promise.all([api.get(`/api/finance${branch}`), getPaymentAccounts()])
       setRows(finance.movements || []); setAccounts(paymentAccounts || [])
     } catch (error) { setMessage(error.message || 'No se pudieron cargar los movimientos.') } finally { setLoading(false) }
-  }
-  useEffect(() => { load() }, [esDemo, sucursal?.id])
+  }, [branch])
+  useEffect(() => { load() }, [esDemo, load])
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }))
   const activeAccounts = accounts.filter(account => account.isActive && account.currency === form.currency)
 

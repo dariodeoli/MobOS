@@ -27,7 +27,7 @@ const ACCIONES = [
 
 // Métrica al estilo del tablero: rótulo, número grande, indicador de tendencia
 // y una línea de contexto abajo. Van en fila separadas por divisores.
-function Metrica({ label, valor, delta, sub, tono = 'blue' }) {
+function Metrica({ label, valor, delta, sub, tono = 'blue', accion }) {
   const sube = typeof delta === 'number' && delta >= 0
   const barra = { blue: 'bg-fono', green: 'bg-ok', red: 'bg-bad' }[tono]
   return (
@@ -49,6 +49,17 @@ function Metrica({ label, valor, delta, sub, tono = 'blue' }) {
         )}
       </div>
       {sub && <div className="mt-1.5 text-xs text-mute">{sub}</div>}
+      {accion && (
+        <Button
+          type="button"
+          variant="ghost"
+          className="mt-2 h-auto px-2 py-1 text-xs font-medium"
+          onClick={accion.onClick}
+        >
+          {accion.label}
+          <Icon name="chevron" className="h-3 w-3 rotate-180" />
+        </Button>
+      )}
     </div>
   )
 }
@@ -204,6 +215,7 @@ export default function Resumen() {
           valor={d.act.length}
           tono="blue"
           sub={`${d.pagadas} pagadas · ${d.sinPagar} pendientes`}
+          accion={{ label: 'Ver pedidos', onClick: () => navigate('/pos/pedidos') }}
         />
         <Metrica
           label="Ticket promedio"
@@ -223,9 +235,24 @@ export default function Resumen() {
       <Card>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-medium">Cobrado vs pendiente</h2>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Badge color="green">{d.pagadas} pagadas</Badge>
             <Badge color="red">{d.sinPagar} pendientes</Badge>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-auto px-2 py-1 text-xs font-medium"
+              onClick={() => navigate('/pos/pedidos')}
+              disabled={d.sinPagar === 0}
+              title={
+                d.sinPagar === 0
+                  ? 'No hay ventas pendientes'
+                  : 'Cobrar las ventas pendientes en Pedidos'
+              }
+            >
+              Cobrar pendientes
+              <Icon name="chevron" className="h-3 w-3 rotate-180" />
+            </Button>
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-x-10 gap-y-3">
@@ -328,7 +355,19 @@ export default function Resumen() {
       <Card>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-medium">Stock bajo</h2>
-          <Badge color="orange">≤ {UMBRAL_STOCK_BAJO} unidades</Badge>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge color="orange">≤ {UMBRAL_STOCK_BAJO} unidades</Badge>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-auto px-2 py-1 text-xs font-medium"
+              onClick={() => navigate('/pos/inventario')}
+              title="Ver las alertas de stock en Inventario"
+            >
+              Ver alertas
+              <Icon name="chevron" className="h-3 w-3 rotate-180" />
+            </Button>
+          </div>
         </div>
         {stockBajo.length === 0 ? (
           <div className="py-8 text-center text-sm text-mute">

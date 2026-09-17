@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { consumeActionToken } from '@/lib/actionToken'
@@ -41,19 +41,7 @@ export default function AceptarInvitacion() {
     if (pin.length === 4) confirmRef.current?.focus()
   }, [pin])
 
-  // Al completar el segundo PIN la invitación se acepta sola.
-  const autoRef = useRef(false)
-  useEffect(() => {
-    if (confirm.length === 4 && pin.length === 4 && !saving && !message) {
-      if (autoRef.current) return
-      autoRef.current = true
-      const form = document.getElementById('invite-form')
-      if (form) form.requestSubmit()
-      else submit(new Event('submit'))
-    }
-  }, [confirm, pin, saving, message])
-
-  async function submit(event) {
+  const submit = useCallback(async function submit(event) {
     event.preventDefault(); setError(''); setMessage('')
     if (!/^[a-f0-9]{64}$/i.test(token)) return setError('La invitación no es válida. Pedí que te la reenvíen desde Configuración → Equipo.')
     if (!/^\d{4}$/.test(pin)) return setError('Elegí un PIN de exactamente 4 dígitos.')
@@ -68,7 +56,19 @@ export default function AceptarInvitacion() {
     }
     catch (cause) { setError(cause?.message || 'No se pudo aceptar la invitación.') }
     finally { setSaving(false) }
-  }
+  }, [token, pin, confirm])
+
+  // Al completar el segundo PIN la invitación se acepta sola.
+  const autoRef = useRef(false)
+  useEffect(() => {
+    if (confirm.length === 4 && pin.length === 4 && !saving && !message) {
+      if (autoRef.current) return
+      autoRef.current = true
+      const form = document.getElementById('invite-form')
+      if (form) form.requestSubmit()
+      else submit(new Event('submit'))
+    }
+  }, [confirm, pin, saving, message, submit])
 
   return (
     <main className="flex min-h-dvh flex-col bg-paper text-fore">

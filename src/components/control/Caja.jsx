@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { formatGs, formatGsInput, parseGsInput } from '@/utils/moneda'
@@ -18,7 +18,7 @@ export default function Caja() {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
       if (esDemo) setCash(getDemoCash())
@@ -28,8 +28,8 @@ export default function Caja() {
         setCash(cashData); setFinance(financeData)
       }
     } catch (err) { setError(err?.message || 'No se pudo cargar la caja.') } finally { setLoading(false) }
-  }
-  useEffect(() => { load() }, [esDemo])
+  }, [esDemo, sucursal?.id])
+  useEffect(() => { load() }, [load])
 
   const expected = useMemo(() => {
     if (!esDemo) return Number(cash?.expectedPyg ?? cash?.openingPyg ?? 0)

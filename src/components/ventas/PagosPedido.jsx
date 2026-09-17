@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Modal, Input, Select, Button, MoneyInput, Badge } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import { api, API_URL } from '@/lib/api'
@@ -52,7 +52,7 @@ export default function PagosPedido({ venta, onClose }) {
   const [notice, setNotice] = useState('')
   const attempt = useRef(null)
   const [needsRefresh, setNeedsRefresh] = useState(false)
-  const payments = order.pagos || []
+  const payments = useMemo(() => order.pagos || [], [order])
   const pending = num(order.totalPendiente)
   const canReconcile = esDemo || ['ADMIN', 'GERENTE', 'CAJERA'].includes(usuario?.role)
   const canReturn = esDemo || ['ADMIN', 'GERENTE'].includes(usuario?.role)
@@ -111,7 +111,7 @@ export default function PagosPedido({ venta, onClose }) {
       .then(entries => { if (active) setReconciliations(Object.fromEntries(entries)) })
       .catch(e => { if (active) setError(e.message) })
     return () => { active = false }
-  }, [order, esDemo])
+  }, [order, esDemo, payments])
 
   async function reconcile(paymentId, state) {
     if (busy) return
