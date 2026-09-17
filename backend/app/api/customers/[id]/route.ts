@@ -1,6 +1,7 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
+import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
 
 type RouteContext = { params: { id: string } }
 
@@ -78,12 +79,18 @@ export async function GET(request: Request, { params }: RouteContext) {
     take: 50,
   })
 
-  const [notes, followUps] = await Promise.all([
+  const [notes, billingIdentities, followUps] = await Promise.all([
     prisma.customerNote.findMany({
       where: { tenantId: session.user.tenantId, customerId: customer.id },
       select: { id: true, content: true, createdAt: true, user: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'desc' },
       take: 100,
+    }),
+    prisma.customerBillingIdentity.findMany({
+      where: { tenantId: session.user.tenantId, customerId: customer.id },
+      select: { id: true, name: true, document: true, uses: true, lastUsedAt: true },
+      orderBy: [{ uses: 'desc' }, { lastUsedAt: 'desc' }],
+      take: 20,
     }),
     prisma.customerFollowUp.findMany({
       where: { tenantId: session.user.tenantId, customerId: customer.id },
@@ -100,5 +107,52 @@ export async function GET(request: Request, { params }: RouteContext) {
     warranties,
     notes,
     followUps,
+    billingIdentities,
   })
+}
+
+// Edición de la ficha: datos de contacto, tipo comercial y crédito. El tipo y
+// el crédito quedan reservados a administración/gerencia.
+export async function PATCH(request: Request, { params }: RouteContext) {
+  const session = await requireSession(request)
+  if (!session) return error('Falta sesión.', 401)
+  const id = (params.id || '').trim().slice(0, 128)
+  if (!id) return error('Cliente obligatorio.')
+  const existing = await prisma.customer.findFirst({ where: { id, tenantId: session.user.tenantId }, select: { id: true } })
+  if (!existing) return error('Cliente no encontrado.', 404)
+  try {
+    const body = objectInput(await request.json())
+    const gestionaCredito = ['ADMIN', 'GERENTE'].includes(session.user.role)
+    const data: Record<string, unknown> = {}
+    if (body.name !== undefined) data.name = textInput(body.name, 'Nombre', 200)
+    if (body.document !== undefined) data.document = typeof body.document === 'string' && body.document.trim() ? body.document.trim().slice(0, 100) : null
+    if (body.phone !== undefined) data.phone = typeof body.phone === 'string' && body.phone.trim() ? body.phone.trim().slice(0, 100) : null
+    if (body.countryCode !== undefined) data.countryCode = typeof body.countryCode === 'string' && /^\+\d{1,4}$/.test(body.countryCode) ? body.countryCode : '+595'
+    if (body.email !== undefined) data.email = typeof body.email === 'string' && body.email.trim() ? body.email.trim().slice(0, 200) : null
+    if (body.notes !== undefined) data.notes = typeof body.notes === 'string' && body.notes.trim() ? body.notes.trim().slice(0, 2000) : null
+    if (body.publicNote !== undefined) data.publicNote = typeof body.publicNote === 'string' && body.publicNote.trim() ? body.publicNote.trim().slice(0, 2000) : null
+    if (body.tags !== undefined) data.tags = Array.isArray(body.tags) ? body.tags.filter(tag => typeof tag === 'string' && tag.trim()).map(tag => tag.trim().slice(0, 50)).slice(0, 20) : []
+    if (body.pricingTier !== undefined) {
+      if (!gestionaCredito) throw new InputError('Solo administración o gerencia pueden cambiar el tipo de cliente.', 403)
+      data.pricingTier = body.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL'
+    }
+    if (body.creditDays !== undefined) {
+      if (!gestionaCredito) throw new InputError('Solo administración o gerencia pueden cambiar el crédito.', 403)
+      const days = body.creditDays === null || body.creditDays === '' ? null : Number(body.creditDays)
+      if (days !== null && (!Number.isSafeInteger(days) || days < 0 || days > 365)) throw new InputError('Plazo de crédito inválido (0 a 365 días).')
+      data.creditDays = days
+    }
+    if (body.creditLimitPyg !== undefined) {
+      if (!gestionaCredito) throw new InputError('Solo administración o gerencia pueden cambiar el crédito.', 403)
+      const limit = body.creditLimitPyg === null || body.creditLimitPyg === '' ? null : Number(body.creditLimitPyg)
+      if (limit !== null && (!Number.isSafeInteger(limit) || limit < 0 || limit > 2147483647)) throw new InputError('Límite de crédito inválido.')
+      data.creditLimitPyg = limit
+    }
+    if (!Object.keys(data).length) throw new InputError('No enviaste cambios.')
+    const updated = await prisma.customer.update({ where: { id: existing.id }, data, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
+    await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'CUSTOMER_UPDATED', entity: 'Customer', entityId: updated.id, metadata: { fields: Object.keys(data) } } })
+    return json(updated)
+  } catch (cause) {
+    return error(cause instanceof Error ? cause.message : 'No se pudo actualizar el cliente.', 400)
+  }
 }

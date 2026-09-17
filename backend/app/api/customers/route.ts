@@ -32,9 +32,8 @@ function addressesInput(value: unknown) {
   return addresses.map((address, index) => ({ ...address, isDefault: address.isDefault || (index === 0 && !addresses.some(item => item.isDefault)) }))
 }
 
-function esMayorista(customer: { name: string; tags?: string[] }) {
-  const tags = Array.isArray(customer.tags) ? customer.tags : []
-  return tags.some((tag) => tag.toLowerCase().includes('mayorista')) || customer.name.toLowerCase().includes('mayorista')
+function esMayorista(customer: { pricingTier?: string | null }) {
+  return customer.pricingTier === 'WHOLESALE'
 }
 
 export async function GET(request: Request) {

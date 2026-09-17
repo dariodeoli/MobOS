@@ -21,19 +21,27 @@ export function whatsappUrl(phone, message, countryCode = '+595') {
 export function renderMessage(template, customer) {
   const values = {
     cliente: customer?.name || 'cliente',
-    nombre: customer?.name || 'cliente',
-    empresa: customer?.companyName || '',
-    sucursal: customer?.branchName || 'la tienda',
-    vendedor: customer?.sellerName || '',
-    saldo_pendiente: customer?.saldoPendiente ?? '',
-    ultima_compra: customer?.ultimaCompra || '',
+    nombre: customer?.firstName || (customer?.name || 'cliente').split(' ')[0],
+    customer_name: customer?.name || 'cliente',
+    empresa: customer?.empresa || 'la tienda',
+    sucursal: customer?.sucursal || customer?.branchName || 'la tienda',
+    usuario: customer?.usuario || '',
+    vendedor: customer?.vendedor || '',
     pedido: customer?.orderNumber || 'tu pedido',
+    order_number: customer?.orderNumber || 'tu pedido',
     total: customer?.total || '',
+    saldo_pendiente: customer?.saldoPendiente || '',
+    producto: customer?.producto || '',
     fecha: customer?.fecha || '',
+    seguimiento: customer?.seguimiento || '',
+    tracking_url: customer?.seguimiento || '',
+    branch_name: customer?.branchName || 'la tienda',
     reservation_until: customer?.reservationUntil || 'la hora acordada',
     tracking_url: customer?.trackingUrl || '',
   }
-  return renderPlantilla(template?.body, values)
+  // Las plantillas aceptan {variable} y {{variable}}: el editor inserta la
+  // forma corta y los avisos viejos usan la doble llave.
+  return String(template?.body || '').replace(/\{\{?\s*([a-z_]+)\s*\}?\}/gi, (_, key) => values[key] || '')
 }
 
 export function readCustomerMetadata(notes) {

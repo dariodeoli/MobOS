@@ -11,10 +11,14 @@ export function normalizarBusqueda(value) {
 
 export function textoBusquedaCliente(customer = {}) {
   const phones = [customer.phone, ...(Array.isArray(customer.phones) ? customer.phones : [])]
+  const direcciones = (Array.isArray(customer.addresses) ? customer.addresses : [])
+    .flatMap(address => [address.label, address.address, address.city, address.department, address.country])
   return normalizarBusqueda(
-    [customer.name, ...phones, customer.document, customer.email, customer.billingName, customer.billingDocument]
-      .filter(Boolean)
-      .join(' '),
+    [
+      customer.name, ...phones, customer.document, customer.email,
+      customer.billingName, customer.billingDocument, customer.notes,
+      ...(Array.isArray(customer.tags) ? customer.tags : []), ...direcciones,
+    ].filter(Boolean).join(' '),
   )
 }
 

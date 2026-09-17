@@ -5,7 +5,7 @@ import { Button, Input, Label, PasswordInput, PinInput } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
 import { publicUrls } from '@/lib/urls'
-import { sessionApi } from '@/lib/api/session'
+import { sessionApi, getCompanyContext } from '@/lib/api/session'
 import AuthLayout from '@/components/auth/AuthLayout'
 import GoogleButton, { OAuthDivider } from '@/components/auth/GoogleButton'
 import ThemeLogo from '@/components/app/ThemeLogo'
@@ -43,6 +43,15 @@ export default function Login() {
     setModo('entrar'); setEtapa(result.onboardingRequired ? 'setup' : 'vendedor'); setGoogleReady(false)
     setError(lista.length ? '' : 'La empresa no tiene usuarios activos disponibles.')
   }
+
+  useEffect(() => {
+    // Con la sesión de empresa ya abierta (por ejemplo al volver del cambio de
+    // contraseña) se salta el correo y la contraseña: solo falta el PIN.
+    const contexto = getCompanyContext()
+    if (contexto?.cookieSession && contexto.tenant && (contexto.sellers || []).length) {
+      showCompany({ tenant: contexto.tenant, sellers: contexto.sellers, stores: contexto.stores || [] })
+    }
+  }, [])
 
   useEffect(() => {
     if (googleStarted.current) return

@@ -258,6 +258,11 @@ export async function POST(request: Request) {
       // venta la propone y la búsqueda puede encontrar por esa razón social.
       if (customerId && (billingName || billingDocument)) {
         await tx.customer.update({ where: { id: customerId }, data: { ...(billingName ? { billingName } : {}), ...(billingDocument ? { billingDocument } : {}) } })
+        if (billingName) {
+          const identidad = await tx.customerBillingIdentity.findFirst({ where: { customerId, name: billingName, document: billingDocument || null }, select: { id: true } })
+          if (identidad) await tx.customerBillingIdentity.update({ where: { id: identidad.id }, data: { uses: { increment: 1 }, lastUsedAt: new Date() } })
+          else await tx.customerBillingIdentity.create({ data: { tenantId: tenant, customerId, name: billingName, document: billingDocument || null, uses: 1 } })
+        }
       }
       // Identidad de facturación reutilizable: se guarda para poder volver a
       // facturar a ese titular sin tipearlo de nuevo. Con datos incompletos no
@@ -396,7 +401,7 @@ export async function POST(request: Request) {
       if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
       if (soldUnits.length) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNITS_SOLD', entity: 'Order', entityId: order.id, metadata: { serials: soldUnits.map(unit => unit.serial), productIds: [...new Set(soldUnits.map(unit => unit.productId))] } } })
       for (const { tradeIn, ...paymentData } of normalizedPayments) {
-        const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id, createdById: session.user.id } })
+        const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id, createdById: session.user.id, userId: session.user.id } })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
       }
       // Garantía automática: registra la cobertura de cada equipo serializado

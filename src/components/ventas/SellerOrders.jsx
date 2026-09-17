@@ -24,6 +24,7 @@ export const orderFields = (row) => {
   const products = items.length ? items.map(item => item.description).filter(Boolean) : [row.productoNombre].filter(Boolean)
   return {
     id: row.id, sellerId: row.sellerId ?? row.vendedorId,
+    sellerName: row.seller?.name || row.vendedor || '',
     number: row.orderNumber || row.codigo || row.id,
     customer: row.customer?.name || row.cliente || 'Sin cliente',
     customerId: row.customerId || row.clienteId || null,
@@ -122,7 +123,7 @@ function CeldaSerial({ serial }) {
 }
 
 const buscable = (row) => normalizarBusqueda([
-  row.number, String(row.number).replace(/\D/g, ''), row.customer, row.billingName, row.billingDocument,
+  row.number, String(row.number).replace(/\D/g, ''), row.customer, row.sellerName, row.billingName, row.billingDocument,
   row.document, row.email, row.phone, row.notes, (row.tags || []).join(' '), row.products,
   row.seriales.join(' '), row.seriales.map(serial => ultimos4(serial)).join(' '), String(row.total),
 ].filter(Boolean).join(' '))
@@ -170,6 +171,13 @@ export default function SellerOrders() {
   // código comercial: si el código cambia, el enlace sigue resolviendo.
   const { orderId } = useParams()
   const [query, setQuery] = useState('')
+  const [search, setSearch] = useState('')
+  // La búsqueda del listado se resuelve en el servidor: así encuentra pedidos
+  // que todavía no están en la página cargada (número, cliente, RUC, vendedor).
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(query.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [query])
   const [filtro, setFiltro] = useState('activos')
   const [orden, setOrden] = useState({ key: 'date', dir: 'desc' })
   // Búsqueda y filtros van al servidor (cubren todos los pedidos del alcance

@@ -5,6 +5,7 @@ import AttachmentInput from '@/components/shared/AttachmentInput'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import { api, API_URL } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
+import { useSesion } from '@/lib/sesion'
 import { accessUrlFor } from '@/components/shared/OrderReceipt'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
@@ -26,6 +27,7 @@ const AUDIT_LABELS = {
   ORDER_UNARCHIVED: () => 'Pedido desarchivado',
   INVENTORY_UNITS_SOLD: (meta) => `Equipos vendidos: ${(meta?.serials || []).join(', ')}`,
   ORDER_NOTIFIED_WHATSAPP: () => 'Aviso enviado al cliente por WhatsApp',
+  ORDER_COMMENTED: () => 'Comentario agregado',
 }
 
 function iniciales(name = '') {
@@ -78,6 +80,9 @@ const NIVELES_ACCESO = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detal
 
 export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onClose, onChanged }) {
   const toast = useToast()
+  const { perfilEmpresa } = useSesion()
+  // El usuario guardado puede llamarse "Administrador": mostramos la persona real.
+  const nombreActor = (name) => (name === 'Administrador' && perfilEmpresa?.name ? perfilEmpresa.name : name)
   const [accesos, setAccesos] = useState({})
   const [accesoBusy, setAccesoBusy] = useState(false)
   const [accesoMsg, setAccesoMsg] = useState('')
@@ -385,22 +390,19 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                   </div>
                 </form>
                 <div className="mt-4 space-y-4">
-                  {events.map(event => {
-                    const actor = nombreEvento(event, order)
-                    return <article key={`${event.type}-${event.id}`} className="flex gap-3">
-                      <Avatar name={actor} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold">{actor}<span className="ml-2 font-normal text-mute">{relativeDate(event.at)}</span></p>
-                        {event.type === 'comment' && <>
-                          <p className="mt-1 whitespace-pre-wrap text-sm">{event.body}</p>
-                          {(event.photos || []).length > 0 && <div className="mt-2 flex flex-wrap gap-2">{event.photos.map(photo => <PhotoThumb key={photo.id} orderId={order.id} commentId={event.id} photo={photo} />)}</div>}
-                        </>}
-                        {event.type === 'payment' && <p className="mt-1 text-sm text-mute">{ETIQUETAS_MEDIO_PAGO[event.payment.method] || event.payment.method} · <b className="text-fore"><Money value={Number(event.payment.amountPyg || 0)} /></b> · {PAYMENT_STATUS[event.payment.status] || event.payment.status}{event.payment.accountSnapshot?.name ? ` · ${event.payment.accountSnapshot.name}` : ''}{event.payment.reference ? ` · ${event.payment.reference}` : ''}</p>}
-                        {event.type === 'audit' && <p className="mt-1 text-sm text-mute">{AUDIT_LABELS[event.action]?.(event.metadata) || event.action}</p>}
-                        {event.type === 'created' && <p className="mt-1 text-sm text-mute">Pedido creado.</p>}
-                      </div>
-                    </article>
-                  })}
+                  {events.map(event => <article key={`${event.type}-${event.id}`} className="flex gap-3">
+                    <Avatar name={nombreActor(event.user?.name) || 'Sistema'} picture={event.user?.name === 'Administrador' ? perfilEmpresa?.picture : undefined} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold">{nombreActor(event.user?.name) || 'Sistema'}<span className="ml-2 font-normal text-mute">{relativeDate(event.at)}</span></p>
+                      {event.type === 'comment' && <>
+                        <p className="mt-1 whitespace-pre-wrap text-sm">{event.body}</p>
+                        {(event.photos || []).length > 0 && <div className="mt-2 flex flex-wrap gap-2">{event.photos.map(photo => <PhotoThumb key={photo.id} orderId={order.id} commentId={event.id} photo={photo} />)}</div>}
+                      </>}
+                      {event.type === 'payment' && <p className="mt-1 text-sm text-mute">{ETIQUETAS_MEDIO_PAGO[event.payment.method] || event.payment.method} · <b className="text-fore"><Money value={Number(event.payment.amountPyg || 0)} /></b> · {PAYMENT_STATUS[event.payment.status] || event.payment.status}{event.payment.accountSnapshot?.name ? ` · ${event.payment.accountSnapshot.name}` : ''}{event.payment.reference ? ` · ${event.payment.reference}` : ''}</p>}
+                      {event.type === 'audit' && <p className="mt-1 text-sm text-mute">{AUDIT_LABELS[event.action]?.(event.metadata) || 'Movimiento del pedido'}</p>}
+                      {event.type === 'created' && <p className="mt-1 text-sm text-mute">Pedido creado.</p>}
+                    </div>
+                  </article>)}
                   {!events.length && <p className="text-sm text-mute">Todavía no hay movimientos.</p>}
                 </div>
               </>

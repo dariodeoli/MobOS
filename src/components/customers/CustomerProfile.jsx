@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { codigoPedido } from '@/utils/pedido'
 import { whatsappUrl } from './customerMessaging'
 import Icon from '@/components/shared/Icon'
+import ActorAvatar from './ActorAvatar'
 import {
   Badge,
   Button,
@@ -13,6 +14,7 @@ import {
   EmptyState,
   FormField,
   Input,
+  Label,
   Modal,
   MoneyInput,
   Select,
@@ -86,6 +88,7 @@ const TABS = [
   { key: 'seguimientos', label: 'Seguimientos' },
   { key: 'comercial', label: 'Comercial' },
   { key: 'facturacion', label: 'Facturación' },
+  { key: 'estadisticas', label: 'Estadísticas' },
   { key: 'cronologia', label: 'Cronología' },
 ]
 
@@ -109,6 +112,92 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [error, setError] = useState('')
   const [profile, setProfile] = useState(null)
   const [tab, setTab] = useState('compras')
+  const { esDemo } = useSesion()
+  const [analitica, setAnalitica] = useState(null)
+  const [cargandoAnalitica, setCargandoAnalitica] = useState(false)
+  const [solicitud, setSolicitud] = useState(null)
+  const [solicitudDias, setSolicitudDias] = useState('')
+  const [solicitudLimite, setSolicitudLimite] = useState('')
+  const [solicitudBusy, setSolicitudBusy] = useState(false)
+  const [notaInterna, setNotaInterna] = useState('')
+  const [notaPublica, setNotaPublica] = useState('')
+  const [guardandoNotas, setGuardandoNotas] = useState(false)
+  const [eventos, setEventos] = useState([])
+  const [eventosTotal, setEventosTotal] = useState(0)
+  const [cargandoEventos, setCargandoEventos] = useState(false)
+
+  useEffect(() => {
+    setNotaInterna(profile?.customer?.notes || customer?.notes || '')
+    setNotaPublica(profile?.customer?.publicNote || customer?.publicNote || '')
+  }, [profile?.customer?.notes, profile?.customer?.publicNote, customer?.notes, customer?.publicNote])
+
+  async function pedirCambio() {
+    if (!solicitud || solicitudBusy || !customer?.id) return
+    setSolicitudBusy(true)
+    try {
+      await api.post('/api/customer-requests', {
+        customerId: customer.id,
+        type: solicitud,
+        ...(solicitud === 'CREDIT' ? { creditDays: solicitudDias, creditLimitPyg: solicitudLimite } : {}),
+      })
+      toast.success('Solicitud enviada: queda pendiente de aprobación.')
+      setSolicitud(null); setSolicitudDias(''); setSolicitudLimite('')
+    } catch (cause) { toast.error(cause?.message || 'No se pudo enviar la solicitud.') } finally { setSolicitudBusy(false) }
+  }
+
+  async function guardarNotas() {
+    if (guardandoNotas || !customer?.id) return
+    setGuardandoNotas(true)
+    try {
+      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { notes: notaInterna.trim(), publicNote: notaPublica.trim() })
+      toast.success('Notas guardadas.')
+    } catch (cause) { toast.error(cause?.message || 'No se pudieron guardar las notas.') } finally { setGuardandoNotas(false) }
+  }
+
+  useEffect(() => {
+    if (tab !== 'estadisticas' || analitica || esDemo || !customer?.id) return
+    let vigente = true
+    setCargandoAnalitica(true)
+    api.get(`/api/customers/${encodeURIComponent(customer.id)}/analytics`)
+      .then(data => { if (vigente) setAnalitica(data) })
+      .catch(() => { if (vigente) setAnalitica({ ordersCount: 0, totalPyg: 0, avgTicketPyg: 0, byMonth: [], topProducts: [], statement: [] }) })
+      .finally(() => { if (vigente) setCargandoAnalitica(false) })
+    return () => { vigente = false }
+  }, [tab, analitica, esDemo, customer?.id])
+
+  function descargarInforme() {
+    if (!analitica) return
+    const filas = [
+      ['Pedido', 'Fecha', 'Estado', 'Total (Gs)'],
+      ...analitica.statement.map(item => [item.orderNumber, new Date(item.createdAt).toLocaleDateString('es-PY'), item.status, item.totalPyg]),
+      [],
+      ['Compras', analitica.ordersCount],
+      ['Total (Gs)', analitica.totalPyg],
+      ['Ticket promedio (Gs)', analitica.avgTicketPyg],
+    ]
+    const csv = filas.map(fila => fila.map(celda => `"${String(celda ?? '').replace(/"/g, '""')}"`).join(';')).join('\n')
+    const enlace = document.createElement('a')
+    enlace.href = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
+    enlace.download = `cliente-${(customer?.name || 'informe').replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 40)}.csv`
+    enlace.click()
+    URL.revokeObjectURL(enlace.href)
+  }
+
+  const cargarEventos = useCallback(async (offset = 0) => {
+    if (!customer?.id) return
+    setCargandoEventos(true)
+    try {
+      const data = await api.get(`/api/customers/${encodeURIComponent(customer.id)}/history?limit=30&offset=${offset}`)
+      setEventosTotal(Number(data?.total) || 0)
+      setEventos(current => offset === 0 ? (data?.events || []) : [...current, ...(data?.events || [])])
+    } catch { /* sin cronología disponible */ } finally { setCargandoEventos(false) }
+  }, [customer?.id])
+
+  useEffect(() => {
+    if (open && tab === 'cronologia' && !eventos.length) cargarEventos(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tab])
+
   const [newNote, setNewNote] = useState('')
   const [editingNote, setEditingNote] = useState(null)
   const [noteBusy, setNoteBusy] = useState(false)
@@ -218,6 +307,12 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const warranties = profile?.warranties || []
   const notes = profile?.notes || []
   const followUps = profile?.followUps || []
+  const mayorista = (profile?.customer?.pricingTier || customer?.pricingTier) === 'WHOLESALE'
+  const clienteCredito = profile?.customer?.creditLimitPyg ?? customer?.creditLimitPyg ?? 0
+  const clientePlazo = profile?.customer?.creditDays ?? customer?.creditDays ?? 0
+  const identidades = profile?.billingIdentities || []
+  const ultimaCompra = orders.reduce((max, order) => (order.createdAt && (!max || order.createdAt > max) ? order.createdAt : max), null)
+  const clienteDesde = profile?.customer?.createdAt || customer?.createdAt || null
   const totalComprado = orders.reduce((sum, order) => sum + Number(order.totalPyg || 0), 0)
   const deuda = Number(profile?.debtPyg ?? 0)
   const garantiasActivas = warranties.filter((item) => item.status !== 'DELIVERED').length
@@ -231,7 +326,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const facturaActual = Boolean(profile?.customer?.billingName || profile?.customer?.billingDocument)
 
   const dispositivos = orders.flatMap(order => (order.items || []).flatMap(item => (item.serials || []).map(serial => ({ serial, model: item.description, date: order.createdAt, orderNumber: order.orderNumber, warranty: warranties.find(warranty => warranty.serial === serial) || null }))))
-  const tabCounts = { compras: orders.length, dispositivos: dispositivos.length, garantias: warranties.length, notas: notes.length, seguimientos: followUps.length }
+  const tabCounts = { compras: orders.length, dispositivos: dispositivos.length, garantias: warranties.length, notas: notes.length, seguimientos: followUps.length, cronologia: eventos.length }
 
   async function saveNote(event) {
     event.preventDefault()
@@ -585,6 +680,14 @@ export default function CustomerProfile({ customer, open, onClose }) {
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Garantías activas</p>
               <p className="mt-1 text-lg font-semibold text-fore">{garantiasActivas}</p>
             </div>
+            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Última compra</p>
+              <p className="mt-1 text-sm font-semibold text-fore">{ultimaCompra ? fecha(ultimaCompra) : 'Sin compras'}</p>
+            </div>
+            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Cliente desde</p>
+              <p className="mt-1 text-sm font-semibold text-fore">{clienteDesde ? fecha(clienteDesde) : '—'}</p>
+            </div>
           </div>
 
           {deuda > 0 && (
@@ -599,6 +702,34 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 ))}
               </ul>
               <p className="mt-2 text-xs text-mute">Total pendiente: <b className="text-fore">{formatGs(deuda)}</b></p>
+          {!esDemo && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 p-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Configuración comercial</p>
+                <p className="mt-1 text-sm">
+                  {mayorista ? 'Mayorista' : 'Cliente final'}
+                  {Number(clienteCredito || 0) > 0 ? ` · crédito ${formatGs(Number(clienteCredito))}` : ' · sin crédito'}
+                  {clientePlazo ? ` · ${clientePlazo} días` : ''}
+                </p>
+              </div>
+              <span className="flex flex-wrap gap-2">
+                {!mayorista && <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('WHOLESALE')}>Solicitar mayorista</Button>}
+                {!(Number(clienteCredito || 0) > 0) && <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('CREDIT')}>Solicitar crédito</Button>}
+              </span>
+            </div>
+          )}
+
+          {!esDemo && identidades.length > 0 && (
+            <div className="rounded-xl border border-ink-600 p-3">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Titulares de factura usados</p>
+              <ul className="mt-1 space-y-0.5 text-xs">
+                {identidades.map(item => (
+                  <li key={item.id} className="flex flex-wrap justify-between gap-2">
+                    <span className="min-w-0 truncate">{item.name}{item.document ? ` · ${item.document}` : ''}</span>
+                    <span className="text-mute">{item.uses} {item.uses === 1 ? 'venta' : 'ventas'}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 
@@ -701,6 +832,22 @@ export default function CustomerProfile({ customer, open, onClose }) {
           )}
 
           {tab === 'notas' && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-warn/30 bg-warn/5 p-3">
+                <Label>Nota interna <span className="text-mute">(solo equipo)</span></Label>
+                <Textarea rows={3} aria-label="Nota interna" value={notaInterna} onChange={event => setNotaInterna(event.target.value)} placeholder="Raya lateral, trato especial, observaciones…" autoCapitalize="sentences" />
+              </div>
+              <div className="rounded-xl border border-ok/30 bg-ok/5 p-3">
+                <Label>Nota pública <span className="text-mute">(visible al cliente)</span></Label>
+                <Textarea rows={3} aria-label="Nota pública" value={notaPublica} onChange={event => setNotaPublica(event.target.value)} placeholder="Información que puede ir en comprobantes o mensajes" autoCapitalize="sentences" />
+              </div>
+              <div className="sm:col-span-2 flex justify-end">
+                <Button type="button" variant="outline" disabled={guardandoNotas} onClick={guardarNotas}>{guardandoNotas ? 'Guardando…' : 'Guardar notas'}</Button>
+              </div>
+            </div>
+          )}
+
+          {tab === 'notas' && (
             <div className="space-y-4">
               <form onSubmit={saveNote} className="space-y-3">
                 <FormField label={editingNote ? 'Editar nota' : 'Nueva nota'} htmlFor="profile-note">
@@ -728,6 +875,65 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     </li>
                   ))}
                 </ul>
+              )}
+            </div>
+          )}
+
+          {tab === 'estadisticas' && (
+            <div className="space-y-3">
+              {esDemo && <p className="text-sm text-mute">Las estadísticas se calculan con las ventas reales de la tienda.</p>}
+              {cargandoAnalitica && <Skeleton className="h-24 w-full" />}
+              {!cargandoAnalitica && analitica && (
+                <>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Compras</p><p className="mt-1 text-lg font-bold">{analitica.ordersCount}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Total comprado</p><p className="mt-1 text-lg font-bold">{formatGs(analitica.totalPyg)}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Ticket promedio</p><p className="mt-1 text-lg font-bold">{formatGs(analitica.avgTicketPyg)}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Compras por mes</p><p className="mt-1 text-lg font-bold">{analitica.purchasesPerMonth || 0}</p></div>
+                  </div>
+                  {analitica.topProducts.length > 0 && (
+                    <div className="rounded-xl border border-ink-600 p-3">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Productos que más compra</p>
+                      <ul className="mt-1 space-y-0.5 text-xs">
+                        {analitica.topProducts.map(item => (
+                          <li key={item.description} className="flex flex-wrap justify-between gap-2"><span className="min-w-0 truncate">{item.description}</span><span className="text-mute">{item.quantity} u. · {formatGs(item.totalPyg)}</span></li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {analitica.byMonth.length > 0 && (
+                    <div className="rounded-xl border border-ink-600 p-3">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Últimos meses</p>
+                      <ul className="mt-1 space-y-0.5 text-xs">
+                        {analitica.byMonth.map(item => (
+                          <li key={item.month} className="flex flex-wrap justify-between gap-2"><span>{item.month}</span><span className="text-mute">{item.count} {item.count === 1 ? 'compra' : 'compras'} · {formatGs(item.totalPyg)}</span></li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button type="button" variant="outline" onClick={descargarInforme} disabled={!analitica.statement.length}>Descargar informe (CSV)</Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {tab === 'cronologia' && (
+            <div className="space-y-3">
+              {cargandoEventos && !eventos.length && <p className="text-sm text-mute">Cargando cronología…</p>}
+              {!cargandoEventos && !eventos.length && <p className="text-sm text-mute">Todavía no hay movimientos.</p>}
+              {eventos.map(evento => (
+                <article key={evento.id} className="flex gap-3">
+                  {evento.actorId ? <ActorAvatar user={{ id: evento.actorId, name: evento.actor }} hasAvatar={evento.actorHasAvatar === true} size="sm" /> : <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-fono-light" />}
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold">{evento.actor || 'Sistema'}<span className="ml-2 font-normal text-mute">{new Date(evento.at).toLocaleString('es-PY')}</span></p>
+                    <p className="mt-0.5 text-sm text-mute">{textoEvento(evento)}</p>
+                  </div>
+                </article>
+              ))}
+              {eventos.length < eventosTotal && (
+                <Button variant="outline" disabled={cargandoEventos} onClick={() => cargarEventos(eventos.length)}>{cargandoEventos ? 'Cargando…' : 'Cargar más'}</Button>
               )}
             </div>
           )}
@@ -968,6 +1174,31 @@ export default function CustomerProfile({ customer, open, onClose }) {
           )}
         </div>
       )}
+
+      <Modal open={Boolean(solicitud)} onClose={() => setSolicitud(null)} title={solicitud === 'WHOLESALE' ? 'Solicitar pasar a mayorista' : 'Solicitar crédito'} className="max-w-md">
+        <div className="space-y-3">
+          <p className="text-sm text-mute">
+            {solicitud === 'WHOLESALE'
+              ? 'Se pedirá a administración que este cliente pase a lista de precios mayorista.'
+              : 'Se pedirá a administración que habilite crédito para este cliente.'}
+            La solicitud queda pendiente de aprobación.
+          </p>
+          {solicitud === 'CREDIT' && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField label="Días de plazo" hint="Por ejemplo 30">
+                <Input inputMode="numeric" value={solicitudDias} onChange={event => setSolicitudDias(event.target.value.replace(/\D/g, '').slice(0, 3))} autoCapitalize="none" />
+              </FormField>
+              <FormField label="Límite (Gs)" hint="Monto máximo a deber">
+                <Input inputMode="numeric" value={solicitudLimite} onChange={event => setSolicitudLimite(event.target.value.replace(/\D/g, '').slice(0, 10))} autoCapitalize="none" />
+              </FormField>
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setSolicitud(null)}>Cancelar</Button>
+            <Button type="button" disabled={solicitudBusy} onClick={pedirCambio}>{solicitudBusy ? 'Enviando…' : 'Enviar solicitud'}</Button>
+          </div>
+        </div>
+      </Modal>
 
       <ConfirmDialog
         open={pendingDelete?.type === 'note'}

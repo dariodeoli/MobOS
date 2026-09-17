@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
+import { sessionApi } from '@/lib/api/session'
 import { consumeActionToken } from '@/lib/actionToken'
 import { Button, Card, Label, PasswordInput } from '@/components/ui'
 import EmailField from '@/components/shared/EmailField'
@@ -8,6 +10,7 @@ import ProductFooter from '@/components/app/ProductFooter'
 import ThemeLogo from '@/components/app/ThemeLogo'
 
 export default function RecuperarContrasena() {
+  const navigate = useNavigate()
   const [token] = useState(() => consumeActionToken())
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -23,7 +26,8 @@ export default function RecuperarContrasena() {
       if (resetting) {
         if (password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.')
         if (password !== confirm) throw new Error('Las contraseñas no coinciden.')
-        const result = await api.post('/api/auth/password-reset', { token, password })
+        const result = await sessionApi.resetPassword({ token, password })
+        if (result?.tenant) { navigate('/login', { replace: true }); return }
         setMessage(result.message)
       } else {
         const result = await api.post('/api/auth/password-recovery', { email })
