@@ -19,7 +19,9 @@ test.describe('owner panel', () => {
     await page.goto('/pos/inventario')
     await expect(page.getByRole('heading', { name: 'Inventario operativo' })).toBeVisible()
     await expect(page.getByRole('button', { name: /^Unidades \(/ })).toBeVisible()
-    await expect(page.getByText(new RegExp(`IMEI ${SEED.products.iphone.imei}`))).toBeVisible()
+    // La tabla compacta alinea el serial por columna (últimos 4 destacados).
+    await expect(page.getByText('Verificación')).toBeVisible()
+    await expect(page.getByText(new RegExp(SEED.products.iphone.imei))).toBeVisible()
   })
 
   test('equipo → Vendedores lists the seeded sellers', async ({ page }) => {
