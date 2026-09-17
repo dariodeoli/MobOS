@@ -15,7 +15,7 @@ import {
   ENTREGA,
 } from '@/lib/storage'
 import { leerCarrito, guardarCarrito, borrarCarrito } from '@/lib/posCart'
-import { fechaClave, num, gs, gsInput } from '@/utils/calculos'
+import { fechaClave, num, gs } from '@/utils/calculos'
 import { cn } from '@/lib/utils'
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
@@ -1497,7 +1497,7 @@ export default function FormularioVenta({
               </p>
             )}
             {usaCuentas &&
-              !cuentas.some(a => a.isActive && ['USD', 'PYG'].includes(a.currency)) && (
+              !cuentas.some(a => a.isActive && ['USD', 'PYG', 'BRL'].includes(a.currency)) && (
                 <p role="alert" className="text-sm text-warn">
                   No hay cuentas activas en USD o PYG para recibir pagos.
                 </p>
@@ -1505,7 +1505,7 @@ export default function FormularioVenta({
             {pagos.map((p, i) => (
               <div
                 key={i}
-                className="grid grid-cols-1 sm:grid-cols-[1.2fr_1fr_1fr_auto] gap-2 items-end"
+                className={cn('grid grid-cols-1 gap-2 items-end sm:grid-cols-[1.2fr_1fr_1fr_auto]', !usaCuentas && 'rounded-2xl border border-ink-600 bg-ink-800/30 p-3')}
               >
                 {usaCuentas ? (
                   <PaymentAccountFields
@@ -1542,16 +1542,14 @@ export default function FormularioVenta({
                     </div>
                     <div>
                       <Label>Monto (Gs)</Label>
-                      <Input
-                        inputMode="numeric"
-                        value={gsInput(p.monto)}
-                        onChange={e =>
+                      <MoneyInput
+                        value={String(p.monto || '').replace(/\D/g, '')}
+                        onValueChange={v =>
                           setPagos(a =>
-                            a.map((x, j) =>
-                              j === i ? { ...x, monto: e.target.value.replace(/\D/g, '') } : x,
-                            ),
+                            a.map((x, j) => (j === i ? { ...x, monto: v === '' ? '' : String(v) } : x)),
                           )
                         }
+                        placeholder="0"
                       />
                       <NumericKeypad
                         value={String(p.monto || '').replace(/\D/g, '')}
@@ -1571,19 +1569,10 @@ export default function FormularioVenta({
                 </Button>
               </div>
             ))}
-            <div className="grid grid-cols-3 gap-2 border-t border-fono/20 pt-3 text-sm">
-              <span className="text-mute">
-                Total<strong className="mt-1 block text-base text-fore">{gs(totalGeneral)}</strong>
-              </span>
-              <span className="text-mute">
-                Pagado<strong className="mt-1 block text-base text-ok">{gs(totalPagado)}</strong>
-              </span>
-              <span className="text-mute">
-                Pendiente
-                <strong className={cn('mt-1 block text-base', pendiente ? 'text-warn' : 'text-ok')}>
-                  {gs(pendiente)}
-                </strong>
-              </span>
+            <div className="grid grid-cols-3 gap-2 border-t border-fono/20 pt-3 text-xs text-mute">
+              <span className="rounded-xl border border-ink-600 px-3 py-2">Total<strong className="mt-0.5 block text-base tabular-nums text-fore">{gs(totalGeneral)}</strong></span>
+              <span className="rounded-xl border border-ok/25 bg-ok/10 px-3 py-2">Pagado<strong className="mt-0.5 block text-base tabular-nums text-ok">{gs(totalPagado)}</strong></span>
+              <span className={cn('rounded-xl border px-3 py-2', pendiente ? 'border-warn/25 bg-warn/10' : 'border-ink-600')}>Pendiente<strong className={cn('mt-0.5 block text-base tabular-nums', pendiente ? 'text-warn' : 'text-ok')}>{gs(pendiente)}</strong></span>
             </div>
           </div>
 
