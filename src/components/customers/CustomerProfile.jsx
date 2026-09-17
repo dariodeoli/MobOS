@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { formatGs } from '@/utils/moneda'
 import { whatsappUrl } from './customerMessaging'
@@ -55,7 +55,30 @@ const TABS = [
   { key: 'garantias', label: 'Garantías' },
   { key: 'notas', label: 'Notas' },
   { key: 'seguimientos', label: 'Seguimientos' },
+  { key: 'cronologia', label: 'Cronología' },
 ]
+
+const AUDIT_TEXTS = {
+  CUSTOMER_CREATED: 'Cliente creado',
+  CUSTOMER_UPDATED: 'Datos del cliente actualizados',
+  CUSTOMER_NOTE_CREATED: 'Nota interna agregada',
+  CUSTOMER_NOTE_UPDATED: 'Nota interna editada',
+  CUSTOMER_NOTE_DELETED: 'Nota interna eliminada',
+  CUSTOMER_FOLLOW_UP_CREATED: 'Seguimiento agendado',
+  CUSTOMER_FOLLOW_UP_UPDATED: 'Seguimiento actualizado',
+  CUSTOMER_FOLLOW_UP_DELETED: 'Seguimiento eliminado',
+  ORDER_FULFILLMENT_UPDATED: (meta) => `Entrega: ${FULFILLMENT_STATUS[meta?.previous] || meta?.previous || '—'} → ${FULFILLMENT_STATUS[meta?.current] || meta?.current || '—'}`,
+}
+
+function textoEvento(evento) {
+  if (evento.type === 'created') return 'Cliente creado'
+  if (evento.type === 'order') return `Pedido ${evento.orderNumber || ''} · ${formatGs(evento.amountPyg || 0)}`.trim()
+  if (evento.type === 'payment') return `Pago ${formatGs(evento.amountPyg || 0)} · ${evento.method || ''}${evento.orderNumber ? ` · ${evento.orderNumber}` : ''}`.trim()
+  if (evento.type === 'note') return evento.detail
+  if (evento.type === 'warranty') return evento.detail
+  const label = AUDIT_TEXTS[evento.action]
+  return typeof label === 'function' ? label(evento.metadata) : label || 'Movimiento del cliente'
+}
 
 export default function CustomerProfile({ customer, open, onClose }) {
   const toast = useToast()
@@ -64,6 +87,25 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [error, setError] = useState('')
   const [profile, setProfile] = useState(null)
   const [tab, setTab] = useState('compras')
+  const [eventos, setEventos] = useState([])
+  const [eventosTotal, setEventosTotal] = useState(0)
+  const [cargandoEventos, setCargandoEventos] = useState(false)
+
+  const cargarEventos = useCallback(async (offset = 0) => {
+    if (!customer?.id) return
+    setCargandoEventos(true)
+    try {
+      const data = await api.get(`/api/customers/${encodeURIComponent(customer.id)}/history?limit=30&offset=${offset}`)
+      setEventosTotal(Number(data?.total) || 0)
+      setEventos(current => offset === 0 ? (data?.events || []) : [...current, ...(data?.events || [])])
+    } catch { /* sin cronología disponible */ } finally { setCargandoEventos(false) }
+  }, [customer?.id])
+
+  useEffect(() => {
+    if (open && tab === 'cronologia' && !eventos.length) cargarEventos(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tab])
+
   const [newNote, setNewNote] = useState('')
   const [editingNote, setEditingNote] = useState(null)
   const [noteBusy, setNoteBusy] = useState(false)
@@ -107,7 +149,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const garantiasActivas = warranties.filter((item) => item.status !== 'DELIVERED').length
 
   const dispositivos = orders.flatMap(order => (order.items || []).flatMap(item => (item.serials || []).map(serial => ({ serial, model: item.description, date: order.createdAt, orderNumber: order.orderNumber, warranty: warranties.find(warranty => warranty.serial === serial) || null }))))
-  const tabCounts = { compras: orders.length, dispositivos: dispositivos.length, garantias: warranties.length, notas: notes.length, seguimientos: followUps.length }
+  const tabCounts = { compras: orders.length, dispositivos: dispositivos.length, garantias: warranties.length, notas: notes.length, seguimientos: followUps.length, cronologia: eventos.length }
 
   async function saveNote(event) {
     event.preventDefault()
@@ -292,7 +334,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 onClick={() => setTab(item.key)}
                 className={`shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === item.key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-fore'}`}
               >
-                {item.label} ({tabCounts[item.key]})
+                {item.label}{tabCounts[item.key] != null ? ` (${tabCounts[item.key]})` : ''}
               </button>
             ))}
           </div>
@@ -407,6 +449,25 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     </li>
                   ))}
                 </ul>
+              )}
+            </div>
+          )}
+
+          {tab === 'cronologia' && (
+            <div className="space-y-3">
+              {cargandoEventos && !eventos.length && <p className="text-sm text-mute">Cargando cronología…</p>}
+              {!cargandoEventos && !eventos.length && <p className="text-sm text-mute">Todavía no hay movimientos.</p>}
+              {eventos.map(evento => (
+                <article key={evento.id} className="flex gap-3">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-fono-light" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold">{evento.actor || 'Sistema'}<span className="ml-2 font-normal text-mute">{new Date(evento.at).toLocaleString('es-PY')}</span></p>
+                    <p className="mt-0.5 text-sm text-mute">{textoEvento(evento)}</p>
+                  </div>
+                </article>
+              ))}
+              {eventos.length < eventosTotal && (
+                <Button variant="outline" disabled={cargandoEventos} onClick={() => cargarEventos(eventos.length)}>{cargandoEventos ? 'Cargando…' : 'Cargar más'}</Button>
               )}
             </div>
           )}
