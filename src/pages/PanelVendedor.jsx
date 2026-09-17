@@ -129,8 +129,6 @@ const OWNER_BOTTOM = [
 ]
 
 // Cada apartado con pestañas vive en /<padre>/<slug> (slug hijo en la URL).
-  return tabs
-}
 
 const LABELS = {
   clientes: 'Clientes',

@@ -12,7 +12,6 @@ import { coincideCliente } from '@/utils/cliente'
 import { capitalizarPrimera } from '@/utils/texto'
 import { parseDelimited } from '@/utils/csv'
 import { descargarCsv } from '@/utils/descargarCsv'
-import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 
 const RUC_RE = /\d[\d.\s]{2,}-\d+/

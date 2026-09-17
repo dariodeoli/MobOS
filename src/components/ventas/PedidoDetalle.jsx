@@ -11,6 +11,7 @@ import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { DEMO_MESSAGE_TEMPLATES } from '@/components/customers/customerMessaging'
 import { gs } from '@/utils/calculos'
+import { useSesion } from '@/lib/sesion'
 import { codigoPedido } from '@/utils/pedido'
 
 const FULFILLMENT = FULFILLMENT_LABELS
@@ -35,6 +36,10 @@ const AUDIT_LABELS = {
 function iniciales(name = '') {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part.charAt(0).toUpperCase()).join('') || '?'
 }
+function nombreActor(name) {
+  return String(name || '').trim().split(/\s+/).slice(0, 2).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') || 'Sistema'
+}
+
 function Avatar({ name, size = 'md' }) {
   return <span className={`grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-fono to-fono-dark font-bold text-onbrand ${size === 'sm' ? 'h-7 w-7 text-[10px]' : 'h-9 w-9 text-xs'}`}>{iniciales(name)}</span>
 }

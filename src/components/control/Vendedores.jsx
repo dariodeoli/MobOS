@@ -115,11 +115,6 @@ export default function Vendedores({ seccion = 'equipo' }) {
       setHorario(null); await refreshTeam(); notifySuccess(windows.length ? 'Horario de acceso actualizado.' : 'Horario quitado: el acceso queda libre.')
     } catch (cause) { setError(cause?.message || 'No se pudo guardar el horario.') } finally { setBusy(false) }
   }
-  function resumenHorario(v) {
-    const windows = v.accessSchedule?.windows || []
-    if (!windows.length) return ''
-    return windows.map(fila => `${fila.start}-${fila.end}`).join(' · ')
-  }
 
   async function eliminarUsuario() {
     const target = confirmarEliminar; if (!target) return

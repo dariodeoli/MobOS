@@ -312,10 +312,11 @@ export default function Inventario({ tab: tabProp } = {}) {
     } catch (cause) { setAlertsError(cause?.message || 'No se pudieron cargar las alertas.') } finally { setAlertsLoading(false) }
   }, [apiMode, canViewAlerts, sucursal?.id])
   useEffect(() => { loadAlerts() }, [loadAlerts])
+  const tabValido = (value) => INVENTARIO_TABS.includes(value)
   // La URL manda: si cambia por atrás/adelante o por un enlace profundo, la
   // pestaña activa sigue al prop.
   useEffect(() => {
-    if (tabValido(tabProp) && tabProp !== tab) setTab(tabProp)
+    if (tabValido && tabValido(tabProp) && tabProp !== tab) setTab(tabProp)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabProp])
   async function saveThreshold(event) {
@@ -506,7 +507,6 @@ export default function Inventario({ tab: tabProp } = {}) {
   function cambiarTab(next) {
     if (!tabValido(next)) return
     setTab(next)
-    onTabChange?.(next)
   }
   function requestReason(kind, unit) { setReason(''); setReasonKind(''); setReasonAction({ kind, unit }) }
   async function applyReason(event) { event.preventDefault(); if (!reason.trim() || !reasonAction) return; const { kind, unit } = reasonAction; const lastFour = ultimos4(unit.serial); const motivo = reasonKind ? reasonKind + ': ' + reason.trim() : reason.trim(); if (kind === 'adjust') { const status = unit.status === 'DEFECTIVE' ? 'AVAILABLE' : 'DEFECTIVE'; await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'adjust', status, reason: motivo }), `IMEI ${lastFour} marcado como ${status === 'DEFECTIVE' ? 'en revisión' : 'disponible'}.`) } else if (kind === 'remove') { await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'remove', reason: motivo }), `IMEI ${lastFour} retirado. Podés restaurarlo desde Eliminados.`) } else { await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'restore', reason: reason.trim() }), `IMEI ${lastFour} restaurado a disponible.`) }; setReasonAction(null) }
