@@ -1,8 +1,7 @@
-import { Button, Input, Label, MoneyInput, Select, Badge } from '@/components/ui'
+import { Button, Input, Label, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import CheckoutCustomer from '../CheckoutCustomer'
-import ProductPrice from '../ProductPrice'
-import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
+import ListaVenta from './ListaVenta'
 import { gs, num } from '@/utils/calculos'
 
 export default function PasoProductos({
@@ -13,7 +12,6 @@ export default function PasoProductos({
   setCustomer,
   billingTo,
   setBillingTo,
-  f,
   setF,
   productos,
   nuevoProd,
@@ -37,18 +35,16 @@ export default function PasoProductos({
   agregarCombo,
   noticeCombo,
   familiasVisibles,
-  elegirProducto,
-  familiaActiva,
-  itemActivo,
-  setModalColor,
-  precioMayorista,
-  serialRequired,
-  setSerialRequired,
-  sobrePedido,
-  setSobrePedido,
+  agregarProducto,
+  familias,
+  items,
+  totalCarrito,
+  quitarItem,
+  editarItem,
+  onImei,
+  puedeDescontar,
+  precioDe,
   guardando,
-  gsNum,
-  agregarItem,
   puedePaso2,
   siguientePaso,
   setNuevoVend,
@@ -86,22 +82,24 @@ export default function PasoProductos({
         onBillingChange={setBillingTo}
       />
 
-      {/* Producto */}
+      {/* Producto: un clic agrega a la venta y se edita en la lista */}
       <div className="rounded-2xl border border-fono/20 bg-fono/[.04] p-4 md:col-span-2">
-        <div className="mb-3 flex items-end justify-between gap-3">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
             <Label>Producto</Label>
-            <p className="mt-1 text-xs text-mute">Buscá por nombre, modelo o variante.</p>
+            <p className="mt-1 text-xs text-mute">
+              Buscá por nombre, modelo o variante y hacé clic para sumarlo a la venta.
+            </p>
           </div>
           <span className="text-xs font-medium text-fono-light">
             {productos.length} disponibles
           </span>
         </div>
         {nuevoProd ? (
-          <div className="rounded-2xl border border-fono/25 bg-gradient-to-br from-fono/[.07] to-transparent p-4 space-y-3">
+          <div className="space-y-3 rounded-2xl border border-fono/25 bg-gradient-to-br from-fono/[.07] to-transparent p-4">
             <div className="flex items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-fono/15 text-fono-light"><Icon name="plus" className="h-4 w-4" /></span>
-              <div><p className="text-sm font-bold">Nuevo producto</p><p className="text-[11px] text-mute">Se guarda en el catálogo y queda elegido para esta venta.</p></div>
+              <div><p className="text-sm font-bold">Nuevo producto</p><p className="text-[11px] text-mute">Se guarda en el catálogo y entra a esta venta.</p></div>
             </div>
             <Input autoFocus value={nombreProd} onChange={e => setNombreProd(e.target.value)} placeholder="Nombre base (ej: Protector 17 Air)" autoCapitalize="words" />
             <div className="grid gap-3 sm:grid-cols-2">
@@ -122,7 +120,7 @@ export default function PasoProductos({
                 <Button type="button" variant="outline" onClick={agregarColor}>+ Color</Button>
               </div>
               {coloresNuevos.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{coloresNuevos.map(c => <button key={c} type="button" onClick={() => setColoresNuevos(s => s.filter(x => x !== c))} className="rounded-full bg-fono/10 px-2.5 py-1 text-xs font-bold text-fono transition hover:bg-bad/15 hover:text-bad" title="Quitar">{c}</button>)}</div>}
-              <p className="mt-1 text-[11px] text-mute">Sin colores: un solo producto. Con colores: una variante por color para elegir en cada venta.</p>
+              <p className="mt-1 text-[11px] text-mute">Sin colores: un solo producto. Con colores: una variante por color; el color se cambia en la fila de la venta.</p>
             </div>
             <div className="flex gap-2">
               <Button type="button" onClick={crearProducto} disabled={creandoProd || !nombreProd.trim()} className="flex-1">{creandoProd ? 'Creando…' : `Crear${coloresNuevos.length > 0 ? ` (${coloresNuevos.length} colores)` : ''}`}</Button>
@@ -158,11 +156,8 @@ export default function PasoProductos({
                   <button
                     type="button"
                     key={fam.base}
-                    onClick={() =>
-                      elegirProducto({
-                        target: { value: fam.items.length > 1 ? 'fam:' + fam.base : p.id },
-                      })
-                    }
+                    disabled={guardando}
+                    onClick={() => agregarProducto(p)}
                     className="flex min-h-20 items-center gap-3 rounded-xl border border-ink-600 p-3 text-left transition hover:border-fono focus-visible:outline focus-visible:outline-fono"
                   >
                     {p.imagen || p.imageUrl ? (
@@ -177,8 +172,8 @@ export default function PasoProductos({
                         <Icon name="box" className="h-6 w-6" />
                       </span>
                     )}
-                    <span>
-                      <strong className="block text-sm">{fam.base}</strong>
+                    <span className="min-w-0">
+                      <strong className="block truncate text-sm">{fam.base}</strong>
                       <span className="block text-xs text-mute">
                         {fam.items.length > 1 ? fam.items.length + ' variantes · desde ' : ''}
                         {gs(Math.min(...fam.items.map(item => num(item.precioVenta))))}
@@ -193,94 +188,26 @@ export default function PasoProductos({
                 </p>
               )}
             </div>
-            {familiaActiva && (
-              <div className="flex items-center gap-2 mt-2">
-                {itemActivo ? (
-                  <Badge color="green"> {itemActivo.color || itemActivo.nombre}</Badge>
-                ) : (
-                  <Badge color="orange">Elegí un color</Badge>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setModalColor(true)}
-                  className="text-xs font-bold text-fono hover:underline"
-                >
-                  Cambiar color
-                </button>
-              </div>
-            )}
           </>
         )}
       </div>
 
-      {f.productoId && (
-        <ProductPrice
-          key={f.productoId}
+      {visible && items.length > 0 && (
+        <ListaVenta
+          items={items}
+          productos={productos}
+          familias={familias}
           esDemo={esDemo}
-          product={productos.find(p => p.id === f.productoId)}
-          price={f.precio}
-          onChange={(precio, coupon = null) =>
-            setF(current => ({
-              ...current,
-              precio,
-              couponCode: typeof coupon === 'string' ? coupon : coupon?.couponCode || null,
-            }))
-          }
+          guardando={guardando}
+          puedeDescontar={puedeDescontar}
+          precioDe={precioDe}
+          totalCarrito={totalCarrito}
+          quitarItem={quitarItem}
+          editarItem={editarItem}
+          onImei={onImei}
+          titulo="Seleccionados"
         />
       )}
-      {precioMayorista && (
-        <p className="md:col-span-2 -mt-2 rounded-lg border border-fono/25 bg-fono/5 px-3 py-1.5 text-xs font-semibold text-fono-light">
-          Precio mayorista aplicado ({customer?.name || 'cliente mayorista'}). Ajustalo si hace falta.
-        </p>
-      )}
-      {f.productoId && !esDemo && (
-        <div className="md:col-span-2">
-          <SerialUnitPicker
-            product={productos.find(p => p.id === f.productoId)}
-            customerName={customer.name || f.cliente}
-            selectedSerials={f.serials}
-            onChange={serials => setF(current => ({ ...current, serials }))}
-            onRequiresSerial={setSerialRequired}
-            disabled={guardando}
-          />
-          {serialRequired && !f.serials.length && Number(productos.find(p => p.id === f.productoId)?.stock || 0) === 0 && (
-            <label className="mt-2 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/5 p-3 text-sm text-mute">
-              <input
-                type="checkbox"
-                checked={sobrePedido}
-                onChange={e => setSobrePedido(e.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-warn"
-              />
-              <span>Vender <b className="text-fore">sin IMEI (sobre pedido)</b>: el cliente reserva sin stock; se completa el IMEI al entregar.</span>
-            </label>
-          )}
-        </div>
-      )}
-      {f.productoId &&
-        Number(productos.find(p => p.id === f.productoId)?.insuranceRate || 0) > 0 && (
-          <label className="flex items-center gap-2 text-sm text-mute">
-            <input
-              type="checkbox"
-              checked={f.soldWithoutInsurance}
-              onChange={e => setF(s => ({ ...s, soldWithoutInsurance: e.target.checked }))}
-              className="h-4 w-4 accent-fono"
-            />{' '}
-            Vendido sin seguro — no descontar seguro del margen
-          </label>
-        )}
-      <div className="flex items-end">
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11 w-full"
-          onClick={agregarItem}
-          disabled={
-            !f.productoId || gsNum(f.precio) <= 0 || (serialRequired && !f.serials.length && !sobrePedido)
-          }
-        >
-          Agregar a la lista
-        </Button>
-      </div>
 
       <div className="flex justify-end md:col-span-2">
         <Button

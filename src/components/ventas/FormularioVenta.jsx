@@ -21,6 +21,7 @@ import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
 import { validateDemoPromotionItems, recordDemoPromotionUsage } from '@/lib/demoPromotions'
 import { resources } from '@/lib/api'
+import { api } from '@/lib/api/client'
 import { agruparProductos } from '@/utils/colores'
 import {
   Button,
@@ -30,7 +31,6 @@ import {
   Modal,
   PinInput,
 } from '@/components/ui'
-import SelectorColor from './SelectorColor'
 import Icon from '@/components/shared/Icon'
 import { parsePercent } from '@/components/shared/PercentField'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
@@ -39,6 +39,7 @@ import { accountPayment } from './PaymentAccountFields'
 import { printOrderReceipt } from '@/components/shared/OrderReceipt'
 import { whatsappTrackingLink } from './PagosPedido'
 import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
+import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
 import PasoProductos from './venta/PasoProductos'
 import PasoCarrito from './venta/PasoCarrito'
 import PasoCobro from './venta/PasoCobro'
@@ -134,7 +135,6 @@ function leerCarritoInicial() {
 export default function FormularioVenta({
   onGuardado,
   onCarrito,
-  ocultarCarrito = false,
   tradeInDraft,
   onTradeInConsumed,
 }) {
@@ -172,9 +172,9 @@ export default function FormularioVenta({
   const [creandoProd, setCreandoProd] = useState(false)
   const [combos, setCombos] = useState([])
   const [noticeCombo, setNoticeCombo] = useState('')
-  const [familiaActiva, setFamiliaActiva] = useState(null) // { base, items } cuando se eligió una familia con colores
   const [busquedaProducto, setBusquedaProducto] = useState('')
-  const [modalColor, setModalColor] = useState(false)
+  // Fila de la venta cuyo selector de IMEI está abierto.
+  const [imeiPara, setImeiPara] = useState(null)
   const [nuevoVend, setNuevoVend] = useState(false)
   const [nombreVend, setNombreVend] = useState('')
   const [pinVend, setPinVend] = useState('')
@@ -194,12 +194,6 @@ export default function FormularioVenta({
   const [cuentas, setCuentas] = useState(null)
   const [errorCuentas, setErrorCuentas] = useState('')
   const [intentoCuentas, setIntentoCuentas] = useState(0)
-  const [serialRequired, setSerialRequired] = useState(false)
-  // Sobre pedido: vender un modelo guardado sin IMEI cuando no hay stock
-  // disponible; el IMEI se completa al entregar.
-  const [sobrePedido, setSobrePedido] = useState(false)
-  // Precio mayorista aplicado al producto seleccionado (cliente WHOLESALE).
-  const [precioMayorista, setPrecioMayorista] = useState(false)
   // Venta a crédito: plazo en días y límite del cliente.
   const [venderACredito, setVenderACredito] = useState(false)
   const [creditoDias, setCreditoDias] = useState('')
@@ -260,9 +254,12 @@ export default function FormularioVenta({
       const product = productos.find(p => p.id === handoff.productId)
       if (!product) return
       const serial = typeof handoff.serial === 'string' && handoff.serial.trim() ? handoff.serial.trim() : ''
-      setF(current => ({ ...current, productoId: handoff.productId, serials: serial ? [serial] : [], precio: '' }))
-      if (serial) setSerialRequired(true)
+      agregarProducto(product)
+      if (serial) {
+        setItems(arr => arr.map(it => (it.productoId === product.id ? { ...it, serials: [serial] } : it)))
+      }
     } catch { /* handoff corrupto: se ignora */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productos])
 
   // Persiste la venta a medio armar (productos, cliente, pagos, descuento y
@@ -363,56 +360,63 @@ export default function FormularioVenta({
     setNoticeCombo(`Combo ${combo.name} agregado: ${nuevas.length} componentes por ${gs(precioCombo)}.`)
   }
 
-  function agregarItem() {
-    if (!f.productoId || gsNum(f.precio) <= 0 || (serialRequired && !f.serials.length && !sobrePedido)) return
+  // Precio con el que entra un producto a la venta: mayorista si el cliente lo es.
+  function precioDe(producto) {
+    if (!producto) return 0
+    if (customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) {
+      return Number(producto.wholesalePricePyg)
+    }
+    return Number(producto.precioVenta) || 0
+  }
+
+  // Clic en el buscador: el producto entra a la venta y se termina de editar
+  // (cantidad, precio, color, IMEI) en la lista.
+  function agregarProducto(producto) {
+    if (!producto) return
+    const key = `${Date.now()}-${Math.random()}`
     setItems(arr => {
-      // Mismo producto, cupón y condición, sin IMEI/seriales de por medio:
-      // se suma la cantidad en vez de repetir la fila. Las líneas con seriales
-      // quedan siempre separadas porque cada equipo es una unidad trazable.
-      const indice = !f.serials.length
-        ? arr.findIndex(
-            it =>
-              it.productoId === f.productoId &&
-              !it.serials?.length &&
-              it.couponCode === f.couponCode &&
-              Boolean(it.soldWithoutInsurance) === Boolean(f.soldWithoutInsurance) &&
-              Boolean(it.sobrePedido) === Boolean(sobrePedido),
-          )
-        : -1
+      const indice = arr.findIndex(
+        it => it.productoId === producto.id && !it.serials?.length && !it.couponCode,
+      )
       if (indice >= 0) {
         return arr.map((it, i) => (i === indice ? { ...it, quantity: (it.quantity || 1) + 1 } : it))
       }
       return [
         ...arr,
         {
-          key: `${Date.now()}-${Math.random()}`,
-          productoId: f.productoId,
-          nombre: nombreDe(f.productoId),
-          precio: gsNum(f.precio),
+          key,
+          productoId: producto.id,
+          nombre: producto.nombre,
+          precio: precioDe(producto),
           quantity: 1,
-          couponCode: f.couponCode,
-          soldWithoutInsurance: f.soldWithoutInsurance,
-          serials: f.serials,
-          sobrePedido,
+          couponCode: null,
+          soldWithoutInsurance: false,
+          serials: [],
+          sobrePedido: false,
         },
       ]
     })
-    setF(s => ({
-      ...s,
-      productoId: '',
-      precio: '',
-      couponCode: null,
-      soldWithoutInsurance: false,
-      serials: [],
-    }))
-    setSerialRequired(false)
-    setSobrePedido(false)
-    setFamiliaActiva(null)
+    setErrorVenta('')
+    detectarUnidades(producto, key)
   }
+
+  // Los productos con unidades serializadas piden IMEI en su fila.
+  function detectarUnidades(producto, key) {
+    if (esDemo) return
+    const query = producto.sku || producto.nombre || ''
+    api
+      .get(`/api/inventory-units?q=${encodeURIComponent(query)}`)
+      .then(rows => {
+        if (!(rows || []).some(unit => unit.productId === producto.id)) return
+        setItems(arr => arr.map(it => (it.key === key ? { ...it, requiereSerie: true } : it)))
+      })
+      .catch(() => {})
+  }
+
   function quitarItem(key) {
     setItems(arr => arr.filter(x => x.key !== key))
   }
-  function editarDescuento(key, patch) {
+  function editarItem(key, patch) {
     setItems(arr => arr.map(x => (x.key === key ? { ...x, ...patch } : x)))
   }
   // Descuento por línea: porcentual si hay %, si no el fijo en guaraníes.
@@ -423,9 +427,8 @@ export default function FormularioVenta({
   }
 
   const totalCarrito = items.reduce((a, it) => a + it.precio * (it.quantity || 1) - descuentoItem(it), 0)
-  const tieneCupon = Boolean(f.couponCode || items.some(it => it.couponCode))
-  const precioActual = f.productoId && gsNum(f.precio) > 0 ? gsNum(f.precio) : 0
-  const subtotal = totalCarrito + precioActual
+  const tieneCupon = items.some(it => it.couponCode)
+  const subtotal = totalCarrito
   const totalGeneral = Math.max(0, subtotal - gsNum(descuento) + gsNum(f.montoDelivery))
   const totalPagado = pagos.reduce((s, p) => s + gsNum(p.monto), 0)
   // Descuento sugerido por el medio elegido (ej. efectivo 5%).
@@ -433,7 +436,7 @@ export default function FormularioVenta({
   const descuentoMedioGs = Math.round((subtotal * descuentoMedioPct) / 100)
   const pendiente = Math.max(0, totalGeneral - totalPagado)
 
-  const cantTotal = items.reduce((a, it) => a + (it.quantity || 1), 0) + (precioActual > 0 ? 1 : 0)
+  const cantTotal = items.reduce((a, it) => a + (it.quantity || 1), 0)
   const valido =
     sesion?.vendedorId &&
     f.cliente.trim() &&
@@ -444,29 +447,14 @@ export default function FormularioVenta({
   // Informa al contenedor lo que lleva esta compra, para pintarlo en el lateral.
   useEffect(() => {
     if (!onCarrito) return
-    const actual =
-      f.productoId && gsNum(f.precio) > 0
-        ? [
-            {
-              key: '__actual__',
-              nombre: nombreDe(f.productoId),
-              precio: gsNum(f.precio),
-              serials: f.serials,
-            },
-          ]
-        : []
     const paraLateral = items.map(it => ({
       ...it,
       nombre: (it.quantity || 1) > 1 ? `${it.nombre} ×${it.quantity}` : it.nombre,
       precio: it.precio * (it.quantity || 1),
     }))
-    onCarrito({ items: [...paraLateral, ...actual], quitar: quitarItem })
+    onCarrito({ items: paraLateral, quitar: quitarItem })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, f.productoId, f.precio])
-
-  // Producto/color elegido actualmente (para el chip).
-  const itemActivo =
-    familiaActiva && f.productoId ? familiaActiva.items.find(it => it.id === f.productoId) : null
+  }, [items])
   const familiasVisibles = familias.filter(fam => {
     const query = busquedaProducto.trim().toLocaleLowerCase()
     if (!query) return true
@@ -507,47 +495,6 @@ export default function FormularioVenta({
     }
   }
 
-  function aplicarProducto(p) {
-    // Cliente mayorista: el precio se precarga desde wholesalePricePyg.
-    const mayorista = customer?.pricingTier === 'WHOLESALE' && Number(p.wholesalePricePyg) > 0
-    setF(s => ({
-      ...s,
-      productoId: p.id,
-      precio: mayorista ? String(p.wholesalePricePyg) : p && p.precioVenta > 0 ? String(p.precioVenta) : '',
-      couponCode: null,
-      soldWithoutInsurance: false,
-      serials: [],
-    }))
-    setSerialRequired(false)
-    setSobrePedido(false)
-    setPrecioMayorista(mayorista)
-  }
-
-  function elegirProducto(e) {
-    const v = e.target.value
-    if (v === '__nuevo__') {
-      setNuevoProd(true)
-      return
-    }
-    if (v.startsWith('fam:')) {
-      // Familia con varios colores abrir la ventana para elegir color.
-      const fam = familias.find(x => 'fam:' + x.base === v)
-      setFamiliaActiva(fam)
-      setF(s => ({ ...s, productoId: '' }))
-      setModalColor(true)
-      return
-    }
-    // Producto directo (sin colores)
-    setFamiliaActiva(null)
-    const p = productos.find(x => x.id === v)
-    if (p) aplicarProducto(p)
-  }
-
-  function elegirColor(item) {
-    aplicarProducto(item)
-    setModalColor(false)
-  }
-
   function agregarColor() {
     const c = colorInput.trim()
     if (!c) return
@@ -584,17 +531,14 @@ export default function FormularioVenta({
         return addProductoApi({ nombre, sku: skuDe(nombre), precioVenta: precioNuevo, precioCosto: costoNuevo, category: nuevoDetalles.categoria, condition: nuevoDetalles.condicion, ...(mayoristaNuevo ? { wholesalePricePyg: mayoristaNuevo } : {}), stock: 0 })
       }
       if (coloresNuevos.length === 0) {
-        // Producto sin colores: uno solo, queda elegido para esta venta.
-        const p = await crear(base)
-        setFamiliaActiva(null)
-        setF(s => ({ ...s, productoId: p.id }))
+        // Producto sin colores: entra directo a la venta.
+        agregarProducto(await crear(base))
       } else {
-        // Con colores se crea una variante por color ("Base Color") y se elige.
+        // Con colores se crea una variante por color ("Base Color"); la primera
+        // entra a la venta y el color se cambia en la fila.
         const items = []
         for (const c of coloresNuevos) items.push({ ...(await crear(`${base} ${c}`)), color: c })
-        setFamiliaActiva({ base, items })
-        setF(s => ({ ...s, productoId: '' }))
-        setModalColor(true)
+        agregarProducto(items[0])
       }
       setNuevoProd(false)
       setNombreProd('')
@@ -612,17 +556,7 @@ export default function FormularioVenta({
     e.preventDefault()
     if (paso !== 3) return
     if (guardando || guardadoEnCurso.current || guardadoIncompleto) return
-    // Lista final = lo agregado al carrito + lo que esté seleccionado ahora.
     const lista = [...items]
-    if (f.productoId && gsNum(f.precio) > 0) {
-      lista.push({
-        productoId: f.productoId,
-        precio: gsNum(f.precio),
-        couponCode: f.couponCode,
-        soldWithoutInsurance: f.soldWithoutInsurance,
-        serials: f.serials,
-      })
-    }
     if (
       !sesion?.vendedorId ||
       !f.cliente.trim() ||
@@ -635,7 +569,7 @@ export default function FormularioVenta({
       const fijo = gsNum(it.descuento || 0)
       return {
         productId: it.productoId,
-        description: nombreDe(it.productoId),
+        description: it.nombre || nombreDe(it.productoId),
         quantity: it.quantity || 1,
         unitPricePyg: it.precio,
         soldWithoutInsurance: Boolean(it.soldWithoutInsurance),
@@ -656,6 +590,11 @@ export default function FormularioVenta({
     let lineas
     let payments
     try {
+      const sinImei = lista.filter(it => it.requiereSerie && !it.serials?.length && !it.sobrePedido)
+      if (sinImei.length)
+        throw new Error(
+          `Elegí el IMEI de ${sinImei.map(it => it.nombre).join(', ')} o marcalo como sobre pedido.`,
+        )
       if (tieneCupon && gsNum(descuento) > 0)
         throw new Error('Quitá el descuento extra para utilizar un cupón. No son acumulables.')
       if (customer.phone?.trim() && !telefonoValido(customer.phone, customer.countryCode))
@@ -881,7 +820,6 @@ export default function FormularioVenta({
       setDescuento('')
       setPagos([])
       setF(VACIO(f.vendedorId))
-      setFamiliaActiva(null)
       setBusquedaProducto('')
       setLastOrder(completedOrder)
       setPaso(1)
@@ -912,7 +850,7 @@ export default function FormularioVenta({
   }
 
   const pasos = ['Cliente y productos', 'Revisar carrito', 'Cobrar']
-  const puedePaso2 = Boolean(f.cliente.trim() && items.length > 0 && !f.productoId)
+  const puedePaso2 = Boolean(f.cliente.trim() && items.length > 0)
   function siguientePaso() {
     if (paso === 1 && puedePaso2) setPaso(2)
     else if (paso === 2) setPaso(3)
@@ -931,11 +869,6 @@ export default function FormularioVenta({
         target instanceof HTMLElement &&
         (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
       if (event.key === 'Escape') {
-        if (modalColor) {
-          event.preventDefault()
-          setModalColor(false)
-          return
-        }
         if (nuevoVend) {
           event.preventDefault()
           setNuevoVend(false)
@@ -948,18 +881,6 @@ export default function FormularioVenta({
       if (event.key === 'F2') {
         event.preventDefault()
         busqueda?.focus()
-        return
-      }
-      if (event.key === 'F3') {
-        if (
-          paso === 1 &&
-          f.productoId &&
-          gsNum(f.precio) > 0 &&
-          !(serialRequired && !f.serials.length && !sobrePedido)
-        ) {
-          event.preventDefault()
-          agregarItem()
-        }
         return
       }
       if (event.key === 'F6') {
@@ -1121,7 +1042,6 @@ export default function FormularioVenta({
         <div className="hidden items-center gap-x-4 gap-y-1.5 text-[11px] text-mute md:col-span-2 md:flex">
           <span className="font-semibold uppercase tracking-wider text-mute/60">Atajos</span>
           <Atajo k="F2" label="Buscar producto" />
-          <Atajo k="F3" label="Agregar a la lista" />
           <Atajo k="F6" label="Revisar carrito" />
           <Atajo k="F7" label="Ir a cobrar" />
           <Atajo k="Ctrl+S" label="Guardar venta" />
@@ -1135,7 +1055,6 @@ export default function FormularioVenta({
           setCustomer={setCustomer}
           billingTo={billingTo}
           setBillingTo={setBillingTo}
-          f={f}
           setF={setF}
           productos={productos}
           nuevoProd={nuevoProd}
@@ -1159,18 +1078,16 @@ export default function FormularioVenta({
           agregarCombo={agregarCombo}
           noticeCombo={noticeCombo}
           familiasVisibles={familiasVisibles}
-          elegirProducto={elegirProducto}
-          familiaActiva={familiaActiva}
-          itemActivo={itemActivo}
-          setModalColor={setModalColor}
-          precioMayorista={precioMayorista}
-          serialRequired={serialRequired}
-          setSerialRequired={setSerialRequired}
-          sobrePedido={sobrePedido}
-          setSobrePedido={setSobrePedido}
+          agregarProducto={agregarProducto}
+          familias={familias}
+          items={items}
+          totalCarrito={totalCarrito}
+          quitarItem={quitarItem}
+          editarItem={editarItem}
+          onImei={setImeiPara}
+          puedeDescontar={puedeDescontar}
+          precioDe={precioDe}
           guardando={guardando}
-          gsNum={gsNum}
-          agregarItem={agregarItem}
           puedePaso2={puedePaso2}
           siguientePaso={siguientePaso}
           setNuevoVend={setNuevoVend}
@@ -1180,13 +1097,17 @@ export default function FormularioVenta({
 
         <PasoCarrito
           visible={paso === 2}
-          ocultarCarrito={ocultarCarrito}
           items={items}
+          productos={productos}
+          familias={familias}
+          esDemo={esDemo}
+          guardando={guardando}
           puedeDescontar={puedeDescontar}
-          descuentoItem={descuentoItem}
+          precioDe={precioDe}
           totalCarrito={totalCarrito}
           quitarItem={quitarItem}
-          editarDescuento={editarDescuento}
+          editarItem={editarItem}
+          onImei={setImeiPara}
           descuento={descuento}
           setDescuento={setDescuento}
           tieneCupon={tieneCupon}
@@ -1230,14 +1151,47 @@ export default function FormularioVenta({
         />
       </form>
 
-      {modalColor && familiaActiva && (
-        <SelectorColor
-          base={familiaActiva.base}
-          items={familiaActiva.items}
-          onPick={elegirColor}
-          onCancel={() => setModalColor(false)}
-        />
-      )}
+      <Modal
+        open={Boolean(imeiPara)}
+        onClose={() => setImeiPara(null)}
+        title="Elegir IMEI de esta venta"
+        className="max-w-lg"
+      >
+        {(() => {
+          const fila = items.find(it => it.key === imeiPara)
+          const productoFila = fila ? productos.find(p => p.id === fila.productoId) : null
+          if (!fila || !productoFila) return null
+          return (
+            <div className="space-y-3">
+              <p className="text-sm text-mute">
+                {fila.nombre} · {gs(Number(fila.precio) || 0)} c/u
+              </p>
+              <SerialUnitPicker
+                product={productoFila}
+                customerName={customer.name || f.cliente}
+                selectedSerials={fila.serials || []}
+                onChange={serials => editarItem(fila.key, { serials })}
+                disabled={guardando}
+              />
+              <label className="flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/5 p-3 text-sm text-mute">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-warn"
+                  checked={Boolean(fila.sobrePedido)}
+                  onChange={event => editarItem(fila.key, { sobrePedido: event.target.checked, serials: event.target.checked ? [] : fila.serials || [] })}
+                />
+                <span>
+                  Vender <b className="text-fore">sin IMEI (sobre pedido)</b>: el cliente reserva sin
+                  stock; el IMEI se completa al entregar.
+                </span>
+              </label>
+              <div className="flex justify-end">
+                <Button type="button" onClick={() => setImeiPara(null)}>Listo</Button>
+              </div>
+            </div>
+          )
+        })()}
+      </Modal>
 
       <Modal
         open={nuevoVend}
