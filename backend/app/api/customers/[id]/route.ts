@@ -120,6 +120,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     if (body.countryCode !== undefined) data.countryCode = typeof body.countryCode === 'string' && /^\+\d{1,4}$/.test(body.countryCode) ? body.countryCode : '+595'
     if (body.email !== undefined) data.email = typeof body.email === 'string' && body.email.trim() ? body.email.trim().slice(0, 200) : null
     if (body.notes !== undefined) data.notes = typeof body.notes === 'string' && body.notes.trim() ? body.notes.trim().slice(0, 2000) : null
+    if (body.publicNote !== undefined) data.publicNote = typeof body.publicNote === 'string' && body.publicNote.trim() ? body.publicNote.trim().slice(0, 2000) : null
     if (body.tags !== undefined) data.tags = Array.isArray(body.tags) ? body.tags.filter(tag => typeof tag === 'string' && tag.trim()).map(tag => tag.trim().slice(0, 50)).slice(0, 20) : []
     if (body.pricingTier !== undefined) {
       if (!gestionaCredito) throw new InputError('Solo administración o gerencia pueden cambiar el tipo de cliente.', 403)

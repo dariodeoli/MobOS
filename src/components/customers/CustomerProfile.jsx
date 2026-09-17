@@ -11,6 +11,7 @@ import {
   EmptyState,
   FormField,
   Input,
+  Label,
   Modal,
   Select,
   Skeleton,
@@ -87,9 +88,26 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [error, setError] = useState('')
   const [profile, setProfile] = useState(null)
   const [tab, setTab] = useState('compras')
+  const [notaInterna, setNotaInterna] = useState('')
+  const [notaPublica, setNotaPublica] = useState('')
+  const [guardandoNotas, setGuardandoNotas] = useState(false)
   const [eventos, setEventos] = useState([])
   const [eventosTotal, setEventosTotal] = useState(0)
   const [cargandoEventos, setCargandoEventos] = useState(false)
+
+  useEffect(() => {
+    setNotaInterna(profile?.customer?.notes || customer?.notes || '')
+    setNotaPublica(profile?.customer?.publicNote || customer?.publicNote || '')
+  }, [profile?.customer?.notes, profile?.customer?.publicNote, customer?.notes, customer?.publicNote])
+
+  async function guardarNotas() {
+    if (guardandoNotas || !customer?.id) return
+    setGuardandoNotas(true)
+    try {
+      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { notes: notaInterna.trim(), publicNote: notaPublica.trim() })
+      toast.success('Notas guardadas.')
+    } catch (cause) { toast.error(cause?.message || 'No se pudieron guardar las notas.') } finally { setGuardandoNotas(false) }
+  }
 
   const cargarEventos = useCallback(async (offset = 0) => {
     if (!customer?.id) return
@@ -419,6 +437,22 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 </ul>
               )}
             </>
+          )}
+
+          {tab === 'notas' && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-warn/30 bg-warn/5 p-3">
+                <Label>Nota interna <span className="text-mute">(solo equipo)</span></Label>
+                <Textarea rows={3} aria-label="Nota interna" value={notaInterna} onChange={event => setNotaInterna(event.target.value)} placeholder="Raya lateral, trato especial, observaciones…" autoCapitalize="sentences" />
+              </div>
+              <div className="rounded-xl border border-ok/30 bg-ok/5 p-3">
+                <Label>Nota pública <span className="text-mute">(visible al cliente)</span></Label>
+                <Textarea rows={3} aria-label="Nota pública" value={notaPublica} onChange={event => setNotaPublica(event.target.value)} placeholder="Información que puede ir en comprobantes o mensajes" autoCapitalize="sentences" />
+              </div>
+              <div className="sm:col-span-2 flex justify-end">
+                <Button type="button" variant="outline" disabled={guardandoNotas} onClick={guardarNotas}>{guardandoNotas ? 'Guardando…' : 'Guardar notas'}</Button>
+              </div>
+            </div>
           )}
 
           {tab === 'notas' && (

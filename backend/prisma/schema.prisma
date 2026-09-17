@@ -542,6 +542,8 @@ model Customer {
   billingName     String?
   billingDocument String?
   notes       String?
+  // Nota que sí puede mostrarse al cliente (comprobantes, mensajes, QR).
+  publicNote  String?
   // Identificador del cliente en un sistema anterior (migración de datos):
   // permite importar fichas históricas sin duplicar personas.
   externalId  String?
