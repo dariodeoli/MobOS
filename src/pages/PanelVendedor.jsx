@@ -28,6 +28,7 @@ import Historial from '@/components/control/Historial'
 import Caja from '@/components/control/Caja'
 import PaymentAccounts from '@/components/control/PaymentAccounts'
 import Creditos from '@/components/control/Creditos'
+import Cobranzas from '@/components/control/Cobranzas'
 import RolesPermisos from '@/components/control/RolesPermisos'
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
@@ -615,6 +616,7 @@ export default function PanelVendedor() {
                         ['gastos', 'Gastos'],
                         ['bancos', 'Bancos y cuentas'],
                         ['creditos', 'Créditos'],
+                        ['cuotas', 'Cuotas'],
                       ]
                 }
               />
@@ -622,6 +624,7 @@ export default function PanelVendedor() {
               {finanzasTab === 'gastos' && <Gastos />}
               {finanzasTab === 'bancos' && <PaymentAccounts />}
               {finanzasTab === 'creditos' && <Creditos />}
+              {finanzasTab === 'cuotas' && <Cobranzas />}
               {esDemo && finanzasTab === 'publicidad' && <Ads />}
             </div>
           )}
