@@ -11,8 +11,34 @@ import { useSesion } from '@/lib/sesion'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import EmailField from '@/components/shared/EmailField'
+import Icon from '@/components/shared/Icon'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import CurrencySelect from '@/components/shared/CurrencySelect'
+import { cn } from '@/lib/utils'
+import { normalizarBusqueda } from '@/utils/cliente'
+
+// Tabla compacta: una fila por compra y el detalle de líneas se despliega en
+// la misma fila, donde viven los costos editables del borrador.
+const GRID_COMPRAS = 'grid min-w-[53.5rem] grid-cols-[minmax(8rem,1.4fr)_5rem_3rem_5rem_5rem_6.5rem_6.5rem_8.5rem] items-center gap-x-2'
+const CELDA = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
+const fechaCompra = (value) => {
+  const date = new Date(value)
+  if (!value || Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
+}
+// El vencimiento solo se pinta cuando apura: vencido o a 3 días. El resto es
+// una fecha más.
+const vencimientoCompra = (purchase) => {
+  if (!purchase.dueAt) return { texto: '—', urgente: false, titulo: undefined }
+  const vence = new Date(purchase.dueAt)
+  if (Number.isNaN(vence.getTime())) return { texto: '—', urgente: false, titulo: undefined }
+  const titulo = `Vence el ${vence.toLocaleDateString('es-PY')}`
+  const saldo = Number(purchase.outstandingPyg || 0)
+  if (purchase.status === 'RECEIVED' && saldo <= 0) return { texto: fechaCompra(purchase.dueAt), urgente: false, titulo }
+  const dias = Math.ceil((vence.getTime() - Date.now()) / 86400000)
+  if (dias < 0) return { texto: 'venció', urgente: true, titulo }
+  return { texto: fechaCompra(purchase.dueAt), urgente: dias <= 3, titulo }
+}
 
 const emptyLine = () => ({ productId: '', quantity: '1', unitCostPyg: '0', lotReference: '' })
 const totalOf = (lines, costs) => lines.reduce((total, line) => total + Number(line.quantity || 0) * Number(line.unitCostPyg || 0), 0) + Object.values(costs).reduce((total, value) => total + Number(value || 0), 0)
@@ -62,6 +88,8 @@ export default function Compras() {
   const [payment, setPayment] = useState({ accountId: '', currency: 'PYG', originalAmount: '', exchangeRatePyg: '1', reference: '', action: 'pay' })
   const [supplierBalance, setSupplierBalance] = useState(null)
   const [lineCostEdits, setLineCostEdits] = useState({})
+  const [expandida, setExpandida] = useState(null)
+  const [orden, setOrden] = useState({ key: 'fecha', dir: 'desc' })
   const [busy, setBusy] = useState(!demo); const [error, setError] = useState(''); const [message, setMessage] = useState('')
 
   const load = useCallback(async () => {
@@ -172,6 +200,30 @@ export default function Compras() {
     } catch (err) { setError(err?.message || 'No se pudieron guardar los costos.') } finally { setBusy(false) }
   }
 
+  const ordenarPor = (key) => setOrden(current => current.key === key
+    ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
+    : { key, dir: ['fecha', 'vence', 'costo', 'saldo'].includes(key) ? 'desc' : 'asc' })
+  const encabezado = (key, label, extra = '') => (
+    <button type="button" onClick={() => ordenarPor(key)} className={cn('flex items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore', orden.key === key ? 'text-fono-light' : 'text-mute', extra)}>
+      {label}<span className="shrink-0">{orden.key === key ? (orden.dir === 'asc' ? '↑' : '↓') : ''}</span>
+    </button>
+  )
+  const valorOrden = (purchase, key) => {
+    if (key === 'proveedor') return normalizarBusqueda(purchase.supplierName)
+    if (key === 'vence') return purchase.dueAt ? new Date(purchase.dueAt).getTime() : 0
+    if (key === 'costo') return Number(purchase.finalCostPyg || 0)
+    if (key === 'saldo') return Number(purchase.outstandingPyg || 0)
+    return new Date(purchase.createdAt || 0).getTime()
+  }
+  const ordenadas = useMemo(() => {
+    const factor = orden.dir === 'asc' ? 1 : -1
+    return [...purchases].sort((a, b) => {
+      const va = valorOrden(a, orden.key); const vb = valorOrden(b, orden.key)
+      if (typeof va === 'string' || typeof vb === 'string') return String(va).localeCompare(String(vb), 'es') * factor
+      return (va - vb) * factor
+    })
+  }, [purchases, orden])
+
   return <div className="space-y-4">
     <Card><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="mb-1 font-bold">Compras e importaciones</h2><p className="mb-4 text-sm text-mute">Anticipos, crédito y costos finales auditables por equipo o lote.</p></div><Button type="button" variant="outline" onClick={() => setSuppliersOpen(true)}>Proveedores</Button></div>
       <form onSubmit={create} className="space-y-3"><div className="grid gap-2 sm:grid-cols-2"><Select aria-label="Proveedor" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">Elegí un proveedor</option>{suppliers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="new">＋ Nuevo proveedor</option></Select><div><Select aria-label="Sucursal de recepción" value={branchId} onChange={(e) => { branchTouched.current = true; setBranchId(e.target.value) }}>{branchOptions.length === 0 ? <option value="">Sin sucursal definida</option> : <><option value="">Sin sucursal (general)</option>{branchOptions.map(branch => <option key={branch.id} value={branch.id}>{branch.nombre || branch.name}</option>)}</>}</Select><p className="mt-1 px-1 text-xs text-mute">Es tu sucursal donde entra el stock, no la del proveedor.</p></div></div>
@@ -183,7 +235,66 @@ export default function Compras() {
         <div className="flex items-center justify-between text-sm text-mute"><span>Total final estimado: <strong className="text-ink-800">{gs(estimatedTotal)}</strong></span><Button type="submit" disabled={busy}>Crear pedido</Button></div>
       </form>{error && <p className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}{message && <p className="mt-3 rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">{message}</p>}
     </Card>
-    <div className="space-y-3">{busy && purchases.length === 0 && <div className="space-y-2" aria-busy="true"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>}{!busy && purchases.length === 0 && <EmptyState icon="box" title="Sin compras registradas." description="Creá la primera orden de compra o importación." />}{purchases.map(purchase => <Card key={purchase.id}><div className="flex flex-wrap items-center gap-2"><b className="truncate text-sm">{purchase.supplierName}</b><Badge color={purchase.status === 'RECEIVED' ? 'green' : 'orange'}>{purchase.status === 'RECEIVED' ? 'Recibida' : 'Borrador'}</Badge><Badge color="slate">{purchase.lines?.length || 0} línea{(purchase.lines?.length || 0) === 1 ? '' : 's'}</Badge>{purchase.creditEnabled && <Badge color="orange">Crédito</Badge>}<span className="ml-auto text-[11px] text-mute">{new Date(purchase.createdAt).toLocaleDateString('es-PY')}</span></div>{purchase.status === 'DRAFT' && <div className="mt-3 space-y-1">{(purchase.lines || []).map(item => <div key={item.id} className="flex items-center gap-2"><span className="min-w-0 flex-1 text-sm">{item.productName || item.productId} × {item.quantity}{item.lotReference ? ` · ${item.lotReference}` : ''}</span><MoneyInput aria-label={`Costo unitario de ${item.productName || item.productId}`} value={lineCostValue(purchase, item)} onValueChange={(value) => setLineCost(purchase.id, item.id, value)} className="w-32" placeholder="Costo ₲" /></div>)}{costChanges(purchase).length > 0 && <div className="mt-2"><Button type="button" variant="outline" disabled={busy} onClick={() => saveCosts(purchase)}>Guardar costos</Button></div>}</div>}{purchase.status === 'RECEIVED' && <div className="mt-3 space-y-1 text-sm">{(purchase.lines || []).map(item => <div key={item.id} className="flex justify-between gap-3"><span>{item.productName || item.productId} × {item.quantity}{item.lotReference ? ` · ${item.lotReference}` : ''}</span><span>{gs(item.finalTotalCostPyg ?? Number(item.quantity) * Number(item.unitCostPyg))}</span></div>)}</div>}<div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-ink-700 pt-2 text-xs text-mute"><span>Costo final {gs(purchase.finalCostPyg ?? 0)}</span><span>Pagado {gs(purchase.paidPyg ?? 0)}</span><span className={(purchase.outstandingPyg ?? 0) > 0 ? 'text-warn' : 'text-ok'}>Saldo {gs(purchase.outstandingPyg ?? 0)}</span></div><div className="mt-3 flex flex-wrap gap-2">{purchase.status === 'DRAFT' && <Button variant="outline" disabled={busy} onClick={() => receive(purchase)}>Recibir y sumar stock</Button>}{!demo && Number(purchase.outstandingPyg || 0) > 0 && <Button disabled={busy || !accounts.length} onClick={() => openPayment(purchase)}>Registrar pago</Button>}</div></Card>)}</div>
+    <div className="space-y-3">
+      {busy && purchases.length === 0 && <div className="space-y-2" aria-busy="true"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>}
+      {!busy && purchases.length === 0 && <EmptyState icon="box" title="Sin compras registradas." description="Creá la primera orden de compra o importación." />}
+      {purchases.length > 0 && <div className="overflow-x-auto" data-testid="compras-tabla">
+        <div className={cn(GRID_COMPRAS, 'px-3.5 pb-2 pt-1')}>
+          {encabezado('proveedor', 'Proveedor')}
+          <span className={CELDA}>Estado</span>
+          <span className={CELDA}>Líneas</span>
+          {encabezado('fecha', 'Fecha')}
+          {encabezado('vence', 'Vence')}
+          {encabezado('costo', 'Costo final', 'justify-end')}
+          {encabezado('saldo', 'Saldo', 'justify-end')}
+          <span className={cn(CELDA, 'text-right')}>Acciones</span>
+        </div>
+        <div className="space-y-1">
+          {ordenadas.map(purchase => {
+            const abierta = expandida === purchase.id
+            const saldo = Number(purchase.outstandingPyg || 0)
+            const lineas = purchase.lines || []
+            const vencimiento = vencimientoCompra(purchase)
+            return <div key={purchase.id}>
+              <div
+                role="button"
+                tabIndex={0}
+                data-testid="compra-fila"
+                onClick={() => setExpandida(abierta ? null : purchase.id)}
+                onKeyDown={event => { if (event.key === 'Enter') setExpandida(abierta ? null : purchase.id) }}
+                className={cn(GRID_COMPRAS, 'cursor-pointer rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40', abierta && 'border-fono/40')}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <Icon name={abierta ? 'chevron' : 'chevron'} className={cn('h-3.5 w-3.5 shrink-0 text-mute transition', abierta ? 'rotate-180' : '-rotate-90')} />
+                  <b className="truncate text-sm" title={purchase.supplierName}>{purchase.supplierName}</b>
+                </span>
+                <Badge color={purchase.status === 'RECEIVED' ? 'green' : 'orange'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{purchase.status === 'RECEIVED' ? 'Recibida' : 'Borrador'}</Badge>
+                <span className="truncate text-xs tabular-nums text-mute">{lineas.length}</span>
+                <span className="truncate text-xs text-mute">{fechaCompra(purchase.createdAt)}</span>
+                <span className={cn('truncate text-xs', vencimiento.urgente ? 'font-semibold text-warn' : 'text-mute')} title={vencimiento.titulo}>{vencimiento.texto}</span>
+                <span className="truncate text-right text-sm font-semibold tabular-nums text-fore">{gs(purchase.finalCostPyg ?? 0)}</span>
+                <span className={cn('truncate text-right text-sm font-semibold tabular-nums', saldo > 0 ? 'text-warn' : 'text-ok')}>{gs(saldo)}</span>
+                <span className="flex flex-wrap items-center justify-end gap-1">
+                  {purchase.status === 'DRAFT' && <Button variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={event => { event.stopPropagation(); receive(purchase) }}>Recibir</Button>}
+                  {!demo && saldo > 0 && <Button className="h-8 px-2 text-xs" disabled={busy || !accounts.length} onClick={event => { event.stopPropagation(); openPayment(purchase) }}>Pagar</Button>}
+                </span>
+              </div>
+              {abierta && <div className="mt-1 space-y-2 rounded-xl border border-ink-600 bg-ink-800/60 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {purchase.creditEnabled && <Badge color="orange">Crédito</Badge>}
+                  {purchase.supplierReference && <span className="text-[11px] text-mute">Ref. {purchase.supplierReference}</span>}
+                  <span className="text-[11px] text-mute">Pagado {gs(purchase.paidPyg ?? 0)}</span>
+                </div>
+                {purchase.status === 'DRAFT'
+                  ? <div className="space-y-1">{lineas.map(item => <div key={item.id} className="flex items-center gap-2"><span className="min-w-0 flex-1 truncate text-sm">{item.productName || item.productId} × {item.quantity}{item.lotReference ? ` · ${item.lotReference}` : ''}</span><MoneyInput aria-label={`Costo unitario de ${item.productName || item.productId}`} value={lineCostValue(purchase, item)} onValueChange={(value) => setLineCost(purchase.id, item.id, value)} className="w-36 shrink-0" placeholder="Costo ₲" /></div>)}</div>
+                  : <div className="space-y-1 text-sm">{lineas.map(item => <div key={item.id} className="flex justify-between gap-3"><span className="min-w-0 truncate">{item.productName || item.productId} × {item.quantity}{item.lotReference ? ` · ${item.lotReference}` : ''}</span><span className="shrink-0 tabular-nums">{gs(item.finalTotalCostPyg ?? Number(item.quantity) * Number(item.unitCostPyg))}</span></div>)}</div>}
+                {costChanges(purchase).length > 0 && <Button type="button" variant="outline" disabled={busy} onClick={() => saveCosts(purchase)}>Guardar costos</Button>}
+              </div>}
+            </div>
+          })}
+        </div>
+      </div>}
+    </div>
     <Modal open={suppliersOpen} onClose={() => { setSuppliersOpen(false); setEditingSupplier(null); setSupplierForm(null) }} title="Proveedores">
       {editingSupplier && supplierForm && <form onSubmit={saveSupplier} className="mb-4 space-y-3 rounded-xl border border-ink-600 p-3"><p className="text-sm font-semibold">Editar proveedor</p><div className="grid gap-2 sm:grid-cols-2">{SUPPLIER_FIELDS.map(([key, label]) => key === 'city' ? <div key={key}><Label>{label}</Label><CityAutocomplete value={supplierForm[key]} onSelect={(city, department) => setSupplierForm(current => ({ ...current, city, department }))} /></div> : key === 'phone' ? <div key={key}><Label>{label}</Label><PhoneField disabled={busy} countryCode={supplierForm.countryCode || '+595'} phone={supplierForm.phone || ''} onCountryCodeChange={(countryCode) => setSupplierForm(current => ({ ...current, countryCode }))} onChange={(phone) => setSupplierForm(current => ({ ...current, phone }))} /></div> : key === 'email' ? <div key={key}><Label>{label}</Label><EmailField disabled={busy} value={supplierForm.email || ''} onChange={(email) => setSupplierForm(current => ({ ...current, email }))} /></div> : <div key={key}><Label>{label}</Label><Input required={key === 'name'} value={supplierForm[key]} onChange={(e) => setSupplierForm(current => ({ ...current, [key]: e.target.value }))} /></div>)}</div><div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>Guardar proveedor</Button><Button type="button" variant="ghost" onClick={() => { setEditingSupplier(null); setSupplierForm(null) }}>Cancelar</Button></div></form>}
       {suppliers.length === 0 ? <EmptyState compact icon="users" title="Sin proveedores registrados." /> : <div className="space-y-2">{suppliers.map(item => <div key={item.id} className="flex items-center justify-between gap-2 rounded-xl border border-ink-600 p-3"><div className="min-w-0"><p className="truncate text-sm font-semibold">{item.name}{item.code ? <span className="ml-2 rounded border border-ink-500 px-1.5 py-0.5 text-[10px] font-bold uppercase text-fono-light">{item.code}</span> : null}</p><p className="truncate text-xs text-mute">{[item.city, item.phone].filter(Boolean).join(' · ') || 'Sin datos de contacto'}</p></div><Button type="button" variant="outline" onClick={() => openSupplierEdit(item)}>Editar</Button></div>)}</div>}
