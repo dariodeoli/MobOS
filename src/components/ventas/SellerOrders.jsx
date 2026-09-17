@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
+import { codigoPedido } from '@/utils/pedido'
 import { normalizarBusqueda, nombreCortoCliente } from '@/utils/cliente'
 import { Input } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -141,7 +142,7 @@ function FilaPedido({ row, onClick }) {
       )}
     >
       <div className={GRID}>
-        <span className={cn('truncate font-mono text-xs font-bold text-fono-light', tachado)} title={row.number}>{row.number}</span>
+        <span className={cn('truncate font-mono text-xs font-bold text-fono-light', tachado)} title={row.number}>{codigoPedido(row.number)}</span>
         <span className={cn('truncate text-xs text-mute', tachado)}>{fechaCompacta(row.date)}</span>
         <span className={cn('truncate text-sm font-semibold', tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</span>
         <span className={cn('truncate text-xs text-mute', tachado)} title={articulos.completo || undefined}>

@@ -13,6 +13,7 @@ import SerialField from '@/components/shared/SerialField'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { trackingUrlFor } from '@/components/shared/OrderReceipt'
 import { internationalPhone } from '@/utils/telefono'
+import { codigoPedido } from '@/utils/pedido'
 import { printPaymentReceipt, printOrderReceipt } from '@/components/shared/OrderReceipt'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 
@@ -23,7 +24,7 @@ export function whatsappTrackingLink(order, extra = '') {
   const number = internationalPhone(order?.customer?.phone || order?.clienteTelefono, order?.customer?.countryCode)
   if (!number) return ''
   const name = order?.customer?.name || order?.cliente || ''
-  const message = `Hola${name ? ` ${name}` : ''}, podés seguir tu pedido ${order?.codigo || order?.orderNumber || ''} acá: ${tracking}${extra ? `\n${extra}` : ''}`
+  const message = `Hola${name ? ` ${name}` : ''}, podés seguir tu pedido ${codigoPedido(order?.codigo || order?.orderNumber)} acá: ${tracking}${extra ? `\n${extra}` : ''}`
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
 }
 

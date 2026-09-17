@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { formatGs } from '@/utils/moneda'
+import { codigoPedido } from '@/utils/pedido'
 import { whatsappUrl } from './customerMessaging'
 import Icon from '@/components/shared/Icon'
 import {
@@ -55,7 +56,20 @@ const TABS = [
   { key: 'garantias', label: 'Garantías' },
   { key: 'notas', label: 'Notas' },
   { key: 'seguimientos', label: 'Seguimientos' },
+  { key: 'cronologia', label: 'Cronología' },
 ]
+
+// Un icono y un tono por tipo de evento de la cronología del cliente.
+const EVENTOS = {
+  customer: { icon: 'user', tono: 'bg-fono/10 text-fono-light' },
+  order: { icon: 'receipt', tono: 'bg-ink-700 text-fore' },
+  payment: { icon: 'money', tono: 'bg-ok/10 text-ok' },
+  note: { icon: 'report', tono: 'bg-warn/10 text-warn' },
+  followUp: { icon: 'clock', tono: 'bg-ink-700 text-mute' },
+  warranty: { icon: 'package', tono: 'bg-fono/10 text-fono-light' },
+  audit: { icon: 'edit', tono: 'bg-ink-700 text-mute' },
+}
+const conCodigos = (texto) => String(texto || '').replace(/MOB-(\d+)/g, 'MOB #$1')
 
 export default function CustomerProfile({ customer, open, onClose }) {
   const toast = useToast()
@@ -72,6 +86,10 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [followDoneId, setFollowDoneId] = useState('')
   const [pendingDelete, setPendingDelete] = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [timeline, setTimeline] = useState([])
+  const [timelineLoading, setTimelineLoading] = useState(false)
+  const [timelineError, setTimelineError] = useState('')
+  const [timelineRevision, setTimelineRevision] = useState(0)
 
   useEffect(() => {
     if (!open || !customer?.id) return undefined
@@ -79,6 +97,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
     setLoading(true)
     setError('')
     setTab('compras')
+    setTimeline([])
+    setTimelineError('')
     setProfile(null)
     setNewNote('')
     setEditingNote(null)
@@ -92,6 +112,22 @@ export default function CustomerProfile({ customer, open, onClose }) {
       })
     return () => { active = false }
   }, [open, customer?.id, revision])
+
+  // Cronología del cliente: se pide al abrir su pestaña y al reintentar.
+  useEffect(() => {
+    if (!open || !customer?.id || tab !== 'cronologia') return undefined
+    let active = true
+    setTimelineLoading(true)
+    setTimelineError('')
+    api
+      .get(`/api/customers/${customer.id}/timeline`)
+      .then((data) => { if (active) { setTimeline(Array.isArray(data?.events) ? data.events : []); setTimelineLoading(false) } })
+      .catch((cause) => {
+        if (active) setTimelineError(cause?.message || 'No se pudo cargar la cronología.')
+        if (active) setTimelineLoading(false)
+      })
+    return () => { active = false }
+  }, [open, customer?.id, tab, timelineRevision])
 
   const refresh = () => setRevision((value) => value + 1)
   const phone = profile?.customer?.phone || customer?.phone || ''
@@ -223,6 +259,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 {phone && <span>{phone}</span>}
                 {profile.customer?.email && <span className="truncate">{profile.customer.email}</span>}
               </p>
+              <p className="mt-1 text-xs text-mute">
+                Cliente desde {fecha(profile.customer?.createdAt)} · Creado por {profile.customer?.createdBy?.name || 'Sistema'}
+              </p>
               {(profile.customer?.billingName || profile.customer?.billingDocument) && (
                 <p className="mt-1 text-xs text-mute">
                   Factura a: <b className="text-fore">{profile.customer.billingName || 'Sin razón social'}</b>
@@ -282,7 +321,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 onClick={() => setTab(item.key)}
                 className={`shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition ${tab === item.key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:bg-ink-700 hover:text-fore'}`}
               >
-                {item.label} ({tabCounts[item.key]})
+                {item.label}
+                {tabCounts[item.key] !== undefined && ` (${tabCounts[item.key]})`}
               </button>
             ))}
           </div>
@@ -295,7 +335,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 <DataTable
                   columns={[
                     { key: 'createdAt', label: 'Fecha', render: (row) => <span className="text-mute">{fecha(row.createdAt)}</span> },
-                    { key: 'orderNumber', label: 'N.º', render: (row) => <span className="font-medium">{row.orderNumber || '—'}</span> },
+                    { key: 'orderNumber', label: 'N.º', render: (row) => <span className="font-medium">{codigoPedido(row.orderNumber) || '—'}</span> },
                     { key: 'status', label: 'Estado', render: (row) => <div className="flex flex-col gap-1">{STATUS_BADGE(ORDER_STATUS, row.status)}{FULFILLMENT_STATUS[row.fulfillmentStatus] && <span className="text-[11px] text-mute">{FULFILLMENT_STATUS[row.fulfillmentStatus].label}</span>}</div> },
                     { key: 'totalPyg', label: 'Total', align: 'right', render: (row) => formatGs(row.totalPyg) },
                     { key: 'paidPyg', label: 'Pagado', align: 'right', render: (row) => <span className="text-ok">{formatGs(row.paidPyg)}</span> },
@@ -305,7 +345,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                   mobileCard={(row) => (
                     <div className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
                       <div className="flex items-center justify-between gap-2">
-                        <b>{row.orderNumber || '—'}</b>
+                        <b>{codigoPedido(row.orderNumber) || '—'}</b>
                         {STATUS_BADGE(ORDER_STATUS, row.status)}
                       </div>
                       <p className="mt-1 text-xs text-mute">{fecha(row.createdAt)}{row.branchName ? ` · ${row.branchName}` : ''}</p>
@@ -335,7 +375,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                         <div className="min-w-0">
                           <p className="truncate font-medium">{device.model || 'Equipo'}</p>
                           <p className="mt-0.5 font-mono text-xs text-mute">IMEI {device.serial}</p>
-                          <p className="mt-0.5 text-xs text-mute">Comprado {fecha(device.date)}{device.orderNumber ? ` · ${device.orderNumber}` : ''}</p>
+                          <p className="mt-0.5 text-xs text-mute">Comprado {fecha(device.date)}{device.orderNumber ? ` · ${codigoPedido(device.orderNumber)}` : ''}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
                           {vence ? <Badge color={dias === 0 ? 'red' : dias <= 15 ? 'orange' : 'green'}>{dias === 0 ? 'Garantía vencida' : `${dias} días de garantía`}</Badge> : <Badge color="slate">Sin garantía cargada</Badge>}
@@ -442,6 +482,56 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     )
                   })}
                 </ul>
+              )}
+            </div>
+          )}
+
+          {tab === 'cronologia' && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-mute">Alta, pedidos, pagos confirmados, notas, seguimientos, garantías y auditoría.</p>
+                <button type="button" disabled={timelineLoading} onClick={() => setTimelineRevision((value) => value + 1)} className="rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-40">Actualizar</button>
+              </div>
+              {timelineLoading && (
+                <div className="space-y-2" aria-busy="true">
+                  <Skeleton className="h-16" />
+                  <Skeleton className="h-16" />
+                  <Skeleton className="h-16" />
+                </div>
+              )}
+              {!timelineLoading && timelineError && (
+                <EmptyState
+                  compact
+                  icon="alert"
+                  title="No se pudo cargar la cronología"
+                  description={timelineError}
+                  action={<Button onClick={() => setTimelineRevision((value) => value + 1)}>Reintentar</Button>}
+                />
+              )}
+              {!timelineLoading && !timelineError && !timeline.length && (
+                <EmptyState compact icon="clock" title="Sin actividad" description="Los movimientos de este cliente aparecerán acá." />
+              )}
+              {!timelineLoading && !timelineError && timeline.length > 0 && (
+                <ol className="space-y-2">
+                  {timeline.map((event) => {
+                    const estilo = EVENTOS[event.type] || { icon: 'clock', tono: 'bg-ink-700 text-mute' }
+                    return (
+                      <li key={event.id} className="flex gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
+                        <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg ${estilo.tono}`}>
+                          <Icon name={estilo.icon} className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                            <p className="text-sm font-semibold">{event.action}</p>
+                            <p className="text-[11px] text-mute">{fechaHora(event.createdAt)}</p>
+                          </div>
+                          {event.detail && <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-mute">{conCodigos(event.detail)}</p>}
+                          <p className="mt-1 text-[11px] text-mute">{event.user?.name || 'Sistema'}</p>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ol>
               )}
             </div>
           )}

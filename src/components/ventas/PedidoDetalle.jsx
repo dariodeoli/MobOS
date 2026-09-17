@@ -6,6 +6,7 @@ import { api, API_URL } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
 import { accessUrlFor, printOrderReceipt } from '@/components/shared/OrderReceipt'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
+import { codigoPedido } from '@/utils/pedido'
 
 const FULFILLMENT = FULFILLMENT_LABELS
 const PAYMENT_TONE = (status) => status === 'Pagado' ? 'green' : status === 'Parcial' ? 'orange' : 'red'
@@ -165,7 +166,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   }
 
   return (
-    <Drawer open onClose={onClose} title={order.orderNumber || order.number || 'Pedido'} className="w-full sm:max-w-2xl">
+    <Drawer open onClose={onClose} title={codigoPedido(order.orderNumber || order.number) || 'Pedido'} className="w-full sm:max-w-2xl">
       {loading && <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-24 w-full" /></div>}
       {error && <p role="alert" className="mb-4 rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
       {!loading && (

@@ -6,11 +6,24 @@ import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 
 // Tabla de clientes alineada: una fila por persona, encabezados ordenables y
-// acciones compactas (perfil al hacer clic, WhatsApp con plantilla).
-const GRID = 'grid min-w-[72rem] grid-cols-[minmax(0,1.25fr)_7rem_8.5rem_minmax(0,1.1fr)_8.5rem_minmax(0,0.85fr)_4.5rem_8.5rem_3rem_6rem] items-center gap-x-3'
+// acciones compactas (perfil al hacer clic, WhatsApp con plantilla). Entra sin
+// scroll horizontal en desktop: todo trunca y el espacio se reparte con
+// prioridad Cliente → Total gastado → Teléfono → Tipo → resto.
+const GRID = 'grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1fr)_2.5rem_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.45fr)_minmax(0,1.15fr)_2.5rem_minmax(0,0.7fr)] items-center gap-x-2'
 const ULTIMA_PLANTILLA = 'mobos:clientes:plantilla-wa'
 
 const ciudadDe = (row) => row.addresses?.find(address => address.city)?.city || ''
+// Teléfono visible: código de país + número local, agrupado 3-3-3 cuando tiene
+// 9 dígitos (formato Paraguay). No se usa para wa.me (ahí va internationalPhone).
+export const telefonoVisible = (phone, countryCode = '+595') => {
+  const code = String(countryCode || '+595').replace(/\D/g, '') || '595'
+  let digits = String(phone || '').replace(/\D/g, '')
+  if (digits.startsWith(code)) digits = digits.slice(code.length)
+  if (digits.startsWith('0')) digits = digits.slice(1)
+  if (!digits) return ''
+  const local = digits.length === 9 ? `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}` : digits
+  return `+${code} ${local}`
+}
 export const notaInterna = (notes) => {
   if (typeof notes !== 'string' || !notes.trim()) return ''
   if (readCustomerMetadata(notes).phones.length) return ''
@@ -59,14 +72,14 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
   })
 
   return (
-    <div className="overflow-x-auto">
+    <div>
       <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
         {encabezado('cliente', 'Cliente')}
         {encabezado('tipo', 'Tipo')}
-        <span className="text-[10px] font-bold uppercase tracking-wider text-mute">Teléfono</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-mute">Email</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-mute">RUC</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-mute">Ciudad</span>
+        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Teléfono</span>
+        <span className="text-center text-[10px] font-bold uppercase tracking-wider text-mute">Email</span>
+        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">RUC</span>
+        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Ciudad</span>
         {encabezado('pedidos', 'Pedidos', 'justify-center')}
         {encabezado('total', 'Total gastado', 'justify-end')}
         <span className="text-center text-[10px] font-bold uppercase tracking-wider text-mute">Nota</span>
@@ -76,6 +89,7 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
         {filas.map(row => {
           const nota = notaInterna(row.notes)
           const telefono = row.phones?.[0] || row.phone || ''
+          const telefonoMostrado = telefonoVisible(telefono, row.countryCode)
           const mensaje = plantilla ? renderMessage(plantilla, row) : ''
           return (
             <div
@@ -88,17 +102,23 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
               className={cn(GRID, 'cursor-pointer rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-2.5 transition hover:border-fono/40 hover:bg-ink-700/50')}
             >
               <span className="truncate text-sm font-semibold" title={row.name}>{row.name || 'Sin nombre'}</span>
-              <span className={cn('inline-block w-fit truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
+              <span className={cn('inline-block w-fit max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
                 {row.wholesale ? 'Mayorista' : 'Cliente final'}
               </span>
-              <span className="truncate text-xs text-mute tabular-nums">{telefono || '—'}</span>
-              <span className="truncate text-xs text-mute" title={row.email || undefined}>{row.email || '—'}</span>
+              <span className="truncate text-xs text-mute tabular-nums" title={telefono || undefined}>{telefonoMostrado || '—'}</span>
+              <span className="flex justify-center">
+                {row.email
+                  ? <Icon name="check" role="img" title="Con correo" aria-label="Con correo" aria-hidden={false} className="h-4 w-4 text-ok" />
+                  : <Icon name="close" role="img" title="Sin correo" aria-label="Sin correo" aria-hidden={false} className="h-3.5 w-3.5 text-mute" />}
+              </span>
               <span className="truncate text-xs text-mute tabular-nums">{row.document || '—'}</span>
               <span className="truncate text-xs text-mute">{ciudadDe(row) || '—'}</span>
-              <span className="text-center text-xs font-semibold tabular-nums">{row.stats?.orders || 0}</span>
+              <span className="truncate text-center text-xs font-semibold tabular-nums">{row.stats?.orders || 0}</span>
               <span className="truncate text-right text-sm font-bold tabular-nums text-fore">{gs(row.stats?.totalSpentPyg || 0)}</span>
               <span className="flex justify-center">
-                {nota ? <span title={nota} aria-label={`Nota interna: ${nota}`} className="cursor-help text-sm">📝</span> : <span className="text-xs text-mute">—</span>}
+                {nota
+                  ? <Icon name="report" role="img" title={nota} aria-label={`Nota interna: ${nota}`} aria-hidden={false} className="h-4 w-4 cursor-help text-fono-light" />
+                  : <span className="text-xs text-mute">—</span>}
               </span>
               <span className="flex items-center justify-end gap-1" ref={abierto === row.id ? popover : null}>
                 {telefono ? (

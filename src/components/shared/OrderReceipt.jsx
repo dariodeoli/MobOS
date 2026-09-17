@@ -3,6 +3,7 @@ import { printHtml } from '@/utils/printHtml'
 import { APP_NAME } from '@/lib/brand'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { ahorroDeLinea } from '@/utils/precioLista'
+import { codigoPedido } from '@/utils/pedido'
 import QRCode from 'qrcode'
 
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]))
@@ -70,8 +71,8 @@ export async function printOrderReceipt(order, { format = 'a4' } = {}) {
     return `<tr><td>${escapeHtml(item.description || item.nombre || 'Producto')}${ahorro > 0 ? `<br><span class="muted">descuento − ${escapeHtml(gs(ahorro))}</span>` : ''}</td><td class="num">${escapeHtml(item.quantity || 1)} × ${escapeHtml(gs(item.unitPricePyg ?? item.precio ?? 0))}</td><td class="num">${escapeHtml(gs(item.totalPyg ?? (item.quantity || 1) * (item.unitPricePyg ?? item.precio ?? 0)))}</td></tr>`
   }).join('')
   const paymentsRows = payments.length ? `<div class="card"><div class="label">Pagos</div><table class="totals">${payments.map(payment => `<tr><td>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${payment.reference || payment.cuenta ? ` · ${escapeHtml(payment.reference || payment.cuenta)}` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>` : ''
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(thermal)}</style></head><body>
-    ${header('Comprobante de compra', `${order.orderNumber || order.codigo || 'Pedido'} · ${when ? new Date(when).toLocaleString('es-PY') : ''}`)}
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(codigoPedido(order.orderNumber || order.codigo))}</title><style>${styles(thermal)}</style></head><body>
+    ${header('Comprobante de compra', `${codigoPedido(order.orderNumber || order.codigo) || 'Pedido'} · ${when ? new Date(when).toLocaleString('es-PY') : ''}`)}
     <div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(order.customer?.name || order.cliente || 'Consumidor final')}</strong>${order.customer?.phone ? ` · ${escapeHtml(order.customer.phone)}` : ''}</div></div>
     ${documento}
     <table><thead><tr><th>Producto</th><th class="num">Precio</th><th class="num">Total</th></tr></thead><tbody>${itemsRows}</tbody></table>
@@ -99,7 +100,7 @@ export async function printPaymentReceipt(payment, order, { format = 'a4' } = {}
   const referencia = payment.cuenta || payment.reference || payment.accountSnapshot?.name || ''
   const fecha = payment.fecha || payment.paidAt || payment.createdAt || new Date().toISOString()
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo de pago</title><style>${styles(thermal)}</style></head><body>
-    ${header('Recibo de pago', `${order?.orderNumber || order?.codigo || 'Pedido'} · ${new Date(fecha).toLocaleString('es-PY')}`)}
+    ${header('Recibo de pago', `${codigoPedido(order?.orderNumber || order?.codigo) || 'Pedido'} · ${new Date(fecha).toLocaleString('es-PY')}`)}
     <div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(order?.customer?.name || order?.cliente || 'Consumidor final')}</strong></div></div>
     <table class="totals">
       <tr><td>Método</td><td class="num">${escapeHtml(metodo)}</td></tr>

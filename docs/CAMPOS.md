@@ -52,6 +52,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 11. **Adjuntos**: JPG/PNG/WebP/PDF, ≤5 MiB, verificados por *magic bytes* en backend; subida multipart.
 12. **RUC/CI**: patrón `\d[\d.\s]{2,}-\d+`; el botón "Consultar RUC" aplica la razón social solo si se confirma.
 13. **Búsquedas**: texto libre por `q`; en escaneos, normalizar a mayúsculas sin separadores (`normalizeScan`).
+14. **Interfaz**: nunca emojis; indicadores con `Icon`.
 
 ## 4. Utilidades y validaciones
 

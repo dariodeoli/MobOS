@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   if (!tenant || !session) return error('Falta sesión.', 401)
   try {
     const body = await request.json() as Record<string, unknown>
-    if (Array.isArray(body.rows)) return importarClientes(tenant, body.rows)
+    if (Array.isArray(body.rows)) return importarClientes(tenant, body.rows, session.user.id)
     const name = clean(body.name, 200)
     if (!name) return error('El nombre es obligatorio.')
     const document = clean(body.document, 100) || null
@@ -97,14 +97,14 @@ export async function POST(request: Request) {
       : phone ? await prisma.customer.findFirst({ where: { tenantId: tenant, phone } }) : fields.externalId ? await prisma.customer.findFirst({ where: { tenantId: tenant, externalId: fields.externalId } }) : null
     const data = existing
       ? await prisma.customer.update({ where: { id: existing.id }, data: { ...fields, ...(addresses === undefined ? {} : { addresses: { deleteMany: {}, create: addresses } }) }, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
-      : await prisma.customer.create({ data: { tenantId: tenant, ...fields, ...(addresses ? { addresses: { create: addresses } } : {}) }, include: { addresses: true } })
+      : await prisma.customer.create({ data: { tenantId: tenant, createdById: session.user.id, ...fields, ...(addresses ? { addresses: { create: addresses } } : {}) }, include: { addresses: true } })
     return json(data, { status: existing ? 200 : 201 })
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo guardar el cliente.') }
 }
 
 // Importa fichas en lote (export de otro sistema). Deduplica por documento,
 // teléfono o id externo; nunca pisa fichas existentes. Devuelve el conteo.
-async function importarClientes(tenant: string, rows: unknown) {
+async function importarClientes(tenant: string, rows: unknown, userId: string) {
   const entrada = Array.isArray(rows) ? rows.slice(0, 500) : []
   if (entrada.length === 0) return error('Enviá al menos una fila para importar.', 400)
   const normalizadas = entrada.map((row, indice) => {
@@ -151,7 +151,7 @@ async function importarClientes(tenant: string, rows: unknown) {
     try {
       await prisma.customer.create({
         data: {
-          tenantId: tenant, name: fila.name, phone: fila.phone, countryCode: fila.countryCode, document: fila.document,
+          tenantId: tenant, createdById: userId, name: fila.name, phone: fila.phone, countryCode: fila.countryCode, document: fila.document,
           externalId: fila.externalId, email: fila.email, tags: fila.tags,
           acceptsEmailMarketing: fila.acceptsEmailMarketing, acceptsSmsMarketing: fila.acceptsSmsMarketing,
           acceptsWhatsappMarketing: fila.acceptsWhatsappMarketing, taxExempt: fila.taxExempt,

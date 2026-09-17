@@ -1,6 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { esColisionDeNumero, nextOrderNumber } from '../../../../../lib/order-number'
 
 // Convierte la cotización en un pedido pendiente (sin movimientos de stock:
 // el stock y los IMEI se confirman al cobrar/entregar en el POS).
@@ -18,13 +19,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (!items.length) return error('La cotización no tiene ítems.', 409)
   const total = Math.max(0, quote.totalPyg)
   try {
-    const order = await prisma.$transaction(async tx => {
+    const convertir = () => prisma.$transaction(async tx => {
       const created = await tx.order.create({ data: {
         tenantId: tenant,
         branchId: quote.branchId,
         customerId: quote.customerId,
         sellerId: session.user.id,
-        orderNumber: `MOB-${Date.now()}${Math.random().toString(36).slice(2, 6).padEnd(4, '0')}`,
+        orderNumber: await nextOrderNumber(tx, tenant),
         subtotalPyg: quote.subtotalPyg,
         discountPyg: quote.discountPyg,
         totalPyg: total,
@@ -42,6 +43,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'QUOTE_CONVERTED', entity: 'Quote', entityId: quote.id, metadata: { orderId: created.id, orderNumber: created.orderNumber } } })
       return created
     })
+    let order
+    try {
+      order = await convertir()
+    } catch (cause) {
+      // Numeración secuencial por empresa: si otra venta tomó el número, se
+      // reintenta una vez con el siguiente.
+      if (!esColisionDeNumero(cause)) throw cause
+      order = await convertir()
+    }
     return json(order, { status: 201 })
   } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo convertir la cotización.', 409) }
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Badge, Button, Card, Input, MoneyInput, Select, Textarea } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import { gs } from '@/utils/calculos'
+import { codigoPedido } from '@/utils/pedido'
 import {
   TRADE_IN_STATUSES, TRADE_IN_DESTINATIONS, TRADE_IN_TRANSITIONS,
   loadDemoTradeIns, updateDemoTradeIn, tradeInsApi, tradeInValuePyg, normalizeTradeInHistory,
@@ -71,16 +72,16 @@ function Device({ item, busy, onSave }) {
     </section>}
     <details className="text-sm"><summary className="cursor-pointer font-medium">Referencias e historial</summary>
       <dl className="mt-3 grid gap-2 sm:grid-cols-2">
-        <div><dt className="text-mute">Venta de origen</dt><dd><a className="break-all text-fono-light underline" href={`#${orderAnchor(sourceOrder)}`}>{sourceOrder.orderNumber || sourceOrder.id}</a></dd></div>
+        <div><dt className="text-mute">Venta de origen</dt><dd><a className="break-all text-fono-light underline" href={`#${orderAnchor(sourceOrder)}`}>{codigoPedido(sourceOrder.orderNumber) || sourceOrder.id}</a></dd></div>
         <div><dt className="text-mute">Pago</dt><dd><Reference value={item.paymentId} /></dd></div>
         <div><dt className="text-mute">Cliente</dt><dd><Reference value={item.customerName || item.order?.customer?.name || item.customerId} /></dd></div>
         <div><dt className="text-mute">Vendedor</dt><dd><Reference value={item.sellerName || item.order?.seller?.name || item.sellerId} /></dd></div>
         <div><dt className="text-mute">Producto</dt><dd><Reference value={item.productId} /></dd></div>
       </dl>
       <div className="mt-3 space-y-2">
-        {resaleOrders.length > 0 && <p>Ventas POS del equipo: {resaleOrders.map((order) => <a key={order.id} href={`#${orderAnchor(order)}`} className="mr-3 break-all text-fono-light underline">{order.orderNumber || order.id}</a>)}</p>}
+        {resaleOrders.length > 0 && <p>Ventas POS del equipo: {resaleOrders.map((order) => <a key={order.id} href={`#${orderAnchor(order)}`} className="mr-3 break-all text-fono-light underline">{codigoPedido(order.orderNumber) || order.id}</a>)}</p>}
         {[sourceOrder, ...resaleOrders.filter((order) => order.id !== sourceOrder.id)].map((order) => <div id={orderAnchor(order)} key={order.id} className="scroll-mt-4 rounded-lg border border-ink-600 p-3">
-          <p className="break-all">Pedido {order.orderNumber || order.id}</p>
+          <p className="break-all">Pedido {codigoPedido(order.orderNumber) || order.id}</p>
           <p className="text-mute">Cliente: {order.customer?.name || order.customerName || order.customerId || '—'} · Vendedor: {order.seller?.name || order.sellerName || order.sellerId || '—'}</p>
           {order.status && <p className="text-mute">Estado del pedido: {order.status}</p>}
         </div>)}

@@ -3,6 +3,7 @@ import { api } from '@/lib/api/client'
 import { Badge, EmptyState, Input, Modal, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { gs } from '@/utils/calculos'
+import { codigoPedido } from '@/utils/pedido'
 
 const MAX_POR_GRUPO = 5
 const MIN_CARACTERES = 2
@@ -29,7 +30,7 @@ const proyectarProducto = row => ({
 
 const proyectarPedido = row => ({
   id: row.id,
-  titulo: row.orderNumber || row.codigo || `Pedido ${row.id}`,
+  titulo: codigoPedido(row.orderNumber || row.codigo) || `Pedido ${row.id}`,
   subtitulo: row.customer?.name || row.cliente || 'Consumidor final',
 })
 

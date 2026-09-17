@@ -16,7 +16,10 @@ export async function GET(request: Request, { params }: RouteContext) {
 
   const customer = await prisma.customer.findFirst({
     where: { id, tenantId: session.user.tenantId },
-    include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } },
+    include: {
+      addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] },
+      createdBy: { select: { id: true, name: true } },
+    },
   })
   if (!customer) return error('Cliente no encontrado.', 404)
 

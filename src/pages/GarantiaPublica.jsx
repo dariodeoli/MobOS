@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { internationalPhone } from '@/utils/telefono'
+import { codigoPedido } from '@/utils/pedido'
+import Icon from '@/components/shared/Icon'
 import { useParams } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
 
@@ -32,7 +34,7 @@ export default function GarantiaPublica() {
         <header className="mb-8 text-center">
           <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Garantía oficial</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">{warranty?.productName || 'Tu equipo'}</h1>
-          {warranty?.orderNumber && <p className="mt-1 text-sm text-mute">Compra {warranty.orderNumber}</p>}
+          {warranty?.orderNumber && <p className="mt-1 text-sm text-mute">Compra {codigoPedido(warranty.orderNumber)}</p>}
         </header>
         {error && <p className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-center text-sm text-bad">{error}</p>}
         {warranty && (
@@ -63,7 +65,7 @@ export default function GarantiaPublica() {
               <h2 className="font-semibold text-ok">Qué cubre</h2>
               <ul className="mt-3 space-y-2 text-sm">
                 {(bulletList(warranty.coverage).length ? bulletList(warranty.coverage) : ['Defectos de fábrica del equipo cubiertos por la garantía.']).map((item, index) => (
-                  <li key={index} className="flex gap-2"><span className="text-ok">✓</span><span>{item}</span></li>
+                  <li key={index} className="flex gap-2"><Icon name="check" className="mt-0.5 h-4 w-4 text-ok" /><span>{item}</span></li>
                 ))}
               </ul>
             </section>
@@ -71,7 +73,7 @@ export default function GarantiaPublica() {
               <h2 className="font-semibold text-bad">Qué no cubre</h2>
               <ul className="mt-3 space-y-2 text-sm">
                 {(bulletList(warranty.exclusions).length ? bulletList(warranty.exclusions) : ['Daños físicos, agua, reparaciones de terceros y desgaste normal por uso.']).map((item, index) => (
-                  <li key={index} className="flex gap-2"><span className="text-bad">✗</span><span>{item}</span></li>
+                  <li key={index} className="flex gap-2"><Icon name="close" className="mt-0.5 h-4 w-4 text-bad" /><span>{item}</span></li>
                 ))}
               </ul>
             </section>

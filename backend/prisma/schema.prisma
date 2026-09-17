@@ -239,6 +239,7 @@ model User {
   createdTransfers StockTransfer[]
   customerNotes    CustomerNote[]
   customerFollowUps CustomerFollowUp[]
+  customersCreated Customer[]      @relation("CustomerCreatedBy")
   commissionRules  CommissionRule[]
   invitationsSent UserInvitation[] @relation("InvitationInviter")
 
@@ -541,6 +542,8 @@ model Customer {
   // Identificador del cliente en un sistema anterior (migración de datos):
   // permite importar fichas históricas sin duplicar personas.
   externalId  String?
+  // Usuario que dio de alta la ficha (null = importada o creada por sistema).
+  createdById String?
   // Precio minorista o mayorista; el mayorista usa wholesalePricePyg del producto.
   pricingTier CustomerPricing @default(RETAIL)
   // Límite de crédito en guaraníes (null = sin venta a crédito).
@@ -561,6 +564,7 @@ model Customer {
   addresses     CustomerAddress[]
   customerNotes CustomerNote[]
   followUps     CustomerFollowUp[]
+  createdBy     User?             @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([tenantId, phone])

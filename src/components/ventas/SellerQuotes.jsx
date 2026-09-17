@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
+import { codigoPedido } from '@/utils/pedido'
 import { Badge, Button, Input, Label, Modal, MoneyInput, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ProductCombobox from '@/components/shared/ProductCombobox'
@@ -54,7 +55,7 @@ export default function SellerQuotes() {
       setForm({ customerName: '', validUntil: '', notes: '', discountPyg: '' }); setItems([emptyItem()]); setCrearOpen(false)
     }, 'Cotización creada. Podés enviarla y convertirla en pedido cuando el cliente acepte.')
   }
-  const convertir = row => accion(async () => { const order = await resources.quotes.convert(row.id); setNotice(`Cotización ${row.number} convertida en el pedido ${order.orderNumber} (queda pendiente de cobro en Pedidos).`) }, 'Conversión completada.')
+  const convertir = row => accion(async () => { const order = await resources.quotes.convert(row.id); setNotice(`Cotización ${row.number} convertida en el pedido ${codigoPedido(order.orderNumber)} (queda pendiente de cobro en Pedidos).`) }, 'Conversión completada.')
 
   return <SellerSection title="Cotizaciones" description="Pipeline de ventas: cotizá, seguí el vencimiento y convertí en pedido cuando el cliente acepte.">
     <div className="flex flex-wrap items-center gap-2">
@@ -83,7 +84,7 @@ export default function SellerQuotes() {
             {row.status === 'ACCEPTED' && <Button type="button" className="h-8 px-2 text-xs" disabled={busy} onClick={() => convertir(row)}>Convertir en pedido</Button>}
             <button type="button" disabled={busy} className="h-8 rounded-lg border border-bad/30 px-2 text-xs font-semibold text-bad transition hover:bg-bad/10" onClick={() => accion(() => resources.quotes.update({ id: row.id, status: 'CANCELLED' }), 'Cotización cancelada.')}>Cancelar</button>
           </>}
-          {row.order && <span className="text-[11px] text-mute">Pedido {row.order.orderNumber}</span>}
+          {row.order && <span className="text-[11px] text-mute">Pedido {codigoPedido(row.order.orderNumber)}</span>}
         </span>
       </article>
     })}</div>}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
+import { codigoPedido } from '@/utils/pedido'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 const ORDER_STATUS = { PENDING: 'Pendiente de pago', COMPLETED: 'Pagado', CANCELLED: 'Cancelado' }
@@ -29,7 +30,7 @@ export default function PedidoPublico() {
       <div className="mx-auto max-w-xl">
         <header className="mb-8 text-center">
           <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Seguimiento de pedido</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">{order?.orderNumber || 'Pedido'}</h1>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight">{codigoPedido(order?.orderNumber) || 'Pedido'}</h1>
           {order?.customerName && <p className="mt-1 text-sm text-mute">Hola, {order.customerName}</p>}
           {order?.level && <p className="mt-2 text-[11px] uppercase tracking-wider text-mute">{LEVELS[order.level] || order.level}</p>}
         </header>

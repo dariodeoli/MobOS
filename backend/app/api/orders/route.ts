@@ -11,6 +11,7 @@ import { serialKey } from '../../../lib/validation'
 import { lineDiscount as lineDiscountFor, warrantyDaysFor } from '../../../lib/pricing'
 import { changeStock } from '../../../lib/stock'
 import { syncOrderItemSerials } from '../../../lib/order-serials'
+import { esColisionDeNumero, nextOrderNumber } from '../../../lib/order-number'
 
 // Detalle devuelto tanto al crear como al reutilizar una orden idempotente.
 const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
@@ -284,7 +285,28 @@ export async function POST(request: Request) {
         const pendingTotal = Number(outstanding[0]?.total || 0n)
         if (!Number.isSafeInteger(pendingTotal) || pendingTotal + (total - confirmed) > creditLimit) throw new InputError('Supera el límite de crédito del cliente.', 409)
       }
-      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber: typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : await nextOrderNumber(tx, tenant), idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      // Número correlativo por empresa (MOB-0001…). Si la unique
+      // (tenantId, orderNumber) choca, se reintenta una vez con el siguiente:
+      // el savepoint recupera la transacción del error P2002.
+      const numeroExplicito = typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : null
+      const orderData: Prisma.OrderUncheckedCreateInput = {
+        tenantId: tenant, branchId, customerId, sellerId: session.user.id,
+        orderNumber: numeroExplicito || await nextOrderNumber(tx, tenant),
+        idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number,
+        deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000),
+        ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }),
+        ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}),
+        totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized },
+      }
+      await tx.$executeRawUnsafe('SAVEPOINT mobos_order_number')
+      let order
+      try {
+        order = await tx.order.create({ data: orderData })
+      } catch (cause) {
+        if (numeroExplicito || !esColisionDeNumero(cause)) throw cause
+        await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT mobos_order_number')
+        order = await tx.order.create({ data: { ...orderData, orderNumber: await nextOrderNumber(tx, tenant) } })
+      }
       if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
       if (soldUnits.length) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNITS_SOLD', entity: 'Order', entityId: order.id, metadata: { serials: soldUnits.map(unit => unit.serial), productIds: [...new Set(soldUnits.map(unit => unit.productId))] } } })
       for (const { tradeIn, ...paymentData } of normalizedPayments) {

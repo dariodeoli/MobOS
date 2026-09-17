@@ -8,6 +8,7 @@
 
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
+import { codigoPedido } from '../src/utils/pedido.js'
 
 const customerName = `${SEED.checkoutCustomer} ${Date.now().toString(36)}`
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
@@ -123,10 +124,12 @@ test('pedidos: buscador global, orden por columna y filtros', async ({ page }) =
   }, API)
   const primera = ordenes[0]
   expect(primera?.orderNumber).toBeTruthy()
+  // El listado muestra el código interno como "MOB #0001".
+  const codigoVisible = codigoPedido(primera.orderNumber)
 
   const buscador = page.getByLabel('Buscar pedidos')
   await buscador.fill(String(primera.totalPyg))
-  await expect(filas.filter({ hasText: primera.orderNumber }).first()).toBeVisible()
+  await expect(filas.filter({ hasText: codigoVisible }).first()).toBeVisible()
   await buscador.fill('no-existe-xyz')
   await expect(filas).toHaveCount(0)
   await buscador.fill('')
@@ -139,9 +142,9 @@ test('pedidos: buscador global, orden por columna y filtros', async ({ page }) =
 
   // Filtros de cobro: "No pagados" oculta un pedido ya pagado.
   await page.getByRole('button', { name: 'No pagados', exact: true }).click()
-  await expect(filas.filter({ hasText: primera.orderNumber })).toHaveCount(0)
+  await expect(filas.filter({ hasText: codigoVisible })).toHaveCount(0)
   await page.getByRole('button', { name: 'Todos', exact: true }).click()
-  await expect(filas.filter({ hasText: primera.orderNumber }).first()).toBeVisible()
+  await expect(filas.filter({ hasText: codigoVisible }).first()).toBeVisible()
 })
 
 // Clic en una fila: abre el pedido individual sin error. La URL usa el id
