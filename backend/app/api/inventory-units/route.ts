@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
@@ -70,10 +71,26 @@ export async function GET(request: Request) {
       : {}
   const units = await prisma.inventoryUnit.findMany({
     where: { tenantId: tenant, ...removalFilter, ...(branchId ? { branchId } : session.user.branchId ? { branchId: session.user.branchId } : {}), ...(query ? { OR: [{ serial: { contains: query, mode: 'insensitive' } }, { product: { sku: { contains: query, mode: 'insensitive' } } }, { product: { name: { contains: raw, mode: 'insensitive' } } }] } : {}) },
-    include: { product: { select: { id: true, name: true, sku: true, pricePyg: true } }, branch: { select: { id: true, name: true } }, location: { select: { id: true, name: true, code: true } }, lastVerifiedBy: { select: { id: true, name: true } }, ...(['ADMIN', 'GERENTE'].includes(session.user.role) ? { supplier: { select: { id: true, name: true, code: true } } } : {}) },
+    include: { product: { select: { id: true, name: true, sku: true, pricePyg: true, capacity: true } }, branch: { select: { id: true, name: true } }, location: { select: { id: true, name: true, code: true } }, lastVerifiedBy: { select: { id: true, name: true } }, ...(['ADMIN', 'GERENTE'].includes(session.user.role) ? { supplier: { select: { id: true, name: true, code: true } } } : {}) },
     orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }], take: Math.min(500, Math.max(1, Number(params.get('limit')) || 500)), ...(params.get('cursor') ? { cursor: { id: params.get('cursor') as string }, skip: 1 } : {}),
   })
-  return json(units)
+  // Una unidad vendida hereda la entrega de su pedido: Inventario puede así
+  // distinguir lo que sigue en el local de lo que ya salió.
+  const vendidas = units.filter(unit => unit.status === 'SOLD').map(unit => unit.serial)
+  const ventas = vendidas.length
+    ? await prisma.$queryRaw<Array<{ serial: string; orderId: string; orderNumber: string; fulfillmentStatus: string }>>`
+        SELECT DISTINCT ON (s."serial") s."serial", o."id" AS "orderId", o."orderNumber", o."fulfillmentStatus"::text AS "fulfillmentStatus"
+        FROM "OrderItemSerial" s
+        JOIN "OrderItem" i ON i.id = s."orderItemId"
+        JOIN "Order" o ON o.id = i."orderId"
+        WHERE o."tenantId" = ${tenant} AND s."serial" IN (${Prisma.join(vendidas)})
+        ORDER BY s."serial", o."createdAt" DESC
+      `
+    : []
+  const ventaPorSerial = new Map(ventas.map(venta => [venta.serial, venta]))
+  return json(units.map(unit => unit.status === 'SOLD' && ventaPorSerial.has(unit.serial)
+    ? { ...unit, sale: ventaPorSerial.get(unit.serial) }
+    : unit))
 }
 
 // Agrega una o más unidades físicas a un modelo existente. El stock agregado
@@ -131,9 +148,9 @@ export async function PATCH(request: Request) {
   const id = text(body.id, 128)
   if (!id) return error('Unidad obligatoria.')
   const action = body.action === undefined ? 'adjust' : body.action
-  if (!['adjust', 'remove', 'restore'].includes(action)) return error('Acción de inventario inválida.')
+  if (!['adjust', 'remove', 'restore', 'move'].includes(action)) return error('Acción de inventario inválida.')
   const adjustmentReason = reason(body.reason)
-  if (action !== 'adjust' && !adjustmentReason) return error('Indicá un motivo de entre 3 y 500 caracteres.')
+  if (['remove', 'restore'].includes(action) && !adjustmentReason) return error('Indicá un motivo de entre 3 y 500 caracteres.')
   try {
     const updated = await prisma.$transaction(async tx => {
       const before = await tx.inventoryUnit.findFirst({ where: { id, tenantId: tenant }, select: { id: true, branchId: true, status: true, serial: true, locationId: true, productId: true } })
@@ -141,6 +158,17 @@ export async function PATCH(request: Request) {
       if (!canManageBranch(session.user.role, session.user.branchId, before.branchId)) throw new Error('No autorizado para esa sucursal.')
       const removalEvents = await tx.auditLog.findMany({ where: { tenantId: tenant, entity: 'InventoryUnit', entityId: id, action: { in: [INVENTORY_REMOVED, INVENTORY_RESTORED] } }, select: { entityId: true, action: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] })
       const removed = removedInventoryUnitIds(removalEvents).has(id)
+      // Mover de ubicación es una operación del día a día: no pide motivo de
+      // ajuste, pero queda auditada igual.
+      if (action === 'move') {
+        if (removed) throw new Error('Restaurá la unidad antes de moverla.')
+        const destino = body.locationId === undefined || body.locationId === '' || body.locationId === null ? null : text(body.locationId, 128)
+        if (!destino) throw new Error('Elegí la ubicación de destino.')
+        if (!(await tx.stockLocation.findFirst({ where: { id: destino, tenantId: tenant, branchId: before.branchId, isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
+        const data = await tx.inventoryUnit.update({ where: { id }, data: { locationId: destino } })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_MOVED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, from: before.locationId, to: destino } } })
+        return data
+      }
       if (action === 'remove') {
         if (removed) throw new Error('La unidad ya fue eliminada de forma recuperable.')
         if (before.status !== 'AVAILABLE') throw new Error('Solo se puede eliminar una unidad disponible. Liberá reservas o completá el flujo correspondiente.')
