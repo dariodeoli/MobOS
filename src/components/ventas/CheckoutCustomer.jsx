@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { Button, Input } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
+import Icon from '@/components/shared/Icon'
 import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 
 const emptyAddress = () => ({ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay', notes: '', isDefault: true })
@@ -66,9 +67,9 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
   return <div className="space-y-3 md:col-span-2">
     <label className="block text-sm font-semibold">Cliente<Input aria-label="Nombre, teléfono, CI o RUC del cliente" value={value.name} placeholder="Buscar cliente o escribir un nombre nuevo" onChange={event => onChange({ ...value, id: undefined, name: event.target.value })} /></label>
     {!value.id && value.name && <div className="space-y-1">{matches.map(customer => <button type="button" key={customer.id} className="block w-full rounded-xl border border-ink-600 p-3 text-left text-sm hover:border-fono" onClick={() => onChange(customerValue(customer))}><strong>{customer.name}</strong><span className="ml-3 text-mute">{customer.phone || customer.document || 'Sin identificador'}</span>{customer.addresses?.length ? <span className="ml-2 text-xs text-fono-light">· {customer.addresses.length} dirección{customer.addresses.length === 1 ? '' : 'es'}</span> : null}</button>)}{!matches.length && !error && <p className="text-xs text-fono-light">Cliente nuevo: se creará automáticamente al confirmar la venta.</p>}</div>}
-    {value.id && <p className="rounded-lg border border-fono/20 bg-fono/5 px-3 py-2 text-xs text-fono-light">Cliente seleccionado. Podés usar una dirección existente o agregar una nueva para este pedido.</p>}
+    {value.id && <div className="flex flex-wrap items-center gap-2 rounded-lg border border-fono/20 bg-fono/5 px-3 py-2 text-xs text-fono-light"><span>Cliente seleccionado.</span>{value.pricingTier === 'WHOLESALE' && <span className="rounded border border-fono/30 px-1.5 py-0.5 font-bold">Mayorista</span>}{Number(value.creditLimitPyg || 0) > 0 && <span className="rounded border border-warn/30 px-1.5 py-0.5 font-bold text-warn">Crédito hasta Gs. {Number(value.creditLimitPyg).toLocaleString('es-PY')}{value.creditDays ? ' · ' + value.creditDays + ' días' : ''}</span>}</div>}
     {error && <p role="alert" className="text-sm text-bad">{error}</p>}
-    <details className="rounded-xl border border-ink-600 p-3"><summary className="cursor-pointer text-sm font-medium text-fono-light">Datos de contacto, RUC/CI y direcciones</summary>
+    <details className="rounded-xl border border-ink-600 p-3"><summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <label className="text-xs text-mute">Código país<Input aria-label="Código de país" value={value.countryCode || '+595'} onChange={set('countryCode')} placeholder="+595" /></label>
         <label className="text-xs text-mute">Teléfono<Input aria-label="Teléfono del cliente" type="tel" value={value.phone || ''} onChange={set('phone')} placeholder="0981 123 456" />{value.phone?.trim() && !telefonoValido(value.phone, value.countryCode) && <span className="block pt-1 text-[11px] text-bad">{MENSAJE_TELEFONO}</span>}</label>
@@ -86,7 +87,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     </details>
     {onBillingChange && (
       <details className="rounded-xl border border-ink-600 p-3">
-        <summary className="cursor-pointer text-sm font-medium text-fono-light">Factura a otro titular (opcional)</summary>
+        <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="tag" className="h-3.5 w-3.5" /> Factura a otro titular (opcional)</summary>
         <p className="mt-2 text-xs text-mute">Cuando el cliente pide factura a nombre de otra persona o empresa: esposo/a, padre, empresa con RUC, etc.</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="text-xs text-mute">Nombre y apellido del titular<Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => { setBillingLookup(null); setBillingRucError(''); onBillingChange({ ...billingTo, name: event.target.value }) }} placeholder="Nombre y apellido" /></label>
