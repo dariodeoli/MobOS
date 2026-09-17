@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addProducto, addProductoApi, getProductos } from '@/lib/storage'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { api } from '@/lib/api/client'
 import { purchasesApi } from '@/lib/api/purchases'
 import { suppliersApi } from '@/lib/api/suppliers'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
@@ -149,21 +148,6 @@ export default function Compras() {
     } catch (err) { setError(err?.message || 'No se pudo crear la compra.') } finally { setBusy(false) }
   }
   async function receive(purchase) { setBusy(true); setError(''); try { if (demo) { receiveDemoPurchase(purchase.id); setPurchases(loadDemoPurchases()) } else { await purchasesApi.receive(purchase.id); await load() }; setMessage('Compra recibida y stock actualizado.') } catch (err) { setError(err?.message || 'No se pudo recibir la compra.') } finally { setBusy(false) } }
-
-  async function sugerirReposicion() {
-    setError(''); setMessage('')
-    if (demo) { setError('La sugerencia de reposición usa las alertas de stock reales.'); return }
-    setBusy(true)
-    try {
-      const params = new URLSearchParams()
-      if (branchId) params.set('branchId', branchId)
-      const payload = await api.get(`/api/stock-alerts${params.toString() ? `?${params}` : ''}`)
-      const bajos = (payload?.alerts || []).filter((item) => Number(item.stock) < Number(item.reorderPoint))
-      if (!bajos.length) { setMessage('No hay productos bajo su umbral de reposición.'); return }
-      setLines(bajos.map((item) => ({ productId: item.id, sku: item.sku || '', nombre: item.name || '', quantity: String(Math.max(1, Number(item.reorderPoint) - Number(item.stock))), unitCostPyg: item.costPyg != null ? String(item.costPyg) : '0', lotReference: '' })))
-      setMessage(`Se sugirieron ${bajos.length} productos bajo umbral. Elegí proveedor y confirmá cantidades.`)
-    } catch (cause) { setError(cause?.message || 'No se pudo consultar el stock.') } finally { setBusy(false) }
-  }
 
   async function exportar() {
     if (demo) return
