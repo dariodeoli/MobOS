@@ -63,6 +63,36 @@ test.describe('owner panel', () => {
     await expect(tarjetaVendedor.getByText('Qué no puede')).toBeVisible()
   })
 
+  test('inventario → la batería solo acepta números', async ({ page }) => {
+    await page.goto('/pos/inventario')
+    await page.getByRole('button', { name: '+ Recibir unidad' }).click()
+
+    const bateria = page.getByPlaceholder('Batería % (opcional)')
+    await bateria.fill('95x')
+    await expect(bateria).toHaveValue('95')
+  })
+
+  test('clientes → teléfono solo dígitos con +595 editable y límite de crédito en Gs', async ({ page }) => {
+    await page.goto('/pos/clientes')
+    await page.getByRole('button', { name: '+ Crear cliente' }).click()
+
+    // El formulario de venta queda montado y oculto detrás del modal: se acota al modal de alta.
+    const alta = page.locator('form').filter({ hasText: 'Límite de crédito (Gs)' })
+
+    const pais = alta.getByLabel('Código de país')
+    await expect(pais).toHaveValue('+595')
+    await pais.fill('55')
+    await expect(pais).toHaveValue('+55')
+
+    const telefono = alta.getByPlaceholder('0981 123 456')
+    await telefono.fill('0981-123-456')
+    await expect(telefono).toHaveValue('0981123456')
+
+    const limite = alta.locator('label', { hasText: 'Límite de crédito (Gs)' }).locator('input')
+    await limite.fill('3000000')
+    await expect(limite).toHaveValue('3.000.000')
+  })
+
   test('finanzas → Caja can open the cash session', async ({ page }) => {
     await page.goto('/pos/finanzas')
     await expect(page.getByRole('heading', { name: 'Caja y control financiero' })).toBeVisible()
