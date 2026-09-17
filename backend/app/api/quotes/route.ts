@@ -1,6 +1,7 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { quoteTotals } from '../../../lib/pricing'
 
 const INT_MAX = 2147483647
 const STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'CONVERTED', 'EXPIRED', 'CANCELLED']
@@ -55,15 +56,15 @@ export async function POST(request: Request) {
   if (validUntil && Number.isNaN(validUntil.getTime())) return error('Vencimiento inválido.')
   try {
     const items = normalizeItems(body?.items)
-    const subtotal = items.reduce((sum, item) => sum + item.totalPyg, 0)
-    const discount = Number(body?.discountPyg ?? 0)
-    if (!safeInt(discount) || discount > subtotal) return error('Descuento inválido.')
+    const totals = quoteTotals(items.map(item => ({ quantity: item.quantity, unitPricePyg: item.unitPricePyg })), Number(body?.discountPyg ?? 0))
+    const subtotal = totals.subtotalPyg
+    const discount = totals.discountPyg
     const customerId = typeof body?.customerId === 'string' && body.customerId ? body.customerId : null
     if (customerId && !await prisma.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { id: true } })) return error('Cliente no encontrado.', 404)
     const number = `COT-${Date.now().toString(36).toUpperCase()}`
     const quote = await prisma.quote.create({ data: {
       tenantId: tenant, branchId: session.user.branchId, customerId, customerName, sellerId: session.user.id, number,
-      items, subtotalPyg: subtotal, discountPyg: discount, totalPyg: subtotal - discount,
+      items, subtotalPyg: subtotal, discountPyg: discount, totalPyg: totals.totalPyg,
       notes: text(body?.notes, 2000), validUntil, status: 'DRAFT',
     }, include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true } } } })
     await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'QUOTE_CREATED', entity: 'Quote', entityId: quote.id, metadata: { number, totalPyg: quote.totalPyg } } })

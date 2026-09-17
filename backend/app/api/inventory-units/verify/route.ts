@@ -1,8 +1,9 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json, tenantId } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
+import { serialKey } from '../../../../lib/validation'
+import { changeStock } from '../../../../lib/stock'
 
-const serialKey = (value: unknown) => typeof value === 'string' ? value.trim().toUpperCase().replace(/[\s-]+/g, '').replace(/^MOBOS:/i, '') : ''
 const branchAllowed = (role: string, assigned: string | null, branchId: string | null) => !['VENDEDOR', 'CAJERA'].includes(role) || assigned === branchId
 const text = (value: unknown, max = 128) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max ? value.trim() : null
 
@@ -35,8 +36,7 @@ export async function POST(request: Request) {
         } })
         if (arriving) {
           received += 1
-          const incremented = await tx.product.updateMany({ where: { id: unit.productId, tenantId: tenant, stock: { lt: 2147483647 } }, data: { stock: { increment: 1 } } })
-          if (incremented.count !== 1) throw new Error('El stock cambió mientras se recibía el equipo.')
+          await changeStock(tx, { tenantId: tenant, productId: unit.productId, delta: 1, message: 'El stock cambió mientras se recibía el equipo.' })
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_TRANSIT_RECEIVED', entity: 'InventoryUnit', entityId: unit.id, metadata: { serial: unit.serial, branchId: unit.branchId, locationId } } })
         }
       }

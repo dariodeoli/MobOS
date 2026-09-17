@@ -1,10 +1,11 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { serialKey } from '../../../lib/validation'
+import { changeStock } from '../../../lib/stock'
 
 const INT_MAX = 2147483647
 const text = (value: unknown, max = 160) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max ? value.trim() : null
-const serialKey = (value: string) => value.trim().toUpperCase().replace(/[\s-]+/g, '')
 
 function permitted(role: string) { return role === 'ADMIN' || role === 'GERENTE' }
 
@@ -73,13 +74,11 @@ export async function POST(request: Request) {
         let destination = await tx.product.findFirst({ where: { tenantId: tenant, branchId: destinationBranchId, sku: source.sku } })
         if (!destination) destination = await tx.product.create({ data: { tenantId: tenant, branchId: destinationBranchId, sku: source.sku, name: source.name, category: source.category, condition: source.condition, pricePyg: source.pricePyg, costPyg: source.costPyg, stock: 0 } })
         if (destination.stock > INT_MAX - line.quantity) throw new Error('El stock de destino supera el límite permitido.')
-        const decreased = await tx.product.updateMany({ where: { id: source.id, tenantId: tenant, branchId: sourceBranchId, stock: { gte: line.quantity } }, data: { stock: { decrement: line.quantity } } })
-        if (decreased.count !== 1) throw new Error('El stock cambió mientras se procesaba la transferencia.')
+        await changeStock(tx, { tenantId: tenant, productId: source.id, delta: -line.quantity, branchId: sourceBranchId, message: 'El stock cambió mientras se procesaba la transferencia.' })
         // Las líneas serializadas quedan en tránsito: el stock de destino recién
         // suma cuando el vendedor/encargado verifica físicamente la llegada.
         if (line.serials.length === 0) {
-          if (destination.stock > INT_MAX - line.quantity) throw new Error('El stock de destino supera el límite permitido.')
-          await tx.product.update({ where: { id: destination.id }, data: { stock: { increment: line.quantity } } })
+          await changeStock(tx, { tenantId: tenant, productId: destination.id, delta: line.quantity, message: 'El stock de destino supera el límite permitido.' })
         }
         if (line.serials.length > 0) {
           const moved = await tx.inventoryUnit.updateMany({ where: { tenantId: tenant, productId: source.id, branchId: sourceBranchId, serial: { in: line.serials }, status: 'AVAILABLE' }, data: { productId: destination.id, branchId: destinationBranchId, locationId: null, status: 'IN_TRANSIT' } })

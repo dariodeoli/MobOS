@@ -1,8 +1,8 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { serialKey } from '../../../lib/validation'
 
-const serialKey = (value: unknown) => typeof value === 'string' ? value.trim().toUpperCase().replace(/[\s-]+/g, '') : ''
 const MAX_MINUTES = 24 * 60
 
 async function releaseExpired(tenant: string) {

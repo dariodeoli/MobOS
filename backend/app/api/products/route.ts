@@ -3,8 +3,8 @@ import { PaymentCurrency, ProductCondition } from '@prisma/client'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { ensureStoreBranch } from '../../../lib/store-branch'
+import { serialKey } from '../../../lib/validation'
 
-const serialKey = (value: unknown) => typeof value === 'string' ? value.trim().toUpperCase().replace(/[\s-]+/g, '') : ''
 const unitDetails = (body: any, fallback: { condition: string; costPyg?: number }) => {
   const raw = body.unit || body
   const batteryHealth = raw.batteryHealth === undefined || raw.batteryHealth === null || raw.batteryHealth === '' ? null : Number(raw.batteryHealth)

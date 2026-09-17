@@ -5,3 +5,4 @@ require.extensions['.ts'] = (module, path) => module._compile(ts.transpileModule
   compilerOptions: { esModuleInterop: true, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText, path)
 require('./payment-proofs.test.ts')
+require('./pricing.test.ts')
