@@ -12,6 +12,12 @@ const EVENTOS = {
   payment: { icon: 'money', tono: 'bg-ok/10 text-ok' },
   price: { icon: 'money', tono: 'bg-ok/10 text-ok' },
   supplier: { icon: 'user', tono: 'bg-fono/10 text-fono-light' },
+  quote: { icon: 'report', tono: 'bg-fono/10 text-fono-light' },
+  sale: { icon: 'cart', tono: 'bg-ok/10 text-ok' },
+  cash: { icon: 'wallet', tono: 'bg-ok/10 text-ok' },
+  expense: { icon: 'receipt', tono: 'bg-bad/10 text-bad' },
+  user: { icon: 'user', tono: 'bg-fono/10 text-fono-light' },
+  attachment: { icon: 'upload', tono: 'bg-ink-700 text-mute' },
   audit: { icon: 'edit', tono: 'bg-ink-700 text-mute' },
 }
 const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')

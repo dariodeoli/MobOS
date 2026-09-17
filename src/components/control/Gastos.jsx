@@ -11,6 +11,7 @@ import CurrencySelect from '@/components/shared/CurrencySelect'
 import { cn } from '@/lib/utils'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import AttachmentList from '@/components/shared/AttachmentList'
+import Cronologia from '@/components/shared/Cronologia'
 
 const EMPTY = () => ({ originalAmount: '', description: '', date: fechaClave(), currency: 'PYG', exchangeRatePyg: '1', accountId: '', kind: 'EXPENSE', counterparty: '', reference: '', dueAt: '' })
 const KINDS = { EXPENSE: 'Gasto', CHEQUE: 'Cheque emitido/cobrado', SUPPLIER_ADVANCE: 'Adelanto a proveedor', TRANSFER: 'Transferencia', OWNER_WITHDRAWAL: 'Retiro del dueño', ADJUSTMENT: 'Ajuste' }
@@ -39,6 +40,7 @@ export default function Gastos() {
   const [accounts, setAccounts] = useState([])
   const [comprobante, setComprobante] = useState(null)
   const [adjuntosDe, setAdjuntosDe] = useState(null)
+  const [historialDe, setHistorialDe] = useState(null)
   const [loading, setLoading] = useState(!esDemo)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -104,7 +106,7 @@ export default function Gastos() {
       </form>
     </Card>
     <Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink-600 p-4"><h3 className="font-bold">Libro financiero</h3><Badge color="red">Gastos: {gs(total)}</Badge></div>
-      {loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados." /> : <div className="overflow-x-auto p-4" data-testid="gastos-tabla">
+{loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados." /> : <div className="overflow-x-auto p-4" data-testid="gastos-tabla">
       <div className={cn(GRID_GASTOS, 'px-3.5 pb-2 pt-1')}>
         <span className={CELDA_GASTOS}>Descripción</span>
         <span className={CELDA_GASTOS}>Tipo</span>
@@ -125,12 +127,14 @@ export default function Gastos() {
           <span className={cn('truncate text-[11px]', row.kind === 'CHEQUE' && row.status === 'PENDING' && row.dueAt ? 'text-warn' : 'text-mute')} title={row.dueAt ? `Cobro previsto el ${new Date(row.dueAt).toLocaleDateString('es-PY')}` : undefined}>{row.dueAt ? fechaGasto(row.dueAt) : '—'}</span>
           <Badge color={estadoTone} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{estadoLabel}</Badge>
           <span className="truncate text-right text-sm font-bold tabular-nums text-bad">{monto}</span>
-          <span className="flex flex-wrap items-center justify-end gap-1">{!isDemoRuntime && row.id && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => setAdjuntosDe(row)}>Adjuntos</Button>}{row.kind === 'CHEQUE' && row.status === 'PENDING' && !isDemoRuntime && <><Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => updateStatus(row.id, 'clear')}>Cobrado</Button><Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={busy} onClick={() => updateStatus(row.id, 'void')}>Anular</Button></>}</span>
+          <span className="flex flex-wrap items-center justify-end gap-1">{!isDemoRuntime && row.id && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => setAdjuntosDe(row)}>Adjuntos</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => setHistorialDe(row)}>Historial</Button>}{row.kind === 'CHEQUE' && row.status === 'PENDING' && !isDemoRuntime && <><Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => updateStatus(row.id, 'clear')}>Cobrado</Button><Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={busy} onClick={() => updateStatus(row.id, 'void')}>Anular</Button></>}</span>
         </div>
       })}</div>
-    </div>}    </Card>
-    <Modal open={adjuntosDe !== null} onClose={() => setAdjuntosDe(null)} title="Comprobante del gasto">
+    </div>}    </Card>    <Modal open={adjuntosDe !== null} onClose={() => setAdjuntosDe(null)} title="Comprobante del gasto">
       {adjuntosDe && <AttachmentList entity="EXPENSE" entityId={adjuntosDe.id} puedeSubir titulo="Comprobantes del gasto" />}
+    </Modal>
+    <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title="Historial del gasto">
+      {historialDe && <Cronologia endpoint={`/api/expenses/${historialDe.id}/history`} active={historialDe !== null} vacio="Sin actividad" descripcionVacio="El alta, los cambios de estado y los comprobantes de este gasto aparecerán acá." />}
     </Modal>
   </div>
 }
