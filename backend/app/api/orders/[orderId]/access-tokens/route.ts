@@ -5,7 +5,7 @@ import { requireSession } from '../../../../../lib/auth'
 import { InputError, objectInput } from '../../../../../lib/payment-input'
 import { canAccessOrder } from '../../../../../lib/orders'
 
-export const ACCESS_LEVELS = ['rapido', 'completo', 'detallado'] as const
+const ACCESS_LEVELS = ['rapido', 'completo', 'detallado'] as const
 
 const nuevoToken = () => randomBytes(24).toString('base64url')
 
