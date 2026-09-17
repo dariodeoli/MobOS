@@ -17,7 +17,7 @@ const definitions = [
 ].map(([id, group, name, detail, icon, href, external]) => ({ id, group, name, detail, icon, href, external }))
 
 const labels = { operational: 'Operativo', configured: 'Configurado', checking: 'Verificando', degraded: 'Degradado', restricted: 'Acceso requerido', external: 'Estado externo' }
-const styles = { operational: 'bg-fono/10 text-fono-dark', configured: 'bg-sky-400/10 text-sky-300', checking: 'bg-fore/8 text-mute', degraded: 'bg-red-400/10 text-bad', restricted: 'bg-amber-400/10 text-warn', external: 'bg-sky-400/10 text-sky-300' }
+const styles = { operational: 'bg-fono/10 text-fono-dark', configured: 'bg-sky-400/10 text-info', checking: 'bg-fore/10 text-mute', degraded: 'bg-red-400/10 text-bad', restricted: 'bg-amber-400/10 text-warn', external: 'bg-sky-400/10 text-info' }
 const dot = { operational: 'bg-fono', configured: 'bg-sky-300', checking: 'animate-pulse bg-slate-300', degraded: 'bg-red-400', restricted: 'bg-amber-300', external: 'bg-sky-300' }
 const formatTime = (date) => new Intl.DateTimeFormat('es-PY', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
 

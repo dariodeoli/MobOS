@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Drawer, Badge, Button, Skeleton, useToast } from '@/components/ui'
+import { Drawer, Badge, Button, Input, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import JsBarcode from 'jsbarcode'
@@ -145,10 +145,10 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
           <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Ubicación</p>
               {canManage
-                ? <select aria-label="Ubicación de la unidad" className="mt-1 w-full rounded-lg border border-ink-500 bg-ink-800 px-2 py-1.5 text-sm text-fore outline-none transition focus:border-fono" value={unit.locationId || ''} disabled={busy} onChange={event => ejecutar(() => onMove?.(unit, event.target.value || null))}>
+                ? <Select aria-label="Ubicación de la unidad" className="mt-1" value={unit.locationId || ''} disabled={busy} onChange={event => ejecutar(() => onMove?.(unit, event.target.value || null))}>
                     <option value="">Sin ubicación</option>
                     {locations.filter(location => location.branchId === unit.branchId && location.isActive).map(location => <option key={location.id} value={location.id}>{location.name}</option>)}
-                  </select>
+                  </Select>
                 : <p className="mt-1 font-semibold">{unit.location?.name || '—'}</p>}
             </div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Batería</p><p className="mt-1 font-semibold">{unit.batteryHealth ? `${unit.batteryHealth}%` : '—'}</p></div>
@@ -157,7 +157,7 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Ingresó a stock</p><p className="mt-1 font-semibold">{ingreso ? ingreso.toLocaleDateString('es-PY') : '—'}{diasEnStock != null ? <span className="ml-2 text-xs font-normal text-mute">{diasEnStock} {diasEnStock === 1 ? 'día' : 'días'} en stock</span> : null}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Compra</p><p className="mt-1 font-semibold">{unit.purchasedAt ? new Date(unit.purchasedAt).toLocaleDateString('es-PY') : '—'}</p></div>
             {unit.reservedUntil && <div className="col-span-2 rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 p-3 text-sm"><p className="text-xs text-mute">Reserva</p><p className="mt-1 font-semibold">{unit.reservationCustomer || 'Cliente'} · vence {new Date(unit.reservedUntil).toLocaleString('es-PY')}</p></div>}
-            <div className="col-span-2 rounded-xl bg-ink-800/60 p-3 text-sm"><p className="text-xs text-mute">Nota interna</p><div className="mt-1.5 flex flex-wrap items-center gap-2"><input aria-label="Nota interna de la unidad" maxLength={500} value={nota} onChange={event => setNota(event.target.value)} placeholder="Raya lateral, caja dañada, accesorio faltante…" className="min-h-9 min-w-[12rem] flex-1 rounded-lg border border-ink-500 bg-ink-900 px-3 text-sm text-fore outline-none focus:border-fono" /><Button type="button" variant="outline" disabled={guardandoNota || nota.trim() === (unit.notes || "")} onClick={guardarNota}>{guardandoNota ? "Guardando…" : "Guardar nota"}</Button></div></div>
+            <div className="col-span-2 rounded-xl bg-ink-800/60 p-3 text-sm"><p className="text-xs text-mute">Nota interna</p><div className="mt-1.5 flex flex-wrap items-center gap-2"><Input aria-label="Nota interna de la unidad" maxLength={500} value={nota} onChange={event => setNota(event.target.value)} placeholder="Raya lateral, caja dañada, accesorio faltante…" className="min-h-9 min-w-[12rem] flex-1" /><Button type="button" variant="outline" disabled={guardandoNota || nota.trim() === (unit.notes || "")} onClick={guardarNota}>{guardandoNota ? "Guardando…" : "Guardar nota"}</Button></div></div>
           </div>
         </section>
 
@@ -197,7 +197,7 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
           {canManage && (
             <>
               <form onSubmit={enviarComentario} className="mt-3 space-y-2">
-                <textarea aria-label="Comentario de la unidad" rows={2} maxLength={2000} value={comentario} onChange={event => setComentario(event.target.value)} placeholder="Escribí un comentario o evidencia para esta unidad…" className="w-full rounded-xl border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-fore outline-none transition focus:border-fono" />
+                <Textarea aria-label="Comentario de la unidad" rows={2} maxLength={2000} value={comentario} onChange={event => setComentario(event.target.value)} placeholder="Escribí un comentario o evidencia para esta unidad…" />
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-ink-500 px-3 py-1.5 text-xs text-mute transition hover:border-fono hover:text-fore">
                     <Icon name="image" className="h-3.5 w-3.5" />{adjunto ? adjunto.name : 'Adjuntar foto o PDF'}

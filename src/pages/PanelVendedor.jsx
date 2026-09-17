@@ -530,14 +530,6 @@ export default function PanelVendedor() {
   }, [toast])
 
   useEffect(() => {
-    if (!cambiarAbierto) return undefined
-    const cerrarConEscape = event =>
-      event.key === 'Escape' && !cambiando && setCambiarAbierto(false)
-    document.addEventListener('keydown', cerrarConEscape)
-    return () => document.removeEventListener('keydown', cerrarConEscape)
-  }, [cambiarAbierto, cambiando])
-
-  useEffect(() => {
     if (!cambiarAbierto || pin.length !== 4 || !sellerId || cambioEnCurso.current) return
     cambioEnCurso.current = true
     setCambiando(true)
@@ -723,89 +715,64 @@ export default function PanelVendedor() {
         </main>
       </AppShell>
 
-      {cambiarAbierto && (
-        <div
-          className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4"
-          onMouseDown={event =>
-            event.target === event.currentTarget && !cambiando && setCambiarAbierto(false)
-          }
+      <Modal
+        open={cambiarAbierto}
+        onClose={() => !cambiando && setCambiarAbierto(false)}
+        title="Cambiar vendedor"
+        className="max-w-md"
+      >
+        <p className="mt-2 text-sm text-mute">
+          Elegí quién registra la próxima venta y confirmá su PIN.
+        </p>
+        <label htmlFor="seller-switch" className="mt-6 block text-sm font-semibold">
+          Vendedor
+        </label>
+        <select
+          id="seller-switch"
+          value={sellerId}
+          onChange={event => setSellerId(event.target.value)}
+          disabled={cambiando}
+          className="mt-2 w-full rounded-xl border border-fore/10 bg-paper px-3 py-3 text-fore outline-none focus:border-fono-dark"
         >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="cambiar-vendedor-title"
-            className="w-full max-w-md rounded-3xl border border-fore/10 bg-ink p-6 shadow-2xl"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <Eyebrow>Sesión segura</Eyebrow>
-                <h2 id="cambiar-vendedor-title" className="mt-2 text-2xl font-bold">
-                  Cambiar vendedor
-                </h2>
-              </div>
-              <button
-                onClick={() => setCambiarAbierto(false)}
-                disabled={cambiando}
-                className="rounded-lg px-2 py-1 text-2xl text-mute hover:text-fore"
-                aria-label="Cerrar"
-              >
-                ×
-              </button>
-            </div>
-            <p className="mt-2 text-sm text-mute">
-              Elegí quién registra la próxima venta y confirmá su PIN.
+          {opcionesVendedor.map(seller => (
+            <option key={seller.id} value={seller.id}>
+              {seller.name || seller.nombre || seller.email}
+            </option>
+          ))}
+        </select>
+        {esDemo ? (
+          <>
+            <p className="mt-4 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-3 text-xs text-mute">
+              PIN demo vendedor: <strong className="text-fore">2001</strong> · dueño:{' '}
+              <strong className="text-fore">3001</strong>
             </p>
-            <label htmlFor="seller-switch" className="mt-6 block text-sm font-semibold">
-              Vendedor
+            <label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">
+              PIN demo
             </label>
-            <select
-              id="seller-switch"
-              value={sellerId}
-              onChange={event => setSellerId(event.target.value)}
-              disabled={cambiando}
-              className="mt-2 w-full rounded-xl border border-fore/10 bg-paper px-3 py-3 text-fore outline-none focus:border-fono-dark"
-            >
-              {opcionesVendedor.map(seller => (
-                <option key={seller.id} value={seller.id}>
-                  {seller.name || seller.nombre || seller.email}
-                </option>
-              ))}
-            </select>
-            {esDemo ? (
-              <>
-                <p className="mt-4 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-3 text-xs text-mute">
-                  PIN demo vendedor: <strong className="text-fore">2001</strong> · dueño:{' '}
-                  <strong className="text-fore">3001</strong>
-                </p>
-                <label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">
-                  PIN demo
-                </label>
-                <PinInput
-                  id="seller-switch-pin"
-                  autoFocus
-                  value={pin}
-                  onChange={next => setPin(next)}
-                  className="mt-2 disabled:opacity-50"
-                />{' '}
-              </>
-            ) : (
-              <>
-                <label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">
-                  PIN del vendedor
-                </label>
-                <PinInput
-                  id="seller-switch-pin"
-                  autoFocus
-                  value={pin}
-                  onChange={next => setPin(next)}
-                  className="mt-2 disabled:opacity-50"
-                />{' '}
-              </>
-            )}
-            <p className="mt-5 text-xs text-mute">Esc para cerrar · tocar afuera también cierra</p>
-          </section>
-        </div>
-      )}
+            <PinInput
+              id="seller-switch-pin"
+              autoFocus
+              value={pin}
+              onChange={next => setPin(next)}
+              className="mt-2 disabled:opacity-50"
+            />{' '}
+          </>
+        ) : (
+          <>
+            <label htmlFor="seller-switch-pin" className="mt-5 block text-sm font-semibold">
+              PIN del vendedor
+            </label>
+            <PinInput
+              id="seller-switch-pin"
+              autoFocus
+              value={pin}
+              onChange={next => setPin(next)}
+              className="mt-2 disabled:opacity-50"
+            />{' '}
+          </>
+        )}
+        <p className="mt-5 text-xs text-mute">Esc para cerrar · tocar afuera también cierra</p>
+      </Modal>
 
       {locked && (
         <div className="fixed inset-0 z-[70] grid place-items-center bg-paper p-4">

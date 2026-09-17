@@ -124,7 +124,7 @@ export default function PasoProductos({
             </div>
             <div className="flex gap-2">
               <Button type="button" onClick={crearProducto} disabled={creandoProd || !nombreProd.trim()} className="flex-1">{creandoProd ? 'Creando…' : `Crear${coloresNuevos.length > 0 ? ` (${coloresNuevos.length} colores)` : ''}`}</Button>
-              <Button type="button" variant="ghost" onClick={cancelarNuevoProd} disabled={creandoProd}><Icon name="close" className="h-4 w-4" /></Button>
+              <Button type="button" variant="ghost" aria-label="Cancelar producto nuevo" onClick={cancelarNuevoProd} disabled={creandoProd}><Icon name="close" className="h-4 w-4" /></Button>
             </div>
           </div>
         ) : (

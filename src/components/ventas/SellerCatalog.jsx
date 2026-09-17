@@ -171,7 +171,7 @@ export default function SellerCatalog() {
       </div>
       <div className="space-y-1">{ordenadas.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>
     </div>}
-    {!data.loading && !data.error && vista === 'grid' && <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
+    {!data.loading && !data.error && vista === 'grid' && <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-3">{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
     <ComboManager open={combosOpen} onClose={() => setCombosOpen(false)} />
     {seleccion && <ProductoDetalle product={seleccion} canManage={canManage} esDemo={esDemo} onClose={() => setSeleccion(null)} onChanged={data.refresh} onSell={vender} />}
   </SellerSection>

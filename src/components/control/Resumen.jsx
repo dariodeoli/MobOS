@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import { useUrlState } from '@/hooks/useUrlState'
 import { useNavigate } from 'react-router-dom'
 import { listVentas, getVendedores, productosById, getProductos, listGastos } from '@/lib/storage'
 import { comisionDeVentas, cobradoDeVenta, num, gs } from '@/utils/calculos'
@@ -76,7 +77,7 @@ export default function Resumen() {
   const prods = productosById()
   const catalogo = getProductos()
   const [rango, setRango] = useState(rangoPorDefecto)
-  const [filtroLista, setFiltroLista] = useState('todas')
+  const [filtroLista, setFiltroLista] = useUrlState('filtro', 'todas')
   const listaRef = useRef(null)
 
   const vendedoresById = useMemo(
@@ -264,21 +265,6 @@ export default function Resumen() {
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge color="green">{d.pagadas} pagadas</Badge>
             <Badge color="red">{d.sinPagar} pendientes</Badge>
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-auto px-2 py-1 text-xs font-medium"
-              onClick={() => navigate('/pos/pedidos')}
-              disabled={d.sinPagar === 0}
-              title={
-                d.sinPagar === 0
-                  ? 'No hay ventas pendientes'
-                  : 'Cobrar las ventas pendientes en Pedidos'
-              }
-            >
-              Cobrar pendientes
-              <Icon name="chevron" className="h-3 w-3 rotate-180" />
-            </Button>
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-x-10 gap-y-3">

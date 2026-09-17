@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useUrlState } from '@/hooks/useUrlState'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { useSesion } from '@/lib/sesion'
@@ -25,8 +26,8 @@ const TZ_OFFSET = -180
 
 export default function Reportes() {
   const [rango, setRango] = useState(rangoInicial)
-  const [grupo, setGrupo] = useState('product')
-  const [tipo, setTipo] = useState('ventas')
+  const [grupo, setGrupo] = useUrlState('grupo', 'product')
+  const [tipo, setTipo] = useUrlState('tipo', 'ventas')
   const [datos, setDatos] = useState(null)
   const [datosComisiones, setDatosComisiones] = useState(null)
   const [cargando, setCargando] = useState(true)
@@ -260,7 +261,7 @@ export default function Reportes() {
 
       {totales && tipo !== 'comisiones' && (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-4">
             <Stat
               destacado
               label="Total del período"

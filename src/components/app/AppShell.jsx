@@ -60,11 +60,13 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
                 {g.items.map(([id, label, ico]) => {
                   const activo = active === id
                   return (
-                    <button
-                      key={id}
-                      onClick={() => onNavigate(id)}
-                      aria-current={activo ? 'page' : undefined}
-                      className={cn(
+                      <button
+                        key={id}
+                        onClick={() => onNavigate(id)}
+                        aria-current={activo ? 'page' : undefined}
+                        aria-label={label}
+                        title={label}
+                        className={cn(
                         'group relative flex w-full items-center gap-2.5 overflow-visible rounded-[10px] border px-2.5 py-[7px] text-left text-[13px] leading-snug transition',
                         collapsed && 'lg:justify-center lg:px-0',
                         activo
@@ -76,7 +78,6 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
                       <Icon name={ico} className={cn('h-[15px] w-[15px] shrink-0 transition', activo ? 'text-fono-light' : 'group-hover:text-fore')} />
                       <span className={cn('flex-1 truncate', collapsed && 'lg:hidden')}>{label}</span>
                       {activo && <span className={cn('h-[5px] w-[5px] rounded-full bg-fono', collapsed && 'lg:hidden')} aria-hidden />}
-                      <span className="pointer-events-none absolute left-[calc(100%+6px)] z-30 hidden whitespace-nowrap rounded-md border border-ink-500 bg-ink-700 px-2 py-1 text-xs text-fore shadow-lg group-hover:lg:block">{label}</span>
                     </button>
                   )
                 })}

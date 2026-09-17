@@ -51,8 +51,8 @@ export default function PasoCobro({
           </label>
           {venderACredito && (
             <div className="mt-3 flex items-center gap-2">
-              <Label>Plazo en días</Label>
-              <Input aria-label="Días de crédito" inputMode="numeric" className="w-24" value={creditoDias} onChange={e => setCreditoDias(e.target.value.replace(/\D/g, ''))} placeholder={String(customer.creditDays ?? 30)} />
+              <Label htmlFor="plazo-en-dias">Plazo en días</Label>
+              <Input id="plazo-en-dias" aria-label="Días de crédito" inputMode="numeric" className="w-24" value={creditoDias} onChange={e => setCreditoDias(e.target.value.replace(/\D/g, ''))} placeholder={String(customer.creditDays ?? 30)} />
               <p className="text-xs text-mute">Vence {new Date(Date.now() + (Number(creditoDias) || Number(customer.creditDays) || 0) * 86400000).toLocaleDateString('es-PY')}. Podés igualmente registrar un adelanto abajo.</p>
             </div>
           )}
@@ -108,7 +108,7 @@ export default function PasoCobro({
           </p>
         )}
         {errorCuentas && (
-          <div role="alert" className="text-sm text-red-300">
+          <div role="alert" className="text-sm text-bad">
             {errorCuentas}
             <Button type="button" variant="ghost" onClick={onReintentarCuentas}>
               Reintentar carga
@@ -153,8 +153,8 @@ export default function PasoCobro({
                   />
                 </div>
                 <div>
-                  <Label>Cuenta</Label>
-                  <Input
+                  <Label htmlFor="cuenta">Cuenta</Label>
+                  <Input id="cuenta"
                     value={p.cuenta}
                     onChange={e =>
                       setPagos(a =>
@@ -165,8 +165,8 @@ export default function PasoCobro({
                   />
                 </div>
                 <div>
-                  <Label>Monto (Gs)</Label>
-                  <MoneyInput
+                  <Label htmlFor="monto-gs">Monto (Gs)</Label>
+                  <MoneyInput id="monto-gs"
                     value={String(p.monto || '').replace(/\D/g, '')}
                     onValueChange={v =>
                       setPagos(a =>
@@ -187,6 +187,7 @@ export default function PasoCobro({
             <Button
               type="button"
               variant="ghost"
+              aria-label="Quitar este pago"
               onClick={() => setPagos(a => a.filter((_, j) => j !== i))}
             >
               <Icon name="trash" className="h-4 w-4" />
@@ -202,8 +203,8 @@ export default function PasoCobro({
 
       {/* Entrega + monto envío */}
       <div>
-        <Label>Entrega</Label>
-        <Select value={f.entrega} onChange={set('entrega')}>
+        <Label htmlFor="entrega">Entrega</Label>
+        <Select id="entrega" value={f.entrega} onChange={set('entrega')}>
           {ENTREGA.map(x => (
             <option key={x} value={x}>
               {x === 'Delivery'
@@ -229,8 +230,8 @@ export default function PasoCobro({
 
       {/* Observación */}
       <div className="md:col-span-2">
-        <Label>Observación</Label>
-        <Textarea
+        <Label htmlFor="observacion">Observación</Label>
+        <Textarea id="observacion"
           rows={1}
           value={f.observacion}
           onChange={event => setF(current => ({ ...current, observacion: capitalizarPrimera(event.target.value) }))}

@@ -10,6 +10,8 @@ export default {
         fore: 'rgb(var(--c-fore) / <alpha-value>)',
         ink: {
           DEFAULT: 'rgb(var(--c-ink) / <alpha-value>)',
+          950: 'rgb(var(--c-ink-950) / <alpha-value>)',
+          900: 'rgb(var(--c-ink-900) / <alpha-value>)',
           800: 'rgb(var(--c-ink-800) / <alpha-value>)',
           700: 'rgb(var(--c-ink-700) / <alpha-value>)',
           600: 'rgb(var(--c-ink-600) / <alpha-value>)',
@@ -26,6 +28,8 @@ export default {
         ok: 'rgb(var(--c-ok) / <alpha-value>)',
         bad: 'rgb(var(--c-bad) / <alpha-value>)',
         warn: 'rgb(var(--c-warn) / <alpha-value>)',
+        info: 'rgb(var(--c-info) / <alpha-value>)',
+        reserved: 'rgb(var(--c-reserved) / <alpha-value>)',
         // Texto
         mute: 'rgb(var(--c-mute) / <alpha-value>)',
         // Texto oscuro sobre verde de marca (en ambos temas)

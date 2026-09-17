@@ -171,6 +171,7 @@ export default function VistaCargarVenta({ tradeInDraft, onTradeInConsumed }) {
                           onClick={() => carrito.quitar(it.key)}
                           className="text-mute transition hover:text-bad"
                           title="Quitar"
+                          aria-label={`Quitar ${it.nombre || 'producto'} de la venta`}
                         >
                           <Icon name="trash" className="h-3.5 w-3.5" />
                         </button>

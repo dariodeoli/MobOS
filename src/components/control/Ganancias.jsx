@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useUrlState } from '@/hooks/useUrlState'
 import { listVentas, listGastos, listAds, productosById } from '@/lib/storage'
 import { calcularGanancia, calcularGananciaDia, fechaClave, gs } from '@/utils/calculos'
 import { Card, Badge } from '@/components/ui'
@@ -30,7 +31,7 @@ export function PeriodoTabs({ periodo, setPeriodo }) {
 }
 
 export default function Ganancias() {
-  const [periodo, setPeriodo] = useState('dia')
+  const [periodo, setPeriodo] = useUrlState('periodo', 'dia')
   const datos = {
     ventas: listVentas(),
     gastos: listGastos(),
@@ -122,7 +123,7 @@ const ESTILO_DIA = {
   ganancia: 'bg-ok/15 text-ok border-ok/30',
   perdida: 'bg-bad/15 text-bad border-bad/30',
   empate: 'bg-warn/15 text-warn border-warn/30',
-  vacio: 'bg-ink-800 text-ink-500 border-ink-600',
+  vacio: 'bg-ink-800 text-mute border-ink-600',
 }
 
 function CalendarioGanancias({ datos }) {

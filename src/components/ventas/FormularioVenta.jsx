@@ -999,7 +999,7 @@ export default function FormularioVenta({
         {errorVenta && (
           <p
             role="alert"
-            className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-red-300 md:col-span-2"
+            className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-bad md:col-span-2"
           >
             {errorVenta}
           </p>
@@ -1212,8 +1212,8 @@ export default function FormularioVenta({
       >
         <div className="space-y-3">
           <div>
-            <Label>Nombre</Label>
-            <Input
+            <Label htmlFor="nombre">Nombre</Label>
+            <Input id="nombre"
               autoFocus
               value={nombreVend}
               onChange={e => setNombreVend(e.target.value)}
@@ -1230,7 +1230,7 @@ export default function FormularioVenta({
           {errorVend && (
             <p
               role="alert"
-              className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-red-300"
+              className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-bad"
             >
               {errorVend}
             </p>

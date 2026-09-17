@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useUrlState } from '@/hooks/useUrlState'
 import { listVentas, productosById } from '@/lib/storage'
 import { productosGanadores, gs } from '@/utils/calculos'
 import { PeriodoTabs } from '@/components/control/Ganancias'
@@ -7,7 +7,7 @@ import { Card, Badge, EmptyState } from '@/components/ui'
 const MEDALLA = ['', '', '']
 
 export default function Ganadores() {
-  const [periodo, setPeriodo] = useState('dia')
+  const [periodo, setPeriodo] = useUrlState('periodo', 'dia')
   const top = productosGanadores(periodo, listVentas(), productosById(), 8)
 
   return (
