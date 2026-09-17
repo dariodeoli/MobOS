@@ -11,7 +11,7 @@
 //   suma a los dos, sin repartir el descuento global); día y vendedor agrupan a
 //   nivel de orden, con cobros y saldo reales.
 
-export const REPORT_GROUP_BY = ['product', 'category', 'seller', 'day', 'payments', 'newCustomers', 'branch', 'customers'] as const
+export const REPORT_GROUP_BY = ['product', 'category', 'seller', 'day', 'payments', 'newCustomers', 'branch', 'customers', 'returns'] as const
 export type ReportGroupBy = (typeof REPORT_GROUP_BY)[number]
 
 /** Roles con acceso a reportes financieros (costos y ganancia incluidos). */

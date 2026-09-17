@@ -10,6 +10,7 @@ export const GRUPOS = [
   { id: 'newCustomers', label: 'Mes', plural: 'Clientes nuevos vs habituales' },
   { id: 'branch', label: 'Sucursal', plural: 'Por sucursal' },
   { id: 'customers', label: 'Cliente', plural: 'Mejores clientes' },
+  { id: 'returns', label: 'Motivo', plural: 'Devoluciones por motivo' },
 ]
 
 /** Producto y categoría se calculan por línea; día y vendedor, por orden. */
@@ -62,6 +63,14 @@ export function columnasReporte(groupBy) {
       { key: 'grossPyg', label: 'Pagos brutos', tipo: 'monto' },
       { key: 'refundedPyg', label: 'Reembolsado', tipo: 'monto' },
       { key: 'totalPyg', label: 'Pagos netos', tipo: 'monto' },
+    ]
+  }
+  if (groupBy === 'returns') {
+    return [
+      primera,
+      { key: 'orders', label: 'Devoluciones', tipo: 'numero' },
+      { key: 'refundedPyg', label: 'Reembolsado', tipo: 'monto' },
+      { key: 'ultima', label: 'Última', tipo: 'texto' },
     ]
   }
   if (groupBy === 'newCustomers') {

@@ -137,6 +137,35 @@ export async function GET(request: Request) {
       }
     }
 
+    if (groupBy === 'returns') {
+      const eventos = await prisma.auditLog.findMany({
+        where: { tenantId: session.user.tenantId, action: { in: ['ORDER_RETURN_RECORDED', 'ORDER_EXCHANGE_RECORDED'] }, createdAt: { gte: start, lt: end }, ...(branchId ? { metadata: { path: ['branchId'], equals: branchId } } : {}) },
+        select: { metadata: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+      })
+      const grupos = new Map<string, { key: string; label: string; orders: number; units: number; grossPyg: number; discountPyg: number; deliveryPyg: number; totalPyg: number; collectedPyg: number; pendingPyg: number; costPyg: number; profitPyg: number; salesWithoutCostPyg: number; linesWithoutCost: number; commissionPyg: number; netProfitPyg: number; refundedPyg: number; customers: number; newCustomers: number; returningCustomers: number; ultima: string }>()
+      for (const evento of eventos) {
+        const meta = evento.metadata && typeof evento.metadata === 'object' ? evento.metadata as Record<string, unknown> : {}
+        const motivo = String(meta.reason || 'Sin motivo').slice(0, 120)
+        const reembolso = Number(meta.refundPyg || 0)
+        const item = grupos.get(motivo) || { key: motivo, label: motivo, orders: 0, units: 0, grossPyg: 0, discountPyg: 0, deliveryPyg: 0, totalPyg: 0, collectedPyg: 0, pendingPyg: 0, costPyg: 0, profitPyg: 0, salesWithoutCostPyg: 0, linesWithoutCost: 0, commissionPyg: 0, netProfitPyg: 0, refundedPyg: 0, customers: 0, newCustomers: 0, returningCustomers: 0, ultima: '' }
+        item.orders += 1
+        item.totalPyg += reembolso
+        item.grossPyg += reembolso
+        item.refundedPyg += reembolso
+        item.ultima = !item.ultima || new Date(evento.createdAt) > new Date(item.ultima) ? evento.createdAt.toISOString().slice(0, 10) : item.ultima
+        grupos.set(motivo, item)
+      }
+      const groups = [...grupos.values()].sort((a, b) => b.orders - a.orders)
+      const totalPyg = groups.reduce((suma, item) => suma + item.totalPyg, 0)
+      return json({
+        from, to, groupBy, offsetMinutes, branchId, truncated: false, generatedAt: new Date().toISOString(),
+        totals: { orders: groups.length, units: 0, grossPyg: totalPyg, discountPyg: 0, deliveryPyg: 0, totalPyg, collectedPyg: 0, pendingPyg: 0, costPyg: 0, profitPyg: 0, salesWithCostPyg: 0, salesWithoutCostPyg: 0, linesWithoutCost: 0, marginPct: null, commissionPyg: 0, netProfitPyg: 0, netMarginPct: null, refundedPyg: totalPyg },
+        groups,
+      })
+    }
+
     const reporte = aggregateReport(
       usadas.map((orden) => ({
         id: orden.id,
