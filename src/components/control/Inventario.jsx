@@ -7,6 +7,7 @@ import Icon from '@/components/shared/Icon'
 import { resources } from '@/lib/api'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
+import { APP_NAME } from '@/lib/brand'
 import { printReservationReceipt } from '@/components/shared/OrderReceipt'
 import UnidadDetalle from '@/components/inventory/UnidadDetalle'
 import ListGridToggle from '@/components/shared/ListGridToggle'
@@ -79,28 +80,26 @@ const normalizeScan = (value = '') => value.trim().replace(/^MOBOS:/i, '').repla
 const safe = (value = '') => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))
 
 async function printLocationLabel(location) {
-  const popup = window.open('', '_blank', 'noopener,noreferrer')
-  if (!popup) return
   const code = `MOBOS:UBI:${location.id}`
   let qr = ''
-  try { qr = await QRCode.toDataURL(code, { errorCorrectionLevel: 'M', margin: 0, width: 150 }) } catch { /* La etiqueta conserva el texto aunque el QR no se renderice. */ }
-  popup.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Ubicación ${safe(location.name)}</title><style>@page{size:58mm auto;margin:2mm}body{width:54mm;margin:0;font-family:Arial,sans-serif;color:#111}.brand{color:#0c8876;font-size:9px;font-weight:900;letter-spacing:1px}.name{font-size:13px;font-weight:800;margin:2mm 0}.meta{font-size:9px;line-height:1.4}.qr{width:24mm;height:24mm;margin:2mm auto;display:block}</style></head><body><div class="brand">MOBOS · UBICACIÓN DE STOCK</div><div class="name">${safe(location.name)}</div><div class="meta">${safe(location.branch?.name || '')}${location.code ? ` · ${safe(location.code)}` : ''}</div>${qr ? `<img class="qr" src="${qr}" alt="QR">` : ''}<p class="meta">Escaneá para asignar la ubicación al recibir unidades.</p><script>window.onload=()=>window.print()<\/script></body></html>`)
-  popup.document.close()
+  try { qr = await QRCode.toDataURL(code, { errorCorrectionLevel: 'M', margin: 0, width: 190 }) } catch { /* La etiqueta conserva el texto aunque el QR no se renderice. */ }
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Ubicación ${safe(location.name)}</title><style>@page{size:58mm auto;margin:2mm}*{box-sizing:border-box}body{width:54mm;margin:0;font:11px/1.4 ui-sans-serif,system-ui,sans-serif;color:#0f1720;text-align:center}.brand{display:flex;justify-content:space-between;font-size:7.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1.5mm;margin-bottom:2.5mm}.name{font-size:15px;font-weight:900;letter-spacing:-.01em}.meta{font-size:8.5px;color:#66707a;margin-top:1mm}.qr{width:26mm;height:26mm;margin:3mm auto 2mm;display:block}footer{margin-top:2mm;border-top:1px dashed #999;padding-top:1.5mm;font-size:7px;color:#66707a}</style></head><body><div class="brand"><span>${safe(APP_NAME)} · UBICACIÓN</span><span>STOCK</span></div><div class="name">${safe(location.name)}</div><div class="meta">${safe(location.branch?.name || '')}${location.code ? ` · ${safe(location.code)}` : ''}</div>${qr ? `<img class="qr" src="${qr}" alt="QR">` : ''}<footer>Escaneá al recibir o trasladar para asignar esta ubicación.</footer></body></html>`
+  const popup = window.open('', '_blank', 'noopener,noreferrer')
+  if (popup) { popup.document.write(html); popup.document.close() }
 }
 
 async function printLabel(unit) {
   const product = unit.product || {}
   const serial = safe(unit.serial)
   const lastFour = safe(unit.serial?.slice(-4) || '----')
-  const popup = window.open('', '_blank', 'noopener,noreferrer')
-  if (!popup) return
   const code = `MOBOS:${unit.serial}`
   const barcodeSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  JsBarcode(barcodeSvg, code, { format: 'CODE128', displayValue: false, width: 1.2, height: 38, margin: 0 })
+  JsBarcode(barcodeSvg, code, { format: 'CODE128', displayValue: false, width: 1.4, height: 34, margin: 0 })
   let qr = ''
-  try { qr = await QRCode.toDataURL(code, { errorCorrectionLevel: 'M', margin: 0, width: 150 }) } catch { /* La etiqueta conserva el código de barras si el QR no puede renderizarse. */ }
-  popup.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiqueta ${lastFour}</title><style>@page{size:58mm auto;margin:2mm}body{width:54mm;margin:0;font-family:Arial,sans-serif;color:#111}.brand{color:#0c8876;font-size:9px;font-weight:900;letter-spacing:1px}.name{font-size:12px;font-weight:800;margin:2mm 0}.meta{font-size:8px;line-height:1.5}.last{font-size:30px;font-weight:900;letter-spacing:3px;text-align:center;margin:2mm 0}.serial{border-top:1px dashed #777;padding-top:2mm;font-size:7px;word-break:break-all}.codes{display:flex;align-items:center;gap:2mm;margin-top:2mm}.barcode{width:34mm}.qr{width:16mm;height:16mm}</style></head><body><div class="brand">MOBOS · ETIQUETA DE STOCK</div><div class="name">${safe(product.name)}</div><div class="meta">${safe(conditionLabel[unit.condition] || unit.condition)}${unit.batteryHealth ? ` · Batería ${safe(unit.batteryHealth)}%` : ''}${unit.location?.name ? ` · ${safe(unit.location.name)}` : ''}</div><div class="last">${lastFour}</div><div class="serial">IMEI / Serial: ${serial}</div><div class="codes"><div class="barcode">${barcodeSvg.outerHTML}</div>${qr ? `<img class="qr" src="${qr}" alt="QR">` : ''}</div><script>window.onload=()=>window.print()<\/script></body></html>`)
-  popup.document.close()
+  try { qr = await QRCode.toDataURL(code, { errorCorrectionLevel: 'M', margin: 0, width: 160 }) } catch { /* La etiqueta conserva el código de barras si el QR no puede renderizarse. */ }
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiqueta ${lastFour}</title><style>@page{size:58mm auto;margin:2mm}*{box-sizing:border-box}body{width:54mm;margin:0;font:11px/1.4 ui-sans-serif,system-ui,sans-serif;color:#0f1720}.brand{display:flex;justify-content:space-between;gap:2mm;font-size:7.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1.5mm;margin-bottom:2mm}.name{font-size:12px;font-weight:800;letter-spacing:-.01em}.meta{font-size:8px;color:#66707a;margin-top:1mm}.last{font-size:30px;font-weight:900;letter-spacing:4px;text-align:center;margin:2.5mm 0 1.5mm}.serial{border-top:1px dashed #999;padding-top:1.5mm;font-size:7px;word-break:break-all;color:#66707a}.codes{display:flex;align-items:center;gap:2mm;margin-top:2mm}.barcode{width:34mm}.barcode svg{width:100%;height:auto}.qr{width:16mm;height:16mm}footer{margin-top:1.5mm;border-top:1px dashed #999;padding-top:1mm;font-size:7px;color:#66707a;text-align:center}</style></head><body><div class="brand"><span>${safe(APP_NAME)} · ETIQUETA</span><span>STOCK</span></div><div class="name">${safe(product.name)}</div><div class="meta">${safe(conditionLabel[unit.condition] || unit.condition)}${unit.batteryHealth ? ` · Batería ${safe(unit.batteryHealth)}%` : ''}${unit.location?.name ? ` · ${safe(unit.location.name)}` : ''}${unit.supplierName ? ` · ${safe(unit.supplierName)}` : ''}</div><div class="last">${lastFour}</div><div class="serial">IMEI / Serial: ${serial}</div><div class="codes"><div class="barcode">${barcodeSvg.outerHTML}</div>${qr ? `<img class="qr" src="${qr}" alt="QR">` : ''}</div><footer>Escaneá para buscar, vender o verificar esta unidad.</footer><script>window.onload=()=>window.print()<\/script></body></html>`
+  const popup = window.open('', '_blank', 'noopener,noreferrer')
+  if (popup) { popup.document.write(html); popup.document.close() }
 }
 
 function CameraScan({ onDetected, onClose, continuous = false }) {
