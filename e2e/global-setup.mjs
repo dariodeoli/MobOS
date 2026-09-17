@@ -244,6 +244,9 @@ async function refreshStorageStates(ctx) {
   const admin = company.sellers.find((s) => s.name === SEED.admin.name)
   if (!seller || !admin) throw new Error('seed users not found in company sellers')
   const adminToken = await sellerSession(ctx, company.token, admin.id, SEED.admin.pin)
+  // La base persistente acumula ventas: se repone el stock de los productos
+  // semilla en cada corrida para que las suites no se queden sin mercadería.
+  await ensureProducts(ctx, adminToken)
   const sellerToken = await ensureSeedOrder(ctx, company.token, seller.id, adminToken)
   await writeStorageState(SELLER_STATE, company.token, sellerToken)
   await writeStorageState(ADMIN_STATE, company.token, adminToken)
