@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
+import Icon from '@/components/shared/Icon'
 import { Button, Input, Modal, MoneyInput, Select, Textarea, Badge } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField from '@/components/shared/PhoneField'

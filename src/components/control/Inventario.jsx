@@ -240,7 +240,7 @@ function CameraScan({ onDetected, onClose, continuous = false }) {
 
 const INVENTARIO_TABS = ['unidades', 'alertas', 'reservas', 'traslados', 'vendidos', 'transito', 'ubicaciones', 'compartido', 'eliminados']
 
-export default function Inventario({ tab: tabProp, onTabChange } = {}) {
+export default function Inventario({ tab: tabProp } = {}) {
   const [products, setProducts] = useState([]), [branches, setBranches] = useState([]), [units, setUnits] = useState([]), [removedUnits, setRemovedUnits] = useState([]), [reservations, setReservations] = useState([]), [transfers, setTransfers] = useState([]), [locations, setLocations] = useState([])
   const [tab, setTab] = useState(tabProp && INVENTARIO_TABS.includes(tabProp) && (tabProp !== 'alertas' || canViewAlerts) ? tabProp : 'unidades'), [query, setQuery] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [orden, setOrden] = useState('recientes'), [exportando, setExportando] = useState(false)
   const [stockAlerts, setStockAlerts] = useState({ alerts: [], outOfStock: [] })
@@ -280,7 +280,6 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const canManageVisibility = Boolean(sesion?.esPropietario)
   // La pestaña activa vive en la URL (/inventario/<slug>). Sin slug válido o sin
   // permiso para Alertas, se cae en Unidades.
-  function cambiarTab(next) { setTab(next); onTabChange?.(next) }
   const refresh = useCallback(async (search) => {
     if (!apiMode) return
     setBusy(true); setError('')

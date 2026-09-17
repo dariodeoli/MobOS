@@ -139,11 +139,18 @@ const CONFIG_TABS = [
   ['sucursales', 'Sucursales'],
   ['seguridad', 'Seguridad'],
 ]
+const TABS_ANALISIS = [
+  ['reportes', 'Reportes'],
+  ['ganancias', 'Ganancias'],
+  ['ganadores', 'Ganadores'],
+  ['asistente', 'Asistente'],
+]
 const TABS_FINANZAS = [
   ['caja', 'Caja'],
   ['gastos', 'Gastos'],
   ['bancos', 'Bancos y cuentas'],
   ['creditos', 'Créditos'],
+  ['cuotas', 'Cuotas'],
   ['publicidad', 'Publicidad'],
 ]
 const TABS_INVENTARIO = [
@@ -157,15 +164,16 @@ const TABS_INVENTARIO = [
   ['compartido', 'Compartido'],
   ['eliminados', 'Eliminados'],
 ]
+const CONFIG_VISTAS = CONFIG_TABS.map(([id]) => id)
+
 const SUBPAGINAS = {
   configuracion: {
     vista: 'equipo',
     tabs: [
       ['equipo', 'Equipo'],
-      ['invitaciones', 'Invitaciones'],
       ['identidad', 'Mi identidad'],
       ['roles', 'Roles y permisos'],
-      ['historial', 'Historial'],
+      ['historial', 'Auditoría'],
       ['negocio', 'Negocio'],
       ['sucursales', 'Sucursales'],
       ['seguridad', 'Seguridad'],
@@ -185,15 +193,9 @@ const SUBPAGINA_DE_TAB = Object.fromEntries(
 // Pestañas visibles según el modo: historial solo en demo, créditos fuera de demo.
 function tabsDeSubpagina(slug, esDemo) {
   const tabs = SUBPAGINAS[slug]?.tabs || []
-  if (slug === 'configuracion') {
-    // Historial es de la demo; Invitaciones necesita el API real.
-    return tabs.filter(([id]) => {
-      if (id === 'historial') return esDemo
-      if (id === 'invitaciones') return !esDemo
-      return true
-    })
-  }
-  if (slug === 'finanzas') return tabs.filter(([id]) => (id === 'creditos' ? !esDemo : id === 'publicidad' ? esDemo : true))
+  // Créditos y cuotas solo fuera de la demo; el resto (incluida la publicidad
+  // real vía Finanzas) está disponible en ambos modos.
+  if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas') ? !esDemo : true))
   return tabs
 }
 
@@ -224,6 +226,7 @@ const LABELS = {
   gastos: 'Gastos',
   bancos: 'Bancos y cuentas',
   creditos: 'Créditos',
+  cuotas: 'Cuotas',
   publicidad: 'Publicidad',
   unidades: 'Unidades',
   alertas: 'Alertas',
@@ -364,12 +367,12 @@ export default function PanelVendedor() {
   // acá, los dos efectos se pisan en bucle: uno fuerza 'cargar' y el otro
   // vuelve a leer 'inventario' de la URL.
   useEffect(() => {
-    const requerido = apartado ? SUBPAGINAS[apartado].vista : vista
+    const requerido = subpadre ? SUBPAGINAS[subpadre].vista : vista
     if (!accesibles.includes(requerido)) {
       setVista('cargar')
       navigate('/pos/cargar', { replace: true })
     }
-  }, [apartado, accesibles, vista, navigate])
+  }, [subpadre, accesibles, vista, navigate])
   // Sincroniza la URL → vista solo para rutas válidas del rol activo.
   useEffect(() => {
     if (subpadre) {
@@ -404,7 +407,7 @@ export default function PanelVendedor() {
   // Pestaña de un apartado: la pestaña activa vive en la URL hija.
   function irASubtab(id) {
     setVista(id)
-    if (apartado) navigate(`/${apartado}/${id}`)
+    if (subpadre) navigate(`/${subpadre}/${id}`)
   }
 
   function toggleSidebar() {
@@ -575,7 +578,7 @@ export default function PanelVendedor() {
         nav={esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV}
         bottomNav={esOwner ? OWNER_BOTTOM : esTecnico ? [] : SELLER_BOTTOM}
         onOpenMenuLabel="Menú"
-        active={apartado ? SUBPAGINAS[apartado].vista : vista}
+        active={subpadre ? SUBPAGINAS[subpadre].vista : vista}
         onNavigate={ir}
         collapsed={sidebarCollapsed}
         onToggleCollapsed={toggleSidebar}
@@ -682,59 +685,39 @@ export default function PanelVendedor() {
             </div>
           </div>
 
-          {esOwner && apartado === 'inventario' && <Inventario tab={vista} onTabChange={irASubtab} />}
+          {esOwner && subpadre === 'inventario' && <Inventario tab={vista} />}
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
           {(esOwner || esTecnico) && vista === 'servicio' && <ServicioTecnico />}
           {esOwner && vista === 'garantias' && <Garantias />}
           {esOwner && vista === 'autorizaciones' && <Autorizaciones />}
           {esOwner && vista === 'resumen' && <ResumenControl />}
-          {esOwner && apartado === 'analisis' && (
+          {esOwner && subpadre === 'analisis' && (
             <div>
-              <Subtabs value={vista} onChange={irASubtab} items={tabsApartado} />
+              <Subtabs value={vista} onChange={irASubtab} items={tabsRuta} />
               {vista === 'reportes' && <Reportes />}
               {vista === 'ganancias' && <Ganancias />}
               {vista === 'ganadores' && <Ganadores />}
               {vista === 'asistente' && <Asistente />}
             </div>
           )}
-          {esOwner && apartado === 'finanzas' && (
+          {esOwner && subpadre === 'finanzas' && (
             <div>
-              <Subtabs
-                value={finanzasTab}
-                onChange={setFinanzasTab}
-                items={
-                  esDemo
-                    ? [
-                        ['caja', 'Caja'],
-                        ['gastos', 'Gastos'],
-                        ['bancos', 'Bancos y cuentas'],
-                        ['publicidad', 'Publicidad'],
-                      ]
-                    : [
-                        ['caja', 'Caja'],
-                        ['gastos', 'Gastos'],
-                        ['bancos', 'Bancos y cuentas'],
-                        ['creditos', 'Créditos'],
-                        ['cuotas', 'Cuotas'],
-                        ['publicidad', 'Publicidad'],
-                      ]
-                }
-              />
-              {finanzasTab === 'caja' && <Caja />}
-              {finanzasTab === 'gastos' && <Gastos />}
-              {finanzasTab === 'bancos' && <PaymentAccounts />}
-              {finanzasTab === 'creditos' && <Creditos />}
-              {finanzasTab === 'cuotas' && <Cobranzas />}
-              {(esDemo || finanzasTab === 'publicidad') && finanzasTab === 'publicidad' && <Ads />}
+              <Subtabs value={vista} onChange={irASubtab} items={tabsRuta} />
+              {vista === 'caja' && <Caja />}
+              {vista === 'gastos' && <Gastos />}
+              {vista === 'bancos' && <PaymentAccounts />}
+              {vista === 'creditos' && <Creditos />}
+              {vista === 'cuotas' && <Cobranzas />}
+              {vista === 'publicidad' && <Ads />}
             </div>
           )}
-          {esOwner && apartado === 'configuracion' && (
+          {esOwner && subpadre === 'configuracion' && (
             <div>
               <Subtabs
                 value={vista}
-                onChange={ir}
-                items={CONFIG_TABS}
+                onChange={irASubtab}
+                items={tabsRuta}
               />
               {vista === 'equipo' && <Vendedores />}
               {vista === 'identidad' && <MiIdentidad />}

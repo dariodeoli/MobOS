@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { listAds, addAds, deleteAds } from '@/lib/storage'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
@@ -42,7 +42,7 @@ export default function Ads() {
   const [f, setF] = useState(VACIO)
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }))
 
-  async function cargar() {
+  const cargar = useCallback(async function cargar() {
     if (demo) { setAds(listAds()); return }
     setCargando(true); setError('')
     try {
@@ -54,8 +54,8 @@ export default function Ads() {
         nota: String(row.description || '').split(' · ').slice(1).join(' · '),
       })))
     } catch (cause) { setError(cause?.message || 'No se pudieron cargar las inversiones.') } finally { setCargando(false) }
-  }
-  useEffect(() => { cargar() }, [sucursal?.id])
+  }, [demo, sucursal?.id])
+  useEffect(() => { cargar() }, [cargar])
 
   async function guardar(e) {
     e.preventDefault()
