@@ -134,7 +134,7 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
           </div>
           <p className="mt-1 text-xs text-mute">{unit.branch?.name || 'Sucursal'}{unit.location?.name ? ` · ${unit.location.name}` : ''}{unit.product?.sku ? ` · ${unit.product.sku}` : ''}</p>
           {verifierName && unit.lastVerifiedAt && (
-            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-mute"><Avatar name={verifierName} picture={perfilEmpresa?.picture} size="sm" /><span>Verificó {verifierName} · {relativeDate(unit.lastVerifiedAt)}{unit.verificationCount > 1 ? ` · ${unit.verificationCount} veces` : ''}</span></p>
+            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-mute" title={verifierName ? `Verificó ${verifierName}` : undefined}><Avatar name={verifierName} picture={perfilEmpresa?.picture} size="sm" /><span>VP · {relativeDate(unit.lastVerifiedAt)}{unit.verificationCount > 1 ? ` · ${unit.verificationCount} veces` : ''}</span></p>
           )}
           {!unit.lastVerifiedAt && <p className="mt-2 text-[11px] text-mute">Sin verificación física registrada.</p>}
         </section>
@@ -210,9 +210,9 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
               {loading && <div className="mt-4 space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
               {!loading && <div className="mt-4 space-y-4">
                 {events.map((event, index) => <article key={event.id || index} className="flex gap-3">
-                  <Avatar name={event.user?.name || 'Sistema'} />
+                  <span title={event.user?.name || 'Sistema'}><Avatar name={event.user?.name || 'Sistema'} /></span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold">{event.user?.name || 'Sistema'}<span className="ml-2 font-normal text-mute">{relativeDate(event.createdAt)}</span><span className="ml-2 rounded border border-ink-500 px-1.5 py-0.5 text-[10px] font-normal text-mute">{EVENT_LABEL[event.type] || event.type}</span></p>
+                    <p className="text-xs text-mute"><span className="font-semibold text-fore">{relativeDate(event.createdAt)}</span><span className="ml-2 rounded border border-ink-500 px-1.5 py-0.5 text-[10px]">{EVENT_LABEL[event.type] || event.type}</span></p>
                     <p className="mt-1 whitespace-pre-wrap text-sm text-fore/90">{event.detail}</p>
                     {(event.photos || []).length > 0 && <div className="mt-2 flex flex-wrap gap-2">{event.photos.map(photo => <FotoMini key={photo.id} unitId={unit.id} commentId={event.id} photo={photo} />)}</div>}
                   </div>
