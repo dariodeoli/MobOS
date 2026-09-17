@@ -88,7 +88,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div className="text-xs text-mute">Teléfono<PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></div>
         <label className="text-xs text-mute">CI o RUC<Input aria-label="CI o RUC del cliente" value={value.document || ''} onChange={event => { setRucLookup(null); setRucError(''); onChange({ ...value, document: event.target.value }) }} placeholder="80012345-6" /></label>
-        <label className="text-xs text-mute">Correo<EmailField aria-label="Correo del cliente" value={value.email || ''} onChange={value => onChange({ ...value, email: value })} placeholder="cliente@correo.com" /></label>
+        <label className="text-xs text-mute">Correo<EmailField aria-label="Correo del cliente" value={value.email || ''} onChange={(email) => onChange({ ...value, email })} placeholder="cliente@correo.com" /></label>
       </div>
       <div className="mt-3 rounded-xl border border-ink-600 bg-ink-800/30 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2"><div><strong className="text-sm">Consulta RUC Paraguay</strong><p className="mt-1 text-xs text-mute">Verificá los datos antes de aplicarlos. La consulta no guarda información por sí sola.</p></div><Button type="button" variant="outline" disabled={!value.document?.trim() || rucLoading} onClick={consultRuc}>{rucLoading ? 'Consultando…' : 'Consultar RUC'}</Button></div>

@@ -80,7 +80,7 @@ export default function PasoProductos({
         value={customer}
         onChange={c => {
           setCustomer(c)
-          setF(current => ({ ...current, cliente: c.name }))
+          setF(current => ({ ...current, cliente: c?.name ?? '' }))
         }}
         billingTo={billingTo}
         onBillingChange={setBillingTo}

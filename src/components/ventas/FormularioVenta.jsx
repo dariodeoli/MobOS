@@ -436,7 +436,7 @@ export default function FormularioVenta({
   const cantTotal = items.reduce((a, it) => a + (it.quantity || 1), 0) + (precioActual > 0 ? 1 : 0)
   const valido =
     sesion?.vendedorId &&
-    f.cliente.trim() &&
+    String(f.cliente ?? '').trim() &&
     cantTotal > 0 &&
     totalPagado <= totalGeneral &&
     gsNum(descuento) <= subtotal
@@ -625,7 +625,7 @@ export default function FormularioVenta({
     }
     if (
       !sesion?.vendedorId ||
-      !f.cliente.trim() ||
+      !String(f.cliente ?? '').trim() ||
       lista.length === 0 ||
       totalPagado > totalGeneral
     )
@@ -806,7 +806,7 @@ export default function FormularioVenta({
           ? customer
           : clientesDemo.find(
               c =>
-                c.name.toLowerCase() === customer.name.trim().toLowerCase() &&
+                String(c.name || '').toLowerCase() === String(customer.name || '').trim().toLowerCase() &&
                 (!customer.phone || c.phone === customer.phone),
             ) || { ...customer, name: customer.name.trim(), id: crypto.randomUUID() }
         const ventas = []
@@ -814,7 +814,7 @@ export default function FormularioVenta({
           const venta = await addVenta({
             compraId,
             vendedorId: sesion.vendedorId,
-            cliente: f.cliente,
+            cliente: String(f.cliente ?? ''),
             clienteId: clienteDemo.id,
             clienteTelefono: clienteDemo.phone,
             clienteDireccion: clienteDemo.address,
@@ -850,7 +850,7 @@ export default function FormularioVenta({
           ...ventas[0],
           id: ventas[0].id,
           compraId,
-          cliente: f.cliente.trim(),
+          cliente: String(f.cliente ?? '').trim(),
           vendedorId: sesion.vendedorId,
           seller: { id: sesion.vendedorId, name: sesion.nombre },
           fecha: fechaVenta,

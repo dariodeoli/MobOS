@@ -36,7 +36,7 @@ export default defineConfig({
     {
       // Seeded seller session (PIN 2468) for POS and permissions coverage.
       name: 'seller',
-      testMatch: /pos-checkout\.spec\.js|permissions\.spec\.js|responsive\.spec\.js/,
+      testMatch: /pos-checkout\.spec\.js|pos-campos\.spec\.js|permissions\.spec\.js|responsive\.spec\.js/,
       use: { storageState: 'e2e/.auth/seller.json' },
     },
     {

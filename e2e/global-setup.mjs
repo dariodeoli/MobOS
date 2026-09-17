@@ -121,6 +121,17 @@ async function ensureProducts(ctx, adminToken) {
       if (!product.imei) {
         const patch = await ctx.patch('/api/products', { headers: bearer(adminToken), data: { id: found.id, pricePyg: product.pricePyg, stock: product.stock } })
         if (!patch.ok()) throw new Error(`product stock reset failed (${key}): HTTP ${patch.status()}`)
+      } else {
+        // Cada corrida vende una unidad serializada: se reponen hasta 3
+        // disponibles para que las suites repetidas no se queden sin stock.
+        const unidades = await ctx.get(`/api/inventory-units?q=${encodeURIComponent(product.sku)}`, { headers: bearer(adminToken) })
+        if (!unidades.ok()) throw new Error(`units list failed (${key}): HTTP ${unidades.status()}`)
+        const disponibles = (await unidades.json()).filter((unit) => unit.status === 'AVAILABLE' && unit.product?.sku === product.sku).length
+        for (let i = disponibles; i < 3; i += 1) {
+          const serial = `E2E-${product.sku}-${Date.now().toString(36).toUpperCase()}${i}`
+          const created = await ctx.post('/api/inventory-units', { headers: bearer(adminToken), data: { productId: product.id, branchId: SEED.branchId, serial, condition: 'NEW' } })
+          if (!created.ok()) throw new Error(`unit replenish failed (${key}): HTTP ${created.status()} ${await created.text()}`)
+        }
       }
     } else {
       const body = { sku: product.sku, name: product.name, category: product.category, pricePyg: product.pricePyg, stock: product.stock, costPyg: product.costPyg, branchId: SEED.branchId }
@@ -244,6 +255,10 @@ async function refreshStorageStates(ctx) {
   const admin = company.sellers.find((s) => s.name === SEED.admin.name)
   if (!seller || !admin) throw new Error('seed users not found in company sellers')
   const adminToken = await sellerSession(ctx, company.token, admin.id, SEED.admin.pin)
+  // Reponer stock serializado y reafirmar precios también en el camino de
+  // refresh: cada corrida vende unidades y la base persistente se agota.
+  await ensureProducts(ctx, adminToken)
+  await ensurePaymentAccounts(ctx, adminToken)
   const sellerToken = await ensureSeedOrder(ctx, company.token, seller.id, adminToken)
   await writeStorageState(SELLER_STATE, company.token, sellerToken)
   await writeStorageState(ADMIN_STATE, company.token, adminToken)
