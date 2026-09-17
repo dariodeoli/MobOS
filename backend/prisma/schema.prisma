@@ -438,7 +438,11 @@ model InventoryUnit {
   exchangeRatePyg     Decimal?            @db.Decimal(14, 4)
   notes               String?
   reservedUntil       DateTime?
+  // Nombre congelado al reservar (lo que se muestra) y la ficha real del
+  // cliente cuando la reserva se hizo eligiendo uno existente.
   reservationCustomer String?
+  reservationCustomerId String?
+  reservationCustomerRef Customer? @relation("InventoryUnitReservation", fields: [reservationCustomerId], references: [id], onDelete: SetNull)
   reservedById        String?
   lastVerifiedAt      DateTime?
   lastVerifiedById    String?
@@ -578,6 +582,7 @@ model Customer {
 
   orders        Order[]
   quotes        Quote[]
+  unitReservations InventoryUnit[] @relation("InventoryUnitReservation")
   warrantyCases WarrantyCase[] @relation("WarrantyCaseCustomer")
   serviceOrders ServiceOrder[] @relation("ServiceOrderCustomer")
   addresses     CustomerAddress[]
