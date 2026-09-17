@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto'
 export const DIR = process.env.MOBOS_PRINT_DIR || join(homedir(), '.mobos-print')
 export const RUTA_CONFIG = join(DIR, 'config.json')
 export const RUTA_COLA = join(DIR, 'cola.json')
+export const RUTA_HISTORIAL = join(DIR, 'historial.json')
 
 export function cargarConfig() {
   let guardado = {}

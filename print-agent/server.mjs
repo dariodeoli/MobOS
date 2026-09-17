@@ -1,11 +1,11 @@
 import { createServer } from 'node:http'
-import { cargarConfig, guardarConfig, RUTA_COLA } from './config.mjs'
+import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config.mjs'
 import { crearCola } from './cola.mjs'
 import { diagnosticoRed, enviar, impresorasUsb, probarConexion } from './transportes.mjs'
 
 const VERSION = '1.0.0'
 const config = cargarConfig()
-const cola = crearCola({ ruta: RUTA_COLA, enviar, esperaMs: config.esperaMs, reintentos: config.reintentos, log: (mensaje) => console.log(`[cola] ${mensaje}`) })
+const cola = crearCola({ ruta: RUTA_COLA, rutaHistorial: RUTA_HISTORIAL, enviar, esperaMs: config.esperaMs, reintentos: config.reintentos, log: (mensaje) => console.log(`[cola] ${mensaje}`) })
 cola.reanudar()
 
 // La app vive en un dominio público y llama a este agente en 127.0.0.1: el
@@ -47,6 +47,13 @@ const responder = (response, datos, status = 200) => {
 
 const tokenValido = (request) => !config.token || request.headers['x-mobos-print-token'] === config.token
 
+// IP del equipo que llama: sirve para saber desde qué computadora se imprimió.
+const ipDe = (request) => {
+  const reenviada = String(request.headers['x-forwarded-for'] || '').split(',')[0].trim()
+  const directa = String(request.socket?.remoteAddress || '')
+  return (reenviada || directa).replace(/^::ffff:/, '')
+}
+
 const leerCuerpo = (request) => new Promise((resolve, reject) => {
   let datos = ''
   request.on('data', (parte) => {
@@ -74,12 +81,20 @@ const servidor = createServer(async (request, response) => {
         impresoras: { lan: config.lan, usb },
         impresoraOk: await impresoraResponde(),
         cola: cola.resumen(),
+        cliente: ipDe(request),
+        host: config.host,
       })
     }
 
     if (request.method === 'GET' && url.pathname === '/diagnostico') {
       if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
       return responder(response, { ok: true, ...(await diagnosticoRed(config.impresora)) })
+    }
+
+    if (request.method === 'GET' && url.pathname === '/historial') {
+      if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
+      const limite = Math.min(60, Math.max(1, Number(url.searchParams.get('limite')) || 20))
+      return responder(response, { ok: true, historial: cola.historial(limite) })
     }
 
     if (request.method === 'POST' && url.pathname === '/jobs/clear') {
@@ -102,7 +117,8 @@ const servidor = createServer(async (request, response) => {
       if (!data || !/^[A-Za-z0-9+/=]+$/.test(data)) return responder(response, { ok: false, error: 'El ticket llegó vacío o mal formado.' }, 400)
       const ticket = copias > 1 ? Buffer.from(data, 'base64').toString('base64') : data
       const resultados = []
-      for (let copia = 0; copia < copias; copia += 1) resultados.push(await cola.encolar({ impresora, data: ticket }))
+      const cliente = ipDe(request)
+      for (let copia = 0; copia < copias; copia += 1) resultados.push(await cola.encolar({ impresora, data: ticket, cliente }))
       const pendiente = resultados.find((resultado) => resultado.encolado)
       if (pendiente) {
         const sinRuta = /EHOSTUNREACH|ENETUNREACH/i.test(pendiente.error || '')

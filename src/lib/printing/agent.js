@@ -31,7 +31,7 @@ export async function estadoAgente({ forzar = false } = {}) {
   const control = new AbortController()
   const timer = setTimeout(() => control.abort(), 1200)
   try {
-    const respuesta = await fetch(`${url}/health`, { signal: control.signal, targetAddressSpace: 'local' })
+    const respuesta = await fetch(`${url}/health`, { signal: control.signal })
     if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`)
     const datos = await respuesta.json()
     cache = { hasta: Date.now() + 5000, estado: { disponible: true, ...datos } }
@@ -61,7 +61,6 @@ export async function imprimirDirecto(base64, { ancho, copias, impresora } = {})
         data: base64,
       }),
       signal: control.signal,
-      targetAddressSpace: 'local',
     })
     const datos = await respuesta.json().catch(() => ({}))
     if (!respuesta.ok || datos?.ok === false) throw new Error(datos?.error || `El agente respondió ${respuesta.status}.`)

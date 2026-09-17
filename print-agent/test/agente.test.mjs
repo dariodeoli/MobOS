@@ -132,4 +132,13 @@ test('el agente imprime al toque cuando la impresora está disponible', async (t
   assert.equal(respuesta.encolado, false)
   assert.ok(await esperar(() => impresora.conDatos().length > 0))
   assert.equal(impresora.conDatos()[0].toString(), 'TICKET')
+
+  // El historial deja trazabilidad: quién imprimió, desde qué equipo y cómo salió.
+  const historial = await fetch(`http://127.0.0.1:${puertoAgente}/historial`, { headers: { 'x-mobos-print-token': TOKEN } }).then((r) => r.json())
+  assert.equal(historial.historial[0].resultado, 'impreso')
+  assert.equal(historial.historial[0].cliente, '127.0.0.1')
+  assert.equal(historial.historial[0].impresora, `lan:127.0.0.1:${puertoImpresora}`)
+  assert.ok(historial.historial[0].bytes > 0)
+  const sinToken = await fetch(`http://127.0.0.1:${puertoAgente}/historial`)
+  assert.equal(sinToken.status, 401)
 })

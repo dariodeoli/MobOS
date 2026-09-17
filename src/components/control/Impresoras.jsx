@@ -52,7 +52,7 @@ export default function Impresoras() {
     setDiagnosticando(true)
     try {
       const { url, token } = configImpresora()
-      const respuesta = await fetch(`${url}/diagnostico`, { headers: token ? { 'x-mobos-print-token': token } : {}, targetAddressSpace: 'local' })
+      const respuesta = await fetch(`${url}/diagnostico`, { headers: token ? { 'x-mobos-print-token': token } : {} })
       setDiagnostico(await respuesta.json())
     } catch (cause) {
       setDiagnostico({ ok: false, error: cause?.message || 'No se pudo consultar el diagnóstico.' })

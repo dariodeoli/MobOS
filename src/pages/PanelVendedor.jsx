@@ -45,6 +45,7 @@ const Garantias = lazy(() => import('@/components/control/Garantias'))
 const ServicioTecnico = lazy(() => import('@/components/control/ServicioTecnico'))
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
 const Impresoras = lazy(() => import('@/components/control/Impresoras'))
+const EstadoImpresion = lazy(() => import('@/components/control/EstadoImpresion'))
 
 // Navegación por flujo de trabajo: primero la operación del día, después el
 // catálogo/stock y al final las herramientas de gestión. Los permisos definen
@@ -168,6 +169,7 @@ const SUBPAGINAS = {
       ['sucursales', 'Sucursales'],
       ['seguridad', 'Seguridad'],
       ['impresoras', 'Impresoras'],
+      ['impresion', 'Estado de impresión'],
     ],
   },
   analisis: { vista: 'analisis', tabs: TABS_ANALISIS },
@@ -218,6 +220,7 @@ const LABELS = {
   sucursales: 'Sucursales',
   seguridad: 'Seguridad',
   impresoras: 'Impresoras',
+  impresion: 'Estado de impresión',
   reportes: 'Reportes',
   ganancias: 'Ganancias',
   ganadores: 'Ganadores',
@@ -721,6 +724,7 @@ export default function PanelVendedor() {
               {vista === 'sucursales' && <Config seccion="sucursales" />}
               {vista === 'seguridad' && <Config seccion="seguridad" />}
               {vista === 'impresoras' && <Impresoras />}
+              {vista === 'impresion' && <EstadoImpresion />}
             </div>
           )}
           </Suspense>

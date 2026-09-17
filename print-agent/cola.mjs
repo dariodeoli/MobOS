@@ -4,19 +4,37 @@ import { randomUUID } from 'node:crypto'
 
 // Cola persistente: si la impresora está apagada o sin red, el trabajo queda
 // guardado y se reintenta solo. Un trabajo por vez para no mezclar tickets.
-export function crearCola({ ruta, enviar, esperaMs = 15000, reintentos = 5, log = () => {} }) {
+// Además guarda un historial corto (quién imprimió, desde qué equipo y cómo
+// salió) para la página de estado.
+export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reintentos = 5, historialMax = 60, log = () => {} }) {
   let trabajos = []
+  let historial = []
   try { if (existsSync(ruta)) trabajos = JSON.parse(readFileSync(ruta, 'utf8')) || [] } catch { trabajos = [] }
+  try { if (rutaHistorial && existsSync(rutaHistorial)) historial = JSON.parse(readFileSync(rutaHistorial, 'utf8')) || [] } catch { historial = [] }
   let procesando = false
   let timer = null
 
-  const guardar = () => {
+  const guardarJson = (rutaArchivo, datos) => {
     try {
-      mkdirSync(dirname(ruta), { recursive: true })
-      writeFileSync(ruta, `${JSON.stringify(trabajos, null, 2)}\n`)
+      mkdirSync(dirname(rutaArchivo), { recursive: true })
+      writeFileSync(rutaArchivo, `${JSON.stringify(datos, null, 2)}\n`)
     } catch (error) {
-      log(`no se pudo guardar la cola: ${error.message}`)
+      log(`no se pudo guardar ${rutaArchivo}: ${error.message}`)
     }
+  }
+  const guardar = () => guardarJson(ruta, trabajos)
+  const guardarHistorial = () => { if (rutaHistorial) guardarJson(rutaHistorial, historial.slice(0, historialMax)) }
+
+  const anotar = (trabajo, resultado, error = '') => {
+    historial.unshift({
+      fecha: new Date().toISOString(),
+      cliente: trabajo.cliente || '',
+      impresora: trabajo.impresora,
+      resultado,
+      error: error || '',
+      bytes: trabajo.bytes || 0,
+    })
+    guardarHistorial()
   }
 
   async function procesar() {
@@ -27,12 +45,14 @@ export function crearCola({ ruta, enviar, esperaMs = 15000, reintentos = 5, log 
     try {
       await enviar(siguiente.impresora, Buffer.from(siguiente.data, 'base64'))
       trabajos = trabajos.filter((trabajo) => trabajo.id !== siguiente.id)
-      log(`impreso ${siguiente.id} en ${siguiente.impresora}`)
+      anotar(siguiente, 'impreso')
+      log(`impreso ${siguiente.id} en ${siguiente.impresora} (${siguiente.cliente || 'sin equipo'})`)
     } catch (error) {
       siguiente.intentos = Number(siguiente.intentos || 0) + 1
       if (siguiente.intentos >= reintentos) {
         siguiente.estado = 'fallido'
         siguiente.error = error.message
+        anotar(siguiente, 'fallido', error.message)
         log(`trabajo ${siguiente.id} falló definitivamente: ${error.message}`)
       } else {
         siguiente.proximoIntento = Date.now() + esperaMs
@@ -57,8 +77,9 @@ export function crearCola({ ruta, enviar, esperaMs = 15000, reintentos = 5, log 
 
   return {
     // Intenta imprimir ya; si falla, el trabajo queda en la cola.
-    async encolar({ impresora, data }) {
-      const trabajo = { id: randomUUID(), impresora, data, estado: 'pendiente', intentos: 0, proximoIntento: 0, creadoEn: new Date().toISOString() }
+    async encolar({ impresora, data, cliente = '' }) {
+      const bytes = Buffer.from(data, 'base64').length
+      const trabajo = { id: randomUUID(), impresora, data, cliente, bytes, estado: 'pendiente', intentos: 0, proximoIntento: 0, creadoEn: new Date().toISOString() }
       trabajos.push(trabajo)
       guardar()
       await procesar()
@@ -77,6 +98,7 @@ export function crearCola({ ruta, enviar, esperaMs = 15000, reintentos = 5, log 
         fallidos: trabajos.filter((trabajo) => trabajo.estado === 'fallido').length,
       }
     },
+    historial: (limite = 20) => historial.slice(0, limite),
     reanudar() { programar() },
     limpiarFallidos() {
       const antes = trabajos.length
