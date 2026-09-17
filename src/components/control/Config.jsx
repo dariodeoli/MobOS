@@ -12,6 +12,7 @@ import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import WhatsAppTemplates from './WhatsAppTemplates'
+import SolicitudesCliente from './SolicitudesCliente'
 import { ROLE_LABELS } from '@/lib/roles'
 
 function fmtDate(value) {
@@ -172,6 +173,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
         <SeccionInvitaciones />
         <IdentidadCuenta reauthValidUntil={account?.reauthValidUntil} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} />
         {esDueno && <WhatsAppTemplates />}
+        {esDueno && <SolicitudesCliente />}
       </>}
       {seccion === 'sucursales' && <>
         {esDueno && <SeccionSucursales />}
