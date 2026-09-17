@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addProducto, addProductoApi, getProductos } from '@/lib/storage'
 import { isDemoRuntime } from '@/lib/demoMode'
+import { api } from '@/lib/api/client'
 import { purchasesApi } from '@/lib/api/purchases'
 import { suppliersApi } from '@/lib/api/suppliers'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
@@ -155,6 +156,21 @@ export default function Compras() {
     try { await descargarCsv('purchases', {}, 'mobos-compras.csv') } catch (cause) { setError(cause?.message || 'No se pudo exportar el CSV.') } finally { setExportando(false) }
   }
 
+  async function sugerirReposicion() {
+    setError(''); setMessage('')
+    if (demo) { setError('La sugerencia de reposición usa las alertas de stock reales.'); return }
+    setBusy(true)
+    try {
+      const params = new URLSearchParams()
+      if (branchId) params.set('branchId', branchId)
+      const payload = await api.get(`/api/stock-alerts${params.toString() ? `?${params}` : ''}`)
+      const bajos = (payload?.alerts || []).filter((item) => Number(item.stock) < Number(item.reorderPoint))
+      if (!bajos.length) { setMessage('No hay productos bajo su umbral de reposición.'); return }
+      setLines(bajos.map((item) => ({ productId: item.id, sku: item.sku || '', nombre: item.name || '', quantity: String(Math.max(1, Number(item.reorderPoint) - Number(item.stock))), unitCostPyg: '0', lotReference: '' })))
+      setMessage(`Se sugirieron ${bajos.length} productos bajo umbral. Elegí proveedor y confirmá cantidades.`)
+    } catch (cause) { setError(cause?.message || 'No se pudo consultar el stock.') } finally { setBusy(false) }
+  }
+
   async function openPayment(purchase) {
     setError(''); setPaymentPurchase(purchase); setPagoRegistrado(null)
     const first = accounts.find(account => account.currency === 'PYG') || accounts[0]
@@ -240,7 +256,7 @@ export default function Compras() {
     <Card><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="mb-1 font-bold">Compras e importaciones</h2><p className="mb-4 text-sm text-mute">Anticipos, crédito y costos finales auditables por equipo o lote.</p></div><div className="flex flex-wrap gap-2">{!demo && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}<Button type="button" variant="outline" onClick={() => setSuppliersOpen(true)}>Proveedores</Button></div></div>
       <form onSubmit={create} className="space-y-3"><div className="grid gap-2 sm:grid-cols-2"><Select aria-label="Proveedor" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}><option value="">Elegí un proveedor</option>{suppliers.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}<option value="new">＋ Nuevo proveedor</option></Select><div><Select aria-label="Sucursal de recepción" value={branchId} onChange={(e) => { branchTouched.current = true; setBranchId(e.target.value) }}>{branchOptions.length === 0 ? <option value="">Sin sucursal definida</option> : <><option value="">Sin sucursal (general)</option>{branchOptions.map(branch => <option key={branch.id} value={branch.id}>{branch.nombre || branch.name}</option>)}</>}</Select><p className="mt-1 px-1 text-xs text-mute">Es tu sucursal donde entra el stock, no la del proveedor.</p></div></div>
         {supplierId === 'new' && <div className="grid gap-2 sm:grid-cols-2"><Input required value={newSupplier.name} onChange={(e) => setNewSupplier(s => ({ ...s, name: e.target.value }))} placeholder="Nombre del proveedor" /><PhoneField countryCode={newSupplier.countryCode || '+595'} phone={newSupplier.phone || ''} onCountryCodeChange={(countryCode) => setNewSupplier(s => ({ ...s, countryCode }))} onChange={(phone) => setNewSupplier(s => ({ ...s, phone }))} placeholder="Teléfono (opcional)" /><div className="space-y-1"><CityAutocomplete value={newSupplier.city} onSelect={(city, department) => setNewSupplier(s => ({ ...s, city, department }))} placeholder="Ciudad (opcional)" />{newSupplier.department && <p className="px-1 text-xs text-fono-light">Departamento: {newSupplier.department}</p>}</div><Input value={newSupplier.address} onChange={(e) => setNewSupplier(s => ({ ...s, address: e.target.value }))} placeholder="Dirección (opcional)" /></div>}
-        <div className="space-y-2">{lines.map((line, index) => <ProductLine key={index} products={products} line={line} currency={currency} onChange={(value) => updateLine(index, value)} onSelectProduct={(product) => chooseProduct(index, product)} onCreateProduct={createProduct} canRemove={lines.length > 1} onRemove={() => setLines(items => items.filter((_, itemIndex) => itemIndex !== index))} />)}<Button type="button" variant="outline" onClick={() => setLines(items => [...items, emptyLine()])}>+ Agregar línea / lote</Button></div>
+        <div className="space-y-2">{lines.map((line, index) => <ProductLine key={index} products={products} line={line} currency={currency} onChange={(value) => updateLine(index, value)} onSelectProduct={(product) => chooseProduct(index, product)} onCreateProduct={createProduct} canRemove={lines.length > 1} onRemove={() => setLines(items => items.filter((_, itemIndex) => itemIndex !== index))} />)}<Button type="button" variant="outline" onClick={() => setLines(items => [...items, emptyLine()])}>+ Agregar línea / lote</Button>{!demo && <Button type="button" variant="outline" disabled={busy} onClick={sugerirReposicion}>Sugerir reposición</Button>}</div>
         <details className="rounded-xl border border-ink-600/70 p-3"><summary className="cursor-pointer select-none text-sm font-semibold text-fore">Costos de importación (flete, aduana, seguro…) <span className="ml-1 text-xs font-normal text-mute">· {gs(costsTotalPyg)}</span></summary><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{COST_FIELDS.map(([key, label]) => <MoneyInput key={key} currency={currency} value={costs[key]} onValueChange={(value) => setCosts(current => ({ ...current, [key]: value }))} placeholder={label} />)}</div></details>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3"><Select value={costAllocationMethod} onChange={(e) => setCostAllocationMethod(e.target.value)}><option value="PROPORTIONAL_VALUE">Distribuir por valor</option><option value="PROPORTIONAL_QUANTITY">Distribuir por cantidad</option></Select><CurrencySelect value={currency} onChange={(e) => setCurrency(e.target.value)} />{currency !== 'PYG' && <MoneyInput currency="USD" symbol="Gs." value={exchangeRatePyg} onValueChange={setExchangeRatePyg} placeholder="Cotización PYG" />}</div>
         <div className="grid gap-2 rounded-xl border border-ink-600/70 p-3 sm:grid-cols-3"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={creditEnabled} onChange={(e) => setCreditEnabled(e.target.checked)} /> Compra a crédito</label><Input type="date" disabled={!creditEnabled} value={dueAt} onChange={(e) => setDueAt(e.target.value)} aria-label="Vencimiento de crédito" /><Input value={supplierReference} onChange={(e) => setSupplierReference(e.target.value)} placeholder="Referencia proveedor" /></div>

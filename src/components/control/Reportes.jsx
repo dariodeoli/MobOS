@@ -289,6 +289,28 @@ export default function Reportes() {
             <Stat label="Costo de mercadería" valor={gs(totales.costPyg)} sub={`${totales.units} unidades`} />
           </div>
 
+          {datos.previous?.totals && (
+            <div className="flex flex-wrap items-center gap-2">
+              {(() => {
+                const previo = datos.previous.totals
+                const variacion = (actual, anterior) => anterior > 0 ? ((actual - anterior) / anterior) * 100 : null
+                return [
+                  ['Ventas', totales.totalPyg, previo.totalPyg],
+                  ['Cobrado', totales.collectedPyg, previo.collectedPyg],
+                  ['Pedidos', totales.orders, previo.orders],
+                ].map(([label, actual, anterior]) => {
+                  const delta = variacion(actual, anterior)
+                  if (delta === null) return null
+                  return (
+                    <Badge key={label} color={delta >= 0 ? 'green' : 'red'}>
+                      {label} {delta >= 0 ? '↑' : '↓'} {Math.abs(delta).toFixed(1)}% vs período anterior
+                    </Badge>
+                  )
+                })
+              })()}
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-2">
             {totales.discountPyg > 0 && <Badge color="orange">Descuentos {gs(totales.discountPyg)}</Badge>}
             {totales.deliveryPyg > 0 && <Badge color="blue">Delivery {gs(totales.deliveryPyg)}</Badge>}
