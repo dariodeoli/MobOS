@@ -120,19 +120,19 @@ export default function Historial() {
             {items.map((m) => {
               const a = ACCION[m.accion] || { label: m.accion, color: 'slate', emoji: '•' }
               return (
-                <div key={m.id} className="p-4">
+                <div key={m.id} className="p-2.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge color={a.color}>
                           {a.emoji} {a.label}
                         </Badge>
-                        <span className="font-bold text-sm">
+                        <span className="text-[13px] font-bold">
                           {m.actorNombre}
                           {m.esPropietario && <span title="Dueño"></span>}
                         </span>
                       </div>
-                      <div className="text-sm text-mute mt-1 truncate">
+                      <div className="text-xs text-mute mt-1 truncate">
                         {m.resumen?.cliente || '—'} · {m.resumen?.producto || '—'} ·{' '}
                         <span className="font-semibold text-fono">{gs(m.resumen?.precio)}</span>
                       </div>

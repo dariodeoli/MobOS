@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { Button, Input, Modal, MoneyInput, Select, Badge } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField from '@/components/shared/PhoneField'
 import EmailField from '@/components/shared/EmailField'
@@ -209,7 +210,7 @@ export default function SellerCustomers() {
               <b className="text-sm">{seguimiento.customer?.name || 'Cliente'}</b>
               <p className="mt-0.5 text-xs text-mute">{seguimiento.kind === 'CALL' ? 'Llamada' : seguimiento.kind === 'WHATSAPP' ? 'WhatsApp' : seguimiento.kind === 'VISIT' ? 'Visita' : 'Otro'} · {seguimiento.dueAt ? new Date(seguimiento.dueAt).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : 'Sin fecha'} · {seguimiento.note}</p>
             </div>
-            {seguimiento.customer?.phone && <a className="rounded-lg bg-ok px-3 py-2 text-xs font-semibold text-black" href={whatsappUrl(seguimiento.customer.phone, `Hola ${seguimiento.customer.name}, te escribimos de MobOS.`, seguimiento.customer.countryCode)} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
+            {seguimiento.customer?.phone && <a className="grid h-7 w-7 place-items-center rounded-lg border border-ok/30 text-ok transition hover:bg-ok/10 active:scale-95" title={`Abrir WhatsApp con ${seguimiento.customer.name}`} aria-label={`Abrir WhatsApp con ${seguimiento.customer.name}`} href={whatsappUrl(seguimiento.customer.phone, `Hola ${seguimiento.customer.name}, te escribimos de MobOS.`, seguimiento.customer.countryCode)} target="_blank" rel="noopener noreferrer"><Icon name="send" className="h-4 w-4" /></a>}
           </article>
         ))}</div>
       </section>
