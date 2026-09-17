@@ -15,7 +15,7 @@ const ESTADOS = {
 }
 
 export default function AceptarInvitacion() {
-  const [token] = useState(() => consumeActionToken())
+  const [token, setToken] = useState(() => consumeActionToken())
   const [estado, setEstado] = useState(null) // { status, companyName, email, role }
   const [pin, setPin] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -83,6 +83,11 @@ export default function AceptarInvitacion() {
               {estado.status === 'USED' && 'Este enlace ya fue utilizado. Si ya aceptaste, iniciá sesión con tu PIN.'}
               {estado.status === 'INVALID' && 'El enlace no es válido. Pedí que te reenvíen la invitación desde Configuración → Equipo.'}
             </p>
+          )}
+          {!/^[a-f0-9]{64}$/i.test(token) && (
+            <div className="mt-6">
+              <PegarEnlaceToken onToken={(nuevo) => { setToken(nuevo); setError('') }} />
+            </div>
           )}
           {activa && (
             <>

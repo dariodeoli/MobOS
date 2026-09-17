@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { sessionApi } from '@/lib/api/session'
 import { consumeActionToken } from '@/lib/actionToken'
@@ -13,6 +12,7 @@ import PegarEnlaceToken from '@/components/shared/PegarEnlaceToken'
 export default function RecuperarContrasena() {
   const [token, setToken] = useState(() => consumeActionToken())
   const [email, setEmail] = useState('')
+  const navigate = useNavigate()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [message, setMessage] = useState('')
