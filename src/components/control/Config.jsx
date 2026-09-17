@@ -4,6 +4,7 @@ import { api } from '@/lib/api/client'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, PasswordInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
@@ -170,7 +171,7 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
             <Input id="edit-nombre" autoFocus disabled={busy} value={form?.name || ''} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Nombre de la tienda" />
           </FormField>
           <FormField label="Correo de la empresa" htmlFor="edit-correo">
-            <Input id="edit-correo" type="email" disabled={busy} value={form?.email || ''} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} placeholder="Correo de la empresa" />
+            <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => setForm(current => ({ ...current, email: value }))} placeholder="Correo de la empresa" />
           </FormField>
           {reauthVigente ? (
             <p className="text-xs text-ok">Tu contraseña fue verificada hace menos de 10 minutos: no hace falta escribirla de nuevo.</p>

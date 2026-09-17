@@ -5,6 +5,7 @@ import { Button, Input, Modal, Select, Badge } from '@/components/ui'
 import { gs } from '@/utils/calculos'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField from '@/components/shared/PhoneField'
+import EmailField from '@/components/shared/EmailField'
 import ListGridToggle from '@/components/shared/ListGridToggle'
 import { internationalPhone, telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import { parseDelimited } from '@/utils/csv'
@@ -222,7 +223,7 @@ export default function SellerCustomers() {
     <Modal open={crearAbierto} onClose={() => !saving && setCrearAbierto(false)} title="Crear cliente" className="max-w-2xl">
       <form onSubmit={create} className="space-y-4">
         <label className="block space-y-2"><span>Nombre</span><Input ref={nombreRef} required autoFocus maxLength={120} disabled={saving} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
-        <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-2"><span>RUC o CI <small className="text-mute">(opcional)</small></span><Input maxLength={100} disabled={saving} value={form.document} onChange={(event) => { setForm({ ...form, document: event.target.value }); setRucResult(null); setRucError('') }} placeholder="80012345-6" /></label><label className="block space-y-2"><span>Correo <small className="text-mute">(opcional)</small></span><Input type="email" maxLength={200} disabled={saving} value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="cliente@correo.com" /></label></div>
+        <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-2"><span>RUC o CI <small className="text-mute">(opcional)</small></span><Input maxLength={100} disabled={saving} value={form.document} onChange={(event) => { setForm({ ...form, document: event.target.value }); setRucResult(null); setRucError('') }} placeholder="80012345-6" /></label><label className="block space-y-2"><span>Correo <small className="text-mute">(opcional)</small></span><EmailField maxLength={200} disabled={saving} value={form.email} onChange={value => setForm({ ...form, email: value })} placeholder="cliente@correo.com" /></label></div>
         {!esDemo && <div className="flex flex-wrap items-center gap-2"><button type="button" disabled={saving || rucLoading || !form.document.trim()} className="rounded-xl border border-fono/40 px-3 py-2 text-sm font-semibold text-fono-light disabled:opacity-40" onClick={lookupRuc}>{rucLoading ? 'Consultando RUC…' : 'Consultar RUC'}</button><span className="text-xs text-mute">La razón social se aplica solo si la confirmás.</span></div>}
         {rucResult && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fono/25 bg-fono/5 p-3 text-sm"><span><b>{rucResult.name}</b><br /><span className="text-mute">RUC {rucResult.fullRuc}</span></span><button type="button" className="font-semibold text-fono-light" onClick={() => { setForm({ ...form, name: rucResult.name, document: rucResult.fullRuc || form.document }); setRucResult(null) }}>Usar estos datos</button></div>}
         <div className="grid gap-3 sm:grid-cols-3">

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { Button, Input, Label, PasswordInput, PinInput } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import EmailField from '@/components/shared/EmailField'
 import { publicUrls } from '@/lib/urls'
 import { sessionApi } from '@/lib/api/session'
 import AuthLayout from '@/components/auth/AuthLayout'
@@ -223,7 +224,7 @@ export default function Login() {
 
           {crear && <>
             <div><Label htmlFor="company-name">Nombre de la tienda</Label><Input className="h-14 rounded-xl px-4 lg:h-12" id="company-name" required maxLength={100} value={f.nombreEmpresa} onChange={set('nombreEmpresa')} onBlur={touchSignup('nombreEmpresa')} aria-invalid={Boolean(signupErrors.nombreEmpresa)} aria-describedby={signupErrors.nombreEmpresa ? 'company-name-error' : undefined} autoComplete="organization" placeholder="Nombre de tu tienda" />{signupErrors.nombreEmpresa && <p id="company-name-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.nombreEmpresa}</p>}</div>
-            {!googleReady && <div><Label htmlFor="new-email">Correo de acceso</Label><Input className="h-14 rounded-xl px-4 lg:h-12" id="new-email" type="email" required value={f.correo} onChange={set('correo')} onBlur={touchSignup('correo')} aria-invalid={Boolean(signupErrors.correo)} aria-describedby={signupErrors.correo ? 'new-email-error' : undefined} autoComplete="email" placeholder="vos@tutienda.com" />{signupErrors.correo && <p id="new-email-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.correo}</p>}</div>}
+            {!googleReady && <div><Label htmlFor="new-email">Correo de acceso</Label><EmailField className="h-14 rounded-xl px-4 lg:h-12" id="new-email" required value={f.correo} onChange={(value) => { setF((x) => ({ ...x, correo: value })); if (modo === 'crear' && signupTouched.correo) setSignupErrors((errors) => ({ ...errors, correo: signupFieldError('correo', value) })) }} onBlur={touchSignup('correo')} aria-invalid={Boolean(signupErrors.correo)} aria-describedby={signupErrors.correo ? 'new-email-error' : undefined} autoComplete="email" placeholder="vos@tutienda.com" />{signupErrors.correo && <p id="new-email-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.correo}</p>}</div>}
             {!googleReady && <div><Label htmlFor="new-password">Contraseña de empresa</Label><PasswordInput className="h-14 rounded-xl px-4 pr-11 lg:h-12" id="new-password" required minLength={8} maxLength={72} value={f.clave} onChange={set('clave')} onBlur={touchSignup('clave')} aria-invalid={Boolean(signupErrors.clave)} aria-describedby={signupErrors.clave ? 'new-password-error' : undefined} autoComplete="new-password" placeholder="Mínimo 8 caracteres" /><p className="mt-1 text-xs text-mute">Establecé una contraseña de al menos 8 caracteres.</p>{signupErrors.clave && <p id="new-password-error" role="alert" className="mt-1 text-xs text-bad">{signupErrors.clave}</p>}</div>}
           </>}
 
@@ -257,12 +258,11 @@ export default function Login() {
           ) : !crear && <>
           <div>
             <Label htmlFor="mail">Correo</Label>
-            <Input
+            <EmailField
               className="h-14 rounded-xl px-4 lg:h-12"
               id="mail"
-              type="email"
               value={f.correo}
-              onChange={set('correo')}
+              onChange={(value) => setF((x) => ({ ...x, correo: value }))}
               placeholder="vos@tutienda.com"
               autoCapitalize="none"
               autoCorrect="off"

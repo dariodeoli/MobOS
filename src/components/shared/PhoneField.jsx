@@ -8,6 +8,7 @@ import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 
 const MAX_CODIGO = 6
 const MAX_NUMERO = 30
+const CODIGOS_PAIS = ['+595', '+55', '+54', '+56', '+591', '+598', '+1', '+34', '+44', '+351']
 
 // Deja solo dígitos: el código de país se muestra siempre detrás de un "+".
 function soloDigitos(value) {
@@ -55,12 +56,16 @@ export default function PhoneField({
       <div className="flex gap-2">
         <Input
           inputMode="numeric"
+          list="mobos-codigos-pais"
           disabled={disabled}
           value={`+${soloDigitos(countryCode)}`}
           onChange={(event) => onCountryCodeChange?.(`+${soloDigitos(event.target.value)}`)}
           aria-label={countryAriaLabel}
           className="w-[92px] shrink-0 text-center"
         />
+        <datalist id="mobos-codigos-pais">
+          {CODIGOS_PAIS.map((codigo) => <option key={codigo} value={codigo} />)}
+        </datalist>
         <Input
           type="tel"
           inputMode="tel"

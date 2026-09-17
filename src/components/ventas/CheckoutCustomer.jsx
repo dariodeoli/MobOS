@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { Button, Input } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
+import EmailField from '@/components/shared/EmailField'
 import PhoneField from '@/components/shared/PhoneField'
 import Icon from '@/components/shared/Icon'
 
@@ -35,7 +36,6 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     return () => { active = false; clearTimeout(timer) }
   }, [value.name, esDemo])
 
-  const set = (field) => (event) => onChange({ ...value, [field]: event.target.value })
   const setAddress = (index, field, next) => onChange({ ...value, addresses: value.addresses.map((address, position) => position === index ? { ...address, [field]: next } : address) })
   const addAddress = () => onChange({ ...value, addresses: [...(value.addresses || []), { ...emptyAddress(), label: `Dirección ${(value.addresses?.length || 0) + 1}`, isDefault: !value.addresses?.length }] })
   const removeAddress = (index) => onChange({ ...value, addresses: value.addresses.filter((_, position) => position !== index).map((address, position) => ({ ...address, isDefault: position === 0 ? true : address.isDefault })) })
@@ -73,7 +73,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div className="text-xs text-mute">Teléfono<PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></div>
         <label className="text-xs text-mute">CI o RUC<Input aria-label="CI o RUC del cliente" value={value.document || ''} onChange={event => { setRucLookup(null); setRucError(''); onChange({ ...value, document: event.target.value }) }} placeholder="80012345-6" /></label>
-        <label className="text-xs text-mute">Correo<Input aria-label="Correo del cliente" type="email" value={value.email || ''} onChange={set('email')} placeholder="cliente@correo.com" /></label>
+        <label className="text-xs text-mute">Correo<EmailField aria-label="Correo del cliente" value={value.email || ''} onChange={value => onChange({ ...value, email: value })} placeholder="cliente@correo.com" /></label>
       </div>
       <div className="mt-3 rounded-xl border border-ink-600 bg-ink-800/30 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2"><div><strong className="text-sm">Consulta RUC Paraguay</strong><p className="mt-1 text-xs text-mute">Verificá los datos antes de aplicarlos. La consulta no guarda información por sí sola.</p></div><Button type="button" variant="outline" disabled={!value.document?.trim() || rucLoading} onClick={consultRuc}>{rucLoading ? 'Consultando…' : 'Consultar RUC'}</Button></div>
