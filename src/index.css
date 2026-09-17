@@ -22,22 +22,22 @@ body {
    Tema claro por defecto (:root). El tema oscuro se activa con la clase
    .dark en <html> y conserva los valores exactos del diseño actual. */
 :root {
-  --c-paper: 246 248 251;
-  --c-fore: 11 18 32;
+  --c-paper: 244 247 250;
+  --c-fore: 8 14 26;
   --c-ink: 255 255 255;
-  --c-ink-800: 237 242 248;
-  --c-ink-700: 230 237 245;
-  --c-ink-600: 216 225 236;
-  --c-ink-500: 180 192 209;
-  --c-mute: 90 102 121;
-  --c-fono: 5 150 105;
-  --c-fono-dark: 4 120 87;
-  --c-fono-light: 4 120 87;
-  --c-fono-glow: 5 150 105;
-  --c-ok: 22 163 74;
-  --c-bad: 220 38 38;
-  --c-warn: 217 119 6;
-  --c-onbrand: 6 30 20;
+  --c-ink-800: 233 238 246;
+  --c-ink-700: 224 231 240;
+  --c-ink-600: 203 213 226;
+  --c-ink-500: 148 163 184;
+  --c-mute: 58 70 90;
+  --c-fono: 16 185 129;
+  --c-fono-dark: 5 150 105;
+  --c-fono-light: 5 150 105;
+  --c-fono-glow: 16 185 129;
+  --c-ok: 21 128 61;
+  --c-bad: 185 28 28;
+  --c-warn: 180 83 9;
+  --c-onbrand: 4 28 18;
 }
 
 html.dark {
