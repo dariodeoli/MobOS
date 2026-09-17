@@ -4,6 +4,8 @@ import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { codigoPedido } from '@/utils/pedido'
 import { inicialesDe } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+import SerialTexto from '@/components/shared/SerialTexto'
 import { whatsappUrl } from './customerMessaging'
 import Icon from '@/components/shared/Icon'
 import {
@@ -79,6 +81,14 @@ const resumenValor = (kind, value) => {
 }
 const saldoOrden = (order) => Number(order?.pendingPyg ?? order?.balancePyg ?? 0)
 const pagadoOrden = (order) => Number(order?.collectedPyg ?? order?.paidPyg ?? 0)
+
+// Grillas de las pestañas: una fila por registro, datos en columnas fijas.
+const GRID_DISPOSITIVOS = 'grid min-w-[54rem] grid-cols-[minmax(8rem,1.2fr)_minmax(7rem,0.9fr)_6rem_6rem_8rem_6rem] items-center gap-x-2'
+const GRID_GARANTIAS_CLI = 'grid min-w-[46rem] grid-cols-[minmax(9rem,1.5fr)_minmax(7rem,1fr)_6rem_7rem] items-center gap-x-2'
+const GRID_NOTAS_CLI = 'grid min-w-[46rem] grid-cols-[minmax(12rem,2fr)_7rem_6rem_8rem] items-center gap-x-2'
+const GRID_SEGUIMIENTOS = 'grid min-w-[54rem] grid-cols-[7rem_minmax(10rem,1.8fr)_7rem_7rem_6rem_8rem] items-center gap-x-2'
+const GRID_FACTURACION = 'grid min-w-[46rem] grid-cols-[minmax(10rem,1.5fr)_minmax(7rem,1fr)_7rem_7rem] items-center gap-x-2'
+const CELDA_CLI = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const TABS = [
   { key: 'compras', label: 'Compras' },
@@ -772,25 +782,33 @@ export default function CustomerProfile({ customer, open, onClose }) {
               {!dispositivos.length ? (
                 <EmptyState compact icon="phone" title="Sin dispositivos registrados" description="Los equipos con IMEI/serial comprados por este cliente aparecen acá." />
               ) : (
-                <ul className="space-y-2">
+                <div className="overflow-x-auto" data-testid="perfil-dispositivos">
+                  <div className={cn(GRID_DISPOSITIVOS, 'px-3.5 pb-2 pt-1')}>
+                    <span className={CELDA_CLI}>Equipo</span>
+                    <span className={CELDA_CLI}>IMEI</span>
+                    <span className={CELDA_CLI}>Comprado</span>
+                    <span className={CELDA_CLI}>Pedido</span>
+                    <span className={CELDA_CLI}>Garantía</span>
+                    <span className={cn(CELDA_CLI, 'text-right')}>Acciones</span>
+                  </div>
+                  <div className="space-y-1">
                   {dispositivos.map((device) => {
                     const vence = device.warranty?.expiresAt ? new Date(device.warranty.expiresAt) : null
                     const dias = vence ? Math.max(0, Math.ceil((vence.getTime() - Date.now()) / 86400000)) : null
+                    const serial = String(device.serial || '')
                     return (
-                      <li key={`${device.serial}-${device.orderNumber}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{device.model || 'Equipo'}</p>
-                          <p className="mt-0.5 font-mono text-xs text-mute">IMEI {device.serial}</p>
-                          <p className="mt-0.5 text-xs text-mute">Comprado {fecha(device.date)}{device.orderNumber ? ` · ${codigoPedido(device.orderNumber)}` : ''}</p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          {vence ? <Badge color={dias === 0 ? 'red' : dias <= 15 ? 'orange' : 'green'}>{dias === 0 ? 'Garantía vencida' : `${dias} días de garantía`}</Badge> : <Badge color="slate">Sin garantía cargada</Badge>}
-                          {device.warranty?.publicToken && <a className="rounded-lg border border-fono/40 px-2.5 py-1.5 text-xs font-semibold text-fono-light" href={`${window.location.origin}/garantia/${device.warranty.publicToken}`} target="_blank" rel="noreferrer">Ver garantía</a>}
-                        </div>
-                      </li>
+                      <div key={`${device.serial}-${device.orderNumber}`} data-testid="perfil-dispositivo-fila" className={cn(GRID_DISPOSITIVOS, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
+                        <span className="truncate text-[13px] font-semibold" title={device.model || undefined}>{device.model || 'Equipo'}</span>
+                        <span className="min-w-0 truncate font-mono text-[11px] text-mute" title={serial}><SerialTexto serial={serial} /></span>
+                        <span className="truncate text-xs text-mute">{fecha(device.date)}</span>
+                        <span className="truncate text-xs text-mute">{device.orderNumber ? codigoPedido(device.orderNumber) : '—'}</span>
+                        <span className="min-w-0">{vence ? <Badge color={dias === 0 ? 'red' : dias <= 15 ? 'orange' : 'green'} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{dias === 0 ? 'Vencida' : `${dias} días`}</Badge> : <Badge color="slate" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Sin garantía</Badge>}</span>
+                        <span className="flex items-center justify-end">{device.warranty?.publicToken && <a className="whitespace-nowrap rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" href={`${window.location.origin}/garantia/${device.warranty.publicToken}`} target="_blank" rel="noreferrer">Ver garantía</a>}</span>
+                      </div>
                     )
                   })}
-                </ul>
+                  </div>
+                </div>
               )}
             </>
           )}
@@ -800,17 +818,24 @@ export default function CustomerProfile({ customer, open, onClose }) {
               {!warranties.length ? (
                 <EmptyState compact icon="package" title="Sin garantías" description="No hay casos de garantía asociados a este cliente." />
               ) : (
-                <ul className="space-y-2">
+                <div className="overflow-x-auto" data-testid="perfil-garantias">
+                  <div className={cn(GRID_GARANTIAS_CLI, 'px-3.5 pb-2 pt-1')}>
+                    <span className={CELDA_CLI}>Caso</span>
+                    <span className={CELDA_CLI}>Serial</span>
+                    <span className={CELDA_CLI}>Fecha</span>
+                    <span className={CELDA_CLI}>Estado</span>
+                  </div>
+                  <div className="space-y-1">
                   {warranties.map((item) => (
-                    <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
-                      <div className="min-w-0">
-                        <p className="font-medium">{item.description || 'Garantía'}</p>
-                        <p className="mt-0.5 text-xs text-mute">Serial {item.serial || '—'} · {fecha(item.createdAt)}</p>
-                      </div>
-                      {STATUS_BADGE(WARRANTY_STATUS, item.status)}
-                    </li>
+                    <div key={item.id} data-testid="perfil-garantia-fila" className={cn(GRID_GARANTIAS_CLI, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
+                      <span className="truncate text-[13px] font-semibold" title={item.description || undefined}>{item.description || 'Garantía'}</span>
+                      <span className="min-w-0"><SerialTexto serial={item.serial} className="truncate text-[11px] text-mute" /></span>
+                      <span className="truncate text-xs text-mute">{fecha(item.createdAt)}</span>
+                      <span className="min-w-0">{STATUS_BADGE(WARRANTY_STATUS, item.status)}</span>
+                    </div>
                   ))}
-                </ul>
+                  </div>
+                </div>
               )}
             </>
           )}
@@ -845,20 +870,27 @@ export default function CustomerProfile({ customer, open, onClose }) {
               {!notes.length ? (
                 <EmptyState compact icon="edit" title="Sin notas" description="Guardá observaciones internas sobre este cliente." />
               ) : (
-                <ul className="space-y-2">
+                <div className="overflow-x-auto" data-testid="perfil-notas">
+                  <div className={cn(GRID_NOTAS_CLI, 'px-3.5 pb-2 pt-1')}>
+                    <span className={CELDA_CLI}>Nota</span>
+                    <span className={CELDA_CLI}>Autor</span>
+                    <span className={CELDA_CLI}>Fecha</span>
+                    <span className={cn(CELDA_CLI, 'text-right')}>Acciones</span>
+                  </div>
+                  <div className="space-y-1">
                   {notes.map((item) => (
-                    <li key={item.id} className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
-                      <p className="whitespace-pre-wrap break-words">{item.content}</p>
-                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-xs text-mute" title={item.user?.name || 'Equipo'}>{inicialesDe(item.user?.name || 'Equipo')} · {fechaHora(item.createdAt)}</p>
-                        <div className="flex gap-2">
-                          <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => { setEditingNote(item); setNewNote(item.content) }}>Editar</button>
-                          <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'note', id: item.id })}>Eliminar</button>
-                        </div>
-                      </div>
-                    </li>
+                    <div key={item.id} data-testid="perfil-nota-fila" className={cn(GRID_NOTAS_CLI, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
+                      <span className="truncate text-[13px]" title={item.content}>{item.content}</span>
+                      <span className="truncate text-xs text-mute" title={item.user?.name || 'Equipo'}>{inicialesDe(item.user?.name || 'Equipo')}</span>
+                      <span className="truncate text-xs text-mute">{fechaHora(item.createdAt)}</span>
+                      <span className="flex items-center justify-end gap-2">
+                        <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => { setEditingNote(item); setNewNote(item.content) }}>Editar</button>
+                        <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'note', id: item.id })}>Eliminar</button>
+                      </span>
+                    </div>
                   ))}
-                </ul>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -922,28 +954,34 @@ export default function CustomerProfile({ customer, open, onClose }) {
               {!followUps.length ? (
                 <EmptyState compact icon="calendar" title="Sin seguimientos" description="Agendá llamadas, WhatsApp o visitas para no perderle el rastro." />
               ) : (
-                <ul className="space-y-2">
+                <div className="overflow-x-auto" data-testid="perfil-seguimientos">
+                  <div className={cn(GRID_SEGUIMIENTOS, 'px-3.5 pb-2 pt-1')}>
+                    <span className={CELDA_CLI}>Tipo</span>
+                    <span className={CELDA_CLI}>Nota</span>
+                    <span className={CELDA_CLI}>Vence</span>
+                    <span className={CELDA_CLI}>Hecho</span>
+                    <span className={CELDA_CLI}>Autor</span>
+                    <span className={cn(CELDA_CLI, 'text-right')}>Acciones</span>
+                  </div>
+                  <div className="space-y-1">
                   {followUps.map((item) => {
                     const kind = FOLLOW_UP_KINDS[item.kind] || FOLLOW_UP_KINDS.OTHER
                     return (
-                      <li key={item.id} className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge color={kind.color}>{kind.label}</Badge>
-                          {item.dueAt && !item.doneAt && <Badge color="orange">Para {fechaHora(item.dueAt)}</Badge>}
-                          {item.doneAt && <Badge color="green">Hecho {fechaHora(item.doneAt)}</Badge>}
-                        </div>
-                        <p className="mt-2 whitespace-pre-wrap break-words">{item.note}</p>
-                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-xs text-mute" title={item.user?.name || 'Equipo'}>{inicialesDe(item.user?.name || 'Equipo')} · {fechaHora(item.createdAt)}</p>
-                          <div className="flex gap-2">
+                      <div key={item.id} data-testid="perfil-seguimiento-fila" className={cn(GRID_SEGUIMIENTOS, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
+                        <span className="min-w-0"><Badge color={kind.color} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{kind.label}</Badge></span>
+                        <span className="truncate text-[13px]" title={item.note}>{item.note}</span>
+                        <span className={cn('truncate text-xs', item.dueAt && !item.doneAt ? 'font-semibold text-warn' : 'text-mute')}>{item.dueAt ? fechaHora(item.dueAt) : '—'}</span>
+                        <span className="truncate text-xs text-mute">{item.doneAt ? fechaHora(item.doneAt) : '—'}</span>
+                        <span className="truncate text-xs text-mute" title={item.user?.name || 'Equipo'}>{inicialesDe(item.user?.name || 'Equipo')}</span>
+                        <span className="flex items-center justify-end gap-2">
                             {!item.doneAt && <button type="button" disabled={followDoneId === item.id} className="text-xs font-semibold text-ok disabled:opacity-40" onClick={() => markDone(item)}>{followDoneId === item.id ? 'Guardando…' : 'Marcar hecho'}</button>}
-                            <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'followUp', id: item.id })}>Eliminar</button>
-                          </div>
-                        </div>
-                      </li>
+                          <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'followUp', id: item.id })}>Eliminar</button>
+                        </span>
+                      </div>
                     )
                   })}
-                </ul>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -1059,31 +1097,31 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 <EmptyState compact icon="receipt" title="Sin identidades guardadas" description="Agregá la razón social y el RUC para volver a facturar a ese titular." />
               )}
               {!identitiesLoading && !identitiesError && identities.length > 0 && (
-                <ul className="space-y-2">
+                <div className="overflow-x-auto" data-testid="perfil-facturacion">
+                  <div className={cn(GRID_FACTURACION, 'px-3.5 pb-2 pt-1')}>
+                    <span className={CELDA_CLI}>Razón social</span>
+                    <span className={CELDA_CLI}>RUC</span>
+                    <span className={CELDA_CLI}>Estado</span>
+                    <span className={cn(CELDA_CLI, 'text-right')}>Acciones</span>
+                  </div>
+                  <div className="space-y-1">
                   {identities.map((identity) => {
                     const actual = Boolean(profile.customer?.billingDocument) && identity.document === profile.customer.billingDocument
                     return (
-                      <li key={identity.id} className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="flex flex-wrap items-center gap-2 font-medium">
-                              {identity.name || 'Sin razón social'}
-                              {actual && <Badge color="green">Actual</Badge>}
-                            </p>
-                            <p className="mt-0.5 text-xs text-mute">RUC {identity.document || '—'}</p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {!actual && (
-                              <button type="button" disabled={identityBusy} className="text-xs font-semibold text-ok disabled:opacity-40" onClick={() => usarComoActual(identity)}>Usar como actual</button>
-                            )}
-                            <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => abrirIdentidad(identity)}>Editar</button>
-                            <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'billing', id: identity.id })}>Eliminar</button>
-                          </div>
-                        </div>
-                      </li>
+                      <div key={identity.id} data-testid="perfil-facturacion-fila" className={cn(GRID_FACTURACION, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
+                        <span className="truncate text-[13px] font-semibold" title={identity.name || undefined}>{identity.name || 'Sin razón social'}</span>
+                        <span className="truncate text-xs tabular-nums text-mute">{identity.document || '—'}</span>
+                        <span className="min-w-0">{actual ? <Badge color="green" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Actual</Badge> : <span className="text-xs text-mute">—</span>}</span>
+                        <span className="flex items-center justify-end gap-2">
+                          {!actual && <button type="button" disabled={identityBusy} className="whitespace-nowrap text-xs font-semibold text-ok disabled:opacity-40" onClick={() => usarComoActual(identity)}>Usar</button>}
+                          <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => abrirIdentidad(identity)}>Editar</button>
+                          <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'billing', id: identity.id })}>Eliminar</button>
+                        </span>
+                      </div>
                     )
                   })}
-                </ul>
+                  </div>
+                </div>
               )}
             </div>
           )}
