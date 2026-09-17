@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Modal, Select } from '@/components/ui'
+import { Button, Modal, Select, useToast } from '@/components/ui'
 import {
   FORMATOS_COMPROBANTE,
   NIVELES_COMPROBANTE,
@@ -8,16 +8,30 @@ import {
   nivelPreferido,
   recordarPreferencia,
   tokenDeNivel,
+  accessUrlFor,
+  trackingUrlFor,
 } from './OrderReceipt'
 import { printHtml } from '@/utils/printHtml'
+import { configImpresora, estadoAgente, imprimirTicketDirecto } from '@/lib/printing/agent'
+import { ticketComprobante } from '@/lib/printing/tickets'
 
 // Vista previa real del comprobante: nivel (Rápido/Completo/Detallado) y
 // formato (A4/58 mm) se eligen acá y la última combinación queda recordada.
 export default function ComprobantePreview({ order, open, onClose }) {
+  const toast = useToast()
   const [nivel, setNivel] = useState(nivelPreferido)
   const [formato, setFormato] = useState(formatoPreferido)
   const [html, setHtml] = useState('')
+  const [link, setLink] = useState('')
   const [cargando, setCargando] = useState(false)
+  const [agente, setAgente] = useState(false)
+  const [enviando, setEnviando] = useState(false)
+
+  useEffect(() => {
+    let activo = true
+    estadoAgente().then((estado) => { if (activo) setAgente(Boolean(estado.disponible)) })
+    return () => { activo = false }
+  }, [])
 
   useEffect(() => {
     if (!open || !order) return undefined
@@ -26,7 +40,7 @@ export default function ComprobantePreview({ order, open, onClose }) {
     ;(async () => {
       const token = await tokenDeNivel(order.id, nivel)
       const built = await buildOrderReceiptHtml(order, { level: nivel, format: formato, token })
-      if (active) { setHtml(built); setCargando(false) }
+      if (active) { setHtml(built); setLink(token ? accessUrlFor(token) : trackingUrlFor(order)); setCargando(false) }
     })()
     return () => { active = false }
   }, [open, order, nivel, formato])
@@ -35,6 +49,16 @@ export default function ComprobantePreview({ order, open, onClose }) {
     if (!html) return
     recordarPreferencia(nivel, formato)
     printHtml(html)
+  }
+
+  async function imprimirDirecto() {
+    if (enviando) return
+    setEnviando(true)
+    const { ancho } = configImpresora()
+    const resultado = await imprimirTicketDirecto(ticketComprobante(order, { nivel, ancho, link }))
+    setEnviando(false)
+    if (!resultado.ok) { toast.error('No se pudo imprimir', resultado.error); return }
+    toast.success(resultado.encolado ? 'Comprobante encolado' : 'Comprobante enviado a la impresora', resultado.encolado ? 'La impresora no respondió; el puente reintenta solo.' : '')
   }
 
   return (
@@ -55,6 +79,7 @@ export default function ComprobantePreview({ order, open, onClose }) {
           </label>
           <span className="flex flex-1 flex-wrap items-center justify-end gap-2">
             <Button type="button" variant="outline" onClick={imprimir} disabled={!html || cargando}>Descargar PDF</Button>
+            {agente && <Button type="button" variant="outline" onClick={imprimirDirecto} disabled={cargando || enviando}>{enviando ? 'Enviando…' : 'Térmica directa'}</Button>}
             <Button type="button" onClick={imprimir} disabled={!html || cargando}>{cargando ? 'Preparando…' : 'Imprimir'}</Button>
           </span>
         </div>

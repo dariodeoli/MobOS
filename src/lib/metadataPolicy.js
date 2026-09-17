@@ -36,6 +36,8 @@ const protectedSections = {
   '/configuracion/negocio': 'Negocio',
   '/configuracion/sucursales': 'Sucursales',
   '/configuracion/seguridad': 'Seguridad',
+  '/configuracion/impresoras': 'Impresoras',
+  '/configuracion/impresion': 'Estado de impresión',
   '/analisis': 'Análisis',
   '/analisis/reportes': 'Reportes',
   '/analisis/ganancias': 'Ganancias',

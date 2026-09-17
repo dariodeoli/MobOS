@@ -524,6 +524,27 @@ model StockTransfer {
   @@index([tenantId, destinationBranchId, createdAt])
 }
 
+// Eventos que AEX notifica por webhook para cada guía. Se guardan para mostrar
+// el seguimiento sin depender del polling a la API. Sin relaciones: la guía
+// puede no corresponder a un traslado propio y el evento igual se audita.
+model AexWebhookEvent {
+  id               String    @id @default(cuid())
+  tenantId         String?
+  transferId       String?
+  guia             String
+  codigoEstado     String?
+  estado           String?
+  codigoTipoEvento String?
+  tipoEvento       String?
+  observacion      String?
+  codigoOperacion  String?
+  fechaEvento      DateTime?
+  recibidoEn       DateTime  @default(now())
+
+  @@index([guia, fechaEvento])
+  @@index([tenantId])
+}
+
 model StockTransferLine {
   id                   String        @id @default(cuid())
   transferId           String

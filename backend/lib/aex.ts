@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto'
 
 // Adaptador opcional de AEX (envíos) para el catálogo de ciudades. Se activa
 // solo cuando existen las credenciales de entorno; sin ellas el autocompletado
@@ -37,27 +37,7 @@ async function autorizar(): Promise<string> {
   return token
 }
 
-export type AexCity = { city: string; department: string }
-
 const norm = (value: string) => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
-/** Devuelve null cuando no hay credenciales o el proveedor falla: el llamador
- *  cae al catálogo local. */
-export async function aexCities(query: string, limit = 10): Promise<AexCity[] | null> {
-  if (!PUBLIC_KEY || !PRIVATE_KEY) return null
-  try {
-    const token = await autorizar()
-    const respuesta = await post('/envios/ciudades', { clave_publica: PUBLIC_KEY, codigo_autorizacion: token })
-    const rows = Array.isArray(respuesta?.datos) ? respuesta.datos : []
-    const q = norm(query)
-    if (q.length < 2) return []
-    return rows
-      .filter((row: any) => norm(String(row?.denominacion || '')).includes(q) || norm(String(row?.departamento_denominacion || '')).includes(q))
-      .slice(0, limit)
-      .map((row: any) => ({ city: String(row?.denominacion || '').trim(), department: String(row?.departamento_denominacion || '').trim() }))
-  } catch {
-    return null
-  }
-}
 
 export type AexTrackingEvent = { fecha: string; estado: string; tipoEvento: string; observacion: string }
 
@@ -169,4 +149,57 @@ export async function aexShip(origen: string, destino: string, pesoKg: number, c
     if (!guia) return null
     return { guide: guia, costPyg: elegida.costPyg, serviceName: elegida.serviceName }
   } catch { return null }
+}
+
+export type AexWebhookEvento = {
+  guia: string
+  codigoEstado: string
+  estado: string
+  codigoTipoEvento: string
+  tipoEvento: string
+  observacion: string
+  codigoOperacion: string
+  fechaEvento: string
+}
+
+const textoWebhook = (valor: unknown, max: number) => String(valor ?? '').trim().slice(0, max)
+
+// Normaliza el payload que AEX envía por webhook. Devuelve null si no trae guía:
+// el receptor responde 400 y AEX reintenta.
+export function normalizarEventoWebhook(payload: unknown): AexWebhookEvento | null {
+  if (!payload || typeof payload !== 'object') return null
+  const datos = payload as Record<string, unknown>
+  const guia = textoWebhook(datos.guia, 100)
+  if (!guia) return null
+  return {
+    guia,
+    codigoEstado: textoWebhook(datos.codigo_estado, 20),
+    estado: textoWebhook(datos.estado, 200),
+    codigoTipoEvento: textoWebhook(datos.codigo_tipo_evento, 20),
+    tipoEvento: textoWebhook(datos.tipo_evento, 200),
+    observacion: textoWebhook(datos.observacion, 500),
+    codigoOperacion: textoWebhook(datos.codigo_operacion_cliente, 120),
+    fechaEvento: textoWebhook(datos.fecha, 30),
+  }
+}
+
+// Token del webhook: se acuerda con AEX y viaja en el header configurado
+// (por defecto Authorization: Bearer <token>). Sin token configurado se acepta,
+// para poder probar en el sandbox.
+export function webhookAutorizado(request: Request) {
+  const esperado = String(process.env.MOBOS_AEX_WEBHOOK_TOKEN || '').trim()
+  if (!esperado) return true
+  const header = String(process.env.MOBOS_AEX_WEBHOOK_HEADER || 'authorization').toLowerCase()
+  const recibido = String(request.headers.get(header) || '').replace(/^Bearer\s+/i, '').trim()
+  const a = Buffer.from(recibido)
+  const b = Buffer.from(esperado)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
+// Fecha del evento en formato `YYYY-MM-DD HH:MM:SS` (hora local de AEX).
+export function fechaEventoAex(valor: string): Date | null {
+  const limpio = (valor || '').trim().replace(' ', 'T')
+  if (!limpio) return null
+  const fecha = new Date(limpio)
+  return Number.isNaN(fecha.getTime()) ? null : fecha
 }
