@@ -8,6 +8,7 @@ import { codigoPedido } from '@/utils/pedido'
 import { normalizarBusqueda, nombreCortoCliente } from '@/utils/cliente'
 import { Input } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import PedidoDetalle from './PedidoDetalle'
 
@@ -172,12 +173,23 @@ export default function SellerOrders() {
   const [query, setQuery] = useState('')
   const [filtro, setFiltro] = useState('activos')
   const [orden, setOrden] = useState({ key: 'date', dir: 'desc' })
-  const data = useSellerData('/api/orders', orderFields, listVentas, esDemo, { limit: 50 })
+  // Búsqueda y filtros van al servidor (cubren todos los pedidos del alcance
+  // del usuario, no solo la página cargada). El texto se difiere 250 ms.
+  const busqueda = useBusquedaDiferida(query)
+  const path = useMemo(() => {
+    const params = new URLSearchParams({ filtro })
+    const texto = busqueda.trim()
+    if (texto) params.set('q', texto)
+    return `/api/orders?${params.toString()}`
+  }, [filtro, busqueda])
+  const data = useSellerData(path, orderFields, listVentas, esDemo, { limit: 50 })
   const esAdminVentas = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE'].includes(sesion?.rol) || ['ADMIN', 'GERENTE'].includes(usuario?.role))
   const todas = useMemo(() => {
     const products = esDemo ? productosById() : {}
     return data.rows
-      .filter((row) => esAdminVentas ? true : Boolean(sesion?.vendedorId) && row.sellerId === sesion.vendedorId)
+      // En la demo no hay backend que acote por vendedor; con sesión API el
+      // alcance por rol ya lo aplica el servidor.
+      .filter((row) => esDemo && !esAdminVentas ? Boolean(sesion?.vendedorId) && row.sellerId === sesion.vendedorId : true)
       .map((row) => {
         const completa = {
           ...row,
@@ -189,18 +201,21 @@ export default function SellerOrders() {
   const porCliente = useMemo(() => todas.reduce((acc, row) => { if (row.customerId) acc[row.customerId] = (acc[row.customerId] || 0) + 1; return acc }, {}), [todas])
 
   const rows = useMemo(() => {
-    const texto = normalizarBusqueda(query)
-    const filtradas = todas.filter((row) => {
-      const completado = estaCompletado(row)
-      if (filtro === 'activos') return !completado && !estaCancelado(row)
-      if (filtro === 'archivados') return completado
-      if (filtro === 'nopagados') return row.pending > 0 && !estaCancelado(row)
-      if (filtro === 'pendientes') return pagoDe(row) === 'Pendiente' && !estaCancelado(row)
-      if (filtro === 'parciales') return pagoDe(row) === 'Parcial' && !estaCancelado(row)
-      if (filtro === 'credito') return pagoDe(row) === 'A crédito' && !estaCancelado(row)
-      return true
-    })
-    const conBusqueda = texto ? filtradas.filter((row) => row.busqueda.includes(texto)) : filtradas
+    let visibles = todas
+    if (esDemo) {
+      const texto = normalizarBusqueda(query)
+      visibles = todas.filter((row) => {
+        const completado = estaCompletado(row)
+        if (filtro === 'activos') return !completado && !estaCancelado(row)
+        if (filtro === 'archivados') return completado
+        if (filtro === 'nopagados') return row.pending > 0 && !estaCancelado(row)
+        if (filtro === 'pendientes') return pagoDe(row) === 'Pendiente' && !estaCancelado(row)
+        if (filtro === 'parciales') return pagoDe(row) === 'Parcial' && !estaCancelado(row)
+        if (filtro === 'credito') return pagoDe(row) === 'A crédito' && !estaCancelado(row)
+        return true
+      })
+      if (texto) visibles = visibles.filter((row) => row.busqueda.includes(texto))
+    }
     const factor = orden.dir === 'asc' ? 1 : -1
     const valor = (row) => {
       if (orden.key === 'number') return String(row.number).replace(/\D/g, '') || row.number
@@ -213,12 +228,12 @@ export default function SellerOrders() {
       if (orden.key === 'fulfillment') return ESTADO_ORDEN[estaCancelado(row) ? 'CANCELLED' : row.fulfillmentStatus] ?? 9
       return Number(row.total) || 0
     }
-    return [...conBusqueda].sort((a, b) => {
+    return [...visibles].sort((a, b) => {
       const va = valor(a); const vb = valor(b)
       if (typeof va === 'string' || typeof vb === 'string') return String(va).localeCompare(String(vb), 'es') * factor
       return (va - vb) * factor
     })
-  }, [todas, filtro, query, orden])
+  }, [todas, filtro, query, orden, esDemo])
 
   // El detalle sale de la fila cargada; si se entra por URL directa (recarga,
   // enlace compartido) o el pedido quedó fuera de la página, se resuelve por

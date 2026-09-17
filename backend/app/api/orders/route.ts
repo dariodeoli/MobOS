@@ -49,18 +49,107 @@ function inlineAddresses(value: unknown) {
   return rows.map((row, index) => ({ ...row, isDefault: row.isDefault || (index === 0 && !rows.some(item => item.isDefault)) }))
 }
 
+// Filtros del listado: misma semántica que el filtrado del cliente, resuelta
+// en el servidor sobre TODOS los pedidos del alcance del usuario.
+const FILTROS_PEDIDOS = new Set(['activos', 'nopagados', 'pendientes', 'parciales', 'credito', 'archivados', 'todos'])
+
+// Patrón LIKE literal: % y _ del texto buscado no actúan como comodines.
+const patronLike = (valor: string) => `%${valor.replace(/[\\%_]/g, '\\$&')}%`
+
+// Comparación de texto sin acentos ni mayúsculas (espejo de normalizarBusqueda
+// del cliente) sin depender de extensiones de PostgreSQL.
+const textoNormalizado = (expresion: string, valor: string) =>
+  Prisma.sql`translate(lower(${Prisma.raw(expresion)}), 'áàäâãéèëêíìïîóòöôõúùüûñç', 'aaaaaeeeeiiiiooooouuuunc') ILIKE ${patronLike(valor)}`
+
+// Clave alfanumérica: tolera separadores (#, -, espacios) en códigos y seriales.
+const textoAlfanumerico = (expresion: string, valor: string) =>
+  Prisma.sql`regexp_replace(lower(${Prisma.raw(expresion)}), '[^a-z0-9]', '', 'g') LIKE ${patronLike(valor)}`
+
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  const where = session.user.role === 'VENDEDOR'
-    ? { tenantId: tenant, branchId: session.user.branchId, sellerId: session.user.id }
-    : session.user.role === 'CAJERA'
-      ? { tenantId: tenant, branchId: session.user.branchId }
-      : { tenantId: tenant }
   const params = new URL(request.url).searchParams
+  const filtro = params.get('filtro') || 'activos'
+  if (!FILTROS_PEDIDOS.has(filtro)) return error('Filtro inválido.')
   const limit = Math.min(500, Math.max(1, Number(params.get('limit')) || 100))
   const cursor = params.get('cursor')
-  return json(await prisma.order.findMany({ where, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: limit, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}) }))
+  const q = (params.get('q') || '').trim().slice(0, 120)
+  // Alcance por rol: VENDEDOR ve lo suyo de su sucursal; CAJERA su sucursal;
+  // ADMIN/GERENTE todo el tenant. Sin sucursal asignada el alcance es NULL.
+  const condiciones: Prisma.Sql[] = [Prisma.sql`o."tenantId" = ${tenant}`]
+  if (session.user.role === 'VENDEDOR') {
+    condiciones.push(Prisma.sql`o."sellerId" = ${session.user.id}`)
+    condiciones.push(session.user.branchId ? Prisma.sql`o."branchId" = ${session.user.branchId}` : Prisma.sql`o."branchId" IS NULL`)
+  } else if (session.user.role === 'CAJERA') {
+    condiciones.push(session.user.branchId ? Prisma.sql`o."branchId" = ${session.user.branchId}` : Prisma.sql`o."branchId" IS NULL`)
+  }
+  const confirmado = Prisma.sql`COALESCE(p."paid", 0)`
+  const esPagado = Prisma.sql`(${confirmado} >= o."totalPyg" AND o."totalPyg" > 0)`
+  // "A crédito" tiene prioridad sobre Pagado/Parcial/Pendiente: plazo vigente y
+  // saldo pendiente real (los pagos posteriores pueden cancelar el crédito).
+  const esCredito = Prisma.sql`(COALESCE(o."creditDays", 0) > 0 AND o."totalPyg" - ${confirmado} > 0)`
+  const esCompletado = Prisma.sql`(o."archivedAt" IS NOT NULL OR (${esPagado} AND o."fulfillmentStatus" = 'DELIVERED'))`
+  const esCancelado = Prisma.sql`(o."status" = 'CANCELLED')`
+  if (filtro === 'activos') condiciones.push(Prisma.sql`NOT ${esCompletado} AND NOT ${esCancelado}`)
+  else if (filtro === 'archivados') condiciones.push(esCompletado)
+  else if (filtro === 'nopagados') condiciones.push(Prisma.sql`o."totalPyg" - ${confirmado} > 0 AND NOT ${esCancelado}`)
+  else if (filtro === 'pendientes') condiciones.push(Prisma.sql`NOT ${esCredito} AND ${confirmado} = 0 AND NOT ${esCancelado}`)
+  else if (filtro === 'parciales') condiciones.push(Prisma.sql`NOT ${esCredito} AND ${confirmado} > 0 AND NOT ${esPagado} AND NOT ${esCancelado}`)
+  else if (filtro === 'credito') condiciones.push(Prisma.sql`${esCredito} AND NOT ${esCancelado}`)
+  if (cursor) {
+    // Cursor por tupla (createdAt, id): el orden desempata por id para que
+    // páginas consecutivas no repitan ni salteen pedidos del mismo milisegundo.
+    const cursorRow = await prisma.order.findFirst({ where: { id: cursor, tenantId: tenant }, select: { createdAt: true } })
+    if (!cursorRow) return json([])
+    condiciones.push(Prisma.sql`(o."createdAt" < ${cursorRow.createdAt} OR (o."createdAt" = ${cursorRow.createdAt} AND o."id" < ${cursor}))`)
+  }
+  if (q) {
+    const qFold = q.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    const qCodigo = qFold.replace(/[^a-z0-9]/g, '')
+    const qDigitos = qFold.replace(/\D/g, '')
+    const soloDigitos = qDigitos.length > 0 && /^[\d\s.,-]+$/.test(qFold)
+    const texto = patronLike(q); const textoFold = patronLike(qFold)
+    const seriales: Prisma.Sql[] = [Prisma.sql`s."serial" ILIKE ${texto}`]
+    if (qCodigo) seriales.push(textoAlfanumerico('s."serial"', qCodigo))
+    const coincidencias: Prisma.Sql[] = [
+      Prisma.sql`o."orderNumber" ILIKE ${texto}`,
+      textoNormalizado('o."billingName"', qFold),
+      textoNormalizado('o."billingDocument"', qFold),
+      textoNormalizado('o."notes"', qFold),
+      textoNormalizado('c."name"', qFold),
+      textoNormalizado('c."phone"', qFold),
+      textoNormalizado('c."email"', qFold),
+      textoNormalizado('c."document"', qFold),
+      textoNormalizado('c."billingName"', qFold),
+      textoNormalizado('c."billingDocument"', qFold),
+      Prisma.sql`o."tags"::text ILIKE ${textoFold}`,
+      Prisma.sql`o."totalPyg"::text ILIKE ${textoFold}`,
+      Prisma.sql`EXISTS (SELECT 1 FROM "OrderItem" oi WHERE oi."orderId" = o."id" AND ${textoNormalizado('oi."description"', qFold)})`,
+      Prisma.sql`EXISTS (SELECT 1 FROM "OrderItem" oi2 JOIN "OrderItemSerial" s ON s."orderItemId" = oi2."id" WHERE oi2."orderId" = o."id" AND (${Prisma.join(seriales, ' OR ')}))`,
+    ]
+    if (qCodigo) coincidencias.push(textoAlfanumerico('o."orderNumber"', qCodigo))
+    if (soloDigitos) coincidencias.push(Prisma.sql`o."totalPyg"::text LIKE ${patronLike(qDigitos)}`)
+    condiciones.push(Prisma.sql`(${Prisma.join(coincidencias, ' OR ')})`)
+  }
+  const ids = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT o."id"
+    FROM "Order" o
+    LEFT JOIN "Customer" c ON c."id" = o."customerId"
+    LEFT JOIN (
+      SELECT "orderId", SUM("amountPyg") AS paid
+      FROM "Payment" WHERE "tenantId" = ${tenant} AND "status" = 'CONFIRMED'
+      GROUP BY "orderId"
+    ) p ON p."orderId" = o."id"
+    WHERE ${Prisma.join(condiciones, ' AND ')}
+    ORDER BY o."createdAt" DESC, o."id" DESC
+    LIMIT ${limit}
+  `)
+  if (!ids.length) return json([])
+  // Segunda consulta con el include de siempre; el orden lo fija la lista de
+  // ids para conservar la paginación por cursor.
+  const rows = await prisma.order.findMany({ where: { id: { in: ids.map((row) => row.id) } }, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } } })
+  const porId = new Map(rows.map((row) => [row.id, row]))
+  return json(ids.map((row) => porId.get(row.id)).filter(Boolean))
 }
 
 export async function POST(request: Request) {

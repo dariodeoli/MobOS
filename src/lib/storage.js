@@ -185,7 +185,7 @@ async function hydrateApi() {
   const puedeVerFinanzas = ['dueno', 'GERENTE', 'CAJERA'].includes(ctx.rol)
   const [products, orders, users, finance] = await Promise.all([
     api.get('/api/products'),
-    api.get('/api/orders'),
+    api.get('/api/orders?filtro=todos'),
     ctx.rol === 'dueno' ? api.get('/api/users') : Promise.resolve([]),
     puedeVerFinanzas ? api.get('/api/finance').catch(() => null) : Promise.resolve(null),
   ])

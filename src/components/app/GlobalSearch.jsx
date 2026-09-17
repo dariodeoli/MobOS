@@ -64,7 +64,7 @@ export default function GlobalSearch({ open, onClose, onNavigate }) {
     setBuscando(true)
     const timer = setTimeout(() => {
       // Clientes: el endpoint soporta ?q=. Productos y pedidos se traen
-      // completos y se filtran acá (la API de pedidos no acepta query).
+      // completos (todos los estados) y se filtran acá.
       Promise.allSettled([
         api
           .get(`/api/customers?q=${encodeURIComponent(q)}`, { signal: controller.signal })
@@ -76,7 +76,7 @@ export default function GlobalSearch({ open, onClose, onNavigate }) {
             .slice(0, MAX_POR_GRUPO)
             .map(proyectarProducto)),
         api
-          .get('/api/orders', { signal: controller.signal })
+          .get('/api/orders?filtro=todos', { signal: controller.signal })
           .then(filas => filas
             .filter(o => incluye(o.orderNumber || o.codigo, q) || incluye(o.customer?.name || o.cliente, q))
             .slice(0, MAX_POR_GRUPO)

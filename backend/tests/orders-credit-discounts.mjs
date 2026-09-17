@@ -81,6 +81,26 @@ assert.equal(creditOrder.status, 'PENDING')
 assert.ok(creditOrder.dueAt, 'La venta a crédito debe tener vencimiento.')
 assert.equal(creditOrder.creditDays, 15)
 
+// Búsqueda y filtros del listado resueltos en el servidor: cubren todos los
+// pedidos del alcance, no solo la página cargada.
+const nombreSinAcentos = customer.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+result = await request(`/api/orders?filtro=todos&q=${encodeURIComponent(nombreSinAcentos)}`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === creditOrder.id), 'q por nombre de cliente (sin acentos) debe encontrar sus pedidos.')
+console.log('orders-credit-discounts · check q por nombre de cliente: OK')
+result = await request('/api/orders?filtro=credito')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === creditOrder.id), 'filtro=credito debe devolver el pedido a crédito.')
+console.log('orders-credit-discounts · check filtro=credito: OK')
+result = await request('/api/orders?filtro=pendientes')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(!result.payload.some(row => row.id === creditOrder.id), 'filtro=pendientes no debe devolver un pedido a crédito.')
+console.log('orders-credit-discounts · check filtro=pendientes excluye crédito: OK')
+result = await request('/api/orders?filtro=nopagados')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === creditOrder.id), 'filtro=nopagados debe incluir el pedido a crédito.')
+console.log('orders-credit-discounts · check filtro=nopagados incluye crédito: OK')
+
 // Superar el límite de crédito se rechaza.
 result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [], creditDays: 10 })
 assert.equal(result.response.status, 409, 'Debe rechazar por superar el límite de crédito.')
@@ -253,7 +273,13 @@ assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const serializedProduct = result.payload
 result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: serializedProduct.id, quantity: 1, unitPricePyg: 500000, inventoryUnitSerials: [warrantySerial] }], payments: [{ method: 'CASH', amountPyg: 500000 }] })
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const ventaSerializada = result.payload
 const warrantySerialKey = warrantySerial.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+// La búsqueda cubre los seriales por la tabla espejo: los últimos 4 alcanzan.
+result = await request(`/api/orders?filtro=todos&q=${encodeURIComponent(warrantySerialKey.slice(-4))}`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === ventaSerializada.id), 'q con los últimos 4 del IMEI/serial debe encontrar el pedido.')
+console.log('orders-credit-discounts · check q por últimos 4 del IMEI/serial: OK')
 result = await request(`/api/warranties?kind=COVERAGE&q=${encodeURIComponent(warrantySerialKey)}`)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 const autoWarranty = (Array.isArray(result.payload) ? result.payload : []).find(row => row.serial === warrantySerialKey)
