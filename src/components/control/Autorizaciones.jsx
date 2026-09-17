@@ -217,7 +217,6 @@ export default function Autorizaciones() {
         {!loading && !error && !rows.length && (
           <EmptyState compact icon="check" title="Sin solicitudes" description="Cuando un vendedor pida mayorista, crédito, plazo o autorización de descuento, aparecerá acá." />
         )}
-<<<<<<< HEAD
         <div className="overflow-x-auto" data-testid="autorizaciones-tabla">
           <div className={cn(GRID_AUTORIZACIONES, 'px-3.5 pb-2 pt-1')}>
             <span className={CELDA_AUT}>Cliente</span>
@@ -242,8 +241,11 @@ export default function Autorizaciones() {
                 row.resolvedNote ? `Respuesta: ${row.resolvedNote}` : '',
               ].filter(Boolean).join(' · ')
               return <div key={row.id} data-testid="autorizacion-fila" className={cn(GRID_AUTORIZACIONES, 'rounded-xl border px-3.5 py-2 transition', row.status === 'PENDING' ? 'border-warn/30 bg-warn/5' : 'border-ink-600 bg-ink-800/40')}>
-                <span className="truncate text-sm font-semibold" title={detalle}>{row.customer?.name || 'Cliente'}</span>
-                <Badge color="blue" className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{KINDS[row.kind] || row.kind}</Badge>
+                <span className="truncate text-sm font-semibold" title={detalle}>{row.customer?.name || (row.kind === 'DISCOUNT' ? 'Venta sin cliente' : 'Cliente')}</span>
+                <span className="flex items-center gap-1">
+                  <Badge color="blue" className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{KINDS[row.kind] || row.kind}</Badge>
+                  {row.kind === 'DISCOUNT' && row.usedAt && <Badge color="slate" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Usada</Badge>}
+                </span>
                 <span className="truncate text-xs text-mute" title={autorizado ? `Autorizado: ${autorizado}` : undefined}>{pedido}</span>
                 <span className="truncate text-xs text-mute" title={`Pidió ${row.requestedBy?.name || 'Sistema'}`}>{row.requestedBy?.name || 'Sistema'}</span>
                 <span className="truncate text-xs text-mute">{fechaHora(row.createdAt)}</span>
@@ -260,44 +262,6 @@ export default function Autorizaciones() {
               </div>
             })}
           </div>
-=======
-        <div className="space-y-2">
-          {rows.map((row) => {
-            const estado = STATUS[row.status] || { label: row.status, color: 'slate' }
-            const propia = row.requestedById === usuario?.id
-            return (
-              <article key={row.id} className={`rounded-xl border p-3 ${row.status === 'PENDING' ? 'border-warn/30 bg-warn/5' : 'border-ink-600'}`}>
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-semibold">{row.customer?.name || 'Venta sin cliente'}</p>
-                      <Badge color="blue">{KINDS[row.kind] || row.kind}</Badge>
-                      <Badge color={estado.color}>{estado.label}</Badge>
-                      {row.kind === 'DISCOUNT' && row.usedAt && <Badge color="slate">Usada</Badge>}
-                      {propia && row.status === 'PENDING' && <Badge color="slate">Tu solicitud</Badge>}
-                    </div>
-                    <p className="mt-1 text-xs text-mute">
-                      Pedido: {resumenValor(row.kind, row.requestedValue)}
-                      {row.status !== 'PENDING' && <> · Autorizado: {row.status === 'APPROVED' ? resumenValor(row.kind, row.resolvedValue || row.requestedValue) : '— rechazado'}</>}
-                    </p>
-                    <p className="mt-1 text-xs text-mute">
-                      Pidió {row.requestedBy?.name || 'Sistema'} · {fechaHora(row.createdAt)}
-                      {row.resolvedBy?.name ? ` · Resolvió ${row.resolvedBy.name} · ${fechaHora(row.resolvedAt)}` : ''}
-                    </p>
-                    {row.note && <p className="mt-1 text-xs text-mute">Nota del vendedor: {row.note}</p>}
-                    {row.resolvedNote && <p className="mt-1 text-xs text-mute">Respuesta: {row.resolvedNote}</p>}
-                  </div>
-                  {puedeResolver && row.status === 'PENDING' && !propia && (
-                    <div className="flex shrink-0 gap-2">
-                      <Button type="button" onClick={() => abrirAprobar(row)}>Aprobar</Button>
-                      <Button type="button" variant="ghost" onClick={() => { setRejectNote(''); setRejectTarget(row) }}>Rechazar</Button>
-                    </div>
-                  )}
-                </div>
-              </article>
-            )
-          })}
->>>>>>> 5ca43a9 (feat(descuentos): autorizacion de descuentos fuera de politica para vendedores)
         </div>
       </Card>
 
