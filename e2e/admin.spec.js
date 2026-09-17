@@ -287,3 +287,31 @@ test('configuración → sube mi foto y la quita', async ({ page }) => {
   await page.getByRole('button', { name: 'Quitar', exact: true }).last().click()
   await expect(page.getByAltText('Mi foto')).toHaveCount(0)
 })
+
+// Solicitudes comerciales: el equipo crea el cliente, pide mayorista desde
+// su ficha y administración aprueba desde Configuración → Negocio.
+test("solicitudes → pedir mayorista desde la ficha y aprobarla", async ({ page }) => {
+  // Cliente nuevo por corrida: evita el bloqueo de solicitud duplicada y que
+  // el cliente ya esté en mayorista por una corrida anterior.
+  const nombre = `Solicitud E2E ${Date.now()}`
+  await page.addInitScript(() => localStorage.setItem("mobos:clientes-vista", "list"))
+  await page.goto("/pos/clientes")
+  await page.getByRole("button", { name: "+ Crear cliente" }).click()
+  const alta = page.getByRole("dialog")
+  await alta.getByLabel("Nombre", { exact: true }).fill(nombre)
+  await alta.getByRole("button", { name: "Guardar cliente" }).click()
+  await expect(page.getByText(nombre).first()).toBeVisible()
+
+  await page.getByTestId("cliente-fila").filter({ hasText: nombre }).first().click()
+  await page.getByRole("button", { name: "Solicitar mayorista" }).click()
+  await page.getByRole("button", { name: "Enviar solicitud" }).click()
+  await expect(page.getByText("Solicitud enviada", { exact: false })).toBeVisible()
+
+  await page.goto("/pos/equipo")
+  await page.getByRole("main").getByRole("button", { name: "Negocio" }).click()
+  await expect(page.getByRole("heading", { name: "Solicitudes del cliente" })).toBeVisible()
+  await expect(page.getByText(nombre).first()).toBeVisible()
+  await page.getByRole("button", { name: "Aprobar" }).first().click()
+  await expect(page.getByText("Solicitud aprobada", { exact: false })).toBeVisible()
+  await expect(page.getByText(nombre)).toHaveCount(0)
+})
