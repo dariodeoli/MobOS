@@ -35,17 +35,27 @@ export async function GET(request: Request) {
   const kind = new URL(request.url).searchParams.get('kind')?.toUpperCase() === 'COVERAGE' ? 'COVERAGE' : 'SERVICE'
   const branch = session.user.role === 'ADMIN' ? null : session.user.branchId
   if (session.user.role !== 'ADMIN' && !branch) return json([])
+  // El teléfono del cliente sale del pedido de origen (si existe) para que
+  // Servicio Técnico pueda avisarle por WhatsApp sin volver a tipearlo.
   const rows = branch ? await prisma.$queryRaw<Array<Record<string, unknown>>>`
-    SELECT "id", "tenantId", "branchId", "orderItemId", "kind", "customerName", "serial", "description", "status", "responsibleName", "createdAt", "updatedAt", "expiresAt", "warrantyDays", "coverage", "exclusions", "publicToken"
-    FROM "WarrantyCase"
-    WHERE "tenantId" = ${tenant} AND "branchId" = ${branch} AND "kind" = ${kind}
-      AND (${q} = '' OR "serial" ILIKE ${`%${q}%`} OR "customerName" ILIKE ${`%${q}%`} OR "description" ILIKE ${`%${q}%`})
-    ORDER BY "createdAt" DESC LIMIT 100` : await prisma.$queryRaw<Array<Record<string, unknown>>>`
-    SELECT "id", "tenantId", "branchId", "orderItemId", "kind", "customerName", "serial", "description", "status", "responsibleName", "createdAt", "updatedAt", "expiresAt", "warrantyDays", "coverage", "exclusions", "publicToken"
-    FROM "WarrantyCase"
-    WHERE "tenantId" = ${tenant} AND "kind" = ${kind}
-      AND (${q} = '' OR "serial" ILIKE ${`%${q}%`} OR "customerName" ILIKE ${`%${q}%`} OR "description" ILIKE ${`%${q}%`})
-    ORDER BY "createdAt" DESC LIMIT 100`
+    SELECT w."id", w."tenantId", w."branchId", w."orderItemId", w."kind", w."customerName", w."serial", w."description", w."status", w."responsibleName", w."createdAt", w."updatedAt", w."expiresAt", w."warrantyDays", w."coverage", w."exclusions", w."publicToken",
+           c."phone" AS "customerPhone", c."countryCode" AS "customerCountryCode"
+    FROM "WarrantyCase" w
+    LEFT JOIN "OrderItem" oi ON oi."id" = w."orderItemId"
+    LEFT JOIN "Order" o ON o."id" = oi."orderId"
+    LEFT JOIN "Customer" c ON c."id" = o."customerId"
+    WHERE w."tenantId" = ${tenant} AND w."branchId" = ${branch} AND w."kind" = ${kind}
+      AND (${q} = '' OR w."serial" ILIKE ${`%${q}%`} OR w."customerName" ILIKE ${`%${q}%`} OR w."description" ILIKE ${`%${q}%`})
+    ORDER BY w."createdAt" DESC LIMIT 100` : await prisma.$queryRaw<Array<Record<string, unknown>>>`
+    SELECT w."id", w."tenantId", w."branchId", w."orderItemId", w."kind", w."customerName", w."serial", w."description", w."status", w."responsibleName", w."createdAt", w."updatedAt", w."expiresAt", w."warrantyDays", w."coverage", w."exclusions", w."publicToken",
+           c."phone" AS "customerPhone", c."countryCode" AS "customerCountryCode"
+    FROM "WarrantyCase" w
+    LEFT JOIN "OrderItem" oi ON oi."id" = w."orderItemId"
+    LEFT JOIN "Order" o ON o."id" = oi."orderId"
+    LEFT JOIN "Customer" c ON c."id" = o."customerId"
+    WHERE w."tenantId" = ${tenant} AND w."kind" = ${kind}
+      AND (${q} = '' OR w."serial" ILIKE ${`%${q}%`} OR w."customerName" ILIKE ${`%${q}%`} OR w."description" ILIKE ${`%${q}%`})
+    ORDER BY w."createdAt" DESC LIMIT 100`
   return json(rows)
 }
 

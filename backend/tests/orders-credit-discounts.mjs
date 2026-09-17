@@ -367,4 +367,11 @@ assert.equal(pagina2.response.status, 200)
 assert.ok(pagina2.payload.length <= 1, 'La página siguiente respeta el límite.')
 assert.ok(!pagina2.payload.some(row => row.id === pagina1.payload[0].id), 'La página siguiente no repite el cursor.')
 
+// Garantías: el listado incluye el teléfono del cliente para avisos.
+const garantias = await request('/api/warranties?kind=COVERAGE')
+assert.equal(garantias.response.status, 200)
+const conTelefono = garantias.payload.find((row) => row.serial === warrantySerialKey)
+assert.ok(conTelefono, 'La garantía automática debe aparecer en el listado de servicio.')
+assert.ok(conTelefono.customerPhone, 'La garantía debe traer el teléfono del cliente.')
+
 console.log('orders-credit-discounts: OK (numeración secuencial MOB-#####, descuentos fijo/%, mayorista, crédito con límite y mora, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, plantillas por categoría, pipeline de cotizaciones y combos).')
