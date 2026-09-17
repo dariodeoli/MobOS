@@ -47,11 +47,11 @@ export default function Vendedores() {
   const [confirmarEliminar, setConfirmarEliminar] = useState(null)
   const [confirmarRevocar, setConfirmarRevocar] = useState(null)
 
-  async function cargarInvitaciones() {
+  const cargarInvitaciones = useCallback(async () => {
     if (esDemo) return
     try { setInvitaciones(await api.get('/api/user-invitations')) } catch (cause) { setError(cause?.message || 'No se pudieron cargar las invitaciones.') }
-  }
-  useEffect(() => { cargarInvitaciones() }, [esDemo])
+  }, [esDemo])
+  useEffect(() => { cargarInvitaciones() }, [cargarInvitaciones])
   function notifySuccess(value) { setError(''); setMessage(value); window.setTimeout(() => setMessage(''), 4500) }
   async function refreshTeam() { if (!esDemo) await refrescar(); setRevision(value => value + 1) }
 

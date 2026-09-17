@@ -98,6 +98,25 @@ export default function SellerCatalog() {
     window.addEventListener('mobos:focus-search', onFocusSearch)
     return () => window.removeEventListener('mobos:focus-search', onFocusSearch)
   }, [])
+  function vender(producto) {
+    try { sessionStorage.setItem('mobos:venta-handoff', JSON.stringify({ productId: producto.id, ts: Date.now() })) } catch { /* la venta sigue disponible sin preselección */ }
+    window.location.assign('/pos/cargar')
+  }
+  return <SellerSection title="Productos" description="Catálogo de consulta y edición: precio, mayorista, stock y equipos por IMEI.">
+    <div className="flex flex-wrap items-center gap-2">
+      <form className="flex min-w-[220px] flex-1 gap-2" onSubmit={(event) => { event.preventDefault(); setSearch(query.trim()); data.refresh() }}>
+        <div className="relative min-w-0 flex-1">
+          <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
+          <Input ref={searchRef} aria-label="Buscar productos" className="pl-9" placeholder="Nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />
+        </div>
+        <Button>Buscar</Button>
+      </form>
+      <Select aria-label="Filtrar por categoría" className="w-auto" value={categoria} onChange={(event) => setCategoria(event.target.value)}><option value="todas">Todas las categorías</option>{categorias.map(item => <option key={item} value={item}>{item}</option>)}</Select>
+      <Select aria-label="Filtrar por condición" className="w-auto" value={condicion} onChange={(event) => setCondicion(event.target.value)}><option value="todas">Nueva y seminueva</option><option value="NEW">Nuevos</option><option value="USED">Seminuevos</option><option value="REFURBISHED">Reacondicionados</option></Select>
+      <button type="button" onClick={() => setSoloStock(value => !value)} className={cn('rounded-lg border px-3 py-2 text-xs font-semibold transition', soloStock ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>Con stock</button>
+      <ListGridToggle value={vista} onChange={(next) => { setVista(next); localStorage.setItem('mobos:productos-vista', next) }} />
+      <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
+      {canManage && !esDemo && <button type="button" onClick={() => setCombosOpen(true)} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Combos</button>}
       {esOwner && !esDemo && <ImportarProductosCSV onImportada={data.refresh} />}
     </div>
     <SellerFeedback {...data} empty={!rows.length} />

@@ -22,7 +22,7 @@ export default function ComboManager({ open, onClose }) {
     setLoading(true); setError('')
     try { setCombos((await resources.combos.list(true)) || []) } catch (cause) { setError(cause?.message || 'No se pudieron cargar los combos.') } finally { setLoading(false) }
   }
-  useEffect(() => { if (open) load() }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open) load() }, [open])  
 
 
   const componentesValidos = form.components.filter(item => item.productId && num(item.quantity) > 0)
