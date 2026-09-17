@@ -362,20 +362,9 @@ export async function POST(request: Request) {
         const pendingTotal = Number(outstanding[0]?.total || 0n)
         if (!Number.isSafeInteger(pendingTotal) || pendingTotal + (total - confirmed) > creditLimit) throw new InputError('Supera el límite de crédito del cliente.', 409)
       }
-      // Identificador comercial configurable ("MOB #310840"); si la empresa
-      // no lo configuró se usa la secuencia MOB-#0001.
-      let orderNumber = typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : null
-      if (!orderNumber) {
-        const numeracion = await tx.$queryRaw<Array<{ orderPrefix: string | null; orderNextNumber: number | null }>>`SELECT "orderPrefix", "orderNextNumber" FROM "Tenant" WHERE id = ${tenant} FOR UPDATE`
-        const prefijo = numeracion[0]?.orderPrefix
-        const siguiente = numeracion[0]?.orderNextNumber
-        if (prefijo && siguiente) {
-          const actualizado = await tx.$queryRaw<Array<{ orderNextNumber: number }>>`UPDATE "Tenant" SET "orderNextNumber" = "orderNextNumber" + 1 WHERE id = ${tenant} RETURNING "orderNextNumber"`
-          orderNumber = prefijo + ' #' + (actualizado[0].orderNextNumber - 1)
-        } else {
-          orderNumber = await nextOrderNumber(tx, tenant)
-        }
-      }
+      // Identificador comercial de la empresa (`PREFIX-#0001`) con el contador
+      // transaccional del tenant; un número explícito del cliente manda.
+      const orderNumber = typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : await nextOrderNumber(tx, tenant)
 
       const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
       if (discount > 0) await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_APPROVED', entity: 'Order', entityId: order.id, metadata: { discountPyg: discount, subtotalPyg: subtotal, approvedRole: session.user.role } } })
