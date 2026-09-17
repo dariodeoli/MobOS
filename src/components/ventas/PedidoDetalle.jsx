@@ -389,7 +389,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 </form>
                 <div className="mt-4 space-y-4">
                   {events.map(event => <article key={`${event.type}-${event.id}`} className="flex gap-3">
-                    <span title={event.user?.name || 'Sistema'}><Avatar name={event.user?.name || 'Sistema'} size="sm" /></span>
+                    <span title={nombreActor(event.user?.name) || 'Sistema'}><Avatar name={nombreActor(event.user?.name) || 'Sistema'} size="sm" /></span>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs text-mute"><span className="font-semibold text-fore">{relativeDate(event.at)}</span></p>
                       {event.type === 'comment' && <>

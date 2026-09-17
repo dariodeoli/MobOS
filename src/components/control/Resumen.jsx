@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { listVentas, getVendedores, productosById, getProductos, listGastos } from '@/lib/storage'
 import { api } from '@/lib/api/client'
@@ -8,6 +8,8 @@ import { comisionDeVentas, cobradoDeVenta, num, gs } from '@/utils/calculos'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
 import RangoFechas, {
   rangoAnterior,
+  rangoDeParams,
+  paramsDeRango,
   etiquetaRango,
 } from '@/components/shared/RangoFechas'
 import MedioPago from '@/components/shared/MedioPago'
@@ -89,7 +91,12 @@ export default function Resumen() {
   const gastos = listGastos()
   const prods = productosById()
   const catalogo = getProductos()
-  const [rango, setRango] = useState(rangoPorDefecto)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [rango, setRango] = useState(() => rangoDeParams(searchParams))
+  const cambiarRango = useCallback(next => {
+    setRango(next)
+    setSearchParams(actuales => paramsDeRango(next, actuales), { replace: true })
+  }, [setSearchParams])
   const [filtroLista, setFiltroLista] = useState('todas')
   const [creditos, setCreditos] = useState(null)
   const listaRef = useRef(null)

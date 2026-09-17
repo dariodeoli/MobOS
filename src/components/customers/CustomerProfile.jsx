@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
@@ -6,7 +6,6 @@ import { codigoPedido } from '@/utils/pedido'
 import { inicialesDe } from '@/lib/utils'
 import { whatsappUrl } from './customerMessaging'
 import Icon from '@/components/shared/Icon'
-import ActorAvatar from './ActorAvatar'
 import {
   Badge,
   Button,
@@ -122,9 +121,6 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [notaInterna, setNotaInterna] = useState('')
   const [notaPublica, setNotaPublica] = useState('')
   const [guardandoNotas, setGuardandoNotas] = useState(false)
-  const [eventos, setEventos] = useState([])
-  const [eventosTotal, setEventosTotal] = useState(0)
-  const [cargandoEventos, setCargandoEventos] = useState(false)
 
   useEffect(() => {
     setNotaInterna(profile?.customer?.notes || customer?.notes || '')
@@ -183,20 +179,6 @@ export default function CustomerProfile({ customer, open, onClose }) {
     URL.revokeObjectURL(enlace.href)
   }
 
-  const cargarEventos = useCallback(async (offset = 0) => {
-    if (!customer?.id) return
-    setCargandoEventos(true)
-    try {
-      const data = await api.get(`/api/customers/${encodeURIComponent(customer.id)}/history?limit=30&offset=${offset}`)
-      setEventosTotal(Number(data?.total) || 0)
-      setEventos(current => offset === 0 ? (data?.events || []) : [...current, ...(data?.events || [])])
-    } catch { /* sin cronología disponible */ } finally { setCargandoEventos(false) }
-  }, [customer?.id])
-
-  useEffect(() => {
-    if (open && tab === 'cronologia' && !eventos.length) cargarEventos(0)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tab])
 
   const [newNote, setNewNote] = useState('')
   const [editingNote, setEditingNote] = useState(null)
@@ -325,7 +307,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const facturaActual = Boolean(profile?.customer?.billingName || profile?.customer?.billingDocument)
 
   const dispositivos = orders.flatMap(order => (order.items || []).flatMap(item => (item.serials || []).map(serial => ({ serial, model: item.description, date: order.createdAt, orderNumber: order.orderNumber, warranty: warranties.find(warranty => warranty.serial === serial) || null }))))
-  const tabCounts = { compras: orders.length, dispositivos: dispositivos.length, garantias: warranties.length, notas: notes.length, seguimientos: followUps.length, cronologia: eventos.length }
+  const tabCounts = { compras: orders.length, dispositivos: dispositivos.length, garantias: warranties.length, notas: notes.length, seguimientos: followUps.length, cronologia: timeline.length }
 
   async function saveNote(event) {
     event.preventDefault()
@@ -917,25 +899,6 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     <Button type="button" variant="outline" onClick={descargarInforme} disabled={!analitica.statement.length}>Descargar informe (CSV)</Button>
                   </div>
                 </>
-              )}
-            </div>
-          )}
-
-          {tab === 'cronologia' && (
-            <div className="space-y-3">
-              {cargandoEventos && !eventos.length && <p className="text-sm text-mute">Cargando cronología…</p>}
-              {!cargandoEventos && !eventos.length && <p className="text-sm text-mute">Todavía no hay movimientos.</p>}
-              {eventos.map(evento => (
-                <article key={evento.id} className="flex gap-3">
-                  {evento.actorId ? <ActorAvatar user={{ id: evento.actorId, name: evento.actor }} hasAvatar={evento.actorHasAvatar === true} size="sm" /> : <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-fono-light" />}
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold">{evento.actor || 'Sistema'}<span className="ml-2 font-normal text-mute">{new Date(evento.at).toLocaleString('es-PY')}</span></p>
-                    <p className="mt-0.5 text-sm text-mute">{textoEvento(evento)}</p>
-                  </div>
-                </article>
-              ))}
-              {eventos.length < eventosTotal && (
-                <Button variant="outline" disabled={cargandoEventos} onClick={() => cargarEventos(eventos.length)}>{cargandoEventos ? 'Cargando…' : 'Cargar más'}</Button>
               )}
             </div>
           )}
