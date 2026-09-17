@@ -38,6 +38,7 @@ const protectedSections = {
   '/configuracion/seguridad': 'Seguridad',
   '/configuracion/impresoras': 'Impresoras',
   '/configuracion/impresion': 'Estado de impresión',
+  '/configuracion/sistema': 'Estado del sistema',
   '/analisis': 'Análisis',
   '/analisis/reportes': 'Reportes',
   '/analisis/ganancias': 'Ganancias',
