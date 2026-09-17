@@ -5,6 +5,7 @@ import CheckoutCustomer from '../CheckoutCustomer'
 import ListaVenta from './ListaVenta'
 import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
+import PegarEnlaceToken from '@/components/shared/PegarEnlaceToken'
 
 export default function PasoProductos({
   visible,
@@ -31,7 +32,6 @@ export default function PasoProductos({
   crearProducto,
   creandoProd,
   cancelarNuevoProd,
-  busquedaProducto,
   setBusquedaProducto,
   combos,
   agregarCombo,

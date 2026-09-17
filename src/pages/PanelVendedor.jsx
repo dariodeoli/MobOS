@@ -130,6 +130,63 @@ const OWNER_BOTTOM = [
 
 // Cada apartado con pestañas vive en /<padre>/<slug> (slug hijo en la URL).
 
+const TABS_ANALISIS = [
+  ['reportes', 'Reportes'],
+  ['ganancias', 'Ganancias'],
+  ['ganadores', 'Ganadores'],
+  ['asistente', 'Asistente'],
+]
+const TABS_FINANZAS = [
+  ['caja', 'Caja'],
+  ['gastos', 'Gastos'],
+  ['bancos', 'Bancos y cuentas'],
+  ['creditos', 'Créditos'],
+  ['cuotas', 'Cuotas'],
+  ['publicidad', 'Publicidad'],
+]
+const TABS_INVENTARIO = [
+  ['unidades', 'Unidades'],
+  ['alertas', 'Alertas'],
+  ['reservas', 'Reservas'],
+  ['traslados', 'Traslados'],
+  ['vendidos', 'Vendidos'],
+  ['transito', 'En tránsito'],
+  ['ubicaciones', 'Ubicaciones'],
+  ['compartido', 'Compartido'],
+  ['eliminados', 'Eliminados'],
+]
+const SUBPAGINAS = {
+  configuracion: {
+    vista: 'equipo',
+    tabs: [
+      ['equipo', 'Equipo'],
+      ['identidad', 'Mi identidad'],
+      ['roles', 'Roles y permisos'],
+      ['historial', 'Auditoría'],
+      ['negocio', 'Negocio'],
+      ['sucursales', 'Sucursales'],
+      ['seguridad', 'Seguridad'],
+    ],
+  },
+  analisis: { vista: 'analisis', tabs: TABS_ANALISIS },
+  finanzas: { vista: 'finanzas', tabs: TABS_FINANZAS },
+  inventario: { vista: 'inventario', tabs: TABS_INVENTARIO },
+}
+// El id del menú y el slug de la pestaña apuntan a la misma subpágina.
+const SUBPAGINA_DE_VISTA = Object.fromEntries(
+  Object.entries(SUBPAGINAS).map(([slug, cfg]) => [cfg.vista, slug]),
+)
+// Pestañas visibles según el modo: créditos y cuotas solo fuera de la demo.
+function tabsDeSubpagina(slug, esDemo) {
+  const tabs = SUBPAGINAS[slug]?.tabs || []
+  if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas') ? !esDemo : true))
+  return tabs
+}
+
+const SUBPAGINA_DE_TAB = Object.fromEntries(
+  Object.entries(SUBPAGINAS).flatMap(([slug, cfg]) => cfg.tabs.map(([id]) => [id, slug])),
+)
+
 const LABELS = {
   clientes: 'Clientes',
   pedidos: 'Mis pedidos',
@@ -277,7 +334,6 @@ export default function PanelVendedor() {
   )
   // Apartado activo: por URL (/analisis/reportes) o por vista suelta (/pos/analisis).
   const apartado = subpadre || SUBPAGINA_DE_TAB[vista] || null
-  const tabsApartado = useMemo(() => (apartado ? tabsDeSubpagina(apartado, esDemo) : []), [apartado, esDemo])
 
   // /pos/analisis y los slugs planos viejos (/pos/negocio…) se canonizan a /<padre>/<hijo>.
   useEffect(() => {

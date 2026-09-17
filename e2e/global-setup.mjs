@@ -210,6 +210,16 @@ async function writeStorageState(file, companyToken, sellerToken) {
 
 export default async function globalSetup() {
   await mkdir(AUTH_DIR, { recursive: true })
+  // La base persistente es compartida entre worktrees: otra sesión puede
+  // cambiar la contraseña de la empresa seed. Se re-afirma en cada corrida.
+  try {
+    execFileSync(`${PG_BIN}/psql`, [
+      '-h', '127.0.0.1', '-p', '5439', '-U', 'postgres', '-d', 'mobos_e2e',
+      '-c', `UPDATE "Tenant" SET "passwordHash" = '$2b$12$IOfxzCWNHr64ronQliOU/uiiEFczir16Epz.VIPdI.F1diPIhRNhm', "failedLoginAttempts" = 0, "lockedUntil" = NULL WHERE "email" = '${SEED.company.email}' AND "passwordHash" IS NOT NULL;`,
+    ], { stdio: 'ignore' })
+  } catch {
+    // Sin base no hay nada que restaurar; el seed completo lo resuelve.
+  }
   // Los specs de admin crean un "Vendedor E2E …" en cada corrida. Sin
   // limpieza se acumulan en la base persistente y el login por PIN (que
   // compara bcrypt contra TODOS los usuarios activos) se vuelve lentísimo.

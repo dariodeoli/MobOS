@@ -13,6 +13,7 @@ import { useSesion } from '@/lib/sesion'
 import { APP_NAME } from '@/lib/brand'
 import { printReservationReceipt, printTransferReceipt } from '@/components/shared/OrderReceipt'
 import { imprimirTicketOFallback } from '@/lib/printing/agent'
+import { ticketEtiquetasUnidad, ticketEtiquetaUbicacion, ticketEtiquetaUnidad } from '@/lib/printing/tickets'
 
 import UnidadDetalle from '@/components/inventory/UnidadDetalle'
 import ListGridToggle from '@/components/shared/ListGridToggle'
