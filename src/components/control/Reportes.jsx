@@ -237,12 +237,12 @@ export default function Reportes() {
                 ]}
                 rows={datosComisiones.sellers.map((fila) => ({ ...fila, key: fila.sellerId }))}
                 mobileCard={(fila) => (
-                  <Card>
+                  <Card className="p-3">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="font-semibold text-fore">{fila.sellerName || 'Sin vendedor'}</div>
+                      <div className="text-[13px] font-semibold text-fore">{fila.sellerName || 'Sin vendedor'}</div>
                       <Badge color={fila.commissionPct === null ? 'slate' : 'green'}>{fila.commissionPct === null ? 'Sin regla' : `${formatPercent(fila.commissionPct)}%`}</Badge>
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <div className="mt-2 grid grid-cols-2 gap-2">
                       <Linea label="Ventas" valor={gs(fila.totalPyg)} />
                       <Linea label="Órdenes" valor={fila.orders} />
                       <Linea label="Margen" valor={gs(fila.marginPyg)} />
@@ -312,12 +312,12 @@ export default function Reportes() {
                 columns={columnasTabla}
                 rows={grupos}
                 mobileCard={(g) => (
-                  <Card>
+                  <Card className="p-3">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="font-semibold text-fore">{g.label}</div>
+                      <div className="text-[13px] font-semibold text-fore">{g.label}</div>
                       <Badge color="slate">{g.units} u.</Badge>
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <div className="mt-2 grid grid-cols-2 gap-2">
                       <Linea label={porLinea ? 'Venta' : 'Total'} valor={gs(porLinea ? g.grossPyg : g.totalPyg)} />
                       <Linea label="Costo" valor={gs(g.costPyg)} />
                       <Linea label="Ganancia" valor={gs(g.profitPyg)} />
@@ -379,9 +379,9 @@ export default function Reportes() {
 
 function Linea({ label, valor }) {
   return (
-    <div className="rounded-lg bg-ink-700/40 px-3 py-2">
+    <div className="rounded-lg bg-ink-700/40 px-2.5 py-1.5">
       <div className="text-[11px] uppercase tracking-wider text-mute">{label}</div>
-      <div className="font-semibold tabular-nums text-fore">{valor}</div>
+      <div className="text-[13px] font-semibold tabular-nums text-fore">{valor}</div>
     </div>
   )
 }

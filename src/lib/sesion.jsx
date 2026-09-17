@@ -101,7 +101,10 @@ export function SesionProvider({ children }) {
   function actualizarEmpresa(cambios) {
     setEmpresa(current => (current ? { ...current, ...cambios } : current))
   }
+  function actualizarNombreUsuario(nombre) {
+    setUsuario(current => current ? { ...current, name: nombre, user_metadata: { ...(current.user_metadata || {}), nombre } } : current)
+  }
   const sesion = usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, correo: usuario.email, esPropietario: empresa?.rol === 'dueno', rol: empresa?.rol || null } : null
-  return <SesionContext.Provider value={{ estado, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, perfilEmpresa, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal, cambiarEmpresa, actualizarEmpresa, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
+  return <SesionContext.Provider value={{ estado, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, perfilEmpresa, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal, cambiarEmpresa, actualizarEmpresa, actualizarNombreUsuario, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
 }
 export function useSesion() { return useContext(SesionContext) }

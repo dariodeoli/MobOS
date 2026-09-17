@@ -6,7 +6,7 @@ import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { listGastos, addGasto } from '@/lib/storage'
 import { fechaClave, gs } from '@/utils/calculos'
 import { parseGsInput } from '@/utils/moneda'
-import { Card, Button, Input, Label, Select, Badge, EmptyState, MoneyInput, Modal } from '@/components/ui'
+import { Card, Button, Input, Label, Select, Badge, EmptyState, MoneyInput, IconAction } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import { cn } from '@/lib/utils'
 import AttachmentInput from '@/components/shared/AttachmentInput'
@@ -106,35 +106,7 @@ export default function Gastos() {
       </form>
     </Card>
     <Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink-600 p-4"><h3 className="font-bold">Libro financiero</h3><Badge color="red">Gastos: {gs(total)}</Badge></div>
-{loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados." /> : <div className="overflow-x-auto p-4" data-testid="gastos-tabla">
-      <div className={cn(GRID_GASTOS, 'px-3.5 pb-2 pt-1')}>
-        <span className={CELDA_GASTOS}>Descripción</span>
-        <span className={CELDA_GASTOS}>Tipo</span>
-        <span className={CELDA_GASTOS}>Contraparte</span>
-        <span className={CELDA_GASTOS}>Vence</span>
-        <span className={CELDA_GASTOS}>Estado</span>
-        <span className={cn(CELDA_GASTOS, 'text-right')}>Monto</span>
-        <span className={cn(CELDA_GASTOS, 'text-right')}>Acciones</span>
-      </div>
-      <div className="space-y-1">{rows.map(row => {
-        const [estadoLabel, estadoTone] = estadoDe(row)
-        const monto = row.currency === 'PYG' ? gs(row.originalAmount || row.monto) : `${row.currency} ${row.originalAmount}`
-        const detalle = [row.currency || 'PYG', row.counterparty || 'Sin contraparte', row.currency && row.currency !== 'PYG' ? `cotización ${row.exchangeRatePyg} = ${gs(row.amountPyg)}` : ''].filter(Boolean).join(' · ')
-        return <div key={row.id} data-testid="gasto-fila" className={cn(GRID_GASTOS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-bad/40')}>
-          <span className="truncate text-[13px] font-semibold" title={detalle}>{row.description || row.motivo || 'Movimiento'}</span>
-          <span className="truncate text-[11px] text-mute" title={KINDS[row.kind] || row.category || undefined}>{KINDS[row.kind] || row.category || 'Gasto'}</span>
-          <span className="truncate text-[11px] text-mute" title={row.counterparty || undefined}>{row.counterparty || '—'}</span>
-          <span className={cn('truncate text-[11px]', row.kind === 'CHEQUE' && row.status === 'PENDING' && row.dueAt ? 'text-warn' : 'text-mute')} title={row.dueAt ? `Cobro previsto el ${new Date(row.dueAt).toLocaleDateString('es-PY')}` : undefined}>{row.dueAt ? fechaGasto(row.dueAt) : '—'}</span>
-          <Badge color={estadoTone} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{estadoLabel}</Badge>
-          <span className="truncate text-right text-sm font-bold tabular-nums text-bad">{monto}</span>
-          <span className="flex flex-wrap items-center justify-end gap-1">{!isDemoRuntime && row.id && <><Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => setAdjuntosDe(row)}>Adjuntos</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => setHistorialDe(row)}>Historial</Button></>}{row.kind === 'CHEQUE' && row.status === 'PENDING' && !isDemoRuntime && <><Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => updateStatus(row.id, 'clear')}>Cobrado</Button><Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={busy} onClick={() => updateStatus(row.id, 'void')}>Anular</Button></>}</span>
-        </div>
-      })}</div>
-    </div>}    </Card>    <Modal open={adjuntosDe !== null} onClose={() => setAdjuntosDe(null)} title="Comprobante del gasto">
-      {adjuntosDe && <AttachmentList entity="EXPENSE" entityId={adjuntosDe.id} puedeSubir titulo="Comprobantes del gasto" />}
-    </Modal>
-    <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title="Historial del gasto">
-      {historialDe && <Cronologia endpoint={`/api/expenses/${historialDe.id}/history`} active={historialDe !== null} vacio="Sin actividad" descripcionVacio="El alta, los cambios de estado y los comprobantes de este gasto aparecerán acá." />}
-    </Modal>
+      {loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados." /> : <div className="space-y-1.5 p-4">{rows.map(row => <div key={row.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-2.5 py-1.5 transition hover:border-bad/40"><span className="min-w-0 flex-1"><b className="block truncate text-[13px]">{row.description || row.motivo}</b><span className="mt-0.5 block truncate text-[11px] text-mute">{KINDS[row.kind] || row.category || 'Gasto'} · {row.currency || 'PYG'} · {row.counterparty || 'Sin contraparte'}{row.currency && row.currency !== 'PYG' ? ` · cotización ${row.exchangeRatePyg} = ${gs(row.amountPyg)}` : ''}</span></span><span className="flex shrink-0 items-center gap-2"><Badge color={row.status === 'CLEARED' ? 'green' : row.status === 'VOID' ? 'slate' : 'yellow'}>{row.status || 'REGISTRADO'}</Badge><b className="text-[13px] font-bold tabular-nums text-bad">{row.currency === 'PYG' ? gs(row.originalAmount || row.monto) : `${row.currency} ${row.originalAmount}`}</b>{row.kind === 'CHEQUE' && row.status === 'PENDING' && !isDemoRuntime && <><IconAction icon="check" tone="ok" label="Marcar cobrado" disabled={busy} onClick={() => updateStatus(row.id, 'clear')} /><IconAction icon="trash" tone="bad" label="Anular" disabled={busy} onClick={() => updateStatus(row.id, 'void')} /></>}</span></div>)}</div>}
+    </Card>
   </div>
 }

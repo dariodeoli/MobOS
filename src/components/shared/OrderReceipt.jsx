@@ -53,15 +53,26 @@ export const accessUrlFor = (token) => {
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 
-// Hoja de estilos común para los tres comprobantes (A4 y térmico 80 mm).
-const styles = (thermal) => `
-  @page{size:${thermal ? '58mm auto' : 'A4'};margin:${thermal ? '3mm' : '16mm'}}
+const THERMAL_WIDTHS = { 'thermal-55': 55, 'thermal-80': 80, thermal: 55 }
+const thermalWidth = (format) => THERMAL_WIDTHS[format] || 0
+const styles = (format) => {
+  const width = thermalWidth(format)
+  const page = width ? `${width}mm auto` : 'A4'
+  const margin = width ? '3mm' : '16mm'
+  const bodyMax = width ? `${width - 6}mm` : '760px'
+  const baseFont = width ? '10px/1.45' : '13px/1.6'
+  const brandSize = width ? '12px' : '13px'
+  const h1Size = width ? '15px' : '20px'
+  const totalSize = width ? '14px' : '16px'
+  const qrSize = width ? `${width === 80 ? 42 : 32}mm` : '42mm'
+  return `
+  @page{size:${page};margin:${margin}}
   *{box-sizing:border-box}
-  body{font:${thermal ? '10px/1.45' : '13px/1.6'} ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;margin:0;color:#0f1720;max-width:${thermal ? '52mm' : '760px'}}
+  body{font:${baseFont} ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;margin:0;color:#0f1720;max-width:${bodyMax}}
   .brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:2px solid #0c8876;padding-bottom:8px;margin-bottom:14px}
-  .brand b{font-size:${thermal ? '12px' : '13px'};color:#0c8876;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+  .brand b{font-size:${brandSize};color:#0c8876;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
   .brand span{font-size:10px;color:#66707a;text-transform:uppercase;letter-spacing:.12em}
-  h1{font-size:${thermal ? '15px' : '20px'};margin:0 0 2px;letter-spacing:-.01em}
+  h1{font-size:${h1Size};margin:0 0 2px;letter-spacing:-.01em}
   .muted{color:#66707a}
   .meta{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;margin:6px 0 0}
   .card{border:1px solid #e3e8ec;border-radius:10px;padding:10px 12px;margin:10px 0}
@@ -71,14 +82,16 @@ const styles = (thermal) => `
   td,th{padding:6px 0;border-bottom:1px dashed #d5dbe0;vertical-align:top}
   td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
   .totals td{border:0;padding:3px 0}
-  .totals tr:last-child td{font-weight:700;font-size:${thermal ? '14px' : '16px'};border-top:1px solid #0f1720;padding-top:6px}
+  .totals tr:last-child td{font-weight:700;font-size:${totalSize};border-top:1px solid #0f1720;padding-top:6px}
   .tag{display:inline-block;border:1px solid #0c8876;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;color:#0c8876}
-  .brand img.logo{display:block;height:${thermal ? '12mm' : '16mm'};max-width:${thermal ? '46mm' : '70mm'};object-fit:contain;margin:0 auto 4px}
-  .qr{display:block;width:${thermal ? '32mm' : '42mm'};height:${thermal ? '32mm' : '42mm'};margin:10px auto 6px}
+  .brand img.logo{display:block;height:${width ? '12mm' : '16mm'};max-width:${width ? '46mm' : '70mm'};object-fit:contain;margin:0 auto 4px}
+  .qr{display:block;width:${qrSize};height:${qrSize};margin:10px auto 6px}
   .small{font-size:10px;word-break:break-all;text-align:center}
   footer{margin-top:14px;border-top:1px solid #e3e8ec;padding-top:8px;font-size:10px;color:#66707a;text-align:center}
   @media print{body{margin:0}}
 `
+}
+
 
 const header = (title, when, logo = '') => `<div class="brand">${logo ? `<img class="logo" src="${logo}" alt="">` : `<b>${escapeHtml(APP_NAME)}</b>`}<span>${escapeHtml(title)}</span></div><h1>${escapeHtml(title)}</h1><p class="muted">${escapeHtml(when)}</p>`
 const footer = () => `<footer>Conservá este comprobante para cambios y garantía. Documento generado por ${escapeHtml(APP_NAME)}.</footer>`

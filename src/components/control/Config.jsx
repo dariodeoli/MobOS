@@ -328,24 +328,51 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
 
 export function MiIdentidad() {
   const toast = useToast()
-  const { usuario, empresa, perfilEmpresa } = useSesion()
+  const { usuario, empresa, perfilEmpresa, actualizarNombreUsuario } = useSesion()
+  const [editandoNombre, setEditandoNombre] = useState(false)
+  const [nuevoNombre, setNuevoNombre] = useState('')
+  const [guardandoNombre, setGuardandoNombre] = useState(false)
+  const nombreActual = perfilEmpresa?.name || usuario?.user_metadata?.nombre || 'Dueño de la tienda'
   const valores = [
     { etiqueta: 'Correo del dueño', valor: empresa?.email || null },
     { etiqueta: 'ID del usuario', valor: usuario?.id || null },
   ]
+
+  async function guardarNombre(event) {
+    event.preventDefault(); setGuardandoNombre(true)
+    try {
+      const nombre = nuevoNombre.trim()
+      if (nombre.length < 2 || nombre.length > 100) throw new Error('El nombre debe tener entre 2 y 100 caracteres.')
+      await api.patch('/api/users', { id: usuario.id, name: nombre })
+      actualizarNombreUsuario(nombre)
+      setEditandoNombre(false)
+      toast.success('Nombre actualizado', 'Tu nombre ahora aparece en ventas, reportes y comprobantes.')
+    } catch (cause) { toast.error(cause?.message || 'No se pudo actualizar el nombre.') } finally { setGuardandoNombre(false) }
+  }
+
   return (
     <Card className="space-y-3">
       <div>
         <Eyebrow>Mi identidad</Eyebrow>
-        <p className="mt-1 text-sm text-mute">Tu persona dentro de MobOS: la cuenta Google dueña de esta tienda.</p>
+        <p className="mt-1 text-sm text-mute">Tu persona dentro de MobOS: la cuenta dueña de esta tienda.</p>
       </div>
       <div className="flex items-start gap-3">
         {perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}
-        <div className="min-w-0">
-          <h2 className="font-semibold">{perfilEmpresa?.name || usuario?.user_metadata?.nombre || 'Dueño de la tienda'}</h2>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-semibold">{nombreActual}</h2>
+            <Button type="button" variant="outline" className="h-7 px-2 text-xs" onClick={() => { setNuevoNombre(nombreActual === 'Dueño de la tienda' ? '' : nombreActual); setEditandoNombre(true) }}>Editar nombre</Button>
+          </div>
           {usuario?.email && <p className="mt-0.5 truncate text-sm text-mute">{usuario.email}</p>}
         </div>
       </div>
+      <Modal open={editandoNombre} onClose={() => !guardandoNombre && setEditandoNombre(false)} title="Tu nombre de vendedor" className="max-w-sm">
+        <form onSubmit={guardarNombre} className="space-y-3">
+          <p className="text-sm text-mute">Este nombre se usa en tus ventas, reportes y comprobantes como vendedor.</p>
+          <Input value={nuevoNombre} onChange={(event) => setNuevoNombre(event.target.value)} placeholder="Tu nombre" minLength={2} maxLength={100} autoFocus required />
+          <Button type="submit" className="w-full" disabled={guardandoNombre}>{guardandoNombre ? 'Guardando…' : 'Guardar nombre'}</Button>
+        </form>
+      </Modal>
       <div className="space-y-2">
         {valores.map(({ etiqueta, valor }) => (
           <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">

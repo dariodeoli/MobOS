@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { logEmailOutcome, paymentDueReminderEmail, paymentOverdueEmail, reservationDueEmail, warrantyStatusEmail } from './email'
+import { actionLink, logEmailOutcome, paymentDueReminderEmail, paymentOverdueEmail, reservationDueEmail, warrantyStatusEmail } from './email'
 import { enqueueEmail } from './email-outbox'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -30,11 +30,12 @@ async function storeName(tx: NotificationClient, tenantId: string) {
 
 // Aviso de cambio de estado de garantía. Dedupe por caso+estado vía aggregateId.
 // Nunca lanza: el PATCH de garantías no puede romperse por un correo.
-export async function notifyWarrantyStatusChanged(tx: NotificationClient, input: { tenantId: string; caseId: string; customerName: string; serial: string; statusLabel: string }) {
+export async function notifyWarrantyStatusChanged(tx: NotificationClient, input: { tenantId: string; caseId: string; customerName: string; serial: string; statusLabel: string; publicToken?: string | null }) {
   try {
     const customer = await findCustomerForNotification(tx, input.tenantId, input.customerName)
     if (!customer || !customerEmailValid(customer.email)) return false
-    const message = warrantyStatusEmail({ to: customer.email, customerName: customer.name, serial: input.serial, storeName: await storeName(tx, input.tenantId), statusLabel: input.statusLabel })
+    const trackingUrl = input.publicToken ? actionLink(`/garantia/${encodeURIComponent(input.publicToken)}`) ?? undefined : undefined
+    const message = warrantyStatusEmail({ to: customer.email, customerName: customer.name, serial: input.serial, storeName: await storeName(tx, input.tenantId), statusLabel: input.statusLabel, trackingUrl })
     if (!message) { logEmailOutcome('warranty-update', 'unconfigured'); return false }
     await enqueueEmail(tx, { tenantId: input.tenantId, kind: 'warranty-update', aggregateType: 'WarrantyCase', aggregateId: `${input.caseId}:${input.statusLabel}`, message })
     return true

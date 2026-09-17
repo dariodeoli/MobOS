@@ -139,14 +139,14 @@ function FilaPedido({ row, onClick }) {
       data-testid="pedido-fila"
       onClick={onClick}
       className={cn(
-        'group w-full rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-2.5 text-left transition hover:border-fono/40 hover:bg-ink-700/50',
+        'group w-full rounded-xl border border-fore/10 bg-ink-800/40 px-2.5 py-1.5 text-left transition hover:border-fono/40 hover:bg-ink-700/50',
         estaCompletado(row) && !cancelado && 'opacity-70 hover:opacity-100',
       )}
     >
       <div className={GRID}>
         <span className={cn('truncate font-mono text-xs font-bold text-fono-light', tachado)} title={row.number}>{codigoPedido(row.number)}</span>
         <span className={cn('truncate text-xs text-mute', tachado)}>{fechaCompacta(row.date)}</span>
-        <span className={cn('truncate text-sm font-semibold', tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</span>
+        <span className={cn('truncate text-[13px] font-semibold', tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</span>
         <span className={cn('truncate text-xs text-mute', tachado)} title={articulos.completo || undefined}>
           {articulos.texto || '—'}
           {articulos.extra > 0 && <span className="ml-1 font-semibold text-fono-light">+{articulos.extra}</span>}
@@ -156,7 +156,7 @@ function FilaPedido({ row, onClick }) {
         <span className={cn('truncate text-xs text-mute', tachado)}>{ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}</span>
         <BadgePago row={row} />
         <BadgeEstado row={row} />
-        <span className={cn('truncate text-right text-sm font-bold tabular-nums text-fore', tachado)}>
+        <span className={cn('truncate text-right text-[13px] font-bold tabular-nums text-fore', tachado)}>
           {Number.isFinite(Number(row.total)) ? gs(row.total) : '—'}
         </span>
       </div>
@@ -275,7 +275,7 @@ export default function SellerOrders() {
     <SellerFeedback {...data} empty={!rows.length} />
     {!data.loading && !data.error && (
       <div className="overflow-x-auto" data-testid="pedidos-tabla">
-        <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
+        <div className={cn(GRID, 'px-2.5 pb-0.5 pt-1')}>
           {encabezado('number', 'Pedido')}
           {encabezado('date', 'Fecha')}
           {encabezado('customer', 'Cliente')}
@@ -287,7 +287,7 @@ export default function SellerOrders() {
           {encabezado('fulfillment', 'Estado')}
           {encabezado('total', 'Total', 'justify-end')}
         </div>
-        <div className="space-y-2">{rows.map((row) => <FilaPedido key={row.id} row={row} onClick={() => abrirPedido(row)} />)}</div>
+        <div className="space-y-1">{rows.map((row) => <FilaPedido key={row.id} row={row} onClick={() => abrirPedido(row)} />)}</div>
       </div>
     )}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más pedidos'}</button></div>}

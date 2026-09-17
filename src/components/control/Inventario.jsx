@@ -84,7 +84,7 @@ const fechaReserva = (value) => {
 function EncabezadoUnidades() {
   const celda = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
   return (
-    <div className={`${UNIDADES_GRID} px-3 pb-1`}>
+    <div className={`${UNIDADES_GRID} px-2.5 pb-0.5`}>
       <span className={celda}>Producto</span>
       <span className={celda}>Verificación</span>
       <span className={celda}>IMEI / Serial</span>

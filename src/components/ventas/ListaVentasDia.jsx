@@ -5,7 +5,7 @@ import { fechaClave, num, gs } from '@/utils/calculos'
 import { fmtLargo } from '@/components/shared/RangoFechas'
 import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
-import { Card, Badge, Dot, EmptyState, Modal, Button, Textarea } from '@/components/ui'
+import { Card, Badge, Dot, EmptyState, Modal, Button, Textarea, IconAction } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api/client'
 import PagosPedido from './PagosPedido'
@@ -216,14 +216,14 @@ export default function ListaVentasDia({
               const tot = g.items.reduce((a, x) => a + num(x.precio), 0)
               const pagado = v.estadoPago === 'Pagado'
               return (
-                <div key={g.key} className="rounded-2xl border border-ink-600 bg-ink-800/30 px-4 py-3 transition hover:border-fono/40">
+                <div key={g.key} className="rounded-2xl border border-ink-600 bg-ink-800/30 px-2.5 py-2 transition hover:border-fono/40">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <Dot color={pagado ? 'green' : 'red'} />
-                        <span className="truncate font-medium">{v.cliente || '—'}</span>
+                        <span className="truncate text-[13px] font-semibold">{v.cliente || '—'}</span>
                       </div>
-                      <div className="mt-1 space-y-0.5 pl-4 text-sm text-mute">
+                      <div className="mt-1 space-y-0.5 pl-4 text-xs text-mute">
                         {g.items.map(it => (
                           <div key={it.id} className="flex justify-between gap-3">
                             <span className="truncate">{nombreProd(it)}</span>
@@ -247,13 +247,8 @@ export default function ListaVentasDia({
                     {g.items.some(item => Number(item.serialsPending || 0) > 0) && <span className="rounded bg-warn/20 px-1.5 py-0.5 text-[10px] font-semibold text-warn">sin IMEI (sobre pedido)</span>}
                     {g.items.some(item => item.costPending === true) && <span className="rounded bg-sky-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300">costo pendiente</span>}
                   </div>}
-                  <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-4">
-                    <button
-                      className="rounded-lg border border-fono/30 px-3 py-2 text-xs text-fono-light"
-                      onClick={() => setPagoPedido(v)}
-                    >
-                      Pagos y comprobantes
-                    </button>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 pl-4">
+                    <IconAction icon="receipt" tone="fono" label="Pagos y comprobantes" onClick={() => setPagoPedido(v)} />
                     <MedioPago medio={v.medioPago} alto="h-4" />
                     {v.entrega !== 'Retiro en tienda' && (
                       <Badge color="blue">
@@ -287,15 +282,15 @@ export default function ListaVentasDia({
               </colgroup>
               <thead>
                 <tr className="border-b border-ink-600 text-left text-xs font-medium text-mute">
-                  <th className="px-3 py-3">Cliente</th>
-                  <th className="px-3 py-3">Producto</th>
-                  <th className="px-3 py-3">Estado</th>
-                  <th className="px-3 py-3 text-right">Precio</th>
-                  <th className="px-3 py-3">Pago</th>
-                  <th className="px-3 py-3">Entrega</th>
-                  {mostrarVendedor && <th className="px-3 py-3">Vendedor</th>}
-                  <th className="px-3 py-3">Nota</th>
-                  <th className="px-3 py-3" />
+                  <th className="px-2.5 py-1.5">Cliente</th>
+                  <th className="px-2.5 py-1.5">Producto</th>
+                  <th className="px-2.5 py-1.5">Estado</th>
+                  <th className="px-2.5 py-1.5 text-right">Precio</th>
+                  <th className="px-2.5 py-1.5">Pago</th>
+                  <th className="px-2.5 py-1.5">Entrega</th>
+                  {mostrarVendedor && <th className="px-2.5 py-1.5">Vendedor</th>}
+                  <th className="px-2.5 py-1.5">Nota</th>
+                  <th className="px-2.5 py-1.5" />
                 </tr>
               </thead>
               <tbody>
@@ -315,7 +310,7 @@ export default function ListaVentasDia({
                         {idx === 0 && (
                           <td
                             rowSpan={g.items.length}
-                            className="border-r border-ink-600/60 px-3 py-2 align-top"
+                            className="border-r border-ink-600/60 px-2.5 py-1.5 align-top"
                           >
                             <div className="font-medium">{v.cliente || '—'}</div>
                             {varios && (
@@ -325,7 +320,7 @@ export default function ListaVentasDia({
                             )}
                           </td>
                         )}
-                        <td className="break-words px-3 py-3 text-mute">
+                        <td className="break-words px-2.5 py-1.5 text-mute">
                           {nombreProd(v)}
                           {(Array.isArray(v.items) ? v.items : []).map((item, i) => {
                             const serials = Array.isArray(item.serials) ? item.serials : []
@@ -349,7 +344,7 @@ export default function ListaVentasDia({
                             )
                           })}
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-2.5 py-1.5">
                           <span
                             className={cn(
                               'inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium',
@@ -362,13 +357,13 @@ export default function ListaVentasDia({
                             {pagado ? 'Pagado' : num(v.totalPagado) > 0 ? 'Parcial' : 'Pendiente'}
                           </span>
                         </td>
-                        <td className="px-3 py-3 text-right font-semibold">{gs(v.precio)}</td>
+                        <td className="px-2.5 py-1.5 text-right font-semibold">{gs(v.precio)}</td>
                         {idx === 0 ? (
                           <>
-                            <td rowSpan={g.items.length} className="px-3 py-2 align-top">
+                            <td rowSpan={g.items.length} className="px-2.5 py-1.5 align-top">
                               <MedioPago medio={v.medioPago} />
                             </td>
-                            <td rowSpan={g.items.length} className="px-3 py-2 align-top text-mute">
+                            <td rowSpan={g.items.length} className="px-2.5 py-1.5 align-top text-mute">
                               {v.entrega === 'Retiro en tienda' ? (
                                 <span className="inline-flex items-center gap-1.5">
                                   <Icon name="store" className="h-4 w-4" /> Tienda
@@ -386,14 +381,14 @@ export default function ListaVentasDia({
                             {mostrarVendedor && (
                               <td
                                 rowSpan={g.items.length}
-                                className="break-words px-3 py-2 align-top text-mute"
+                                className="break-words px-2.5 py-1.5 align-top text-mute"
                               >
                                 {vendedoresById[v.vendedorId] || '—'}
                               </td>
                             )}
                             <td
                               rowSpan={g.items.length}
-                              className="truncate px-3 py-2 align-top text-xs italic text-mute"
+                              className="truncate px-2.5 py-1.5 align-top text-xs italic text-mute"
                             >
                               {v.observacion || ''}
                               {v.billingName && <span className="mt-1 block not-italic font-semibold text-fono-light">Factura a: {v.billingName}{v.billingDocument ? ` · ${v.billingDocument}` : ''}</span>}
@@ -401,13 +396,8 @@ export default function ListaVentasDia({
                             </td>
                           </>
                         ) : null}
-                        <td className="px-3 py-3 text-right">
-                          <button
-                            className="mb-2 w-full rounded-lg border border-fono/30 px-2 py-2 text-xs leading-tight text-fono-light"
-                            onClick={() => setPagoPedido(v)}
-                          >
-                            Pagos
-                          </button>
+                        <td className="px-2.5 py-1.5 text-right">
+                          <IconAction icon="receipt" tone="fono" label="Pagos" onClick={() => setPagoPedido(v)} />
                           {(Array.isArray(v.items) ? v.items : []).some(item => Number(item.serialsPending || 0) > 0) && (
                             <button
                               className="mb-2 w-full rounded-lg border border-warn/40 px-2 py-2 text-xs leading-tight text-warn"

@@ -60,7 +60,7 @@ function escapeHtml(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
 
-function actionLink(path: string, token?: string) {
+export function actionLink(path: string, token?: string) {
   const origin = appUrl()
   if (!origin) return null
   // El token viaja en el PATH: inmune a los redirects de tracking de los
@@ -149,10 +149,17 @@ export function paymentOverdueEmail(input: { to: string; customerName: string; o
   return { to: input.to, subject: `Tu cuota del pedido ${input.orderNumber} está vencida`, ...content }
 }
 
-export function warrantyStatusEmail(input: { to: string; customerName: string; serial: string; storeName: string; statusLabel: string }) {
+export function warrantyStatusEmail(input: { to: string; customerName: string; serial: string; storeName: string; statusLabel: string; trackingUrl?: string }) {
   if (!emailPattern.test(input.to) || !input.serial.trim() || !input.statusLabel.trim()) return null
   const store = input.storeName.trim() || 'MobOS'
-  const content = template({ eyebrow: 'Garantía y servicio', title: 'Tu equipo cambió de estado', lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: `El equipo ${input.serial} ahora está: ${input.statusLabel}.`, footer: `Cualquier consulta, respondé este correo o acercate a ${store}.` })
+  const content = template({
+    eyebrow: 'Garantía y servicio',
+    title: 'Tu equipo cambió de estado',
+    lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined,
+    body: `El equipo ${input.serial} ahora está: ${input.statusLabel}.`,
+    action: input.trackingUrl ? { label: 'Seguí tu caso', url: input.trackingUrl } : undefined,
+    footer: `Cualquier consulta, respondé este correo o acercate a ${store}.`,
+  })
   return { to: input.to, subject: `Tu equipo ${input.serial} cambió de estado`, ...content }
 }
 

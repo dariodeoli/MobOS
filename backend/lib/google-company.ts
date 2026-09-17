@@ -42,7 +42,7 @@ export async function googleCompany(identity: GoogleIdentity, body: any): Promis
           if (!linked) throw new AuthFlowError('existing_account', 'Este correo ya tiene una empresa. Entrá con contraseña; la vinculación con Google requiere validar al dueño.', 409)
         }
         const created = await tx.tenant.create({ data: { name: input.companyName, email: existing ? null : identity.email, emailVerifiedAt: existing ? null : new Date(), slug: `tienda-${randomBytes(16).toString('hex')}`, settings: { onboarding: { adminPinPending: true } } } })
-        const admin = await tx.user.create({ data: { tenantId: created.id, name: 'Administrador', email: identity.email, pinHash, role: 'ADMIN' } })
+        const admin = await tx.user.create({ data: { tenantId: created.id, name: identity.name?.slice(0, 100) || 'Administrador', email: identity.email, pinHash, role: 'ADMIN' } })
         await tx.googleIdentity.upsert({ where: { subject: identity.sub }, update: { name: identity.name || null, picture: identity.picture || null }, create: { subject: identity.sub, name: identity.name || null, picture: identity.picture || null } })
         await tx.googleStoreAccess.create({ data: { subject: identity.sub, tenantId: created.id, owner: true } })
         await tx.auditLog.create({ data: { tenantId: created.id, userId: admin.id, action: 'GOOGLE_STORE_OWNER_CREATED', entity: 'GoogleStoreAccess', metadata: {} } })
@@ -78,6 +78,15 @@ export async function googleCompany(identity: GoogleIdentity, body: any): Promis
   // La identidad ya estaba vinculada: se refresca el perfil con cada acceso
   // para que el nombre real y la foto del dueño sigan al día en la sesión.
   await prisma.googleIdentity.upsert({ where: { subject: identity.sub }, update: { name: identity.name || null, picture: identity.picture || null }, create: { subject: identity.sub, name: identity.name || null, picture: identity.picture || null } })
+  // El dueño vende con su nombre real: si el admin sigue con el nombre
+  // genérico del alta y el perfil Google tiene nombre, se sincroniza para que
+  // ventas, reportes y comprobantes muestren a la persona (no "Administrador").
+  if (identity.name) {
+    await prisma.user.updateMany({
+      where: { tenantId: tenant.id, role: 'ADMIN', name: 'Administrador' },
+      data: { name: identity.name.slice(0, 100) },
+    })
+  }
   const token = randomBytes(32).toString('hex')
   const expiresAt = new Date(Date.now() + 7 * 86400_000)
   await prisma.session.create({ data: { tenantId: tenant.id, level: 'COMPANY', tokenHash: hashToken(token), deviceId: `google:${randomBytes(16).toString('hex')}`, expiresAt } })

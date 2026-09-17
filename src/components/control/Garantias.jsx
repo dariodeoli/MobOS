@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
-import { Card, Button, Input, Label, Textarea, Badge, EmptyState, Eyebrow, Modal, Skeleton, useToast } from '@/components/ui'
+import { Card, Button, Input, Label, Textarea, Badge, EmptyState, Eyebrow, Modal, Skeleton, useToast, IconAction } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import SerialField from '@/components/shared/SerialField'
@@ -128,9 +128,9 @@ export default function Garantias() {
             <Badge color={item.status === 'DELIVERED' ? 'green' : item.status === 'READY' ? 'orange' : 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{label[item.status]}</Badge>
             <span className="flex flex-wrap items-center justify-end gap-1">
               {telefonoDelCaso(item) && <WhatsAppMenu telefono={telefonoDelCaso(item)} countryCode={item.customerCountryCode || item.customer?.countryCode || '+595'} category="SERVICE" title={item.customerName} contexto={{ cliente: item.customerName || '', nombre: item.customerName || '', equipo: item.serial || '', servicio: item.description || '', estado: label[item.status] || '', fecha: item.createdAt ? new Date(item.createdAt).toLocaleDateString('es-PY') : '' }} />}
-              {item.publicToken && <Button type="button" variant="outline" className="h-8 px-2 text-xs" title="Copiar el enlace público del caso" onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/garantia/${item.publicToken}`).catch(() => {}); toast.success('Enlace de garantía del cliente copiado.') }}>Enlace</Button>}
-              {!esDemo && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirFotos(item)}>Fotos</Button>}
-              {item.status !== 'DELIVERED' && <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={advancingId !== null} onClick={() => advance(item)}>{advancingId === item.id ? '…' : 'Avanzar'}</Button>}
+              {item.publicToken && <IconAction icon="external" tone="mute" label="Enlace del caso" onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/garantia/${item.publicToken}`).catch(() => {}); toast.success('Enlace de garantía del cliente copiado.') }} />}
+              {!esDemo && <IconAction icon="image" tone="fono" label="Fotos" onClick={() => abrirFotos(item)} />}
+              {item.status !== 'DELIVERED' && <IconAction icon="check" tone="ok" label={advancingId === item.id ? 'Actualizando…' : 'Avanzar'} disabled={advancingId !== null} onClick={() => advance(item)} />}
             </span>
           </div>
         })}

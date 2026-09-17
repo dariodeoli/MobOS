@@ -305,6 +305,35 @@ export function Dot({ color = 'slate', pulse = false, className }) {
   )
 }
 
+// ── IconAction ──────────────────────────────────────────────────────
+// Acción compacta de fila: ícono con tooltip y tono semántico. Misma
+// firma que las acciones de Inventario para que todas las grillas del
+// módulo de control compartan tamaño, foco y colores.
+const ICON_ACTION_TONE = {
+  ok: 'border-ok/30 text-ok hover:bg-ok/10',
+  warn: 'border-warn/30 text-warn hover:bg-warn/10',
+  fono: 'border-fono/30 text-fono-light hover:bg-fono/10',
+  bad: 'border-bad/30 text-bad hover:bg-bad/10',
+  mute: 'border-transparent text-mute hover:bg-ink-700 hover:text-fore',
+}
+export function IconAction({ icon, label, tone = 'mute', onClick, disabled = false }) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        'inline-flex h-7 w-7 items-center justify-center rounded-lg border transition active:scale-95 disabled:pointer-events-none disabled:opacity-40',
+        ICON_ACTION_TONE[tone],
+      )}
+    >
+      <Icon name={icon} className="h-4 w-4" />
+    </button>
+  )
+}
+
 // ── Drawer ──────────────────────────────────────────────────────────
 // Panel lateral móvil: overlay, foco atrapado, Esc y clic afuera. Mismo
 // nivel de robustez que el Modal; entra deslizándose desde el costado.
@@ -484,11 +513,11 @@ export function DataTable({ columns, rows, emptyLabel = 'Sin datos para mostrar.
   return (
     <div className={className}>
       <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-[13px]">
           <thead className="sticky top-0 z-10 bg-ink-800">
             <tr className="border-b border-ink-600 text-left text-xs uppercase tracking-wider text-mute">
               {columns.map(column => (
-                <th key={column.key} className={cn('px-4 py-3 font-medium', column.align === 'right' && 'text-right', column.align === 'center' && 'text-center')}>{column.label}</th>
+                <th key={column.key} className={cn('px-2.5 py-1.5 font-medium', column.align === 'right' && 'text-right', column.align === 'center' && 'text-center')}>{column.label}</th>
               ))}
             </tr>
           </thead>
@@ -496,7 +525,7 @@ export function DataTable({ columns, rows, emptyLabel = 'Sin datos para mostrar.
             {rows.map(row => (
               <tr key={row.id ?? row.key ?? JSON.stringify(row)} className="border-b border-ink-600/60 last:border-0">
                 {columns.map(column => (
-                  <td key={column.key} className={cn('px-4 py-3 text-fore', column.align === 'right' && 'text-right', column.align === 'center' && 'text-center')}>
+                  <td key={column.key} className={cn('px-2.5 py-1.5 text-fore', column.align === 'right' && 'text-right', column.align === 'center' && 'text-center')}>
                     {column.render ? column.render(row) : row[column.key]}
                   </td>
                 ))}
@@ -505,7 +534,7 @@ export function DataTable({ columns, rows, emptyLabel = 'Sin datos para mostrar.
           </tbody>
         </table>
       </div>
-      <div className="grid grid-cols-1 gap-3 p-4 md:hidden">
+      <div className="grid grid-cols-1 gap-2 p-2.5 md:hidden">
         {mobileCard
           ? rows.map(row => <div key={row.id ?? row.key ?? JSON.stringify(row)}>{mobileCard(row)}</div>)
           : <EmptyState icon="filter" title={emptyLabel} />}

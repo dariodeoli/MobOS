@@ -3,6 +3,7 @@ import Icon from '@/components/shared/Icon'
 import CheckoutCustomer from '../CheckoutCustomer'
 import ListaVenta from './ListaVenta'
 import { gs, num } from '@/utils/calculos'
+import { useSesion } from '@/lib/sesion'
 
 export default function PasoProductos({
   visible,
@@ -51,11 +52,13 @@ export default function PasoProductos({
   setErrorVend,
   setPinVend,
 }) {
+  const { perfilEmpresa } = useSesion()
+  const nombreVendedor = sesion?.rol === 'dueno' && perfilEmpresa?.name ? perfilEmpresa.name : sesion?.nombre
   return (
     <div className={visible ? 'contents' : 'hidden'}>
       <div className="md:col-span-2 rounded-xl border border-ink-600 p-3 text-sm">
         <span className="text-mute">Vendedor de esta venta</span>
-        <strong className="ml-3">{sesion?.nombre || 'Ingresá con tu PIN'}</strong>
+        <strong className="ml-3">{nombreVendedor || 'Ingresá con tu PIN'}</strong>
         <p className="mt-1 text-xs text-mute">Asignado automáticamente a tu sesión.</p>
         {(esDemo || sesion?.rol === 'dueno') && (
           <button

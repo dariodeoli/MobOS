@@ -4,6 +4,7 @@ import { api } from '@/lib/api'
 import { consumeActionToken } from '@/lib/actionToken'
 import { Badge, Button, Card, Label, PinInput } from '@/components/ui'
 import ProductFooter from '@/components/app/ProductFooter'
+import PegarEnlaceToken from '@/components/shared/PegarEnlaceToken'
 
 const ESTADOS = {
   ACTIVE: { label: 'Invitación activa', color: 'green' },
@@ -36,7 +37,7 @@ export default function AceptarInvitacion() {
 
   const submit = useCallback(async function submit(event) {
     event.preventDefault(); setError(''); setMessage('')
-    if (!/^[a-f0-9]{64}$/i.test(token)) return setError('La invitación no es válida. Pedí que te la reenvíen desde Configuración → Equipo.')
+    if (!/^[a-f0-9]{64}$/i.test(token)) return setError('Pegá el enlace completo de tu correo para continuar.')
     if (!/^\d{4}$/.test(pin)) return setError('Elegí un PIN de exactamente 4 dígitos.')
     if (pin !== confirm) return setError('Los PIN no coinciden.')
     setSaving(true)
