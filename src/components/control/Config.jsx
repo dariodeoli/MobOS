@@ -39,6 +39,8 @@ export default function Config() {
   const { sesion, empresa, sucursal, perfilEmpresa } = useSesion()
   const esDueno = sesion?.esPropietario
   const [account, setAccount] = useState(null)
+  const [prefijo, setPrefijo] = useState('')
+  const [inicio, setInicio] = useState('')
   const [password, setPassword] = useState('')
   const [archiveReason, setArchiveReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -80,8 +82,36 @@ export default function Config() {
     try { await api.patch('/api/account', { action: 'archive', reason: archiveReason.trim() }); window.location.assign('/login') } catch (error) { setFailure(error.message || 'No se pudo archivar la empresa.') } finally { setBusy(false) }
   }
 
+  useEffect(() => {
+    if (!account?.tenant) return
+    setPrefijo(account.tenant.orderPrefix || '')
+    setInicio(account.tenant.orderNextNumber ? String(account.tenant.orderNextNumber) : '')
+  }, [account])
+
+  async function guardarNumeracion() {
+    if (busy) return
+    setBusy(true); setFailure(''); setNotice('')
+    try {
+      const data = await api.patch('/api/account', { action: 'orderNumbering', prefix: prefijo, start: Number(inicio) })
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, orderPrefix: data.prefix, orderNextNumber: data.nextNumber } } : current)
+      setNotice(`Numeración guardada: ${data.preview}.`)
+    } catch (error) { setFailure(error?.message || 'No se pudo guardar la numeración.') } finally { setBusy(false) }
+  }
+
   return (
     <div className="space-y-4">
+      <Card className="space-y-3">
+        <div>
+          <h2 className="font-semibold">Identificador de pedidos</h2>
+          <p className="mt-1 text-sm text-mute">Formato visible de los pedidos: prefijo de 2 o 3 letras y número inicial. Ejemplo: <b className="text-fore">{prefijo || 'MOB'} #{inicio || '310840'}</b>.</p>
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="block w-24 space-y-1 text-xs text-mute"><span>Prefijo</span><Input aria-label="Prefijo de pedidos" maxLength={3} disabled={busy} value={prefijo} onChange={event => setPrefijo(event.target.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3))} placeholder="MOB" /></label>
+          <label className="block w-32 space-y-1 text-xs text-mute"><span>Número inicial</span><Input aria-label="Número inicial de pedidos" inputMode="numeric" disabled={busy} value={inicio} onChange={event => setInicio(event.target.value.replace(/\D/g, '').slice(0, 8))} placeholder="310840" /></label>
+          <Button type="button" disabled={busy || !/^[A-Z]{2,3}$/.test(prefijo) || !Number(inicio)} onClick={guardarNumeracion}>Guardar numeración</Button>
+        </div>
+        <p className="text-xs text-mute">Los pedidos ya creados conservan su número; los nuevos siguen esta secuencia.</p>
+      </Card>
       <Card className="space-y-3"><div className="flex items-start gap-3">{perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}<div className="min-w-0"><h2 className="font-semibold">Sesión activa</h2><p className="mt-0.5 truncate text-sm text-mute">{perfilEmpresa?.name || sesion?.correo || sesion?.nombre || 'Usuario de MobOS'}</p></div></div><div className="flex flex-wrap gap-2 text-sm"><Badge color="blue">{empresa?.nombre || 'Mi empresa'}</Badge>{sucursal?.nombre && <Badge color="slate">{sucursal.nombre}</Badge>}{sesion?.rol && <Badge color="slate">{sesion.rol}</Badge>}</div></Card>
 
       {esDueno && <>

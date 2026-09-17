@@ -27,6 +27,9 @@ model Tenant {
   archivedAt          DateTime?
   archivedReason      String?
   slug                String           @unique
+  // Identificador comercial visible de los pedidos: "MOB #310840".
+  orderPrefix         String?
+  orderNextNumber     Int?
   settings            Json             @default("{}")
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
