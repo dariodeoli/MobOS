@@ -1437,6 +1437,7 @@ model ServiceOrder {
   customerName   String
   device         String
   serial         String?
+  serviceName    String?
   reportedIssue  String?
   diagnosis      String?
   checklist      Json      @default("{}")
@@ -1453,4 +1454,20 @@ model ServiceOrder {
 
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
+}
+
+// Catálogo de servicios técnicos: nombre, tipo de dispositivo y precio sugerido.
+// El precio de la orden se puede sobrescribir a mano.
+model ServiceItem {
+  id                String   @id @default(cuid())
+  tenantId          String
+  name              String
+  deviceType        String   @default("iPhone")
+  suggestedPricePyg Int      @default(0)
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isActive])
 }

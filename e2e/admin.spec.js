@@ -104,7 +104,7 @@ test.describe('owner panel', () => {
     const equipo = `iPhone 13 Pro ${stamp} · 256 GB`
     await page.getByRole('button', { name: '+ Nueva orden' }).click()
     await page.getByLabel('Cliente', { exact: true }).fill(cliente)
-    await page.getByLabel('Dispositivo').fill(equipo)
+    await page.getByLabel('Dispositivo', { exact: true }).fill(equipo)
     await page.getByRole('button', { name: 'Crear orden' }).click()
 
     await expect(page.getByText(equipo).first()).toBeVisible()

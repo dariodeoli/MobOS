@@ -20,7 +20,16 @@ const ESTADOS = [
 const ESTADO_LABEL = Object.fromEntries(ESTADOS.map(([id, label]) => [id, label]))
 const ESTADO_TONE = Object.fromEntries(ESTADOS.map(([id, , tone]) => [id, tone]))
 const SIGUIENTE = { RECIBIDO: 'DIAGNOSTICO', DIAGNOSTICO: 'CON_TECNICO', CON_TECNICO: 'ESPERANDO_REPUESTO', ESPERANDO_REPUESTO: 'REPARADO', REPARADO: 'LISTO', LISTO: 'ENTREGADO' }
-const FORM_VACIO = { customerName: '', customerId: '', device: '', serial: '', reportedIssue: '', diagnosis: '', technicianName: '', status: 'RECIBIDO', pricePyg: '', costPyg: '', notes: '' }
+const FORM_VACIO = { customerName: '', customerId: '', deviceType: 'iPhone', serviceName: '', device: '', serial: '', reportedIssue: '', diagnosis: '', technicianName: '', status: 'RECIBIDO', pricePyg: '', costPyg: '', notes: '', checklist: {} }
+const DEVICE_TYPES = ['iPhone', 'MacBook', 'AirPods', 'iPad', 'Apple Watch', 'Otros']
+const CHECKLISTS = {
+  iPhone: ['Enciende', 'Pantalla', 'Touch', 'Cámaras', 'Micrófono', 'Parlantes', 'Carga', 'Botones', 'Face ID / biometría', 'Wi-Fi / Bluetooth', 'Batería', 'Estado físico'],
+  MacBook: ['Enciende', 'Pantalla', 'Teclado', 'Trackpad', 'Puertos', 'Carga', 'Wi-Fi / Bluetooth', 'Batería', 'Estado físico'],
+  AirPods: ['Carga', 'Audio', 'Micrófono', 'Cancelación de ruido', 'Estado físico'],
+  iPad: ['Enciende', 'Pantalla', 'Touch', 'Cámaras', 'Carga', 'Botones', 'Wi-Fi / Bluetooth', 'Batería', 'Estado físico'],
+  'Apple Watch': ['Enciende', 'Pantalla', 'Touch', 'Corona', 'Carga', 'Batería', 'Estado físico'],
+  Otros: ['Enciende', 'Funciona', 'Estado físico'],
+}
 const fecha = (value) => value ? new Date(value).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }) : '—'
 const utilidad = (row) => Number(row.pricePyg || 0) - Number(row.costPyg || 0)
 
@@ -35,6 +44,7 @@ export default function ServicioTecnico() {
   const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState(false)
   const [clientes, setClientes] = useState([])
+  const [servicios, setServicios] = useState([])
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -46,6 +56,22 @@ export default function ServicioTecnico() {
     } finally { setLoading(false) }
   }, [])
   useEffect(() => { load() }, [load])
+
+  const cargarServicios = useCallback(async () => {
+    try {
+      const data = await api.get('/api/service-items')
+      setServicios(Array.isArray(data) ? data : [])
+    } catch { setServicios([]) }
+  }, [])
+  useEffect(() => { cargarServicios() }, [cargarServicios])
+
+  async function cargarCatalogoSugerido() {
+    try {
+      const data = await api.post('/api/service-items', { defaults: true })
+      setServicios(Array.isArray(data) ? data : [])
+      toast.success('Catálogo sugerido cargado.')
+    } catch (cause) { toast.error(cause?.message || 'No se pudo cargar el catálogo.') }
+  }
 
   useEffect(() => {
     const query = (form?.customerName || '').trim()
@@ -86,6 +112,8 @@ export default function ServicioTecnico() {
         customerName: form.customerName.trim(),
         customerId: form.customerId || undefined,
         device: form.device.trim(),
+        serviceName: form.serviceName || undefined,
+        checklist: form.checklist || {},
         serial: form.serial.trim(),
         reportedIssue: form.reportedIssue.trim(),
         diagnosis: form.diagnosis.trim(),
@@ -121,6 +149,8 @@ export default function ServicioTecnico() {
       customerName: row.customerName || '', customerId: row.customerId || '', device: row.device || '', serial: row.serial || '',
       reportedIssue: row.reportedIssue || '', diagnosis: row.diagnosis || '', technicianName: row.technicianName || '',
       status: row.status || 'RECIBIDO', pricePyg: String(row.pricePyg || ''), costPyg: String(row.costPyg || ''), notes: row.notes || '',
+      deviceType: (row.serviceName || '').split(' · ')[0] || 'iPhone', serviceName: row.serviceName || '',
+      checklist: row.checklist && typeof row.checklist === 'object' && !Array.isArray(row.checklist) ? row.checklist : {},
     })
   }
 
@@ -134,7 +164,7 @@ export default function ServicioTecnico() {
           <h2 className="mt-1 text-2xl font-bold tracking-tight">Servicio Técnico</h2>
           <p className="mt-1 text-sm text-mute">Recepción, diagnóstico, reparación, costos y entrega de cada equipo.</p>
         </div>
-        <Button onClick={() => { setEditing(null); setForm({ ...FORM_VACIO }) }}>+ Nueva orden</Button>
+        <span className="flex flex-wrap items-center gap-2">{servicios.length === 0 && <Button variant="outline" onClick={cargarCatalogoSugerido}>Cargar catálogo sugerido</Button>}<Button onClick={() => { setEditing(null); setForm({ ...FORM_VACIO }) }}>+ Nueva orden</Button></span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -198,11 +228,17 @@ export default function ServicioTecnico() {
                 )}
               </div>
               <div><Label>Dispositivo *</Label><Input aria-label="Dispositivo" value={form.device} onChange={set('device')} placeholder="iPhone 15 Pro · 256 GB" autoCapitalize="words" /></div>
+              <div><Label>Tipo de dispositivo</Label><Select aria-label="Tipo de dispositivo" value={form.deviceType} onChange={event => setForm(current => ({ ...current, deviceType: event.target.value, serviceName: '' }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select></div>
+              <div><Label>Servicio del catálogo</Label><Select aria-label="Servicio del catálogo" value={form.serviceName} onChange={event => { const servicio = servicios.find(item => item.name === event.target.value); setForm(current => ({ ...current, serviceName: event.target.value, ...(servicio && servicio.suggestedPricePyg > 0 ? { pricePyg: String(servicio.suggestedPricePyg) } : {}) })) }}><option value="">Sin servicio del catálogo</option>{servicios.filter(servicio => servicio.deviceType === form.deviceType).map(servicio => <option key={servicio.id} value={servicio.name}>{servicio.name}{servicio.suggestedPricePyg > 0 ? ` · ${gs(servicio.suggestedPricePyg)}` : ''}</option>)}</Select></div>
               <div><Label>IMEI / serial</Label><Input aria-label="IMEI o serial" value={form.serial} onChange={set('serial')} placeholder="Opcional" autoCapitalize="characters" /></div>
               <div><Label>Técnico</Label><Input aria-label="Técnico" value={form.technicianName} onChange={set('technicianName')} placeholder="Responsable del trabajo" autoCapitalize="words" /></div>
             </div>
             <div><Label>Falla reportada</Label><Textarea rows={2} value={form.reportedIssue} onChange={set('reportedIssue')} placeholder="Qué reporta el cliente" autoCapitalize="sentences" /></div>
             <div><Label>Diagnóstico</Label><Textarea rows={2} value={form.diagnosis} onChange={set('diagnosis')} placeholder="Diagnóstico técnico y trabajo a realizar" autoCapitalize="sentences" /></div>
+            <div>
+              <Label>Checklist de recepción ({form.deviceType})</Label>
+              <div className="mt-1 grid gap-1.5 sm:grid-cols-3">{(CHECKLISTS[form.deviceType] || CHECKLISTS.Otros).map(punto => <label key={punto} className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean((form.checklist || {})[punto])} onChange={event => setForm(current => ({ ...current, checklist: { ...(current.checklist || {}), [punto]: event.target.checked } }))} />{punto}</label>)}</div>
+            </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div><Label>Estado</Label><Select value={form.status} onChange={set('status')}>{ESTADOS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</Select></div>
               <div><Label>Precio cobrado</Label><MoneyInput value={form.pricePyg} onValueChange={value => setForm(current => ({ ...current, pricePyg: value === '' ? '' : String(value) }))} placeholder="0" /></div>

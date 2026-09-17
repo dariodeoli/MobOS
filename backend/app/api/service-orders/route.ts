@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
@@ -53,9 +54,11 @@ export async function POST(request: Request) {
         customerId: clean(body.customerId, 200),
         customerName,
         device,
+        serviceName: clean(body.serviceName, 200),
         serial: clean(body.serial, 100),
         reportedIssue: clean(body.reportedIssue, 2000),
         diagnosis: clean(body.diagnosis, 2000),
+        checklist: body.checklist && typeof body.checklist === 'object' && !Array.isArray(body.checklist) ? (body.checklist as Prisma.InputJsonValue) : {},
         technicianId: clean(body.technicianId, 200),
         technicianName: clean(body.technicianName, 200),
         status,
@@ -93,6 +96,8 @@ export async function PATCH(request: Request) {
         ...(pricePyg === undefined ? {} : { pricePyg }),
         ...(costPyg === undefined ? {} : { costPyg }),
         ...(body.diagnosis === undefined ? {} : { diagnosis: clean(body.diagnosis, 2000) }),
+        ...(body.serviceName === undefined ? {} : { serviceName: clean(body.serviceName, 200) }),
+        ...(body.checklist === undefined || typeof body.checklist !== 'object' || Array.isArray(body.checklist) ? {} : { checklist: body.checklist as Prisma.InputJsonValue }),
         ...(body.reportedIssue === undefined ? {} : { reportedIssue: clean(body.reportedIssue, 2000) }),
         ...(body.serial === undefined ? {} : { serial: clean(body.serial, 100) }),
         ...(body.notes === undefined ? {} : { notes: clean(body.notes, 2000) }),
