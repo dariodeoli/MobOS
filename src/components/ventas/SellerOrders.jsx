@@ -60,7 +60,10 @@ const FILTROS = [
 // espacio para cliente, artículos y serial; el total conserva su ancho porque
 // los importes necesitan lugar. La grilla sigue siendo fija: un badge corto no
 // corre la columna siguiente.
-const GRID = 'grid min-w-[60rem] grid-cols-[4.75rem_5.5rem_minmax(0,1.15fr)_minmax(0,1.6fr)_minmax(0,0.9fr)_2.5rem_4.5rem_4.25rem_6rem_8.5rem] items-center gap-x-2'
+// Anchuras fijas lo más compactas posible (fecha, cantidad, entrega, pago y
+// estado) para que la tabla entre sin scroll en pantallas de ~1024 px; el
+// scroll queda solo como respaldo en anchos muy chicos (< 46rem).
+const GRID = 'grid min-w-[46rem] grid-cols-[4.25rem_5rem_minmax(0,1.15fr)_minmax(0,1.6fr)_minmax(0,0.85fr)_2.25rem_3.75rem_3.75rem_5.25rem_7.25rem] items-center gap-x-2'
 
 function fechaCompacta(value) {
   if (!value || Number.isNaN(Date.parse(value))) return 'Sin fecha'
