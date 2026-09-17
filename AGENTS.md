@@ -4,6 +4,7 @@
 - **El deploy a producción es exclusivo de `npm run release:publish`** (bump de patch + push + webhook de Coolify), y lo ejecuta solo Dario. Los agentes nunca deployan por cuenta propia.
 - **`ht` (comando de Dario al integrador):** ejecutar el ciclo completo — `git fetch origin --prune`, integrar todas las ramas con trabajo pendiente (una por vez, backend antes que frontend), verificar (lint, builds, integración 13/13, e2e), pushear a `main`, deployar con `npm run release:publish` y verificar producción con `npm run release:smoke`. Sin `ht` no hay deploy. **Preámbulo obligatorio:** matar servidores zombies (`lsof -ti :3001 :5175 | xargs kill -9` y `next-server` de worktrees de MobOS) y verificar que no haya otro merge en curso (`.git/MERGE_HEAD`).
 - **Nadie pushea ni mergea a `main` salvo el integrador.** Hay protección de rama en GitHub (checks de CI obligatorios) y un hook local `pre-push` que bloquea pushes a main sin `MOBOS_INTEGRATOR=1`. Instalar el hook en cada checkout: `bash scripts/setup-hooks.sh`.
+- **Conflicto de merge → parar y consultar con Dario; nunca resolver en silencio.** Si una rama quedó superseded por main, resolver del lado de main y verificar diff neto vacío; si hay trabajo real en conflicto, se para y se avisa.
 - **Checks de entrega obligatorios antes de pushear tu rama** (si alguno falla, la rama no se entrega):
   1. `npm run lint` con 0 errores.
   2. `npm run build` exit 0 y `npm --prefix backend run build` exit 0 **con `backend/.next/BUILD_ID` creado** (el build falla en voz alta aunque imprima "Compiled successfully").
