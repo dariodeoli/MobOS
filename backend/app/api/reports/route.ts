@@ -203,6 +203,17 @@ export async function GET(request: Request) {
       { groupBy, offsetMinutes, firstOrderMonth },
     )
 
+    let unitAge: Map<string, { oldest: Date; available: number }> = new Map()
+    if (groupBy === 'product') {
+      const grouped = await prisma.inventoryUnit.groupBy({
+        by: ['productId'],
+        where: { tenantId: session.user.tenantId, status: 'AVAILABLE', ...(branchId ? { branchId } : {}) },
+        _min: { createdAt: true },
+        _count: { _all: true },
+      })
+      unitAge = new Map(grouped.map(row => [row.productId, { oldest: row._min.createdAt as Date, available: row._count._all }]))
+    }
+
     const productStock = await prisma.product.findMany({
       where: { tenantId: session.user.tenantId, isActive: true, ...(branchId ? { branchId } : {}) },
       select: { id: true, name: true, sku: true, stock: true },
@@ -218,6 +229,12 @@ export async function GET(request: Request) {
     const soldUnits = [...soldByProduct.values()].reduce((sum, quantity) => sum + quantity, 0)
     const shortages = productStock.filter(product => product.stock <= 0).map(product => ({ id: product.id, name: product.name, sku: product.sku, stock: product.stock }))
 
+    const reportGroups = reporte.groups.map(group => {
+      if (groupBy !== 'product') return group
+      const age = unitAge.get(group.key)
+      return { ...group, availableUnits: age?.available ?? 0, oldestUnitAt: age?.oldest?.toISOString() ?? null }
+    })
+
     return json({
       from,
       to,
@@ -232,7 +249,7 @@ export async function GET(request: Request) {
         sellThroughPct: onHand + soldUnits > 0 ? Math.round((soldUnits / (onHand + soldUnits)) * 1000) / 10 : null,
         shortages,
       },
-      ...reporte,
+      groups: reportGroups, totals: reporte.totals,
     })
   } catch (e) {
     if (e instanceof ReportInputError) return error(e.message)
