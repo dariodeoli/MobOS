@@ -14,6 +14,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 | `Money` | Importe de solo lectura | PYG `formatGs`, USD `US$ 1,234.5`; valor no numérico → `—` |
 | `PasswordInput` | Contraseña | Toggle ver/ocultar; 8–72 en auth |
 | `PinInput` | PIN | 4 dígitos, teclado numérico, `one-time-code`, autoenvía al 4.º |
+| `IconAction` | Acción como ícono con tooltip | Tonos por acción (`ok`/`warn`/`fono`/`bad`/`mute`), `h-7 w-7`, `active:scale-95`, `disabled:opacity-40` — reemplaza botones de texto en filas |
 | `Button`, `Modal`, `Drawer`, `ConfirmDialog`, `Card`, `Badge`, `Stat`, `DataTable`, `EmptyState`, `ErrorState`, `PageHeader`, `Skeleton`, `Toast/useToast`, `Eyebrow`, `Dot` | Soporte de pantallas | — |
 
 ## 2. Campos compuestos
@@ -36,6 +37,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 | `ventas/SelectorColor` | Elegir variante/color | POS |
 | `ventas/PaymentAccountFields` | Cuenta de cobro + monto + cotización | POS |
 | `CameraScan` | Escaneo por cámara de IMEI/código (hoy local en `Inventario.jsx`) | Inventario |
+| `shared/PegarEnlaceToken` | Entrada de enlace completo cuando el token de acción no llega por la URL (relays de correo); extrae el código de 64 hex con `extractTokenFromUrl` | Invitación, recuperación, verificación de correo |
 
 ## 3. Reglas por tipo de dato
 
@@ -58,6 +60,8 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 
 - `src/utils/telefono.js`: `normalizarTelefono`, `internationalPhone`, `telefonoValido`, `MENSAJE_TELEFONO`.
 - `src/utils/moneda.js`: `formatGs`, `formatGsInput`, `parseGsInput`, `formatUsdInput`, `parseUsdInput`, `formatUsd`, `formatMoney`.
+- `src/lib/actionToken.js`: `consumeActionToken` (hash/query/path y limpieza de URL), `extractTokenFromUrl` (código de 64 hex desde enlaces pegados, incluidos los de tracking).
+- `src/utils/csv.js`: `parseDelimited` / `filasConEncabezado` para el import CSV de productos.
 - `backend/lib/validation.ts`: `serialKey` (IMEI), `digitsOnly`, `internationalPhone`.
 - `backend/app/api/payments/_lib.ts`: `MAX_PROOF_SIZE_BYTES` (5 MiB), `PROOF_MIME_TYPES` + magic bytes.
 
