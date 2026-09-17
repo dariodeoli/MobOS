@@ -5,7 +5,7 @@ import { error, json } from '../../../lib/http'
 import { accountSnapshot, decimalInput, InputError, objectInput, textInput } from '../../../lib/payment-input'
 
 function accountData(input: Record<string, unknown>, create: boolean) {
-  const data: { name?: string; bank?: string | null; holder?: string | null; accountNumber?: string | null; currency?: PaymentCurrency; kind?: PaymentAccountKind; isActive?: boolean; feePercent?: Prisma.Decimal; settlementDays?: number } = {}
+  const data: { name?: string; bank?: string | null; holder?: string | null; accountNumber?: string | null; currency?: PaymentCurrency; kind?: PaymentAccountKind; isActive?: boolean; feePercent?: Prisma.Decimal; discountPct?: Prisma.Decimal; settlementDays?: number } = {}
   if (create || input.name !== undefined) data.name = textInput(input.name, 'name', 200)
   for (const field of ['bank', 'holder', 'accountNumber'] as const) {
     if (input[field] !== undefined) data[field] = input[field] === null || input[field] === '' ? null : textInput(input[field], field, 200)
@@ -25,6 +25,15 @@ function accountData(input: Record<string, unknown>, create: boolean) {
   if (input.feePercent !== undefined) {
     data.feePercent = decimalInput(input.feePercent, 'feePercent', 2, true)
     if (data.feePercent.gt(100)) throw new InputError('feePercent debe estar entre 0 y 100.')
+  }
+  if (input.discountPct !== undefined) {
+    // Descuento sugerido al cobrar con este medio (0–100, hasta 2 decimales).
+    // Vacío equivale a sin descuento (la columna es NOT NULL DEFAULT 0).
+    if (input.discountPct === null || input.discountPct === '') data.discountPct = new Prisma.Decimal(0)
+    else {
+      data.discountPct = decimalInput(input.discountPct, 'discountPct', 2, true)
+      if (data.discountPct.gt(100)) throw new InputError('discountPct debe estar entre 0 y 100.')
+    }
   }
   if (input.settlementDays !== undefined) {
     const days = Number(input.settlementDays)

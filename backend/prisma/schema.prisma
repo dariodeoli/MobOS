@@ -615,7 +615,7 @@ model CommissionRule {
   userId    String?
   user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role      UserRole?
-  percentPyg Int?
+  percentPyg Decimal? @db.Decimal(5, 2)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -1056,6 +1056,8 @@ model PaymentAccount {
   kind          PaymentAccountKind
   isActive      Boolean            @default(true)
   feePercent    Decimal            @default(0) @db.Decimal(5, 2)
+  // Descuento sugerido al cobrar con este medio (0–100, hasta 2 decimales).
+  discountPct   Decimal            @default(0) @db.Decimal(5, 2)
   // Días que tarda el medio en acreditar (ej. tarjeta: 1-3); 0 = inmediato.
   settlementDays Int               @default(0)
   createdAt     DateTime           @default(now())

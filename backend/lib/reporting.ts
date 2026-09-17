@@ -150,8 +150,8 @@ export function aggregateCommissions(
   const ruleByUser = new Map<string, number>()
   const ruleByRole = new Map<string, number>()
   for (const rule of rules) {
-    const percent = entero(rule.percentPyg)
-    if (percent === null || percent > 100) continue
+    const percent = porcentaje(rule.percentPyg)
+    if (percent === null) continue
     if (rule.userId) ruleByUser.set(rule.userId, percent)
     if (rule.role) ruleByRole.set(rule.role, percent)
   }
@@ -220,6 +220,14 @@ function entero(value: unknown, minimo = 0): number | null {
   const number = typeof value === 'number' ? value : Number(value)
   if (!Number.isSafeInteger(number) || number < minimo || number > INT_MAX) return null
   return number
+}
+
+// La comisión admite porcentajes decimales (0–100 con hasta 2 cifras); los
+// importes siguen siendo enteros de guaraníes.
+function porcentaje(value: unknown): number | null {
+  const number = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(number) || number < 0 || number > 100) return null
+  return Math.round(number * 100) / 100
 }
 
 function suma(actual: number, delta: number): number {

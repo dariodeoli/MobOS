@@ -103,7 +103,7 @@ export async function GET(request: Request) {
             totalPyg: item.totalPyg,
           })),
         })),
-        rules.map((rule) => ({ userId: rule.userId, role: rule.role, percentPyg: rule.percentPyg })),
+        rules.map((rule) => ({ userId: rule.userId, role: rule.role, percentPyg: rule.percentPyg === null ? null : Number(rule.percentPyg) })),
         sellers,
       )
       return json({

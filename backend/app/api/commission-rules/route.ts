@@ -1,7 +1,7 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
-import { UserRole } from '@prisma/client'
+import { UserRole, type Prisma } from '@prisma/client'
 
 // Reglas de comisión sobre el margen de las ventas. Solo ADMIN las gestiona.
 // Cada regla aplica a un usuario específico o a un rol, nunca a ambos a la vez,
@@ -12,24 +12,34 @@ const validRole = (value: unknown) => value === undefined || value === null || v
 
 type RuleInput = { userId: string | null; role: string | null; percentPyg: number | null }
 
+// El porcentaje admite decimales con hasta 2 cifras (ej. 0,2); se redondea
+// para que coincida exactamente con la precisión DECIMAL(5, 2) de la base.
+// undefined marca un valor inválido; null, un porcentaje vacío.
+function parsePercent(value: unknown): number | null | undefined {
+  if (value === undefined || value === null || value === '') return null
+  const percent = Number(value)
+  if (!Number.isFinite(percent) || percent < 0 || percent > 100) return undefined
+  return Math.round(percent * 100) / 100
+}
+
 function parseRule(body: Record<string, unknown> | null, requirePercent: boolean): { ok: true; value: RuleInput } | { ok: false; message: string } {
   const userId = body?.userId === undefined || body.userId === null || body.userId === '' ? null : text(body.userId)
   const role = validRole(body?.role)
   if (role === undefined) return { ok: false, message: 'Rol inválido.' }
   if (userId && role) return { ok: false, message: 'La regla aplica a un usuario o a un rol, no a ambos.' }
   if (!userId && !role) return { ok: false, message: 'Indicá un usuario o un rol para la regla.' }
-  const percent = body?.percentPyg === undefined || body.percentPyg === null || body.percentPyg === '' ? null : Number(body.percentPyg)
+  const percent = body?.percentPyg === undefined ? null : parsePercent(body.percentPyg)
+  if (percent === undefined) return { ok: false, message: 'El porcentaje debe estar entre 0 y 100.' }
   if (requirePercent && percent === null) return { ok: false, message: 'El porcentaje es obligatorio.' }
-  if (percent !== null && (!Number.isSafeInteger(percent) || percent < 0 || percent > 100)) return { ok: false, message: 'El porcentaje debe ser un entero entre 0 y 100.' }
   return { ok: true, value: { userId, role, percentPyg: percent } }
 }
 
-function shape(rule: { id: string; userId: string | null; role: string | null; percentPyg: number | null; createdAt: Date; updatedAt: Date; user: { id: string; name: string } | null }) {
+function shape(rule: { id: string; userId: string | null; role: string | null; percentPyg: Prisma.Decimal | null; createdAt: Date; updatedAt: Date; user: { id: string; name: string } | null }) {
   return {
     id: rule.id,
     userId: rule.userId,
     role: rule.role,
-    percentPyg: rule.percentPyg,
+    percentPyg: rule.percentPyg === null ? null : Number(rule.percentPyg),
     createdAt: rule.createdAt,
     updatedAt: rule.updatedAt,
     user: rule.user ? { id: rule.user.id, name: rule.user.name } : null,
@@ -88,8 +98,8 @@ export async function PATCH(request: Request) {
     const targetChanged = userId !== existing.userId || role !== existing.role
     let percentPyg: number | null | undefined
     if (body?.percentPyg !== undefined) {
-      const percent = body.percentPyg === null || body.percentPyg === '' ? null : Number(body.percentPyg)
-      if (percent !== null && (!Number.isSafeInteger(percent) || percent < 0 || percent > 100)) return error('El porcentaje debe ser un entero entre 0 y 100.')
+      const percent = parsePercent(body.percentPyg)
+      if (percent === undefined) return error('El porcentaje debe estar entre 0 y 100.')
       percentPyg = percent
     }
     const updated = await prisma.$transaction(async tx => {
