@@ -81,10 +81,10 @@ export default function Impresoras() {
       <Card className="space-y-3">
         <div>
           <h2 className="font-semibold">Impresora y formato</h2>
-          <p className="mt-1 text-sm text-mute">Destino LAN como <b className="text-fore">lan:192.168.1.23:9100</b> o USB como <b className="text-fore">usb:NombreDeLaCola</b>.</p>
+          <p className="mt-1 text-sm text-mute">Destino LAN como <b className="text-fore">lan:192.168.1.23:9100</b> o USB como <b className="text-fore">usb:NombreDeLaCola</b>. La térmica ya viene configurada en <b className="text-fore">192.168.1.23</b> con cortador automático: solo tiene que estar en la misma red que esta computadora.</p>
         </div>
         <FormField label="Destino" htmlFor="impresora-destino">
-          <Input id="impresora-destino" list="impresoras-detectadas" value={config.impresora} onChange={event => setConfig(actual => ({ ...actual, impresora: event.target.value }))} placeholder="lan:192.168.1.23:9100" />
+          <Input id="impresora-destino" list="impresoras-detectadas" value={config.impresora} onChange={event => setConfig(actual => ({ ...actual, impresora: event.target.value }))} placeholder="lan:192.168.1.23:9100" autoCapitalize="off" spellCheck={false} />
         </FormField>
         <datalist id="impresoras-detectadas">
           {lan.map(destino => <option key={destino} value={destino} />)}
@@ -93,8 +93,8 @@ export default function Impresoras() {
         <div className="grid gap-3 sm:grid-cols-3">
           <FormField label="Ancho" htmlFor="impresora-ancho">
             <Select id="impresora-ancho" value={String(config.ancho)} onChange={event => setConfig(actual => ({ ...actual, ancho: Number(event.target.value) }))}>
-              <option value="58">58 mm (32 columnas)</option>
-              <option value="80">80 mm (48 columnas)</option>
+              <option value="80">80 mm (predeterminado)</option>
+              <option value="58">58 mm</option>
             </Select>
           </FormField>
           <FormField label="Copias" htmlFor="impresora-copias">
@@ -108,7 +108,7 @@ export default function Impresoras() {
           <Button type="button" onClick={guardar}>Guardar impresora</Button>
           <Button type="button" variant="outline" onClick={probar} disabled={probando || !config.impresora.trim()}>{probando ? 'Enviando…' : 'Imprimir prueba'}</Button>
         </div>
-        <p className="text-xs text-mute">La prueba manda texto con acentos, negrita, doble alto, QR y código de barras. Si sale todo, la impresora quedó lista; el A4 sigue imprimiéndose por el diálogo normal.</p>
+        <p className="text-xs text-mute">La prueba manda texto con acentos, negrita, doble alto, QR y código de barras, con padding a los costados y corte automático al final. Si sale todo, la impresora quedó lista; el A4 sigue imprimiéndose por el diálogo normal.</p>
       </Card>
     </div>
   )

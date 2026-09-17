@@ -33,20 +33,20 @@ En la app, Configuración → Impresoras:
    - **USB**: `usb:<nombre de la cola>`; las colas se listan solas si están
      dadas de alta en macOS (Ajustes → Impresoras y escáneres). El agente les
      manda los mismos bytes crudos con `lp -o raw`.
-3. Elegí el ancho (58 u 80 mm) y las copias.
+3. Elegí el ancho (80 mm viene predeterminado; también hay 58 mm) y las copias. Los tickets salen con padding a los costados y **corte automático** al final.
 4. **Imprimir prueba**: sale texto, acentos, negrita, doble alto, QR y código de
    barras. Si todo eso sale bien, la impresora quedó lista.
 
 ## Red
 
-La impresora y la computadora tienen que estar **en la misma red**. Lo más
+La impresora ya está configurada en `192.168.1.23:9100` (máscara 255.255.255.0, DHCP desactivado, ESC/POS, cortador habilitado). La computadora tiene que estar **en la misma red** (`192.168.1.x`). Lo más
 cómodo es dejar la impresora con **IP fija** (o reserva DHCP) porque el agente la
 usa por IP; si cambia, hay que actualizar el destino en Configuración.
 
 Prueba rápida desde la terminal (sin la app):
 
 ```bash
-printf '\x1b@Hola\n' | nc 192.168.1.23 9100
+printf '\x1b@Hola\n\x1dV\x42\x00' | nc 192.168.1.23 9100
 ```
 
 ## Permiso del navegador

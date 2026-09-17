@@ -58,13 +58,17 @@ export function repartirLinea(izquierda, derecha, columnas) {
   return `${izq}${' '.repeat(columnas - izq.length - der.length)}${der}`
 }
 
-// Las copias las maneja el agente: acá se arma un solo ticket.
-export function crearTicket({ ancho = 58 } = {}) {
-  const columnas = columnasDeAncho(ancho)
+// Las copias las maneja el agente: acá se arma un solo ticket. El margen deja
+// aire a los costados para que el texto no toque el borde del papel.
+export function crearTicket({ ancho = 80, margen = 2 } = {}) {
+  const columnasBase = columnasDeAncho(ancho)
+  const sangria = Math.max(0, Math.min(6, Number(margen) || 0))
+  const columnas = columnasBase - sangria * 2
+  const prefijo = ' '.repeat(sangria)
   const partes = []
   let doble = false
   const anchoActual = () => (doble ? Math.floor(columnas / 2) : columnas)
-  const escribir = (texto) => { partes.push(...bytesDeTexto(texto)) }
+  const escribir = (texto) => { partes.push(...bytesDeTexto(`${prefijo}${texto}`)) }
 
   const api = {
     columnas,
@@ -104,6 +108,7 @@ export function crearTicket({ ancho = 58 } = {}) {
     },
     // QR nativo de la impresora (modelo 2). `tamano` va de 1 a 16.
     qr(datos, { tamano = 6 } = {}) {
+      partes.push(ESC, 0x61, 0x01) // centrado
       const contenido = bytesDeTexto(datos)
       const n = contenido.length + 3
       const p = Math.floor(n / 256)
@@ -114,10 +119,12 @@ export function crearTicket({ ancho = 58 } = {}) {
       partes.push(GS, 0x28, 0x6b, 3, 0, 0x31, 0x45, 0x31) // corrección M
       partes.push(GS, 0x28, 0x6b, p, q, 0x31, 0x50, 0x30, ...contenido) // guarda
       partes.push(GS, 0x28, 0x6b, 3, 0, 0x31, 0x51, 0x30) // imprime
+      partes.push(ESC, 0x61, 0x00) // vuelve a la izquierda
       return api
     },
     // Código de barras CODE128 (GS k 73: incluye el largo).
     barcode(datos) {
+      partes.push(ESC, 0x61, 0x01)
       const contenido = bytesDeTexto(datos)
       if (contenido.length && contenido.length <= 255) {
         partes.push(GS, 0x68, 0x50) // altura 80 puntos
@@ -125,6 +132,7 @@ export function crearTicket({ ancho = 58 } = {}) {
         partes.push(GS, 0x48, 0x02) // texto abajo
         partes.push(GS, 0x6b, 0x49, contenido.length, ...contenido)
       }
+      partes.push(ESC, 0x61, 0x00)
       return api
     },
     avanza(lineas = 1) {

@@ -10,7 +10,7 @@ const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', RE
 const fecha = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '')
 
 // Comprobante de compra. `link` es el enlace del nivel (se imprime como QR).
-export function ticketComprobante(order, { nivel = 'completo', ancho = 58, link = '' } = {}) {
+export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link = '' } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   const items = Array.isArray(order.items) ? order.items : []
   const payments = Array.isArray(order.payments) ? order.payments : order.pagos || []
@@ -111,7 +111,7 @@ export function ticketComprobante(order, { nivel = 'completo', ancho = 58, link 
 
 // Etiqueta de una unidad de stock: producto, estado, IMEI con los últimos 4
 // destacados y QR/código de barras para escanear.
-export function ticketEtiquetaUnidad(unit, { ancho = 58 } = {}) {
+export function ticketEtiquetaUnidad(unit, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   const serial = String(unit.serial || '')
   const condicion = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }[unit.condition] || unit.condition || ''
@@ -137,7 +137,7 @@ export function ticketEtiquetaUnidad(unit, { ancho = 58 } = {}) {
 }
 
 // Etiqueta de precio/góndola con QR que abre el producto.
-export function ticketEtiquetaPrecio(product, { ancho = 58 } = {}) {
+export function ticketEtiquetaPrecio(product, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   const precio = Number(product.pricePyg ?? product.precioVenta ?? 0)
   const mayorista = Number(product.wholesalePricePyg ?? 0)
@@ -176,7 +176,7 @@ export function ticketRemito(transfer, { ancho = 80 } = {}) {
 }
 
 // Comprobante de reserva: IMEI apartado, sucursal y vencimiento.
-export function ticketReserva(reservation, { ancho = 58 } = {}) {
+export function ticketReserva(reservation, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   t.centrado(APP_NAME).negrita().centrado('Comprobante de reserva').negrita(false)
   t.centrado(reservation.reservedUntil ? `Vence ${fecha(reservation.reservedUntil)}` : '')
@@ -192,7 +192,7 @@ export function ticketReserva(reservation, { ancho = 58 } = {}) {
 }
 
 // Página de prueba: valida texto, acentos, negrita, doble, QR y código de barras.
-export function ticketPrueba({ ancho = 58, impresora = '' } = {}) {
+export function ticketPrueba({ ancho = 80, impresora = '' } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   t.centrado(APP_NAME).negrita().doble().centrado('PRUEBA').doble(false).negrita(false)
   t.centrado(`${ancho} mm · ${t.columnas} columnas`)
@@ -213,7 +213,7 @@ export function ticketPrueba({ ancho = 58, impresora = '' } = {}) {
 }
 
 // Varias etiquetas de unidad en un solo trabajo (una por página de 58 mm).
-export function ticketEtiquetasUnidad(units = [], { ancho = 58 } = {}) {
+export function ticketEtiquetasUnidad(units = [], { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   for (const unit of units) {
     const serial = String(unit.serial || '')
@@ -241,7 +241,7 @@ export function ticketEtiquetasUnidad(units = [], { ancho = 58 } = {}) {
 }
 
 // Etiqueta de una ubicación de stock: se escanea al recibir o trasladar.
-export function ticketEtiquetaUbicacion(location, { ancho = 58 } = {}) {
+export function ticketEtiquetaUbicacion(location, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   t.centrado(`${APP_NAME} · UBICACIÓN`)
   t.linea()

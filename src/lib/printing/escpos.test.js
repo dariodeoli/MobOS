@@ -25,11 +25,22 @@ test('el ticket arranca con inicialización y página de códigos', () => {
   const ticket = crearTicket({ ancho: 58 })
   const bytes = ticket.iniciar().texto('Hola').bytes()
   assert.deepEqual([...bytes.slice(0, 8)], [0x1b, 0x40, 0x1b, 0x74, 0x02, 0x1b, 0x61, 0x00])
-  assert.equal(String.fromCharCode(...bytes.slice(8, 12)), 'Hola')
+  assert.ok(String.fromCharCode(...bytes.slice(8)).includes('Hola'))
+})
+
+test('el padding lateral deja aire a los costados y achica el ancho útil', () => {
+  const sinMargen = crearTicket({ ancho: 58, margen: 0 }).texto('x').bytes()
+  const conMargen = crearTicket({ ancho: 58, margen: 3 }).texto('x').bytes()
+  assert.equal(String.fromCharCode(...sinMargen), 'x\n')
+  assert.equal(String.fromCharCode(...conMargen), '   x\n')
+  // Con margen 3 el ancho útil baja a 26 columnas.
+  assert.equal(crearTicket({ ancho: 58, margen: 3 }).columnas, 26)
+  assert.equal(crearTicket({ ancho: 80, margen: 2 }).columnas, 44)
+  assert.equal(crearTicket({ ancho: 80 }).columnas, 44)
 })
 
 test('los acentos se traducen a CP850', () => {
-  const bytes = crearTicket().texto('ñandú').bytes()
+  const bytes = crearTicket({ ancho: 58, margen: 0 }).texto('ñandú').bytes()
   assert.deepEqual([...bytes.slice(0, 4)], [0xa4, 0x61, 0x6e, 0x64])
   assert.equal(bytes[4], 0xa3)
 })
@@ -54,7 +65,8 @@ test('el QR usa el comando nativo con el largo correcto', () => {
 
 test('el código de barras CODE128 lleva el largo y el corte se puede omitir', () => {
   const bytes = [...crearTicket().barcode('MOB-1').bytes()]
-  assert.deepEqual(bytes.slice(0, 3), [0x1d, 0x68, 0x50])
+  assert.deepEqual(bytes.slice(0, 3), [0x1b, 0x61, 0x01]) // centra el código de barras
+  assert.ok(bytes.includes(0x1d) && bytes.includes(0x68) && bytes.includes(0x50))
   const marca = bytes.indexOf(0x49)
   assert.equal(bytes[marca + 1], 5)
   assert.equal(String.fromCharCode(...bytes.slice(marca + 2, marca + 7)), 'MOB-1')
