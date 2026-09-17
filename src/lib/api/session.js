@@ -90,9 +90,11 @@ export const sessionApi = {
     if (failed) throw failed.reason
     return { ok: true }
   },
-  switchSeller: async (credentials) => {
-    await sessionApi.logoutSeller()
-    clearAccessToken()
-    return sessionApi.loginSeller(credentials)
+  switchSeller: async ({ sellerId, pin }) => {
+    if (!getCompanyContext()?.cookieSession) throw new Error('Primero hay que autenticar la empresa.')
+    const session = await api.post('/api/auth/switch', { sellerId, pin })
+    if (!session?.user) throw new Error('El servidor no devolvió una sesión válida.')
+    clearLegacyTokens()
+    return session
   },
 }

@@ -14,60 +14,6 @@ import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from './demoMode'
 
-export const ESTADOS_CELULAR = ['Nuevo', 'Seminuevo']
-
-// Lineup de iPhone para cargar rápido la lista de precios. El precio en ₲ lo
-// define el propietario. Hay dos listas según la condición del equipo.
-export const LINEUP_NUEVO = [
-  ['iPhone 17 Pro Max', ['256GB', '512GB', '1TB', '2TB']],
-  ['iPhone 17 Pro', ['256GB', '512GB', '1TB', '2TB']],
-  ['iPhone Air', ['256GB', '512GB', '1TB']],
-  ['iPhone 17', ['256GB', '512GB']],
-  ['iPhone 17E', ['256GB']],
-  ['iPhone 16', ['128GB']],
-  ['iPhone 15', ['128GB']],
-]
-
-export const LINEUP_SEMINUEVO = [
-  ['iPhone 17 Pro Max', ['256GB', '512GB', '1TB', '2TB']],
-  ['iPhone 17 Pro', ['256GB', '512GB', '1TB', '2TB']],
-  ['iPhone Air', ['256GB', '512GB', '1TB']],
-  ['iPhone 17', ['256GB', '512GB']],
-  ['iPhone 17E', ['256GB']],
-  ['iPhone 16 Pro Max', ['128GB', '256GB']],
-  ['iPhone 16 Pro', ['128GB', '256GB']],
-  ['iPhone 16', ['128GB']],
-  ['iPhone 15 Pro Max', ['128GB', '256GB']],
-  ['iPhone 15 Pro', ['128GB', '256GB']],
-  ['iPhone 15', ['128GB']],
-  ['iPhone 14 Pro Max', ['128GB', '256GB']],
-  ['iPhone 14 Pro', ['128GB', '256GB']],
-  ['iPhone 14', ['128GB']],
-  ['iPhone 13 Pro Max', ['128GB', '256GB']],
-  ['iPhone 13 Pro', ['128GB', '256GB']],
-  ['iPhone 13', ['128GB']],
-]
-
-// Orden visual de los modelos (más nuevo arriba). Se usa para ordenar la lista
-// sin depender de cómo se hayan ido cargando.
-export const ORDEN_MODELOS = [
-  'iPhone 17 Pro Max',
-  'iPhone 17 Pro',
-  'iPhone Air',
-  'iPhone 17',
-  'iPhone 17E',
-  'iPhone 16 Pro Max',
-  'iPhone 16 Pro',
-  'iPhone 16 Plus',
-  'iPhone 16',
-  'iPhone 16e',
-  'iPhone 15 Pro Max',
-  'iPhone 15 Pro',
-  'iPhone 15 Plus',
-  'iPhone 15',
-  'iPhone 14',
-  'iPhone 13',
-]
 // Devuelve un número menor para los modelos más nuevos, listo para ordenar
 // ascendente. Se calcula por generación (17 antes que 16…) y, dentro de la
 // misma, por variante: Pro Max → Pro → Air → Plus → base → E. Es tolerante a
@@ -94,26 +40,6 @@ export function rankCapacidad(cap) {
   return i === -1 ? 99 : i
 }
 
-// Un modelo es "viejo" (anterior al iPhone 13) si su generación es < 13, o si
-// es un iPhone SE. Sirve para limpiar la lista dejando solo del 13 en adelante.
-export function esModeloViejo(modelo) {
-  const m = (modelo || '').toLowerCase()
-  if (m.includes('iphone se') || /\bse\b/.test(m)) return true
-  const gen = parseInt((m.match(/iphone\s*(\d+)/) || [])[1] || '0', 10)
-  return gen > 0 && gen < 13
-}
-
-export const CATEGORIAS_GASTO = [
-  'Mercadería',
-  'Alquiler',
-  'Servicios',
-  'Sueldos',
-  'Logística',
-  'Impuestos',
-  'Otros',
-]
-
-// ── Constantes de dominio ───────────────────────────────────────────
 export const MEDIOS_PAGO = [
   'UENO BANK',
   'POS UENO',
@@ -166,24 +92,6 @@ const PRODUCTOS_DEFAULT = [
 // Sin vendedores de ejemplo: el dueño carga los nombres reales desde el
 // formulario de venta ("➕ Agregar vendedor") o desde el Centro de Control.
 const VENDEDORES_DEFAULT = []
-
-const FRASES_DEFAULT = [
-  'Cada venta te acerca a tu meta. ¡Vamos!',
-  'El éxito es la suma de pequeños esfuerzos repetidos día a día.',
-  'No cuentes los días, haz que los días cuenten.',
-  'Tu actitud determina tu dirección. ¡Hoy es un gran día!',
-  'Los clientes compran confianza antes que productos. Sonreí.',
-  'La constancia vence al talento. Seguí firme.',
-  'Hoy es el mejor día para superar tu marca de ayer.',
-  'Vendé con pasión, atendé con el corazón.',
-  'Las metas grandes se logran con acciones pequeñas y constantes.',
-  'Creé en vos: ya hiciste lo difícil, ahora cerrá la venta.',
-]
-
-const CONFIG_DEFAULT = {
-  clavePanel: 'fono2024', // el propietario la cambia en el Centro de Control
-  nombreTienda: APP_NAME,
-}
 
 const TRADEIN_DEFAULT = {
   exchangeRate: 7300,
@@ -341,8 +249,6 @@ const TRADEIN_DEFAULT = {
 // ════════════════════════════════════════════════════════════════════
 const COLLECTIONS = [
   'productos',
-  'mayoristas',
-  'ventasMay',
   'vendedores',
   'ventas',
   'gastos',
@@ -366,7 +272,6 @@ let fuenteDatos = 'legacy'
 export const modoDatosActual = () => fuenteDatos
 const apiMode = () => fuenteDatos === 'api'
 export const contextoActual = () => ({ ...ctx })
-export const hayContexto = () => Boolean(ctx.empresaId)
 
 // El espejo local se guarda por empresa. Si fuera uno solo, al cambiar de
 // tienda verías por un instante los datos de la anterior.
@@ -385,8 +290,6 @@ function safeParse(raw) {
 
 const cache = {
   productos: [],
-  mayoristas: [],
-  ventasMay: [],
   vendedores: [],
   ventas: [],
   gastos: [],
@@ -394,7 +297,7 @@ const cache = {
   celulares: [],
   auditoria: [],
   tradein: clone(TRADEIN_DEFAULT),
-  config: { ...CONFIG_DEFAULT },
+  config: { nombreTienda: APP_NAME },
   comparadorImg: [], // 1 registro por imagen: { id, modelo, color, img } (colección)
 }
 
@@ -404,7 +307,7 @@ function vaciarCache() {
     cache[c] = []
   })
   cache.tradein = clone(TRADEIN_DEFAULT)
-  cache.config = { ...CONFIG_DEFAULT }
+  cache.config = { nombreTienda: APP_NAME }
 }
 
 // Pintado instantáneo: levanta el último estado conocido de ESTA empresa.
@@ -482,12 +385,6 @@ function entDelete(collection, id) {
   persistMirror()
   notify()
 }
-function kvSet(key, value) {
-  if (apiMode()) throw new Error(`La mutación legacy de ${key} no está disponible en modo API.`)
-  cache[key] = value
-  persistMirror()
-  notify()
-}
 let apiHydrationVersion = 0
 
 async function hydrateApi() {
@@ -515,17 +412,16 @@ async function hydrateApi() {
     activo: u.status === 'ACTIVE',
     metaDiaria: u.dailyGoalPyg ?? 0,
   }))
-  cache.mayoristas = []
   cache.gastos = mapGastosApi(finance)
   cache.ads = []
   cache.auditoria = []
-  cache.config = { ...CONFIG_DEFAULT, nombreTienda: getCompanyName() }
+  cache.config = { nombreTienda: getCompanyName() }
   notify()
 }
 
 // El costo del producto vive en la API como `costPyg`. Sin este mapeo la
 // ganancia se mostraba igual a las ventas (costo 0) cuando la sesión es real.
-export function mapProductoApi(p) {
+function mapProductoApi(p) {
   return {
     ...p,
     nombre: p.name,
@@ -536,7 +432,7 @@ export function mapProductoApi(p) {
 }
 
 // Traduce el formato de la interfaz al contrato de la API.
-export function payloadProductoApi(payload = {}) {
+function payloadProductoApi(payload = {}) {
   const { nombre, precioVenta, precioCosto, ...resto } = payload
   return {
     ...resto,
@@ -657,23 +553,6 @@ export async function setContexto({ empresaId, sucursalId, userId, rol, fuente =
   if (apiMode()) await hydrateApi()
 }
 
-export function sucursalGuardada() {
-  try {
-    return localStorage.getItem(SUC_KEY)
-  } catch {
-    return null
-  }
-}
-
-export async function salirDeTodo() {
-  ctx.empresaId = null
-  ctx.sucursalId = null
-  ctx.userId = null
-  ctx.rol = null
-  vaciarCache()
-  notify()
-}
-
 // ════════════════════════════════════════════════════════════════════
 // AUDITORÍA — quién creó / editó / eliminó cada venta
 // El "actor" lo setea la sesión (ver sesion.jsx). Cada acción sobre una
@@ -763,22 +642,6 @@ export async function addProductoApi(payload) {
   notify()
   return created
 }
-export async function updateProductoApi(id, cambios) {
-  if (!apiMode()) throw new Error('updateProductoApi solo está disponible con una sesión API real.')
-  const updated = await api.patch('/api/products', { id, ...payloadProductoApi(cambios) })
-  if (!updated?.id) throw new Error('El backend no devolvió un producto confirmado.')
-  const mapped = mapProductoApi(updated)
-  const index = cache.productos.findIndex(product => product.id === id)
-  if (index >= 0) cache.productos[index] = mapped
-  notify()
-  return updated
-}
-export function saveProductos(productos) {
-  if (apiMode()) throw new Error('Productos: escritura API todavía no está disponible.')
-  cache.productos = productos
-  persistMirror()
-  notify()
-}
 export function addProducto(nombre, categoria = 'Otros') {
   if (apiMode()) throw new Error('Productos: escritura API todavía no está disponible.')
   const id = nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36)
@@ -798,27 +661,6 @@ export function addProducto(nombre, categoria = 'Otros') {
   entUpsert('productos', nuevo)
   return nuevo
 }
-export function addProductoVariante(productoBase, atributos = {}) {
-  const base =
-    typeof productoBase === 'string'
-      ? cache.productos.find(p => p.id === productoBase)
-      : productoBase
-  if (!base) return null
-  const detalle = Object.entries(atributos)
-    .filter(([, v]) => String(v).trim())
-    .map(([k, v]) => `${k}: ${v}`)
-    .join(' · ')
-  const nuevo = addProducto(`${base.nombre}${detalle ? ` · ${detalle}` : ''}`, base.categoria)
-  updateProducto(nuevo.id, {
-    ...base,
-    id: nuevo.id,
-    nombre: nuevo.nombre,
-    varianteDe: base.id,
-    atributos,
-    stock: 0,
-  })
-  return nuevo
-}
 export function productosById() {
   const map = {}
   getProductos().forEach(p => (map[p.id] = p))
@@ -829,10 +671,6 @@ export function updateProducto(id, cambios) {
   const actual = cache.productos.find(p => p.id === id)
   if (!actual) return
   entUpsert('productos', { ...actual, ...cambios })
-}
-export function deleteProducto(id) {
-  if (apiMode()) throw new Error('Productos: escritura API todavía no está disponible.')
-  entDelete('productos', id)
 }
 
 // ── VENDEDORES ──────────────────────────────────────────────────────
@@ -1036,11 +874,6 @@ export function prepararDatosDemo() {
   persistMirror()
   notify()
 }
-export function saveVendedores(vendedores) {
-  cache.vendedores = vendedores
-  persistMirror()
-  notify()
-}
 export function addVendedor(nombre) {
   const nuevo = {
     id: 'v' + Date.now().toString(36),
@@ -1148,7 +981,7 @@ export function deleteVenta(id) {
   logAuditoria('eliminar', v || { id })
 }
 
-// ── MAYORISTAS ──────────────────────────────────────────────────────
+// ── MAYORISTAS (legacy) ─────────────────────────────────────────────
 // Mueve el stock de un producto. delta negativo = sale mercadería.
 // Lo usan tanto las ventas de mostrador como las mayoristas, para que el
 // inventario del sistema coincida con el físico.
@@ -1157,81 +990,6 @@ export function moverStock(productoId, delta) {
   const p = cache.productos.find(x => x.id === productoId)
   if (!p) return
   entUpsert('productos', { ...p, stock: num(p.stock) + delta })
-}
-
-export function listMayoristas() {
-  return cache.mayoristas
-}
-export function addMayorista({ nombre, ruc = '', contacto = '', tel = '' }) {
-  const nuevo = {
-    id: 'may-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-    nombre: (nombre || '').trim(),
-    ruc,
-    contacto,
-    tel,
-    activo: true,
-    creadoEn: new Date().toISOString(),
-  }
-  entUpsert('mayoristas', nuevo)
-  return nuevo
-}
-export function updateMayorista(id, cambios) {
-  const actual = cache.mayoristas.find(m => m.id === id)
-  if (actual) entUpsert('mayoristas', { ...actual, ...cambios })
-}
-export function deleteMayorista(id) {
-  entDelete('mayoristas', id)
-}
-
-export function listVentasMay() {
-  return cache.ventasMay
-}
-// Registra una venta mayorista con varias líneas y descuenta el stock de cada
-// producto por la cantidad vendida.
-export function addVentaMayorista({
-  mayoristaId,
-  lineas,
-  medioPago,
-  estadoPago,
-  observacion,
-  fecha,
-}) {
-  const items = (lineas || []).filter(l => l.productoId && num(l.cantidad) > 0)
-  if (!mayoristaId || items.length === 0) return null
-  const nueva = {
-    id: 'vmay-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    codigo: 'MAY-' + String(cache.ventasMay.length + 1).padStart(4, '0'),
-    mayoristaId,
-    fecha: fecha || new Date().toISOString().slice(0, 10),
-    lineas: items.map(l => {
-      const p = cache.productos.find(x => x.id === l.productoId)
-      return {
-        productoId: l.productoId,
-        nombre: p?.nombre || 'Producto',
-        cantidad: num(l.cantidad),
-        precioUnit: num(l.precioUnit),
-        precioCosto: num(p?.precioCosto),
-      }
-    }),
-    medioPago: medioPago || MEDIOS_PAGO[0],
-    estadoPago: estadoPago || 'No pagado',
-    observacion: observacion || '',
-    creadoEn: new Date().toISOString(),
-  }
-  nueva.total = nueva.lineas.reduce((a, l) => a + l.cantidad * l.precioUnit, 0)
-  nueva.unidades = nueva.lineas.reduce((a, l) => a + l.cantidad, 0)
-  entUpsert('ventasMay', nueva)
-  nueva.lineas.forEach(l => moverStock(l.productoId, -l.cantidad))
-  return nueva
-}
-export function updateVentaMay(id, cambios) {
-  const actual = cache.ventasMay.find(v => v.id === id)
-  if (actual) entUpsert('ventasMay', { ...actual, ...cambios })
-}
-export function deleteVentaMay(id) {
-  const v = cache.ventasMay.find(x => x.id === id)
-  entDelete('ventasMay', id)
-  if (v) (v.lineas || []).forEach(l => moverStock(l.productoId, +num(l.cantidad)))
 }
 
 // ── GASTOS ──────────────────────────────────────────────────────────
@@ -1247,9 +1005,6 @@ export function addGasto(gasto) {
   }
   entUpsert('gastos', nuevo)
   return nuevo
-}
-export function deleteGasto(id) {
-  entDelete('gastos', id)
 }
 
 // ── META ADS ────────────────────────────────────────────────────────
@@ -1274,85 +1029,16 @@ export function deleteAds(id) {
 export function listCelulares() {
   return cache.celulares
 }
-export function addCelular(cel) {
-  const nuevo = {
-    id: 'cel-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-    modelo: '',
-    color: '',
-    capacidad: '',
-    estado: 'Nuevo',
-    precio: 0,
-    activo: true,
-    ...cel,
-  }
-  entUpsert('celulares', nuevo)
-  return nuevo
-}
-export function updateCelular(id, cambios) {
-  const actual = cache.celulares.find(c => c.id === id)
-  if (!actual) return
-  entUpsert('celulares', { ...actual, ...cambios })
-}
-export function deleteCelular(id) {
-  entDelete('celulares', id)
-}
-// Carga los lineups de iPhone (precio 0) sin duplicar lo que ya exista. Cada
-// equipo se identifica por modelo + capacidad + condición, así un mismo modelo
-// puede existir como Nuevo y como Seminuevo a la vez.
-export function cargarLineupIphone() {
-  const existentes = new Set(
-    cache.celulares.map(c => `${c.modelo}|${c.capacidad}|${c.estado}`.toLowerCase()),
-  )
-  let n = 0
-  const seed = (lineup, estado) => {
-    lineup.forEach(([modelo, caps]) => {
-      caps.forEach(cap => {
-        const key = `${modelo}|${cap}|${estado}`.toLowerCase()
-        if (!existentes.has(key)) {
-          existentes.add(key)
-          entUpsert('celulares', {
-            id: 'cel-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-            modelo,
-            color: '',
-            capacidad: cap,
-            estado,
-            precio: 0,
-            activo: true,
-          })
-          n++
-        }
-      })
-    })
-  }
-  seed(LINEUP_NUEVO, 'Nuevo')
-  seed(LINEUP_SEMINUEVO, 'Seminuevo')
-  return n
-}
 
 // ── TRADE-IN ────────────────────────────────────────────────────────
 export function getTradein() {
   return { ...clone(TRADEIN_DEFAULT), ...cache.tradein }
-}
-export function saveTradein(cambios) {
-  kvSet('tradein', { ...getTradein(), ...cambios })
-}
-export function resetTradein() {
-  kvSet('tradein', clone(TRADEIN_DEFAULT))
-}
-// La actualización de cotización se integrará con el endpoint propio de finanzas.
-export async function actualizarDolar() {
-  return {
-    ok: false,
-    error: 'La actualización de cotización todavía no está disponible en la API.',
-  }
 }
 
 // ── IMÁGENES DEL COMPARADOR ─────────────────────────────────────────
 // Cada imagen es un registro independiente { id, modelo, color, img } en la
 // colección 'comparadorImg'. Así guardar varias a la vez NO se pisa entre sí
 // (cada una se escribe por separado). Se exponen como mapa { modelo: { color: img } }.
-const idImg = (modelo, color) => `${modelo}__${color}`.toLowerCase().replace(/\s+/g, '-')
-
 export function getComparadorImagenes() {
   const map = {}
   for (const r of cache.comparadorImg || []) {
@@ -1361,38 +1047,4 @@ export function getComparadorImagenes() {
     map[r.modelo][r.color] = r.img
   }
   return map
-}
-export function setComparadorImagen(modelo, color, dataUrl) {
-  entUpsert('comparadorImg', { id: idImg(modelo, color), modelo, color, img: dataUrl })
-}
-export function deleteComparadorImagen(modelo, color) {
-  entDelete('comparadorImg', idImg(modelo, color))
-}
-
-// ── FRASES ──────────────────────────────────────────────────────────
-export function getFrases() {
-  return FRASES_DEFAULT
-}
-// Frase "del día": estable por fecha, rota cada día.
-export function fraseDelDia() {
-  const frases = getFrases()
-  const hoy = new Date()
-  const idx = (hoy.getFullYear() * 372 + hoy.getMonth() * 31 + hoy.getDate()) % frases.length
-  return frases[idx]
-}
-
-// ── CONFIG ──────────────────────────────────────────────────────────
-export function getConfig() {
-  return { ...CONFIG_DEFAULT, ...cache.config }
-}
-export function saveConfig(cambios) {
-  kvSet('config', { ...getConfig(), ...cambios })
-}
-export function verificarClavePanel(intento) {
-  return intento === getConfig().clavePanel
-}
-export function cambiarClavePanel(actual, nueva) {
-  if (actual !== getConfig().clavePanel) return false
-  saveConfig({ clavePanel: nueva })
-  return true
 }

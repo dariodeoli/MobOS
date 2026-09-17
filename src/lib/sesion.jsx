@@ -91,8 +91,12 @@ export function SesionProvider({ children }) {
     guardarSucursalActiva(empresa?.id, destino.id)
   }
   async function cambiarEmpresa() {
-    // El cambio de empresa requiere reautenticación (la sesión del operador
-    // pertenece a una empresa). Se conserva la API para no romper el selector.
+    // El backend mantiene UNA empresa por sesión: para operar otra tienda hay
+    // que cerrar sesión y volver a autenticarse. No existe endpoint de cambio
+    // de empresa, así que devolvemos un error claro en vez de simular soporte.
+    // El SelectorSucursal solo ofrece esta opción con varias empresas (Google
+    // multi-store), caso que hoy no se da: la sesión trae una sola empresa.
+    throw new Error('Cambiar de empresa requiere cerrar sesión y volver a ingresar.')
   }
   function actualizarEmpresa(cambios) {
     setEmpresa(current => (current ? { ...current, ...cambios } : current))
