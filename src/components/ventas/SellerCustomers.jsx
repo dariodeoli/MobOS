@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { Button, Input, Modal, Select, Badge } from '@/components/ui'
+import { Button, Input, Modal, MoneyInput, Select, Badge } from '@/components/ui'
 import { gs } from '@/utils/calculos'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField from '@/components/shared/PhoneField'
@@ -229,7 +229,7 @@ export default function SellerCustomers() {
         {rucResult && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fono/25 bg-fono/5 p-3 text-sm"><span><b>{rucResult.name}</b><br /><span className="text-mute">RUC {rucResult.fullRuc}</span></span><button type="button" className="font-semibold text-fono-light" onClick={() => { setForm({ ...form, name: rucResult.name, document: rucResult.fullRuc || form.document }); setRucResult(null) }}>Usar estos datos</button></div>}
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block space-y-2"><span>Precio</span><select className="min-h-11 w-full rounded-xl border border-ink-500 bg-ink-800 px-3 text-sm" value={form.pricingTier} onChange={(event) => setForm({ ...form, pricingTier: event.target.value })}><option value="RETAIL">Minorista</option><option value="WHOLESALE">Mayorista</option></select></label>
-          <label className="block space-y-2"><span>Límite de crédito (Gs)</span><Input inputMode="numeric" disabled={saving} value={form.creditLimitPyg} onChange={(event) => setForm({ ...form, creditLimitPyg: event.target.value.replace(/\D/g, '') })} placeholder="0 = sin crédito" /></label>
+          <label className="block space-y-2"><span>Límite de crédito (Gs)</span><MoneyInput disabled={saving} value={form.creditLimitPyg} onValueChange={(value) => setForm({ ...form, creditLimitPyg: value })} placeholder="0 = sin crédito" /></label>
           <label className="block space-y-2"><span>Plazo de crédito (días)</span><Input inputMode="numeric" disabled={saving} value={form.creditDays} onChange={(event) => setForm({ ...form, creditDays: event.target.value.replace(/\D/g, '') })} placeholder="Ej. 30" /></label>
         </div>
         {rucError && <p role="alert" className="text-sm text-red-300">{rucError}</p>}

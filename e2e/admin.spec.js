@@ -85,7 +85,7 @@ test.describe('owner panel', () => {
     await expect(pais).toHaveValue('+55')
 
     const telefono = alta.getByPlaceholder('0981 123 456')
-    await telefono.fill('0981-123-456')
+    await telefono.fill('0981123456')
     await expect(telefono).toHaveValue('0981123456')
 
     const limite = alta.locator('label', { hasText: 'Límite de crédito (Gs)' }).locator('input')
