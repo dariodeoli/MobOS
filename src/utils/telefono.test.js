@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { normalizarTelefono, telefonoValido } from './telefono.js'
+import { codigoPais, normalizarTelefono, soloDigitos, telefonoValido } from './telefono.js'
 
 test('acepta móviles paraguayos en formatos comunes', () => {
   assert.equal(telefonoValido('0981 123 456'), true)
@@ -25,4 +25,19 @@ test('otros países exigen entre 6 y 12 dígitos', () => {
 
 test('normaliza espacios, guiones y paréntesis', () => {
   assert.equal(normalizarTelefono('+595 (971) 234-567'), '+595971234567')
+})
+
+test('soloDigitos limpia letras, espacios y símbolos', () => {
+  assert.equal(soloDigitos('0981 123-456'), '0981123456')
+  assert.equal(soloDigitos('abc123def'), '123')
+  assert.equal(soloDigitos('+595 981 123 456', 9), '595981123')
+  assert.equal(soloDigitos(null), '')
+})
+
+test('codigoPais conserva el + y limita a 4 dígitos', () => {
+  assert.equal(codigoPais('595'), '+595')
+  assert.equal(codigoPais('+55'), '+55')
+  assert.equal(codigoPais('55 11'), '+5511')
+  assert.equal(codigoPais('59512345'), '+5951')
+  assert.equal(codigoPais('abc'), '')
 })
