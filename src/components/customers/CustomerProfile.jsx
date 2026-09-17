@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
+import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { whatsappUrl } from './customerMessaging'
 import Icon from '@/components/shared/Icon'
@@ -88,6 +89,11 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [error, setError] = useState('')
   const [profile, setProfile] = useState(null)
   const [tab, setTab] = useState('compras')
+  const { esDemo } = useSesion()
+  const [solicitud, setSolicitud] = useState(null)
+  const [solicitudDias, setSolicitudDias] = useState('')
+  const [solicitudLimite, setSolicitudLimite] = useState('')
+  const [solicitudBusy, setSolicitudBusy] = useState(false)
   const [notaInterna, setNotaInterna] = useState('')
   const [notaPublica, setNotaPublica] = useState('')
   const [guardandoNotas, setGuardandoNotas] = useState(false)
@@ -99,6 +105,20 @@ export default function CustomerProfile({ customer, open, onClose }) {
     setNotaInterna(profile?.customer?.notes || customer?.notes || '')
     setNotaPublica(profile?.customer?.publicNote || customer?.publicNote || '')
   }, [profile?.customer?.notes, profile?.customer?.publicNote, customer?.notes, customer?.publicNote])
+
+  async function pedirCambio() {
+    if (!solicitud || solicitudBusy || !customer?.id) return
+    setSolicitudBusy(true)
+    try {
+      await api.post('/api/customer-requests', {
+        customerId: customer.id,
+        type: solicitud,
+        ...(solicitud === 'CREDIT' ? { creditDays: solicitudDias, creditLimitPyg: solicitudLimite } : {}),
+      })
+      toast.success('Solicitud enviada: queda pendiente de aprobación.')
+      setSolicitud(null); setSolicitudDias(''); setSolicitudLimite('')
+    } catch (cause) { toast.error(cause?.message || 'No se pudo enviar la solicitud.') } finally { setSolicitudBusy(false) }
+  }
 
   async function guardarNotas() {
     if (guardandoNotas || !customer?.id) return
@@ -160,6 +180,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const warranties = profile?.warranties || []
   const notes = profile?.notes || []
   const followUps = profile?.followUps || []
+  const mayorista = (profile?.customer?.pricingTier || customer?.pricingTier) === 'WHOLESALE'
+  const clienteCredito = profile?.customer?.creditLimitPyg ?? customer?.creditLimitPyg ?? 0
+  const clientePlazo = profile?.customer?.creditDays ?? customer?.creditDays ?? 0
   const ultimaCompra = orders.reduce((max, order) => (order.createdAt && (!max || order.createdAt > max) ? order.createdAt : max), null)
   const clienteDesde = profile?.customer?.createdAt || customer?.createdAt || null
   const totalComprado = orders.reduce((sum, order) => sum + Number(order.totalPyg || 0), 0)
@@ -341,6 +364,23 @@ export default function CustomerProfile({ customer, open, onClose }) {
               <p className="mt-1 text-sm font-semibold text-fore">{clienteDesde ? fecha(clienteDesde) : '—'}</p>
             </div>
           </div>
+
+          {!esDemo && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 p-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Configuración comercial</p>
+                <p className="mt-1 text-sm">
+                  {mayorista ? 'Mayorista' : 'Cliente final'}
+                  {Number(clienteCredito || 0) > 0 ? ` · crédito ${formatGs(Number(clienteCredito))}` : ' · sin crédito'}
+                  {clientePlazo ? ` · ${clientePlazo} días` : ''}
+                </p>
+              </div>
+              <span className="flex flex-wrap gap-2">
+                {!mayorista && <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('WHOLESALE')}>Solicitar mayorista</Button>}
+                {!(Number(clienteCredito || 0) > 0) && <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('CREDIT')}>Solicitar crédito</Button>}
+              </span>
+            </div>
+          )}
 
           <div className="flex gap-2 overflow-x-auto" role="tablist">
             {TABS.map((item) => (
@@ -552,6 +592,31 @@ export default function CustomerProfile({ customer, open, onClose }) {
           )}
         </div>
       )}
+
+      <Modal open={Boolean(solicitud)} onClose={() => setSolicitud(null)} title={solicitud === 'WHOLESALE' ? 'Solicitar pasar a mayorista' : 'Solicitar crédito'} className="max-w-md">
+        <div className="space-y-3">
+          <p className="text-sm text-mute">
+            {solicitud === 'WHOLESALE'
+              ? 'Se pedirá a administración que este cliente pase a lista de precios mayorista.'
+              : 'Se pedirá a administración que habilite crédito para este cliente.'}
+            La solicitud queda pendiente de aprobación.
+          </p>
+          {solicitud === 'CREDIT' && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField label="Días de plazo" hint="Por ejemplo 30">
+                <Input inputMode="numeric" value={solicitudDias} onChange={event => setSolicitudDias(event.target.value.replace(/\D/g, '').slice(0, 3))} autoCapitalize="none" />
+              </FormField>
+              <FormField label="Límite (Gs)" hint="Monto máximo a deber">
+                <Input inputMode="numeric" value={solicitudLimite} onChange={event => setSolicitudLimite(event.target.value.replace(/\D/g, '').slice(0, 10))} autoCapitalize="none" />
+              </FormField>
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setSolicitud(null)}>Cancelar</Button>
+            <Button type="button" disabled={solicitudBusy} onClick={pedirCambio}>{solicitudBusy ? 'Enviando…' : 'Enviar solicitud'}</Button>
+          </div>
+        </div>
+      </Modal>
 
       <ConfirmDialog
         open={pendingDelete?.type === 'note'}
