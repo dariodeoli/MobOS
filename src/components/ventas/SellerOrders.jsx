@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
+import { api } from '@/lib/api/client'
 import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
@@ -220,8 +221,23 @@ export default function SellerOrders() {
   }, [todas, filtro, query, orden])
 
   // El detalle sale de la fila cargada; si se entra por URL directa (recarga,
-  // enlace compartido) el drawer resuelve el pedido por su id contra la API.
-  const seleccion = useMemo(() => (orderId ? rows.find((row) => row.id === orderId) || { id: orderId } : null), [orderId, rows])
+  // enlace compartido) o el pedido quedó fuera de la página, se resuelve por
+  // su id contra la API. Si no existe, se vuelve al listado.
+  const seleccion = useMemo(() => (orderId ? rows.find((row) => row.id === orderId) || null : null), [orderId, rows])
+  const [pedidoDirecto, setPedidoDirecto] = useState(null)
+  useEffect(() => {
+    if (!orderId || seleccion) { setPedidoDirecto(null); return undefined }
+    let activo = true
+    api.get(`/api/orders/${encodeURIComponent(orderId)}`)
+      .then((row) => { if (activo) setPedidoDirecto(orderFields(row)) })
+      .catch(() => { if (activo) { setPedidoDirecto(null); navigate('/pos/pedidos', { replace: true }) } })
+    return () => { activo = false }
+  }, [orderId, seleccion, navigate])
+  const recargarDirecto = async () => {
+    if (!orderId) return
+    try { setPedidoDirecto(orderFields(await api.get(`/api/orders/${encodeURIComponent(orderId)}`))) } catch { /* el listado ya se refrescó */ }
+  }
+  const detalleAbierto = seleccion || pedidoDirecto
   const abrirPedido = (row) => navigate(`/pos/pedidos/${encodeURIComponent(row.id)}`)
   const cerrarPedido = () => navigate('/pos/pedidos')
 
@@ -258,6 +274,6 @@ export default function SellerOrders() {
       </div>
     )}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más pedidos'}</button></div>}
-    {seleccion && <PedidoDetalle key={seleccion.id} row={seleccion} esDemo={esDemo} customerOrderCount={seleccion.customerId ? porCliente[seleccion.customerId] || 0 : 0} onClose={cerrarPedido} onChanged={data.refresh} />}
+    {detalleAbierto && <PedidoDetalle key={detalleAbierto.id} row={detalleAbierto} esDemo={esDemo} customerOrderCount={detalleAbierto.customerId ? porCliente[detalleAbierto.customerId] || 0 : 0} onClose={cerrarPedido} onChanged={() => { data.refresh(); recargarDirecto() }} />}
   </SellerSection>
 }
