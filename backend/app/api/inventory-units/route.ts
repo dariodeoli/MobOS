@@ -70,8 +70,8 @@ export async function GET(request: Request) {
       : {}
   const units = await prisma.inventoryUnit.findMany({
     where: { tenantId: tenant, ...removalFilter, ...(branchId ? { branchId } : session.user.branchId ? { branchId: session.user.branchId } : {}), ...(query ? { OR: [{ serial: { contains: query, mode: 'insensitive' } }, { product: { sku: { contains: query, mode: 'insensitive' } } }, { product: { name: { contains: raw, mode: 'insensitive' } } }] } : {}) },
-    include: { product: { select: { id: true, name: true, sku: true, pricePyg: true } }, branch: { select: { id: true, name: true } }, location: { select: { id: true, name: true, code: true } }, lastVerifiedBy: { select: { id: true, name: true } } },
-    orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }], take: 500,
+    include: { product: { select: { id: true, name: true, sku: true, pricePyg: true } }, branch: { select: { id: true, name: true } }, location: { select: { id: true, name: true, code: true } }, lastVerifiedBy: { select: { id: true, name: true } }, ...(['ADMIN', 'GERENTE'].includes(session.user.role) ? { supplier: { select: { id: true, name: true, code: true } } } : {}) },
+    orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }], take: Math.min(500, Math.max(1, Number(params.get('limit')) || 500)), ...(params.get('cursor') ? { cursor: { id: params.get('cursor') as string }, skip: 1 } : {}),
   })
   return json(units)
 }
@@ -102,9 +102,16 @@ export async function POST(request: Request) {
       if (existing.length) throw new Error(`Ya existen: ${existing.map(item => item.serial).join(', ')}.`)
       if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId, isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
       const data = unitData(body)
+      // Proveedor estructurado: por id o resolviendo la abreviatura/nombre.
+      let supplierId = body.supplierId === undefined || body.supplierId === '' || body.supplierId === null ? null : text(body.supplierId, 128)
+      if (supplierId && !(await tx.supplier.findFirst({ where: { id: supplierId, tenantId: tenant }, select: { id: true } }))) throw new Error('Proveedor no encontrado.')
+      if (!supplierId && typeof body.supplierName === 'string' && body.supplierName.trim()) {
+        const byName = await tx.supplier.findFirst({ where: { tenantId: tenant, OR: [{ code: body.supplierName.trim() }, { name: body.supplierName.trim() }] }, select: { id: true } })
+        supplierId = byName?.id ?? null
+      }
       const units = []
       for (const serial of serials) {
-        units.push(await tx.inventoryUnit.create({ data: { tenantId: tenant, productId, branchId, locationId, serial, condition: product.condition, ...data } }))
+        units.push(await tx.inventoryUnit.create({ data: { tenantId: tenant, productId, branchId, locationId, serial, condition: product.condition, supplierId, ...data } }))
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_RECEIVED', entity: 'InventoryUnit', entityId: units[units.length - 1].id, metadata: { serial, productId, branchId, locationId } } })
       }
       await changeStock(tx, { tenantId: tenant, productId, delta: units.length })

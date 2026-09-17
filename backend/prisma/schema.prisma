@@ -403,6 +403,8 @@ model InventoryUnit {
   locationId          String?
   location            StockLocation?      @relation(fields: [locationId], references: [id], onDelete: SetNull)
   serial              String
+  supplierId          String?
+  supplier            Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   comments            InventoryUnitComment[]
   // Un único modelo puede tener unidades nuevas o seminuevas con historial propio.
   // Esto evita crear un producto distinto por cada IMEI.
@@ -434,6 +436,7 @@ model InventoryUnit {
   @@index([tenantId, status, reservedUntil])
   @@index([tenantId, branchId, locationId, status])
   @@index([tenantId, branchId, lastVerifiedAt])
+  @@index([tenantId, supplierId])
 }
 
 // Ubicación física dentro de una sucursal: piso de venta, depósito, vitrina,
@@ -1236,6 +1239,7 @@ model Supplier {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   purchases    PurchaseOrder[]
+  inventoryUnits InventoryUnit[]
 
   @@unique([tenantId, name])
   @@index([tenantId, isActive, name])

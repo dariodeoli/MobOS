@@ -7,7 +7,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const API = 'http://localhost:3001'
+const API = process.env.MOBOS_E2E_API_URL || `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
 function seedToken() {
   const data = JSON.parse(readFileSync(path.join(__dirname, '.auth', 'seed-order.json'), 'utf8'))

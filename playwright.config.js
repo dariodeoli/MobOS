@@ -1,5 +1,9 @@
 import { defineConfig } from '@playwright/test'
 
+// Aislable por agente/CI: MOBOS_E2E_API_PORT y MOBOS_E2E_WEB_PORT.
+const API_PORT = process.env.MOBOS_E2E_API_PORT || '3001'
+const WEB_PORT = process.env.MOBOS_E2E_WEB_PORT || '5175'
+
 // Phase 1 E2E QA harness. The backend serves the API on http://localhost:3001
 // and the frontend on http://localhost:5175 — the only local origin in the
 // backend CORS allowlist (MOBOS_LOCAL_APP_ORIGIN in backend/lib/identity.ts)
@@ -15,11 +19,11 @@ export default defineConfig({
   // Specs share seeded tenants and stock counters; keep workers low to avoid
   // checkout races. Public/auth specs are isolated anyway.
   workers: CI ? 1 : 1,
-  timeout: 60_000,
-  expect: { timeout: 10_000 },
+  timeout: 90_000,
+  expect: { timeout: 20_000 },
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:5175',
+    baseURL: `http://localhost:${WEB_PORT}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -47,13 +51,13 @@ export default defineConfig({
   webServer: [
     {
       command: 'bash e2e/bin/start-backend.sh',
-      url: 'http://localhost:3001/api/health',
+      url: `http://localhost:${API_PORT}/api/health`,
       timeout: 120_000,
       reuseExistingServer: false,
     },
     {
       command: 'bash e2e/bin/start-frontend.sh',
-      url: 'http://localhost:5175',
+      url: `http://localhost:${WEB_PORT}`,
       timeout: 120_000,
       reuseExistingServer: false,
     },

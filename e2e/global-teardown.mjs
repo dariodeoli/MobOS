@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process'
 
 export default async function globalTeardown() {
   try {
-    execFileSync('/opt/homebrew/bin/pg_ctl', ['-D', '/tmp/mobos-e2e-pg', '-m', 'fast', '-w', 'stop'], { stdio: 'ignore' })
+    execFileSync('/opt/homebrew/bin/pg_ctl', ['-D', process.env.MOBOS_E2E_PGDATA || '/tmp/mobos-e2e-pg', '-m', 'fast', '-w', 'stop'], { stdio: 'ignore' })
     console.log('[e2e] PostgreSQL cluster stopped.')
   } catch {
     console.log('[e2e] PostgreSQL cluster was not running; nothing to stop.')

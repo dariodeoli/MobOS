@@ -54,7 +54,10 @@ export async function GET(request: Request) {
     : session.user.role === 'CAJERA'
       ? { tenantId: tenant, branchId: session.user.branchId }
       : { tenantId: tenant }
-  return json(await prisma.order.findMany({ where, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: 100 }))
+  const params = new URL(request.url).searchParams
+  const limit = Math.min(500, Math.max(1, Number(params.get('limit')) || 100))
+  const cursor = params.get('cursor')
+  return json(await prisma.order.findMany({ where, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } }, orderBy: { createdAt: 'desc' }, take: limit, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}) }))
 }
 
 export async function POST(request: Request) {

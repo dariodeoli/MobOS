@@ -41,7 +41,8 @@ export async function GET(request: Request) {
     where: { ...scopeWhere(session, tenant), ...(status && STATUSES.includes(status) ? { status: status as never } : {}) },
     include: { seller: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true } }, order: { select: { id: true, orderNumber: true } } },
     orderBy: { createdAt: 'desc' },
-    take: 200,
+    take: Math.min(500, Math.max(1, Number(new URL(request.url).searchParams.get('limit')) || 200)),
+    ...(new URL(request.url).searchParams.get('cursor') ? { cursor: { id: String(new URL(request.url).searchParams.get('cursor')) }, skip: 1 } : {}),
   })
   return json(quotes)
 }

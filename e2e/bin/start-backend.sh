@@ -11,9 +11,12 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BACKEND_ROOT="$REPO_ROOT/backend"
 PG_BIN="/opt/homebrew/bin"
-PGDATA="/tmp/mobos-e2e-pg"
-PGPORT="5439"
-DB_NAME="mobos_e2e"
+# Aislable por agente/CI: cada valor puede venir por variable de entorno.
+PGDATA="${MOBOS_E2E_PGDATA:-/tmp/mobos-e2e-pg}"
+PGPORT="${MOBOS_E2E_PGPORT:-5439}"
+DB_NAME="${MOBOS_E2E_DB:-mobos_e2e}"
+API_PORT="${MOBOS_E2E_API_PORT:-3001}"
+WEB_PORT="${MOBOS_E2E_WEB_PORT:-5175}"
 DATABASE_URL="postgresql://postgres@127.0.0.1:${PGPORT}/${DB_NAME}"
 
 for binary in initdb pg_ctl createdb; do
@@ -75,8 +78,8 @@ echo "[e2e] Applying Prisma migrations…"
 (cd "$BACKEND_ROOT" && DATABASE_URL="$DATABASE_URL" npx prisma migrate deploy --schema prisma/schema.prisma)
 
 # ── Next.js dev server on 3001 ────────────────────────────────────────────
-echo "[e2e] Starting backend (Next.js) on port 3001…"
+echo "[e2e] Starting backend (Next.js) on port ${API_PORT}…"
 cd "$BACKEND_ROOT"
 export DATABASE_URL
-export MOBOS_APP_URL="http://localhost:5175"
-exec npm run dev
+export MOBOS_APP_URL="http://localhost:$WEB_PORT"
+exec ./node_modules/.bin/next dev -p "$API_PORT"
