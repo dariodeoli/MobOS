@@ -333,6 +333,7 @@ enum UserRole {
   GERENTE
   VENDEDOR
   CAJERA
+  TECNICO
 }
 
 enum UserStatus {

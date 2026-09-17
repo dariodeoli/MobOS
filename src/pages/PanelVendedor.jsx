@@ -98,6 +98,16 @@ const OWNER_NAV = [
   },
 ]
 
+// Taller: el técnico entra directo a las órdenes de servicio.
+const TECNICO_NAV = [
+  {
+    titulo: 'Taller',
+    items: [
+      ['servicio', 'Servicio Técnico', 'refresh'],
+    ],
+  },
+]
+
 // Accesos directos de la barra inferior en móvil/tablet.
 const SELLER_BOTTOM = [
   ['cargar', 'Vender', 'receipt'],
@@ -196,6 +206,7 @@ export default function PanelVendedor() {
   const navigate = useNavigate()
   const { vista: routeVista } = useParams()
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
+  const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
   const [vista, setVista] = useState(routeVista || 'cargar')
   const [tradeIn, setTradeIn] = useState(null)
   const [analisisTab, setAnalisisTab] = useState('reportes')
@@ -222,8 +233,8 @@ export default function PanelVendedor() {
   const toast = useToast()
 
   const accesibles = useMemo(
-    () => (esOwner ? OWNER_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id),
-    [esOwner],
+    () => (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id),
+    [esOwner, esTecnico],
   )
 
   // Si la URL apunta a una vista fuera del alcance del rol (ej. un vendedor en
@@ -424,8 +435,8 @@ export default function PanelVendedor() {
     <>
       <AppShell
         title={LABELS[vista]}
-        nav={esOwner ? OWNER_NAV : SELLER_NAV}
-        bottomNav={esOwner ? OWNER_BOTTOM : SELLER_BOTTOM}
+        nav={esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV}
+        bottomNav={esOwner ? OWNER_BOTTOM : esTecnico ? [] : SELLER_BOTTOM}
         onOpenMenuLabel="Menú"
         active={vista}
         onNavigate={ir}
@@ -537,7 +548,7 @@ export default function PanelVendedor() {
           {esOwner && vista === 'inventario' && <Inventario />}
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
-          {esOwner && vista === 'servicio' && <ServicioTecnico />}
+          {(esOwner || esTecnico) && vista === 'servicio' && <ServicioTecnico />}
           {esOwner && vista === 'resumen' && <ResumenControl />}
           {esOwner && vista === 'analisis' && (
             <div>
