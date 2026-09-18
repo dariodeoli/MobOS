@@ -654,6 +654,7 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
     ['Resultado TCP', diagnostico.alcance ? 'responde ✓' : 'no responde ✗'],
     ...(cupsDisponible ? [['Cola CUPS', `disponible (${diagnostico.cups})`]] : []),
     ...(diagnostico.transporte ? [['Transporte', diagnostico.transporte === 'directo' ? 'directo (TCP)' : diagnostico.transporte === 'cups' ? `respaldo CUPS (${diagnostico.cups || 'MobOS_LAN'})` : 'sin transporte']] : []),
+    ...(diagnostico.alcance ? [] : [['Error TCP', diagnostico.error || 'EHOSTUNREACH sin detalle']]),
   ]
   return (
     <div className="mt-1 space-y-2 text-xs">
@@ -675,7 +676,14 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
           <p className="text-mute">Agrega {host.split('.').slice(0, 3).join('.')}.100 sin tocar el DHCP ni el internet, y es reversible con <code className="rounded bg-ink-700 px-1">red-mac.sh quitar</code>.</p>
         </div>
       )}
-      {metodo === 'LAN' && !diagnostico.alcance && (mismaRed || aliasPresente) && (
+      {metodo === 'LAN' && !diagnostico.alcance && aliasPresente && (
+        <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
+          <p className="font-semibold text-warn">El agente automático no puede salir a la red (permiso de macOS).</p>
+          <p className="text-mute">La IP secundaria está presente y Terminal sí conecta, pero el proceso de launchd no: macOS bloquea la Red Local para ese proceso. En el puente: <b className="text-fore">Ajustes → Privacidad y seguridad → Red local</b> → habilitá <b className="text-fore">node</b> (o reinstalá con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code>, que abre el panel).</p>
+          <p className="text-mute">{cupsDisponible ? `Mientras tanto, la cola CUPS ${diagnostico.cups} queda como respaldo automático.` : `Si CUPS no se puede crear, corré: sudo lpadmin -p MOBOS_LAN -E -v socket://${host}:${puerto} -m raw`}</p>
+        </div>
+      )}
+      {metodo === 'LAN' && !diagnostico.alcance && !aliasPresente && mismaRed && (
         <p className="text-bad">El TCP directo no responde ({cupsDisponible ? `la cola CUPS ${diagnostico.cups} queda como respaldo` : 'revisá que esté encendida, el cable LAN y el puerto'}). Revisá que la impresora esté encendida, el cable LAN y el puerto {puerto} siga abierto.</p>
       )}
     </div>

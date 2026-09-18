@@ -4,7 +4,7 @@ import { hostname } from 'node:os'
 import { promisify } from 'node:util'
 import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config.mjs'
 import { crearCola } from './cola.mjs'
-import { aliasSecundario, colaLanDeCups, crearColaLan, diagnosticoRed, enviar, impresorasUsb, probarConexion } from './transportes.mjs'
+import { aliasSecundario, colaLanDeCups, crearColaLan, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle } from './transportes.mjs'
 
 const VERSION = '1.1.0'
 const config = cargarConfig()
@@ -48,6 +48,30 @@ async function impresoraResponde() {
   const ok = config.impresora ? await probarConexion(config.impresora, { alias: config.alias }) : false
   cacheAlcance = { hasta: Date.now() + 3000, ok }
   return ok
+}
+
+// Autotest desde el MISMO proceso que corre por launchd: es la única prueba
+// que refleja lo que ve el agente automático (Terminal puede tener otra ruta o
+// permiso de Red Local). Se guarda el error real (errno) y si el respaldo CUPS
+// está disponible.
+let autotest = { at: null, ok: null, error: '', errno: '', cups: '', transporte: 'ninguno' }
+async function ejecutarAutotest() {
+  const cups = await colaLanDeCups(config.lanCups || 'MobOS_LAN')
+  if (!config.impresora) {
+    autotest = { at: new Date().toISOString(), ok: false, error: 'No hay impresora configurada.', errno: '', cups, transporte: 'ninguno' }
+    return autotest
+  }
+  const detalle = await probarConexionDetalle(config.impresora, { alias: config.alias })
+  autotest = {
+    at: new Date().toISOString(),
+    ok: detalle.ok,
+    error: detalle.error || '',
+    errno: detalle.errno || '',
+    origen: detalle.origen || '',
+    cups,
+    transporte: detalle.ok ? 'directo' : (cups ? 'cups' : 'ninguno'),
+  }
+  return autotest
 }
 
 const responder = (response, datos, status = 200) => {
@@ -146,6 +170,7 @@ const servidor = createServer(async (request, response) => {
           alias: await aliasSecundario(config.alias),
           transporte: (await impresoraResponde()) ? 'directo' : ((await colaLanDeCups(config.lanCups || 'MobOS_LAN')) ? 'cups' : 'ninguno'),
           ultimoTransporte,
+          autotest,
         },
         cola: cola.resumen(),
         cliente: ipDe(request),
@@ -176,7 +201,8 @@ const servidor = createServer(async (request, response) => {
     if (request.method === 'POST' && url.pathname === '/red/agregar') {
       if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
       const resultado = await repararRed()
-      return responder(response, { ok: true, ...resultado })
+      await ejecutarAutotest()
+      return responder(response, { ok: true, ...resultado, autotest })
     }
 
     if (request.method === 'POST' && url.pathname === '/jobs/retry') {
@@ -249,6 +275,8 @@ const servidor = createServer(async (request, response) => {
     return responder(response, { ok: false, error: error?.message || 'Error del agente.' }, 400)
   }
 })
+
+ejecutarAutotest().then((resultado) => console.log(`[autotest] ${resultado.ok ? 'TCP OK' : `falla: ${resultado.error || 'sin detalle'}`}${resultado.cups ? ` · CUPS ${resultado.cups}` : ' · sin CUPS'}`))
 
 // Cada 90 segundos: si la IP secundaria se perdió (reinicio o cambio de red),
 // se intenta recrearla en silencio (necesita el permiso del instalador).

@@ -100,22 +100,30 @@ rm -f "$SUDOERS_TMP"
 COMANDO_CUPS="sudo lpadmin -p MobOS_LAN -E -v socket://$IMPRESORA:$PUERTO -m raw"
 if ! lpstat -p 2>/dev/null | grep -q "printer MobOS_LAN"; then
   echo "Creando la cola de red MobOS_LAN (socket://$IMPRESORA:$PUERTO)…"
-  echo "  Puede pedirte la contraseña de administrador:"
-  if sudo lpadmin -p MobOS_LAN -E -v "socket://$IMPRESORA:$PUERTO" -m raw; then
+  if sudo lpadmin -p MobOS_LAN -E -v "socket://$IMPRESORA:$PUERTO" -m raw 2>/dev/null; then
     echo "  Cola CUPS lista: MobOS_LAN → socket://$IMPRESORA:$PUERTO"
+  elif osascript -e "do shell script \"lpadmin -p MobOS_LAN -E -v socket://$IMPRESORA:$PUERTO -m raw\" with administrator privileges" >/dev/null 2>&1; then
+    echo "  Cola CUPS lista (prompt de administrador): MobOS_LAN → socket://$IMPRESORA:$PUERTO"
   else
     echo
-    echo "  ⚠ No se pudo crear la cola CUPS (falta permiso de administrador)."
-    echo "  Copiá y ejecutá este comando exacto en la Terminal del puente:"
+    echo "  ⚠ No se pudo crear la cola CUPS."
+    echo "  Copiá y ejecutá este comando EXACTO en la Terminal del puente:"
     echo
     echo "      $COMANDO_CUPS"
     echo
-    echo "  Después verificá que exista:  lpstat -p | grep MobOS_LAN"
-    echo "  Con la cola creada, la app la usa como respaldo automático ante EHOSTUNREACH."
+    echo "  Después verificá:  lpstat -p | grep MobOS_LAN"
   fi
 else
   echo "Cola de red MobOS_LAN ya existe."
 fi
+
+# Permiso de Red Local: launchd puede ser bloqueado por macOS aunque Terminal
+# salga bien. Se abre el panel exacto y se deja la guía.
+echo
+echo "Permiso de Red Local (necesario si el agente automático da EHOSTUNREACH):"
+echo "  Se abre Ajustes → Privacidad y seguridad → Red local."
+echo "  Habilitá 'node' (o Terminal/la app desde la que instalaste) y volvé a probar."
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork" 2>/dev/null || true
 
 echo
 echo "Agente corriendo en http://127.0.0.1:17890"

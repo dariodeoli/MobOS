@@ -111,24 +111,26 @@ export async function enviar(destino, bytes, { lanCups = 'MobOS_LAN', alias = ''
 
 // Prueba de alcance: intenta abrir el socket sin enviar nada. Sirve para
 // avisar en la app si la impresora no está en la misma red.
-export async function probarConexion(destino, { timeoutMs = 1500, alias = '' } = {}) {
+export function probarConexionDetalle(destino, { timeoutMs = 1500, alias = '' } = {}) {
   const valor = String(destino || '').trim()
-  if (!valor) return false
+  if (!valor) return Promise.resolve({ ok: false, error: 'Sin destino.' })
   if (valor.startsWith('usb:')) {
-    // La cola USB se verifica contra CUPS: si no existe, no está lista.
     const cola = valor.slice(4)
-    const colas = await impresorasUsb()
-    return colas.includes(cola)
+    return impresorasUsb().then((colas) => colas.includes(cola) ? { ok: true } : { ok: false, error: `La cola ${cola} no existe en CUPS.` })
   }
   const [host, puerto] = valor.replace(/^lan:/, '').split(':')
   const localAddress = origenPara(host, alias)
   return new Promise((resolve) => {
     const socket = connect({ host, port: Number(puerto) || 9100, ...(localAddress ? { localAddress } : {}) })
-    const fin = (ok) => { socket.destroy(); resolve(ok) }
-    socket.setTimeout(timeoutMs, () => fin(false))
-    socket.on('error', () => fin(false))
+    const fin = (ok, error = '') => { socket.destroy(); resolve({ ok, error, errno: error?.code || '', origen: localAddress || '' }) }
+    socket.setTimeout(timeoutMs, () => fin(false, `Sin respuesta de ${host}:${puerto} en ${timeoutMs} ms.`))
+    socket.on('error', (error) => fin(false, `${error?.code || 'ERROR'} ${host}:${puerto}`))
     socket.on('connect', () => fin(true))
   })
+}
+
+export async function probarConexion(destino, opciones = {}) {
+  return (await probarConexionDetalle(destino, opciones)).ok
 }
 
 // IP secundaria del puente (red de la impresora). Se agrega con red-mac.sh y
@@ -164,7 +166,10 @@ export async function diagnosticoRed(destino, { alias = '192.168.1.100', cups = 
     } catch (error) {
       info.ruta = String(error?.stderr || error?.message || '').trim().split('\n')[0] || 'sin ruta'
     }
-    info.alcance = await probarConexion(valor, { alias })
+    const detalle = await probarConexionDetalle(valor, { alias })
+    info.alcance = detalle.ok
+    info.error = detalle.ok ? '' : (detalle.error || '')
+    info.errno = detalle.errno || ''
     if (info.alias?.presente && info.host && mismaSubred(info.host, info.alias.ip)) info.origen = info.alias.ip
   }
   info.tcpReal = info.alcance
