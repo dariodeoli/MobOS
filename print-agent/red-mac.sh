@@ -4,6 +4,7 @@
 #
 #   bash red-mac.sh estado      # interfaz, IPs, alias, alcance e internet
 #   bash red-mac.sh agregar     # agrega 192.168.1.100/24 a la interfaz activa (pide sudo)
+#   bash red-mac.sh auto        # la recrea en silencio (sudo -n: sin prompt; la usa el agente)
 #   bash red-mac.sh quitar      # la saca (reversible)
 #
 # Variables opcionales: MOBOS_PRINT_IMPRESORA, MOBOS_PRINT_ALIAS, MOBOS_PRINT_MASCARA,
@@ -55,6 +56,19 @@ case "${1:-estado}" in
   estado)
     estado
     ;;
+  auto)
+    i="$(iface)"
+    if [[ -z "$i" ]]; then exit 0; fi
+    if alias_presente; then
+      echo "alias presente"
+      exit 0
+    fi
+    if sudo -n ifconfig "$i" alias "$ALIAS" netmask "$MASCARA" >/dev/null 2>&1; then
+      echo "alias recreado en $i"
+    else
+      echo "sin permiso sudo -n: corré «bash red-mac.sh agregar» a mano"
+    fi
+    ;;
   agregar)
     i="$(iface)"
     if [[ -z "$i" ]]; then echo "No pude detectar la interfaz; pasá MOBOS_PRINT_IFACE=en0" >&2; exit 1; fi
@@ -84,7 +98,7 @@ case "${1:-estado}" in
     estado
     ;;
   *)
-    echo "Uso: bash red-mac.sh [estado|agregar|quitar]" >&2
+    echo "Uso: bash red-mac.sh [estado|agregar|auto|quitar]" >&2
     exit 1
     ;;
 esac

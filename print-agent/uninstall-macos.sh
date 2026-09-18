@@ -12,6 +12,16 @@ echo "Deteniendo el servicio…"
 launchctl unload "$PLIST" >/dev/null 2>&1 || true
 rm -f "$PLIST"
 
+# Saca el permiso sudoers de la IP secundaria si quedó instalado.
+if [[ -f /etc/sudoers.d/mobos-print ]]; then
+  echo "Quitando el permiso de red automática (pide contraseña)…"
+  sudo rm -f /etc/sudoers.d/mobos-print 2>/dev/null || true
+fi
+# Saca la cola CUPS de red si existe.
+if lpstat -p 2>/dev/null | grep -q "printer MobOS_LAN"; then
+  sudo lpadmin -x MobOS_LAN 2>/dev/null || true
+fi
+
 # Quita la IP secundaria si todavía existe el script de red (acá o en el destino).
 RED_MAC=""
 if [[ -f "$DESTINO/red-mac.sh" ]]; then RED_MAC="$DESTINO/red-mac.sh"; fi

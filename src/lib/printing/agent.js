@@ -179,7 +179,8 @@ export const diagnosticoAgente = (destino) => consultarAgente(`/diagnostico${des
 export const colaAgente = () => consultarAgente('/jobs')
 export const historialAgente = (limite = 30) => consultarAgente(`/historial?limite=${limite}`)
 export const reintentarFallidos = () => consultarAgente('/jobs/retry', { method: 'POST' })
-export const limpiarFallidos = () => consultarAgente('/jobs/clear', { method: 'POST' })
+export const limpiarFallidos = (ids = []) => consultarAgente('/jobs/clear', { method: 'POST', body: { ids } })
+export const repararRed = () => consultarAgente('/red/agregar', { method: 'POST' })
 
 // Sincroniza el agente puente con la lista de impresoras: cuál es la
 // predeterminada y qué destinos LAN tiene permitidos.

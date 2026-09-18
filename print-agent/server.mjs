@@ -1,12 +1,14 @@
 import { createServer } from 'node:http'
+import { execFile } from 'node:child_process'
 import { hostname } from 'node:os'
+import { promisify } from 'node:util'
 import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config.mjs'
 import { crearCola } from './cola.mjs'
-import { diagnosticoRed, enviar, impresorasUsb, probarConexion } from './transportes.mjs'
+import { aliasSecundario, diagnosticoRed, enviar, impresorasUsb, probarConexion } from './transportes.mjs'
 
 const VERSION = '1.1.0'
 const config = cargarConfig()
-const cola = crearCola({ ruta: RUTA_COLA, rutaHistorial: RUTA_HISTORIAL, enviar, esperaMs: config.esperaMs, reintentos: config.reintentos, log: (mensaje) => console.log(`[cola] ${mensaje}`) })
+const cola = crearCola({ ruta: RUTA_COLA, rutaHistorial: RUTA_HISTORIAL, enviar: (destino, bytes) => enviar(destino, bytes, { lanCups: config.lanCups }), esperaMs: config.esperaMs, reintentos: config.reintentos, log: (mensaje) => console.log(`[cola] ${mensaje}`) })
 cola.reanudar()
 
 // La app vive en un dominio público y llama a este agente en 127.0.0.1: el
@@ -52,6 +54,45 @@ const tokenValido = (request) => !config.token || request.headers['x-mobos-print
 // cliente puede inventar). Sirve para saber desde qué computadora se imprimió.
 const ipDe = (request) => String(request.socket?.remoteAddress || '').replace(/^::ffff:/, '')
 
+const ejecutar = promisify(execFile)
+
+// Recrea la IP secundaria de la red de la impresora (sudo -n: sin prompt; el
+// instalador deja el permiso en /etc/sudoers.d). Después verifica el alcance.
+async function repararRed() {
+  const alias = config.alias
+  const iface = await ifaceDeRed()
+  const agregado = await (async () => {
+    if (!alias || !iface) return false
+    try {
+      const { stdout } = await ejecutar('ifconfig', [], { timeout: 5000 })
+      if (stdout.includes(`inet ${alias} `)) return true // ya estaba
+    } catch { /* sigue */ }
+    try {
+      await ejecutar('sudo', ['-n', 'ifconfig', iface, 'alias', alias, 'netmask', '255.255.255.0'], { timeout: 8000 })
+      return true
+    } catch {
+      return false
+    }
+  })()
+  cacheAlcance = { hasta: 0, ok: null }
+  return {
+    alias,
+    iface,
+    agregado,
+    permiso: !agregado ? 'Sin permiso de administrador: corré `bash print-agent/red-mac.sh agregar` en el puente.' : '',
+    impresoraOk: await impresoraResponde(),
+  }
+}
+
+async function ifaceDeRed() {
+  try {
+    const { stdout } = await ejecutar('route', ['-n', 'get', 'default'], { timeout: 5000 })
+    return (stdout.match(/interface: (\S+)/) || [])[1] || ''
+  } catch {
+    return ''
+  }
+}
+
 // Solo se permite imprimir a destinos configurados: evita que un cliente
 // autenticado use el agente como puente hacia otros equipos de la red.
 async function destinosPermitidos() {
@@ -89,6 +130,7 @@ const servidor = createServer(async (request, response) => {
         cliente: ipDe(request),
         host: config.host,
         equipo: hostname(),
+        alias: await aliasSecundario(config.alias),
       })
     }
 
@@ -106,7 +148,14 @@ const servidor = createServer(async (request, response) => {
 
     if (request.method === 'POST' && url.pathname === '/jobs/clear') {
       if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
-      return responder(response, { ok: true, limpiados: cola.limpiarFallidos() })
+      const cuerpo = await leerCuerpo(request)
+      return responder(response, { ok: true, limpiados: cola.limpiarFallidos(Array.isArray(cuerpo?.ids) ? cuerpo.ids : []) })
+    }
+
+    if (request.method === 'POST' && url.pathname === '/red/agregar') {
+      if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
+      const resultado = await repararRed()
+      return responder(response, { ok: true, ...resultado })
     }
 
     if (request.method === 'POST' && url.pathname === '/jobs/retry') {
@@ -179,6 +228,16 @@ const servidor = createServer(async (request, response) => {
     return responder(response, { ok: false, error: error?.message || 'Error del agente.' }, 400)
   }
 })
+
+// Cada 90 segundos: si la IP secundaria se perdió (reinicio o cambio de red),
+// se intenta recrearla en silencio (necesita el permiso del instalador).
+setInterval(async () => {
+  const alias = await aliasSecundario(config.alias)
+  if (!alias.presente) {
+    const reparada = await repararRed()
+    if (reparada.agregado) console.log(`[red] IP secundaria ${config.alias} recreada en ${reparada.iface}`)
+  }
+}, 90000).unref()
 
 servidor.listen(config.puerto, config.host, async () => {
   console.log(`MobOS Print ${VERSION} escuchando en http://${config.host}:${config.puerto}`)

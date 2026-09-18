@@ -3,7 +3,7 @@ import { Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Inp
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, diagnosticoAgente, enmascararToken, estadoAgente, guardarImpresoras, historialAgente, imprimirTicketDirecto, limpiarFallidos, reintentarFallidos, sincronizarAgente } from '@/lib/printing/agent'
+import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, diagnosticoAgente, enmascararToken, estadoAgente, guardarImpresoras, historialAgente, imprimirTicketDirecto, limpiarFallidos, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
 
 const fmt = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
@@ -57,6 +57,8 @@ export default function Impresoras() {
   const [eliminarId, setEliminarId] = useState(null)
   const [verColaAbierta, setVerColaAbierta] = useState(false)
   const [filtroActividad, setFiltroActividad] = useState('')
+  const [seleccionados, setSeleccionados] = useState([])
+  const [reparando, setReparando] = useState(false)
 
   const consultar = useCallback(async () => {
     setCargando(true)
@@ -264,12 +266,61 @@ export default function Impresoras() {
     consultar()
   }
 
-  async function limpiar() {
+  async function limpiar(ids = []) {
     try {
-      const resultado = await limpiarFallidos()
-      toast.success('Cola limpia', `${resultado?.limpiados || 0} trabajos fallidos quitados.`)
+      const resultado = await limpiarFallidos(ids)
+      setSeleccionados([])
+      toast.success('Cola limpia', `${resultado?.limpiados || 0} trabajo(s) fallido(s) quitado(s).`)
     } catch (cause) { toast.error('No se pudo limpiar la cola', cause?.message) }
     consultar()
+  }
+
+  async function repararConexion() {
+    if (reparando) return
+    setReparando(true)
+    try {
+      const resultado = await repararRed()
+      if (resultado.agregado) toast.success('IP secundaria lista', `${resultado.alias} en ${resultado.iface || 'la interfaz activa'}. ${resultado.impresoraOk ? 'La impresora responde.' : 'La impresora todavía no responde.'}`)
+      else toast.error('No se pudo agregar la IP secundaria', resultado.permiso || 'Revisá el permiso de administrador.')
+    } catch (cause) { toast.error('No se pudo reparar la red', cause?.message) }
+    setReparando(false)
+    consultar()
+  }
+
+  function exportarDiagnostico() {
+    const datos = {
+      generado: new Date().toISOString(),
+      agente: {
+        disponible: Boolean(estado?.disponible),
+        version: estado?.version || null,
+        equipo: estado?.equipo || null,
+        host: estado?.host || null,
+        direccion: store.agentUrl || URL_AGENTE,
+        token: enmascararToken(store.agentToken), // nunca el token completo
+      },
+      impresoras: (store.impresoras || []).map((item) => ({
+        nombre: item.nombre,
+        destino: item.destino,
+        conexion: item.conexion,
+        ancho: item.ancho,
+        copias: item.copias,
+        predeterminada: Boolean(item.predeterminada),
+        activa: item.activa,
+        ultimaPrueba: item.ultimaPrueba ? { fecha: item.ultimaPrueba.fecha, tipo: item.ultimaPrueba.tipo, resultado: item.ultimaPrueba.ok ? 'confirmado-por-tcp' : item.ultimaPrueba.encolado ? 'encolado' : 'fallido', ref: item.ultimaPrueba.ref, corte: Boolean(item.ultimaPrueba.corte) } : null,
+      })),
+      red: {
+        alias: estado?.alias || null,
+        cliente: estado?.cliente || null,
+      },
+      cola: { pendientes: estado?.cola?.pendientes ?? 0, fallidos: estado?.cola?.fallidos ?? 0 },
+      diagnostico,
+    }
+    const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' })
+    const enlace = document.createElement('a')
+    enlace.href = URL.createObjectURL(blob)
+    enlace.download = `mobos-diagnostico-impresion-${new Date().toISOString().slice(0, 10)}.json`
+    enlace.click()
+    URL.revokeObjectURL(enlace.href)
   }
 
   const sesionActiva = (s) => Date.now() - new Date(s.lastSeenAt || 0).getTime() < 15 * 60 * 1000
@@ -331,8 +382,15 @@ export default function Impresoras() {
             No se encontró el agente en <b className="text-fore">{store.agentUrl}</b>. Instalalo en la computadora puente con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code>; en las demás computadoras, apuntá la dirección del agente a la IP de esa Mac.
           </p>
         )}
+        {estado?.disponible && estado.alias && !estado.alias.presente && (
+          <p className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
+            La IP secundaria <b className="text-fore">{estado.alias.ip}</b> (red de la impresora) no está agregada: se pierde al reiniciar o cambiar de red. El agente la recrea solo al iniciar la Mac; si no, usá <b className="text-fore">Reparar conexión</b>.
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="ghost" onClick={() => diagnosticar(null)} disabled={diagnosticando || !estado?.disponible}>{diagnosticando ? 'Consultando…' : 'Diagnóstico de red'}</Button>
+          <Button type="button" variant="outline" onClick={repararConexion} disabled={reparando || !estado?.disponible}>{reparando ? 'Reparando…' : 'Reparar conexión'}</Button>
+          <Button type="button" variant="ghost" onClick={exportarDiagnostico}>Exportar diagnóstico</Button>
         </div>
         {diagnostico && (
           <div className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
@@ -507,15 +565,22 @@ export default function Impresoras() {
               )}
               {fallidos.length > 0 && (
                 <section>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-bad">Fallidos ({fallidos.length})</h4>
-                  <TablaTrabajos trabajos={fallidos} />
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-bad">Fallidos ({fallidos.length})</h4>
+                    <label className="flex items-center gap-1.5 text-xs text-mute">
+                      <input type="checkbox" className="h-3.5 w-3.5 accent-[var(--color-fono)]" checked={seleccionados.length === fallidos.length && fallidos.length > 0} onChange={(event) => setSeleccionados(event.target.checked ? fallidos.map((trabajo) => trabajo.id) : [])} />
+                      Seleccionar todos
+                    </label>
+                  </div>
+                  <TablaTrabajos trabajos={fallidos} seleccionados={seleccionados} onSeleccion={(id, marcado) => setSeleccionados((actual) => (marcado ? [...actual, id] : actual.filter((item) => item !== id)))} />
                 </section>
               )}
             </div>
           )}
           <div className="flex flex-wrap justify-end gap-2">
             {fallidos.length > 0 && <Button type="button" variant="outline" onClick={reintentar}>Reintentar fallidos</Button>}
-            {fallidos.length > 0 && <Button type="button" variant="ghost" onClick={limpiar}>Limpiar fallidos</Button>}
+            {fallidos.length > 0 && <Button type="button" variant="ghost" disabled={!seleccionados.length} onClick={() => limpiar(seleccionados)}>Limpiar seleccionados ({seleccionados.length})</Button>}
+            {fallidos.length > 0 && <Button type="button" variant="ghost" onClick={() => limpiar([])}>Limpiar todos</Button>}
             <Button type="button" variant="outline" onClick={consultar}>Actualizar</Button>
           </div>
         </div>
@@ -524,12 +589,13 @@ export default function Impresoras() {
   )
 }
 
-function TablaTrabajos({ trabajos }) {
+function TablaTrabajos({ trabajos, seleccionados = [], onSeleccion }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[36rem] text-sm">
         <thead>
           <tr className="border-b border-ink-600 text-left text-xs uppercase tracking-wider text-mute">
+            {onSeleccion && <th className="w-8 px-2 py-2" />}
             <th className="px-2 py-2">Fecha</th>
             <th className="px-2 py-2">Impresora</th>
             <th className="px-2 py-2">Equipo</th>
@@ -542,6 +608,7 @@ function TablaTrabajos({ trabajos }) {
         <tbody>
           {trabajos.map((trabajo) => (
             <tr key={trabajo.id} className="border-b border-ink-600/50">
+              {onSeleccion && <td className="px-2 py-2"><input type="checkbox" className="h-3.5 w-3.5 accent-[var(--color-fono)]" checked={seleccionados.includes(trabajo.id)} onChange={(event) => onSeleccion(trabajo.id, event.target.checked)} aria-label={`Seleccionar ${trabajo.id}`} /></td>}
               <td className="px-2 py-2 text-xs text-mute" title={trabajo.id}>{fmt(trabajo.creadoEn)}</td>
               <td className="px-2 py-2 text-xs">{trabajo.impresora}</td>
               <td className="px-2 py-2 text-xs">{trabajo.cliente || '—'}</td>

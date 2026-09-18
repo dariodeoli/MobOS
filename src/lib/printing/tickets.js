@@ -235,6 +235,12 @@ export function ticketPruebaTipo(tipo, { ancho = 80, impresora = '', nombre = ''
     t.par('Prueba', metodo)
     t.par('Destino', impresora || '—')
     t.par('Resultado', 'PENDIENTE')
+    t.linea()
+    t.texto('Acentos: á é í ó ú ü ñ')
+    t.centrado('QR')
+    t.qr(`MOBOS:PRUEBA:CORTA:${validacion}`, { tamano: 6 })
+    t.centrado('Código de barras')
+    t.barcode(`MOBOS-CORTA-${validacion}`)
   }
 
   if (tipo === 'pedido') {
@@ -255,7 +261,11 @@ export function ticketPruebaTipo(tipo, { ancho = 80, impresora = '', nombre = ''
     t.par('Medio de pago', 'Efectivo')
     t.par('Vendedor', 'Vendedor de prueba')
     t.linea()
+    t.texto('Acentos: á é í ó ú ü ñ')
+    t.centrado('QR')
     t.qr(`MOBOS:PRUEBA:${pedido}`, { tamano: 6 })
+    t.centrado('Código de barras')
+    t.barcode(`MOBOS-PEDIDO-${validacion}`)
   }
 
   if (tipo === 'qr') {
@@ -263,8 +273,12 @@ export function ticketPruebaTipo(tipo, { ancho = 80, impresora = '', nombre = ''
     t.par('Cliente', 'Cliente de prueba')
     t.negrita().par('Total', '1.234.000').negrita(false)
     t.linea()
+    t.texto('Acentos: á é í ó ú ü ñ')
+    t.centrado('QR')
     t.qr(`MOBOS:PRUEBA:QR:${validacion}`, { tamano: 6 })
     t.centrado(`MOBOS:PRUEBA:QR:${validacion}`)
+    t.centrado('Código de barras')
+    t.barcode(`MOBOS-QR-${validacion}`)
   }
 
   if (tipo === 'venta') {

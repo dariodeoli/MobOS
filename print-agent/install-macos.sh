@@ -77,6 +77,33 @@ launchctl unload "$PLIST" >/dev/null 2>&1 || true
 launchctl load "$PLIST"
 sleep 2
 
+# Permiso sin prompt para recrear la IP secundaria al iniciar la Mac (red de la
+# impresora). Se valida con visudo antes de tocar /etc/sudoers.d.
+IFACE_ACTIVA="$(route -n get default 2>/dev/null | awk '/interface:/{print $2; exit}')"
+IFACE_ACTIVA="${IFACE_ACTIVA:-en0}"
+ALIAS="${MOBOS_PRINT_ALIAS:-192.168.1.100}"
+MASCARA="${MOBOS_PRINT_MASCARA:-255.255.255.0}"
+SUDOERS_TMP="$(mktemp)"
+printf '%s ALL=(root) NOPASSWD: /sbin/ifconfig %s alias %s netmask %s, /sbin/ifconfig %s -alias %s\n' "$USER" "$IFACE_ACTIVA" "$ALIAS" "$MASCARA" "$IFACE_ACTIVA" "$ALIAS" > "$SUDOERS_TMP"
+echo "Instalando el permiso de red (IP secundaria automática al iniciar sesión; pide tu contraseña)…"
+if sudo /usr/sbin/visudo -c -f "$SUDOERS_TMP" >/dev/null 2>&1 && sudo cp "$SUDOERS_TMP" /etc/sudoers.d/mobos-print && sudo chmod 440 /etc/sudoers.d/mobos-print; then
+  echo "  Permiso instalado: la IP secundaria $ALIAS se recrea sola al iniciar la Mac."
+  bash "$DESTINO/red-mac.sh" auto
+else
+  echo "  No se pudo instalar el permiso (contraseña cancelada o sudo no disponible)."
+  echo "  Alternativa: corré «bash red-mac.sh agregar» cada vez que reinicies la Mac."
+fi
+rm -f "$SUDOERS_TMP"
+
+# Cola CUPS de red (fallback cuando macOS bloquea la salida directa del agente):
+# el daemon CUPS del sistema habla con la impresora por socket.
+if ! lpstat -p 2>/dev/null | grep -q "printer MobOS_LAN"; then
+  echo "Creando la cola de red MobOS_LAN (socket://$IMPRESORA:$PUERTO)…"
+  sudo lpadmin -p MobOS_LAN -E -v "socket://$IMPRESORA:$PUERTO" -m raw 2>/dev/null || echo "  Sin permiso para crear la cola CUPS; la impresión directa sigue disponible."
+else
+  echo "Cola de red MobOS_LAN ya existe."
+fi
+
 echo
 echo "Agente corriendo en http://127.0.0.1:17890"
 if [[ -f "$CONFIG" ]]; then
