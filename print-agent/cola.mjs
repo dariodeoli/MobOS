@@ -29,6 +29,7 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
     historial.unshift({
       fecha: new Date().toISOString(),
       cliente: trabajo.cliente || '',
+      usuario: trabajo.usuario || '',
       impresora: trabajo.impresora,
       resultado,
       error: error || '',
@@ -77,9 +78,9 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
 
   return {
     // Intenta imprimir ya; si falla, el trabajo queda en la cola.
-    async encolar({ impresora, data, cliente = '' }) {
+    async encolar({ impresora, data, cliente = '', usuario = '' }) {
       const bytes = Buffer.from(data, 'base64').length
-      const trabajo = { id: randomUUID(), impresora, data, cliente, bytes, estado: 'pendiente', intentos: 0, proximoIntento: 0, creadoEn: new Date().toISOString() }
+      const trabajo = { id: randomUUID(), impresora, data, cliente, usuario: String(usuario || '').slice(0, 80), bytes, estado: 'pendiente', intentos: 0, proximoIntento: 0, creadoEn: new Date().toISOString() }
       trabajos.push(trabajo)
       guardar()
       await procesar()
@@ -99,6 +100,12 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       }
     },
     historial: (limite = 20) => historial.slice(0, limite),
+    listar() {
+      return {
+        pendientes: trabajos.filter((trabajo) => trabajo.estado === 'pendiente').map(publico),
+        fallidos: trabajos.filter((trabajo) => trabajo.estado === 'fallido').map(publico),
+      }
+    },
     reanudar() { programar() },
     limpiarFallidos() {
       const antes = trabajos.length
@@ -106,5 +113,34 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       guardar()
       return antes - trabajos.length
     },
+    reintentarFallidos() {
+      let contados = 0
+      for (const trabajo of trabajos) {
+        if (trabajo.estado !== 'fallido') continue
+        trabajo.estado = 'pendiente'
+        trabajo.intentos = 0
+        trabajo.proximoIntento = 0
+        trabajo.error = ''
+        contados += 1
+      }
+      guardar()
+      programar()
+      return contados
+    },
+  }
+}
+
+// Datos públicos de un trabajo para la API: sin el contenido del ticket.
+function publico(trabajo) {
+  return {
+    id: trabajo.id,
+    impresora: trabajo.impresora,
+    cliente: trabajo.cliente || '',
+    usuario: trabajo.usuario || '',
+    estado: trabajo.estado,
+    intentos: trabajo.intentos,
+    error: trabajo.error || '',
+    bytes: trabajo.bytes || 0,
+    creadoEn: trabajo.creadoEn,
   }
 }

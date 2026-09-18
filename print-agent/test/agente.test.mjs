@@ -40,7 +40,7 @@ function impresoraFalsa(puerto) {
 
 async function esperar(condicion, { intentos = 40, espera = 150 } = {}) {
   for (let i = 0; i < intentos; i += 1) {
-    if (condicion()) return true
+    if (await condicion()) return true
     await new Promise((listo) => setTimeout(listo, espera))
   }
   return false
@@ -141,4 +141,57 @@ test('el agente imprime al toque cuando la impresora está disponible', async (t
   assert.ok(historial.historial[0].bytes > 0)
   const sinToken = await fetch(`http://127.0.0.1:${puertoAgente}/historial`)
   assert.equal(sinToken.status, 401)
+})
+
+test('la cola lista, reintenta fallidos y guarda el usuario que imprimió', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'mobos-print-'))
+  const puertoAgente = await puertoLibre()
+  const puertoImpresora = await puertoLibre()
+  const base = `http://127.0.0.1:${puertoAgente}`
+  const cabeceras = { 'Content-Type': 'application/json', 'x-mobos-print-token': TOKEN }
+  const ticket = Buffer.from('TICKET-USUARIO').toString('base64')
+
+  // La impresora está apagada y el agente reintenta una sola vez antes de fallar.
+  const agente = await arrancarAgente(dir, { impresora: `lan:127.0.0.1:${puertoImpresora}`, puerto: puertoAgente })
+  t.after(() => agente.kill('SIGKILL'))
+
+  const encolado = await fetch(`${base}/print`, { method: 'POST', headers: cabeceras, body: JSON.stringify({ impresora: `lan:127.0.0.1:${puertoImpresora}`, data: ticket, usuario: 'Edgar (VPE)' }) })
+  const respuesta = await encolado.json()
+  assert.equal(respuesta.encolado, true)
+
+  // La lista de trabajos muestra pendientes con usuario y bytes, sin el ticket.
+  const lista = await fetch(`${base}/jobs`, { headers: cabeceras }).then((r) => r.json())
+  assert.equal(lista.ok, true)
+  assert.equal(lista.pendientes.length, 1)
+  assert.equal(lista.pendientes[0].usuario, 'Edgar (VPE)')
+  assert.ok(lista.pendientes[0].bytes > 0)
+  assert.equal(lista.pendientes[0].data, undefined)
+
+  // Tras agotar los reintentos, el trabajo queda fallido y se puede reintentar.
+  assert.ok(await esperar(async () => {
+    const estado = await fetch(`${base}/jobs`, { headers: cabeceras }).then((r) => r.json())
+    return estado.fallidos.length === 1
+  }), 'el trabajo terminó fallido sin impresora')
+
+  const encendida = await impresoraFalsa(puertoImpresora)
+  t.after(() => encendida.cerrar())
+  const reintento = await fetch(`${base}/jobs/retry`, { method: 'POST', headers: cabeceras }).then((r) => r.json())
+  assert.equal(reintento.ok, true)
+  assert.equal(reintento.reintentados, 1)
+  assert.ok(await esperar(() => encendida.recibido.length > 0), 'el reintento manual llegó a la impresora')
+
+  // El historial conserva quién imprimió.
+  const historial = await fetch(`${base}/historial`, { headers: cabeceras }).then((r) => r.json())
+  assert.equal(historial.historial[0].usuario, 'Edgar (VPE)')
+
+  // Diagnóstico con destino explícito (usado al validar impresoras al editar).
+  const diagnostico = await fetch(`${base}/diagnostico?destino=lan:127.0.0.1:${puertoImpresora}`, { headers: cabeceras }).then((r) => r.json())
+  assert.equal(diagnostico.ok, true)
+  assert.equal(diagnostico.alcance, true)
+
+  // El agente acepta ampliar los destinos LAN permitidos vía /config.
+  const config = await fetch(`${base}/config`, { method: 'POST', headers: cabeceras, body: JSON.stringify({ lan: [`lan:127.0.0.1:${puertoImpresora}`, 'lan:192.168.1.50:9100'], impresora: `lan:127.0.0.1:${puertoImpresora}` }) }).then((r) => r.json())
+  assert.deepEqual(config.lan, [`lan:127.0.0.1:${puertoImpresora}`, 'lan:192.168.1.50:9100'])
+  const permitida = await fetch(`${base}/print`, { method: 'POST', headers: cabeceras, body: JSON.stringify({ impresora: 'lan:192.168.1.50:9100', data: ticket }) }).then((r) => r.json())
+  assert.equal(permitida.ok, true)
 })

@@ -3,7 +3,7 @@ import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config
 import { crearCola } from './cola.mjs'
 import { diagnosticoRed, enviar, impresorasUsb, probarConexion } from './transportes.mjs'
 
-const VERSION = '1.0.0'
+const VERSION = '1.1.0'
 const config = cargarConfig()
 const cola = crearCola({ ruta: RUTA_COLA, rutaHistorial: RUTA_HISTORIAL, enviar, esperaMs: config.esperaMs, reintentos: config.reintentos, log: (mensaje) => console.log(`[cola] ${mensaje}`) })
 cola.reanudar()
@@ -92,7 +92,8 @@ const servidor = createServer(async (request, response) => {
 
     if (request.method === 'GET' && url.pathname === '/diagnostico') {
       if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
-      return responder(response, { ok: true, ...(await diagnosticoRed(config.impresora)) })
+      const destino = url.searchParams.get('destino') || config.impresora
+      return responder(response, { ok: true, ...(await diagnosticoRed(destino)) })
     }
 
     if (request.method === 'GET' && url.pathname === '/historial') {
@@ -106,6 +107,16 @@ const servidor = createServer(async (request, response) => {
       return responder(response, { ok: true, limpiados: cola.limpiarFallidos() })
     }
 
+    if (request.method === 'POST' && url.pathname === '/jobs/retry') {
+      if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
+      return responder(response, { ok: true, reintentados: cola.reintentarFallidos() })
+    }
+
+    if (request.method === 'GET' && url.pathname === '/jobs') {
+      if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
+      return responder(response, { ok: true, ...cola.listar(), resumen: cola.resumen() })
+    }
+
     if (request.method === 'GET' && url.pathname.startsWith('/jobs/')) {
       if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
       return responder(response, { ok: true, ...cola.estado(url.pathname.slice('/jobs/'.length)) })
@@ -117,6 +128,7 @@ const servidor = createServer(async (request, response) => {
       const impresora = String(cuerpo?.impresora || config.impresora || '')
       const data = String(cuerpo?.data || '')
       const copias = Math.min(5, Math.max(1, Number(cuerpo?.copias) || config.copias))
+      const usuario = String(cuerpo?.usuario || '').slice(0, 80)
       if (!impresora) return responder(response, { ok: false, error: 'Elegí una impresora en Configuración → Impresoras.' }, 400)
       if (!(await destinosPermitidos()).has(impresora)) {
         return responder(response, { ok: false, error: `La impresora ${impresora} no está configurada en este agente.` }, 400)
@@ -128,7 +140,7 @@ const servidor = createServer(async (request, response) => {
       const ticket = copias > 1 ? Buffer.from(data, 'base64').toString('base64') : data
       const resultados = []
       const cliente = ipDe(request)
-      for (let copia = 0; copia < copias; copia += 1) resultados.push(await cola.encolar({ impresora, data: ticket, cliente }))
+      for (let copia = 0; copia < copias; copia += 1) resultados.push(await cola.encolar({ impresora, data: ticket, cliente, usuario }))
       const pendiente = resultados.find((resultado) => resultado.encolado)
       if (pendiente) {
         const sinRuta = /EHOSTUNREACH|ENETUNREACH/i.test(pendiente.error || '')
@@ -150,9 +162,12 @@ const servidor = createServer(async (request, response) => {
       for (const campo of ['impresora', 'ancho', 'copias']) {
         if (cuerpo?.[campo] !== undefined) config[campo] = cuerpo[campo]
       }
+      // Los destinos LAN permitidos viven acá: la app los sincroniza con las
+      // impresoras guardadas para que el agente nunca imprima a un equipo ajeno.
+      if (Array.isArray(cuerpo?.lan)) config.lan = cuerpo.lan.map(String).filter(Boolean)
       guardarConfig(config)
       cacheAlcance = { hasta: 0, ok: null }
-      return responder(response, { ok: true, impresora: config.impresora, ancho: config.ancho, copias: config.copias })
+      return responder(response, { ok: true, impresora: config.impresora, ancho: config.ancho, copias: config.copias, lan: config.lan })
     }
 
     return responder(response, { ok: false, error: 'Ruta no encontrada.' }, 404)
