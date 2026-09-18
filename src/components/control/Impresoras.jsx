@@ -366,8 +366,8 @@ export default function Impresoras() {
               <p className="mt-1 text-sm font-semibold">{estado?.cola?.pendientes ?? cola?.resumen?.pendientes ?? 0} pendientes · {estado?.cola?.fallidos ?? cola?.resumen?.fallidos ?? 0} fallidos</p>
               <div className="mt-1 flex flex-wrap gap-2">
                 <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-fono-light" onClick={() => setVerColaAbierta(true)}>Ver cola</Button>
-                {(fallidos.length > 0) && <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-warn" onClick={reintentar}>Reintentar fallidos</Button>}
-                {(fallidos.length > 0) && <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-bad" onClick={limpiar}>Limpiar fallidos</Button>}
+                {(fallidos.length > 0) && <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-warn" onClick={() => reintentar()}>Reintentar fallidos</Button>}
+                {(fallidos.length > 0) && <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-bad" onClick={() => limpiar([])}>Limpiar fallidos</Button>}
               </div>
             </div>
             <div className="rounded-xl border border-ink-600 p-3">
@@ -578,7 +578,7 @@ export default function Impresoras() {
             </div>
           )}
           <div className="flex flex-wrap justify-end gap-2">
-            {fallidos.length > 0 && <Button type="button" variant="outline" onClick={reintentar}>Reintentar fallidos</Button>}
+            {fallidos.length > 0 && <Button type="button" variant="outline" onClick={() => reintentar()}>Reintentar fallidos</Button>}
             {fallidos.length > 0 && <Button type="button" variant="ghost" disabled={!seleccionados.length} onClick={() => limpiar(seleccionados)}>Limpiar seleccionados ({seleccionados.length})</Button>}
             {fallidos.length > 0 && <Button type="button" variant="ghost" onClick={() => limpiar([])}>Limpiar todos</Button>}
             <Button type="button" variant="outline" onClick={consultar}>Actualizar</Button>
