@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Input } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -14,6 +14,27 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
   const [highlight, setHighlight] = useState(0)
   const [creating, setCreating] = useState(false)
   const listId = useId()
+  const rootRef = useRef(null)
+
+  // Cierra el dropdown al hacer clic fuera: sin esto, el listado abierto
+  // se superpone a los resultados de productos y se come los clics.
+  useEffect(() => {
+    // Cierra con cualquier clic fuera de una opción: el listado abierto se
+    // superpone a los resultados de productos y bloqueaba sus clics.
+    const cerrarFuera = (event) => {
+      const enOpcion = event.target instanceof Element && event.target.closest('button[role="option"]')
+      if (enOpcion) return
+      close()
+    }
+    document.addEventListener('mousedown', cerrarFuera)
+    // El scroll (incluido el del grid de resultados al hacer clic abajo)
+    // también cierra: el listado no debe seguir superpuesto a los productos.
+    document.addEventListener('scroll', close, true)
+    return () => {
+      document.removeEventListener('mousedown', cerrarFuera)
+      document.removeEventListener('scroll', close, true)
+    }
+  }, [])
 
   function setearQuery(next) {
     setQuery(next)
@@ -92,7 +113,7 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
   }
 
   return (
-    <div className={cn('relative', className)}>
+    <div ref={rootRef} className={cn('relative', className)}>
       <Input
         type="text"
         role="combobox"

@@ -70,7 +70,7 @@ fi
 # client (a stale client predating the latest schema breaks idempotent
 # lookups such as prisma.order.findUnique({ tenantId_idempotencyKey })).
 PRISMA_CLIENT="$BACKEND_ROOT/node_modules/.prisma/client/index.d.ts"
-if [[ ! -d "$BACKEND_ROOT/node_modules/.prisma" ]] || [[ "$BACKEND_ROOT/prisma/schema.prisma" -nt "$PRISMA_CLIENT" ]]; then
+if [[ ! -d "$BACKEND_ROOT/node_modules/.prisma" ]] || [[ "$BACKEND_ROOT/prisma/schema.prisma" -nt "$PRISMA_CLIENT" ]] || ! grep -q "reservationCustomerId" "$PRISMA_CLIENT" 2>/dev/null; then
   echo "[e2e] Generating Prisma client…"
   (cd "$BACKEND_ROOT" && DATABASE_URL="$DATABASE_URL" npx prisma generate --schema prisma/schema.prisma >/dev/null)
 fi

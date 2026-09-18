@@ -29,7 +29,7 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
 
   // Step 1: customer + product.
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(customerName)
-  const search = page.getByLabel('Buscar producto por texto')
+  const search = page.getByPlaceholder('Buscar producto…')
   await search.fill('Cable')
   const productCard = page.getByRole('button', { name: new RegExp(SEED.products.cable.name) })
   await expect(productCard).toBeVisible()
@@ -199,7 +199,7 @@ test('POS clears the address country and the summary opens the cart', async ({ p
   await pais.fill('')
   await expect(pais).toHaveValue('')
 
-  await page.getByLabel('Buscar producto por texto').fill('Cable')
+  await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
   await expect(page.getByText('Total de esta venta')).toBeVisible()
 
@@ -213,7 +213,7 @@ test('POS keeps every clicked product in the sale list', async ({ page }) => {
   await page.goto('/pos/cargar')
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`${SEED.checkoutCustomer} tres ${Date.now().toString(36)}`)
 
-  const search = page.getByLabel('Buscar producto por texto')
+  const search = page.getByPlaceholder('Buscar producto…')
   const elegidos = [SEED.products.cable, SEED.products.funda, SEED.products.auris]
   for (const producto of elegidos) {
     await search.fill(producto.name)
@@ -274,7 +274,7 @@ test('POS manual price below list stores the list price for the receipt', async 
     await page.goto('/pos/cargar')
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(name)
 
-    await page.getByLabel('Buscar producto por texto').fill('Cable')
+    await page.getByPlaceholder('Buscar producto…').fill('Cable')
     await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
 
     // Precio manual 40.000 sobre lista 45.000: la fila marca el descuento.
@@ -305,7 +305,7 @@ test('POS manual price below list stores the list price for the receipt', async 
 test('POS shows the price authorization block for a below-list price', async ({ page }) => {
   await page.goto('/pos/cargar')
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`${SEED.checkoutCustomer} autorización ${Date.now().toString(36)}`)
-  await page.getByLabel('Buscar producto por texto').fill('Cable')
+  await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
   await page.getByLabel(`Precio de venta de ${SEED.products.cable.name}`).fill('40000')
   await page.getByRole('button', { name: 'Revisar carrito', exact: true }).first().click()

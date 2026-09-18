@@ -20,7 +20,7 @@ for (const viewport of viewports) {
       await page.goto('/pos/cargar')
       await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
-      const search = page.getByLabel('Buscar producto por texto')
+      const search = page.getByPlaceholder('Buscar producto…')
       await expect(search).toBeVisible()
       await expectNoHorizontalOverflow(page)
     })

@@ -22,7 +22,7 @@ test.describe('login', () => {
 
     // Seller role redirects to the checkout view ("Nueva venta" form).
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
-    await expect(page.getByLabel('Buscar producto por texto')).toBeVisible()
+    await expect(page.getByPlaceholder('Buscar producto…')).toBeVisible()
   })
 
   test('logout returns to /login', async ({ page }) => {
