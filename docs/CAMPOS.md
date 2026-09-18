@@ -28,6 +28,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 | `shared/PercentField` (+ `parsePercent`/`formatPercent`) | Porcentaje 0–100 con coma decimal y hasta 2 decimales (`0,2`, `12,5`): limpia a dígitos y una sola coma, máx 6 caracteres. `onChange` entrega el string con coma; al guardar usar `parsePercent` (número o `null`) y al mostrar `formatPercent` | Comisión de vendedores (acepta decimales 0–100 con coma), seguro del producto, descuento por medio de cobro, descuento de línea, cupón porcentual y descuento de producto |
 | `shared/CurrencySelect` | Moneda del sistema en un `Select` cerrado: `PYG · Gs`, `USD · Dólares`, `BRL · Reales`, `EUR · Euros`, `USDT · Tether` | Gastos, compras y cuentas de cobro |
 | `shared/SerialField` (+ `normalizarSerial`) | IMEI/serial de UNA unidad: mayúsculas, sin prefijo `MOBOS:`, sin espacios ni guiones (varios seriales se normalizan con `normalizeScan` al enviar) | Garantías, canje, herramienta del vendedor y pagos de pedido |
+| `shared/RucField` (+ `utils/ruc.js`) | RUC/CI con extractor: input + **Extraer RUC** (lupa) contra `GET /api/ruc`; el resultado se aplica solo al confirmar; sin proveedor → carga manual | Alta de cliente (hoy); pendiente en compras, identidad de ficha y checkout |
 | `shared/AttachmentInput` (+ validación de *magic bytes* en backend) | Adjunto JPG/PNG/WebP/PDF de hasta 5 MiB | Comprobantes y fotos de pedidos, unidades y garantías |
 | `shared/AttachmentList` | Lista, descarga y baja (con confirmación) de los adjuntos de un documento, más el alta con `AttachmentInput` | Gastos, compras, pagos a proveedor, caja y transferencias |
 | `shared/ProductCombobox` | Buscar/elegir producto (y crear desde ahí) | POS, compras, combos, cotizaciones y promociones |
@@ -52,7 +53,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 9. **Texto libre**: nombres 120, direcciones 400, notas 2000; fechas `type="date"`; códigos con `pattern` (promociones `[A-Za-z0-9_-]{2,40}`).
 10. **PIN/contraseña**: PIN siempre `PinInput`; contraseña `PasswordInput`.
 11. **Adjuntos**: JPG/PNG/WebP/PDF, ≤5 MiB, verificados por *magic bytes* en backend; subida multipart. El modelo genérico `Attachment` identifica al documento dueño con `entity` (`EXPENSE`, `PURCHASE`, `SUPPLIER_PAYMENT`, `CASH_SESSION`, `STOCK_TRANSFER`) + `entityId`; los metadatos viven en la base y los bytes en `data` (ByteA) con respaldo en el volumen `MOBOS_STORAGE_DIR` vía `storageKey`. Endpoints: `GET/POST/DELETE /api/attachments` y `GET /api/attachments/[id]/download` (auditan `ATTACHMENT_CREATED` y `ATTACHMENT_DELETED`).
-12. **RUC/CI**: patrón `\d[\d.\s]{2,}-\d+`; el botón "Consultar RUC" aplica la razón social solo si se confirma.
+12. **RUC/CI**: `shared/RucField` (input + botón **Extraer RUC** contra `GET /api/ruc`): el patrón único vive en `src/utils/ruc.js` (`RUC_RE`, `extraerRuc`, `esRuc`) y la razón social se aplica solo si se confirma; si el proveedor no responde, se completa a mano.
 13. **Búsquedas**: texto libre por `q`; en escaneos, normalizar a mayúsculas sin separadores (`normalizeScan`).
 14. **Interfaz**: nunca emojis; indicadores con `Icon`.
 

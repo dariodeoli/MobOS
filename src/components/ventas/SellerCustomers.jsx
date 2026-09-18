@@ -13,8 +13,8 @@ import { capitalizarPrimera } from '@/utils/texto'
 import { parseDelimited } from '@/utils/csv'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { cn } from '@/lib/utils'
-
-const RUC_RE = /\d[\d.\s]{2,}-\d+/
+import RucField from '@/components/shared/RucField'
+import { extraerRuc } from '@/utils/ruc'
 
 // Convierte filas del export tipo Shopify en fichas para el endpoint de import.
 function filasParaImportar(texto) {
@@ -26,7 +26,7 @@ function filasParaImportar(texto) {
     const nombre = `${row['First Name'] || ''} ${row['Last Name'] || ''}`.trim()
     const telefono = String(row['Phone'] || row['Default Address Phone'] || '').replace(/[\s-]/g, '')
     const rucFuente = `${row['Default Address Company'] || ''} ${row['Note'] || ''} ${row['Default Address Address1'] || ''}`
-    const documento = (rucFuente.match(RUC_RE) || [null])[0]
+    const documento = extraerRuc(rucFuente)
     const direccion = `${row['Default Address Address1'] || ''} ${row['Default Address Address2'] || ''}`.trim()
     const ciudad = row['Default Address City'] || ''
     const tags = String(row['Tags'] || '').split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20)
@@ -84,9 +84,6 @@ export default function SellerCustomers() {
   const savingRef = useRef(false)
   const [message, setMessage] = useState('')
   const [saveError, setSaveError] = useState('')
-  const [rucResult, setRucResult] = useState(null)
-  const [rucLoading, setRucLoading] = useState(false)
-  const [rucError, setRucError] = useState('')
   const [profileCustomer, setProfileCustomer] = useState(null)
   const [crearAbierto, setCrearAbierto] = useState(false)
   const [importAbierto, setImportAbierto] = useState(false)
@@ -120,8 +117,6 @@ export default function SellerCustomers() {
     function onNewCustomer() {
       delete window.__mobosNewCustomer
       setForm(emptyCustomer)
-      setRucResult(null)
-      setRucError('')
       setSaveError('')
       setMessage('')
       setCrearAbierto(true)
@@ -133,8 +128,6 @@ export default function SellerCustomers() {
 
   function abrirCrear() {
     setForm(emptyCustomer)
-    setRucResult(null)
-    setRucError('')
     setSaveError('')
     setMessage('')
     setCrearAbierto(true)
@@ -156,7 +149,7 @@ export default function SellerCustomers() {
         const saved = await api.post('/api/customers', { name: form.name.trim(), document: form.document.trim() || undefined, email: form.email.trim() || undefined, phone: phones[0] || undefined, countryCode: form.countryCode || '+595', addresses, notes: customerMetadata(phones), acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20), pricingTier: form.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL', ...(String(form.creditLimitPyg).trim() ? { creditLimitPyg: Number(String(form.creditLimitPyg).replace(/\D/g, '')) } : {}), ...(String(form.creditDays).trim() ? { creditDays: Number(String(form.creditDays).replace(/\D/g, '')) } : {}) })
         if (!saved?.id) throw new Error('Sin confirmación')
       }
-      setForm(emptyCustomer); setRucResult(null); setRucError(''); setSearch(''); setQuery(''); setCrearAbierto(false); data.refresh()
+      setForm(emptyCustomer); setSearch(''); setQuery(''); setCrearAbierto(false); data.refresh()
       setMessage(esDemo ? 'Cliente de prueba guardado en este navegador.' : 'Cliente guardado.')
     } catch (cause) {
       setSaveError(cause?.message || 'No se pudo confirmar el guardado. Buscá el cliente antes de reintentar.')
@@ -169,16 +162,6 @@ export default function SellerCustomers() {
     try {
       await descargarCsv('customers', { q: search || undefined, filtro: filtro !== 'todos' ? filtro : undefined }, 'mobos-clientes.csv')
     } catch (cause) { setExportError(cause?.message || 'No se pudo exportar el CSV.') } finally { setExportando(false) }
-  }
-
-  async function lookupRuc() {
-    if (!form.document.trim() || esDemo) return
-    setRucLoading(true); setRucError(''); setRucResult(null)
-    try {
-      const response = await api.get(`/api/ruc?ruc=${encodeURIComponent(form.document.trim())}`)
-      if (!response?.result?.name) throw new Error('No encontramos datos para ese RUC.')
-      setRucResult(response.result)
-    } catch (cause) { setRucError(cause?.message || 'No se pudo consultar el RUC. Podés completar los datos manualmente.') } finally { setRucLoading(false) }
   }
 
   async function importar(event) {
@@ -266,15 +249,12 @@ export default function SellerCustomers() {
     <Modal open={crearAbierto} onClose={() => !saving && setCrearAbierto(false)} title="Crear cliente" className="max-w-2xl">
       <form onSubmit={create} className="space-y-4">
         <label className="block space-y-2"><span>Nombre</span><Input ref={nombreRef} required autoFocus maxLength={120} disabled={saving} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
-        <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-2"><span>RUC o CI <small className="text-mute">(opcional)</small></span><Input maxLength={100} disabled={saving} value={form.document} onChange={(event) => { setForm({ ...form, document: event.target.value }); setRucResult(null); setRucError('') }} placeholder="80012345-6" /></label><label className="block space-y-2"><span>Correo <small className="text-mute">(opcional)</small></span><EmailField maxLength={200} disabled={saving} value={form.email} onChange={value => setForm({ ...form, email: value })} placeholder="cliente@correo.com" /></label></div>
-        {!esDemo && <div className="flex flex-wrap items-center gap-2"><button type="button" disabled={saving || rucLoading || !form.document.trim()} className="rounded-xl border border-fono/40 px-3 py-2 text-sm font-semibold text-fono-light disabled:opacity-40" onClick={lookupRuc}>{rucLoading ? 'Consultando RUC…' : 'Consultar RUC'}</button><span className="text-xs text-mute">La razón social se aplica solo si la confirmás.</span></div>}
-        {rucResult && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fono/25 bg-fono/5 p-3 text-sm"><span><b>{rucResult.name}</b><br /><span className="text-mute">RUC {rucResult.fullRuc}</span></span><button type="button" className="font-semibold text-fono-light" onClick={() => { setForm({ ...form, name: rucResult.name, document: rucResult.fullRuc || form.document }); setRucResult(null) }}>Usar estos datos</button></div>}
+        <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-2"><span>RUC o CI <small className="text-mute">(opcional)</small></span><RucField id="cliente-documento" disabled={saving} value={form.document} onChange={(document) => setForm((actual) => ({ ...actual, document }))} onAplicar={(datos) => setForm((actual) => ({ ...actual, name: datos.name || actual.name, document: datos.fullRuc || actual.document }))} mostrarExtractor={!esDemo} /></label><label className="block space-y-2"><span>Correo <small className="text-mute">(opcional)</small></span><EmailField maxLength={200} disabled={saving} value={form.email} onChange={value => setForm({ ...form, email: value })} placeholder="cliente@correo.com" /></label></div>
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block space-y-2"><span>Precio</span><Select value={form.pricingTier} onChange={(event) => setForm({ ...form, pricingTier: event.target.value })}><option value="RETAIL">Minorista</option><option value="WHOLESALE">Mayorista</option></Select></label>
           <label className="block space-y-2"><span>Límite de crédito (Gs)</span><MoneyInput disabled={saving} value={form.creditLimitPyg} onValueChange={(value) => setForm({ ...form, creditLimitPyg: value })} placeholder="0 = sin crédito" /></label>
           <label className="block space-y-2"><span>Plazo de crédito (días)</span><Input inputMode="numeric" disabled={saving} value={form.creditDays} onChange={(event) => setForm({ ...form, creditDays: event.target.value.replace(/\D/g, '') })} placeholder="Ej. 30" /></label>
         </div>
-        {rucError && <p role="alert" className="text-sm text-bad">{rucError}</p>}
         <fieldset className="space-y-2"><legend>Teléfonos</legend>{form.phones.map((phone, index) => <div className="flex gap-2" key={`phone-${index}`}><PhoneField className="min-w-0 flex-1" countryCode={form.countryCode || '+595'} phone={phone} disabled={saving} placeholder={index === 0 ? '0981 123 456' : 'Otro teléfono'} phoneAriaLabel={index === 0 ? 'Teléfono' : 'Otro teléfono'} onCountryCodeChange={(countryCode) => setForm({ ...form, countryCode })} onChange={(value) => setForm({ ...form, phones: form.phones.map((item, itemIndex) => itemIndex === index ? value : item) })} />{form.phones.length > 1 && <button type="button" className="rounded-xl border border-fore/15 px-3 text-sm" onClick={() => setForm({ ...form, phones: form.phones.filter((_, itemIndex) => itemIndex !== index) })}>Quitar</button>}</div>)}{form.phones.length < 5 && <button type="button" className="text-sm font-semibold text-fono-light" onClick={() => setForm({ ...form, phones: [...form.phones, ''] })}>+ Añadir teléfono</button>}</fieldset>
         <fieldset className="space-y-3"><legend>Direcciones</legend>{form.addresses.map((address, index) => <div className="grid gap-2 rounded-xl border border-fore/10 p-3 sm:grid-cols-2" key={`address-${index}`}><div className="flex gap-2"><Input maxLength={80} disabled={saving} value={address.label} placeholder="Etiqueta: Casa, oficina…" onChange={(event) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item) })} /><Input maxLength={100} disabled={saving} autoCapitalize="words" value={address.country ?? 'Paraguay'} placeholder="País" aria-label="País" onChange={(event) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, country: capitalizarPrimera(event.target.value) } : item) })} /></div><div className="space-y-1"><CityAutocomplete esDemo={esDemo} disabled={saving} value={address.city || ''} onSelect={(city, department) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, city, department } : item) })} />{address.department && <p className="px-1 text-xs text-fono-light">Departamento: {address.department}</p>}</div><Input maxLength={400} className="sm:col-span-2" disabled={saving} autoCapitalize="sentences" value={address.address} placeholder={esDemo ? 'Dirección de prueba' : 'Dirección completa'} onChange={(event) => setForm({ ...form, addresses: form.addresses.map((item, itemIndex) => itemIndex === index ? { ...item, address: capitalizarPrimera(event.target.value) } : item) })} />{form.addresses.length > 1 && <button type="button" className="text-left text-sm text-bad" onClick={() => setForm({ ...form, addresses: form.addresses.filter((_, itemIndex) => itemIndex !== index) })}>Quitar dirección</button>}</div>)}{form.addresses.length < 10 && <button type="button" className="text-sm font-semibold text-fono-light" onClick={() => setForm({ ...form, addresses: [...form.addresses, { label: '', address: '', city: '', department: '', country: 'Paraguay' }] })}>+ Añadir dirección</button>}</fieldset>
         <div className="grid gap-3 rounded-xl border border-fore/10 p-3 sm:grid-cols-2">
