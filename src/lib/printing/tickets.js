@@ -195,22 +195,26 @@ export function ticketReserva(reservation, { ancho = 80 } = {}) {
 }
 
 // Página de prueba: valida texto, acentos, negrita, doble, QR y código de barras.
-export function ticketPrueba({ ancho = 80, impresora = '' } = {}) {
+export function ticketPrueba({ ancho = 80, impresora = '', nombre = '' } = {}) {
   const t = crearTicket({ ancho }).iniciar()
-  t.centrado(APP_NAME).negrita().doble().centrado('PRUEBA').doble(false).negrita(false)
-  t.centrado(`${ancho} mm · ${t.columnas} columnas`)
-  if (impresora) t.centrado(impresora)
+  t.centrado(APP_NAME)
+  t.negrita().doble().centrado('TICKET DE PRUEBA').doble(false).negrita(false)
+  t.linea()
+  if (nombre) t.par('Impresora', nombre)
+  if (impresora) t.par('Destino', impresora)
+  t.par('Ancho', `${ancho} mm · ${t.columnas} columnas`)
+  t.par('Fecha', fecha(new Date().toISOString()))
   t.linea()
   t.texto('Acentos: á é í ó ú ü ñ Ñ ¿? ¡!')
   t.negrita().texto('Negrita').negrita(false)
   t.doble().par('DOBLE', '123').doble(false)
+  t.centrado('Centrado y alineado')
   t.linea()
   t.centrado('QR')
   t.qr(`MOBOS:TEST:${Date.now()}`, { tamano: 6 })
   t.centrado('Código de barras')
   t.barcode(`MOBOS-TEST-${Date.now()}`)
   t.linea()
-  t.centrado(fecha(new Date().toISOString()))
   t.centrado('Si leés esto, la impresora quedó lista.')
   return t.avanza(2).corte()
 }
