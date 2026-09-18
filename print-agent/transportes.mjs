@@ -73,21 +73,47 @@ export async function enviarUsb(cola, bytes) {
   }
 }
 
-export async function impresorasUsb() {
+// Colas CUPS del sistema con su device-uri real. La clasificación es por el
+// URI: una cola socket:// es CUPS DE RED (aunque antes se reportara como
+// "usb"), una usb:// es USB físico. lpstat -p solo da el nombre; por eso se
+// usa lpstat -v.
+export async function impresorasCups() {
   try {
-    const { stdout } = await ejecutar('lpstat', ['-p'], { timeout: 5000 })
-    return stdout.split('\n').map((linea) => linea.match(/^printer (\S+)/)?.[1]).filter(Boolean)
+    const { stdout } = await ejecutar('lpstat', ['-v'], { timeout: 5000 })
+    return stdout
+      .split('\n')
+      .map((linea) => {
+        const nombre = (linea.match(/^device for (\S+)/) || [])[1]
+        const uri = (linea.match(/:\s*(\S+)\s*$/) || [])[1]
+        if (!nombre) return null
+        const tipo = String(uri || '').startsWith('socket://') ? 'red' : String(uri || '').startsWith('usb://') ? 'usb' : 'otro'
+        return { nombre, uri: uri || '', tipo }
+      })
+      .filter(Boolean)
   } catch {
     return []
   }
 }
 
-// Cola CUPS de red (raw, socket://) que el instalador crea con lpadmin. El
-// daemon CUPS del sistema sí tiene permiso de red local: cuando macOS bloquea
-// la conexión directa del proceso del agente, el trabajo sale por acá.
+export async function impresorasUsb() {
+  const colas = await impresorasCups()
+  return colas.filter((cola) => cola.tipo === 'usb').map((cola) => cola.nombre)
+}
+
+// Cola CUPS de RED (raw, socket://): el daemon CUPS tiene permiso de red local
+// y es el respaldo cuando macOS bloquea la salida directa del agente.
 export async function colaLanDeCups(nombre = 'MobOS_LAN') {
-  const colas = await impresorasUsb()
-  return colas.includes(nombre) ? nombre : ''
+  const colas = await impresorasCups()
+  const cola = colas.find((item) => item.nombre === nombre)
+  return cola && cola.tipo === 'red' ? cola.nombre : ''
+}
+
+// Tipo real de una cola CUPS por nombre (red | usb | otro | ''), para que la
+// app muestre el transporte honesto en el panel.
+export async function tipoDeCola(nombre) {
+  if (!nombre) return ''
+  const colas = await impresorasCups()
+  return (colas.find((item) => item.nombre === nombre) || {}).tipo || ''
 }
 
 // Destino: `lan:192.168.1.23:9100` o `usb:NombreDeLaCola`. Devuelve el
@@ -170,6 +196,14 @@ export async function diagnosticoRed(destino, { alias = '192.168.1.100', cups = 
     info.alcance = detalle.ok
     info.error = detalle.ok ? '' : (detalle.error || '')
     info.errno = detalle.errno || ''
+    // Interpretación honesta del errno: la falta de ruta NO es un permiso de
+    // macOS; los permisos de Red Local se manifiestan como EACCES/EPERM.
+    if (!detalle.ok) {
+      if (/EHOSTUNREACH|ENETUNREACH/.test(info.errno)) info.motivo = 'red_cambiada'
+      else if (/EACCES|EPERM/.test(info.errno)) info.motivo = 'permisos_red_local'
+      else if (/ECONNREFUSED/.test(info.errno)) info.motivo = 'impresora_apagada'
+      else info.motivo = 'otro'
+    }
     if (info.alias?.presente && info.host && mismaSubred(info.host, info.alias.ip)) info.origen = info.alias.ip
   }
   info.tcpReal = info.alcance
@@ -178,23 +212,19 @@ export async function diagnosticoRed(destino, { alias = '192.168.1.100', cups = 
 }
 
 // Crea la cola CUPS de red (respaldo cuando macOS bloquea la salida directa
-// del agente). `sudo -n` no pide contraseña; si no hay permiso se devuelve el
-// comando exacto para correrlo a mano.
+// del agente). macOS moderno rechaza `lpadmin -m raw`: se intenta el alta sin
+// driver y, si falla, se devuelve la instrucción manual (Ajustes →
+// Impresoras → IP), que es la vía oficial en esta Mac.
 export async function crearColaLan(nombre = 'MobOS_LAN', host = '', puerto = 9100) {
   const existente = await colaLanDeCups(nombre)
   if (existente) return { ok: true, existente: true, cola: nombre }
-  if (!host) return { ok: false, error: 'Falta la IP de la impresora.', comando: '' }
+  if (!host) return { ok: false, error: 'Falta la IP de la impresora.', instruccion: '' }
   const uri = `socket://${host}:${Number(puerto) || 9100}`
-  const comando = `sudo lpadmin -p ${nombre} -E -v ${uri} -m raw`
+  const instruccion = `Agregala manualmente: Ajustes → Impresoras y escáneres → Agregar impresora → IP → ${host}:${Number(puerto) || 9100} (protocolo: Línea de impresión / Raw).`
   try {
-    await ejecutar('lpadmin', ['-p', nombre, '-E', '-v', uri, '-m', 'raw'], { timeout: 10000 })
-    return { ok: true, existente: false, cola: nombre, comando }
+    await ejecutar('lpadmin', ['-p', nombre, '-E', '-v', uri], { timeout: 10000 })
+    return { ok: true, existente: false, cola: nombre, instruccion }
   } catch {
-    try {
-      await ejecutar('sudo', ['-n', 'lpadmin', '-p', nombre, '-E', '-v', uri, '-m', 'raw'], { timeout: 10000 })
-      return { ok: true, existente: false, cola: nombre, comando }
-    } catch {
-      return { ok: false, error: 'Sin permiso para crear la cola CUPS.', comando }
-    }
+    return { ok: false, error: 'No se pudo crear la cola CUPS desde el agente.', instruccion }
   }
 }

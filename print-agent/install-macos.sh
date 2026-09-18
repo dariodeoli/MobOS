@@ -97,24 +97,19 @@ rm -f "$SUDOERS_TMP"
 
 # Cola CUPS de red (fallback cuando macOS bloquea la salida directa del agente):
 # el daemon CUPS del sistema habla con la impresora por socket.
-COMANDO_CUPS="sudo lpadmin -p MobOS_LAN -E -v socket://$IMPRESORA:$PUERTO -m raw"
-if ! lpstat -p 2>/dev/null | grep -q "printer MobOS_LAN"; then
-  echo "Creando la cola de red MobOS_LAN (socket://$IMPRESORA:$PUERTO)…"
-  if sudo lpadmin -p MobOS_LAN -E -v "socket://$IMPRESORA:$PUERTO" -m raw 2>/dev/null; then
-    echo "  Cola CUPS lista: MobOS_LAN → socket://$IMPRESORA:$PUERTO"
-  elif osascript -e "do shell script \"lpadmin -p MobOS_LAN -E -v socket://$IMPRESORA:$PUERTO -m raw\" with administrator privileges" >/dev/null 2>&1; then
-    echo "  Cola CUPS lista (prompt de administrador): MobOS_LAN → socket://$IMPRESORA:$PUERTO"
-  else
-    echo
-    echo "  ⚠ No se pudo crear la cola CUPS."
-    echo "  Copiá y ejecutá este comando EXACTO en la Terminal del puente:"
-    echo
-    echo "      $COMANDO_CUPS"
-    echo
-    echo "  Después verificá:  lpstat -p | grep MobOS_LAN"
-  fi
+# Esta Mac rechaza `lpadmin -m raw`: no se intenta por acá. La cola se crea en
+# el primer "Reparar conexión" de la app (sin driver) o manualmente:
+#   Ajustes → Impresoras y escáneres → Agregar → IP → $IMPRESORA:$PUERTO
+#   (protocolo: Línea de impresión / Raw).
+if lpstat -v 2>/dev/null | grep -q "socket://$IMPRESORA:$PUERTO"; then
+  echo "Cola de red para $IMPRESORA:$PUERTO ya existe (socket://)."
 else
-  echo "Cola de red MobOS_LAN ya existe."
+  echo
+  echo "  Cola CUPS de red no creada: esta Mac no acepta lpadmin -m raw."
+  echo "  Agregala manualmente: Ajustes → Impresoras y escáneres → Agregar → IP"
+  echo "      Dirección: $IMPRESORA:$PUERTO · Protocolo: Línea de impresión (Raw)"
+  echo "  O usá Reparar conexión en la app (la crea sin driver si CUPS lo permite)."
+  echo
 fi
 
 # Permiso de Red Local: launchd puede ser bloqueado por macOS aunque Terminal

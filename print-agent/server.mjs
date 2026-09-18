@@ -4,9 +4,9 @@ import { hostname } from 'node:os'
 import { promisify } from 'node:util'
 import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config.mjs'
 import { crearCola } from './cola.mjs'
-import { aliasSecundario, colaLanDeCups, crearColaLan, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle } from './transportes.mjs'
+import { aliasSecundario, colaLanDeCups, crearColaLan, diagnosticoRed, enviar, impresorasCups, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola } from './transportes.mjs'
 
-const VERSION = '1.1.1'
+const VERSION = '1.2.0'
 const config = cargarConfig()
 // Transporte real del último envío (directo | cups | usb): la app solo debe
 // marcar éxito cuando hubo entrega confirmada, no solo encolado.
@@ -155,6 +155,8 @@ const servidor = createServer(async (request, response) => {
     if (request.method === 'GET' && url.pathname === '/health') {
       if (!tokenValido(request)) return responder(response, { ok: true, version: VERSION })
       const usb = await impresorasUsb()
+      const lanCups = await colaLanDeCups(config.lanCups || 'MobOS_LAN')
+      const colaTipo = await tipoDeCola(config.lanCups || 'MobOS_LAN')
       return responder(response, {
         ok: true,
         version: VERSION,
@@ -166,9 +168,10 @@ const servidor = createServer(async (request, response) => {
         impresoraOk: await impresoraResponde(),
         red: {
           tcp: await impresoraResponde(),
-          cups: await colaLanDeCups(config.lanCups || 'MobOS_LAN'),
+          cups: lanCups,
+          colaTipo,
           alias: await aliasSecundario(config.alias),
-          transporte: (await impresoraResponde()) ? 'directo' : ((await colaLanDeCups(config.lanCups || 'MobOS_LAN')) ? 'cups' : 'ninguno'),
+          transporte: (await impresoraResponde()) ? 'directo' : (lanCups ? 'cups' : 'ninguno'),
           ultimoTransporte,
           autotest,
         },
@@ -203,6 +206,12 @@ const servidor = createServer(async (request, response) => {
       const resultado = await repararRed()
       await ejecutarAutotest()
       return responder(response, { ok: true, ...resultado, autotest })
+    }
+
+    if (request.method === 'POST' && url.pathname === '/jobs/confirm') {
+      if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
+      const cuerpo = await leerCuerpo(request)
+      return responder(response, cola.confirmar(String(cuerpo?.id || '')))
     }
 
     if (request.method === 'POST' && url.pathname === '/jobs/retry') {

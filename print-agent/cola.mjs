@@ -35,6 +35,7 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
 
   const anotar = (trabajo, resultado, error = '') => {
     historial.unshift({
+      id: trabajo.id || '',
       fecha: new Date().toISOString(),
       cliente: trabajo.cliente || '',
       usuario: trabajo.usuario || '',
@@ -100,8 +101,30 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
     },
     estado(jobId) {
       const trabajo = trabajos.find((item) => item.id === jobId)
-      if (!trabajo) return { estado: 'impreso' }
+      if (!trabajo) {
+        // Ya salió de la cola: quedó impreso o el usuario lo confirmó a mano.
+        const reciente = historial.find((item) => item.id === jobId)
+        return { estado: reciente ? (reciente.resultado === 'confirmado' ? 'confirmado' : 'impreso') : 'impreso', intentos: 0, error: '' }
+      }
       return { estado: trabajo.estado, intentos: trabajo.intentos, error: trabajo.error || '' }
+    },
+    // Confirmación física: el usuario vio el papel y lo marca en la app. El
+    // trabajo sale de la cola y queda en el historial como 'confirmado'.
+    confirmar(jobId) {
+      const trabajo = trabajos.find((item) => item.id === jobId)
+      if (!trabajo) {
+        // Ya salió de la cola: se anota la confirmación sobre el historial.
+        const reciente = historial.find((item) => item.id === jobId)
+        if (!reciente) return { ok: false, error: 'Trabajo no encontrado.' }
+        reciente.resultado = 'confirmado'
+        guardarHistorial()
+        return { ok: true, confirmado: true }
+      }
+      trabajos = trabajos.filter((item) => item.id !== jobId)
+      anotar(trabajo, 'confirmado')
+      guardar()
+      guardarHistorial()
+      return { ok: true, confirmado: true }
     },
     resumen() {
       return {

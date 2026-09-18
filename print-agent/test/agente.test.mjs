@@ -80,7 +80,7 @@ test('el agente arranca sin impresora configurada y /health responde', async (t)
     } catch { return false }
   }, { intentos: 60, espera: 150 })
   assert.ok(respuesta, 'el agente responde /health sin impresora configurada')
-  assert.equal(respuesta.version, '1.1.1', 'la versión identifica el build con el fix')
+  assert.equal(respuesta.version, '1.2.0', 'la versión identifica el build con el fix')
   assert.ok(respuesta.red, 'el payload incluye red.autotest')
   assert.equal(respuesta.red.autotest.ok, false, 'sin impresora el autotest no puede dar ok')
 })
@@ -227,4 +227,71 @@ test('la cola lista, reintenta fallidos y guarda el usuario que imprimió', asyn
   assert.deepEqual(config.lan, [`lan:127.0.0.1:${puertoImpresora}`, 'lan:192.168.1.50:9100'])
   const permitida = await fetch(`${base}/print`, { method: 'POST', headers: cabeceras, body: JSON.stringify({ impresora: 'lan:192.168.1.50:9100', data: ticket }) }).then((r) => r.json())
   assert.equal(permitida.ok, true)
+})
+
+async function esperarPuerto(puerto, { intentos = 60, espera = 150 } = {}) {
+  for (let i = 0; i < intentos; i += 1) {
+    try {
+      const respuesta = await fetch(`http://127.0.0.1:${puerto}/health`)
+      if (respuesta.ok) return true
+    } catch { /* todavía no escucha */ }
+    await new Promise((listo) => setTimeout(listo, espera))
+  }
+  throw new Error(`el agente no levantó en el puerto ${puerto}`)
+}
+
+test('estados honestos: encolado, confirmación física e impresora inaccesible', async (t) => {
+  const raizTemp = mkdtempSync(join(tmpdir(), 'mobos-print-honesto-'))
+  const puerto = await puertoLibre()
+  const configInicial = {
+    puerto,
+    host: '127.0.0.1',
+    token: TOKEN,
+    impresora: 'lan:127.0.0.1:39100',
+    lan: ['lan:127.0.0.1:39100'],
+    ancho: 80,
+    copias: 1,
+    esperaMs: 150,
+    reintentos: 1,
+  }
+  writeFileSync(join(raizTemp, 'config.json'), JSON.stringify(configInicial))
+  const proceso = spawn(process.execPath, [join(RAIZ, 'server.mjs')], { env: { ...process.env, MOBOS_PRINT_DIR: raizTemp }, stdio: ['ignore', 'pipe', 'pipe'] })
+  t.after(() => { proceso.kill() })
+  await esperarPuerto(puerto)
+  const base = `http://127.0.0.1:${puerto}`
+  const cabeceras = { 'Content-Type': 'application/json', 'x-mobos-print-token': TOKEN }
+  const ticket = Buffer.from('test-honesto').toString('base64')
+
+  // Sin impresora en 39100: el trabajo se encola (202) con estado pendiente.
+  const enviado = await fetch(`${base}/print`, { method: 'POST', headers: cabeceras, body: JSON.stringify({ data: ticket, ref: 'ID-TEST-1' }) }).then((r) => r.json())
+  assert.equal(enviado.ok, true)
+  assert.equal(enviado.encolado, true)
+  const jobId = enviado.jobId
+  assert.ok(jobId, 'cada ticket tiene su ID')
+
+  const trabajo = await fetch(`${base}/jobs/${jobId}`, { headers: cabeceras }).then((r) => r.json())
+  assert.ok(['pendiente', 'fallido'].includes(trabajo.estado), `estado honesto (${trabajo.estado})`)
+
+  // Confirmación física manual: el usuario vio el papel (o lo retira).
+  const confirmado = await fetch(`${base}/jobs/confirm`, { method: 'POST', headers: cabeceras, body: JSON.stringify({ id: jobId }) }).then((r) => r.json())
+  assert.equal(confirmado.ok, true)
+  const estadoFinal = await fetch(`${base}/jobs/${jobId}`, { headers: cabeceras }).then((r) => r.json())
+  assert.equal(estadoFinal.estado, 'confirmado')
+})
+
+test('diagnóstico honesto: red inalcanzable es red_cambiada, no permisos', async (t) => {
+  const raizTemp = mkdtempSync(join(tmpdir(), 'mobos-print-red-'))
+  const puerto = await puertoLibre()
+  writeFileSync(join(raizTemp, 'config.json'), JSON.stringify({ puerto, host: '127.0.0.1', token: TOKEN, impresora: 'lan:192.0.2.1:9100', lan: ['lan:192.0.2.1:9100'], reintentos: 1 }))
+  const proceso = spawn(process.execPath, [join(RAIZ, 'server.mjs')], { env: { ...process.env, MOBOS_PRINT_DIR: raizTemp }, stdio: ['ignore', 'pipe', 'pipe'] })
+  t.after(() => { proceso.kill() })
+  await esperarPuerto(puerto)
+  const base = `http://127.0.0.1:${puerto}`
+  const cabeceras = { 'Content-Type': 'application/json', 'x-mobos-print-token': TOKEN }
+  const diagnostico = await fetch(`${base}/diagnostico?destino=lan:192.0.2.1:9100`, { headers: cabeceras }).then((r) => r.json())
+  assert.equal(diagnostico.alcance, false)
+  // 192.0.2.1 (TEST-NET) no tiene ruta: el motivo debe ser de red, jamás
+  // permisos de macOS.
+  assert.ok(['red_cambiada', 'otro'].includes(diagnostico.motivo), `motivo honesto (${diagnostico.motivo})`)
+  assert.notEqual(diagnostico.motivo, 'permisos_red_local')
 })
