@@ -25,11 +25,23 @@ Nunca un `<input>` suelto. Un componente por tipo, en el directorio compartido
 | Fechas | `DateField`, `DateRange` | zona horaria única |
 | Ubicación | `CityField` / autocompletado | catálogo canónico |
 | Cuenta bancaria / billetera | `BankAccountField` | institución + número |
-| Identidad fiscal | `TaxIdField` | dígito verificador |
+| Identidad fiscal | `TaxIdField` | dígito verificador + patrón extractor (consulta al backend) |
 | Redes / enlaces | `SocialField`, `LinkField` | solo https |
 | Archivo / imagen | `AttachmentInput` | ver sección 6 |
 | Segmentado | `SegmentedField` | opciones excluyentes |
 | Tema | `ThemeToggle` | si la app tiene claro/oscuro |
+
+**Patrones de campo (reutilizables, uno por patrón)**
+- **Autocompletado**: sugerencias por iniciales sobre lo tipeado, texto libre
+  permitido, teclado correcto, sin interferir con pegado/autofill del navegador;
+  al elegir se completan los campos derivados (ciudad → departamento, correo →
+  dominio).
+- **Extractor**: campo + botón corto o lupa (`Icon` + `title`) que consulta un
+  endpoint del backend; el resultado se muestra aparte y **se aplica solo al
+  confirmar**; nunca pisa lo cargado; si el proveedor falla o no hay cuota, el
+  dato se completa a mano y el error se muestra con `role="alert"`.
+- Prohibido reimplementar la consulta o las sugerencias dentro de una pantalla:
+  el patrón vive una sola vez en el módulo compartido.
 
 **Reglas transversales de campos**
 - Label arriba; **error o hint, nunca ambos**.
