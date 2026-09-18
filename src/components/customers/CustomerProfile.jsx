@@ -143,12 +143,14 @@ export default function CustomerProfile({ customer, open, onClose }) {
     if (!solicitud || solicitudBusy || !customer?.id) return
     setSolicitudBusy(true)
     try {
-      await api.post('/api/customer-requests', {
+      await api.post('/api/authorizations', {
         customerId: customer.id,
-        type: solicitud,
-        ...(solicitud === 'CREDIT' ? { creditDays: solicitudDias, creditLimitPyg: solicitudLimite } : {}),
+        kind: solicitud,
+        ...(solicitud === 'CREDIT'
+          ? { requestedValue: { creditDays: solicitudDias, creditLimitPyg: solicitudLimite } }
+          : {}),
       })
-      toast.success('Solicitud enviada: queda pendiente de aprobación.')
+      toast.success('Solicitud enviada', 'Gerencia la resuelve desde Autorizaciones.')
       setSolicitud(null); setSolicitudDias(''); setSolicitudLimite('')
     } catch (cause) { toast.error(cause?.message || 'No se pudo enviar la solicitud.') } finally { setSolicitudBusy(false) }
   }
