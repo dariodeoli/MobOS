@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { comprimirImagen } from '@/utils/imagen'
 
 // Adjuntos JPG/PNG/WebP/PDF de hasta 5 MiB: misma regla que el backend, pero
 // verificada en el cliente antes de llamar a onSelect. Con onError el aviso lo
@@ -23,18 +24,26 @@ export default function AttachmentInput({
   const ref = inputRef || propioRef
   const [error, setError] = useState('')
 
-  function seleccionar(event) {
+  async function seleccionar(event) {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
     const tipos = accept.split(',').map((tipo) => tipo.trim())
-    if (!tipos.includes(file.type) || file.size > maxBytes) {
+    if (!tipos.includes(file.type)) {
+      setError(MENSAJE_ADJUNTO)
+      onError?.(MENSAJE_ADJUNTO)
+      return
+    }
+    // Las fotos se comprimen antes de subir (con fallback al original): el
+    // límite del cliente y del backend sigue siendo el mismo.
+    const listo = file.type.startsWith('image/') ? await comprimirImagen(file) : file
+    if (listo.size > maxBytes) {
       setError(MENSAJE_ADJUNTO)
       onError?.(MENSAJE_ADJUNTO)
       return
     }
     setError('')
-    onSelect?.(file)
+    onSelect?.(listo)
   }
 
   return (
