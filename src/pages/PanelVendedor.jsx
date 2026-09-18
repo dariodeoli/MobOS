@@ -89,8 +89,8 @@ const OWNER_NAV = [
       ['productos', 'Productos', 'phone'],
       ['compras', 'Compras', 'store'],
       ['tradein-admin', 'Trade-In', 'refresh'],
-      ['servicio', 'Servicio Técnico', 'refresh'],
-      ['garantias', 'Garantías', 'wrench'],
+      ['servicio', 'Servicio Técnico', 'wrench'],
+      ['garantias', 'Garantías', 'clock'],
       ['autorizaciones', 'Autorizaciones', 'check'],
     ],
   },
@@ -100,7 +100,7 @@ const OWNER_NAV = [
       ['resumen', 'Resumen', 'chart'],
       ['analisis', 'Análisis', 'report'],
       ['finanzas', 'Finanzas', 'receipt'],
-      ['equipo', 'Configuración', 'users'],
+      ['equipo', 'Configuración', 'settings'],
     ],
   },
 ]
@@ -110,7 +110,7 @@ const TECNICO_NAV = [
   {
     titulo: 'Taller',
     items: [
-      ['servicio', 'Servicio Técnico', 'refresh'],
+      ['servicio', 'Servicio Técnico', 'wrench'],
     ],
   },
 ]
