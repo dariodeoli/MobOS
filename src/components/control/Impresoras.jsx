@@ -679,8 +679,7 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
       {metodo === 'LAN' && !diagnostico.alcance && aliasPresente && (
         <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
           <p className="font-semibold text-warn">El agente automático no puede salir a la red (permiso de macOS).</p>
-          <p className="text-mute">La IP secundaria está presente y Terminal sí conecta, pero el proceso de launchd no: macOS bloquea la Red Local para ese proceso. En el puente: <b className="text-fore">Ajustes → Privacidad y seguridad → Red local</b> → habilitá <b className="text-fore">node</b> (o reinstalá con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code>, que abre el panel).</p>
-          <p className="text-mute">{cupsDisponible ? `Mientras tanto, la cola CUPS ${diagnostico.cups} queda como respaldo automático.` : `Si CUPS no se puede crear, corré: sudo lpadmin -p MOBOS_LAN -E -v socket://${host}:${puerto} -m raw`}</p>
+          <p className="text-mute">La IP secundaria está presente y <code className="rounded bg-ink-700 px-1">nc -s {diagnostico.alias?.ip || estado?.alias?.ip || '192.168.1.100'}</code> conecta, pero el proceso de launchd no: el agente ya usa bind al alias, así que falta el <b className="text-fore">permiso de Red Local</b>. En el puente: <b className="text-fore">Ajustes → Privacidad y seguridad → Red local</b> → habilitá <b className="text-fore">node</b> (o reinstalá con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code>, que abre el panel). Después usá <b className="text-fore">Reparar conexión → Imprimir prueba</b>.</p>
         </div>
       )}
       {metodo === 'LAN' && !diagnostico.alcance && !aliasPresente && mismaRed && (
