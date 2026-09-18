@@ -47,6 +47,7 @@ const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'
 const Impresoras = lazy(() => import('@/components/control/Impresoras'))
 const EstadoImpresion = lazy(() => import('@/components/control/EstadoImpresion'))
 const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
+const WhatsAppTemplates = lazy(() => import('@/components/control/WhatsAppTemplates'))
 
 // Navegación por flujo de trabajo: primero la operación del día, después el
 // catálogo/stock y al final las herramientas de gestión. Los permisos definen
@@ -80,6 +81,7 @@ const OWNER_NAV = [
       ['clientes', 'Clientes', 'users'],
       ['promociones', 'Promociones', 'store'],
       ['cotizaciones', 'Cotizaciones', 'report'],
+      ['plantillas', 'Plantillas', 'send'],
     ],
   },
   {
@@ -207,6 +209,7 @@ const LABELS = {
   productos: 'Productos',
   promociones: 'Promociones',
   cotizaciones: 'Cotizaciones',
+  plantillas: 'Plantillas de WhatsApp',
   cotizador: 'Trade-In',
   cargar: 'Cargar venta',
   resumen: 'Resumen general',
@@ -690,6 +693,7 @@ export default function PanelVendedor() {
 
           {esOwner && apartado === 'inventario' && <Inventario tab={vista} onTabChange={irASubtab} />}
           {(esOwner && (vista === 'compras' || vista === 'productos')) && <div className="mb-3 flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{[['compras', 'Compras'], ['productos', 'Productos']].map(([id, label]) => <button key={id} type="button" aria-pressed={vista === id} onClick={() => ir(id)} className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', vista === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>}
+          {vista === 'plantillas' && <WhatsAppTemplates />}
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
           {(esOwner || esTecnico) && vista === 'servicio' && <ServicioTecnico />}
