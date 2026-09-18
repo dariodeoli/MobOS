@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Input } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
@@ -36,16 +36,16 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
     }
   }, [])
 
-  function setearQuery(next) {
+  const setearQuery = useCallback((next) => {
     setQuery(next)
     onQueryChange?.(next)
-  }
+  }, [onQueryChange])
 
   useEffect(() => {
     if (!selectedId) return
     const selected = products.find((product) => product.id === selectedId)
     if (selected) setearQuery(productName(selected))
-  }, [selectedId, products])
+  }, [selectedId, products, setearQuery])
 
   const term = query.trim().toLowerCase()
   const suggestions = useMemo(() => {

@@ -346,9 +346,6 @@ export default function PanelVendedor() {
     () => (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id),
     [esOwner, esTecnico],
   )
-  // Apartado activo: por URL (/analisis/reportes) o por vista suelta (/pos/analisis).
-  const apartado = subpadre || SUBPAGINA_DE_TAB[vista] || null
-
   // /pos/analisis y los slugs planos viejos (/pos/negocio…) se canonizan a /<padre>/<hijo>.
   useEffect(() => {
     if (subpadre) return
