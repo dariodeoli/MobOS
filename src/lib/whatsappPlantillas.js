@@ -25,6 +25,7 @@ export const VARIABLES_POR_CONTEXTO = {
     { clave: 'sucursal', descripcion: 'Sucursal que entrega' },
     { clave: 'vendedor', descripcion: 'Vendedor a cargo' },
     { clave: 'fecha', descripcion: 'Fecha del pedido' },
+    { clave: 'seguimiento', descripcion: 'Enlace público de seguimiento' },
   ],
   SERVICE: [
     { clave: 'cliente', descripcion: 'Nombre del cliente' },

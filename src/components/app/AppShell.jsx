@@ -3,8 +3,10 @@ import { cn } from '@/lib/utils'
 import { Drawer, Eyebrow, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ThemeToggle from '@/components/app/ThemeToggle'
+import PresencePill from '@/components/app/PresencePill'
 import ProductFooter from '@/components/app/ProductFooter'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
+import { usePresenceTracker } from '@/hooks/usePresence'
 import { APP_NAME } from '@/lib/brand'
 
 const NAV_GROUPS_KEY = 'mobos:nav-groups'
@@ -234,6 +236,7 @@ export default function AppShell({
 }) {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const enLinea = useOnlineStatus()
+  usePresenceTracker()
   const [statsCollapsedInterno, setStatsCollapsedInterno] = useState(() => localStorage.getItem('mobos:stats-collapsed') === '1')
   const statsCerrado = onStatsToggle ? Boolean(statsCollapsed) : statsCollapsedInterno
   // Contexto de navegación para la cabecera: a qué grupo pertenece la vista.
@@ -355,6 +358,7 @@ export default function AppShell({
           <div className="flex items-center gap-2.5">
             {/* Tema junto al nombre de la tienda (primer acción del header). */}
             <ThemeToggle />
+            <PresencePill />
             {headerActions}
             {/* Cerrar sesión: primero de la derecha. */}
             {onLogout && (

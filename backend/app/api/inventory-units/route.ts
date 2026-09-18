@@ -21,6 +21,14 @@ async function removedIdsForTenant(tenant: string) {
   return removedInventoryUnitIds(events)
 }
 
+// Monto a pagar al consignador: entero en guaraníes o vacío para quitarlo.
+function consignarMonto(value: unknown) {
+  if (value === undefined || value === null || value === "") return null
+  const monto = Number(value)
+  if (!Number.isSafeInteger(monto) || monto < 0 || monto > 2147483647) throw new Error("Monto de consignación inválido.")
+  return monto
+}
+
 function unitData(body: any) {
   const condition = body.condition === undefined ? undefined : Object.values(ProductCondition).includes(body.condition) ? body.condition : null
   if (condition === null) throw new Error('Condición de unidad inválida.')
@@ -46,6 +54,9 @@ function unitData(body: any) {
     ...(costCurrency !== undefined ? { costCurrency } : {}),
     ...(body.supplierName !== undefined ? { supplierName: text(body.supplierName, 160) } : {}),
     ...(body.notes !== undefined ? { notes: text(body.notes, 500) } : {}),
+    ...(body.consignorName !== undefined ? { consignorName: body.consignorName === null || String(body.consignorName).trim() === "" ? null : text(body.consignorName, 160) } : {}),
+    ...(body.consignorPhone !== undefined ? { consignorPhone: body.consignorPhone === null || String(body.consignorPhone).trim() === "" ? null : text(body.consignorPhone, 40) } : {}),
+    ...(body.consignorPyg !== undefined ? { consignorPyg: consignarMonto(body.consignorPyg) } : {}),
   }
 }
 
@@ -151,7 +162,7 @@ export async function PATCH(request: Request) {
   const id = text(body.id, 128)
   if (!id) return error('Unidad obligatoria.')
   const action = body.action === undefined ? 'adjust' : body.action
-  if (!['adjust', 'remove', 'restore', 'move'].includes(action)) return error('Acción de inventario inválida.')
+  if (!['adjust', 'details', 'remove', 'restore', 'move'].includes(action)) return error('Acción de inventario inválida.')
   const adjustmentReason = reason(body.reason)
   if (['remove', 'restore'].includes(action) && !adjustmentReason) return error('Indicá un motivo de entre 3 y 500 caracteres.')
   const unit = await prisma.inventoryUnit.findFirst({ where: { id, tenantId: tenant }, select: { id: true, branchId: true } })
@@ -219,6 +230,14 @@ export async function PATCH(request: Request) {
         await changeStock(tx, { tenantId: tenant, productId: before.productId, delta: 1, message: 'No se pudo restaurar el stock de la unidad.' })
         const data = await tx.inventoryUnit.update({ where: { id }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservationCustomerId: null, reservedById: null } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_RESTORED, entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, reason: adjustmentReason, restoredTo: 'AVAILABLE', locationId: before.locationId } } })
+        return data
+      }
+      // Edición descriptiva (nota interna, consignación): se audita igual pero
+      // no mueve stock ni estado, así que no pide motivo de ajuste.
+      if (action === 'details') {
+        if (removed) throw new Error('Restaurá la unidad antes de editarla.')
+        const data = await tx.inventoryUnit.update({ where: { id }, data: unitData(body) })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_DETAILS_UPDATED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial } } })
         return data
       }
       if (!adjustmentReason) throw new Error('Indicá un motivo de ajuste de entre 3 y 500 caracteres.')

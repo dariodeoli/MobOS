@@ -7,6 +7,8 @@ datasource db {
 }
 
 model Tenant {
+  presenceTabs        PresenceTab[]
+  usageSessions       UsageSession[]
   googleStoreAccesses GoogleStoreAccess[]
   promotions          Promotion[]
   logo                TenantLogo?
@@ -208,6 +210,8 @@ model Branch {
 }
 
 model User {
+  presenceTabs        PresenceTab[]
+  usageSessions       UsageSession[]
   avatar              UserAvatar?
   openedCashSessions  CashSession[]   @relation("CashOpenedBy")
   inventoryVerifications InventoryUnit[] @relation("InventoryUnitVerifier")
@@ -437,6 +441,11 @@ model InventoryUnit {
   originalCost        Decimal?            @db.Decimal(14, 2)
   exchangeRatePyg     Decimal?            @db.Decimal(14, 4)
   notes               String?
+  // Consignación de terceros: el equipo no es de la tienda. Al venderse se le
+  // paga al consignador el monto acordado.
+  consignorName       String?
+  consignorPhone      String?
+  consignorPyg        Int?
   reservedUntil       DateTime?
   // Nombre congelado al reservar (lo que se muestra) y la ficha real del
   // cliente cuando la reserva se hizo eligiendo uno existente.
@@ -1679,4 +1688,38 @@ model UserAvatar {
   updatedAt  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Presencia en vivo: una fila por pestaña abierta. "En línea" = latido en los
+// últimos 75 s (2,5x el pulso de 30 s). El alcance es la sección que se mira.
+model PresenceTab {
+  tenantId   String
+  userId     String
+  tabId      String   @db.Uuid
+  scope      String?
+  lastSeenAt DateTime @default(now())
+  isActive   Boolean  @default(false)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, userId, tabId])
+  @@index([tenantId, lastSeenAt(sort: Desc)])
+}
+
+// Consumo por pestaña de trabajo para el panel de uso del equipo (30 días).
+model UsageSession {
+  tenantId      String
+  userId        String
+  sessionKey    String
+  firstSeenAt   DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  activeSeconds Int      @default(0)
+  wasActive     Boolean  @default(false)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, userId, sessionKey])
+  @@index([tenantId, lastSeenAt(sort: Desc)])
 }

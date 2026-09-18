@@ -7,5 +7,6 @@ require.extensions['.ts'] = (module, path) => module._compile(ts.transpileModule
 require('./attachment-storage.test.ts')
 require('./payment-proofs.test.ts')
 require('./aex-webhook.test.ts')
+require('./presence.test.ts')
 require('./pricing.test.ts')
 require('./sku.test.ts')

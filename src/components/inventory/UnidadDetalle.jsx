@@ -68,6 +68,10 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
   const [stockMotivo, setStockMotivo] = useState('')
   const [stockError, setStockError] = useState('')
   const [stockBusy, setStockBusy] = useState(false)
+  const [consignador, setConsignador] = useState(unit.consignorName || '')
+  const [consignadorTel, setConsignadorTel] = useState(unit.consignorPhone || '')
+  const [consignadorMonto, setConsignadorMonto] = useState(unit.consignorPyg === null || unit.consignorPyg === undefined ? '' : String(unit.consignorPyg))
+  const [guardandoConsignacion, setGuardandoConsignacion] = useState(false)
 
   const load = useCallback(async () => {
     if (!canManage) { setLoading(false); return }
@@ -99,10 +103,21 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
     if (guardandoNota) return
     setGuardandoNota(true)
     try {
-      await api.patch('/api/inventory-units', { id: unit.id, notes: nota.trim() })
+      await api.patch('/api/inventory-units', { id: unit.id, action: 'details', notes: nota.trim() })
       toast.success('Nota guardada.')
       onChanged?.()
     } catch (cause) { toast.error(cause?.message || 'No se pudo guardar la nota.') } finally { setGuardandoNota(false) }
+  }
+
+  // Equipo de un tercero: la tienda lo vende y le paga el monto acordado.
+  async function guardarConsignacion() {
+    if (guardandoConsignacion) return
+    setGuardandoConsignacion(true)
+    try {
+      await api.patch('/api/inventory-units', { id: unit.id, action: 'details', consignorName: consignador.trim(), consignorPhone: consignadorTel.trim(), consignorPyg: consignadorMonto.trim() === '' ? null : Number(consignadorMonto) })
+      toast.success(consignador.trim() ? 'Consignación guardada.' : 'Consignación quitada.')
+      onChanged?.()
+    } catch (cause) { toast.error(cause?.message || 'No se pudo guardar la consignación.') } finally { setGuardandoConsignacion(false) }
   }
 
   const verifier = unit.lastVerifiedBy?.name || (unit.verifiedByCode === 'VPE' ? 'Edgar' : unit.verifiedByCode === 'VPM' ? 'Matheo' : unit.verifiedByCode) || ''
@@ -197,6 +212,19 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Ingresó a stock</p><p className="mt-1 font-semibold">{ingreso ? ingreso.toLocaleDateString('es-PY') : '—'}{diasEnStock != null ? <span className="ml-2 text-xs font-normal text-mute">{diasEnStock} {diasEnStock === 1 ? 'día' : 'días'} en stock</span> : null}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Compra</p><p className="mt-1 font-semibold">{unit.purchasedAt ? new Date(unit.purchasedAt).toLocaleDateString('es-PY') : '—'}</p></div>
             {unit.reservedUntil && <div className="col-span-2 rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 p-3 text-sm"><p className="text-xs text-mute">Reserva</p><p className="mt-1 font-semibold">{unit.reservationCustomer || 'Cliente'} · vence {new Date(unit.reservedUntil).toLocaleString('es-PY')}</p></div>}
+            <div className="col-span-2 rounded-xl border border-fono/25 bg-fono/5 p-3 text-sm">
+              <p className="text-xs text-mute">Consignación de terceros</p>
+              <p className="mt-1 text-xs text-mute">Si el equipo no es de la tienda, cargá quién lo dejó y cuánto hay que pagarle al venderse.</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                <Input aria-label="Consignador" maxLength={160} value={consignador} onChange={event => setConsignador(event.target.value)} placeholder="Nombre de quien lo dejó" className="min-h-9" autoCapitalize="words" />
+                <Input aria-label="Teléfono del consignador" maxLength={40} value={consignadorTel} onChange={event => setConsignadorTel(event.target.value)} placeholder="Teléfono" className="min-h-9" autoCapitalize="none" />
+                <Input aria-label="Monto a pagar al consignador" inputMode="numeric" value={consignadorMonto} onChange={event => setConsignadorMonto(event.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="A pagar (Gs)" className="min-h-9" />
+              </div>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-mute">{unit.consignorName ? `En consignación de ${unit.consignorName}${unit.consignorPyg ? ` · a pagar ${money(unit.consignorPyg, 'PYG')}` : ''}` : 'Sin consignación'}</span>
+                <Button type="button" variant="outline" disabled={guardandoConsignacion || (consignador.trim() === (unit.consignorName || '') && consignadorTel.trim() === (unit.consignorPhone || '') && consignadorMonto.trim() === (unit.consignorPyg === null || unit.consignorPyg === undefined ? '' : String(unit.consignorPyg)))} onClick={guardarConsignacion}>{guardandoConsignacion ? 'Guardando…' : 'Guardar consignación'}</Button>
+              </div>
+            </div>
             <div className="col-span-2 rounded-xl bg-ink-800/60 p-3 text-sm"><p className="text-xs text-mute">Nota interna</p><div className="mt-1.5 flex flex-wrap items-center gap-2"><Input aria-label="Nota interna de la unidad" maxLength={500} value={nota} onChange={event => setNota(event.target.value)} placeholder="Raya lateral, caja dañada, accesorio faltante…" className="min-h-9 min-w-[12rem] flex-1" /><Button type="button" variant="outline" disabled={guardandoNota || nota.trim() === (unit.notes || "")} onClick={guardarNota}>{guardandoNota ? "Guardando…" : "Guardar nota"}</Button></div></div>
           </div>
         </section>

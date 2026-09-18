@@ -126,6 +126,7 @@ function FilaUnidad({ unit, perfilEmpresa, onClick, onVerify, onSell, busy }) {
     <span className="min-w-0">
       <Badge color={estado.tone} className="max-w-full truncate" title={estado.label}>{estado.label}</Badge>
       {unit.reservationCustomer && <span className="mt-0.5 block truncate text-[10px] font-semibold text-reserved" title={`Reservado para ${unit.reservationCustomer}`}>{unit.reservationCustomer}</span>}
+      {unit.consignorName && <span className="mt-0.5 block truncate text-[10px] font-semibold text-fono-light" title={`En consignación de ${unit.consignorName}`}>Consignado</span>}
     </span>
     <span className="flex flex-wrap items-center justify-end gap-1">
       {unit.status === 'RESERVED' && <button type="button" disabled={busy} title="Cerrar la reserva y cargar la venta" onClick={event => { event.stopPropagation(); onSell?.(unit) }} className="whitespace-nowrap rounded-lg border border-fono/40 px-2 py-1 text-[10px] font-bold text-fono-light transition hover:bg-fono/10 disabled:opacity-50">Finalizar venta</button>}
@@ -148,6 +149,7 @@ function TarjetaUnidad({ unit, perfilEmpresa, onClick }) {
       {unit.batteryHealth ? <span className="rounded border border-ink-500 px-1.5 py-0.5">{unit.batteryHealth}%</span> : null}
       {unit.location?.name ? <span className="truncate rounded border border-ink-500 px-1.5 py-0.5">{unit.location.name}</span> : null}
       {unit.supplierName ? <span className="rounded border border-ink-500 px-1.5 py-0.5">{unit.supplierName}</span> : null}
+      {unit.consignorName ? <span className="rounded border border-fono/40 px-1.5 py-0.5 text-fono-light" title={`En consignación de ${unit.consignorName}`}>Consignado</span> : null}
     </span>
     <span className="mt-2 flex items-center justify-between gap-2 text-[11px] text-mute">
       <span className="flex min-w-0 items-center gap-1.5" title={v ? `${v.quien || unit.verifiedByCode || '—'} · ${fechaVerificacion(unit.lastVerifiedAt)}` : undefined}>
