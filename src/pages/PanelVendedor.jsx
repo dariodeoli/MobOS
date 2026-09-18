@@ -86,7 +86,6 @@ const OWNER_NAV = [
     titulo: 'Stock y servicio',
     items: [
       ['inventario', 'Inventario', 'box'],
-      ['productos', 'Productos', 'phone'],
       ['compras', 'Compras', 'store'],
       ['tradein-admin', 'Trade-In', 'refresh'],
       ['servicio', 'Servicio Técnico', 'wrench'],
@@ -582,7 +581,7 @@ export default function PanelVendedor() {
         nav={esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV}
         bottomNav={esOwner ? OWNER_BOTTOM : esTecnico ? [] : SELLER_BOTTOM}
         onOpenMenuLabel="Menú"
-        active={apartado ? SUBPAGINAS[apartado].vista : vista}
+        active={apartado ? SUBPAGINAS[apartado].vista : vista === 'productos' ? 'compras' : vista}
         onNavigate={ir}
         collapsed={sidebarCollapsed}
         onToggleCollapsed={toggleSidebar}
@@ -690,6 +689,7 @@ export default function PanelVendedor() {
           </div>
 
           {esOwner && apartado === 'inventario' && <Inventario tab={vista} onTabChange={irASubtab} />}
+          {(esOwner && (vista === 'compras' || vista === 'productos')) && <div className="mb-3 flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{[['compras', 'Compras'], ['productos', 'Productos']].map(([id, label]) => <button key={id} type="button" aria-pressed={vista === id} onClick={() => ir(id)} className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', vista === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>}
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
           {(esOwner || esTecnico) && vista === 'servicio' && <ServicioTecnico />}

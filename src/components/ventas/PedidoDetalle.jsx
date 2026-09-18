@@ -29,11 +29,9 @@ const AUDIT_LABELS = {
   ORDER_COMMENTED: () => 'Comentario agregado',
 }
 
-function iniciales(name = '') {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part.charAt(0).toUpperCase()).join('') || '?'
-}
+// Sin foto, el cliente se identifica con el icono de persona (no iniciales).
 function Avatar({ name, size = 'md' }) {
-  return <span className={`grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-fono to-fono-dark font-bold text-onbrand ${size === 'sm' ? 'h-7 w-7 text-[10px]' : 'h-9 w-9 text-xs'}`}>{iniciales(name)}</span>
+  return <span title={name || undefined} className={`grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-fono to-fono-dark text-onbrand ${size === 'sm' ? 'h-7 w-7' : 'h-9 w-9'}`}><Icon name="user" className={size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'} /></span>
 }
 function relativeDate(value) {
   if (!value) return '—'
