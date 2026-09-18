@@ -80,7 +80,7 @@ test('el agente arranca sin impresora configurada y /health responde', async (t)
     } catch { return false }
   }, { intentos: 60, espera: 150 })
   assert.ok(respuesta, 'el agente responde /health sin impresora configurada')
-  assert.equal(respuesta.version, '1.2.0', 'la versión identifica el build con el fix')
+  assert.equal(respuesta.version, '1.3.0', 'la versión identifica el build con el fix')
   assert.ok(respuesta.red, 'el payload incluye red.autotest')
   assert.equal(respuesta.red.autotest.ok, false, 'sin impresora el autotest no puede dar ok')
 })
@@ -151,7 +151,17 @@ test('el agente imprime al toque cuando la impresora está disponible', async (t
   const respuesta = await fetch(`http://127.0.0.1:${puertoAgente}/print`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-mobos-print-token': TOKEN },
-    body: JSON.stringify({ data: ticket, usuario: 'Dueño', ref: 'TEST-ABC-1234', tipo: 'prueba-corta' }),
+    body: JSON.stringify({
+      data: ticket,
+      usuario: 'Dueño',
+      ref: 'TEST-ABC-1234',
+      tipo: 'prueba-corta',
+      validacion: '7318',
+      puente: 'Mac mostrador',
+      tokenPista: '1f75…5a8c',
+      modo: 'usb',
+      ancho: 80,
+    }),
   }).then((r) => r.json())
   assert.equal(respuesta.ok, true)
   assert.equal(respuesta.encolado, false)
@@ -167,6 +177,12 @@ test('el agente imprime al toque cuando la impresora está disponible', async (t
   assert.equal(historial.historial[0].ref, 'TEST-ABC-1234')
   assert.equal(historial.historial[0].tipo, 'prueba-corta')
   assert.ok(historial.historial[0].bytes > 0)
+  // Datos de testeo: quedan registrados para auditar la corrida.
+  assert.equal(historial.historial[0].validacion, '7318')
+  assert.equal(historial.historial[0].puente, 'Mac mostrador')
+  assert.equal(historial.historial[0].tokenPista, '1f75…5a8c')
+  assert.equal(historial.historial[0].modo, 'usb')
+  assert.equal(historial.historial[0].ancho, 80)
 
   // Confirmación física: el operador vio el papel y lo marca en la app.
   const confirmado = await fetch(`http://127.0.0.1:${puertoAgente}/jobs/confirm`, {

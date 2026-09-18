@@ -209,7 +209,19 @@ export default function Impresoras() {
     if (!impresora || probandoId) return
     setProbandoId(impresora.id)
     setProgreso('Enviando al agente…')
-    const resultado = await imprimirTicketDirecto(ticket, { impresora: impresora.destino, copias, usuario: sesion?.nombre || usuario?.name || '', ref: ticket.ref, tipo })
+    const puente = puenteDe(store, impresora)
+    const resultado = await imprimirTicketDirecto(ticket, {
+      impresora: impresora.destino,
+      copias,
+      usuario: sesion?.nombre || usuario?.name || '',
+      ref: ticket.ref,
+      tipo,
+      validacion: ticket.validacion,
+      puente: puente.nombre,
+      tokenPista: enmascararToken(puente.token),
+      modo: impresora.conexion,
+      ancho: impresora.ancho,
+    })
     if (resultado.ok) {
       const encolado = Boolean(resultado.encolado)
       setProgreso(encolado ? 'Encolada…' : 'Impresión enviada…')
@@ -222,7 +234,8 @@ export default function Impresoras() {
       if (encolado) {
         toast.success('Prueba encolada', 'La impresora no respondió; el agente reintenta solo.')
       } else {
-        toast.success('Prueba enviada por TCP', 'El agente confirmó el envío. La confirmación final es visual: verificá en el papel que el ticket salió y se cortó solo.')
+        const via = resultado.transporte === 'cups' ? 'por la cola CUPS' : resultado.transporte === 'usb' ? 'por USB' : 'por TCP'
+        toast.success(`Prueba enviada ${via}`, 'El agente confirmó el envío. La confirmación final es visual: verificá el código en el papel y que se cortó solo.')
       }
     } else {
       setProgreso('La impresora no respondió.')
@@ -531,14 +544,16 @@ export default function Impresoras() {
           <EmptyState compact icon="receipt" title="Todavía no hay impresiones registradas." description="Cuando imprimas un comprobante o una etiqueta, queda acá." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-sm">
+            <table className="w-full min-w-[52rem] text-sm">
               <thead>
                 <tr className="border-b border-ink-600 text-left text-xs uppercase tracking-wider text-mute">
                   <th className="px-2 py-2">Fecha</th>
                   <th className="px-2 py-2">Usuario</th>
                   <th className="px-2 py-2">Equipo</th>
                   <th className="px-2 py-2">Impresora</th>
-                  <th className="px-2 py-2">Conexión</th>
+                  <th className="px-2 py-2">Modo</th>
+                  <th className="px-2 py-2">Puente</th>
+                  <th className="px-2 py-2">Validación</th>
                   <th className="px-2 py-2 text-right">Resultado</th>
                   <th className="px-2 py-2 text-right">Bytes</th>
                 </tr>
@@ -549,8 +564,10 @@ export default function Impresoras() {
                     <td className="px-2 py-2 text-xs text-mute">{fmt(fila.fecha)}</td>
                     <td className="px-2 py-2 text-xs">{fila.usuario || '—'}</td>
                     <td className="px-2 py-2 text-xs">{fila.cliente || '—'}</td>
-                    <td className="px-2 py-2 truncate text-xs text-mute" title={fila.impresora}>{fila.impresora}</td>
-                    <td className="px-2 py-2 text-xs text-mute">{conexionDe(fila.impresora)}</td>
+                    <td className="px-2 py-2 truncate text-xs text-mute" title={`${fila.impresora}${fila.ancho ? ` · ${fila.ancho} mm` : ''}`}>{fila.impresora}</td>
+                    <td className="px-2 py-2 text-xs text-mute" title={fila.modo === 'usb' ? 'Cola CUPS local' : fila.modo === 'lan' ? 'LAN (TCP directo)' : undefined}>{fila.modo === 'usb' ? 'CUPS' : fila.modo === 'lan' ? 'LAN' : conexionDe(fila.impresora)}</td>
+                    <td className="px-2 py-2 truncate text-xs text-mute" title={`${fila.puente || '—'}${fila.tokenPista ? ` · token ${fila.tokenPista}` : ''}`}>{fila.puente || '—'}</td>
+                    <td className="px-2 py-2 text-xs font-semibold">{fila.validacion || '—'}</td>
                     <td className="px-2 py-2 text-right">
                       <Badge color={fila.resultado === 'impreso' ? 'green' : 'red'}>{fila.resultado}</Badge>
                       {fila.error && <span className="mt-1 block max-w-[16rem] truncate text-[10px] text-bad" title={fila.error}>{fila.error}</span>}
@@ -607,6 +624,9 @@ export default function Impresoras() {
         <ModalPrueba
           impresora={pruebaDe}
           metodo={metodoDe(pruebaDe)}
+          usuario={sesion?.nombre || usuario?.name || ''}
+          puente={puenteDe(store, pruebaDe).nombre}
+          tokenPista={enmascararToken(puenteDe(store, pruebaDe).token)}
           equipo={estado?.equipo || puentePrincipal.url}
           enviando={Boolean(probandoId)}
           progreso={progreso}
@@ -873,7 +893,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, tokenGuardado,
           </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {f.conexion === 'usb' ? (
-              <FormField label="Cola USB" htmlFor="imp-usb">
+              <FormField label="Cola CUPS local" htmlFor="imp-usb" hint="Una cola CUPS puede salir por red (socket://) o por USB físico (usb://); la URI real la informa el agente.">
                 <Input id="imp-usb" list="impresoras-usb" value={f.destinoUsb} onChange={(event) => set({ destinoUsb: event.target.value })} placeholder="ZKP8008" autoCapitalize="off" spellCheck={false} />
                 <datalist id="impresoras-usb">{(estado?.impresoras?.usb || []).map((cola) => <option key={cola} value={cola} />)}</datalist>
               </FormField>
@@ -952,15 +972,26 @@ function FormularioImpresora({ formulario, setFormulario, estado, tokenGuardado,
   )
 }
 
-function ModalPrueba({ impresora, metodo, equipo, enviando, progreso, onCerrar, onEnviar }) {
+function ModalPrueba({ impresora, metodo, usuario, puente, tokenPista, equipo, enviando, progreso, onCerrar, onEnviar }) {
   const [tipo, setTipo] = useState('corta')
   const [copias, setCopias] = useState(1)
   const [turno, setTurno] = useState(0) // regenera el ticket (y su número de 4 dígitos)
   const ticket = useMemo(
-    () => ticketPruebaTipo(tipo, { ancho: impresora.ancho, impresora: impresora.destino, nombre: impresora.nombre, equipo, copias, metodo }),
+    () => ticketPruebaTipo(tipo, {
+      ancho: impresora.ancho,
+      impresora: impresora.destino,
+      nombre: impresora.nombre,
+      equipo,
+      copias,
+      metodo,
+      conexion: impresora.conexion,
+      puente,
+      tokenPista,
+      usuario,
+    }),
     // turno solo dispara la regeneración: un número nuevo por ejecución.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tipo, copias, turno, impresora, equipo, metodo],
+    [tipo, copias, turno, impresora, equipo, metodo, puente, tokenPista, usuario],
   )
   return (
     <Modal open onClose={enviando ? undefined : onCerrar} title={`Probar: ${impresora.nombre}`} className="max-w-2xl">
@@ -989,7 +1020,7 @@ function ModalPrueba({ impresora, metodo, equipo, enviando, progreso, onCerrar, 
             <p className="text-xs font-bold uppercase tracking-wider text-mute">Vista previa</p>
             <Button type="button" variant="ghost" onClick={() => setTurno((n) => n + 1)} disabled={enviando}><Icon name="refresh" className="h-3.5 w-3.5" />Nuevo número</Button>
           </div>
-          <pre className="max-h-64 overflow-y-auto rounded-xl border border-ink-600 bg-ink-900 p-3 font-mono text-[11px] leading-4 text-fore">{ticket.lineas().join('')}</pre>
+          <pre className="max-h-80 overflow-y-auto rounded-xl border border-ink-600 bg-ink-900 p-3 font-mono text-[11px] leading-4 text-fore">{ticket.lineas().join('')}</pre>
         </div>
         {tipo === 'corte' && (
           <p className="rounded-lg border border-warn/30 bg-warn/10 p-2 text-xs text-mute">

@@ -31,7 +31,7 @@ test('el ticket de venta incluye comercio, IVA, QR y código de barras', () => {
   assert.ok(texto.includes('IVA 10%'))
   assert.ok(texto.includes('Total'))
   assert.ok(texto.includes('Medio de pago'))
-  assert.ok(texto.includes('[QR:'))
+  assert.ok(texto.includes('[QR]'))
   assert.ok(texto.includes('[BARRA]'))
 })
 
@@ -42,6 +42,29 @@ test('el ticket de caracteres ejercita acentos, negrita y doble alto', () => {
   assert.ok(texto.includes('Negrita'))
   assert.ok(texto.includes('DOBLE'))
   assert.ok(texto.includes('Columna izquierda'))
+})
+
+test('la vista previa no se desborda ni pega líneas (todas las líneas caben)', () => {
+  for (const tipo of Object.keys(TIPOS_TICKET_PRUEBA)) {
+    const ticket = ticketPruebaTipo(tipo, opciones)
+    const lineas = ticket.lineas().join('').split('\n')
+    for (const linea of lineas) {
+      assert.ok(linea.length <= 48, `línea de ${tipo} dentro del ancho (${linea.length}): ${linea.slice(0, 60)}`)
+    }
+  }
+})
+
+test('la trazabilidad incluye puente, token enmascarado, usuario y conexión', () => {
+  const ticket = ticketPruebaTipo('corta', { ...opciones, puente: 'Mac mostrador', tokenPista: '1f75…5a8c', usuario: 'Dario', conexion: 'usb' })
+  const texto = ticket.lineas().join('')
+  assert.ok(texto.includes('Puente'), 'puente')
+  assert.ok(texto.includes('Mac mostrador'), 'nombre del puente')
+  assert.ok(texto.includes('1f75…5a8c'), 'token enmascarado')
+  assert.ok(texto.includes('Usuario'), 'usuario')
+  assert.ok(texto.includes('Dario'), 'usuario autenticado')
+  assert.ok(texto.includes('Cola CUPS local'), 'conexión honesta')
+  assert.ok(texto.includes('VALIDACIÓN'), 'validación destacada')
+  assert.ok(texto.includes('[CORTE]'), 'corte en la vista previa')
 })
 
 test('cada ejecución genera un número de validación nuevo', () => {

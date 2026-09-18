@@ -83,6 +83,16 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
     partes.push(...bytesDeTexto(linea))
   }
 
+  // Centrado por espacios (papel y vista previa usan el mismo criterio).
+  const centrar = (texto) => {
+    const recorte = String(texto).slice(0, anchoActual())
+    const aire = Math.max(0, Math.floor((anchoActual() - recorte.length) / 2))
+    return `${' '.repeat(aire)}${recorte}`
+  }
+  // Solo vista previa: placeholder centrado y con salto (sin el \n las líneas
+  // del espejo se pegaban una con otra y todo se veía corrido).
+  const espejoCentrado = (texto) => espejo.push(`${prefijo}${centrar(texto)}\n`)
+
   const api = {
     columnas,
     iniciar() {
@@ -104,8 +114,12 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
       return api
     },
     centrado(texto = '') {
+      // En doble ancho cada caracter ocupa dos columnas: la vista previa debe
+      // centrar el texto como se ve en el papel, no como ocupa en memoria.
+      const anchoVisual = doble ? columnas : anchoActual()
       for (const linea of envolver(texto, anchoActual())) {
-        const margen = Math.max(0, Math.floor((anchoActual() - linea.length) / 2))
+        const largo = doble ? linea.length * 2 : linea.length
+        const margen = Math.max(0, Math.floor((anchoVisual - largo) / 2))
         escribir(`${' '.repeat(margen)}${linea}\n`)
       }
       return api
@@ -119,9 +133,11 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
       partes.push(GS, 0x21, activo ? 0x11 : 0x00) // doble alto y ancho
       return api
     },
-    // QR nativo de la impresora (modelo 2). `tamano` va de 1 a 16.
-    qr(datos, { tamano = 6 } = {}) {
-      espejo.push(`${prefijo}[QR: ${String(datos).slice(0, 32)}]`)
+    // QR nativo de la impresora (modelo 2). `tamano` va de 1 a 16; `etiqueta`
+    // imprime un rótulo centrado arriba del código.
+    qr(datos, { tamano = 6, etiqueta = '' } = {}) {
+      if (etiqueta) escribir(`${centrar(etiqueta)}\n`)
+      espejoCentrado(`[QR] ${String(datos).slice(0, 48)}`)
       partes.push(ESC, 0x61, 0x01) // centrado
       const contenido = bytesDeTexto(datos)
       const n = contenido.length + 3
@@ -138,8 +154,9 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
     },
     // Código de barras CODE128 (GS k 73: incluye el largo). El juego de códigos
     // B se declara con {B, como pide el estándar ESC/POS.
-    barcode(datos) {
-      espejo.push(`${prefijo}[BARRA] ${datos}`)
+    barcode(datos, { etiqueta = '' } = {}) {
+      if (etiqueta) escribir(`${centrar(etiqueta)}\n`)
+      espejoCentrado(`[BARRA] ${datos}`)
       partes.push(ESC, 0x61, 0x01)
       const contenido = [0x7b, 0x42, ...bytesDeTexto(datos)]
       if (contenido.length && contenido.length <= 255) {
@@ -152,12 +169,14 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
       return api
     },
     avanza(lineas = 1) {
-      partes.push(ESC, 0x64, Math.min(255, Math.max(1, Number(lineas) || 1)))
+      const cuantas = Math.min(255, Math.max(1, Number(lineas) || 1))
+      partes.push(ESC, 0x64, cuantas)
+      espejo.push('\n'.repeat(cuantas))
       return api
     },
     corte() {
       conCorte = true
-      espejo.push(`${prefijo}[CORTE]`)
+      espejoCentrado('[CORTE]')
       // Alimentación suficiente para que la línea de corte no pise el contenido
       // y la cuchilla agarre papel limpio.
       partes.push(ESC, 0x64, 4)

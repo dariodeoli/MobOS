@@ -52,6 +52,12 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       bytes: trabajo.bytes || 0,
       ref: trabajo.ref || '',
       tipo: trabajo.tipo || '',
+      // Datos de testeo: permiten auditar en la app qué configuración imprimió.
+      validacion: trabajo.validacion || '',
+      puente: trabajo.puente || '',
+      tokenPista: trabajo.tokenPista || '',
+      modo: trabajo.modo || '',
+      ancho: trabajo.ancho || 0,
     })
     guardarHistorial()
   }
@@ -102,9 +108,27 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
 
   return {
     // Intenta imprimir ya; si falla, el trabajo queda en la cola.
-    async encolar({ impresora, data, cliente = '', usuario = '', ref = '', tipo = '' }) {
+    async encolar({ impresora, data, cliente = '', usuario = '', ref = '', tipo = '', validacion = '', puente = '', tokenPista = '', modo = '', ancho = 0 }) {
       const bytes = Buffer.from(data, 'base64').length
-      const trabajo = { id: randomUUID(), impresora, data, cliente, usuario: String(usuario || '').slice(0, 80), ref: String(ref || '').slice(0, 64), tipo: String(tipo || '').slice(0, 40), bytes, estado: 'pendiente', intentos: 0, proximoIntento: 0, creadoEn: new Date().toISOString() }
+      const trabajo = {
+        id: randomUUID(),
+        impresora,
+        data,
+        cliente,
+        usuario: String(usuario || '').slice(0, 80),
+        ref: String(ref || '').slice(0, 64),
+        tipo: String(tipo || '').slice(0, 40),
+        validacion: String(validacion || '').slice(0, 12),
+        puente: String(puente || '').slice(0, 80),
+        tokenPista: String(tokenPista || '').slice(0, 40),
+        modo: String(modo || '').slice(0, 40),
+        ancho: Math.min(120, Math.max(0, Number(ancho) || 0)),
+        bytes,
+        estado: 'pendiente',
+        intentos: 0,
+        proximoIntento: 0,
+        creadoEn: new Date().toISOString(),
+      }
       trabajos.push(trabajo)
       guardar()
       await procesar()
@@ -195,5 +219,10 @@ function publico(trabajo) {
     creadoEn: trabajo.creadoEn,
     ref: trabajo.ref || '',
     tipo: trabajo.tipo || '',
+    validacion: trabajo.validacion || '',
+    puente: trabajo.puente || '',
+    tokenPista: trabajo.tokenPista || '',
+    modo: trabajo.modo || '',
+    ancho: trabajo.ancho || 0,
   }
 }

@@ -242,7 +242,7 @@ export async function sincronizarAgente(store) {
 
 // Manda un ticket (crearTicket().base64()) al agente. Devuelve `{ ok }` o el
 // error para mostrarlo en pantalla.
-export async function imprimirDirecto(base64, { ancho, copias, impresora, usuario, ref, tipo } = {}) {
+export async function imprimirDirecto(base64, { ancho, copias, impresora, usuario, ref, tipo, validacion, puente, tokenPista, modo } = {}) {
   const config = configImpresora()
   const control = new AbortController()
   const timer = setTimeout(() => control.abort(), 5000)
@@ -257,6 +257,10 @@ export async function imprimirDirecto(base64, { ancho, copias, impresora, usuari
         usuario: String(usuario || '').slice(0, 80),
         ref: String(ref || '').slice(0, 64),
         tipo: String(tipo || '').slice(0, 40),
+        validacion: String(validacion || '').slice(0, 12),
+        puente: String(puente || '').slice(0, 80),
+        tokenPista: String(tokenPista || '').slice(0, 40),
+        modo: String(modo || '').slice(0, 40),
         data: base64,
       }),
       signal: control.signal,

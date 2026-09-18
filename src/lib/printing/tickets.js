@@ -126,8 +126,8 @@ function etiquetaUnidadEn(t, unit) {
     t.centrado('IMEI / Serial')
     t.centrado(serial)
     t.avanza(1)
-    t.qr(`MOBOS:${serial}`, { tamano: 7 })
-    t.barcode(`MOBOS:${serial}`)
+    t.qr(`MOBOS:${serial}`, { tamano: 7, etiqueta: 'QR de la unidad' })
+    t.barcode(`MOBOS:${serial}`, { etiqueta: 'Código de barras' })
   }
   t.linea()
   t.centrado('Escaneá para buscar, vender o verificar esta unidad.')
@@ -152,7 +152,7 @@ export function ticketEtiquetaPrecio(product, { ancho = 80 } = {}) {
   t.centrado(precio > 0 ? gs(precio) : '—')
   if (mayorista > 0) t.centrado(`Mayorista: ${gs(mayorista)}`)
   t.avanza(1)
-  t.qr(`MOBOS:PROD:${product.sku || product.id || ''}`, { tamano: 6 })
+  t.qr(`MOBOS:PROD:${product.sku || product.id || ''}`, { tamano: 6, etiqueta: 'QR del producto' })
   return t.avanza(2).corte()
 }
 
@@ -207,27 +207,57 @@ const TIPOS_PRUEBA = {
 }
 export const TIPOS_TICKET_PRUEBA = TIPOS_PRUEBA
 
-// Ticket de prueba con datos de trazabilidad: impresora, método, destino,
-// ancho, copias, fecha, equipo, trabajo y validación de 4 dígitos.
-// Devuelve { base64(), lineas(), ref, validacion } para vista previa y envío.
-export function ticketPruebaTipo(tipo, { ancho = 80, impresora = '', nombre = '', equipo = '', copias = 1, metodo = '' } = {}) {
+// Ticket de prueba con trazabilidad completa: impresora, método, conexión,
+// puente, token (enmascarado), usuario, equipo, trabajo, validación de 4
+// dígitos y corte final. Todos los tipos comparten cabecera, bloque QR/barras,
+// acentos, pie de trazabilidad y corte.
+export function ticketPruebaTipo(tipo, {
+  ancho = 80,
+  impresora = '',
+  nombre = '',
+  equipo = '',
+  copias = 1,
+  metodo = '',
+  conexion = '',
+  puente = '',
+  tokenPista = '',
+  usuario = '',
+} = {}) {
   // Método honesto: lo informa quien arma el ticket (CUPS local, LAN TCP,
   // CUPS-USB…); el prefijo `usb:` es histórico y no implica cable USB.
-  const metodoReal = metodo || (String(impresora || '').startsWith('usb:') ? 'CUPS' : 'LAN')
+  const metodoReal = metodo || (String(impresora || '').startsWith('usb:') ? 'CUPS (cola local)' : 'LAN (TCP directo)')
+  const conexionReal = String(conexion || '').startsWith('usb') ? 'Cola CUPS local' : 'LAN (TCP directo)'
   const validacion = pruebaAleatoria()
   const ref = refDePrueba()
   const t = crearTicket({ ancho }).iniciar()
+
+  // Pie común: todo lo que hace auditable la prueba desde el papel.
   const pie = () => {
+    t.linea()
+    t.negrita().centrado(`VALIDACIÓN ${validacion}`).negrita(false)
     t.linea()
     t.par('Impresora', nombre || '—')
     t.par('Método', metodoReal)
+    t.par('Conexión', conexionReal)
     t.par('Destino', impresora || '—')
+    t.par('Puente', puente || '—')
+    t.par('Token', tokenPista || 'sin token')
     t.par('Ancho', `${ancho} mm`)
     t.par('Copias', String(copias))
+    t.par('Usuario', usuario || '—')
     t.par('Fecha', fecha(new Date().toISOString()))
     t.par('Equipo', equipo || '—')
     t.par('Trabajo', ref)
-    t.par('Validación', validacion)
+  }
+
+  // Cuerpo común de códigos: QR + barras con su rótulo, siempre centrados.
+  const codigos = (sufijo) => {
+    t.linea()
+    t.centrado('Escanear')
+    t.qr(`MOBOS:PRUEBA:${sufijo}:${validacion}`, { tamano: 6, etiqueta: 'QR' })
+    t.barcode(`MOBOS-${sufijo}-${validacion}`, { etiqueta: 'Código de barras' })
+    t.linea()
+    t.texto('Acentos: á é í ó ú ü ñ Ñ ¿? ¡!')
   }
 
   t.centrado(APP_NAME).negrita().doble().centrado('TICKET DE PRUEBA').doble(false).negrita(false)
@@ -237,12 +267,7 @@ export function ticketPruebaTipo(tipo, { ancho = 80, impresora = '', nombre = ''
     t.par('Prueba', metodoReal)
     t.par('Destino', impresora || '—')
     t.par('Resultado', 'PENDIENTE')
-    t.linea()
-    t.texto('Acentos: á é í ó ú ü ñ')
-    t.centrado('QR')
-    t.qr(`MOBOS:PRUEBA:CORTA:${validacion}`, { tamano: 6 })
-    t.centrado('Código de barras')
-    t.barcode(`MOBOS-CORTA-${validacion}`)
+    codigos('CORTA')
   }
 
   if (tipo === 'pedido') {
@@ -262,25 +287,14 @@ export function ticketPruebaTipo(tipo, { ancho = 80, impresora = '', nombre = ''
     t.negrita().par('Total', '8.000.000').negrita(false)
     t.par('Medio de pago', 'Efectivo')
     t.par('Vendedor', 'Vendedor de prueba')
-    t.linea()
-    t.texto('Acentos: á é í ó ú ü ñ')
-    t.centrado('QR')
-    t.qr(`MOBOS:PRUEBA:${pedido}`, { tamano: 6 })
-    t.centrado('Código de barras')
-    t.barcode(`MOBOS-PEDIDO-${validacion}`)
+    codigos('PEDIDO')
   }
 
   if (tipo === 'qr') {
     t.par('Pedido', `P-${pruebaAleatoria()}`)
     t.par('Cliente', 'Cliente de prueba')
     t.negrita().par('Total', '1.234.000').negrita(false)
-    t.linea()
-    t.texto('Acentos: á é í ó ú ü ñ')
-    t.centrado('QR')
-    t.qr(`MOBOS:PRUEBA:QR:${validacion}`, { tamano: 6 })
-    t.centrado(`MOBOS:PRUEBA:QR:${validacion}`)
-    t.centrado('Código de barras')
-    t.barcode(`MOBOS-QR-${validacion}`)
+    codigos('QR')
   }
 
   if (tipo === 'venta') {
@@ -299,25 +313,16 @@ export function ticketPruebaTipo(tipo, { ancho = 80, impresora = '', nombre = ''
     t.par('IVA 10%', '813.000')
     t.negrita().par('Total', '8.943.000').negrita(false)
     t.par('Medio de pago', 'Transferencia')
-    t.linea()
-    t.centrado('QR')
-    t.qr(`MOBOS:PRUEBA:VENTA:${validacion}`, { tamano: 6 })
-    t.centrado('Código de barras')
-    t.barcode(`MOBOS-PRUEBA-${validacion}`)
+    codigos('VENTA')
   }
 
   if (tipo === 'caracteres') {
-    t.texto('Acentos: á é í ó ú ü ñ Ñ ¿? ¡!')
     t.texto('Texto normal')
     t.negrita().texto('Negrita').negrita(false)
     t.doble().par('DOBLE', '123').doble(false)
     t.centrado('Centrado')
     t.par('Columna izquierda', 'derecha')
-    t.linea()
-    t.centrado('QR')
-    t.qr(`MOBOS:PRUEBA:CHARS:${validacion}`, { tamano: 6 })
-    t.centrado('Código de barras')
-    t.barcode(`MOBOS-CHARS-${validacion}`)
+    codigos('CHARS')
   }
 
   if (tipo === 'corte') {
@@ -328,13 +333,7 @@ export function ticketPruebaTipo(tipo, { ancho = 80, impresora = '', nombre = ''
     t.texto('  1. Cutter Enable: YES en la impresora')
     t.texto('  2. Rollo bien cargado y recto')
     t.texto('  3. Comando GS V 0 y ESC i enviados')
-    t.linea()
-    t.centrado('Acentos: á é í ó ú ü ñ')
-    t.linea()
-    t.centrado('QR')
-    t.qr(`MOBOS:PRUEBA:CORTE:${validacion}`, { tamano: 6 })
-    t.centrado('Código de barras')
-    t.barcode(`MOBOS-CORTE-${validacion}`)
+    codigos('CORTE')
   }
 
   pie()
@@ -363,8 +362,8 @@ export function ticketEtiquetaUbicacion(location, { ancho = 80 } = {}) {
   if (location?.branch?.name) t.texto(location.branch.name)
   if (location?.code) t.texto(`Código: ${location.code}`)
   t.avanza(1)
-  t.qr(`MOBOS:UBI:${location?.id || ''}`, { tamano: 7 })
-  t.barcode(`MOBOS:UBI:${location?.id || ''}`)
+  t.qr(`MOBOS:UBI:${location?.id || ''}`, { tamano: 7, etiqueta: 'QR de la ubicación' })
+  t.barcode(`MOBOS:UBI:${location?.id || ''}`, { etiqueta: 'Código de barras' })
   t.linea()
   t.centrado('Escaneá al recibir o trasladar para asignar esta ubicación.')
   return t.avanza(2).corte()

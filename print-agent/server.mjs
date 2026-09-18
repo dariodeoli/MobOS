@@ -6,7 +6,7 @@ import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config
 import { crearCola } from './cola.mjs'
 import { aliasSecundario, colaLanDeCups, colaUri, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola } from './transportes.mjs'
 
-const VERSION = '1.2.0'
+const VERSION = '1.3.0'
 const config = cargarConfig()
 // Transporte real del último envío (directo | cups | usb): la app solo debe
 // marcar éxito cuando hubo entrega confirmada, no solo encolado.
@@ -243,6 +243,12 @@ const servidor = createServer(async (request, response) => {
       const usuario = String(cuerpo?.usuario || '').slice(0, 80)
       const ref = String(cuerpo?.ref || '').slice(0, 64)
       const tipo = String(cuerpo?.tipo || '').slice(0, 40)
+      // Metadatos de testeo (los manda la app; el token va enmascarado).
+      const validacion = String(cuerpo?.validacion || '').slice(0, 12)
+      const puente = String(cuerpo?.puente || '').slice(0, 80)
+      const tokenPista = String(cuerpo?.tokenPista || '').slice(0, 40)
+      const modo = String(cuerpo?.modo || '').slice(0, 40)
+      const ancho = Math.min(120, Math.max(0, Number(cuerpo?.ancho) || 0))
       if (!impresora) return responder(response, { ok: false, error: 'Elegí una impresora en Configuración → Impresoras.' }, 400)
       if (!(await destinosPermitidos()).has(impresora)) {
         return responder(response, { ok: false, error: `La impresora ${impresora} no está configurada en este agente.` }, 400)
@@ -254,7 +260,7 @@ const servidor = createServer(async (request, response) => {
       const ticket = copias > 1 ? Buffer.from(data, 'base64').toString('base64') : data
       const resultados = []
       const cliente = ipDe(request)
-      for (let copia = 0; copia < copias; copia += 1) resultados.push(await cola.encolar({ impresora, data: ticket, cliente, usuario, ref, tipo }))
+      for (let copia = 0; copia < copias; copia += 1) resultados.push(await cola.encolar({ impresora, data: ticket, cliente, usuario, ref, tipo, validacion, puente, tokenPista, modo, ancho }))
       const pendiente = resultados.find((resultado) => resultado.encolado)
       if (pendiente) {
         const sinRuta = /EHOSTUNREACH|ENETUNREACH/i.test(pendiente.error || '')
