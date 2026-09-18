@@ -1,9 +1,9 @@
 // Tickets ESC/POS: mismo contenido que los comprobantes HTML, pero en comandos
 // para la térmica (58/80 mm). El agente local solo transporta los bytes.
-import { gs } from '@/utils/calculos'
-import { APP_NAME } from '@/lib/brand'
-import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
-import { crearTicket } from './escpos'
+import { gs } from '../../utils/calculos.js'
+import { APP_NAME } from '../brand.js'
+import { ETIQUETAS_MEDIO_PAGO } from '../constants.js'
+import { crearTicket } from './escpos.js'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 
@@ -194,29 +194,123 @@ export function ticketReserva(reservation, { ancho = 80 } = {}) {
   return t.avanza(2).corte()
 }
 
-// Página de prueba: valida texto, acentos, negrita, doble, QR y código de barras.
-export function ticketPrueba({ ancho = 80, impresora = '', nombre = '' } = {}) {
+const pruebaAleatoria = () => String(Math.floor(1000 + Math.random() * 9000)) // exactamente 4 dígitos
+const refDePrueba = () => `TEST-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`
+
+const TIPOS_PRUEBA = {
+  'corta': 'Prueba corta',
+  'pedido': 'Ticket de pedido',
+  'qr': 'Ticket con QR',
+  'venta': 'Ticket completo de venta',
+  'caracteres': 'Caracteres y formato',
+}
+export const TIPOS_TICKET_PRUEBA = TIPOS_PRUEBA
+
+// Ticket de prueba con datos de trazabilidad: impresora, método, destino,
+// ancho, copias, fecha, equipo, trabajo y validación de 4 dígitos.
+// Devuelve { base64(), lineas(), ref, validacion } para vista previa y envío.
+export function ticketPruebaTipo(tipo, { ancho = 80, impresora = '', nombre = '', equipo = '', copias = 1 } = {}) {
+  const metodo = String(impresora || '').startsWith('usb:') ? 'USB' : 'LAN'
+  const validacion = pruebaAleatoria()
+  const ref = refDePrueba()
   const t = crearTicket({ ancho }).iniciar()
-  t.centrado(APP_NAME)
-  t.negrita().doble().centrado('TICKET DE PRUEBA').doble(false).negrita(false)
-  t.linea()
-  if (nombre) t.par('Impresora', nombre)
-  if (impresora) t.par('Destino', impresora)
-  t.par('Ancho', `${ancho} mm · ${t.columnas} columnas`)
-  t.par('Fecha', fecha(new Date().toISOString()))
-  t.linea()
-  t.texto('Acentos: á é í ó ú ü ñ Ñ ¿? ¡!')
-  t.negrita().texto('Negrita').negrita(false)
-  t.doble().par('DOBLE', '123').doble(false)
-  t.centrado('Centrado y alineado')
-  t.linea()
-  t.centrado('QR')
-  t.qr(`MOBOS:TEST:${Date.now()}`, { tamano: 6 })
-  t.centrado('Código de barras')
-  t.barcode(`MOBOS-TEST-${Date.now()}`)
-  t.linea()
-  t.centrado('Si leés esto, la impresora quedó lista.')
-  return t.avanza(2).corte()
+  const pie = () => {
+    t.linea()
+    t.par('Impresora', nombre || '—')
+    t.par('Método', metodo)
+    t.par('Destino', impresora || '—')
+    t.par('Ancho', `${ancho} mm`)
+    t.par('Copias', String(copias))
+    t.par('Fecha', fecha(new Date().toISOString()))
+    t.par('Equipo', equipo || '—')
+    t.par('Trabajo', ref)
+    t.par('Validación', validacion)
+  }
+
+  t.centrado(APP_NAME).negrita().doble().centrado('TICKET DE PRUEBA').doble(false).negrita(false)
+  t.centrado(TIPOS_PRUEBA[tipo] || 'Prueba').linea()
+
+  if (tipo === 'corta') {
+    t.par('Prueba', metodo)
+    t.par('Destino', impresora || '—')
+    t.par('Resultado', 'PENDIENTE')
+  }
+
+  if (tipo === 'pedido') {
+    const pedido = `P-${pruebaAleatoria()}`
+    t.par('Pedido', pedido)
+    t.par('Cliente', 'Cliente de prueba')
+    t.linea()
+    t.texto('iPhone 16 Pro 128GB')
+    t.par('  x1', '7.950.000')
+    t.texto('Case MagSafe silicona')
+    t.par('  x1', '180.000')
+    t.texto('Lámina 9H')
+    t.par('  x2', '60.000')
+    t.linea()
+    t.par('Subtotal', '8.250.000')
+    t.par('Descuento', '-250.000')
+    t.negrita().par('Total', '8.000.000').negrita(false)
+    t.par('Medio de pago', 'Efectivo')
+    t.par('Vendedor', 'Vendedor de prueba')
+    t.linea()
+    t.qr(`MOBOS:PRUEBA:${pedido}`, { tamano: 6 })
+  }
+
+  if (tipo === 'qr') {
+    t.par('Pedido', `P-${pruebaAleatoria()}`)
+    t.par('Cliente', 'Cliente de prueba')
+    t.negrita().par('Total', '1.234.000').negrita(false)
+    t.linea()
+    t.qr(`MOBOS:PRUEBA:QR:${validacion}`, { tamano: 6 })
+    t.centrado(`MOBOS:PRUEBA:QR:${validacion}`)
+  }
+
+  if (tipo === 'venta') {
+    t.centrado(`${APP_NAME} · SUCURSAL CENTRAL`).centrado('Comprobante de venta')
+    t.linea()
+    t.par('Fecha', fecha(new Date().toISOString()))
+    t.par('Vendedor', 'Vendedor de prueba')
+    t.par('Cliente', 'Cliente de prueba')
+    t.linea()
+    t.texto('iPhone 16 Pro 128GB')
+    t.par('  x1', '7.950.000')
+    t.texto('Case MagSafe silicona')
+    t.par('  x1', '180.000')
+    t.linea()
+    t.par('Subtotal', '8.130.000')
+    t.par('IVA 10%', '813.000')
+    t.negrita().par('Total', '8.943.000').negrita(false)
+    t.par('Medio de pago', 'Transferencia')
+    t.linea()
+    t.centrado('QR')
+    t.qr(`MOBOS:PRUEBA:VENTA:${validacion}`, { tamano: 6 })
+    t.centrado('Código de barras')
+    t.barcode(`MOBOS-PRUEBA-${validacion}`)
+  }
+
+  if (tipo === 'caracteres') {
+    t.texto('Acentos: á é í ó ú ü ñ Ñ ¿? ¡!')
+    t.texto('Texto normal')
+    t.negrita().texto('Negrita').negrita(false)
+    t.doble().par('DOBLE', '123').doble(false)
+    t.centrado('Centrado')
+    t.par('Columna izquierda', 'derecha')
+    t.linea()
+    t.centrado('QR')
+    t.qr(`MOBOS:PRUEBA:CHARS:${validacion}`, { tamano: 6 })
+    t.centrado('Código de barras')
+    t.barcode(`MOBOS-CHARS-${validacion}`)
+  }
+
+  pie()
+  t.avanza(2).corte()
+  return { base64: () => t.base64(), lineas: () => t.lineas(), ref, validacion }
+}
+
+// Compatibilidad con el flujo anterior: la prueba clásica de caracteres.
+export function ticketPrueba(opciones = {}) {
+  return ticketPruebaTipo('caracteres', opciones)
 }
 
 // Varias etiquetas de unidad en un solo trabajo (una por etiqueta).
