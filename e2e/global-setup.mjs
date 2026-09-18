@@ -15,8 +15,10 @@
 // and re-inject them into storageState files as localhost cookies.
 
 import { chromium, request as pwRequest } from '@playwright/test'
-import { mkdir, writeFile, access, rm } from 'node:fs/promises'
+import { mkdir, writeFile, readFile, access, rm } from 'node:fs/promises'
+import { existsSync, readdirSync, writeFileSync, statSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { SEED } from './helpers/seed-data.js'
@@ -28,6 +30,13 @@ const SEED_ORDER_FILE = path.join(AUTH_DIR, 'seed-order.json')
 const SELLER_STATE = path.join(AUTH_DIR, 'seller.json')
 const ADMIN_STATE = path.join(AUTH_DIR, 'admin.json')
 const PG_BIN = '/opt/homebrew/bin'
+// Snapshot post-seed: restaurar es cuestión de segundos contra 5-20 minutos de
+// sembrar de nuevo cuando una corrida falla a mitad. Se invalida solo cuando
+// cambian las migraciones (la base tiene que reflejar el esquema nuevo).
+const PG_PORT = () => process.env.MOBOS_E2E_PGPORT || '5439'
+const PG_DB = () => process.env.MOBOS_E2E_DB || 'mobos_e2e'
+const SNAPSHOT = () => `/tmp/mobos-e2e-snapshot-${PG_DB()}.dump`
+const SNAPSHOT_META = () => `/tmp/mobos-e2e-snapshot-${PG_DB()}.json`
 const API = SEED.api
 
 const bearer = (token) => ({ Authorization: `Bearer ${token}` })
@@ -74,6 +83,37 @@ async function sellerSession(ctx, companyToken, sellerId, pin) {
   if (!res.ok()) throw new Error(`seller pin failed for ${sellerId}: HTTP ${res.status()} ${await res.text()}`)
   const headers = await res.headersArray()
   return cookieValue(headers.filter((h) => h.name.toLowerCase() === 'set-cookie').map((h) => h.value), 'mobos_seller_session')
+}
+
+// Firma de las migraciones: si cambia, el snapshot quedó viejo y se descarta.
+function firmaMigraciones() {
+  const dir = path.join(__dirname, '..', 'backend', 'prisma', 'migrations')
+  const nombres = readdirSync(dir).filter((n) => !n.startsWith('.')).sort().join('|')
+  return createHash('sha256').update(nombres).digest('hex').slice(0, 16)
+}
+
+async function snapshotValido() {
+  try {
+    const meta = JSON.parse(await readFile(SNAPSHOT_META(), 'utf8'))
+    await access(SNAPSHOT())
+    return meta.migraciones === firmaMigraciones()
+  } catch { return false }
+}
+
+function restaurarSnapshot() {
+  execFileSync(`${PG_BIN}/pg_restore`, [
+    '-h', '127.0.0.1', '-p', PG_PORT(), '-U', 'postgres', '-d', PG_DB(),
+    '--clean', '--if-exists', '--no-owner', '--no-privileges', SNAPSHOT(),
+  ], { stdio: 'ignore' })
+}
+
+function guardarSnapshot() {
+  try {
+    execFileSync(`${PG_BIN}/pg_dump`, ['-h', '127.0.0.1', '-p', PG_PORT(), '-U', 'postgres', '-d', PG_DB(), '-Fc', '-f', SNAPSHOT()], { stdio: 'ignore' })
+    writeFileSync(SNAPSHOT_META(), JSON.stringify({ migraciones: firmaMigraciones(), tomadoEn: new Date().toISOString() }, null, 2))
+  } catch (error) {
+    console.warn('[e2e] no se pudo tomar el snapshot:', error?.message || error)
+  }
 }
 
 async function ensureBranch() {
@@ -249,7 +289,18 @@ export default async function globalSetup() {
         await rm(SEED_ORDER_FILE, { force: true })
       }
     }
+    if (await snapshotValido()) {
+      console.log('[e2e] Restaurando snapshot post-seed (sin re-sembrar)…')
+      restaurarSnapshot()
+      try {
+        await refreshStorageStates(ctx)
+        return
+      } catch (error) {
+        console.warn(`[e2e] refresh tras restaurar falló (${error?.message || error}); re-sembrando completo.`)
+      }
+    }
     await seedFresh(ctx)
+    guardarSnapshot()
   } finally {
     await ctx.dispose()
   }

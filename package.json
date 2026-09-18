@@ -15,7 +15,8 @@
     "release:smoke": "node scripts/smoke.mjs",
     "release:publish": "node scripts/release.mjs --publish --deploy",
     "test:e2e": "playwright test",
-    "test:print-agent": "npm --prefix print-agent test"
+    "test:print-agent": "npm --prefix print-agent test",
+    "test:e2e:smoke": "playwright test --grep 'seller logs in with company credentials|registers the sale and lists it in pedidos|clic en la fila abre el pedido por su id interno|owner-only nav items|resumen shows the dashboard KPIs|lists the seeded serialized unit|returns the minimal public payload'"
   },
   "dependencies": {
     "clsx": "^2.1.1",
