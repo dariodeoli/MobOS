@@ -508,6 +508,8 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   // La bandeja es una sola: la tarjeta duplicada de Configuración se eliminó.
   await page.goto('/pos/equipo')
   await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
-  await expect(page.getByRole('heading', { name: 'Plantillas de WhatsApp' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Solicitudes del cliente' })).toHaveCount(0)
+  // Las plantillas ya no viven dentro de Configuración: tienen vista propia.
+  await page.goto('/pos/plantillas')
+  await expect(page.getByRole('heading', { name: 'Plantillas de WhatsApp' })).toBeVisible()
 })
