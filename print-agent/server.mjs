@@ -137,7 +137,7 @@ const servidor = createServer(async (request, response) => {
     if (request.method === 'GET' && url.pathname === '/diagnostico') {
       if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
       const destino = url.searchParams.get('destino') || config.impresora
-      return responder(response, { ok: true, ...(await diagnosticoRed(destino)) })
+      return responder(response, { ok: true, ...(await diagnosticoRed(destino, { alias: config.alias, cups: config.lanCups || 'MobOS_LAN' })) })
     }
 
     if (request.method === 'GET' && url.pathname === '/historial') {

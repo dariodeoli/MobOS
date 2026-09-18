@@ -211,10 +211,14 @@ export default function Impresoras() {
 
   async function diagnosticar(impresora = null) {
     if (diagnosticando) return
+    const destino = impresora?.destino || configImpresora().impresora || ''
+    if (!destino) {
+      setDiagnostico({ ok: true, sinDestino: true, mensaje: 'No hay impresora configurada.' })
+      return
+    }
     setDiagnosticando(true)
     setDiagnostico(null)
     try {
-      const destino = impresora?.destino || configImpresora().impresora || ''
       setDiagnostico({ destino, ...(await diagnosticoAgente(destino)) })
     } catch (cause) {
       setDiagnostico({ ok: false, error: cause?.message || 'No se pudo consultar el diagnóstico.' })
@@ -382,7 +386,7 @@ export default function Impresoras() {
             No se encontró el agente en <b className="text-fore">{store.agentUrl}</b>. Instalalo en la computadora puente con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code>; en las demás computadoras, apuntá la dirección del agente a la IP de esa Mac.
           </p>
         )}
-        {estado?.disponible && estado.alias && !estado.alias.presente && (
+        {estado?.disponible && estado.alias && !estado.alias.presente && (configImpresora().impresora || store.impresoras.some((item) => String(item.destino || '').startsWith('lan:'))) && (
           <p className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
             La IP secundaria <b className="text-fore">{estado.alias.ip}</b> (red de la impresora) no está agregada: se pierde al reiniciar o cambiar de red. El agente la recrea solo al iniciar la Mac; si no, usá <b className="text-fore">Reparar conexión</b>.
           </p>
@@ -394,9 +398,10 @@ export default function Impresoras() {
         </div>
         {diagnostico && (
           <div className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
-            <p className="text-xs uppercase tracking-wider text-mute">Diagnóstico de red · {diagnostico.destino || 'sin destino'}</p>
+            <p className="text-xs uppercase tracking-wider text-mute">Diagnóstico de red{diagnostico.destino ? ` · ${diagnostico.destino}` : ''}</p>
             {diagnostico.ok === false && <p role="alert" className="mt-1 text-bad">{diagnostico.error}</p>}
-            {diagnostico.ok && <ExplicacionDiagnostico diagnostico={diagnostico} estado={estado} nombre={predeterminada?.nombre} />}
+            {diagnostico.sinDestino && <p className="mt-1 text-mute">{diagnostico.mensaje || 'No hay impresora configurada.'}</p>}
+            {diagnostico.ok && !diagnostico.sinDestino && <ExplicacionDiagnostico diagnostico={diagnostico} estado={estado} nombre={predeterminada?.nombre} />}
           </div>
         )}
       </Card>
@@ -626,20 +631,26 @@ function TablaTrabajos({ trabajos, seleccionados = [], onSeleccion }) {
 
 function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
   const destino = String(diagnostico.destino || '')
-  const metodo = destino.startsWith('usb:') ? 'USB' : 'LAN'
-  const host = destino.startsWith('lan:') ? destino.slice(4).split(':')[0] : ''
-  const puerto = destino.startsWith('lan:') ? destino.slice(4).split(':')[1] || '9100' : '—'
+  const metodo = diagnostico.metodo || (destino.startsWith('usb:') ? 'USB' : 'LAN')
+  const host = diagnostico.host || (destino.startsWith('lan:') ? destino.slice(4).split(':')[0] : '')
+  const puerto = diagnostico.puerto || (destino.startsWith('lan:') ? destino.slice(4).split(':')[1] || '9100' : '—')
   const interfaces = diagnostico.interfaces || []
   const subred = (ip) => ip.split('.').slice(0, 3).join('.')
-  const mismaRed = host && interfaces.some((ip) => subred(ip) === subred(host))
+  // Alias presente o una interfaz en la subred de la impresora equivalen a
+  // "misma red": no corresponde pedir una IP secundaria.
+  const aliasPresente = diagnostico.alias?.presente === true || estado?.alias?.presente === true
+  const mismaRed = Boolean(host) && (aliasPresente || interfaces.some((ip) => subred(ip) === subred(host)))
+  const cupsDisponible = Boolean(diagnostico.cups)
   const filas = [
     ['Método', metodo],
     ['Impresora', nombre || '—'],
     ['IP', host || '—'],
     ['Puerto', puerto],
     ['Agente', estado?.disponible ? `v${estado.version || ''} en ${estado.equipo || 'el puente'}` : 'desconectado'],
+    ['IP secundaria', aliasPresente ? `presente (${diagnostico.alias?.ip || estado?.alias?.ip || '—'})` : 'ausente'],
     ['Subred de la Mac', interfaces.length ? interfaces.map((ip) => `${ip} (${subred(ip)}.x)`).join(' · ') : '—'],
     ['Resultado TCP', diagnostico.alcance ? 'responde ✓' : 'no responde ✗'],
+    ...(cupsDisponible ? [['Cola CUPS', `disponible (${diagnostico.cups})`]] : []),
   ]
   return (
     <div className="mt-1 space-y-2 text-xs">
@@ -653,7 +664,7 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
       </dl>
       {metodo === 'USB' && <p className="text-mute">La impresión pasa por la cola USB de la computadora puente.</p>}
       {metodo === 'LAN' && diagnostico.alcance && <p className="text-ok">La impresora responde por TCP: la conexión está lista.</p>}
-      {metodo === 'LAN' && !diagnostico.alcance && !mismaRed && (
+      {metodo === 'LAN' && !diagnostico.alcance && !mismaRed && !aliasPresente && (
         <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
           <p className="font-semibold text-warn">La Mac necesita una IP secundaria para alcanzar la impresora.</p>
           <p className="text-mute">La impresora está en {host} (subred {subred(host)}.x) y la Mac en {interfaces.length ? subred(interfaces[0]) : '—'}.x: no están en la misma subred. En el puente corré:</p>
@@ -661,8 +672,8 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
           <p className="text-mute">Agrega {host.split('.').slice(0, 3).join('.')}.100 sin tocar el DHCP ni el internet, y es reversible con <code className="rounded bg-ink-700 px-1">red-mac.sh quitar</code>.</p>
         </div>
       )}
-      {metodo === 'LAN' && !diagnostico.alcance && mismaRed && (
-        <p className="text-bad">La impresora está en la misma subred pero no responde por TCP. Revisá que esté encendida, el cable LAN y que el puerto {puerto} siga abierto.</p>
+      {metodo === 'LAN' && !diagnostico.alcance && (mismaRed || aliasPresente) && (
+        <p className="text-bad">El TCP directo no responde ({cupsDisponible ? `la cola CUPS ${diagnostico.cups} queda como respaldo` : 'revisá que esté encendida, el cable LAN y el puerto'}). Revisá que la impresora esté encendida, el cable LAN y el puerto {puerto} siga abierto.</p>
       )}
     </div>
   )

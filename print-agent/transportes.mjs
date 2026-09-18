@@ -115,10 +115,13 @@ export async function aliasSecundario(ip = '192.168.1.100') {
 
 // Diagnóstico de red: interfaces IPv4 de la máquina y ruta hacia la impresora.
 // Sirve para explicar un EHOSTUNREACH (sin ruta) desde la app.
-export async function diagnosticoRed(destino) {
+export async function diagnosticoRed(destino, { alias = '192.168.1.100', cups = 'MobOS_LAN' } = {}) {
   const valor = String(destino || '').trim()
-  const host = valor.startsWith('usb:') ? '' : valor.replace(/^lan:/, '').split(':')[0]
-  const info = { destino: valor, host, interfaces: [], ruta: '', alcance: false }
+  if (!valor) return { sinDestino: true, mensaje: 'No hay impresora configurada.' }
+  const esUsb = valor.startsWith('usb:')
+  const host = esUsb ? '' : valor.replace(/^lan:/, '').split(':')[0]
+  const puerto = esUsb ? '' : (valor.replace(/^lan:/, '').split(':')[1] || '9100')
+  const info = { destino: valor, host, puerto, metodo: esUsb ? 'USB' : 'LAN', interfaces: [], ruta: '', alcance: false, alias: await aliasSecundario(alias), cups: await colaLanDeCups(cups) }
   try {
     const { stdout } = await ejecutar('ifconfig', [], { timeout: 5000 })
     info.interfaces = stdout.split('\n')
