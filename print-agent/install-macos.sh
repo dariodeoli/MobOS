@@ -99,7 +99,7 @@ rm -f "$SUDOERS_TMP"
 # el daemon CUPS del sistema habla con la impresora por socket.
 if ! lpstat -p 2>/dev/null | grep -q "printer MobOS_LAN"; then
   echo "Creando la cola de red MobOS_LAN (socket://$IMPRESORA:$PUERTO)…"
-  sudo lpadmin -p MobOS_LAN -E -v "socket://$IMPRESORA:$PUERTO" -m raw 2>/dev/null || echo "  Sin permiso para crear la cola CUPS; la impresión directa sigue disponible."
+  sudo lpadmin -p MobOS_LAN -E -v "socket://$IMPRESORA:$PUERTO" -m raw 2>/dev/null || echo "  Sin permiso para crear la cola CUPS. Corré a mano: sudo lpadmin -p MobOS_LAN -E -v socket://$IMPRESORA:$PUERTO -m raw"
 else
   echo "Cola de red MobOS_LAN ya existe."
 fi

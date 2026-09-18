@@ -284,7 +284,9 @@ export default function Impresoras() {
     setReparando(true)
     try {
       const resultado = await repararRed()
-      if (resultado.agregado) toast.success('IP secundaria lista', `${resultado.alias} en ${resultado.iface || 'la interfaz activa'}. ${resultado.impresoraOk ? 'La impresora responde.' : 'La impresora todavía no responde.'}`)
+      if (resultado.cups && !resultado.cups.ok && resultado.cups.comando) toast.info('Cola CUPS pendiente', `Corré en el puente: ${resultado.cups.comando}`)
+  else if (resultado.cups?.ok) toast.success('Cola CUPS lista', `Respaldo ${resultado.cups.cola} disponible.`)
+  if (resultado.agregado) toast.success('IP secundaria lista', `${resultado.alias} en ${resultado.iface || 'la interfaz activa'}. ${resultado.impresoraOk ? 'La impresora responde.' : 'La impresora todavía no responde.'}`)
       else toast.error('No se pudo agregar la IP secundaria', resultado.permiso || 'Revisá el permiso de administrador.')
     } catch (cause) { toast.error('No se pudo reparar la red', cause?.message) }
     setReparando(false)
@@ -651,6 +653,7 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
     ['Subred de la Mac', interfaces.length ? interfaces.map((ip) => `${ip} (${subred(ip)}.x)`).join(' · ') : '—'],
     ['Resultado TCP', diagnostico.alcance ? 'responde ✓' : 'no responde ✗'],
     ...(cupsDisponible ? [['Cola CUPS', `disponible (${diagnostico.cups})`]] : []),
+    ...(diagnostico.transporte ? [['Transporte', diagnostico.transporte === 'directo' ? 'directo (TCP)' : diagnostico.transporte === 'cups' ? `respaldo CUPS (${diagnostico.cups || 'MobOS_LAN'})` : 'sin transporte']] : []),
   ]
   return (
     <div className="mt-1 space-y-2 text-xs">

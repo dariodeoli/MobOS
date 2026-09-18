@@ -4,11 +4,18 @@ import { hostname } from 'node:os'
 import { promisify } from 'node:util'
 import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config.mjs'
 import { crearCola } from './cola.mjs'
-import { aliasSecundario, diagnosticoRed, enviar, impresorasUsb, probarConexion } from './transportes.mjs'
+import { aliasSecundario, colaLanDeCups, crearColaLan, diagnosticoRed, enviar, impresorasUsb, probarConexion } from './transportes.mjs'
 
 const VERSION = '1.1.0'
 const config = cargarConfig()
-const cola = crearCola({ ruta: RUTA_COLA, rutaHistorial: RUTA_HISTORIAL, enviar: (destino, bytes) => enviar(destino, bytes, { lanCups: config.lanCups }), esperaMs: config.esperaMs, reintentos: config.reintentos, log: (mensaje) => console.log(`[cola] ${mensaje}`) })
+// Transporte real del último envío (directo | cups | usb): la app solo debe
+// marcar éxito cuando hubo entrega confirmada, no solo encolado.
+let ultimoTransporte = ''
+const cola = crearCola({ ruta: RUTA_COLA, rutaHistorial: RUTA_HISTORIAL, enviar: async (destino, bytes) => {
+  const transporte = await enviar(destino, bytes, { lanCups: config.lanCups, alias: config.alias })
+  ultimoTransporte = transporte
+  return transporte
+}, esperaMs: config.esperaMs, reintentos: config.reintentos, log: (mensaje) => console.log(`[cola] ${mensaje}`) })
 cola.reanudar()
 
 // La app vive en un dominio público y llama a este agente en 127.0.0.1: el
@@ -38,7 +45,7 @@ function cors(request, response) {
 let cacheAlcance = { hasta: 0, ok: null }
 async function impresoraResponde() {
   if (Date.now() < cacheAlcance.hasta) return cacheAlcance.ok
-  const ok = config.impresora ? await probarConexion(config.impresora) : false
+  const ok = config.impresora ? await probarConexion(config.impresora, { alias: config.alias }) : false
   cacheAlcance = { hasta: Date.now() + 3000, ok }
   return ok
 }
@@ -75,11 +82,18 @@ async function repararRed() {
     }
   })()
   cacheAlcance = { hasta: 0, ok: null }
+  // La cola CUPS de red es el respaldo cuando macOS bloquea la salida directa
+  // del proceso: se intenta crear acá y, si falta permiso, se devuelve el
+  // comando exacto para que la app lo muestre.
+  const destino = String(config.impresora || '').replace(/^lan:/, '')
+  const [host, puerto] = destino.split(':')
+  const cups = host ? await crearColaLan(config.lanCups || 'MobOS_LAN', host, Number(puerto) || 9100) : { ok: false, error: 'Sin destino.', comando: '' }
   return {
     alias,
     iface,
     agregado,
     permiso: !agregado ? 'Sin permiso de administrador: corré `bash print-agent/red-mac.sh agregar` en el puente.' : '',
+    cups,
     impresoraOk: await impresoraResponde(),
   }
 }
@@ -126,6 +140,13 @@ const servidor = createServer(async (request, response) => {
         copias: config.copias,
         impresoras: { lan: config.lan, usb },
         impresoraOk: await impresoraResponde(),
+        red: {
+          tcp: await impresoraResponde(),
+          cups: await colaLanDeCups(config.lanCups || 'MobOS_LAN'),
+          alias: await aliasSecundario(config.alias),
+          transporte: (await impresoraResponde()) ? 'directo' : ((await colaLanDeCups(config.lanCups || 'MobOS_LAN')) ? 'cups' : 'ninguno'),
+          ultimoTransporte,
+        },
         cola: cola.resumen(),
         cliente: ipDe(request),
         host: config.host,
@@ -206,7 +227,7 @@ const servidor = createServer(async (request, response) => {
             : pendiente.error || '',
         }, 202)
       }
-      return responder(response, { ok: true, encolado: false, jobId: resultados[0]?.jobId || null })
+      return responder(response, { ok: true, encolado: false, transporte: ultimoTransporte || 'directo', jobId: resultados[0]?.jobId || null })
     }
 
     if (request.method === 'POST' && url.pathname === '/config') {
