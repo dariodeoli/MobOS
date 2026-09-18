@@ -60,6 +60,31 @@ async function arrancarAgente(dir, { impresora, puerto }) {
   return proceso
 }
 
+// Regresión del crash de arranque: sin impresora configurada el agente debe
+// quedar vivo y responder /health (antes: "interfaces is not iterable" mataba
+// el proceso y launchd lo relanzaba en loop).
+test('el agente arranca sin impresora configurada y /health responde', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'mobos-print-sin-'))
+  const puertoAgente = await puertoLibre()
+  const proceso = await arrancarAgente(dir, { impresora: '', puerto: puertoAgente })
+  t.after(() => { try { proceso.kill('SIGKILL') } catch { /* ya muerto */ } })
+  let respuesta = null
+  await esperar(async () => {
+    try {
+      const res = await fetch(`http://127.0.0.1:${puertoAgente}/health`, { headers: { 'x-mobos-print-token': TOKEN } })
+      if (!res.ok) return false
+      const datos = await res.json()
+      if (!datos?.version) return false
+      respuesta = datos
+      return true
+    } catch { return false }
+  }, { intentos: 60, espera: 150 })
+  assert.ok(respuesta, 'el agente responde /health sin impresora configurada')
+  assert.equal(respuesta.version, '1.1.1', 'la versión identifica el build con el fix')
+  assert.ok(respuesta.red, 'el payload incluye red.autotest')
+  assert.equal(respuesta.red.autotest.ok, false, 'sin impresora el autotest no puede dar ok')
+})
+
 test('el agente imprime por red, encola si la impresora está caída y protege con token', async (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'mobos-print-'))
   const puertoAgente = await puertoLibre()

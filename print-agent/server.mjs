@@ -6,7 +6,7 @@ import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config
 import { crearCola } from './cola.mjs'
 import { aliasSecundario, colaLanDeCups, crearColaLan, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle } from './transportes.mjs'
 
-const VERSION = '1.1.0'
+const VERSION = '1.1.1'
 const config = cargarConfig()
 // Transporte real del último envío (directo | cups | usb): la app solo debe
 // marcar éxito cuando hubo entrega confirmada, no solo encolado.
@@ -276,7 +276,7 @@ const servidor = createServer(async (request, response) => {
   }
 })
 
-ejecutarAutotest().then((resultado) => console.log(`[autotest] ${resultado.ok ? 'TCP OK' : `falla: ${resultado.error || 'sin detalle'}`}${resultado.cups ? ` · CUPS ${resultado.cups}` : ' · sin CUPS'}`))
+ejecutarAutotest().then((resultado) => console.log(`[autotest] ${resultado.ok ? 'TCP OK' : `falla: ${resultado.error || 'sin detalle'}`}${resultado.cups ? ` · CUPS ${resultado.cups}` : ' · sin CUPS'}`)).catch((error) => console.error(`[autotest] no fatal: ${error?.message || error}`))
 
 // Cada 90 segundos: si la IP secundaria se perdió (reinicio o cambio de red),
 // se intenta recrearla en silencio (necesita el permiso del instalador).
@@ -289,15 +289,23 @@ setInterval(async () => {
 }, 90000).unref()
 
 servidor.listen(config.puerto, config.host, async () => {
-  console.log(`MobOS Print ${VERSION} escuchando en http://${config.host}:${config.puerto}`)
-  console.log(`Token: ${config.token}`)
-  console.log(config.impresora ? `Impresora: ${config.impresora}` : 'Sin impresora elegida: configurala desde Configuración → Impresoras.')
-  if (config.host === '0.0.0.0' && !config.token) {
-    console.warn('ATENCIÓN: el agente acepta conexiones de la red y no tiene token. Cualquiera en la red podría imprimir.')
-  }
-  if (config.host === '0.0.0.0') {
-    const { interfaces } = await diagnosticoRed(config.impresora)
-    for (const ip of interfaces) console.log(`Puente de impresión: http://${ip}:${config.puerto} (poné esta dirección en las demás computadoras y móviles)`)
+  // Nada del arranque puede tumbar el proceso: un error acá dejaría a launchd
+  // relanzando en loop (ya pasó con `interfaces` undefined).
+  try {
+    console.log(`MobOS Print ${VERSION} escuchando en http://${config.host}:${config.puerto}`)
+    console.log(`Token: ${config.token}`)
+    console.log(config.impresora ? `Impresora: ${config.impresora}` : 'Sin impresora elegida: configurala desde Configuración → Impresoras.')
+    if (config.host === '0.0.0.0' && !config.token) {
+      console.warn('ATENCIÓN: el agente acepta conexiones de la red y no tiene token. Cualquiera en la red podría imprimir.')
+    }
+    if (config.host === '0.0.0.0' && config.impresora) {
+      const { interfaces = [] } = await diagnosticoRed(config.impresora)
+      for (const ip of interfaces) console.log(`Puente de impresión: http://${ip}:${config.puerto} (poné esta dirección en las demás computadoras y móviles)`)
+    } else if (config.host === '0.0.0.0') {
+      console.log('Puente de impresión listo: configurá la impresora en Configuración → Impresoras.')
+    }
     console.log('Si macOS pregunta si Node puede aceptar conexiones entrantes, aceptá (Firewall).')
+  } catch (error) {
+    console.error(`[arranque] Aviso no fatal: ${error?.message || error}`)
   }
 })

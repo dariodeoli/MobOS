@@ -148,7 +148,7 @@ export async function aliasSecundario(ip = '192.168.1.100') {
 // Sirve para explicar un EHOSTUNREACH (sin ruta) desde la app.
 export async function diagnosticoRed(destino, { alias = '192.168.1.100', cups = 'MobOS_LAN' } = {}) {
   const valor = String(destino || '').trim()
-  if (!valor) return { sinDestino: true, mensaje: 'No hay impresora configurada.' }
+  if (!valor) return { sinDestino: true, mensaje: 'No hay impresora configurada.', interfaces: [], alcance: false, transporte: 'ninguno' }
   const esUsb = valor.startsWith('usb:')
   const host = esUsb ? '' : valor.replace(/^lan:/, '').split(':')[0]
   const puerto = esUsb ? '' : (valor.replace(/^lan:/, '').split(':')[1] || '9100')
