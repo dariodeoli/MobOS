@@ -165,6 +165,24 @@ export async function PATCH(request: Request) {
       if (isGoogleOwner && ownerAccess) await prisma.googleStoreAccess.delete({ where: { subject_tenantId: { subject: ownerAccess.subject, tenantId: ownerAccess.tenantId } } })
       return json({ ok: true })
     }
+    if (action === 'archiveStore') {
+      // Archivar por defecto: la historia se conserva y soporte puede restaurar.
+      if (body.confirm !== 'ARCHIVAR') return error('Escribí ARCHIVAR para confirmar el archivado de la tienda.', 400)
+      const password = input(body.password, 'Contraseña', 1, 72)
+      const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, archivedAt: true } })
+      if (!tenant || !(await verifyCredential(session.user.tenantId, session.user.id, password))) return error('No se pudo reautenticar la cuenta.', 401)
+      if (tenant.archivedAt) return json({ ok: true, yaArchivada: true })
+      const [products, orders] = await Promise.all([
+        prisma.product.count({ where: { tenantId: session.user.tenantId } }),
+        prisma.order.count({ where: { tenantId: session.user.tenantId } }),
+      ])
+      await prisma.$transaction(async tx => {
+        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { archivedAt: new Date(), archivedReason: 'Archivada por el dueño desde la app' } })
+        await tx.session.updateMany({ where: { tenantId: session.user.tenantId, revokedAt: null }, data: { revokedAt: new Date() } })
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_ARCHIVED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { products, orders } } })
+      })
+      return json({ ok: true })
+    }
     if (action === 'purgeStore') {
       if (body.confirm !== 'ELIMINAR') return error('Escribí ELIMINAR para confirmar la eliminación de la tienda.', 400)
       const password = input(body.password, 'Contraseña', 1, 72)

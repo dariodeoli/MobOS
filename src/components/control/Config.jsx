@@ -415,16 +415,16 @@ function SeccionTiendas({ account }) {
     } catch (cause) { setError(cause?.message || 'No se pudo abandonar la tienda.') } finally { setBusy(false) }
   }
 
-  async function eliminar({ password }) {
+  async function archivar({ password }) {
     if (busy) return
     setBusy(true); setError('')
     try {
-      await api.post('/api/account', { password })
-      await api.patch('/api/account', { action: 'purgeStore', confirm: 'ELIMINAR' })
+      // Archivar por defecto: conserva el historial y solo soporte restaura.
+      await api.patch('/api/account', { action: 'archiveStore', confirm: 'ARCHIVAR', password })
       setDialogo(null)
       await salir()
       window.location.assign('/login')
-    } catch (cause) { setError(cause?.message || 'No se pudo eliminar la tienda.') } finally { setBusy(false) }
+    } catch (cause) { setError(cause?.message || 'No se pudo archivar la tienda.') } finally { setBusy(false) }
   }
 
   return (
@@ -455,7 +455,7 @@ function SeccionTiendas({ account }) {
       )}
       <div className="flex flex-wrap gap-2">
         {hayOtra && <Button type="button" variant="outline" onClick={() => { setError(''); setDialogo('abandonar') }} disabled={busy}>Abandonar tienda</Button>}
-        <Button type="button" variant="outline" onClick={() => { setError(''); setDialogo('eliminar') }} disabled={busy} className="border-bad/50 text-bad hover:bg-bad/10">Eliminar tienda</Button>
+        <Button type="button" variant="outline" onClick={() => { setError(''); setDialogo('archivar') }} disabled={busy} className="border-bad/50 text-bad hover:bg-bad/10">Archivar tienda</Button>
       </div>
       <DialogoDestructivo
         open={dialogo === 'abandonar'}
@@ -469,16 +469,16 @@ function SeccionTiendas({ account }) {
         onConfirm={abandonar}
       />
       <DialogoDestructivo
-        open={dialogo === 'eliminar'}
-        title="¿Eliminar esta tienda?"
-        description="Se eliminará la tienda junto con toda su información: productos, ventas, clientes, pagos e integrantes. Esta acción es permanente e irreversible, y no se puede recuperar de ninguna forma. Para confirmar, escribí tu contraseña de empresa y la palabra ELIMINAR."
-        palabra="ELIMINAR"
+        open={dialogo === 'archivar'}
+        title="¿Archivar esta tienda?"
+        description="La tienda queda archivada y no se puede entrar hasta restaurarla; se conserva toda su información (productos, ventas, clientes, pagos e integrantes). Para confirmar, escribí tu contraseña de empresa y la palabra ARCHIVAR."
+        palabra="ARCHIVAR"
         necesitaClave
-        confirmLabel="Eliminar tienda"
+        confirmLabel="Archivar tienda"
         busy={busy}
         error={error}
         onCancel={() => !busy && setDialogo(null)}
-        onConfirm={eliminar}
+        onConfirm={archivar}
       />
     </Card>
   )
