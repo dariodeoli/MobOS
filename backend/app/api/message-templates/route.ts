@@ -15,26 +15,33 @@ const CATEGORIES: Category[] = ['ORDERS', 'CUSTOMERS', 'SERVICE']
 const CATEGORY_TO_CONTEXT: Record<Category, string> = { ORDERS: 'pedidos', CUSTOMERS: 'clientes', SERVICE: 'servicio' }
 const CONTEXT_TO_CATEGORY: Record<string, Category> = { pedidos: 'ORDERS', clientes: 'CUSTOMERS', servicio: 'SERVICE' }
 
-// Plantillas base por contexto. Se siembran solo si la categoría del tenant
-// está vacía: borrar una plantilla no la resucita.
+// Plantillas base por contexto, listas para usar (tono profesional y emojis
+// medidos). La siembra es idempotente: agrega solo las que faltan por clave, así
+// que una tienda existente recibe las nuevas sin duplicar ni resucitar las
+// borradas.
 const DEFAULTS: Record<Category, Array<[string, string, string]>> = {
   ORDERS: [
-    ['ready_for_pickup', 'Pedido listo para retirar', 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya está listo para retirar en {{branch_name}}.'],
-    ['ready_to_ship', 'Pedido listo para enviar', 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya está listo para enviar.'],
-    ['arrived_from_depot', 'Pedido llegó a sucursal', 'Hola, {{customer_name}}. Tu pedido {{order_number}} ya llegó a {{branch_name}}. Te avisamos cuando esté listo para retirar.'],
-    ['reservation', 'Reserva confirmada', 'Hola, {{customer_name}}. Reservamos tu pedido {{order_number}} hasta {{reservation_until}}.'],
+    ['ready_for_pickup', 'Pedido listo para retirar', '¡Hola {{cliente}}! 👋 Tu pedido {{pedido}} ya está listo para retirar en {{sucursal}}. Te esperamos. ¡Gracias por tu compra! — {{empresa}}'],
+    ['ready_to_ship', 'Pedido listo para enviar', '¡Hola {{cliente}}! 📦 Tu pedido {{pedido}} ya está preparado y sale para envío. Te paso el seguimiento apenas esté en camino.'],
+    ['arrived_from_depot', 'Pedido llegó a sucursal', '¡Hola {{cliente}}! 🚚 Tu pedido {{pedido}} ya llegó a {{sucursal}}. Lo estamos revisando y te avisamos cuando puedas retirarlo.'],
+    ['reservation', 'Reserva confirmada', '¡Hola {{cliente}}! ⏳ Te reservamos el pedido {{pedido}} hasta {{reservation_until}}. Si necesitás más tiempo, avisanos y lo extendemos.'],
+    ['saldo_pendiente', 'Saldo pendiente del pedido', '¡Hola {{cliente}}! 👋 Te recordamos que el pedido {{pedido}} tiene un saldo pendiente de {{saldo_pendiente}}. Podés pasar por {{sucursal}} o coordinar el pago por acá. ¡Gracias!'],
+    ['envio_seguimiento', 'Seguimiento de envío', '¡Hola {{cliente}}! 📍 Tu pedido {{pedido}} ya está en camino. Podés seguirlo acá: {{seguimiento}}'],
   ],
   CUSTOMERS: [
-    ['seguimiento', 'Seguimiento postventa', 'Hola {{cliente}}, ¿cómo estás? Te escribimos de {{empresa}} para saber si todo bien con tu compra.'],
-    ['promocion', 'Promoción vigente', 'Hola {{cliente}}, tenemos una promoción pensada para vos en {{empresa}}. Escribinos y te contamos los detalles.'],
-    ['recompra', 'Recompra', 'Hola {{cliente}}, ¿te quedó algo pendiente? En {{empresa}} tenemos novedades que pueden interesarte.'],
-    ['mayorista', 'Precios mayoristas', 'Hola {{cliente}}, en {{empresa}} podés acceder a precios mayoristas. Si querés, te enviamos la lista actualizada.'],
+    ['seguimiento', 'Seguimiento postventa', '¡Hola {{nombre}}! 😊 Te escribimos de {{empresa}} para saber cómo te fue con tu compra. Si necesitás algo, estamos por acá.'],
+    ['promocion', 'Promoción vigente', '¡Hola {{nombre}}! 🎉 Tenemos una promo pensada para vos en {{empresa}}: pasá por {{sucursal}} o respondé este mensaje y te contamos.'],
+    ['recompra', 'Recompra', '¡Hola {{nombre}}! 📱 ¿Pensando en cambiar el equipo? En {{empresa}} tenemos novedades que te pueden interesar. Te esperamos.'],
+    ['mayorista', 'Precios mayoristas', '¡Hola {{nombre}}! 🛒 En {{empresa}} accedés a precios mayoristas. Si querés, te enviamos la lista actualizada.'],
+    ['agradecimiento', 'Agradecimiento por la compra', '¡Gracias por tu compra, {{nombre}}! 🙌 Cualquier consulta sobre tu equipo, escribinos: estamos para ayudarte. — {{empresa}}'],
+    ['saldo_cliente', 'Recordatorio de saldo', '¡Hola {{nombre}}! 👋 Te recordamos que tu saldo pendiente es {{saldo_pendiente}}. Si ya lo abonaste, ignorá este mensaje. ¡Gracias por tu confianza!'],
   ],
   SERVICE: [
-    ['equipo_recibido', 'Equipo recibido', 'Hola {{cliente}}, recibimos tu {{equipo}} en {{sucursal}}. Te avisamos cuando tengamos novedades del servicio.'],
-    ['diagnostico_listo', 'Diagnóstico listo', 'Hola {{cliente}}, ya tenemos el diagnóstico de tu {{equipo}}. Estado: {{estado}}. Te contactamos para coordinar los próximos pasos.'],
-    ['esperando_repuesto', 'Esperando repuesto', 'Hola {{cliente}}, tu {{equipo}} está esperando un repuesto. Te avisamos en cuanto llegue para seguir con la reparación.'],
-    ['reparacion_lista', 'Reparación lista', 'Hola {{cliente}}, tu {{equipo}} ya está listo para retirar en {{sucursal}}. Te esperamos.'],
+    ['equipo_recibido', 'Equipo recibido', '¡Hola {{cliente}}! 🛠️ Recibimos tu {{equipo}} en {{sucursal}}. Ya empieza la revisión y te avisamos con el diagnóstico.'],
+    ['diagnostico_listo', 'Diagnóstico listo', '¡Hola {{cliente}}! 🔍 Ya tenemos el diagnóstico de tu {{equipo}}: {{estado}}. Te escribimos para coordinar los próximos pasos.'],
+    ['esperando_repuesto', 'Esperando repuesto', '¡Hola {{cliente}}! ⏳ Tu {{equipo}} está esperando un repuesto. Apenas llegue te avisamos para continuar con la reparación.'],
+    ['reparacion_lista', 'Reparación lista', '¡Hola {{cliente}}! ✅ Tu {{equipo}} ya está listo para retirar en {{sucursal}}. Te esperamos con el comprobante.'],
+    ['presupuesto', 'Presupuesto del servicio', '¡Hola {{cliente}}! 🧾 El presupuesto de tu {{equipo}} es {{total}}. Si lo aprobás, arrancamos con la reparación.'],
   ],
 }
 
@@ -75,8 +82,8 @@ function seedData(category: Category) {
 }
 
 async function seedCategory(tenantId: string, category: Category) {
-  const existing = await prisma.messageTemplate.count({ where: { tenantId, category } })
-  if (existing) return
+  // Sin corte por "ya existe": createMany + skipDuplicates es idempotente y
+  // agrega solo las claves nuevas.
   await prisma.messageTemplate.createMany({
     data: DEFAULTS[category].map(([key, name, body]) => ({ tenantId, key, name, body, category, context: CATEGORY_TO_CONTEXT[category] })),
     skipDuplicates: true,
