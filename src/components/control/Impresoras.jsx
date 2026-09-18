@@ -185,14 +185,19 @@ export default function Impresoras() {
     setProgreso('Enviando al agente…')
     const resultado = await imprimirTicketDirecto(ticket, { impresora: impresora.destino, copias, usuario: sesion?.nombre || usuario?.name || '', ref: ticket.ref, tipo })
     if (resultado.ok) {
-      setProgreso(resultado.encolado ? 'Encolada…' : 'Impresión exitosa.')
+      const encolado = Boolean(resultado.encolado)
+      setProgreso(encolado ? 'Encolada…' : 'Impresión enviada…')
       const siguiente = {
         ...store,
-        impresoras: store.impresoras.map((item) => (item.id === impresora.id ? { ...item, ultimaPrueba: { ok: true, fecha: new Date().toISOString(), tipo, ref: ticket.ref, validacion: ticket.validacion } } : item)),
+        impresoras: store.impresoras.map((item) => (item.id === impresora.id ? { ...item, ultimaPrueba: { ok: !encolado, encolado, fecha: new Date().toISOString(), tipo, ref: ticket.ref, validacion: ticket.validacion, corte: Boolean(ticket.corte) } } : item)),
       }
       guardarImpresoras(tenantId, siguiente)
       setStore(siguiente)
-      toast.success('Prueba enviada', resultado.encolado ? 'La impresora no respondió; el agente reintenta solo.' : 'El ticket de prueba salió por la térmica.')
+      if (encolado) {
+        toast.success('Prueba encolada', 'La impresora no respondió; el agente reintenta solo.')
+      } else {
+        toast.success('Prueba enviada por TCP', 'El agente confirmó el envío. La confirmación final es visual: verificá en el papel que el ticket salió y se cortó solo.')
+      }
     } else {
       setProgreso('La impresora no respondió.')
       toast.error('No se pudo imprimir', resultado.error)
@@ -365,7 +370,7 @@ export default function Impresoras() {
                   <span>Copias: <b className="text-fore">{impresora.copias}</b></span>
                   {impresora.ubicacion && <span>Ubicación: <b className="text-fore">{impresora.ubicacion}</b></span>}
                 </div>
-                <p className="text-xs text-mute">Última prueba: <b className="text-fore">{impresora.ultimaPrueba ? `${impresora.ultimaPrueba.ok ? 'Impresa correctamente' : 'Falló'} · ${TIPOS_TICKET_PRUEBA[impresora.ultimaPrueba.tipo] || 'Prueba'} · ${fmt(impresora.ultimaPrueba.fecha)}` : 'Sin prueba todavía'}</b></p>
+                <p className="text-xs text-mute">Última prueba: <b className="text-fore">{impresora.ultimaPrueba ? `${impresora.ultimaPrueba.ok ? 'Impresa correctamente' : impresora.ultimaPrueba.encolado ? 'Encolada' : 'Falló'} · ${TIPOS_TICKET_PRUEBA[impresora.ultimaPrueba.tipo] || 'Prueba'} · ${fmt(impresora.ultimaPrueba.fecha)}${impresora.ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}` : 'Sin prueba todavía'}</b></p>
                 {probandoId === impresora.id && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" onClick={() => probar(impresora)} disabled={Boolean(probandoId) || !impresora.activa}>{probandoId === impresora.id ? 'Enviando…' : 'Imprimir prueba'}</Button>
@@ -754,6 +759,7 @@ function ModalPrueba({ impresora, equipo, enviando, progreso, onCerrar, onEnviar
           <span>Ancho: <b className="text-fore">{impresora.ancho} mm</b></span>
           <span>Trabajo: <b className="text-fore">{ticket.ref}</b></span>
           <span>Validación: <b className="text-fore">{ticket.validacion}</b></span>
+          <span>Corte: <b className="text-fore">solicitado (GS V 0 + ESC i)</b></span>
         </div>
         <div>
           <div className="mb-1 flex items-center justify-between">
@@ -762,6 +768,11 @@ function ModalPrueba({ impresora, equipo, enviando, progreso, onCerrar, onEnviar
           </div>
           <pre className="max-h-64 overflow-y-auto rounded-xl border border-ink-600 bg-ink-900 p-3 font-mono text-[11px] leading-4 text-fore">{ticket.lineas().join('')}</pre>
         </div>
+        {tipo === 'corte' && (
+          <p className="rounded-lg border border-warn/30 bg-warn/10 p-2 text-xs text-mute">
+            La verificación del corte es <b className="text-fore">física</b>: el ticket debe separarse del rollo solo. El éxito por TCP confirma el envío, no la cuchilla. Si no corta, revisá <b className="text-fore">Cutter Enable: YES</b> en la impresora.
+          </p>
+        )}
         {enviando && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="ghost" onClick={onCerrar} disabled={enviando}>Cancelar</Button>

@@ -8,19 +8,33 @@ import { promisify } from 'node:util'
 const ejecutar = promisify(execFile)
 
 // Impresora de red: socket TCP crudo al puerto de impresión (9100 por defecto).
+// Si la térmica está dormida y no contesta ARP a la primera, macOS devuelve
+// EHOSTUNREACH/ENETUNREACH: se reintenta rápido (3 intentos, 400 ms) para
+// despertarla sin esperar el ciclo completo de la cola.
 export function enviarLan(destino, bytes, { timeoutMs = 6000 } = {}) {
   const [host, puerto] = String(destino).replace(/^lan:/, '').split(':')
-  return new Promise((resolve, reject) => {
-    const socket = connect({ host, port: Number(puerto) || 9100 })
+  const port = Number(puerto) || 9100
+  const escribir = () => new Promise((resolve, reject) => {
+    const socket = connect({ host, port })
     const terminar = (error) => {
       socket.destroy()
       if (error) reject(error)
       else resolve(true)
     }
-    socket.setTimeout(timeoutMs, () => terminar(new Error(`Sin respuesta de ${host}:${puerto || 9100}.`)))
+    socket.setTimeout(timeoutMs, () => terminar(new Error(`Sin respuesta de ${host}:${puerto}.`)))
     socket.on('error', terminar)
     socket.on('connect', () => socket.end(Buffer.from(bytes), () => terminar()))
   })
+  return (async () => {
+    for (let intento = 0; intento < 3; intento += 1) {
+      try { return await escribir() } catch (error) {
+        if (!/EHOSTUNREACH|ENETUNREACH|ECONNREFUSED/i.test(error?.message || '')) throw error
+        await new Promise((listo) => setTimeout(listo, 400))
+      }
+    }
+    // Último error conocido para el mensaje de la cola.
+    try { return await escribir() } catch (error) { throw error }
+  })()
 }
 
 // Impresora USB: CUPS recibe los mismos bytes crudos con `lp -o raw`.
