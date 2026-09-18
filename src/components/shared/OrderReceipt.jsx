@@ -16,7 +16,7 @@ const publicBase = () =>
 // Remito de traslado entre sucursales: lista completa de IMEI para control
 // físico al recibir, con origen, destino, fecha y guía AEX si ya está.
 export async function printTransferReceipt(transfer, { format = 'a4' } = {}) {
-  const thermal = format === 'thermal'
+  const thermal = Boolean(thermalWidth(format))
   const lines = Array.isArray(transfer.lines) ? transfer.lines : []
   const lineas = lines.map((line) => {
     const seriales = Array.isArray(line.serials) ? line.serials : []
@@ -34,7 +34,7 @@ export async function printPriceLabel(product, { format = 'thermal' } = {}) {
   try { qr = await QRCode.toDataURL(code, { errorCorrectionLevel: 'M', margin: 0, width: 140 }) } catch { /* La etiqueta sigue útil sin el QR. */ }
   const precio = Number(product.pricePyg ?? product.precioVenta ?? 0)
   const mayorista = Number(product.wholesalePricePyg ?? 0)
-  const thermal = format === 'thermal'
+  const thermal = Boolean(thermalWidth(format))
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Precio ${escapeHtml(product.name || product.sku || '')}</title><style>@page{size:58mm auto;margin:2mm}body{width:54mm;margin:0;font-family:Arial,sans-serif;color:#111}.brand{color:#0c8876;font-size:9px;font-weight:900;letter-spacing:1px}.name{font-size:12px;font-weight:800;margin:2mm 0}.sku{font-size:8px;color:#555}.price{font-size:${thermal ? '26px' : '30px'};font-weight:900;margin:2mm 0}.sub{font-size:9px;color:#555}.qr{width:22mm;height:22mm;margin:2mm auto;display:block}</style></head><body><div class="brand">MOBOS · ETIQUETA DE PRECIO</div><div class="name">${escapeHtml(product.name || '')}</div>${product.sku ? `<div class="sku">${escapeHtml(product.sku)}</div>` : ''}<div class="price">${precio > 0 ? `Gs. ${precio.toLocaleString('es-PY')}` : '—'}</div>${mayorista > 0 ? `<div class="sub">Mayorista: Gs. ${mayorista.toLocaleString('es-PY')}</div>` : ''}${qr ? `<img class="qr" src="${qr}" alt="QR">` : ''}</body></html>`
   return printHtml(html)
 }
@@ -53,13 +53,16 @@ export const accessUrlFor = (token) => {
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 
-const THERMAL_WIDTHS = { 'thermal-55': 55, 'thermal-80': 80, thermal: 55 }
+const THERMAL_WIDTHS = { 'thermal-80': 80, 'thermal-58': 58, 'thermal-55': 55, thermal: 58 }
 const thermalWidth = (format) => THERMAL_WIDTHS[format] || 0
 const styles = (format) => {
   const width = thermalWidth(format)
+  // Cada formato reserva su propio margen: A4 respira a los lados y arriba/abajo;
+  // las térmicas centran la columna en el rollo con padding parejo (el papel
+  // suele ser más ancho que el área imprimible real).
   const page = width ? `${width}mm auto` : 'A4'
-  const margin = width ? '3mm' : '16mm'
-  const bodyMax = width ? `${width - 6}mm` : '760px'
+  const margin = width ? '5mm 4mm' : '18mm 16mm'
+  const bodyMax = width ? `${width - 8}mm` : '178mm'
   const baseFont = width ? '10px/1.45' : '13px/1.6'
   const brandSize = width ? '12px' : '13px'
   const h1Size = width ? '15px' : '20px'
@@ -68,7 +71,7 @@ const styles = (format) => {
   return `
   @page{size:${page};margin:${margin}}
   *{box-sizing:border-box}
-  body{font:${baseFont} ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;margin:0;color:#0f1720;max-width:${bodyMax}}
+  body{font:${baseFont} ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;margin:0 auto;color:#0f1720;max-width:${bodyMax};padding:${width ? '1mm 0 6mm' : '0 0 4mm'}}
   .brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:2px solid #0c8876;padding-bottom:8px;margin-bottom:14px}
   .brand b{font-size:${brandSize};color:#0c8876;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
   .brand span{font-size:10px;color:#66707a;text-transform:uppercase;letter-spacing:.12em}
@@ -84,7 +87,7 @@ const styles = (format) => {
   .totals td{border:0;padding:3px 0}
   .totals tr:last-child td{font-weight:700;font-size:${totalSize};border-top:1px solid #0f1720;padding-top:6px}
   .tag{display:inline-block;border:1px solid #0c8876;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;color:#0c8876}
-  .brand img.logo{display:block;height:${width ? '12mm' : '16mm'};max-width:${width ? '46mm' : '70mm'};object-fit:contain;margin:0 auto 4px}
+  .brand img.logo{display:block;height:${width ? (width === 80 ? '14mm' : '12mm') : '16mm'};max-width:${width ? `${width - 20}mm` : '70mm'};object-fit:contain;margin:0 auto 4px}
   .qr{display:block;width:${qrSize};height:${qrSize};margin:10px auto 6px}
   .small{font-size:10px;word-break:break-all;text-align:center}
   footer{margin-top:14px;border-top:1px solid #e3e8ec;padding-top:8px;font-size:10px;color:#66707a;text-align:center}
@@ -98,11 +101,18 @@ const footer = () => `<footer>Conservá este comprobante para cambios y garantí
 
 // Niveles de comprobante y formatos físicos, independientes entre sí.
 export const NIVELES_COMPROBANTE = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detallado', 'Detallado']]
-export const FORMATOS_COMPROBANTE = [['a4', 'A4'], ['thermal', '58 mm']]
+export const FORMATOS_COMPROBANTE = [['a4', 'A4'], ['thermal-80', '80 mm'], ['thermal-58', '58 mm']]
+// La página del pedido usa A4 u 80 mm; el rollo de 58 mm no se imprime desde acá.
+export const FORMATOS_PEDIDO = [['a4', 'A4'], ['thermal-80', '80 mm']]
 const PREF_NIVEL = 'mobos:comprobante:nivel'
 const PREF_FORMATO = 'mobos:comprobante:formato'
 export const nivelPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_NIVEL)) || 'completo'
 export const formatoPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_FORMATO)) || 'a4'
+// Formato térmico configurado (80 mm por defecto: es la impresora habitual).
+export const formatoTermicoPreferido = () => {
+  const preferido = formatoPreferido()
+  return preferido.startsWith('thermal') ? preferido : 'thermal-80'
+}
 export const recordarPreferencia = (nivel, formato) => {
   try { localStorage.setItem(PREF_NIVEL, nivel); localStorage.setItem(PREF_FORMATO, formato) } catch { /* sin almacenamiento */ }
 }
@@ -129,7 +139,6 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const link = token ? accessUrlFor(token) : trackingUrlFor(order)
   let qr = ''
   try { if (link) qr = await QRCode.toDataURL(link, { errorCorrectionLevel: 'M', margin: 1, width: 200 }) } catch { /* el enlace queda impreso igual */ }
-  const thermal = format === 'thermal'
   const total = Number(order.totalPyg ?? order.total ?? 0)
   const pendiente = Math.max(0, total - Number(paid || order.totalPagado || 0))
   const empresa = order.tenant?.name || order.empresaNombre || ''
@@ -163,7 +172,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
     : ''
   const logo = await getLogoDataUrl()
 
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(thermal)}</style></head><body>
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(format)}</style></head><body>
     ${header('Comprobante de compra', `${order.orderNumber || order.codigo || 'Pedido'} · ${when ? new Date(when).toLocaleString('es-PY') : ''}`, logo)}
     ${empresaCard}
     ${contactoCliente}
@@ -195,13 +204,12 @@ export async function printOrderReceipt(order, options = {}) {
 // Recibo de un pago individual (parcial o total): sirve para entregar al
 // cliente al cobrar una parte del pedido, sin repetir el comprobante completo.
 export async function printPaymentReceipt(payment, order, { format = 'a4' } = {}) {
-  const thermal = format === 'thermal'
   const monto = payment.amountPyg ?? payment.monto ?? 0
   const metodo = ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago'
   const referencia = payment.cuenta || payment.reference || payment.accountSnapshot?.name || ''
   const fecha = payment.fecha || payment.paidAt || payment.createdAt || new Date().toISOString()
   const logo = await getLogoDataUrl()
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo de pago</title><style>${styles(thermal)}</style></head><body>
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo de pago</title><style>${styles(format)}</style></head><body>
     ${header('Recibo de pago', `${order?.orderNumber || order?.codigo || 'Pedido'} · ${new Date(fecha).toLocaleString('es-PY')}`, logo)}
     <div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(order?.customer?.name || order?.cliente || 'Consumidor final')}</strong></div></div>
     <table class="totals">
@@ -219,9 +227,8 @@ export async function printPaymentReceipt(payment, order, { format = 'a4' } = {}
 // Comprobante de reserva: entrega al cliente el IMEI apartado, la sucursal y
 // el vencimiento para retirar o liberar.
 export async function printReservationReceipt(reservation, { format = 'a4' } = {}) {
-  const thermal = format === 'thermal'
   const logo = await getLogoDataUrl()
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reserva</title><style>${styles(thermal)}</style></head><body>
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reserva</title><style>${styles(format)}</style></head><body>
     ${header('Comprobante de reserva', reservation.reservedUntil ? `Vence ${new Date(reservation.reservedUntil).toLocaleString('es-PY')}` : '', logo)}
     <div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(reservation.reservationCustomer || reservation.customerName || '—')}</strong></div></div>
     <table class="totals">

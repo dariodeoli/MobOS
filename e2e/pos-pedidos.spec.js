@@ -48,3 +48,27 @@ test('pedidos: enlace directo a un pedido fuera de la página lo resuelve por AP
   await expect(detalle).toBeVisible()
   await expect(detalle).toContainText(codigoPedido(objetivo.orderNumber))
 })
+
+// Impresión del pedido: sin 58 mm, con 80 mm y A4 centrados y con márgenes.
+test('pedidos: el comprobante ofrece A4 y 80 mm centrados', async ({ page }) => {
+  await page.goto('/pos/pedidos')
+  await page.getByTestId('pedido-fila').first().click()
+  const detalle = page.getByRole('dialog')
+  await expect(detalle).toBeVisible()
+  await detalle.getByRole('button', { name: 'Imprimir comprobante' }).click()
+
+  const formato = page.getByLabel('Formato de impresión')
+  await expect(formato).toBeVisible()
+  const opciones = await formato.locator('option').allTextContents()
+  expect(opciones).toEqual(['A4', '80 mm'])
+  expect(opciones).not.toContain('58 mm')
+
+  await formato.selectOption('thermal-80')
+  const frame = page.locator('iframe[title="Vista previa del comprobante"]')
+  await expect(frame).toHaveAttribute('srcdoc', /size:80mm auto/, { timeout: 15000 })
+  await expect(frame).toHaveAttribute('srcdoc', /margin:0 auto/)
+  await expect(frame).toHaveAttribute('srcdoc', /@page\{size:80mm auto;margin:5mm 4mm\}/)
+
+  await formato.selectOption('a4')
+  await expect(frame).toHaveAttribute('srcdoc', /@page\{size:A4;margin:18mm 16mm\}/, { timeout: 15000 })
+})

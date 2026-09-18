@@ -168,3 +168,18 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
     filter: blur(28px);
   }
 }
+
+/* ── Pantalla de carga ────────────────────────────────────────────────
+   Riel indeterminado y respiración suave del logo. Se desactivan con
+   prefers-reduced-motion desde el uso (motion-safe). */
+@keyframes mobos-carga {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+@keyframes mobos-respira {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .92; transform: scale(1.015); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*="mobos-carga"], [class*="mobos-respira"] { animation: none !important; }
+}

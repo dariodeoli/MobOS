@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect } from 'react'
+import LoadingScreen from '@/components/app/LoadingScreen'
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { SesionProvider, useSesion } from '@/lib/sesion'
-import { Button, Skeleton, ToastProvider } from '@/components/ui'
+import { Button, ToastProvider } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import Login from '@/pages/Login'
 import PanelVendedor from '@/pages/PanelVendedor'
@@ -47,27 +48,12 @@ function SinEmpresa() {
 // Mientras el API resuelve si hay sesión no se decide nada: si mandáramos
 // al login en ese instante, al recargar la página te sacaría siempre.
 function Cargando() {
-  return (
-    <div className="flex min-h-dvh items-center justify-center bg-paper">
-      <div className="flex items-center gap-3 text-sm text-mute">
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink-500 border-t-fono" />
-        Cargando tu tienda…
-      </div>
-    </div>
-  )
+  return <LoadingScreen />
 }
 
 // Espera breve mientras una ruta secundaria descarga su código.
 function PaginaCargando() {
-  return (
-    <div className="flex min-h-dvh items-center justify-center bg-paper p-6">
-      <div className="w-full max-w-sm space-y-3">
-        <Skeleton className="h-4 w-1/3" />
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-16 w-full" />
-      </div>
-    </div>
-  )
+  return <LoadingScreen mensaje="Cargando…" />
 }
 
 // El login solo tiene sentido si NO hay sesión; si ya entraste, al panel.

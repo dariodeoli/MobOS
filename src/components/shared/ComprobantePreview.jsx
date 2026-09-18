@@ -16,11 +16,24 @@ import { configImpresora, estadoAgente, imprimirTicketDirecto } from '@/lib/prin
 import { ticketComprobante } from '@/lib/printing/tickets'
 
 // Vista previa real del comprobante: nivel (Rápido/Completo/Detallado) y
-// formato (A4/58 mm) se eligen acá y la última combinación queda recordada.
-export default function ComprobantePreview({ order, open, onClose }) {
+// formato físico se eligen acá y la última combinación queda recordada. El
+// listado lo define la pantalla que lo usa (la página del pedido ofrece A4 y
+// 80 mm y descarta el rollo de 58 mm). El formato inicial sigue al ancho de la
+// impresora configurada en Impresoras.
+const ANCHO_VISTA = { 'thermal-80': 'max-w-[420px]', 'thermal-58': 'max-w-[340px]', 'thermal-55': 'max-w-[340px]', thermal: 'max-w-[340px]' }
+export default function ComprobantePreview({ order, open, onClose, formatos = FORMATOS_COMPROBANTE }) {
   const toast = useToast()
+  const inicial = (() => {
+    const preferido = formatoPreferido()
+    const ancho = (() => { try { return Number(configImpresora()?.ancho) || 0 } catch { return 0 } })()
+    const deImpresora = ancho === 80 ? 'thermal-80' : ancho === 58 ? 'thermal-58' : ''
+    const disponibles = formatos.map(([id]) => id)
+    if (preferido !== 'a4' && disponibles.includes(preferido)) return preferido
+    if (deImpresora && disponibles.includes(deImpresora)) return deImpresora
+    return disponibles.includes(preferido) ? preferido : formatos[0][0]
+  })()
   const [nivel, setNivel] = useState(nivelPreferido)
-  const [formato, setFormato] = useState(formatoPreferido)
+  const [formato, setFormato] = useState(inicial)
   const [html, setHtml] = useState('')
   const [link, setLink] = useState('')
   const [cargando, setCargando] = useState(false)
@@ -74,7 +87,7 @@ export default function ComprobantePreview({ order, open, onClose }) {
           <label className="block space-y-1 text-xs text-mute">
             <span>Formato</span>
             <Select aria-label="Formato de impresión" className="w-32" value={formato} onChange={event => setFormato(event.target.value)}>
-              {FORMATOS_COMPROBANTE.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+              {formatos.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
             </Select>
           </label>
           <span className="flex flex-1 flex-wrap items-center justify-end gap-2">
@@ -89,7 +102,7 @@ export default function ComprobantePreview({ order, open, onClose }) {
         <iframe
           title="Vista previa del comprobante"
           srcDoc={html}
-          className={`h-[60vh] w-full rounded-xl border border-ink-600 bg-white ${formato === 'thermal' ? 'mx-auto max-w-[380px]' : ''}`}
+          className={`h-[60vh] w-full rounded-xl border border-ink-600 bg-white ${ANCHO_VISTA[formato] ? 'mx-auto ' + ANCHO_VISTA[formato] : ''}`}
         />
       </div>
     </Modal>

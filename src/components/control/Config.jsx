@@ -40,6 +40,8 @@ async function copiarValor(toast, valor, etiqueta) {
   else toast.error('No se pudo copiar', 'Seleccioná el valor y copialo manualmente.')
 }
 
+
+
 export default function Config({ seccion = 'negocio' } = {}) {
   const { sesion, empresa, sucursal, perfilEmpresa } = useSesion()
   const esDueno = sesion?.esPropietario

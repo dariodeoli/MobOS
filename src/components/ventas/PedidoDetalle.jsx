@@ -6,7 +6,7 @@ import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import { api, API_URL } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
-import { accessUrlFor } from '@/components/shared/OrderReceipt'
+import { accessUrlFor, FORMATOS_PEDIDO } from '@/components/shared/OrderReceipt'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { DEMO_MESSAGE_TEMPLATES } from '@/components/customers/customerMessaging'
@@ -449,7 +449,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           </section>
         </div>
       )}
-      <ComprobantePreview order={order} open={comprobante} onClose={() => setComprobante(false)} />
+      <ComprobantePreview order={order} open={comprobante} onClose={() => setComprobante(false)}  formatos={FORMATOS_PEDIDO} />
       <Modal open={anularOpen} onClose={() => { if (!anularBusy) setAnularOpen(false) }} title="Anular pedido" className="max-w-lg">
         <div className="space-y-3">
           <p className="text-sm text-mute">
