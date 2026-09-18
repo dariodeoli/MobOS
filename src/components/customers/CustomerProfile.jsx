@@ -5,6 +5,7 @@ import { formatGs } from '@/utils/moneda'
 import { codigoPedido } from '@/utils/pedido'
 import { inicialesDe } from '@/lib/utils'
 import { whatsappUrl } from './customerMessaging'
+import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
 import ActorAvatar from './ActorAvatar'
 import {
@@ -1392,12 +1393,11 @@ export default function CustomerProfile({ customer, open, onClose }) {
               />
             </FormField>
             <FormField label="RUC / documento" htmlFor="profile-identity-document">
-              <Input
+              <RucField
                 id="profile-identity-document"
-                maxLength={100}
                 value={identityForm.document}
-                onChange={(event) => setIdentityForm((form) => ({ ...form, document: event.target.value }))}
-                placeholder="80012345-6"
+                onChange={(document) => setIdentityForm((form) => ({ ...form, document }))}
+                onAplicar={(datos) => setIdentityForm((form) => ({ ...form, name: datos.name || form.name, document: datos.fullRuc || form.document }))}
               />
             </FormField>
             <div className="flex justify-end gap-2">
