@@ -6,7 +6,7 @@ import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config
 import { crearCola } from './cola.mjs'
 import { aliasSecundario, colaLanDeCups, colaUri, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola } from './transportes.mjs'
 
-const VERSION = '1.3.0'
+const VERSION = '1.4.0'
 const config = cargarConfig()
 // Transporte real del último envío (directo | cups | usb): la app solo debe
 // marcar éxito cuando hubo entrega confirmada, no solo encolado.
@@ -137,7 +137,8 @@ async function ifaceDeRed() {
 // autenticado use el agente como puente hacia otros equipos de la red.
 async function destinosPermitidos() {
   const usb = await impresorasUsb()
-  return new Set([...config.lan, ...usb.map((cola) => `usb:${cola}`), config.impresora].filter(Boolean))
+  // Cada cola CUPS se acepta como `cups:` (nombre honesto) y `usb:` (app vieja).
+  return new Set([...config.lan, ...usb.flatMap((cola) => [`cups:${cola}`, `usb:${cola}`]), config.impresora].filter(Boolean))
 }
 
 const leerCuerpo = (request) => new Promise((resolve, reject) => {

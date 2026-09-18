@@ -25,6 +25,14 @@ export const puenteDe = (store, impresora = null) => {
   return elegido || { id: '', nombre: 'Computadora puente', url: store?.agentUrl || URL_AGENTE_DEFECTO, token: store?.agentToken || '' }
 }
 
+// El prefijo `usb:` fue histórico: apuntaba a una cola CUPS local aunque
+// saliera por red. Se migra a `cups:` y se aceptan ambos al leer.
+export const normalizarDestino = (destino = '') => {
+  const valor = String(destino || '').trim()
+  if (valor.startsWith('usb:')) return `cups:${valor.slice(4)}`
+  return valor
+}
+
 // Deja un solo predeterminado y descarta puentes sin dirección.
 export const normalizarPuentes = (bridges) => {
   const lista = (Array.isArray(bridges) ? bridges : []).filter((puente) => String(puente?.url || '').trim())

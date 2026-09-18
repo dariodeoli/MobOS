@@ -18,7 +18,7 @@ const hace = (valor) => {
 }
 // `usb:<cola>` es una cola CUPS local (puede salir por LAN o por USB físico):
 // se muestra como CUPS y su URI real la informa el agente.
-const conexionDe = (destino) => (String(destino || '').startsWith('usb:') ? 'CUPS' : 'LAN')
+const conexionDe = (destino) => (/^(usb|cups):/.test(String(destino || '')) ? 'CUPS' : 'LAN')
 
 const vacioFormulario = () => ({
   id: null,
@@ -109,7 +109,7 @@ export default function Impresoras() {
   function metodoDe(impresora) {
     const destino = String(impresora?.destino || '')
     if (!destino) return 'Sin destino'
-    if (destino.startsWith('usb:')) {
+    if (/^(usb|cups):/.test(destino)) {
       const tipo = destino === predeterminada?.destino ? estado?.red?.colaTipo : ''
       if (tipo === 'red') return 'CUPS · sale por red'
       if (tipo === 'usb') return 'CUPS · USB físico'
@@ -122,8 +122,8 @@ export default function Impresoras() {
     if (!estado?.disponible) return { label: 'Agente desconectado', color: 'slate' }
     if (!impresora.destino) return { label: 'Error de configuración', color: 'red' }
     if (impresora.ultimaPrueba?.ok) return { label: 'Prueba exitosa', color: 'green' }
-    if (impresora.conexion === 'usb') {
-      const detectada = (estado.impresoras?.usb || []).includes(String(impresora.destino).slice(4))
+    if (/^(usb|cups)$/.test(impresora.conexion || '') || /^(usb|cups):/.test(String(impresora.destino || ''))) {
+      const detectada = (estado.impresoras?.usb || []).includes(String(impresora.destino || '').slice(String(impresora.destino || '').indexOf(':') + 1))
       return detectada ? { label: 'Conectada', color: 'green' } : { label: 'Configurada', color: 'slate' }
     }
     if (impresora.destino === estado.impresora) {
@@ -143,9 +143,9 @@ export default function Impresoras() {
       modelo: impresora.modelo,
       ubicacion: impresora.ubicacion,
       predeterminada: Boolean(impresora.predeterminada),
-      conexion: impresora.conexion,
+      conexion: impresora.conexion === 'usb' ? 'cups' : impresora.conexion,
       puenteId: impresora.bridgeId || '',
-      destinoUsb: destino.startsWith('usb:') ? destino.slice(4) : '',
+      destinoUsb: /^(usb|cups):/.test(destino) ? destino.slice(destino.indexOf(':') + 1) : '',
       ip: ip || '192.168.1.23',
       puerto: puerto || '9100',
       ancho: impresora.ancho,
@@ -156,14 +156,14 @@ export default function Impresoras() {
     })
   }
 
-  const destinoDelFormulario = (f) => (f.conexion === 'usb' ? `usb:${f.destinoUsb.trim()}` : `lan:${f.ip.trim()}:${f.puerto.trim() || '9100'}`)
+  const destinoDelFormulario = (f) => (f.conexion === 'cups' ? `cups:${f.destinoUsb.trim()}` : `lan:${f.ip.trim()}:${f.puerto.trim() || '9100'}`)
 
   async function guardarFormulario({ probar = false } = {}) {
     const f = formulario
     if (!f) return
     const destino = destinoDelFormulario(f)
     if (!f.nombre.trim()) return toast.error('Falta el nombre', 'Poné un nombre visible para reconocer la impresora.')
-    if (!destino || (f.conexion === 'usb' && destino === 'usb:') || (f.conexion === 'lan' && (!f.ip.trim() || !f.puerto.trim()))) return toast.error('Falta el destino', f.conexion === 'usb' ? 'Elegí la cola USB.' : 'Completá la IP y el puerto.')
+    if (!destino || (f.conexion === 'cups' && destino === 'cups:') || (f.conexion === 'lan' && (!f.ip.trim() || !f.puerto.trim()))) return toast.error('Falta el destino', f.conexion === 'cups' ? 'Elegí la cola CUPS.' : 'Completá la IP y el puerto.')
     let siguiente = { ...store }
     let impresoras = [...siguiente.impresoras]
     if (f.predeterminada) impresoras = impresoras.map((item) => ({ ...item, predeterminada: false }))
@@ -774,7 +774,7 @@ function TablaTrabajos({ trabajos, seleccionados = [], onSeleccion }) {
 
 function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
   const destino = String(diagnostico.destino || '')
-  const metodo = diagnostico.metodo || (destino.startsWith('usb:') ? 'CUPS' : 'LAN')
+  const metodo = diagnostico.metodo || (/^(usb|cups):/.test(destino) ? 'CUPS' : 'LAN')
   const host = diagnostico.host || (destino.startsWith('lan:') ? destino.slice(4).split(':')[0] : '')
   const puerto = diagnostico.puerto || (destino.startsWith('lan:') ? destino.slice(4).split(':')[1] || '9100' : '—')
   const interfaces = diagnostico.interfaces || []
@@ -845,7 +845,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, tokenGuardado,
   const [validando, setValidando] = useState(false)
   const f = formulario
   const set = (cambios) => setFormulario((actual) => ({ ...actual, ...cambios }))
-  const destino = f.conexion === 'usb' ? `usb:${f.destinoUsb.trim()}` : `lan:${f.ip.trim()}:${f.puerto.trim() || '9100'}`
+  const destino = f.conexion === 'cups' ? `cups:${f.destinoUsb.trim()}` : `lan:${f.ip.trim()}:${f.puerto.trim() || '9100'}`
   const tokenEnmascarado = enmascararToken(tokenGuardado)
 
   async function validar() {
@@ -887,12 +887,12 @@ function FormularioImpresora({ formulario, setFormulario, estado, tokenGuardado,
         <div>
           <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Conexión</h4>
           <div className="mt-2 flex gap-2">
-            {[['usb', 'CUPS local'], ['lan', 'LAN (TCP directo)']].map(([valor, etiqueta]) => (
+            {[['cups', 'CUPS local'], ['lan', 'LAN (TCP directo)']].map(([valor, etiqueta]) => (
               <button key={valor} type="button" onClick={() => set({ conexion: valor })} className={`rounded-lg border px-3 py-2 text-sm font-semibold ${f.conexion === valor ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore'}`}>{etiqueta}</button>
             ))}
           </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {f.conexion === 'usb' ? (
+            {f.conexion === 'cups' ? (
               <FormField label="Cola CUPS local" htmlFor="imp-usb" hint="Una cola CUPS puede salir por red (socket://) o por USB físico (usb://); la URI real la informa el agente.">
                 <Input id="imp-usb" list="impresoras-usb" value={f.destinoUsb} onChange={(event) => set({ destinoUsb: event.target.value })} placeholder="ZKP8008" autoCapitalize="off" spellCheck={false} />
                 <datalist id="impresoras-usb">{(estado?.impresoras?.usb || []).map((cola) => <option key={cola} value={cola} />)}</datalist>

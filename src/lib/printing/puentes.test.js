@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { normalizarPuentes, normalizarStore, puenteDe, URL_AGENTE_DEFECTO } from './puentes.js'
+import { normalizarDestino, normalizarPuentes, normalizarStore, puenteDe, URL_AGENTE_DEFECTO } from './puentes.js'
 
 test('un store viejo (url/token globales) migra a un puente predeterminado', () => {
   const store = normalizarStore({
@@ -50,4 +50,11 @@ test('guardar puentes deja un solo predeterminado y descarta los vacíos', () =>
   assert.equal(lista[0].predeterminado, true)
   assert.equal(lista[1].predeterminado, false)
   assert.equal(normalizarPuentes([])[0], undefined)
+})
+
+test('el prefijo usb: de una cola CUPS migra a cups: y lan queda igual', () => {
+  assert.equal(normalizarDestino('usb:ZKP8008'), 'cups:ZKP8008')
+  assert.equal(normalizarDestino('cups:ZKP8008'), 'cups:ZKP8008')
+  assert.equal(normalizarDestino('lan:192.168.1.23:9100'), 'lan:192.168.1.23:9100')
+  assert.equal(normalizarDestino(''), '')
 })

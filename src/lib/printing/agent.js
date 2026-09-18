@@ -7,7 +7,7 @@
 // en pantalla ni se registra en logs: acá solo se guarda y se enmascara.
 
 import { printHtml } from '@/utils/printHtml'
-import { normalizarPuentes, normalizarStore, puenteDe, basePuente } from './puentes'
+import { normalizarDestino, normalizarPuentes, normalizarStore, puenteDe, basePuente } from './puentes'
 
 export { puenteDe }
 
@@ -63,8 +63,8 @@ const migrarVieja = () => {
   const impresora = {
     ...baseImpresora(),
     nombre: vieja.impresora || 'Impresora térmica',
-    destino: String(vieja.impresora || ''),
-    conexion: String(vieja.impresora || '').startsWith('usb:') ? 'usb' : 'lan',
+    destino: normalizarDestino(vieja.impresora),
+    conexion: String(vieja.impresora || '').startsWith('usb:') ? 'cups' : 'lan',
     ancho: Number(vieja.ancho) === 58 ? 58 : 80,
     copias: Number(vieja.copias) || 1,
     predeterminada: true,
@@ -80,8 +80,15 @@ const migrarVieja = () => {
 export function cargarImpresoras(tenantId) {
   const actual = leer(claveTenant(tenantId))
   if (actual && Array.isArray(actual.impresoras)) {
-    const normalizado = normalizarStore(actual)
-    if (normalizado !== actual) escribir(claveTenant(tenantId), normalizado)
+    // Migración suave: `usb:<cola>` era una cola CUPS; pasa a `cups:<cola>`.
+    const puentes = normalizarStore(actual)
+    const impresoras = (puentes.impresoras || []).map((impresora) => ({
+      ...impresora,
+      destino: normalizarDestino(impresora.destino),
+      conexion: impresora.conexion === 'usb' ? 'cups' : impresora.conexion,
+    }))
+    const normalizado = { ...puentes, impresoras }
+    if (JSON.stringify(normalizado) !== JSON.stringify(actual)) escribir(claveTenant(tenantId), normalizado)
     return normalizado
   }
   const migrada = migrarVieja()

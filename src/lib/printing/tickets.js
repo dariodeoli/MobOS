@@ -225,8 +225,8 @@ export function ticketPruebaTipo(tipo, {
 } = {}) {
   // Método honesto: lo informa quien arma el ticket (CUPS local, LAN TCP,
   // CUPS-USB…); el prefijo `usb:` es histórico y no implica cable USB.
-  const metodoReal = metodo || (String(impresora || '').startsWith('usb:') ? 'CUPS (cola local)' : 'LAN (TCP directo)')
-  const conexionReal = String(conexion || '').startsWith('usb') ? 'Cola CUPS local' : 'LAN (TCP directo)'
+  const metodoReal = metodo || (/^(usb|cups):/.test(String(impresora || '')) ? 'CUPS (cola local)' : 'LAN (TCP directo)')
+  const conexionReal = /^(usb|cups)/.test(String(conexion || '')) ? 'Cola CUPS local' : 'LAN (TCP directo)'
   const validacion = pruebaAleatoria()
   const ref = refDePrueba()
   const t = crearTicket({ ancho }).iniciar()

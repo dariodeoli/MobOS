@@ -133,7 +133,8 @@ export async function colaLanDeCups(nombre = 'MobOS_LAN') {
 export async function enviar(destino, bytes, { lanCups = 'MobOS_LAN', alias = '' } = {}) {
   const valor = String(destino || '').trim()
   if (!valor) throw new Error('Elegí una impresora.')
-  if (valor.startsWith('usb:')) { await enviarUsb(valor.slice(4), bytes); return 'usb' }
+  // `cups:` es el nombre honesto; `usb:` se acepta por compatibilidad con la app vieja.
+  if (/^(usb|cups):/.test(valor)) { await enviarUsb(valor.slice(valor.indexOf(':') + 1), bytes); return 'usb' }
   try {
     await enviarLan(valor, bytes, { alias })
     return 'directo'
@@ -151,9 +152,13 @@ export async function enviar(destino, bytes, { lanCups = 'MobOS_LAN', alias = ''
 export function probarConexionDetalle(destino, { timeoutMs = 1500, alias = '' } = {}) {
   const valor = String(destino || '').trim()
   if (!valor) return Promise.resolve({ ok: false, error: 'Sin destino.' })
-  if (valor.startsWith('usb:')) {
-    const cola = valor.slice(4)
-    return impresorasUsb().then((colas) => colas.includes(cola) ? { ok: true } : { ok: false, error: `La cola ${cola} no existe en CUPS.` })
+  if (/^(usb|cups):/.test(valor)) {
+    const cola = valor.slice(valor.indexOf(':') + 1)
+    return impresorasCups().then((colas) => {
+      const encontrada = colas.find((item) => item.nombre === cola)
+      if (!encontrada) return { ok: false, error: `La cola ${cola} no existe en CUPS.` }
+      return { ok: true, metodo: encontrada.tipo === 'red' ? 'CUPS sobre red' : encontrada.tipo === 'usb' ? 'CUPS sobre USB' : 'CUPS' }
+    })
   }
   const [host, puerto] = valor.replace(/^lan:/, '').split(':')
   const localAddress = origenPara(host, alias)
@@ -186,13 +191,13 @@ export async function aliasSecundario(ip = '192.168.1.100') {
 export async function diagnosticoRed(destino, { alias = '192.168.1.100', cups = 'MobOS_LAN' } = {}) {
   const valor = String(destino || '').trim()
   if (!valor) return { sinDestino: true, mensaje: 'No hay impresora configurada.', interfaces: [], alcance: false, transporte: 'ninguno' }
-  const esUsb = valor.startsWith('usb:')
+  const esUsb = /^(usb|cups):/.test(valor)
   const host = esUsb ? '' : valor.replace(/^lan:/, '').split(':')[0]
   const puerto = esUsb ? '' : (valor.replace(/^lan:/, '').split(':')[1] || '9100')
   const info = { destino: valor, host, puerto, metodo: esUsb ? 'CUPS' : 'LAN', interfaces: [], ruta: '', alcance: false, alias: await aliasSecundario(alias), cups: await colaLanDeCups(cups) }
   // Una cola CUPS puede ser sobre LAN (socket://) o USB físico (usb://): la
   // URI real evita llamarla "USB" cuando en realidad sale por red.
-  if (esUsb) info.cupsUri = await colaUri(valor.replace(/^usb:/, '').split(':')[0] || cups)
+  if (esUsb) info.cupsUri = await colaUri(valor.slice(valor.indexOf(':') + 1) || cups)
   try {
     const { stdout } = await ejecutar('ifconfig', [], { timeout: 5000 })
     info.interfaces = stdout.split('\n')
