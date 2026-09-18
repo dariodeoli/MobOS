@@ -1,26 +1,68 @@
 # AGENTS.md — reglas de trabajo del repo
 
-- **Al terminar cada tarea autorizada: commitear por unidad de trabajo y dejar la rama lista para el integrador** (API → interfaz, sin bump de versión). No dejar trabajo terminado sin commitear. **El merge y el push a `main` los hace el integrador, nunca un agente** (ver más abajo).
-- **El deploy a producción es exclusivo de `npm run release:publish`** (bump de patch + push + webhook de Coolify), y lo ejecuta solo Dario. Los agentes nunca deployan por cuenta propia.
-- **`ht` (comando de Dario al integrador):** ejecutar el ciclo completo — `git fetch origin --prune`, integrar todas las ramas con trabajo pendiente (una por vez, backend antes que frontend), verificar (lint, builds, integración 13/13, e2e), pushear a `main`, deployar con `npm run release:publish` y verificar producción con `npm run release:smoke`. Sin `ht` no hay deploy. **Preámbulo obligatorio:** matar servidores zombies (`lsof -ti :3001 :5175 | xargs kill -9` y `next-server` de worktrees de MobOS) y verificar que no haya otro merge en curso (`.git/MERGE_HEAD`).
-- **Nadie pushea ni mergea a `main` salvo el integrador.** Hay protección de rama en GitHub (checks de CI obligatorios) y un hook local `pre-push` que bloquea pushes a main sin `MOBOS_INTEGRATOR=1`. Instalar el hook en cada checkout: `bash scripts/setup-hooks.sh`.
-- **Conflicto de merge → parar y consultar con Dario; nunca resolver en silencio.** Si una rama quedó superseded por main, resolver del lado de main y verificar diff neto vacío; si hay trabajo real en conflicto, se para y se avisa.
-- **Checks de entrega obligatorios antes de entregar tu rama** (si alguno falla, la rama no se entrega; los corre el agente y los revalida el integrador):
-  1. `npm run lint` con 0 errores.
-  2. `npm run build` exit 0 y `npm --prefix backend run build` exit 0 **con `backend/.next/BUILD_ID` creado** (el build falla en voz alta aunque imprima "Compiled successfully").
-  3. `npx prisma validate --schema backend/prisma/schema.prisma`.
-  4. `npm test` y `npm --prefix backend run test:unit` en verde.
-  5. `rg "<<<<<<<" src backend e2e` sin resultados (nunca commits con marcadores de conflicto).
-  6. Si tocaste rutas API: no exportar símbolos que no sean handlers de Next (export inválido rompe el build); no duplicar slugs dinámicos (`[id]` vs `[userId]` para la misma ruta); toda columna/modelo nuevo del schema exige su migración.
-- **Worktrees — puesta al día obligatoria.** Antes de empezar a trabajar en un worktree: `git fetch origin && git rebase origin/main` y `bash scripts/setup-hooks.sh`. Una rama atrasada arrastra versiones viejas de los archivos y **revierte features al mergear**: es la causa número uno de trabajo de reparación. Al entregar, la rama tiene que estar al día: `git merge-base --is-ancestor origin/main HEAD` debe dar 0. Si después del rebase el diff neto contra `origin/main` queda vacío, la rama quedó superseded: se descarta, no se mergea.
-- **Worktrees — aislamiento automático.** Un worktree vinculado (`.git` es un archivo, no un directorio) deriva base y puertos únicos de su nombre de carpeta en `playwright.config.js` (`/tmp/mobos-e2e-pg-<slug>`, pg 55xx, api 31xx, web 52xx). El checkout principal mantiene los valores de siempre. Los `MOBOS_E2E_*` explícitos por entorno siempre mandan.
-- **Nunca mates procesos por puerto.** `lsof -ti :3001 :5175 | xargs kill -9` solo vale para el ciclo del integrador en el checkout principal: en un worktree esos puertos pueden ser de otro agente y le tumbás la corrida (se ve como fallos de e2e "inexplicables" por `ERR_CONNECTION_REFUSED`). Si abortás una corrida, limpiá **tus** restos: los puertos que derivó tu worktree y tu cluster (`pg_ctl -D /tmp/mobos-e2e-pg-<slug> stop`). Una corrida abortada deja la Vite y el cluster vivos y la siguiente falla con "port already used".
-- **Migraciones:** aditivas, idempotentes y re-ejecutables (`IF NOT EXISTS` cuando otra migración pudo crear el objeto antes). Los seeds NO deben depender de "si el tenant existe, salir": deben poder correr después sin duplicar (ON CONFLICT + guardas por conteo).
-- **e2e desde worktrees:** la base y los puertos son compartidos entre agentes; aislar con variables de entorno por worktree: `MOBOS_E2E_PGDATA`, `MOBOS_E2E_PGPORT`, `MOBOS_E2E_API_PORT`, `MOBOS_E2E_WEB_PORT`. Nunca dos worktrees con los mismos valores. Los lanzadores (`e2e/bin/start-*.sh`) respetan esas variables y escriben `MOBOS_APP_URL` con el puerto real del web, así que un worktree aislado no rompe el CORS.
-- **Gate de integración vs. release.** Para el ciclo del `ht` y para cualquier verificación de rama alcanza `npm run test:e2e:smoke` (~15 s, los flujos que rompen el negocio: login, venta completa, navegación al pedido, permisos, resumen, inventario y tracking público). La suite completa (`npm run test:e2e`) se corre **antes de un release**, no en cada integración.
-- **Reset rápido de la base e2e.** Tras un seed exitoso se guarda un snapshot (`/tmp/mobos-e2e-snapshot-<db>.dump`) que se restaura en segundos cuando hace falta re-sembrar, incluso si una corrida falló a mitad. Se invalida solo si cambian las migraciones, así que nunca restaura un esquema viejo.
-- **e2e en paralelo.** `MOBOS_E2E_WORKERS` (default 1) sube los workers. Dejalo en 1 si las specs tocan stock o tenant compartido; subilo solo para conjuntos que no comparten estado.
-- **Pedidos de Dario:** cada pedido vive como issue de GitHub (backlog canónico). Al empezar, reclamá un issue y marcalo; al entregar, citá commits. Nada se trabaja "de memoria". El integrador cierra issues solo después de verificar por contenido contra `origin/main`.
-- Commits convencionales, sin atribución de IA.
+Reglas organizadas por rol. **Worktrees = agentes. Implementador = integrador.**
+
+---
+
+## Para todos (agentes e implementador)
+
+- Commits convencionales, por unidad de trabajo, sin atribución de IA.
 - No pushear secretos ni archivos `.env`.
-- Campos de formulario: seguí las reglas de docs/CAMPOS.md — se invocan con **rdi** (skill `.claude/skills/rdi`) — y usá los componentes compartidos antes de crear un input. Para apps nuevas, la versión portable es `docs/PLANTILLA-CAMPOS.md`.
+- Campos de formulario: seguí docs/CAMPOS.md (skill **rdi**) y usá los componentes compartidos antes de crear un input. Versión portable: `docs/PLANTILLA-CAMPOS.md`.
+- **Pedidos de Dario:** cada pedido vive como issue de GitHub (backlog canónico). Se reclama al empezar y se citan commits al entregar. Nada se trabaja "de memoria".
+- **Migraciones:** aditivas, idempotentes y re-ejecutables (`IF NOT EXISTS` cuando otra migración pudo crear el objeto antes). Los seeds no dependen de "si el dato no existe, salir": guards por conteo + `ON CONFLICT`.
+
+---
+
+## Reglas para los WORKTREES (agentes)
+
+1. **Solo tu rama.** Trabajás únicamente en tu worktree y en tu rama asignada. Pusheás a `origin/<tu-rama>`. **Nunca** mergeás ni pusheás a `main` (el hook `pre-push` lo bloquea y la branch protection exige CI).
+2. **Rebase antes de empezar y antes de entregar:** `git fetch origin && git rebase origin/main`. Si después del rebase el diff neto contra `origin/main` queda vacío, la rama quedó superseded: se descarta y se avisa. Trabajar sobre main viejo **revierte features al mergear** — es la causa número uno de trabajo de reparación.
+3. **Handover obligatorio:** al terminar, pusheás tu rama y avisás con: rama, `git log --oneline origin/main..HEAD`, qué hace cada commit, rutas tocadas y resultado de verificaciones.
+4. **Checks de entrega obligatorios antes de pushear** (si alguno falla, la rama no se entrega):
+   1. `npm run lint` con 0 errores.
+   2. `npm run build` exit 0 y `npm --prefix backend run build` exit 0 **con `backend/.next/BUILD_ID` creado** (el build falla en voz alta aunque imprima "Compiled successfully").
+   3. `npm --prefix backend run prisma:validate` (o `npx prisma validate --schema backend/prisma/schema.prisma`).
+   4. `npm test` y `npm --prefix backend run test:unit` en verde.
+   5. `rg "<<<<<<<" src backend e2e` sin resultados (nunca commits con marcadores de conflicto).
+   6. Si tocaste rutas API: no exportar símbolos que no sean handlers de Next (export inválido rompe el build); no duplicar slugs dinámicos (`[id]` vs `[userId]` para la misma ruta); toda columna/modelo nuevo del schema exige su migración.
+5. **e2e desde worktrees:** la base y los puertos son compartidos entre agentes. Aislar SIEMPRE con variables únicas por worktree:
+   `MOBOS_E2E_PGDATA=/tmp/mobos-e2e-pg-<tu-rama>`, `MOBOS_E2E_PGPORT=<55xx único>`, `MOBOS_E2E_API_PORT=<31xx único>`, `MOBOS_E2E_WEB_PORT=<52xx único>`. Nunca dos worktrees con los mismos valores.
+6. **Gate rápido:** usá `npm run test:e2e:smoke` (~20 s) durante el trabajo. La suite completa (`npm run test:e2e`, ~1.5 min) es del implementador antes del release.
+7. **Nunca matar procesos por puerto** (`lsof -ti :3001 :5175 | xargs kill -9`): en un worktree esos puertos pueden ser de otro agente. Si abortás una corrida, limpiá solo tus restos (tu cluster `pg_ctl -D /tmp/mobos-e2e-pg-<tu-rama> stop` y tus puertos).
+8. **No deployás.** El deploy es exclusivo del implementador con `npm run release:publish`.
+9. **Estado raro de git** (refs rotas, fetch que falla, merge ajeno en curso): PARÁS y avisás. No borres ni "arregles" refs por tu cuenta.
+
+---
+
+## Reglas para el IMPLEMENTADOR (integrador)
+
+1. **Sos el único que toca `main`.** Pusheás con `MOBOS_INTEGRATOR=1 git push origin main`. Nadie más mergea ni pushea a main.
+2. **`ht` (comando de Dario):** ciclo completo de integración + deploy.
+3. **Preámbulo obligatorio del `ht`:**
+   - Matar servidores zombies del repo (no de otros proyectos): `next-server` de worktrees de MobOS y, en el checkout principal, `lsof -ti :3001 :5175 | xargs kill -9`.
+   - Verificar que no haya otro merge en curso: `.git/MERGE_HEAD` no debe existir. Si existe, PARAR y consultar.
+4. **Ciclo `ht`:**
+   1. `git fetch origin --prune` y relevar ramas con trabajo pendiente.
+   2. Verificar e integrar **de a una rama por vez** (backend antes que frontend cuando aplique). Nunca mergear algo sin verificación.
+   3. Por integración: `npm run lint` · builds FE/BE (con `BUILD_ID`) · `npm test` + `test:unit` · `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` · `npm run test:e2e:smoke`.
+   4. Con todo integrado: **suite completa** `npm run test:e2e` (gate de release).
+   5. Push a main con `MOBOS_INTEGRATOR=1`.
+   6. Release + deploy: `MOBOS_INTEGRATOR=1 npm run release:publish` (bump de patch + push + webhook de Coolify).
+   7. Verificar producción: `npm run release:smoke` (esperar el deploy con reintentos).
+5. **Conflictos de merge → PARÁS y consultás con Dario; nunca resolvés en silencio.** Si una rama quedó superseded por main: resolver del lado de main y verificar diff neto vacío; si hay trabajo real en conflicto, se para y se avisa.
+6. **Velocidad (implementado):**
+   - Smoke subset como gate del ht (`test:e2e:smoke`, ~20 s); suite completa solo antes del release (gate).
+   - Reset por snapshot de la base e2e (`/tmp/mobos-e2e-snapshot-*.dump`, automático en `global-setup`; se invalida solo si cambian las migraciones).
+   - Aislamiento por worktree con `MOBOS_E2E_*` (también para tus corridas si usás worktrees).
+7. **Sincronizar checkouts locales de `main` (ff-only)** después del push.
+8. **Issues:** cerrás issues solo después de verificar por contenido contra `origin/main` (citando el commit que lo implementa).
+9. **Refs rotas:** backup a /tmp antes de tocar y reportás todo.
+
+---
+
+## Deploy (invariante)
+
+- **El deploy a producción es exclusivo de `npm run release:publish`** (bump de patch + push + webhook de Coolify).
+- **Sin `ht` no hay deploy** salvo pedido explícito de Dario.
+- Los agentes nunca deployan por cuenta propia.
