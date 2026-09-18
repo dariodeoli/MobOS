@@ -3,7 +3,7 @@ import { Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Inp
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, diagnosticoAgente, enmascararToken, estadoAgente, guardarImpresoras, historialAgente, imprimirTicketDirecto, limpiarFallidos, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
+import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, diagnosticoAgente, enmascararToken, estadoAgente, estadoDePuente, guardarImpresoras, guardarPuentes, historialAgente, imprimirTicketDirecto, limpiarFallidos, puenteDe, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
 
 const fmt = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
@@ -61,6 +61,10 @@ export default function Impresoras() {
   const [filtroActividad, setFiltroActividad] = useState('')
   const [seleccionados, setSeleccionados] = useState([])
   const [reparando, setReparando] = useState(false)
+  const [puentesAbiertos, setPuentesAbiertos] = useState(false)
+  const [puenteEdit, setPuenteEdit] = useState(null)
+  const [puenteProbando, setPuenteProbando] = useState('')
+  const [puenteEstado, setPuenteEstado] = useState({})
 
   const consultar = useCallback(async () => {
     setCargando(true)
@@ -98,6 +102,22 @@ export default function Impresoras() {
   const impresoras = store.impresoras || []
   const predeterminada = impresoras.find((item) => item.activa && item.predeterminada) || impresoras.find((item) => item.activa) || null
 
+  const puentePrincipal = puenteDe(store)
+
+  // Método honesto de cada impresora: `usb:` es una cola CUPS local (puede
+  // salir por red o por USB físico), no un cable.
+  function metodoDe(impresora) {
+    const destino = String(impresora?.destino || '')
+    if (!destino) return 'Sin destino'
+    if (destino.startsWith('usb:')) {
+      const tipo = destino === predeterminada?.destino ? estado?.red?.colaTipo : ''
+      if (tipo === 'red') return 'CUPS · sale por red'
+      if (tipo === 'usb') return 'CUPS · USB físico'
+      return 'CUPS (cola local)'
+    }
+    return 'LAN (TCP directo)'
+  }
+
   function estadoDe(impresora) {
     if (!estado?.disponible) return { label: 'Agente desconectado', color: 'slate' }
     if (!impresora.destino) return { label: 'Error de configuración', color: 'red' }
@@ -124,6 +144,7 @@ export default function Impresoras() {
       ubicacion: impresora.ubicacion,
       predeterminada: Boolean(impresora.predeterminada),
       conexion: impresora.conexion,
+      puenteId: impresora.bridgeId || '',
       destinoUsb: destino.startsWith('usb:') ? destino.slice(4) : '',
       ip: ip || '192.168.1.23',
       puerto: puerto || '9100',
@@ -153,6 +174,7 @@ export default function Impresoras() {
       ubicacion: f.ubicacion.trim(),
       conexion: f.conexion,
       destino,
+      bridgeId: f.puenteId || '',
       ancho: f.ancho,
       copias: f.copias,
       corte: f.corte,
@@ -193,7 +215,7 @@ export default function Impresoras() {
       setProgreso(encolado ? 'Encolada…' : 'Impresión enviada…')
       const siguiente = {
         ...store,
-        impresoras: store.impresoras.map((item) => (item.id === impresora.id ? { ...item, ultimaPrueba: { ok: !encolado, encolado, fecha: new Date().toISOString(), tipo, ref: ticket.ref, validacion: ticket.validacion, corte: Boolean(ticket.corte) } } : item)),
+        impresoras: store.impresoras.map((item) => (item.id === impresora.id ? { ...item, ultimaPrueba: { ok: !encolado, encolado, fecha: new Date().toISOString(), tipo, ref: ticket.ref, validacion: ticket.validacion, metodo: metodoDe(impresora), transporte: resultado.transporte || '', corte: Boolean(ticket.corte) } } : item)),
       }
       guardarImpresoras(tenantId, siguiente)
       setStore(siguiente)
@@ -225,6 +247,46 @@ export default function Impresoras() {
     } catch (cause) {
       setDiagnostico({ ok: false, error: cause?.message || 'No se pudo consultar el diagnóstico.' })
     } finally { setDiagnosticando(false) }
+  }
+
+  function guardarPuenteFormulario() {
+    const f = puenteEdit
+    if (!f) return
+    if (!String(f.url || '').trim()) return toast.error('Falta la dirección', 'Completá la URL del puente (por ejemplo http://192.168.100.110:17890).')
+    const lista = Array.isArray(store.bridges) ? [...store.bridges] : []
+    const original = lista.find((item) => item.id === f.id)
+    const puente = {
+      id: f.id || `puente-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
+      nombre: String(f.nombre || '').trim() || 'Computadora puente',
+      url: String(f.url).trim().replace(/\/+$/, ''),
+      token: f.token ? String(f.token) : (original?.token || ''),
+      predeterminado: Boolean(f.predeterminado) || lista.length === 0,
+    }
+    const siguiente = lista.some((item) => item.id === puente.id)
+      ? lista.map((item) => (item.id === puente.id ? puente : item))
+      : [...lista, puente]
+    setStore(guardarPuentes(tenantId, siguiente))
+    setPuenteEdit(null)
+    toast.success('Puente guardado', puente.url)
+  }
+
+  function eliminarPuente(id) {
+    const lista = (store.bridges || []).filter((puente) => puente.id !== id)
+    setStore(guardarPuentes(tenantId, lista))
+    toast.success('Puente eliminado', 'Las impresoras que lo usaban vuelven al predeterminado.')
+  }
+
+  async function probarPuente(puente) {
+    if (puenteProbando) return
+    setPuenteProbando(puente.id)
+    try {
+      const resultado = await estadoDePuente(puente)
+      setPuenteEstado((mapa) => ({ ...mapa, [puente.id]: resultado }))
+      toast.success('Puente conectado', `v${resultado.version}${resultado.equipo ? ` · ${resultado.equipo}` : ''}`)
+    } catch (cause) {
+      setPuenteEstado((mapa) => ({ ...mapa, [puente.id]: { disponible: false, error: cause?.message || '' } }))
+      toast.error('Sin respuesta', cause?.message || 'No se pudo consultar el puente.')
+    } finally { setPuenteProbando('') }
   }
 
   async function eliminar() {
@@ -361,7 +423,8 @@ export default function Impresoras() {
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Computadora puente</p>
               <p className="mt-1 flex items-center gap-2 text-sm font-semibold"><span className={`h-2 w-2 rounded-full ${estado?.disponible ? 'bg-ok' : 'bg-bad'}`} />{estado?.disponible ? 'Encendida' : 'Apagada o sin agente'}</p>
-              <p className="mt-1 truncate text-xs text-mute" title={store.agentUrl}>{store.agentUrl.includes('127.0.0.1') || store.agentUrl.includes('localhost') ? 'Solo esta computadora' : store.agentUrl}</p>
+              <p className="mt-1 truncate text-xs text-mute" title={puentePrincipal.url}>{puentePrincipal.nombre} · {puentePrincipal.url.includes('127.0.0.1') || puentePrincipal.url.includes('localhost') ? 'solo esta computadora' : puentePrincipal.url}</p>
+              <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={() => setPuentesAbiertos(true)}>Gestionar puentes ({(store.bridges || []).length})</Button>
               {estado?.disponible && <p className="mt-1 text-xs text-mute">Dirección local {URL_AGENTE} · {estado.host === '0.0.0.0' ? 'acepta la red local' : 'solo local'}</p>}
             </div>
             <div className="rounded-xl border border-ink-600 p-3">
@@ -432,12 +495,12 @@ export default function Impresoras() {
                   <Badge color={chip.color}>{chip.label}</Badge>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-mute">
-                  <span>Conexión: <b className="text-fore">{conexionDe(impresora.destino)}</b></span>
+                  <span>Método: <b className="text-fore">{metodoDe(impresora)}</b></span>
                   <span>Ancho: <b className="text-fore">{impresora.ancho} mm</b></span>
                   <span>Copias: <b className="text-fore">{impresora.copias}</b></span>
                   {impresora.ubicacion && <span>Ubicación: <b className="text-fore">{impresora.ubicacion}</b></span>}
                 </div>
-                <p className="text-xs text-mute">Última prueba: <b className="text-fore">{impresora.ultimaPrueba ? `${impresora.ultimaPrueba.ok ? 'Impresa correctamente' : impresora.ultimaPrueba.encolado ? 'Encolada' : 'Falló'} · ${TIPOS_TICKET_PRUEBA[impresora.ultimaPrueba.tipo] || 'Prueba'} · ${fmt(impresora.ultimaPrueba.fecha)}${impresora.ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}` : 'Sin prueba todavía'}</b></p>
+                <p className="text-xs text-mute">Última prueba: <b className="text-fore">{impresora.ultimaPrueba ? `${impresora.ultimaPrueba.ok ? 'Impresa correctamente' : impresora.ultimaPrueba.encolado ? 'Encolada' : 'Falló'} · ${TIPOS_TICKET_PRUEBA[impresora.ultimaPrueba.tipo] || 'Prueba'} · ${fmt(impresora.ultimaPrueba.fecha)}${impresora.ultimaPrueba.transporte ? ` · vía ${impresora.ultimaPrueba.transporte}` : ''}${impresora.ultimaPrueba.validacion ? ` · Código ${impresora.ultimaPrueba.validacion}` : ''}${impresora.ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}` : 'Sin prueba todavía'}</b></p>
                 {probandoId === impresora.id && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" onClick={() => probar(impresora)} disabled={Boolean(probandoId) || !impresora.activa}>{probandoId === impresora.id ? 'Enviando…' : 'Imprimir prueba'}</Button>
@@ -534,7 +597,8 @@ export default function Impresoras() {
           setFormulario={setFormulario}
           estado={estado}
           tokenGuardado={store.agentToken}
-          agentUrl={store.agentUrl}
+          agentUrl={puenteDe(store, { bridgeId: formulario.puenteId }).url}
+          bridges={store.bridges || []}
           onGuardar={guardarFormulario}
         />
       )}
@@ -542,13 +606,68 @@ export default function Impresoras() {
       {pruebaDe && (
         <ModalPrueba
           impresora={pruebaDe}
-          equipo={estado?.equipo || store.agentUrl}
+          metodo={metodoDe(pruebaDe)}
+          equipo={estado?.equipo || puentePrincipal.url}
           enviando={Boolean(probandoId)}
           progreso={progreso}
           onCerrar={() => setPruebaDe(null)}
           onEnviar={enviarPrueba}
         />
       )}
+
+      <Modal open={puentesAbiertos} onClose={() => { setPuentesAbiertos(false); setPuenteEdit(null) }} title="Puentes de impresión" className="max-w-2xl">
+        <div className="space-y-4">
+          <p className="text-sm text-mute">Cada puente es una computadora con el agente instalado. Cada impresora usa su puente; sin elección, usa el predeterminado.</p>
+          <div className="space-y-2">
+            {(store.bridges || []).map((puente) => {
+              const visto = puenteEstado[puente.id]
+              return (
+                <div key={puente.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                      {puente.nombre}
+                      {puente.predeterminado && <Badge color="blue">Predeterminado</Badge>}
+                      {visto && <Badge color={visto.disponible ? 'green' : 'red'}>{visto.disponible ? `v${visto.version || ''}` : 'sin respuesta'}</Badge>}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-mute" title={puente.url}>{puente.url}{puente.token ? ` · token ${enmascararToken(puente.token)}` : ' · sin token'}</p>
+                    {visto && !visto.disponible && <p className="mt-0.5 text-xs text-bad">{visto.error}</p>}
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <Button type="button" variant="ghost" onClick={() => probarPuente(puente)} disabled={puenteProbando === puente.id}>{puenteProbando === puente.id ? 'Probando…' : 'Probar'}</Button>
+                    <Button type="button" variant="ghost" onClick={() => setPuenteEdit({ ...puente, token: '' })}>Editar</Button>
+                    {(store.bridges || []).length > 1 && <Button type="button" variant="ghost" className="text-bad" onClick={() => eliminarPuente(puente.id)}>Eliminar</Button>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          {puenteEdit ? (
+            <div className="space-y-3 rounded-xl border border-ink-600 p-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormField label="Nombre" htmlFor="puente-nombre">
+                  <Input id="puente-nombre" value={puenteEdit.nombre} onChange={(event) => setPuenteEdit((actual) => ({ ...actual, nombre: event.target.value }))} placeholder="Mac del local" />
+                </FormField>
+                <FormField label="Dirección" htmlFor="puente-url">
+                  <Input id="puente-url" value={puenteEdit.url} onChange={(event) => setPuenteEdit((actual) => ({ ...actual, url: event.target.value }))} placeholder={URL_AGENTE} autoCapitalize="off" spellCheck={false} />
+                </FormField>
+                <FormField label="Token" htmlFor="puente-token" hint={puenteEdit.id && !puenteEdit.token ? 'Dejalo vacío para conservar el guardado.' : 'Lo muestra el instalador del agente.'}>
+                  <Input id="puente-token" value={puenteEdit.token} onChange={(event) => setPuenteEdit((actual) => ({ ...actual, token: event.target.value }))} autoCapitalize="off" spellCheck={false} />
+                </FormField>
+                <label className="flex items-center gap-2 self-end text-sm">
+                  <input type="checkbox" className="h-4 w-4 accent-[var(--color-fono)]" checked={Boolean(puenteEdit.predeterminado)} onChange={(event) => setPuenteEdit((actual) => ({ ...actual, predeterminado: event.target.checked }))} />
+                  Puente predeterminado
+                </label>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="ghost" onClick={() => setPuenteEdit(null)}>Cancelar</Button>
+                <Button type="button" onClick={guardarPuenteFormulario}>Guardar puente</Button>
+              </div>
+            </div>
+          ) : (
+            <Button type="button" variant="outline" onClick={() => setPuenteEdit({ id: '', nombre: '', url: URL_AGENTE, token: '', predeterminado: (store.bridges || []).length === 0 })}><Icon name="plus" className="h-3.5 w-3.5" />Agregar puente</Button>
+          )}
+        </div>
+      </Modal>
 
       <ConfirmDialog
         open={Boolean(eliminarId)}
@@ -682,7 +801,13 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
           <p className="text-mute">Agrega {host.split('.').slice(0, 3).join('.')}.100 sin tocar el DHCP ni el internet, y es reversible con <code className="rounded bg-ink-700 px-1">red-mac.sh quitar</code>.</p>
         </div>
       )}
-      {metodo === 'LAN' && !diagnostico.alcance && aliasPresente && (
+      {metodo === 'LAN' && !diagnostico.alcance && diagnostico.motivo === 'red_cambiada' && (
+        <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
+          <p className="font-semibold text-warn">La impresora no está en esta red.</p>
+          <p className="text-mute">No hay ruta hacia {host}: la computadora puente pudo cambiar de Wi‑Fi/red, o la impresora cambió de IP. Conectá la Mac a la red de la impresora (o corregí la IP) y volvé a probar. No es un permiso de macOS.</p>
+        </div>
+      )}
+      {metodo === 'LAN' && !diagnostico.alcance && (!diagnostico.motivo || diagnostico.motivo === 'permisos_red_local') && aliasPresente && (
         <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
           <p className="font-semibold text-warn">El agente automático no puede salir a la red (permiso de macOS).</p>
           <p className="text-mute">La IP secundaria está presente y <code className="rounded bg-ink-700 px-1">nc -s {diagnostico.alias?.ip || estado?.alias?.ip || '192.168.1.100'}</code> conecta, pero el proceso de launchd no: el agente ya usa bind al alias, así que falta el <b className="text-fore">permiso de Red Local</b>. En el puente: <b className="text-fore">Ajustes → Privacidad y seguridad → Red local</b> → habilitá <b className="text-fore">node</b> (o reinstalá con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code>, que abre el panel). Después usá <b className="text-fore">Reparar conexión → Imprimir prueba</b>.</p>
@@ -695,7 +820,7 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
   )
 }
 
-function FormularioImpresora({ formulario, setFormulario, estado, tokenGuardado, agentUrl, onGuardar }) {
+function FormularioImpresora({ formulario, setFormulario, estado, tokenGuardado, agentUrl, bridges = [], onGuardar }) {
   const [validacion, setValidacion] = useState(null)
   const [validando, setValidando] = useState(false)
   const f = formulario
@@ -803,13 +928,17 @@ function FormularioImpresora({ formulario, setFormulario, estado, tokenGuardado,
         <div>
           <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Agente</h4>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
-            <FormField label="Dirección del agente" htmlFor="imp-agente-url">
+            <FormField label="Puente" htmlFor="imp-puente">
+              <Select id="imp-puente" value={f.puenteId || ''} onChange={(event) => set({ puenteId: event.target.value })}>
+                <option value="">Puente predeterminado</option>
+                {bridges.map((puente) => <option key={puente.id} value={puente.id}>{puente.nombre}{puente.predeterminado ? ' (predeterminado)' : ''}</option>)}
+              </Select>
+            </FormField>
+            <FormField label="Dirección del puente" htmlFor="imp-agente-url">
               <Input id="imp-agente-url" value={agentUrl} onChange={() => {}} readOnly />
             </FormField>
-            <FormField label="Token del agente" htmlFor="imp-token" hint={tokenEnmascarado ? `Guardado: ${tokenEnmascarado}. Dejalo vacío para conservarlo.` : 'Lo muestra el instalador del agente.'}>
-              <Input id="imp-token" placeholder={tokenEnmascarado ? `•••• ${tokenEnmascarado.slice(-4)}` : 'Sin token'} autoCapitalize="off" spellCheck={false} />
-            </FormField>
           </div>
+          {tokenGuardado && <p className="mt-2 text-xs text-mute">Token del puente: <b className="text-fore">{tokenEnmascarado}</b>. Se administra desde “Gestionar puentes”.</p>}
           <p className="mt-2 text-xs text-mute">Estado: <b className={estado?.disponible ? 'text-ok' : 'text-bad'}>{estado?.disponible ? `conectado · v${estado.version || ''}` : 'sin agente'}</b>{estado?.disponible ? ` · ${estado.host === '0.0.0.0' ? 'acceso: red local' : 'acceso: solo esta computadora'}` : ''}.</p>
         </div>
 
@@ -823,15 +952,15 @@ function FormularioImpresora({ formulario, setFormulario, estado, tokenGuardado,
   )
 }
 
-function ModalPrueba({ impresora, equipo, enviando, progreso, onCerrar, onEnviar }) {
+function ModalPrueba({ impresora, metodo, equipo, enviando, progreso, onCerrar, onEnviar }) {
   const [tipo, setTipo] = useState('corta')
   const [copias, setCopias] = useState(1)
   const [turno, setTurno] = useState(0) // regenera el ticket (y su número de 4 dígitos)
   const ticket = useMemo(
-    () => ticketPruebaTipo(tipo, { ancho: impresora.ancho, impresora: impresora.destino, nombre: impresora.nombre, equipo, copias }),
+    () => ticketPruebaTipo(tipo, { ancho: impresora.ancho, impresora: impresora.destino, nombre: impresora.nombre, equipo, copias, metodo }),
     // turno solo dispara la regeneración: un número nuevo por ejecución.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tipo, copias, turno, impresora, equipo],
+    [tipo, copias, turno, impresora, equipo, metodo],
   )
   return (
     <Modal open onClose={enviando ? undefined : onCerrar} title={`Probar: ${impresora.nombre}`} className="max-w-2xl">
@@ -848,7 +977,7 @@ function ModalPrueba({ impresora, equipo, enviando, progreso, onCerrar, onEnviar
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-mute">
           <span>Impresora: <b className="text-fore">{impresora.nombre}</b></span>
-          <span>Método: <b className="text-fore">{conexionDe(impresora.destino)}</b></span>
+          <span>Método: <b className="text-fore">{metodo || conexionDe(impresora.destino)}</b></span>
           <span>Destino: <b className="text-fore">{impresora.destino}</b></span>
           <span>Ancho: <b className="text-fore">{impresora.ancho} mm</b></span>
           <span>Trabajo: <b className="text-fore">{ticket.ref}</b></span>

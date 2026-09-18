@@ -210,15 +210,17 @@ export const TIPOS_TICKET_PRUEBA = TIPOS_PRUEBA
 // Ticket de prueba con datos de trazabilidad: impresora, método, destino,
 // ancho, copias, fecha, equipo, trabajo y validación de 4 dígitos.
 // Devuelve { base64(), lineas(), ref, validacion } para vista previa y envío.
-export function ticketPruebaTipo(tipo, { ancho = 80, impresora = '', nombre = '', equipo = '', copias = 1 } = {}) {
-  const metodo = String(impresora || '').startsWith('usb:') ? 'USB' : 'LAN'
+export function ticketPruebaTipo(tipo, { ancho = 80, impresora = '', nombre = '', equipo = '', copias = 1, metodo = '' } = {}) {
+  // Método honesto: lo informa quien arma el ticket (CUPS local, LAN TCP,
+  // CUPS-USB…); el prefijo `usb:` es histórico y no implica cable USB.
+  const metodoReal = metodo || (String(impresora || '').startsWith('usb:') ? 'CUPS' : 'LAN')
   const validacion = pruebaAleatoria()
   const ref = refDePrueba()
   const t = crearTicket({ ancho }).iniciar()
   const pie = () => {
     t.linea()
     t.par('Impresora', nombre || '—')
-    t.par('Método', metodo)
+    t.par('Método', metodoReal)
     t.par('Destino', impresora || '—')
     t.par('Ancho', `${ancho} mm`)
     t.par('Copias', String(copias))
@@ -232,7 +234,7 @@ export function ticketPruebaTipo(tipo, { ancho = 80, impresora = '', nombre = ''
   t.centrado(TIPOS_PRUEBA[tipo] || 'Prueba').linea()
 
   if (tipo === 'corta') {
-    t.par('Prueba', metodo)
+    t.par('Prueba', metodoReal)
     t.par('Destino', impresora || '—')
     t.par('Resultado', 'PENDIENTE')
     t.linea()

@@ -7,6 +7,9 @@
 // en pantalla ni se registra en logs: acá solo se guarda y se enmascara.
 
 import { printHtml } from '@/utils/printHtml'
+import { normalizarPuentes, normalizarStore, puenteDe, basePuente } from './puentes'
+
+export { puenteDe }
 
 const CLAVE_CONFIG = 'mobos:impresora:config'
 const CLAVE_BASE = 'mobos:impresoras:v1'
@@ -45,10 +48,13 @@ const baseImpresora = () => ({
   caracteres: true,
   predeterminada: false,
   activa: true,
+  // Puente que la sirve ('' = el predeterminado). Permite varias computadoras
+  // puente con impresoras repartidas.
+  bridgeId: '',
   ultimaPrueba: null,
 })
 
-const vacio = () => ({ agentUrl: URL_AGENTE, agentToken: '', impresoras: [] })
+const vacio = () => ({ agentUrl: URL_AGENTE, agentToken: '', bridges: [basePuente()], impresoras: [] })
 
 // Migra la configuración vieja (una sola impresora global) a la nueva por tenant.
 const migrarVieja = () => {
@@ -66,16 +72,50 @@ const migrarVieja = () => {
   return {
     agentUrl: String(vieja.url || URL_AGENTE),
     agentToken: String(vieja.token || ''),
+    bridges: [{ ...basePuente(), url: String(vieja.url || URL_AGENTE), token: String(vieja.token || '') }],
     impresoras: impresora.destino ? [impresora] : [],
   }
 }
 
 export function cargarImpresoras(tenantId) {
   const actual = leer(claveTenant(tenantId))
-  if (actual && Array.isArray(actual.impresoras)) return actual
+  if (actual && Array.isArray(actual.impresoras)) {
+    const normalizado = normalizarStore(actual)
+    if (normalizado !== actual) escribir(claveTenant(tenantId), normalizado)
+    return normalizado
+  }
   const migrada = migrarVieja()
   if (migrada) { escribir(claveTenant(tenantId), migrada); return migrada }
   return vacio()
+}
+
+// Guarda la lista de puentes: un solo predeterminado y espejo de los campos
+// viejos (agentUrl/agentToken) para el resto de la app.
+export function guardarPuentes(tenantId, bridges) {
+  const lista = normalizarPuentes(bridges)
+  const predeterminado = lista.find((puente) => puente.predeterminado) || null
+  return guardarImpresoras(tenantId, {
+    bridges: lista,
+    agentUrl: predeterminado?.url || URL_AGENTE,
+    agentToken: predeterminado?.token || '',
+  })
+}
+
+// Estado de un puente puntual (probar desde la lista de puentes).
+export async function estadoDePuente(puente) {
+  const url = String(puente?.url || '').replace(/\/+$/, '')
+  if (!url) throw new Error('El puente no tiene dirección.')
+  const control = new AbortController()
+  const timer = setTimeout(() => control.abort(), 2500)
+  try {
+    const respuesta = await fetch(`${url}/health`, {
+      signal: control.signal,
+      headers: puente?.token ? { 'x-mobos-print-token': puente.token } : {},
+    })
+    const datos = await respuesta.json().catch(() => ({}))
+    if (!respuesta.ok || datos?.ok !== true) throw new Error(datos?.error || `El puente respondió ${respuesta.status}.`)
+    return { disponible: true, version: datos.version || '', equipo: datos.equipo || '', cola: datos.cola || null }
+  } finally { clearTimeout(timer) }
 }
 
 export function guardarImpresoras(tenantId, cambios) {
@@ -101,9 +141,11 @@ export const configImpresora = () => {
   try {
     const store = cargarImpresoras(tenantActivo)
     const { predeterminada } = imprimirConDestino(store)
+    // Cada impresora usa su puente; la predeterminada decide el de la app.
+    const puente = puenteDe(store, predeterminada)
     const guardado = {
-      url: store.agentUrl || URL_AGENTE,
-      token: store.agentToken || '',
+      url: puente.url || URL_AGENTE,
+      token: puente.token || '',
       impresora: predeterminada?.destino || '',
       ancho: predeterminada?.ancho || 80,
       copias: predeterminada?.copias || 1,

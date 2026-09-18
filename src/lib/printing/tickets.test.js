@@ -50,9 +50,11 @@ test('cada ejecución genera un número de validación nuevo', () => {
   assert.notEqual(primero.ref, segundo.ref)
 })
 
-test('el método es USB cuando el destino es una cola usb:', () => {
+test('una cola usb: se informa como CUPS, no como cable USB', () => {
   const ticket = ticketPruebaTipo('corta', { ...opciones, impresora: 'usb:ZKP8008' })
-  assert.ok(ticket.lineas().join('').includes('USB'))
+  assert.ok(ticket.lineas().join('').includes('CUPS'))
+  const explicito = ticketPruebaTipo('corta', { ...opciones, impresora: 'usb:ZKP8008', metodo: 'CUPS · sale por red' })
+  assert.ok(explicito.lineas().join('').includes('CUPS · sale por red'))
 })
 
 test('todos los tipos confirman que el comando de corte fue enviado', () => {
