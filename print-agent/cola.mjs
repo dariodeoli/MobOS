@@ -34,6 +34,8 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       resultado,
       error: error || '',
       bytes: trabajo.bytes || 0,
+      ref: trabajo.ref || '',
+      tipo: trabajo.tipo || '',
     })
     guardarHistorial()
   }
@@ -78,9 +80,9 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
 
   return {
     // Intenta imprimir ya; si falla, el trabajo queda en la cola.
-    async encolar({ impresora, data, cliente = '', usuario = '' }) {
+    async encolar({ impresora, data, cliente = '', usuario = '', ref = '', tipo = '' }) {
       const bytes = Buffer.from(data, 'base64').length
-      const trabajo = { id: randomUUID(), impresora, data, cliente, usuario: String(usuario || '').slice(0, 80), bytes, estado: 'pendiente', intentos: 0, proximoIntento: 0, creadoEn: new Date().toISOString() }
+      const trabajo = { id: randomUUID(), impresora, data, cliente, usuario: String(usuario || '').slice(0, 80), ref: String(ref || '').slice(0, 64), tipo: String(tipo || '').slice(0, 40), bytes, estado: 'pendiente', intentos: 0, proximoIntento: 0, creadoEn: new Date().toISOString() }
       trabajos.push(trabajo)
       guardar()
       await procesar()
@@ -142,5 +144,7 @@ function publico(trabajo) {
     error: trabajo.error || '',
     bytes: trabajo.bytes || 0,
     creadoEn: trabajo.creadoEn,
+    ref: trabajo.ref || '',
+    tipo: trabajo.tipo || '',
   }
 }

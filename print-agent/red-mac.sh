@@ -2,9 +2,9 @@
 # Red de la impresora en macOS: agrega una IP secundaria en la subred de la
 # impresora SIN tocar la IP principal ni el DHCP, así internet sigue andando.
 #
-#   bash red-mac.sh estado      # interfaces, IP principal y alcance de la impresora
+#   bash red-mac.sh estado      # interfaz, IPs, alias, alcance e internet
 #   bash red-mac.sh agregar     # agrega 192.168.1.100/24 a la interfaz activa (pide sudo)
-#   bash red-mac.sh quitar      # la saca
+#   bash red-mac.sh quitar      # la saca (reversible)
 #
 # Variables opcionales: MOBOS_PRINT_IMPRESORA, MOBOS_PRINT_ALIAS, MOBOS_PRINT_MASCARA,
 # MOBOS_PRINT_IFACE (si no se pasa, se detecta la interfaz de la ruta por defecto).
@@ -20,12 +20,35 @@ iface() {
   route -n get default 2>/dev/null | awk '/interface:/{print $2; exit}'
 }
 
+alias_presente() {
+  local i; i="$(iface)"
+  [[ -n "$i" ]] && ifconfig "$i" 2>/dev/null | grep -q "inet $ALIAS"
+}
+
+internet_ok() {
+  route -n get default 2>/dev/null | grep -q "gateway:"
+}
+
 estado() {
   local i; i="$(iface)"
-  echo "Interfaz activa: ${i:-desconocida}"
+  echo "Interfaz activa (Wi-Fi/Ethernet): ${i:-desconocida}"
   ifconfig "${i:-en0}" 2>/dev/null | awk '/inet /{print "  IP:", $2}'
+  if alias_presente; then
+    echo "  IP secundaria: $ALIAS (agregada)"
+  else
+    echo "  IP secundaria: $ALIAS (no agregada)"
+  fi
+  if internet_ok; then
+    echo "Internet: ruta por defecto presente ✓"
+  else
+    echo "Internet: sin ruta por defecto ✗ (la IP principal y el DHCP no se tocan)"
+  fi
   echo -n "Impresora $IMPRESORA:$PUERTO → "
-  if nc -z -G 2 "$IMPRESORA" "$PUERTO" >/dev/null 2>&1; then echo "responde ✓"; else echo "no responde ✗"; fi
+  if command -v nc >/dev/null 2>&1 && nc -z -G 2 "$IMPRESORA" "$PUERTO" >/dev/null 2>&1; then
+    echo "responde ✓"
+  else
+    echo "no responde ✗"
+  fi
 }
 
 case "${1:-estado}" in
@@ -35,23 +58,29 @@ case "${1:-estado}" in
   agregar)
     i="$(iface)"
     if [[ -z "$i" ]]; then echo "No pude detectar la interfaz; pasá MOBOS_PRINT_IFACE=en0" >&2; exit 1; fi
-    if ifconfig "$i" | grep -q "inet $ALIAS"; then
+    if alias_presente; then
       echo "La IP $ALIAS ya está en $i."
     else
-      echo "Agregando $ALIAS/$MASCARA a $i (pide contraseña)…"
+      echo "Agregando $ALIAS/$MASCARA a $i (pide contraseña de administrador)…"
       sudo ifconfig "$i" alias "$ALIAS" netmask "$MASCARA"
     fi
     sleep 1
     estado
     echo
-    echo "Nota: la IP secundaria se pierde al reiniciar o cambiar de red; volvé a correr «agregar»."
-    echo "Lo definitivo es mover la impresora a la red del router (DHCP o IP fija 192.168.100.x)."
+    echo "Nota: la IP principal sigue por DHCP y el internet no cambia. La IP"
+    echo "secundaria se pierde al reiniciar o cambiar de red: volvé a correr «agregar»"
+    echo "o pedí que el instalador la recree (MOBOS_PRINT_ALIAS=1)."
     ;;
   quitar)
     i="$(iface)"
     if [[ -z "$i" ]]; then echo "No pude detectar la interfaz; pasá MOBOS_PRINT_IFACE=en0" >&2; exit 1; fi
-    echo "Quitando $ALIAS de $i…"
-    sudo ifconfig "$i" -alias "$ALIAS" 2>/dev/null || true
+    if alias_presente; then
+      echo "Quitando $ALIAS de $i…"
+      sudo ifconfig "$i" -alias "$ALIAS" 2>/dev/null || true
+    else
+      echo "La IP $ALIAS no estaba agregada."
+    fi
+    sleep 1
     estado
     ;;
   *)

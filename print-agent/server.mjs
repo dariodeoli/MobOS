@@ -1,4 +1,5 @@
 import { createServer } from 'node:http'
+import { hostname } from 'node:os'
 import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config.mjs'
 import { crearCola } from './cola.mjs'
 import { diagnosticoRed, enviar, impresorasUsb, probarConexion } from './transportes.mjs'
@@ -87,6 +88,7 @@ const servidor = createServer(async (request, response) => {
         cola: cola.resumen(),
         cliente: ipDe(request),
         host: config.host,
+        equipo: hostname(),
       })
     }
 
@@ -129,6 +131,8 @@ const servidor = createServer(async (request, response) => {
       const data = String(cuerpo?.data || '')
       const copias = Math.min(5, Math.max(1, Number(cuerpo?.copias) || config.copias))
       const usuario = String(cuerpo?.usuario || '').slice(0, 80)
+      const ref = String(cuerpo?.ref || '').slice(0, 64)
+      const tipo = String(cuerpo?.tipo || '').slice(0, 40)
       if (!impresora) return responder(response, { ok: false, error: 'Elegí una impresora en Configuración → Impresoras.' }, 400)
       if (!(await destinosPermitidos()).has(impresora)) {
         return responder(response, { ok: false, error: `La impresora ${impresora} no está configurada en este agente.` }, 400)
@@ -140,7 +144,7 @@ const servidor = createServer(async (request, response) => {
       const ticket = copias > 1 ? Buffer.from(data, 'base64').toString('base64') : data
       const resultados = []
       const cliente = ipDe(request)
-      for (let copia = 0; copia < copias; copia += 1) resultados.push(await cola.encolar({ impresora, data: ticket, cliente, usuario }))
+      for (let copia = 0; copia < copias; copia += 1) resultados.push(await cola.encolar({ impresora, data: ticket, cliente, usuario, ref, tipo }))
       const pendiente = resultados.find((resultado) => resultado.encolado)
       if (pendiente) {
         const sinRuta = /EHOSTUNREACH|ENETUNREACH/i.test(pendiente.error || '')

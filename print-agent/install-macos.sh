@@ -11,10 +11,10 @@ CONFIG_DIR="$HOME/.mobos-print"
 CONFIG="$CONFIG_DIR/config.json"
 IMPRESORA="192.168.1.23"
 PUERTO="9100"
-# Token y ancho opcionales: si los pasás, quedan fijados; el ancho por defecto
-# es 58 mm (el rollo que se usa en el local) y con MOBOS_PRINT_ANCHO=80 se cambia.
+# Token y ancho opcionales: si los pasás, quedan fijados. El ancho predeterminado
+# es 80 mm (papel estándar de la ZKP8008); con MOBOS_PRINT_ANCHO=58 se cambia.
 TOKEN="${MOBOS_PRINT_TOKEN:-}"
-ANCHO="${MOBOS_PRINT_ANCHO:-58}"
+ANCHO="${MOBOS_PRINT_ANCHO:-80}"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "Falta Node 20 o superior. Instalalo con: brew install node" >&2
@@ -24,7 +24,7 @@ fi
 NODE="$(command -v node)"
 echo "Instalando el agente en: $DESTINO"
 mkdir -p "$DESTINO" "$HOME/Library/LaunchAgents" "$CONFIG_DIR"
-cp "$ORIGEN/server.mjs" "$ORIGEN/transportes.mjs" "$ORIGEN/cola.mjs" "$ORIGEN/config.mjs" "$ORIGEN/package.json" "$DESTINO/"
+cp "$ORIGEN/server.mjs" "$ORIGEN/transportes.mjs" "$ORIGEN/cola.mjs" "$ORIGEN/config.mjs" "$ORIGEN/package.json" "$ORIGEN/red-mac.sh" "$DESTINO/"
 
 # Impresora conocida: LAN de la ZKP8008 con ancho 80 mm.
 if [[ ! -f "$CONFIG" || -n "$TOKEN" ]]; then
