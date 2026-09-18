@@ -78,13 +78,39 @@ export async function enviarUsb(cola, bytes) {
   }
 }
 
-export async function impresorasUsb() {
+// Colas CUPS del sistema con su device-uri real. La clasificación es por el
+// URI: una cola socket:// es CUPS DE RED (aunque antes se reportara como
+// "usb"), una usb:// es USB físico; `lpstat -p` solo da el nombre.
+export async function impresorasCups() {
   try {
-    const { stdout } = await ejecutar('lpstat', ['-p'], { timeout: 5000 })
-    return stdout.split('\n').map((linea) => linea.match(/^printer (\S+)/)?.[1]).filter(Boolean)
+    const { stdout } = await ejecutar('lpstat', ['-v'], { timeout: 5000 })
+    return stdout
+      .split('\n')
+      .map((linea) => {
+        const nombre = (linea.match(/^device for (\S+)/) || [])[1]
+        if (!nombre) return null
+        const uri = (linea.match(/:\s*(\S+)\s*$/) || [])[1] || ''
+        const tipo = uri.startsWith('socket://') ? 'red' : uri.startsWith('usb://') ? 'usb' : 'otro'
+        return { nombre, uri, tipo }
+      })
+      .filter(Boolean)
   } catch {
     return []
   }
+}
+
+// Tipo real de una cola CUPS por nombre (red | usb | otro | ''), para mostrar
+// el transporte honesto en la app.
+export async function tipoDeCola(nombre = '') {
+  if (!nombre) return ''
+  const cola = (await impresorasCups()).find((item) => item.nombre === nombre)
+  return cola ? cola.tipo : ''
+}
+
+// Nombres de las colas CUPS del sistema (el prefijo `usb:` de la app es
+// histórico: apunta a una cola local, que puede ser de red o USB físico).
+export async function impresorasUsb() {
+  return (await impresorasCups()).map((cola) => cola.nombre)
 }
 
 // Cola CUPS de red (raw, socket://) que el instalador crea con lpadmin. El
@@ -178,6 +204,14 @@ export async function diagnosticoRed(destino, { alias = '192.168.1.100', cups = 
     info.alcance = detalle.ok
     info.error = detalle.ok ? '' : (detalle.error || '')
     info.errno = detalle.errno || ''
+    // Interpretación honesta del errno: la falta de ruta NO es un permiso de
+    // macOS; los permisos de Red Local se manifiestan como EACCES/EPERM.
+    if (!detalle.ok) {
+      if (/EHOSTUNREACH|ENETUNREACH/.test(info.errno)) info.motivo = 'red_cambiada'
+      else if (/EACCES|EPERM/.test(info.errno)) info.motivo = 'permisos_red_local'
+      else if (/ECONNREFUSED/.test(info.errno)) info.motivo = 'impresora_apagada'
+      else info.motivo = 'otro'
+    }
     if (info.alias?.presente && info.host && mismaSubred(info.host, info.alias.ip)) info.origen = info.alias.ip
   }
   info.tcpReal = info.alcance

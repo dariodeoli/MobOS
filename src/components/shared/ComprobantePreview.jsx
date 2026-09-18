@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Modal, Select, useToast } from '@/components/ui'
+import { Button, ConfirmDialog, Modal, Select, useToast } from '@/components/ui'
 import {
   FORMATOS_COMPROBANTE,
   NIVELES_COMPROBANTE,
@@ -12,7 +12,7 @@ import {
   trackingUrlFor,
 } from './OrderReceipt'
 import { printHtml } from '@/utils/printHtml'
-import { configImpresora, estadoAgente, imprimirTicketDirecto } from '@/lib/printing/agent'
+import { configImpresora, confirmarJob, estadoAgente, imprimirTicketDirecto } from '@/lib/printing/agent'
 import { ticketComprobante } from '@/lib/printing/tickets'
 
 // Vista previa real del comprobante: nivel (Rápido/Completo/Detallado) y
@@ -39,10 +39,14 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
   const [cargando, setCargando] = useState(false)
   const [agente, setAgente] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  const [estado, setEstado] = useState(null)
+  const [confirmando, setConfirmando] = useState(false)
+  const [jobEncColado, setJobEncColado] = useState(null)
+  const [preguntaDialogo, setPreguntaDialogo] = useState(false)
 
   useEffect(() => {
     let activo = true
-    estadoAgente().then((estado) => { if (activo) setAgente(Boolean(estado.disponible)) })
+    estadoAgente().then((info) => { if (activo) { setAgente(Boolean(info.disponible)); setEstado(info) } })
     return () => { activo = false }
   }, [])
 
@@ -64,6 +68,29 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
     printHtml(html)
   }
 
+  // El diálogo del sistema es una acción manual: si el puente tiene trabajos
+  // encolados, abrirlo podría duplicar el ticket cuando el reintento salga.
+  function imprimirConDialogo() {
+    if (!html || cargando) return
+    if (Number(estado?.cola?.pendientes || 0) > 0) { setPreguntaDialogo(true); return }
+    imprimir()
+  }
+
+  async function marcarConfirmado() {
+    if (!jobEncColado || confirmando) return
+    setConfirmando(true)
+    try {
+      await confirmarJob(jobEncColado)
+      toast.success('Confirmado', 'El papel salió: la cola del puente quedó limpia.')
+      setJobEncColado(null)
+      setEstado(await estadoAgente({ forzar: true }))
+    } catch (cause) {
+      toast.error('No se pudo confirmar', cause?.message || '')
+    } finally {
+      setConfirmando(false)
+    }
+  }
+
   async function imprimirDirecto() {
     if (enviando) return
     setEnviando(true)
@@ -71,7 +98,13 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
     const resultado = await imprimirTicketDirecto(ticketComprobante(order, { nivel, ancho, link }))
     setEnviando(false)
     if (!resultado.ok) { toast.error('No se pudo imprimir', resultado.error); return }
-    toast.success(resultado.encolado ? 'Comprobante encolado' : 'Comprobante enviado a la impresora', resultado.encolado ? 'La impresora no respondió; el puente reintenta solo.' : '')
+    if (resultado.encolado) {
+      setJobEncColado(resultado.jobId || null)
+      toast.success('Comprobante encolado', 'La impresora no respondió; el puente reintenta solo.')
+    } else {
+      setJobEncColado(null)
+      toast.success('Comprobante enviado a la impresora', '')
+    }
   }
 
   return (
@@ -92,13 +125,36 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
           </label>
           <span className="flex flex-1 flex-wrap items-center justify-end gap-2">
             <Button type="button" variant="outline" onClick={imprimir} disabled={!html || cargando}>Descargar PDF</Button>
-            {agente && <Button type="button" variant="outline" onClick={imprimirDirecto} disabled={cargando || enviando}>{enviando ? 'Enviando…' : 'Térmica directa'}</Button>}
-            <Button type="button" onClick={imprimir} disabled={!html || cargando}>{cargando ? 'Preparando…' : 'Imprimir'}</Button>
+            {agente && <Button type="button" variant="outline" onClick={imprimirDirecto} disabled={cargando || enviando}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>}
+            <Button type="button" onClick={imprimirConDialogo} disabled={!html || cargando}>{cargando ? 'Preparando…' : 'Imprimir con diálogo'}</Button>
           </span>
         </div>
+        {agente && Number(estado?.cola?.pendientes || 0) > 0 && (
+          <p role="status" className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">
+            El puente tiene {estado.cola.pendientes} trabajo(s) encolado(s): la impresora no respondió y reintenta solo.
+            {jobEncColado && (
+              <button type="button" onClick={marcarConfirmado} disabled={confirmando} className="ml-2 font-semibold text-warn underline underline-offset-2 hover:text-fore">
+                {confirmando ? 'Confirmando…' : 'Ya salió el papel'}
+              </button>
+            )}
+          </p>
+        )}
+        {agente && Number(estado?.cola?.fallidos || 0) > 0 && !jobEncColado && (
+          <p role="status" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-xs text-bad">
+            El puente tiene {estado.cola.fallidos} trabajo(s) fallido(s). Revisá la impresora en Configuración → Impresoras.
+          </p>
+        )}
         <p className="text-[11px] text-mute">
           Cada nivel imprime su propio QR privado. Para PDF, elegí «Guardar como PDF» en el diálogo de impresión.
         </p>
+        <ConfirmDialog
+          open={preguntaDialogo}
+          title="Hay trabajos encolados en el puente"
+          description="La impresora no respondió y el puente reintenta solo. Si imprimís por diálogo ahora, el ticket puede salir dos veces cuando el reintento llegue. ¿Continuar con el diálogo?"
+          confirmLabel="Imprimir igual"
+          onCancel={() => setPreguntaDialogo(false)}
+          onConfirm={() => { setPreguntaDialogo(false); imprimir() }}
+        />
         <iframe
           title="Vista previa del comprobante"
           srcDoc={html}

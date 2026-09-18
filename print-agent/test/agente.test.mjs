@@ -80,7 +80,7 @@ test('el agente arranca sin impresora configurada y /health responde', async (t)
     } catch { return false }
   }, { intentos: 60, espera: 150 })
   assert.ok(respuesta, 'el agente responde /health sin impresora configurada')
-  assert.equal(respuesta.version, '1.1.1', 'la versión identifica el build con el fix')
+  assert.equal(respuesta.version, '1.2.0', 'la versión identifica el build con el fix')
   assert.ok(respuesta.red, 'el payload incluye red.autotest')
   assert.equal(respuesta.red.autotest.ok, false, 'sin impresora el autotest no puede dar ok')
 })
@@ -167,6 +167,22 @@ test('el agente imprime al toque cuando la impresora está disponible', async (t
   assert.equal(historial.historial[0].ref, 'TEST-ABC-1234')
   assert.equal(historial.historial[0].tipo, 'prueba-corta')
   assert.ok(historial.historial[0].bytes > 0)
+
+  // Confirmación física: el operador vio el papel y lo marca en la app.
+  const confirmado = await fetch(`http://127.0.0.1:${puertoAgente}/jobs/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-mobos-print-token': TOKEN },
+    body: JSON.stringify({ id: respuesta.jobId }),
+  }).then((r) => r.json())
+  assert.equal(confirmado.ok, true)
+  const confirmada = await fetch(`http://127.0.0.1:${puertoAgente}/jobs/${respuesta.jobId}`, { headers: { 'x-mobos-print-token': TOKEN } }).then((r) => r.json())
+  assert.equal(confirmada.estado, 'confirmado', 'el historial refleja la confirmación en papel')
+  const inexistente = await fetch(`http://127.0.0.1:${puertoAgente}/jobs/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-mobos-print-token': TOKEN },
+    body: JSON.stringify({ id: 'no-existe' }),
+  }).then((r) => r.json())
+  assert.equal(inexistente.ok, false, 'un ID desconocido no se puede confirmar')
 
   // La salud informa el nombre del equipo puente (para el ticket de prueba).
   const salud = await fetch(`http://127.0.0.1:${puertoAgente}/health`, { headers: { 'x-mobos-print-token': TOKEN } }).then((r) => r.json())

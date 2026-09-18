@@ -4,9 +4,9 @@ import { hostname } from 'node:os'
 import { promisify } from 'node:util'
 import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config.mjs'
 import { crearCola } from './cola.mjs'
-import { aliasSecundario, colaLanDeCups, colaUri, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle } from './transportes.mjs'
+import { aliasSecundario, colaLanDeCups, colaUri, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola } from './transportes.mjs'
 
-const VERSION = '1.1.1'
+const VERSION = '1.2.0'
 const config = cargarConfig()
 // Transporte real del último envío (directo | cups | usb): la app solo debe
 // marcar éxito cuando hubo entrega confirmada, no solo encolado.
@@ -170,6 +170,7 @@ const servidor = createServer(async (request, response) => {
           tcp: await impresoraResponde(),
           cups: await colaLanDeCups(config.lanCups || 'MobOS_LAN'),
           cupsUri: (await colaLanDeCups(config.lanCups || 'MobOS_LAN')) ? await colaUri(config.lanCups || 'MobOS_LAN') : '',
+          colaTipo: await tipoDeCola(config.lanCups || 'MobOS_LAN'),
           alias: await aliasSecundario(config.alias),
           transporte: (await impresoraResponde()) ? 'directo' : ((await colaLanDeCups(config.lanCups || 'MobOS_LAN')) ? 'cups' : 'ninguno'),
           ultimoTransporte,
@@ -193,6 +194,16 @@ const servidor = createServer(async (request, response) => {
       if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
       const limite = Math.min(60, Math.max(1, Number(url.searchParams.get('limite')) || 20))
       return responder(response, { ok: true, historial: cola.historial(limite) })
+    }
+
+    // Confirmación física: el operador vio el papel y lo marca en la app.
+    if (request.method === 'POST' && url.pathname === '/jobs/confirm') {
+      if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
+      const cuerpo = await leerCuerpo(request)
+      const confirmado = cola.confirmar(String(cuerpo?.id || ''))
+      return responder(response, confirmado
+        ? { ok: true, confirmado: true }
+        : { ok: false, confirmado: false, error: 'El trabajo no está aceptado o no existe: no se puede confirmar en papel.' })
     }
 
     if (request.method === 'POST' && url.pathname === '/jobs/clear') {
