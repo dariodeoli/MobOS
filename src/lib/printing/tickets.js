@@ -203,6 +203,7 @@ const TIPOS_PRUEBA = {
   'qr': 'Ticket con QR',
   'venta': 'Ticket completo de venta',
   'caracteres': 'Caracteres y formato',
+  'corte': 'Prueba de corte',
 }
 export const TIPOS_TICKET_PRUEBA = TIPOS_PRUEBA
 
@@ -303,9 +304,26 @@ export function ticketPruebaTipo(tipo, { ancho = 80, impresora = '', nombre = ''
     t.barcode(`MOBOS-CHARS-${validacion}`)
   }
 
+  if (tipo === 'corte') {
+    t.par('Prueba', 'Corte físico')
+    t.linea()
+    t.texto('Este ticket debe separarse solo del rollo.')
+    t.texto('Si la cuchilla no corta, revisá:')
+    t.texto('  1. Cutter Enable: YES en la impresora')
+    t.texto('  2. Rollo bien cargado y recto')
+    t.texto('  3. Comando GS V 0 y ESC i enviados')
+    t.linea()
+    t.centrado('Acentos: á é í ó ú ü ñ')
+    t.linea()
+    t.centrado('QR')
+    t.qr(`MOBOS:PRUEBA:CORTE:${validacion}`, { tamano: 6 })
+    t.centrado('Código de barras')
+    t.barcode(`MOBOS-CORTE-${validacion}`)
+  }
+
   pie()
   t.avanza(2).corte()
-  return { base64: () => t.base64(), lineas: () => t.lineas(), ref, validacion }
+  return { base64: () => t.base64(), lineas: () => t.lineas(), ref, validacion, corte: t.corteEnviado() }
 }
 
 // Compatibilidad con el flujo anterior: la prueba clásica de caracteres.

@@ -75,6 +75,7 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
   const partes = []
   const espejo = [] // texto legible de cada línea (vista previa antes de enviar)
   let doble = false
+  let conCorte = false
   const anchoActual = () => (doble ? Math.floor(columnas / 2) : columnas)
   const escribir = (texto) => {
     const linea = `${prefijo}${texto}`
@@ -155,8 +156,20 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
       return api
     },
     corte() {
-      partes.push(GS, 0x56, 0x42, 0x00) // corte parcial con avance
+      conCorte = true
+      espejo.push(`${prefijo}[CORTE]`)
+      // Alimentación suficiente para que la línea de corte no pise el contenido
+      // y la cuchilla agarre papel limpio.
+      partes.push(ESC, 0x64, 4)
+      // Corte compatible con la ZKP8008: GS V 0 (corte completo) y, como
+      // fallback, ESC i para impresoras que no reconocen GS V 0. La que no
+      // entienda uno de los dos lo ignora.
+      partes.push(GS, 0x56, 0x00)
+      partes.push(ESC, 0x69)
       return api
+    },
+    corteEnviado() {
+      return conCorte
     },
     bytes() {
       return new Uint8Array(partes)

@@ -54,3 +54,19 @@ test('el método es USB cuando el destino es una cola usb:', () => {
   const ticket = ticketPruebaTipo('corta', { ...opciones, impresora: 'usb:ZKP8008' })
   assert.ok(ticket.lineas().join('').includes('USB'))
 })
+
+test('todos los tipos confirman que el comando de corte fue enviado', () => {
+  for (const tipo of Object.keys(TIPOS_TICKET_PRUEBA)) {
+    const ticket = ticketPruebaTipo(tipo, opciones)
+    assert.equal(ticket.corte, true, `corte enviado en ${tipo}`)
+    assert.ok(ticket.lineas().join('').includes('[CORTE]'), `marca de corte en la vista previa de ${tipo}`)
+  }
+})
+
+test('la prueba de corte explica la verificación física', () => {
+  const ticket = ticketPruebaTipo('corte', opciones)
+  const texto = ticket.lineas().join('')
+  assert.ok(texto.includes('Corte físico'))
+  assert.ok(texto.includes('Cutter Enable: YES'))
+  assert.ok(texto.includes('GS V 0'))
+})
