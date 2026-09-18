@@ -45,7 +45,6 @@ const Garantias = lazy(() => import('@/components/control/Garantias'))
 const ServicioTecnico = lazy(() => import('@/components/control/ServicioTecnico'))
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
 const Impresoras = lazy(() => import('@/components/control/Impresoras'))
-const EstadoImpresion = lazy(() => import('@/components/control/EstadoImpresion'))
 const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
 
 // Navegación por flujo de trabajo: primero la operación del día, después el
@@ -171,7 +170,6 @@ const SUBPAGINAS = {
       ['sucursales', 'Sucursales'],
       ['seguridad', 'Seguridad'],
       ['impresoras', 'Impresoras'],
-      ['impresion', 'Estado de impresión'],
       ['sistema', 'Estado del sistema'],
     ],
   },
@@ -218,7 +216,6 @@ const LABELS = {
   sucursales: 'Sucursales',
   seguridad: 'Seguridad',
   impresoras: 'Impresoras',
-  impresion: 'Estado de impresión',
   sistema: 'Estado del sistema',
   reportes: 'Reportes',
   ganancias: 'Ganancias',
@@ -354,6 +351,10 @@ export default function PanelVendedor() {
     const primera = tabsDeSubpagina(destino, esDemo)[0][0]
     navigate(`/${destino}/${SUBPAGINA_DE_TAB[routeVista] ? routeVista : primera}`, { replace: true })
   }, [subpadre, routeVista, accesibles, esDemo, navigate])
+  // La ruta vieja /configuracion/impresion se unificó en /configuracion/impresoras.
+  useEffect(() => {
+    if (subpadre === 'configuracion' && routeSeccion === 'impresion') navigate('/configuracion/impresoras', { replace: true })
+  }, [subpadre, routeSeccion, navigate])
   // Apartado sin hijo (o con uno desconocido) entra por su primera pestaña.
   useEffect(() => {
     if (subpadre && !seccionRuta) navigate(`/${subpadre}/${tabsRuta[0][0]}`, { replace: true })
@@ -723,7 +724,6 @@ export default function PanelVendedor() {
               {vista === 'sucursales' && <Config seccion="sucursales" />}
               {vista === 'seguridad' && <Config seccion="seguridad" />}
               {vista === 'impresoras' && <Impresoras />}
-              {vista === 'impresion' && <EstadoImpresion />}
               {vista === 'sistema' && <EstadoSistema />}
             </div>
           )}

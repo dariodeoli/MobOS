@@ -75,7 +75,6 @@ export default function AceptarInvitacion() {
           <img src="/logo.svg" alt="MobOS" className="w-40 dark:hidden" />
           <h1 className="mt-6 text-2xl font-bold">{estado?.companyName ? `«${estado.companyName}» te invita a su equipo` : 'Sumate al equipo'}</h1>
           {estado?.email && <p className="mt-2 text-sm text-mute">Invitación enviada a <b className="text-fore">{estado.email}</b>{estado.role ? ` · rol: ${estado.role}` : ''}.</p>}
-          {!token && <div className="mt-4"><PegarEnlaceToken onToken={(nuevo) => { setToken(nuevo); setError('') }} /></div>}
           {estadoInfo && <div className="mt-3"><Badge color={estadoInfo.color}>{estadoInfo.label}</Badge></div>}
           {estado && !activa && (
             <p className="mt-4 rounded-lg border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
