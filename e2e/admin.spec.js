@@ -92,7 +92,7 @@ test.describe('owner panel', () => {
     const botonHorario = () => page.getByLabel(new RegExp(`^Horario de ${vendedor}`))
 
     await botonHorario().click()
-    const modal = page.getByRole('dialog', { name: /Horario de acceso/ })
+    const modal = page.getByRole('dialog', { name: /Horario de acceso/ }).filter({ visible: true }).first()
     await expect(modal).toBeVisible()
     await modal.getByRole('button', { name: '+ Rango' }).click()
     for (const dia of ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do']) await modal.getByRole('button', { name: dia, exact: true }).click()
@@ -276,7 +276,7 @@ test.describe('owner panel', () => {
 
   // La auditoría real (antes solo existía en la demo).
   test('auditoría: lista los movimientos del negocio y filtra por área', async ({ page }) => {
-    await page.goto('/pos/historial')
+    await page.goto('/configuracion/historial')
     await expect(page.getByRole('heading', { name: 'Auditoría' })).toBeVisible()
     const tabla = page.getByTestId('auditoria-tabla')
     await expect(tabla).toBeVisible()
