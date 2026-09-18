@@ -4,6 +4,7 @@ import { api } from '@/lib/api/client'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { getLogoDataUrl, olvidarLogo } from '@/lib/tenantLogo'
 import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
+import { promptLogo } from '@/lib/logoPrompt'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, PasswordInput, PinInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -41,6 +42,7 @@ async function copiarValor(toast, valor, etiqueta) {
 
 export default function Config({ seccion = 'negocio' } = {}) {
   const { sesion, empresa, sucursal, perfilEmpresa } = useSesion()
+  const toast = useToast()
   const esDueno = sesion?.esPropietario
   const [account, setAccount] = useState(null)
   const [logo, setLogo] = useState('')
@@ -79,6 +81,13 @@ export default function Config({ seccion = 'negocio' } = {}) {
       setLogo(await getLogoDataUrl())
       setAccount(await api.get('/api/account'))
     } catch (cause) { setLogoError(cause?.message || 'No se pudo guardar el logo.') } finally { setLogoBusy(false) }
+  }
+
+  async function copiarPrompt() {
+    try {
+      await navigator.clipboard.writeText(promptLogo(account?.tenant?.name || 'mi empresa'))
+      toast.success('Prompt copiado', 'Pegalo en tu ChatGPT para generar las dos versiones del logo.')
+    } catch { toast.error('No se pudo copiar el prompt') }
   }
 
   async function quitarLogo() {
@@ -153,7 +162,8 @@ export default function Config({ seccion = 'negocio' } = {}) {
         {esDueno && <Card className="space-y-3">
           <div>
             <h2 className="font-semibold">Logo de la empresa</h2>
-            <p className="mt-1 text-sm text-mute">Se muestra en el encabezado de los comprobantes. PNG, JPG o WebP de hasta 1 MiB.</p>
+            <p className="mt-1 text-sm text-mute">Se muestra en el encabezado de los comprobantes. Recomendado: PNG con <b className="text-fore">fondo transparente</b>, 1024×1024 px (1600×600 si es horizontal) y hasta 1 MiB. Para modo claro y oscuro conviene el <b className="text-fore">logo oscuro</b> en fondo claro y el <b className="text-fore">logo claro</b> en fondo oscuro.</p>
+            <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={copiarPrompt}><Icon name="copy" className="h-3.5 w-3.5" />Copiar prompt para generar el logo</Button>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="grid h-20 w-40 place-items-center overflow-hidden rounded-xl border border-ink-600 bg-paper">
