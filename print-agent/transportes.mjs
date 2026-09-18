@@ -81,19 +81,25 @@ export async function enviarUsb(cola, bytes) {
 // Colas CUPS del sistema con su device-uri real. La clasificación es por el
 // URI: una cola socket:// es CUPS DE RED (aunque antes se reportara como
 // "usb"), una usb:// es USB físico; `lpstat -p` solo da el nombre.
+// Parser del `lpstat -v` real: «device for ZKP8008: socket://192.168.1.23:9100».
+// El nombre termina en dos puntos, por eso el patrón corta antes de «: ».
+export function parsearColasCups(stdout = '') {
+  return String(stdout)
+    .split('\n')
+    .map((linea) => {
+      const nombre = (linea.match(/^device for ([^:]+):/) || [])[1]
+      if (!nombre) return null
+      const uri = (linea.match(/^device for [^:]+:\s*(\S+)\s*$/) || [])[1] || ''
+      const tipo = uri.startsWith('socket://') ? 'red' : uri.startsWith('usb://') ? 'usb' : 'otro'
+      return { nombre: nombre.trim(), uri, tipo }
+    })
+    .filter(Boolean)
+}
+
 export async function impresorasCups() {
   try {
     const { stdout } = await ejecutar('lpstat', ['-v'], { timeout: 5000 })
-    return stdout
-      .split('\n')
-      .map((linea) => {
-        const nombre = (linea.match(/^device for (\S+)/) || [])[1]
-        if (!nombre) return null
-        const uri = (linea.match(/:\s*(\S+)\s*$/) || [])[1] || ''
-        const tipo = uri.startsWith('socket://') ? 'red' : uri.startsWith('usb://') ? 'usb' : 'otro'
-        return { nombre, uri, tipo }
-      })
-      .filter(Boolean)
+    return parsearColasCups(stdout)
   } catch {
     return []
   }

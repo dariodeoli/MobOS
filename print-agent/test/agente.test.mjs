@@ -138,6 +138,15 @@ test('el agente imprime por red, encola si la impresora está caída y protege c
   assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://app.moboss.online')
 })
 
+test('el parser de lpstat -v corta los dos puntos del nombre de la cola', async () => {
+  const { parsearColasCups } = await import('../transportes.mjs')
+  const colas = parsearColasCups('device for ZKP8008: socket://192.168.1.23:9100\ndevice for Otra: usb://Zebra/ZD220\n')
+  assert.deepEqual(colas, [
+    { nombre: 'ZKP8008', uri: 'socket://192.168.1.23:9100', tipo: 'red' },
+    { nombre: 'Otra', uri: 'usb://Zebra/ZD220', tipo: 'usb' },
+  ])
+})
+
 test('el agente imprime al toque cuando la impresora está disponible', async (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'mobos-print-'))
   const puertoAgente = await puertoLibre()
