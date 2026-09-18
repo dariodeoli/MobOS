@@ -7,7 +7,7 @@ import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } 
 import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
 import { consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
-import { armarComprobante, canApproveOrderDiscount } from '../../../lib/orders'
+import { armarComprobante } from '../../../lib/orders'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { serialKey } from '../../../lib/validation'
 import { lineDiscount as lineDiscountFor, warrantyDaysFor } from '../../../lib/pricing'

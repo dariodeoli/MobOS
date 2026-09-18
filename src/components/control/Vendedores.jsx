@@ -198,48 +198,8 @@ export default function Vendedores({ seccion = 'equipo' }) {
         {modoInvitacion === 'correo' ? <>{!esDemo && <Card><h2 className="font-bold">Invitar por correo</h2><p className="mt-1 text-sm text-mute">La persona recibe un enlace seguro y elige su propio PIN. Nunca enviamos credenciales por correo.</p><form onSubmit={invitar} className="mt-4 grid gap-3 md:grid-cols-4"><div><Label htmlFor="invite-name">Nombre</Label><Input id="invite-name" value={invitacion.name} onChange={event => setInvitacion({ ...invitacion, name: event.target.value })} onBlur={() => !invitacion.name.trim() && setError('Ingresá el nombre del integrante.')} required /></div><div><Label htmlFor="invite-email">Correo</Label><EmailField id="invite-email" value={invitacion.email} onChange={value => setInvitacion({ ...invitacion, email: value })} required /></div><div><Label htmlFor="invite-role">Rol</Label><Select id="invite-role" value={invitacion.role} onChange={event => setInvitacion({ ...invitacion, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Enviar invitación</Button></div></form></Card>}</> : <><Card><h2 className="font-bold">Agregar directamente</h2><p className="mt-1 text-sm text-mute">{esDemo ? 'Agregá vendedores al entorno demo.' : 'Opción compatible para alta inmediata con un PIN definido por el administrador.'}</p><form onSubmit={crearDirecto} className="mt-4 grid gap-3 md:grid-cols-5"><div><Label htmlFor="direct-name">Nombre</Label><Input id="direct-name" value={directo.name} onChange={event => setDirecto({ ...directo, name: event.target.value })} required /></div>{!esDemo && <><div><Label htmlFor="direct-email">Correo</Label><EmailField id="direct-email" value={directo.email} onChange={value => setDirecto({ ...directo, email: value })} /></div><div><Label htmlFor="direct-role">Rol</Label><Select id="direct-role" value={directo.role} onChange={event => setDirecto({ ...directo, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div><Label htmlFor="direct-pin">PIN temporal</Label><Input id="direct-pin" inputMode="numeric" maxLength={4} value={directo.pin} onChange={event => setDirecto({ ...directo, pin: event.target.value.replace(/\D/g, '').slice(0, 4) })} required /></div></>}<div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Agregar</Button></div></form></Card></>}
       </div>
     </Modal>
-    <Modal open={horario !== null} onClose={() => setHorario(null)} title="Horario de acceso" className="max-w-lg">
-      <form onSubmit={guardarHorario} className="space-y-3">
-        <p className="text-sm text-mute">Restringe los días y horas en que el integrante puede operar. Sin rangos, el acceso queda libre.</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div><Label htmlFor="horario-zona">Zona horaria</Label><Input id="horario-zona" value={horario?.timezone || 'America/Asuncion'} onChange={(event) => setHorario((current) => ({ ...current, timezone: event.target.value }))} placeholder="America/Asuncion" /></div>
-          <div className="flex items-end"><Button type="button" variant="outline" onClick={() => setHorario((current) => ({ ...current, windows: [...(current?.windows || []), { days: [1, 2, 3, 4, 5], start: '08:00', end: '18:00' }] }))}>+ Rango</Button></div>
-        </div>
-        {(horario?.windows || []).map((fila, index) => (
-          <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-3 sm:grid-cols-[1fr_auto_auto_auto]">
-            <div className="flex flex-wrap gap-1">{['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map((dia, day) => (
-              <button key={dia} type="button" className={`rounded-lg border px-2 py-1 text-xs ${fila.days.includes(day + 1) || (day === 6 && fila.days.includes(0)) ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute'}`} onClick={() => { const valor = day === 6 ? 0 : day + 1; setHorario((current) => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, days: fila2.days.includes(valor) ? fila2.days.filter((d) => d !== valor) : [...fila2.days, valor] } : fila2) })) }}>{dia}</button>
-            ))}</div>
-            <Input type="time" value={fila.start} onChange={(event) => setHorario((current) => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, start: event.target.value } : fila2) }))} aria-label="Desde" />
-            <Input type="time" value={fila.end} onChange={(event) => setHorario((current) => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, end: event.target.value } : fila2) }))} aria-label="Hasta" />
-            <button type="button" className="self-center text-xs text-bad hover:underline" onClick={() => setHorario((current) => ({ ...current, windows: current.windows.filter((_, itemIndex) => itemIndex !== index) }))}>Quitar</button>
-          </div>
-        ))}
-        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setHorario(null)}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar horario'}</Button></div>
-      </form>
-    </Modal>
     <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title={`Historial de ${historialDe?.nombre || 'funcionario'}`}>
       {historialDe && <Cronologia endpoint={`/api/users/${historialDe.id}/history`} active={historialDe !== null} vacio="Sin actividad" descripcionVacio="El alta, los cambios de rol, sucursal o PIN, las comisiones y las ventas de este funcionario aparecerán acá." />}
-    </Modal>
-    <Modal open={horario !== null} onClose={() => setHorario(null)} title="Horario de acceso" className="max-w-lg">
-      <form onSubmit={guardarHorario} className="space-y-3">
-        <p className="text-sm text-mute">Restringe los días y horas en que el integrante puede operar. Sin rangos, el acceso queda libre.</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div><Label>Zona horaria</Label><Input value={horario?.timezone || 'America/Asuncion'} onChange={(event) => setHorario((current) => ({ ...current, timezone: event.target.value }))} placeholder="America/Asuncion" /></div>
-          <div className="flex items-end"><Button type="button" variant="outline" onClick={() => setHorario((current) => ({ ...current, windows: [...(current?.windows || []), { days: [1, 2, 3, 4, 5], start: '08:00', end: '18:00' }] }))}>+ Rango</Button></div>
-        </div>
-        {(horario?.windows || []).map((fila, index) => (
-          <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-3 sm:grid-cols-[1fr_auto_auto_auto]">
-            <div className="flex flex-wrap gap-1">{['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map((dia, day) => (
-              <button key={dia} type="button" className={`rounded-lg border px-2 py-1 text-xs ${fila.days.includes(day + 1) || (day === 6 && fila.days.includes(0)) ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute'}`} onClick={() => { const valor = day === 6 ? 0 : day + 1; setHorario((current) => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, days: fila2.days.includes(valor) ? fila2.days.filter((d) => d !== valor) : [...fila2.days, valor] } : fila2) })) }}>{dia}</button>
-            ))}</div>
-            <Input type="time" value={fila.start} onChange={(event) => setHorario((current) => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, start: event.target.value } : fila2) }))} aria-label="Desde" />
-            <Input type="time" value={fila.end} onChange={(event) => setHorario((current) => ({ ...current, windows: current.windows.map((fila2, itemIndex) => itemIndex === index ? { ...fila2, end: event.target.value } : fila2) }))} aria-label="Hasta" />
-            <button type="button" className="self-center text-xs text-bad hover:underline" onClick={() => setHorario((current) => ({ ...current, windows: current.windows.filter((_, itemIndex) => itemIndex !== index) }))}>Quitar</button>
-          </div>
-        ))}
-        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setHorario(null)}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar horario'}</Button></div>
-      </form>
     </Modal>
   </div>
 }

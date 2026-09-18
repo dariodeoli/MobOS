@@ -18,6 +18,7 @@ export default function RucField({
   maxLength = 100,
   placeholder = '80012345-6',
   autoComplete = 'off',
+  ariaLabel,
 }) {
   const [resultado, setResultado] = useState(null)
   const [consultando, setConsultando] = useState(false)
@@ -41,6 +42,7 @@ export default function RucField({
       <div className="flex flex-wrap items-center gap-2">
         <Input
           id={id}
+          aria-label={ariaLabel}
           className="min-w-0 flex-1"
           maxLength={maxLength}
           autoComplete={autoComplete}
