@@ -38,7 +38,7 @@ const baseImpresora = () => ({
   ubicacion: '',
   conexion: 'lan',
   destino: '',
-  ancho: 58,
+  ancho: 80,
   copias: 1,
   corte: true,
   densidad: 3,
@@ -59,7 +59,7 @@ const migrarVieja = () => {
     nombre: vieja.impresora || 'Impresora térmica',
     destino: String(vieja.impresora || ''),
     conexion: String(vieja.impresora || '').startsWith('usb:') ? 'usb' : 'lan',
-    ancho: Number(vieja.ancho) === 80 ? 80 : 58,
+    ancho: Number(vieja.ancho) === 58 ? 58 : 80,
     copias: Number(vieja.copias) || 1,
     predeterminada: true,
   }
@@ -97,7 +97,7 @@ let tenantActivo = null
 export function usarTenantImpresoras(tenantId) { tenantActivo = tenantId || null }
 
 export const configImpresora = () => {
-  const base = { url: URL_AGENTE, impresora: '', ancho: 58, copias: 1, token: '' }
+  const base = { url: URL_AGENTE, impresora: '', ancho: 80, copias: 1, token: '' }
   try {
     const store = cargarImpresoras(tenantActivo)
     const { predeterminada } = imprimirConDestino(store)
@@ -105,7 +105,7 @@ export const configImpresora = () => {
       url: store.agentUrl || URL_AGENTE,
       token: store.agentToken || '',
       impresora: predeterminada?.destino || '',
-      ancho: predeterminada?.ancho || 58,
+      ancho: predeterminada?.ancho || 80,
       copias: predeterminada?.copias || 1,
     }
     return { ...base, ...guardado }
@@ -125,7 +125,7 @@ export const guardarConfigImpresora = (cambios = {}) => {
   const predeterminada = store.impresoras.find((item) => item.predeterminada && item.activa)
   if (predeterminada) {
     if (cambios.impresora !== undefined) predeterminada.destino = String(cambios.impresora || '')
-    if (cambios.ancho !== undefined) predeterminada.ancho = Number(cambios.ancho) === 80 ? 80 : 58
+    if (cambios.ancho !== undefined) predeterminada.ancho = Number(cambios.ancho) === 58 ? 58 : 80
     if (cambios.copias !== undefined) predeterminada.copias = Math.min(5, Math.max(1, Number(cambios.copias) || 1))
   }
   guardarImpresoras(tenantActivo, store)
@@ -179,7 +179,8 @@ export const diagnosticoAgente = (destino) => consultarAgente(`/diagnostico${des
 export const colaAgente = () => consultarAgente('/jobs')
 export const historialAgente = (limite = 30) => consultarAgente(`/historial?limite=${limite}`)
 export const reintentarFallidos = () => consultarAgente('/jobs/retry', { method: 'POST' })
-export const limpiarFallidos = () => consultarAgente('/jobs/clear', { method: 'POST' })
+export const limpiarFallidos = (ids = []) => consultarAgente('/jobs/clear', { method: 'POST', body: { ids } })
+export const repararRed = () => consultarAgente('/red/agregar', { method: 'POST' })
 
 // Sincroniza el agente puente con la lista de impresoras: cuál es la
 // predeterminada y qué destinos LAN tiene permitidos.
@@ -189,7 +190,7 @@ export async function sincronizarAgente(store) {
     method: 'POST',
     body: {
       impresora: predeterminada?.destino || '',
-      ancho: predeterminada?.ancho || 58,
+      ancho: predeterminada?.ancho || 80,
       copias: predeterminada?.copias || 1,
       lan: activas.filter((item) => item.conexion === 'lan' && item.destino).map((item) => item.destino),
     },
@@ -198,7 +199,7 @@ export async function sincronizarAgente(store) {
 
 // Manda un ticket (crearTicket().base64()) al agente. Devuelve `{ ok }` o el
 // error para mostrarlo en pantalla.
-export async function imprimirDirecto(base64, { ancho, copias, impresora, usuario } = {}) {
+export async function imprimirDirecto(base64, { ancho, copias, impresora, usuario, ref, tipo } = {}) {
   const config = configImpresora()
   const control = new AbortController()
   const timer = setTimeout(() => control.abort(), 5000)
@@ -211,6 +212,8 @@ export async function imprimirDirecto(base64, { ancho, copias, impresora, usuari
         ancho: ancho ?? config.ancho,
         copias: copias ?? config.copias,
         usuario: String(usuario || '').slice(0, 80),
+        ref: String(ref || '').slice(0, 64),
+        tipo: String(tipo || '').slice(0, 40),
         data: base64,
       }),
       signal: control.signal,

@@ -24,6 +24,14 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
   }
   const guardar = () => guardarJson(ruta, trabajos)
   const guardarHistorial = () => { if (rutaHistorial) guardarJson(rutaHistorial, historial.slice(0, historialMax)) }
+  // Fallidos antiguos (más de 7 días) se descartan solos: ya no aportan
+  // trazabilidad útil y ocupan la lista de la página.
+  const LIMITE_FALLIDOS_MS = 7 * 24 * 60 * 60 * 1000
+  const viejos = trabajos.filter((trabajo) => trabajo.estado === 'fallido' && Date.now() - new Date(trabajo.creadoEn || 0).getTime() > LIMITE_FALLIDOS_MS)
+  if (viejos.length) {
+    trabajos = trabajos.filter((trabajo) => !viejos.includes(trabajo))
+    guardar()
+  }
 
   const anotar = (trabajo, resultado, error = '') => {
     historial.unshift({
@@ -34,6 +42,8 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       resultado,
       error: error || '',
       bytes: trabajo.bytes || 0,
+      ref: trabajo.ref || '',
+      tipo: trabajo.tipo || '',
     })
     guardarHistorial()
   }
@@ -78,9 +88,9 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
 
   return {
     // Intenta imprimir ya; si falla, el trabajo queda en la cola.
-    async encolar({ impresora, data, cliente = '', usuario = '' }) {
+    async encolar({ impresora, data, cliente = '', usuario = '', ref = '', tipo = '' }) {
       const bytes = Buffer.from(data, 'base64').length
-      const trabajo = { id: randomUUID(), impresora, data, cliente, usuario: String(usuario || '').slice(0, 80), bytes, estado: 'pendiente', intentos: 0, proximoIntento: 0, creadoEn: new Date().toISOString() }
+      const trabajo = { id: randomUUID(), impresora, data, cliente, usuario: String(usuario || '').slice(0, 80), ref: String(ref || '').slice(0, 64), tipo: String(tipo || '').slice(0, 40), bytes, estado: 'pendiente', intentos: 0, proximoIntento: 0, creadoEn: new Date().toISOString() }
       trabajos.push(trabajo)
       guardar()
       await procesar()
@@ -107,9 +117,14 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       }
     },
     reanudar() { programar() },
-    limpiarFallidos() {
+    limpiarFallidos(ids = []) {
       const antes = trabajos.length
-      trabajos = trabajos.filter((trabajo) => trabajo.estado !== 'fallido')
+      if (Array.isArray(ids) && ids.length) {
+        const elegidos = new Set(ids.map(String))
+        trabajos = trabajos.filter((trabajo) => trabajo.estado !== 'fallido' || !elegidos.has(trabajo.id))
+      } else {
+        trabajos = trabajos.filter((trabajo) => trabajo.estado !== 'fallido')
+      }
       guardar()
       return antes - trabajos.length
     },
@@ -142,5 +157,7 @@ function publico(trabajo) {
     error: trabajo.error || '',
     bytes: trabajo.bytes || 0,
     creadoEn: trabajo.creadoEn,
+    ref: trabajo.ref || '',
+    tipo: trabajo.tipo || '',
   }
 }

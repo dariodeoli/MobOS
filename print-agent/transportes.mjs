@@ -8,19 +8,33 @@ import { promisify } from 'node:util'
 const ejecutar = promisify(execFile)
 
 // Impresora de red: socket TCP crudo al puerto de impresión (9100 por defecto).
+// Si la térmica está dormida y no contesta ARP a la primera, macOS devuelve
+// EHOSTUNREACH/ENETUNREACH: se reintenta rápido (3 intentos, 400 ms) para
+// despertarla sin esperar el ciclo completo de la cola.
 export function enviarLan(destino, bytes, { timeoutMs = 6000 } = {}) {
   const [host, puerto] = String(destino).replace(/^lan:/, '').split(':')
-  return new Promise((resolve, reject) => {
-    const socket = connect({ host, port: Number(puerto) || 9100 })
+  const port = Number(puerto) || 9100
+  const escribir = () => new Promise((resolve, reject) => {
+    const socket = connect({ host, port })
     const terminar = (error) => {
       socket.destroy()
       if (error) reject(error)
       else resolve(true)
     }
-    socket.setTimeout(timeoutMs, () => terminar(new Error(`Sin respuesta de ${host}:${puerto || 9100}.`)))
+    socket.setTimeout(timeoutMs, () => terminar(new Error(`Sin respuesta de ${host}:${puerto}.`)))
     socket.on('error', terminar)
     socket.on('connect', () => socket.end(Buffer.from(bytes), () => terminar()))
   })
+  return (async () => {
+    for (let intento = 0; intento < 3; intento += 1) {
+      try { return await escribir() } catch (error) {
+        if (!/EHOSTUNREACH|ENETUNREACH|ECONNREFUSED/i.test(error?.message || '')) throw error
+        await new Promise((listo) => setTimeout(listo, 400))
+      }
+    }
+    // Último error conocido para el mensaje de la cola.
+    try { return await escribir() } catch (error) { throw error }
+  })()
 }
 
 // Impresora USB: CUPS recibe los mismos bytes crudos con `lp -o raw`.
@@ -44,12 +58,27 @@ export async function impresorasUsb() {
   }
 }
 
+// Cola CUPS de red (raw, socket://) que el instalador crea con lpadmin. El
+// daemon CUPS del sistema sí tiene permiso de red local: cuando macOS bloquea
+// la conexión directa del proceso del agente, el trabajo sale por acá.
+export async function colaLanDeCups(nombre = 'MobOS_LAN') {
+  const colas = await impresorasUsb()
+  return colas.includes(nombre) ? nombre : ''
+}
+
 // Destino: `lan:192.168.1.23:9100` o `usb:NombreDeLaCola`.
-export function enviar(destino, bytes) {
+export async function enviar(destino, bytes, { lanCups = 'MobOS_LAN' } = {}) {
   const valor = String(destino || '').trim()
   if (!valor) throw new Error('Elegí una impresora.')
   if (valor.startsWith('usb:')) return enviarUsb(valor.slice(4), bytes)
-  return enviarLan(valor, bytes)
+  try {
+    return await enviarLan(valor, bytes)
+  } catch (error) {
+    if (!/EHOSTUNREACH|ENETUNREACH/i.test(error?.message || '')) throw error
+    const cola = await colaLanDeCups(lanCups)
+    if (!cola) throw error
+    return enviarUsb(cola, bytes)
+  }
 }
 
 // Prueba de alcance: intenta abrir el socket sin enviar nada. Sirve para
@@ -71,6 +100,17 @@ export async function probarConexion(destino, { timeoutMs = 1500 } = {}) {
     socket.on('error', () => fin(false))
     socket.on('connect', () => fin(true))
   })
+}
+
+// IP secundaria del puente (red de la impresora). Se agrega con red-mac.sh y
+// se pierde al reiniciar o cambiar de red; el agente la recrea al arrancar.
+export async function aliasSecundario(ip = '192.168.1.100') {
+  try {
+    const { stdout } = await ejecutar('ifconfig', [], { timeout: 5000 })
+    return { ip, presente: stdout.split('\n').some((linea) => linea.includes(`inet ${ip} `)) }
+  } catch {
+    return { ip, presente: false }
+  }
 }
 
 // Diagnóstico de red: interfaces IPv4 de la máquina y ruta hacia la impresora.

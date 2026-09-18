@@ -51,7 +51,9 @@ test('par, negrita, doble y corte emiten sus comandos', () => {
   assert.match(texto, /Total\s+Gs\. 1\.000\n/)
   assert.ok(texto.includes('\x1bE\x01'))
   assert.ok(texto.includes('\x1d!\x11'))
-  assert.ok(texto.endsWith('\x1dV\x42\x00'))
+  // Corte compatible con ZKP8008: alimentación, GS V 0 y ESC i de fallback.
+  assert.ok(texto.endsWith('\x1bd\x04\x1dV\x00\x1bi'))
+  assert.equal(crearTicket().corte().corteEnviado(), true)
 })
 
 test('el QR usa el comando nativo con el largo correcto', () => {

@@ -25,6 +25,10 @@ export function cargarConfig() {
     reintentos: Math.min(20, Math.max(1, Number(guardado.reintentos) || 5)),
     esperaMs: Math.min(300000, Math.max(1000, Number(guardado.esperaMs) || 15000)),
     lan: Array.isArray(guardado.lan) ? guardado.lan.filter(Boolean) : [],
+    // Cola CUPS de red (fallback cuando macOS bloquea la salida directa) e IP
+    // secundaria del puente (red de la impresora).
+    lanCups: String(guardado.lanCups || 'MobOS_LAN'),
+    alias: String(guardado.alias || '192.168.1.100'),
   }
   // Se guarda siempre: el token generado tiene que sobrevivir al reinicio.
   if (!existsSync(RUTA_CONFIG) || !guardado.token) guardarConfig(config)

@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Input, Modal, Select, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, diagnosticoAgente, enmascararToken, estadoAgente, guardarImpresoras, historialAgente, imprimirTicketDirecto, limpiarFallidos, reintentarFallidos, sincronizarAgente } from '@/lib/printing/agent'
-import { ticketPrueba } from '@/lib/printing/tickets'
+import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, diagnosticoAgente, enmascararToken, estadoAgente, guardarImpresoras, historialAgente, imprimirTicketDirecto, limpiarFallidos, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
+import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
 
 const fmt = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 const hace = (valor) => {
@@ -25,11 +25,11 @@ const vacioFormulario = () => ({
   modelo: '',
   ubicacion: '',
   predeterminada: false,
-  conexion: 'usb',
+  conexion: 'lan',
   destinoUsb: '',
   ip: '192.168.1.23',
   puerto: '9100',
-  ancho: 58,
+  ancho: 80,
   copias: 1,
   corte: true,
   densidad: 3,
@@ -53,9 +53,12 @@ export default function Impresoras() {
   const [diagnosticando, setDiagnosticando] = useState(false)
   const [probandoId, setProbandoId] = useState(null)
   const [progreso, setProgreso] = useState('')
+  const [pruebaDe, setPruebaDe] = useState(null) // impresora del modal de prueba
   const [eliminarId, setEliminarId] = useState(null)
   const [verColaAbierta, setVerColaAbierta] = useState(false)
   const [filtroActividad, setFiltroActividad] = useState('')
+  const [seleccionados, setSeleccionados] = useState([])
+  const [reparando, setReparando] = useState(false)
 
   const consultar = useCallback(async () => {
     setCargando(true)
@@ -174,26 +177,35 @@ export default function Impresoras() {
   }
 
   async function probar(impresora) {
-    if (probandoId) return
+    setPruebaDe(impresora)
+  }
+
+  async function enviarPrueba({ tipo, copias, ticket }) {
+    const impresora = pruebaDe
+    if (!impresora || probandoId) return
     setProbandoId(impresora.id)
-    setProgreso('Preparando prueba…')
-    const ticket = ticketPrueba({ ancho: impresora.ancho, impresora: impresora.destino, nombre: impresora.nombre })
     setProgreso('Enviando al agente…')
-    const resultado = await imprimirTicketDirecto(ticket, { impresora: impresora.destino, copias: 1, usuario: sesion?.nombre || usuario?.name || '' })
+    const resultado = await imprimirTicketDirecto(ticket, { impresora: impresora.destino, copias, usuario: sesion?.nombre || usuario?.name || '', ref: ticket.ref, tipo })
     if (resultado.ok) {
-      setProgreso(resultado.encolado ? 'Encolada…' : 'Impresión exitosa.')
+      const encolado = Boolean(resultado.encolado)
+      setProgreso(encolado ? 'Encolada…' : 'Impresión enviada…')
       const siguiente = {
         ...store,
-        impresoras: store.impresoras.map((item) => (item.id === impresora.id ? { ...item, ultimaPrueba: { ok: true, fecha: new Date().toISOString() } } : item)),
+        impresoras: store.impresoras.map((item) => (item.id === impresora.id ? { ...item, ultimaPrueba: { ok: !encolado, encolado, fecha: new Date().toISOString(), tipo, ref: ticket.ref, validacion: ticket.validacion, corte: Boolean(ticket.corte) } } : item)),
       }
       guardarImpresoras(tenantId, siguiente)
       setStore(siguiente)
-      toast.success('Prueba enviada', resultado.encolado ? 'La impresora no respondió; el agente reintenta solo.' : 'El ticket de prueba salió por la térmica.')
+      if (encolado) {
+        toast.success('Prueba encolada', 'La impresora no respondió; el agente reintenta solo.')
+      } else {
+        toast.success('Prueba enviada por TCP', 'El agente confirmó el envío. La confirmación final es visual: verificá en el papel que el ticket salió y se cortó solo.')
+      }
     } else {
       setProgreso('La impresora no respondió.')
       toast.error('No se pudo imprimir', resultado.error)
     }
     setProbandoId(null)
+    setPruebaDe(null)
     consultar()
   }
 
@@ -254,12 +266,61 @@ export default function Impresoras() {
     consultar()
   }
 
-  async function limpiar() {
+  async function limpiar(ids = []) {
     try {
-      const resultado = await limpiarFallidos()
-      toast.success('Cola limpia', `${resultado?.limpiados || 0} trabajos fallidos quitados.`)
+      const resultado = await limpiarFallidos(ids)
+      setSeleccionados([])
+      toast.success('Cola limpia', `${resultado?.limpiados || 0} trabajo(s) fallido(s) quitado(s).`)
     } catch (cause) { toast.error('No se pudo limpiar la cola', cause?.message) }
     consultar()
+  }
+
+  async function repararConexion() {
+    if (reparando) return
+    setReparando(true)
+    try {
+      const resultado = await repararRed()
+      if (resultado.agregado) toast.success('IP secundaria lista', `${resultado.alias} en ${resultado.iface || 'la interfaz activa'}. ${resultado.impresoraOk ? 'La impresora responde.' : 'La impresora todavía no responde.'}`)
+      else toast.error('No se pudo agregar la IP secundaria', resultado.permiso || 'Revisá el permiso de administrador.')
+    } catch (cause) { toast.error('No se pudo reparar la red', cause?.message) }
+    setReparando(false)
+    consultar()
+  }
+
+  function exportarDiagnostico() {
+    const datos = {
+      generado: new Date().toISOString(),
+      agente: {
+        disponible: Boolean(estado?.disponible),
+        version: estado?.version || null,
+        equipo: estado?.equipo || null,
+        host: estado?.host || null,
+        direccion: store.agentUrl || URL_AGENTE,
+        token: enmascararToken(store.agentToken), // nunca el token completo
+      },
+      impresoras: (store.impresoras || []).map((item) => ({
+        nombre: item.nombre,
+        destino: item.destino,
+        conexion: item.conexion,
+        ancho: item.ancho,
+        copias: item.copias,
+        predeterminada: Boolean(item.predeterminada),
+        activa: item.activa,
+        ultimaPrueba: item.ultimaPrueba ? { fecha: item.ultimaPrueba.fecha, tipo: item.ultimaPrueba.tipo, resultado: item.ultimaPrueba.ok ? 'confirmado-por-tcp' : item.ultimaPrueba.encolado ? 'encolado' : 'fallido', ref: item.ultimaPrueba.ref, corte: Boolean(item.ultimaPrueba.corte) } : null,
+      })),
+      red: {
+        alias: estado?.alias || null,
+        cliente: estado?.cliente || null,
+      },
+      cola: { pendientes: estado?.cola?.pendientes ?? 0, fallidos: estado?.cola?.fallidos ?? 0 },
+      diagnostico,
+    }
+    const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' })
+    const enlace = document.createElement('a')
+    enlace.href = URL.createObjectURL(blob)
+    enlace.download = `mobos-diagnostico-impresion-${new Date().toISOString().slice(0, 10)}.json`
+    enlace.click()
+    URL.revokeObjectURL(enlace.href)
   }
 
   const sesionActiva = (s) => Date.now() - new Date(s.lastSeenAt || 0).getTime() < 15 * 60 * 1000
@@ -321,14 +382,21 @@ export default function Impresoras() {
             No se encontró el agente en <b className="text-fore">{store.agentUrl}</b>. Instalalo en la computadora puente con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code>; en las demás computadoras, apuntá la dirección del agente a la IP de esa Mac.
           </p>
         )}
+        {estado?.disponible && estado.alias && !estado.alias.presente && (
+          <p className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
+            La IP secundaria <b className="text-fore">{estado.alias.ip}</b> (red de la impresora) no está agregada: se pierde al reiniciar o cambiar de red. El agente la recrea solo al iniciar la Mac; si no, usá <b className="text-fore">Reparar conexión</b>.
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="ghost" onClick={() => diagnosticar(null)} disabled={diagnosticando || !estado?.disponible}>{diagnosticando ? 'Consultando…' : 'Diagnóstico de red'}</Button>
+          <Button type="button" variant="outline" onClick={repararConexion} disabled={reparando || !estado?.disponible}>{reparando ? 'Reparando…' : 'Reparar conexión'}</Button>
+          <Button type="button" variant="ghost" onClick={exportarDiagnostico}>Exportar diagnóstico</Button>
         </div>
         {diagnostico && (
           <div className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
             <p className="text-xs uppercase tracking-wider text-mute">Diagnóstico de red · {diagnostico.destino || 'sin destino'}</p>
             {diagnostico.ok === false && <p role="alert" className="mt-1 text-bad">{diagnostico.error}</p>}
-            {diagnostico.ok && <ExplicacionDiagnostico diagnostico={diagnostico} />}
+            {diagnostico.ok && <ExplicacionDiagnostico diagnostico={diagnostico} estado={estado} nombre={predeterminada?.nombre} />}
           </div>
         )}
       </Card>
@@ -360,7 +428,7 @@ export default function Impresoras() {
                   <span>Copias: <b className="text-fore">{impresora.copias}</b></span>
                   {impresora.ubicacion && <span>Ubicación: <b className="text-fore">{impresora.ubicacion}</b></span>}
                 </div>
-                <p className="text-xs text-mute">Última prueba: <b className="text-fore">{impresora.ultimaPrueba ? `${impresora.ultimaPrueba.ok ? 'Impresa correctamente' : 'Falló'} · ${fmt(impresora.ultimaPrueba.fecha)}` : 'Sin prueba todavía'}</b></p>
+                <p className="text-xs text-mute">Última prueba: <b className="text-fore">{impresora.ultimaPrueba ? `${impresora.ultimaPrueba.ok ? 'Impresa correctamente' : impresora.ultimaPrueba.encolado ? 'Encolada' : 'Falló'} · ${TIPOS_TICKET_PRUEBA[impresora.ultimaPrueba.tipo] || 'Prueba'} · ${fmt(impresora.ultimaPrueba.fecha)}${impresora.ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}` : 'Sin prueba todavía'}</b></p>
                 {probandoId === impresora.id && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" onClick={() => probar(impresora)} disabled={Boolean(probandoId) || !impresora.activa}>{probandoId === impresora.id ? 'Enviando…' : 'Imprimir prueba'}</Button>
@@ -462,6 +530,17 @@ export default function Impresoras() {
         />
       )}
 
+      {pruebaDe && (
+        <ModalPrueba
+          impresora={pruebaDe}
+          equipo={estado?.equipo || store.agentUrl}
+          enviando={Boolean(probandoId)}
+          progreso={progreso}
+          onCerrar={() => setPruebaDe(null)}
+          onEnviar={enviarPrueba}
+        />
+      )}
+
       <ConfirmDialog
         open={Boolean(eliminarId)}
         onCancel={() => setEliminarId(null)}
@@ -486,15 +565,22 @@ export default function Impresoras() {
               )}
               {fallidos.length > 0 && (
                 <section>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-bad">Fallidos ({fallidos.length})</h4>
-                  <TablaTrabajos trabajos={fallidos} />
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-bad">Fallidos ({fallidos.length})</h4>
+                    <label className="flex items-center gap-1.5 text-xs text-mute">
+                      <input type="checkbox" className="h-3.5 w-3.5 accent-[var(--color-fono)]" checked={seleccionados.length === fallidos.length && fallidos.length > 0} onChange={(event) => setSeleccionados(event.target.checked ? fallidos.map((trabajo) => trabajo.id) : [])} />
+                      Seleccionar todos
+                    </label>
+                  </div>
+                  <TablaTrabajos trabajos={fallidos} seleccionados={seleccionados} onSeleccion={(id, marcado) => setSeleccionados((actual) => (marcado ? [...actual, id] : actual.filter((item) => item !== id)))} />
                 </section>
               )}
             </div>
           )}
           <div className="flex flex-wrap justify-end gap-2">
             {fallidos.length > 0 && <Button type="button" variant="outline" onClick={reintentar}>Reintentar fallidos</Button>}
-            {fallidos.length > 0 && <Button type="button" variant="ghost" onClick={limpiar}>Limpiar fallidos</Button>}
+            {fallidos.length > 0 && <Button type="button" variant="ghost" disabled={!seleccionados.length} onClick={() => limpiar(seleccionados)}>Limpiar seleccionados ({seleccionados.length})</Button>}
+            {fallidos.length > 0 && <Button type="button" variant="ghost" onClick={() => limpiar([])}>Limpiar todos</Button>}
             <Button type="button" variant="outline" onClick={consultar}>Actualizar</Button>
           </div>
         </div>
@@ -503,12 +589,13 @@ export default function Impresoras() {
   )
 }
 
-function TablaTrabajos({ trabajos }) {
+function TablaTrabajos({ trabajos, seleccionados = [], onSeleccion }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[36rem] text-sm">
         <thead>
           <tr className="border-b border-ink-600 text-left text-xs uppercase tracking-wider text-mute">
+            {onSeleccion && <th className="w-8 px-2 py-2" />}
             <th className="px-2 py-2">Fecha</th>
             <th className="px-2 py-2">Impresora</th>
             <th className="px-2 py-2">Equipo</th>
@@ -521,6 +608,7 @@ function TablaTrabajos({ trabajos }) {
         <tbody>
           {trabajos.map((trabajo) => (
             <tr key={trabajo.id} className="border-b border-ink-600/50">
+              {onSeleccion && <td className="px-2 py-2"><input type="checkbox" className="h-3.5 w-3.5 accent-[var(--color-fono)]" checked={seleccionados.includes(trabajo.id)} onChange={(event) => onSeleccion(trabajo.id, event.target.checked)} aria-label={`Seleccionar ${trabajo.id}`} /></td>}
               <td className="px-2 py-2 text-xs text-mute" title={trabajo.id}>{fmt(trabajo.creadoEn)}</td>
               <td className="px-2 py-2 text-xs">{trabajo.impresora}</td>
               <td className="px-2 py-2 text-xs">{trabajo.cliente || '—'}</td>
@@ -536,33 +624,46 @@ function TablaTrabajos({ trabajos }) {
   )
 }
 
-function ExplicacionDiagnostico({ diagnostico }) {
+function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
   const destino = String(diagnostico.destino || '')
+  const metodo = destino.startsWith('usb:') ? 'USB' : 'LAN'
   const host = destino.startsWith('lan:') ? destino.slice(4).split(':')[0] : ''
+  const puerto = destino.startsWith('lan:') ? destino.slice(4).split(':')[1] || '9100' : '—'
   const interfaces = diagnostico.interfaces || []
   const subred = (ip) => ip.split('.').slice(0, 3).join('.')
   const mismaRed = host && interfaces.some((ip) => subred(ip) === subred(host))
-  if (!host) {
-    return (
-      <div className="mt-1 space-y-1 text-xs text-mute">
-        <p>Destino USB: la impresión pasa por la cola de la computadora puente.</p>
-        {interfaces.length > 0 && <p>La Mac del puente está en {interfaces.join(' · ')}.</p>}
-      </div>
-    )
-  }
-  if (diagnostico.alcance) return <p className="mt-1 text-xs text-ok">La impresora {host} responde: la conexión está lista.</p>
-  if (!mismaRed) {
-    return (
-      <div className="mt-1 space-y-1 text-xs">
-        <p className="text-warn">La impresora está en {host} y la computadora en {interfaces.length ? interfaces[0] : 'otra red'}: no están en la misma subred.</p>
-        <p className="text-mute">Opciones: conectar la impresora al mismo router de la Mac, o correr <code className="rounded bg-ink-700 px-1">bash print-agent/red-mac.sh agregar</code> en el puente para sumar una IP de esa red.</p>
-      </div>
-    )
-  }
+  const filas = [
+    ['Método', metodo],
+    ['Impresora', nombre || '—'],
+    ['IP', host || '—'],
+    ['Puerto', puerto],
+    ['Agente', estado?.disponible ? `v${estado.version || ''} en ${estado.equipo || 'el puente'}` : 'desconectado'],
+    ['Subred de la Mac', interfaces.length ? interfaces.map((ip) => `${ip} (${subred(ip)}.x)`).join(' · ') : '—'],
+    ['Resultado TCP', diagnostico.alcance ? 'responde ✓' : 'no responde ✗'],
+  ]
   return (
-    <div className="mt-1 space-y-1 text-xs">
-      <p className="text-bad">La impresora {host} no responde, aunque está en la misma subred.</p>
-      <p className="text-mute">Revisá el cable LAN de la impresora, que esté encendida y que el puerto {destino.slice(4).split(':')[1] || '9100'} siga abierto.</p>
+    <div className="mt-1 space-y-2 text-xs">
+      <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+        {filas.map(([etiqueta, valor]) => (
+          <div key={etiqueta} className="flex justify-between gap-2 border-b border-ink-600/40 pb-1">
+            <dt className="text-mute">{etiqueta}</dt>
+            <dd className={etiqueta === 'Resultado TCP' ? (diagnostico.alcance ? 'text-ok' : 'text-bad') : 'text-fore'}>{valor}</dd>
+          </div>
+        ))}
+      </dl>
+      {metodo === 'USB' && <p className="text-mute">La impresión pasa por la cola USB de la computadora puente.</p>}
+      {metodo === 'LAN' && diagnostico.alcance && <p className="text-ok">La impresora responde por TCP: la conexión está lista.</p>}
+      {metodo === 'LAN' && !diagnostico.alcance && !mismaRed && (
+        <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
+          <p className="font-semibold text-warn">La Mac necesita una IP secundaria para alcanzar la impresora.</p>
+          <p className="text-mute">La impresora está en {host} (subred {subred(host)}.x) y la Mac en {interfaces.length ? subred(interfaces[0]) : '—'}.x: no están en la misma subred. En el puente corré:</p>
+          <code className="block rounded bg-ink-700 p-2 text-fore">bash print-agent/red-mac.sh agregar</code>
+          <p className="text-mute">Agrega {host.split('.').slice(0, 3).join('.')}.100 sin tocar el DHCP ni el internet, y es reversible con <code className="rounded bg-ink-700 px-1">red-mac.sh quitar</code>.</p>
+        </div>
+      )}
+      {metodo === 'LAN' && !diagnostico.alcance && mismaRed && (
+        <p className="text-bad">La impresora está en la misma subred pero no responde por TCP. Revisá que esté encendida, el cable LAN y que el puerto {puerto} siga abierto.</p>
+      )}
     </div>
   )
 }
@@ -640,9 +741,9 @@ function FormularioImpresora({ formulario, setFormulario, estado, tokenGuardado,
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Button type="button" variant="outline" onClick={validar} disabled={validando || !f.ip.trim()}>{validando ? 'Validando…' : 'Validar conexión'}</Button>
               {validacion && (
-                <span className="text-xs text-mute">
-                  {validacion.ok === false ? <span className="text-bad">{validacion.error}</span> : <ExplicacionDiagnostico diagnostico={validacion} />}
-                </span>
+                <div className="mt-2 text-xs text-mute">
+                  {validacion.ok === false ? <span className="text-bad">{validacion.error}</span> : <ExplicacionDiagnostico diagnostico={validacion} estado={estado} nombre={f.nombre} />}
+                </div>
               )}
             </div>
           )}
@@ -689,6 +790,60 @@ function FormularioImpresora({ formulario, setFormulario, estado, tokenGuardado,
           <Button type="button" variant="ghost" onClick={() => setFormulario(null)}>Cancelar</Button>
           <Button type="button" onClick={() => onGuardar({ probar: false })}>Guardar impresora</Button>
           <Button type="button" variant="outline" onClick={() => onGuardar({ probar: true })}>Guardar y probar</Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function ModalPrueba({ impresora, equipo, enviando, progreso, onCerrar, onEnviar }) {
+  const [tipo, setTipo] = useState('corta')
+  const [copias, setCopias] = useState(1)
+  const [turno, setTurno] = useState(0) // regenera el ticket (y su número de 4 dígitos)
+  const ticket = useMemo(
+    () => ticketPruebaTipo(tipo, { ancho: impresora.ancho, impresora: impresora.destino, nombre: impresora.nombre, equipo, copias }),
+    // turno solo dispara la regeneración: un número nuevo por ejecución.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tipo, copias, turno, impresora, equipo],
+  )
+  return (
+    <Modal open onClose={enviando ? undefined : onCerrar} title={`Probar: ${impresora.nombre}`} className="max-w-2xl">
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="Tipo de prueba" htmlFor="prueba-tipo">
+            <Select id="prueba-tipo" value={tipo} onChange={(event) => setTipo(event.target.value)}>
+              {Object.entries(TIPOS_TICKET_PRUEBA).map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="Copias" htmlFor="prueba-copias">
+            <Input id="prueba-copias" inputMode="numeric" maxLength={1} value={String(copias)} onChange={(event) => setCopias(Number(event.target.value.replace(/\D/g, '').slice(0, 1) || '1'))} />
+          </FormField>
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-mute">
+          <span>Impresora: <b className="text-fore">{impresora.nombre}</b></span>
+          <span>Método: <b className="text-fore">{conexionDe(impresora.destino)}</b></span>
+          <span>Destino: <b className="text-fore">{impresora.destino}</b></span>
+          <span>Ancho: <b className="text-fore">{impresora.ancho} mm</b></span>
+          <span>Trabajo: <b className="text-fore">{ticket.ref}</b></span>
+          <span>Validación: <b className="text-fore">{ticket.validacion}</b></span>
+          <span>Corte: <b className="text-fore">solicitado (GS V 0 + ESC i)</b></span>
+        </div>
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wider text-mute">Vista previa</p>
+            <Button type="button" variant="ghost" onClick={() => setTurno((n) => n + 1)} disabled={enviando}><Icon name="refresh" className="h-3.5 w-3.5" />Nuevo número</Button>
+          </div>
+          <pre className="max-h-64 overflow-y-auto rounded-xl border border-ink-600 bg-ink-900 p-3 font-mono text-[11px] leading-4 text-fore">{ticket.lineas().join('')}</pre>
+        </div>
+        {tipo === 'corte' && (
+          <p className="rounded-lg border border-warn/30 bg-warn/10 p-2 text-xs text-mute">
+            La verificación del corte es <b className="text-fore">física</b>: el ticket debe separarse del rollo solo. El éxito por TCP confirma el envío, no la cuchilla. Si no corta, revisá <b className="text-fore">Cutter Enable: YES</b> en la impresora.
+          </p>
+        )}
+        {enviando && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="ghost" onClick={onCerrar} disabled={enviando}>Cancelar</Button>
+          <Button type="button" onClick={() => onEnviar({ tipo, copias, ticket })} disabled={enviando}>{enviando ? 'Enviando…' : 'Enviar e imprimir'}</Button>
         </div>
       </div>
     </Modal>

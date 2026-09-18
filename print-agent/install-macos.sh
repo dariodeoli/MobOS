@@ -11,10 +11,10 @@ CONFIG_DIR="$HOME/.mobos-print"
 CONFIG="$CONFIG_DIR/config.json"
 IMPRESORA="192.168.1.23"
 PUERTO="9100"
-# Token y ancho opcionales: si los pasás, quedan fijados; el ancho por defecto
-# es 58 mm (el rollo que se usa en el local) y con MOBOS_PRINT_ANCHO=80 se cambia.
+# Token y ancho opcionales: si los pasás, quedan fijados. El ancho predeterminado
+# es 80 mm (papel estándar de la ZKP8008); con MOBOS_PRINT_ANCHO=58 se cambia.
 TOKEN="${MOBOS_PRINT_TOKEN:-}"
-ANCHO="${MOBOS_PRINT_ANCHO:-58}"
+ANCHO="${MOBOS_PRINT_ANCHO:-80}"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "Falta Node 20 o superior. Instalalo con: brew install node" >&2
@@ -24,7 +24,7 @@ fi
 NODE="$(command -v node)"
 echo "Instalando el agente en: $DESTINO"
 mkdir -p "$DESTINO" "$HOME/Library/LaunchAgents" "$CONFIG_DIR"
-cp "$ORIGEN/server.mjs" "$ORIGEN/transportes.mjs" "$ORIGEN/cola.mjs" "$ORIGEN/config.mjs" "$ORIGEN/package.json" "$DESTINO/"
+cp "$ORIGEN/server.mjs" "$ORIGEN/transportes.mjs" "$ORIGEN/cola.mjs" "$ORIGEN/config.mjs" "$ORIGEN/package.json" "$ORIGEN/red-mac.sh" "$DESTINO/"
 
 # Impresora conocida: LAN de la ZKP8008 con ancho 80 mm.
 if [[ ! -f "$CONFIG" || -n "$TOKEN" ]]; then
@@ -76,6 +76,33 @@ PLIST
 launchctl unload "$PLIST" >/dev/null 2>&1 || true
 launchctl load "$PLIST"
 sleep 2
+
+# Permiso sin prompt para recrear la IP secundaria al iniciar la Mac (red de la
+# impresora). Se valida con visudo antes de tocar /etc/sudoers.d.
+IFACE_ACTIVA="$(route -n get default 2>/dev/null | awk '/interface:/{print $2; exit}')"
+IFACE_ACTIVA="${IFACE_ACTIVA:-en0}"
+ALIAS="${MOBOS_PRINT_ALIAS:-192.168.1.100}"
+MASCARA="${MOBOS_PRINT_MASCARA:-255.255.255.0}"
+SUDOERS_TMP="$(mktemp)"
+printf '%s ALL=(root) NOPASSWD: /sbin/ifconfig %s alias %s netmask %s, /sbin/ifconfig %s -alias %s\n' "$USER" "$IFACE_ACTIVA" "$ALIAS" "$MASCARA" "$IFACE_ACTIVA" "$ALIAS" > "$SUDOERS_TMP"
+echo "Instalando el permiso de red (IP secundaria automática al iniciar sesión; pide tu contraseña)…"
+if sudo /usr/sbin/visudo -c -f "$SUDOERS_TMP" >/dev/null 2>&1 && sudo cp "$SUDOERS_TMP" /etc/sudoers.d/mobos-print && sudo chmod 440 /etc/sudoers.d/mobos-print; then
+  echo "  Permiso instalado: la IP secundaria $ALIAS se recrea sola al iniciar la Mac."
+  bash "$DESTINO/red-mac.sh" auto
+else
+  echo "  No se pudo instalar el permiso (contraseña cancelada o sudo no disponible)."
+  echo "  Alternativa: corré «bash red-mac.sh agregar» cada vez que reinicies la Mac."
+fi
+rm -f "$SUDOERS_TMP"
+
+# Cola CUPS de red (fallback cuando macOS bloquea la salida directa del agente):
+# el daemon CUPS del sistema habla con la impresora por socket.
+if ! lpstat -p 2>/dev/null | grep -q "printer MobOS_LAN"; then
+  echo "Creando la cola de red MobOS_LAN (socket://$IMPRESORA:$PUERTO)…"
+  sudo lpadmin -p MobOS_LAN -E -v "socket://$IMPRESORA:$PUERTO" -m raw 2>/dev/null || echo "  Sin permiso para crear la cola CUPS; la impresión directa sigue disponible."
+else
+  echo "Cola de red MobOS_LAN ya existe."
+fi
 
 echo
 echo "Agente corriendo en http://127.0.0.1:17890"

@@ -126,7 +126,7 @@ test('el agente imprime al toque cuando la impresora está disponible', async (t
   const respuesta = await fetch(`http://127.0.0.1:${puertoAgente}/print`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-mobos-print-token': TOKEN },
-    body: JSON.stringify({ data: ticket }),
+    body: JSON.stringify({ data: ticket, usuario: 'Dueño', ref: 'TEST-ABC-1234', tipo: 'prueba-corta' }),
   }).then((r) => r.json())
   assert.equal(respuesta.ok, true)
   assert.equal(respuesta.encolado, false)
@@ -138,7 +138,15 @@ test('el agente imprime al toque cuando la impresora está disponible', async (t
   assert.equal(historial.historial[0].resultado, 'impreso')
   assert.equal(historial.historial[0].cliente, '127.0.0.1')
   assert.equal(historial.historial[0].impresora, `lan:127.0.0.1:${puertoImpresora}`)
+  assert.equal(historial.historial[0].usuario, 'Dueño')
+  assert.equal(historial.historial[0].ref, 'TEST-ABC-1234')
+  assert.equal(historial.historial[0].tipo, 'prueba-corta')
   assert.ok(historial.historial[0].bytes > 0)
+
+  // La salud informa el nombre del equipo puente (para el ticket de prueba).
+  const salud = await fetch(`http://127.0.0.1:${puertoAgente}/health`, { headers: { 'x-mobos-print-token': TOKEN } }).then((r) => r.json())
+  assert.equal(typeof salud.equipo, 'string')
+  assert.ok(salud.equipo.length > 0)
   const sinToken = await fetch(`http://127.0.0.1:${puertoAgente}/historial`)
   assert.equal(sinToken.status, 401)
 })
