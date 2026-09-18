@@ -7,6 +7,7 @@ import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } 
 import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
 import { consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
+import { armarComprobante, canApproveOrderDiscount } from '../../../lib/orders'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { serialKey } from '../../../lib/validation'
 import { lineDiscount as lineDiscountFor, warrantyDaysFor } from '../../../lib/pricing'
@@ -438,6 +439,20 @@ export async function POST(request: Request) {
         const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id, createdById: session.user.id, userId: session.user.id } })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
       }
+      // Comprobante congelado al emitir: queda guardado con los ítems, los pagos
+      // y los datos de las partes tal como estaban en esta venta.
+      const emitido = await tx.order.findUnique({
+        where: { id: order.id },
+        include: {
+          items: true,
+          payments: true,
+          customer: { select: { name: true, document: true, phone: true, countryCode: true, email: true, billingName: true, billingDocument: true } },
+          seller: { select: { name: true } },
+          branch: { select: { name: true, address: true, city: true, department: true, phone: true } },
+          tenant: { select: { name: true } },
+        },
+      })
+      if (emitido) await tx.order.update({ where: { id: order.id }, data: { receiptSnapshot: armarComprobante(emitido as unknown as Record<string, unknown>) } })
       // Garantía automática: registra la cobertura de cada equipo serializado
       // (días del producto o por condición) para que el cliente la vea por QR.
       if (branchId) {

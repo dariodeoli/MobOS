@@ -381,6 +381,12 @@ export default function AppShell({
             Sin conexión: los datos pueden estar desactualizados. Se sincroniza al reconectar.
           </div>
         )}
+        {esDemo && (
+          <div role="status" className="flex items-center justify-center gap-2 bg-warn/15 px-4 py-2 text-center text-sm font-medium text-warn">
+            <Icon name="alert" className="h-4 w-4" />
+            Modo demo: los datos son ficticios y no se guardan en tu empresa.
+          </div>
+        )}
         {loading ? (
           <main className="flex-1 p-4 md:p-8">
             <div className="space-y-3">

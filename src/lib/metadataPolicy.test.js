@@ -39,6 +39,7 @@ test('configuration subpages keep their own child slug in the URL and the title'
     '/configuracion/seguridad': 'Seguridad',
     '/configuracion/impresoras': 'Impresoras',
     '/configuracion/impresion': 'Estado de impresión',
+    '/configuracion/sistema': 'Estado del sistema',
   }
   for (const [pathname, label] of Object.entries(rutas)) {
     const metadata = resolvePageMetadata({ pathname })

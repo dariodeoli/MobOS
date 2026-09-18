@@ -44,6 +44,9 @@ const Autorizaciones = lazy(() => import('@/components/control/Autorizaciones'))
 const Garantias = lazy(() => import('@/components/control/Garantias'))
 const ServicioTecnico = lazy(() => import('@/components/control/ServicioTecnico'))
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
+const Impresoras = lazy(() => import('@/components/control/Impresoras'))
+const EstadoImpresion = lazy(() => import('@/components/control/EstadoImpresion'))
+const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
 
 // Navegación por flujo de trabajo: primero la operación del día, después el
 // catálogo/stock y al final las herramientas de gestión. Los permisos definen
@@ -160,12 +163,16 @@ const SUBPAGINAS = {
     vista: 'equipo',
     tabs: [
       ['equipo', 'Equipo'],
+      ['invitaciones', 'Invitaciones'],
       ['identidad', 'Mi identidad'],
       ['roles', 'Roles y permisos'],
       ['historial', 'Auditoría'],
       ['negocio', 'Negocio'],
       ['sucursales', 'Sucursales'],
       ['seguridad', 'Seguridad'],
+      ['impresoras', 'Impresoras'],
+      ['impresion', 'Estado de impresión'],
+      ['sistema', 'Estado del sistema'],
     ],
   },
   analisis: { vista: 'analisis', tabs: TABS_ANALISIS },
@@ -179,6 +186,10 @@ const SUBPAGINA_DE_VISTA = Object.fromEntries(
 // Pestañas visibles según el modo: créditos y cuotas solo fuera de la demo.
 function tabsDeSubpagina(slug, esDemo) {
   const tabs = SUBPAGINAS[slug]?.tabs || []
+  if (slug === 'configuracion') {
+    // Invitaciones y Estado del sistema necesitan el API real; en demo quedan ocultas.
+    return tabs.filter(([id]) => (id === 'invitaciones' || id === 'sistema' ? !esDemo : true))
+  }
   if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas') ? !esDemo : true))
   return tabs
 }
@@ -206,6 +217,9 @@ const LABELS = {
   negocio: 'Negocio',
   sucursales: 'Sucursales',
   seguridad: 'Seguridad',
+  impresoras: 'Impresoras',
+  impresion: 'Estado de impresión',
+  sistema: 'Estado del sistema',
   reportes: 'Reportes',
   ganancias: 'Ganancias',
   ganadores: 'Ganadores',
@@ -711,6 +725,9 @@ export default function PanelVendedor() {
               {vista === 'negocio' && <Config seccion="negocio" />}
               {vista === 'sucursales' && <Config seccion="sucursales" />}
               {vista === 'seguridad' && <Config seccion="seguridad" />}
+              {vista === 'impresoras' && <Impresoras />}
+              {vista === 'impresion' && <EstadoImpresion />}
+              {vista === 'sistema' && <EstadoSistema />}
             </div>
           )}
           </Suspense>

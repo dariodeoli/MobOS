@@ -116,7 +116,11 @@ export async function tokenDeNivel(orderId, level) {
   } catch { return '' }
 }
 
-export async function buildOrderReceiptHtml(order, { level = 'completo', format = 'a4', token = '' } = {}) {
+export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', format = 'a4', token = '' } = {}) {
+  // Comprobante congelado al emitir: si la venta lo tiene, se imprime lo que
+  // quedó guardado y no los datos vivos (producto, cliente o empresa editados).
+  const congelado = ordenViva?.receiptSnapshot?.datos
+  const order = congelado && typeof congelado === 'object' ? { ...ordenViva, ...congelado } : ordenViva
   const items = Array.isArray(order.items) ? order.items : []
   const payments = Array.isArray(order.payments) ? order.payments : order.pagos || []
   const pagosConfirmados = payments.filter(payment => payment.status === 'CONFIRMED' || payment.status === undefined)

@@ -183,6 +183,11 @@ export function normalizarEventoWebhook(payload: unknown): AexWebhookEvento | nu
   }
 }
 
+// Credenciales del adaptador cargadas en el entorno.
+export function aexConfigurado() {
+  return Boolean(PUBLIC_KEY && PRIVATE_KEY)
+}
+
 // Token del webhook: se acuerda con AEX y viaja en el header configurado
 // (por defecto Authorization: Bearer <token>). Sin token configurado se acepta,
 // para poder probar en el sandbox.
@@ -194,6 +199,11 @@ export function webhookAutorizado(request: Request) {
   const a = Buffer.from(recibido)
   const b = Buffer.from(esperado)
   return a.length === b.length && timingSafeEqual(a, b)
+}
+
+// Hay token de webhook acordado: sin él, el endpoint acepta cualquier origen.
+export function aexWebhookConToken() {
+  return Boolean(String(process.env.MOBOS_AEX_WEBHOOK_TOKEN || '').trim())
 }
 
 // Fecha del evento en formato `YYYY-MM-DD HH:MM:SS` (hora local de AEX).

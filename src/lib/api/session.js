@@ -1,4 +1,4 @@
-import { api, API_URL } from './client'
+import { api, API_URL, invalidarConsultas } from './client'
 
 const COMPANY_CONTEXT_KEY = 'owncoding_hub_company_context'
 const LEGACY_KEYS = ['owncoding_hub_access_token', 'owncoding_hub_company_token']
@@ -22,6 +22,8 @@ function setCompanyContext(context) {
 
 export function clearCompanyToken() {
   try { localStorage.removeItem(COMPANY_CONTEXT_KEY); clearLegacyTokens() } catch {}
+  // Cambiar de empresa no puede dejar consultas de la anterior en memoria.
+  invalidarConsultas()
 }
 
 export function clearSession() {
