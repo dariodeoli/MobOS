@@ -25,8 +25,8 @@ export function enviarLan(destino, bytes, { timeoutMs = 6000, alias = '' } = {})
   const [host, puerto] = String(destino).replace(/^lan:/, '').split(':')
   const port = Number(puerto) || 9100
   const localAddress = origenPara(host, alias)
-  const escribir = () => new Promise((resolve, reject) => {
-    const socket = connect({ host, port, ...(localAddress ? { localAddress } : {}) })
+  const escribir = (origen) => new Promise((resolve, reject) => {
+    const socket = connect({ host, port, ...(origen ? { localAddress: origen } : {}) })
     const terminar = (error) => {
       socket.destroy()
       if (error) reject(error)
@@ -36,15 +36,28 @@ export function enviarLan(destino, bytes, { timeoutMs = 6000, alias = '' } = {})
     socket.on('error', terminar)
     socket.on('connect', () => socket.end(Buffer.from(bytes), () => terminar()))
   })
-  return (async () => {
+  const esRuta = (error) => /EHOSTUNREACH|ENETUNREACH|ECONNREFUSED/i.test(error?.message || '')
+  const intentar = async (origen) => {
     for (let intento = 0; intento < 3; intento += 1) {
-      try { return await escribir() } catch (error) {
-        if (!/EHOSTUNREACH|ENETUNREACH|ECONNREFUSED/i.test(error?.message || '')) throw error
+      try { return await escribir(origen) } catch (error) {
+        if (!esRuta(error)) throw error
         await new Promise((listo) => setTimeout(listo, 400))
       }
     }
-    // Último error conocido para el mensaje de la cola.
-    try { return await escribir() } catch (error) { throw error }
+    return escribir(origen)
+  }
+  return (async () => {
+    // 1) Con bind al alias: es la MISMA ruta que la prueba manual (nc/ESC-POS
+    //    salen con origen 192.168.1.100). Un proceso de launchd sin bind puede
+    //    salir por la ruta primaria y devolver EHOSTUNREACH.
+    // 2) Sin bind: si el bind falla por algún motivo (alias recién agregado).
+    // 3) El llamador decide el respaldo CUPS si esto tira el último error.
+    try {
+      if (localAddress) return await intentar(localAddress)
+    } catch (error) {
+      if (!esRuta(error)) throw error
+    }
+    return intentar('')
   })()
 }
 

@@ -97,9 +97,22 @@ rm -f "$SUDOERS_TMP"
 
 # Cola CUPS de red (fallback cuando macOS bloquea la salida directa del agente):
 # el daemon CUPS del sistema habla con la impresora por socket.
+COMANDO_CUPS="sudo lpadmin -p MobOS_LAN -E -v socket://$IMPRESORA:$PUERTO -m raw"
 if ! lpstat -p 2>/dev/null | grep -q "printer MobOS_LAN"; then
   echo "Creando la cola de red MobOS_LAN (socket://$IMPRESORA:$PUERTO)…"
-  sudo lpadmin -p MobOS_LAN -E -v "socket://$IMPRESORA:$PUERTO" -m raw 2>/dev/null || echo "  Sin permiso para crear la cola CUPS. Corré a mano: sudo lpadmin -p MobOS_LAN -E -v socket://$IMPRESORA:$PUERTO -m raw"
+  echo "  Puede pedirte la contraseña de administrador:"
+  if sudo lpadmin -p MobOS_LAN -E -v "socket://$IMPRESORA:$PUERTO" -m raw; then
+    echo "  Cola CUPS lista: MobOS_LAN → socket://$IMPRESORA:$PUERTO"
+  else
+    echo
+    echo "  ⚠ No se pudo crear la cola CUPS (falta permiso de administrador)."
+    echo "  Copiá y ejecutá este comando exacto en la Terminal del puente:"
+    echo
+    echo "      $COMANDO_CUPS"
+    echo
+    echo "  Después verificá que exista:  lpstat -p | grep MobOS_LAN"
+    echo "  Con la cola creada, la app la usa como respaldo automático ante EHOSTUNREACH."
+  fi
 else
   echo "Cola de red MobOS_LAN ya existe."
 fi
