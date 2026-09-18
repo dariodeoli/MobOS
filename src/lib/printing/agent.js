@@ -220,7 +220,7 @@ export async function imprimirDirecto(base64, { ancho, copias, impresora, usuari
     })
     const datos = await respuesta.json().catch(() => ({}))
     if (!respuesta.ok || datos?.ok === false) throw new Error(datos?.error || `El agente respondió ${respuesta.status}.`)
-    return { ok: true, encolado: Boolean(datos?.encolado), jobId: datos?.jobId || null }
+    return { ok: true, encolado: Boolean(datos?.encolado), incierto: Boolean(datos?.incierto), estado: datos?.estado || '', transporte: datos?.transporte || '', error: datos?.error || '', jobId: datos?.jobId || null }
   } catch (cause) {
     const mensaje = cause?.name === 'AbortError' ? 'El agente de impresión no respondió.' : cause?.message || 'No se pudo imprimir.'
     return { ok: false, error: mensaje }
@@ -235,14 +235,27 @@ export async function imprimirTicketDirecto(ticket, opciones = {}) {
 
 // Camino preferido: si el agente está disponible, imprime directo; si no (o si
 // falla), cae al HTML de siempre con el diálogo del navegador.
-export async function imprimirTicketOFallback(ticket, html) {
+// Envía por el agente si está disponible. NUNCA abre el diálogo por su
+// cuenta: tras un envío fallido o incierto eso podría duplicar el ticket.
+// Devuelve el estado real para que quien llama decida (el diálogo es una
+// acción manual separada con imprimirConDialogo).
+export async function imprimirTicketOFallback(ticket) {
   const estado = await estadoAgente()
-  if (estado.disponible) {
-    const resultado = await imprimirTicketDirecto(ticket)
-    if (resultado.ok) return { ...resultado, directo: true }
+  if (!estado.disponible) {
+    return { ok: false, directo: false, motivo: 'agente-no-disponible', error: 'El agente de impresión no está disponible.' }
   }
-  // Sin HTML de respaldo (por ejemplo, remitos y etiquetas que ya lo arman
-  // aparte) no se abre ningún diálogo en blanco: decide quien llama.
-  if (typeof html === 'string' && html.trim()) printHtml(html)
-  return { ok: true, directo: false }
+  const resultado = await imprimirTicketDirecto(ticket)
+  if (resultado.ok && !resultado.encolado) return { ...resultado, directo: true, ok: true }
+  if (resultado.encolado) {
+    return { ok: false, directo: false, motivo: resultado.incierto ? 'incierto' : 'en-cola', error: resultado.error || '', jobId: resultado.jobId || null }
+  }
+  return { ok: false, directo: false, motivo: 'fallo', error: resultado.error || '', incierto: Boolean(resultado.incierto) }
+}
+
+// Diálogo de impresión del navegador: acción MANUAL y explícita (no permite
+// impresión silenciosa). Devuelve false si no había HTML para mostrar.
+export function imprimirConDialogo(html) {
+  if (typeof html !== 'string' || !html.trim()) return false
+  printHtml(html)
+  return true
 }

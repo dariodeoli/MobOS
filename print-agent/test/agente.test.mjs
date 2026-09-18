@@ -129,7 +129,7 @@ test('el agente imprime por red, encola si la impresora está caída y protege c
   // La cola queda vacía y el trabajo figura impreso.
   assert.ok(await esperar(() => readFileSync(join(dir, 'cola.json'), 'utf8').includes('[]')))
   const estado = await fetch(`${base}/jobs/${respuesta.jobId}`, { headers: cabeceras }).then((r) => r.json())
-  assert.equal(estado.estado, 'impreso')
+  assert.equal(estado.estado, 'aceptado')
 
   // El preflight de red local responde con el header que pide Chrome.
   const preflight = await fetch(`${base}/print`, { method: 'OPTIONS', headers: { Origin: 'https://app.moboss.online', 'Access-Control-Request-Method': 'POST' } })
@@ -160,7 +160,7 @@ test('el agente imprime al toque cuando la impresora está disponible', async (t
 
   // El historial deja trazabilidad: quién imprimió, desde qué equipo y cómo salió.
   const historial = await fetch(`http://127.0.0.1:${puertoAgente}/historial`, { headers: { 'x-mobos-print-token': TOKEN } }).then((r) => r.json())
-  assert.equal(historial.historial[0].resultado, 'impreso')
+  assert.equal(historial.historial[0].resultado, 'aceptado')
   assert.equal(historial.historial[0].cliente, '127.0.0.1')
   assert.equal(historial.historial[0].impresora, `lan:127.0.0.1:${puertoImpresora}`)
   assert.equal(historial.historial[0].usuario, 'Dueño')

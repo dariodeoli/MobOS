@@ -27,14 +27,19 @@ export function enviarLan(destino, bytes, { timeoutMs = 6000, alias = '' } = {})
   const localAddress = origenPara(host, alias)
   const escribir = (origen) => new Promise((resolve, reject) => {
     const socket = connect({ host, port, ...(origen ? { localAddress: origen } : {}) })
+    let conectado = false
     const terminar = (error) => {
       socket.destroy()
-      if (error) reject(error)
-      else resolve(true)
+      if (error) {
+        // Si el socket ya conectó, los bytes pudieron haberse enviado: el
+        // resultado es incierto y reintentar podría duplicar el ticket.
+        if (conectado) error.incierto = true
+        reject(error)
+      } else resolve(true)
     }
     socket.setTimeout(timeoutMs, () => terminar(new Error(`Sin respuesta de ${host}:${puerto}.`)))
     socket.on('error', terminar)
-    socket.on('connect', () => socket.end(Buffer.from(bytes), () => terminar()))
+    socket.on('connect', () => { conectado = true; socket.end(Buffer.from(bytes), () => terminar()) })
   })
   const esRuta = (error) => /EHOSTUNREACH|ENETUNREACH|ECONNREFUSED/i.test(error?.message || '')
   const intentar = async (origen) => {
@@ -122,9 +127,9 @@ export function probarConexionDetalle(destino, { timeoutMs = 1500, alias = '' } 
   const localAddress = origenPara(host, alias)
   return new Promise((resolve) => {
     const socket = connect({ host, port: Number(puerto) || 9100, ...(localAddress ? { localAddress } : {}) })
-    const fin = (ok, error = '') => { socket.destroy(); resolve({ ok, error, errno: error?.code || '', origen: localAddress || '' }) }
-    socket.setTimeout(timeoutMs, () => fin(false, `Sin respuesta de ${host}:${puerto} en ${timeoutMs} ms.`))
-    socket.on('error', (error) => fin(false, `${error?.code || 'ERROR'} ${host}:${puerto}`))
+    const fin = (ok, mensaje = '', errno = '') => { socket.destroy(); resolve({ ok, error: mensaje, errno, origen: localAddress || '' }) }
+    socket.setTimeout(timeoutMs, () => fin(false, `Sin respuesta de ${host}:${puerto} en ${timeoutMs} ms.`, 'ETIMEDOUT'))
+    socket.on('error', (error) => fin(false, `${error?.code || 'ERROR'} ${host}:${puerto}`, error?.code || ''))
     socket.on('connect', () => fin(true))
   })
 }
@@ -152,7 +157,10 @@ export async function diagnosticoRed(destino, { alias = '192.168.1.100', cups = 
   const esUsb = valor.startsWith('usb:')
   const host = esUsb ? '' : valor.replace(/^lan:/, '').split(':')[0]
   const puerto = esUsb ? '' : (valor.replace(/^lan:/, '').split(':')[1] || '9100')
-  const info = { destino: valor, host, puerto, metodo: esUsb ? 'USB' : 'LAN', interfaces: [], ruta: '', alcance: false, alias: await aliasSecundario(alias), cups: await colaLanDeCups(cups) }
+  const info = { destino: valor, host, puerto, metodo: esUsb ? 'CUPS' : 'LAN', interfaces: [], ruta: '', alcance: false, alias: await aliasSecundario(alias), cups: await colaLanDeCups(cups) }
+  // Una cola CUPS puede ser sobre LAN (socket://) o USB físico (usb://): la
+  // URI real evita llamarla "USB" cuando en realidad sale por red.
+  if (esUsb) info.cupsUri = await colaUri(valor.replace(/^usb:/, '').split(':')[0] || cups)
   try {
     const { stdout } = await ejecutar('ifconfig', [], { timeout: 5000 })
     info.interfaces = stdout.split('\n')
@@ -177,24 +185,16 @@ export async function diagnosticoRed(destino, { alias = '192.168.1.100', cups = 
   return info
 }
 
-// Crea la cola CUPS de red (respaldo cuando macOS bloquea la salida directa
-// del agente). `sudo -n` no pide contraseña; si no hay permiso se devuelve el
-// comando exacto para correrlo a mano.
-export async function crearColaLan(nombre = 'MobOS_LAN', host = '', puerto = 9100) {
-  const existente = await colaLanDeCups(nombre)
-  if (existente) return { ok: true, existente: true, cola: nombre }
-  if (!host) return { ok: false, error: 'Falta la IP de la impresora.', comando: '' }
-  const uri = `socket://${host}:${Number(puerto) || 9100}`
-  const comando = `sudo lpadmin -p ${nombre} -E -v ${uri} -m raw`
+// URI real de una cola CUPS (`lpstat -v`). Crear colas "raw" con lpadmin ya
+// no es posible en macOS moderno; lo que existe se lee y se muestra tal cual
+// (p. ej. `socket://192.168.1.23:9100`), sin llamarla USB si no lo es.
+export async function colaUri(nombre = 'MobOS_LAN') {
   try {
-    await ejecutar('lpadmin', ['-p', nombre, '-E', '-v', uri, '-m', 'raw'], { timeout: 10000 })
-    return { ok: true, existente: false, cola: nombre, comando }
+    const { stdout } = await ejecutar('lpstat', ['-v', nombre], { timeout: 5000 })
+    const uri = (stdout.match(/device for [^:]+:\s*(\S+)/) || [])[1] || ''
+    return uri
   } catch {
-    try {
-      await ejecutar('sudo', ['-n', 'lpadmin', '-p', nombre, '-E', '-v', uri, '-m', 'raw'], { timeout: 10000 })
-      return { ok: true, existente: false, cola: nombre, comando }
-    } catch {
-      return { ok: false, error: 'Sin permiso para crear la cola CUPS.', comando }
-    }
+    return ''
   }
 }
+
