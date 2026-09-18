@@ -4,6 +4,7 @@ import { api } from '@/lib/api/client'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { getLogoDataUrl, olvidarLogo } from '@/lib/tenantLogo'
 import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
+import { promptLogo } from '@/lib/logoPrompt'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, PasswordInput, PinInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -11,7 +12,6 @@ import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
-import WhatsAppTemplates from './WhatsAppTemplates'
 import { ROLE_LABELS } from '@/lib/roles'
 
 function fmtDate(value) {
@@ -43,6 +43,7 @@ async function copiarValor(toast, valor, etiqueta) {
 
 export default function Config({ seccion = 'negocio' } = {}) {
   const { sesion, empresa, sucursal, perfilEmpresa } = useSesion()
+  const toast = useToast()
   const esDueno = sesion?.esPropietario
   const [account, setAccount] = useState(null)
   const [logo, setLogo] = useState('')
@@ -81,6 +82,13 @@ export default function Config({ seccion = 'negocio' } = {}) {
       setLogo(await getLogoDataUrl())
       setAccount(await api.get('/api/account'))
     } catch (cause) { setLogoError(cause?.message || 'No se pudo guardar el logo.') } finally { setLogoBusy(false) }
+  }
+
+  async function copiarPrompt() {
+    try {
+      await navigator.clipboard.writeText(promptLogo(account?.tenant?.name || 'mi empresa'))
+      toast.success('Prompt copiado', 'Pegalo en tu ChatGPT para generar las dos versiones del logo.')
+    } catch { toast.error('No se pudo copiar el prompt') }
   }
 
   async function quitarLogo() {
@@ -155,7 +163,8 @@ export default function Config({ seccion = 'negocio' } = {}) {
         {esDueno && <Card className="space-y-3">
           <div>
             <h2 className="font-semibold">Logo de la empresa</h2>
-            <p className="mt-1 text-sm text-mute">Se muestra en el encabezado de los comprobantes. PNG, JPG o WebP de hasta 1 MiB.</p>
+            <p className="mt-1 text-sm text-mute">Se muestra en el encabezado de los comprobantes. Recomendado: PNG con <b className="text-fore">fondo transparente</b>, 1024×1024 px (1600×600 si es horizontal) y hasta 1 MiB. Para modo claro y oscuro conviene el <b className="text-fore">logo oscuro</b> en fondo claro y el <b className="text-fore">logo claro</b> en fondo oscuro.</p>
+            <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={copiarPrompt}><Icon name="copy" className="h-3.5 w-3.5" />Copiar prompt para generar el logo</Button>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="grid h-20 w-40 place-items-center overflow-hidden rounded-xl border border-ink-600 bg-paper">
@@ -173,7 +182,6 @@ export default function Config({ seccion = 'negocio' } = {}) {
         <SeccionTiendas account={account} />
         <SeccionInvitaciones />
         <IdentidadCuenta reauthValidUntil={account?.reauthValidUntil} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} />
-        {esDueno && <WhatsAppTemplates />}
       </>}
       {seccion === 'sucursales' && <>
         {esDueno && <SeccionSucursales />}
@@ -417,16 +425,16 @@ function SeccionTiendas({ account }) {
     } catch (cause) { setError(cause?.message || 'No se pudo abandonar la tienda.') } finally { setBusy(false) }
   }
 
-  async function eliminar({ password }) {
+  async function archivar({ password }) {
     if (busy) return
     setBusy(true); setError('')
     try {
-      await api.post('/api/account', { password })
-      await api.patch('/api/account', { action: 'purgeStore', confirm: 'ELIMINAR' })
+      // Archivar por defecto: conserva el historial y solo soporte restaura.
+      await api.patch('/api/account', { action: 'archiveStore', confirm: 'ARCHIVAR', password })
       setDialogo(null)
       await salir()
       window.location.assign('/login')
-    } catch (cause) { setError(cause?.message || 'No se pudo eliminar la tienda.') } finally { setBusy(false) }
+    } catch (cause) { setError(cause?.message || 'No se pudo archivar la tienda.') } finally { setBusy(false) }
   }
 
   return (
@@ -457,7 +465,7 @@ function SeccionTiendas({ account }) {
       )}
       <div className="flex flex-wrap gap-2">
         {hayOtra && <Button type="button" variant="outline" onClick={() => { setError(''); setDialogo('abandonar') }} disabled={busy}>Abandonar tienda</Button>}
-        <Button type="button" variant="outline" onClick={() => { setError(''); setDialogo('eliminar') }} disabled={busy} className="border-bad/50 text-bad hover:bg-bad/10">Eliminar tienda</Button>
+        <Button type="button" variant="outline" onClick={() => { setError(''); setDialogo('archivar') }} disabled={busy} className="border-bad/50 text-bad hover:bg-bad/10">Archivar tienda</Button>
       </div>
       <DialogoDestructivo
         open={dialogo === 'abandonar'}
@@ -471,16 +479,16 @@ function SeccionTiendas({ account }) {
         onConfirm={abandonar}
       />
       <DialogoDestructivo
-        open={dialogo === 'eliminar'}
-        title="¿Eliminar esta tienda?"
-        description="Se eliminará la tienda junto con toda su información: productos, ventas, clientes, pagos e integrantes. Esta acción es permanente e irreversible, y no se puede recuperar de ninguna forma. Para confirmar, escribí tu contraseña de empresa y la palabra ELIMINAR."
-        palabra="ELIMINAR"
+        open={dialogo === 'archivar'}
+        title="¿Archivar esta tienda?"
+        description="La tienda queda archivada y no se puede entrar hasta restaurarla; se conserva toda su información (productos, ventas, clientes, pagos e integrantes). Para confirmar, escribí tu contraseña de empresa y la palabra ARCHIVAR."
+        palabra="ARCHIVAR"
         necesitaClave
-        confirmLabel="Eliminar tienda"
+        confirmLabel="Archivar tienda"
         busy={busy}
         error={error}
         onCancel={() => !busy && setDialogo(null)}
-        onConfirm={eliminar}
+        onConfirm={archivar}
       />
     </Card>
   )

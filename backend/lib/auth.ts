@@ -15,6 +15,14 @@ export class AuthRateLimitError extends Error {
   }
 }
 
+// Una tienda archivada no admite sesiones nuevas: se conserva la historia y
+// solo soporte puede restaurarla.
+export class ArchivedTenantError extends Error {
+  constructor() {
+    super('Esta tienda está archivada. Escribinos para restaurarla.')
+  }
+}
+
 export type AuthUser = {
   id: string
   tenantId: string
@@ -198,6 +206,8 @@ function newToken() {
 }
 
 async function createSession(tx: any, tenantId: string, userId: string | null, level: 'COMPANY' | 'SELLER', deviceId: string, branchId: string | null = null) {
+  const tienda = await tx.tenant.findUnique({ where: { id: tenantId }, select: { archivedAt: true } })
+  if (tienda?.archivedAt) throw new ArchivedTenantError()
   const accessToken = newToken()
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000)
   const session = await tx.session.create({ data: { tenantId, userId, level, deviceId, branchId, tokenHash: hashToken(accessToken), expiresAt } })

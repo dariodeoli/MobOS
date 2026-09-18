@@ -62,6 +62,7 @@ const protectedSections = {
   '/inventario/eliminados': 'Eliminados',
   '/pos/servicio': 'Servicio posventa',
   '/pos/tradein-admin': 'Gestión de trade-in',
+  '/pos/plantillas': 'Plantillas de WhatsApp',
 }
 
 function normalizePathname(pathname = '/') {

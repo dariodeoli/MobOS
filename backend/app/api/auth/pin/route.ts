@@ -1,4 +1,4 @@
-import { authenticateSeller, AuthRateLimitError, enforceAuthRateLimit } from '../../../../lib/auth'
+import { ArchivedTenantError, authenticateSeller, AuthRateLimitError, enforceAuthRateLimit } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { AuthFlowError } from '../../../../lib/google-oauth'
 import { COOKIE_SELLER, sessionCookieOptions } from '../../../../lib/google-oauth'
@@ -16,6 +16,7 @@ export async function POST(request: Request) {
     response.cookies.set(COOKIE_SELLER, result.accessToken, sessionCookieOptions(7 * 24 * 60 * 60))
     return response
   } catch (err) {
+    if (err instanceof ArchivedTenantError) return json({ code: 'TENANT_ARCHIVED', message: err.message }, { status: 403, headers: { 'Cache-Control': 'no-store' } })
     if (err instanceof AuthRateLimitError) return json({ message: err.message }, { status: 429, headers: { 'Retry-After': String(err.retryAfterSeconds), 'Cache-Control': 'no-store' } })
     return error(err instanceof AuthFlowError ? err.message : 'No se pudo validar el acceso. Intentá nuevamente.', err instanceof AuthFlowError ? err.status : 503)
   }

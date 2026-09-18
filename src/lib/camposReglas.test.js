@@ -32,3 +32,16 @@ test('el correo y el teléfono no se escriben como input crudo fuera de sus obje
 
   assert.deepEqual(culpables, [])
 })
+
+test('los catálogos se eligen con el Select compartido', () => {
+  const permitidos = new Set([
+    'components/ui/index.jsx',
+    'components/shared/SelectorSucursal.jsx',
+    'components/shared/SelectorMedioPago.jsx',
+  ])
+  const culpables = archivosFuente()
+    .filter((archivo) => !permitidos.has(archivo.ruta) && /<select/.test(archivo.contenido))
+    .map((archivo) => archivo.ruta)
+
+  assert.deepEqual(culpables, [])
+})

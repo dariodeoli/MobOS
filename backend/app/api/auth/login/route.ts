@@ -1,4 +1,4 @@
-import { authenticateCompany, AuthRateLimitError, enforceAuthRateLimit } from '../../../../lib/auth'
+import { ArchivedTenantError, authenticateCompany, AuthRateLimitError, enforceAuthRateLimit } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { COOKIE_COMPANY, sessionCookieOptions } from '../../../../lib/google-oauth'
 
@@ -15,6 +15,7 @@ export async function POST(request: Request) {
     return response
   } catch (cause) {
     if (cause instanceof AuthRateLimitError) return json({ message: cause.message }, { status: 429, headers: { 'Retry-After': String(cause.retryAfterSeconds), 'Cache-Control': 'no-store' } })
+    if (cause instanceof ArchivedTenantError) return json({ code: 'TENANT_ARCHIVED', message: cause.message }, { status: 403, headers: { 'Cache-Control': 'no-store' } })
     return error('No se pudo iniciar sesión. Intentá nuevamente.', 503)
   }
 }

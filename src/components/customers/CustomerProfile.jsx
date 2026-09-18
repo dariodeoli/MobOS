@@ -3,12 +3,13 @@ import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { codigoPedido } from '@/utils/pedido'
-import { inicialesDe } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { primerNombre } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { whatsappUrl } from './customerMessaging'
 import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
+import ActorAvatar from './ActorAvatar'
 import {
   Badge,
   Button,
@@ -883,15 +884,16 @@ export default function CustomerProfile({ customer, open, onClose }) {
                   </div>
                   <div className="space-y-1">
                   {notes.map((item) => (
-                    <div key={item.id} data-testid="perfil-nota-fila" className={cn(GRID_NOTAS_CLI, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
-                      <span className="truncate text-[13px]" title={item.content}>{item.content}</span>
-                      <span className="truncate text-xs text-mute" title={item.user?.name || 'Equipo'}>{inicialesDe(item.user?.name || 'Equipo')}</span>
-                      <span className="truncate text-xs text-mute">{fechaHora(item.createdAt)}</span>
-                      <span className="flex items-center justify-end gap-2">
-                        <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => { setEditingNote(item); setNewNote(item.content) }}>Editar</button>
-                        <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'note', id: item.id })}>Eliminar</button>
-                      </span>
-                    </div>
+                    <li key={item.id} className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
+                      <p className="whitespace-pre-wrap break-words">{item.content}</p>
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs text-mute" title={item.user?.name || 'Equipo'}><ActorAvatar user={item.user} hasAvatar={item.user?.hasAvatar === true} size="sm" /> <span>{primerNombre(item.user?.name) || 'Equipo'}</span> · {fechaHora(item.createdAt)}</p>
+                        <div className="flex gap-2">
+                          <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => { setEditingNote(item); setNewNote(item.content) }}>Editar</button>
+                          <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'note', id: item.id })}>Eliminar</button>
+                        </div>
+                      </div>
+                    </li>
                   ))}
                   </div>
                 </div>
@@ -971,17 +973,21 @@ export default function CustomerProfile({ customer, open, onClose }) {
                   {followUps.map((item) => {
                     const kind = FOLLOW_UP_KINDS[item.kind] || FOLLOW_UP_KINDS.OTHER
                     return (
-                      <div key={item.id} data-testid="perfil-seguimiento-fila" className={cn(GRID_SEGUIMIENTOS, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
-                        <span className="min-w-0"><Badge color={kind.color} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{kind.label}</Badge></span>
-                        <span className="truncate text-[13px]" title={item.note}>{item.note}</span>
-                        <span className={cn('truncate text-xs', item.dueAt && !item.doneAt ? 'font-semibold text-warn' : 'text-mute')}>{item.dueAt ? fechaHora(item.dueAt) : '—'}</span>
-                        <span className="truncate text-xs text-mute">{item.doneAt ? fechaHora(item.doneAt) : '—'}</span>
-                        <span className="truncate text-xs text-mute" title={item.user?.name || 'Equipo'}>{inicialesDe(item.user?.name || 'Equipo')}</span>
-                        <span className="flex items-center justify-end gap-2">
+                      <li key={item.id} className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge color={kind.color}>{kind.label}</Badge>
+                          {item.dueAt && !item.doneAt && <Badge color="orange">Para {fechaHora(item.dueAt)}</Badge>}
+                          {item.doneAt && <Badge color="green">Hecho {fechaHora(item.doneAt)}</Badge>}
+                        </div>
+                        <p className="mt-2 whitespace-pre-wrap break-words">{item.note}</p>
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs text-mute" title={item.user?.name || 'Equipo'}><ActorAvatar user={item.user} hasAvatar={item.user?.hasAvatar === true} size="sm" /> <span>{primerNombre(item.user?.name) || 'Equipo'}</span> · {fechaHora(item.createdAt)}</p>
+                          <div className="flex gap-2">
                             {!item.doneAt && <button type="button" disabled={followDoneId === item.id} className="text-xs font-semibold text-ok disabled:opacity-40" onClick={() => markDone(item)}>{followDoneId === item.id ? 'Guardando…' : 'Marcar hecho'}</button>}
-                          <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'followUp', id: item.id })}>Eliminar</button>
-                        </span>
-                      </div>
+                            <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'followUp', id: item.id })}>Eliminar</button>
+                          </div>
+                        </div>
+                      </li>
                     )
                   })}
                   </div>
@@ -1170,7 +1176,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                             <p className="text-[11px] text-mute">{fechaHora(event.createdAt)}</p>
                           </div>
                           {event.detail && <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-mute">{conCodigos(event.detail)}</p>}
-                          <p className="mt-1 text-[11px] text-mute" title={event.user?.name || 'Sistema'}>{inicialesDe(event.user?.name || 'Sistema')}</p>
+                          <p className="mt-1 text-[11px] text-mute" title={event.user?.name || 'Sistema'}><ActorAvatar user={event.user} hasAvatar={event.user?.hasAvatar === true} size="sm" /> <span>{primerNombre(event.user?.name) || 'Sistema'}</span></p>
                         </div>
                       </li>
                     )

@@ -11,7 +11,7 @@ import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
 import GlobalSearch from '@/components/app/GlobalSearch'
-import { Button, ConfirmDialog, Eyebrow, Input, Modal, PinInput, Skeleton, useToast } from '@/components/ui'
+import { Button, ConfirmDialog, Eyebrow, Input, Modal, PinInput, Select, Skeleton, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
@@ -46,6 +46,7 @@ const ServicioTecnico = lazy(() => import('@/components/control/ServicioTecnico'
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
 const Impresoras = lazy(() => import('@/components/control/Impresoras'))
 const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
+const WhatsAppTemplates = lazy(() => import('@/components/control/WhatsAppTemplates'))
 
 // Navegación por flujo de trabajo: primero la operación del día, después el
 // catálogo/stock y al final las herramientas de gestión. Los permisos definen
@@ -79,17 +80,17 @@ const OWNER_NAV = [
       ['clientes', 'Clientes', 'users'],
       ['promociones', 'Promociones', 'store'],
       ['cotizaciones', 'Cotizaciones', 'report'],
+      ['plantillas', 'Plantillas', 'send'],
     ],
   },
   {
     titulo: 'Stock y servicio',
     items: [
       ['inventario', 'Inventario', 'box'],
-      ['productos', 'Productos', 'phone'],
       ['compras', 'Compras', 'store'],
       ['tradein-admin', 'Trade-In', 'refresh'],
-      ['servicio', 'Servicio Técnico', 'refresh'],
-      ['garantias', 'Garantías', 'wrench'],
+      ['servicio', 'Servicio Técnico', 'wrench'],
+      ['garantias', 'Garantías', 'clock'],
       ['autorizaciones', 'Autorizaciones', 'check'],
     ],
   },
@@ -99,7 +100,7 @@ const OWNER_NAV = [
       ['resumen', 'Resumen', 'chart'],
       ['analisis', 'Análisis', 'report'],
       ['finanzas', 'Finanzas', 'receipt'],
-      ['equipo', 'Configuración', 'users'],
+      ['equipo', 'Configuración', 'settings'],
     ],
   },
 ]
@@ -109,7 +110,7 @@ const TECNICO_NAV = [
   {
     titulo: 'Taller',
     items: [
-      ['servicio', 'Servicio Técnico', 'refresh'],
+      ['servicio', 'Servicio Técnico', 'wrench'],
     ],
   },
 ]
@@ -202,6 +203,7 @@ const LABELS = {
   productos: 'Productos',
   promociones: 'Promociones',
   cotizaciones: 'Cotizaciones',
+  plantillas: 'Plantillas de WhatsApp',
   cotizador: 'Trade-In',
   cargar: 'Cargar venta',
   resumen: 'Resumen general',
@@ -575,7 +577,7 @@ export default function PanelVendedor() {
         nav={esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV}
         bottomNav={esOwner ? OWNER_BOTTOM : esTecnico ? [] : SELLER_BOTTOM}
         onOpenMenuLabel="Menú"
-        active={subpadre ? SUBPAGINAS[subpadre].vista : vista}
+        active={subpadre ? SUBPAGINAS[subpadre].vista : vista === 'productos' ? 'compras' : vista}
         onNavigate={ir}
         collapsed={sidebarCollapsed}
         onToggleCollapsed={toggleSidebar}
@@ -682,7 +684,9 @@ export default function PanelVendedor() {
             </div>
           </div>
 
-          {esOwner && subpadre === 'inventario' && <Inventario tab={vista} />}
+          {esOwner && subpadre === 'inventario' && <Inventario tab={vista} onTabChange={irASubtab} />}
+          {(esOwner && (vista === 'compras' || vista === 'productos')) && <div className="mb-3 flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{[['compras', 'Compras'], ['productos', 'Productos']].map(([id, label]) => <button key={id} type="button" aria-pressed={vista === id} onClick={() => ir(id)} className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', vista === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>}
+          {vista === 'plantillas' && <WhatsAppTemplates />}
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
           {(esOwner || esTecnico) && vista === 'servicio' && <ServicioTecnico />}
@@ -743,19 +747,19 @@ export default function PanelVendedor() {
         <label htmlFor="seller-switch" className="mt-6 block text-sm font-semibold">
           Vendedor
         </label>
-        <select
+        <Select
           id="seller-switch"
           value={sellerId}
           onChange={event => setSellerId(event.target.value)}
           disabled={cambiando}
-          className="mt-2 w-full rounded-xl border border-fore/10 bg-paper px-3 py-3 text-fore outline-none focus:border-fono-dark"
+          className="mt-2 w-full"
         >
           {opcionesVendedor.map(seller => (
             <option key={seller.id} value={seller.id}>
               {seller.name || seller.nombre || seller.email}
             </option>
           ))}
-        </select>
+        </Select>
         {esDemo ? (
           <>
             <p className="mt-4 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-3 text-xs text-mute">

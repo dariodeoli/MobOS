@@ -52,6 +52,8 @@ export async function googleCompany(identity: GoogleIdentity, body: any): Promis
       if (error?.code === 'P2002') throw new AuthFlowError('existing_account', 'La cuenta ya fue creada o el correo está en uso. Volvé a iniciar sesión.', 409)
       throw error
     }
+    const archivadaAlta = await prisma.tenant.findUnique({ where: { id: tenant.id }, select: { archivedAt: true } })
+    if (archivadaAlta?.archivedAt) throw new AuthFlowError('tenant_archived', 'Esta tienda está archivada. Escribinos para restaurarla.', 403)
     const stores = await googleStores(identity.sub)
     const token = randomBytes(32).toString('hex')
     const expiresAt = new Date(Date.now() + 7 * 86400_000)
@@ -87,6 +89,8 @@ export async function googleCompany(identity: GoogleIdentity, body: any): Promis
       data: { name: identity.name.slice(0, 100) },
     })
   }
+  const archivadaAcceso = await prisma.tenant.findUnique({ where: { id: tenant.id }, select: { archivedAt: true } })
+  if (archivadaAcceso?.archivedAt) throw new AuthFlowError('tenant_archived', 'Esta tienda está archivada. Escribinos para restaurarla.', 403)
   const token = randomBytes(32).toString('hex')
   const expiresAt = new Date(Date.now() + 7 * 86400_000)
   await prisma.session.create({ data: { tenantId: tenant.id, level: 'COMPANY', tokenHash: hashToken(token), deviceId: `google:${randomBytes(16).toString('hex')}`, expiresAt } })

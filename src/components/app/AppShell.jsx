@@ -29,7 +29,7 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
   return (
     <nav
       className={cn(
-        'flex flex-col gap-4',
+        'flex flex-col gap-2.5',
         scrollable && 'flex-1 overflow-y-auto p-3',
         collapsed && scrollable && 'lg:p-2',
       )}
@@ -38,7 +38,7 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
         const cerrado = Boolean(closedGroups[g.titulo])
         const tieneActivo = g.items.some(([id]) => id === active)
         return (
-          <div key={g.titulo} className={cn('flex flex-col', groupIndex > 0 && !collapsed && 'border-t border-fore/[.07] pt-3')}>
+          <div key={g.titulo} className={cn('flex flex-col', groupIndex > 0 && !collapsed && 'border-t border-fore/[.07] pt-2')}>
             {!collapsed && (
               <button
                 type="button"
@@ -69,7 +69,7 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
                         aria-label={label}
                         title={label}
                         className={cn(
-                        'group relative flex w-full items-center gap-2.5 overflow-visible rounded-[10px] border px-2.5 py-[7px] text-left text-[13px] leading-snug transition',
+                        'group relative flex w-full items-center gap-2.5 overflow-visible rounded-[10px] border px-2.5 py-[5px] text-left text-[12.5px] leading-snug transition',
                         collapsed && 'lg:justify-center lg:px-0',
                         activo
                           ? 'border-fono/30 bg-gradient-to-r from-fono/[.16] to-fono/[.05] font-semibold text-fore'
