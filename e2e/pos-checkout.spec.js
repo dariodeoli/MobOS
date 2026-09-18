@@ -14,16 +14,26 @@ const customerName = `${SEED.checkoutCustomer} ${Date.now().toString(36)}`
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
 async function orderItems(page, name) {
-  return page.evaluate(async ({ api, customer }) => {
-    const response = await fetch(`${api}/api/orders`, { credentials: 'include' })
-    if (!response.ok) return { status: response.status }
-    const rows = await response.json()
-    const order = rows.find(row => row.customer?.name === customer)
-    return order ? order.items.map(item => ({ listPricePyg: item.listPricePyg, unitPricePyg: item.unitPricePyg })) : null
-  }, { api: API, customer: name })
+  return page.evaluate(
+    async ({ api, customer }) => {
+      const response = await fetch(`${api}/api/orders`, { credentials: 'include' })
+      if (!response.ok) return { status: response.status }
+      const rows = await response.json()
+      const order = rows.find(row => row.customer?.name === customer)
+      return order
+        ? order.items.map(item => ({
+            listPricePyg: item.listPricePyg,
+            unitPricePyg: item.unitPricePyg,
+          }))
+        : null
+    },
+    { api: API, customer: name },
+  )
 }
 
-test('POS checkout with split payment registers the sale and lists it in pedidos', async ({ page }) => {
+test('POS checkout with split payment registers the sale and lists it in pedidos', async ({
+  page,
+}) => {
   await page.goto('/pos/cargar')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
@@ -38,7 +48,9 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(page.getByText('Seleccionados')).toBeVisible()
 
   // El botón del formulario (el lateral del resumen es otro acceso al mismo paso).
-  await expect(page.getByRole('button', { name: 'Revisar carrito', exact: true }).first()).toBeEnabled()
+  await expect(
+    page.getByRole('button', { name: 'Revisar carrito', exact: true }).first(),
+  ).toBeEnabled()
   await page.getByRole('button', { name: 'Revisar carrito', exact: true }).first().click()
 
   // Step 2: cart review.
@@ -49,7 +61,9 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   // TRANSFER), so the account-based rows are used.
   const addPayment = page.getByRole('button', { name: '+ Agregar pago' })
   await expect(addPayment).toBeEnabled()
-  const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+  const paymentsSection = page
+    .locator('div.space-y-3')
+    .filter({ has: page.getByText('Pagos de esta venta') })
   const accountSelects = paymentsSection.getByLabel('Cuenta de cobro')
   const amountInputs = paymentsSection.getByLabel('Monto original')
 
@@ -76,7 +90,9 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await page.getByRole('button', { name: /^Guardar venta/ }).click()
 
   // Success banner with print actions.
-  const banner = page.getByRole('status').filter({ hasText: 'Venta registrada correctamente. Ya podés cargar la siguiente.' })
+  const banner = page
+    .getByRole('status')
+    .filter({ hasText: 'Venta registrada correctamente. Ya podés cargar la siguiente.' })
   await expect(banner).toBeVisible()
   // Vista previa del comprobante con nivel y formato elegibles.
   await banner.getByRole('button', { name: 'Imprimir comprobante' }).click()
@@ -86,13 +102,16 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
 
   // El código comercial es corto y secuencial (MOB-#0001); el id interno sigue
   // siendo un UUID y es lo que resuelve la navegación.
-  const creada = await page.evaluate(async ({ api, customer }) => {
-    const response = await fetch(`${api}/api/orders`, { credentials: 'include' })
-    if (!response.ok) return null
-    const rows = await response.json()
-    const order = rows.find(row => row.customer?.name === customer)
-    return order ? { orderNumber: order.orderNumber, id: order.id } : null
-  }, { api: API, customer: customerName })
+  const creada = await page.evaluate(
+    async ({ api, customer }) => {
+      const response = await fetch(`${api}/api/orders`, { credentials: 'include' })
+      if (!response.ok) return null
+      const rows = await response.json()
+      const order = rows.find(row => row.customer?.name === customer)
+      return order ? { orderNumber: order.orderNumber, id: order.id } : null
+    },
+    { api: API, customer: customerName },
+  )
   expect(creada?.orderNumber).toMatch(/^MOB-#\d{4,}$/)
   // El id interno no es el código comercial: la navegación no depende de él.
   expect(creada?.id).toBeTruthy()
@@ -102,7 +121,10 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   // nombre + primer apellido, así que el nombre completo no se ve en la tabla.
   await page.goto('/pos/pedidos')
   await expect(page.getByRole('heading', { name: 'Mis pedidos' })).toBeVisible()
-  const sale = page.getByTestId('pedido-fila').filter({ hasText: codigoPedido(creada.orderNumber) }).first()
+  const sale = page
+    .getByTestId('pedido-fila')
+    .filter({ hasText: codigoPedido(creada.orderNumber) })
+    .first()
   await expect(sale).toBeVisible()
   await expect(sale).toContainText('×1')
   await expect(sale).toContainText('Cliente E2E')
@@ -121,7 +143,7 @@ test('pedidos: buscador global, orden por columna y filtros', async ({ page }) =
   await expect(filas.first()).toBeVisible()
 
   // Pedido más reciente del vendedor, según la propia API.
-  const ordenes = await page.evaluate(async (api) => {
+  const ordenes = await page.evaluate(async api => {
     const response = await fetch(`${api}/api/orders`, { credentials: 'include' })
     return response.ok ? await response.json() : []
   }, API)
@@ -158,7 +180,7 @@ test('pedidos: clic en la fila abre el pedido por su id interno', async ({ page 
   const filas = page.getByTestId('pedido-fila')
   await expect(filas.first()).toBeVisible()
 
-  const ordenes = await page.evaluate(async (api) => {
+  const ordenes = await page.evaluate(async api => {
     const response = await fetch(`${api}/api/orders`, { credentials: 'include' })
     return response.ok ? await response.json() : []
   }, API)
@@ -166,9 +188,12 @@ test('pedidos: clic en la fila abre el pedido por su id interno', async ({ page 
   expect(primera?.id).toBeTruthy()
 
   const errores = []
-  page.on('pageerror', (error) => errores.push(error.message))
+  page.on('pageerror', error => errores.push(error.message))
 
-  await filas.filter({ hasText: codigoPedido(primera.orderNumber) }).first().click()
+  await filas
+    .filter({ hasText: codigoPedido(primera.orderNumber) })
+    .first()
+    .click()
   await expect(page).toHaveURL(new RegExp(`/pos/pedidos/${primera.id}$`))
 
   const detalle = page.getByRole('dialog')
@@ -185,12 +210,13 @@ test('pedidos: clic en la fila abre el pedido por su id interno', async ({ page 
   expect(errores, 'la vista del pedido no debe romper con errores de runtime').toEqual([])
 })
 
-
 // El país de la dirección se puede vaciar (no vuelve solo) y el resumen
 // lateral muestra el total de la venta y abre el carrito.
 test('POS clears the address country and the summary opens the cart', async ({ page }) => {
   await page.goto('/pos/cargar')
-  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`${SEED.checkoutCustomer} pais ${Date.now().toString(36)}`)
+  await page
+    .getByLabel('Nombre, teléfono, CI o RUC del cliente')
+    .fill(`${SEED.checkoutCustomer} pais ${Date.now().toString(36)}`)
 
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
   await page.getByRole('button', { name: '+ Dirección' }).click()
@@ -211,7 +237,9 @@ test('POS clears the address country and the summary opens the cart', async ({ p
 // se recalcula con los tres productos juntos.
 test('POS keeps every clicked product in the sale list', async ({ page }) => {
   await page.goto('/pos/cargar')
-  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`${SEED.checkoutCustomer} tres ${Date.now().toString(36)}`)
+  await page
+    .getByLabel('Nombre, teléfono, CI o RUC del cliente')
+    .fill(`${SEED.checkoutCustomer} tres ${Date.now().toString(36)}`)
 
   const search = page.getByPlaceholder('Buscar producto…')
   const elegidos = [SEED.products.cable, SEED.products.funda, SEED.products.auris]
@@ -227,18 +255,25 @@ test('POS keeps every clicked product in the sale list', async ({ page }) => {
 
 // Cliente: búsqueda por razón social de facturación, selección con marca
 // visible, precarga de la factura y "Quitar cliente" sin recargar la página.
-test('POS finds a customer by billing name, shows the selection and clears it', async ({ page }) => {
+test('POS finds a customer by billing name, shows the selection and clears it', async ({
+  page,
+}) => {
   const stamp = Date.now().toString(36)
   const name = `${SEED.checkoutCustomer} factura ${stamp}`
   const razon = `Empresa E2E ${stamp}`
   await page.goto('/pos/cargar')
-  const creado = await page.evaluate(async ({ api, name, razon }) => {
-    const response = await fetch(`${api}/api/customers`, {
-      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, billingName: razon, billingDocument: '80012345-6' }),
-    })
-    return response.ok ? await response.json() : { status: response.status }
-  }, { api: API, name, razon })
+  const creado = await page.evaluate(
+    async ({ api, name, razon }) => {
+      const response = await fetch(`${api}/api/customers`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, billingName: razon, billingDocument: '80012345-6' }),
+      })
+      return response.ok ? await response.json() : { status: response.status }
+    },
+    { api: API, name, razon },
+  )
   expect(creado?.id).toBeTruthy()
 
   const buscador = page.getByLabel('Nombre, teléfono, CI o RUC del cliente')
@@ -268,7 +303,9 @@ test('POS manual price below list stores the list price for the receipt', async 
   const name = `${SEED.checkoutCustomer} manual ${Date.now().toString(36)}`
   // Contexto propio con la sesión del dueño: no se cierra la sesión sembrada
   // del vendedor (la comparten los demás tests del proyecto).
-  const context = await browser.newContext({ storageState: new URL('./.auth/admin.json', import.meta.url).pathname })
+  const context = await browser.newContext({
+    storageState: new URL('./.auth/admin.json', import.meta.url).pathname,
+  })
   const page = await context.newPage()
   try {
     await page.goto('/pos/cargar')
@@ -284,16 +321,24 @@ test('POS manual price below list stores the list price for the receipt', async 
     await page.getByRole('button', { name: 'Revisar carrito', exact: true }).first().click()
     await page.getByRole('button', { name: 'Ir a cobrar' }).click()
 
-    const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+    const paymentsSection = page
+      .locator('div.space-y-3')
+      .filter({ has: page.getByText('Pagos de esta venta') })
     await page.getByRole('button', { name: '+ Agregar pago' }).click()
-    await paymentsSection.getByLabel('Cuenta de cobro').selectOption({ label: 'Caja E2E · PYG · CASH' })
+    await paymentsSection
+      .getByLabel('Cuenta de cobro')
+      .selectOption({ label: 'Caja E2E · PYG · CASH' })
     await paymentsSection.getByLabel('Monto original').fill('40000')
     await expect(paymentsSection.getByText('Equivalente: Gs 40.000')).toBeVisible()
 
     await page.getByRole('button', { name: /^Guardar venta/ }).click()
-    await expect(page.getByRole('status').filter({ hasText: 'Venta registrada correctamente.' })).toBeVisible()
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Venta registrada correctamente.' }),
+    ).toBeVisible()
 
-    await expect.poll(async () => orderItems(page, name)).toEqual([{ listPricePyg: SEED.products.cable.pricePyg, unitPricePyg: 40000 }])
+    await expect
+      .poll(async () => orderItems(page, name))
+      .toEqual([{ listPricePyg: SEED.products.cable.pricePyg, unitPricePyg: 40000 }])
   } finally {
     await context.close()
   }
@@ -304,7 +349,9 @@ test('POS manual price below list stores the list price for the receipt', async 
 // muestra; sin ella, el botón queda disponible para pedirla.
 test('POS shows the price authorization block for a below-list price', async ({ page }) => {
   await page.goto('/pos/cargar')
-  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`${SEED.checkoutCustomer} autorización ${Date.now().toString(36)}`)
+  await page
+    .getByLabel('Nombre, teléfono, CI o RUC del cliente')
+    .fill(`${SEED.checkoutCustomer} autorización ${Date.now().toString(36)}`)
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
   await page.getByLabel(`Precio de venta de ${SEED.products.cable.name}`).fill('40000')
@@ -312,6 +359,10 @@ test('POS shows the price authorization block for a below-list price', async ({ 
 
   await expect(page.getByText('Precio por debajo de lista')).toBeVisible()
   const solicitar = page.getByRole('button', { name: 'Solicitar autorización' })
-  if (await solicitar.count() && await solicitar.first().isEnabled()) await solicitar.first().click()
+  if ((await solicitar.count()) && (await solicitar.first().isEnabled())) {
+    // El envío deshabilita el botón: force evita la carrera de actionability
+    // (el elemento se deshabilita mientras Playwright espera estabilidad).
+    await solicitar.first().click({ force: true })
+  }
   await expect(page.getByText('Pendiente').first()).toBeVisible()
 })
