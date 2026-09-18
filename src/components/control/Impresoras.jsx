@@ -16,7 +16,9 @@ const hace = (valor) => {
   if (horas < 24) return `hace ${horas} h`
   return `hace ${Math.floor(horas / 24)} d`
 }
-const conexionDe = (destino) => (String(destino || '').startsWith('usb:') ? 'USB' : 'LAN')
+// `usb:<cola>` es una cola CUPS local (puede salir por LAN o por USB físico):
+// se muestra como CUPS y su URI real la informa el agente.
+const conexionDe = (destino) => (String(destino || '').startsWith('usb:') ? 'CUPS' : 'LAN')
 
 const vacioFormulario = () => ({
   id: null,
@@ -284,8 +286,8 @@ export default function Impresoras() {
     setReparando(true)
     try {
       const resultado = await repararRed()
-      if (resultado.cups && !resultado.cups.ok && resultado.cups.comando) toast.info('Cola CUPS pendiente', `Corré en el puente: ${resultado.cups.comando}`)
-  else if (resultado.cups?.ok) toast.success('Cola CUPS lista', `Respaldo ${resultado.cups.cola} disponible.`)
+      if (resultado.cups?.ok) toast.success('Cola CUPS disponible', `${resultado.cups.cola}${resultado.cups.uri ? ` · ${resultado.cups.uri}` : ''}`)
+  else if (resultado.cups?.motivo) toast.info('Sin cola CUPS', resultado.cups.motivo)
   if (resultado.agregado) toast.success('IP secundaria lista', `${resultado.alias} en ${resultado.iface || 'la interfaz activa'}. ${resultado.impresoraOk ? 'La impresora responde.' : 'La impresora todavía no responde.'}`)
       else toast.error('No se pudo agregar la IP secundaria', resultado.permiso || 'Revisá el permiso de administrador.')
     } catch (cause) { toast.error('No se pudo reparar la red', cause?.message) }
@@ -633,7 +635,7 @@ function TablaTrabajos({ trabajos, seleccionados = [], onSeleccion }) {
 
 function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
   const destino = String(diagnostico.destino || '')
-  const metodo = diagnostico.metodo || (destino.startsWith('usb:') ? 'USB' : 'LAN')
+  const metodo = diagnostico.metodo || (destino.startsWith('usb:') ? 'CUPS' : 'LAN')
   const host = diagnostico.host || (destino.startsWith('lan:') ? destino.slice(4).split(':')[0] : '')
   const puerto = diagnostico.puerto || (destino.startsWith('lan:') ? destino.slice(4).split(':')[1] || '9100' : '—')
   const interfaces = diagnostico.interfaces || []
@@ -666,7 +668,11 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
           </div>
         ))}
       </dl>
-      {metodo === 'USB' && <p className="text-mute">La impresión pasa por la cola USB de la computadora puente.</p>}
+      {metodo === 'CUPS' && (
+        <p className="text-mute">
+          Cola CUPS de la computadora puente{diagnostico.cupsUri ? <> · URI real: <b className="text-fore">{diagnostico.cupsUri}</b>{String(diagnostico.cupsUri).startsWith('socket://') ? ' (sale por red, no por cable USB)' : String(diagnostico.cupsUri).startsWith('usb://') ? ' (USB físico)' : ''}</> : null}
+        </p>
+      )}
       {metodo === 'LAN' && diagnostico.alcance && <p className="text-ok">La impresora responde por TCP: la conexión está lista.</p>}
       {metodo === 'LAN' && !diagnostico.alcance && !mismaRed && !aliasPresente && (
         <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
@@ -736,7 +742,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, tokenGuardado,
         <div>
           <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Conexión</h4>
           <div className="mt-2 flex gap-2">
-            {[['usb', 'USB'], ['lan', 'LAN']].map(([valor, etiqueta]) => (
+            {[['usb', 'CUPS local'], ['lan', 'LAN (TCP directo)']].map(([valor, etiqueta]) => (
               <button key={valor} type="button" onClick={() => set({ conexion: valor })} className={`rounded-lg border px-3 py-2 text-sm font-semibold ${f.conexion === valor ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore'}`}>{etiqueta}</button>
             ))}
           </div>

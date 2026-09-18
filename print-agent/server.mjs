@@ -4,7 +4,7 @@ import { hostname } from 'node:os'
 import { promisify } from 'node:util'
 import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config.mjs'
 import { crearCola } from './cola.mjs'
-import { aliasSecundario, colaLanDeCups, crearColaLan, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle } from './transportes.mjs'
+import { aliasSecundario, colaLanDeCups, colaUri, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle } from './transportes.mjs'
 
 const VERSION = '1.1.1'
 const config = cargarConfig()
@@ -106,12 +106,14 @@ async function repararRed() {
     }
   })()
   cacheAlcance = { hasta: 0, ok: null }
-  // La cola CUPS de red es el respaldo cuando macOS bloquea la salida directa
-  // del proceso: se intenta crear acá y, si falta permiso, se devuelve el
-  // comando exacto para que la app lo muestre.
-  const destino = String(config.impresora || '').replace(/^lan:/, '')
-  const [host, puerto] = destino.split(':')
-  const cups = host ? await crearColaLan(config.lanCups || 'MobOS_LAN', host, Number(puerto) || 9100) : { ok: false, error: 'Sin destino.', comando: '' }
+  // macOS moderno ya no permite crear colas "raw" con lpadmin: no se crea
+  // nada. Si la cola existe, se reporta su URI real para que la app decida
+  // (p. ej. socket://… = CUPS sobre LAN; usb://… = CUPS sobre USB físico).
+  const nombreCola = config.lanCups || 'MobOS_LAN'
+  const colaExistente = await colaLanDeCups(nombreCola)
+  const cups = colaExistente
+    ? { ok: true, cola: nombreCola, uri: await colaUri(nombreCola) }
+    : { ok: false, cola: nombreCola, uri: '', motivo: 'No existe una cola con ese nombre. macOS moderno no crea colas raw; se conserva TCP directo y diálogo.' }
   return {
     alias,
     iface,
@@ -167,6 +169,7 @@ const servidor = createServer(async (request, response) => {
         red: {
           tcp: await impresoraResponde(),
           cups: await colaLanDeCups(config.lanCups || 'MobOS_LAN'),
+          cupsUri: (await colaLanDeCups(config.lanCups || 'MobOS_LAN')) ? await colaUri(config.lanCups || 'MobOS_LAN') : '',
           alias: await aliasSecundario(config.alias),
           transporte: (await impresoraResponde()) ? 'directo' : ((await colaLanDeCups(config.lanCups || 'MobOS_LAN')) ? 'cups' : 'ninguno'),
           ultimoTransporte,
@@ -244,13 +247,18 @@ const servidor = createServer(async (request, response) => {
       const pendiente = resultados.find((resultado) => resultado.encolado)
       if (pendiente) {
         const sinRuta = /EHOSTUNREACH|ENETUNREACH/i.test(pendiente.error || '')
+        const incierto = pendiente.estado === 'incierto'
         return responder(response, {
           ok: true,
           encolado: true,
+          incierto,
+          estado: pendiente.estado || 'pendiente',
           jobId: pendiente.jobId,
-          error: sinRuta
-            ? 'Sin ruta a la impresora. Revisá que la Mac y la impresora compartan la subred (o agregá una IP secundaria con print-agent/red-mac.sh); el trabajo queda en cola.'
-            : pendiente.error || '',
+          error: incierto
+            ? `Resultado incierto: ${pendiente.error || 'el transporte pudo haber enviado el trabajo'}. No se reintenta solo para no duplicar; reintentá a mano desde la cola.`
+            : sinRuta
+              ? 'Sin ruta a la impresora. Revisá que la Mac y la impresora compartan la subred (o agregá una IP secundaria con print-agent/red-mac.sh); el trabajo queda en cola.'
+              : pendiente.error || '',
         }, 202)
       }
       return responder(response, { ok: true, encolado: false, transporte: ultimoTransporte || 'directo', jobId: resultados[0]?.jobId || null })

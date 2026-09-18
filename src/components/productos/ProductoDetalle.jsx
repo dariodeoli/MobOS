@@ -130,7 +130,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button disabled={busy} onClick={() => onSell?.(current)}>Vender</Button>
-            <Button variant="outline" disabled={busy} onClick={async () => { const resultado = await imprimirTicketOFallback(ticketEtiquetaPrecio(current), ''); if (!resultado.directo) await printPriceLabel(current, { format: 'thermal' }) }}>Etiqueta de precio</Button>
+            <Button variant="outline" disabled={busy} onClick={async () => { const resultado = await imprimirTicketOFallback(ticketEtiquetaPrecio(current)); if (!resultado.ok && (resultado.motivo === 'fallo' || resultado.motivo === 'agente-no-disponible')) await printPriceLabel(current, { format: 'thermal' }) }}>Etiqueta de precio</Button>
             {canManage && !esDemo && <Button variant="outline" disabled={busy} onClick={() => setEditando(value => !value)}>{editando ? 'Cancelar edición' : 'Editar'}</Button>}
             {canManage && !esDemo && <button type="button" disabled={busy} onClick={desactivar} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad">Desactivar</button>}
           </div>

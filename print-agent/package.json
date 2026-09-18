@@ -1,9 +1,9 @@
 {
   "name": "mobos-print-agent",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.1",
   "type": "module",
-  "description": "Agente local de impresión térmica ESC/POS para MobOS (LAN y USB).",
+  "description": "Agente local de impresi\u00f3n t\u00e9rmica ESC/POS para MobOS (LAN y USB).",
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test"
