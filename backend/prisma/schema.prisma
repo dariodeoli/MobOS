@@ -833,6 +833,9 @@ model Order {
   // Última vez que se avisó al cliente por WhatsApp sobre este pedido.
   notifiedAt        DateTime?
   totalPyg          Int
+  // Comprobante congelado al emitir la venta: lo que se imprimió o mostró no
+  // cambia aunque después se edite el producto, el cliente o la empresa.
+  receiptSnapshot   Json?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 

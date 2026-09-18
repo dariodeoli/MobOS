@@ -55,3 +55,12 @@ export function returnRequest(input: Record<string, unknown>) {
   if (operation === 'EXCHANGE' && !replacementOrderId && !replacementOrderNumber) throw new InputError('Indicá el pedido que reemplaza esta venta.')
   return { operation, reason, refundPyg, replacementOrderId, replacementOrderNumber }
 }
+
+// Comprobante congelado al emitir: guarda una copia de lo que el comprobante
+// muestra (pedido, ítems, pagos, cliente, vendedor, sucursal y empresa) para
+// que la historia no cambie si después se edita cualquiera de esos datos.
+export function armarComprobante(datos: unknown) {
+  // Copia profunda: el comprobante no comparte referencias con los datos vivos.
+  // El resultado es JSON plano (lo que JSONB acepta).
+  return { version: 1, emitidoEn: new Date().toISOString(), datos: JSON.parse(JSON.stringify(datos)) }
+}
