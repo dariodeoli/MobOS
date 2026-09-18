@@ -364,7 +364,7 @@ test("solicitudes → pedir mayorista desde la ficha y aprobarla", async ({ page
   await expect(page.getByText(nombre).first()).toBeVisible()
 
   await page.getByTestId("cliente-fila").filter({ hasText: nombre }).first().click()
-  await page.getByRole("button", { name: /^Comercial/ }).first().click()
+  await page.getByRole("tab", { name: /^Comercial/ }).first().click()
   await page.getByRole("button", { name: "Solicitar mayorista" }).click()
   await page.getByRole("button", { name: "Enviar solicitud" }).click()
   await expect(page.getByText("Solicitud enviada", { exact: false })).toBeVisible()
