@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
-import { Button, Input, Label, PasswordInput, PinInput } from '@/components/ui'
+import { Button, Input, Label, PasswordInput, PinInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
 import { publicUrls } from '@/lib/urls'
@@ -260,7 +260,7 @@ export default function Login() {
               <div><Label htmlFor="seller-pin">PIN de vendedor</Label><PinInput id="seller-pin" autoFocus value={pin} onChange={(next) => { setError(''); setPin(next) }} /><p className="mt-2 text-center text-xs text-mute">Tu PIN identifica tu usuario y tus permisos.</p></div>
               <details className="group">
                 <summary className="cursor-pointer text-center text-xs text-mute hover:text-fore">¿No sabés tu PIN? Elegí tu usuario</summary>
-                <select id="seller" aria-label="Elegí tu usuario" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="mt-2 w-full rounded-xl border border-ink-500 bg-paper px-3 py-3 text-fore"><option value="">Seleccioná tu usuario</option>{vendedores.map((v) => <option key={v.id} value={v.id}>{v.name || v.nombre || v.email}</option>)}</select>
+                <Select id="seller" aria-label="Elegí tu usuario" value={vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="mt-2 w-full"><option value="">Seleccioná tu usuario</option>{vendedores.map((v) => <option key={v.id} value={v.id}>{v.name || v.nombre || v.email}</option>)}</Select>
               </details>
               <button type="button" onClick={() => { setEtapa('empresa'); setPin(''); setError('') }} className="text-sm text-mute hover:text-fore">← Volver a empresa</button>
             </>

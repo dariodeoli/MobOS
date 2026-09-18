@@ -11,7 +11,7 @@ import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
 import GlobalSearch from '@/components/app/GlobalSearch'
-import { Button, ConfirmDialog, Eyebrow, Input, Modal, PinInput, Skeleton, useToast } from '@/components/ui'
+import { Button, ConfirmDialog, Eyebrow, Input, Modal, PinInput, Select, Skeleton, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
@@ -747,19 +747,19 @@ export default function PanelVendedor() {
         <label htmlFor="seller-switch" className="mt-6 block text-sm font-semibold">
           Vendedor
         </label>
-        <select
+        <Select
           id="seller-switch"
           value={sellerId}
           onChange={event => setSellerId(event.target.value)}
           disabled={cambiando}
-          className="mt-2 w-full rounded-xl border border-fore/10 bg-paper px-3 py-3 text-fore outline-none focus:border-fono-dark"
+          className="mt-2 w-full"
         >
           {opcionesVendedor.map(seller => (
             <option key={seller.id} value={seller.id}>
               {seller.name || seller.nombre || seller.email}
             </option>
           ))}
-        </select>
+        </Select>
         {esDemo ? (
           <>
             <p className="mt-4 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-3 text-xs text-mute">
