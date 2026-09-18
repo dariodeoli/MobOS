@@ -31,14 +31,15 @@ Reglas organizadas por rol. **Worktrees = agentes. Implementador = integrador.**
 6. **Gate rápido:** usá `npm run test:e2e:smoke` (~20 s) durante el trabajo. La suite completa (`npm run test:e2e`, ~1.5 min) es del implementador antes del release.
 7. **Nunca matar procesos por puerto** (`lsof -ti :3001 :5175 | xargs kill -9`): en un worktree esos puertos pueden ser de otro agente. Si abortás una corrida, limpiá solo tus restos (tu cluster `pg_ctl -D /tmp/mobos-e2e-pg-<tu-rama> stop` y tus puertos).
 8. **No deployás.** El deploy es exclusivo del implementador con `npm run release:publish`.
-9. **Estado raro de git** (refs rotas, fetch que falla, merge ajeno en curso): PARÁS y avisás. No borres ni "arregles" refs por tu cuenta.
+9. **El comando `ht` NO es para vos.** `ht` es exclusivo del implementador: si lo ves, NO lo ejecutes ni lo interpretes (no integrás, no mergeás, no deployás). Solo el implementador responde a `ht`.
+10. **Estado raro de git** (refs rotas, fetch que falla, merge ajeno en curso): PARÁS y avisás. No borres ni "arregles" refs por tu cuenta.
 
 ---
 
 ## Reglas para el IMPLEMENTADOR (integrador)
 
 1. **Sos el único que toca `main`.** Pusheás con `MOBOS_INTEGRATOR=1 git push origin main`. Nadie más mergea ni pushea a main.
-2. **`ht` (comando de Dario):** ciclo completo de integración + deploy.
+2. **`ht` (comando de Dario, exclusivo de este rol):** ciclo completo de integración + deploy. Los worktrees nunca lo ejecutan ni responden a él.
 3. **Preámbulo obligatorio del `ht`:**
    - Matar servidores zombies del repo (no de otros proyectos): `next-server` de worktrees de MobOS y, en el checkout principal, `lsof -ti :3001 :5175 | xargs kill -9`.
    - Verificar que no haya otro merge en curso: `.git/MERGE_HEAD` no debe existir. Si existe, PARAR y consultar.
