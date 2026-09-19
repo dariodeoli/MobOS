@@ -575,3 +575,16 @@ test('inventario: marca y quita la consignación de un equipo', async ({ page })
   await page.reload()
   await expect(page.getByText('Consignado')).toHaveCount(0)
 })
+
+// #58: con una sola sucursal el control del encabezado igual abre su panel
+// (antes era un cartel sin clic y se sentía muerto).
+test('encabezado: el control de tienda y sucursal abre su panel', async ({ page }) => {
+  await page.goto('/pos/resumen')
+  const control = page.getByTitle('Tienda y sucursal').first()
+  await control.click()
+  const panel = page.getByRole('dialog', { name: 'Tienda y sucursal' })
+  await expect(panel).toBeVisible()
+  await expect(panel.getByText('Estás cargando en')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(panel).toHaveCount(0)
+})
