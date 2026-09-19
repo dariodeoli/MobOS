@@ -12,6 +12,8 @@ import {
   trackingUrlFor,
 } from './OrderReceipt'
 import { printHtml } from '@/utils/printHtml'
+import { getLogoDataUrl } from '@/lib/tenantLogo'
+import { logoRasterDesdeDataUrl } from '@/lib/printing/logoRaster'
 import { cargarImpresorasRemotas, configImpresora, confirmarJob, estadoAgente, imprimirConDestino, imprimirDocumento, impresoraPredeterminada } from '@/lib/printing/agent'
 import { ticketComprobante } from '@/lib/printing/tickets'
 
@@ -103,7 +105,10 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
     if (enviando) return
     setEnviando(true)
     const { ancho } = configImpresora()
-    const resultado = await imprimirDocumento(ticketComprobante(order, { nivel, ancho, link }), { tipo: 'comprobante' })
+    // Logo de la empresa en el encabezado térmico: variante oscura (papel
+    // blanco) convertida a mapa de bits 1-bit para GS v 0.
+    const logo = await logoRasterDesdeDataUrl(await getLogoDataUrl('light'), { anchoMax: ancho === 80 ? 512 : 320 })
+    const resultado = await imprimirDocumento(ticketComprobante(order, { nivel, ancho, link, logo }), { tipo: 'comprobante' })
     setEnviando(false)
     if (!resultado.ok) { toast.error('No se pudo imprimir', resultado.error || 'Revisá la impresora.'); return }
     if (resultado.encolado) {

@@ -10,8 +10,9 @@ const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', RE
 
 const fecha = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '')
 
-// Comprobante de compra. `link` es el enlace del nivel (se imprime como QR).
-export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link = '' } = {}) {
+// Comprobante de compra. `link` es el enlace del nivel (se imprime como QR) y
+// `logo` el raster monocromo de la empresa (GS v 0) para el encabezado.
+export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link = '', logo = null } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   const items = Array.isArray(order.items) ? order.items : []
   const payments = Array.isArray(order.payments) ? order.payments : order.pagos || []
@@ -26,6 +27,10 @@ export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link 
   const sucursal = order.branch || null
   const cliente = order.customer || null
 
+  if (logo?.ancho && logo?.alto && logo.bytes) {
+    t.imagenRaster(logo.bytes, { ancho: logo.ancho, alto: logo.alto })
+    t.avanza(1)
+  }
   t.centrado(empresa || APP_NAME).negrita().centrado('Comprobante de compra').negrita(false)
   t.centrado(`${order.orderNumber || order.codigo || 'Pedido'} · ${fecha(order.createdAt || order.creadoEn || order.fecha)}`)
   t.linea()

@@ -179,6 +179,18 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
       partes.push(ESC, 0x61, 0x00)
       return api
     },
+    // Imagen raster monocroma (GS v 0): `bytes` viene empaquetado en filas de
+    // ancho/8 bytes con 1 = punto negro. `ancho` en píxeles (múltiplo de 8).
+    imagenRaster(bytes, { ancho = 0, alto = 0 } = {}) {
+      const anchoBytes = Math.ceil(Number(ancho) / 8)
+      const filas = Number(alto)
+      if (!bytes?.length || !anchoBytes || !filas || bytes.length < anchoBytes * filas) return api
+      espejoCentrado('[LOGO]')
+      partes.push(ESC, 0x61, 0x01) // centrado
+      partes.push(GS, 0x76, 0x30, 0x00, anchoBytes % 256, Math.floor(anchoBytes / 256), filas % 256, Math.floor(filas / 256), ...bytes.slice(0, anchoBytes * filas))
+      partes.push(ESC, 0x61, 0x00)
+      return api
+    },
     avanza(lineas = 1) {
       const cuantas = Math.min(255, Math.max(1, Number(lineas) || 1))
       partes.push(ESC, 0x64, cuantas)
