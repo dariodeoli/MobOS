@@ -92,7 +92,7 @@ export default defineConfig({
     {
       // Seeded owner session (PIN 1234) for control views.
       name: 'admin',
-      testMatch: /admin\.spec\.js|pos-resumen-fijo\.spec\.js/,
+      testMatch: /admin\.spec\.js|pos-resumen-fijo\.spec\.js|impresion-remota\.spec\.js/,
       use: { storageState: 'e2e/.auth/admin.json' },
     },
   ],
