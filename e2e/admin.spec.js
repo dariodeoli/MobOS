@@ -363,7 +363,10 @@ test.describe('owner panel', () => {
 
   test('finanzas → Caja can open the cash session', async ({ page }) => {
     await page.goto('/finanzas/caja')
-    await expect(page.getByRole('heading', { name: 'Caja y control financiero' })).toBeVisible()
+    // El título de la página vive en el topbar (AppShell) y aparece antes que
+    // los datos: se espera el estado de caja antes de decidir abrir o cerrar.
+    await expect(page.getByRole('heading', { name: 'Caja', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /Abrir caja|Cerrar caja/ })).toBeVisible()
 
     // Re-runs may find the cash session still open from a previous run.
     if (await page.getByRole('heading', { name: 'Cerrar caja' }).isVisible()) {
