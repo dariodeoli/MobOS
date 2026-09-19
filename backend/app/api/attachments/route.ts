@@ -70,6 +70,15 @@ export async function POST(request: Request) {
     return error('No se pudo leer el adjunto.', 400)
   }
 
+  // Tombstone: si esos mismos bytes ya se eliminaron de este documento, no
+  // vuelven solos (reintentos o sincronización externa). Una copia distinta
+  // (otro hash) se puede subir normalmente.
+  const tumba = await prisma.attachmentTombstone.findUnique({
+    where: { tenantId_entity_entityId_sha256: { tenantId: session.user.tenantId, entity, entityId, sha256: file.sha256 } },
+    select: { id: true },
+  })
+  if (tumba) return error('Ese archivo ya fue eliminado de este documento. Si lo necesitás de nuevo, subilo como una copia nueva.', 409)
+
   // Write-through: si hay volumen configurado se guarda el archivo y en la
   // base queda el storageKey; `data` se conserva como respaldo del adjunto.
   const stored = await saveAttachment({ tenantId: session.user.tenantId, area: 'attachments', fileName: file.fileName, mimeType: file.mimeType, sha256: file.sha256, data: file.data })
@@ -101,7 +110,7 @@ export async function DELETE(request: Request) {
   const id = idParam(new URL(request.url).searchParams.get('id'))
   if (!id) return error('Adjunto obligatorio.')
 
-  const attachment = await prisma.attachment.findFirst({ where: { id, tenantId: session.user.tenantId }, select: { id: true, entity: true, entityId: true, storageKey: true } })
+  const attachment = await prisma.attachment.findFirst({ where: { id, tenantId: session.user.tenantId }, select: { id: true, entity: true, entityId: true, sha256: true, storageKey: true } })
   if (!attachment || !isAttachmentEntity(attachment.entity)) return error('Adjunto no encontrado.', 404)
 
   const check = await checkAttachmentTarget(attachment.entity as AttachmentEntity, attachment.entityId, session)
@@ -109,7 +118,12 @@ export async function DELETE(request: Request) {
 
   await prisma.$transaction(async tx => {
     await tx.attachment.delete({ where: { id: attachment.id } })
-    await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'ATTACHMENT_DELETED', entity: 'Attachment', entityId: attachment.id, metadata: { entity: attachment.entity, entityId: attachment.entityId } } })
+    await tx.attachmentTombstone.upsert({
+      where: { tenantId_entity_entityId_sha256: { tenantId: session.user.tenantId, entity: attachment.entity, entityId: attachment.entityId, sha256: attachment.sha256 } },
+      create: { tenantId: session.user.tenantId, entity: attachment.entity, entityId: attachment.entityId, sha256: attachment.sha256, deletedBy: session.user.id },
+      update: { deletedAt: new Date(), deletedBy: session.user.id },
+    })
+    await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'ATTACHMENT_DELETED', entity: 'Attachment', entityId: attachment.id, metadata: { entity: attachment.entity, entityId: attachment.entityId, sha256: attachment.sha256 } } })
   })
   await deleteAttachment(attachment)
   return json({ id: attachment.id, deleted: true })

@@ -1215,6 +1215,20 @@ model Attachment {
   @@index([tenantId, entity, entityId])
 }
 
+// Tombstone de adjuntos: un archivo eliminado no vuelve solo si un cliente
+// externo o un reintento sube los mismos bytes al mismo documento.
+model AttachmentTombstone {
+  id        String   @id @default(cuid())
+  tenantId  String
+  entity    String
+  entityId  String
+  sha256    String
+  deletedBy String?
+  deletedAt DateTime @default(now())
+
+  @@unique([tenantId, entity, entityId, sha256])
+}
+
 model PaymentReconciliation {
   id           String              @id @default(cuid())
   tenantId     String

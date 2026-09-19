@@ -7,6 +7,7 @@ import { getLogoDataUrl, olvidarLogo } from '@/lib/tenantLogo'
 import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
 import { promptLogo } from '@/lib/logoPrompt'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
+import { comprimirImagen } from '@/utils/imagen'
 import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, useToast } from '@/components/ui'
 import { formatGs } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
@@ -81,7 +82,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
     setLogoBusy(true); setLogoError('')
     try {
       const form = new FormData()
-      form.append('logo', file)
+      form.append('logo', await comprimirImagen(file, { maxLado: 1200 }))
       form.append('variant', variant)
       await api.post('/api/tenant/logo', form)
       olvidarLogo(variant)
