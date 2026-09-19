@@ -22,6 +22,14 @@ const hace = (valor) => {
 // se muestra como CUPS y su URI real la informa el agente.
 // Resultado honesto del trabajo: confirmado en papel, aceptado por el
 // transporte, incierto (pudo salir) o fallido.
+// Un trabajo pendiente sin reporte del puente por más de 10 minutos se marca
+// como "sin respuesta": la impresora o el puente no contestaron.
+const MINUTOS_SIN_RESPUESTA = 10
+function sinRespuesta(fila) {
+  const cuando = fila?.fecha ? new Date(fila.fecha).getTime() : 0
+  return Boolean(cuando) && Date.now() - cuando > MINUTOS_SIN_RESPUESTA * 60 * 1000
+}
+
 const COLOR_RESULTADO = { confirmado: 'green', impreso: 'green', aceptado: 'blue', incierto: 'orange', fallido: 'red' }
 
 const conexionDe = (destino) => (/^(usb|cups):/.test(String(destino || '')) ? 'CUPS' : 'LAN')
@@ -764,8 +772,9 @@ export default function Impresoras() {
                       <td className="px-2 py-2 text-xs text-mute" title={fila.modo === 'usb' ? 'Cola CUPS local' : fila.modo === 'lan' ? 'LAN (TCP directo)' : undefined}>{fila.modo === 'usb' ? 'CUPS' : fila.modo === 'lan' ? 'LAN' : conexionDe(fila.impresora)}</td>
                       <td className="px-2 py-2 truncate text-xs text-mute" title={`${fila.puente || '—'}${fila.tokenPista ? ` · token ${fila.tokenPista}` : ''}`}>{fila.puente || '—'}</td>
                       <td className="px-2 py-2 text-xs font-semibold" title={fila.tipo ? `Tipo: ${fila.tipo}` : undefined}>{fila.validacion || '—'}</td>
+                        {fila.resultado === 'pendiente' && sinRespuesta(fila) && <p className="mt-0.5 text-[10px] font-semibold text-warn" title="El puente no reportó el resultado; revisá la impresora y reintentá.">sin respuesta del puente</p>}
                       <td className="px-2 py-2">
-                        {fila.resultado === 'aceptado' && fila.validacion ? (
+                        {(fila.resultado === 'aceptado' || fila.resultado === 'pendiente') && fila.validacion ? (
                           <span className="flex items-center gap-1">
                             <input value={sufijos[fila.jobId] || ''} onChange={(event) => setSufijos((actual) => ({ ...actual, [fila.jobId]: event.target.value.replace(/\D/g, '').slice(0, 2) }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); confirmarEnPapel(fila) } }} inputMode="numeric" maxLength={2} placeholder="número" aria-label={`Número secreto de la validación ${fila.validacion}`} className="w-16 rounded-lg border border-ink-600 bg-ink-800 px-2 py-1 text-center text-xs" />
                             <button type="button" onClick={() => confirmarEnPapel(fila)} disabled={confirmandoId === fila.jobId} className="rounded-lg border border-ok/40 px-2 py-1 text-[10px] font-bold text-ok transition hover:bg-ok/10 disabled:opacity-50">{confirmandoId === fila.jobId ? '…' : 'Confirmar'}</button>
