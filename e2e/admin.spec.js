@@ -390,14 +390,14 @@ test('configuración → sube el logo de la empresa y lo quita', async ({ page }
   await page.goto('/pos/equipo')
   await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
   await expect(page.getByRole('heading', { name: 'Logo de la empresa' })).toBeVisible()
-  await expect(page.getByText('Sin logo')).toBeVisible()
+  await expect(page.getByText('Sin logo').first()).toBeVisible()
   await page
     .locator('input[type="file"][accept*="image/png"]')
     .first()
     .setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png })
-  await expect(page.getByAltText('Logo de la empresa')).toBeVisible()
+  await expect(page.getByAltText('Logo para modo claro')).toBeVisible()
   await page.getByRole('button', { name: 'Quitar', exact: true }).first().click()
-  await expect(page.getByText('Sin logo')).toBeVisible()
+  await expect(page.getByText('Sin logo').first()).toBeVisible()
 })
 
 // Búsqueda de pedidos: se resuelve en el servidor (número, cliente, RUC o
@@ -433,6 +433,7 @@ test('configuración → sube mi foto y la quita', async ({ page }) => {
     .locator('input[type="file"][accept*="image/png"]')
     .last()
     .setInputFiles({ name: 'yo.png', mimeType: 'image/png', buffer: png })
+  await page.getByRole('button', { name: 'Usar esta foto' }).click()
   await expect(page.getByAltText('Mi foto')).toBeVisible()
   await page.getByRole('button', { name: 'Quitar', exact: true }).last().click()
   await expect(page.getByAltText('Mi foto')).toHaveCount(0)

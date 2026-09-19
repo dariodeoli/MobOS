@@ -13,9 +13,27 @@ export function recorteCuadrado({ ancho, alto, escala = 1, desplazamientoX = 0, 
 
 export const LADO_FOTO = 512
 
+// Fuente dibujable: createImageBitmap cuando puede y, si el navegador no
+// decodifica ahí (pasa con imágenes raras), el <img> clásico que ya la mostró
+// en el recortador. Sin este fallback la foto quedaba sin poder guardarse.
+async function fuenteDibujable(file) {
+  if (typeof createImageBitmap === 'function') {
+    try { return await createImageBitmap(file) } catch { /* cae al <img> */ }
+  }
+  const url = URL.createObjectURL(file)
+  try {
+    return await new Promise((resolver, rechazar) => {
+      const imagen = new Image()
+      imagen.onload = () => resolver(imagen)
+      imagen.onerror = () => rechazar(new Error('No se pudo leer la imagen.'))
+      imagen.src = url
+    })
+  } finally { URL.revokeObjectURL(url) }
+}
+
 // Recorta la imagen a un cuadrado y devuelve un archivo listo para subir.
 export async function recortarArchivo(file, { recorte, lado = LADO_FOTO, tipo = 'image/jpeg', calidad = 0.9 } = {}) {
-  const bitmap = await createImageBitmap(file)
+  const bitmap = await fuenteDibujable(file)
   const lienzo = document.createElement('canvas')
   lienzo.width = lado
   lienzo.height = lado
