@@ -168,7 +168,7 @@ export default function SellerQuotes() {
     try { await printQuoteReceipt(enlace, { format: 'a4', token: enlace.publicToken }) } catch { setEnlaceError('No se pudo preparar la impresión.') }
   }
 
-  return <SellerSection title="Cotizaciones" description="Pipeline de ventas: cotizá, seguí el vencimiento y convertí en pedido cuando el cliente acepte.">
+  return <SellerSection description="Pipeline de ventas: cotizá, seguí el vencimiento y convertí en pedido cuando el cliente acepte.">
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS.map(([key, label]) => <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('rounded-lg px-3 py-1.5 text-xs font-semibold transition', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
       <div className="min-w-[200px] flex-1"><Input aria-label="Buscar cotizaciones" placeholder="Número, cliente o ítem" value={query} onChange={event => setQuery(event.target.value)} /></div>

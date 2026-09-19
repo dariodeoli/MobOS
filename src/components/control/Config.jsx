@@ -497,8 +497,7 @@ export function MiIdentidad() {
   return (
     <Card className="space-y-3">
       <div>
-        <Eyebrow>Mi identidad</Eyebrow>
-        <p className="mt-1 text-sm text-mute">Tu persona dentro de MobOS: la cuenta dueña de esta tienda.</p>
+        <p className="text-sm text-mute">Tu persona dentro de MobOS: la cuenta dueña de esta tienda.</p>
       </div>
       <div className="flex items-start gap-3">
         {perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}
@@ -780,8 +779,7 @@ function SeccionSucursales() {
     <Card className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-semibold">Sucursales</h2>
-          <p className="mt-1 text-sm text-mute">Cada sucursal conserva su dirección, ciudad y datos de contacto. La ciudad completa el departamento automáticamente.</p>
+          <p className="text-sm text-mute">Cada sucursal conserva su dirección, ciudad y datos de contacto. La ciudad completa el departamento automáticamente.</p>
         </div>
         <Button type="button" onClick={() => abrir(null)}>+ Nueva sucursal</Button>
       </div>

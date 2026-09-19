@@ -176,8 +176,7 @@ export default function Auditoria() {
     <Card>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="font-bold">Auditoría</h2>
-          <p className="mt-1 text-sm text-mute">Quién hizo qué y cuándo: ventas, inventario, cobros, equipo y configuración.</p>
+          <p className="text-sm text-mute">Quién hizo qué y cuándo: ventas, inventario, cobros, equipo y configuración.</p>
         </div>
         <span className="text-xs text-mute">{total}{hayMas ? '+' : ''} movimientos</span>
       </div>

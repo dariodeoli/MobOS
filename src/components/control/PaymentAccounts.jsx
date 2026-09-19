@@ -92,8 +92,7 @@ function AccountManager() {
     <Card className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-semibold">Bancos y cuentas de cobro</h2>
-          <p className="mt-1 text-sm text-mute">Configurá los medios de pago. Desactivar conserva la cuenta y su historial.</p>
+          <p className="text-sm text-mute">Configurá los medios de pago. Desactivar conserva la cuenta y su historial.</p>
         </div>
         <Button type="button" disabled={busy || loading || !!loadError || !!form} onClick={() => openForm()}>Añadir cuenta</Button>
       </div>

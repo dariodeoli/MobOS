@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Input, Modal, Select, Skeleton, useToast } from '@/components/ui'
+import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Modal, Select, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
@@ -645,9 +645,7 @@ export default function Impresoras() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <Eyebrow>Impresoras</Eyebrow>
-          <h2 className="mt-1 font-semibold">Impresoras</h2>
-          <p className="mt-1 text-sm text-mute">Configurá, probá y monitoreá tus impresoras térmicas.</p>
+          <p className="text-sm text-mute">Configurá, probá y monitoreá tus impresoras térmicas.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={consultar} disabled={cargando}><Icon name="refresh" className="h-3.5 w-3.5" />Actualizar estado</Button>

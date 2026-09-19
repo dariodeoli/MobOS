@@ -3,7 +3,7 @@ import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
-import { Card, Eyebrow, Input } from '@/components/ui'
+import { Card, Input } from '@/components/ui'
 
 // Control interno de cierre: cuánto entró por cada medio de pago en la sucursal
 // y el día elegidos, para contrastar contra el conteo físico al auditar.
@@ -37,8 +37,7 @@ export default function AuditoriaMedios() {
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Eyebrow>Auditoría de cierre</Eyebrow>
-          <h3 className="mt-1 font-bold">Entradas por medio de pago</h3>
+          <h3 className="font-bold">Entradas por medio de pago</h3>
           <p className="mt-1 text-sm text-mute">Contá el físico de cada medio y marcá cuando coincida con el sistema. PIX incluye montos pendientes de pasar a la cuenta de la empresa.</p>
         </div>
         <form className="flex items-end gap-2" onSubmit={event => { event.preventDefault(); load(fecha) }}>

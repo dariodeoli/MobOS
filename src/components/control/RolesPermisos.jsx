@@ -133,8 +133,7 @@ export default function RolesPermisos() {
   return (
     <div className="space-y-4">
       <Card>
-        <h2 className="font-bold">Roles y permisos</h2>
-        <p className="mt-1 text-sm text-mute">
+        <p className="text-sm text-mute">
           Qué puede hacer y ver cada rol del equipo. El Dueño conserva todos los permisos y los
           cambios de rol quedan auditados.
         </p>

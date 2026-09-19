@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
-import { Badge, Card, EmptyState, Eyebrow, Money, Skeleton } from '@/components/ui'
+import { Badge, Card, EmptyState, Money, Skeleton } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 // Tabla compacta: una fila por cliente, con el uso del límite en su columna.
@@ -43,8 +43,7 @@ export default function Creditos() {
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <Eyebrow>Compliance</Eyebrow>
-            <h2 className="mt-1 font-bold">Créditos y días de mora</h2>
+            <h2 className="font-bold">Créditos y días de mora</h2>
             <p className="mt-1 text-sm text-mute">Pendiente por cliente, límite configurado y atraso en días. Los vencimientos se cargan desde cada venta a crédito.</p>
           </div>
           <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={load} disabled={busy}>{busy ? 'Cargando…' : 'Actualizar'}</button>

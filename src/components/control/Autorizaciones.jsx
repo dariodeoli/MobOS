@@ -9,7 +9,6 @@ import {
   Button,
   Card,
   EmptyState,
-  Eyebrow,
   FormField,
   Input,
   MoneyInput,
@@ -273,8 +272,7 @@ export default function Autorizaciones() {
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <Eyebrow>Control</Eyebrow>
-            <h2 className="mt-1 font-bold">Autorizaciones comerciales</h2>
+            <h2 className="font-bold">Autorizaciones comerciales</h2>
             <p className="mt-1 text-sm text-mute">
               Pedidos de mayorista, crédito, plazo, descuentos fuera de política, ventas bajo lista,
               ajustes de stock y anulaciones. Aprobá ajustando lo autorizado o rechazá con un

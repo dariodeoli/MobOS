@@ -166,7 +166,7 @@ export default function SellerCatalog() {
     toast.success(`${lista.length} producto(s) exportados.`)
   }
 
-  return <SellerSection title="Productos" description="Catálogo de consulta y edición: precio, mayorista, stock y equipos por IMEI.">
+  return <SellerSection description="Catálogo de consulta y edición: precio, mayorista, stock y equipos por IMEI.">
     <div className="flex flex-wrap items-center gap-2">
       <form className="flex min-w-[220px] flex-1 gap-2" onSubmit={(event) => { event.preventDefault(); setSearch(busquedaDiferida.trim()) }}>
         <div className="relative min-w-0 flex-1">

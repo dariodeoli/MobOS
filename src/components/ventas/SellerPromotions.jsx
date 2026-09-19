@@ -45,7 +45,7 @@ export default function SellerPromotions() {
       setForm(empty)
     })
   }
-  return <SellerSection title="Promociones" description={esDemo ? 'Demo ficticia local. Usá DEMO10 al elegir un producto.' : 'Aplicá el código en el precio del producto. Se verifica nuevamente al registrar la venta.'}>
+  return <SellerSection description={esDemo ? 'Demo ficticia local. Usá DEMO10 al elegir un producto.' : 'Aplicá el código en el precio del producto. Se verifica nuevamente al registrar la venta.'}>
     <SellerFeedback {...data} empty={!data.rows.length} />
     {data.rows.length > 0 && <div className="overflow-x-auto" data-testid="promociones-tabla">
       <div className={cn(GRID_PROMOS, 'px-3.5 pb-2 pt-1')}>
