@@ -21,10 +21,21 @@ test('pedidos: la lista abre sin popups y el detalle se abre y cierra', async ({
   await expect(page.getByTestId('pedido-fila').first()).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
+  // El clic lleva a la página exclusiva del pedido (no a un panel).
   await page.getByTestId('pedido-fila').first().click()
-  await expect(page.getByRole('dialog')).toBeVisible()
-  await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  await expect(page).toHaveURL(/\/pos\/pedidos\/[a-z0-9-]+$/i)
+  await expect(page.getByText('Artículos preparados')).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Volver a pedidos' }).click()
   await expect(page).toHaveURL(/\/pos\/pedidos$/)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+
+  // El ícono de acciones abre la vista rápida en panel sin redirigir.
+  const urlLista = page.url()
+  await page.getByRole('button', { name: /Vista rápida de/ }).first().click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page).toHaveURL(urlLista)
+  await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
   expect(errores, `Errores de página: ${errores.join(' | ')}`).toEqual([])
@@ -44,18 +55,16 @@ test('pedidos: enlace directo a un pedido fuera de la página lo resuelve por AP
   // Simula que el pedido no vino en la lista: la página queda vacía.
   await page.route(/\/api\/orders\?/, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
   await page.goto(`/pos/pedidos/${objetivo.id}`)
-  const detalle = page.getByRole('dialog')
-  await expect(detalle).toBeVisible()
-  await expect(detalle).toContainText(codigoPedido(objetivo.orderNumber))
+  await expect(page.getByText(codigoPedido(objetivo.orderNumber)).first()).toBeVisible()
+  await expect(page.getByText('Artículos preparados')).toBeVisible()
 })
 
 // Impresión del pedido: sin 58 mm, con 80 mm y A4 centrados y con márgenes.
 test('pedidos: el comprobante ofrece A4 y 80 mm centrados', async ({ page }) => {
   await page.goto('/pos/pedidos')
   await page.getByTestId('pedido-fila').first().click()
-  const detalle = page.getByRole('dialog')
-  await expect(detalle).toBeVisible()
-  await detalle.getByRole('button', { name: 'Imprimir comprobante' }).click()
+  await expect(page.getByText('Artículos preparados')).toBeVisible()
+  await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
 
   const formato = page.getByLabel('Formato de impresión')
   await expect(formato).toBeVisible()

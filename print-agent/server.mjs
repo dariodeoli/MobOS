@@ -6,7 +6,7 @@ import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config
 import { crearCola } from './cola.mjs'
 import { aliasSecundario, colaLanDeCups, colaUri, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola } from './transportes.mjs'
 
-const VERSION = '1.4.0'
+const VERSION = '1.5.0'
 const config = cargarConfig()
 // Transporte real del último envío (directo | cups | usb): la app solo debe
 // marcar éxito cuando hubo entrega confirmada, no solo encolado.
@@ -198,13 +198,20 @@ const servidor = createServer(async (request, response) => {
     }
 
     // Confirmación física: el operador vio el papel y lo marca en la app.
+    // El sufijo secreto impreso en el ticket debe coincidir con el guardado.
     if (request.method === 'POST' && url.pathname === '/jobs/confirm') {
       if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
       const cuerpo = await leerCuerpo(request)
-      const confirmado = cola.confirmar(String(cuerpo?.id || ''))
-      return responder(response, confirmado
+      const resultado = cola.confirmar(String(cuerpo?.id || ''), String(cuerpo?.sufijo ?? ''))
+      const mensajes = {
+        'no-encontrado': 'El trabajo no existe en el historial.',
+        'ya-confirmado': 'Este trabajo ya estaba confirmado en papel.',
+        'no-confirmable': 'El trabajo no está aceptado por el transporte: no se puede confirmar en papel.',
+        'sufijo-incorrecto': 'El número secreto no coincide con el impreso: revisá el papel.',
+      }
+      return responder(response, resultado.ok
         ? { ok: true, confirmado: true }
-        : { ok: false, confirmado: false, error: 'El trabajo no está aceptado o no existe: no se puede confirmar en papel.' })
+        : { ok: false, confirmado: false, motivo: resultado.motivo, error: mensajes[resultado.motivo] || 'No se pudo confirmar el trabajo.' })
     }
 
     if (request.method === 'POST' && url.pathname === '/jobs/clear') {
@@ -246,6 +253,7 @@ const servidor = createServer(async (request, response) => {
       const tipo = String(cuerpo?.tipo || '').slice(0, 40)
       // Metadatos de testeo (los manda la app; el token va enmascarado).
       const validacion = String(cuerpo?.validacion || '').slice(0, 12)
+      const sufijo = String(cuerpo?.sufijo ?? '').slice(0, 2)
       const puente = String(cuerpo?.puente || '').slice(0, 80)
       const tokenPista = String(cuerpo?.tokenPista || '').slice(0, 40)
       const modo = String(cuerpo?.modo || '').slice(0, 40)
@@ -261,7 +269,7 @@ const servidor = createServer(async (request, response) => {
       const ticket = copias > 1 ? Buffer.from(data, 'base64').toString('base64') : data
       const resultados = []
       const cliente = ipDe(request)
-      for (let copia = 0; copia < copias; copia += 1) resultados.push(await cola.encolar({ impresora, data: ticket, cliente, usuario, ref, tipo, validacion, puente, tokenPista, modo, ancho }))
+      for (let copia = 0; copia < copias; copia += 1) resultados.push(await cola.encolar({ impresora, data: ticket, cliente, usuario, ref, tipo, validacion, sufijo, puente, tokenPista, modo, ancho }))
       const pendiente = resultados.find((resultado) => resultado.encolado)
       if (pendiente) {
         const sinRuta = /EHOSTUNREACH|ENETUNREACH/i.test(pendiente.error || '')

@@ -130,10 +130,11 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(sale).toContainText('Cliente E2E')
   await expect(sale.getByText('Pagado', { exact: true })).toBeVisible()
 
-  // Clic en la fila: abre el pedido por su id interno.
+  // Clic en la fila: abre la página del pedido por su id interno.
   await sale.click()
   await expect(page).toHaveURL(new RegExp(`/pos/pedidos/${creada.id}$`))
-  await expect(page.getByRole('dialog')).toContainText(codigoPedido(creada.orderNumber))
+  await expect(page.getByText(codigoPedido(creada.orderNumber)).first()).toBeVisible()
+  await expect(page.getByText('Artículos preparados')).toBeVisible()
 })
 
 // Listado de pedidos: buscador global, encabezados ordenables y filtros de cobro.
@@ -196,16 +197,15 @@ test('pedidos: clic en la fila abre el pedido por su id interno', async ({ page 
     .click()
   await expect(page).toHaveURL(new RegExp(`/pos/pedidos/${primera.id}$`))
 
-  const detalle = page.getByRole('dialog')
-  await expect(detalle).toBeVisible()
-  await expect(detalle).toContainText(codigoPedido(primera.orderNumber))
-  await expect(detalle.getByText('Artículos preparados')).toBeVisible()
+  await expect(page.getByText(codigoPedido(primera.orderNumber)).first()).toBeVisible()
+  await expect(page.getByText('Artículos preparados')).toBeVisible()
 
   // Recargar sobre la URL del pedido lo vuelve a resolver por id.
   await page.reload()
-  await expect(page.getByRole('dialog')).toContainText(codigoPedido(primera.orderNumber))
+  await expect(page.getByText(codigoPedido(primera.orderNumber)).first()).toBeVisible()
+  await expect(page.getByText('Artículos preparados')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  await page.getByRole('button', { name: 'Volver a pedidos' }).click()
   await expect(page).toHaveURL(/\/pos\/pedidos$/)
   expect(errores, 'la vista del pedido no debe romper con errores de runtime').toEqual([])
 })

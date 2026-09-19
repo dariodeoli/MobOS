@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import PresenciaPedido from './PresenciaPedido'
 import { Drawer, Badge, Button, Input, Money, Select, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
@@ -80,7 +81,7 @@ function PhotoThumb({ orderId, commentId, photo }) {
 
 const NIVELES_ACCESO = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detallado', 'Detallado']]
 
-export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onClose, onChanged }) {
+export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onClose, onChanged, pagina = false }) {
   const toast = useToast()
   const { usuario } = useSesion()
   const [accesos, setAccesos] = useState({})
@@ -253,8 +254,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
     } catch (cause) { setError(cause?.message || 'No se pudo guardar el comentario.') } finally { setSubiendo(false) }
   }
 
-  return (
-    <Drawer open onClose={onClose} title={codigoPedido(order.orderNumber || order.number) || 'Pedido'} className="w-full sm:max-w-2xl">
+  const cuerpo = (
+    <>
       {loading && <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-24 w-full" /></div>}
       {error && <p role="alert" className="mb-4 rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
       {!loading && (
@@ -479,6 +480,29 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           </div>
         </div>
       </Modal>
+    </>
+  )
+
+  // En modo página (URL /pedidos/<id>) el pedido se muestra en exclusiva, con
+  // el aviso de quién más lo está viendo. En modo panel, el drawer de siempre.
+  if (pagina) {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Button type="button" variant="ghost" onClick={onClose}><Icon name="back" className="h-3.5 w-3.5" />Volver a pedidos</Button>
+            <h1 className="font-mono text-sm font-bold text-fono-light">{codigoPedido(order.orderNumber || order.number) || 'Pedido'}</h1>
+          </div>
+          <PresenciaPedido pedidoId={order.id || row?.id} />
+        </div>
+        {cuerpo}
+      </div>
+    )
+  }
+
+  return (
+    <Drawer open onClose={onClose} title={codigoPedido(order.orderNumber || order.number) || 'Pedido'} className="w-full sm:max-w-2xl">
+      {cuerpo}
     </Drawer>
   )
 }

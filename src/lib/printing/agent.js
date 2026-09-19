@@ -229,7 +229,7 @@ export const colaAgente = () => consultarAgente('/jobs')
 export const historialAgente = (limite = 30) => consultarAgente(`/historial?limite=${limite}`)
 export const reintentarFallidos = () => consultarAgente('/jobs/retry', { method: 'POST' })
 export const limpiarFallidos = (ids = []) => consultarAgente('/jobs/clear', { method: 'POST', body: { ids } })
-export const confirmarJob = (id) => consultarAgente('/jobs/confirm', { method: 'POST', body: { id } })
+export const confirmarJob = (id, sufijo = '') => consultarAgente('/jobs/confirm', { method: 'POST', body: { id, sufijo } })
 export const repararRed = () => consultarAgente('/red/agregar', { method: 'POST' })
 
 // Sincroniza el agente puente con la lista de impresoras: cuál es la
@@ -249,7 +249,7 @@ export async function sincronizarAgente(store) {
 
 // Manda un ticket (crearTicket().base64()) al agente. Devuelve `{ ok }` o el
 // error para mostrarlo en pantalla.
-export async function imprimirDirecto(base64, { ancho, copias, impresora, usuario, ref, tipo, validacion, puente, tokenPista, modo } = {}) {
+export async function imprimirDirecto(base64, { ancho, copias, impresora, usuario, ref, tipo, validacion, sufijo, puente, tokenPista, modo } = {}) {
   const config = configImpresora()
   const control = new AbortController()
   const timer = setTimeout(() => control.abort(), 5000)
@@ -265,6 +265,7 @@ export async function imprimirDirecto(base64, { ancho, copias, impresora, usuari
         ref: String(ref || '').slice(0, 64),
         tipo: String(tipo || '').slice(0, 40),
         validacion: String(validacion || '').slice(0, 12),
+        sufijo: String(sufijo ?? '').slice(0, 2),
         puente: String(puente || '').slice(0, 80),
         tokenPista: String(tokenPista || '').slice(0, 40),
         modo: String(modo || '').slice(0, 40),

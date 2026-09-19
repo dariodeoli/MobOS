@@ -3,8 +3,9 @@ import { Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Inp
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, diagnosticoAgente, enmascararToken, estadoAgente, estadoDePuente, guardarImpresoras, guardarPuentes, historialAgente, imprimirTicketDirecto, limpiarFallidos, puenteDe, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
+import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob, diagnosticoAgente, enmascararToken, estadoAgente, estadoDePuente, guardarImpresoras, guardarPuentes, historialAgente, imprimirTicketDirecto, limpiarFallidos, puenteDe, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
+import Avatar from '@/components/shared/Avatar'
 
 const fmt = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 const hace = (valor) => {
@@ -18,6 +19,10 @@ const hace = (valor) => {
 }
 // `usb:<cola>` es una cola CUPS local (puede salir por LAN o por USB físico):
 // se muestra como CUPS y su URI real la informa el agente.
+// Resultado honesto del trabajo: confirmado en papel, aceptado por el
+// transporte, incierto (pudo salir) o fallido.
+const COLOR_RESULTADO = { confirmado: 'green', impreso: 'green', aceptado: 'blue', incierto: 'orange', fallido: 'red' }
+
 const conexionDe = (destino) => (/^(usb|cups):/.test(String(destino || '')) ? 'CUPS' : 'LAN')
 
 const vacioFormulario = () => ({
@@ -62,6 +67,12 @@ export default function Impresoras() {
   const [seleccionados, setSeleccionados] = useState([])
   const [reparando, setReparando] = useState(false)
   const [puentesAbiertos, setPuentesAbiertos] = useState(false)
+  const [equiposAbiertos, setEquiposAbiertos] = useState(false)
+  const [filtroRango, setFiltroRango] = useState('hoy')
+  const [filtroTipo, setFiltroTipo] = useState('todas')
+  const [detalleAbierto, setDetalleAbierto] = useState('')
+  const [sufijos, setSufijos] = useState({})
+  const [confirmandoId, setConfirmandoId] = useState('')
   const [puenteEdit, setPuenteEdit] = useState(null)
   const [puenteProbando, setPuenteProbando] = useState('')
   const [puenteEstado, setPuenteEstado] = useState({})
@@ -73,7 +84,7 @@ export default function Impresoras() {
     const config = configImpresora()
     if (agente.disponible && config.token) {
       try {
-        const [actividad, trabajos] = await Promise.all([historialAgente(30), colaAgente()])
+        const [actividad, trabajos] = await Promise.all([historialAgente(60), colaAgente()])
         setHistorial(actividad?.historial || [])
         setCola(trabajos)
       } catch { setHistorial([]); setCola(null) }
@@ -116,6 +127,46 @@ export default function Impresoras() {
       return 'CUPS (cola local)'
     }
     return 'LAN (TCP directo)'
+  }
+
+  // Actividad: filtra el historial del agente y arma el CSV exportable.
+  const historialFiltrado = historial.filter((fila) => {
+    if (filtroActividad && fila.impresora !== filtroActividad) return false
+    if (filtroTipo === 'prueba' && !String(fila.tipo || '').startsWith('prueba') && !fila.validacion) return false
+    if (filtroTipo === 'venta' && fila.validacion) return false
+    if (filtroRango !== 'todo') {
+      const visto = new Date(fila.fecha || 0).getTime()
+      const dias = filtroRango === 'hoy' ? 1 : 7
+      if (!Number.isFinite(visto) || Date.now() - visto > dias * 24 * 60 * 60 * 1000) return false
+    }
+    return true
+  })
+
+  function exportarActividad() {
+    const filas = [['Fecha', 'Usuario', 'Equipo', 'Impresora', 'Modo', 'Puente', 'Validación', 'Sufijo', 'Resultado', 'Bytes', 'Trabajo']]
+    for (const fila of historialFiltrado) {
+      filas.push([fila.fecha, fila.usuario, fila.cliente, fila.impresora, fila.modo, fila.puente, fila.validacion, fila.sufijo, fila.resultado, fila.bytes, fila.ref])
+    }
+    const csv = filas.map((columnas) => columnas.map((valor) => `"${String(valor ?? '').replaceAll('"', '""')}"`).join(';')).join('\n')
+    const enlace = document.createElement('a')
+    enlace.href = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
+    enlace.download = `mobos-impresion-${new Date().toISOString().slice(0, 10)}.csv`
+    enlace.click()
+    URL.revokeObjectURL(enlace.href)
+  }
+
+  async function confirmarEnPapel(fila) {
+    const sufijo = String(sufijos[fila.jobId] ?? '').trim()
+    if (!sufijo) return toast.error('Falta el número', 'Escribí el número secreto que salió impreso después del guion.')
+    setConfirmandoId(fila.jobId)
+    try {
+      await confirmarJob(fila.jobId, sufijo)
+      toast.success('Confirmado en papel', 'El número coincide con el impreso: el trabajo quedó verificado.')
+      setSufijos((actual) => ({ ...actual, [fila.jobId]: '' }))
+      await consultar()
+    } catch (cause) {
+      toast.error('No coincide', cause?.message || 'El número secreto no es el del papel.')
+    } finally { setConfirmandoId('') }
   }
 
   function estadoDe(impresora) {
@@ -533,60 +584,126 @@ export default function Impresoras() {
       )}
 
       <Card className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold">Actividad de impresión</h3>
-            <p className="mt-1 text-sm text-mute">Últimos trabajos que pasaron por el agente{filtroActividad ? ` (impresora ${filtroActividad})` : ''}.</p>
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="printer" className="h-4 w-4 text-mute" />Actividad de impresión</h3>
+            <p className="mt-1 text-sm text-mute">Trabajos que pasaron por el agente. Cada prueba tiene un número secreto impreso: escribilo para confirmar que el papel salió.</p>
           </div>
-          {filtroActividad && <Button type="button" variant="ghost" onClick={() => setFiltroActividad('')}>Quitar filtro</Button>}
+          <div className="flex flex-wrap items-center gap-2">
+            <Select aria-label="Rango de actividad" className="w-28" value={filtroRango} onChange={(event) => setFiltroRango(event.target.value)}>
+              <option value="hoy">Hoy</option>
+              <option value="7d">7 días</option>
+              <option value="todo">Todo</option>
+            </Select>
+            <Select aria-label="Tipo de trabajo" className="w-32" value={filtroTipo} onChange={(event) => setFiltroTipo(event.target.value)}>
+              <option value="todas">Todas</option>
+              <option value="prueba">Pruebas</option>
+              <option value="venta">Ventas</option>
+            </Select>
+            <Button type="button" variant="ghost" onClick={exportarActividad} disabled={!historialFiltrado.length}><Icon name="download" className="h-3.5 w-3.5" />CSV</Button>
+            {filtroActividad && <Button type="button" variant="outline" onClick={() => setFiltroActividad('')}>Quitar filtro</Button>}
+          </div>
         </div>
-        {!historial.length ? (
-          <EmptyState compact icon="receipt" title="Todavía no hay impresiones registradas." description="Cuando imprimas un comprobante o una etiqueta, queda acá." />
+        {!historialFiltrado.length ? (
+          <EmptyState compact icon="receipt" title="Todavía no hay impresiones en este rango." description="Cuando imprimas un comprobante o una prueba, queda acá." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[52rem] text-sm">
+            <table className="w-full min-w-[56rem] text-sm">
               <thead>
                 <tr className="border-b border-ink-600 text-left text-xs uppercase tracking-wider text-mute">
                   <th className="px-2 py-2">Fecha</th>
                   <th className="px-2 py-2">Usuario</th>
-                  <th className="px-2 py-2">Equipo</th>
                   <th className="px-2 py-2">Impresora</th>
                   <th className="px-2 py-2">Modo</th>
                   <th className="px-2 py-2">Puente</th>
                   <th className="px-2 py-2">Validación</th>
+                  <th className="px-2 py-2">Confirmar en papel</th>
                   <th className="px-2 py-2 text-right">Resultado</th>
-                  <th className="px-2 py-2 text-right">Bytes</th>
+                  <th className="w-8 px-2 py-2" />
                 </tr>
               </thead>
               <tbody>
-                {historial.filter((fila) => !filtroActividad || fila.impresora === filtroActividad).map((fila, indice) => (
-                  <tr key={`${fila.fecha}-${indice}`} className="border-b border-ink-600/50">
-                    <td className="px-2 py-2 text-xs text-mute">{fmt(fila.fecha)}</td>
-                    <td className="px-2 py-2 text-xs">{fila.usuario || '—'}</td>
-                    <td className="px-2 py-2 text-xs">{fila.cliente || '—'}</td>
-                    <td className="px-2 py-2 truncate text-xs text-mute" title={`${fila.impresora}${fila.ancho ? ` · ${fila.ancho} mm` : ''}`}>{fila.impresora}</td>
-                    <td className="px-2 py-2 text-xs text-mute" title={fila.modo === 'usb' ? 'Cola CUPS local' : fila.modo === 'lan' ? 'LAN (TCP directo)' : undefined}>{fila.modo === 'usb' ? 'CUPS' : fila.modo === 'lan' ? 'LAN' : conexionDe(fila.impresora)}</td>
-                    <td className="px-2 py-2 truncate text-xs text-mute" title={`${fila.puente || '—'}${fila.tokenPista ? ` · token ${fila.tokenPista}` : ''}`}>{fila.puente || '—'}</td>
-                    <td className="px-2 py-2 text-xs font-semibold">{fila.validacion || '—'}</td>
-                    <td className="px-2 py-2 text-right">
-                      <Badge color={fila.resultado === 'impreso' ? 'green' : 'red'}>{fila.resultado}</Badge>
-                      {fila.error && <span className="mt-1 block max-w-[16rem] truncate text-[10px] text-bad" title={fila.error}>{fila.error}</span>}
-                    </td>
-                    <td className="px-2 py-2 text-right text-xs text-mute">{fila.bytes || 0}</td>
-                  </tr>
-                ))}
+                {historialFiltrado.map((fila, indice) => {
+                  const clave = fila.jobId || `${fila.fecha}-${indice}`
+                  const abierto = detalleAbierto === clave
+                  return [
+                    <tr key={`fila-${clave}`} className="border-b border-ink-600/50">
+                      <td className="px-2 py-2 text-xs text-mute">{fmt(fila.fecha)}</td>
+                      <td className="px-2 py-2 text-xs">{fila.usuario || '—'}</td>
+                      <td className="px-2 py-2 truncate text-xs text-mute" title={`${fila.impresora}${fila.ancho ? ` · ${fila.ancho} mm` : ''}`}>{fila.impresora}</td>
+                      <td className="px-2 py-2 text-xs text-mute" title={fila.modo === 'usb' ? 'Cola CUPS local' : fila.modo === 'lan' ? 'LAN (TCP directo)' : undefined}>{fila.modo === 'usb' ? 'CUPS' : fila.modo === 'lan' ? 'LAN' : conexionDe(fila.impresora)}</td>
+                      <td className="px-2 py-2 truncate text-xs text-mute" title={`${fila.puente || '—'}${fila.tokenPista ? ` · token ${fila.tokenPista}` : ''}`}>{fila.puente || '—'}</td>
+                      <td className="px-2 py-2 text-xs font-semibold" title={fila.tipo ? `Tipo: ${fila.tipo}` : undefined}>{fila.validacion || '—'}</td>
+                      <td className="px-2 py-2">
+                        {fila.resultado === 'aceptado' && fila.validacion ? (
+                          <span className="flex items-center gap-1">
+                            <input value={sufijos[fila.jobId] || ''} onChange={(event) => setSufijos((actual) => ({ ...actual, [fila.jobId]: event.target.value.replace(/\D/g, '').slice(0, 2) }))} inputMode="numeric" maxLength={2} placeholder="número" aria-label={`Número secreto de la validación ${fila.validacion}`} className="w-16 rounded-lg border border-ink-600 bg-ink-800 px-2 py-1 text-center text-xs" />
+                            <button type="button" onClick={() => confirmarEnPapel(fila)} disabled={confirmandoId === fila.jobId} className="rounded-lg border border-ok/40 px-2 py-1 text-[10px] font-bold text-ok transition hover:bg-ok/10 disabled:opacity-50">{confirmandoId === fila.jobId ? '…' : 'Confirmar'}</button>
+                          </span>
+                        ) : fila.resultado === 'confirmado' ? (
+                          <span className="text-xs font-semibold text-ok">✓ en papel</span>
+                        ) : (
+                          <span className="text-xs text-mute">—</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <Badge color={COLOR_RESULTADO[fila.resultado] || 'slate'}>{fila.resultado}</Badge>
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <Button type="button" variant="ghost" className="h-auto px-1 py-1" onClick={() => setDetalleAbierto(abierto ? '' : clave)} aria-expanded={abierto} aria-label={abierto ? 'Ocultar detalle' : 'Ver detalle'}>
+                          <Icon name="chevron" className={`h-3.5 w-3.5 transition ${abierto ? 'rotate-180' : ''}`} />
+                        </Button>
+                      </td>
+                    </tr>,
+                    abierto ? (
+                      <tr key={`detalle-${clave}`} className="border-b border-ink-600/50 bg-ink-800/40">
+                        <td colSpan={9} className="px-3 py-3">
+                          <dl className="grid gap-x-6 gap-y-1 text-xs sm:grid-cols-3">
+                            {[
+                              ['Trabajo', fila.jobId || '—'],
+                              ['Referencia', fila.ref || '—'],
+                              ['Destino', fila.impresora || '—'],
+                              ['Ancho', fila.ancho ? `${fila.ancho} mm` : '—'],
+                              ['Token', fila.tokenPista || 'sin token'],
+                              ['Bytes', String(fila.bytes || 0)],
+                              ['Confirmado', fila.confirmadoEn ? fmt(fila.confirmadoEn) : '—'],
+                              ['Error', fila.error || '—'],
+                            ].map(([etiqueta, valor]) => (
+                              <div key={etiqueta} className="flex justify-between gap-2 border-b border-ink-600/40 pb-1">
+                                <dt className="text-mute">{etiqueta}</dt>
+                                <dd className="truncate text-fore" title={String(valor)}>{valor}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                          {(fila.resultado === 'fallido' || fila.resultado === 'incierto') && (
+                            <div className="mt-2 flex flex-wrap justify-end gap-2">
+                              <Button type="button" variant="ghost" className="text-bad" onClick={() => limpiar([fila.jobId])}>Limpiar este trabajo</Button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ) : null,
+                  ]
+                })}
               </tbody>
             </table>
           </div>
         )}
+        {pendientes.length > 0 && <p className="text-xs text-mute">{pendientes.length} trabajo(s) esperando impresión.</p>}
       </Card>
 
       <Card className="space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold">Equipos con acceso</h3>
-          <p className="mt-1 text-sm text-mute">Sesiones de la empresa: en verde las que estuvieron activas en los últimos 15 minutos.</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="users" className="h-4 w-4 text-mute" />Equipos con acceso</h3>
+            <p className="mt-1 text-sm text-mute">Sesiones de la empresa: en verde las que estuvieron activas en los últimos 15 minutos.</p>
+          </div>
+          <Button type="button" variant="ghost" onClick={() => setEquiposAbiertos((actual) => !actual)} aria-expanded={equiposAbiertos}>
+            <Icon name="chevron" className={`h-3.5 w-3.5 transition ${equiposAbiertos ? 'rotate-180' : ''}`} />
+            {equiposAbiertos ? 'Ocultar' : `Ver ${sesiones?.length || 0}`}
+          </Button>
         </div>
-        {sesiones === null ? (
+        {equiposAbiertos && (sesiones === null ? (
           <Skeleton className="h-16 w-full" />
         ) : !sesiones.length ? (
           <EmptyState compact icon="users" title="No hay sesiones registradas." />
@@ -594,9 +711,12 @@ export default function Impresoras() {
           <div className="space-y-2">
             {sesiones.map((activa) => (
               <div key={activa.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{activa.user?.name || 'Acceso de empresa'}</p>
-                  <p className="mt-0.5 truncate text-xs text-mute">{activa.user?.role || activa.level} · {activa.deviceId || 'Dispositivo no identificado'}</p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <Avatar user={activa.user} size="md" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{activa.user?.name || 'Acceso de empresa'}</p>
+                    <p className="mt-0.5 truncate text-xs text-mute">{activa.user?.role || activa.level} · {activa.deviceId || 'Dispositivo no identificado'}</p>
+                  </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="text-xs text-mute">{hace(activa.lastSeenAt)}</span>
@@ -605,7 +725,7 @@ export default function Impresoras() {
               </div>
             ))}
           </div>
-        )}
+        ))}
       </Card>
 
       {formulario && (

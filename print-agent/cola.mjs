@@ -54,6 +54,7 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       tipo: trabajo.tipo || '',
       // Datos de testeo: permiten auditar en la app qué configuración imprimió.
       validacion: trabajo.validacion || '',
+      sufijo: trabajo.sufijo || '',
       puente: trabajo.puente || '',
       tokenPista: trabajo.tokenPista || '',
       modo: trabajo.modo || '',
@@ -108,7 +109,7 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
 
   return {
     // Intenta imprimir ya; si falla, el trabajo queda en la cola.
-    async encolar({ impresora, data, cliente = '', usuario = '', ref = '', tipo = '', validacion = '', puente = '', tokenPista = '', modo = '', ancho = 0 }) {
+    async encolar({ impresora, data, cliente = '', usuario = '', ref = '', tipo = '', validacion = '', sufijo = '', puente = '', tokenPista = '', modo = '', ancho = 0 }) {
       const bytes = Buffer.from(data, 'base64').length
       const trabajo = {
         id: randomUUID(),
@@ -119,6 +120,7 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
         ref: String(ref || '').slice(0, 64),
         tipo: String(tipo || '').slice(0, 40),
         validacion: String(validacion || '').slice(0, 12),
+        sufijo: String(sufijo ?? '').slice(0, 2),
         puente: String(puente || '').slice(0, 80),
         tokenPista: String(tokenPista || '').slice(0, 40),
         modo: String(modo || '').slice(0, 40),
@@ -148,14 +150,19 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       return { estado: 'no-encontrado' }
     },
     // Confirmación en papel del operador: separada de "aceptado por transporte".
-    confirmar(jobId) {
+    // Si el trabajo guardó sufijo secreto, hay que repetirlo para confirmar:
+    // eso prueba que el papel se vio (el sufijo no se muestra en la app).
+    confirmar(jobId, sufijo = '') {
       const entrada = historial.find((item) => item.jobId === jobId)
-      if (!entrada || entrada.resultado !== 'aceptado') return false
+      if (!entrada) return { ok: false, motivo: 'no-encontrado' }
+      if (entrada.resultado === 'confirmado') return { ok: false, motivo: 'ya-confirmado' }
+      if (entrada.resultado !== 'aceptado') return { ok: false, motivo: 'no-confirmable' }
+      if (entrada.sufijo && String(sufijo).trim() !== String(entrada.sufijo)) return { ok: false, motivo: 'sufijo-incorrecto' }
       entrada.resultado = 'confirmado'
       entrada.confirmadoEn = new Date().toISOString()
       guardarHistorial()
       log(`confirmado en papel ${jobId}`)
-      return true
+      return { ok: true }
     },
     resumen() {
       return {
@@ -220,6 +227,7 @@ function publico(trabajo) {
     ref: trabajo.ref || '',
     tipo: trabajo.tipo || '',
     validacion: trabajo.validacion || '',
+    sufijo: trabajo.sufijo || '',
     puente: trabajo.puente || '',
     tokenPista: trabajo.tokenPista || '',
     modo: trabajo.modo || '',

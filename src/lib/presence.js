@@ -8,9 +8,14 @@ export function estaEnLinea(lastSeenAt, ahora = Date.now()) {
   return Number.isFinite(visto) && ahora - visto <= VENTANA_EN_LINEA_MS
 }
 
+// Alcance de presencia: para la página de un pedido se guarda `pedidos/<id>`
+// (así se ve quién está mirando el mismo pedido); para el resto, la sección.
 export function alcanceDeRuta(pathname) {
-  const parte = String(pathname || '').split('/').filter(Boolean)[0]
-  return parte ? parte.slice(0, 60) : null
+  const partes = String(pathname || '').split('/').filter(Boolean)
+  if (!partes.length) return null
+  const iP = partes.indexOf('pedidos')
+  if (iP !== -1 && partes[iP + 1]) return `pedidos/${partes[iP + 1]}`.slice(0, 60)
+  return partes[0].slice(0, 60)
 }
 
 export function inicialesDe(name) {

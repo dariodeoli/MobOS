@@ -14,6 +14,7 @@ import { ultimos4 } from '@/utils/serial'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import PedidoDetalle from './PedidoDetalle'
+import Icon from '@/components/shared/Icon'
 
 export const orderFields = (row) => {
   const pagos = row.payments || row.pagos || []
@@ -129,18 +130,19 @@ const buscable = (row) => normalizarBusqueda([
   row.seriales.join(' '), row.seriales.map(serial => ultimos4(serial)).join(' '), String(row.total),
 ].filter(Boolean).join(' '))
 
-function FilaPedido({ row, onClick }) {
+function FilaPedido({ row, onClick, onAcciones }) {
   const cancelado = estaCancelado(row)
   const tachado = cancelado ? 'line-through decoration-bad/70' : ''
   const ultimo = row.seriales.length ? String(row.seriales[row.seriales.length - 1]) : ''
   const articulos = vistaArticulos(row)
   return (
+    <div className="relative">
     <button
       type="button"
       data-testid="pedido-fila"
       onClick={onClick}
       className={cn(
-        'group w-full rounded-xl border border-fore/10 bg-ink-800/40 px-2.5 py-1.5 text-left transition hover:border-fono/40 hover:bg-ink-700/50',
+        'group w-full rounded-xl border border-fore/10 bg-ink-800/40 px-2.5 py-1.5 pr-16 text-left transition hover:border-fono/40 hover:bg-ink-700/50',
         estaCompletado(row) && !cancelado && 'opacity-70 hover:opacity-100',
       )}
     >
@@ -162,6 +164,18 @@ function FilaPedido({ row, onClick }) {
         </span>
       </div>
     </button>
+    {onAcciones && (
+      <button
+        type="button"
+        onClick={(event) => { event.stopPropagation(); onAcciones() }}
+        title="Vista rápida (panel)"
+        aria-label={`Vista rápida de ${codigoPedido(row.number)}`}
+        className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg border border-ink-500 text-mute transition hover:border-fono hover:text-fore"
+      >
+        <Icon name="eye" className="h-3.5 w-3.5" />
+      </button>
+    )}
+    </div>
   )
 }
 
@@ -255,6 +269,7 @@ export default function SellerOrders() {
     if (!orderId) return
     try { setPedidoDirecto(orderFields(await api.get(`/api/orders/${encodeURIComponent(orderId)}`))) } catch { /* el listado ya se refrescó */ }
   }
+  const [pedidoPanel, setPedidoPanel] = useState(null)
   const detalleAbierto = seleccion || pedidoDirecto
   const abrirPedido = (row) => navigate(`/pos/pedidos/${encodeURIComponent(row.id)}`)
   const cerrarPedido = () => navigate('/pos/pedidos')
@@ -288,10 +303,30 @@ export default function SellerOrders() {
           {encabezado('fulfillment', 'Estado')}
           {encabezado('total', 'Total', 'justify-end')}
         </div>
-        <div className="space-y-1">{rows.map((row) => <FilaPedido key={row.id} row={row} onClick={() => abrirPedido(row)} />)}</div>
+        <div className="space-y-1">{rows.map((row) => <FilaPedido key={row.id} row={row} onClick={() => abrirPedido(row)} onAcciones={() => setPedidoPanel(row)} />)}</div>
       </div>
     )}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más pedidos'}</button></div>}
-    {detalleAbierto && <PedidoDetalle key={detalleAbierto.id} row={detalleAbierto} esDemo={esDemo} customerOrderCount={detalleAbierto.customerId ? porCliente[detalleAbierto.customerId] || 0 : 0} onClose={cerrarPedido} onChanged={() => { data.refresh(); recargarDirecto() }} />}
+    {detalleAbierto && (
+      <PedidoDetalle
+        key={detalleAbierto.id}
+        pagina
+        row={detalleAbierto}
+        esDemo={esDemo}
+        customerOrderCount={detalleAbierto.customerId ? porCliente[detalleAbierto.customerId] || 0 : 0}
+        onClose={cerrarPedido}
+        onChanged={() => { data.refresh(); recargarDirecto() }}
+      />
+    )}
+    {pedidoPanel && !detalleAbierto && (
+      <PedidoDetalle
+        key={pedidoPanel.id}
+        row={pedidoPanel}
+        esDemo={esDemo}
+        customerOrderCount={pedidoPanel.customerId ? porCliente[pedidoPanel.customerId] || 0 : 0}
+        onClose={() => setPedidoPanel(null)}
+        onChanged={() => { data.refresh(); setPedidoPanel(null) }}
+      />
+    )}
   </SellerSection>
 }

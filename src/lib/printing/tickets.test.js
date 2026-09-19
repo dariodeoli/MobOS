@@ -10,6 +10,8 @@ test('los cinco tipos de prueba arman un ticket con trazabilidad completa', () =
     const texto = ticket.lineas().join('')
     assert.match(ticket.ref, /^TEST-/, `ref del tipo ${tipo}`)
     assert.match(ticket.validacion, /^\d{4}$/, `validación de 4 dígitos en ${tipo}`)
+    assert.match(ticket.sufijo, /^\d$/, `sufijo secreto de 1 dígito en ${tipo}`)
+    assert.equal(ticket.validador, `${ticket.validacion}-${ticket.sufijo}`)
     assert.ok(texto.includes('TICKET DE PRUEBA'), `encabezado en ${tipo}`)
     assert.ok(texto.includes(TIPOS_TICKET_PRUEBA[tipo]), `etiqueta del tipo en ${tipo}`)
     assert.ok(texto.includes('Impresora                        ZKP8008') || texto.includes('ZKP8008'), `nombre de impresora en ${tipo}`)
@@ -94,4 +96,14 @@ test('la prueba de corte explica la verificación física', () => {
   assert.ok(texto.includes('Corte físico'))
   assert.ok(texto.includes('Cutter Enable: YES'))
   assert.ok(texto.includes('GS V 0'))
+})
+
+test('el validador va grande arriba y repetido en el pie', () => {
+  const ticket = ticketPruebaTipo('corta', opciones)
+  const texto = ticket.lineas().join('')
+  const primera = texto.indexOf(`VALIDACIÓN ${ticket.validador}`)
+  const ultima = texto.lastIndexOf(`VALIDACIÓN ${ticket.validador}`)
+  assert.notEqual(primera, -1, 'validador en el header')
+  assert.ok(primera < texto.indexOf('[QR]'), 'el header sale antes del QR')
+  assert.ok(ultima > texto.indexOf('[BARRA]'), 'el pie repite el validador después del código de barras')
 })

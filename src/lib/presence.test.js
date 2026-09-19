@@ -9,6 +9,8 @@ assert.equal(estaEnLinea(new Date(ahora - VENTANA_EN_LINEA_MS - 1).toISOString()
 assert.equal(estaEnLinea(null, ahora), false);
 
 assert.equal(alcanceDeRuta('/inventario/12'), 'inventario');
+assert.equal(alcanceDeRuta('/pos/pedidos/0435'), 'pedidos/0435', 'un pedido abierto se presencia aparte');
+assert.equal(alcanceDeRuta('/pos/pedidos'), 'pos', 'el listado no cuenta como pedido');
 assert.equal(alcanceDeRuta('/'), null);
 assert.equal(alcanceDeRuta(''), null);
 

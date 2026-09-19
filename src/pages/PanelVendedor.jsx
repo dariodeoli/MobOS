@@ -163,7 +163,6 @@ const SUBPAGINAS = {
     vista: 'equipo',
     tabs: [
       ['equipo', 'Equipo'],
-      ['invitaciones', 'Invitaciones'],
       ['identidad', 'Mi identidad'],
       ['roles', 'Roles y permisos'],
       ['historial', 'Auditoría'],
@@ -186,12 +185,21 @@ const SUBPAGINA_DE_VISTA = Object.fromEntries(
 function tabsDeSubpagina(slug, esDemo) {
   const tabs = SUBPAGINAS[slug]?.tabs || []
   if (slug === 'configuracion') {
-    // Invitaciones y Estado del sistema necesitan el API real; en demo quedan ocultas.
-    return tabs.filter(([id]) => (id === 'invitaciones' || id === 'sistema' ? !esDemo : true))
+    // Estado del sistema necesita el API real; en demo queda oculta.
+    return tabs.filter(([id]) => (id === 'sistema' ? !esDemo : true))
   }
   if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas') ? !esDemo : true))
   return tabs
 }
+
+// Configuración agrupada: cuatro íconos con su submenú para no saturar la barra.
+// Invitaciones vive dentro de Equipo (una sola vez, sin pestaña duplicada).
+const GRUPOS_CONFIG = [
+  { id: 'personas', label: 'Personas', icon: 'users', tabs: ['equipo', 'identidad', 'roles'] },
+  { id: 'negocio', label: 'Negocio', icon: 'store', tabs: ['negocio', 'sucursales'] },
+  { id: 'seguridad', label: 'Seguridad', icon: 'lock', tabs: ['seguridad', 'historial'] },
+  { id: 'sistema', label: 'Sistema', icon: 'settings', tabs: ['impresoras', 'sistema'] },
+]
 
 const SUBPAGINA_DE_TAB = Object.fromEntries(
   Object.entries(SUBPAGINAS).flatMap(([slug, cfg]) => cfg.tabs.map(([id]) => [id, slug])),
@@ -318,6 +326,8 @@ export default function PanelVendedor() {
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
   const [vista, setVista] = useState(seccionRuta || routeVista || (subpadre ? tabsRuta[0][0] : 'cargar'))
+  const grupoConfig = GRUPOS_CONFIG.find((grupo) => grupo.tabs.includes(vista)) || GRUPOS_CONFIG[0]
+  const tabsConfig = tabsRuta.filter(([id]) => grupoConfig.tabs.includes(id))
   const [tradeIn, setTradeIn] = useState(null)
   const identidad = `${usuario?.tenantId}:${usuario?.branchId}:${sesion?.vendedorId}:${usuario?.role}:${esDemo}`
   const [cambiarAbierto, setCambiarAbierto] = useState(false)
@@ -714,11 +724,29 @@ export default function PanelVendedor() {
             </div>
           )}
           {esOwner && subpadre === 'configuracion' && (
-            <div>
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2" role="tablist" aria-label="Grupos de configuración">
+                {GRUPOS_CONFIG.map((grupo) => {
+                  const primero = (tabsRuta.find(([id]) => grupo.tabs.includes(id)) || [grupo.tabs[0]])[0]
+                  const activo = grupo.id === grupoConfig.id
+                  return (
+                    <button
+                      key={grupo.id}
+                      type="button"
+                      aria-pressed={activo}
+                      onClick={() => irASubtab(primero)}
+                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${activo ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:border-fono/40 hover:text-fore'}`}
+                    >
+                      <Icon name={grupo.icon} className="h-4 w-4" />
+                      {grupo.label}
+                    </button>
+                  )
+                })}
+              </div>
               <Subtabs
                 value={vista}
                 onChange={irASubtab}
-                items={tabsRuta}
+                items={tabsConfig}
               />
               {vista === 'equipo' && <Vendedores />}
               {vista === 'identidad' && <MiIdentidad />}

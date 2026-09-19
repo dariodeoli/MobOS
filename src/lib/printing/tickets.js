@@ -195,6 +195,9 @@ export function ticketReserva(reservation, { ancho = 80 } = {}) {
 }
 
 const pruebaAleatoria = () => String(Math.floor(1000 + Math.random() * 9000)) // exactamente 4 dígitos
+// Sufijo secreto: solo sale impreso en el papel; la app lo guarda para que el
+// operador confirme la impresión escribiéndolo en Actividad de impresión.
+const pruebaSufijo = () => String(Math.floor(Math.random() * 10))
 const refDePrueba = () => `TEST-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`
 
 const TIPOS_PRUEBA = {
@@ -228,13 +231,15 @@ export function ticketPruebaTipo(tipo, {
   const metodoReal = metodo || (/^(usb|cups):/.test(String(impresora || '')) ? 'CUPS (cola local)' : 'LAN (TCP directo)')
   const conexionReal = /^(usb|cups)/.test(String(conexion || '')) ? 'Cola CUPS local' : 'LAN (TCP directo)'
   const validacion = pruebaAleatoria()
+  const sufijo = pruebaSufijo()
+  const validador = `${validacion}-${sufijo}`
   const ref = refDePrueba()
   const t = crearTicket({ ancho }).iniciar()
 
   // Pie común: todo lo que hace auditable la prueba desde el papel.
   const pie = () => {
     t.linea()
-    t.negrita().centrado(`VALIDACIÓN ${validacion}`).negrita(false)
+    t.negrita().centrado(`VALIDACIÓN ${validador}`).negrita(false)
     t.linea()
     t.par('Impresora', nombre || '—')
     t.par('Método', metodoReal)
@@ -261,7 +266,12 @@ export function ticketPruebaTipo(tipo, {
   }
 
   t.centrado(APP_NAME).negrita().doble().centrado('TICKET DE PRUEBA').doble(false).negrita(false)
-  t.centrado(TIPOS_PRUEBA[tipo] || 'Prueba').linea()
+  t.centrado(TIPOS_PRUEBA[tipo] || 'Prueba')
+  t.linea()
+  // El validador va grande y arriba (y se repite en el pie): si algo cortara la
+  // impresión, el código secreto igual salió en el papel.
+  t.negrita().doble().centrado(`VALIDACIÓN ${validador}`).doble(false).negrita(false)
+  t.linea()
 
   if (tipo === 'corta') {
     t.par('Prueba', metodoReal)
@@ -349,7 +359,7 @@ export function ticketPruebaTipo(tipo, {
 
   pie()
   t.avanza(2).corte()
-  return { base64: () => t.base64(), lineas: () => t.lineas(), ref, validacion, corte: t.corteEnviado() }
+  return { base64: () => t.base64(), lineas: () => t.lineas(), ref, validacion, sufijo, validador, corte: t.corteEnviado() }
 }
 
 // Compatibilidad con el flujo anterior: la prueba clásica de caracteres.

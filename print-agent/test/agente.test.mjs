@@ -80,7 +80,7 @@ test('el agente arranca sin impresora configurada y /health responde', async (t)
     } catch { return false }
   }, { intentos: 60, espera: 150 })
   assert.ok(respuesta, 'el agente responde /health sin impresora configurada')
-  assert.equal(respuesta.version, '1.4.0', 'la versión identifica el build con el fix')
+  assert.equal(respuesta.version, '1.5.0', 'la versión identifica el build con el fix')
   assert.ok(respuesta.red, 'el payload incluye red.autotest')
   assert.equal(respuesta.red.autotest.ok, false, 'sin impresora el autotest no puede dar ok')
 })
@@ -166,6 +166,7 @@ test('el agente imprime al toque cuando la impresora está disponible', async (t
       ref: 'TEST-ABC-1234',
       tipo: 'prueba-corta',
       validacion: '7318',
+      sufijo: '4',
       puente: 'Mac mostrador',
       tokenPista: '1f75…5a8c',
       modo: 'usb',
@@ -188,16 +189,25 @@ test('el agente imprime al toque cuando la impresora está disponible', async (t
   assert.ok(historial.historial[0].bytes > 0)
   // Datos de testeo: quedan registrados para auditar la corrida.
   assert.equal(historial.historial[0].validacion, '7318')
+  assert.equal(historial.historial[0].sufijo, '4')
   assert.equal(historial.historial[0].puente, 'Mac mostrador')
   assert.equal(historial.historial[0].tokenPista, '1f75…5a8c')
   assert.equal(historial.historial[0].modo, 'usb')
   assert.equal(historial.historial[0].ancho, 80)
 
   // Confirmación física: el operador vio el papel y lo marca en la app.
+  // Primero con un sufijo equivocado: el agente debe rechazarlo.
+  const sufijoMalo = await fetch(`http://127.0.0.1:${puertoAgente}/jobs/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-mobos-print-token': TOKEN },
+    body: JSON.stringify({ id: respuesta.jobId, sufijo: '9' }),
+  }).then((r) => r.json())
+  assert.equal(sufijoMalo.ok, false)
+  assert.equal(sufijoMalo.motivo, 'sufijo-incorrecto')
   const confirmado = await fetch(`http://127.0.0.1:${puertoAgente}/jobs/confirm`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-mobos-print-token': TOKEN },
-    body: JSON.stringify({ id: respuesta.jobId }),
+    body: JSON.stringify({ id: respuesta.jobId, sufijo: '4' }),
   }).then((r) => r.json())
   assert.equal(confirmado.ok, true)
   const confirmada = await fetch(`http://127.0.0.1:${puertoAgente}/jobs/${respuesta.jobId}`, { headers: { 'x-mobos-print-token': TOKEN } }).then((r) => r.json())
