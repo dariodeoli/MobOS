@@ -5,6 +5,8 @@ import { formatGs } from '@/utils/moneda'
 import { codigoPedido } from '@/utils/pedido'
 import { cn } from '@/lib/utils'
 import { primerNombre } from '@/lib/utils'
+import { portalUrlFor } from '@/lib/customerPortal'
+import QRCode from 'qrcode'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { whatsappUrl } from './customerMessaging'
 import RucField from '@/components/shared/RucField'
@@ -165,6 +167,41 @@ export default function CustomerProfile({ customer, open, onClose }) {
     } catch (cause) { toast.error(cause?.message || 'No se pudieron guardar las notas.') } finally { setGuardandoNotas(false) }
   }
 
+  // Portal del cliente: prepara (o regenera) el enlace del nivel elegido y su QR.
+  async function prepararPortal(nivel = portalNivel, regenerate = false) {
+    if (esDemo || !customer?.id || portalBusy) return
+    setPortalBusy(true); setPortalError(''); setPortalMsg('')
+    try {
+      const data = await api.post(`/api/customers/${encodeURIComponent(customer.id)}/access-token`, { level: nivel, regenerate })
+      const token = data?.token || ''
+      if (!token) throw new Error('No se pudo preparar el enlace.')
+      setPortalNivel(nivel)
+      setPortal({ token })
+      const url = portalUrlFor(token)
+      if (url) setPortalQr(await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, width: 220 }))
+      if (regenerate) setPortalMsg('Enlace regenerado: el anterior ya no funciona.')
+    } catch (cause) {
+      setPortalError(cause?.message || 'No se pudo preparar el portal.')
+    } finally { setPortalBusy(false); setConfirmarRegenerar(false) }
+  }
+
+  function abrirPortal() {
+    setPortal({ token: '' }); setPortalNivel('rapido'); setPortalQr(''); setPortalMsg(''); setPortalError('')
+    prepararPortal('rapido', false)
+  }
+
+  function cambiarNivelPortal(nivel) {
+    if (nivel === portalNivel || portalBusy) return
+    setPortalNivel(nivel); setPortalQr('')
+    prepararPortal(nivel, false)
+  }
+
+  function copiarPortal() {
+    const url = portalUrlFor(portal?.token)
+    if (!url) return
+    navigator.clipboard?.writeText(url).then(() => setPortalMsg('Enlace copiado.')).catch(() => setPortalMsg(url))
+  }
+
   useEffect(() => {
     if (tab !== 'estadisticas' || analitica || esDemo || !customer?.id) return
     let vigente = true
@@ -222,6 +259,14 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [identitiesError, setIdentitiesError] = useState('')
   const [identityForm, setIdentityForm] = useState(null)
   const [identityBusy, setIdentityBusy] = useState(false)
+  // Portal del cliente: enlace/QR por nivel con el resumen de su cuenta.
+  const [portal, setPortal] = useState(null)
+  const [portalNivel, setPortalNivel] = useState('rapido')
+  const [portalQr, setPortalQr] = useState('')
+  const [portalBusy, setPortalBusy] = useState(false)
+  const [portalMsg, setPortalMsg] = useState('')
+  const [portalError, setPortalError] = useState('')
+  const [confirmarRegenerar, setConfirmarRegenerar] = useState(false)
 
   useEffect(() => {
     if (!open || !customer?.id) return undefined
@@ -595,7 +640,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   }
 
   return (
-    <Modal open={open} onClose={() => { if (!requestKind && !resolveTarget && !identityForm) onClose() }} title={`Cliente: ${customer?.name || ''}`} className="max-w-2xl">
+    <Modal open={open} onClose={() => { if (!requestKind && !resolveTarget && !identityForm && !portal && !confirmarRegenerar) onClose() }} title={`Cliente: ${customer?.name || ''}`} className="max-w-2xl">
       {loading && (
         <div className="space-y-4" aria-busy="true">
           <Skeleton className="h-10 w-2/3" />
@@ -643,17 +688,25 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 {(profile.customer?.tags || []).map((tag) => <Badge key={tag} color="slate">{tag}</Badge>)}
               </div>
             </div>
-            {phone && (
-              <a
-                className="inline-flex items-center gap-2 rounded-lg bg-ok px-4 py-2 text-sm font-semibold text-black transition hover:brightness-110"
-                href={whatsappUrl(phone, `Hola ${profile.customer?.name || customer?.name || ''}, te escribimos de MobOS.`, customer?.countryCode)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Icon name="send" className="h-4 w-4" />
-                Enviar WhatsApp
-              </a>
-            )}
+            <span className="flex flex-wrap items-center gap-2">
+              {!esDemo && (
+                <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={abrirPortal}>
+                  <Icon name="external" className="h-4 w-4" />
+                  Portal del cliente
+                </Button>
+              )}
+              {phone && (
+                <a
+                  className="inline-flex items-center gap-2 rounded-lg bg-ok px-4 py-2 text-sm font-semibold text-black transition hover:brightness-110"
+                  href={whatsappUrl(phone, `Hola ${profile.customer?.name || customer?.name || ''}, te escribimos de MobOS.`, customer?.countryCode)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Icon name="send" className="h-4 w-4" />
+                  Enviar WhatsApp
+                </a>
+              )}
+            </span>
           </header>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -1396,6 +1449,55 @@ export default function CustomerProfile({ customer, open, onClose }) {
           </form>
         )}
       </Modal>
+
+      <Modal
+        open={Boolean(portal)}
+        onClose={() => { if (!portalBusy) { setPortal(null); setPortalQr(''); setPortalMsg(''); setPortalError('') } }}
+        title="Portal del cliente"
+        className="max-w-md"
+      >
+        <div className="space-y-4 text-center">
+          <p className="text-sm text-mute">Compartí este enlace o QR con el cliente: ve su saldo, vencimientos y pedidos sin instalar nada.</p>
+          <div className="flex justify-center gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
+            {[['rapido', 'Rápido'], ['completo', 'Completo']].map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={portalNivel === key}
+                disabled={portalBusy}
+                onClick={() => cambiarNivelPortal(key)}
+                className={cn('rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:opacity-60', portalNivel === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-mute">{portalNivel === 'rapido' ? 'Saldo, vencimientos y últimos pedidos.' : 'Además garantías activas, direcciones y comprobantes.'}</p>
+          {portalBusy && !portalQr
+            ? <p className="py-10 text-sm text-mute">Preparando enlace…</p>
+            : portalQr
+              ? <img src={portalQr} alt="QR del portal del cliente" className="mx-auto h-44 w-44 rounded-xl bg-white p-2" />
+              : null}
+          <p className="break-all rounded-lg border border-ink-600 bg-ink-900 px-3 py-2 text-[11px] text-mute">{portal?.token ? portalUrlFor(portal.token) : '—'}</p>
+          {portalMsg && <p role="status" className="text-xs text-fono-light">{portalMsg}</p>}
+          {portalError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{portalError}</p>}
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button type="button" variant="outline" disabled={!portal?.token} onClick={copiarPortal}><Icon name="copy" className="h-4 w-4" />Copiar enlace</Button>
+            <Button type="button" variant="outline" disabled={!portal?.token} onClick={() => window.open(portalUrlFor(portal.token), '_blank', 'noopener')}><Icon name="external" className="h-4 w-4" />Abrir</Button>
+            <Button type="button" variant="outline" disabled={portalBusy || !portal?.token} onClick={() => setConfirmarRegenerar(true)}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={confirmarRegenerar}
+        onCancel={() => setConfirmarRegenerar(false)}
+        onConfirm={() => prepararPortal(portalNivel, true)}
+        title="Regenerar enlace del portal"
+        description="El enlace y el QR anteriores dejarán de funcionar. Si el cliente ya lo tenía guardado, vas a tener que compartirle el nuevo."
+        confirmLabel="Regenerar"
+        busy={portalBusy}
+      />
     </Modal>
   )
 }

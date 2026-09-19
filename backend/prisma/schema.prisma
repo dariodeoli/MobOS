@@ -81,6 +81,7 @@ model Tenant {
   printBridges            PrintBridge[]
   printers                PrintPrinter[]
   printJobs               PrintJob[]
+  customerPortalTokens    CustomerPortalToken[]
 
   @@index([archivedAt])
 }
@@ -640,6 +641,7 @@ model Customer {
   createdBy     User?             @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   authorizations    CustomerAuthorization[]
   billingIdentities CustomerBillingIdentity[]
+  portalTokens      CustomerPortalToken[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -778,6 +780,26 @@ model CustomerAddress {
   updatedAt  DateTime @updatedAt
 
   @@index([customerId, isDefault])
+}
+
+// Portal público del cliente: enlace/QR por nivel de información
+// (rapido | completo) para que vea su saldo, vencimientos, pedidos, garantías
+// y direcciones sin sesión. Un token vigente por nivel: regenerarlo lo revoca
+// y el enlace anterior deja de funcionar. Nunca expone datos internos.
+model CustomerPortalToken {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  level      String    @default("rapido")
+  token      String    @unique @default(cuid())
+  createdBy  String?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([customerId, level])
+  @@index([tenantId, level])
 }
 
 // Combo: paquete de productos con precio fijo.

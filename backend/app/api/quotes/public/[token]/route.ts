@@ -17,7 +17,7 @@ async function porToken(token: string) {
       branch: { select: { name: true, address: true, city: true, department: true, phone: true, instagram: true } },
       customer: { select: { name: true, document: true } },
       seller: { select: { name: true } },
-      tenant: { select: { name: true, logos: { select: { id: true } } } },
+      tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
     },
   })
 }
