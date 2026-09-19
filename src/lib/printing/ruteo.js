@@ -16,6 +16,17 @@ export function urlDePuente(store, impresora) {
   return String(puente?.url || store?.agentUrl || URL_AGENTE_DEFECTO)
 }
 
+// Token con el que la app habla al agente local: el del puente o, cuando el
+// espejo del backend no expone token (el agente abre la conexión saliente), el
+// token legacy guardado en esta computadora. Nunca sale hacia una dirección
+// que no sea loopback.
+export function tokenDeAgente(store, puente) {
+  const propio = String(puente?.token || '')
+  if (propio) return propio
+  const url = puente?.url || store?.agentUrl || URL_AGENTE_DEFECTO
+  return esLoopback(url) ? String(store?.agentToken || '') : ''
+}
+
 /**
  * Decide el camino de un trabajo. Local solo cuando ESTE dispositivo tiene el
  * agente (loopback responde) y la impresora pertenece a su puente; en cualquier
