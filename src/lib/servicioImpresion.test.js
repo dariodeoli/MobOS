@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildServiceIntakeHtml, buildServiceReportHtml, esquemaSvg, ordenParaImpresion } from './servicioImpresion.js'
+import { CHECKLISTS } from './servicioChecklist.js'
+import { buildServiceIntakeHtml, buildServiceReportHtml, esquemaSvg, ordenParaImpresion, puntosEsquema } from './servicioImpresion.js'
 
 const orden = {
   id: 'os_1',
@@ -67,4 +68,14 @@ test('la orden del API se normaliza para imprimir', () => {
   assert.equal(normalizada.unlockCode, '4321')
   assert.deepEqual(normalizada.unlockPattern, [7, 8, 9])
   assert.deepEqual(normalizada.estadoFisico, { 'Enciende': true, 'Batería': false })
+})
+
+test('los puntos del esquema numeran el checklist dentro del lienzo', () => {
+  const puntos = puntosEsquema('iPhone')
+  assert.equal(puntos.length, 8)
+  assert.deepEqual(puntos.map((punto) => punto.numero), [1, 2, 3, 4, 5, 6, 7, 8])
+  assert.equal(puntos[0].etiqueta, CHECKLISTS.iPhone[0])
+  for (const punto of puntos) {
+    assert.ok(punto.x > 0 && punto.x < 150 && punto.y > 0 && punto.y < 150, `fuera del lienzo: ${punto.etiqueta}`)
+  }
 })

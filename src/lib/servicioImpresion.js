@@ -8,14 +8,22 @@ const escapar = (valor) => String(valor ?? '').replace(/[&<>"']/g, (caracter) =>
 const fecha = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY') : '—')
 const gs = (valor) => `Gs. ${Number(valor || 0).toLocaleString('es-PY')}`
 
+// Puntos numerados del esquema: los comparten la hoja impresa y la pantalla.
+export function puntosEsquema(tipo) {
+  const puntos = CHECKLISTS[tipo] || CHECKLISTS.Otros
+  return puntos.slice(0, 8).map((etiqueta, indice) => ({
+    numero: indice + 1,
+    etiqueta,
+    x: 74 + (indice % 4) * 18,
+    y: 18 + Math.floor(indice / 4) * 96,
+  }))
+}
+
 // Dibujo compacto con los puntos numerados que se corresponden con el checklist.
 export function esquemaSvg(tipo) {
-  const puntos = CHECKLISTS[tipo] || CHECKLISTS.Otros
-  const marcas = puntos.slice(0, 8).map((_punto, indice) => {
-    const x = 74 + (indice % 4) * 18
-    const y = 18 + Math.floor(indice / 4) * 96
-    return `<g><circle cx="${x}" cy="${y}" r="7" fill="#fff" stroke="#0b1822" stroke-width="1"/><text x="${x}" y="${y + 3.5}" text-anchor="middle" font-size="8" font-family="Arial" fill="#0b1822">${indice + 1}</text></g>`
-  }).join('')
+  const marcas = puntosEsquema(tipo).map(({ numero, x, y }) =>
+    `<g><circle cx="${x}" cy="${y}" r="7" fill="#fff" stroke="#0b1822" stroke-width="1"/><text x="${x}" y="${y + 3.5}" text-anchor="middle" font-size="8" font-family="Arial" fill="#0b1822">${numero}</text></g>`
+  ).join('')
   return `<svg viewBox="0 0 150 150" width="150" height="150" role="img" aria-label="Esquema del equipo">
     <rect x="46" y="10" width="58" height="120" rx="12" fill="none" stroke="#0b1822" stroke-width="2"/>
     <rect x="52" y="20" width="46" height="96" rx="4" fill="none" stroke="#0b1822" stroke-width="1"/>

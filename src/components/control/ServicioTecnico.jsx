@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
 import { Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import EsquemaEquipo from '@/components/shared/EsquemaEquipo'
 import PatronDesbloqueo from '@/components/shared/PatronDesbloqueo'
 import Icon from '@/components/shared/Icon'
 import SerialField from '@/components/shared/SerialField'
@@ -328,7 +329,7 @@ export default function ServicioTecnico() {
                 </div>
               </div>
             </div>
-            <div className="mt-1 grid gap-1.5 sm:grid-cols-3">{(CHECKLISTS[form.deviceType] || CHECKLISTS.Otros).map(punto => <label key={punto} className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean((form.checklist || {})[punto])} onChange={event => setForm(current => ({ ...current, checklist: { ...(current.checklist || {}), [punto]: event.target.checked } }))} />{punto}</label>)}</div>
+            <div className="mt-3 flex flex-wrap items-start gap-3"><EsquemaEquipo tipo={form.deviceType} marcados={form.checklist || {}} onToggle={(punto) => setForm(current => ({ ...current, checklist: { ...(current.checklist || {}), [punto]: !(current.checklist || {})[punto] } }))} /><div className="min-w-[16rem] flex-1"><div className="grid gap-1.5 sm:grid-cols-3">{(CHECKLISTS[form.deviceType] || CHECKLISTS.Otros).map(punto => <label key={punto} className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean((form.checklist || {})[punto])} onChange={event => setForm(current => ({ ...current, checklist: { ...(current.checklist || {}), [punto]: event.target.checked } }))} />{punto}</label>)}</div></div></div>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div><Label htmlFor="estado">Estado</Label><Select id="estado" value={form.status} onChange={set('status')}>{ESTADOS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</Select></div>
