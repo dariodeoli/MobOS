@@ -45,3 +45,13 @@ test('los catálogos se eligen con el Select compartido', () => {
 
   assert.deepEqual(culpables, [])
 })
+
+test('el comprobante público no expone el snapshot interno', () => {
+  // El snapshot guarda la fila completa del pedido (incluido el comentario
+  // interno y la facturación); el detalle público filtra por nivel de token y
+  // solo sirve los campos que corresponden a ese nivel.
+  const ruta = fileURLToPath(new URL('../../backend/app/api/orders/public/[token]/route.ts', import.meta.url))
+  const codigo = readFileSync(ruta, 'utf8')
+  assert.ok(!codigo.includes('receiptSnapshot'), 'el detalle público no debe servir el snapshot crudo')
+  assert.ok(codigo.includes("acceso?.level"), 'el detalle público debe seguir filtrando por nivel')
+})
