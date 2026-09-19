@@ -1642,31 +1642,6 @@ model ServiceItem {
 
 // Solicitud de cambio comercial del cliente (pasar a mayorista o habilitar
 // crédito): la pide cualquier usuario y la resuelve administración/gerencia.
-model CustomerRequest {
-  id                     String    @id @default(cuid())
-  tenantId               String
-  customerId             String
-  customerName           String
-  type                   String
-  status                 String    @default("PENDING")
-  requestedBy            String?
-  requestedByName        String?
-  requestedPricingTier   String?
-  requestedCreditDays    Int?
-  requestedCreditLimitPyg Int?
-  approvedPricingTier    String?
-  approvedCreditDays     Int?
-  approvedCreditLimitPyg Int?
-  note                   String?
-  resolvedBy             String?
-  resolvedByName         String?
-  resolvedAt             DateTime?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-
-  @@index([tenantId, status])
-  @@index([customerId, createdAt])
-}
 
 // Titulares de factura que el cliente ya usó: se proponen en la próxima venta
 // y la búsqueda puede encontrar al cliente por esa razón social.

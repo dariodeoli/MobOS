@@ -1,12 +1,32 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { logError } from './lib/log'
+import { logError, logInfo } from './lib/log'
 import { INTERNAL_CLIENT_IP_HEADER, INTERNAL_COOKIE_HEADER, INTERNAL_PASS_HEADER, INTERNAL_PASS_VALUE } from './lib/internal'
 import { MOBOS_ALLOWED_APP_ORIGINS, MOBOS_IDENTITY, MOBOS_IDENTITY_HEADERS, MOBOS_LEGACY_API_HOSTS } from './lib/identity'
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/
 // Cabeceras hop-by-hop: no se copian sobre la respuesta proxeada.
 const HOP_BY_HOP = new Set(['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade'])
+
+// undici envuelve todo en "fetch failed": sin la cadena de causas el log no
+// dice si fue conexión rechazada, socket cortado o un aborto del cliente.
+function causaRaiz(cause: unknown) {
+  let actual = (cause as { cause?: unknown } | null)?.cause
+  let salida: string | undefined
+  for (let i = 0; actual && i < 4; i += 1) {
+    const paso = actual as { code?: string; message?: string; cause?: unknown }
+    salida = [paso?.code, paso?.message].filter(Boolean).join(' ') || salida
+    actual = paso?.cause
+  }
+  return salida
+}
+
+// 499 es el código convencional para "el cliente cerró la conexión": no es un
+// error del servidor, así que no se registra como error ni se responde 5xx.
+function clienteCortado(requestId: string, origin: string, ms: number) {
+  logInfo('middleware_client_abort', { requestId, ms })
+  return applyResponseHeaders(new NextResponse(null, { status: 499 }), origin, requestId)
+}
 
 function resolveRequestId(request: NextRequest) {
   const incoming = request.headers.get('x-request-id')
@@ -71,6 +91,12 @@ async function proxyPass(request: NextRequest, requestHeaders: Headers, requestI
   forwardHeaders.delete(INTERNAL_CLIENT_IP_HEADER)
   if (clientIp) forwardHeaders.set(INTERNAL_CLIENT_IP_HEADER, clientIp)
   forwardHeaders.set(INTERNAL_PASS_HEADER, INTERNAL_PASS_VALUE)
+  // Si el navegador ya cortó (cierre de pestaña, navegación), reenviar el
+  // cuerpo deja el fetch interno esperando hasta que muere el socket: se
+  // responde 499 y no se ensucia el log con un 5xx que nadie va a recibir.
+  // Ni retorno temprano ni `signal` propagado: ambos dejan el cuerpo del
+  // request en un estado que el runtime reporta como uncaughtException
+  // ("Error: aborted"). El corte del cliente se clasifica en el catch.
   const init: RequestInit = { method, headers: forwardHeaders, redirect: 'manual' }
   if (request.body && method !== 'GET' && method !== 'HEAD') {
     init.body = request.body
@@ -143,7 +169,12 @@ export async function middleware(request: NextRequest) {
     return await proxyPass(request, requestHeaders, requestId, origin, startedAt)
   } catch (cause) {
     const ms = Date.now() - startedAt
-    logError('middleware_error', { requestId, method: request.method, path: new URL(request.url).pathname, ms, error: cause instanceof Error ? cause.message : String(cause) })
+    if (request.signal.aborted) return clienteCortado(requestId, origin, ms)
+    logError('middleware_error', {
+      requestId, method: request.method, path: new URL(request.url).pathname, ms,
+      error: cause instanceof Error ? cause.message : String(cause),
+      causa: causaRaiz(cause) ?? null,
+    })
     return applyResponseHeaders(new NextResponse('Internal Server Error', { status: 500 }), origin, requestId)
   }
 }

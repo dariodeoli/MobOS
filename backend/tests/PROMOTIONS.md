@@ -1,6 +1,6 @@
 # Promociones por línea
 
-`ProductPrice` admite `quantity` (default 1), `esDemo` (default false) y llama `onChange(priceString, couponCode)`.
+Cada línea del carrito admite `quantity` (default 1) y `couponCode`.
 Código al aplicar: `"SAVE10"`; al editar o quitar: `null`.
 Main debe conservar el código por línea y omitirlo cuando esté vacío.
 

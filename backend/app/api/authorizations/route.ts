@@ -345,7 +345,10 @@ export async function PATCH(request: Request) {
     const current = await prisma.customerAuthorization.findFirst({ where: { id, tenantId: session.user.tenantId } })
     if (!current) return error('Solicitud no encontrada.', 404)
     if (current.status !== 'PENDING') return error('La solicitud ya fue resuelta.', 409)
-    if (current.requestedById === session.user.id) return error('No podés resolver tu propia solicitud.', 403)
+    // Segregación de funciones: un vendedor o gerente no resuelve lo que pidió.
+    // El dueño (ADMIN) es la última instancia de la empresa: si trabaja solo,
+    // su propia solicitud quedaría sin aprobador.
+    if (current.requestedById === session.user.id && session.user.role !== 'ADMIN') return error('No podés resolver tu propia solicitud.', 403)
     const isSubjectKind = SUBJECT_KINDS.includes(current.kind)
     // Un rechazo sin motivo deja al vendedor sin saber qué corregir.
     if (action === 'reject' && (current.kind === 'DISCOUNT' || current.kind === 'BELOW_LIST_PRICE' || isSubjectKind) && !resolvedNote) {
