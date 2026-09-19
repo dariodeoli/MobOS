@@ -16,12 +16,12 @@ export default function SelectorSucursal({ className }) {
     return (
       <div
         className={cn(
-          'hidden h-[34px] items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[12.5px] text-mute md:flex',
+          'flex h-[34px] items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[12.5px] text-mute',
           className,
         )}
       >
         <Icon name="store" className="h-[15px] w-[15px]" />
-        <span className="max-w-[180px] truncate">{sucursal?.nombre || empresa.nombre}</span>
+        <span className="max-w-[110px] truncate sm:max-w-[180px]">{sucursal?.nombre || empresa.nombre}</span>
       </div>
     )
   }
