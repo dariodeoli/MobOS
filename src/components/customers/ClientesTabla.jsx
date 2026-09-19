@@ -5,12 +5,15 @@ import { readCustomerMetadata } from './customerMessaging'
 import Icon from '@/components/shared/Icon'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import { cn } from '@/lib/utils'
+import BarraLote from '@/components/shared/BarraLote'
+import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
+import { useToast } from '@/components/ui'
 
 // Tabla de clientes alineada: una fila por persona, encabezados ordenables y
 // acciones compactas (perfil al hacer clic, WhatsApp con plantilla). Entra sin
 // scroll horizontal en desktop: todo trunca y el espacio se reparte con
 // prioridad Cliente → Total gastado → Teléfono → Tipo → resto.
-const GRID = 'grid min-w-[64rem] grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1fr)_2.5rem_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.45fr)_minmax(0,1.15fr)_2.5rem_minmax(0,0.7fr)] items-center gap-x-2'
+const GRID = 'grid min-w-[66rem] grid-cols-[1.5rem_minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1fr)_2.5rem_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.45fr)_minmax(0,1.15fr)_2.5rem_minmax(0,0.7fr)] items-center gap-x-2'
 const ULTIMA_PLANTILLA = 'mobos:clientes:plantilla-wa'
 
 const ciudadDe = (row) => row.addresses?.find(address => address.city)?.city || ''
@@ -33,6 +36,8 @@ export const notaInterna = (notes) => {
 
 export default function ClientesTabla({ rows, templates, onPerfil }) {
   const [orden, setOrden] = useState({ key: 'cliente', dir: 'asc' })
+  const toast = useToast()
+  const [seleccionados, setSeleccionados] = useState([])
 
   const ordenarPor = (key) => setOrden(current => current.key === key
     ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
@@ -52,9 +57,39 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
     return 0
   })
 
+  const telefonoDe = (row) => row.phones?.[0] || row.phone || ''
+  const elegidas = () => filas.filter((row) => seleccionados.includes(row.id))
+
+  async function copiarTelefonos() {
+    const numeros = elegidas().map((row) => telefonoDe(row)).filter(Boolean)
+    try {
+      await navigator.clipboard.writeText(numeros.join('\n'))
+      toast.success(`${numeros.length} teléfono(s) copiados.`)
+    } catch { toast.error('No se pudieron copiar los teléfonos.') }
+  }
+
+  function exportarSeleccionados() {
+    const lista = elegidas()
+    const filasCsv = [['Nombre', 'Teléfono', 'Correo', 'RUC', 'Ciudad', 'Pedidos', 'Total gastado'], ...lista.map((row) => [row.name || '', telefonoDe(row), row.email || '', row.document || '', ciudadDe(row), String(row.stats?.orders || 0), String(row.stats?.totalSpentPyg || 0)])]
+    const csv = filasCsv.map((fila) => fila.map((celda) => `"${String(celda).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
+    const enlace = document.createElement('a')
+    enlace.href = url
+    enlace.download = 'mobos-clientes-seleccionados.csv'
+    enlace.click()
+    URL.revokeObjectURL(url)
+    toast.success(`${lista.length} cliente(s) exportados.`)
+  }
+
   return (
+    <div className="space-y-2">
+      <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
+        <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={copiarTelefonos}>Copiar teléfonos</button>
+        <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={exportarSeleccionados}>Exportar CSV</button>
+      </BarraLote>
     <div className="overflow-x-auto">
       <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
+        <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={filas.length > 0 && seleccionados.length === filas.length} onChange={() => setSeleccionados((actuales) => seleccionarTodos(filas, actuales))} />
         {encabezado('cliente', 'Cliente')}
         {encabezado('tipo', 'Tipo')}
         <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Teléfono</span>
@@ -81,6 +116,9 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
               onKeyDown={event => { if (event.key === 'Enter') onPerfil?.(row) }}
               className={cn(GRID, 'cursor-pointer rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-2.5 transition hover:border-fono/40 hover:bg-ink-700/50')}
             >
+              <span className="flex items-center" onClick={(event) => event.stopPropagation()}>
+                <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar a ${row.name || 'cliente'}`} checked={seleccionados.includes(row.id)} onChange={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} />
+              </span>
               <span className="truncate text-sm font-semibold" title={row.name}>{row.name || 'Sin nombre'}</span>
               <span className={cn('inline-block w-fit max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
                 {row.wholesale ? 'Mayorista' : 'Cliente final'}
@@ -121,6 +159,7 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
           )
         })}
       </div>
+    </div>
     </div>
   )
 }

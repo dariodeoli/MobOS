@@ -41,14 +41,18 @@ export async function GET(request: Request) {
   const { session } = context
   const now = new Date()
   const [tenant, sessions, ownerAccess] = await Promise.all([
-    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true, orderPrefix: true, orderNextNumber: true, expenseLimitPyg: true, purchaseCreditLimitPyg: true, logo: { select: { updatedAt: true, mimeType: true } } } }),
+    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true, orderPrefix: true, orderNextNumber: true, expenseLimitPyg: true, purchaseCreditLimitPyg: true, logos: { select: { variant: true, updatedAt: true, mimeType: true } } } }),
     prisma.session.findMany({ where: { tenantId: session.user.tenantId, revokedAt: null, expiresAt: { gt: now } }, orderBy: { lastSeenAt: 'desc' }, take: 50, select: { id: true, level: true, deviceId: true, branchId: true, createdAt: true, lastSeenAt: true, expiresAt: true, user: { select: { name: true, email: true, role: true } } } }),
     prisma.googleStoreAccess.findFirst({ where: { tenantId: session.user.tenantId, owner: true }, select: { subject: true } }),
   ])
   if (!tenant) return error('Empresa no encontrada.', 404)
   // Para el dueño Google: todas las tiendas de su persona, con la actual marcada.
   const stores = ownerAccess ? (await googleStores(ownerAccess.subject)).map(store => ({ ...store, current: store.id === session.user.tenantId })) : null
-  return json({ tenant, currentSessionId: session.sessionId, reauthValidUntil: null, sessions, stores })
+  // El contrato del frontend sigue siendo `tenant.logo` (la variante clara manda);
+  // `logos` es el detalle por variante y no se expone suelto.
+  const { logos, ...restoTenant } = tenant
+  const logo = logos.find((item) => item.variant === 'light') ?? logos[0] ?? null
+  return json({ tenant: { ...restoTenant, logo, logos }, currentSessionId: session.sessionId, reauthValidUntil: null, sessions, stores })
 }
 
 export async function POST(request: Request) {
@@ -190,6 +194,29 @@ export async function PATCH(request: Request) {
         })
       }
       if (isGoogleOwner && ownerAccess) await prisma.googleStoreAccess.delete({ where: { subject_tenantId: { subject: ownerAccess.subject, tenantId: ownerAccess.tenantId } } })
+      return json({ ok: true })
+    }
+    if (action === 'closeAccount') {
+      // Cierre de la cuenta de la persona: deja de entrar, se revocan sus
+      // sesiones y se desactivan sus usuarios; la historia de cada tienda queda.
+      if (body.confirm !== 'CERRAR') return error('Escribí CERRAR para confirmar el cierre de tu cuenta.', 400)
+      const password = input(body.password, 'Contraseña', 1, 72)
+      const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true } })
+      if (!tenant || !(await verifyCredential(session.user.tenantId, session.user.id, password))) return error('No se pudo reautenticar la cuenta.', 401)
+      const accesoDueno = await prisma.googleStoreAccess.findFirst({ where: { tenantId: session.user.tenantId, owner: true }, select: { subject: true } })
+      if (!accesoDueno) return error('Esta cuenta no es la dueña de la tienda: un administrador puede desactivar tu usuario.', 403)
+      const tiendas = await prisma.googleStoreAccess.findMany({ where: { subject: accesoDueno.subject, owner: true }, select: { tenantId: true } })
+      for (const tienda of tiendas) {
+        const otros = await prisma.user.count({ where: { tenantId: tienda.tenantId, role: 'ADMIN', status: 'ACTIVE', id: { not: session.user.id } } })
+        if (!otros) return error('Antes de cerrar tu cuenta, cada tienda necesita otro administrador activo. Si querés dar de baja la tienda, usá Archivar tienda.', 409)
+      }
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: session.user.id }, data: { status: 'INACTIVE' } })
+        for (const tienda of tiendas) await tx.session.updateMany({ where: { tenantId: tienda.tenantId, revokedAt: null }, data: { revokedAt: new Date() } })
+        await tx.googleStoreAccess.deleteMany({ where: { subject: accesoDueno.subject } })
+        await tx.googleIdentity.deleteMany({ where: { subject: accesoDueno.subject } })
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'ACCOUNT_CLOSED', entity: 'User', entityId: session.user.id, metadata: { tiendas: tiendas.length } } })
+      })
       return json({ ok: true })
     }
     if (action === 'archiveStore') {

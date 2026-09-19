@@ -3,6 +3,7 @@
 import { gs } from '../../utils/calculos.js'
 import { APP_NAME } from '../brand.js'
 import { ETIQUETAS_MEDIO_PAGO } from '../constants.js'
+import { CHECKLISTS } from '../servicioChecklist.js'
 import { crearTicket } from './escpos.js'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
@@ -387,5 +388,33 @@ export function ticketEtiquetaUbicacion(location, { ancho = 80 } = {}) {
   t.barcode(`MOBOS:UBI:${location?.id || ''}`, { etiqueta: 'Código de barras' })
   t.linea()
   t.centrado('Escaneá al recibir o trasladar para asignar esta ubicación.')
+  return t.avanza(2).corte()
+}
+
+// Recepción de servicio técnico para ticketera: datos, desbloqueo, checklist
+// marcado y firma. Usa [x]/[ ] porque la térmica no imprime los símbolos ☑/☐.
+export function ticketRecepcionServicio(order, { ancho = 80 } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
+  const tipo = order.deviceType || 'iPhone'
+  const marcados = order.checklist && typeof order.checklist === 'object' ? order.checklist : {}
+  const puntos = CHECKLISTS[tipo] || CHECKLISTS.Otros
+  t.centrado(APP_NAME).negrita().centrado('Recepción de servicio').negrita(false)
+  t.centrado(`Orden ${order.serviceNumber || '—'}`)
+  t.centrado(fecha(order.receivedAt || order.createdAt))
+  t.linea()
+  t.par('Cliente', order.customerName || '—')
+  t.par('Equipo', order.device || '—')
+  if (order.serial) t.par('Serie', order.serial)
+  const desbloqueo = [order.unlockCode, Array.isArray(order.unlockPattern) && order.unlockPattern.length ? `patrón ${order.unlockPattern.join('-')}` : ''].filter(Boolean).join(' · ')
+  if (desbloqueo) t.par('Desbloqueo', desbloqueo)
+  t.par('Precio', gs(order.pricePyg || 0))
+  t.linea()
+  t.negrita().texto('Checklist').negrita(false)
+  for (const punto of puntos) t.texto(`${marcados[punto] ? '[x]' : '[ ]'} ${punto}`)
+  t.linea()
+  if (order.reportedIssue) t.texto(`Falla declarada: ${order.reportedIssue}`)
+  t.linea()
+  t.texto('VERIFIQUE EL DISEÑO ANTES DE FIRMAR.')
+  t.texto('Firma del cliente: ______________________')
   return t.avanza(2).corte()
 }

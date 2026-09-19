@@ -11,7 +11,7 @@ model Tenant {
   usageSessions       UsageSession[]
   googleStoreAccesses GoogleStoreAccess[]
   promotions          Promotion[]
-  logo                TenantLogo?
+  logos                 TenantLogo[]
   paymentAccounts     PaymentAccount[]
   tradeInDevices      TradeInDevice[]
   cashSessions        CashSession[]
@@ -1605,6 +1605,8 @@ model ServiceOrder {
   device         String
   serial         String?
   serviceName    String?
+  // Número comercial de la orden (`OS-#0001`) derivado del máximo de la tienda.
+  serviceNumber  String?
   reportedIssue  String?
   diagnosis      String?
   checklist      Json      @default("{}")
@@ -1613,12 +1615,16 @@ model ServiceOrder {
   status         String    @default("RECIBIDO")
   pricePyg       Int       @default(0)
   costPyg        Int       @default(0)
+  // Código de desbloqueo (PIN y/o patrón) cifrado, atado a esta orden.
+  unlockSecret   String?
+  unlockUpdatedAt DateTime?
   notes          String?
   receivedAt     DateTime  @default(now())
   deliveredAt    DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  @@unique([tenantId, serviceNumber])
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
   @@index([customerId])
@@ -1651,7 +1657,9 @@ model ServiceItem {
 // volumen de adjuntos (MOBOS_STORAGE_DIR) con respaldo en `data`.
 model TenantLogo {
   id         String   @id @default(cuid())
-  tenantId   String   @unique
+  tenantId   String
+  // 'light' = logo para modo claro (oscuro); 'dark' = para modo oscuro (claro).
+  variant    String   @default("light")
   storageKey String?
   data       Bytes?   @db.ByteA
   mimeType   String
@@ -1660,6 +1668,8 @@ model TenantLogo {
   updatedAt  DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, variant])
 }
 
 // Foto de perfil del usuario para las cronologías y el equipo. Los bytes viven

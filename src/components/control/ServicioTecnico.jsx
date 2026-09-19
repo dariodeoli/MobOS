@@ -1,9 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
 import { Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import BarraLote from '@/components/shared/BarraLote'
+import EsquemaEquipo from '@/components/shared/EsquemaEquipo'
+import PatronDesbloqueo from '@/components/shared/PatronDesbloqueo'
 import Icon from '@/components/shared/Icon'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import SerialField from '@/components/shared/SerialField'
+import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
+import { ticketRecepcionServicio } from '@/lib/printing/tickets'
+import { imprimirTicketOFallback } from '@/lib/printing/agent'
+import { useSesion } from '@/lib/sesion'
+import { buildServiceIntakeHtml, buildServiceReportHtml, ordenParaImpresion } from '@/lib/servicioImpresion'
+import { CHECKLISTS } from '@/lib/servicioChecklist'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { coincideCliente } from '@/utils/cliente'
@@ -24,16 +33,8 @@ const ESTADOS = [
 const ESTADO_LABEL = Object.fromEntries(ESTADOS.map(([id, label]) => [id, label]))
 const ESTADO_TONE = Object.fromEntries(ESTADOS.map(([id, , tone]) => [id, tone]))
 const SIGUIENTE = { RECIBIDO: 'DIAGNOSTICO', DIAGNOSTICO: 'CON_TECNICO', CON_TECNICO: 'ESPERANDO_REPUESTO', ESPERANDO_REPUESTO: 'REPARADO', REPARADO: 'LISTO', LISTO: 'ENTREGADO' }
-const FORM_VACIO = { customerName: '', customerId: '', deviceType: 'iPhone', serviceName: '', device: '', serial: '', reportedIssue: '', diagnosis: '', technicianName: '', status: 'RECIBIDO', pricePyg: '', costPyg: '', notes: '', checklist: {} }
+const FORM_VACIO = { customerName: '', customerId: '', deviceType: 'iPhone', serviceName: '', device: '', serial: '', reportedIssue: '', diagnosis: '', technicianName: '', status: 'RECIBIDO', pricePyg: '', costPyg: '', notes: '', checklist: {}, unlockCode: '', unlockPattern: [] }
 const DEVICE_TYPES = ['iPhone', 'MacBook', 'AirPods', 'iPad', 'Apple Watch', 'Otros']
-const CHECKLISTS = {
-  iPhone: ['Enciende', 'Pantalla', 'Touch', 'Cámaras', 'Micrófono', 'Parlantes', 'Carga', 'Botones', 'Face ID / biometría', 'Wi-Fi / Bluetooth', 'Batería', 'Estado físico'],
-  MacBook: ['Enciende', 'Pantalla', 'Teclado', 'Trackpad', 'Puertos', 'Carga', 'Wi-Fi / Bluetooth', 'Batería', 'Estado físico'],
-  AirPods: ['Carga', 'Audio', 'Micrófono', 'Cancelación de ruido', 'Estado físico'],
-  iPad: ['Enciende', 'Pantalla', 'Touch', 'Cámaras', 'Carga', 'Botones', 'Wi-Fi / Bluetooth', 'Batería', 'Estado físico'],
-  'Apple Watch': ['Enciende', 'Pantalla', 'Touch', 'Corona', 'Carga', 'Batería', 'Estado físico'],
-  Otros: ['Enciende', 'Funciona', 'Estado físico'],
-}
 const fecha = (value) => value ? new Date(value).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '') : '—'
 const utilidad = (row) => Number(row.pricePyg || 0) - Number(row.costPyg || 0)
 // Etiqueta corta para el botón de avance: la completa queda en el title.
@@ -41,13 +42,14 @@ const SIGUIENTE_CORTO = { RECIBIDO: 'Recibido', DIAGNOSTICO: 'Diagnóstico', CON
 
 // Tabla compacta: una fila por orden de servicio, encabezados ordenables y el
 // avance de estado en la misma línea.
-const GRID_SERVICIO = 'grid min-w-[63rem] grid-cols-[minmax(8rem,1.3fr)_minmax(6rem,1fr)_minmax(7rem,1.5fr)_5.5rem_5rem_5.5rem_5.5rem_6.5rem_8.5rem] items-center gap-x-2'
+const GRID_SERVICIO = 'grid min-w-[65rem] grid-cols-[1.75rem_minmax(8rem,1.3fr)_minmax(6rem,1fr)_minmax(7rem,1.5fr)_5.5rem_5rem_5.5rem_5.5rem_6.5rem_8.5rem] items-center gap-x-2'
 const CELDA = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 // Última plantilla elegida para el taller: se recuerda entre órdenes.
 const ULTIMA_PLANTILLA_SERVICIO = 'mobos:plantilla:servicio'
 
 export default function ServicioTecnico() {
   const toast = useToast()
+  const { empresa } = useSesion()
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -57,6 +59,7 @@ export default function ServicioTecnico() {
   const [form, setForm] = useState(null)
   const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [seleccionados, setSeleccionados] = useState([])
   const [clientes, setClientes] = useState([])
   const [servicios, setServicios] = useState([])
 
@@ -154,6 +157,8 @@ export default function ServicioTecnico() {
         device: form.device.trim(),
         serviceName: form.serviceName || undefined,
         checklist: form.checklist || {},
+        ...(form.unlockCode?.trim() ? { unlockCode: form.unlockCode.trim() } : {}),
+        ...(Array.isArray(form.unlockPattern) && form.unlockPattern.length ? { unlockPattern: form.unlockPattern } : {}),
         serial: form.serial.trim(),
         reportedIssue: form.reportedIssue.trim(),
         diagnosis: form.diagnosis.trim(),
@@ -171,6 +176,37 @@ export default function ServicioTecnico() {
     } catch (cause) {
       toast.error(cause?.message || 'No se pudo guardar la orden de servicio.')
     } finally { setBusy(false) }
+  }
+
+  // Manda la recepción directo a la ticketera por el agente; si no está,
+  // cae a la impresión del navegador en 80 mm.
+  async function imprimirAgente(row) {
+    const resultado = await imprimirTicketOFallback(ticketRecepcionServicio(ordenParaImpresion(row), { ancho: 80 }), '')
+    if (resultado?.directo) { toast.success('Enviado a la impresora.'); return }
+    imprimir(row, 'recepcion', 'thermal')
+  }
+
+  // Abre la hoja en una pestaña y lanza la impresión del navegador.
+  function imprimir(row, tipo, formato = 'a4') {
+    const orden = ordenParaImpresion(row)
+    const datos = { empresa: { nombre: empresa?.nombre || '', sucursal: empresa?.sucursal || '', telefono: empresa?.telefono || '' } }
+    const html = tipo === 'reporte' ? buildServiceReportHtml(orden, datos) : buildServiceIntakeHtml(orden, { ...datos, format: formato })
+    const ventana = window.open('', '_blank')
+    if (!ventana) { toast.error('Permití las ventanas emergentes para imprimir.'); return }
+    ventana.document.write(html)
+    ventana.document.close()
+    ventana.focus()
+    ventana.print()
+  }
+
+  const alternar = (id) => setSeleccionados((actuales) => alternarId(actuales, id))
+  const seleccionarVisibles = () => setSeleccionados((actuales) => seleccionarTodos(visibles, actuales))
+  const avanzarSeleccionadas = async () => {
+    const filas = visibles.filter((row) => seleccionados.includes(row.id) && SIGUIENTE[row.status])
+    if (!filas.length) { toast.error('Ninguna de las seleccionadas tiene un estado siguiente.'); return }
+    for (const row of filas) await avanzar(row)
+    setSeleccionados([])
+    toast.success(`${filas.length} orden(es) avanzadas.`)
   }
 
   async function avanzar(row) {
@@ -191,6 +227,8 @@ export default function ServicioTecnico() {
       status: row.status || 'RECIBIDO', pricePyg: String(row.pricePyg || ''), costPyg: String(row.costPyg || ''), notes: row.notes || '',
       deviceType: (row.serviceName || '').split(' · ')[0] || 'iPhone', serviceName: row.serviceName || '',
       checklist: row.checklist && typeof row.checklist === 'object' && !Array.isArray(row.checklist) ? row.checklist : {},
+      unlockCode: row.desbloqueo?.pin || '',
+      unlockPattern: Array.isArray(row.desbloqueo?.patron) ? row.desbloqueo.patron : [],
     })
   }
 
@@ -220,9 +258,13 @@ export default function ServicioTecnico() {
       {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
       {loading && <div className="space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
       {!loading && !visibles.length && <EmptyState icon="refresh" title={q ? 'Ninguna orden coincide con la búsqueda.' : 'Todavía no hay órdenes de servicio.'} />}
+      <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
+        <Button variant="outline" className="h-8 px-2 text-xs" onClick={avanzarSeleccionadas}>Avanzar estado</Button>
+      </BarraLote>
       {!loading && visibles.length > 0 && (
         <div className="overflow-x-auto" data-testid="servicio-tabla">
           <div className={cn(GRID_SERVICIO, 'px-3.5 pb-2 pt-1')}>
+            <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={visibles.length > 0 && seleccionados.length === visibles.length} onChange={seleccionarVisibles} />
             {encabezado('equipo', 'Equipo')}
             {encabezado('cliente', 'Cliente')}
             {encabezado('falla', 'Falla')}
@@ -238,8 +280,10 @@ export default function ServicioTecnico() {
               const ganancia = utilidad(row)
               const serial = String(row.serial || '')
               return <div key={row.id} data-testid="servicio-fila" className={cn(GRID_SERVICIO, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
+                <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar la orden de ${row.device || 'servicio'}`} checked={seleccionados.includes(row.id)} onChange={() => alternar(row.id)} />
                 <span className="min-w-0">
                   <b className="block truncate text-sm" title={row.device}>{row.device || 'Equipo'}</b>
+                  {row.serviceNumber && <span className="mt-0.5 block truncate text-[10px] font-semibold text-fono-light tabular-nums">{row.serviceNumber}</span>}
                   {serial && <SerialTexto serial={serial} className="mt-0.5 truncate text-[10px] text-mute" />}
                 </span>
                 <span className="truncate text-xs text-mute" title={row.customerName}>{row.customerName || 'Sin cliente'}</span>
@@ -266,6 +310,10 @@ export default function ServicioTecnico() {
                     />
                   )}
                   {SIGUIENTE[row.status] && <Button variant="outline" className="h-8 whitespace-nowrap px-2 text-xs" title={`Pasar a ${ESTADO_LABEL[SIGUIENTE[row.status]]}`} onClick={() => avanzar(row)}>{SIGUIENTE_CORTO[SIGUIENTE[row.status]]}</Button>}
+                  <Button variant="ghost" className="h-8 px-2 text-xs" title="Imprimir recepción (2 copias)" aria-label={`Imprimir recepción de ${row.device || 'servicio'}`} onClick={() => imprimir(row, 'recepcion', 'a4')}><Icon name="receipt" className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" className="h-8 px-2 text-xs" title="Imprimir recepción 80 mm" aria-label={`Imprimir recepción 80 mm de ${row.device || 'servicio'}`} onClick={() => imprimir(row, 'recepcion', 'thermal')}><Icon name="download" className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" className="h-8 px-2 text-xs" title="Reporte técnico" aria-label={`Imprimir reporte técnico de ${row.device || 'servicio'}`} onClick={() => imprimir(row, 'reporte')}><Icon name="report" className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" className="h-8 px-2 text-xs" title="Enviar a la ticketera" aria-label={`Enviar a la ticketera la recepción de ${row.device || 'servicio'}`} onClick={() => imprimirAgente(row)}><Icon name="send" className="h-3.5 w-3.5" /></Button>
                   <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={`Editar orden de ${row.device || 'servicio'}`} onClick={() => editar(row)}><Icon name="edit" className="h-3.5 w-3.5" /></Button>
                 </span>
               </div>
@@ -304,7 +352,20 @@ export default function ServicioTecnico() {
             <div><Label htmlFor="diagnostico">Diagnóstico</Label><Textarea id="diagnostico" rows={2} value={form.diagnosis} onChange={set('diagnosis')} placeholder="Diagnóstico técnico y trabajo a realizar" autoCapitalize="sentences" /></div>
             <div>
               <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-mute">Checklist de recepción ({form.deviceType})</p>
-              <div className="mt-1 grid gap-1.5 sm:grid-cols-3">{(CHECKLISTS[form.deviceType] || CHECKLISTS.Otros).map(punto => <label key={punto} className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean((form.checklist || {})[punto])} onChange={event => setForm(current => ({ ...current, checklist: { ...(current.checklist || {}), [punto]: event.target.checked } }))} />{punto}</label>)}</div>
+              <div className="mt-3 rounded-xl border border-ink-600 bg-ink-800/30 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-mute">Desbloqueo del equipo</p>
+              <p className="mt-1 text-xs text-mute">Se guarda cifrado en la orden y solo lo ven el dueño, el gerente y el técnico.</p>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                <label className="block space-y-1 text-xs text-mute">PIN o código
+                  <Input maxLength={40} value={form.unlockCode || ''} onChange={set('unlockCode')} placeholder="Ej. 1234" inputMode="numeric" />
+                </label>
+                <div className="text-xs text-mute">
+                  <span className="mb-1 block">Patrón (si usa)</span>
+                  <PatronDesbloqueo value={form.unlockPattern || []} onChange={(puntos) => setForm(current => ({ ...current, unlockPattern: puntos }))} />
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-start gap-3"><EsquemaEquipo tipo={form.deviceType} marcados={form.checklist || {}} onToggle={(punto) => setForm(current => ({ ...current, checklist: { ...(current.checklist || {}), [punto]: !(current.checklist || {})[punto] } }))} /><div className="min-w-[16rem] flex-1"><div className="grid gap-1.5 sm:grid-cols-3">{(CHECKLISTS[form.deviceType] || CHECKLISTS.Otros).map(punto => <label key={punto} className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean((form.checklist || {})[punto])} onChange={event => setForm(current => ({ ...current, checklist: { ...(current.checklist || {}), [punto]: event.target.checked } }))} />{punto}</label>)}</div></div></div>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div><Label htmlFor="estado">Estado</Label><Select id="estado" value={form.status} onChange={set('status')}>{ESTADOS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</Select></div>
