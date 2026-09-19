@@ -1378,10 +1378,15 @@ model AuditLog {
   entity    String
   entityId  String?
   metadata  Json     @default("{}")
+  // Texto denormalizado (acción + entidad + id + metadato) que mantiene un
+  // trigger en la base: la búsqueda de la pantalla de auditoría alcanza el
+  // detalle sin recorrer el JSONB fila por fila.
+  searchText String  @default("")
   createdAt DateTime @default(now())
 
   @@index([tenantId, createdAt])
   @@index([entity, entityId])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model CashSession {
