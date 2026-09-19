@@ -202,6 +202,27 @@ test.describe('impresión remota: configuración', () => {
     expect(despues?.store?.syncedAt).toBe(antes.syncedAt)
     expect((despues?.store?.impresoras || []).some((impresora) => impresora.destino === DESTINO)).toBe(true)
   })
+
+  test('editar una impresora por UI actualiza el backend y la caché', async ({ page }) => {
+    await page.goto('/configuracion/impresoras')
+    await asegurarImpresora(page)
+    await page.reload()
+    const tarjeta = tarjetaDe(page, NOMBRE)
+    await expect(tarjeta).toBeVisible({ timeout: 20_000 })
+    await tarjeta.getByRole('button', { name: 'Editar' }).click()
+
+    const nombreNuevo = `${NOMBRE} ${Date.now()}`
+    await page.getByLabel('Nombre visible').fill(nombreNuevo)
+    await page.getByRole('button', { name: 'Guardar impresora' }).click()
+    await expect(page.getByText(nombreNuevo).first()).toBeVisible({ timeout: 15_000 })
+
+    const lista = await apiImpresion(page, '/api/print/printers')
+    expect((lista.datos?.printers || []).some((impresora) => impresora.name === nombreNuevo)).toBe(true)
+    await expect.poll(async () => {
+      const cache = await leerCache(page)
+      return (cache?.store?.impresoras || []).some((impresora) => impresora.nombre === nombreNuevo)
+    }, { timeout: 10_000 }).toBe(true)
+  })
 })
 
 // Tarjeta de impresora: el grid de tarjetas es el único con lg:grid-cols-2
@@ -252,6 +273,12 @@ test.describe('impresión remota: cola con puente falso', () => {
     // La máquina de turno puede tener agente instalado: se corta 127.0.0.1
     // para que el documento tenga que salir por el camino remoto.
     await page.route('http://127.0.0.1:17890/**', (ruta) => ruta.abort())
+    // El respaldo HTML llama a window.print(): se cuenta para exigir que el
+    // envío remoto NO abra el diálogo solo (duplicaría el ticket).
+    await page.addInitScript(() => {
+      window.top.__dialogosImpresion = 0
+      window.print = () => { window.top.__dialogosImpresion = Number(window.top.__dialogosImpresion || 0) + 1 }
+    })
     const codigo = await crearPuentePorUi(page, `Puente comprobante E2E ${Date.now()}`)
     const { token, bridgeId } = await parearPuente({ api: API, code: codigo })
     const puente = crearPuenteFalso({ api: API, token })
@@ -280,9 +307,26 @@ test.describe('impresión remota: cola con puente falso', () => {
       expect(detalle.datos?.job?.path).toBe('REMOTO')
       expect(detalle.datos?.job?.state).toBe('ACEPTADO')
       await expect(page.getByText('Comprobante encolado al puente')).toBeVisible({ timeout: 10_000 })
+      expect(await page.evaluate(() => window.__dialogosImpresion)).toBe(0)
     } finally {
       puente.detener()
     }
+  })
+
+  test('el puente aparece en línea en la UI después del latido', async ({ page }) => {
+    const codigo = await crearPuentePorUi(page, `Puente latido E2E ${Date.now()}`)
+    const { token } = await parearPuente({ api: API, code: codigo })
+
+    const latido = await fetch(`${API}/api/print/bridge/heartbeat`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: JSON.stringify({ version: '1.6.0', platform: 'e2e' }),
+    })
+    expect(latido.ok).toBe(true)
+
+    await page.reload()
+    await page.getByRole('button', { name: /Gestionar puentes/ }).click()
+    await expect(page.getByText(/en línea/).first()).toBeVisible({ timeout: 15_000 })
   })
 
   test('revocar el puente corta el claim', async ({ page }) => {
