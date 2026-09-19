@@ -75,6 +75,11 @@ function resolveRoute(pathname) {
   if (protectedSections[pathname]) return { label: protectedSections[pathname] }
   if (pathname === '/pos' || pathname.startsWith('/pos/')) return { label: 'Operación de tienda' }
   if (pathname === '/control' || pathname.startsWith('/control/')) return { label: 'Administración' }
+  // Documentos públicos por token: el título no debe caer en "no encontrada".
+  if (pathname.startsWith('/pedido/') || pathname.startsWith('/p/')) return { label: 'Seguimiento de pedido' }
+  if (pathname.startsWith('/garantia/')) return { label: 'Garantía' }
+  if (pathname.startsWith('/cotizacion/')) return { label: 'Cotización' }
+  if (pathname.startsWith('/remito/')) return { label: 'Remito de traslado' }
   return { label: 'Página no encontrada', error: true }
 }
 

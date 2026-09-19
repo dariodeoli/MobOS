@@ -4,12 +4,16 @@ import { requireSession } from '../../../../../lib/auth'
 
 type RouteContext = { params: { id: string } }
 
-const ESTADOS: Record<string, string> = { DRAFT: 'Borrador', SENT: 'Enviada', ACCEPTED: 'Aceptada', CONVERTED: 'Convertida', EXPIRED: 'Vencida', CANCELLED: 'Cancelada' }
+const ESTADOS: Record<string, string> = { DRAFT: 'Borrador', SENT: 'Enviada', ACCEPTED: 'Aceptada', REJECTED: 'Rechazada', CONVERTED: 'Convertida', EXPIRED: 'Vencida', CANCELLED: 'Cancelada' }
 
 const ACCIONES: Record<string, string> = {
   QUOTE_UPDATED: 'Estado actualizado',
   QUOTE_CONVERTED: 'Conversión a pedido',
   QUOTE_CREATED: 'Cotización creada',
+  QUOTE_ACCEPTED: 'Aceptada por el cliente',
+  QUOTE_REJECTED: 'Rechazada por el cliente',
+  QUOTE_PUBLIC_TOKEN_CREATED: 'Enlace del cliente creado',
+  QUOTE_PUBLIC_TOKEN_REGENERATED: 'Enlace del cliente regenerado',
 }
 
 const gs = (value: unknown) => Number(value || 0).toLocaleString('es-PY')
@@ -30,6 +34,7 @@ function detalleAuditoria(action: string, metadata: unknown) {
   if (action === 'QUOTE_UPDATED') return `Estado: ${estado(data.from)} → ${estado(data.to)}`
   if (action === 'QUOTE_CONVERTED') return `Pedido ${data.orderNumber || data.orderId || '—'}`
   if (action === 'QUOTE_CREATED') return `N.º ${data.number || '—'} · Gs ${gs(data.totalPyg)}`
+  if (action === 'QUOTE_ACCEPTED' || action === 'QUOTE_REJECTED') return `${data.origin === 'public' ? 'Desde el enlace del cliente' : 'Interno'}${data.note ? ` · Motivo: ${data.note}` : ''}`
   return detalleMetadata(metadata)
 }
 

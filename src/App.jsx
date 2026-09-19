@@ -10,6 +10,8 @@ import { applyPageMetadata } from '@/lib/seo'
 import DemoAccess from '@/pages/DemoAccess'
 import PedidoPublico from '@/pages/PedidoPublico'
 import GarantiaPublica from '@/pages/GarantiaPublica'
+import CotizacionPublica from '@/pages/CotizacionPublica'
+import RemitoPublico from '@/pages/RemitoPublico'
 import AceptarInvitacion from '@/pages/AceptarInvitacion'
 import VerificarCorreo from '@/pages/VerificarCorreo'
 
@@ -158,6 +160,8 @@ export default function App() {
           <Route path="/pedido/:token" element={<PedidoPublico />} />
           <Route path="/p/:token" element={<PedidoPublico />} />
           <Route path="/garantia/:token" element={<GarantiaPublica />} />
+          <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
+          <Route path="/remito/:token" element={<RemitoPublico />} />
           <Route
             path="/"
             element={
