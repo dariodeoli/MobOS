@@ -271,10 +271,19 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       const entrada = historial.find((item) => item.jobId === jobId)
       if (!entrada) return { ok: false, motivo: 'no-encontrado' }
       if (entrada.resultado === 'confirmado') return { ok: false, motivo: 'ya-confirmado' }
-      if (entrada.resultado !== 'aceptado') return { ok: false, motivo: 'no-confirmable' }
+      // La confirmación la decide quien ve el papel: se permite aunque el
+      // transporte todavía no haya reportado "aceptado" (pendiente, impreso o
+      // incierto); el sufijo secreto sigue siendo la prueba.
+      if (!['aceptado', 'impreso', 'pendiente', 'incierto'].includes(entrada.resultado)) return { ok: false, motivo: 'no-confirmable' }
       if (entrada.sufijo && String(sufijo).trim() !== String(entrada.sufijo)) return { ok: false, motivo: 'sufijo-incorrecto' }
       entrada.resultado = 'confirmado'
       entrada.confirmadoEn = new Date().toISOString()
+      // Confirmar en papel resuelve el trabajo: si seguía en la cola esperando
+      // acción manual (pendiente o incierto), ya no queda ahí.
+      if (trabajos.some((trabajo) => trabajo.id === jobId)) {
+        trabajos = trabajos.filter((trabajo) => trabajo.id !== jobId)
+        guardar()
+      }
       guardarHistorial()
       log(`confirmado en papel ${jobId}`)
       return { ok: true }
@@ -284,7 +293,7 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
         pendientes: trabajos.filter((trabajo) => !esRemoto(trabajo) && trabajo.estado === 'pendiente').length,
         inciertos: trabajos.filter((trabajo) => !esRemoto(trabajo) && trabajo.estado === 'incierto').length,
         fallidos: trabajos.filter((trabajo) => !esRemoto(trabajo) && trabajo.estado === 'fallido').length,
-        sinConfirmar: historial.filter((entrada) => entrada.resultado === 'aceptado').length,
+        sinConfirmar: historial.filter((entrada) => ['aceptado', 'impreso', 'pendiente', 'incierto'].includes(entrada.resultado)).length,
       }
     },
     historial: (limite = 20) => historial.slice(0, limite),

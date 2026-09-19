@@ -236,7 +236,7 @@ const servidor = createServer(async (request, response) => {
       const mensajes = {
         'no-encontrado': 'El trabajo no existe en el historial.',
         'ya-confirmado': 'Este trabajo ya estaba confirmado en papel.',
-        'no-confirmable': 'El trabajo no está aceptado por el transporte: no se puede confirmar en papel.',
+        'no-confirmable': 'El trabajo no tiene número secreto: no se puede confirmar en papel.',
         'sufijo-incorrecto': 'El número secreto no coincide con el impreso: revisá el papel.',
       }
       return responder(response, resultado.ok

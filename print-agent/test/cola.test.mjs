@@ -172,3 +172,18 @@ test('cola, historial y config se escriben con permisos 0600', () => {
   assert.equal(permisos('cola.json'), 0o600)
   assert.equal(permisos('historial.json'), 0o600)
 })
+
+test('un trabajo sin ack del puente se confirma con el número del papel', async () => {
+  // El transporte no reportó el resultado (quedó incierto), pero el operador vio
+  // el ticket: la confirmación la decide el papel, no el ack del transporte.
+  const cola = colaDe(async () => {
+    const error = new Error('Sin respuesta del puente')
+    error.incierto = true
+    throw error
+  })
+  const resultado = await cola.encolar({ impresora: 'lan:10.0.0.1:9100', data: ticket(), validacion: '4618', sufijo: '18' })
+  assert.equal(cola.estado(resultado.jobId).estado, 'incierto')
+  assert.deepEqual(cola.confirmar(resultado.jobId, '00'), { ok: false, motivo: 'sufijo-incorrecto' })
+  assert.deepEqual(cola.confirmar(resultado.jobId, '18'), { ok: true })
+  assert.equal(cola.estado(resultado.jobId).estado, 'confirmado')
+})
