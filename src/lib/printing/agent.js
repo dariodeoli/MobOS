@@ -9,7 +9,7 @@
 import { printHtml } from '@/utils/printHtml'
 import { printingApi } from '@/lib/api/printing'
 import { normalizarDestino, normalizarPuentes, puenteDe, basePuente } from './puentes'
-import { puedeCaerAlDialogo, resolverCamino } from './ruteo'
+import { puedeCaerAlDialogo, resolverCamino, tokenDeAgente } from './ruteo'
 
 export { puenteDe, resolverCamino, puedeCaerAlDialogo }
 export { esLoopback } from './ruteo'
@@ -298,7 +298,7 @@ export const configImpresora = () => {
     const puente = puenteDe(store, predeterminada)
     const guardado = {
       url: puente.url || URL_AGENTE,
-      token: puente.token || '',
+      token: tokenDeAgente(store, puente),
       impresora: predeterminada?.destino || '',
       ancho: predeterminada?.ancho || 80,
       copias: predeterminada?.copias || 1,

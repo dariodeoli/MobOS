@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { esLoopback, puedeCaerAlDialogo, resolverCamino, urlDePuente } from './ruteo.js'
+import { esLoopback, puedeCaerAlDialogo, resolverCamino, tokenDeAgente, urlDePuente } from './ruteo.js'
 
 const storeBase = (cambios = {}) => ({
   agentUrl: 'http://127.0.0.1:17890',
@@ -39,6 +39,16 @@ test('el espejo del backend sin URL usa el agente de esta computadora', () => {
   const store = storeBase({ bridges: [{ id: 'b-1', nombre: 'Mac local', url: '', token: '', backend: true, predeterminado: true }] })
   assert.equal(urlDePuente(store, impresora({ bridgeId: 'b-1' })), 'http://127.0.0.1:17890')
   assert.equal(resolverCamino(store, impresora({ bridgeId: 'b-1' }), { disponible: true }).camino, 'local')
+})
+
+test('el token local legacy se usa solo cuando el puente apunta a loopback', () => {
+  const backend = { id: 'b-1', nombre: 'Mac local', url: '', token: '', backend: true, predeterminado: true }
+  assert.equal(tokenDeAgente(storeBase(), backend), 'token-local')
+  assert.equal(tokenDeAgente(storeBase({ agentToken: '' }), backend), '')
+  const propio = { id: 'p-1', url: 'http://127.0.0.1:17890', token: 'token-puente', predeterminado: true }
+  assert.equal(tokenDeAgente(storeBase(), propio), 'token-puente', 'el token del puente gana')
+  const remoto = { id: 'p-2', url: 'http://192.168.100.110:17890', token: '', predeterminado: true }
+  assert.equal(tokenDeAgente(storeBase(), remoto), '', 'a una IP de red no se le manda el token legacy')
 })
 
 test('loopback reconoce localhost, puerto y barra final; no a un host parecido', () => {
