@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { alcanceDeRuta, estaEnLinea, etiquetaPresencia, inicialesDe, VENTANA_EN_LINEA_MS } from './presence.js'
+import { alcanceDeRuta, estaEnLinea, etiquetaPresencia, VENTANA_EN_LINEA_MS } from './presence.js'
 
 const ahora = Date.parse('2026-09-17T15:00:00.000Z')
 
@@ -13,6 +13,8 @@ assert.equal(alcanceDeRuta('/pos/pedidos/0435'), 'pedidos/0435', 'un pedido abie
 assert.equal(alcanceDeRuta('/pos/pedidos'), 'pos', 'el listado no cuenta como pedido');
 assert.equal(alcanceDeRuta('/'), null);
 assert.equal(alcanceDeRuta(''), null);
+
+import { inicialesDe } from './iniciales.js';
 
 assert.equal(inicialesDe('Dario De Oliveira'), 'DO');
 assert.equal(inicialesDe('Rita'), 'R');

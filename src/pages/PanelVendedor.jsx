@@ -218,7 +218,6 @@ const LABELS = {
   analisis: 'Análisis',
   finanzas: 'Finanzas',
   equipo: 'Configuración',
-  invitaciones: 'Invitaciones',
   identidad: 'Mi identidad',
   roles: 'Roles y permisos',
   historial: 'Auditoría',

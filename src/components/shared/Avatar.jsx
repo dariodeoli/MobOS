@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getAvatarDataUrl } from '@/lib/userAvatar'
+import { inicialesDe } from '@/lib/iniciales'
 
 const TAMANOS = {
   xs: 'h-5 w-5 text-[9px]',
@@ -7,15 +8,6 @@ const TAMANOS = {
   md: 'h-7 w-7 text-[11px]',
   lg: 'h-9 w-9 text-xs',
   xl: 'h-12 w-12 text-sm',
-}
-
-// Iniciales del nombre: primera y última palabra (formato único de la app).
-export const inicialesDeNombre = (nombre) => {
-  const palabras = String(nombre || '').trim().split(/\s+/).filter(Boolean)
-  if (!palabras.length) return '?'
-  const primera = Array.from(palabras[0])[0]
-  const ultima = palabras.length > 1 ? Array.from(palabras[palabras.length - 1])[0] : ''
-  return `${primera}${ultima}`.toLocaleUpperCase('es')
 }
 
 // Único formato de avatar de la app: la foto del usuario si la subió (se pide
@@ -37,5 +29,5 @@ export default function Avatar({ user, hasAvatar, size = 'md', className = '', t
   if (foto) {
     return <img src={foto} alt={`Foto de ${nombre}`} loading="lazy" title={etiqueta} className={`${clases} shrink-0 rounded-full border border-ink-600 object-cover ${className}`} />
   }
-  return <span title={etiqueta} className={`${clases} grid shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 font-semibold text-mute ${className}`}>{inicialesDeNombre(nombre)}</span>
+  return <span title={etiqueta} className={`${clases} grid shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 font-semibold text-mute ${className}`}>{inicialesDe(nombre)}</span>
 }

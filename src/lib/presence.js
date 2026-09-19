@@ -18,14 +18,6 @@ export function alcanceDeRuta(pathname) {
   return partes[0].slice(0, 60)
 }
 
-export function inicialesDe(name) {
-  const palabras = String(name || '').trim().split(/\s+/).filter(Boolean)
-  if (!palabras.length) return '?'
-  const primera = Array.from(palabras[0])[0]
-  const ultima = palabras.length > 1 ? Array.from(palabras[palabras.length - 1])[0] : ''
-  return `${primera}${ultima}`.toLocaleUpperCase('es')
-}
-
 export function etiquetaPresencia(personas) {
   const nombres = personas.map((persona) => persona.name).join(', ')
   return `${nombres} · ${personas.length} en línea`
