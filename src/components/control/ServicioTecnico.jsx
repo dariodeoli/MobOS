@@ -4,6 +4,8 @@ import { Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Selec
 import PatronDesbloqueo from '@/components/shared/PatronDesbloqueo'
 import Icon from '@/components/shared/Icon'
 import SerialField from '@/components/shared/SerialField'
+import { ticketRecepcionServicio } from '@/lib/printing/tickets'
+import { imprimirTicketOFallback } from '@/lib/printing/agent'
 import { useSesion } from '@/lib/sesion'
 import { buildServiceIntakeHtml, buildServiceReportHtml, ordenParaImpresion } from '@/lib/servicioImpresion'
 import { CHECKLISTS } from '@/lib/servicioChecklist'
@@ -169,6 +171,14 @@ export default function ServicioTecnico() {
     } finally { setBusy(false) }
   }
 
+  // Manda la recepción directo a la ticketera por el agente; si no está,
+  // cae a la impresión del navegador en 80 mm.
+  async function imprimirAgente(row) {
+    const resultado = await imprimirTicketOFallback(ticketRecepcionServicio(ordenParaImpresion(row), { ancho: 80 }), '')
+    if (resultado?.directo) { toast.success('Enviado a la impresora.'); return }
+    imprimir(row, 'recepcion', 'thermal')
+  }
+
   // Abre la hoja en una pestaña y lanza la impresión del navegador.
   function imprimir(row, tipo, formato = 'a4') {
     const orden = ordenParaImpresion(row)
@@ -266,6 +276,7 @@ export default function ServicioTecnico() {
                   <Button variant="ghost" className="h-8 px-2 text-xs" title="Imprimir recepción (2 copias)" aria-label={`Imprimir recepción de ${row.device || 'servicio'}`} onClick={() => imprimir(row, 'recepcion', 'a4')}><Icon name="receipt" className="h-3.5 w-3.5" /></Button>
                   <Button variant="ghost" className="h-8 px-2 text-xs" title="Imprimir recepción 80 mm" aria-label={`Imprimir recepción 80 mm de ${row.device || 'servicio'}`} onClick={() => imprimir(row, 'recepcion', 'thermal')}><Icon name="download" className="h-3.5 w-3.5" /></Button>
                   <Button variant="ghost" className="h-8 px-2 text-xs" title="Reporte técnico" aria-label={`Imprimir reporte técnico de ${row.device || 'servicio'}`} onClick={() => imprimir(row, 'reporte')}><Icon name="report" className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" className="h-8 px-2 text-xs" title="Enviar a la ticketera" aria-label={`Enviar a la ticketera la recepción de ${row.device || 'servicio'}`} onClick={() => imprimirAgente(row)}><Icon name="send" className="h-3.5 w-3.5" /></Button>
                   <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={`Editar orden de ${row.device || 'servicio'}`} onClick={() => editar(row)}><Icon name="edit" className="h-3.5 w-3.5" /></Button>
                 </span>
               </div>
