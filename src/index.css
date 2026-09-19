@@ -168,3 +168,8 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
     filter: blur(28px);
   }
 }
+
+/* PIN: se escribe con teclado numerico pero se muestra enmascarado (asteriscos). */
+.pin-oculto {
+  -webkit-text-security: asterisk;
+}

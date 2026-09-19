@@ -184,8 +184,15 @@ export default function Config({ seccion = 'negocio' } = {}) {
                 <p className="text-sm font-medium">{titulo}</p>
                 <p className="mt-0.5 text-xs text-mute">{ayuda}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <div className={`grid h-20 w-32 place-items-center overflow-hidden rounded-xl border border-ink-600 ${variant === 'dark' ? 'bg-ink' : 'bg-paper'}`}>
-                    {logos[variant] ? <img src={logos[variant]} alt={`Logo para ${titulo.toLowerCase()}`} className="max-h-16 max-w-28 object-contain" /> : <span className="text-xs text-mute">Sin logo</span>}
+                  <div className="flex gap-2">
+                    {[['Fondo claro', 'bg-white'], ['Fondo oscuro', 'bg-ink-950']].map(([etiqueta, fondo]) => (
+                      <div key={etiqueta} className="text-center">
+                        <div className={`grid h-14 w-20 place-items-center overflow-hidden rounded-lg border border-ink-600 ${fondo}`}>
+                          {logos[variant] ? <img src={logos[variant]} alt={`${titulo} sobre ${etiqueta.toLowerCase()}`} className="max-h-12 max-w-16 object-contain" /> : <span className="text-[10px] text-mute">—</span>}
+                        </div>
+                        <span className="mt-0.5 block text-[10px] text-mute">{etiqueta}</span>
+                      </div>
+                    ))}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <AttachmentInput onSelect={(file) => subirLogo(file, variant)} onError={setLogoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={logoBusy}>

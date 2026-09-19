@@ -162,6 +162,7 @@ const SUBPAGINAS = {
   configuracion: {
     vista: 'equipo',
     tabs: [
+      ['seguridad', 'Seguridad'],
       ['equipo', 'Equipo'],
       ['invitaciones', 'Invitaciones'],
       ['identidad', 'Mi identidad'],
@@ -169,7 +170,6 @@ const SUBPAGINAS = {
       ['historial', 'Auditoría'],
       ['negocio', 'Negocio'],
       ['sucursales', 'Sucursales'],
-      ['seguridad', 'Seguridad'],
       ['impresoras', 'Impresoras'],
       ['impresion', 'Estado de impresión'],
       ['sistema', 'Estado del sistema'],
