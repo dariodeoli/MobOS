@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Reglas del repo
+    url: https://github.com/dariodeoli/MobOS/blob/main/AGENTS.md
+    about: Cómo se trabaja, se verifica y se entrega en MobOS.
