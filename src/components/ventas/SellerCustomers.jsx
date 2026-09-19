@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
@@ -76,7 +77,12 @@ export function readDemoCustomers() {
 
 export default function SellerCustomers() {
   const { esDemo } = useSesion()
-  const [query, setQuery] = useState('')
+  // La búsqueda global abre la sección con ?q= y, si eligió un cliente puntual,
+  // con ?cliente=<id> para abrir su ficha directo.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const qParam = searchParams.get('q') || ''
+  const clienteParam = searchParams.get('cliente') || ''
+  const [query, setQuery] = useState(qParam)
   const [search, setSearch] = useState('')
   const busquedaDiferida = useBusquedaDiferida(query)
   const [form, setForm] = useState(emptyCustomer)
@@ -100,6 +106,8 @@ export default function SellerCustomers() {
   const [exportError, setExportError] = useState('')
   const nombreRef = useRef(null)
   useEffect(() => { setSearch(busquedaDiferida.trim()) }, [busquedaDiferida])
+  useEffect(() => { if (qParam) setQuery(qParam) }, [qParam])
+  useEffect(() => { if (clienteParam) setProfileCustomer({ id: clienteParam }) }, [clienteParam])
   // Búsqueda y filtros van al servidor (cubren todas las fichas del tenant, no
   // solo la página cargada); el hook pagina con cursor para "Cargar más".
   const path = useMemo(() => {
@@ -125,6 +133,16 @@ export default function SellerCustomers() {
     window.addEventListener('mobos:new-customer', onNewCustomer)
     return () => window.removeEventListener('mobos:new-customer', onNewCustomer)
   }, [])
+
+  // Al cerrar la ficha se limpia ?cliente= de la URL: si no, volver a la
+  // sección reabriría el perfil.
+  function cerrarPerfil() {
+    setProfileCustomer(null)
+    if (!clienteParam) return
+    const siguientes = new URLSearchParams(searchParams)
+    siguientes.delete('cliente')
+    setSearchParams(siguientes, { replace: true })
+  }
 
   function abrirCrear() {
     setForm(emptyCustomer)
@@ -234,7 +252,7 @@ export default function SellerCustomers() {
     {!data.loading && !data.error && vista === 'grid' && <ul className="grid gap-3 sm:grid-cols-2">{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={plantillasClientes} onViewProfile={esDemo ? undefined : setProfileCustomer} />)}</ul>}
     {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={esDemo ? undefined : setProfileCustomer} />}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
-    <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={() => setProfileCustomer(null)} />
+    <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={cerrarPerfil} />
     {!templateData.loading && templateData.error && <p className="rounded-xl border border-amber-400/30 bg-amber-300/10 p-3 text-sm text-warn">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</p>}
     <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" className="max-w-2xl">
       <form onSubmit={importar} className="space-y-3">

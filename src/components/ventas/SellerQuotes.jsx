@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
@@ -48,7 +49,11 @@ export default function SellerQuotes() {
   const { esDemo } = useSesion()
   const productos = getProductos().filter(product => product.activo !== false)
   const [filtro, setFiltro] = useState('todas')
-  const [query, setQuery] = useState('')
+  // La búsqueda global abre el listado con ?q= aplicado.
+  const [searchParams] = useSearchParams()
+  const qParam = searchParams.get('q') || ''
+  const [query, setQuery] = useState(qParam)
+  useEffect(() => { if (qParam) setQuery(qParam) }, [qParam])
   // Búsqueda y estado van al servidor (cubren todas las cotizaciones del
   // alcance del usuario, no solo la página cargada). El texto se difiere 250 ms.
   const busqueda = useBusquedaDiferida(query)

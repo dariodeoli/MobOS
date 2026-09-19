@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { Card, Button, Input, Label, Textarea, Badge, EmptyState, Eyebrow, Modal, MoneyInput, Skeleton, useToast, IconAction } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -43,13 +44,17 @@ const vencimientoGarantia = (item) => {
 export default function Garantias() {
   const { esDemo, sucursal } = useSesion()
   const toast = useToast()
-  const [items, setItems] = useState([]); const [q, setQ] = useState(''); const [form, setForm] = useState(blank); const [error, setError] = useState(''); const [saving, setSaving] = useState(false); const [advancingId, setAdvancingId] = useState(null)
+  // La búsqueda global abre la sección con ?q= aplicado (serial, cliente o detalle).
+  const [searchParams] = useSearchParams()
+  const qParam = searchParams.get('q') || ''
+  const [items, setItems] = useState([]); const [q, setQ] = useState(qParam); const [form, setForm] = useState(blank); const [error, setError] = useState(''); const [saving, setSaving] = useState(false); const [advancingId, setAdvancingId] = useState(null)
   const [orden, setOrden] = useState({ key: 'recientes', dir: 'desc' })
   const [fotosDe, setFotosDe] = useState(null); const [fotos, setFotos] = useState([]); const [fotosCargando, setFotosCargando] = useState(false); const [fotosError, setFotosError] = useState(''); const [subiendo, setSubiendo] = useState(false)
   const [exportando, setExportando] = useState(false)
   const busquedaDiferida = useBusquedaDiferida(q)
   const load = useCallback(async (busqueda = '') => { try { setItems(esDemo ? getDemoWarranties() : await api.get(`/api/warranties?q=${encodeURIComponent(busqueda)}`)) } catch (e) { setError(e.message) } }, [esDemo])
   useEffect(() => { load(busquedaDiferida) }, [load, busquedaDiferida])
+  useEffect(() => { if (qParam) setQ(qParam) }, [qParam])
   async function exportar() {
     if (esDemo) return
     setExportando(true); setError('')

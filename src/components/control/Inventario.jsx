@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
@@ -259,8 +260,11 @@ function CameraScan({ onDetected, onClose, continuous = false }) {
 const INVENTARIO_TABS = ['unidades', 'alertas', 'reservas', 'traslados', 'vendidos', 'transito', 'ubicaciones', 'compartido', 'eliminados']
 
 export default function Inventario({ tab: tabProp } = {}) {
+  // La búsqueda global abre Unidades con ?q=<serial> ya aplicado.
+  const [searchParams] = useSearchParams()
+  const qParam = searchParams.get('q') || ''
   const [products, setProducts] = useState([]), [branches, setBranches] = useState([]), [units, setUnits] = useState([]), [removedUnits, setRemovedUnits] = useState([]), [reservations, setReservations] = useState([]), [transfers, setTransfers] = useState([]), [locations, setLocations] = useState([])
-  const [tab, setTab] = useState(tabProp && INVENTARIO_TABS.includes(tabProp) && (tabProp !== 'alertas' || canViewAlerts) ? tabProp : 'unidades'), [query, setQuery] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [orden, setOrden] = useState('recientes'), [exportando, setExportando] = useState(false)
+  const [tab, setTab] = useState(tabProp && INVENTARIO_TABS.includes(tabProp) && (tabProp !== 'alertas' || canViewAlerts) ? tabProp : 'unidades'), [query, setQuery] = useState(qParam), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [orden, setOrden] = useState('recientes'), [exportando, setExportando] = useState(false)
   const [stockAlerts, setStockAlerts] = useState({ alerts: [], outOfStock: [] })
   const [alertsLoading, setAlertsLoading] = useState(false)
   const [alertsError, setAlertsError] = useState('')
@@ -315,6 +319,7 @@ export default function Inventario({ tab: tabProp } = {}) {
   }, [apiMode])
   const busquedaDiferida = useBusquedaDiferida(query)
   useEffect(() => { refresh(busquedaDiferida) }, [refresh, busquedaDiferida])
+  useEffect(() => { if (qParam) setQuery(qParam) }, [qParam])
   useEffect(() => { if (detalleUnidad) setDetalleUnidad(current => units.find(unit => unit.id === current.id) || current) }, [units]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!apiMode || tab !== 'compartido') return undefined

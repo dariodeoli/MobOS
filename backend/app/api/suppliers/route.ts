@@ -26,7 +26,17 @@ export async function GET(request: Request) {
   const auth = await context(request)
   if (auth === null) return error('Falta sesión.', 401)
   if (auth === false) return error('No autorizado.', 403)
-  const suppliers = await prisma.supplier.findMany({ where: { tenantId: auth.tenant, isActive: true }, orderBy: { name: 'asc' }, take: 250 })
+  // Búsqueda del header global: nombre o abreviatura del proveedor.
+  const q = (new URL(request.url).searchParams.get('q') || '').trim().slice(0, 120)
+  const suppliers = await prisma.supplier.findMany({
+    where: {
+      tenantId: auth.tenant,
+      isActive: true,
+      ...(q ? { OR: [{ name: { contains: q, mode: 'insensitive' } }, { code: { contains: q, mode: 'insensitive' } }] } : {}),
+    },
+    orderBy: { name: 'asc' },
+    take: 250,
+  })
   return json(suppliers)
 }
 

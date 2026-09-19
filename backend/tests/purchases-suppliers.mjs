@@ -41,7 +41,7 @@ const account = await request('/api/payment-accounts', 'POST', { name: `Caja com
 assert.equal(account.response.status, 201, JSON.stringify(account.payload))
 const accountId = account.payload.id
 
-result = await request('/api/purchases', 'POST', { supplierId: supplier.id, supplierName: supplier.name, branchId: 'branch-a-it', lines: [{ productId: productA.payload.id, quantity: 2, unitCostPyg: 100000, lotReference: `LOTE-${ts}-A` }, { productId: productB.payload.id, quantity: 1, unitCostPyg: 50000, lotReference: `LOTE-${ts}-B` }] })
+result = await request('/api/purchases', 'POST', { supplierId: supplier.id, supplierName: supplier.name, supplierReference: `REF-${ts}`, branchId: 'branch-a-it', lines: [{ productId: productA.payload.id, quantity: 2, unitCostPyg: 100000, lotReference: `LOTE-${ts}-A` }, { productId: productB.payload.id, quantity: 1, unitCostPyg: 50000, lotReference: `LOTE-${ts}-B` }] })
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const purchase = result.payload
 const lineA = purchase.lines.find(line => line.productId === productA.payload.id)
@@ -154,4 +154,24 @@ if (sellerToken) {
   assert.equal(result.response.status, 403, 'VENDEDOR no debe ver la cronología del proveedor.')
 }
 
-console.log('purchases-suppliers: checks OK (proveedor ampliado, anticipos con límite, balance, costos auditados y cronologías de producto/proveedor).')
+// 13. Búsqueda q del header global sobre compras y proveedores.
+result = await request(`/api/suppliers?q=${encodeURIComponent(supplier.name)}`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === supplier.id), 'La búsqueda de proveedores por nombre debe encontrarlo.')
+result = await request(`/api/suppliers?q=${encodeURIComponent(`sin-coincidencias-${ts}`)}`)
+assert.equal(result.response.status, 200)
+assert.equal(result.payload.length, 0, 'Un término sin coincidencias no debe devolver proveedores.')
+result = await request(`/api/purchases?q=${encodeURIComponent(supplier.name)}`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === purchase.id), 'La búsqueda de compras por proveedor debe encontrarla.')
+result = await request(`/api/purchases?q=${encodeURIComponent(`REF-${ts}`)}`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.some(row => row.id === purchase.id), 'La búsqueda de compras por referencia debe encontrarla.')
+if (sellerToken) {
+  result = await request('/api/purchases?q=REF', 'GET', undefined, sellerToken)
+  assert.equal(result.response.status, 403, 'VENDEDOR no debe buscar compras.')
+  result = await request('/api/suppliers?q=REF', 'GET', undefined, sellerToken)
+  assert.equal(result.response.status, 403, 'VENDEDOR no debe buscar proveedores.')
+}
+
+console.log('purchases-suppliers: checks OK (proveedor ampliado, anticipos con límite, balance, costos auditados, búsqueda q y cronologías de producto/proveedor).')
