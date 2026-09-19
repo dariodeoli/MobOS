@@ -91,9 +91,9 @@ En la app, Configuración → Impresoras:
 
 ## Red
 
-La impresora ya está configurada en `192.168.1.23:9100` (máscara 255.255.255.0, gateway 192.168.1.1, DHCP desactivado, ESC/POS, cortador habilitado) y el instalador la deja cargada como destino.
+La impresora del local está configurada en `192.168.1.23:9100` (máscara 255.255.255.0, gateway 192.168.1.1, DHCP desactivado, ESC/POS, cortador habilitado) y el instalador la deja cargada como destino.
 
-Lo que falta es de red: la Mac está en `192.168.100.x` y la impresora en `192.168.1.23`, así que **no se ven** aunque el agente esté andando.
+Ojo con la red: la Mac está en `192.168.100.x` y la impresora en `192.168.1.23`, así que **por LAN no se ven** aunque el agente esté andando (el diagnóstico muestra `EHOSTUNREACH` o `red_cambiada`). La impresión real por **USB/CUPS** (`usb:<cola>` de macOS) sí funciona y es la vía recomendada mientras la impresora no esté en la red del router.
 
 **Solución recomendada (definitiva):** que la impresora viva en la red del router. Dos caminos:
 - En el panel de la impresora (o en `http://192.168.1.23`), activar **DHCP** para que el router le dé una IP `192.168.100.x` (y reservarla en el router para que no cambie).
@@ -111,6 +111,8 @@ nc -z -G 2 192.168.1.23 9100 && echo "la impresora responde"
 Es temporal: se pierde al reiniciar o cambiar de red. Si el router y la impresora no comparten el mismo cableado/WiFi, este parche no sirve y hay que ir por la solución recomendada. Lo más
 cómodo es dejar la impresora con **IP fija** (o reserva DHCP) porque el agente la
 usa por IP; si cambia, hay que actualizar el destino en Configuración.
+
+**Desde el celular o cualquier PC** no hace falta tocar la red: con el **modo remoto** la app encola el comprobante, la etiqueta o la recepción en el backend y la Mac puente los imprime (ver «Puente de impresión»).
 
 Prueba rápida desde la terminal (sin la app):
 
