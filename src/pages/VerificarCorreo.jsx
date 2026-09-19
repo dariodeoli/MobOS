@@ -7,8 +7,11 @@ import ProductFooter from '@/components/app/ProductFooter'
 import PegarEnlaceToken from '@/components/shared/PegarEnlaceToken'
 import ThemeLogo from '@/components/app/ThemeLogo'
 
+let tokenLeido
+const leerToken = () => (tokenLeido === undefined ? (tokenLeido = consumeActionToken()) : tokenLeido)
+
 export default function VerificarCorreo() {
-  const [token, setToken] = useState(() => consumeActionToken())
+  const [token, setToken] = useState(leerToken)
   const [state, setState] = useState({ loading: true, error: '', message: '' })
   useEffect(() => {
     let active = true

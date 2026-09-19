@@ -1,0 +1,41 @@
+name: Mejora
+description: Un cambio que agrega o mejora algo del sistema
+title: "[Mejora] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: ¿Qué problema resuelve?
+      description: Lo que hoy cuesta, se hace a mano o no se puede hacer.
+      placeholder: Hoy las cuotas por cobrar se miran una por una…
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: ¿Cómo lo imaginás?
+      description: Una idea concreta de la solución o del flujo deseado.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Clientes
+        - Pedidos y ventas
+        - Stock e inventario
+        - Caja y finanzas
+        - Servicio técnico
+        - Configuración y equipo
+        - Otra
+    validations:
+      required: true
+  - type: textarea
+    id: criterio
+    attributes:
+      label: Cómo sabemos que quedó bien
+      description: Qué se tiene que poder hacer o ver cuando esté listo.
+    validations:
+      required: true

@@ -1,0 +1,25 @@
+name: Tarea
+description: Trabajo técnico o de mantenimiento sin cambio de producto visible
+title: "[Tarea] "
+body:
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto
+      description: Por qué hace falta y qué toca.
+    validations:
+      required: true
+  - type: textarea
+    id: alcance
+    attributes:
+      label: Alcance
+      description: Qué queda adentro y qué queda afuera.
+    validations:
+      required: true
+  - type: textarea
+    id: verificar
+    attributes:
+      label: Cómo se verifica
+      description: Comando, pantalla o dato que confirma que quedó hecho.
+    validations:
+      required: true

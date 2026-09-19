@@ -68,7 +68,7 @@ const FILTROS = [
 // Anchuras fijas lo más compactas posible (fecha, cantidad, entrega, pago y
 // estado) para que la tabla entre sin scroll en pantallas de ~1024 px; el
 // scroll queda solo como respaldo en anchos muy chicos (< 46rem).
-const GRID = 'grid min-w-[46rem] grid-cols-[4.25rem_5rem_minmax(0,1.15fr)_minmax(0,1.6fr)_minmax(0,0.85fr)_2.25rem_3.75rem_3.75rem_5.25rem_7.25rem] items-center gap-x-2'
+const GRID = 'grid min-w-[46rem] grid-cols-[4.25rem_5.25rem_minmax(0,1.15fr)_minmax(0,1.6fr)_minmax(0,0.85fr)_2.25rem_3.75rem_3.75rem_4.75rem_6.5rem_1.75rem] items-center gap-x-1.5'
 
 function fechaCompacta(value) {
   if (!value || Number.isNaN(Date.parse(value))) return 'Sin fecha'
@@ -76,7 +76,7 @@ function fechaCompacta(value) {
   const dia = date.toLocaleDateString('es-PY', { day: '2-digit' })
   const mes = date.toLocaleDateString('es-PY', { month: 'short' }).replace('.', '')
   const hora = date.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })
-  return `${dia} ${mes} · ${hora}`
+  return `${dia} ${mes}·${hora}`
 }
 
 // Vista previa de artículos: hasta dos descripciones completas (con capacidad)
@@ -89,9 +89,9 @@ const vistaArticulos = (row) => {
     .filter(Boolean)
   if (!descripciones.length) return { texto: '', extra: 0, completo: '' }
   return {
-    texto: descripciones.slice(0, 2).join(' · '),
+    texto: descripciones.slice(0, 2).join('·'),
     extra: Math.max(0, descripciones.length - 2),
-    completo: descripciones.join(' · '),
+    completo: descripciones.join('·'),
   }
 }
 
@@ -121,7 +121,7 @@ function BadgeEstado({ row }) {
 // Serial/IMEI: completo cuando entra; si la columna queda corta se recorta la
 // cabeza y los últimos 4 caracteres siguen siempre visibles y destacados.
 function CeldaSerial({ serial }) {
-  return <SerialTexto serial={serial} className="text-[11px] text-mute" tonoCola="font-bold text-fono-light" />
+  return <SerialTexto serial={serial} className="text-[11px] text-mute" tonoCola="font-extrabold text-fono-light" />
 }
 
 const buscable = (row) => normalizarBusqueda([
@@ -136,13 +136,15 @@ function FilaPedido({ row, onClick, onAcciones }) {
   const ultimo = row.seriales.length ? String(row.seriales[row.seriales.length - 1]) : ''
   const articulos = vistaArticulos(row)
   return (
-    <div className="relative">
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       data-testid="pedido-fila"
+      aria-label={`Abrir pedido ${codigoPedido(row.number)}`}
       onClick={onClick}
+      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick?.() } }}
       className={cn(
-        'group w-full rounded-xl border border-fore/10 bg-ink-800/40 px-2.5 py-1.5 pr-16 text-left transition hover:border-fono/40 hover:bg-ink-700/50',
+        'w-full rounded-xl border border-fore/10 bg-ink-800/40 px-2.5 py-1.5 text-left transition hover:border-fono/40 hover:bg-ink-700/50',
         estaCompletado(row) && !cancelado && 'opacity-70 hover:opacity-100',
       )}
     >
@@ -162,19 +164,22 @@ function FilaPedido({ row, onClick, onAcciones }) {
         <span className={cn('truncate text-right text-[13px] font-bold tabular-nums text-fore', tachado)}>
           {Number.isFinite(Number(row.total)) ? gs(row.total) : '—'}
         </span>
+        {/* Vista rápida: es la última columna de la grilla, así queda alineada
+            con su encabezado y no pisa el total. */}
+        <span className="grid place-items-center">
+          {onAcciones && (
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); onAcciones() }}
+              title="Vista rápida (panel)"
+              aria-label={`Vista rápida de ${codigoPedido(row.number)}`}
+              className="grid h-7 w-7 place-items-center rounded-lg border border-ink-500 text-mute transition hover:border-fono hover:text-fore"
+            >
+              <Icon name="eye" className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </span>
       </div>
-    </button>
-    {onAcciones && (
-      <button
-        type="button"
-        onClick={(event) => { event.stopPropagation(); onAcciones() }}
-        title="Vista rápida (panel)"
-        aria-label={`Vista rápida de ${codigoPedido(row.number)}`}
-        className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg border border-ink-500 text-mute transition hover:border-fono hover:text-fore"
-      >
-        <Icon name="eye" className="h-3.5 w-3.5" />
-      </button>
-    )}
     </div>
   )
 }
@@ -302,6 +307,7 @@ export default function SellerOrders() {
           {encabezado('payment', 'Pago')}
           {encabezado('fulfillment', 'Estado')}
           {encabezado('total', 'Total', 'justify-end')}
+          <span aria-hidden="true" />
         </div>
         <div className="space-y-1">{rows.map((row) => <FilaPedido key={row.id} row={row} onClick={() => abrirPedido(row)} onAcciones={() => setPedidoPanel(row)} />)}</div>
       </div>

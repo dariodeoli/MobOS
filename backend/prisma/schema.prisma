@@ -78,6 +78,8 @@ model Tenant {
   warrantyPhotos          WarrantyPhoto[]
   customerAuthorizations  CustomerAuthorization[]
   customerBillingIdentities CustomerBillingIdentity[]
+
+  @@index([archivedAt])
 }
 
 // Identidad de la PERSONA (cuenta Google). No pertenece a ninguna tienda:
@@ -266,6 +268,7 @@ model User {
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([branchId])
+  @@index([tenantId, status, lockedUntil])
 }
 
 model UserInvitation {
@@ -474,6 +477,7 @@ model InventoryUnit {
   @@index([tenantId, branchId, locationId, status])
   @@index([tenantId, branchId, lastVerifiedAt])
   @@index([tenantId, supplierId])
+  @@index([reservationCustomerId])
 }
 
 // Ubicación física dentro de una sucursal: piso de venta, depósito, vitrina,
@@ -1455,6 +1459,7 @@ model Supplier {
   inventoryUnits InventoryUnit[]
 
   @@unique([tenantId, name])
+  @@unique([tenantId, code])
   @@index([tenantId, isActive, name])
 }
 

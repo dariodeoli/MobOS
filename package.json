@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint src scripts print-agent",
     "lint:fix": "eslint src scripts --fix",
+    "db:check": "node scripts/check-db-schema.mjs",
     "test": "node --test \"src/**/*.test.js\" \"print-agent/**/*.test.mjs\"",
     "format": "prettier --write \"src/**/*.{js,jsx,css}\" \"scripts/**/*.mjs\"",
     "release:prepare": "node scripts/release.mjs",

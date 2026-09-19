@@ -14,8 +14,15 @@ test('pedidos: la lista abre sin popups y el detalle se abre y cierra', async ({
   await page.getByRole('button', { name: 'Mis pedidos' }).click()
   await expect(page).toHaveURL(/\/pos\/pedidos$/)
   await expect(page.getByRole('heading', { name: 'Mis pedidos' })).toBeVisible()
-  await expect(page.getByTestId('pedido-fila').first()).toBeVisible()
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByTestId("pedido-fila").first()).toBeVisible()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+
+  // La grilla de cada fila tiene 11 celdas (la última, la vista rápida) y la
+  // fecha entra completa: nada descolgado ni cortado.
+  const celdas = page.getByTestId("pedido-fila").first().locator(":scope > div > *")
+  await expect(celdas).toHaveCount(11)
+  const fecha = celdas.nth(1)
+  expect(await fecha.evaluate(elemento => elemento.scrollWidth <= elemento.clientWidth + 1)).toBeTruthy()
 
   await page.reload()
   await expect(page.getByTestId('pedido-fila').first()).toBeVisible()
