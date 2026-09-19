@@ -21,13 +21,15 @@ async function pedidoAccesible(request: Request, orderId: string) {
   return { order, session }
 }
 
-// Accesos públicos activos del pedido, por nivel de información.
+// Accesos públicos activos del pedido, por nivel de información. El panel solo
+// lista y administra los enlaces compartibles: los tokens del QR impreso
+// (impreso=true) viven aparte para que regenerar un enlace no invalide el papel.
 export async function GET(request: Request, context: { params: Promise<{ orderId: string }> }) {
   const { orderId } = await context.params
   const acceso = await pedidoAccesible(request, orderId)
   if ('error' in acceso) return acceso.error
   const tokens = await prisma.orderAccessToken.findMany({
-    where: { orderId: acceso.order.id, revokedAt: null },
+    where: { orderId: acceso.order.id, revokedAt: null, impreso: false },
     select: { level: true, token: true, createdAt: true },
     orderBy: { createdAt: 'desc' },
   })
@@ -36,6 +38,7 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
 
 // Devuelve el acceso del nivel pedido (lo crea si falta). Con regenerate=true
 // revoca el token vigente y genera uno nuevo: el anterior deja de funcionar.
+// Con impreso=true devuelve el token del QR impreso, que el panel no regenera.
 export async function POST(request: Request, context: { params: Promise<{ orderId: string }> }) {
   const { orderId } = await context.params
   const acceso = await pedidoAccesible(request, orderId)
@@ -45,13 +48,14 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
     const level = typeof body.level === 'string' ? body.level : ''
     if (!ACCESS_LEVELS.includes(level as (typeof ACCESS_LEVELS)[number])) throw new InputError('Nivel de comprobante inválido.')
     const regenerate = body.regenerate === true
+    const impreso = body.impreso === true
 
     const vigente = await prisma.orderAccessToken.findFirst({
-      where: { orderId: acceso.order.id, level, revokedAt: null },
+      where: { orderId: acceso.order.id, level, impreso, revokedAt: null },
       select: { id: true, token: true },
       orderBy: { createdAt: 'desc' },
     })
-    if (vigente && !regenerate) return json({ level, token: vigente.token, regenerated: false })
+    if (vigente && !regenerate) return json({ level, token: vigente.token, impreso, regenerated: false })
 
     const creado = await prisma.$transaction(async tx => {
       if (vigente) {
@@ -62,13 +66,14 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
           orderId: acceso.order.id,
           tenantId: acceso.order.tenantId,
           level,
+          impreso,
           token: nuevoToken(),
           createdBy: acceso.session.user.id,
         },
         select: { level: true, token: true, createdAt: true },
       })
     })
-    return json({ ...creado, regenerated: Boolean(vigente) })
+    return json({ ...creado, impreso, regenerated: Boolean(vigente) })
   } catch (cause) {
     return error(cause instanceof Error ? cause.message : 'No se pudo preparar el acceso.', 400)
   }

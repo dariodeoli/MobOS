@@ -58,13 +58,28 @@ test('los accesos del pedido respetan el nivel y se pueden regenerar', async ({ 
   expect(publicoDetallado.body.level).toBe('detallado')
   expect(publicoDetallado.body.timeline?.length).toBeGreaterThan(0)
 
-  // Regenerar invalida el token anterior del mismo nivel.
+  // El token del QR impreso es propio del papel: el panel no lo lista ni lo
+  // revoca cuando regenera sus enlaces.
+  const impreso = await api(page, `/api/orders/${pedido.id}/access-tokens`, {
+    method: 'POST', body: JSON.stringify({ level: 'rapido', impreso: true }),
+  })
+  expect(impreso.status).toBe(200)
+  expect(impreso.body.token).not.toBe(rapido.body.token)
+  const publicoImpreso = await api(page, `/api/orders/public/${impreso.body.token}`)
+  expect(publicoImpreso.status).toBe(200)
+  const listado = await api(page, `/api/orders/${pedido.id}/access-tokens`)
+  expect((listado.body.tokens || []).some(token => token.token === impreso.body.token)).toBe(false)
+
+  // Regenerar invalida el token anterior del mismo nivel (solo el enlace).
   const rotado = await api(page, `/api/orders/${pedido.id}/access-tokens`, {
     method: 'POST', body: JSON.stringify({ level: 'rapido', regenerate: true }),
   })
   expect(rotado.body.token).not.toBe(rapido.body.token)
   const viejo = await api(page, `/api/orders/public/${rapido.body.token}`)
   expect(viejo.status).toBe(404)
+  // El QR impreso sigue vivo después de regenerar el enlace del panel.
+  const impresoVivo = await api(page, `/api/orders/public/${impreso.body.token}`)
+  expect(impresoVivo.status).toBe(200)
 
   // Un token inventado nunca descubre un pedido.
   const inventado = await api(page, '/api/orders/public/token-que-no-existe')

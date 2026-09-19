@@ -135,11 +135,13 @@ export const recordarPreferencia = (nivel, formato) => {
   try { localStorage.setItem(PREF_NIVEL, nivel); localStorage.setItem(PREF_FORMATO, formato) } catch { /* sin almacenamiento */ }
 }
 
-// Cada comprobante imprime el QR de su propio nivel: el token autoriza esa vista.
+// Cada comprobante imprime el QR de su propio nivel: el token autoriza esa
+// vista. Es el token de impresión (impreso=true), que el panel no lista ni
+// revoca al regenerar enlaces: el papel sigue funcionando.
 export async function tokenDeNivel(orderId, level) {
   if (!orderId) return ''
   try {
-    const data = await api.post(`/api/orders/${encodeURIComponent(orderId)}/access-tokens`, { level })
+    const data = await api.post(`/api/orders/${encodeURIComponent(orderId)}/access-tokens`, { level, impreso: true })
     return data?.token || ''
   } catch { return '' }
 }
