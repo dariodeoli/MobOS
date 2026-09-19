@@ -1,14 +1,19 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
-// Configuración del agente: puerto local, token, impresora predeterminada y
-// reintentos. Vive en ~/.mobos-print/config.json (o MOBOS_PRINT_DIR).
+// Configuración del agente: puerto local, token, impresora predeterminada,
+// reintentos y vínculo remoto. Vive en ~/.mobos-print/config.json
+// (o MOBOS_PRINT_DIR). Con `apiUrl` vacío el comportamiento es el de la 1.5.0:
+// solo camino local.
 export const DIR = process.env.MOBOS_PRINT_DIR || join(homedir(), '.mobos-print')
 export const RUTA_CONFIG = join(DIR, 'config.json')
 export const RUTA_COLA = join(DIR, 'cola.json')
 export const RUTA_HISTORIAL = join(DIR, 'historial.json')
+
+// Intervalo base del poll remoto (decisión 5): 2 s, con backoff a 30 s.
+export const POLL_MS = 2000
 
 export function cargarConfig() {
   let guardado = {}
@@ -29,7 +34,13 @@ export function cargarConfig() {
     // secundaria del puente (red de la impresora).
     lanCups: String(guardado.lanCups || 'MobOS_LAN'),
     alias: String(guardado.alias || '192.168.1.100'),
+    // Vínculo remoto (pair.mjs escribe apiUrl + bridgeToken). Sin ambos el
+    // poller no se arranca y todo sigue por el camino local.
+    apiUrl: String(guardado.apiUrl || process.env.MOBOS_PRINT_API_URL || '').replace(/\/+$/, ''),
+    bridgeToken: String(guardado.bridgeToken || process.env.MOBOS_PRINT_BRIDGE_TOKEN || ''),
+    intervaloPollMs: Math.min(60000, Math.max(250, Number(guardado.intervaloPollMs) || POLL_MS)),
   }
+  config.remotoActivo = Boolean(config.apiUrl && config.bridgeToken)
   // Se guarda siempre: el token generado tiene que sobrevivir al reinicio.
   if (!existsSync(RUTA_CONFIG) || !guardado.token) guardarConfig(config)
   return config
@@ -37,6 +48,8 @@ export function cargarConfig() {
 
 export function guardarConfig(config) {
   mkdirSync(dirname(RUTA_CONFIG), { recursive: true })
-  writeFileSync(RUTA_CONFIG, `${JSON.stringify(config, null, 2)}\n`)
+  // El archivo guarda el token del puente: solo lectura para el dueño.
+  writeFileSync(RUTA_CONFIG, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 })
+  try { chmodSync(RUTA_CONFIG, 0o600) } catch { /* sistemas sin permisos POSIX */ }
   return config
 }
