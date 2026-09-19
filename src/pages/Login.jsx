@@ -290,7 +290,8 @@ export default function Login() {
               autoComplete={crear ? 'new-password' : 'current-password'}
             />
           </div>
-          <div className="-mt-1 text-right"><Link to="/restablecer-contrasena" className="text-xs text-mute hover:text-fore">¿Olvidaste tu contraseña? Recuperar</Link></div>
+          {/* Llevamos el correo ya escrito para no volver a tipearlo en recuperación. */}
+          <div className="-mt-1 text-right"><Link to={`/restablecer-contrasena${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="text-xs text-mute hover:text-fore">¿Olvidaste tu contraseña? Recuperar</Link></div>
           </>}
 
           {error && (
