@@ -152,14 +152,15 @@ const accionesAutorizacion = new Set((result.payload.events || []).map(event => 
 assert.ok(accionesAutorizacion.has('CUSTOMER_AUTHORIZATION_REQUESTED'), 'La cronología debe incluir la solicitud.')
 assert.ok(accionesAutorizacion.has('CUSTOMER_AUTHORIZATION_APPROVED'), 'La cronología debe incluir la aprobación.')
 
-// Ni administración puede resolver una solicitud propia.
+// El dueño (ADMIN) es la última instancia: puede resolver su propia solicitud
+// (segregación de funciones solo para vendedores/gerentes, ya verificada arriba).
 result = await request('/api/authorizations', 'POST', { customerId: sinCredito.id, kind: 'CREDIT', requestedValue: { creditLimitPyg: 500000, creditDays: 14 } })
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const authPropia = result.payload
 result = await request('/api/authorizations', 'PATCH', { id: authPropia.id, action: 'approve', resolvedValue: { creditLimitPyg: 500000, creditDays: 14 } })
-assert.equal(result.response.status, 403, 'Nadie puede resolver su propia solicitud.')
+assert.equal(result.response.status, 200, 'El dueño puede resolver su propia solicitud.')
 result = await request(`/api/customers/${encodeURIComponent(sinCredito.id)}`)
-assert.equal(result.payload.customer.creditLimitPyg, null, 'La solicitud propia no debe aplicarse.')
+assert.equal(result.payload.customer.creditLimitPyg, 500000, 'La solicitud propia del dueño se aplica.')
 
 // Mayorista: la aprobación cambia el precio del cliente.
 result = await sellerRequest('/api/authorizations', 'POST', { customerId: sinCredito.id, kind: 'WHOLESALE' })
