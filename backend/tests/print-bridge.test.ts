@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import type { PrismaClient, PrintBridge } from '@prisma/client'
+import type { PrismaClient, PrintBridge, PrintJob, PrintJobState } from '@prisma/client'
 import {
   MAX_PUENTES_POR_EMPRESA,
   PAIRING_MAX_ATTEMPTS,
@@ -17,6 +17,22 @@ import {
   topeDePuentesAlcanzado,
 } from '../lib/print-bridge'
 import { hashToken } from '../lib/auth'
+import { InputError } from '../lib/payment-input'
+import {
+  ESTADOS_RESULTADO,
+  LEASE_MAX_MS,
+  LEASE_MS,
+  MAX_ABIERTOS_POR_EMPRESA,
+  MAX_INTENTOS_IMPRESION,
+  PAYLOAD_MAX_B64,
+  calcularLeaseExtendido,
+  calcularRequeue,
+  estadoTrasResultado,
+  hashSufijo,
+  shapePublico,
+  sufijoCoincide,
+  validarPayload,
+} from '../lib/print-jobs'
 
 async function main() {
   // ── Normalización del código de vinculación (Crockford) ──────────────────
@@ -126,7 +142,88 @@ async function main() {
   assert.equal(desdeLegacy.isDefault, true)
   assert.throws(() => impresoraDesdeLegacy(null), /legacy/, 'una impresora legacy nula se rechaza')
 
-  console.log('PASS: token, pairing, autenticación multi-puente y validación de impresoras')
+  // ── Payload del trabajo ──────────────────────────────────────────────────
+  assert.equal(validarPayload('QUJDRA=='), 'QUJDRA==', 'acepta base64 del ticket')
+  assert.equal(PAYLOAD_MAX_B64, 131072, 'el tope de payload son 128 KB base64')
+  assert.throws(() => validarPayload(''), /vacío/, 'rechaza payload vacío')
+  assert.throws(() => validarPayload('no-es-base64!'), /vacío/, 'rechaza payload con símbolos')
+  assert.throws(() => validarPayload('A'.repeat(PAYLOAD_MAX_B64 + 1)), (cause: unknown) => cause instanceof InputError && cause.status === 413, 'el payload sobre el tope da 413')
+
+  // ── Sufijo de confirmación ───────────────────────────────────────────────
+  assert.equal(hashSufijo('7'), hashToken('7'), 'el sufijo se guarda hasheado con SHA-256')
+  assert.equal(sufijoCoincide(hashSufijo('7'), hashSufijo('7')), true, 'el sufijo correcto coincide')
+  assert.equal(sufijoCoincide(hashSufijo('7'), hashSufijo('70')), false, 'un sufijo distinto no coincide')
+  assert.equal(sufijoCoincide('abc', 'abcd'), false, 'largos distintos no rompen la comparación')
+
+  // ── Transiciones de estado ───────────────────────────────────────────────
+  assert.deepEqual([...ESTADOS_RESULTADO], ['ACEPTADO', 'INCIERTO', 'FALLIDO'], 'solo tres resultados reportables')
+  assert.equal(estadoTrasResultado('RECLAMADO', 'ACEPTADO'), 'ACEPTADO', 'el claim acepta el resultado exitoso')
+  assert.equal(estadoTrasResultado('RECLAMADO', 'INCIERTO'), 'INCIERTO', 'el claim acepta el incierto')
+  assert.equal(estadoTrasResultado('RECLAMADO', 'FALLIDO'), 'FALLIDO', 'el claim acepta el fallo')
+  assert.equal(estadoTrasResultado('ACEPTADO', 'FALLIDO'), null, 'un trabajo cerrado no cambia de estado')
+  assert.equal(estadoTrasResultado('CONFIRMADO', 'ACEPTADO'), null, 'un confirmado no vuelve atrás')
+  assert.equal(estadoTrasResultado('PENDIENTE', 'ACEPTADO'), null, 'un trabajo sin claim no recibe resultado')
+
+  // ── Requeue por lease vencido ────────────────────────────────────────────
+  const vencidoHace = new Date(ahora.getTime() - 1000)
+  const vencePronto = new Date(ahora.getTime() + 1000)
+  assert.equal(MAX_INTENTOS_IMPRESION, 3, 'el tope de intentos de impresión es explícito')
+  assert.equal(calcularRequeue(1, vencidoHace, ahora), 'PENDIENTE', 'con intentos disponibles vuelve a pendiente')
+  assert.equal(calcularRequeue(2, vencidoHace, ahora), 'PENDIENTE', 'el penúltimo intento todavía reencola')
+  assert.equal(calcularRequeue(3, vencidoHace, ahora), 'FALLIDO', 'agotar los intentos deja el trabajo fallido')
+  assert.equal(calcularRequeue(1, vencePronto, ahora), null, 'un lease vigente no se toca')
+  assert.equal(calcularRequeue(1, null, ahora), null, 'sin vencimiento no hay requeue')
+
+  // ── Extensión del lease por latido ───────────────────────────────────────
+  const reclamadoHace = new Date(ahora.getTime() - 10_000)
+  assert.equal(calcularLeaseExtendido(reclamadoHace, ahora)?.getTime(), ahora.getTime() + LEASE_MS, 'el latido extiende 120 s')
+  assert.equal(calcularLeaseExtendido(null, ahora), null, 'sin claim no hay lease que extender')
+  assert.equal(calcularLeaseExtendido(new Date(ahora.getTime() - LEASE_MAX_MS), ahora), null, 'agotadas las ventanas no se extiende más')
+  const cercaDelTope = new Date(ahora.getTime() - LEASE_MAX_MS + 10_000)
+  assert.equal(calcularLeaseExtendido(cercaDelTope, ahora)?.getTime(), cercaDelTope.getTime() + LEASE_MAX_MS, 'el lease nunca supera el tope de ventanas')
+
+  // ── Shape público (lista blanca) ─────────────────────────────────────────
+  const jobInterno = {
+    id: 'job-1',
+    state: 'RECLAMADO' as PrintJobState,
+    path: 'REMOTO',
+    kind: 'prueba',
+    printerId: 'impresora-1',
+    destination: 'lan:10.0.0.5:9100',
+    validation: '1234',
+    reference: 'TEST-1',
+    requestedByName: 'Admin',
+    deviceName: 'Mac',
+    bridgeName: 'Puente',
+    tokenHint: 'abc…',
+    mode: 'test',
+    width: 58,
+    copies: 1,
+    attempts: 1,
+    error: null,
+    payloadBytes: 12,
+    createdAt: ahora,
+    acceptedAt: null,
+    confirmedAt: null,
+    payload: 'QUJDRA==',
+    suffixHash: hashSufijo('7'),
+    leaseId: 'lease-secreto',
+    idempotencyKey: 'clave',
+    sourceJobId: 'local-1',
+    tokenHash: 'jamas',
+  } as unknown as PrintJob
+  const publicoJob = shapePublico(jobInterno)
+  assert.deepEqual(
+    Object.keys(publicoJob).sort(),
+    ['acceptedAt', 'attempts', 'bridgeName', 'confirmedAt', 'copies', 'createdAt', 'destination', 'deviceName', 'error', 'id', 'kind', 'mode', 'path', 'payloadBytes', 'printerId', 'reference', 'requestedByName', 'state', 'tokenHint', 'validation', 'width'],
+    'el shape público es una lista blanca exacta',
+  )
+  assert.equal('payload' in publicoJob, false, 'el shape público nunca expone bytes ESC/POS')
+  assert.equal('suffixHash' in publicoJob, false, 'el shape público nunca expone el hash del sufijo')
+  assert.equal('leaseId' in publicoJob, false, 'el shape público nunca expone el lease')
+  assert.equal(MAX_ABIERTOS_POR_EMPRESA, 200, 'el cap de trabajos abiertos por empresa es explícito')
+
+  console.log('PASS: token, pairing, autenticación multi-puente, validación de impresoras y trabajos de impresión')
 }
 
 main().catch(error => { console.error(error); process.exit(1) })
