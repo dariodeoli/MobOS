@@ -130,6 +130,16 @@ test('el comprobante muestra el total de ítems y destaca el saldo pendiente', (
   assert.ok(texto.includes('[QR] https://app.moboss.online/p/token-vivo'), 'el QR lleva el enlace del nivel')
 })
 
+test('el comprobante imprime el logo de la empresa como raster GS v 0', () => {
+  const logo = { ancho: 8, alto: 2, bytes: new Uint8Array([0b10000000, 0b00000001]) }
+  const ticket = ticketComprobante({ orderNumber: 'P-1', totalPyg: 0, items: [], payments: [] }, { nivel: 'rapido', ancho: 80, logo })
+  assert.ok(ticket.lineas().join('').includes('[LOGO]'), 'la vista previa marca el logo')
+  const bytes = Array.from(ticket.bytes())
+  const comando = [0x1d, 0x76, 0x30, 0x00, 0x01, 0x00, 0x02, 0x00].join(',')
+  const posicion = bytes.findIndex((_, indice) => bytes.slice(indice, indice + 8).join(',') === comando)
+  assert.ok(posicion >= 0, 'el encabezado lleva GS v 0 con el tamaño correcto')
+})
+
 test('un comprobante sin saldo no imprime la línea de saldo', () => {
   const order = {
     orderNumber: 'P-101',

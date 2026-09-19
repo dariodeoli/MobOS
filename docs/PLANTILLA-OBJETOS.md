@@ -25,7 +25,7 @@ Nunca un `<input>` suelto. Un componente por tipo, en el directorio compartido
 | Fechas | `DateField`, `DateRange` | zona horaria única |
 | Ubicación | `CityField` / autocompletado | catálogo canónico |
 | Cuenta bancaria / billetera | `BankAccountField` | institución + número |
-| Identidad fiscal | `TaxIdField` | dígito verificador + patrón extractor (consulta al backend) |
+| Identidad fiscal | `TaxIdField` | dígito verificador + patrón extractor (consulta al backend; se aplica solo al confirmar y sin proveedor se carga a mano) |
 | Redes / enlaces | `SocialField`, `LinkField` | solo https |
 | Archivo / imagen | `AttachmentInput` | ver sección 6 |
 | Segmentado | `SegmentedField` | opciones excluyentes |
@@ -155,7 +155,8 @@ Nunca un `<input>` suelto. Un componente por tipo, en el directorio compartido
 
 > Referencia MobOS: `src/lib/api/client.js`, `src/lib/roles.js`,
 > `src/lib/utils.js`, `src/lib/urls.js`, `src/lib/constants.js`.
-> Pendiente: timeout/caché en el cliente API.
+> Implementado: timeout por pedido, caché corta solo-GET e invalidación
+> (`src/lib/api/client.js`, `requestCache.test.js`).
 
 ## 8. Tokens y estilo — un solo sistema visual
 
@@ -199,8 +200,9 @@ Nunca un `<input>` suelto. Un componente por tipo, en el directorio compartido
 
 > Referencia MobOS: `backend/lib/auth.ts`, `validation.ts`, `rate-limit.ts`,
 > `log.ts`, `attachments.ts`, `internal.ts`; `prisma/schema.prisma`.
-> Pendiente: headers de seguridad y verificación del aislamiento por tenant en
-> cada ruta.
+> Implementado: headers de seguridad en `backend/middleware.ts` (CSP, nosniff,
+> frame-ancestors, HSTS) y aislamiento por tenant verificado por el arnés
+> (`security-regression`, `authorization-limits`).
 
 ## 10. Dinero y datos críticos
 
@@ -220,8 +222,9 @@ Nunca un `<input>` suelto. Un componente por tipo, en el directorio compartido
 
 > Referencia MobOS: `backend/lib/finance.ts`, `pricing.ts`, `stock.ts`,
 > `cash-movements.ts`, webhook de AEX (`app/api/aex/webhook`), recibos
-> (`OrderReceipt`, `ComprobantePreview`). Pendiente: snapshots de comprobantes y
-> monotonicidad explícita en el webhook.
+> (`OrderReceipt`, `ComprobantePreview`). Implementado: snapshots inmutables de
+> comprobantes (`receiptSnapshot`, migración `order_receipt_snapshot`).
+> Pendiente: monotonicidad explícita en el webhook de AEX.
 
 ## 11. Publicación y modo
 

@@ -138,7 +138,7 @@ export default function FormularioVenta({
   tradeInDraft,
   onTradeInConsumed,
 }) {
-  const { sesion, esDemo } = useSesion()
+  const { sesion, esDemo, empresa } = useSesion()
   const puedeDescontar = esDemo || ['dueno', 'GERENTE'].includes(sesion?.rol)
   const productos = getProductos().filter(p => p.activo)
   const familias = agruparProductos(productos)
@@ -354,13 +354,18 @@ export default function FormularioVenta({
     const gap = (Number(lista) - Number(it.precio || 0)) * (it.quantity || 1)
     if (gap <= 0) return acc
     acc.total += gap
+    acc.base += Number(lista) * (it.quantity || 1)
     acc.productos.add(it.productoId)
     return acc
-  }, { total: 0, productos: new Set() })
+  }, { total: 0, base: 0, productos: new Set() })
   const descuentoPorPrecio = bajoLista.total
   const productoBajoId = bajoLista.productos.size === 1 ? [...bajoLista.productos][0] : null
-  // Sin diferencia bajo lista no hay nada que autorizar: se limpia la selección.
-  useEffect(() => { if (descuentoPorPrecio <= 0 && authPrecio) setAuthPrecio(null) }, [descuentoPorPrecio, authPrecio])
+  // Hasta el porcentaje configurado por la empresa (default 10%) la venta bajo
+  // lista no pide autorización: solo el excedente se autoriza.
+  const pctBajoListaPermitido = Number(empresa?.belowListPct ?? 10)
+  const excedenteBajoLista = Math.max(0, descuentoPorPrecio - Math.floor((bajoLista.base * pctBajoListaPermitido) / 100))
+  // Sin excedente que autorizar no hace falta la autorización: se limpia la selección.
+  useEffect(() => { if (excedenteBajoLista <= 0 && authPrecio) setAuthPrecio(null) }, [excedenteBajoLista, authPrecio])
   function agregarCombo(combo) {
     const componentes = (Array.isArray(combo.items) ? combo.items : []).map(item => {
       const producto = productos.find(p => p.id === item.productId)
@@ -663,16 +668,17 @@ export default function FormularioVenta({
       }
       if (!puedeDescontar && items.some(it => descuentoItem(it) > 0))
         throw new Error('Solo administradores y gerentes pueden aplicar descuentos por línea.')
-      // Venta bajo lista sin permiso: exige una autorización BELOW_LIST_PRICE
-      // aprobada que cubra la diferencia total entre lista y precio cargado.
-      if (!puedeDescontar && descuentoPorPrecio > 0) {
+      // Venta bajo lista sin permiso: hasta el porcentaje configurado no pide
+      // autorización; el excedente exige una autorización BELOW_LIST_PRICE que
+      // lo cubra.
+      if (!puedeDescontar && excedenteBajoLista > 0) {
         if (!authPrecio)
           throw new Error(
-            'El precio está por debajo de lista y necesita autorización de gerencia. Solicitá autorización desde el carrito y actualizá el estado.',
+            `El precio está más de ${pctBajoListaPermitido}% por debajo de lista y necesita autorización de gerencia. Solicitá autorización desde el carrito y actualizá el estado.`,
           )
-        if (descuentoPorPrecio > Number(authPrecio.maxDiscountPyg || 0))
+        if (excedenteBajoLista > Number(authPrecio.maxDiscountPyg || 0))
           throw new Error(
-            `La autorización de precio no alcanza para esta venta (bajo lista ${gs(descuentoPorPrecio)}, máx ${gs(Number(authPrecio.maxDiscountPyg || 0))}). Solicitá una nueva.`,
+            `La autorización de precio no alcanza para esta venta (excedente bajo lista ${gs(excedenteBajoLista)}, máx ${gs(Number(authPrecio.maxDiscountPyg || 0))}). Solicitá una nueva.`,
           )
       }
       if (venderACredito && Number(customer.creditLimitPyg || 0) <= 0)
@@ -790,7 +796,7 @@ export default function FormularioVenta({
             ...(!puedeDescontar && gsNum(descuento) > 0 && authDescuento
               ? { discountAuthorizationId: authDescuento.id }
               : {}),
-            ...(!puedeDescontar && descuentoPorPrecio > 0 && authPrecio
+            ...(!puedeDescontar && excedenteBajoLista > 0 && authPrecio
               ? { priceAuthorizationId: authPrecio.id }
               : {}),
             deliveryPyg: gsNum(f.montoDelivery),
@@ -1182,7 +1188,7 @@ export default function FormularioVenta({
           montoDescuento={gsNum(descuento)}
           customer={customer}
           onAuthDescuento={onAuthDescuento}
-          montoPrecioBajo={descuentoPorPrecio}
+          montoPrecioBajo={excedenteBajoLista}
           productoBajoId={productoBajoId}
           onAuthPrecio={setAuthPrecio}
           tieneCupon={tieneCupon}

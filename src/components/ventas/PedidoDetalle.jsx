@@ -28,6 +28,7 @@ const AUDIT_LABELS = {
   ORDER_DISCOUNT_AUTHORIZED: (meta) => <>Descuento autorizado: <Money value={Number(meta?.discountPyg || 0)} /> (máx. <Money value={Number(meta?.maxDiscountPyg || 0)} />)</>,
   ORDER_PRICE_AUTHORIZED: (meta) => <>Precio bajo lista autorizado: <Money value={Number(meta?.belowListPyg || 0)} /></>,
   ORDER_VOIDED: (meta) => `Pedido anulado${meta?.reason ? `: ${meta.reason}` : ''}${Number(meta?.restoredUnits || 0) > 0 ? ` · ${meta.restoredUnits} unidad(es) repuestas` : ''}`,
+  ORDER_DELIVERED_UNPAID: (meta) => `Entrega con saldo autorizada${Number(meta?.pendingPyg || 0) > 0 ? ` · saldo ${gs(Number(meta.pendingPyg))}` : ''}`,
   ORDER_TAGS_UPDATED: (meta) => (meta?.tags || []).length ? `Etiquetas: ${meta.tags.join(', ')}` : 'Etiquetas quitadas',
   ORDER_ARCHIVED: () => 'Pedido archivado',
   ORDER_UNARCHIVED: () => 'Pedido desarchivado',
@@ -108,6 +109,14 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const [anularBusy, setAnularBusy] = useState(false)
   const [anularAuth, setAnularAuth] = useState(null)
   const [anularVersion, setAnularVersion] = useState(0)
+  // Entrega con saldo: si el cliente no tiene crédito, gerencia ejecuta directo
+  // y el vendedor necesita una autorización ORDER_DELIVER_UNPAID aprobada.
+  const [entregaOpen, setEntregaOpen] = useState(false)
+  const [entregaMotivo, setEntregaMotivo] = useState('')
+  const [entregaError, setEntregaError] = useState('')
+  const [entregaBusy, setEntregaBusy] = useState(false)
+  const [entregaAuth, setEntregaAuth] = useState(null)
+  const [entregaVersion, setEntregaVersion] = useState(0)
   const puedeAnular = Boolean(usuario && (['ADMIN', 'GERENTE'].includes(usuario.role) || usuario.permissions?.includes('orders:manage')))
   const fileRef = useRef(null)
   // `order` se declara antes de los efectos: usarlo en un array de
@@ -137,6 +146,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const paid = payments.filter(pago => pago.status === 'CONFIRMED').reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0)
   const total = Number(order.totalPyg ?? order.total ?? 0)
   const pendiente = Math.max(0, total - paid)
+  const clienteConCredito = Number(order.customer?.creditLimitPyg || 0) > 0 && Number(order.customer?.creditDays || 0) > 0
   const anulado = order.status === 'CANCELLED'
   const estadoPago = anulado ? 'Anulado' : (paid >= total && total > 0 ? 'Pagado' : (Number(order.creditDays || 0) > 0 && pendiente > 0 ? 'A crédito' : paid > 0 ? 'Parcial' : 'Pendiente'))
   const tags = Array.isArray(order.tags) ? order.tags : []
@@ -200,7 +210,33 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       .then(() => toast.success('Enlace copiado', nivel ? `Acceso ${nivel.toLowerCase()} listo para compartir.` : 'Listo para compartir.'))
       .catch(() => setAccesoMsg(url))
   }
-  const cambiarEntrega = (fulfillmentStatus) => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { fulfillmentStatus }), 'Entrega actualizada.')
+  const cambiarEntrega = (fulfillmentStatus) => {
+    if (fulfillmentStatus === 'DELIVERED' && pendiente > 0 && !clienteConCredito && !puedeAnular) {
+      setEntregaMotivo(''); setEntregaError(''); setEntregaAuth(null)
+      setEntregaVersion(v => v + 1)
+      setEntregaOpen(true)
+      return
+    }
+    return accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { fulfillmentStatus }), 'Entrega actualizada.')
+  }
+  // Con permiso de gestión entrega directo; sin permiso pide la autorización y,
+  // cuando está aprobada, ejecuta la entrega consumiéndola una sola vez.
+  async function confirmarEntregaConSaldo() {
+    const motivo = entregaMotivo.trim()
+    if (motivo.length < 3) { setEntregaError('Indicá un motivo de al menos 3 caracteres.'); return }
+    setEntregaBusy(true); setEntregaError('')
+    try {
+      if (entregaAuth) {
+        await api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { fulfillmentStatus: 'DELIVERED', deliveryAuthorizationId: entregaAuth.id })
+        toast.success('Pedido entregado', 'La entrega con saldo quedó registrada y auditada.')
+        setEntregaOpen(false)
+        await load(); onChanged?.()
+      } else {
+        await api.post('/api/authorizations', { kind: 'ORDER_DELIVER_UNPAID', requestedValue: { orderId: order.id, reason: motivo } })
+        toast.success('Solicitud enviada', 'Gerencia tiene que autorizar la entrega; después ejecutala desde acá.')
+      }
+    } catch (cause) { setEntregaError(cause?.message || 'No se pudo registrar la entrega.') } finally { setEntregaBusy(false) }
+  }
   const alternarArchivado = () => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { action: archivado ? 'unarchive' : 'archive' }), archivado ? 'Pedido desarchivado.' : 'Pedido archivado.')
   const guardarTags = (next) => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { tags: next }), 'Etiquetas actualizadas.')
   function abrirAnular() {
@@ -480,6 +516,34 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             <Button type="button" variant="ghost" onClick={() => setAnularOpen(false)} disabled={anularBusy}>Cancelar</Button>
             <Button type="button" onClick={confirmarAnular} disabled={anularBusy || anularMotivo.trim().length < 3}>
               {anularBusy ? 'Anulando…' : puedeAnular || anularAuth ? 'Anular pedido' : 'Solicitar autorización'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      <Modal open={entregaOpen} onClose={() => { if (!entregaBusy) setEntregaOpen(false) }} title="Entregar con saldo pendiente" className="max-w-lg">
+        <div className="space-y-3">
+          <p className="text-sm text-mute">
+            {order.orderNumber ? `${codigoPedido(order.orderNumber)} · ` : ''}
+            El pedido tiene un saldo de {gs(pendiente)} y el cliente no tiene crédito habilitado. Gerencia tiene que autorizar la entrega antes de ejecutarla.
+          </p>
+          <Textarea rows={3} maxLength={500} value={entregaMotivo} onChange={event => setEntregaMotivo(event.target.value)} placeholder="Indicá el motivo de la entrega con saldo (mínimo 3 caracteres)" />
+          <AutorizacionBloque
+            key={entregaVersion}
+            kind="ORDER_DELIVER_UNPAID"
+            entity="ORDER"
+            entityId={order.id}
+            sinMonto
+            soloEstado
+            titulo="Autorización de entrega"
+            descripcion="Pedí la autorización con el motivo; con una aprobada ejecutá la entrega."
+            onSelect={setEntregaAuth}
+            bloqueado={entregaBusy}
+          />
+          {entregaError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-2.5 py-2 text-xs text-bad">{entregaError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setEntregaOpen(false)} disabled={entregaBusy}>Cancelar</Button>
+            <Button type="button" onClick={confirmarEntregaConSaldo} disabled={entregaBusy || entregaMotivo.trim().length < 3}>
+              {entregaBusy ? 'Registrando…' : entregaAuth ? 'Entregar pedido' : 'Solicitar autorización'}
             </Button>
           </div>
         </div>

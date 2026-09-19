@@ -4,7 +4,8 @@ import { Prisma } from '@prisma/client'
 import { error, json, tenantId } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
-import { canAccessOrder, validateFulfillmentTransition } from '../../../../lib/orders'
+import { canAccessOrder, validateFulfillmentTransition, canApproveOrderDiscount } from '../../../../lib/orders'
+import { consumeAuthorization, usableAuthorization } from '../../../../lib/authorizations'
 import { serialKey } from '../../../../lib/validation'
 import { changeStock } from '../../../../lib/stock'
 
@@ -18,6 +19,8 @@ const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
   },
   customer: { include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } },
   seller: { select: { id: true, name: true } },
+  tenant: { select: { name: true, address: true, city: true, department: true, phone: true, ruc: true } },
+  branch: { select: { name: true, address: true, city: true, department: true, phone: true } },
 })
 
 
@@ -36,8 +39,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
   try {
     const { orderId } = await context.params
     const body = objectInput(await request.json())
-    if (Object.keys(body).some(key => !['fulfillmentStatus', 'deliveryType', 'deliveryNotes', 'action', 'itemId', 'serials', 'billingName', 'billingDocument', 'notes', 'tags'].includes(key))) throw new InputError('Campo no admitido al actualizar el pedido.')
-    const existing = await prisma.order.findFirst({ where: { id: orderId, tenantId: tenant }, include: { items: true } })
+    if (Object.keys(body).some(key => !['fulfillmentStatus', 'deliveryType', 'deliveryNotes', 'deliveryAuthorizationId', 'action', 'itemId', 'serials', 'billingName', 'billingDocument', 'notes', 'tags'].includes(key))) throw new InputError('Campo no admitido al actualizar el pedido.')
+    const existing = await prisma.order.findFirst({
+      where: { id: orderId, tenantId: tenant },
+      include: {
+        items: true,
+        payments: { select: { amountPyg: true, status: true } },
+        customer: { select: { creditLimitPyg: true, creditDays: true } },
+      },
+    })
     if (!existing || !canAccessOrder(session.user, existing)) return error('Pedido no encontrado.', 404)
     if (existing.status === 'CANCELLED') throw new InputError('Un pedido cancelado no admite cambios.', 409)
 
@@ -124,9 +134,39 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
     const deliveryType = body.deliveryType === undefined ? undefined : textInput(body.deliveryType, 'Tipo de entrega', 100)
     const deliveryNotes = body.deliveryNotes === undefined ? undefined : textInput(body.deliveryNotes, 'Observaciones de entrega', 2000)
     if (fulfillmentStatus === undefined && deliveryType === undefined && deliveryNotes === undefined) throw new InputError('Indicá al menos un cambio de entrega.')
+    // Entrega con saldo pendiente: con crédito del cliente queda registrada
+    // como venta a crédito (plazo y vencimiento); sin crédito, los roles sin
+    // permiso de gestión necesitan una autorización de entrega de un solo uso.
+    let deliveryAuthorization: { id: string } | null = null
+    let creditUpdate: { creditDays?: number; dueAt?: Date } = {}
+    let pendingDeliveryPyg = 0
+    if (fulfillmentStatus === 'DELIVERED' && existing.fulfillmentStatus !== 'DELIVERED') {
+      const pagado = existing.payments.filter(pago => pago.status === 'CONFIRMED').reduce((suma, pago) => suma + Number(pago.amountPyg || 0), 0)
+      pendingDeliveryPyg = Math.max(0, existing.totalPyg - pagado)
+      if (pendingDeliveryPyg > 0) {
+        const credito = existing.customer && Number(existing.customer.creditLimitPyg || 0) > 0 && Number(existing.customer.creditDays || 0) > 0
+          ? { creditDays: Number(existing.customer.creditDays) }
+          : null
+        if (credito) {
+          if (!existing.creditDays) creditUpdate = { creditDays: credito.creditDays, dueAt: new Date(Date.now() + credito.creditDays * 86400000) }
+        } else if (!canApproveOrderDiscount(session.user)) {
+          const rawDeliveryAuthorizationId = body.deliveryAuthorizationId
+          if (rawDeliveryAuthorizationId === undefined || rawDeliveryAuthorizationId === null || rawDeliveryAuthorizationId === '') {
+            throw new InputError('El pedido tiene saldo pendiente y el cliente no tiene crédito. Pedí autorización de entrega a gerencia.', 403)
+          }
+          const authorizationId = textInput(rawDeliveryAuthorizationId, 'deliveryAuthorizationId', 200)
+          const authorization = await prisma.customerAuthorization.findFirst({ where: { id: authorizationId, tenantId: tenant, kind: 'ORDER_DELIVER_UNPAID' } })
+          deliveryAuthorization = usableAuthorization(authorization, { userId: session.user.id, kinds: ['ORDER_DELIVER_UNPAID'], label: 'entrega' })
+        }
+      }
+    }
     const order = await prisma.$transaction(async tx => {
-      const updated = await tx.order.update({ where: { id: existing.id }, data: { ...(fulfillmentStatus === undefined ? {} : { fulfillmentStatus }), ...(deliveryType === undefined ? {} : { deliveryType }), ...(deliveryNotes === undefined ? {} : { deliveryNotes }) }, include: orderInclude })
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_FULFILLMENT_UPDATED', entity: 'Order', entityId: updated.id, metadata: { previous: existing.fulfillmentStatus, current: updated.fulfillmentStatus, deliveryType: updated.deliveryType } } })
+      const updated = await tx.order.update({ where: { id: existing.id }, data: { ...(fulfillmentStatus === undefined ? {} : { fulfillmentStatus }), ...(deliveryType === undefined ? {} : { deliveryType }), ...(deliveryNotes === undefined ? {} : { deliveryNotes }), ...creditUpdate }, include: orderInclude })
+      if (deliveryAuthorization) {
+        await consumeAuthorization(tx, { id: deliveryAuthorization.id, tenantId: tenant, kinds: ['ORDER_DELIVER_UNPAID'], userId: session.user.id, label: 'entrega', usedByOrderId: existing.id })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DELIVERED_UNPAID', entity: 'Order', entityId: existing.id, metadata: { authorizationId: deliveryAuthorization.id, pendingPyg: pendingDeliveryPyg } } })
+      }
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_FULFILLMENT_UPDATED', entity: 'Order', entityId: updated.id, metadata: { previous: existing.fulfillmentStatus, current: updated.fulfillmentStatus, deliveryType: updated.deliveryType, ...(deliveryAuthorization ? { authorizationId: deliveryAuthorization.id, pendingPyg: pendingDeliveryPyg } : {}) } } })
       return updated
     })
     return json(order)

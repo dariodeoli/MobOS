@@ -25,7 +25,7 @@ const INT_MAX = 2147483647
 // Los tipos con sujeto propio (unidad, pedido, producto, gasto, transferencia,
 // compra) no exigen ficha de cliente: el sujeto es la operación, no la
 // condición comercial del cliente.
-const SUBJECT_KINDS = ['BELOW_LIST_PRICE', 'STOCK_ADJUST', 'ORDER_VOID', 'EXPENSE_OVER_LIMIT', 'TRANSFER', 'PURCHASE_CREDIT']
+const SUBJECT_KINDS = ['BELOW_LIST_PRICE', 'STOCK_ADJUST', 'ORDER_VOID', 'ORDER_DELIVER_UNPAID', 'EXPENSE_OVER_LIMIT', 'TRANSFER', 'PURCHASE_CREDIT']
 const STOCK_ACTIONS = ['remove', 'adjust']
 const clean = (value: unknown, max: number) => typeof value === 'string' ? value.trim().slice(0, max) : ''
 const safeInt = safeIntValue
@@ -86,7 +86,7 @@ const inputObject = (value: unknown): Record<string, unknown> => value && typeof
 function normalizeSubjectResolution(kind: string, raw: unknown, requestedValue: unknown, label: string): Prisma.InputJsonValue | string {
   const input = inputObject(raw)
   const requested = authorizationValueOf(requestedValue)
-  if (kind === 'ORDER_VOID' || kind === 'TRANSFER') return { approved: true }
+  if (kind === 'ORDER_VOID' || kind === 'ORDER_DELIVER_UNPAID' || kind === 'TRANSFER') return { approved: true }
   if (kind === 'STOCK_ADJUST') {
     const rawStock = input.adjustedStock ?? input.stock
     if (rawStock === undefined || rawStock === null || rawStock === '') return { approved: true }
@@ -201,6 +201,20 @@ export async function POST(request: Request) {
       entity = 'ORDER'
       entityId = orderId
       requestedJson = { orderId, kind: 'full', reason: motivo }
+    } else if (kind === 'ORDER_DELIVER_UNPAID') {
+      // Entrega con saldo de un pedido cuyo cliente no tiene crédito: el sujeto
+      // es el pedido y el motivo queda en la solicitud.
+      const raw = inputObject(body?.requestedValue)
+      const orderId = clean(raw.orderId, 128)
+      const motivo = clean(raw.reason, 500)
+      if (!orderId) return error('Solicitud: el pedido es obligatorio.')
+      if (motivo.length < 3) return error('Solicitud: indicá el motivo de la entrega en 3 a 500 caracteres.')
+      const order = await prisma.order.findFirst({ where: { id: orderId, tenantId: session.user.tenantId }, select: { id: true, status: true, sellerId: true, branchId: true } })
+      if (!order || !canAccessOrder(session.user, order)) return error('Pedido no encontrado.', 404)
+      if (order.status === 'CANCELLED') return error('El pedido está anulado.', 409)
+      entity = 'ORDER'
+      entityId = orderId
+      requestedJson = { orderId, reason: motivo }
     } else if (kind === 'BELOW_LIST_PRICE') {
       const normalized = normalizeValue(kind, body?.requestedValue, 'Solicitud')
       if (typeof normalized === 'string') return error(normalized)

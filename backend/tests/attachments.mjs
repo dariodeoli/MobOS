@@ -96,4 +96,12 @@ if (databaseUrl && pgBin) {
   assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "action" = 'ATTACHMENT_DELETED' AND "entityId" = '${attachmentId}'`), '1')
 }
 
-console.log('attachments: checks OK (alta multipart, metadatos sin bytes, descarga, validaciones, alcance del vendedor y baja auditada).')
+// 9. Tombstone: los mismos bytes no vuelven solos al mismo documento (reintento
+// o sincronización externa); una copia con otro hash sí entra.
+result = await upload('PURCHASE', purchaseId, pngBytes, 'image/png', 'resubida.png')
+assert.equal(result.response.status, 409, 'Los bytes eliminados no deben resucitar en el mismo documento.')
+const otroPng = Buffer.concat([pngBytes, Buffer.from('copia-nueva')])
+result = await upload('PURCHASE', purchaseId, otroPng, 'image/png', 'copia.png')
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+
+console.log('attachments: checks OK (alta multipart, metadatos sin bytes, descarga, validaciones, alcance del vendedor, baja auditada y tombstone).')

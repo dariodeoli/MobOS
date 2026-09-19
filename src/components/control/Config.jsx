@@ -7,13 +7,16 @@ import { getLogoDataUrl, olvidarLogo } from '@/lib/tenantLogo'
 import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
 import { promptLogo } from '@/lib/logoPrompt'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
+import { comprimirImagen } from '@/utils/imagen'
 import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, useToast } from '@/components/ui'
 import { formatGs } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
+import RucField from '@/components/shared/RucField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
+import UsoEquipo from '@/components/control/UsoEquipo'
 import { ROLE_LABELS } from '@/lib/roles'
 
 function fmtDate(value) {
@@ -55,6 +58,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const [inicio, setInicio] = useState('')
   const [limiteGasto, setLimiteGasto] = useState('')
   const [limiteCompra, setLimiteCompra] = useState('')
+  const [limiteBajoLista, setLimiteBajoLista] = useState('')
   const [password, setPassword] = useState('')
   const [archiveReason, setArchiveReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -81,7 +85,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
     setLogoBusy(true); setLogoError('')
     try {
       const form = new FormData()
-      form.append('logo', file)
+      form.append('logo', await comprimirImagen(file, { maxLado: 1200 }))
       form.append('variant', variant)
       await api.post('/api/tenant/logo', form)
       olvidarLogo(variant)
@@ -152,6 +156,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
     setInicio(account.tenant.orderNextNumber ? String(account.tenant.orderNextNumber) : '')
     setLimiteGasto(String(account.tenant.expenseLimitPyg ?? 1000000))
     setLimiteCompra(String(account.tenant.purchaseCreditLimitPyg ?? 5000000))
+    setLimiteBajoLista(String(account.tenant.belowListPct ?? 10))
   }, [account])
 
   async function guardarNumeracion() {
@@ -168,12 +173,14 @@ export default function Config({ seccion = 'negocio' } = {}) {
     if (busy) return
     const gasto = Number(limiteGasto)
     const compra = Number(limiteCompra)
+    const bajoLista = Number(limiteBajoLista)
     if (!Number.isSafeInteger(gasto) || gasto < 0 || !Number.isSafeInteger(compra) || compra < 0) { setFailure('Los límites deben ser enteros no negativos.'); return }
+    if (!Number.isSafeInteger(bajoLista) || bajoLista < 0 || bajoLista > 100) { setFailure('El porcentaje bajo lista debe ser un entero entre 0 y 100.'); return }
     setBusy(true); setFailure(''); setNotice('')
     try {
-      await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra })
-      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra } } : current)
-      actualizarEmpresa?.({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra })
+      await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista })
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista } } : current)
+      actualizarEmpresa?.({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista })
       setNotice('Límites de autorización guardados.')
     } catch (error) { setFailure(error?.message || 'No se pudieron guardar los límites.') } finally { setBusy(false) }
   }
@@ -197,7 +204,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
         {esDueno && <Card className="space-y-3">
           <div>
             <h2 className="font-semibold">Límites de autorización</h2>
-            <p className="mt-1 text-sm text-mute">Por encima de estos montos, los roles operativos (cajera, vendedor) necesitan una autorización aprobada de gerencia para registrar un gasto o una compra a crédito. El dueño y gerencia no la necesitan.</p>
+            <p className="mt-1 text-sm text-mute">Por encima de estos montos, los roles operativos (cajera, vendedor) necesitan una autorización aprobada de gerencia para registrar un gasto o una compra a crédito. La venta bajo lista hasta el porcentaje indicado no pide autorización; más abajo, sí. El dueño y gerencia no la necesitan.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField label="Gasto sin autorización (Gs.)" htmlFor="limite-gasto">
@@ -206,10 +213,13 @@ export default function Config({ seccion = 'negocio' } = {}) {
             <FormField label="Compra a crédito sin autorización (Gs.)" htmlFor="limite-compra">
               <MoneyInput id="limite-compra" disabled={busy} value={limiteCompra} onValueChange={setLimiteCompra} placeholder="5.000.000" />
             </FormField>
+            <FormField label="Bajo lista sin autorización (%)" htmlFor="limite-bajo-lista">
+              <Input id="limite-bajo-lista" inputMode="numeric" maxLength={3} disabled={busy} value={limiteBajoLista} onChange={event => setLimiteBajoLista(event.target.value.replace(/\D/g, ''))} placeholder="10" />
+            </FormField>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" disabled={busy || !limiteGasto || !limiteCompra} onClick={guardarLimites}>Guardar límites</Button>
-            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)}.</p>
+            <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === ''} onClick={guardarLimites}>Guardar límites</Button>
+            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}%.</p>
           </div>
         </Card>}
         {esDueno && <Card className="space-y-3">
@@ -248,7 +258,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
         </Card>}
         <SeccionTiendas account={account} />
         <SeccionInvitaciones />
-        <IdentidadCuenta reauthValidUntil={account?.reauthValidUntil} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} />
+        <IdentidadCuenta tenant={account?.tenant} reauthValidUntil={account?.reauthValidUntil} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} />
       </>}
       {seccion === 'sucursales' && <>
         {esDueno && <SeccionSucursales />}
@@ -260,6 +270,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
 
         <Card className="space-y-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-semibold">Sesiones activas</h2><p className="mt-1 text-sm text-mute">Cada dispositivo se puede cerrar de forma remota.</p></div><span className="flex flex-wrap items-center gap-2"><Button variant="outline" onClick={load} disabled={busy}>Actualizar</Button><Button variant="outline" className="border-bad/50 text-bad hover:bg-bad/10" onClick={() => { setFailure(''); setCerrarCuentaAbierto(true) }} disabled={busy}>Cerrar mi cuenta</Button></span></div>{!account && !failure && <p className="text-sm text-mute">Cargando sesiones…</p>}{account?.sessions?.length === 0 && <p className="text-sm text-mute">No hay sesiones activas.</p>}<div className="space-y-2">{account?.sessions?.map(active => <div key={active.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3"><div><p className="font-medium">{active.user?.name || 'Acceso de empresa'} {active.id === account.currentSessionId && <span className="ml-2 text-xs text-fono-light">Este dispositivo</span>}</p><p className="mt-1 text-xs text-mute">{active.user?.role || active.level} · {active.deviceId || 'Dispositivo no identificado'} · última actividad {fmtDate(active.lastSeenAt)}</p></div><Button variant="outline" onClick={() => setConfirmar({ tipo: 'revocar', sessionId: active.id })} disabled={busy}>Revocar</Button></div>)}</div></Card>
 
+        {esDueno && <UsoEquipo />}
         <Card className="space-y-3"><div><h2 className="font-semibold">Exportación básica</h2><p className="mt-1 text-sm text-mute">Descarga JSON de empresa, sucursales, equipo, clientes, productos, órdenes y pagos. Excluye credenciales, tokens, PIN y archivos de comprobantes.</p></div><Button variant="outline" onClick={exportData} disabled={busy}>Descargar mis datos</Button></Card>
 
         <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Archivar empresa</h2><p className="mt-1 text-sm text-mute">No borra ventas ni historial. Cierra sesiones y bloquea el acceso por contraseña hasta restaurarla con correo, contraseña y la confirmación RESTORE.</p></div><Input aria-label="Motivo de archivado" value={archiveReason} onChange={event => setArchiveReason(event.target.value)} placeholder="Motivo del archivado (mínimo 10 caracteres)" /><Button variant="outline" onClick={() => setConfirmar({ tipo: 'archivar' })} disabled={busy || archiveReason.trim().length < 10} className="border-bad/50 text-bad hover:bg-bad/10">Archivar empresa</Button></Card>
@@ -282,7 +293,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   )
 }
 
-function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
+function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
   const toast = useToast()
   const { empresa, actualizarEmpresa, usuario } = useSesion()
   const [foto, setFoto] = useState('')
@@ -296,6 +307,10 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
   const valores = [
     { etiqueta: 'Nombre de la tienda', valor: empresa?.nombre || null },
     { etiqueta: 'Correo de la empresa', valor: empresa?.email || null },
+    { etiqueta: 'Dirección', valor: tenant?.address || null },
+    { etiqueta: 'Ciudad', valor: [tenant?.city, tenant?.department].filter(Boolean).join(' · ') || null },
+    { etiqueta: 'Teléfono', valor: tenant?.phone || null },
+    { etiqueta: 'RUC', valor: tenant?.ruc || null },
     { etiqueta: 'ID de la tienda', valor: empresa?.id || null },
   ]
   const reauthVigente = Boolean(reauthValidUntil && new Date(reauthValidUntil) > new Date())
@@ -330,7 +345,18 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
   }
 
   function abrir() {
-    setForm({ name: empresa?.nombre || '', email: empresa?.email || '', password: '' })
+    const telefono = parseTelefono(tenant?.phone)
+    setForm({
+      name: empresa?.nombre || '',
+      email: empresa?.email || '',
+      password: '',
+      address: tenant?.address || '',
+      city: tenant?.city || '',
+      department: tenant?.department || '',
+      countryCode: telefono.countryCode,
+      phone: telefono.phone,
+      ruc: tenant?.ruc || '',
+    })
     setError('')
     setEditOpen(true)
   }
@@ -345,6 +371,18 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
     const cambios = {}
     if (nombre !== (empresa?.nombre || '')) cambios.name = nombre
     if (correo !== (empresa?.email || '')) cambios.email = correo
+    const perfil = {
+      address: (form?.address || '').trim(),
+      city: (form?.city || '').trim(),
+      department: (form?.department || '').trim(),
+      phone: componerTelefono(form?.countryCode, form?.phone),
+      ruc: (form?.ruc || '').trim(),
+    }
+    if (perfil.address !== (tenant?.address || '')) cambios.address = perfil.address
+    if (perfil.city !== (tenant?.city || '')) cambios.city = perfil.city
+    if (perfil.department !== (tenant?.department || '')) cambios.department = perfil.department
+    if (perfil.phone !== (tenant?.phone || '')) cambios.phone = perfil.phone
+    if (perfil.ruc !== (tenant?.ruc || '')) cambios.ruc = perfil.ruc
     setBusy(true); setError('')
     try {
       if (!reauthVigente) {
@@ -401,6 +439,21 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
           </FormField>
           <FormField label="Correo de la empresa" htmlFor="edit-correo">
             <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => setForm(current => ({ ...current, email: value }))} placeholder="Correo de la empresa" />
+          </FormField>
+          <FormField label="Dirección" htmlFor="edit-direccion">
+            <Input id="edit-direccion" maxLength={400} disabled={busy} value={form?.address || ''} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} placeholder="Dirección del negocio (para el comprobante)" />
+          </FormField>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormField label="Ciudad">
+              <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => setForm(current => ({ ...current, city, department }))} placeholder="Ciudad del negocio" />
+            </FormField>
+            <FormField label="Teléfono" htmlFor="edit-telefono">
+              <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => setForm(current => ({ ...current, countryCode }))} onChange={phone => setForm(current => ({ ...current, phone }))} placeholder="Teléfono del negocio" />
+            </FormField>
+          </div>
+          {form?.department && <p className="px-1 text-xs text-fono-light">Departamento: {form.department}</p>}
+          <FormField label="RUC" htmlFor="edit-ruc">
+            <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => setForm(current => ({ ...current, ruc }))} disabled={busy} placeholder="RUC del negocio (opcional)" autoComplete="off" />
           </FormField>
           {reauthVigente ? (
             <p className="text-xs text-ok">Tu contraseña fue verificada hace menos de 10 minutos: no hace falta escribirla de nuevo.</p>

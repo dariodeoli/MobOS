@@ -573,13 +573,17 @@ result = await request('/api/account', 'PATCH', { action: 'orderNumbering', pref
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 
 // ── Autorizaciones genéricas: venta por debajo de lista ─────────────────────
-// El precio de lista mayorista de un producto nuevo es 550.000: vender en
-// 530.000 sin autorización se rechaza con un motivo accionable.
+// El precio de lista mayorista de un producto nuevo es 550.000. Hasta el 10%
+// por debajo (55.000) el vendedor no necesita autorización; más abajo, sí.
 let resultProductoBajo = await request('/api/products', 'POST', { sku: `BAJO-SKU-${Date.now()}`, name: 'Equipo precio bajo lista', pricePyg: 600000, wholesalePricePyg: 550000, stock: 5, branchId: 'branch-a-it' })
 assert.equal(resultProductoBajo.response.status, 201, JSON.stringify(resultProductoBajo.payload))
 const productoBajoLista = resultProductoBajo.payload
+// Dentro del umbral (530.000 = 3,6% bajo lista): se vende sin autorización.
 result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 530000 }], payments: [{ method: 'CASH', amountPyg: 530000 }] })
-assert.equal(result.response.status, 403, 'Vender bajo lista sin autorización debe rechazarse.')
+assert.equal(result.response.status, 201, 'Dentro del porcentaje permitido no pide autorización.')
+// Más de 10% bajo lista (480.000 = 12,7%): se rechaza con un motivo accionable.
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 480000 }], payments: [{ method: 'CASH', amountPyg: 480000 }] })
+assert.equal(result.response.status, 403, 'Vender más de 10% bajo lista sin autorización debe rechazarse.')
 assert.match(String(result.payload?.message || ''), /debajo de lista/i)
 
 // El vendedor pide autorización por 50.000 de diferencia; gerencia autoriza
@@ -597,19 +601,20 @@ result = await request('/api/authorizations', 'PATCH', { id: authPrecio.id, acti
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 assert.deepEqual(result.payload.resolvedValue, { maxDiscountPyg: 30000 })
 
-// Por encima del máximo autorizado la venta se rechaza; dentro del máximo se
-// crea, consume la autorización y audita el precio autorizado en el pedido.
-result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 510000 }], payments: [{ method: 'CASH', amountPyg: 510000 }], priceAuthorizationId: authPrecio.id })
+// Por encima del máximo autorizado la venta se rechaza (excedente 45.000 sobre
+// el 10% permitido); dentro del máximo se crea, consume la autorización y
+// audita el precio autorizado en el pedido.
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 450000 }], payments: [{ method: 'CASH', amountPyg: 450000 }], priceAuthorizationId: authPrecio.id })
 assert.equal(result.response.status, 403, 'La autorización de precio no puede cubrir más que su máximo.')
 assert.match(String(result.payload?.message || ''), /no alcanza/i)
-result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 530000 }], payments: [{ method: 'CASH', amountPyg: 530000 }], priceAuthorizationId: authPrecio.id })
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 480000 }], payments: [{ method: 'CASH', amountPyg: 480000 }], priceAuthorizationId: authPrecio.id })
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const ventaBajoLista = result.payload
 assert.equal(ventaBajoLista.items[0].listPricePyg, 550000, 'La venta debe congelar el precio de lista.')
 result = await sellerRequest(`/api/orders/${encodeURIComponent(ventaBajoLista.id)}/history`)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 assert.ok(result.payload.events.some(event => event.action === 'ORDER_PRICE_AUTHORIZED'), 'La cronología debe auditar el precio autorizado.')
-result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 530000 }], payments: [{ method: 'CASH', amountPyg: 530000 }], priceAuthorizationId: authPrecio.id })
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 480000 }], payments: [{ method: 'CASH', amountPyg: 480000 }], priceAuthorizationId: authPrecio.id })
 assert.equal(result.response.status, 403, 'Una autorización de precio usada no puede reutilizarse.')
 assert.match(String(result.payload?.message || ''), /se usó/i)
 
@@ -689,4 +694,45 @@ result = await sellerRequest(`/api/orders/${encodeURIComponent(pedidoAnulable.id
 assert.equal(result.response.status, 403, 'Un pedido ya anulado (y su autorización usada) no se anula dos veces.')
 assert.match(String(result.payload?.message || ''), /se usó/i)
 
-console.log('orders-credit-discounts: OK (numeración secuencial MOB-#####, descuentos fijo/%, mayorista, crédito con límite y mora, autorizaciones genéricas con sujeto — precio bajo lista, ajuste de stock y anulación de pedido, con consumo de un solo uso —, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, plantillas por categoría, pipeline de cotizaciones y combos).')
+// ── Entrega con saldo: autorización de gerencia o crédito del cliente ───────
+const clienteEntrega = (await request('/api/customers', 'POST', { name: `Entrega Saldo ${Date.now()}`, phone: `59596${String(Date.now()).slice(-7)}` })).payload
+const clienteCreditoEntrega = (await request('/api/customers', 'POST', { name: `Entrega Crédito ${Date.now()}`, phone: `59595${String(Date.now()).slice(-7)}`, creditLimitPyg: 2000000, creditDays: 30 })).payload
+const productoEntrega = (await request('/api/products', 'POST', { sku: `ENTREGA-SKU-${Date.now()}`, name: 'Equipo entrega con saldo', pricePyg: 1000000, stock: 4, branchId: 'branch-a-it' })).payload
+const crearPedidoConSaldo = async (customerId) => {
+  const creado = await sellerRequest('/api/orders', 'POST', { customerId, items: [{ productId: productoEntrega.id, quantity: 1, unitPricePyg: 1000000 }], payments: [{ method: 'CASH', amountPyg: 400000 }] })
+  assert.equal(creado.response.status, 201, JSON.stringify(creado.payload))
+  return creado.payload
+}
+// Sin crédito y sin autorización: la entrega se rechaza.
+const pedidoSaldo = await crearPedidoConSaldo(clienteEntrega.id)
+result = await sellerRequest(`/api/orders/${encodeURIComponent(pedidoSaldo.id)}`, 'PATCH', { fulfillmentStatus: 'DELIVERED' })
+assert.equal(result.response.status, 403, 'Entregar con saldo y sin crédito debe exigir autorización.')
+assert.match(String(result.payload?.message || ''), /saldo pendiente/i)
+// El vendedor pide la autorización con motivo; gerencia aprueba y la entrega se
+// ejecuta una sola vez, con auditoría en la cronología del pedido.
+result = await sellerRequest('/api/authorizations', 'POST', { kind: 'ORDER_DELIVER_UNPAID', requestedValue: { orderId: pedidoSaldo.id, reason: 'Cliente retira y paga el saldo la semana que viene' } })
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const authEntrega = result.payload
+assert.equal(authEntrega.entity, 'ORDER')
+assert.equal(authEntrega.entityId, pedidoSaldo.id)
+result = await request('/api/authorizations', 'PATCH', { id: authEntrega.id, action: 'approve', resolvedValue: { approved: true }, resolvedNote: 'Autorizado: cliente conocido.' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+result = await sellerRequest(`/api/orders/${encodeURIComponent(pedidoSaldo.id)}`, 'PATCH', { fulfillmentStatus: 'DELIVERED', deliveryAuthorizationId: authEntrega.id })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.fulfillmentStatus, 'DELIVERED')
+result = await sellerRequest(`/api/orders/${encodeURIComponent(pedidoSaldo.id)}/history`)
+assert.ok(result.payload.events.some(event => event.action === 'ORDER_DELIVERED_UNPAID'), 'La entrega excepcional queda auditada.')
+// La autorización es de un solo uso: otro pedido con saldo no la reutiliza.
+const pedidoSaldoDos = await crearPedidoConSaldo(clienteEntrega.id)
+result = await sellerRequest(`/api/orders/${encodeURIComponent(pedidoSaldoDos.id)}`, 'PATCH', { fulfillmentStatus: 'DELIVERED', deliveryAuthorizationId: authEntrega.id })
+assert.equal(result.response.status, 403, 'La autorización de entrega no se reutiliza.')
+assert.match(String(result.payload?.message || ''), /se usó/i)
+// Cliente con crédito: la entrega se permite y queda como venta a crédito.
+const pedidoCredito = await crearPedidoConSaldo(clienteCreditoEntrega.id)
+result = await sellerRequest(`/api/orders/${encodeURIComponent(pedidoCredito.id)}`, 'PATCH', { fulfillmentStatus: 'DELIVERED' })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.fulfillmentStatus, 'DELIVERED')
+assert.equal(Number(result.payload.creditDays), 30, 'La entrega con crédito deja el plazo del cliente.')
+assert.ok(result.payload.dueAt, 'La entrega con crédito deja el vencimiento.')
+
+console.log('orders-credit-discounts: OK (numeración secuencial MOB-#####, descuentos fijo/%, mayorista, crédito con límite y mora, autorizaciones genéricas con sujeto — precio bajo lista, ajuste de stock, entrega con saldo y anulación de pedido, con consumo de un solo uso —, acreditación de tarjeta, garantía pública y automática, etiquetas, archivado, comentarios con foto, aviso WhatsApp, plantillas por categoría, pipeline de cotizaciones y combos).')
