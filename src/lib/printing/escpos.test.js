@@ -2,6 +2,22 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { columnasDeAncho, crearTicket, envolver, repartirLinea } from './escpos.js'
 
+const indiceDeSecuencia = (bytes, secuencia, desde = 0) => {
+  for (let indice = desde; indice <= bytes.length - secuencia.length; indice += 1) {
+    if (secuencia.every((byte, desplazamiento) => bytes[indice + desplazamiento] === byte)) return indice
+  }
+  return -1
+}
+
+const indiceDeGuardadoQr = (bytes) => bytes.findIndex((byte, indice) => (
+  byte === 0x1d
+  && bytes[indice + 1] === 0x28
+  && bytes[indice + 2] === 0x6b
+  && bytes[indice + 5] === 0x31
+  && bytes[indice + 6] === 0x50
+  && bytes[indice + 7] === 0x30
+))
+
 test('el ancho útil es 32 columnas para 58 mm y 48 para 80 mm', () => {
   assert.equal(columnasDeAncho(58), 32)
   assert.equal(columnasDeAncho(80), 48)
@@ -51,18 +67,45 @@ test('par, negrita, doble y corte emiten sus comandos', () => {
   assert.match(texto, /Total\s+Gs\. 1\.000\n/)
   assert.ok(texto.includes('\x1bE\x01'))
   assert.ok(texto.includes('\x1d!\x11'))
-  // Corte compatible con ZKP8008: alimentación, GS V 0 y ESC i de fallback.
-  assert.ok(texto.endsWith('\x1bd\x04\x1dV\x00\x1bi'))
+  // Corte ZKP8008: alimentación + GS V 0 (sin `ESC i`, que era un segundo corte).
+  assert.ok(texto.endsWith('\x1bd\x04\x1dV\x00'))
   assert.equal(crearTicket().corte().corteEnviado(), true)
 })
 
-test('el QR usa el comando nativo con el largo correcto', () => {
-  const bytes = [...crearTicket().qr('MOBOS:123').bytes()]
+test('el QR corto emite el largo de parámetros como pL,pH', () => {
+  const datos = 'MOBOS:123'
+  const bytes = [...crearTicket().qr(datos).bytes()]
   const inicio = bytes.indexOf(0x1d)
   assert.deepEqual(bytes.slice(inicio, inicio + 8), [0x1d, 0x28, 0x6b, 4, 0, 0x31, 0x41, 0x32])
-  const largo = bytes[bytes.length - 9 - 9] // p,q del bloque de guardado
-  assert.ok(Number.isInteger(largo))
-  assert.ok(bytes.includes(0x50) && bytes.includes(0x51)) // guardar e imprimir
+  const inicioGuardado = indiceDeGuardadoQr(bytes)
+  assert.notEqual(inicioGuardado, -1)
+  assert.deepEqual(bytes.slice(inicioGuardado + 3, inicioGuardado + 5), [datos.length + 3, 0])
+})
+
+test('el QR de más de 255 bytes emite el largo de parámetros como pL,pH', () => {
+  const datos = 'A'.repeat(253) // 253 bytes de datos + 3 bytes de parámetros = 256
+  const bytes = [...crearTicket().qr(datos).bytes()]
+  const inicioGuardado = indiceDeGuardadoQr(bytes)
+  assert.notEqual(inicioGuardado, -1)
+  assert.deepEqual(bytes.slice(inicioGuardado + 3, inicioGuardado + 5), [0, 1])
+})
+
+test('la validación imprimible y el corte quedan fuera del largo de guardado del QR', () => {
+  const validacion = 'VALIDACION: 1234\n'
+  const bytes = [...crearTicket({ margen: 0 }).qr('MOBOS:123').texto(validacion.trimEnd()).corte().bytes()]
+  const inicioGuardado = indiceDeGuardadoQr(bytes)
+  assert.notEqual(inicioGuardado, -1)
+
+  const largoParametros = bytes[inicioGuardado + 3] + bytes[inicioGuardado + 4] * 256
+  const finGuardado = inicioGuardado + 5 + largoParametros
+  assert.deepEqual(bytes.slice(finGuardado, finGuardado + 8), [0x1d, 0x28, 0x6b, 3, 0, 0x31, 0x51, 0x30])
+
+  const bytesValidacion = [...validacion].map((caracter) => caracter.charCodeAt(0))
+  const inicioValidacion = indiceDeSecuencia(bytes, bytesValidacion, finGuardado)
+  const bytesCorte = [0x1b, 0x64, 4, 0x1d, 0x56, 0]
+  const inicioCorte = indiceDeSecuencia(bytes, bytesCorte, finGuardado)
+  assert.ok(inicioValidacion >= finGuardado)
+  assert.ok(inicioCorte > inicioValidacion)
 })
 
 test('el código de barras CODE128 lleva el largo y el corte se puede omitir', () => {
@@ -91,4 +134,12 @@ test('base64 devuelve los mismos bytes', () => {
   const binario = atob(ticket.base64())
   assert.equal(binario.length, bytes.length)
   for (let i = 0; i < bytes.length; i += 1) assert.equal(binario.charCodeAt(i), bytes[i])
+})
+
+test('las variantes de corte emiten su secuencia GS V', () => {
+  const cola = (variante, largo) => [...crearTicket().corte(variante).bytes()].slice(-largo)
+  assert.deepEqual(cola('completo', 6), [0x1b, 0x64, 4, 0x1d, 0x56, 0x00])
+  assert.deepEqual(cola('parcial', 6), [0x1b, 0x64, 4, 0x1d, 0x56, 0x01])
+  assert.deepEqual(cola('avanza-completo', 7), [0x1b, 0x64, 4, 0x1d, 0x56, 0x41, 0x00])
+  assert.deepEqual(cola('avanza-parcial', 7), [0x1b, 0x64, 4, 0x1d, 0x56, 0x42, 0x00])
 })

@@ -326,13 +326,24 @@ export function ticketPruebaTipo(tipo, {
   }
 
   if (tipo === 'corte') {
-    t.par('Prueba', 'Corte físico')
+    t.par('Prueba', 'Corte físico por variantes')
     t.linea()
-    t.texto('Este ticket debe separarse solo del rollo.')
-    t.texto('Si la cuchilla no corta, revisá:')
-    t.texto('  1. Cutter Enable: YES en la impresora')
-    t.texto('  2. Rollo bien cargado y recto')
-    t.texto('  3. Comando GS V 0 y ESC i enviados')
+    t.texto('Cada sección etiquetada intenta un corte distinto: mirá en qué sección se separó el papel.')
+    t.linea()
+    t.centrado('1) GS V 0 · completo')
+    t.texto('Corte completo puro (el estándar de recibos).')
+    t.avanza(1).corte('completo')
+    t.centrado('2) GS V 1 · parcial')
+    t.texto('Corte parcial: deja una tirita sin cortar.')
+    t.avanza(1).corte('parcial')
+    t.centrado('3) GS V 65 0 · avanza + completo')
+    t.texto('Primero avanza hasta la cuchilla y después corta todo.')
+    t.avanza(1).corte('avanza-completo')
+    t.centrado('4) GS V 66 0 · avanza + parcial')
+    t.texto('Avanza hasta la cuchilla y corta parcial.')
+    t.avanza(1).corte('avanza-parcial')
+    t.linea()
+    t.texto('Si ninguna cortó, revisá Cutter Enable: YES y que el rollo esté bien cargado.')
     codigos('CORTE')
   }
 

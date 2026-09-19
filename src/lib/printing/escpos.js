@@ -19,6 +19,17 @@ const normalizarParaImpresora = (texto) => String(texto ?? '')
 const ESC = 0x1b
 const GS = 0x1d
 
+// Variantes de corte GS V: corte completo/parcial puro y las que primero
+// avanzan hasta la cuchilla (recomendadas por Epson para recibos).
+const CORTES = {
+  'completo': [GS, 0x56, 0x00],
+  'parcial': [GS, 0x56, 0x01],
+  'avanza-completo': [GS, 0x56, 0x41, 0x00],
+  'avanza-parcial': [GS, 0x56, 0x42, 0x00],
+}
+
+export const VARIANTES_CORTE = Object.keys(CORTES)
+
 const bytesDeTexto = (texto) => {
   const salida = []
   for (const caracter of normalizarParaImpresora(texto)) {
@@ -140,14 +151,14 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
       espejoCentrado(`[QR] ${String(datos).slice(0, 48)}`)
       partes.push(ESC, 0x61, 0x01) // centrado
       const contenido = bytesDeTexto(datos)
-      const n = contenido.length + 3
-      const p = Math.floor(n / 256)
-      const q = n % 256
+      const parameterLength = contenido.length + 3
+      const parameterLengthLow = parameterLength % 256
+      const parameterLengthHigh = Math.floor(parameterLength / 256)
       const modulo = Math.min(16, Math.max(1, Number(tamano) || 6))
       partes.push(GS, 0x28, 0x6b, 4, 0, 0x31, 0x41, 0x32, 0x00) // modelo 2
       partes.push(GS, 0x28, 0x6b, 3, 0, 0x31, 0x43, modulo) // tamaño del módulo
       partes.push(GS, 0x28, 0x6b, 3, 0, 0x31, 0x45, 0x31) // corrección M
-      partes.push(GS, 0x28, 0x6b, p, q, 0x31, 0x50, 0x30, ...contenido) // guarda
+      partes.push(GS, 0x28, 0x6b, parameterLengthLow, parameterLengthHigh, 0x31, 0x50, 0x30, ...contenido) // guarda
       partes.push(GS, 0x28, 0x6b, 3, 0, 0x31, 0x51, 0x30) // imprime
       partes.push(ESC, 0x61, 0x00) // vuelve a la izquierda
       return api
@@ -174,17 +185,14 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
       espejo.push('\n'.repeat(cuantas))
       return api
     },
-    corte() {
+    // Corte GS V según el estándar ESC/POS (sin `ESC i`): alimenta 4 líneas y
+    // corta. `variante` permite probar la que soporte el firmware:
+    // completo · parcial · avanza-completo · avanza-parcial.
+    corte(variante = 'completo') {
       conCorte = true
-      espejoCentrado('[CORTE]')
-      // Alimentación suficiente para que la línea de corte no pise el contenido
-      // y la cuchilla agarre papel limpio.
+      espejoCentrado(variante === 'completo' ? '[CORTE]' : `[CORTE: ${variante}]`)
       partes.push(ESC, 0x64, 4)
-      // Corte compatible con la ZKP8008: GS V 0 (corte completo) y, como
-      // fallback, ESC i para impresoras que no reconocen GS V 0. La que no
-      // entienda uno de los dos lo ignora.
-      partes.push(GS, 0x56, 0x00)
-      partes.push(ESC, 0x69)
+      partes.push(...(CORTES[variante] || CORTES.completo))
       return api
     },
     corteEnviado() {
