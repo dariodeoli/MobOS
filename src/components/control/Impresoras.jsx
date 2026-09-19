@@ -3,7 +3,8 @@ import { Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Inp
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob, diagnosticoAgente, enmascararToken, estadoAgente, estadoDePuente, guardarImpresoras, guardarPuentes, historialAgente, imprimirTicketDirecto, limpiarFallidos, puenteDe, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
+import { printingApi } from '@/lib/api/printing'
+import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob, diagnosticoAgente, enmascararToken, esIdBackend, estadoAgente, historialAgente, impresoraHaciaBackend, importarConfigUnaVez, imprimirTicketRouter, limpiarFallidos, puenteDe, refrescarDesdeBackend, registrarUltimaPrueba, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
 import Avatar from '@/components/shared/Avatar'
 
@@ -43,6 +44,42 @@ const vacioFormulario = () => ({
   caracteres: true,
 })
 
+// Los trabajos del backend se muestran con la misma forma que el historial del
+// agente: la tabla de actividad y la cola no distinguen el origen.
+const filaDesdeJob = (job) => ({
+  jobId: job.id,
+  fecha: job.createdAt,
+  usuario: job.requestedByName || '',
+  impresora: job.destination || '',
+  modo: job.mode || '',
+  puente: job.bridgeName || '',
+  validacion: job.validation || '',
+  ref: job.reference || '',
+  tipo: job.kind || '',
+  resultado: String(job.state || '').toLowerCase(),
+  confirmadoEn: job.confirmedAt || null,
+  bytes: job.payloadBytes || 0,
+  intentos: job.attempts || 0,
+  ancho: job.width || 0,
+  error: job.error || '',
+  remoto: true,
+})
+
+const filaColaDesdeJob = (job) => ({
+  id: job.id,
+  creadoEn: job.createdAt,
+  impresora: job.destination || '',
+  cliente: job.deviceName || '',
+  usuario: job.requestedByName || '',
+  intentos: job.attempts || 0,
+  bytes: job.payloadBytes || 0,
+  error: job.error || '',
+})
+
+// Firma de los campos que el backend guarda: evita PATCH cuando nada cambió.
+const CAMPOS_IMPRESORA = ['nombre', 'marca', 'modelo', 'ubicacion', 'conexion', 'destino', 'ancho', 'copias', 'corte', 'densidad', 'caracteres', 'predeterminada', 'activa', 'bridgeId']
+const firmaImpresora = (impresora) => JSON.stringify(CAMPOS_IMPRESORA.map((campo) => impresora?.[campo] ?? null))
+
 // Impresoras: una sola pantalla para configurar, probar y monitorear las
 // térmicas. Configuración, estado, cola y actividad en un mismo lugar.
 export default function Impresoras() {
@@ -54,6 +91,7 @@ export default function Impresoras() {
   const [cargando, setCargando] = useState(true)
   const [historial, setHistorial] = useState([])
   const [cola, setCola] = useState(null)
+  const [remotos, setRemotos] = useState([])
   const [sesiones, setSesiones] = useState(null)
   const [formulario, setFormulario] = useState(null)
   const [diagnostico, setDiagnostico] = useState(null)
@@ -67,18 +105,33 @@ export default function Impresoras() {
   const [seleccionados, setSeleccionados] = useState([])
   const [reparando, setReparando] = useState(false)
   const [puentesAbiertos, setPuentesAbiertos] = useState(false)
+  const [puenteNuevo, setPuenteNuevo] = useState(null)
+  const [creandoPuente, setCreandoPuente] = useState(false)
+  const [codigoVinculacion, setCodigoVinculacion] = useState(null)
+  const [puenteRevocar, setPuenteRevocar] = useState(null)
   const [equiposAbiertos, setEquiposAbiertos] = useState(false)
   const [filtroRango, setFiltroRango] = useState('hoy')
   const [filtroTipo, setFiltroTipo] = useState('todas')
   const [detalleAbierto, setDetalleAbierto] = useState('')
   const [sufijos, setSufijos] = useState({})
   const [confirmandoId, setConfirmandoId] = useState('')
-  const [puenteEdit, setPuenteEdit] = useState(null)
-  const [puenteProbando, setPuenteProbando] = useState('')
-  const [puenteEstado, setPuenteEstado] = useState({})
 
   const consultar = useCallback(async () => {
     setCargando(true)
+    // Import único de la configuración legacy (solo ADMIN; un 403 se ignora).
+    try { await importarConfigUnaVez(tenantId) } catch { /* sin permiso o sin backend */ }
+    // El backend manda: pisa la caché. Si no responde, se muestra la última.
+    try {
+      setStore(await refrescarDesdeBackend(tenantId))
+    } catch {
+      setStore(cargarImpresoras(tenantId))
+    }
+    // Cola e historial remotos de la empresa.
+    try {
+      const datos = await printingApi.trabajos({ limit: 60 })
+      setRemotos(datos?.jobs || [])
+    } catch { setRemotos([]) }
+    // Agente local de esta computadora.
     const agente = await estadoAgente({ forzar: true })
     setEstado(agente)
     const config = configImpresora()
@@ -96,18 +149,52 @@ export default function Impresoras() {
       setSesiones(cuenta?.sessions || [])
     } catch { setSesiones([]) }
     setCargando(false)
-  }, [])
+  }, [tenantId])
 
   useEffect(() => {
+    setStore(cargarImpresoras(tenantId))
     consultar()
     const intervalo = setInterval(consultar, 20000)
     return () => clearInterval(intervalo)
   }, [consultar, tenantId])
 
+  // Difunde a la API la diferencia entre la lista mostrada y la nueva: alta de
+  // las locales, edición de las del backend y baja de las que ya no están.
+  const difundirCambios = async (anteriores, siguientes) => {
+    const previas = new Map(anteriores.map((item) => [item.id, item]))
+    const vigentes = new Set(siguientes.map((item) => item.id))
+    for (const impresora of siguientes) {
+      if (!esIdBackend(impresora.id)) {
+        await printingApi.guardarImpresora(null, impresoraHaciaBackend(impresora))
+        continue
+      }
+      const previa = previas.get(impresora.id)
+      if (!previa || firmaImpresora(previa) !== firmaImpresora(impresora)) {
+        await printingApi.guardarImpresora(impresora.id, impresoraHaciaBackend(impresora))
+      }
+    }
+    for (const previa of anteriores) {
+      if (esIdBackend(previa.id) && !vigentes.has(previa.id)) await printingApi.eliminarImpresora(previa.id)
+    }
+  }
+
+  // API primero y luego refresco de la caché (solo lectura). Devuelve la config
+  // fresca o null si no se pudo guardar; nunca deja la caché divergente.
   const persistir = async (siguiente) => {
-    setStore(siguiente)
-    guardarImpresoras(tenantId, siguiente)
-    try { await sincronizarAgente(siguiente) } catch { toast.error('El agente no respondió', 'Los cambios quedaron guardados acá; se sincronizan cuando el agente vuelva a estar en línea.') }
+    try {
+      await difundirCambios(store.impresoras || [], siguiente.impresoras || [])
+      const fresco = await refrescarDesdeBackend(tenantId)
+      setStore(fresco)
+      // Con el modo remoto apagado el poller no sincroniza: se avisa al agente
+      // local como antes.
+      if (fresco.remoteEnabled === false) {
+        try { await sincronizarAgente(fresco) } catch { toast.error('El agente no respondió', 'Los cambios quedaron en el servidor; se sincronizan cuando el agente vuelva.') }
+      }
+      return fresco
+    } catch (cause) {
+      toast.error('No se pudo guardar en el servidor', cause?.message || 'La configuración quedó como estaba.')
+      return null
+    }
   }
 
   const impresoras = store.impresoras || []
@@ -129,8 +216,17 @@ export default function Impresoras() {
     return 'LAN (TCP directo)'
   }
 
-  // Actividad: filtra el historial del agente y arma el CSV exportable.
-  const historialFiltrado = historial.filter((fila) => {
+  // Actividad: une la cola/historial remotos del backend con el historial
+  // local del agente y arma el CSV exportable. El backend gana ante un mismo
+  // jobId; los trabajos locales ya impresos siguen visibles.
+  const historialCombinado = useMemo(() => {
+    const porId = new Map()
+    for (const job of remotos) porId.set(job.id, filaDesdeJob(job))
+    for (const fila of historial) if (!porId.has(fila.jobId)) porId.set(fila.jobId, fila)
+    return [...porId.values()].sort((izquierda, derecha) => new Date(derecha.fecha || 0).getTime() - new Date(izquierda.fecha || 0).getTime())
+  }, [remotos, historial])
+
+  const historialFiltrado = historialCombinado.filter((fila) => {
     if (filtroActividad && fila.impresora !== filtroActividad) return false
     if (filtroTipo === 'prueba' && !String(fila.tipo || '').startsWith('prueba') && !fila.validacion) return false
     if (filtroTipo === 'venta' && fila.validacion) return false
@@ -160,7 +256,10 @@ export default function Impresoras() {
     if (!sufijo) return toast.error('Falta el número', 'Escribí el número secreto que salió impreso después del guion.')
     setConfirmandoId(fila.jobId)
     try {
-      await confirmarJob(fila.jobId, sufijo)
+      // Un trabajo del backend (remoto o espejado) se confirma contra el
+      // servidor; un trabajo solo-local, contra el agente.
+      if (fila.remoto) await printingApi.confirmar(fila.jobId, sufijo)
+      else await confirmarJob(fila.jobId, sufijo)
       toast.success('Confirmado en papel', 'El número coincide con el impreso: el trabajo quedó verificado.')
       setSufijos((actual) => ({ ...actual, [fila.jobId]: '' }))
       await consultar()
@@ -170,7 +269,11 @@ export default function Impresoras() {
   }
 
   function estadoDe(impresora) {
-    if (!estado?.disponible) return { label: 'Agente desconectado', color: 'slate' }
+    if (!estado?.disponible) {
+      if (store.remoteEnabled === false) return { label: 'Remoto apagado', color: 'orange' }
+      const esperaPuente = (store.bridges || []).length > 0 || impresora.bridgeId
+      return esperaPuente ? { label: 'Puente remoto', color: 'blue' } : { label: 'Agente desconectado', color: 'slate' }
+    }
     if (!impresora.destino) return { label: 'Error de configuración', color: 'red' }
     if (impresora.ultimaPrueba?.ok) return { label: 'Prueba exitosa', color: 'green' }
     if (/^(usb|cups)$/.test(impresora.conexion || '') || /^(usb|cups):/.test(String(impresora.destino || ''))) {
@@ -242,16 +345,17 @@ export default function Impresoras() {
     }
     if (impresoras.length === 1) impresoras[0].predeterminada = true
     siguiente = { ...siguiente, impresoras }
-    await persistir(siguiente)
+    const fresco = await persistir(siguiente)
+    if (!fresco) return
     setFormulario(null)
     toast.success('Impresora guardada', datos.destino)
     if (probar) {
-      const guardada = siguiente.impresoras.find((item) => item.destino === datos.destino)
+      const guardada = (fresco.impresoras || []).find((item) => item.destino === datos.destino)
       if (guardada) probar(guardada)
     }
   }
 
-  async function probar(impresora) {
+  function probar(impresora) {
     setPruebaDe(impresora)
   }
 
@@ -259,38 +363,55 @@ export default function Impresoras() {
     const impresora = pruebaDe
     if (!impresora || probandoId) return
     setProbandoId(impresora.id)
-    setProgreso('Enviando al agente…')
+    setProgreso('Enviando…')
     const puente = puenteDe(store, impresora)
-    const resultado = await imprimirTicketDirecto(ticket, {
-      impresora: impresora.destino,
+    // Local primero: en la Mac del puente imprime 127.0.0.1; en cualquier otro
+    // dispositivo (o si el local rechaza antes de aceptar) se encola remoto.
+    // El sufijo del ticket viaja en ambos caminos para validarlo en papel.
+    const resultado = await imprimirTicketRouter(ticket, {
+      store,
+      impresora,
       copias,
       usuario: sesion?.nombre || usuario?.name || '',
-      ref: ticket.ref,
       tipo,
-      validacion: ticket.validacion,
-      puente: puente.nombre,
+      equipo: estado?.equipo || '',
+      puente,
       tokenPista: enmascararToken(puente.token),
-      modo: impresora.conexion,
-      ancho: impresora.ancho,
     })
     if (resultado.ok) {
       const encolado = Boolean(resultado.encolado)
       setProgreso(encolado ? 'Encolada…' : 'Impresión enviada…')
-      const siguiente = {
-        ...store,
-        impresoras: store.impresoras.map((item) => (item.id === impresora.id ? { ...item, ultimaPrueba: { ok: !encolado, encolado, fecha: new Date().toISOString(), tipo, ref: ticket.ref, validacion: ticket.validacion, metodo: metodoDe(impresora), transporte: resultado.transporte || '', corte: Boolean(ticket.corte) } } : item)),
+      const ultimaPrueba = {
+        ok: !encolado && !resultado.remoto,
+        encolado,
+        remoto: Boolean(resultado.remoto),
+        fecha: new Date().toISOString(),
+        tipo,
+        ref: ticket.ref,
+        validacion: ticket.validacion,
+        metodo: metodoDe(impresora),
+        transporte: resultado.transporte || '',
+        jobId: resultado.jobId || null,
+        corte: Boolean(ticket.corte),
       }
-      guardarImpresoras(tenantId, siguiente)
-      setStore(siguiente)
-      if (encolado) {
+      await registrarUltimaPrueba(impresora, ultimaPrueba)
+      // Solo estado de pantalla: la caché se refresca desde el backend (arriba
+      // quedó persistido `lastTest`); la UI no escribe la caché.
+      setStore({
+        ...store,
+        impresoras: store.impresoras.map((item) => (item.id === impresora.id ? { ...item, ultimaPrueba } : item)),
+      })
+      if (resultado.remoto) {
+        toast.success('Prueba encolada para el puente', 'El puente la reclama y la imprime. Cuando salga el papel, confirmá el número secreto en Actividad.')
+      } else if (encolado) {
         toast.success('Prueba encolada', 'La impresora no respondió; el agente reintenta solo.')
       } else {
         const via = resultado.transporte === 'cups' ? 'por la cola CUPS' : resultado.transporte === 'usb' ? 'por USB' : 'por TCP'
         toast.success(`Prueba enviada ${via}`, 'El agente confirmó el envío. La confirmación final es visual: verificá el código en el papel y que se cortó solo.')
       }
     } else {
-      setProgreso('La impresora no respondió.')
-      toast.error('No se pudo imprimir', resultado.error)
+      setProgreso(resultado.remoto ? 'No se pudo encolar.' : 'La impresora no respondió.')
+      toast.error(resultado.remoto ? 'No se pudo encolar la prueba' : 'No se pudo imprimir', resultado.error)
     }
     setProbandoId(null)
     setPruebaDe(null)
@@ -313,44 +434,41 @@ export default function Impresoras() {
     } finally { setDiagnosticando(false) }
   }
 
-  function guardarPuenteFormulario() {
-    const f = puenteEdit
-    if (!f) return
-    if (!String(f.url || '').trim()) return toast.error('Falta la dirección', 'Completá la URL del puente (por ejemplo http://192.168.100.110:17890).')
-    const lista = Array.isArray(store.bridges) ? [...store.bridges] : []
-    const original = lista.find((item) => item.id === f.id)
-    const puente = {
-      id: f.id || `puente-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
-      nombre: String(f.nombre || '').trim() || 'Computadora puente',
-      url: String(f.url).trim().replace(/\/+$/, ''),
-      token: f.token ? String(f.token) : (original?.token || ''),
-      predeterminado: Boolean(f.predeterminado) || lista.length === 0,
-    }
-    const siguiente = lista.some((item) => item.id === puente.id)
-      ? lista.map((item) => (item.id === puente.id ? puente : item))
-      : [...lista, puente]
-    setStore(guardarPuentes(tenantId, siguiente))
-    setPuenteEdit(null)
-    toast.success('Puente guardado', puente.url)
-  }
-
-  function eliminarPuente(id) {
-    const lista = (store.bridges || []).filter((puente) => puente.id !== id)
-    setStore(guardarPuentes(tenantId, lista))
-    toast.success('Puente eliminado', 'Las impresoras que lo usaban vuelven al predeterminado.')
-  }
-
-  async function probarPuente(puente) {
-    if (puenteProbando) return
-    setPuenteProbando(puente.id)
+  async function crearPuente() {
+    const nombre = String(puenteNuevo?.nombre || '').trim()
+    if (!nombre) return toast.error('Falta el nombre', 'Poné un nombre para reconocer la computadora puente.')
+    if (creandoPuente) return
+    setCreandoPuente(true)
     try {
-      const resultado = await estadoDePuente(puente)
-      setPuenteEstado((mapa) => ({ ...mapa, [puente.id]: resultado }))
-      toast.success('Puente conectado', `v${resultado.version}${resultado.equipo ? ` · ${resultado.equipo}` : ''}`)
+      const datos = await printingApi.crearPuente(nombre)
+      setCodigoVinculacion({ nombre: datos?.bridge?.name || nombre, code: datos?.pairingCode || '', expiresAt: datos?.expiresAt || null })
+      setPuenteNuevo(null)
+      await consultar()
     } catch (cause) {
-      setPuenteEstado((mapa) => ({ ...mapa, [puente.id]: { disponible: false, error: cause?.message || '' } }))
-      toast.error('Sin respuesta', cause?.message || 'No se pudo consultar el puente.')
-    } finally { setPuenteProbando('') }
+      toast.error('No se pudo crear el puente', cause?.message || 'Revisá tu sesión y permisos.')
+    } finally { setCreandoPuente(false) }
+  }
+
+  async function generarCodigo(puente) {
+    try {
+      const datos = await printingApi.regenerarCodigo(puente.id)
+      setCodigoVinculacion({ nombre: puente.nombre, code: datos?.pairingCode || '', expiresAt: datos?.expiresAt || null })
+    } catch (cause) {
+      toast.error('No se pudo generar el código', cause?.message || 'El puente pudo haber sido revocado.')
+    }
+  }
+
+  async function revocarPuenteConfirmado() {
+    const puente = puenteRevocar
+    setPuenteRevocar(null)
+    if (!puente) return
+    try {
+      await printingApi.revocarPuente(puente.id)
+      toast.success('Puente revocado', `${puente.nombre} ya no puede reclamar trabajos ni autenticarse.`)
+      await consultar()
+    } catch (cause) {
+      toast.error('No se pudo revocar el puente', cause?.message || 'Intentá de nuevo.')
+    }
   }
 
   async function eliminar() {
@@ -359,14 +477,14 @@ export default function Impresoras() {
     if (!id) return
     const siguiente = { ...store, impresoras: store.impresoras.filter((item) => item.id !== id) }
     if (siguiente.impresoras.length && !siguiente.impresoras.some((item) => item.predeterminada)) siguiente.impresoras[0].predeterminada = true
-    await persistir(siguiente)
-    toast.success('Impresora eliminada')
+    const fresco = await persistir(siguiente)
+    if (fresco) toast.success('Impresora eliminada')
   }
 
-  async function duplicar(impresora) {
-    const copia = { ...impresora, id: `imp-${Date.now()}-${Math.random().toString(16).slice(2)}`, nombre: `${impresora.nombre} (copia)`, predeterminada: false, ultimaPrueba: null }
-    await persistir({ ...store, impresoras: [...store.impresoras, copia] })
-    toast.success('Configuración duplicada', copia.nombre)
+  function duplicar(impresora) {
+    // La copia se revisa antes de guardar: el destino es único por empresa.
+    abrirFormulario({ ...impresora, id: null, nombre: `${impresora.nombre} (copia)`, predeterminada: false, ultimaPrueba: null })
+    toast.info('Copia lista para revisar', 'Cambiá el destino (no puede repetirse) y guardala.')
   }
 
   async function alternarActiva(impresora) {
@@ -377,8 +495,8 @@ export default function Impresoras() {
     if (siguiente.impresoras.some((item) => item.activa) && !siguiente.impresoras.some((item) => item.activa && item.predeterminada)) {
       siguiente.impresoras.find((item) => item.activa).predeterminada = true
     }
-    await persistir(siguiente)
-    toast.success(impresora.activa ? 'Impresora desactivada' : 'Impresora activada', impresora.nombre)
+    const fresco = await persistir(siguiente)
+    if (fresco) toast.success(impresora.activa ? 'Impresora desactivada' : 'Impresora activada', impresora.nombre)
   }
 
   async function marcarPredeterminada(impresora) {
@@ -386,8 +504,8 @@ export default function Impresoras() {
       ...store,
       impresoras: store.impresoras.map((item) => ({ ...item, predeterminada: item.id === impresora.id })),
     }
-    await persistir(siguiente)
-    toast.success('Impresora predeterminada', impresora.nombre)
+    const fresco = await persistir(siguiente)
+    if (fresco) toast.success('Impresora predeterminada', impresora.nombre)
   }
 
   async function reintentar() {
@@ -460,6 +578,10 @@ export default function Impresoras() {
   const sesionActiva = (s) => Date.now() - new Date(s.lastSeenAt || 0).getTime() < 15 * 60 * 1000
   const pendientes = cola?.pendientes || []
   const fallidos = cola?.fallidos || []
+  // Cola remota del backend: en curso (pendiente/reclamado) y aceptados que
+  // esperan la confirmación en papel.
+  const remotosEnCurso = remotos.filter((job) => job.state === 'PENDIENTE' || job.state === 'RECLAMADO')
+  const remotosAceptados = remotos.filter((job) => job.state === 'ACEPTADO')
 
   return (
     <div className="space-y-4">
@@ -478,7 +600,10 @@ export default function Impresoras() {
       <Card className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">Estado del sistema de impresión</h3>
-          <Badge color={estado?.disponible ? 'green' : 'slate'}>{cargando ? 'Consultando…' : estado?.disponible ? `Agente conectado · v${estado.version || ''}` : 'Agente desconectado'}</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge color={store.remoteEnabled === false ? 'orange' : 'blue'}>{store.remoteEnabled === false ? 'Remoto apagado' : `Remoto activo · ${(store.bridges || []).length} puente(s)`}</Badge>
+            <Badge color={estado?.disponible ? 'green' : 'slate'}>{cargando ? 'Consultando…' : estado?.disponible ? `Agente conectado · v${estado.version || ''}` : 'Sin agente local'}</Badge>
+          </div>
         </div>
         {cargando && !estado ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /></div>
@@ -487,18 +612,23 @@ export default function Impresoras() {
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Computadora puente</p>
               <p className="mt-1 flex items-center gap-2 text-sm font-semibold"><span className={`h-2 w-2 rounded-full ${estado?.disponible ? 'bg-ok' : 'bg-bad'}`} />{estado?.disponible ? 'Encendida' : 'Apagada o sin agente'}</p>
-              <p className="mt-1 truncate text-xs text-mute" title={puentePrincipal.url}>{puentePrincipal.nombre} · {puentePrincipal.url.includes('127.0.0.1') || puentePrincipal.url.includes('localhost') ? 'solo esta computadora' : puentePrincipal.url}</p>
+              <p className="mt-1 truncate text-xs text-mute" title={puentePrincipal.url || puentePrincipal.nombre}>
+                {puentePrincipal.nombre} · {puentePrincipal.backend
+                  ? (puentePrincipal.online ? 'en línea' : `último contacto ${hace(puentePrincipal.lastSeenAt)}`)
+                  : puentePrincipal.url.includes('127.0.0.1') || puentePrincipal.url.includes('localhost') ? 'solo esta computadora' : puentePrincipal.url}
+              </p>
               <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={() => setPuentesAbiertos(true)}>Gestionar puentes ({(store.bridges || []).length})</Button>
               {estado?.disponible && <p className="mt-1 text-xs text-mute">Dirección local {URL_AGENTE} · {estado.host === '0.0.0.0' ? 'acepta la red local' : 'solo local'}</p>}
             </div>
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Impresora predeterminada</p>
               <p className="mt-1 truncate text-sm font-semibold" title={predeterminada?.destino || undefined}>{predeterminada ? `${predeterminada.nombre} · ${predeterminada.destino}` : 'Sin configurar'}</p>
-              {estado?.disponible && predeterminada && <p className="mt-1 text-xs text-mute">{conexionDe(predeterminada.destino)} · {predeterminada.ancho} mm · {predeterminada.copias} copia(s)</p>}
+              {predeterminada && <p className="mt-1 text-xs text-mute">{conexionDe(predeterminada.destino)} · {predeterminada.ancho} mm · {predeterminada.copias} copia(s)</p>}
             </div>
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Cola</p>
               <p className="mt-1 text-sm font-semibold">{estado?.cola?.pendientes ?? cola?.resumen?.pendientes ?? 0} pendientes · {estado?.cola?.fallidos ?? cola?.resumen?.fallidos ?? 0} fallidos</p>
+              {remotosEnCurso.length > 0 && <p className="mt-1 text-xs text-mute">Remoto: {remotosEnCurso.length} en curso · {remotosAceptados.length} por confirmar</p>}
               <div className="mt-1 flex flex-wrap gap-2">
                 <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-fono-light" onClick={() => setVerColaAbierta(true)}>Ver cola</Button>
                 {(fallidos.length > 0) && <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-warn" onClick={() => reintentar()}>Reintentar fallidos</Button>}
@@ -514,7 +644,7 @@ export default function Impresoras() {
         )}
         {!estado?.disponible && !cargando && (
           <p className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
-            No se encontró el agente en <b className="text-fore">{store.agentUrl}</b>. Instalalo en la computadora puente con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code>; en las demás computadoras, apuntá la dirección del agente a la IP de esa Mac.
+            No se encontró el agente en <b className="text-fore">{store.agentUrl}</b>. En esta computadora la impresión sale por acá; en cualquier otro dispositivo los trabajos se encolan y los imprime el puente vinculado. Para instalar el agente, usá <b className="text-fore">Gestionar puentes</b> y vinculá esta computadora con el código.
           </p>
         )}
         {estado?.disponible && estado.alias && !estado.alias.presente && (configImpresora().impresora || store.impresoras.some((item) => String(item.destino || '').startsWith('lan:'))) && (
@@ -564,7 +694,7 @@ export default function Impresoras() {
                   <span>Copias: <b className="text-fore">{impresora.copias}</b></span>
                   {impresora.ubicacion && <span>Ubicación: <b className="text-fore">{impresora.ubicacion}</b></span>}
                 </div>
-                <p className="text-xs text-mute">Última prueba: <b className="text-fore">{impresora.ultimaPrueba ? `${impresora.ultimaPrueba.ok ? 'Impresa correctamente' : impresora.ultimaPrueba.encolado ? 'Encolada' : 'Falló'} · ${TIPOS_TICKET_PRUEBA[impresora.ultimaPrueba.tipo] || 'Prueba'} · ${fmt(impresora.ultimaPrueba.fecha)}${impresora.ultimaPrueba.transporte ? ` · vía ${impresora.ultimaPrueba.transporte}` : ''}${impresora.ultimaPrueba.validacion ? ` · Código ${impresora.ultimaPrueba.validacion}` : ''}${impresora.ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}` : 'Sin prueba todavía'}</b></p>
+                <p className="text-xs text-mute">Última prueba: <b className="text-fore">{impresora.ultimaPrueba ? `${impresora.ultimaPrueba.ok ? 'Impresa correctamente' : impresora.ultimaPrueba.remoto && impresora.ultimaPrueba.encolado ? 'Encolada al puente' : impresora.ultimaPrueba.encolado ? 'Encolada' : 'Falló'} · ${TIPOS_TICKET_PRUEBA[impresora.ultimaPrueba.tipo] || 'Prueba'} · ${fmt(impresora.ultimaPrueba.fecha)}${impresora.ultimaPrueba.transporte ? ` · vía ${impresora.ultimaPrueba.transporte}` : ''}${impresora.ultimaPrueba.validacion ? ` · Código ${impresora.ultimaPrueba.validacion}` : ''}${impresora.ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}` : 'Sin prueba todavía'}</b></p>
                 {probandoId === impresora.id && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" onClick={() => probar(impresora)} disabled={Boolean(probandoId) || !impresora.activa}>{probandoId === impresora.id ? 'Enviando…' : 'Imprimir prueba'}</Button>
@@ -733,10 +863,9 @@ export default function Impresoras() {
           formulario={formulario}
           setFormulario={setFormulario}
           estado={estado}
-          tokenGuardado={store.agentToken}
-          agentUrl={puenteDe(store, { bridgeId: formulario.puenteId }).url}
           bridges={store.bridges || []}
           onGuardar={guardarFormulario}
+          onGestionarPuentes={() => { setFormulario(null); setPuentesAbiertos(true) }}
         />
       )}
 
@@ -747,7 +876,7 @@ export default function Impresoras() {
           usuario={sesion?.nombre || usuario?.name || ''}
           puente={puenteDe(store, pruebaDe).nombre}
           tokenPista={enmascararToken(puenteDe(store, pruebaDe).token)}
-          equipo={estado?.equipo || puentePrincipal.url}
+          equipo={estado?.equipo || 'navegador'}
           enviando={Boolean(probandoId)}
           progreso={progreso}
           onCerrar={() => setPruebaDe(null)}
@@ -755,56 +884,50 @@ export default function Impresoras() {
         />
       )}
 
-      <Modal open={puentesAbiertos} onClose={() => { setPuentesAbiertos(false); setPuenteEdit(null) }} title="Puentes de impresión" className="max-w-2xl">
+      <Modal open={puentesAbiertos} onClose={() => { setPuentesAbiertos(false); setPuenteNuevo(null); setCodigoVinculacion(null) }} title="Puentes de impresión" className="max-w-2xl">
         <div className="space-y-4">
-          <p className="text-sm text-mute">Cada puente es una computadora con el agente instalado. Cada impresora usa su puente; sin elección, usa el predeterminado.</p>
-          <div className="space-y-2">
-            {(store.bridges || []).map((puente) => {
-              const visto = puenteEstado[puente.id]
-              return (
+          <p className="text-sm text-mute">Cada puente es una computadora con el agente instalado que reclama los trabajos del backend. Un código de vinculación se usa una sola vez, vence en 15 minutos y nunca se vuelve a mostrar.</p>
+          {(store.bridges || []).length === 0 ? (
+            <EmptyState compact icon="printer" title="Todavía no hay puentes." description="Creá uno y vinculá la computadora con el código." />
+          ) : (
+            <div className="space-y-2">
+              {(store.bridges || []).map((puente) => (
                 <div key={puente.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2">
                   <div className="min-w-0">
                     <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
                       {puente.nombre}
                       {puente.predeterminado && <Badge color="blue">Predeterminado</Badge>}
-                      {visto && <Badge color={visto.disponible ? 'green' : 'red'}>{visto.disponible ? `v${visto.version || ''}` : 'sin respuesta'}</Badge>}
+                      <Badge color={puente.online ? 'green' : 'slate'}>{puente.online ? `en línea${puente.version ? ` · v${puente.version}` : ''}` : `sin conexión · ${hace(puente.lastSeenAt)}`}</Badge>
                     </p>
-                    <p className="mt-0.5 truncate text-xs text-mute" title={puente.url}>{puente.url}{puente.token ? ` · token ${enmascararToken(puente.token)}` : ' · sin token'}</p>
-                    {visto && !visto.disponible && <p className="mt-0.5 text-xs text-bad">{visto.error}</p>}
+                    <p className="mt-0.5 truncate text-xs text-mute">{puente.plataforma ? `${puente.plataforma} · ` : ''}reclama trabajos por HTTPS (conexión saliente)</p>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    <Button type="button" variant="ghost" onClick={() => probarPuente(puente)} disabled={puenteProbando === puente.id}>{puenteProbando === puente.id ? 'Probando…' : 'Probar'}</Button>
-                    <Button type="button" variant="ghost" onClick={() => setPuenteEdit({ ...puente, token: '' })}>Editar</Button>
-                    {(store.bridges || []).length > 1 && <Button type="button" variant="ghost" className="text-bad" onClick={() => eliminarPuente(puente.id)}>Eliminar</Button>}
+                    <Button type="button" variant="ghost" onClick={() => generarCodigo(puente)}>Código</Button>
+                    <Button type="button" variant="ghost" className="text-bad" onClick={() => setPuenteRevocar(puente)}>Revocar</Button>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-          {puenteEdit ? (
+              ))}
+            </div>
+          )}
+          {codigoVinculacion && (
+            <div className="space-y-2 rounded-xl border border-fono/40 bg-fono/10 p-3">
+              <p className="text-sm font-semibold text-fore">Código para {codigoVinculacion.nombre}</p>
+              <p className="font-mono text-2xl font-bold tracking-widest text-fono-light">{codigoVinculacion.code}</p>
+              <p className="text-xs text-mute">Vence {fmt(codigoVinculacion.expiresAt)}. En la computadora puente: <code className="rounded bg-ink-700 px-1">node print-agent/pair.mjs --code {codigoVinculacion.code} --api-url &lt;backend&gt;</code></p>
+            </div>
+          )}
+          {puenteNuevo ? (
             <div className="space-y-3 rounded-xl border border-ink-600 p-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <FormField label="Nombre" htmlFor="puente-nombre">
-                  <Input id="puente-nombre" value={puenteEdit.nombre} onChange={(event) => setPuenteEdit((actual) => ({ ...actual, nombre: event.target.value }))} placeholder="Mac del local" />
-                </FormField>
-                <FormField label="Dirección" htmlFor="puente-url">
-                  <Input id="puente-url" value={puenteEdit.url} onChange={(event) => setPuenteEdit((actual) => ({ ...actual, url: event.target.value }))} placeholder={URL_AGENTE} autoCapitalize="off" spellCheck={false} />
-                </FormField>
-                <FormField label="Token" htmlFor="puente-token" hint={puenteEdit.id && !puenteEdit.token ? 'Dejalo vacío para conservar el guardado.' : 'Lo muestra el instalador del agente.'}>
-                  <Input id="puente-token" value={puenteEdit.token} onChange={(event) => setPuenteEdit((actual) => ({ ...actual, token: event.target.value }))} autoCapitalize="off" spellCheck={false} />
-                </FormField>
-                <label className="flex items-center gap-2 self-end text-sm">
-                  <input type="checkbox" className="h-4 w-4 accent-[var(--color-fono)]" checked={Boolean(puenteEdit.predeterminado)} onChange={(event) => setPuenteEdit((actual) => ({ ...actual, predeterminado: event.target.checked }))} />
-                  Puente predeterminado
-                </label>
-              </div>
+              <FormField label="Nombre del puente" htmlFor="puente-nombre">
+                <Input id="puente-nombre" value={puenteNuevo.nombre} onChange={(event) => setPuenteNuevo((actual) => ({ ...actual, nombre: event.target.value }))} placeholder="Mac del local" />
+              </FormField>
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="ghost" onClick={() => setPuenteEdit(null)}>Cancelar</Button>
-                <Button type="button" onClick={guardarPuenteFormulario}>Guardar puente</Button>
+                <Button type="button" variant="ghost" onClick={() => setPuenteNuevo(null)}>Cancelar</Button>
+                <Button type="button" onClick={crearPuente} disabled={creandoPuente}>{creandoPuente ? 'Creando…' : 'Crear y vincular'}</Button>
               </div>
             </div>
           ) : (
-            <Button type="button" variant="outline" onClick={() => setPuenteEdit({ id: '', nombre: '', url: URL_AGENTE, token: '', predeterminado: (store.bridges || []).length === 0 })}><Icon name="plus" className="h-3.5 w-3.5" />Agregar puente</Button>
+            <Button type="button" variant="outline" onClick={() => setPuenteNuevo({ nombre: '' })}><Icon name="plus" className="h-3.5 w-3.5" />Agregar puente</Button>
           )}
         </div>
       </Modal>
@@ -819,16 +942,32 @@ export default function Impresoras() {
         variant="danger"
       />
 
+      <ConfirmDialog
+        open={Boolean(puenteRevocar)}
+        onCancel={() => setPuenteRevocar(null)}
+        onConfirm={revocarPuenteConfirmado}
+        title="¿Revocar este puente?"
+        description="El token deja de autenticar y no puede reclamar trabajos. Para volver a usarlo hay que crear otro puente y vincularlo de nuevo."
+        confirmLabel="Revocar puente"
+        variant="danger"
+      />
+
       <Modal open={verColaAbierta} onClose={() => setVerColaAbierta(false)} title="Cola de impresión" className="max-w-2xl">
         <div className="space-y-4">
-          {!pendientes.length && !fallidos.length ? (
+          {!pendientes.length && !fallidos.length && !remotosEnCurso.length ? (
             <EmptyState compact icon="check" title="La cola está vacía." />
           ) : (
             <div className="space-y-4">
               {pendientes.length > 0 && (
                 <section>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Pendientes ({pendientes.length})</h4>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Pendientes del agente ({pendientes.length})</h4>
                   <TablaTrabajos trabajos={pendientes} />
+                </section>
+              )}
+              {remotosEnCurso.length > 0 && (
+                <section>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-mute">En curso del puente ({remotosEnCurso.length})</h4>
+                  <TablaTrabajos trabajos={remotosEnCurso.map(filaColaDesdeJob)} />
                 </section>
               )}
               {fallidos.length > 0 && (
@@ -960,13 +1099,12 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
   )
 }
 
-function FormularioImpresora({ formulario, setFormulario, estado, tokenGuardado, agentUrl, bridges = [], onGuardar }) {
+function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], onGuardar, onGestionarPuentes }) {
   const [validacion, setValidacion] = useState(null)
   const [validando, setValidando] = useState(false)
   const f = formulario
   const set = (cambios) => setFormulario((actual) => ({ ...actual, ...cambios }))
   const destino = f.conexion === 'cups' ? `cups:${f.destinoUsb.trim()}` : `lan:${f.ip.trim()}:${f.puerto.trim() || '9100'}`
-  const tokenEnmascarado = enmascararToken(tokenGuardado)
 
   async function validar() {
     if (validando || !destino) return
@@ -1068,18 +1206,17 @@ function FormularioImpresora({ formulario, setFormulario, estado, tokenGuardado,
         <div>
           <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Agente</h4>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
-            <FormField label="Puente" htmlFor="imp-puente">
+            <FormField label="Puente" htmlFor="imp-puente" hint="El puente que imprime esta impresora. Sin elección, el primero de la empresa.">
               <Select id="imp-puente" value={f.puenteId || ''} onChange={(event) => set({ puenteId: event.target.value })}>
                 <option value="">Puente predeterminado</option>
                 {bridges.map((puente) => <option key={puente.id} value={puente.id}>{puente.nombre}{puente.predeterminado ? ' (predeterminado)' : ''}</option>)}
               </Select>
             </FormField>
-            <FormField label="Dirección del puente" htmlFor="imp-agente-url">
-              <Input id="imp-agente-url" value={agentUrl} onChange={() => {}} readOnly />
+            <FormField label="Vinculación" htmlFor="imp-puentes-gestionar" hint="Los puentes se vinculan con un código de un solo uso.">
+              <Button id="imp-puentes-gestionar" type="button" variant="outline" onClick={onGestionarPuentes}>Gestionar puentes</Button>
             </FormField>
           </div>
-          {tokenGuardado && <p className="mt-2 text-xs text-mute">Token del puente: <b className="text-fore">{tokenEnmascarado}</b>. Se administra desde “Gestionar puentes”.</p>}
-          <p className="mt-2 text-xs text-mute">Estado: <b className={estado?.disponible ? 'text-ok' : 'text-bad'}>{estado?.disponible ? `conectado · v${estado.version || ''}` : 'sin agente'}</b>{estado?.disponible ? ` · ${estado.host === '0.0.0.0' ? 'acceso: red local' : 'acceso: solo esta computadora'}` : ''}.</p>
+          <p className="mt-2 text-xs text-mute">Estado: <b className={estado?.disponible ? 'text-ok' : 'text-bad'}>{estado?.disponible ? `agente local conectado · v${estado.version || ''}` : 'esta computadora no tiene el agente local'}</b>{estado?.disponible ? ` · ${estado.host === '0.0.0.0' ? 'acceso: red local' : 'acceso: solo esta computadora'}` : ' · los trabajos se encolan al puente'}.</p>
         </div>
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

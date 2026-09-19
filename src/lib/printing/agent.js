@@ -7,13 +7,21 @@
 // en pantalla ni se registra en logs: acá solo se guarda y se enmascara.
 
 import { printHtml } from '@/utils/printHtml'
-import { normalizarDestino, normalizarPuentes, normalizarStore, puenteDe, basePuente } from './puentes'
+import { printingApi } from '@/lib/api/printing'
+import { normalizarDestino, normalizarPuentes, puenteDe, basePuente } from './puentes'
+import { resolverCamino } from './ruteo'
 
-export { puenteDe }
+export { puenteDe, resolverCamino }
+export { esLoopback } from './ruteo'
 
 const CLAVE_CONFIG = 'mobos:impresora:config'
 const CLAVE_BASE = 'mobos:impresoras:v1'
 export const URL_AGENTE = 'http://127.0.0.1:17890'
+
+// El backend es la autoridad de la configuración: la caché por tenant es un
+// espejo de solo lectura (version 2) que se refresca desde la API y solo se
+// escribe para importar la configuración legacy una única vez.
+export const VERSION_STORE = 2
 
 const uuid = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `imp-${Date.now()}-${Math.random().toString(16).slice(2)}`)
 
@@ -54,7 +62,27 @@ const baseImpresora = () => ({
   ultimaPrueba: null,
 })
 
-const vacio = () => ({ agentUrl: URL_AGENTE, agentToken: '', bridges: [basePuente()], impresoras: [] })
+const vacio = () => ({ version: VERSION_STORE, syncedAt: null, importedAt: null, localBridgeId: '', remoteEnabled: true, agentUrl: URL_AGENTE, agentToken: '', bridges: [], impresoras: [] })
+
+// Normaliza una caché (v1 o v2) al shape version 2 sin inventar datos: el
+// backend pisa lo suyo en el próximo refresco.
+const normalizarCache = (store) => ({
+  ...(store && typeof store === 'object' ? store : {}),
+  version: VERSION_STORE,
+  syncedAt: store?.syncedAt || null,
+  importedAt: store?.importedAt || null,
+  localBridgeId: String(store?.localBridgeId || ''),
+  remoteEnabled: store?.remoteEnabled !== false,
+  agentUrl: String(store?.agentUrl || URL_AGENTE),
+  agentToken: String(store?.agentToken || ''),
+  bridges: Array.isArray(store?.bridges) ? store.bridges : [],
+  impresoras: (Array.isArray(store?.impresoras) ? store.impresoras : []).map((impresora) => ({
+    ...impresora,
+    // Migración suave: `usb:<cola>` era una cola CUPS; pasa a `cups:<cola>`.
+    destino: normalizarDestino(impresora.destino),
+    conexion: impresora.conexion === 'usb' ? 'cups' : impresora.conexion,
+  })),
+})
 
 // Migra la configuración vieja (una sola impresora global) a la nueva por tenant.
 const migrarVieja = () => {
@@ -70,6 +98,12 @@ const migrarVieja = () => {
     predeterminada: true,
   }
   return {
+    version: VERSION_STORE,
+    syncedAt: null,
+    // Marcado como no importada: `importarConfigUnaVez` la sube al backend.
+    importedAt: null,
+    localBridgeId: '',
+    remoteEnabled: true,
     agentUrl: String(vieja.url || URL_AGENTE),
     agentToken: String(vieja.token || ''),
     bridges: [{ ...basePuente(), url: String(vieja.url || URL_AGENTE), token: String(vieja.token || '') }],
@@ -80,20 +114,117 @@ const migrarVieja = () => {
 export function cargarImpresoras(tenantId) {
   const actual = leer(claveTenant(tenantId))
   if (actual && Array.isArray(actual.impresoras)) {
-    // Migración suave: `usb:<cola>` era una cola CUPS; pasa a `cups:<cola>`.
-    const puentes = normalizarStore(actual)
-    const impresoras = (puentes.impresoras || []).map((impresora) => ({
-      ...impresora,
-      destino: normalizarDestino(impresora.destino),
-      conexion: impresora.conexion === 'usb' ? 'cups' : impresora.conexion,
-    }))
-    const normalizado = { ...puentes, impresoras }
+    const normalizado = normalizarCache(actual)
     if (JSON.stringify(normalizado) !== JSON.stringify(actual)) escribir(claveTenant(tenantId), normalizado)
     return normalizado
   }
   const migrada = migrarVieja()
   if (migrada) { escribir(claveTenant(tenantId), migrada); return migrada }
   return vacio()
+}
+
+// ── Puentes e impresoras del backend (autoridad) ───────────────────────────
+// El backend no expone URL ni token del puente: el agente abre la conexión
+// saliente. El espejo sirve para listar, elegir y mostrar presencia.
+
+export const esIdBackend = (id) => Boolean(id) && !String(id).startsWith('imp-') && !String(id).startsWith('puente-')
+
+export const puenteDesdeBackend = (puente, predeterminado = false) => ({
+  id: String(puente?.id || ''),
+  nombre: String(puente?.name || 'Computadora puente'),
+  url: '',
+  token: '',
+  predeterminado: Boolean(predeterminado),
+  backend: true,
+  online: Boolean(puente?.online),
+  lastSeenAt: puente?.lastSeenAt || null,
+  version: String(puente?.version || ''),
+  plataforma: String(puente?.platform || ''),
+})
+
+export const impresoraDesdeBackend = (impresora) => ({
+  id: String(impresora?.id || ''),
+  nombre: String(impresora?.name || ''),
+  marca: String(impresora?.brand || ''),
+  modelo: String(impresora?.model || ''),
+  ubicacion: String(impresora?.location || ''),
+  conexion: impresora?.connection === 'cups' ? 'cups' : 'lan',
+  destino: normalizarDestino(impresora?.destination || ''),
+  ancho: Number(impresora?.width) === 58 ? 58 : 80,
+  copias: Math.min(5, Math.max(1, Number(impresora?.copies) || 1)),
+  corte: impresora?.cut !== false,
+  densidad: Math.min(5, Math.max(1, Number(impresora?.density) || 3)),
+  caracteres: impresora?.characters !== false,
+  predeterminada: Boolean(impresora?.isDefault),
+  activa: impresora?.isActive !== false,
+  bridgeId: impresora?.bridgeId || '',
+  ultimaPrueba: impresora?.lastTest || null,
+  origen: 'backend',
+})
+
+export const impresoraHaciaBackend = (impresora) => ({
+  name: String(impresora?.nombre || '').trim(),
+  brand: String(impresora?.marca || '').trim(),
+  model: String(impresora?.modelo || '').trim(),
+  location: String(impresora?.ubicacion || '').trim(),
+  connection: impresora?.conexion === 'cups' ? 'cups' : 'lan',
+  destination: normalizarDestino(impresora?.destino || ''),
+  width: Number(impresora?.ancho) === 58 ? 58 : 80,
+  copies: Math.min(5, Math.max(1, Number(impresora?.copias) || 1)),
+  cut: impresora?.corte !== false,
+  density: Math.min(5, Math.max(1, Number(impresora?.densidad) || 3)),
+  characters: impresora?.caracteres !== false,
+  isDefault: Boolean(impresora?.predeterminada),
+  isActive: impresora?.activa !== false,
+  bridgeId: impresora?.bridgeId || null,
+})
+
+// Refresca la caché desde el backend: el backend manda y pisa lo guardado.
+// Lanza si la API no responde; quien llama muestra la última caché.
+export async function refrescarDesdeBackend(tenantId, { api: cliente = printingApi } = {}) {
+  const datos = await cliente.impresoras()
+  const anterior = cargarImpresoras(tenantId)
+  const siguiente = normalizarCache({
+    ...anterior,
+    syncedAt: new Date().toISOString(),
+    remoteEnabled: datos?.remoteEnabled !== false,
+    bridges: (datos?.bridges || []).map((puente, indice) => puenteDesdeBackend(puente, indice === 0)),
+    impresoras: (datos?.printers || []).map(impresoraDesdeBackend),
+  })
+  escribir(claveTenant(tenantId), siguiente)
+  return siguiente
+}
+
+// Import único de la configuración legacy por dispositivo. El backend responde
+// 409 si otro dispositivo ya importó: se marca igual y se refresca. Cualquier
+// otro error NO marca: se reintenta en la próxima consulta.
+export async function importarConfigUnaVez(tenantId, { api: cliente = printingApi } = {}) {
+  const actual = cargarImpresoras(tenantId)
+  if (actual.importedAt) return { importado: false, motivo: 'ya-importado' }
+  const impresoras = actual.impresoras || []
+  const bridges = (actual.bridges || []).filter((puente) => String(puente.url || '').trim())
+  const marcarImportado = (extra = {}) => {
+    const siguiente = normalizarCache({ ...cargarImpresoras(tenantId), importedAt: new Date().toISOString(), ...extra })
+    escribir(claveTenant(tenantId), siguiente)
+    return siguiente
+  }
+  if (!impresoras.length && !bridges.length) {
+    marcarImportado()
+    return { importado: false, motivo: 'sin-config-legacy' }
+  }
+  try {
+    const datos = await cliente.importar({ printers: impresoras, bridges })
+    const puenteLocal = bridges.find((puente) => puente.predeterminado) || bridges[0] || null
+    const localBridgeId = puenteLocal ? String(datos?.map?.bridges?.[puenteLocal.id] || '') : ''
+    marcarImportado({ localBridgeId })
+    return { importado: true, impresoras: impresoras.length, puentes: bridges.length }
+  } catch (cause) {
+    if (cause?.status === 409) {
+      marcarImportado()
+      return { importado: false, motivo: 'otro-dispositivo' }
+    }
+    throw cause
+  }
 }
 
 // Guarda la lista de puentes: un solo predeterminado y espejo de los campos
@@ -125,8 +256,10 @@ export async function estadoDePuente(puente) {
   } finally { clearTimeout(timer) }
 }
 
+// Escritura de caché interna (migración/import). La UI NO escribe acá: las
+// mutaciones van a la API y después se refresca (caché de solo lectura).
 export function guardarImpresoras(tenantId, cambios) {
-  const siguiente = { ...cargarImpresoras(tenantId), ...cambios }
+  const siguiente = normalizarCache({ ...cargarImpresoras(tenantId), ...cambios })
   escribir(claveTenant(tenantId), siguiente)
   return siguiente
 }
@@ -247,6 +380,87 @@ export async function sincronizarAgente(store) {
   })
 }
 
+// ── Camino remoto (backend como intermediario) ────────────────────────────
+// En un dispositivo sin agente local, o con la impresora en otro puente, el
+// trabajo se encola por HTTPS con la sesión y lo imprime el puente que reclama.
+
+// Camino que le toca a una impresora en ESTE dispositivo, consultando el
+// agente local (loopback). No imprime nada: solo decide.
+export async function caminoDeImpresion(store, impresora) {
+  const estado = await estadoAgente()
+  return { ...resolverCamino(store, impresora, { disponible: Boolean(estado?.disponible) }), agente: estado }
+}
+
+// Encola un ticket en el backend para que lo imprima el puente. El sufijo de
+// confirmación viaja hasheado del lado del servidor: nunca se guarda en claro.
+export async function encolarRemoto(ticket, { impresora, copias, usuario = '', tipo = '', equipo = '', puente = null, tokenPista = '' } = {}) {
+  const sufijo = String(ticket?.sufijo ?? '')
+  const cuerpo = {
+    path: 'REMOTO',
+    destination: String(impresora?.destino || ''),
+    payload: ticket.base64(),
+    kind: String(tipo || 'prueba').slice(0, 40),
+    validation: String(ticket?.validacion || '').slice(0, 12),
+    suffix: sufijo.slice(0, 8),
+    reference: String(ticket?.ref || '').slice(0, 64),
+    requestedByName: String(usuario || '').slice(0, 80),
+    deviceName: String(equipo || '').slice(0, 80),
+    bridgeName: String(puente?.nombre || '').slice(0, 80),
+    tokenHint: String(tokenPista || '').slice(0, 40),
+    mode: String(impresora?.conexion || '').slice(0, 40),
+    width: Number(impresora?.ancho) === 58 ? 58 : 80,
+    copies: Math.min(5, Math.max(1, Number(copias) || Number(impresora?.copias) || 1)),
+    ...(esIdBackend(impresora?.id) ? { printerId: impresora.id } : {}),
+    ...(ticket?.ref ? { idempotencyKey: `ticket-${ticket.ref}` } : {}),
+  }
+  try {
+    const datos = await printingApi.encolar(cuerpo)
+    return { ok: true, remoto: true, encolado: true, job: datos?.job || null, jobId: datos?.job?.id || null }
+  } catch (cause) {
+    return { ok: false, remoto: true, error: cause?.message || 'No se pudo encolar el trabajo en el servidor.', status: cause?.status || 0 }
+  }
+}
+
+// Router local↔remoto: en la Mac del puente imprime por 127.0.0.1; en
+// cualquier otro dispositivo encola remoto. Nunca los dos caminos por el mismo
+// trabajo: el remoto solo se usa si el local falló ANTES de aceptar.
+export async function imprimirTicketRouter(ticket, { store, impresora, copias, usuario = '', tipo = '', equipo = '', puente = null, tokenPista = '' } = {}) {
+  const estado = await estadoAgente()
+  const { camino } = resolverCamino(store, impresora, { disponible: Boolean(estado?.disponible) })
+  if (camino === 'local') {
+    const local = await imprimirTicketDirecto(ticket, {
+      ancho: impresora?.ancho,
+      copias,
+      impresora: impresora?.destino,
+      usuario,
+      ref: ticket?.ref,
+      tipo,
+      validacion: ticket?.validacion,
+      sufijo: ticket?.sufijo,
+      puente: puente?.nombre || '',
+      tokenPista,
+      modo: impresora?.conexion,
+    })
+    // Aceptado, encolado local o incierto: no se encola remoto (duplicaría).
+    if (local.ok || local.encolado || local.incierto) return { ...local, camino: 'local' }
+    const remoto = await encolarRemoto(ticket, { impresora, copias, usuario, tipo, equipo, puente, tokenPista })
+    return { ...remoto, camino: 'remoto', motivoLocal: local.error }
+  }
+  const remoto = await encolarRemoto(ticket, { impresora, copias, usuario, tipo, equipo, puente, tokenPista })
+  return { ...remoto, camino: 'remoto' }
+}
+
+// Best-effort: deja la última prueba en la impresora del backend para que la
+// vea cualquier dispositivo. Si falla, la prueba ya ocurrió y no se rompe nada.
+export async function registrarUltimaPrueba(impresora, ultimaPrueba) {
+  if (!esIdBackend(impresora?.id)) return null
+  try {
+    return await printingApi.guardarImpresora(impresora.id, { lastTest: ultimaPrueba })
+  } catch {
+    return null
+  }
+}
+
 // Manda un ticket (crearTicket().base64()) al agente. Devuelve `{ ok }` o el
 // error para mostrarlo en pantalla.
 export async function imprimirDirecto(base64, { ancho, copias, impresora, usuario, ref, tipo, validacion, sufijo, puente, tokenPista, modo } = {}) {
@@ -278,7 +492,10 @@ export async function imprimirDirecto(base64, { ancho, copias, impresora, usuari
     return { ok: true, encolado: Boolean(datos?.encolado), incierto: Boolean(datos?.incierto), estado: datos?.estado || '', transporte: datos?.transporte || '', error: datos?.error || '', jobId: datos?.jobId || null }
   } catch (cause) {
     const mensaje = cause?.name === 'AbortError' ? 'El agente de impresión no respondió.' : cause?.message || 'No se pudo imprimir.'
-    return { ok: false, error: mensaje }
+    // Sin respuesta no se sabe si el agente aceptó: se marca incierto para no
+    // encolar el mismo ticket por el camino remoto.
+    const incierto = cause?.name === 'AbortError' || cause instanceof TypeError
+    return { ok: false, incierto, error: mensaje }
   } finally {
     clearTimeout(timer)
   }

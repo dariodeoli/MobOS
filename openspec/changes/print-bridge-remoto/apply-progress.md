@@ -3,10 +3,10 @@
 | Campo | Valor |
 |---|---|
 | Cambio | `print-bridge-remoto` |
-| Slices | 1 — Backend puentes (PR 1); 2 — Backend trabajos (PR 2); 3 — Agente (PR 3) |
+| Slices | 1 — Backend puentes (PR 1); 2 — Backend trabajos (PR 2); 3 — Agente (PR 3); 4 — App (PR 4) |
 | Fecha | 2026-09-19 |
 | Modo | Standard (TDD off según `openspec/config.yaml`) |
-| Estado | 14/14 tareas del slice 1 completas; 12/12 del slice 2 completas; 7/7 del slice 3 completas; slices 4-5 pendientes |
+| Estado | 14/14 tareas del slice 1 completas; 12/12 del slice 2; 7/7 del slice 3; 11/11 del slice 4; slice 5 pendiente |
 
 ## Work Unit Evidence
 
@@ -33,6 +33,14 @@
 | Test foco | `npm --prefix print-agent test` → 27 tests, 27 pass, 0 fail (backend falso `node:http`, impresora socket real vía `transportes.mjs`, dedupe/outbox/backoff/lease/config/pairing) |
 | Arnés de runtime | Tests con backend HTTP falso + socket de impresora que cuenta bytes: claim→impresión real→result una sola vez; reinicio con el mismo id no reimprime; backend caído deja el resultado en el outbox y al volver reporta antes de reclamar; latido con `jobId` durante una impresión lenta; arranque de `server.mjs` con `apiUrl`+`bridgeToken` exponiendo `remoto` en `/health` (proceso real por `spawn`). `npm test` raíz → 181 pass, 0 fail |
 | Frontera de rollback | `apiUrl:''` (o borrar `bridgeToken`) deja el agente en el comportamiento 1.5.0: el poller ni se arranca. Revertir el slice elimina `remoto.mjs`/`pair.mjs` y sus tests; `cola.mjs` conserva el camino local intacto (`origen:'local'`) |
+
+### Slice 4 — App
+
+| Evidencia | Valor |
+|---|---|
+| Test foco | `npm test` (raíz) → 188 tests, 188 pass, 0 fail. Nuevos: 6 de `src/lib/printing/ruteo.test.js` (sin agente → remoto; loopback + agente → local; puente LAN → remoto; impresora de otro puente → remoto; espejo del backend sin URL usa el agente local; `localhost`/HTTPS/barra y host parecido) y 1 de `puentes.test.js` (el espejo del backend no se descarta ni inventa dirección; un solo predeterminado) |
+| Arnés de runtime | `npx playwright test e2e/impresion-remota.spec.js` → 3 pass, 0 fail (dos dispositivos ven lo mismo, el backend pisa la caché vieja, sin backend se muestra la última caché sin escribir). `npm run test:e2e` → 58 passed, 0 failed (2 flaky ajenos a impresión: checkout POS y solicitudes de admin, verdes en retry). `npm run test:e2e:smoke` → 7 passed. `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` → exit 0; línea `print-bridge-http: puentes, impresoras, import idempotente, trabajos con lease y confirmación, tope y manifest OK.` (confirma sufijo malo 400 / bueno 200 del backend que consume la app) |
+| Frontera de rollback | Revertir `src/lib/api/printing.js`, `src/lib/printing/ruteo.js`, los cambios de `agent.js`/`Impresoras.jsx`, `e2e/impresion-remota.spec.js` y el `testMatch` de `playwright.config.js`. Backend, migración y agente quedan intactos; con el backend apagado la app vuelve a leer la última caché y el camino local 127.0.0.1 sigue funcionando |
 
 ## Tareas completadas — Slice 1
 
@@ -67,6 +75,20 @@
 - [x] 3.5 `print-agent/server.mjs`: arranca el poller solo con `apiUrl`+`bridgeToken`; aplica la config del backend (`aplicarConfigRemota` + `guardarConfig`); `/health` agrega `remoto:{activo,apiUrl,ultimoContacto,pendientesDeReporte,backoffMs,ultimoError}`; `/print`, `/jobs`, `/config`, `/confirmar`, `/health` locales intactos.
 - [x] 3.6 `print-agent/test/remoto.test.mjs` + ampliación de `cola.test.mjs` y `agente.test.mjs`: backend falso `node:http`, impresora socket real, claim→print→result una vez, dedupe tras reinicio, outbox con payload borrado, secuencia de backoff, lease extendido por latido, `usb:` legacy, copias, config sin navegador, pairing y permisos 0600.
 - [x] 3.7 Versión 1.6.0 en `print-agent/package.json` y `print-agent/server.mjs:9` (test de `/health` actualizado).
+
+## Tareas completadas — Slice 4
+
+- [x] 4.1 `src/lib/api/printing.js`: `puentes`, `crearPuente`, `regenerarCodigo`, `revocarPuente`, `impresoras`, `guardarImpresora` (POST si el id es local, PATCH si es del backend), `eliminarImpresora`, `importar`, `encolar`, `trabajos`, `confirmar` (patrón `presence.js`); lecturas de config/cola con `cacheMs: 0`.
+- [x] 4.2 `src/lib/printing/ruteo.js` (módulo puro, re-exportado por `agent.js`): `esLoopback`, `resolverCamino(store, impresora, {disponible})`, `urlDePuente`; local solo con agente loopback y puente propio; `imprimirTicketRouter` usa el remoto únicamente si el local falla antes de aceptar (nunca en encolado/incierto).
+- [x] 4.3 `agent.js` store v2 (`version:2`, `syncedAt`, `importedAt`, `localBridgeId`, `remoteEnabled`) + mapas `impresoraDesdeBackend`/`impresoraHaciaBackend`/`puenteDesdeBackend`, `refrescarDesdeBackend` (backend manda), `importarConfigUnaVez` (409 = otro dispositivo, no vuelve a intentar; otros errores reintentan), `registrarUltimaPrueba`; `guardarImpresoras` queda como caché interna, no como vía de escritura de la UI.
+- [x] 4.4 `puentes.test.js`: el espejo del backend sin URL se conserva, no se descarta ni inventa dirección, y mantiene un solo predeterminado; regresión de `usb:`→`cups:` ya existente.
+- [x] 4.5 `Impresoras.jsx` `consultar()`: import único + `refrescarDesdeBackend` + `GET /api/print/jobs` + historial/cola del agente local + sesiones; con el backend caído muestra la última caché.
+- [x] 4.6 `persistir()`: diff contra la lista anterior → POST de altas, PATCH de cambios reales (firma de campos) y DELETE de bajas; luego refresca la caché. El `sync` directo al agente queda solo como fallback con `remoteEnabled:false`. `duplicar` abre el formulario (el destino es único por empresa).
+- [x] 4.7 `confirmarEnPapel()`: trabajo del backend (remoto o espejado) → `printingApi.confirmar`; solo-local → `confirmarJob` del agente.
+- [x] 4.8 Modal de puentes: lista del backend con presencia (`online`/`lastSeenAt`, versión, plataforma), «Código» regenera el pairing (se muestra una vez con vencimiento), «Agregar puente» crea y muestra el código, «Revocar» pide confirmación; se eliminó la edición manual de URL/token y el sondeo local.
+- [x] 4.9 Formulario de impresora: el Select de puente usa el espejo del backend y «Gestionar puentes» reemplaza el campo de dirección en solo lectura (sin inputs nuevos).
+- [x] 4.10 Sufijo corregido: `imprimirTicketRouter` pasa `ticket.sufijo` al camino local (`imprimirDirecto`) y `encolarRemoto` lo manda como `suffix` (el backend ya lo guarda como `suffixHash`); la confirmación de la prueba ya se valida en ambos caminos.
+- [x] 4.11 `e2e/impresion-remota.spec.js` (proyecto `admin`): dos dispositivos ven la misma configuración del backend, el backend pisa la caché vieja y sin backend se muestra la última caché sin escribirla (marca testigo intacta).
 
 ## Archivos
 
@@ -127,6 +149,22 @@ Total authored slice 2: ~1046 líneas (725 nuevas + 321 en tests).
 
 Total authored slice 3: ~1037 líneas (681 nuevas + 356 en diff: 325 altas y 31 bajas).
 
+### Slice 4
+
+| Archivo | Acción |
+|---|---|
+| `src/lib/api/printing.js` | Creado (30) |
+| `src/lib/printing/ruteo.js` | Creado (38) |
+| `src/lib/printing/ruteo.test.js` | Creado (58) |
+| `src/lib/printing/agent.js` | Modificado (+243/-14) |
+| `src/lib/printing/puentes.test.js` | Modificado (+15) |
+| `src/components/control/Impresoras.jsx` | Modificado (+377/-134) |
+| `e2e/impresion-remota.spec.js` | Creado (137) |
+| `playwright.config.js` | Modificado (+1/-1) |
+| `openspec/changes/print-bridge-remoto/tasks.md` | Modificado (4.1–4.11 marcadas) |
+
+Total authored slice 4: ~770 líneas (255 nuevas + 515 en diffs: 407 altas y 108 bajas). Excede el presupuesto de 400: el mensaje de error honesto, la confirmación por origen y el diff de escritura no se pueden recortar sin romper escenarios; se recomienda **`size:exception`** o partir el PR en 4A (cliente API + router + store v2 + unit) y 4B (UI + e2e de configuración).
+
 ## Verificación observada
 
 ### Slice 1
@@ -168,6 +206,20 @@ Total authored slice 3: ~1037 líneas (681 nuevas + 356 en diff: 325 altas y 31 
 | `node --check` de los 7 archivos modificados/creados | OK |
 | `rg "<<<<<<<" print-agent` | sin resultados |
 
+### Slice 4
+
+| Comando | Resultado |
+|---|---|
+| `npm test` (raíz) | 188 pass, 0 fail (7 nuevos: 6 de ruteo + 1 de puentes) |
+| `npm run lint` | 0 errores |
+| `npm run build` | exit 0; chunk `Impresoras-*.js` regenerado sin errores |
+| `npx playwright test e2e/impresion-remota.spec.js` | 3 passed (configuración remota) |
+| `npm run test:e2e:smoke` | 7 passed |
+| `npm run test:e2e` (suite completa) | 58 passed, 0 failed; 2 flaky ajenos a impresión (checkout POS y solicitudes de admin) verdes en retry |
+| `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` | exit 0; `print-bridge-http: puentes, impresoras, import idempotente, trabajos con lease y confirmación, tope y manifest OK.` |
+| `npm --prefix backend run build` | exit 0 con `backend/.next/BUILD_ID` creado (requisito del arnés IT) |
+| `rg "<<<<<<<" src backend e2e print-agent` | sin resultados |
+
 ## Desviaciones del diseño
 
 ### Slice 1
@@ -200,12 +252,24 @@ Total authored slice 3: ~1037 líneas (681 nuevas + 356 en diff: 325 altas y 31 
 7. **`usb:` legacy**: el poller no normaliza destinos (los pasa tal cual a `transportes.enviar`, que ya acepta `usb:`); la normalización a `cups:` sigue siendo de la app (`puentes.js`).
 8. **404 en el reporte descarta el outbox**: si el backend ya no conoce el trabajo (purga a 180 días), se marca reportado localmente para no bloquear la cola; el diseño no cubría ese caso.
 
+### Slice 4
+
+1. **`resolverCamino` vive en `src/lib/printing/ruteo.js` y `agent.js` lo re-exporta**: `agent.js` importa `@/utils/printHtml` y `@/lib/api/printing` (alias de Vite) y no se puede cargar con `node --test`; el módulo puro sigue el precedente de `puentes.js` («sin dependencias de la app para poder testearlo»). El contrato del diseño (`resolverCamino(store, impresora)`) se conserva desde `agent.js`.
+2. **`imprimirDirecto` marca `incierto` cuando no hay respuesta** (timeout/red): sin respuesta no se sabe si el agente aceptó y encolar remoto duplicaría. Es la condición que el router usa para no caer al remoto.
+3. **Escritura por diff (`difundirCambios`)**: como los handlers mueven la lista completa, `persistir` compara firmas de campos (sin `ultimaPrueba`) y emite POST/PATCH/DELETE; después refresca. Evita reescribir todo y conserva el comportamiento de los formularios existentes. Las bajas van al final para no chocar con altas/ediciones.
+4. **`duplicar` abre el formulario en vez de crear la copia**: `[tenantId,destination]` es único en el backend y la copia traía el mismo destino (409 garantizado). Ahora se revisa antes de guardar.
+5. **No se crean espejos `LOCAL` desde la app en este slice**: la ruta existe (slice 2) y la UI sabe confirmar un job espejado contra la API (`fila.remoto`), pero el espejado best-effort de cada impresión local queda fuera de las tareas 4.x. Los flujos del POS/etiquetas siguen usando `imprimirTicketOFallback` local (sin encolado remoto); el ruteo remoto se cableó en la prueba de impresoras, que es el flujo del escenario 4/5.
+6. **El espejo de puentes no trae URL ni token**: el backend no los expone (el agente abre la conexión saliente). La tarjeta y el modal muestran presencia/versión del backend; la dirección local 127.0.0.1 sigue viniendo de `agentUrl` y el sondeo `/health` local quedó sin uso en la UI.
+7. **`lastTest` se persiste best-effort** con `registrarUltimaPrueba` (PATCH parcial) para que la última prueba se vea desde cualquier dispositivo; si el PATCH falla, la prueba ya ocurrió y no se rompe el flujo. La UI solo actualiza el estado de pantalla: no escribe la caché (el próximo refresco trae el dato del backend).
+
 ## Problemas encontrados
 
 - Ninguno que bloquee. El `ERROR: duplicate key` en el log del arnés es el 409 esperado de destino repetido (Postgres lo registra; la ruta responde 409).
 - Slice 2: el tope de intentos del pairing se prueba varias veces con el mismo código; el rate-limit por IP (10/min) no se dispara en el arnés porque no se envía `x-forwarded-for`, por lo que los 5 intentos del código sí alcanzan el 429 (comportamiento real en producción detrás del Hub).
 - Slice 3: `node --test print-agent/test` (forma de directorio) falla en Node 25 porque el runner intenta cargar el directorio como módulo; `npm --prefix print-agent test` (script del paquete) y `node --test "print-agent/test/*.test.mjs"` corren los 27 tests en verde. No es un problema del código.
 - Slice 3: el registro en `config.json` de `remotoActivo` es informativo; al cargar se recalcula desde `apiUrl`+`bridgeToken` para que un token borrado apague el poller.
+- Slice 4: `npm run test:e2e` completo dio 58 passed con 2 flaky ajenos a impresión (checkout POS y solicitudes de admin) que pasaron en el retry; la nueva spec de impresión pasó limpia en la primera corrida.
+- Slice 4: el arnés IT exige un build Next previo (`backend/.next/BUILD_ID`); se corrió `npm --prefix backend run build` para habilitarlo. No es un defecto del slice.
 
 ## Workload / PR boundary
 
@@ -214,7 +278,10 @@ Total authored slice 3: ~1037 líneas (681 nuevas + 356 en diff: 325 altas y 31 
 - Frontera slice 2: arranca en el backend de puentes/impresoras del slice 1 y termina con la cola remota completa (pair, heartbeat, claim, result, config, encolado/listado/detalle/confirmación, caps, purga y auditoría) sin tocar el agente ni la app.
 - Slice 3: PR 3 apilado sobre el 2. Estimado ~400, real ~1037 authored (265 de `remoto.mjs` + 55 de `pair.mjs` + 361 de tests nuevos + 356 de diff en config/cola/server/tests). El núcleo de producción son ~509 líneas; el resto es la batería que exige el escenario (dedupe, outbox, latido, pairing, permisos). Se recomienda **`size:exception`** o partir en 3A (`remoto.mjs` + `pair.mjs` + config) y 3B (cola outbox + server + tests de integración).
 - Frontera slice 3: arranca en el backend de trabajos del slice 2 y termina con el agente vinculable, poller con outbox y backoff, y `npm --prefix print-agent test` en verde, sin tocar la app ni la distribución.
+- Slice 4: PR 4 apilado sobre el 2 (paralelo al 3). Estimado ~450, real ~770 authored (255 nuevas + 515 en diffs). Núcleo de producción ~610 y ~160 de tests/e2e. Se recomienda **`size:exception`** o partir en 4A (cliente API + router + store v2 + unit de ruteo) y 4B (UI + e2e de configuración).
+- Frontera slice 4: arranca en el backend de trabajos del slice 2 y termina con la app leyendo/escribiendo la config por API, el router local/remoto con fallback seguro, la caché de solo lectura y los e2e de configuración en verde, sin tocar backend ni agente.
+- Riesgo de slice 5: el escenario «local sin round-trip remoto» y «envío remoto sin diálogo automático» con el puente falso quedan como e2e del slice 5; el espejo `LOCAL` y el encolado remoto de los tickets del POS no están cableados todavía (ver desviación 5).
 
 ## Pendiente
 
-- Slice 4 (app: cliente API, router local/remoto, caché v2, UI) y slice 5 (pack/install/checksum, e2e, docs).
+- Slice 5 (pack/install/checksum, e2e con puente falso, docs).

@@ -79,17 +79,17 @@ Base de cada PR: `main` con los slices previos ya mergeados (stacked). 3 y 4 son
 
 ## Slice 4 — App (PR 4) — depende: 2
 
-- [ ] 4.1 Crear `src/lib/api/printing.js` (patrón `src/lib/api/presence.js:1-9`, read-only): `puentes`, `crearPuente`, `revocarPuente`, `impresoras`, `guardarImpresora`, `importar`, `encolar`, `trabajos`, `confirmar`. Verifica: `npm test` + `npm run lint`.
-- [ ] 4.2 Modificar `src/lib/printing/agent.js`: `resolverCamino(store, impresora)` (loopback `127.0.0.1|localhost` + `estadoAgente()`); local primero; encola remoto solo si el local falla antes de aceptar, nunca en `encolado`/`incierto`. Verifica: nuevo `src/lib/printing/ruteo.test.js` con `npm test`.
-- [ ] 4.3 Modificar `src/lib/printing/agent.js`: store `version:2`, `refrescarDesdeBackend(tenantId)`, `importarConfigUnaVez(tenantId)` (409 = ya importado), TTL 60 s, caché de solo lectura; `guardarImpresoras` deja de ser la vía de escritura de la UI. Verifica: `npm test` + `npm run test:e2e` (config).
-- [ ] 4.4 Regresión en `src/lib/printing/puentes.test.js`/`puentes.js`: `usb:`→`cups:` y un solo puente predeterminado por empresa. Verifica: `npm test`.
-- [ ] 4.5 `Impresoras.jsx` `consultar()` (80-99): config y jobs del backend + historial local. Verifica: `npm run lint` + `npm run test:e2e`.
-- [ ] 4.6 `Impresoras.jsx` `persistir()` (107-111): API primero; quitar el `sync` al agente salvo fallback con remoto apagado. Verifica: `npm run test:e2e`.
-- [ ] 4.7 `Impresoras.jsx` `confirmarEnPapel()` (158-170): job remoto/espejado → `printingApi.confirmar`; solo-local → `confirmarJob`. Verifica: `npm run test:e2e`.
-- [ ] 4.8 `Impresoras.jsx` modal de puentes (758-810): listar puentes del backend, generar código de pairing, revocar; eliminar edición manual de URL/token. Verifica: `npm run lint` + `npm run test:e2e`.
-- [ ] 4.9 `Impresoras.jsx` formulario de impresora (1071-1082): reemplazar dirección de puente en solo lectura por "gestionar puentes", siguiendo `docs/CAMPOS.md` (read-only). Verifica: `npm run lint`.
-- [ ] 4.10 **Fix del sufijo (explícito)**: en `Impresoras.jsx:264-275` `enviarPrueba()` agregar `sufijo: ticket.sufijo` (`tickets.js:363`) y hacer que el encolado remoto persista el sufijo como `suffixHash` en el servidor; así `print-agent/cola.mjs:160` (read-only) valida de verdad en ambos caminos. Verifica: `npm test`, confirmación malo/bueno en `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` y e2e del slice 5.
-- [ ] 4.11 Crear `e2e/impresion-remota.spec.js` (config): dos dispositivos ven lo mismo, backend pisa caché vieja, sin backend se muestra la última caché sin escribir. Verifica: `npm run test:e2e`.
+- [x] 4.1 Crear `src/lib/api/printing.js` (patrón `src/lib/api/presence.js:1-9`, read-only): `puentes`, `crearPuente`, `revocarPuente`, `impresoras`, `guardarImpresora`, `importar`, `encolar`, `trabajos`, `confirmar`. Verifica: `npm test` + `npm run lint`.
+- [x] 4.2 Modificar `src/lib/printing/agent.js`: `resolverCamino(store, impresora)` (loopback `127.0.0.1|localhost` + `estadoAgente()`); local primero; encola remoto solo si el local falla antes de aceptar, nunca en `encolado`/`incierto`. Verifica: nuevo `src/lib/printing/ruteo.test.js` con `npm test`.
+- [x] 4.3 Modificar `src/lib/printing/agent.js`: store `version:2`, `refrescarDesdeBackend(tenantId)`, `importarConfigUnaVez(tenantId)` (409 = ya importado), TTL 60 s, caché de solo lectura; `guardarImpresoras` deja de ser la vía de escritura de la UI. Verifica: `npm test` + `npm run test:e2e` (config).
+- [x] 4.4 Regresión en `src/lib/printing/puentes.test.js`/`puentes.js`: `usb:`→`cups:` y un solo puente predeterminado por empresa. Verifica: `npm test`.
+- [x] 4.5 `Impresoras.jsx` `consultar()` (80-99): config y jobs del backend + historial local. Verifica: `npm run lint` + `npm run test:e2e`.
+- [x] 4.6 `Impresoras.jsx` `persistir()` (107-111): API primero; quitar el `sync` al agente salvo fallback con remoto apagado. Verifica: `npm run test:e2e`.
+- [x] 4.7 `Impresoras.jsx` `confirmarEnPapel()` (158-170): job remoto/espejado → `printingApi.confirmar`; solo-local → `confirmarJob`. Verifica: `npm run test:e2e`.
+- [x] 4.8 `Impresoras.jsx` modal de puentes (758-810): listar puentes del backend, generar código de pairing, revocar; eliminar edición manual de URL/token. Verifica: `npm run lint` + `npm run test:e2e`.
+- [x] 4.9 `Impresoras.jsx` formulario de impresora (1071-1082): reemplazar dirección de puente en solo lectura por "gestionar puentes", siguiendo `docs/CAMPOS.md` (read-only). Verifica: `npm run lint`.
+- [x] 4.10 **Fix del sufijo (explícito)**: en `Impresoras.jsx:264-275` `enviarPrueba()` agregar `sufijo: ticket.sufijo` (`tickets.js:363`) y hacer que el encolado remoto persista el sufijo como `suffixHash` en el servidor; así `print-agent/cola.mjs:160` (read-only) valida de verdad en ambos caminos. Verifica: `npm test`, confirmación malo/bueno en `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` y e2e del slice 5.
+- [x] 4.11 Crear `e2e/impresion-remota.spec.js` (config): dos dispositivos ven lo mismo, backend pisa caché vieja, sin backend se muestra la última caché sin escribir. Verifica: `npm run test:e2e`.
 
 ## Slice 5 — Distribución + docs (PR 5) — depende: 1 (UX de pairing también: 4)
 
