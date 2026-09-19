@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from './tickets.js'
+import { TIPOS_TICKET_PRUEBA, ticketComprobante, ticketPruebaTipo } from './tickets.js'
 
 const opciones = { ancho: 80, impresora: 'lan:192.168.1.23:9100', nombre: 'ZKP8008', equipo: 'mac-puente', copias: 1 }
 
@@ -106,4 +106,39 @@ test('el validador va grande arriba y repetido en el pie', () => {
   assert.notEqual(primera, -1, 'validador en el header')
   assert.ok(primera < texto.indexOf('[QR]'), 'el header sale antes del QR')
   assert.ok(ultima > texto.indexOf('[BARRA]'), 'el pie repite el validador después del código de barras')
+})
+
+test('el comprobante muestra el total de ítems y destaca el saldo pendiente', () => {
+  const order = {
+    orderNumber: 'P-100',
+    createdAt: new Date('2026-09-19T12:00:00Z').toISOString(),
+    totalPyg: 1000000,
+    subtotalPyg: 1000000,
+    items: [
+      { description: 'iPhone 13', quantity: 2, unitPricePyg: 300000, totalPyg: 600000 },
+      { description: 'Funda', quantity: 1, unitPricePyg: 400000, totalPyg: 400000 },
+    ],
+    payments: [{ status: 'CONFIRMED', method: 'CASH', amountPyg: 400000 }],
+    fulfillmentStatus: 'PROCESSING',
+    customer: { name: 'Cliente' },
+  }
+  const ticket = ticketComprobante(order, { nivel: 'completo', ancho: 80, link: 'https://app.moboss.online/p/token-vivo' })
+  const texto = ticket.lineas().join('')
+  assert.match(texto, /Total de ítems\s+3/, 'la suma de cantidades es 3')
+  assert.ok(texto.includes('SALDO PENDIENTE'), 'el saldo pendiente se imprime en negrita')
+  assert.match(texto, /SALDO PENDIENTE\n\s+Gs 600\.000/, 'el saldo va grande en su propia línea')
+  assert.ok(texto.includes('[QR] https://app.moboss.online/p/token-vivo'), 'el QR lleva el enlace del nivel')
+})
+
+test('un comprobante sin saldo no imprime la línea de saldo', () => {
+  const order = {
+    orderNumber: 'P-101',
+    totalPyg: 100000,
+    subtotalPyg: 100000,
+    items: [{ description: 'Producto', quantity: 1, unitPricePyg: 100000, totalPyg: 100000 }],
+    payments: [{ status: 'CONFIRMED', method: 'CASH', amountPyg: 100000 }],
+  }
+  const texto = ticketComprobante(order, { nivel: 'rapido', ancho: 80 }).lineas().join('')
+  assert.ok(!texto.includes('SALDO PENDIENTE'))
+  assert.ok(texto.includes('Total de ítems'))
 })

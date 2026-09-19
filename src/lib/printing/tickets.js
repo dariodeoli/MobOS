@@ -19,6 +19,7 @@ export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link 
   const pagado = pagos.reduce((suma, pago) => suma + Number(pago.amountPyg ?? pago.monto ?? 0), 0)
   const total = Number(order.totalPyg ?? order.total ?? 0)
   const pendiente = Math.max(0, total - Number(pagado || order.totalPagado || 0))
+  const itemsCount = items.reduce((suma, item) => suma + Number(item.quantity || 1), 0)
   const completo = nivel !== 'rapido'
   const detallado = nivel === 'detallado'
   const empresa = order.tenant?.name || order.empresaNombre || ''
@@ -55,6 +56,7 @@ export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link 
   }
   t.linea()
 
+  t.par('Total de ítems', String(itemsCount))
   t.par('Subtotal', gs(order.subtotalPyg ?? total))
   const descuento = Number(order.discountPyg || order.descuento || 0)
   if (descuento) t.par('Descuento', `- ${gs(descuento)}`)
@@ -62,7 +64,10 @@ export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link 
   if (entrega) t.par('Entrega', gs(entrega))
   t.doble().par('TOTAL', gs(total)).doble(false)
   t.par('Pagado', gs(pagado || order.totalPagado || 0))
-  if (pendiente > 0) t.par('Saldo pendiente', gs(pendiente))
+  if (pendiente > 0) {
+    t.negrita().texto('SALDO PENDIENTE').negrita(false)
+    t.negrita().doble().par('', gs(pendiente)).doble(false).negrita(false)
+  }
 
   if (completo && pagos.length) {
     t.linea()
@@ -102,7 +107,7 @@ export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link 
   if (link) {
     t.avanza(1)
     t.centrado(nivel === 'rapido' ? 'Seguimiento' : 'Comprobante y seguimiento')
-    t.qr(link, { tamano: 6 })
+    t.qr(link, { tamano: 7 })
     t.texto(link)
   }
   t.linea()

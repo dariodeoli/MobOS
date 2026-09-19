@@ -87,7 +87,7 @@ const styles = (format) => {
   const qrSize = width ? `${width === 80 ? 42 : 32}mm` : '42mm'
   return `
   @page{size:${page};margin:${margin}}
-  *{box-sizing:border-box}
+  *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body{font:${baseFont} ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;margin:0 auto;color:#0f1720;max-width:${bodyMax};padding:${width ? '1mm 0 6mm' : '0 0 4mm'}}
   .brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:2px solid #0c8876;padding-bottom:8px;margin-bottom:14px}
   .brand b{font-size:${brandSize};color:#0c8876;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
@@ -103,12 +103,13 @@ const styles = (format) => {
   td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
   .totals td{border:0;padding:3px 0}
   .totals tr:last-child td{font-weight:700;font-size:${totalSize};border-top:1px solid #0f1720;padding-top:6px}
+  .totals tr.saldo td{font-weight:800;font-size:${totalSize};color:#000;border-top:1px solid #0f1720;padding-top:6px}
   .tag{display:inline-block;border:1px solid #0c8876;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;color:#0c8876}
   .brand img.logo{display:block;height:${width ? (width === 80 ? '14mm' : '12mm') : '16mm'};max-width:${width ? `${width - 20}mm` : '70mm'};object-fit:contain;margin:0 auto 4px}
   .qr{display:block;width:${qrSize};height:${qrSize};margin:10px auto 6px}
   .small{font-size:10px;word-break:break-all;text-align:center}
   footer{margin-top:14px;border-top:1px solid #e3e8ec;padding-top:8px;font-size:10px;color:#66707a;text-align:center}
-  @media print{body{margin:0}}
+  @media print{body{margin:0;color:#000}.muted{color:#222}.card,table,td,th,footer,.brand{border-color:#000}.brand b,.tag{color:#000}.tag{border-color:#000}}
 `
 }
 
@@ -155,9 +156,10 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const when = order.createdAt || order.creadoEn || order.fecha
   const link = token ? accessUrlFor(token) : trackingUrlFor(order)
   let qr = ''
-  try { if (link) qr = await QRCode.toDataURL(link, { errorCorrectionLevel: 'M', margin: 1, width: 200 }) } catch { /* el enlace queda impreso igual */ }
+  try { if (link) qr = await QRCode.toDataURL(link, { errorCorrectionLevel: 'H', margin: 2, width: 320 }) } catch { /* el enlace queda impreso igual */ }
   const total = Number(order.totalPyg ?? order.total ?? 0)
   const pendiente = Math.max(0, total - Number(paid || order.totalPagado || 0))
+  const itemsCount = items.reduce((suma, item) => suma + Number(item.quantity || 1), 0)
   const empresa = order.tenant?.name || order.empresaNombre || ''
   const sucursal = order.branch || null
   const cliente = order.customer || null
@@ -199,9 +201,10 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
       <tr><td>Subtotal</td><td class="num">${escapeHtml(gs(order.subtotalPyg ?? total))}</td></tr>
       ${Number(order.discountPyg || order.descuento || 0) ? `<tr><td>Descuento</td><td class="num">− ${escapeHtml(gs(order.discountPyg || order.descuento))}</td></tr>` : ''}
       ${Number(order.deliveryPyg || order.montoDelivery || 0) ? `<tr><td>Entrega</td><td class="num">${escapeHtml(gs(order.deliveryPyg || order.montoDelivery))}</td></tr>` : ''}
+      <tr><td>Total de ítems</td><td class="num">${escapeHtml(String(itemsCount))}</td></tr>
       <tr><td>Total</td><td class="num">${escapeHtml(gs(total))}</td></tr>
       <tr><td>Pagado</td><td class="num">${escapeHtml(gs(paid || order.totalPagado || 0))}</td></tr>
-      ${pendiente > 0 ? `<tr><td>Saldo pendiente</td><td class="num">${escapeHtml(gs(pendiente))}</td></tr>` : ''}
+      ${pendiente > 0 ? `<tr class="saldo"><td>Saldo pendiente</td><td class="num">${escapeHtml(gs(pendiente))}</td></tr>` : ''}
     </table>
     ${pagosRows}
     ${credito}
