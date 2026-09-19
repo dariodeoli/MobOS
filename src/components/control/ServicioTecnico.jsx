@@ -4,6 +4,8 @@ import { Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Selec
 import PatronDesbloqueo from '@/components/shared/PatronDesbloqueo'
 import Icon from '@/components/shared/Icon'
 import SerialField from '@/components/shared/SerialField'
+import { useSesion } from '@/lib/sesion'
+import { buildServiceIntakeHtml, buildServiceReportHtml, ordenParaImpresion } from '@/lib/servicioImpresion'
 import { CHECKLISTS } from '@/lib/servicioChecklist'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
@@ -39,6 +41,7 @@ const CELDA = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute
 
 export default function ServicioTecnico() {
   const toast = useToast()
+  const { empresa } = useSesion()
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -166,6 +169,19 @@ export default function ServicioTecnico() {
     } finally { setBusy(false) }
   }
 
+  // Abre la hoja en una pestaña y lanza la impresión del navegador.
+  function imprimir(row, tipo, formato = 'a4') {
+    const orden = ordenParaImpresion(row)
+    const datos = { empresa: { nombre: empresa?.nombre || '', sucursal: empresa?.sucursal || '', telefono: empresa?.telefono || '' } }
+    const html = tipo === 'reporte' ? buildServiceReportHtml(orden, datos) : buildServiceIntakeHtml(orden, { ...datos, format: formato })
+    const ventana = window.open('', '_blank')
+    if (!ventana) { toast.error('Permití las ventanas emergentes para imprimir.'); return }
+    ventana.document.write(html)
+    ventana.document.close()
+    ventana.focus()
+    ventana.print()
+  }
+
   async function avanzar(row) {
     const siguiente = SIGUIENTE[row.status]
     if (!siguiente) return
@@ -247,6 +263,9 @@ export default function ServicioTecnico() {
                 <Badge color={ESTADO_TONE[row.status] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{ESTADO_LABEL[row.status] || row.status}</Badge>
                 <span className="flex flex-wrap items-center justify-end gap-1">
                   {SIGUIENTE[row.status] && <Button variant="outline" className="h-8 whitespace-nowrap px-2 text-xs" title={`Pasar a ${ESTADO_LABEL[SIGUIENTE[row.status]]}`} onClick={() => avanzar(row)}>{SIGUIENTE_CORTO[SIGUIENTE[row.status]]}</Button>}
+                  <Button variant="ghost" className="h-8 px-2 text-xs" title="Imprimir recepción (2 copias)" aria-label={`Imprimir recepción de ${row.device || 'servicio'}`} onClick={() => imprimir(row, 'recepcion', 'a4')}><Icon name="receipt" className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" className="h-8 px-2 text-xs" title="Imprimir recepción 80 mm" aria-label={`Imprimir recepción 80 mm de ${row.device || 'servicio'}`} onClick={() => imprimir(row, 'recepcion', 'thermal')}><Icon name="download" className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" className="h-8 px-2 text-xs" title="Reporte técnico" aria-label={`Imprimir reporte técnico de ${row.device || 'servicio'}`} onClick={() => imprimir(row, 'reporte')}><Icon name="report" className="h-3.5 w-3.5" /></Button>
                   <Button variant="ghost" className="h-8 px-2 text-xs" aria-label={`Editar orden de ${row.device || 'servicio'}`} onClick={() => editar(row)}><Icon name="edit" className="h-3.5 w-3.5" /></Button>
                 </span>
               </div>
