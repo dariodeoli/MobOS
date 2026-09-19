@@ -446,9 +446,9 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   page,
   browser,
 }) => {
-  // Cliente nuevo por corrida, con una venta en la sucursal del vendedor: el
-  // perfil 360° solo muestra clientes con pedidos en su sucursal. Evita además
-  // el bloqueo por solicitud duplicada y que ya esté en mayorista.
+  // Cliente nuevo por corrida: evita el bloqueo por solicitud duplicada y que
+  // el cliente ya esté en mayorista. El perfil tiene que abrirse aunque el
+  // cliente no tenga pedidos en la sucursal del vendedor.
   const nombre = `Solicitud E2E ${Date.now()}`
 
   // Sin storage state: la sesión del proyecto es la de gerencia.
@@ -456,31 +456,19 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   const vendedor = await contextoVendedor.newPage()
   await vendedor.addInitScript(() => localStorage.setItem('mobos:clientes-vista', 'list'))
   await loginAsSeller(vendedor)
-  const venta = await vendedor.evaluate(
-    async ({ api, nombre, producto }) => {
-      const res = await fetch(`${api}/api/orders`, {
+  const alta = await vendedor.evaluate(
+    async ({ api, nombre }) => {
+      const res = await fetch(`${api}/api/customers`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderNumber: `E2E-SOL-${Date.now()}`,
-          customer: { name: nombre },
-          items: [
-            {
-              productId: producto.id,
-              description: producto.name,
-              quantity: 1,
-              unitPricePyg: producto.pricePyg,
-            },
-          ],
-          payment: { method: 'CASH', amountPyg: producto.pricePyg },
-        }),
+        body: JSON.stringify({ name: nombre }),
       })
-      return { status: res.status, detalle: res.ok ? '' : (await res.text()).slice(0, 200) }
+      return { status: res.status }
     },
-    { api: API, nombre, producto: SEED.products.cable },
+    { api: API, nombre },
   )
-  expect(venta, 'el vendedor tiene que poder vender').toMatchObject({ status: 201 })
+  expect(alta.status, 'el vendedor tiene que poder crear el cliente').toBe(201)
 
   await vendedor.goto('/pos/clientes')
   await vendedor.getByLabel('Buscar clientes').fill(nombre)
@@ -510,4 +498,44 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
   await expect(page.getByRole('heading', { name: 'Plantillas de WhatsApp' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Solicitudes del cliente' })).toHaveCount(0)
+})
+
+// El dueño trabaja solo: su propia solicitud se resuelve desde la misma
+// bandeja (un vendedor o gerente no puede resolver la que pidió).
+test('autorizaciones → el dueño resuelve su propia solicitud', async ({ page }) => {
+  const nombre = `Autoría E2E ${Date.now()}`
+  await page.addInitScript(() => localStorage.setItem('mobos:clientes-vista', 'list'))
+  await page.goto('/pos/clientes')
+  const alta = await page.evaluate(
+    async ({ api, nombre }) => {
+      const res = await fetch(`${api}/api/customers`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: nombre }),
+      })
+      return { status: res.status }
+    },
+    { api: API, nombre },
+  )
+  expect(alta.status).toBe(201)
+
+  await page.getByLabel('Buscar clientes').fill(nombre)
+  await page.getByTestId('cliente-fila').filter({ hasText: nombre }).first().click()
+  await page
+    .getByRole('tab', { name: /^Comercial/ })
+    .first()
+    .click()
+  await page.getByRole('button', { name: 'Solicitar mayorista' }).click()
+  await page.getByRole('button', { name: 'Enviar solicitud' }).click()
+  await expect(page.getByText('Solicitud enviada', { exact: false })).toBeVisible()
+
+  await page.goto('/pos/autorizaciones')
+  const fila = page.getByTestId('autorizacion-fila').filter({ hasText: nombre }).first()
+  await expect(fila).toContainText('Tu solicitud')
+  await fila.getByRole('button', { name: 'Aprobar' }).click()
+  const aprobar = page.getByRole('dialog')
+  await aprobar.getByRole('button', { name: 'Aprobar' }).click()
+  await expect(page.getByText('Solicitud aprobada', { exact: false })).toBeVisible()
+  await expect(fila.getByText('Aprobada')).toBeVisible()
 })
