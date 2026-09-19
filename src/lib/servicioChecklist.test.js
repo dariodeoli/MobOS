@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { CHECKLISTS, ESTADO_FISICO, PRUEBAS_EJECUTADAS, TIPOS_EQUIPO, patronValido, puntosDeTipo } from './servicioChecklist.js'
+import { CHECKLISTS, ESTADO_FISICO, PRUEBAS_EJECUTADAS, TIPOS_EQUIPO, agregarPuntoPatron, patronValido, puntosDeTipo } from './servicioChecklist.js'
 
 test('cada tipo de equipo tiene su checklist sin claves repetidas', () => {
   for (const tipo of TIPOS_EQUIPO) {
@@ -38,4 +38,12 @@ test('el patrón solo acepta puntos del 1 al 9', () => {
   assert.deepEqual(patronValido([0, 10, 3]), [3])
   assert.deepEqual(patronValido('123'), [])
   assert.deepEqual(patronValido(null), [])
+})
+
+test('el patrón se arma sin repetir puntos y con tope de 9', () => {
+  assert.deepEqual(agregarPuntoPatron([], 5), [5])
+  assert.deepEqual(agregarPuntoPatron([5], 5), [5])
+  assert.deepEqual(agregarPuntoPatron([1, 2], 3), [1, 2, 3])
+  assert.deepEqual(agregarPuntoPatron([1, 2], 12), [1, 2])
+  assert.equal(agregarPuntoPatron([1, 2, 3, 4, 5, 6, 7, 8, 9], 1).length, 9)
 })

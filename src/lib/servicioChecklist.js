@@ -87,6 +87,13 @@ export function puntosDeTipo(tipo) {
 }
 
 // El desbloqueo se guarda como PIN y/o patrón de 3×3 (secuencia de puntos 1-9).
+export function agregarPuntoPatron(secuencia = [], punto) {
+  const actual = Array.isArray(secuencia) ? secuencia : []
+  if (!Number.isInteger(punto) || punto < 1 || punto > 9) return actual
+  if (actual.includes(punto) || actual.length >= 9) return actual
+  return [...actual, punto]
+}
+
 export function patronValido(secuencia) {
   if (!Array.isArray(secuencia)) return []
   return secuencia.map(Number).filter((punto) => Number.isInteger(punto) && punto >= 1 && punto <= 9).slice(0, 9)

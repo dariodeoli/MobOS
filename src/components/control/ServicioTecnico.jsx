@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
 import { Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import PatronDesbloqueo from '@/components/shared/PatronDesbloqueo'
 import Icon from '@/components/shared/Icon'
 import SerialField from '@/components/shared/SerialField'
 import { CHECKLISTS } from '@/lib/servicioChecklist'
@@ -24,7 +25,7 @@ const ESTADOS = [
 const ESTADO_LABEL = Object.fromEntries(ESTADOS.map(([id, label]) => [id, label]))
 const ESTADO_TONE = Object.fromEntries(ESTADOS.map(([id, , tone]) => [id, tone]))
 const SIGUIENTE = { RECIBIDO: 'DIAGNOSTICO', DIAGNOSTICO: 'CON_TECNICO', CON_TECNICO: 'ESPERANDO_REPUESTO', ESPERANDO_REPUESTO: 'REPARADO', REPARADO: 'LISTO', LISTO: 'ENTREGADO' }
-const FORM_VACIO = { customerName: '', customerId: '', deviceType: 'iPhone', serviceName: '', device: '', serial: '', reportedIssue: '', diagnosis: '', technicianName: '', status: 'RECIBIDO', pricePyg: '', costPyg: '', notes: '', checklist: {} }
+const FORM_VACIO = { customerName: '', customerId: '', deviceType: 'iPhone', serviceName: '', device: '', serial: '', reportedIssue: '', diagnosis: '', technicianName: '', status: 'RECIBIDO', pricePyg: '', costPyg: '', notes: '', checklist: {}, unlockCode: '', unlockPattern: [] }
 const DEVICE_TYPES = ['iPhone', 'MacBook', 'AirPods', 'iPad', 'Apple Watch', 'Otros']
 const fecha = (value) => value ? new Date(value).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '') : '—'
 const utilidad = (row) => Number(row.pricePyg || 0) - Number(row.costPyg || 0)
@@ -144,6 +145,8 @@ export default function ServicioTecnico() {
         device: form.device.trim(),
         serviceName: form.serviceName || undefined,
         checklist: form.checklist || {},
+        ...(form.unlockCode?.trim() ? { unlockCode: form.unlockCode.trim() } : {}),
+        ...(Array.isArray(form.unlockPattern) && form.unlockPattern.length ? { unlockPattern: form.unlockPattern } : {}),
         serial: form.serial.trim(),
         reportedIssue: form.reportedIssue.trim(),
         diagnosis: form.diagnosis.trim(),
@@ -181,6 +184,8 @@ export default function ServicioTecnico() {
       status: row.status || 'RECIBIDO', pricePyg: String(row.pricePyg || ''), costPyg: String(row.costPyg || ''), notes: row.notes || '',
       deviceType: (row.serviceName || '').split(' · ')[0] || 'iPhone', serviceName: row.serviceName || '',
       checklist: row.checklist && typeof row.checklist === 'object' && !Array.isArray(row.checklist) ? row.checklist : {},
+      unlockCode: row.desbloqueo?.pin || '',
+      unlockPattern: Array.isArray(row.desbloqueo?.patron) ? row.desbloqueo.patron : [],
     })
   }
 
@@ -280,7 +285,20 @@ export default function ServicioTecnico() {
             <div><Label htmlFor="diagnostico">Diagnóstico</Label><Textarea id="diagnostico" rows={2} value={form.diagnosis} onChange={set('diagnosis')} placeholder="Diagnóstico técnico y trabajo a realizar" autoCapitalize="sentences" /></div>
             <div>
               <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-mute">Checklist de recepción ({form.deviceType})</p>
-              <div className="mt-1 grid gap-1.5 sm:grid-cols-3">{(CHECKLISTS[form.deviceType] || CHECKLISTS.Otros).map(punto => <label key={punto} className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean((form.checklist || {})[punto])} onChange={event => setForm(current => ({ ...current, checklist: { ...(current.checklist || {}), [punto]: event.target.checked } }))} />{punto}</label>)}</div>
+              <div className="mt-3 rounded-xl border border-ink-600 bg-ink-800/30 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-mute">Desbloqueo del equipo</p>
+              <p className="mt-1 text-xs text-mute">Se guarda cifrado en la orden y solo lo ven el dueño, el gerente y el técnico.</p>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                <label className="block space-y-1 text-xs text-mute">PIN o código
+                  <Input maxLength={40} value={form.unlockCode || ''} onChange={set('unlockCode')} placeholder="Ej. 1234" inputMode="numeric" />
+                </label>
+                <div className="text-xs text-mute">
+                  <span className="mb-1 block">Patrón (si usa)</span>
+                  <PatronDesbloqueo value={form.unlockPattern || []} onChange={(puntos) => setForm(current => ({ ...current, unlockPattern: puntos }))} />
+                </div>
+              </div>
+            </div>
+            <div className="mt-1 grid gap-1.5 sm:grid-cols-3">{(CHECKLISTS[form.deviceType] || CHECKLISTS.Otros).map(punto => <label key={punto} className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean((form.checklist || {})[punto])} onChange={event => setForm(current => ({ ...current, checklist: { ...(current.checklist || {}), [punto]: event.target.checked } }))} />{punto}</label>)}</div>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div><Label htmlFor="estado">Estado</Label><Select id="estado" value={form.status} onChange={set('status')}>{ESTADOS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</Select></div>
