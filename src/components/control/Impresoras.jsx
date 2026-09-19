@@ -6,6 +6,8 @@ import { api } from '@/lib/api/client'
 import { printingApi } from '@/lib/api/printing'
 import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob, diagnosticoAgente, enmascararToken, esIdBackend, estadoAgente, historialAgente, impresoraHaciaBackend, importarConfigUnaVez, imprimirTicketRouter, limpiarFallidos, puenteDe, refrescarDesdeBackend, registrarUltimaPrueba, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
+import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, textoVerificacion } from '@/lib/printing/estadoImpresoras'
+import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
 import Avatar from '@/components/shared/Avatar'
 
 const fmt = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
@@ -23,6 +25,17 @@ const hace = (valor) => {
 // Resultado honesto del trabajo: confirmado en papel, aceptado por el
 // transporte, incierto (pudo salir) o fallido.
 const COLOR_RESULTADO = { confirmado: 'green', impreso: 'green', aceptado: 'blue', incierto: 'orange', fallido: 'red' }
+
+// Tono semántico del estado vivo → color/clase del sistema de diseño.
+const COLOR_TONO = { ok: 'green', bad: 'red', slate: 'slate', blue: 'blue', orange: 'orange' }
+const CLASE_TONO = { ok: 'text-ok', bad: 'text-bad', slate: 'text-mute' }
+
+// Detalle de la última prueba física (una sola línea, sin repetir el chip).
+const textoUltimaPrueba = (ultimaPrueba) => {
+  if (!ultimaPrueba) return 'Sin prueba todavía'
+  const resultado = ultimaPrueba.ok ? 'Impresa correctamente' : ultimaPrueba.remoto && ultimaPrueba.encolado ? 'Encolada al puente' : ultimaPrueba.encolado ? 'Encolada' : 'Falló'
+  return `${resultado} · ${TIPOS_TICKET_PRUEBA[ultimaPrueba.tipo] || 'Prueba'} · ${fmt(ultimaPrueba.fecha)}${ultimaPrueba.transporte ? ` · vía ${ultimaPrueba.transporte}` : ''}${ultimaPrueba.validacion ? ` · Código ${ultimaPrueba.validacion}` : ''}${ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}`
+}
 
 const conexionDe = (destino) => (/^(usb|cups):/.test(String(destino || '')) ? 'CUPS' : 'LAN')
 
@@ -197,10 +210,64 @@ export default function Impresoras() {
     }
   }
 
-  const impresoras = store.impresoras || []
+  const impresoras = useMemo(() => store.impresoras || [], [store.impresoras])
   const predeterminada = impresoras.find((item) => item.activa && item.predeterminada) || impresoras.find((item) => item.activa) || null
 
   const puentePrincipal = puenteDe(store)
+
+  // Verificación invisible de las impresoras activas. Se pausa mientras hay
+  // una impresión, prueba o diagnóstico en curso para no competir con el agente.
+  const impresorasActivas = useMemo(() => impresoras.filter((impresora) => impresora.activa), [impresoras])
+  const sondeoEnPausa = Boolean(probandoId) || diagnosticando || reparando
+  const { estados: estadosVivos, agregado } = useEstadoImpresoras(impresorasActivas, { enPausa: sondeoEnPausa })
+
+  // Estado de configuración cuando todavía no hay verificación viva: la prueba
+  // anterior y la detección del agente dan el contexto.
+  function estadoConfigurado(impresora) {
+    if (impresora.ultimaPrueba?.ok) return { label: 'Prueba exitosa', color: 'green' }
+    if (/^(usb|cups)$/.test(impresora.conexion || '') || /^(usb|cups):/.test(String(impresora.destino || ''))) {
+      const detectada = (estado?.impresoras?.usb || []).includes(String(impresora.destino || '').slice(String(impresora.destino || '').indexOf(':') + 1))
+      return detectada ? { label: 'Conectada', color: 'green' } : { label: 'Configurada', color: 'slate' }
+    }
+    if (impresora.destino === estado?.impresora) {
+      return estado?.impresoraOk ? { label: 'Conectada', color: 'green' } : { label: 'Sin conexión', color: 'red' }
+    }
+    return { label: 'Configurada', color: 'slate' }
+  }
+
+  // Un solo badge por impresora: manda el estado vivo; sin datos vivos todavía
+  // se muestra el contexto (o "Sin verificar" si no hay agente local).
+  function chipDe(impresora) {
+    if (!impresora.destino) return { label: 'Error de configuración', color: 'red' }
+    const vivo = estadosVivos[impresora.id]?.estado
+    if (vivo === ESTADO_IMPRESORA.OK) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.OK], color: 'green' }
+    if (vivo === ESTADO_IMPRESORA.ERROR) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.ERROR], color: 'red' }
+    if (vivo === ESTADO_IMPRESORA.VERIFICANDO) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.VERIFICANDO], color: 'slate' }
+    if (!estado?.disponible) return { label: ETIQUETA_ESTADO[ESTADO_IMPRESORA.SIN_VERIFICAR], color: 'slate' }
+    return estadoConfigurado(impresora)
+  }
+
+  // Línea única de última verificación/última prueba. Sin agente local se
+  // aclara dónde se verifica: esta computadora no puede comprobarlo.
+  function verificacionDe(impresora) {
+    const vivo = estadosVivos[impresora.id]
+    if (vivo && vivo.estado !== ESTADO_IMPRESORA.SIN_VERIFICAR) return textoVerificacion(vivo)
+    if (!impresora.destino) return 'Falta configurar el destino'
+    if (!impresora.activa) return 'Desactivada: no se verifica'
+    if (!estado?.disponible) {
+      if (store.remoteEnabled === false) return 'Sin verificación local: la impresión remota está apagada'
+      const esperaPuente = (store.bridges || []).length > 0 || impresora.bridgeId
+      return esperaPuente ? 'Se verifica en la computadora puente' : 'Sin agente local en esta computadora'
+    }
+    return textoVerificacion(vivo)
+  }
+
+  function tonoDe(impresora) {
+    const vivo = estadosVivos[impresora.id]?.estado
+    if (vivo === ESTADO_IMPRESORA.OK) return 'ok'
+    if (vivo === ESTADO_IMPRESORA.ERROR) return 'bad'
+    return 'slate'
+  }
 
   // Método honesto de cada impresora: `usb:` es una cola CUPS local (puede
   // salir por red o por USB físico), no un cable.
@@ -266,24 +333,6 @@ export default function Impresoras() {
     } catch (cause) {
       toast.error('No coincide', cause?.message || 'El número secreto no es el del papel.')
     } finally { setConfirmandoId('') }
-  }
-
-  function estadoDe(impresora) {
-    if (!estado?.disponible) {
-      if (store.remoteEnabled === false) return { label: 'Remoto apagado', color: 'orange' }
-      const esperaPuente = (store.bridges || []).length > 0 || impresora.bridgeId
-      return esperaPuente ? { label: 'Puente remoto', color: 'blue' } : { label: 'Agente desconectado', color: 'slate' }
-    }
-    if (!impresora.destino) return { label: 'Error de configuración', color: 'red' }
-    if (impresora.ultimaPrueba?.ok) return { label: 'Prueba exitosa', color: 'green' }
-    if (/^(usb|cups)$/.test(impresora.conexion || '') || /^(usb|cups):/.test(String(impresora.destino || ''))) {
-      const detectada = (estado.impresoras?.usb || []).includes(String(impresora.destino || '').slice(String(impresora.destino || '').indexOf(':') + 1))
-      return detectada ? { label: 'Conectada', color: 'green' } : { label: 'Configurada', color: 'slate' }
-    }
-    if (impresora.destino === estado.impresora) {
-      return estado.impresoraOk ? { label: 'Conectada', color: 'green' } : { label: 'Sin conexión', color: 'red' }
-    }
-    return { label: 'Configurada', color: 'slate' }
   }
 
   function abrirFormulario(impresora = null) {
@@ -601,6 +650,7 @@ export default function Impresoras() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">Estado del sistema de impresión</h3>
           <div className="flex flex-wrap items-center gap-2">
+            <Badge color={COLOR_TONO[agregado.tono]} title={agregado.detalle}>{agregado.label}</Badge>
             <Badge color={store.remoteEnabled === false ? 'orange' : 'blue'}>{store.remoteEnabled === false ? 'Remoto apagado' : `Remoto activo · ${(store.bridges || []).length} puente(s)`}</Badge>
             <Badge color={estado?.disponible ? 'green' : 'slate'}>{cargando ? 'Consultando…' : estado?.disponible ? `Agente conectado · v${estado.version || ''}` : 'Sin agente local'}</Badge>
           </div>
@@ -622,8 +672,15 @@ export default function Impresoras() {
             </div>
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Impresora predeterminada</p>
-              <p className="mt-1 truncate text-sm font-semibold" title={predeterminada?.destino || undefined}>{predeterminada ? `${predeterminada.nombre} · ${predeterminada.destino}` : 'Sin configurar'}</p>
-              {predeterminada && <p className="mt-1 text-xs text-mute">{conexionDe(predeterminada.destino)} · {predeterminada.ancho} mm · {predeterminada.copias} copia(s)</p>}
+              <p className="mt-1 truncate text-sm font-semibold" title={predeterminada?.nombre || undefined}>{predeterminada ? predeterminada.nombre : 'Sin configurar'}</p>
+              {predeterminada ? (
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <Badge color={chipDe(predeterminada).color} title={verificacionDe(predeterminada)}>{chipDe(predeterminada).label}</Badge>
+                  <Button type="button" variant="ghost" className="h-auto px-0 py-1 text-xs text-fono-light" onClick={() => abrirFormulario(predeterminada)}>Gestionar</Button>
+                </div>
+              ) : (
+                <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={() => abrirFormulario(null)}>Agregar impresora</Button>
+              )}
             </div>
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Cola</p>
@@ -674,7 +731,9 @@ export default function Impresoras() {
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
           {impresoras.map((impresora) => {
-            const chip = estadoDe(impresora)
+            const chip = chipDe(impresora)
+            const verificacion = verificacionDe(impresora)
+            const tono = tonoDe(impresora)
             return (
               <Card key={impresora.id} className="space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -686,7 +745,7 @@ export default function Impresoras() {
                     </p>
                     <p className="mt-0.5 truncate text-xs text-mute" title={impresora.destino}>{impresora.marca && impresora.modelo ? `${impresora.marca} ${impresora.modelo} · ` : ''}{impresora.destino || 'Sin destino'}</p>
                   </div>
-                  <Badge color={chip.color}>{chip.label}</Badge>
+                  <Badge color={chip.color} title={verificacion}>{chip.label}</Badge>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-mute">
                   <span>Método: <b className="text-fore">{metodoDe(impresora)}</b></span>
@@ -694,12 +753,15 @@ export default function Impresoras() {
                   <span>Copias: <b className="text-fore">{impresora.copias}</b></span>
                   {impresora.ubicacion && <span>Ubicación: <b className="text-fore">{impresora.ubicacion}</b></span>}
                 </div>
-                <p className="text-xs text-mute">Última prueba: <b className="text-fore">{impresora.ultimaPrueba ? `${impresora.ultimaPrueba.ok ? 'Impresa correctamente' : impresora.ultimaPrueba.remoto && impresora.ultimaPrueba.encolado ? 'Encolada al puente' : impresora.ultimaPrueba.encolado ? 'Encolada' : 'Falló'} · ${TIPOS_TICKET_PRUEBA[impresora.ultimaPrueba.tipo] || 'Prueba'} · ${fmt(impresora.ultimaPrueba.fecha)}${impresora.ultimaPrueba.transporte ? ` · vía ${impresora.ultimaPrueba.transporte}` : ''}${impresora.ultimaPrueba.validacion ? ` · Código ${impresora.ultimaPrueba.validacion}` : ''}${impresora.ultimaPrueba.corte ? ' · Corte solicitado ✓' : ''}` : 'Sin prueba todavía'}</b></p>
+                <p className="text-xs text-mute">
+                  <span className={CLASE_TONO[tono]}>{verificacion}</span>
+                  <span> · Última prueba: <b className="text-fore">{textoUltimaPrueba(impresora.ultimaPrueba)}</b></span>
+                </p>
                 {probandoId === impresora.id && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="button" onClick={() => probar(impresora)} disabled={Boolean(probandoId) || !impresora.activa}>{probandoId === impresora.id ? 'Enviando…' : 'Imprimir prueba'}</Button>
                   <Button type="button" variant="outline" onClick={() => abrirFormulario(impresora)}>Editar</Button>
-                  <Button type="button" variant="ghost" onClick={() => { setFiltroActividad(impresora.destino); diagnosticar(impresora) }}>Diagnóstico</Button>
+                  <Button type="button" variant="ghost" onClick={() => diagnosticar(impresora)}>Diagnóstico</Button>
                   <Button type="button" variant="ghost" onClick={() => setFiltroActividad(impresora.destino)}>Ver actividad</Button>
                   <span className="ml-auto" />
                   {!impresora.predeterminada && impresora.activa && <Button type="button" variant="ghost" onClick={() => marcarPredeterminada(impresora)}>Predeterminada</Button>}
@@ -872,6 +934,8 @@ export default function Impresoras() {
       {pruebaDe && (
         <ModalPrueba
           impresora={pruebaDe}
+          chip={chipDe(pruebaDe)}
+          verificacion={verificacionDe(pruebaDe)}
           metodo={metodoDe(pruebaDe)}
           usuario={sesion?.nombre || usuario?.name || ''}
           puente={puenteDe(store, pruebaDe).nombre}
@@ -1229,17 +1293,18 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
   )
 }
 
-function ModalPrueba({ impresora, metodo, usuario, puente, tokenPista, equipo, enviando, progreso, onCerrar, onEnviar }) {
+function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, tokenPista, equipo, enviando, progreso, onCerrar, onEnviar }) {
   const [tipo, setTipo] = useState('corta')
-  const [copias, setCopias] = useState(1)
   const [turno, setTurno] = useState(0) // regenera el ticket (y su número de 4 dígitos)
+  const [verPrevia, setVerPrevia] = useState(false)
+  // Las pruebas salen SIEMPRE con 1 copia: no hay campo ni estado de copias.
   const ticket = useMemo(
     () => ticketPruebaTipo(tipo, {
       ancho: impresora.ancho,
       impresora: impresora.destino,
       nombre: impresora.nombre,
       equipo,
-      copias,
+      copias: 1,
       metodo,
       conexion: impresora.conexion,
       puente,
@@ -1248,37 +1313,34 @@ function ModalPrueba({ impresora, metodo, usuario, puente, tokenPista, equipo, e
     }),
     // turno solo dispara la regeneración: un número nuevo por ejecución.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tipo, copias, turno, impresora, equipo, metodo, puente, tokenPista, usuario],
+    [tipo, turno, impresora, equipo, metodo, puente, tokenPista, usuario],
   )
   return (
-    <Modal open onClose={enviando ? undefined : onCerrar} title={`Probar: ${impresora.nombre}`} className="max-w-2xl">
+    <Modal open onClose={enviando ? undefined : onCerrar} title={`Probar: ${impresora.nombre}`} className="max-w-xl">
       <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <FormField label="Tipo de prueba" htmlFor="prueba-tipo">
-            <Select id="prueba-tipo" value={tipo} onChange={(event) => setTipo(event.target.value)}>
-              {Object.entries(TIPOS_TICKET_PRUEBA).map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}
-            </Select>
-          </FormField>
-          <FormField label="Copias" htmlFor="prueba-copias">
-            <Input id="prueba-copias" inputMode="numeric" maxLength={1} value={String(copias)} onChange={(event) => setCopias(Number(event.target.value.replace(/\D/g, '').slice(0, 1) || '1'))} />
-          </FormField>
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-600 p-3">
+          <Badge color={chip.color} title={verificacion || undefined}>{chip.label}</Badge>
+          <p className="min-w-0 flex-1 truncate text-xs text-mute" title={`${impresora.destino || 'Sin destino'} · ${impresora.ancho} mm`}>{impresora.destino || 'Sin destino'} · {impresora.ancho} mm</p>
         </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-mute">
-          <span>Impresora: <b className="text-fore">{impresora.nombre}</b></span>
-          <span>Método: <b className="text-fore">{metodo || conexionDe(impresora.destino)}</b></span>
-          <span>Destino: <b className="text-fore">{impresora.destino}</b></span>
-          <span>Ancho: <b className="text-fore">{impresora.ancho} mm</b></span>
-          <span>Trabajo: <b className="text-fore">{ticket.ref}</b></span>
-          <span>Validación: <b className="text-fore">{ticket.validacion}</b></span>
-          <span>Corte: <b className="text-fore">solicitado (GS V 0 + ESC i)</b></span>
+        <FormField label="Tipo de prueba" htmlFor="prueba-tipo">
+          <Select id="prueba-tipo" value={tipo} onChange={(event) => setTipo(event.target.value)}>
+            {Object.entries(TIPOS_TICKET_PRUEBA).map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}
+          </Select>
+        </FormField>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-mute">Sale <b className="text-fore">1 copia</b>, con un número secreto para confirmarla en papel.</p>
+          <Button type="button" variant="ghost" onClick={() => setVerPrevia((actual) => !actual)} aria-expanded={verPrevia}>
+            <Icon name="eye" className="h-3.5 w-3.5" />{verPrevia ? 'Ocultar vista previa' : 'Ver vista previa'}
+          </Button>
         </div>
-        <div>
-          <div className="mb-1 flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wider text-mute">Vista previa</p>
-            <Button type="button" variant="ghost" onClick={() => setTurno((n) => n + 1)} disabled={enviando}><Icon name="refresh" className="h-3.5 w-3.5" />Nuevo número</Button>
+        {verPrevia && (
+          <div>
+            <div className="mb-1 flex items-center justify-end">
+              <Button type="button" variant="ghost" onClick={() => setTurno((n) => n + 1)} disabled={enviando}><Icon name="refresh" className="h-3.5 w-3.5" />Nuevo número</Button>
+            </div>
+            <pre className="max-h-80 overflow-y-auto rounded-xl border border-ink-600 bg-ink-900 p-3 font-mono text-[11px] leading-4 text-fore">{ticket.lineas().join('')}</pre>
           </div>
-          <pre className="max-h-80 overflow-y-auto rounded-xl border border-ink-600 bg-ink-900 p-3 font-mono text-[11px] leading-4 text-fore">{ticket.lineas().join('')}</pre>
-        </div>
+        )}
         {tipo === 'corte' && (
           <p className="rounded-lg border border-warn/30 bg-warn/10 p-2 text-xs text-mute">
             La verificación del corte es <b className="text-fore">física</b>: el ticket debe separarse del rollo solo. El éxito por TCP confirma el envío, no la cuchilla. Si no corta, revisá <b className="text-fore">Cutter Enable: YES</b> en la impresora.
@@ -1287,7 +1349,7 @@ function ModalPrueba({ impresora, metodo, usuario, puente, tokenPista, equipo, e
         {enviando && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="ghost" onClick={onCerrar} disabled={enviando}>Cancelar</Button>
-          <Button type="button" onClick={() => onEnviar({ tipo, copias, ticket })} disabled={enviando}>{enviando ? 'Enviando…' : 'Enviar e imprimir'}</Button>
+          <Button type="button" onClick={() => onEnviar({ tipo, copias: 1, ticket })} disabled={enviando}>{enviando ? 'Enviando…' : 'Imprimir prueba'}</Button>
         </div>
       </div>
     </Modal>

@@ -338,10 +338,15 @@ export async function estadoAgente({ forzar = false } = {}) {
   }
 }
 
-const consultarAgente = async (camino, { method = 'GET', body } = {}) => {
+const consultarAgente = async (camino, { method = 'GET', body, signal } = {}) => {
   const { url, token } = configImpresora()
   const control = new AbortController()
   const timer = setTimeout(() => control.abort(), 5000)
+  const abortar = () => control.abort()
+  if (signal) {
+    if (signal.aborted) control.abort()
+    else signal.addEventListener('abort', abortar, { once: true })
+  }
   try {
     const respuesta = await fetch(`${url}${camino}`, {
       method,
@@ -354,10 +359,13 @@ const consultarAgente = async (camino, { method = 'GET', body } = {}) => {
     return datos
   } finally {
     clearTimeout(timer)
+    signal?.removeEventListener?.('abort', abortar)
   }
 }
 
-export const diagnosticoAgente = (destino) => consultarAgente(`/diagnostico${destino ? `?destino=${encodeURIComponent(destino)}` : ''}`)
+// `opciones.signal` permite abortar la consulta al desmontar quien la pidió
+// (p. ej. el sondeo periódico del estado de las impresoras).
+export const diagnosticoAgente = (destino, opciones = {}) => consultarAgente(`/diagnostico${destino ? `?destino=${encodeURIComponent(destino)}` : ''}`, opciones)
 export const colaAgente = () => consultarAgente('/jobs')
 export const historialAgente = (limite = 30) => consultarAgente(`/historial?limite=${limite}`)
 export const reintentarFallidos = () => consultarAgente('/jobs/retry', { method: 'POST' })

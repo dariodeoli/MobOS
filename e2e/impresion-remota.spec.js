@@ -202,7 +202,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       const tarjeta = tarjetaDe(page, NOMBRE_REMOTO)
       await expect(tarjeta).toBeVisible({ timeout: 20_000 })
       await tarjeta.getByRole('button', { name: 'Imprimir prueba' }).click()
-      await page.getByRole('button', { name: 'Enviar e imprimir' }).click()
+      await page.getByRole('dialog').getByRole('button', { name: 'Imprimir prueba' }).click()
 
       // El puente falso reclama, "imprime" y reporta; el sufijo sale del ticket.
       const trabajo = await puente.esperarTrabajo((item) => item.destination === DESTINO_REMOTO)
@@ -285,9 +285,39 @@ test.describe('impresión remota: cola con puente falso', () => {
     const tarjeta = tarjetaDe(page, NOMBRE)
     await expect(tarjeta).toBeVisible({ timeout: 20_000 })
     await tarjeta.getByRole('button', { name: 'Imprimir prueba' }).click()
-    await page.getByRole('button', { name: 'Enviar e imprimir' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Imprimir prueba' }).click()
     await expect(page.getByText('Prueba enviada por TCP')).toBeVisible({ timeout: 15_000 })
     expect(locales).toBeGreaterThan(0)
     expect(remotos).toBe(0)
+  })
+})
+
+test.describe('estado vivo y popup de prueba', () => {
+  test('sin agente local la impresora queda Sin verificar y el popup no pide copias', async ({ page }) => {
+    // La e2e corre sin agente: se corta 127.0.0.1 para que ni una instalación
+    // local de la máquina de turno pueda responder y falsear el estado.
+    await page.route('http://127.0.0.1:17890/**', (ruta) => ruta.abort())
+    await page.goto('/configuracion/impresoras')
+    await asegurarImpresora(page)
+    await page.reload()
+
+    const tarjeta = tarjetaDe(page, NOMBRE)
+    await expect(tarjeta).toBeVisible({ timeout: 20_000 })
+    // Sin agente local no se inventa estado: el badge es Sin verificar.
+    await expect(tarjeta.getByText('Sin verificar').first()).toBeVisible({ timeout: 20_000 })
+    await expect(tarjeta.getByText(/Se verifica en la computadora puente|Sin agente local en esta computadora/)).toBeVisible()
+
+    await tarjeta.getByRole('button', { name: 'Imprimir prueba' }).click()
+    const dialogo = page.getByRole('dialog')
+    await expect(dialogo).toBeVisible()
+    // La prueba sale siempre con 1 copia: no hay campo Copias.
+    await expect(dialogo.getByLabel('Copias')).toHaveCount(0)
+    await expect(dialogo.getByText('Sale 1 copia', { exact: false })).toBeVisible()
+    // La vista previa arranca colapsada; el toggle la muestra y la vuelve a ocultar.
+    await expect(dialogo.locator('pre')).toHaveCount(0)
+    await dialogo.getByRole('button', { name: 'Ver vista previa' }).click()
+    await expect(dialogo.locator('pre')).toBeVisible()
+    await dialogo.getByRole('button', { name: 'Ocultar vista previa' }).click()
+    await expect(dialogo.locator('pre')).toHaveCount(0)
   })
 })
