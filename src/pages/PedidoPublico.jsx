@@ -13,9 +13,10 @@ export default function PedidoPublico() {
   const { token } = useParams()
   const [order, setOrder] = useState(null)
   const [error, setError] = useState('')
+  const [logoOk, setLogoOk] = useState(true)
   useEffect(() => {
     let active = true
-    setError(''); setOrder(null)
+    setError(''); setOrder(null); setLogoOk(true)
     fetch(`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}`)
       .then(async response => { const payload = await response.json().catch(() => null); if (!response.ok) throw new Error(payload?.message || payload?.error || 'Pedido no encontrado.'); if (active) setOrder(payload) })
       .catch(cause => { if (active) setError(cause?.message || 'No se pudo cargar el pedido.') })
@@ -24,9 +25,19 @@ export default function PedidoPublico() {
 
   const pendiente = Number(order?.pendingPyg || 0)
   const aCredito = Boolean(order?.credit)
+  const entregadoConSaldo = order?.fulfillmentStatus === 'DELIVERED' && pendiente > 0
+  const etiquetaEntrega = entregadoConSaldo
+    ? `${FULFILLMENT.DELIVERED} · ${aCredito ? 'a crédito' : 'pagado parcialmente'}`
+    : (FULFILLMENT[order?.fulfillmentStatus] || order?.fulfillmentStatus)
+  const tonoEntrega = aCredito && entregadoConSaldo
+    ? 'border-bad/30 bg-bad/10 text-bad'
+    : entregadoConSaldo
+      ? 'border-warn/30 bg-warn/10 text-warn'
+      : order?.status === 'COMPLETED' ? 'border-ok/30 bg-ok/10 text-ok' : order?.status === 'CANCELLED' ? 'border-bad/30 bg-bad/10 text-bad' : 'border-warn/30 bg-warn/10 text-warn'
 
   return (
     <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
+      <style>{`@media print{body,main{background:#fff!important}main,main *{color:#000!important}section{background:#fff!important;border-color:#cbd5e1!important}}`}</style>
       <div className="mx-auto max-w-xl">
         <header className="mb-8 text-center">
           <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Seguimiento de pedido</p>
@@ -39,6 +50,21 @@ export default function PedidoPublico() {
           <div className="space-y-4">
             {order.company?.name && (
               <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5 text-center">
+                {logoOk && (
+                  <>
+                    <img
+                      src={`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=dark`}
+                      alt={`Logo de ${order.company.name}`}
+                      onError={() => setLogoOk(false)}
+                      className="mx-auto mb-3 h-14 w-auto max-w-[200px] object-contain print:hidden"
+                    />
+                    <img
+                      src={`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=light`}
+                      alt=""
+                      className="mx-auto mb-3 hidden h-14 w-auto max-w-[200px] object-contain print:block"
+                    />
+                  </>
+                )}
                 <p className="text-sm font-bold">{order.company.name}</p>
                 {order.branch && (
                   <p className="mt-1 text-xs text-mute">
@@ -54,7 +80,7 @@ export default function PedidoPublico() {
             <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-semibold">{ORDER_STATUS[order.status] || order.status}</h2>
-                <span className={`rounded-lg border px-2.5 py-1 text-xs font-bold ${order.status === 'COMPLETED' ? 'border-ok/30 bg-ok/10 text-ok' : order.status === 'CANCELLED' ? 'border-bad/30 bg-bad/10 text-bad' : 'border-warn/30 bg-warn/10 text-warn'}`}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus}</span>
+                <span className={`rounded-lg border px-2.5 py-1 text-xs font-bold ${tonoEntrega}`}>{etiquetaEntrega}</span>
               </div>
               <div className="mt-5 grid grid-cols-5 gap-2">
                 {['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED'].map((step, index) => {
@@ -81,8 +107,8 @@ export default function PedidoPublico() {
                 {Number(order.deliveryPyg || 0) > 0 && <div className="flex items-center justify-between"><span className="text-mute">Entrega</span><b className="tabular-nums">{gs(order.deliveryPyg)}</b></div>}
               </div>
               {aCredito && (
-                <div className="mt-4 rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm text-warn">
-                  <p className="font-bold uppercase tracking-wider">A crédito</p>
+                <div className="mt-4 rounded-xl border border-bad/40 bg-bad/10 p-3 text-sm text-bad">
+                  <p className="font-bold uppercase tracking-wider">{entregadoConSaldo ? 'Entregado a crédito' : 'A crédito'}</p>
                   <p className="mt-1">
                     Saldo {gs(pendiente)}
                     {order.credit.creditDays ? ` · plazo ${order.credit.creditDays} días` : ''}
