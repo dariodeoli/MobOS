@@ -9,9 +9,15 @@ import ProductFooter from '@/components/app/ProductFooter'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import PegarEnlaceToken from '@/components/shared/PegarEnlaceToken'
 
+// El token se lee una sola vez por carga de página: en desarrollo StrictMode
+// monta el componente dos veces y la segunda lectura ya no lo encontraría en la
+// URL (que se limpia al extraerlo).
+let tokenLeido
+const leerToken = () => (tokenLeido === undefined ? (tokenLeido = consumeActionToken()) : tokenLeido)
+
 export default function RecuperarContrasena() {
   const navigate = useNavigate()
-  const [token, setToken] = useState(() => consumeActionToken())
+  const [token, setToken] = useState(leerToken)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')

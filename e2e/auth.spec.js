@@ -33,3 +33,18 @@ test.describe('login', () => {
     await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeVisible()
   })
 })
+
+// Los enlaces del correo traen el token en el path (/restablecer-contrasena/<token>
+// y /verificar-correo/<token>): la ruta tiene que aceptarlo, no solo la raíz.
+test('los enlaces del correo con token abren su pantalla', async ({ page }) => {
+  const token = 'a'.repeat(64)
+  await page.goto(`/restablecer-contrasena/${token}`)
+    await expect(page.getByRole('heading', { name: 'Elegí una nueva contraseña' })).toBeVisible({ timeout: 60000 })
+  await expect(page.getByLabel('Nueva contraseña')).toBeVisible()
+  await expect(page).toHaveURL(/\/restablecer-contrasena\/?$/)
+
+  await page.goto(`/verificar-correo/${token}`)
+  await expect(page.getByRole('heading', { name: 'Verificación de correo' })).toBeVisible()
+  // Con token la pantalla verifica sola; no tiene que pedir pegar el enlace.
+  await expect(page.getByLabel('Pegá tu enlace completo')).toHaveCount(0)
+})
