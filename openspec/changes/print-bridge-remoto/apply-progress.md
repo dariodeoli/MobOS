@@ -3,10 +3,10 @@
 | Campo | Valor |
 |---|---|
 | Cambio | `print-bridge-remoto` |
-| Slices | 1 — Backend puentes (PR 1); 2 — Backend trabajos (PR 2); 3 — Agente (PR 3); 4 — App (PR 4) |
+| Slices | 1 — Backend puentes (PR 1); 2 — Backend trabajos (PR 2); 3 — Agente (PR 3); 4 — App (PR 4); 5 — Distribución + docs (PR 5) |
 | Fecha | 2026-09-19 |
 | Modo | Standard (TDD off según `openspec/config.yaml`) |
-| Estado | 14/14 tareas del slice 1 completas; 12/12 del slice 2; 7/7 del slice 3; 11/11 del slice 4; slice 5 pendiente |
+| Estado | Slice 5 completo: 5/5 tareas; los slices 1-5 suman 49/49 tareas. `pack-agent`, instalador one-liner con checksum, e2e con puente falso y docs listos |
 
 ## Work Unit Evidence
 
@@ -41,6 +41,22 @@
 | Test foco | `npm test` (raíz) → 188 tests, 188 pass, 0 fail. Nuevos: 6 de `src/lib/printing/ruteo.test.js` (sin agente → remoto; loopback + agente → local; puente LAN → remoto; impresora de otro puente → remoto; espejo del backend sin URL usa el agente local; `localhost`/HTTPS/barra y host parecido) y 1 de `puentes.test.js` (el espejo del backend no se descarta ni inventa dirección; un solo predeterminado) |
 | Arnés de runtime | `npx playwright test e2e/impresion-remota.spec.js` → 3 pass, 0 fail (dos dispositivos ven lo mismo, el backend pisa la caché vieja, sin backend se muestra la última caché sin escribir). `npm run test:e2e` → 58 passed, 0 failed (2 flaky ajenos a impresión: checkout POS y solicitudes de admin, verdes en retry). `npm run test:e2e:smoke` → 7 passed. `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` → exit 0; línea `print-bridge-http: puentes, impresoras, import idempotente, trabajos con lease y confirmación, tope y manifest OK.` (confirma sufijo malo 400 / bueno 200 del backend que consume la app) |
 | Frontera de rollback | Revertir `src/lib/api/printing.js`, `src/lib/printing/ruteo.js`, los cambios de `agent.js`/`Impresoras.jsx`, `e2e/impresion-remota.spec.js` y el `testMatch` de `playwright.config.js`. Backend, migración y agente quedan intactos; con el backend apagado la app vuelve a leer la última caché y el camino local 127.0.0.1 sigue funcionando |
+
+### Slice 5 — Distribución + docs
+
+| Evidencia | Valor |
+|---|---|
+| Test foco | `npm run pack:agent:check` → `pack-agent: el artefacto v1.6.0 está al día.` (exit 0); `npm --prefix print-agent test` → 32 tests, 32 pass, 0 fail (5 nuevos del instalador). RED previo a 5.3: los 5 tests de `instalador.test.mjs` fallaban con `bash: .../print-agent/install.sh: No such file or directory` |
+| Arnés de runtime | `npm run test:e2e` → 62 passed, 0 failed, 1 flaky ajeno (`admin.spec.js:32 inventario: la unidad reservada sigue en el listado`, verde en retry); las 6 specs de `impresion-remota.spec.js` pasaron en la primera corrida, incluidas las 3 nuevas: puente falso claim→result con `path=REMOTO` y confirmación por sufijo del payload, revocación que corta el claim (401 y job PENDIENTE), y local sin round-trip (agente 127.0.0.1 interceptado, 0 POST a `/api/print/jobs`). `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` → exit 0; `print-bridge-http: ... tope y manifest OK.` (ahora por la rama 200 del manifest publicado) |
+| Frontera de rollback | Borrar `backend/public/print-agent/`, `scripts/pack-agent.mjs`, `print-agent/install.sh`, `print-agent/test/instalador.test.mjs`, `e2e/helpers/fake-bridge.mjs` y las 3 specs nuevas; el manifiesto vuelve a 503 y el agente sigue instalándose con `install-macos.sh` desde el repo (`install.sh --from-repo`). Sin cambios de schema ni de API |
+
+## Tareas completadas — Slice 5
+
+- [x] 5.1 `scripts/pack-agent.mjs`: allow-list de 7 archivos del agente (`server`, `transportes`, `cola`, `config`, `remoto`, `pair`, `package.json`), tar ustar determinista + gzip con `node:zlib` (sin dependencias nuevas), `manifest.json` con `{version,file,sha256,size}`, nombre fijo `mobos-print-agent-<versión>.tgz`; `--check` compara contenidos del tarball contra las fuentes, el sha/tamaño del manifest, la copia de `install.sh` y la versión `package.json` ↔ `server.mjs:9`; scripts `pack:agent` y `pack:agent:check` en `package.json`.
+- [x] 5.2 `print-agent/test/instalador.test.mjs` (RED): 5 casos de la matriz de amenaza contra un backend falso `node:http` y un sandbox `HOME`/`MOBOS_PRINT_DIR`/`MOBOS_PRINT_INSTALL_DIR`; `execFile` async para no bloquear el servidor falso.
+- [x] 5.3 `print-agent/install.sh` + artefactos publicados en `backend/public/print-agent/` (`install.sh` 0755, tarball 1.6.0, `manifest.json`): Node ≥ 20, código validado antes de descargar, manifest con nombre fijo y sha256, `shasum -a 256` antes de extraer, allow-list de entradas (sin absolutas/`..`/archivos ajenos), extracción en `$MOBOS_PRINT_INSTALL_DIR`, `pair.mjs`, plist + `launchctl load` salvo `--no-service`, `--from-repo` conservado.
+- [x] 5.4 `e2e/helpers/fake-bridge.mjs` (`parearPuente`, `crearPuenteFalso`, `sufijoDelTicket` que lee el sufijo del payload ESC/POS) y 3 specs nuevas en `e2e/impresion-remota.spec.js`.
+- [x] 5.5 `print-agent/README.md` (one-liner, pairing, modo remoto, seguridad/retención, artefacto versionado), `AGENTS.md` (sección de distribución + check 4.8) y `package.json`. El `README.md` de la raíz no existe en el baseline: no se creó uno nuevo (ver desviaciones).
 
 ## Tareas completadas — Slice 1
 
@@ -165,6 +181,26 @@ Total authored slice 3: ~1037 líneas (681 nuevas + 356 en diff: 325 altas y 31 
 
 Total authored slice 4: ~770 líneas (255 nuevas + 515 en diffs: 407 altas y 108 bajas). Excede el presupuesto de 400: el mensaje de error honesto, la confirmación por origen y el diff de escritura no se pueden recortar sin romper escenarios; se recomienda **`size:exception`** o partir el PR en 4A (cliente API + router + store v2 + unit) y 4B (UI + e2e de configuración).
 
+### Slice 5
+
+| Archivo | Acción |
+|---|---|
+| `scripts/pack-agent.mjs` | Creado (180) |
+| `print-agent/install.sh` | Creado (171) |
+| `print-agent/test/instalador.test.mjs` | Creado (154) |
+| `e2e/helpers/fake-bridge.mjs` | Creado (102) |
+| `backend/public/print-agent/mobos-print-agent-1.6.0.tgz` | Generado (binario, 17.8 KB) |
+| `backend/public/print-agent/manifest.json` | Generado (7) |
+| `backend/public/print-agent/install.sh` | Generado (copia, 171) |
+| `e2e/impresion-remota.spec.js` | Modificado (+170/-4) |
+| `print-agent/README.md` | Modificado (+87/-15) |
+| `print-agent/pair.mjs` | Modificado (+14/-2) |
+| `AGENTS.md` | Modificado (+18) |
+| `package.json` | Modificado (+2) |
+| `openspec/changes/print-bridge-remoto/tasks.md` | Modificado (5.1–5.5 marcadas) |
+
+Total authored slice 5: ~919 líneas (607 nuevas + 312 en diffs: 291 altas y 21 bajas). Los artefactos generados (`backend/public/print-agent/`) quedan fuera del conteo de riesgo de revisión. Excede el presupuesto de 400: el packer determinista, los 5 casos RED del instalador, las 3 specs e2e y las docs no se pueden recortar sin perder escenarios; se recomienda **`size:exception`** (o partir en 5A packer / 5B instalador+tests / 5C e2e+docs).
+
 ## Verificación observada
 
 ### Slice 1
@@ -220,6 +256,25 @@ Total authored slice 4: ~770 líneas (255 nuevas + 515 en diffs: 407 altas y 108
 | `npm --prefix backend run build` | exit 0 con `backend/.next/BUILD_ID` creado (requisito del arnés IT) |
 | `rg "<<<<<<<" src backend e2e print-agent` | sin resultados |
 
+### Slice 5
+
+| Comando | Resultado |
+|---|---|
+| `node scripts/pack-agent.mjs` (generación real) | `pack-agent: publicado v1.6.0 (17.8 KB)` con tarball, `manifest.json` (sha256 `16da724d66fc…`) e `install.sh` |
+| `npm run pack:agent:check` | `pack-agent: el artefacto v1.6.0 está al día.` (exit 0) |
+| RED de 5.2 (antes de 5.3) | 5 tests de `instalador.test.mjs` en rojo: `bash: .../print-agent/install.sh: No such file or directory` |
+| `npm --prefix print-agent test` | 32 tests, 32 pass, 0 fail |
+| `npm test` (raíz) | 193 pass, 0 fail (los 5 del instalador incluidos) |
+| `npm run lint` | 0 errores |
+| `npm run build` | exit 0 (solo warning de tamaño de chunk) |
+| `npm --prefix backend run build` | exit 0 con `backend/.next/BUILD_ID` creado (`yWcZxK4dA8ISuy-prHCOD`) |
+| `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` | exit 0; `print-bridge-http: puentes, impresoras, import idempotente, trabajos con lease y confirmación, tope y manifest OK.` (manifest por la rama 200) |
+| `npm run test:e2e` (suite completa) | 62 passed, 0 failed, exit 0; 1 flaky ajeno a impresión (`admin.spec.js:32 inventario: la unidad reservada sigue en el listado`, verde en retry). Las 6 specs de impresión pasaron en la primera corrida |
+| `npm --prefix backend run test:unit` | 21 pass, 0 fail |
+| `npm --prefix backend run prisma:validate` | `The schema ... is valid` |
+| `cd backend && npx tsc --noEmit` | sin salida (0 errores) |
+| `rg "<<<<<<<" src backend e2e print-agent` | sin resultados |
+
 ## Desviaciones del diseño
 
 ### Slice 1
@@ -262,6 +317,17 @@ Total authored slice 4: ~770 líneas (255 nuevas + 515 en diffs: 407 altas y 108
 6. **El espejo de puentes no trae URL ni token**: el backend no los expone (el agente abre la conexión saliente). La tarjeta y el modal muestran presencia/versión del backend; la dirección local 127.0.0.1 sigue viniendo de `agentUrl` y el sondeo `/health` local quedó sin uso en la UI.
 7. **`lastTest` se persiste best-effort** con `registrarUltimaPrueba` (PATCH parcial) para que la última prueba se vea desde cualquier dispositivo; si el PATCH falla, la prueba ya ocurrió y no se rompe el flujo. La UI solo actualiza el estado de pantalla: no escribe la caché (el próximo refresco trae el dato del backend).
 
+### Slice 5
+
+1. **`pair.mjs` con guarda de ejecución por ruta real**: los tests del instalador corren en un sandbox bajo `/var` (symlink a `/private/var` en macOS); `import.meta.url` viene resuelto por el loader y `process.argv[1]` no, así que el guard `url === pathToFileURL(argv[1])` no disparaba y `pair.mjs` salía 0 sin vincular. Se cambió a `realpathSync` de ambos lados (mismo comportamiento en producción, robusto ante symlinks). Es un bug real del CLI descubierto por el slice 5.
+2. **Tarball determinista propio (ustar + `node:zlib`)**: sin dependencias nuevas y sin depender de bsdtar/GNU tar; `--check` compara los contenidos extraídos con las fuentes, el sha/tamaño del manifest, la copia de `install.sh` y la versión dual, en vez de exigir bytes idénticos entre plataformas.
+3. **El instalador valida el código antes de descargar** (formato 10 chars Crockford tras normalizar): el caso RED «`--code` inválido no escribe token» exige que no se toque ni la red; `pair.mjs` sigue re-validando con su alfabeto.
+4. **`--no-service` en `install.sh`**: además del camino real (plist + `launchctl load`), permite correr el instalador en tests/CI sin tocar launchd. El servicio sigue siendo el comportamiento por defecto.
+5. **Fix de flake del slice 4 (`sin backend se muestra la última caché sin escribirla`)**: el refresco automático de 20 s podía pisar `syncedAt` entre la captura y el reload; ahora el abort de `/api/print/**` se instala antes de capturar. No cambia la intención del test.
+6. **El puente falso registra el trabajo recién cuando el `result` quedó reportado**: evita la carrera `RECLAMADO` → `ACEPTADO` en la aserción e2e; `esperarTrabajo` siempre devuelve trabajos aceptados.
+7. **`README.md` raíz no existe** en el baseline (`glob README*` solo encuentra `src/lib/api`, `backend` y `print-agent`): la actualización pedida se hizo en `print-agent/README.md` + `AGENTS.md`; no se creó un README raíz nuevo.
+8. **Sección de seguridad/retención en `print-agent/README.md`**: la matriz de amenaza del design se documenta ahí (token robado = solo su empresa, sin rutas ni archivos; no se loguean token/código/sufijo/payload; purga a 180 días) y los casos RED quedan en `instalador.test.mjs`.
+
 ## Problemas encontrados
 
 - Ninguno que bloquee. El `ERROR: duplicate key` en el log del arnés es el 409 esperado de destino repetido (Postgres lo registra; la ruta responde 409).
@@ -270,6 +336,8 @@ Total authored slice 4: ~770 líneas (255 nuevas + 515 en diffs: 407 altas y 108
 - Slice 3: el registro en `config.json` de `remotoActivo` es informativo; al cargar se recalcula desde `apiUrl`+`bridgeToken` para que un token borrado apague el poller.
 - Slice 4: `npm run test:e2e` completo dio 58 passed con 2 flaky ajenos a impresión (checkout POS y solicitudes de admin) que pasaron en el retry; la nueva spec de impresión pasó limpia en la primera corrida.
 - Slice 4: el arnés IT exige un build Next previo (`backend/.next/BUILD_ID`); se corrió `npm --prefix backend run build` para habilitarlo. No es un defecto del slice.
+- Slice 5: `npm run test:e2e` completo dio 62 passed con 1 flaky ajeno a impresión (`admin.spec.js:32 inventario: la unidad reservada sigue en el listado`) que pasó en el retry. Las 6 specs de impresión pasaron sin retry.
+- Slice 5: el test RED del instalador usaba `execFileSync` y se colgaba: bloqueaba el event loop que sirve el backend falso. Se pasó a `execFile` async (mismo proceso, event loop libre).
 
 ## Workload / PR boundary
 
@@ -280,8 +348,10 @@ Total authored slice 4: ~770 líneas (255 nuevas + 515 en diffs: 407 altas y 108
 - Frontera slice 3: arranca en el backend de trabajos del slice 2 y termina con el agente vinculable, poller con outbox y backoff, y `npm --prefix print-agent test` en verde, sin tocar la app ni la distribución.
 - Slice 4: PR 4 apilado sobre el 2 (paralelo al 3). Estimado ~450, real ~770 authored (255 nuevas + 515 en diffs). Núcleo de producción ~610 y ~160 de tests/e2e. Se recomienda **`size:exception`** o partir en 4A (cliente API + router + store v2 + unit de ruteo) y 4B (UI + e2e de configuración).
 - Frontera slice 4: arranca en el backend de trabajos del slice 2 y termina con la app leyendo/escribiendo la config por API, el router local/remoto con fallback seguro, la caché de solo lectura y los e2e de configuración en verde, sin tocar backend ni agente.
-- Riesgo de slice 5: el escenario «local sin round-trip remoto» y «envío remoto sin diálogo automático» con el puente falso quedan como e2e del slice 5; el espejo `LOCAL` y el encolado remoto de los tickets del POS no están cableados todavía (ver desviación 5).
+- Slice 5: PR 5 (último) apilado sobre los anteriores. Estimado ~300, real ~919 authored (607 nuevas + 312 en diffs), más los artefactos generados en `backend/public/print-agent/` (tarball + manifest + copia del instalador, fuera del conteo de riesgo). Se recomienda **`size:exception`** o partir en 5A (packer+artefactos) / 5B (instalador + tests de amenaza) / 5C (e2e con puente falso + docs).
+- Frontera slice 5: arranca en los slices 1-4 y termina con el artefacto versionado servido por el backend, el one-liner con checksum, la matriz de amenaza en tests, el e2e del puente falso (incluido local sin round-trip) y las docs; no toca schema, API ni UI.
+- Cierre de alcance: el espejo `LOCAL` y el encolado remoto de los tickets del POS siguen fuera de estos PRs (desviación 5 del slice 4); el flujo remoto end-to-end queda cubierto por el e2e del puente falso sobre la prueba de impresoras.
 
 ## Pendiente
 
-- Slice 5 (pack/install/checksum, e2e con puente falso, docs).
+- Nada del slice 5. Queda para el integrador: commits por unidad, rebase contra `origin/main`, push de la rama y handover citando el issue #35 (este sub-agente tiene prohibido commitear).

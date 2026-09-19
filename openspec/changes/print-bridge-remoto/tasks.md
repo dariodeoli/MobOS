@@ -93,11 +93,11 @@ Base de cada PR: `main` con los slices previos ya mergeados (stacked). 3 y 4 son
 
 ## Slice 5 — Distribución + docs (PR 5) — depende: 1 (UX de pairing también: 4)
 
-- [ ] 5.1 Crear `scripts/pack-agent.mjs`: tarball con allow-list, sha256, `manifest.json` en `backend/public/print-agent/`, nombre fijo y gate `--check` contra fuentes y versión (`print-agent/package.json` + `server.mjs:9`). Verifica: `node scripts/pack-agent.mjs --check`.
-- [ ] 5.2 Crear `print-agent/test/instalador.test.mjs` (RED, matriz de amenaza): filename del manifest alterado aborta, checksum corrupto aborta sin instalar, `--code` inválido no escribe token, tarball con rutas absolutas/`..` rechazado, `usb:` legacy aceptado. Verifica: `npm --prefix print-agent test` (falla hasta 5.3).
-- [ ] 5.3 Crear `print-agent/install.sh` + generar `backend/public/print-agent/install.sh`, `mobos-print-agent-1.6.0.tgz` y `manifest.json`: Node ≥ 20, descarga el `file` del manifest, `shasum -a 256` antes de extraer, extrae en `$HOME/Library/Application Support/MobOS Print`, corre `pair.mjs --code`, plist + `launchctl load`; conserva `--from-repo`. Verifica: `npm --prefix print-agent test` + `node scripts/pack-agent.mjs --check`.
-- [ ] 5.4 Crear `e2e/helpers/fake-bridge.mjs` y completar `e2e/impresion-remota.spec.js`: ADMIN ve el código, puente falso pareado por API, prueba encolada pasa a `ACEPTADO` con `path=remoto`, sufijo incorrecto falla/correcto pasa, revocar corta el claim. Verifica: `npm run test:e2e`.
-- [ ] 5.5 Actualizar `print-agent/README.md`, `AGENTS.md` y `README.md` (one-liner, pairing, operación y flag de rollback). Verifica: `npm run lint`.
+- [x] 5.1 Crear `scripts/pack-agent.mjs`: tarball con allow-list, sha256, `manifest.json` en `backend/public/print-agent/`, nombre fijo y gate `--check` contra fuentes y versión (`print-agent/package.json` + `server.mjs:9`). Verifica: `node scripts/pack-agent.mjs --check`.
+- [x] 5.2 Crear `print-agent/test/instalador.test.mjs` (RED, matriz de amenaza): filename del manifest alterado aborta, checksum corrupto aborta sin instalar, `--code` inválido no escribe token, tarball con rutas absolutas/`..` rechazado, `usb:` legacy aceptado. Verifica: `npm --prefix print-agent test` (falla hasta 5.3).
+- [x] 5.3 Crear `print-agent/install.sh` + generar `backend/public/print-agent/install.sh`, `mobos-print-agent-1.6.0.tgz` y `manifest.json`: Node ≥ 20, descarga el `file` del manifest, `shasum -a 256` antes de extraer, extrae en `$HOME/Library/Application Support/MobOS Print`, corre `pair.mjs --code`, plist + `launchctl load`; conserva `--from-repo`. Verifica: `npm --prefix print-agent test` + `node scripts/pack-agent.mjs --check`.
+- [x] 5.4 Crear `e2e/helpers/fake-bridge.mjs` y completar `e2e/impresion-remota.spec.js`: ADMIN ve el código, puente falso pareado por API, prueba encolada pasa a `ACEPTADO` con `path=remoto`, sufijo incorrecto falla/correcto pasa, revocar corta el claim. Verifica: `npm run test:e2e`.
+- [x] 5.5 Actualizar `print-agent/README.md`, `AGENTS.md` y `README.md` (one-liner, pairing, operación y flag de rollback). Verifica: `npm run lint`.
 
 ## Checklist final de entrega (repo)
 
