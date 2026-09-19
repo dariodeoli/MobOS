@@ -294,7 +294,7 @@ assert.equal(resultado.status, 200, 'un espejo local aceptado también se confir
 
 // 7i. Requeue por lease vencido, purga de 180 días y aislamiento por empresa.
 psql(`INSERT INTO "PrintJob" ("id", "tenantId", "destination", "kind", "state", "attempts", "leaseId", "leaseExpiresAt", "claimedAt", "payload", "updatedAt") VALUES ('it-job-exp-1', 'tenant-a-it', 'lan:10.0.0.11:9100', 'prueba', 'RECLAMADO', 1, 'lease-it-1', now() - interval '5 minutes', now() - interval '10 minutes', 'QUJDRA==', CURRENT_TIMESTAMP);`)
-psql(`INSERT INTO "PrintJob" ("id", "tenantId", "destination", "kind", "state", "attempts", "leaseId", "leaseExpiresAt", "claimedAt", "updatedAt") VALUES ('it-job-exp-2', 'tenant-a-it', 'lan:10.0.0.11:9100', 'prueba', 'RECLAMADO', 3, 'lease-it-2', now() - interval '1 minute', now() - interval '10 minutes', CURRENT_TIMESTAMP);`)
+psql(`INSERT INTO "PrintJob" ("id", "tenantId", "destination", "kind", "state", "attempts", "leaseId", "leaseExpiresAt", "claimedAt", "payload", "updatedAt") VALUES ('it-job-exp-2', 'tenant-a-it', 'lan:10.0.0.11:9100', 'prueba', 'RECLAMADO', 3, 'lease-it-2', now() - interval '1 minute', now() - interval '10 minutes', 'QUJDRA==', CURRENT_TIMESTAMP);`)
 psql(`INSERT INTO "PrintJob" ("id", "tenantId", "destination", "kind", "state", "createdAt", "updatedAt") VALUES ('it-job-old-1', 'tenant-a-it', 'lan:10.0.0.11:9100', 'prueba', 'ACEPTADO', now() - interval '200 days', CURRENT_TIMESTAMP);`)
 psql(`INSERT INTO "PrintJob" ("id", "tenantId", "destination", "kind", "state", "updatedAt") VALUES ('it-job-b-1', 'tenant-b-it', 'lan:10.0.0.12:9100', 'prueba', 'PENDIENTE', CURRENT_TIMESTAMP);`)
 resultado = await agente('/api/print/bridge/claim', { token: tokenJobs, body: {} })
@@ -305,6 +305,7 @@ assert.equal(resultado.payload.jobs[0]?.id, 'it-job-exp-1', 'el trabajo reencola
 assert.equal(psql(`SELECT COUNT(*) FROM "PrintJob" WHERE "id" = 'it-job-old-1';`), '0', 'la purga borra metadatos de más de 180 días')
 assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "action" = 'PRINT_JOB_REQUEUED' AND "entityId" = 'it-job-exp-1';`), '1', 'el requeue se audita')
 assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "action" = 'PRINT_JOB_FAILED' AND "entityId" = 'it-job-exp-2';`), '1', 'el fallo por vencimiento se audita')
+assert.equal(psql(`SELECT "payload" IS NULL FROM "PrintJob" WHERE "id" = 'it-job-exp-2';`), 't', 'el fallo terminal borra el payload')
 assert.equal(psql(`SELECT state FROM "PrintJob" WHERE "id" = 'it-job-b-1';`), 'PENDIENTE', 'el claim no toca trabajos de otra empresa')
 
 // 7j. Configuración del puente y kill switch.

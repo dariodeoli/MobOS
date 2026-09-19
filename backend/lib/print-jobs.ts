@@ -185,7 +185,9 @@ export async function reencolarVencidos(
       where: { id: vencido.id, tenantId, state: 'RECLAMADO', leaseExpiresAt: { lt: ahora } },
       data: destino === 'PENDIENTE'
         ? { state: 'PENDIENTE', leaseId: null, leaseExpiresAt: null }
-        : { state: 'FALLIDO', leaseId: null, leaseExpiresAt: null, error: MOTIVO_LEASE_VENCIDO },
+        // `FALLIDO` es terminal (no hay auto-reintento): el payload se borra
+        // igual que al imprimir, para no retener datos del cliente.
+        : { state: 'FALLIDO', leaseId: null, leaseExpiresAt: null, payload: null, error: MOTIVO_LEASE_VENCIDO },
     })
     if (cambio.count) cambios.push({ id: vencido.id, attempts: vencido.attempts, state: destino })
   }
