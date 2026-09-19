@@ -390,14 +390,14 @@ test('configuración → sube el logo de la empresa y lo quita', async ({ page }
   await page.goto('/pos/equipo')
   await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
   await expect(page.getByRole('heading', { name: 'Logo de la empresa' })).toBeVisible()
-  await expect(page.getByText('Sin logo').first()).toBeVisible()
+  await expect(page.getByText('Fondo claro').first()).toBeVisible()
   await page
     .locator('input[type="file"][accept*="image/png"]')
     .first()
     .setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png })
-  await expect(page.getByAltText('Logo para modo claro')).toBeVisible()
+  await expect(page.getByAltText('Modo claro sobre fondo claro')).toBeVisible()
   await page.getByRole('button', { name: 'Quitar', exact: true }).first().click()
-  await expect(page.getByText('Sin logo').first()).toBeVisible()
+  await expect(page.getByAltText('Modo claro sobre fondo claro')).toHaveCount(0)
 })
 
 // Búsqueda de pedidos: se resuelve en el servidor (número, cliente, RUC o
