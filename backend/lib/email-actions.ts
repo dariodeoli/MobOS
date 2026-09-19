@@ -92,7 +92,8 @@ export async function issuePasswordRecovery(tenantId: string, request?: Request)
     const superseded = await tx.passwordResetToken.findMany({ where: { tenantId, usedAt: null }, select: { id: true } })
     await tx.passwordResetToken.updateMany({ where: { id: { in: superseded.map(item => item.id) } }, data: { usedAt: now } })
     await tx.emailOutbox.updateMany({ where: { aggregateType: 'PasswordResetToken', aggregateId: { in: superseded.map(item => item.id) }, sentAt: null }, data: { cancelledAt: now, lockedAt: null, recipient: '', payload: '' } })
-    const record = await tx.passwordResetToken.create({ data: { tenantId, tokenHash: hashToken(token), expiresAt: new Date(now.getTime() + PASSWORD_RECOVERY_TTL_MS) } })
+    const [{ expiresAt: venceReset }] = await tx.$queryRaw<Array<{ expiresAt: Date }>>`SELECT now() + interval '30 minutes' AS "expiresAt"`
+    const record = await tx.passwordResetToken.create({ data: { tenantId, tokenHash: hashToken(token), expiresAt: venceReset } })
     const job = await enqueueEmail(tx, { tenantId, kind: 'password-recovery', aggregateType: 'PasswordResetToken', aggregateId: record.id, message })
     await tx.auditLog.create({ data: { tenantId, action: 'PASSWORD_RECOVERY_REQUESTED', entity: 'Tenant', entityId: tenant.id, metadata: { providerConfigured: true, ...(request ? authRequestMetadata(request) : {}) } } })
     return { state: 'dispatch' as const, jobId: job.id }

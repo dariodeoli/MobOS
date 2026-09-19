@@ -542,3 +542,36 @@ test('autorizaciones → el dueño resuelve su propia solicitud', async ({ page 
   await expect(page.getByText('Solicitud aprobada', { exact: false })).toBeVisible()
   await expect(fila.getByText('Aprobada')).toBeVisible()
 })
+
+// Consignación de terceros (#33): se marca desde el detalle, se ve la etiqueta
+// en el listado y se limpia por API para no dejar el equipo del seed consignado.
+test('inventario: marca y quita la consignación de un equipo', async ({ page }) => {
+  const tercero = `Tercero E2E ${Date.now()}`
+  await page.goto('/pos/inventario')
+  const fila = () => page.getByTestId('inventario-fila').filter({ hasText: SEED.products.iphone.imei }).first()
+  await fila().click()
+  const detalle = page.getByRole('dialog', { name: /iPhone/ })
+  await detalle.getByLabel('Consignador', { exact: true }).fill(tercero)
+  await detalle.getByLabel('Teléfono del consignador').fill('0981123456')
+  await detalle.getByLabel('Monto a pagar al consignador').fill('1500000')
+  await detalle.getByRole('button', { name: 'Guardar consignación' }).click()
+  await expect(page.getByText('Consignación guardada', { exact: false })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByText('Consignado').first()).toBeVisible()
+
+  // Limpieza determinista por API.
+  await page.evaluate(async ({ api, serial }) => {
+    const respuesta = await fetch(`${api}/api/inventory-units?q=${encodeURIComponent(serial)}`, { credentials: 'include' })
+    const datos = await respuesta.json()
+    const unidades = Array.isArray(datos) ? datos : datos.rows || []
+    const unidad = unidades.find(item => item.serial === serial)
+    if (!unidad) return
+    await fetch(`${api}/api/inventory-units`, {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: unidad.id, action: 'details', consignorName: '', consignorPhone: '', consignorPyg: null }),
+    })
+  }, { api: API, serial: SEED.products.iphone.imei })
+  await page.reload()
+  await expect(page.getByText('Consignado')).toHaveCount(0)
+})

@@ -22,6 +22,13 @@ export async function POST(request: Request) {
   }
   const tenant = await prisma.tenant.findUnique({ where: { email }, select: { id: true, name: true, email: true } })
   if (tenant && emailTransportConfigured()) {
+    // Límite por correo además del límite por IP: evita que una misma cuenta
+    // reciba correos en cadena. La respuesta sigue siendo neutra.
+    const recientes = await prisma.auditLog.count({ where: { tenantId: tenant.id, action: 'PASSWORD_RECOVERY_REQUESTED', createdAt: { gt: new Date(Date.now() - 15 * 60 * 1000) } } })
+    if (recientes >= 3) {
+      await waitForPublicAuthResponseFloor(startedAt)
+      return neutralResponse()
+    }
     await issuePasswordRecovery(tenant.id, request)
   } else if (tenant) {
     await prisma.auditLog.create({ data: { tenantId: tenant.id, action: 'PASSWORD_RECOVERY_REQUESTED_UNAVAILABLE', entity: 'Tenant', entityId: tenant.id, metadata: { providerConfigured: false, ...authRequestMetadata(request) } } })
