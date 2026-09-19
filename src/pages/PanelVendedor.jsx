@@ -610,7 +610,7 @@ export default function PanelVendedor() {
         }
         headerActions={
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-2.5">
-            <SelectorSucursal className="max-sm:hidden" />
+            <SelectorSucursal className="max-sm:max-w-[9.5rem]" />
             <div className="hidden h-[34px] items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[12.5px] text-mute md:flex">
               <Icon name="calendar" className="h-[15px] w-[15px]" />
               <span className="whitespace-nowrap">{fechaLarga}</span>
