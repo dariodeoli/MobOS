@@ -6,6 +6,7 @@ import { error, json } from '../../../../lib/http'
 import { COOKIE_COMPANY, sessionCookieOptions } from '../../../../lib/google-oauth'
 import { issueEmailVerification } from '../../../../lib/email-actions'
 import { logEmailOutcome } from '../../../../lib/email'
+import { validarClave } from '../../../../lib/validation'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -21,9 +22,11 @@ export async function POST(request: Request) {
   const password = String(body.password ?? '')
   const deviceId = String(body.deviceId ?? '').trim()
 
-  if (!companyName || companyName.length > 100 || !emailPattern.test(email) || password.length < 8 || Buffer.byteLength(password) > 72 || !deviceId) {
-    return error('Completá el nombre de la tienda, un correo válido y una contraseña de entre 8 y 72 caracteres.', 400)
+  if (!companyName || companyName.length > 100 || !emailPattern.test(email) || !deviceId) {
+    return error('Completá el nombre de la tienda, un correo válido y un dispositivo.', 400)
   }
+  const problemaClave = validarClave(password, email)
+  if (problemaClave) return error(problemaClave, 400)
 
   try {
     // The first PIN is deliberately impossible to use. The owner chooses it

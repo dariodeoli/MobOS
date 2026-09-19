@@ -75,9 +75,9 @@ seguí estas reglas.
 | Token nuevo invalida los anteriores | ✅ recuperación |
 | Un solo uso | ✅ con `usedAt`; falta el patrón `DELETE ... RETURNING`/`FOR UPDATE` |
 | Validar antes de consumir | ✅ recuperación (hash y política antes) |
-| **Reloj de la DB** | ⚠️ pendiente: hoy el TTL se calcula con la hora de Node y se compara con Prisma |
-| Política de contraseña | ⚠️ hoy es largo (8–72 bytes); Scale exige 12+ con mayúscula, minúscula, número y símbolo, sin datos del correo |
-| Throttle por correo | ⚠️ hoy es por IP |
+| **Reloj de la DB** | ✅ el TTL se emite y se valida con `now()` de Postgres (`$queryRaw`/`$executeRaw`) |
+| Política de contraseña | ✅ `validarClave` compartida (12–128, mayúscula, minúscula, número y símbolo, sin espacios, sin el correo, sin claves comunes) en alta y recuperación |
+| Throttle por correo | ✅ por IP y por cuenta (3 pedidos de recuperación por 15 min, respuesta neutra igual) |
 
 > Referencias MobOS: `backend/lib/email-actions.ts`, `backend/lib/auth.ts`
 > (`hashToken`, `createSession`), `backend/app/api/auth/password-reset/route.ts`,
