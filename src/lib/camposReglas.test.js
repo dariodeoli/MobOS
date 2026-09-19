@@ -60,9 +60,7 @@ test('las subidas de archivos pasan por el objeto compartido', () => {
   // El control nativo del navegador muestra "No file chosen" en inglés: la
   // unica aparicion de un input de archivo debe ser la del objeto compartido,
   // que lo esconde y ofrece un boton propio en espanol.
-  // Excepción: la importación de productos por CSV tiene su propia validación y
-  // mensaje (queda pendiente plegarla al mismo control).
-  const permitidos = new Set(['components/shared/AttachmentInput.jsx', 'components/ventas/ImportarProductosCSV.jsx'])
+  const permitidos = new Set(['components/shared/AttachmentInput.jsx'])
   const culpables = archivosFuente()
     .filter((archivo) => /type="file"/.test(archivo.contenido) && !permitidos.has(archivo.ruta))
     .map((archivo) => archivo.ruta)
