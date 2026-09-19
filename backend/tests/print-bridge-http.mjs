@@ -2,6 +2,7 @@
 // tope por empresa y manifest del instalador. Corre dentro del arnés temporal.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 
 const [baseUrl, adminToken, sellerToken, databaseUrl] = process.argv.slice(2)
@@ -360,5 +361,38 @@ if (manifest.status === 503) {
   const cuerpo = await manifest.json()
   assert.ok(cuerpo.version && cuerpo.file && /^[a-f0-9]{64}$/i.test(cuerpo.sha256) && cuerpo.size > 0 && cuerpo.installUrl, 'el manifest publica versión, archivo, checksum, tamaño e installUrl')
 }
+
+// 7m. Rotación del token: el token viejo deja de autenticar y el nuevo sí.
+// Puente propio: los anteriores quedaron revocados y los rellenos del tope
+// (it-cap-*) ya cumplieron su caso, así que se liberan.
+psql(`DELETE FROM "PrintBridge" WHERE "id" LIKE 'it-cap-%';`)
+resultado = await request('/api/print/bridges', { method: 'POST', body: { name: 'Puente rotación' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const puenteRotacion = resultado.payload.bridge
+resultado = await agente('/api/print/bridge/pair', { body: { code: resultado.payload.pairingCode, name: 'Mac rotada', version: '1.6.0' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const tokenViejo = resultado.payload.token
+resultado = await request(`/api/print/bridges/${puenteRotacion.id}/pairing`, { method: 'POST' })
+assert.equal(resultado.status, 200, JSON.stringify(resultado.payload))
+resultado = await agente('/api/print/bridge/pair', { body: { code: resultado.payload.pairingCode, name: 'Mac rotada', version: '1.6.0' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const tokenRotado = resultado.payload.token
+assert.match(String(tokenRotado), /^[a-f0-9]{64}$/, 'la rotación entrega un token nuevo')
+assert.notEqual(tokenRotado, tokenViejo, 'el token rotado es distinto del anterior')
+resultado = await agente('/api/print/bridge/heartbeat', { token: tokenViejo, body: {} })
+assert.equal(resultado.status, 401, 'el token viejo deja de autenticar tras rotar')
+resultado = await agente('/api/print/bridge/heartbeat', { token: tokenRotado, body: {} })
+assert.equal(resultado.status, 200, 'el token rotado autentica')
+
+// 7n. El tarball público coincide con el checksum que publica el manifest.
+const manifestPublico = await fetch(`${baseUrl}/print-agent/manifest.json`)
+assert.equal(manifestPublico.status, 200, 'el manifest estático se sirve')
+const publico = await manifestPublico.json()
+const tarball = await fetch(`${baseUrl}/print-agent/${publico.file}`)
+assert.equal(tarball.status, 200, 'el tarball se sirve desde el backend')
+const bytes = Buffer.from(await tarball.arrayBuffer())
+const resumen = createHash('sha256').update(bytes).digest('hex')
+assert.equal(resumen, publico.sha256, 'el checksum del tarball servido coincide con el manifest')
+assert.equal(bytes.length, publico.size, 'el tamaño del tarball servido coincide con el manifest')
 
 console.log('print-bridge-http: puentes, impresoras, import idempotente, trabajos con lease y confirmación, tope y manifest OK.')
