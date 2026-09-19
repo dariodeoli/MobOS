@@ -69,13 +69,13 @@ Base de cada PR: `main` con los slices previos ya mergeados (stacked). 3 y 4 son
 
 ## Slice 3 — Agente (PR 3) — depende: 2
 
-- [ ] 3.1 Modificar `print-agent/config.mjs`: `apiUrl` (default `''`), `bridgeToken`, `remotoActivo`, `intervaloPollMs`; con `apiUrl` vacío, comportamiento 1.5.0 intacto. Verifica: `npm --prefix print-agent test`.
-- [ ] 3.2 Modificar `print-agent/cola.mjs`: `origen`, `leaseId`, `reportado` persistido, `encolarRemoto()` con dedupe por `id`, `pendientesDeReporte()`; payload local borrado tras el intento; archivos `mode 0o600`. Verifica: `npm --prefix print-agent test`.
-- [ ] 3.3 Crear `print-agent/remoto.mjs`: `crearRemoto({apiUrl, token, cola, enviar, fetchImpl, log, baseMs=2000, maxMs=30000})` con `iniciar/detener/sincronizarConfig/pendientesDeReporte`; poll 2 s, backoff 2→4→8→16→30 s ±20 %, reporta antes de reclamar, nunca bloquea `/print` local. Verifica: `npm --prefix print-agent test`.
-- [ ] 3.4 Crear `print-agent/pair.mjs`: canjea código por token, escribe `apiUrl`+`bridgeToken` en `config.json`, nunca loguea el token. Verifica: `npm --prefix print-agent test`.
-- [ ] 3.5 Modificar `print-agent/server.mjs`: arranca `remoto` solo con `apiUrl`+`bridgeToken`; `/health` agrega `remoto:{activo,apiUrl,ultimoContacto,pendientesDeReporte,backoffMs}`; endpoints locales intactos. Verifica: `npm --prefix print-agent test`.
-- [ ] 3.6 Crear `print-agent/test/remoto.test.mjs` (RED): poll 2 s, claim→print→result una vez, dedupe tras reinicio, outbox y secuencia de backoff, lease extendido, `usb:` legacy; backend falso `node:http` y socket de impresora que cuenta escrituras. Verifica: `npm --prefix print-agent test`.
-- [ ] 3.7 Subir versión a 1.6.0 en `print-agent/package.json` y `print-agent/server.mjs:9`, manteniéndolas iguales. Verifica: `npm --prefix print-agent test`.
+- [x] 3.1 Modificar `print-agent/config.mjs`: `apiUrl` (default `''`), `bridgeToken`, `remotoActivo`, `intervaloPollMs`; con `apiUrl` vacío, comportamiento 1.5.0 intacto. Verifica: `npm --prefix print-agent test`.
+- [x] 3.2 Modificar `print-agent/cola.mjs`: `origen`, `leaseId`, `reportado` persistido, `encolarRemoto()` con dedupe por `id`, `pendientesDeReporte()`; payload local borrado tras el intento; archivos `mode 0o600`. Verifica: `npm --prefix print-agent test`.
+- [x] 3.3 Crear `print-agent/remoto.mjs`: `crearRemoto({apiUrl, token, cola, enviar, fetchImpl, log, baseMs=2000, maxMs=30000})` con `iniciar/detener/sincronizarConfig/pendientesDeReporte`; poll 2 s, backoff 2→4→8→16→30 s ±20 %, reporta antes de reclamar, nunca bloquea `/print` local. Verifica: `npm --prefix print-agent test`.
+- [x] 3.4 Crear `print-agent/pair.mjs`: canjea código por token, escribe `apiUrl`+`bridgeToken` en `config.json`, nunca loguea el token. Verifica: `npm --prefix print-agent test`.
+- [x] 3.5 Modificar `print-agent/server.mjs`: arranca `remoto` solo con `apiUrl`+`bridgeToken`; `/health` agrega `remoto:{activo,apiUrl,ultimoContacto,pendientesDeReporte,backoffMs}`; endpoints locales intactos. Verifica: `npm --prefix print-agent test`.
+- [x] 3.6 Crear `print-agent/test/remoto.test.mjs` (RED): poll 2 s, claim→print→result una vez, dedupe tras reinicio, outbox y secuencia de backoff, lease extendido, `usb:` legacy; backend falso `node:http` y socket de impresora que cuenta escrituras. Verifica: `npm --prefix print-agent test`.
+- [x] 3.7 Subir versión a 1.6.0 en `print-agent/package.json` y `print-agent/server.mjs:9`, manteniéndolas iguales. Verifica: `npm --prefix print-agent test`.
 
 ## Slice 4 — App (PR 4) — depende: 2
 

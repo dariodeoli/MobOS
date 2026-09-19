@@ -3,10 +3,10 @@
 | Campo | Valor |
 |---|---|
 | Cambio | `print-bridge-remoto` |
-| Slices | 1 — Backend puentes (PR 1); 2 — Backend trabajos (PR 2) |
+| Slices | 1 — Backend puentes (PR 1); 2 — Backend trabajos (PR 2); 3 — Agente (PR 3) |
 | Fecha | 2026-09-19 |
 | Modo | Standard (TDD off según `openspec/config.yaml`) |
-| Estado | 14/14 tareas del slice 1 completas; 12/12 del slice 2 completas; slices 3-5 pendientes |
+| Estado | 14/14 tareas del slice 1 completas; 12/12 del slice 2 completas; 7/7 del slice 3 completas; slices 4-5 pendientes |
 
 ## Work Unit Evidence
 
@@ -25,6 +25,14 @@
 | Test foco | `npm --prefix backend run test:unit` → 21 tests, 21 pass, 0 fail; línea `PASS: token, pairing, autenticación multi-puente, validación de impresoras y trabajos de impresión` (payload/tope 413, sufijo hasheado, transiciones, requeue 1/3, extensión de lease, whitelist del shape público) |
 | Arnés de runtime | `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` → exit 0; línea observada: `print-bridge-http: puentes, impresoras, import idempotente, trabajos con lease y confirmación, tope y manifest OK.` Cubre pair (un solo uso, 5 intentos → 429, auditoría), heartbeat (online + lease extendido), encolado/idempotencia/413, espejo LOCAL, claim asignado y SKIP LOCKED concurrente, result ajeno idempotente con borrado de payload, confirmación 400/200 con borrado del hash, requeue/purga/aislamiento, config del puente, kill switch y cap 429 |
 | Frontera de rollback | `Tenant.settings.printRemote=false` apaga el encolado/claim y la app vuelve al camino local; revertir el slice elimina `backend/lib/print-jobs.ts`, las rutas `bridge/**` y `print/jobs/**` y sus tests, sin tocar la migración del slice 1. El camino local de la Mac (`127.0.0.1`) nunca se modifica. |
+
+### Slice 3 — Agente
+
+| Evidencia | Valor |
+|---|---|
+| Test foco | `npm --prefix print-agent test` → 27 tests, 27 pass, 0 fail (backend falso `node:http`, impresora socket real vía `transportes.mjs`, dedupe/outbox/backoff/lease/config/pairing) |
+| Arnés de runtime | Tests con backend HTTP falso + socket de impresora que cuenta bytes: claim→impresión real→result una sola vez; reinicio con el mismo id no reimprime; backend caído deja el resultado en el outbox y al volver reporta antes de reclamar; latido con `jobId` durante una impresión lenta; arranque de `server.mjs` con `apiUrl`+`bridgeToken` exponiendo `remoto` en `/health` (proceso real por `spawn`). `npm test` raíz → 181 pass, 0 fail |
+| Frontera de rollback | `apiUrl:''` (o borrar `bridgeToken`) deja el agente en el comportamiento 1.5.0: el poller ni se arranca. Revertir el slice elimina `remoto.mjs`/`pair.mjs` y sus tests; `cola.mjs` conserva el camino local intacto (`origen:'local'`) |
 
 ## Tareas completadas — Slice 1
 
@@ -49,6 +57,16 @@
 - [x] 2.10 `GET /api/print/jobs/[id]`: detalle público, 404 multi-tenant.
 - [x] 2.11 `POST /api/print/jobs/[id]/confirm`: `{suffix|sufijo}`; 400 sin exponer el hash, 409 si no es ACEPTADO/sin secreto/ya confirmado, `suffixHash=''` y `confirmedAt` al confirmar, auditoría `PRINT_JOB_CONFIRMED`/`PRINT_JOB_CONFIRM_FAILED` (intentos, nunca el valor).
 - [x] 2.12 `backend/tests/print-bridge-http.mjs` completado con el flujo pair→heartbeat→enqueue→claim (asignado y SKIP LOCKED concurrente)→result→confirm, aislamiento multi-tenant, requeue/purga, config, kill switch, cap y revocación.
+
+## Tareas completadas — Slice 3
+
+- [x] 3.1 `print-agent/config.mjs`: `apiUrl` (default `''`, `MOBOS_PRINT_API_URL`), `bridgeToken` (`MOBOS_PRINT_BRIDGE_TOKEN`), `remotoActivo` derivado y `intervaloPollMs` (default 2000, clamp 250 ms–60 s); `config.json` con `mode 0o600`.
+- [x] 3.2 `print-agent/cola.mjs`: `origen` por trabajo, `encolarRemoto()` (dedupe por id contra cola + historial remoto), `resultadoRemoto()` (borra `data` y persiste el resultado), `marcarReportado()` (outbox → historial con `resultado:'remoto'`), `pendientesDeReporte()`, `reconciliarRemotos()` (reclamado tras reinicio = INCIERTO, nunca reimprime); la cola local ignora remotos en `procesar`/`programar`/`reintentarFallidos`/`limpiarFallidos`; `cola.json`/`historial.json` con `mode 0o600`.
+- [x] 3.3 `print-agent/remoto.mjs`: `crearRemoto(...)` con `iniciar/detener/sincronizarConfig/pendientesDeReporte/atender/estado`; `calcularBackoff` (2→4→8→16→30 s ±20 %, techo), `canjearCodigo`, `aplicarConfigRemota`; reporta antes de reclamar, reporte inmediato best-effort tras imprimir, latido con `jobId` cada 45 s (extiende lease), timeout HTTP de 15 s, ningún error de red propaga al proceso.
+- [x] 3.4 `print-agent/pair.mjs`: CLI `--code/--api-url/--version`, `normalizarCodigo` espejo del backend (I/L→1, O→0), `vincular()` persiste `apiUrl`+`bridgeToken` y jamás imprime el token.
+- [x] 3.5 `print-agent/server.mjs`: arranca el poller solo con `apiUrl`+`bridgeToken`; aplica la config del backend (`aplicarConfigRemota` + `guardarConfig`); `/health` agrega `remoto:{activo,apiUrl,ultimoContacto,pendientesDeReporte,backoffMs,ultimoError}`; `/print`, `/jobs`, `/config`, `/confirmar`, `/health` locales intactos.
+- [x] 3.6 `print-agent/test/remoto.test.mjs` + ampliación de `cola.test.mjs` y `agente.test.mjs`: backend falso `node:http`, impresora socket real, claim→print→result una vez, dedupe tras reinicio, outbox con payload borrado, secuencia de backoff, lease extendido por latido, `usb:` legacy, copias, config sin navegador, pairing y permisos 0600.
+- [x] 3.7 Versión 1.6.0 en `print-agent/package.json` y `print-agent/server.mjs:9` (test de `/health` actualizado).
 
 ## Archivos
 
@@ -92,6 +110,23 @@ Total authored slice 1: ~1029 líneas (900 nuevas + 129 modificadas).
 
 Total authored slice 2: ~1046 líneas (725 nuevas + 321 en tests).
 
+### Slice 3
+
+| Archivo | Acción |
+|---|---|
+| `print-agent/remoto.mjs` | Creado (265) |
+| `print-agent/pair.mjs` | Creado (55) |
+| `print-agent/test/remoto.test.mjs` | Creado (361) |
+| `print-agent/cola.mjs` | Modificado (+147/-14) |
+| `print-agent/config.mjs` | Modificado (+19/-2) |
+| `print-agent/server.mjs` | Modificado (+30/-2) |
+| `print-agent/test/agente.test.mjs` | Modificado (+61/-1) |
+| `print-agent/test/cola.test.mjs` | Modificado (+91/-13) |
+| `print-agent/package.json` | Modificado (versión 1.6.0) |
+| `openspec/changes/print-bridge-remoto/tasks.md` | Modificado (3.1–3.7 marcadas) |
+
+Total authored slice 3: ~1037 líneas (681 nuevas + 356 en diff: 325 altas y 31 bajas).
+
 ## Verificación observada
 
 ### Slice 1
@@ -122,6 +157,17 @@ Total authored slice 2: ~1046 líneas (725 nuevas + 321 en tests).
 | `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` | exit 0; `print-bridge-http: puentes, impresoras, import idempotente, trabajos con lease y confirmación, tope y manifest OK.` |
 | `rg "<<<<<<<" src backend e2e print-agent` | sin resultados |
 
+### Slice 3
+
+| Comando | Resultado |
+|---|---|
+| `npm --prefix print-agent test` | 27 tests, 27 pass, 0 fail |
+| `node --test "print-agent/test/*.test.mjs"` | 27 pass, 0 fail (forma explícita; en Node 25 `node --test print-agent/test` trata el directorio como módulo y falla, es del runner, no del slice) |
+| `npm test` (raíz, incluye `print-agent/**/*.test.mjs`) | 181 pass, 0 fail |
+| `npm run lint` | 0 errores |
+| `node --check` de los 7 archivos modificados/creados | OK |
+| `rg "<<<<<<<" print-agent` | sin resultados |
+
 ## Desviaciones del diseño
 
 ### Slice 1
@@ -143,17 +189,32 @@ Total authored slice 2: ~1046 líneas (725 nuevas + 321 en tests).
 6. **Encolado con aliases legacy**: el body acepta nombres canónicos y los históricos del SPA (`destino`, `data`, `ancho`, `copias`, `usuario`, `sufijo`, `ref`, `tipo`, `validacion`, `puente`, `tokenPista`, `modo`, `equipo`) para no romper el camino de impresión actual en el slice 4.
 7. **Jobs atados a la impresora**: si el encolado trae `printerId`, el trabajo hereda el `bridgeId` de la impresora; así el claim solo lo entrega al puente correcto (invariante de `print-config-authority`). El diseño no explicitaba ese vínculo.
 
+### Slice 3
+
+1. **Firma de `crearRemoto` ampliada con `version`/`plataforma`/`latidoMs`**: el diseño listaba `apiUrl, token, cola, enviar, fetchImpl, log, baseMs, maxMs`. `version`/`platform` viajan en el body del heartbeat (contrato del slice 2) y `latidoMs` (default 45 s) hace testeable la extensión del lease. Extra: `atender()` y `estado()` expuestos (el segundo lo necesita `/health`).
+2. **`enviar` es el transporte del poller, no la cola**: a diferencia del camino local, el poller imprime el claim con `transportes.enviar` inyectado y persiste el resultado vía `cola.resultadoRemoto`; así el `encolarRemoto` deduplica y el payload se borra en el mismo paso. Si se usara la cola local para imprimir remotos, `procesar()` no podría reportar al backend.
+3. **Reporte inmediato best-effort tras imprimir**: el diseño solo exigía "reportar antes de reclamar" en cada ciclo; se agrega el envío inmediato del resultado recién producido para no esperar el próximo poll (2 s). Si falla, el outbox lo reintenta en el próximo ciclo, siempre antes de reclamar.
+4. **`sincronizarConfig(aplicar)` con callback**: la firma de fábrica del diseño no incluía acceso al archivo de config; el servidor pasa `(datos) => aplicarConfigRemota(config, datos) + guardarConfig`, y `aplicarConfigRemota` queda exportada para tests. Un payload incompleto conserva la config vigente.
+5. **Reconciliación al reiniciar = INCIERTO**: el backend no tiene endpoint de "release"; un reclamado sin resultado se reporta INCIERTO (pudo haber salido papel) en vez de "soltarlo". El diseño decía "reporta lo impreso, suelta lo no impreso": sin release, lo no impreso confluye en la misma decisión conservadora.
+6. **Copias**: el claim trae `copies`; el poller imprime el payload esa cantidad de veces (≤5) en un solo intento, espejo del loop de `/print` local (`server.mjs:272`). El diseño no detallaba el manejo de copias del lado remoto.
+7. **`usb:` legacy**: el poller no normaliza destinos (los pasa tal cual a `transportes.enviar`, que ya acepta `usb:`); la normalización a `cups:` sigue siendo de la app (`puentes.js`).
+8. **404 en el reporte descarta el outbox**: si el backend ya no conoce el trabajo (purga a 180 días), se marca reportado localmente para no bloquear la cola; el diseño no cubría ese caso.
+
 ## Problemas encontrados
 
 - Ninguno que bloquee. El `ERROR: duplicate key` en el log del arnés es el 409 esperado de destino repetido (Postgres lo registra; la ruta responde 409).
 - Slice 2: el tope de intentos del pairing se prueba varias veces con el mismo código; el rate-limit por IP (10/min) no se dispara en el arnés porque no se envía `x-forwarded-for`, por lo que los 5 intentos del código sí alcanzan el 429 (comportamiento real en producción detrás del Hub).
+- Slice 3: `node --test print-agent/test` (forma de directorio) falla en Node 25 porque el runner intenta cargar el directorio como módulo; `npm --prefix print-agent test` (script del paquete) y `node --test "print-agent/test/*.test.mjs"` corren los 27 tests en verde. No es un problema del código.
+- Slice 3: el registro en `config.json` de `remotoActivo` es informativo; al cargar se recalcula desde `apiUrl`+`bridgeToken` para que un token borrado apague el poller.
 
 ## Workload / PR boundary
 
 - Estrategia: `auto-chain` + `stacked-to-main` (tasks.md). El slice 1 es el PR 1 con base `main`; el slice 2 es el PR 2 apilado sobre el 1.
 - Presupuesto: el forecast estimó ~450 líneas para el slice 2 y el resultado real es ~1046 authored (725 nuevas + 321 de tests). El diff no se puede recortar sin borrar tests/validación; se recomienda **`size:exception`** para este PR o partirlo en 2A (lib + unit + rutas de puente) / 2B (rutas de sesión + confirmación + IT).
 - Frontera slice 2: arranca en el backend de puentes/impresoras del slice 1 y termina con la cola remota completa (pair, heartbeat, claim, result, config, encolado/listado/detalle/confirmación, caps, purga y auditoría) sin tocar el agente ni la app.
+- Slice 3: PR 3 apilado sobre el 2. Estimado ~400, real ~1037 authored (265 de `remoto.mjs` + 55 de `pair.mjs` + 361 de tests nuevos + 356 de diff en config/cola/server/tests). El núcleo de producción son ~509 líneas; el resto es la batería que exige el escenario (dedupe, outbox, latido, pairing, permisos). Se recomienda **`size:exception`** o partir en 3A (`remoto.mjs` + `pair.mjs` + config) y 3B (cola outbox + server + tests de integración).
+- Frontera slice 3: arranca en el backend de trabajos del slice 2 y termina con el agente vinculable, poller con outbox y backoff, y `npm --prefix print-agent test` en verde, sin tocar la app ni la distribución.
 
 ## Pendiente
 
-- Slice 3 (agente: `remoto.mjs`, `pair.mjs`, cola/config/server y bump 1.6.0), slice 4 (app: cliente API, router local/remoto, caché v2, UI) y slice 5 (pack/install/checksum, e2e, docs).
+- Slice 4 (app: cliente API, router local/remoto, caché v2, UI) y slice 5 (pack/install/checksum, e2e, docs).
