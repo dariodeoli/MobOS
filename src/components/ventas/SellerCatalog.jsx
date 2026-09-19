@@ -11,6 +11,9 @@ import ProductoDetalle from '@/components/productos/ProductoDetalle'
 import ListGridToggle from '@/components/shared/ListGridToggle'
 import ComboManager from '@/components/productos/ComboManager'
 import ImportarProductosCSV from './ImportarProductosCSV'
+import BarraLote from '@/components/shared/BarraLote'
+import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
+import { useToast } from '@/components/ui'
 
 export const productFields = (row) => ({ ...row, id: row.id, name: row.name || row.nombre || '', sku: row.sku || '', price: row.pricePyg ?? row.precioVenta, stock: row.stock })
 const demoProducts = () => getProductos().filter((row) => row.activo !== false)
@@ -23,10 +26,10 @@ const usd = (row) => Number(row?.priceUsd ?? 0)
 
 // Tabla compacta del catálogo: una fila por producto, encabezados ordenables y
 // el precio/stock siempre en la misma columna.
-const GRID_CATALOGO = 'grid min-w-[59rem] grid-cols-[minmax(9rem,1.6fr)_7rem_6.5rem_8rem_6.5rem_5.5rem_7rem_4.5rem] items-center gap-x-2'
+const GRID_CATALOGO = 'grid min-w-[61rem] grid-cols-[1.5rem_minmax(9rem,1.6fr)_7rem_6.5rem_8rem_6.5rem_5.5rem_7rem_4.5rem] items-center gap-x-2'
 const usdTexto = (row) => usd(row) > 0 ? `US$ ${usd(row).toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '—'
 
-function FilaProducto({ row, onClick }) {
+function FilaProducto({ row, onClick, seleccionado = false, onAlternar }) {
   const stock = Number(row.stock ?? 0)
   return (
     <div
@@ -37,6 +40,9 @@ function FilaProducto({ row, onClick }) {
       onKeyDown={(event) => { if (event.key === 'Enter') onClick?.() }}
       className={cn(GRID_CATALOGO, 'cursor-pointer rounded-xl border border-fore/10 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40 hover:bg-ink-700/50')}
     >
+      <span className="flex items-center" onClick={(event) => event.stopPropagation()}>
+        <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar ${row.name || 'producto'}`} checked={seleccionado} onChange={() => onAlternar?.()} />
+      </span>
       <span className="truncate text-sm font-semibold" title={row.name}>{row.name}</span>
       <span className="truncate text-[11px] text-mute" title={row.category || undefined}>{row.category || '—'}</span>
       <Badge color={CONDITION_TONE[row.condition] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{CONDITION[row.condition] || 'Nuevo'}</Badge>
@@ -72,6 +78,8 @@ function TarjetaProducto({ row, onClick }) {
 
 export default function SellerCatalog() {
   const { esDemo, sesion, usuario } = useSesion()
+  const toast = useToast()
+  const [seleccionados, setSeleccionados] = useState([])
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState('')
@@ -140,6 +148,24 @@ export default function SellerCatalog() {
     try { sessionStorage.setItem('mobos:venta-handoff', JSON.stringify({ productId: producto.id, ts: Date.now() })) } catch { /* la venta sigue disponible sin preselección */ }
     window.location.assign('/pos/cargar')
   }
+  const elegidos = () => ordenadas.filter((row) => seleccionados.includes(row.id))
+  async function copiarPrecios() {
+    const texto = elegidos().map((row) => `${row.name} · ${precio(row) > 0 ? gs(precio(row)) : 'sin precio'} · stock ${Number(row.stock || 0)}`).join('\n')
+    try { await navigator.clipboard.writeText(texto); toast.success(`${elegidos().length} producto(s) copiados.`) } catch { toast.error('No se pudo copiar la lista.') }
+  }
+  function exportarSeleccionados() {
+    const lista = elegidos()
+    const filasCsv = [['Nombre', 'SKU', 'Categoría', 'Condición', 'Precio', 'Mayorista', 'USD', 'Stock'], ...lista.map((row) => [row.name || '', row.sku || '', row.category || '', CONDITION[row.condition] || 'Nuevo', String(precio(row)), String(mayorista(row)), String(usd(row)), String(Number(row.stock || 0))])]
+    const csv = filasCsv.map((fila) => fila.map((celda) => `"${String(celda).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
+    const enlace = document.createElement('a')
+    enlace.href = url
+    enlace.download = 'mobos-productos-seleccionados.csv'
+    enlace.click()
+    URL.revokeObjectURL(url)
+    toast.success(`${lista.length} producto(s) exportados.`)
+  }
+
   return <SellerSection title="Productos" description="Catálogo de consulta y edición: precio, mayorista, stock y equipos por IMEI.">
     <div className="flex flex-wrap items-center gap-2">
       <form className="flex min-w-[220px] flex-1 gap-2" onSubmit={(event) => { event.preventDefault(); setSearch(busquedaDiferida.trim()) }}>
@@ -158,8 +184,13 @@ export default function SellerCatalog() {
       {esOwner && !esDemo && <ImportarProductosCSV onImportada={data.refresh} />}
     </div>
     <SellerFeedback {...data} empty={!rows.length} />
+    <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
+      <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={copiarPrecios}>Copiar precios</button>
+      <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={exportarSeleccionados}>Exportar CSV</button>
+    </BarraLote>
     {!data.loading && !data.error && vista === 'list' && <div className="overflow-x-auto" data-testid="catalogo-tabla">
       <div className={cn(GRID_CATALOGO, 'px-3.5 pb-2 pt-1')}>
+        <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={ordenadas.length > 0 && seleccionados.length === ordenadas.length} onChange={() => setSeleccionados((actuales) => seleccionarTodos(ordenadas, actuales))} />
         {encabezado('producto', 'Producto')}
         {encabezado('categoria', 'Categoría')}
         {encabezado('condicion', 'Condición')}
@@ -169,7 +200,7 @@ export default function SellerCatalog() {
         {encabezado('precio', 'Precio', 'justify-end')}
         {encabezado('stock', 'Stock', 'justify-end')}
       </div>
-      <div className="space-y-1">{ordenadas.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>
+      <div className="space-y-1">{ordenadas.map((row) => <FilaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} seleccionado={seleccionados.includes(row.id)} onAlternar={() => setSeleccionados((actuales) => alternarId(actuales, row.id))} />)}</div>
     </div>}
     {!data.loading && !data.error && vista === 'grid' && <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-3">{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más productos'}</button></div>}

@@ -185,6 +185,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
         <div>
           <h2 className="font-semibold">Identificador de pedidos</h2>
           <p className="mt-1 text-sm text-mute">Formato visible de los pedidos: prefijo de 2 o 3 letras y número inicial. Ejemplo: <b className="text-fore">{prefijo || 'MOB'} #{inicio || '310840'}</b>.</p>
+          <p className="mt-1 text-xs text-mute">Ahora está configurado así: <b className="text-fono-light tabular-nums">{account?.tenant?.orderPrefix || 'MOB'}-#{String(account?.tenant?.orderNextNumber || 1).padStart(4, '0')}</b> (el próximo pedido sale con ese número; el prefijo solo admite 2 o 3 letras, así que el <b className="text-fore">#</b> no puede duplicarse).</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="block w-24 space-y-1 text-xs text-mute"><span>Prefijo</span><Input aria-label="Prefijo de pedidos" maxLength={3} disabled={busy} value={prefijo} onChange={event => setPrefijo(event.target.value.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3))} placeholder="MOB" /></label>
@@ -223,8 +224,15 @@ export default function Config({ seccion = 'negocio' } = {}) {
                 <p className="text-sm font-medium">{titulo}</p>
                 <p className="mt-0.5 text-xs text-mute">{ayuda}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <div className={`grid h-20 w-32 place-items-center overflow-hidden rounded-xl border border-ink-600 ${variant === 'dark' ? 'bg-ink' : 'bg-paper'}`}>
-                    {logos[variant] ? <img src={logos[variant]} alt={`Logo para ${titulo.toLowerCase()}`} className="max-h-16 max-w-28 object-contain" /> : <span className="text-xs text-mute">Sin logo</span>}
+                  <div className="flex gap-2">
+                    {[['Fondo claro', 'bg-white'], ['Fondo oscuro', 'bg-ink-950']].map(([etiqueta, fondo]) => (
+                      <div key={etiqueta} className="text-center">
+                        <div className={`grid h-14 w-20 place-items-center overflow-hidden rounded-lg border border-ink-600 ${fondo}`}>
+                          {logos[variant] ? <img src={logos[variant]} alt={`${titulo} sobre ${etiqueta.toLowerCase()}`} className="max-h-12 max-w-16 object-contain" /> : <span className="text-[10px] text-mute">—</span>}
+                        </div>
+                        <span className="mt-0.5 block text-[10px] text-mute">{etiqueta}</span>
+                      </div>
+                    ))}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <AttachmentInput onSelect={(file) => subirLogo(file, variant)} onError={setLogoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={logoBusy}>

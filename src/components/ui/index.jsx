@@ -86,7 +86,7 @@ export function PinInput({ value, onChange, onComplete, autoFocus = false, disab
       placeholder="••••"
       aria-label={ariaLabel}
       className={cn(
-        'mx-auto block h-16 w-44 rounded-2xl border border-ink-500 bg-paper text-center text-3xl font-bold tracking-[.45em] text-fore shadow-card transition-all duration-150 placeholder:text-mute/40 focus:scale-[1.03] focus:border-fono focus:ring-2 focus:ring-fono/30 focus:outline-none',
+        'pin-oculto mx-auto block h-16 w-44 rounded-2xl border border-ink-500 bg-paper text-center text-3xl font-bold tracking-[.45em] text-fore shadow-card transition-all duration-150 placeholder:text-mute/40 focus:scale-[1.03] focus:border-fono focus:ring-2 focus:ring-fono/30 focus:outline-none',
         className,
       )}
     />

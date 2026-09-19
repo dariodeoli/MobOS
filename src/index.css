@@ -183,3 +183,8 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
 @media (prefers-reduced-motion: reduce) {
   [class*="mobos-carga"], [class*="mobos-respira"] { animation: none !important; }
 }
+
+/* PIN: se escribe con teclado numerico pero se muestra enmascarado (asteriscos). */
+.pin-oculto {
+  -webkit-text-security: asterisk;
+}

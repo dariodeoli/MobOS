@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
 import { comprimirImagen } from '@/utils/imagen'
+import { Button } from '@/components/ui'
+import { cn } from '@/lib/utils'
 
 // Adjuntos JPG/PNG/WebP/PDF de hasta 5 MiB: misma regla que el backend, pero
 // verificada en el cliente antes de llamar a onSelect. Con onError el aviso lo
@@ -18,6 +20,7 @@ export default function AttachmentInput({
   inputRef,
   id,
   children,
+  etiqueta,
   ...props
 }) {
   const propioRef = useRef(null)
@@ -48,7 +51,9 @@ export default function AttachmentInput({
 
   return (
     <>
-      {children}
+      <span className={cn('inline-flex cursor-pointer', className)} onClick={() => { if (!disabled) ref.current?.click() }}>
+        {children || <Button type="button" variant="outline" disabled={disabled}>{etiqueta || 'Elegir archivo'}</Button>}
+      </span>
       <input
         ref={ref}
         id={id}
@@ -56,7 +61,7 @@ export default function AttachmentInput({
         accept={accept}
         disabled={disabled}
         onChange={seleccionar}
-        className={className}
+        className="sr-only"
         {...props}
       />
       {error && !onError && (

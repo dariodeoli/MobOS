@@ -26,6 +26,7 @@ export default function Login() {
   const [tiendas, setTiendas] = useState([])
   const [vendedorId, setVendedorId] = useState('')
   const [pin, setPin] = useState('')
+  const [verificandoSesion, setVerificandoSesion] = useState(true)
   const [nombreEmpresa, setNombreEmpresa] = useState('')
   const pinSubmit = useRef(false)
   const googleStarted = useRef(false)
@@ -33,6 +34,18 @@ export default function Login() {
   const [setupPin, setSetupPin] = useState('')
   const [signupErrors, setSignupErrors] = useState({})
   const [signupTouched, setSignupTouched] = useState({})
+
+  // Si la sesión sigue viva se entra directo a la app: el login queda solo para
+  // quien tiene que autenticarse.
+  useEffect(() => {
+    if (modo !== 'entrar') { setVerificandoSesion(false); return }
+    let vigente = true
+    sessionApi.me()
+      .then((sesion) => { if (vigente && sesion?.user) window.location.assign('/pos/cargar') })
+      .catch(() => {})
+      .finally(() => { if (vigente) setVerificandoSesion(false) })
+    return () => { vigente = false }
+  }, [modo])
 
   function showCompany(result) {
     const lista = result.sellers || []
@@ -217,6 +230,11 @@ export default function Login() {
   return (
     <AuthLayout>
       <section className="login-panel mx-auto w-full max-w-[560px] rounded-[2rem] border border-fore/10 bg-ink/95 p-5 shadow-2xl shadow-fono/5 sm:p-6 lg:p-7">
+        {verificandoSesion && (
+          <p role="status" className="mb-3 flex items-center gap-2 text-xs text-mute">
+            <span aria-hidden="true" className="h-2 w-2 animate-pulse rounded-full bg-fono" />Verificando tu sesión…
+          </p>
+        )}
         <a href={publicUrls.landing} className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-fono-dark transition hover:text-fore lg:mb-3">← Volver al inicio</a>
         <ThemeLogo className="mb-1 w-48" />
         <p className="mb-5 text-sm text-mute lg:mb-4">Sistema de ventas para tiendas</p>
