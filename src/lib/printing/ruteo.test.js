@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { esLoopback, resolverCamino, urlDePuente } from './ruteo.js'
+import { esLoopback, puedeCaerAlDialogo, resolverCamino, urlDePuente } from './ruteo.js'
 
 const storeBase = (cambios = {}) => ({
   agentUrl: 'http://127.0.0.1:17890',
@@ -49,4 +49,18 @@ test('loopback reconoce localhost, puerto y barra final; no a un host parecido',
   assert.equal(esLoopback('http://127.0.0.1.evil.com:17890'), false)
   assert.equal(esLoopback('http://192.168.1.5:17890'), false)
   assert.equal(esLoopback(''), false)
+})
+
+test('el respaldo HTML solo se abre tras un fallo claro', () => {
+  assert.equal(puedeCaerAlDialogo({ ok: false, motivo: 'fallo' }), true)
+  assert.equal(puedeCaerAlDialogo({ ok: false, motivo: 'sin-impresora' }), true)
+  assert.equal(puedeCaerAlDialogo({ ok: false, motivo: 'agente-no-disponible' }), true)
+  // Incierto, encolado o remoto: abrir el diálogo podría duplicar el ticket.
+  assert.equal(puedeCaerAlDialogo({ ok: false, motivo: 'incierto' }), false)
+  assert.equal(puedeCaerAlDialogo({ ok: false, motivo: 'en-cola' }), false)
+  assert.equal(puedeCaerAlDialogo({ ok: false, motivo: 'remoto' }), false)
+  assert.equal(puedeCaerAlDialogo({ ok: true, encolado: true }), false)
+  assert.equal(puedeCaerAlDialogo({ ok: true, directo: true }), false)
+  assert.equal(puedeCaerAlDialogo(null), false)
+  assert.equal(puedeCaerAlDialogo(undefined), false)
 })
