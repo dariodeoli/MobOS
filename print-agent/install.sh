@@ -14,7 +14,7 @@ PLIST="$HOME/Library/LaunchAgents/com.mobos.print.plist"
 CODIGO=""
 SERVICIO=1
 DESDE_REPO=0
-ORIGEN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ORIGEN="$(cd "$(dirname "${BASH_SOURCE[0]:-}")" && pwd)"
 
 uso() {
   echo "Uso: install.sh [--code ABCDE-FGHIJ] [--api-url URL] [--dir RUTA] [--no-service] [--from-repo]"

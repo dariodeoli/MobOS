@@ -9,6 +9,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const RAIZ = fileURLToPath(new URL('..', import.meta.url))
+const VERSION_PAQUETE = JSON.parse(readFileSync(join(RAIZ, 'package.json'), 'utf8')).version
 const TOKEN = 'token-de-prueba'
 
 // Puerto libre para no chocar con corridas anteriores ni con otros agentes.
@@ -106,7 +107,7 @@ test('el agente arranca sin impresora configurada y /health responde', async (t)
     } catch { return false }
   }, { intentos: 60, espera: 150 })
   assert.ok(respuesta, 'el agente responde /health sin impresora configurada')
-  assert.equal(respuesta.version, '1.6.0', 'la versión identifica el build con el fix')
+  assert.equal(respuesta.version, VERSION_PAQUETE, 'la versión identifica el build con el fix')
   assert.ok(respuesta.red, 'el payload incluye red.autotest')
   assert.equal(respuesta.red.autotest.ok, false, 'sin impresora el autotest no puede dar ok')
   assert.equal(respuesta.remoto.activo, false, 'sin apiUrl+token el modo remoto queda apagado')
@@ -201,6 +202,20 @@ test('el parser de lpstat -v corta los dos puntos del nombre de la cola', async 
     { nombre: 'ZKP8008', uri: 'socket://192.168.1.23:9100', tipo: 'red' },
     { nombre: 'Otra', uri: 'usb://Zebra/ZD220', tipo: 'usb' },
   ])
+})
+
+test('la cola CUPS de respaldo se resuelve por la impresora del destino', async () => {
+  const { colaRedParaDestino } = await import('../transportes.mjs')
+  const colas = [
+    { nombre: 'ZKP8008', uri: 'socket://192.168.1.23:9100', tipo: 'red' },
+    { nombre: 'Zebra', uri: 'usb://Zebra/ZD220', tipo: 'usb' },
+    { nombre: 'SinPuerto', uri: 'socket://192.168.1.30', tipo: 'red' },
+  ]
+  assert.equal(colaRedParaDestino(colas, 'lan:192.168.1.23:9100'), 'ZKP8008')
+  assert.equal(colaRedParaDestino(colas, 'lan:192.168.1.30:9100'), 'SinPuerto', 'sin puerto en la URI vale 9100')
+  assert.equal(colaRedParaDestino(colas, 'lan:192.168.1.99:9100'), '')
+  assert.equal(colaRedParaDestino(colas, 'cups:ZKP8008'), '', 'un destino por cola no busca equivalente')
+  assert.equal(colaRedParaDestino(colas, ''), '')
 })
 
 test('el agente imprime al toque cuando la impresora está disponible', async (t) => {

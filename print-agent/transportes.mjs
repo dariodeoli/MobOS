@@ -119,12 +119,33 @@ export async function impresorasUsb() {
   return (await impresorasCups()).map((cola) => cola.nombre)
 }
 
-// Cola CUPS de red (raw, socket://) que el instalador crea con lpadmin. El
-// daemon CUPS del sistema sí tiene permiso de red local: cuando macOS bloquea
-// la conexión directa del proceso del agente, el trabajo sale por acá.
-export async function colaLanDeCups(nombre = 'MobOS_LAN') {
-  const colas = await impresorasUsb()
-  return colas.includes(nombre) ? nombre : ''
+// Cola CUPS de red equivalente al destino `lan:host:puerto` (la misma
+// impresora): sirve cuando la cola configurada no existe con ese nombre,
+// porque macOS suele nombrarla como el modelo (p. ej. ZKP8008) y la config
+// del backend apunta a MobOS_LAN.
+export function colaRedParaDestino(colas, destino = '') {
+  const valor = String(destino || '').trim()
+  if (!valor.startsWith('lan:')) return ''
+  const [host, puerto] = valor.replace(/^lan:/, '').split(':')
+  if (!host) return ''
+  const buscado = Number(puerto) || 9100
+  const cola = (Array.isArray(colas) ? colas : []).find((item) => {
+    if (item?.tipo !== 'red') return false
+    const partes = /^socket:\/\/([^:/]+)(?::(\d+))?/.exec(String(item.uri || ''))
+    return Boolean(partes) && partes[1] === host && (Number(partes[2]) || 9100) === buscado
+  })
+  return cola ? cola.nombre : ''
+}
+
+// Cola CUPS de red (socket://) que respalda la salida directa cuando macOS
+// bloquea al proceso del agente: el daemon CUPS del sistema sí tiene permiso
+// de red local, así que el trabajo sale por acá. Primero por nombre exacto y,
+// si no existe, por la impresora del destino.
+export async function colaLanDeCups(nombre = 'MobOS_LAN', destino = '') {
+  const colas = await impresorasCups()
+  const elegida = colas.find((item) => item.nombre === nombre && item.tipo === 'red')
+  if (elegida) return elegida.nombre
+  return colaRedParaDestino(colas, destino)
 }
 
 // Destino: `lan:192.168.1.23:9100` o `usb:NombreDeLaCola`. Devuelve el
@@ -140,7 +161,7 @@ export async function enviar(destino, bytes, { lanCups = 'MobOS_LAN', alias = ''
     return 'directo'
   } catch (error) {
     if (!/EHOSTUNREACH|ENETUNREACH/i.test(error?.message || '')) throw error
-    const cola = await colaLanDeCups(lanCups)
+    const cola = await colaLanDeCups(lanCups, valor)
     if (!cola) throw error
     await enviarUsb(cola, bytes)
     return 'cups'
@@ -194,7 +215,7 @@ export async function diagnosticoRed(destino, { alias = '192.168.1.100', cups = 
   const esUsb = /^(usb|cups):/.test(valor)
   const host = esUsb ? '' : valor.replace(/^lan:/, '').split(':')[0]
   const puerto = esUsb ? '' : (valor.replace(/^lan:/, '').split(':')[1] || '9100')
-  const info = { destino: valor, host, puerto, metodo: esUsb ? 'CUPS' : 'LAN', interfaces: [], ruta: '', alcance: false, alias: await aliasSecundario(alias), cups: await colaLanDeCups(cups) }
+  const info = { destino: valor, host, puerto, metodo: esUsb ? 'CUPS' : 'LAN', interfaces: [], ruta: '', alcance: false, alias: await aliasSecundario(alias), cups: await colaLanDeCups(cups, valor) }
   // Una cola CUPS puede ser sobre LAN (socket://) o USB físico (usb://): la
   // URI real evita llamarla "USB" cuando en realidad sale por red.
   if (esUsb) info.cupsUri = await colaUri(valor.slice(valor.indexOf(':') + 1) || cups)

@@ -7,16 +7,19 @@ import { crearCola } from './cola.mjs'
 import { aplicarConfigRemota, crearRemoto } from './remoto.mjs'
 import { aliasSecundario, colaLanDeCups, colaUri, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola } from './transportes.mjs'
 
-const VERSION = '1.6.0'
+const VERSION = '1.6.1'
 const config = cargarConfig()
 // Transporte real del último envío (directo | cups | usb): la app solo debe
-// marcar éxito cuando hubo entrega confirmada, no solo encolado.
+// marcar éxito cuando hubo entrega confirmada, no solo encolado. La cola local
+// y el poller remoto comparten este camino: sin la config (cola CUPS y alias),
+// el remoto no bindea la IP secundaria ni respeta la cola configurada.
 let ultimoTransporte = ''
-const cola = crearCola({ ruta: RUTA_COLA, rutaHistorial: RUTA_HISTORIAL, enviar: async (destino, bytes) => {
+const enviarConConfig = async (destino, bytes) => {
   const transporte = await enviar(destino, bytes, { lanCups: config.lanCups, alias: config.alias })
   ultimoTransporte = transporte
   return transporte
-}, esperaMs: config.esperaMs, reintentos: config.reintentos, log: (mensaje) => console.log(`[cola] ${mensaje}`) })
+}
+const cola = crearCola({ ruta: RUTA_COLA, rutaHistorial: RUTA_HISTORIAL, enviar: enviarConConfig, esperaMs: config.esperaMs, reintentos: config.reintentos, log: (mensaje) => console.log(`[cola] ${mensaje}`) })
 cola.reanudar()
 
 // La app vive en un dominio público y llama a este agente en 127.0.0.1: el
@@ -58,7 +61,7 @@ const remoto = config.remotoActivo
       apiUrl: config.apiUrl,
       token: config.bridgeToken,
       cola,
-      enviar,
+      enviar: enviarConConfig,
       baseMs: config.intervaloPollMs,
       version: VERSION,
       log: (mensaje) => console.log(`[remoto] ${mensaje}`),
@@ -82,7 +85,7 @@ if (remoto) {
 // está disponible.
 let autotest = { at: null, ok: null, error: '', errno: '', cups: '', transporte: 'ninguno' }
 async function ejecutarAutotest() {
-  const cups = await colaLanDeCups(config.lanCups || 'MobOS_LAN')
+  const cups = await colaLanDeCups(config.lanCups || 'MobOS_LAN', config.impresora)
   if (!config.impresora) {
     autotest = { at: new Date().toISOString(), ok: false, error: 'No hay impresora configurada.', errno: '', cups, transporte: 'ninguno' }
     return autotest
@@ -136,9 +139,9 @@ async function repararRed() {
   // nada. Si la cola existe, se reporta su URI real para que la app decida
   // (p. ej. socket://… = CUPS sobre LAN; usb://… = CUPS sobre USB físico).
   const nombreCola = config.lanCups || 'MobOS_LAN'
-  const colaExistente = await colaLanDeCups(nombreCola)
+  const colaExistente = await colaLanDeCups(nombreCola, config.impresora)
   const cups = colaExistente
-    ? { ok: true, cola: nombreCola, uri: await colaUri(nombreCola) }
+    ? { ok: true, cola: colaExistente, uri: await colaUri(colaExistente) }
     : { ok: false, cola: nombreCola, uri: '', motivo: 'No existe una cola con ese nombre. macOS moderno no crea colas raw; se conserva TCP directo y diálogo.' }
   return {
     alias,
@@ -184,6 +187,7 @@ const servidor = createServer(async (request, response) => {
     if (request.method === 'GET' && url.pathname === '/health') {
       if (!tokenValido(request)) return responder(response, { ok: true, version: VERSION })
       const usb = await impresorasUsb()
+      const cups = await colaLanDeCups(config.lanCups || 'MobOS_LAN', config.impresora)
       return responder(response, {
         ok: true,
         version: VERSION,
@@ -195,11 +199,11 @@ const servidor = createServer(async (request, response) => {
         impresoraOk: await impresoraResponde(),
         red: {
           tcp: await impresoraResponde(),
-          cups: await colaLanDeCups(config.lanCups || 'MobOS_LAN'),
-          cupsUri: (await colaLanDeCups(config.lanCups || 'MobOS_LAN')) ? await colaUri(config.lanCups || 'MobOS_LAN') : '',
-          colaTipo: await tipoDeCola(config.lanCups || 'MobOS_LAN'),
+          cups,
+          cupsUri: cups ? await colaUri(cups) : '',
+          colaTipo: cups ? await tipoDeCola(cups) : '',
           alias: await aliasSecundario(config.alias),
-          transporte: (await impresoraResponde()) ? 'directo' : ((await colaLanDeCups(config.lanCups || 'MobOS_LAN')) ? 'cups' : 'ninguno'),
+          transporte: (await impresoraResponde()) ? 'directo' : (cups ? 'cups' : 'ninguno'),
           ultimoTransporte,
           autotest,
         },
@@ -357,7 +361,8 @@ servidor.listen(config.puerto, config.host, async () => {
   // relanzando en loop (ya pasó con `interfaces` undefined).
   try {
     console.log(`MobOS Print ${VERSION} escuchando en http://${config.host}:${config.puerto}`)
-    console.log(`Token: ${config.token}`)
+    // El token no se loguea nunca (el instalador lo imprime una sola vez para
+    // pegarlo en la app cuando el modo es solo local).
     console.log(config.impresora ? `Impresora: ${config.impresora}` : 'Sin impresora elegida: configurala desde Configuración → Impresoras.')
     if (config.host === '0.0.0.0' && !config.token) {
       console.warn('ATENCIÓN: el agente acepta conexiones de la red y no tiene token. Cualquiera en la red podría imprimir.')
