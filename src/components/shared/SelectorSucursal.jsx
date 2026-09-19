@@ -10,15 +10,15 @@ export default function SelectorSucursal({ className }) {
   if (!empresa) return null
 
   const variasEmpresas = empresas.length > 1
-  const variasSucursales = sucursales.length > 1
 
-  if (!variasEmpresas && !variasSucursales) {
+  if (!variasEmpresas && sucursales.length === 0) {
     return (
       <div
         className={cn(
-          'flex h-[34px] items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[12.5px] text-mute',
+          'flex h-[34px] cursor-default items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[12.5px] text-mute',
           className,
         )}
+        title="Sucursal activa"
       >
         <Icon name="store" className="h-[15px] w-[15px]" />
         <span className="hidden max-w-[110px] truncate sm:block sm:max-w-[180px]">{sucursal?.nombre || empresa.nombre}</span>
@@ -42,7 +42,7 @@ export default function SelectorSucursal({ className }) {
           ))}
         </select>
       )}
-      {variasSucursales && (
+      {sucursales.length >= 1 && (
         <select
           value={sucursal?.id || ''}
           onChange={(e) => cambiarSucursal(e.target.value)}
