@@ -35,6 +35,7 @@ const KINDS = {
   BELOW_LIST_PRICE: 'Precio bajo lista',
   STOCK_ADJUST: 'Ajuste de stock',
   ORDER_VOID: 'Anulación de pedido',
+  ORDER_DELIVER_UNPAID: 'Entrega con saldo',
   EXPENSE_OVER_LIMIT: 'Gasto sobre límite',
   TRANSFER: 'Transferencia',
   PURCHASE_CREDIT: 'Compra a crédito',
@@ -82,6 +83,7 @@ function resumenValor(kind, value) {
   const data = value && typeof value === 'object' ? value : {}
   if (kind === 'WHOLESALE') return 'Pasar a precio mayorista'
   if (kind === 'ORDER_VOID') return 'Anulación total del pedido'
+  if (kind === 'ORDER_DELIVER_UNPAID') return data.reason ? `Entrega con saldo · ${data.reason}` : 'Entrega con saldo pendiente'
   if (kind === 'STOCK_ADJUST') return `${data.action === 'remove' ? 'Retirar unidad' : 'Ajustar unidad'}${data.reason ? ` · ${data.reason}` : ''}`
   if (kind === 'EXPENSE_OVER_LIMIT') return [`Gasto ${data.amountPyg !== undefined ? formatGs(data.amountPyg) : ''}`.trim(), data.description].filter(Boolean).join(' · ') || '—'
   if (kind === 'TRANSFER') {
