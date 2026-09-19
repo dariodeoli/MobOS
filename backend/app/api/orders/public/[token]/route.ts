@@ -54,6 +54,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     customerName: order.customer?.name || null,
+    company: { name: order.tenant?.name || null },
     items: order.items.map(item => ({
       description: item.description,
       quantity: item.quantity,

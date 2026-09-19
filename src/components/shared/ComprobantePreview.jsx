@@ -20,7 +20,9 @@ import { ticketComprobante } from '@/lib/printing/tickets'
 // listado lo define la pantalla que lo usa (la página del pedido ofrece A4 y
 // 80 mm y descarta el rollo de 58 mm). El formato inicial sigue al ancho de la
 // impresora configurada en Impresoras.
-const ANCHO_VISTA = { 'thermal-80': 'max-w-[420px]', 'thermal-58': 'max-w-[340px]', 'thermal-55': 'max-w-[340px]', thermal: 'max-w-[340px]' }
+// La vista previa usa el ancho real del papel (mm a 96 dpi) para que lo que se
+// ve coincida con lo que sale impreso, sin franjas blancas a los costados.
+const ANCHO_VISTA = { 'thermal-80': 'max-w-[302px]', 'thermal-58': 'max-w-[219px]', 'thermal-55': 'max-w-[208px]', thermal: 'max-w-[219px]' }
 export default function ComprobantePreview({ order, open, onClose, formatos = FORMATOS_COMPROBANTE }) {
   const toast = useToast()
   const inicial = (() => {

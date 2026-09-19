@@ -32,9 +32,16 @@ test('los accesos del pedido respetan el nivel y se pueden regenerar', async ({ 
   const publicoRapido = await api(page, `/api/orders/public/${rapido.body.token}`)
   expect(publicoRapido.status).toBe(200)
   expect(publicoRapido.body.level).toBe('rapido')
+  expect(publicoRapido.body.company?.name).toBeTruthy()
   expect(publicoRapido.body.customer).toBeUndefined()
-  expect(publicoRapido.body.company).toBeUndefined()
   expect(typeof publicoRapido.body.pendingPyg).toBe('number')
+
+  // El logo viaja por la vía pública del pedido: con token inválido no se
+  // entrega, con token válido responde imagen (o 404 si la empresa no cargó una).
+  const logoInvalido = await api(page, '/api/orders/public/token-que-no-existe/logo')
+  expect(logoInvalido.status).toBe(404)
+  const logoRapido = await api(page, `/api/orders/public/${rapido.body.token}/logo?variant=dark`)
+  expect([200, 404]).toContain(logoRapido.status)
 
   const completo = await api(page, `/api/orders/${pedido.id}/access-tokens`, {
     method: 'POST', body: JSON.stringify({ level: 'completo' }),
