@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -9,12 +9,18 @@ import { crearCola } from '../cola.mjs'
 // - desconocido ≠ impreso
 // - aceptado por transporte ≠ confirmado en papel
 // - resultado incierto NUNCA se reintenta solo
+// - un trabajo remoto deduplica por id, vacía su payload tras el intento y
+//   espera en el outbox hasta que el backend acepta el reporte
 
 const ticket = () => Buffer.from('ESC/POS de prueba').toString('base64')
 
 function colaDe(enviar, { reintentos = 2, esperaMs = 10 } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'mobos-cola-'))
   return crearCola({ ruta: join(dir, 'cola.json'), rutaHistorial: join(dir, 'historial.json'), enviar, reintentos, esperaMs })
+}
+
+function colaEn(dir, enviar = async () => true) {
+  return crearCola({ ruta: join(dir, 'cola.json'), rutaHistorial: join(dir, 'historial.json'), enviar, reintentos: 1, esperaMs: 10 })
 }
 
 test('el sufijo secreto impreso valida la confirmación en papel', async () => {
@@ -95,4 +101,74 @@ test('la limpieza de fallidos no toca pendientes ni aceptados', async () => {
   assert.equal(cola.limpiarFallidos(), 1)
   assert.equal(cola.resumen().fallidos, 0)
   assert.equal(cola.resumen().sinConfirmar, 1, 'el aceptado sigue esperando confirmación')
+})
+
+test('un trabajo remoto deduplica por id, borra el payload y espera en el outbox', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mobos-cola-remoto-'))
+  const cola = colaEn(dir)
+  const job = { id: 'job-1', destination: 'lan:10.0.0.1:9100', payload: ticket(), leaseId: 'lease-1', attempts: 1, copies: 1, requestedByName: 'Dueño', reference: 'REF-1' }
+  assert.deepEqual(cola.encolarRemoto(job), { encolado: true, jobId: 'job-1' })
+  // El backend puede repetir el mismo trabajo: no se reimprime ni se pisa.
+  assert.equal(cola.encolarRemoto(job).duplicado, true)
+  // El poller imprimió: el resultado queda en el outbox y el payload local se borra.
+  assert.deepEqual(cola.resultadoRemoto('job-1', { estado: 'ACEPTADO', transporte: 'directo' }), { ok: true, estado: 'aceptado' })
+  const pendientes = cola.pendientesDeReporte()
+  assert.equal(pendientes.length, 1)
+  assert.deepEqual({ id: pendientes[0].id, leaseId: pendientes[0].leaseId, resultado: pendientes[0].resultado, transporte: pendientes[0].transporte }, { id: 'job-1', leaseId: 'lease-1', resultado: 'ACEPTADO', transporte: 'directo' })
+  const guardado = JSON.parse(readFileSync(join(dir, 'cola.json'), 'utf8'))
+  assert.equal(guardado[0].data, '', 'el payload no queda en disco tras el intento')
+  assert.equal(guardado[0].usuario, 'Dueño')
+  // Reportado: sale del outbox y queda asentado como remoto, sin confirmación local.
+  assert.deepEqual(cola.marcarReportado('job-1'), { ok: true })
+  assert.equal(cola.pendientesDeReporte().length, 0)
+  assert.equal(cola.estado('job-1').estado, 'remoto')
+  assert.equal(cola.confirmar('job-1').motivo, 'no-confirmable')
+  // Un estado inválido no se acepta.
+  assert.equal(cola.resultadoRemoto('job-2', { estado: 'CUALQUIERA' }).motivo, 'estado-invalido')
+})
+
+test('el dedupe remoto sobrevive al reinicio (misma cola en disco)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mobos-cola-reinicio-'))
+  const primero = colaEn(dir)
+  primero.encolarRemoto({ id: 'job-2', destination: 'usb:CUPS_FALSA', payload: ticket(), leaseId: 'lease-2' })
+  primero.resultadoRemoto('job-2', { estado: 'FALLIDO', error: 'impresora apagada' })
+  primero.marcarReportado('job-2')
+  const reiniciada = colaEn(dir)
+  assert.equal(reiniciada.encolarRemoto({ id: 'job-2', destination: 'usb:CUPS_FALSA', payload: ticket(), leaseId: 'lease-3' }).duplicado, true)
+})
+
+test('un reinicio con un reclamado sin resultado se reporta incierto y nunca se reimprime', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mobos-cola-reconciliar-'))
+  let impresiones = 0
+  const cola = colaEn(dir, async () => { impresiones += 1; return 'directo' })
+  cola.encolarRemoto({ id: 'job-3', destination: 'lan:10.0.0.1:9100', payload: ticket(), leaseId: 'lease-3' })
+  assert.equal(cola.reconciliarRemotos(), 1)
+  const pendiente = cola.pendientesDeReporte()[0]
+  assert.equal(pendiente.resultado, 'INCIERTO')
+  assert.match(pendiente.error, /reinició/)
+  assert.equal(cola.reconciliarRemotos(), 0, 'idempotente')
+  cola.reanudar()
+  await new Promise((listo) => setTimeout(listo, 30))
+  assert.equal(impresiones, 0, 'el camino local nunca imprime trabajos remotos')
+})
+
+test('la limpieza y el reintento manual no tocan trabajos remotos sin reportar', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mobos-cola-limpiar-'))
+  const cola = colaEn(dir)
+  cola.encolarRemoto({ id: 'job-4', destination: 'lan:10.0.0.1:9100', payload: ticket(), leaseId: 'lease-4' })
+  cola.resultadoRemoto('job-4', { estado: 'FALLIDO', error: 'sin ruta' })
+  assert.equal(cola.limpiarFallidos(), 0)
+  assert.equal(cola.reintentarFallidos(), 0)
+  assert.equal(cola.pendientesDeReporte().length, 1, 'el outbox conserva el resultado')
+})
+
+test('cola, historial y config se escriben con permisos 0600', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mobos-cola-permisos-'))
+  const cola = colaEn(dir)
+  cola.encolarRemoto({ id: 'job-5', destination: 'lan:10.0.0.1:9100', payload: ticket(), leaseId: 'lease-5' })
+  cola.resultadoRemoto('job-5', { estado: 'ACEPTADO' })
+  cola.marcarReportado('job-5')
+  const permisos = (archivo) => statSync(join(dir, archivo)).mode & 0o777
+  assert.equal(permisos('cola.json'), 0o600)
+  assert.equal(permisos('historial.json'), 0o600)
 })

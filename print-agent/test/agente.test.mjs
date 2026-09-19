@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { createServer as crearServidorHttp } from 'node:http'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -46,8 +47,8 @@ async function esperar(condicion, { intentos = 40, espera = 150 } = {}) {
   return false
 }
 
-async function arrancarAgente(dir, { impresora, puerto }) {
-  writeFileSync(join(dir, 'config.json'), JSON.stringify({ puerto, token: TOKEN, impresora, ancho: 58, copias: 1, reintentos: 3, esperaMs: 500, lan: [impresora] }))
+async function arrancarAgente(dir, { impresora, puerto, extra = {} }) {
+  writeFileSync(join(dir, 'config.json'), JSON.stringify({ puerto, token: TOKEN, impresora, ancho: 58, copias: 1, reintentos: 3, esperaMs: 500, lan: [impresora], ...extra }))
   const proceso = spawn(process.execPath, [join(RAIZ, 'server.mjs')], { env: { ...process.env, MOBOS_PRINT_DIR: dir }, stdio: ['ignore', 'pipe', 'pipe'] })
   proceso.stderr.on('data', (parte) => process.stderr.write(`[agente] ${parte}`))
   const listo = await esperar(() => {
@@ -58,6 +59,31 @@ async function arrancarAgente(dir, { impresora, puerto }) {
   }, { intentos: 40, espera: 100 })
   assert.ok(listo || proceso.pid, 'el agente arrancó')
   return proceso
+}
+
+// Backend remoto mínimo: solo necesita responder claim y config para probar el
+// arranque del poller desde server.mjs.
+async function backendRemotoFalso() {
+  const pedidos = []
+  const servidor = crearServidorHttp((request, response) => {
+    request.on('data', () => {})
+    request.on('end', () => {
+      const ruta = new URL(request.url, 'http://127.0.0.1').pathname
+      pedidos.push(ruta)
+      response.writeHead(200, { 'Content-Type': 'application/json' })
+      response.end(JSON.stringify(ruta === '/api/print/bridge/claim' ? { jobs: [] } : { ok: true }))
+    })
+  })
+  return new Promise((resolve) => {
+    servidor.listen(0, '127.0.0.1', () => {
+      const { port } = servidor.address()
+      resolve({
+        pedidos,
+        url: `http://127.0.0.1:${port}`,
+        cerrar: () => new Promise((listo) => servidor.close(listo)),
+      })
+    })
+  })
 }
 
 // Regresión del crash de arranque: sin impresora configurada el agente debe
@@ -80,9 +106,39 @@ test('el agente arranca sin impresora configurada y /health responde', async (t)
     } catch { return false }
   }, { intentos: 60, espera: 150 })
   assert.ok(respuesta, 'el agente responde /health sin impresora configurada')
-  assert.equal(respuesta.version, '1.5.0', 'la versión identifica el build con el fix')
+  assert.equal(respuesta.version, '1.6.0', 'la versión identifica el build con el fix')
   assert.ok(respuesta.red, 'el payload incluye red.autotest')
   assert.equal(respuesta.red.autotest.ok, false, 'sin impresora el autotest no puede dar ok')
+  assert.equal(respuesta.remoto.activo, false, 'sin apiUrl+token el modo remoto queda apagado')
+  assert.deepEqual(Object.keys(respuesta.remoto).sort(), ['activo', 'apiUrl', 'backoffMs', 'pendientesDeReporte', 'ultimoContacto', 'ultimoError'])
+})
+
+test('el agente arranca el poller remoto con apiUrl+token y lo reporta en /health', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'mobos-print-remoto-'))
+  const puertoAgente = await puertoLibre()
+  const backend = await backendRemotoFalso()
+  const agente = await arrancarAgente(dir, {
+    impresora: '',
+    puerto: puertoAgente,
+    extra: { apiUrl: backend.url, bridgeToken: 'token-secreto-del-puente', intervaloPollMs: 400 },
+  })
+  t.after(() => { agente.kill('SIGKILL'); backend.cerrar() })
+  const cabeceras = { 'x-mobos-print-token': TOKEN }
+  let salud = null
+  await esperar(async () => {
+    try {
+      const res = await fetch(`http://127.0.0.1:${puertoAgente}/health`, { headers: cabeceras })
+      if (!res.ok) return false
+      salud = await res.json()
+      return salud?.remoto?.activo === true
+    } catch { return false }
+  }, { intentos: 60, espera: 150 })
+  assert.ok(salud, 'el agente sigue respondiendo con el poller remoto activo')
+  assert.equal(salud.remoto.apiUrl, backend.url)
+  assert.ok(salud.remoto.ultimoContacto, 'el primer poll ya contactó al backend')
+  assert.equal(salud.remoto.pendientesDeReporte, 0)
+  assert.ok(!JSON.stringify(salud).includes('token-secreto-del-puente'), 'el token del puente no se expone en /health')
+  assert.ok(backend.pedidos.includes('/api/print/bridge/claim'), 'el poller reclamó trabajo')
 })
 
 test('el agente imprime por red, encola si la impresora está caída y protege con token', async (t) => {
