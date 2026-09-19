@@ -29,3 +29,10 @@ export function resolverCamino(store, impresora, { disponible = false } = {}) {
   if (!esLoopback(urlDePuente(store, impresora))) return { camino: 'remoto', motivo: 'puente-no-local' }
   return { camino: 'local', motivo: 'agente-local' }
 }
+
+// El respaldo HTML (diálogo del navegador) solo corresponde cuando el fallo
+// fue CLARO: nada se envió ni quedó encolado. Tras un resultado incierto,
+// encolado o remoto, abrir el diálogo duplicaría el ticket.
+const MOTIVOS_RESPALDO = ['fallo', 'sin-impresora', 'agente-no-disponible']
+
+export const puedeCaerAlDialogo = (resultado) => !resultado?.ok && MOTIVOS_RESPALDO.includes(resultado?.motivo)

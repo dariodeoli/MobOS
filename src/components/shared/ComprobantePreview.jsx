@@ -12,7 +12,7 @@ import {
   trackingUrlFor,
 } from './OrderReceipt'
 import { printHtml } from '@/utils/printHtml'
-import { configImpresora, confirmarJob, estadoAgente, imprimirTicketDirecto } from '@/lib/printing/agent'
+import { cargarImpresorasRemotas, configImpresora, confirmarJob, estadoAgente, imprimirConDestino, imprimirDocumento, impresoraPredeterminada } from '@/lib/printing/agent'
 import { ticketComprobante } from '@/lib/printing/tickets'
 
 // Vista previa real del comprobante: nivel (Rápido/Completo/Detallado) y
@@ -38,6 +38,9 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
   const [link, setLink] = useState('')
   const [cargando, setCargando] = useState(false)
   const [agente, setAgente] = useState(false)
+  // Con impresora configurada en la empresa se puede imprimir aunque este
+  // dispositivo no tenga agente local: el trabajo se encola al puente.
+  const [hayImpresora, setHayImpresora] = useState(() => Boolean(impresoraPredeterminada()?.destino))
   const [enviando, setEnviando] = useState(false)
   const [estado, setEstado] = useState(null)
   const [confirmando, setConfirmando] = useState(false)
@@ -47,6 +50,9 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
   useEffect(() => {
     let activo = true
     estadoAgente().then((info) => { if (activo) { setAgente(Boolean(info.disponible)); setEstado(info) } })
+    cargarImpresorasRemotas().then((store) => {
+      if (activo) setHayImpresora(Boolean(imprimirConDestino(store).predeterminada?.destino))
+    })
     return () => { activo = false }
   }, [])
 
@@ -95,12 +101,17 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
     if (enviando) return
     setEnviando(true)
     const { ancho } = configImpresora()
-    const resultado = await imprimirTicketDirecto(ticketComprobante(order, { nivel, ancho, link }))
+    const resultado = await imprimirDocumento(ticketComprobante(order, { nivel, ancho, link }), { tipo: 'comprobante' })
     setEnviando(false)
-    if (!resultado.ok) { toast.error('No se pudo imprimir', resultado.error); return }
+    if (!resultado.ok) { toast.error('No se pudo imprimir', resultado.error || 'Revisá la impresora.'); return }
     if (resultado.encolado) {
-      setJobEncColado(resultado.jobId || null)
-      toast.success('Comprobante encolado', 'La impresora no respondió; el puente reintenta solo.')
+      // La cola local se confirma con «Ya salió el papel»; la del puente se
+      // confirma desde Configuración → Impresoras (ahí está el número secreto).
+      setJobEncColado(resultado.remoto ? null : (resultado.jobId || null))
+      toast.success(
+        resultado.remoto ? 'Comprobante encolado al puente' : 'Comprobante encolado',
+        resultado.remoto ? 'Lo imprime el puente cuando lo reclame.' : 'La impresora no respondió; el agente reintenta solo.',
+      )
     } else {
       setJobEncColado(null)
       toast.success('Comprobante enviado a la impresora', '')
@@ -125,7 +136,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
           </label>
           <span className="flex flex-1 flex-wrap items-center justify-end gap-2">
             <Button type="button" variant="outline" onClick={imprimir} disabled={!html || cargando}>Descargar PDF</Button>
-            {agente && <Button type="button" variant="outline" onClick={imprimirDirecto} disabled={cargando || enviando}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>}
+            {(agente || hayImpresora) && <Button type="button" variant="outline" onClick={imprimirDirecto} disabled={cargando || enviando}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>}
             <Button type="button" onClick={imprimirConDialogo} disabled={!html || cargando}>{cargando ? 'Preparando…' : 'Imprimir con diálogo'}</Button>
           </span>
         </div>

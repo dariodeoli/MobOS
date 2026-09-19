@@ -9,9 +9,9 @@
 import { printHtml } from '@/utils/printHtml'
 import { printingApi } from '@/lib/api/printing'
 import { normalizarDestino, normalizarPuentes, puenteDe, basePuente } from './puentes'
-import { resolverCamino } from './ruteo'
+import { puedeCaerAlDialogo, resolverCamino } from './ruteo'
 
-export { puenteDe, resolverCamino }
+export { puenteDe, resolverCamino, puedeCaerAlDialogo }
 export { esLoopback } from './ruteo'
 
 const CLAVE_CONFIG = 'mobos:impresora:config'
@@ -276,6 +276,19 @@ export const imprimirConDestino = (store) => {
 let tenantActivo = null
 export function usarTenantImpresoras(tenantId) { tenantActivo = tenantId || null }
 
+// Impresora predeterminada de la empresa en ESTE dispositivo (caché local).
+export const impresoraPredeterminada = () => imprimirConDestino(cargarImpresoras(tenantActivo)).predeterminada || null
+
+// Configuración para imprimir: caché local y, si todavía no hay impresora (o
+// `forzar`), una consulta al backend. `forzar` se usa cuando la decisión
+// importa (documentos): el backend es la autoridad y la caché puede estar
+// vieja; si la consulta falla se conserva la caché.
+export async function cargarImpresorasRemotas({ forzar = false } = {}) {
+  const actual = cargarImpresoras(tenantActivo)
+  if (!forzar && imprimirConDestino(actual).predeterminada) return actual
+  try { return await refrescarDesdeBackend(tenantActivo) } catch { return actual }
+}
+
 export const configImpresora = () => {
   const base = { url: URL_AGENTE, impresora: '', ancho: 80, copias: 1, token: '' }
   try {
@@ -338,10 +351,15 @@ export async function estadoAgente({ forzar = false } = {}) {
   }
 }
 
-const consultarAgente = async (camino, { method = 'GET', body } = {}) => {
+const consultarAgente = async (camino, { method = 'GET', body, signal } = {}) => {
   const { url, token } = configImpresora()
   const control = new AbortController()
   const timer = setTimeout(() => control.abort(), 5000)
+  const abortar = () => control.abort()
+  if (signal) {
+    if (signal.aborted) control.abort()
+    else signal.addEventListener('abort', abortar, { once: true })
+  }
   try {
     const respuesta = await fetch(`${url}${camino}`, {
       method,
@@ -354,10 +372,13 @@ const consultarAgente = async (camino, { method = 'GET', body } = {}) => {
     return datos
   } finally {
     clearTimeout(timer)
+    signal?.removeEventListener?.('abort', abortar)
   }
 }
 
-export const diagnosticoAgente = (destino) => consultarAgente(`/diagnostico${destino ? `?destino=${encodeURIComponent(destino)}` : ''}`)
+// `opciones.signal` permite abortar la consulta al desmontar quien la pidió
+// (p. ej. el sondeo periódico del estado de las impresoras).
+export const diagnosticoAgente = (destino, opciones = {}) => consultarAgente(`/diagnostico${destino ? `?destino=${encodeURIComponent(destino)}` : ''}`, opciones)
 export const colaAgente = () => consultarAgente('/jobs')
 export const historialAgente = (limite = 30) => consultarAgente(`/historial?limite=${limite}`)
 export const reintentarFallidos = () => consultarAgente('/jobs/retry', { method: 'POST' })
@@ -505,23 +526,60 @@ export async function imprimirTicketDirecto(ticket, opciones = {}) {
   return imprimirDirecto(ticket.base64(), opciones)
 }
 
-// Camino preferido: si el agente está disponible, imprime directo; si no (o si
-// falla), cae al HTML de siempre con el diálogo del navegador.
-// Envía por el agente si está disponible. NUNCA abre el diálogo por su
-// cuenta: tras un envío fallido o incierto eso podría duplicar el ticket.
-// Devuelve el estado real para que quien llama decida (el diálogo es una
-// acción manual separada con imprimirConDialogo).
-export async function imprimirTicketOFallback(ticket) {
+// Impresión de documentos del negocio (comprobante, etiquetas, recepción) por
+// el camino local o remoto, con la impresora predeterminada de la empresa.
+// NUNCA abre el diálogo del navegador por su cuenta: tras un envío fallido,
+// incierto o encolado eso podría duplicar el ticket. Devuelve el resultado
+// normalizado para que quien llama decida con `puedeCaerAlDialogo`.
+//   ok + directo    → salió por el agente local
+//   ok + encolado   → quedó en la cola local o en la del puente (remoto)
+//   !ok + motivo    → fallo/sin-impresora/agente-no-disponible/incierto/en-cola
+export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuario = '', copias, store = null, impresora = null } = {}) {
   const estado = await estadoAgente()
-  if (!estado.disponible) {
-    return { ok: false, directo: false, motivo: 'agente-no-disponible', error: 'El agente de impresión no está disponible.' }
+  // Sin agente local, la configuración del backend manda: el celular puede
+  // tener la caché vieja (u otra predeterminada) y el trabajo saldría al
+  // destino equivocado. Si el backend no responde, se usa la última caché.
+  let actual = store || (estado?.disponible ? cargarImpresoras(tenantActivo) : await cargarImpresorasRemotas({ forzar: true }))
+  const elegida = impresora || imprimirConDestino(actual).predeterminada
+  const puente = puenteDe(actual, elegida)
+  const { camino } = resolverCamino(actual, elegida, { disponible: Boolean(estado?.disponible) })
+  if (camino === 'local') {
+    const local = await imprimirTicketDirecto(ticket, {
+      ancho: elegida?.ancho,
+      copias,
+      impresora: elegida?.destino,
+      usuario,
+      tipo,
+      ref: ticket?.ref,
+      validacion: ticket?.validacion,
+      sufijo: ticket?.sufijo,
+      puente: puente?.nombre || '',
+      modo: elegida?.conexion,
+    })
+    if (local.ok || local.encolado || local.incierto) {
+      return {
+        ...local,
+        ok: Boolean(local.ok),
+        directo: Boolean(local.ok) && !local.encolado,
+        camino: 'local',
+        motivo: local.incierto ? 'incierto' : local.encolado ? 'en-cola' : '',
+      }
+    }
+    // El agente local rechazó ANTES de aceptar: recién ahí vale el remoto.
+    if (elegida?.destino) {
+      const remoto = await encolarRemoto(ticket, { impresora: elegida, copias, usuario, tipo, equipo, puente })
+      if (remoto.ok) return { ...remoto, camino: 'remoto' }
+      return { ok: false, camino: 'remoto', motivo: 'fallo', error: remoto.error || local.error || 'No se pudo imprimir.' }
+    }
+    return { ok: false, camino: 'local', motivo: local.incierto ? 'incierto' : 'fallo', error: local.error || 'No se pudo imprimir.' }
   }
-  const resultado = await imprimirTicketDirecto(ticket)
-  if (resultado.ok && !resultado.encolado) return { ...resultado, directo: true, ok: true }
-  if (resultado.encolado) {
-    return { ok: false, directo: false, motivo: resultado.incierto ? 'incierto' : 'en-cola', error: resultado.error || '', jobId: resultado.jobId || null }
+  // Camino remoto: sin agente local, o con la impresora en otro puente.
+  if (!elegida?.destino) {
+    return { ok: false, camino: 'remoto', motivo: estado?.disponible ? 'sin-impresora' : 'agente-no-disponible', error: 'No hay impresora configurada.' }
   }
-  return { ok: false, directo: false, motivo: 'fallo', error: resultado.error || '', incierto: Boolean(resultado.incierto) }
+  const remoto = await encolarRemoto(ticket, { impresora: elegida, copias, usuario, tipo, equipo, puente })
+  if (remoto.ok) return { ...remoto, camino: 'remoto' }
+  return { ok: false, camino: 'remoto', motivo: 'fallo', error: remoto.error || 'No se pudo encolar el trabajo.' }
 }
 
 // Diálogo de impresión del navegador: acción MANUAL y explícita (no permite

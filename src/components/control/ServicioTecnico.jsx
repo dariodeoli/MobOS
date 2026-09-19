@@ -9,7 +9,7 @@ import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import SerialField from '@/components/shared/SerialField'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { ticketRecepcionServicio } from '@/lib/printing/tickets'
-import { imprimirTicketOFallback } from '@/lib/printing/agent'
+import { imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { useSesion } from '@/lib/sesion'
 import { buildServiceIntakeHtml, buildServiceReportHtml, ordenParaImpresion } from '@/lib/servicioImpresion'
 import { CHECKLISTS } from '@/lib/servicioChecklist'
@@ -178,11 +178,22 @@ export default function ServicioTecnico() {
     } finally { setBusy(false) }
   }
 
-  // Manda la recepción directo a la ticketera por el agente; si no está,
-  // cae a la impresión del navegador en 80 mm.
+  // Manda la recepción a la ticketera por el camino local o remoto; solo cae
+  // a la impresión del navegador si el fallo fue claro (no salió ni quedó en
+  // cola: el respaldo abriría el diálogo y podría duplicar el papel).
   async function imprimirAgente(row) {
-    const resultado = await imprimirTicketOFallback(ticketRecepcionServicio(ordenParaImpresion(row), { ancho: 80 }), '')
-    if (resultado?.directo) { toast.success('Enviado a la impresora.'); return }
+    const resultado = await imprimirDocumento(ticketRecepcionServicio(ordenParaImpresion(row), { ancho: 80 }), { tipo: 'recepcion-servicio' })
+    if (resultado?.ok) {
+      toast.success(
+        resultado.encolado ? 'Recepción encolada' : 'Enviado a la impresora.',
+        resultado.encolado ? (resultado.remoto ? 'La imprime el puente cuando la reclame.' : 'La impresora no respondió; se reintenta solo.') : '',
+      )
+      return
+    }
+    if (!puedeCaerAlDialogo(resultado)) {
+      toast.error('No se pudo imprimir', resultado?.error || 'Revisá la impresora.')
+      return
+    }
     imprimir(row, 'recepcion', 'thermal')
   }
 
