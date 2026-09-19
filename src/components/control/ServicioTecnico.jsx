@@ -39,7 +39,7 @@ const SIGUIENTE_CORTO = { RECIBIDO: 'Recibido', DIAGNOSTICO: 'Diagnóstico', CON
 
 // Tabla compacta: una fila por orden de servicio, encabezados ordenables y el
 // avance de estado en la misma línea.
-const GRID_SERVICIO = 'grid min-w-[63rem] grid-cols-[minmax(8rem,1.3fr)_minmax(6rem,1fr)_minmax(7rem,1.5fr)_5.5rem_5rem_5.5rem_5.5rem_6.5rem_8.5rem] items-center gap-x-2'
+const GRID_SERVICIO = 'grid min-w-[65rem] grid-cols-[1.75rem_minmax(8rem,1.3fr)_minmax(6rem,1fr)_minmax(7rem,1.5fr)_5.5rem_5rem_5.5rem_5.5rem_6.5rem_8.5rem] items-center gap-x-2'
 const CELDA = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 export default function ServicioTecnico() {
@@ -54,6 +54,7 @@ export default function ServicioTecnico() {
   const [form, setForm] = useState(null)
   const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [seleccionados, setSeleccionados] = useState([])
   const [clientes, setClientes] = useState([])
   const [servicios, setServicios] = useState([])
 
@@ -193,6 +194,16 @@ export default function ServicioTecnico() {
     ventana.print()
   }
 
+  const alternar = (id) => setSeleccionados((actuales) => actuales.includes(id) ? actuales.filter((item) => item !== id) : [...actuales, id])
+  const seleccionarVisibles = () => setSeleccionados((actuales) => actuales.length === visibles.length ? [] : visibles.map((row) => row.id))
+  const avanzarSeleccionadas = async () => {
+    const filas = visibles.filter((row) => seleccionados.includes(row.id) && SIGUIENTE[row.status])
+    if (!filas.length) { toast.error('Ninguna de las seleccionadas tiene un estado siguiente.'); return }
+    for (const row of filas) await avanzar(row)
+    setSeleccionados([])
+    toast.success(`${filas.length} orden(es) avanzadas.`)
+  }
+
   async function avanzar(row) {
     const siguiente = SIGUIENTE[row.status]
     if (!siguiente) return
@@ -242,9 +253,19 @@ export default function ServicioTecnico() {
       {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
       {loading && <div className="space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
       {!loading && !visibles.length && <EmptyState icon="refresh" title={q ? 'Ninguna orden coincide con la búsqueda.' : 'Todavía no hay órdenes de servicio.'} />}
+      {seleccionados.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fono/30 bg-fono/5 px-3 py-2 text-sm">
+          <span className="font-medium">{seleccionados.length} seleccionada(s)</span>
+          <span className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" className="h-8 px-2 text-xs" onClick={avanzarSeleccionadas}>Avanzar estado</Button>
+            <Button variant="ghost" className="h-8 px-2 text-xs" onClick={() => setSeleccionados([])}>Limpiar</Button>
+          </span>
+        </div>
+      )}
       {!loading && visibles.length > 0 && (
         <div className="overflow-x-auto" data-testid="servicio-tabla">
           <div className={cn(GRID_SERVICIO, 'px-3.5 pb-2 pt-1')}>
+            <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={visibles.length > 0 && seleccionados.length === visibles.length} onChange={seleccionarVisibles} />
             {encabezado('equipo', 'Equipo')}
             {encabezado('cliente', 'Cliente')}
             {encabezado('falla', 'Falla')}
@@ -260,6 +281,7 @@ export default function ServicioTecnico() {
               const ganancia = utilidad(row)
               const serial = String(row.serial || '')
               return <div key={row.id} data-testid="servicio-fila" className={cn(GRID_SERVICIO, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
+                <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar la orden de ${row.device || 'servicio'}`} checked={seleccionados.includes(row.id)} onChange={() => alternar(row.id)} />
                 <span className="min-w-0">
                   <b className="block truncate text-sm" title={row.device}>{row.device || 'Equipo'}</b>
                   {row.serviceNumber && <span className="mt-0.5 block truncate text-[10px] font-semibold text-fono-light tabular-nums">{row.serviceNumber}</span>}
