@@ -38,3 +38,10 @@ const comprobante = receiptEmail({ to: 'cliente@test.com', customerName: 'Client
 assert.ok(comprobante && comprobante.html.includes('#f4f7fa') && !comprobante.html.includes('#e2e8f0'), 'el comprobante usa la paleta de la app')
 
 console.log('email-template: un solo encabezado, paleta de la app y misma plantilla para todos')
+
+// El enlace de respaldo visible: si el botón no funciona (o el tracker del relay
+// lo rompe), el enlace se puede copiar y pegar. Lleva la misma dirección.
+const urlAccion = correo.html.match(/<a href="([^"]+)"[^>]*>\s*Restablecer contraseña/)
+assert.ok(urlAccion, 'el botón tiene su enlace')
+assert.ok(html.includes('Si el botón no funciona, copiá y pegá este enlace:'), 'el enlace de respaldo se muestra')
+assert.ok(html.split(urlAccion[1]).length >= 4, 'la dirección se repite en el enlace visible')

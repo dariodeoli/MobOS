@@ -99,8 +99,10 @@ function template(input: { eyebrow: string; title: string; body: string; lead?: 
   const leadHtml = input.lead
     ? `<p style="margin:0 0 14px;color:${COLOR.texto};font-size:15px;font-weight:700;line-height:1.6">${escapeHtml(input.lead)}</p>`
     : ''
+  // El botón va acompañado del enlace visible: si el tracker del relay o el
+  // cliente de correo rompen el botón, el enlace se puede copiar y pegar.
   const actionHtml = input.action
-    ? `<p style="margin:26px 0 0"><a href="${escapeHtml(input.action.url)}" style="display:inline-block;padding:13px 26px;border-radius:12px;background:${COLOR.marca};color:${COLOR.sobreMarca};text-decoration:none;font-weight:700;font-size:15px">${escapeHtml(input.action.label)}</a></p>`
+    ? `<p style="margin:26px 0 0"><a href="${escapeHtml(input.action.url)}" style="display:inline-block;padding:13px 26px;border-radius:12px;background:${COLOR.marca};color:${COLOR.sobreMarca};text-decoration:none;font-weight:700;font-size:15px">${escapeHtml(input.action.label)}</a></p><p style="margin:12px 0 0;color:${COLOR.suave};font-size:12px;line-height:1.6;word-break:break-all">Si el botón no funciona, copiá y pegá este enlace:<br><a href="${escapeHtml(input.action.url)}" style="color:#059669">${escapeHtml(input.action.url)}</a></p>`
     : ''
   const preheader = `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeHtml(input.eyebrow)} · ${escapeHtml(input.title)}</div>`
   // contentHtml es HTML de confianza interna: quien lo provee ya escapó su entrada.
