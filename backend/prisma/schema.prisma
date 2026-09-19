@@ -473,6 +473,7 @@ model InventoryUnit {
   @@index([tenantId, branchId, locationId, status])
   @@index([tenantId, branchId, lastVerifiedAt])
   @@index([tenantId, supplierId])
+  @@index([reservationCustomerId])
 }
 
 // Ubicación física dentro de una sucursal: piso de venta, depósito, vitrina,
