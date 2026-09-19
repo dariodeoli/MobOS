@@ -5,5 +5,5 @@ import { api } from './client'
 export const presenciaApi = {
   latir: (data) => api.post('/api/presence/heartbeat', data),
   personas: () => api.get('/api/presence'),
-  uso: () => api.get('/api/presence/usage'),
+  uso: (userId = '') => api.get(`/api/presence/usage${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`),
 }

@@ -15,6 +15,7 @@ import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
+import UsoEquipo from '@/components/control/UsoEquipo'
 import { ROLE_LABELS } from '@/lib/roles'
 
 function fmtDate(value) {
@@ -261,6 +262,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
 
         <Card className="space-y-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><h2 className="font-semibold">Sesiones activas</h2><p className="mt-1 text-sm text-mute">Cada dispositivo se puede cerrar de forma remota.</p></div><span className="flex flex-wrap items-center gap-2"><Button variant="outline" onClick={load} disabled={busy}>Actualizar</Button><Button variant="outline" className="border-bad/50 text-bad hover:bg-bad/10" onClick={() => { setFailure(''); setCerrarCuentaAbierto(true) }} disabled={busy}>Cerrar mi cuenta</Button></span></div>{!account && !failure && <p className="text-sm text-mute">Cargando sesiones…</p>}{account?.sessions?.length === 0 && <p className="text-sm text-mute">No hay sesiones activas.</p>}<div className="space-y-2">{account?.sessions?.map(active => <div key={active.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3"><div><p className="font-medium">{active.user?.name || 'Acceso de empresa'} {active.id === account.currentSessionId && <span className="ml-2 text-xs text-fono-light">Este dispositivo</span>}</p><p className="mt-1 text-xs text-mute">{active.user?.role || active.level} · {active.deviceId || 'Dispositivo no identificado'} · última actividad {fmtDate(active.lastSeenAt)}</p></div><Button variant="outline" onClick={() => setConfirmar({ tipo: 'revocar', sessionId: active.id })} disabled={busy}>Revocar</Button></div>)}</div></Card>
 
+        {esDueno && <UsoEquipo />}
         <Card className="space-y-3"><div><h2 className="font-semibold">Exportación básica</h2><p className="mt-1 text-sm text-mute">Descarga JSON de empresa, sucursales, equipo, clientes, productos, órdenes y pagos. Excluye credenciales, tokens, PIN y archivos de comprobantes.</p></div><Button variant="outline" onClick={exportData} disabled={busy}>Descargar mis datos</Button></Card>
 
         <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Archivar empresa</h2><p className="mt-1 text-sm text-mute">No borra ventas ni historial. Cierra sesiones y bloquea el acceso por contraseña hasta restaurarla con correo, contraseña y la confirmación RESTORE.</p></div><Input aria-label="Motivo de archivado" value={archiveReason} onChange={event => setArchiveReason(event.target.value)} placeholder="Motivo del archivado (mínimo 10 caracteres)" /><Button variant="outline" onClick={() => setConfirmar({ tipo: 'archivar' })} disabled={busy || archiveReason.trim().length < 10} className="border-bad/50 text-bad hover:bg-bad/10">Archivar empresa</Button></Card>
