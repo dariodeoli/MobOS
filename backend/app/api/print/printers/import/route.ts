@@ -52,6 +52,15 @@ export async function POST(request: Request) {
       // Un solo puente predeterminado local: la primera que lo pida gana.
       const predeterminada = guardadas.find(impresora => impresora.isDefault)
       if (predeterminada) await tx.printPrinter.updateMany({ where: { tenantId, isDefault: true, id: { not: predeterminada.id } }, data: { isDefault: false } })
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId: session.user.id,
+          action: 'PRINT_PRINTER_IMPORTED',
+          entity: 'PrintPrinter',
+          metadata: { printers: guardadas.length, bridges: Object.keys(mapBridges).length, force: body?.force === true },
+        },
+      })
       const activos = await tx.printBridge.findMany({ where: { tenantId, revokedAt: null }, orderBy: { createdAt: 'asc' } })
       return { printers: guardadas, bridges: activos.map(puente => shapePuente(puente)), map: { printers: mapPrinters, bridges: mapBridges } }
     })

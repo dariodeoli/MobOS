@@ -1,13 +1,18 @@
 import { prisma } from '../../../lib/prisma'
-import { PaymentCurrency, ProductCondition } from '@prisma/client'
+import { PaymentCurrency, Prisma, ProductCondition } from '@prisma/client'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { ensureStoreBranch } from '../../../lib/store-branch'
 import { skuUnico } from '../../../lib/sku'
 import { serialKey } from '../../../lib/validation'
+import { diffCampos } from '../../../lib/audit'
 
 // Variante estructurada: texto libre acotado; vacío se guarda como null.
 const variantField = (value: unknown, max: number) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
+
+// Campos del catálogo que dejan rastro al editarse: precio, costo, stock,
+// estado y datos comerciales.
+const CAMPOS_PRODUCTO = ['name', 'sku', 'category', 'model', 'color', 'capacity', 'imei', 'condition', 'pricePyg', 'wholesalePricePyg', 'priceUsd', 'warrantyDays', 'costPyg', 'insuranceRate', 'stock', 'reorderPoint', 'isActive'] as const
 
 
 
@@ -83,6 +88,16 @@ export async function POST(request: Request) {
       if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId: branchId ?? '', isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
       const product = await tx.product.create({ data: { tenantId: tenant, sku: await skuUnico(tx, tenant, branchId, b.sku.trim()), name: b.name.trim(), category: b.category, model: variantField(b.model, 80), color: variantField(b.color, 60), capacity: variantField(b.capacity, 20), imei: serial || null, condition: b.condition || 'NEW', pricePyg: price, ...(wholesalePricePyg !== null ? { wholesalePricePyg } : {}), priceUsd, warrantyDays, warrantyCoverage, warrantyExclusions, costPyg: cost, insuranceRate, stock, branchId, ...(reorderPoint !== undefined ? { reorderPoint } : {}) } })
       if (serial) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId, locationId, serial, ...unitDetails(b, { condition: product.condition, costPyg: cost }) } })
+      await tx.auditLog.create({
+        data: {
+          tenantId: tenant,
+          userId: session.user.id,
+          action: 'PRODUCT_CREATED',
+          entity: 'Product',
+          entityId: product.id,
+          metadata: { sku: product.sku, name: product.name, pricePyg: product.pricePyg, stock: product.stock, ...(product.costPyg === null ? {} : { costPyg: product.costPyg }) },
+        },
+      })
       return product
     })
     return json(data, { status: 201 })
@@ -125,7 +140,21 @@ export async function PATCH(request: Request) {
         if (!existing) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId: product.branchId, locationId: locationId ?? null, serial, ...details } })
         else await tx.inventoryUnit.update({ where: { tenantId_serial: { tenantId: tenant, serial } }, data: { ...details, ...(locationId !== undefined ? { locationId } : {}) } })
       }
-      return tx.product.update({ where: { id: product.id }, data: { ...(typeof b.name === 'string' && b.name.trim() ? { name: b.name.trim() } : {}), ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(price !== undefined ? { pricePyg: price } : {}), ...(b.wholesalePricePyg !== undefined ? { wholesalePricePyg: b.wholesalePricePyg === null || b.wholesalePricePyg === '' ? null : Number(b.wholesalePricePyg) } : {}), ...(b.priceUsd !== undefined ? { priceUsd: b.priceUsd === null || b.priceUsd === '' ? null : Number(b.priceUsd) } : {}), ...(b.warrantyDays !== undefined ? { warrantyDays: b.warrantyDays === null || b.warrantyDays === '' ? null : Number(b.warrantyDays) } : {}), ...(b.warrantyCoverage !== undefined ? { warrantyCoverage: typeof b.warrantyCoverage === 'string' && b.warrantyCoverage.trim() ? b.warrantyCoverage.trim().slice(0, 1000) : null } : {}), ...(b.warrantyExclusions !== undefined ? { warrantyExclusions: typeof b.warrantyExclusions === 'string' && b.warrantyExclusions.trim() ? b.warrantyExclusions.trim().slice(0, 1000) : null } : {}), ...(cost !== undefined ? { costPyg: cost } : {}), ...(insuranceRate !== undefined ? { insuranceRate } : {}), ...(stock !== undefined ? { stock } : {}), ...(reorderPoint !== undefined ? { reorderPoint } : {}), ...(b.category !== undefined ? { category: b.category || null } : {}), ...(b.model !== undefined ? { model: variantField(b.model, 80) } : {}), ...(b.color !== undefined ? { color: variantField(b.color, 60) } : {}), ...(b.capacity !== undefined ? { capacity: variantField(b.capacity, 20) } : {}), ...(serial !== undefined ? { imei: serial } : {}), ...(b.condition !== undefined ? { condition: b.condition } : {}) } })
+      const actualizado = await tx.product.update({ where: { id: product.id }, data: { ...(typeof b.name === 'string' && b.name.trim() ? { name: b.name.trim() } : {}), ...(typeof b.sku === 'string' && b.sku.trim() ? { sku: b.sku.trim() } : {}), ...(price !== undefined ? { pricePyg: price } : {}), ...(b.wholesalePricePyg !== undefined ? { wholesalePricePyg: b.wholesalePricePyg === null || b.wholesalePricePyg === '' ? null : Number(b.wholesalePricePyg) } : {}), ...(b.priceUsd !== undefined ? { priceUsd: b.priceUsd === null || b.priceUsd === '' ? null : Number(b.priceUsd) } : {}), ...(b.warrantyDays !== undefined ? { warrantyDays: b.warrantyDays === null || b.warrantyDays === '' ? null : Number(b.warrantyDays) } : {}), ...(b.warrantyCoverage !== undefined ? { warrantyCoverage: typeof b.warrantyCoverage === 'string' && b.warrantyCoverage.trim() ? b.warrantyCoverage.trim().slice(0, 1000) : null } : {}), ...(b.warrantyExclusions !== undefined ? { warrantyExclusions: typeof b.warrantyExclusions === 'string' && b.warrantyExclusions.trim() ? b.warrantyExclusions.trim().slice(0, 1000) : null } : {}), ...(cost !== undefined ? { costPyg: cost } : {}), ...(insuranceRate !== undefined ? { insuranceRate } : {}), ...(stock !== undefined ? { stock } : {}), ...(reorderPoint !== undefined ? { reorderPoint } : {}), ...(b.category !== undefined ? { category: b.category || null } : {}), ...(b.model !== undefined ? { model: variantField(b.model, 80) } : {}), ...(b.color !== undefined ? { color: variantField(b.color, 60) } : {}), ...(b.capacity !== undefined ? { capacity: variantField(b.capacity, 20) } : {}), ...(serial !== undefined ? { imei: serial } : {}), ...(b.condition !== undefined ? { condition: b.condition } : {}) } })
+      const cambios = diffCampos(product, actualizado, CAMPOS_PRODUCTO)
+      if (Object.keys(cambios).length) {
+        await tx.auditLog.create({
+          data: {
+            tenantId: tenant,
+            userId: session.user.id,
+            action: 'PRODUCT_UPDATED',
+            entity: 'Product',
+            entityId: product.id,
+            metadata: cambios as Prisma.InputJsonValue,
+          },
+        })
+      }
+      return actualizado
     })
     return json(data)
   } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo actualizar el producto.', 409) }
@@ -139,6 +168,19 @@ export async function DELETE(request: Request) {
   const product = await prisma.product.findFirst({ where: { id, tenantId: tenant, isActive: true } })
   if (!product) return error('Producto no encontrado.', 404)
   if ((session.user.branchId === null && product.branchId !== null) || (session.user.branchId && product.branchId !== session.user.branchId)) return error('No autorizado para esa sucursal.', 403)
-  const data = await prisma.product.update({ where: { id: product.id }, data: { isActive: false } })
+  const data = await prisma.$transaction(async tx => {
+    const actualizado = await tx.product.update({ where: { id: product.id }, data: { isActive: false } })
+    await tx.auditLog.create({
+      data: {
+        tenantId: tenant,
+        userId: session.user.id,
+        action: 'PRODUCT_DELETED',
+        entity: 'Product',
+        entityId: product.id,
+        metadata: { sku: product.sku, name: product.name },
+      },
+    })
+    return actualizado
+  })
   return json({ id: data.id, isActive: data.isActive })
 }

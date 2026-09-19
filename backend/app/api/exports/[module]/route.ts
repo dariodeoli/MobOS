@@ -8,10 +8,11 @@ import { INVENTORY_REMOVED, INVENTORY_RESTORED, removedInventoryUnitIds } from '
 import { MAX_REPORT_ORDERS, REPORT_ROLES, aggregateCommissions, dayBounds, parseReportQuery } from '../../../../lib/reporting'
 import { serialKey } from '../../../../lib/validation'
 import { ensureStoreBranch } from '../../../../lib/store-branch'
+import { ACCIONES_AUDITORIA, AREAS_AUDITORIA, ROLES_AUDITORIA, detalleAuditoria, parseFiltrosAuditoria, whereAuditoria } from '../../../../lib/audit'
 
 // Exportaciones CSV por módulo: mismo alcance por rol y mismos filtros que el
 // listado visible, un solo tope de filas y auditoría DATA_EXPORTED por archivo.
-const MODULES = ['customers', 'inventory-units', 'purchases', 'cash-movements', 'warranties', 'commissions'] as const
+const MODULES = ['customers', 'inventory-units', 'purchases', 'cash-movements', 'warranties', 'commissions', 'audit.csv'] as const
 type ExportModule = (typeof MODULES)[number]
 
 const MAX_EXPORT_ROWS = 5000
@@ -88,6 +89,7 @@ function construirExportacion(module: ExportModule, session: SessionContext, par
     case 'cash-movements': return exportarMovimientos(session, params)
     case 'warranties': return exportarGarantias(session, params)
     case 'commissions': return exportarComisiones(session, params)
+    case 'audit.csv': return exportarAuditoria(session, params)
   }
 }
 
@@ -396,6 +398,42 @@ async function exportarGarantias(session: SessionContext, params: URLSearchParam
     fechaCsv(caso.expiresAt),
   ])
   return { encabezados, filas, filtros, nombre: 'mobos-garantias.csv' }
+}
+
+/* ── Auditoría ──────────────────────────────────────────────────────── */
+
+// Mismos filtros que la pantalla (área, búsqueda, fecha y actor) y etiquetas
+// legibles: el archivo se lee sin conocer el backend.
+async function exportarAuditoria(session: SessionContext, params: URLSearchParams): Promise<Exportacion> {
+  if (!(ROLES_AUDITORIA as readonly string[]).includes(session.user.role)) throw new ExportError('No autorizado.', 403)
+  const parsed = parseFiltrosAuditoria(params)
+  if (!parsed.ok) throw new ExportError(parsed.error, 400)
+  const filas = (await prisma.auditLog.findMany({
+    where: whereAuditoria(session.user.tenantId, parsed.filtros),
+    include: { user: { select: { name: true } } },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: MAX_EXPORT_ROWS,
+  })).map((row) => [
+    row.createdAt.toISOString(),
+    ACCIONES_AUDITORIA[row.action] || row.action,
+    row.user?.name || 'Sistema',
+    AREAS_AUDITORIA[row.entity] || row.entity,
+    row.entityId ? `${row.entity} · ${row.entityId}` : row.entity,
+    detalleAuditoria(row.metadata, Number.POSITIVE_INFINITY),
+  ])
+  return {
+    encabezados: ['Fecha', 'Acción', 'Actor', 'Área', 'Entidad/ID', 'Detalle'],
+    filas,
+    filtros: {
+      entity: parsed.filtros.entidades.join(',') || undefined,
+      action: parsed.filtros.action || undefined,
+      q: parsed.filtros.q || undefined,
+      desde: parsed.filtros.desde?.toISOString(),
+      hasta: parsed.filtros.hasta?.toISOString(),
+      userId: parsed.filtros.userId || undefined,
+    },
+    nombre: 'mobos-auditoria.csv',
+  }
 }
 
 /* ── Comisiones ─────────────────────────────────────────────────────── */
