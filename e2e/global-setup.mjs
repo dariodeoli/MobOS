@@ -208,8 +208,11 @@ async function ensureSeedOrder(ctx, companyToken, sellerId, adminToken) {
     // orderNumber is unique per tenant; supersede an older seed order
     // (e.g. one created before the harness sent a customer) with a fresh one.
     if (rows.some((o) => o.orderNumber === SEED.seedOrderNumber)) orderNumber = `${SEED.seedOrderNumber}-${Date.now()}`
+    // El pedido se crea con la sesión del vendedor para que aparezca en su
+    // listado (una base nueva no tiene otros pedidos y los specs del vendedor
+    // necesitan al menos uno); el admin lo ve igual porque ve todos.
     const create = (number) => ctx.post('/api/orders', {
-      headers: bearer(adminToken),
+      headers: bearer(sellerToken),
       data: {
         orderNumber: number,
         customer: { name: 'Cliente E2E Seguimiento' },
