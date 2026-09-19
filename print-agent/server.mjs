@@ -4,9 +4,10 @@ import { hostname } from 'node:os'
 import { promisify } from 'node:util'
 import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config.mjs'
 import { crearCola } from './cola.mjs'
+import { aplicarConfigRemota, crearRemoto } from './remoto.mjs'
 import { aliasSecundario, colaLanDeCups, colaUri, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola } from './transportes.mjs'
 
-const VERSION = '1.5.0'
+const VERSION = '1.6.0'
 const config = cargarConfig()
 // Transporte real del último envío (directo | cups | usb): la app solo debe
 // marcar éxito cuando hubo entrega confirmada, no solo encolado.
@@ -48,6 +49,31 @@ async function impresoraResponde() {
   const ok = config.impresora ? await probarConexion(config.impresora, { alias: config.alias }) : false
   cacheAlcance = { hasta: Date.now() + 3000, ok }
   return ok
+}
+
+// Poller remoto: solo se arranca con apiUrl + token (vinculados con pair.mjs).
+// Nunca bloquea el camino local y ningún error de red puede tumbar el proceso.
+const remoto = config.remotoActivo
+  ? crearRemoto({
+      apiUrl: config.apiUrl,
+      token: config.bridgeToken,
+      cola,
+      enviar,
+      baseMs: config.intervaloPollMs,
+      version: VERSION,
+      log: (mensaje) => console.log(`[remoto] ${mensaje}`),
+    })
+  : null
+if (remoto) {
+  remoto.iniciar((datos) => {
+    // La config del backend manda: impresora, ancho, copias y allow-list LAN.
+    aplicarConfigRemota(config, datos)
+    guardarConfig(config)
+    cacheAlcance = { hasta: 0, ok: null }
+  }).catch((error) => console.error(`[remoto] no fatal: ${error?.message || error}`))
+  console.log(`Puente remoto activo: ${config.apiUrl} (poll cada ${config.intervaloPollMs} ms)`)
+} else if (config.apiUrl && !config.bridgeToken) {
+  console.log('Hay apiUrl configurada sin token: vinculá el puente con `node pair.mjs --code ABCDE-FGHIJ`.')
 }
 
 // Autotest desde el MISMO proceso que corre por launchd: es la única prueba
@@ -178,6 +204,10 @@ const servidor = createServer(async (request, response) => {
           autotest,
         },
         cola: cola.resumen(),
+        // Estado del poller remoto: nunca incluye el token del puente.
+        remoto: remoto
+          ? remoto.estado()
+          : { activo: false, apiUrl: config.apiUrl || '', ultimoContacto: null, pendientesDeReporte: 0, backoffMs: 0, ultimoError: '' },
         cliente: ipDe(request),
         host: config.host,
         equipo: hostname(),

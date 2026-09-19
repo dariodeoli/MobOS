@@ -1,0 +1,122 @@
+schema: spec-driven
+
+context: |
+  Monorepo with three in-scope projects: root React 18 + Vite 5 SPA (JavaScript/JSX, Tailwind CSS 3,
+  react-router-dom 6); backend/ Next.js 14 App Router REST API (TypeScript 5, Prisma 7, PostgreSQL);
+  print-agent/ standalone Node ESM ESC/POS thermal-print service (LAN + USB transports).
+  Architecture: root SPA organized by feature folders (components/pages/hooks/lib/utils); backend route
+  handlers under app/api plus Prisma schema and migrations; print-agent transport modules.
+  Testing: no workspace-level test command; every project runs its own node:test suite.
+  Quality: root ESLint 9 + Prettier 3 (backend excluded from both); backend typecheck via tsc --noEmit.
+  Style: conventional commits without AI attribution; user-facing copy in Spanish; repo rules in AGENTS.md.
+
+projects:
+  - relative_path: "."
+    stack: "React 18 + Vite 5, JavaScript/JSX, Tailwind CSS 3, react-router-dom 6"
+    test_command: "npm test"
+    test_layers:
+      unit: "npm test"
+      integration: null
+      e2e: "npm run test:e2e"
+      e2e_smoke: "npm run test:e2e:smoke"
+    test_runner: "node:test (node --test)"
+    coverage_command: null
+    lint_command: "npm run lint"
+    type_check_command: null
+    format_command: "npm run format"
+    build_command: "npm run build"
+  - relative_path: "backend"
+    stack: "Next.js 14 App Router (REST route handlers), TypeScript 5, Prisma 7, PostgreSQL"
+    test_command: "npm --prefix backend run test:unit"
+    test_layers:
+      unit: "npm --prefix backend run test:unit"
+      integration: "MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh"
+      e2e: null
+    test_runner: "node:test via tests/run-unit.cjs (TypeScript transpile-on-require)"
+    coverage_command: null
+    lint_command: null
+    type_check_command: "cd backend && npx tsc --noEmit"
+    format_command: null
+    build_command: "npm --prefix backend run build"
+  - relative_path: "print-agent"
+    stack: "Node.js ESM service (ESC/POS thermal printing, LAN + USB transports)"
+    test_command: "npm --prefix print-agent test"
+    test_layers:
+      unit: "npm --prefix print-agent test"
+      integration: null
+      e2e: null
+    test_runner: "node:test (node --test)"
+    coverage_command: null
+    lint_command: null
+    type_check_command: null
+    format_command: null
+    build_command: null
+
+strict_tdd: false
+strict_tdd_reason: >
+  Fail closed: no explicit workspace-level test command covers all three in-scope projects.
+  Root `npm test` covers the root project plus print-agent tests but never backend; backend and
+  root/print-agent commands are independent. Per-project commands are preserved under `testing`.
+
+testing:
+  detected: "2026-09-19"
+  workspace_command: null
+  projects:
+    - relative_path: "."
+      runner: "node:test"
+      command: "npm test"
+      verified: "116 tests, 116 pass, 0 fail (2026-09-19)"
+      layers:
+        unit: "npm test"
+        integration: null
+        e2e: "npm run test:e2e"
+        e2e_smoke: "npm run test:e2e:smoke"
+      coverage: null
+    - relative_path: "backend"
+      runner: "node:test via tests/run-unit.cjs"
+      command: "npm --prefix backend run test:unit"
+      verified: "15 tests, 15 pass, 0 fail (2026-09-19)"
+      layers:
+        unit: "npm --prefix backend run test:unit"
+        unit_reports: "npm --prefix backend run test:reports (18 tests, 18 pass, 0 fail)"
+        integration: "MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh"
+        e2e: null
+      coverage: null
+      gaps:
+        - "backend/tests/finance.test.mjs, backend/tests/ruc.test.mjs and backend/tests/purchases-costing.test.ts are not referenced by any runner script."
+    - relative_path: "print-agent"
+      runner: "node:test"
+      command: "npm --prefix print-agent test"
+      verified: "4 tests, 4 pass, 0 fail (2026-09-19)"
+      layers:
+        unit: "npm --prefix print-agent test"
+        integration: null
+        e2e: null
+      coverage: null
+
+rules:
+  proposal:
+    - Reference the canonical GitHub issue; every request lives as an issue.
+    - Include a rollback plan for risky changes and keep scope to the issue.
+  specs:
+    - Use Given/When/Then for scenarios and RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
+  design:
+    - Follow existing code patterns and reuse shared components/helpers before adding new ones.
+    - Document architecture decisions with rationale.
+    - Form fields must follow docs/CAMPOS.md and the rdi skill.
+  tasks:
+    - Group by phase with hierarchical numbering; one work unit per committable change.
+    - Conventional commits, no AI attribution.
+  apply:
+    guidelines:
+      - Run the affected project's command from testing.projects before marking a task done.
+      - Prisma migrations must be additive, idempotent and re-runnable (IF NOT EXISTS / ON CONFLICT).
+      - New schema columns/models require their migration; API routes export only Next handlers.
+    tdd: false
+    test_command: ""  # no workspace-level command; use testing.projects per project
+  verify:
+    test_command: ""  # no workspace-level command; use testing.projects per project
+    build_command: ""  # root: npm run build; backend: npm --prefix backend run build
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas; never modify archived changes.

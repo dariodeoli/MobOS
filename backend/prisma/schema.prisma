@@ -78,6 +78,9 @@ model Tenant {
   warrantyPhotos          WarrantyPhoto[]
   customerAuthorizations  CustomerAuthorization[]
   customerBillingIdentities CustomerBillingIdentity[]
+  printBridges            PrintBridge[]
+  printers                PrintPrinter[]
+  printJobs               PrintJob[]
 
   @@index([archivedAt])
 }
@@ -264,6 +267,8 @@ model User {
   customerAuthorizationsResolved  CustomerAuthorization[] @relation("CustomerAuthorizationResolvedBy")
   commissionRules  CommissionRule[]
   invitationsSent UserInvitation[] @relation("InvitationInviter")
+  printBridgesCreated PrintBridge[] @relation("PrintBridgeCreatedBy")
+  printJobsRequested  PrintJob[]    @relation("PrintJobRequestedBy")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -1729,4 +1734,126 @@ model UsageSession {
 
   @@id([tenantId, userId, sessionKey])
   @@index([tenantId, lastSeenAt(sort: Desc)])
+}
+
+// Puente de impresión: una computadora con el agente instalado. El token del
+// agente se guarda hasheado; el código de vinculación es de un solo uso.
+model PrintBridge {
+  id               String    @id @default(cuid())
+  tenantId         String
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name             String
+  // Hash SHA-256 del token. Hasta que se canjea el código apunta a un token
+  // descartable: el puente no puede autenticarse sin parear.
+  tokenHash        String    @unique
+  pairingCodeHash  String?
+  pairingExpiresAt DateTime?
+  pairingUsedAt    DateTime?
+  pairingAttempts  Int       @default(0)
+  createdByUserId  String?
+  createdBy        User?     @relation("PrintBridgeCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  version          String?
+  platform         String?
+  lastSeenAt       DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  printers PrintPrinter[]
+  jobs     PrintJob[]
+
+  @@index([tenantId, revokedAt])
+  @@index([pairingCodeHash])
+}
+
+// Impresora configurada por empresa. `destination` usa el formato del agente:
+// `lan:host:puerto`, `cups:<cola>` (o el legacy `usb:<cola>`).
+model PrintPrinter {
+  id          String       @id @default(cuid())
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bridgeId    String?
+  bridge      PrintBridge? @relation(fields: [bridgeId], references: [id], onDelete: SetNull)
+  name        String
+  brand       String       @default("")
+  model       String       @default("")
+  location    String       @default("")
+  connection  String       @default("lan")
+  destination String
+  width       Int          @default(80)
+  copies      Int          @default(1)
+  cut         Boolean      @default(true)
+  density     Int          @default(3)
+  characters  Boolean      @default(true)
+  isDefault   Boolean      @default(false)
+  isActive    Boolean      @default(true)
+  lastTest    Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  jobs PrintJob[]
+
+  @@unique([tenantId, destination])
+  @@index([tenantId, isActive])
+}
+
+// Trabajo de impresión. El payload ESC/POS es transitorio: se borra al
+// reportar un resultado terminal. El sufijo de confirmación se guarda hasheado.
+model PrintJob {
+  id                String        @id @default(cuid())
+  tenantId          String
+  tenant            Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bridgeId          String?
+  bridge            PrintBridge?  @relation(fields: [bridgeId], references: [id], onDelete: SetNull)
+  printerId         String?
+  printer           PrintPrinter? @relation(fields: [printerId], references: [id], onDelete: SetNull)
+  destination       String
+  kind              String
+  state             PrintJobState @default(PENDIENTE)
+  path              PrintJobPath  @default(REMOTO)
+  payload           String?       @db.Text
+  payloadBytes      Int           @default(0)
+  validation        String        @default("")
+  suffixHash        String        @default("")
+  reference         String        @default("")
+  requestedByUserId String?
+  requestedBy       User?         @relation("PrintJobRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  requestedByName   String        @default("")
+  deviceName        String        @default("")
+  bridgeName        String        @default("")
+  tokenHint         String        @default("")
+  mode              String        @default("")
+  width             Int           @default(80)
+  copies            Int           @default(1)
+  attempts          Int           @default(0)
+  leaseId           String?
+  leaseExpiresAt    DateTime?
+  claimedAt         DateTime?
+  acceptedAt        DateTime?
+  confirmedAt       DateTime?
+  error             String?
+  idempotencyKey    String?
+  sourceJobId       String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([tenantId, idempotencyKey])
+  @@unique([tenantId, sourceJobId])
+  @@index([tenantId, state, createdAt])
+  @@index([bridgeId, state])
+  @@index([tenantId, createdAt(sort: Desc)])
+}
+
+enum PrintJobState {
+  PENDIENTE
+  RECLAMADO
+  ACEPTADO
+  INCIERTO
+  FALLIDO
+  CONFIRMADO
+}
+
+enum PrintJobPath {
+  LOCAL
+  REMOTO
 }

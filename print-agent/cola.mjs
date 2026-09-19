@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
@@ -12,6 +12,9 @@ import { randomUUID } from 'node:crypto'
 //   aceptado   → el transporte aceptó el trabajo; falta confirmación en papel.
 //   confirmado → el operador verificó el ticket físico.
 //   incierto / fallido → quedan registrados con su error real.
+//   remoto     → trabajo reclamado al backend ya reportado (no se confirma acá).
+// Los trabajos remotos (`origen: 'remoto'`) los imprime el poller y su
+// resultado se reporta al backend; esta cola solo los persiste y deduplica.
 export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reintentos = 5, historialMax = 60, log = () => {} }) {
   let trabajos = []
   let historial = []
@@ -23,17 +26,21 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
   const guardarJson = (rutaArchivo, datos) => {
     try {
       mkdirSync(dirname(rutaArchivo), { recursive: true })
-      writeFileSync(rutaArchivo, `${JSON.stringify(datos, null, 2)}\n`)
+      // Los archivos pueden contener payloads de tickets: solo el dueño.
+      writeFileSync(rutaArchivo, `${JSON.stringify(datos, null, 2)}\n`, { mode: 0o600 })
+      try { chmodSync(rutaArchivo, 0o600) } catch { /* sistemas sin permisos POSIX */ }
     } catch (error) {
       log(`no se pudo guardar ${rutaArchivo}: ${error.message}`)
     }
   }
   const guardar = () => guardarJson(ruta, trabajos)
   const guardarHistorial = () => { if (rutaHistorial) guardarJson(rutaHistorial, historial.slice(0, historialMax)) }
+  const esRemoto = (trabajo) => trabajo.origen === 'remoto'
   // Fallidos antiguos (más de 7 días) se descartan solos: ya no aportan
-  // trazabilidad útil y ocupan la lista de la página.
+  // trazabilidad útil y ocupan la lista de la página. Un remoto sin reportar
+  // nunca se descarta así: el outbox espera al backend.
   const LIMITE_FALLIDOS_MS = 7 * 24 * 60 * 60 * 1000
-  const viejos = trabajos.filter((trabajo) => trabajo.estado === 'fallido' && Date.now() - new Date(trabajo.creadoEn || 0).getTime() > LIMITE_FALLIDOS_MS)
+  const viejos = trabajos.filter((trabajo) => !esRemoto(trabajo) && trabajo.estado === 'fallido' && Date.now() - new Date(trabajo.creadoEn || 0).getTime() > LIMITE_FALLIDOS_MS)
   if (viejos.length) {
     trabajos = trabajos.filter((trabajo) => !viejos.includes(trabajo))
     guardar()
@@ -59,13 +66,26 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       tokenPista: trabajo.tokenPista || '',
       modo: trabajo.modo || '',
       ancho: trabajo.ancho || 0,
+      origen: trabajo.origen || 'local',
+      estadoRemoto: trabajo.resultadoRemoto || '',
+      transporte: trabajo.transporte || '',
     })
     guardarHistorial()
   }
 
+  const estadoDe = (jobId) => {
+    const trabajo = trabajos.find((item) => item.id === jobId)
+    if (trabajo) return { estado: trabajo.estado, intentos: trabajo.intentos, error: trabajo.error || '' }
+    const entrada = historial.find((item) => item.jobId === jobId)
+    if (entrada) return { estado: entrada.resultado, fecha: entrada.fecha, confirmadoEn: entrada.confirmadoEn || null, error: entrada.error || '' }
+    // Un ID desconocido NUNCA puede figurar como impreso.
+    return { estado: 'no-encontrado' }
+  }
+
   async function procesar() {
     if (procesando) return
-    const siguiente = trabajos.find((trabajo) => trabajo.estado === 'pendiente' && Number(trabajo.proximoIntento || 0) <= Date.now())
+    // El camino local solo toca trabajos locales: los remotos los imprime el poller.
+    const siguiente = trabajos.find((trabajo) => !esRemoto(trabajo) && trabajo.estado === 'pendiente' && Number(trabajo.proximoIntento || 0) <= Date.now())
     if (!siguiente) return
     procesando = true
     try {
@@ -100,7 +120,7 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
 
   function programar() {
     if (timer) return
-    const pendiente = trabajos.find((trabajo) => trabajo.estado === 'pendiente')
+    const pendiente = trabajos.find((trabajo) => !esRemoto(trabajo) && trabajo.estado === 'pendiente')
     if (!pendiente) return
     const espera = Math.max(250, Number(pendiente.proximoIntento || 0) - Date.now())
     timer = setTimeout(() => { timer = null; procesar() }, Math.min(espera, esperaMs))
@@ -113,6 +133,7 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       const bytes = Buffer.from(data, 'base64').length
       const trabajo = {
         id: randomUUID(),
+        origen: 'local',
         impresora,
         data,
         cliente,
@@ -141,14 +162,108 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       }
       return { encolado: false, jobId: trabajo.id, estado: 'aceptado' }
     },
-    estado(jobId) {
-      const trabajo = trabajos.find((item) => item.id === jobId)
-      if (trabajo) return { estado: trabajo.estado, intentos: trabajo.intentos, error: trabajo.error || '' }
-      const entrada = historial.find((item) => item.jobId === jobId)
-      if (entrada) return { estado: entrada.resultado, fecha: entrada.fecha, confirmadoEn: entrada.confirmadoEn || null, error: entrada.error || '' }
-      // Un ID desconocido NUNCA puede figurar como impreso.
-      return { estado: 'no-encontrado' }
+    // Alta de un trabajo reclamado al backend. Solo persiste: el poller lo
+    // imprime y reporta; el payload se borra tras el intento. Deduplica por id
+    // contra la cola y el historial remoto para no reimprimir tras un reinicio.
+    encolarRemoto(job = {}) {
+      const id = String(job.id || '').trim()
+      if (!id) return { encolado: false, error: 'El trabajo remoto no trae identificador.' }
+      if (trabajos.some((trabajo) => trabajo.id === id) || historial.some((entrada) => entrada.jobId === id && entrada.origen === 'remoto')) {
+        return { encolado: false, duplicado: true, estado: estadoDe(id) }
+      }
+      const payload = String(job.payload || '')
+      trabajos.push({
+        id,
+        origen: 'remoto',
+        impresora: String(job.destination || job.impresora || ''),
+        data: payload,
+        leaseId: String(job.leaseId || ''),
+        copias: Math.min(5, Math.max(1, Number(job.copies) || 1)),
+        cliente: '',
+        usuario: String(job.requestedByName || '').slice(0, 80),
+        ref: String(job.reference || '').slice(0, 64),
+        tipo: String(job.kind || '').slice(0, 40),
+        validacion: String(job.validation || '').slice(0, 12),
+        sufijo: '',
+        puente: String(job.bridgeName || '').slice(0, 80),
+        tokenPista: String(job.tokenHint || '').slice(0, 40),
+        modo: String(job.mode || '').slice(0, 40),
+        ancho: Math.min(120, Math.max(0, Number(job.width) || 0)),
+        bytes: Number(job.payloadBytes) || Buffer.from(payload, 'base64').length,
+        estado: 'pendiente',
+        resultadoRemoto: '',
+        transporte: '',
+        reportado: false,
+        intentos: Number(job.attempts) || 0,
+        proximoIntento: 0,
+        error: '',
+        creadoEn: new Date().toISOString(),
+      })
+      guardar()
+      return { encolado: true, jobId: id }
     },
+    // Resultado del intento de impresión remoto. El payload local se borra en
+    // el mismo paso: alcanza con los metadatos para reportar al backend.
+    resultadoRemoto(id, { estado, error = '', transporte = '' } = {}) {
+      if (!['ACEPTADO', 'INCIERTO', 'FALLIDO'].includes(estado)) return { ok: false, motivo: 'estado-invalido' }
+      const trabajo = trabajos.find((item) => item.id === id && esRemoto(item))
+      if (!trabajo) {
+        const entrada = historial.find((item) => item.jobId === id && item.origen === 'remoto')
+        return entrada ? { ok: true, ya: true } : { ok: false, motivo: 'no-encontrado' }
+      }
+      trabajo.estado = estado === 'ACEPTADO' ? 'aceptado' : estado === 'INCIERTO' ? 'incierto' : 'fallido'
+      trabajo.resultadoRemoto = estado
+      trabajo.transporte = transporte || ''
+      trabajo.error = error || ''
+      trabajo.data = ''
+      trabajo.reportado = false
+      guardar()
+      return { ok: true, estado: trabajo.estado }
+    },
+    // El backend ya recibió el resultado (o no conoce el trabajo): sale del
+    // outbox y queda asentado en el historial como remoto.
+    marcarReportado(id) {
+      const indice = trabajos.findIndex((item) => item.id === id && esRemoto(item))
+      if (indice === -1) {
+        const entrada = historial.find((item) => item.jobId === id && item.origen === 'remoto')
+        return entrada ? { ok: true, ya: true } : { ok: false, motivo: 'no-encontrado' }
+      }
+      const [trabajo] = trabajos.splice(indice, 1)
+      anotar(trabajo, 'remoto')
+      guardar()
+      return { ok: true }
+    },
+    // Outbox: resultados de trabajos remotos que todavía no aceptó el backend.
+    pendientesDeReporte() {
+      return trabajos.filter((trabajo) => esRemoto(trabajo) && !trabajo.reportado && trabajo.resultadoRemoto).map((trabajo) => ({
+        id: trabajo.id,
+        leaseId: trabajo.leaseId || '',
+        resultado: trabajo.resultadoRemoto,
+        error: trabajo.error || '',
+        transporte: trabajo.transporte || '',
+        impresora: trabajo.impresora,
+        ref: trabajo.ref || '',
+        tipo: trabajo.tipo || '',
+        intentos: trabajo.intentos || 0,
+      }))
+    },
+    // Al arrancar tras un reinicio, un trabajo reclamado sin resultado pudo
+    // haberse impreso: se marca incierto y se reporta; nunca se reimprime solo.
+    reconciliarRemotos() {
+      let contados = 0
+      for (const trabajo of trabajos) {
+        if (!esRemoto(trabajo) || trabajo.resultadoRemoto) continue
+        trabajo.estado = 'incierto'
+        trabajo.resultadoRemoto = 'INCIERTO'
+        trabajo.error = 'El agente se reinició durante la impresión.'
+        trabajo.data = ''
+        trabajo.reportado = false
+        contados += 1
+      }
+      if (contados) guardar()
+      return contados
+    },
+    estado: estadoDe,
     // Confirmación en papel del operador: separada de "aceptado por transporte".
     // Si el trabajo guardó sufijo secreto, hay que repetirlo para confirmar:
     // eso prueba que el papel se vio (el sufijo no se muestra en la app).
@@ -166,38 +281,41 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
     },
     resumen() {
       return {
-        pendientes: trabajos.filter((trabajo) => trabajo.estado === 'pendiente').length,
-        inciertos: trabajos.filter((trabajo) => trabajo.estado === 'incierto').length,
-        fallidos: trabajos.filter((trabajo) => trabajo.estado === 'fallido').length,
+        pendientes: trabajos.filter((trabajo) => !esRemoto(trabajo) && trabajo.estado === 'pendiente').length,
+        inciertos: trabajos.filter((trabajo) => !esRemoto(trabajo) && trabajo.estado === 'incierto').length,
+        fallidos: trabajos.filter((trabajo) => !esRemoto(trabajo) && trabajo.estado === 'fallido').length,
         sinConfirmar: historial.filter((entrada) => entrada.resultado === 'aceptado').length,
       }
     },
     historial: (limite = 20) => historial.slice(0, limite),
     listar() {
       return {
-        pendientes: trabajos.filter((trabajo) => trabajo.estado === 'pendiente').map(publico),
-        inciertos: trabajos.filter((trabajo) => trabajo.estado === 'incierto').map(publico),
-        fallidos: trabajos.filter((trabajo) => trabajo.estado === 'fallido').map(publico),
+        pendientes: trabajos.filter((trabajo) => !esRemoto(trabajo) && trabajo.estado === 'pendiente').map(publico),
+        inciertos: trabajos.filter((trabajo) => !esRemoto(trabajo) && trabajo.estado === 'incierto').map(publico),
+        fallidos: trabajos.filter((trabajo) => !esRemoto(trabajo) && trabajo.estado === 'fallido').map(publico),
       }
     },
     reanudar() { programar() },
     limpiarFallidos(ids = []) {
       const antes = trabajos.length
-      const limpiables = (trabajo) => trabajo.estado === 'fallido' || trabajo.estado === 'incierto'
+      // Los remotos sin reportar no se limpian nunca: perderían su resultado.
+      const limpiables = (trabajo) => !esRemoto(trabajo) && (trabajo.estado === 'fallido' || trabajo.estado === 'incierto')
       if (Array.isArray(ids) && ids.length) {
         const elegidos = new Set(ids.map(String))
         trabajos = trabajos.filter((trabajo) => !limpiables(trabajo) || !elegidos.has(trabajo.id))
       } else {
-        trabajos = trabajos.filter((trabajo) => trabajo.estado !== 'fallido')
+        trabajos = trabajos.filter((trabajo) => !limpiables(trabajo) || trabajo.estado === 'incierto')
       }
       guardar()
       return antes - trabajos.length
     },
     // Reintento manual (fallidos e inciertos): es la única vía para un trabajo
     // de resultado incierto, porque el automático podría duplicar el ticket.
+    // Un remoto no se reintenta: su payload ya se borró y el backend decide.
     reintentarFallidos() {
       let contados = 0
       for (const trabajo of trabajos) {
+        if (esRemoto(trabajo)) continue
         if (trabajo.estado !== 'fallido' && trabajo.estado !== 'incierto') continue
         trabajo.estado = 'pendiente'
         trabajo.intentos = 0
@@ -216,6 +334,7 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
 function publico(trabajo) {
   return {
     id: trabajo.id,
+    origen: trabajo.origen || 'local',
     impresora: trabajo.impresora,
     cliente: trabajo.cliente || '',
     usuario: trabajo.usuario || '',
