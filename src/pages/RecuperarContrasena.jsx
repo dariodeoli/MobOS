@@ -15,10 +15,15 @@ import PegarEnlaceToken from '@/components/shared/PegarEnlaceToken'
 let tokenLeido
 const leerToken = () => (tokenLeido === undefined ? (tokenLeido = consumeActionToken()) : tokenLeido)
 
+// Si se llega desde el acceso, el correo ya escrito viaja en `?email=`.
+function correoInicial() {
+  try { return new URLSearchParams(window.location.search).get('email') || '' } catch { return '' }
+}
+
 export default function RecuperarContrasena() {
   const navigate = useNavigate()
   const [token, setToken] = useState(leerToken)
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(correoInicial)
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [message, setMessage] = useState('')

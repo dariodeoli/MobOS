@@ -1,10 +1,16 @@
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/i
+// Rutas de la app que llevan token en el path. El tracker del relay de correo
+// envuelve la dirección y puede dejar el token pegado a un `%2F`: decodificar
+// primero y buscar después de la ruta evita extraer un token corrido.
+const RUTA_CON_TOKEN = /\/(aceptar-invitacion|restablecer-contrasena|verificar-correo)\/([a-f0-9]{64})/i
 
 // Extrae el token de acción de un enlace completo pegado (incluido el enlace
-// de tracking de los relays de correo: el token de 64 hex viaja sin codificar
-// dentro de la URL). Devuelve '' si no encuentra ninguno.
+// de tracking de los relays de correo). Devuelve '' si no encuentra ninguno.
 export function extractTokenFromUrl(raw = '') {
-  const match = String(raw).match(/[a-f0-9]{64}/i)
+  const texto = (() => { try { return decodeURIComponent(String(raw)) } catch { return String(raw) } })()
+  const porRuta = texto.match(RUTA_CON_TOKEN)
+  if (porRuta) return porRuta[2]
+  const match = texto.match(/[a-f0-9]{64}/i)
   return match ? match[0] : ''
 }
 

@@ -126,17 +126,21 @@ Nunca un `<input>` suelto. Un componente por tipo, en el directorio compartido
 ## 6. Identidad, fotos y archivos
 
 - Identidad **por ID**, nunca por coincidencia de nombre o correo.
-- Avatar con iniciales o foto; `safePhoto` (solo https o `data:image` válido).
-- Foto: recorte (`PhotoCropper`) + compresión (`preparePhoto`) antes de subir +
-  enlace validado (`validateImageLink`).
-- Eliminación explícita con *tombstone*: si hay sincronización externa, la foto
-  borrada NO se restaura sola.
+- Un **único objeto Avatar** para mostrar personas, con orden fijo:
+  foto subida → foto de la identidad (Google) → iniciales. Nunca `<img>` a mano.
+- La foto externa se pasa **solo para quien corresponde** (nunca la del dueño a un
+  tercero) y se sirve con sesión y `referrerPolicy="no-referrer"`.
+- **Formato de subida:** PNG/JPG/WebP hasta **1 MiB**, con validación de MIME y
+  **magic bytes** en cliente y servidor; recorte (`PhotoCropper`) + compresión
+  (`preparePhoto`) antes de subir; lectura autenticada y borrado explícito
+  (tombstone, no se restaura sola).
 - Adjuntos: límite de tamaño/tipo, validación de contenido real, acceso
   autenticado, normalización y almacenamiento fuera del HTML público.
 
-> Referencia MobOS: `src/lib/userAvatar.js`, `src/lib/tenantLogo.js`,
-> `AttachmentInput`/`AttachmentList`, `backend/lib/attachments.ts`.
-> Pendiente: recorte/compresión en el navegador.
+> Referencia MobOS: `src/components/shared/Avatar.jsx`, `src/lib/userAvatar.js`,
+> `src/lib/tenantLogo.js`, `src/components/shared/PhotoCropper.jsx`,
+> `AttachmentInput`/`AttachmentList`, `backend/lib/attachment-storage.ts`.
+> Reglas completas: `docs/AVATAR.md`.
 
 ## 7. Lógica compartida (frontend)
 

@@ -1,4 +1,5 @@
 import { usePresentes } from '@/hooks/usePresence'
+import { useSesion } from '@/lib/sesion'
 import { etiquetaPresencia } from '@/lib/presence'
 import Avatar from '@/components/shared/Avatar'
 
@@ -6,6 +7,7 @@ import Avatar from '@/components/shared/Avatar'
 // verde sobre quien tuvo actividad. Sin nadie en línea no ocupa espacio.
 export default function PresencePill() {
   const personas = usePresentes()
+  const { perfilEmpresa } = useSesion()
   const visibles = personas.slice(0, 4)
   if (!personas.length) return null
   const etiqueta = etiquetaPresencia(personas)
@@ -15,7 +17,7 @@ export default function PresencePill() {
         <span className="flex -space-x-2">
           {visibles.map((persona) => (
             <span key={persona.id} className="relative inline-flex">
-              <Avatar user={persona} size="md" className="border-paper" title={`${persona.name}${persona.scope ? ` · ${persona.scope}` : ''}`} />
+              <Avatar user={persona} picture={persona.name === perfilEmpresa?.name ? perfilEmpresa?.picture : undefined} size="md" className="border-paper" title={`${persona.name}${persona.scope ? ` · ${persona.scope}` : ''}`} />
               {persona.active && <i className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-ok ring-1 ring-paper" aria-hidden="true" />}
             </span>
           ))}

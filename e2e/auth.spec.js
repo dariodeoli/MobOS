@@ -48,3 +48,12 @@ test('los enlaces del correo con token abren su pantalla', async ({ page }) => {
   // Con token la pantalla verifica sola; no tiene que pedir pegar el enlace.
   await expect(page.getByLabel('Pegá tu enlace completo')).toHaveCount(0)
 })
+
+// Del acceso a recuperación: el correo ya escrito viaja y queda precargado.
+test('recuperar contraseña lleva el correo que escribí en el acceso', async ({ page }) => {
+  await page.goto('/login')
+  await page.getByLabel('Correo').fill('dueno@tienda.test')
+  await page.getByRole('link', { name: /Recuperar/ }).click()
+  await expect(page).toHaveURL(/email=dueno%40tienda\.test/)
+  await expect(page.getByLabel('Correo de la empresa')).toHaveValue('dueno@tienda.test')
+})

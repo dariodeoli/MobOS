@@ -47,7 +47,7 @@ const vacioFormulario = () => ({
 // térmicas. Configuración, estado, cola y actividad en un mismo lugar.
 export default function Impresoras() {
   const toast = useToast()
-  const { usuario, sesion } = useSesion()
+  const { usuario, sesion, perfilEmpresa } = useSesion()
   const tenantId = usuario?.tenantId || 'sin-tenant'
   const [store, setStore] = useState(() => cargarImpresoras(tenantId))
   const [estado, setEstado] = useState(null)
@@ -637,7 +637,7 @@ export default function Impresoras() {
                       <td className="px-2 py-2">
                         {fila.resultado === 'aceptado' && fila.validacion ? (
                           <span className="flex items-center gap-1">
-                            <input value={sufijos[fila.jobId] || ''} onChange={(event) => setSufijos((actual) => ({ ...actual, [fila.jobId]: event.target.value.replace(/\D/g, '').slice(0, 2) }))} inputMode="numeric" maxLength={2} placeholder="número" aria-label={`Número secreto de la validación ${fila.validacion}`} className="w-16 rounded-lg border border-ink-600 bg-ink-800 px-2 py-1 text-center text-xs" />
+                            <input value={sufijos[fila.jobId] || ''} onChange={(event) => setSufijos((actual) => ({ ...actual, [fila.jobId]: event.target.value.replace(/\D/g, '').slice(0, 2) }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); confirmarEnPapel(fila) } }} inputMode="numeric" maxLength={2} placeholder="número" aria-label={`Número secreto de la validación ${fila.validacion}`} className="w-16 rounded-lg border border-ink-600 bg-ink-800 px-2 py-1 text-center text-xs" />
                             <button type="button" onClick={() => confirmarEnPapel(fila)} disabled={confirmandoId === fila.jobId} className="rounded-lg border border-ok/40 px-2 py-1 text-[10px] font-bold text-ok transition hover:bg-ok/10 disabled:opacity-50">{confirmandoId === fila.jobId ? '…' : 'Confirmar'}</button>
                           </span>
                         ) : fila.resultado === 'confirmado' ? (
@@ -712,7 +712,7 @@ export default function Impresoras() {
             {sesiones.map((activa) => (
               <div key={activa.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2">
                 <div className="flex min-w-0 items-center gap-2">
-                  <Avatar user={activa.user} size="md" />
+                  <Avatar user={activa.user} picture={activa.user?.name === perfilEmpresa?.name || (!activa.user && String(activa.deviceId || '').startsWith('google:')) ? perfilEmpresa?.picture : undefined} size="md" />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">{activa.user?.name || 'Acceso de empresa'}</p>
                     <p className="mt-0.5 truncate text-xs text-mute">{activa.user?.role || activa.level} · {activa.deviceId || 'Dispositivo no identificado'}</p>
