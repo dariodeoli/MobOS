@@ -21,7 +21,7 @@ export default function SelectorSucursal({ className }) {
         )}
       >
         <Icon name="store" className="h-[15px] w-[15px]" />
-        <span className="max-w-[110px] truncate sm:max-w-[180px]">{sucursal?.nombre || empresa.nombre}</span>
+        <span className="hidden max-w-[110px] truncate sm:block sm:max-w-[180px]">{sucursal?.nombre || empresa.nombre}</span>
       </div>
     )
   }
