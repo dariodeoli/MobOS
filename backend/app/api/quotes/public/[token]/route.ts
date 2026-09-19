@@ -17,7 +17,7 @@ async function porToken(token: string) {
       branch: { select: { name: true, address: true, city: true, department: true, phone: true, instagram: true } },
       customer: { select: { name: true, document: true } },
       seller: { select: { name: true } },
-      tenant: { select: { name: true, logo: { select: { id: true } } } },
+      tenant: { select: { name: true, logos: { select: { id: true } } } },
     },
   })
 }
@@ -49,7 +49,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     createdAt: quote.createdAt,
     updatedAt: quote.updatedAt,
     validUntil: quote.validUntil,
-    company: { name: quote.tenant?.name || null, logo: Boolean(quote.tenant?.logo) },
+    company: { name: quote.tenant?.name || null, logo: Boolean(quote.tenant?.logos?.length) },
     branch: quote.branch ? {
       name: quote.branch.name,
       address: quote.branch.address,

@@ -11,7 +11,10 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   if (!token || token.length > 200) return error('Cotización no encontrada.', 404)
   const quote = await prisma.quote.findUnique({ where: { publicToken: token }, select: { tenantId: true } })
   if (!quote) return error('Cotización no encontrada.', 404)
-  const logo = await prisma.tenantLogo.findUnique({ where: { tenantId: quote.tenantId } })
+  // El logo vive por variante (claro/oscuro): en el comprobante público se
+  // prefiere la variante clara y, si no existe, cualquiera de la empresa.
+  const logo = await prisma.tenantLogo.findUnique({ where: { tenantId_variant: { tenantId: quote.tenantId, variant: 'light' } } })
+    ?? await prisma.tenantLogo.findFirst({ where: { tenantId: quote.tenantId }, orderBy: { updatedAt: 'desc' } })
   if (!logo) return error('La empresa todavía no tiene logo.', 404)
   const bytes = await readAttachment({ storageKey: logo.storageKey, data: logo.data ?? new Uint8Array() })
   return new Response(bytes, {
