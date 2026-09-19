@@ -6,9 +6,9 @@ import { InputError, objectInput, textInput } from '../../../../lib/payment-inpu
 type RouteContext = { params: { id: string } }
 
 // Perfil 360° del cliente: ficha, órdenes con saldo, deuda total, garantías
-// de sus equipos, notas internas y seguimientos. VENDEDOR solo ve clientes con
-// alguna orden en su sucursal; ADMIN/GERENTE ven todos los clientes de la
-// empresa (el mismo alcance abierto que el listado de clientes).
+// de sus equipos, notas internas y seguimientos. El historial es el de toda la
+// empresa (todas las sucursales), con el mismo alcance que el listado de
+// clientes: el equipo atiende al cliente, no a la sucursal donde compró.
 export async function GET(request: Request, { params }: RouteContext) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
@@ -24,14 +24,10 @@ export async function GET(request: Request, { params }: RouteContext) {
   })
   if (!customer) return error('Cliente no encontrado.', 404)
 
-  const sellerBranchId = session.user.role === 'VENDEDOR' ? session.user.branchId : null
-  const branchId = session.user.role === 'GERENTE' ? null : sellerBranchId
-
   const orders = await prisma.order.findMany({
     where: {
       tenantId: session.user.tenantId,
       customerId: customer.id,
-      ...(branchId ? { branchId } : {}),
     },
     include: {
       items: { select: { id: true, description: true, quantity: true, totalPyg: true, serials: true } },
@@ -42,8 +38,6 @@ export async function GET(request: Request, { params }: RouteContext) {
     orderBy: { createdAt: 'desc' },
     take: 200,
   })
-  if (branchId && !orders.length) return error('No autorizado para esa sucursal.', 403)
-
   const orderRows = orders.map(order => {
     const collectedPyg = order.payments.filter(payment => payment.status === 'CONFIRMED').reduce((sum, payment) => sum + payment.amountPyg, 0)
     const pendingPyg = Math.max(0, order.totalPyg - collectedPyg)
@@ -68,7 +62,6 @@ export async function GET(request: Request, { params }: RouteContext) {
   const warranties = await prisma.warrantyCase.findMany({
     where: {
       tenantId: session.user.tenantId,
-      ...(branchId ? { branchId } : {}),
       OR: [
         { customerId: customer.id },
         { customerName: customer.name },
