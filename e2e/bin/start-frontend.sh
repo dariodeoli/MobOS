@@ -27,4 +27,6 @@ fi
 
 echo "[e2e] Starting frontend (Vite) on port ${WEB_PORT}…"
 cd "$REPO_ROOT"
-exec npm run dev -- --port "$WEB_PORT" --strictPort --host 127.0.0.1
+# Binario directo (sin el wrapper de npm): al terminar la suite Playwright mata
+# este proceso y no queda un Vite huérfano ocupando el puerto.
+exec ./node_modules/.bin/vite --port "$WEB_PORT" --strictPort --host 127.0.0.1
