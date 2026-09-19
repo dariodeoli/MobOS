@@ -169,6 +169,29 @@ export async function PATCH(request: Request) {
       if (isGoogleOwner && ownerAccess) await prisma.googleStoreAccess.delete({ where: { subject_tenantId: { subject: ownerAccess.subject, tenantId: ownerAccess.tenantId } } })
       return json({ ok: true })
     }
+    if (action === 'closeAccount') {
+      // Cierre de la cuenta de la persona: deja de entrar, se revocan sus
+      // sesiones y se desactivan sus usuarios; la historia de cada tienda queda.
+      if (body.confirm !== 'CERRAR') return error('Escribí CERRAR para confirmar el cierre de tu cuenta.', 400)
+      const password = input(body.password, 'Contraseña', 1, 72)
+      const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true } })
+      if (!tenant || !(await verifyCredential(session.user.tenantId, session.user.id, password))) return error('No se pudo reautenticar la cuenta.', 401)
+      const accesoDueno = await prisma.googleStoreAccess.findFirst({ where: { tenantId: session.user.tenantId, owner: true }, select: { subject: true } })
+      if (!accesoDueno) return error('Esta cuenta no es la dueña de la tienda: un administrador puede desactivar tu usuario.', 403)
+      const tiendas = await prisma.googleStoreAccess.findMany({ where: { subject: accesoDueno.subject, owner: true }, select: { tenantId: true } })
+      for (const tienda of tiendas) {
+        const otros = await prisma.user.count({ where: { tenantId: tienda.tenantId, role: 'ADMIN', status: 'ACTIVE', id: { not: session.user.id } } })
+        if (!otros) return error('Antes de cerrar tu cuenta, cada tienda necesita otro administrador activo. Si querés dar de baja la tienda, usá Archivar tienda.', 409)
+      }
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: session.user.id }, data: { status: 'INACTIVE' } })
+        for (const tienda of tiendas) await tx.session.updateMany({ where: { tenantId: tienda.tenantId, revokedAt: null }, data: { revokedAt: new Date() } })
+        await tx.googleStoreAccess.deleteMany({ where: { subject: accesoDueno.subject } })
+        await tx.googleIdentity.deleteMany({ where: { subject: accesoDueno.subject } })
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'ACCOUNT_CLOSED', entity: 'User', entityId: session.user.id, metadata: { tiendas: tiendas.length } } })
+      })
+      return json({ ok: true })
+    }
     if (action === 'archiveStore') {
       // Archivar por defecto: la historia se conserva y soporte puede restaurar.
       if (body.confirm !== 'ARCHIVAR') return error('Escribí ARCHIVAR para confirmar el archivado de la tienda.', 400)
