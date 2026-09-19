@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
 import { Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import BarraLote from '@/components/shared/BarraLote'
 import EsquemaEquipo from '@/components/shared/EsquemaEquipo'
 import PatronDesbloqueo from '@/components/shared/PatronDesbloqueo'
 import Icon from '@/components/shared/Icon'
 import SerialField from '@/components/shared/SerialField'
+import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { ticketRecepcionServicio } from '@/lib/printing/tickets'
 import { imprimirTicketOFallback } from '@/lib/printing/agent'
 import { useSesion } from '@/lib/sesion'
@@ -194,8 +196,8 @@ export default function ServicioTecnico() {
     ventana.print()
   }
 
-  const alternar = (id) => setSeleccionados((actuales) => actuales.includes(id) ? actuales.filter((item) => item !== id) : [...actuales, id])
-  const seleccionarVisibles = () => setSeleccionados((actuales) => actuales.length === visibles.length ? [] : visibles.map((row) => row.id))
+  const alternar = (id) => setSeleccionados((actuales) => alternarId(actuales, id))
+  const seleccionarVisibles = () => setSeleccionados((actuales) => seleccionarTodos(visibles, actuales))
   const avanzarSeleccionadas = async () => {
     const filas = visibles.filter((row) => seleccionados.includes(row.id) && SIGUIENTE[row.status])
     if (!filas.length) { toast.error('Ninguna de las seleccionadas tiene un estado siguiente.'); return }
@@ -253,15 +255,9 @@ export default function ServicioTecnico() {
       {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
       {loading && <div className="space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
       {!loading && !visibles.length && <EmptyState icon="refresh" title={q ? 'Ninguna orden coincide con la búsqueda.' : 'Todavía no hay órdenes de servicio.'} />}
-      {seleccionados.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fono/30 bg-fono/5 px-3 py-2 text-sm">
-          <span className="font-medium">{seleccionados.length} seleccionada(s)</span>
-          <span className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" className="h-8 px-2 text-xs" onClick={avanzarSeleccionadas}>Avanzar estado</Button>
-            <Button variant="ghost" className="h-8 px-2 text-xs" onClick={() => setSeleccionados([])}>Limpiar</Button>
-          </span>
-        </div>
-      )}
+      <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
+        <Button variant="outline" className="h-8 px-2 text-xs" onClick={avanzarSeleccionadas}>Avanzar estado</Button>
+      </BarraLote>
       {!loading && visibles.length > 0 && (
         <div className="overflow-x-auto" data-testid="servicio-tabla">
           <div className={cn(GRID_SERVICIO, 'px-3.5 pb-2 pt-1')}>
