@@ -74,6 +74,8 @@ model Tenant {
   warrantyPhotos          WarrantyPhoto[]
   customerAuthorizations  CustomerAuthorization[]
   customerBillingIdentities CustomerBillingIdentity[]
+
+  @@index([archivedAt])
 }
 
 // Identidad de la PERSONA (cuenta Google). No pertenece a ninguna tienda:
@@ -262,6 +264,7 @@ model User {
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([branchId])
+  @@index([tenantId, status, lockedUntil])
 }
 
 model UserInvitation {
@@ -1451,6 +1454,7 @@ model Supplier {
   inventoryUnits InventoryUnit[]
 
   @@unique([tenantId, name])
+  @@unique([tenantId, code])
   @@index([tenantId, isActive, name])
 }
 
