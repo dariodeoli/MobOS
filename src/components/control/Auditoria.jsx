@@ -9,6 +9,17 @@ import { cn } from '@/lib/utils'
 // Etiqueta humana por acción. Lo que no está en el mapa se muestra tal cual
 // (el código crudo), que sigue siendo mejor que ocultarlo.
 const ACCIONES = {
+  PRINT_JOB_ENQUEUED: ['Job en cola', 'blue'],
+  PRINT_JOB_ACCEPTED: ['Job aceptado', 'green'],
+  PRINT_JOB_UNCERTAIN: ['Job incierto', 'orange'],
+  PRINT_JOB_FAILED: ['Job fallido', 'red'],
+  PRINT_JOB_REQUEUED: ['Job reingresó a cola', 'orange'],
+  PRINT_JOB_CONFIRMED: ['Job confirmado en papel', 'green'],
+  PRINT_JOB_CONFIRM_FAILED: ['Confirmación fallida', 'red'],
+  PRINT_BRIDGE_CREATED: ['Puente vinculado', 'blue'],
+  PRINT_BRIDGE_PAIRED: ['Puente emparejado', 'green'],
+  PRINT_BRIDGE_PAIR_FAILED: ['Emparejamiento fallido', 'red'],
+  PRINT_BRIDGE_REVOKED: ['Puente revocado', 'slate'],
   ORDER_CREATED: ['Venta registrada', 'green'],
   ORDER_DISCOUNT_APPROVED: ['Descuento aprobado', 'orange'],
   PAYMENT_RECORDED: ['Cobro registrado', 'green'],
@@ -108,6 +119,8 @@ const ENTIDADES = [
   ['TradeInDevice', 'Trade-In'],
   ['User', 'Equipo'],
   ['Session', 'Sesiones'],
+  ['PrintJob', 'Impresión'],
+  ['PrintBridge', 'Impresión'],
 ]
 
 // Área legible para la columna: el nombre técnico no dice nada.
@@ -125,7 +138,7 @@ function fechaHora(value) {
 
 // El metadata es libre por acción: se muestra como pares legibles y los campos
 // técnicos largos (ids) se recortan para que la fila siga siendo de una línea.
-const ETIQUETAS = { serial: 'IMEI', serials: 'IMEI', reason: 'Motivo', customer: 'Cliente', customerName: 'Cliente', status: 'Estado', from: 'Antes', to: 'Después', amountPyg: 'Monto', totalPyg: 'Total', minutes: 'Minutos', level: 'Nivel', tags: 'Etiquetas', discountPyg: 'Descuento', method: 'Medio', role: 'Rol', name: 'Nombre', email: 'Correo', action: 'Acción' }
+const ETIQUETAS = { jobId: 'Job', attempts: 'Intentos', transport: 'Transporte', path: 'Vía', kind: 'Tipo', bytes: 'Bytes', printerId: 'Impresora', error: 'Error', bridgeId: 'Puente', validacion: 'Validación', serial: 'IMEI', serials: 'IMEI', reason: 'Motivo', customer: 'Cliente', customerName: 'Cliente', status: 'Estado', from: 'Antes', to: 'Después', amountPyg: 'Monto', totalPyg: 'Total', minutes: 'Minutos', level: 'Nivel', tags: 'Etiquetas', discountPyg: 'Descuento', method: 'Medio', role: 'Rol', name: 'Nombre', email: 'Correo', action: 'Acción' }
 function detalleDe(metadata) {
   if (!metadata || typeof metadata !== 'object') return ''
   return Object.entries(metadata)
