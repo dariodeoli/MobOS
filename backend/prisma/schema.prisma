@@ -929,6 +929,10 @@ model OrderAccessToken {
   tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   level     String    @default("rapido")
   token     String    @unique
+  // true = token del QR impreso: el panel no lo lista ni lo revoca al
+  // regenerar sus enlaces. Un token impreso sobrevive mientras no se regenere
+  // explícitamente con impreso=true.
+  impreso   Boolean   @default(false)
   createdBy String?
   revokedAt DateTime?
   createdAt DateTime  @default(now())

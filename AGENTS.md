@@ -9,6 +9,7 @@ Reglas organizadas por rol. **Worktrees = agentes. Implementador = integrador.**
 - Commits convencionales, por unidad de trabajo, sin atribución de IA.
 - No pushear secretos ni archivos `.env`.
 - Campos de formulario: seguí docs/CAMPOS.md (skill **rdi**) y usá los componentes compartidos antes de crear un input. Versión portable: `docs/PLANTILLA-CAMPOS.md`.
+- Impresión: seguí `docs/IMPRESION.md` (token del QR impreso vs enlace del panel, cola honesta y qué hacer ante cada error).
 - Tokens, enlaces y sesiones: seguí `docs/TOKENS.md` (64 hex, solo `sha256` en la base, reloj de Postgres, un solo uso atómico); los enlaces de correo siempre con enlace de respaldo visible.
 - Fotos de personas: usá siempre el `Avatar` compartido (foto subida → foto de Google → iniciales) y seguí `docs/AVATAR.md`; listados y grillas, `docs/TABLAS.md`. Inventario de objetos reutilizables: `docs/PLANTILLA-OBJETOS.md`.
 - **Pedidos de Dario:** cada pedido vive como issue de GitHub (backlog canónico). Se reclama al empezar y se citan commits al entregar. Nada se trabaja "de memoria".
