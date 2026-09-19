@@ -1585,6 +1585,9 @@ model ServiceOrder {
   status         String    @default("RECIBIDO")
   pricePyg       Int       @default(0)
   costPyg        Int       @default(0)
+  // Código de desbloqueo (PIN y/o patrón) cifrado, atado a esta orden.
+  unlockSecret   String?
+  unlockUpdatedAt DateTime?
   notes          String?
   receivedAt     DateTime  @default(now())
   deliveredAt    DateTime?
