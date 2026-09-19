@@ -16,24 +16,76 @@ transporta. Si la impresora está apagada o sin red, el trabajo queda en una
 
 ```bash
 brew install node            # Node 20 o superior, una sola vez
-bash print-agent/install-macos.sh
+curl -fsSL https://api.moboss.online/print-agent/install.sh | bash -s -- --code ABCDE-FGHIJ
 ```
 
-El instalador copia el agente a `~/Library/Application Support/MobOS Print`,
-crea el servicio `com.mobos.print` (arranca al iniciar sesión) y muestra el
-**token** que hay que pegar en la app: **Configuración → Impresoras**.
+El código sale de la app: **Configuración → Impresoras → Gestionar puentes →
+Código**. Vence en 15 minutos, se usa una sola vez y no se vuelve a mostrar. El
+instalador descarga el tarball versionado del backend, verifica su **SHA-256
+antes de extraer**, deja el agente en `~/Library/Application Support/MobOS Print`
+y carga el servicio `com.mobos.print` (arranca al iniciar sesión). No hace falta
+clonar el repo.
+
+Sin código (para vincular después):
+
+```bash
+curl -fsSL https://api.moboss.online/print-agent/install.sh | bash
+```
+
+Para desarrollo desde el clon: `bash print-agent/install.sh --from-repo`
+(equivale al instalador clásico `install-macos.sh`).
+
+## Modo remoto (puente por el backend)
+
+Con un código de vinculación, el agente queda **pareado** y pasa a reclamar
+trabajos del backend (no hace falta configurar nada en el navegador):
+
+1. En la app: **Configuración → Impresoras → Gestionar puentes** → «Agregar
+   puente» y copiá el código.
+2. En la Mac del local: el one-liner de arriba con `--code ABCDE-FGHIJ`.
+3. En la app: elegí ese puente en la impresora y tocá **Imprimir prueba**. La
+   fila pasa a `aceptado` cuando el puente la imprime; confirmá el número
+   secreto del papel en **Actividad**.
+
+- El agente abre una conexión saliente cada 2 s (`claim`), imprime por los
+  transportes de siempre y reporta `ACEPTADO`/`INCIERTO`/`FALLIDO`. Si el
+  backend se cae, hace backoff 2→4→8→16→30 s y guarda los resultados en un
+  outbox local hasta poder reportarlos.
+- La app es la autoridad de la configuración: impresoras, ancho, copias y
+  allow-list LAN llegan por `GET /api/print/bridge/config`. En la Mac puente el
+  camino local `127.0.0.1` sigue ganando; los demás dispositivos encolan remoto.
+- **Rollback:** para volver al modo 1.5.0 (solo local) poné `"apiUrl": ""` en
+  `~/.mobos-print/config.json` y reiniciá el servicio; o revocá el puente en la
+  app y el token deja de autenticar. La impresión local nunca depende del
+  backend.
+
+### Seguridad y privacidad del modo remoto
+
+- El **token del puente** (256 bits aleatorios) solo sirve para
+  `heartbeat`/`claim`/`result`/`config` de su propia empresa: no puede leer
+  trabajos ajenos, ni rutas del servidor, ni archivos de la Mac. Viaja por HTTPS
+  y se puede revocar; en reposo solo se guarda su hash SHA-256.
+- **No se loguea** el token, ni el código de vinculación, ni el sufijo de
+  confirmación, ni los bytes ESC/POS. El error que reporta el puente se trunca a
+  200 caracteres.
+- **Retención:** el payload se borra al reportar el resultado terminal, el hash
+  del sufijo se borra al confirmar en papel y los metadatos se purgan a los 180
+  días (lote acotado ≤ 200, oportunista en el `claim`).
+- El instalador no ejecuta nada del paquete antes de que el checksum coincida:
+  el nombre del artefacto es fijo, la allow-list del tarball no admite rutas
+  absolutas ni `..`, y el código de vinculación se valida antes de descargar.
 
 ## Configurar la impresora
 
 En la app, Configuración → Impresoras:
 
-1. Verificá que el agente diga **“Conectado”**.
+1. Verificá que el puente aparezca **en línea** (con su versión) en «Gestionar puentes…»; en modo local, que el agente diga **“Conectado”**.
 2. Elegí la impresora:
    - **LAN**: `lan:192.168.1.23:9100` (la IP de la impresora y el puerto 9100).
    - **USB**: `usb:<nombre de la cola>`; las colas se listan solas si están
      dadas de alta en macOS (Ajustes → Impresoras y escáneres). El agente les
      manda los mismos bytes crudos con `lp -o raw`.
-3. Elegí el ancho (el instalador deja **58 mm**, el rollo del local; con `MOBOS_PRINT_ANCHO=80 bash install-macos.sh` queda en 80) y las copias. Los tickets salen con padding a los costados y **corte automático** al final.
+3. Elegí el ancho (el instalador deja **58 mm**, el rollo del local; en modo local, con `MOBOS_PRINT_ANCHO=80 bash install-macos.sh` queda en 80) y las copias. Los tickets salen con padding a los costados y **corte automático** al final.
 4. **Imprimir prueba**: sale texto, acentos, negrita, doble alto, QR y código de
    barras. Si todo eso sale bien, la impresora quedó lista.
 
@@ -75,6 +127,11 @@ app cae al diálogo de impresión de siempre.
 
 ## Puente de impresión (varias computadoras y móviles)
 
+> Con el **modo remoto** de arriba ya no hace falta configurar direcciones a mano:
+> el agente reclama los trabajos del backend. Esta sección es el modo local
+> clásico (agente en la misma red, sin backend), útil si la empresa todavía no
+> usa la cola centralizada.
+
 Una sola Mac siempre encendida queda como **puente**: es la única que conoce la
 impresora y las demás le mandan los trabajos.
 
@@ -92,28 +149,43 @@ Computadoras y móviles (misma red)  →  Mac puente (agente)  →  ZKP8008 (USB
   esta computadora, poné \`MOBOS_PRINT_HOST=127.0.0.1\`.
 - macOS va a pedir permiso de **Firewall** la primera vez que el agente acepte conexiones entrantes.
 
-### Cola centralizada (opcional, para usuarios remotos)
+### Cola centralizada
 
-Si además querés imprimir desde fuera del local o desde datos móviles, el próximo paso es que MobOS
-guarde el trabajo en el backend y la Mac puente lo retire sola (cola en el servidor). Mientras tanto,
-el modo puente de arriba cubre todas las computadoras y móviles que estén en la misma red del local.
+La cola vive en el backend: la app encola por HTTPS con la sesión y la Mac
+puente (pareada con un código) la retira sola. Es el **modo remoto** descrito
+arriba y cubre también usuarios fuera del local o con datos móviles.
 
 ## Endpoints del agente
 
 | Método | Ruta | Para qué |
 | --- | --- | --- |
-| GET | `/health` | Estado, impresoras detectadas y cola. Con token agrega el detalle. |
+| GET | `/health` | Estado, impresoras detectadas, cola y bloque `remoto` (activo, backoff, pendientes de reporte). |
 | POST | `/print` | `{impresora, ancho, copias, data}` con `data` en base64 ESC/POS. |
 | GET | `/jobs/:id` | Estado de un trabajo encolado. |
 | POST | `/config` | Cambia impresora, ancho y copias sin tocar el archivo. |
 
-Todas las llamadas desde la app llevan el header `x-mobos-print-token`.
+Todas las llamadas locales desde la app llevan el header `x-mobos-print-token`.
 
 ## Archivos y logs
 
-- Config: `~/.mobos-print/config.json` (token, impresora, ancho, copias, reintentos).
-- Cola: `~/.mobos-print/cola.json`.
-- Log: `~/.mobos-print/agente.log`.
+- Config: `~/.mobos-print/config.json` (`token` local, `apiUrl`, `bridgeToken`, impresora, ancho, copias, reintentos), permisos `0600`.
+- Cola: `~/.mobos-print/cola.json` (incluye los resultados remotos sin reportar).
+- Log: `~/.mobos-print/agente.log` (sin token, sin sufijo y sin bytes del ticket).
+
+## Artefacto versionado (mantenimiento)
+
+El instalador se sirve desde `backend/public/print-agent/` y se genera con el
+packer (sin dependencias nuevas):
+
+```bash
+npm run pack:agent          # tarball + manifest.json + install.sh
+npm run pack:agent:check    # gate anti-drift (falla si quedó viejo)
+```
+
+`npm run pack:agent:check` compara el tarball con las fuentes de `print-agent/`,
+verifica la versión de `print-agent/package.json` contra `server.mjs` y avisa si
+`install.sh` publicado difiere. Es obligatorio regenerarlo cuando cambien las
+fuentes del agente.
 
 ## Sin Node (opcional)
 

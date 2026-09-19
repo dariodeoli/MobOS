@@ -29,6 +29,7 @@ Reglas organizadas por rol. **Worktrees = agentes. Implementador = integrador.**
    5. `rg "<<<<<<<" src backend e2e` sin resultados (nunca commits con marcadores de conflicto).
    6. Si tocaste rutas API: no exportar símbolos que no sean handlers de Next (export inválido rompe el build); no duplicar slugs dinámicos (`[id]` vs `[userId]` para la misma ruta); toda columna/modelo nuevo del schema exige su migración.
    7. `npm run db:check` (con `DATABASE_URL` configurada) sin diferencias: compara la base real contra `backend/prisma/schema.prisma` y muestra el SQL que falta aplicar. Cubre **clientes, pedidos, stock/inventario y todo lo demás**.
+   8. Si tocaste `print-agent/` (fuentes o `install.sh`): `npm run pack:agent` y commiteá `backend/public/print-agent/`; el gate anti-drift es `npm run pack:agent:check`.
 - **Regla de oro de datos (conciliación base ↔ modelo):** lo que el código guarda tiene que existir en la base, y lo que se guarda tiene que poder mostrarse. Un `CREATE TABLE IF NOT EXISTS` sobre una tabla ya creada es **no-op** y deja columnas afuera (caso real: `CustomerBillingIdentity` quedó sin `uses/lastUsedAt/updatedAt`); lo mismo con un `CREATE INDEX IF NOT EXISTS` que no coincide en nombre o columnas. Por eso: (a) después de cambiar el schema o agregar una migración, correr `npm run db:check`; (b) si hay diferencias, agregar una migración **correctiva, aditiva, idempotente y re-ejecutable** (`ADD COLUMN IF NOT EXISTS`, `DROP CONSTRAINT IF EXISTS` + re-crear, `DROP INDEX IF EXISTS`) y repetir hasta que coincida; (c) el integrador corre `npm run db:check` contra la base de producción antes de dar por cerrado un deploy.
 5. **e2e desde worktrees:** la base y los puertos son compartidos entre agentes. Aislar SIEMPRE con variables únicas por worktree:
    `MOBOS_E2E_PGDATA=/tmp/mobos-e2e-pg-<tu-rama>`, `MOBOS_E2E_PGPORT=<55xx único>`, `MOBOS_E2E_API_PORT=<31xx único>`, `MOBOS_E2E_WEB_PORT=<52xx único>`. Nunca dos worktrees con los mismos valores.
@@ -63,6 +64,23 @@ Reglas organizadas por rol. **Worktrees = agentes. Implementador = integrador.**
 7. **Sincronizar checkouts locales de `main` (ff-only)** después del push.
 8. **Issues:** cerrás issues solo después de verificar por contenido contra `origin/main` (citando el commit que lo implementa).
 9. **Refs rotas:** backup a /tmp antes de tocar y reportás todo.
+
+---
+
+## Agente de impresión (distribución)
+
+- El agente se distribuye como **artefacto versionado** en `backend/public/print-agent/`
+  (`mobos-print-agent-<versión>.tgz` + `manifest.json` + `install.sh`), servido por
+  el backend. La Mac se instala sin clonar el repo:
+  `curl -fsSL https://api.moboss.online/print-agent/install.sh | bash -s -- --code ABCDE-FGHIJ`
+  (el código de vinculación se genera en la app: Configuración → Impresoras → Gestionar puentes).
+- El instalador verifica el SHA-256 antes de extraer y solo acepta la allow-list del
+  tarball; no ejecuta nada descargado antes del checksum. No cambiar ese orden.
+- **Anti-drift:** al tocar `print-agent/` regenerá el artefacto (`npm run pack:agent`) y
+  verificá con `npm run pack:agent:check`; la versión de `print-agent/package.json` debe
+  coincidir con `server.mjs`. El artefacto se commitea (lo copia el build Docker).
+- **Rollback del modo remoto:** `"apiUrl": ""` en `~/.mobos-print/config.json` (vuelve al
+  comportamiento 1.5.0 solo local) o revocar el puente en la app (el token deja de autenticar).
 
 ---
 

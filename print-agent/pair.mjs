@@ -1,7 +1,8 @@
 // Vinculación del puente desde la línea de comandos: canjea el código de un
 // solo uso por el token y lo persiste en config.json. El token nunca se imprime
 // en el log (solo queda en el archivo, con permisos 0600).
-import { pathToFileURL } from 'node:url'
+import { realpathSync } from 'node:fs'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { cargarConfig, guardarConfig } from './config.mjs'
 import { canjearCodigo } from './remoto.mjs'
 
@@ -42,7 +43,18 @@ function argumento(nombre) {
   return indice === -1 ? '' : String(process.argv[indice + 1] || '')
 }
 
-const esPrincipal = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
+// La comparación usa rutas reales: /var es un symlink a /private/var en macOS
+// y el loader resuelve el archivo, así que la ruta cruda de argv[1] no alcanza.
+function esEjecucionPrincipal() {
+  if (!process.argv[1]) return false
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])
+  } catch {
+    return import.meta.url === pathToFileURL(process.argv[1]).href
+  }
+}
+
+const esPrincipal = esEjecucionPrincipal()
 if (esPrincipal) {
   vincular({
     code: argumento('--code'),
