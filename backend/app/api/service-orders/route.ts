@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import { nextServiceNumber } from '../../../lib/service-number'
 import { prisma } from '../../../lib/prisma'
 import { resolveCustomerId } from '../../../lib/customer-link'
 import { error, json, tenantId } from '../../../lib/http'
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
         customerName,
         device,
         serviceName: clean(body.serviceName, 200),
+        serviceNumber: await nextServiceNumber(prisma, tenant),
         serial: clean(body.serial, 100),
         reportedIssue: clean(body.reportedIssue, 2000),
         diagnosis: clean(body.diagnosis, 2000),

@@ -230,6 +230,7 @@ export default function ServicioTecnico() {
               return <div key={row.id} data-testid="servicio-fila" className={cn(GRID_SERVICIO, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
                 <span className="min-w-0">
                   <b className="block truncate text-sm" title={row.device}>{row.device || 'Equipo'}</b>
+                  {row.serviceNumber && <span className="mt-0.5 block truncate text-[10px] font-semibold text-fono-light tabular-nums">{row.serviceNumber}</span>}
                   {serial && <SerialTexto serial={serial} className="mt-0.5 truncate text-[10px] text-mute" />}
                 </span>
                 <span className="truncate text-xs text-mute" title={row.customerName}>{row.customerName || 'Sin cliente'}</span>

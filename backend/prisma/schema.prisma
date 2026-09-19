@@ -1575,6 +1575,8 @@ model ServiceOrder {
   device         String
   serial         String?
   serviceName    String?
+  // Número comercial de la orden (`OS-#0001`) derivado del máximo de la tienda.
+  serviceNumber  String?
   reportedIssue  String?
   diagnosis      String?
   checklist      Json      @default("{}")
@@ -1589,6 +1591,7 @@ model ServiceOrder {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  @@unique([tenantId, serviceNumber])
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
   @@index([customerId])
