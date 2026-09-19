@@ -1,0 +1,78 @@
+import { randomBytes } from 'node:crypto'
+import { prisma } from '../../../../../lib/prisma'
+import { error, json } from '../../../../../lib/http'
+import { requireSession } from '../../../../../lib/auth'
+
+// Enlace/QR del portal del cliente (resumen de cuenta). Un token vigente por
+// nivel: Rápido (saldo, vencimientos y últimos pedidos) o Completo (además
+// garantías, direcciones y enlaces a los comprobantes). Al regenerar se revoca
+// el token anterior y queda auditoría con el usuario que lo hizo.
+const LEVELS = ['rapido', 'completo'] as const
+const canManage = (role: string) => ['ADMIN', 'GERENTE', 'VENDEDOR'].includes(role)
+
+const nuevoToken = () => randomBytes(24).toString('base64url')
+
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const session = await requireSession(request)
+  if (!session) return error('Falta sesión.', 401)
+  if (!canManage(session.user.role)) return error('No autorizado.', 403)
+  const tenant = session.user.tenantId
+  const { id } = await context.params
+  const customerId = (id || '').trim().slice(0, 128)
+  if (!customerId) return error('Cliente obligatorio.')
+
+  const customer = await prisma.customer.findFirst({
+    where: { id: customerId, tenantId: tenant },
+    select: { id: true },
+  })
+  if (!customer) return error('Cliente no encontrado.', 404)
+
+  let level = ''
+  let regenerate = false
+  try {
+    const raw = await request.text()
+    if (raw) {
+      const body = JSON.parse(raw)
+      level = typeof body?.level === 'string' ? body.level : ''
+      regenerate = body?.regenerate === true
+    }
+  } catch {
+    return error('JSON inválido.')
+  }
+  if (!LEVELS.includes(level as (typeof LEVELS)[number])) return error('Nivel de portal inválido.')
+
+  const vigente = await prisma.customerPortalToken.findFirst({
+    where: { customerId: customer.id, level, revokedAt: null },
+    select: { id: true, token: true },
+    orderBy: { createdAt: 'desc' },
+  })
+  if (vigente && !regenerate) return json({ level, token: vigente.token, regenerated: false })
+
+  const creado = await prisma.$transaction(async tx => {
+    if (vigente) {
+      await tx.customerPortalToken.update({ where: { id: vigente.id }, data: { revokedAt: new Date() } })
+    }
+    const token = await tx.customerPortalToken.create({
+      data: {
+        tenantId: tenant,
+        customerId: customer.id,
+        level,
+        token: nuevoToken(),
+        createdBy: session.user.id,
+      },
+      select: { level: true, token: true, createdAt: true },
+    })
+    await tx.auditLog.create({
+      data: {
+        tenantId: tenant,
+        userId: session.user.id,
+        action: vigente ? 'CUSTOMER_PORTAL_TOKEN_REGENERATED' : 'CUSTOMER_PORTAL_TOKEN_CREATED',
+        entity: 'Customer',
+        entityId: customer.id,
+        metadata: { level, regenerated: Boolean(vigente) },
+      },
+    })
+    return token
+  })
+  return json({ ...creado, regenerated: Boolean(vigente) })
+}

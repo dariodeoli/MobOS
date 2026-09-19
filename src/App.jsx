@@ -11,6 +11,7 @@ import DemoAccess from '@/pages/DemoAccess'
 import PedidoPublico from '@/pages/PedidoPublico'
 import GarantiaPublica from '@/pages/GarantiaPublica'
 import CotizacionPublica from '@/pages/CotizacionPublica'
+import CuentaPublica from '@/pages/CuentaPublica'
 import RemitoPublico from '@/pages/RemitoPublico'
 import AceptarInvitacion from '@/pages/AceptarInvitacion'
 import VerificarCorreo from '@/pages/VerificarCorreo'
@@ -161,6 +162,7 @@ export default function App() {
           <Route path="/p/:token" element={<PedidoPublico />} />
           <Route path="/garantia/:token" element={<GarantiaPublica />} />
           <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
+          <Route path="/cuenta/:token" element={<CuentaPublica />} />
           <Route path="/remito/:token" element={<RemitoPublico />} />
           <Route
             path="/"

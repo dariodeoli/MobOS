@@ -66,5 +66,5 @@ test('los accesos del pedido respetan el nivel y se pueden regenerar', async ({ 
   // La vista pública del nivel abre con el token nuevo.
   await page.goto(`/p/${rotado.body.token}`)
   await expect(page.getByText('Comprobante rápido')).toBeVisible()
-  await expect(page.getByText('Pendiente')).toBeVisible()
+  await expect(page.getByText('Pendiente', { exact: true })).toBeVisible()
 })
