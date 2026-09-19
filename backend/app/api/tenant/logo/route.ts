@@ -38,12 +38,19 @@ async function readLogoFile(value: FormDataEntryValue | null) {
   return { data: Buffer.from(bytes), mimeType, sha256: createHash('sha256').update(bytes).digest('hex') }
 }
 
+// Variante del logo: 'light' (logo oscuro, para modo claro) o 'dark' (logo
+// claro, para modo oscuro). Cualquier otro valor cae en 'light'.
+function varianteDe(valor: unknown) {
+  return String(valor || '').trim().toLowerCase() === 'dark' ? 'dark' : 'light'
+}
+
 // El logo es de la empresa: lo ve cualquier usuario con sesión y lo cambia
 // administración. Los bytes salen del volumen de adjuntos con respaldo en base.
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  const logo = await prisma.tenantLogo.findUnique({ where: { tenantId: session.user.tenantId } })
+  const variant = varianteDe(new URL(request.url).searchParams.get('variant'))
+  const logo = await prisma.tenantLogo.findUnique({ where: { tenantId_variant: { tenantId: session.user.tenantId, variant } } })
   if (!logo) return error('La empresa todavía no tiene logo.', 404)
   const bytes = await readAttachment({ storageKey: logo.storageKey, data: logo.data ?? new Uint8Array() })
   return new Response(bytes, {
@@ -64,15 +71,16 @@ export async function POST(request: Request) {
   try {
     const form = await request.formData()
     const file = await readLogoFile(form.get('logo'))
-    const anterior = await prisma.tenantLogo.findUnique({ where: { tenantId: session.user.tenantId } })
+    const variant = varianteDe(form.get('variant'))
+    const anterior = await prisma.tenantLogo.findUnique({ where: { tenantId_variant: { tenantId: session.user.tenantId, variant } } })
     const { storageKey } = await saveAttachment({ tenantId: session.user.tenantId, area: AREA, fileName: `logo.${EXTENSION[file.mimeType]}`, mimeType: file.mimeType, sha256: file.sha256, data: file.data })
     await prisma.tenantLogo.upsert({
-      where: { tenantId: session.user.tenantId },
-      create: { tenantId: session.user.tenantId, storageKey, data: file.data, mimeType: file.mimeType, sha256: file.sha256 },
+      where: { tenantId_variant: { tenantId: session.user.tenantId, variant } },
+      create: { tenantId: session.user.tenantId, variant, storageKey, data: file.data, mimeType: file.mimeType, sha256: file.sha256 },
       update: { storageKey, data: file.data, mimeType: file.mimeType, sha256: file.sha256 },
     })
     if (anterior?.storageKey && anterior.storageKey !== storageKey) await deleteAttachment(anterior)
-    await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_LOGO_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { mimeType: file.mimeType, bytes: file.data.byteLength } } })
+    await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_LOGO_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { variant, mimeType: file.mimeType, bytes: file.data.byteLength } } })
     return json({ ok: true, mimeType: file.mimeType })
   } catch (cause) {
     if (cause instanceof LogoValidationError) return error(cause.message, cause.status)
@@ -84,10 +92,11 @@ export async function DELETE(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
   if (session.user.role !== 'ADMIN') return error('Solo el dueño puede cambiar el logo.', 403)
-  const logo = await prisma.tenantLogo.findUnique({ where: { tenantId: session.user.tenantId } })
+  const variant = varianteDe(new URL(request.url).searchParams.get('variant'))
+  const logo = await prisma.tenantLogo.findUnique({ where: { tenantId_variant: { tenantId: session.user.tenantId, variant } } })
   if (!logo) return json({ ok: true })
-  await prisma.tenantLogo.delete({ where: { tenantId: session.user.tenantId } })
+  await prisma.tenantLogo.delete({ where: { id: logo.id } })
   await deleteAttachment(logo)
-  await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_LOGO_REMOVED', entity: 'Tenant', entityId: session.user.tenantId } })
+  await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_LOGO_REMOVED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { variant } } })
   return json({ ok: true })
 }

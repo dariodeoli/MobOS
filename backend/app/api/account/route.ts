@@ -41,14 +41,18 @@ export async function GET(request: Request) {
   const { session } = context
   const now = new Date()
   const [tenant, sessions, ownerAccess] = await Promise.all([
-    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true, orderPrefix: true, orderNextNumber: true, logo: { select: { updatedAt: true, mimeType: true } } } }),
+    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true, orderPrefix: true, orderNextNumber: true, logos: { select: { variant: true, updatedAt: true, mimeType: true } } } }),
     prisma.session.findMany({ where: { tenantId: session.user.tenantId, revokedAt: null, expiresAt: { gt: now } }, orderBy: { lastSeenAt: 'desc' }, take: 50, select: { id: true, level: true, deviceId: true, branchId: true, createdAt: true, lastSeenAt: true, expiresAt: true, user: { select: { name: true, email: true, role: true } } } }),
     prisma.googleStoreAccess.findFirst({ where: { tenantId: session.user.tenantId, owner: true }, select: { subject: true } }),
   ])
   if (!tenant) return error('Empresa no encontrada.', 404)
   // Para el dueño Google: todas las tiendas de su persona, con la actual marcada.
   const stores = ownerAccess ? (await googleStores(ownerAccess.subject)).map(store => ({ ...store, current: store.id === session.user.tenantId })) : null
-  return json({ tenant, currentSessionId: session.sessionId, reauthValidUntil: null, sessions, stores })
+  // El contrato del frontend sigue siendo `tenant.logo` (la variante clara manda);
+  // `logos` es el detalle por variante y no se expone suelto.
+  const { logos, ...restoTenant } = tenant
+  const logo = logos.find((item) => item.variant === 'light') ?? logos[0] ?? null
+  return json({ tenant: { ...restoTenant, logo, logos }, currentSessionId: session.sessionId, reauthValidUntil: null, sessions, stores })
 }
 
 export async function POST(request: Request) {

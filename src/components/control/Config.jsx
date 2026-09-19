@@ -44,7 +44,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const toast = useToast()
   const esDueno = sesion?.esPropietario
   const [account, setAccount] = useState(null)
-  const [logo, setLogo] = useState('')
+  const [logos, setLogos] = useState({ light: '', dark: '' })
   const [logoError, setLogoError] = useState('')
   const [logoBusy, setLogoBusy] = useState(false)
   const [prefijo, setPrefijo] = useState('')
@@ -63,21 +63,23 @@ export default function Config({ seccion = 'negocio' } = {}) {
   }, [esDueno])
   useEffect(() => { load() }, [load])
   useEffect(() => {
-    if (!account?.tenant?.logo?.updatedAt) { setLogo(''); return }
+    if (!account?.tenant?.logo?.updatedAt) { setLogos({ light: '', dark: '' }); return }
     let vigente = true
-    getLogoDataUrl().then(data => { if (vigente) setLogo(data) })
+    Promise.all([getLogoDataUrl('light'), getLogoDataUrl('dark')]).then(([light, dark]) => { if (vigente) setLogos({ light, dark }) })
     return () => { vigente = false }
   }, [account?.tenant?.logo?.updatedAt])
 
-  async function subirLogo(file) {
+  async function subirLogo(file, variant = 'light') {
     if (logoBusy) return
     setLogoBusy(true); setLogoError('')
     try {
       const form = new FormData()
       form.append('logo', file)
+      form.append('variant', variant)
       await api.post('/api/tenant/logo', form)
-      olvidarLogo()
-      setLogo(await getLogoDataUrl())
+      olvidarLogo(variant)
+      const data = await getLogoDataUrl(variant)
+      setLogos((actuales) => ({ ...actuales, [variant]: data }))
       setAccount(await api.get('/api/account'))
     } catch (cause) { setLogoError(cause?.message || 'No se pudo guardar el logo.') } finally { setLogoBusy(false) }
   }
@@ -89,13 +91,13 @@ export default function Config({ seccion = 'negocio' } = {}) {
     } catch { toast.error('No se pudo copiar el prompt') }
   }
 
-  async function quitarLogo() {
+  async function quitarLogo(variant = 'light') {
     if (logoBusy) return
     setLogoBusy(true); setLogoError('')
     try {
-      await api.delete('/api/tenant/logo')
-      olvidarLogo()
-      setLogo('')
+      await api.delete(`/api/tenant/logo?variant=${encodeURIComponent(variant)}`)
+      olvidarLogo(variant)
+      setLogos((actuales) => ({ ...actuales, [variant]: '' }))
       setAccount(await api.get('/api/account'))
     } catch (cause) { setLogoError(cause?.message || 'No se pudo quitar el logo.') } finally { setLogoBusy(false) }
   }
@@ -164,16 +166,24 @@ export default function Config({ seccion = 'negocio' } = {}) {
             <p className="mt-1 text-sm text-mute">Se muestra en el encabezado de los comprobantes. Recomendado: PNG con <b className="text-fore">fondo transparente</b>, 1024×1024 px (1600×600 si es horizontal) y hasta 1 MiB. Para modo claro y oscuro conviene el <b className="text-fore">logo oscuro</b> en fondo claro y el <b className="text-fore">logo claro</b> en fondo oscuro.</p>
             <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={copiarPrompt}><Icon name="copy" className="h-3.5 w-3.5" />Copiar prompt para generar el logo</Button>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="grid h-20 w-40 place-items-center overflow-hidden rounded-xl border border-ink-600 bg-paper">
-              {logo ? <img src={logo} alt="Logo de la empresa" className="max-h-16 max-w-36 object-contain" /> : <span className="text-xs text-mute">Sin logo</span>}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <AttachmentInput onSelect={subirLogo} onError={setLogoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={logoBusy}>
-                <Button type="button" variant="outline" disabled={logoBusy}>{logo ? 'Reemplazar logo' : 'Subir logo'}</Button>
-              </AttachmentInput>
-              {logo && <Button type="button" variant="ghost" disabled={logoBusy} onClick={quitarLogo}>Quitar</Button>}
-            </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[['light', 'Modo claro', 'Logo oscuro, para fondos claros'], ['dark', 'Modo oscuro', 'Logo claro, para fondos oscuros']].map(([variant, titulo, ayuda]) => (
+              <div key={variant} className="rounded-xl border border-ink-600 p-3">
+                <p className="text-sm font-medium">{titulo}</p>
+                <p className="mt-0.5 text-xs text-mute">{ayuda}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <div className={`grid h-20 w-32 place-items-center overflow-hidden rounded-xl border border-ink-600 ${variant === 'dark' ? 'bg-ink' : 'bg-paper'}`}>
+                    {logos[variant] ? <img src={logos[variant]} alt={`Logo para ${titulo.toLowerCase()}`} className="max-h-16 max-w-28 object-contain" /> : <span className="text-xs text-mute">Sin logo</span>}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <AttachmentInput onSelect={(file) => subirLogo(file, variant)} onError={setLogoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={logoBusy}>
+                      <Button type="button" variant="outline" disabled={logoBusy}>{logos[variant] ? 'Reemplazar' : 'Subir logo'}</Button>
+                    </AttachmentInput>
+                    {logos[variant] && <Button type="button" variant="ghost" disabled={logoBusy} onClick={() => quitarLogo(variant)}>Quitar</Button>}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
           {logoError && <p role="alert" className="text-sm text-bad">{logoError}</p>}
         </Card>}
