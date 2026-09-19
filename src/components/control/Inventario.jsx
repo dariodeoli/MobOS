@@ -4,7 +4,9 @@ import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
 import { getProductos, modoDatosActual } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
-import { Card, Button, Input, Badge, Modal, Select, Textarea, EmptyState, Skeleton, MoneyInput, Dot, PageHeader, Label } from '@/components/ui'
+import BarraLote from '@/components/shared/BarraLote'
+import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
+import { Card, Button, Input, Badge, Modal, Select, Textarea, EmptyState, Skeleton, MoneyInput, Dot, PageHeader, Label, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { resources } from '@/lib/api'
@@ -72,7 +74,7 @@ const fechaVerificacion = (value) => {
 // Anchos medidos sobre el contenido real de cada columna: las compactas
 // (batería, proveedor, costo, estado) ceden el ancho a producto, serial y
 // verificación, que son los datos que se leen de un vistazo.
-const UNIDADES_GRID = 'grid min-w-[60rem] grid-cols-[minmax(8rem,1.6fr)_7.25rem_6.75rem_5.25rem_2.75rem_4.5rem_5.5rem_7.5rem_8rem] items-center gap-x-2'
+const UNIDADES_GRID = 'grid min-w-[62rem] grid-cols-[1.5rem_minmax(8rem,1.6fr)_7.25rem_6.75rem_5.25rem_2.75rem_4.5rem_5.5rem_7.5rem_8rem] items-center gap-x-2'
 const CELDA_INV = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 const GRID_RESERVAS = 'grid min-w-[44rem] grid-cols-[minmax(8rem,1.4fr)_minmax(5rem,0.9fr)_minmax(6rem,1.1fr)_6rem_15rem] items-center gap-x-2'
 const GRID_ELIMINADOS = 'grid min-w-[42rem] grid-cols-[minmax(8rem,1.4fr)_minmax(5rem,0.9fr)_minmax(7rem,1.6fr)_7rem] items-center gap-x-2'
@@ -84,10 +86,13 @@ const fechaReserva = (value) => {
   return `${dia} · ${date.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })}`
 }
 
-function EncabezadoUnidades() {
+function EncabezadoUnidades({ seleccionado = false, onSeleccionar }) {
   const celda = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
   return (
     <div className={`${UNIDADES_GRID} px-2.5 pb-0.5`}>
+      {onSeleccionar
+        ? <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={seleccionado} onChange={onSeleccionar} />
+        : <span />}
       <span className={celda}>Producto</span>
       <span className={celda}>Verificación</span>
       <span className={celda}>IMEI / Serial</span>
@@ -101,12 +106,15 @@ function EncabezadoUnidades() {
   )
 }
 
-function FilaUnidad({ unit, perfilEmpresa, onClick, onVerify, onSell, busy }) {
+function FilaUnidad({ unit, perfilEmpresa, onClick, onVerify, onSell, busy, seleccionado = false, onAlternar }) {
   const v = verifiedLabel(unit, perfilEmpresa)
   const estado = estadoInventario(unit)
   const serial = String(unit.serial || '')
   const iniciales = (v?.quien || '—').split(' ').filter(Boolean).map(parte => parte[0]).slice(0, 2).join('').toUpperCase() || '—'
   return <div role="button" tabIndex={0} data-testid="inventario-fila" onClick={onClick} onKeyDown={event => { if (event.key === 'Enter') onClick() }} className={`${UNIDADES_GRID} cursor-pointer rounded-lg border border-ink-600 px-3 py-2 transition hover:border-fono/40 ${rowTone(unit)}`}>
+    {onAlternar
+      ? <span className="flex items-center" onClick={(event) => event.stopPropagation()}><input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar ${nombreProducto(unit.product || {})} ${serial}`} checked={seleccionado} onChange={() => onAlternar()} /></span>
+      : <span />}
     <span className="flex min-w-0 items-center gap-2">
       <b className="truncate text-[13px] leading-snug" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {})}</b>
       <span className="shrink-0 rounded border border-ink-500 px-1.5 py-0.5 text-[10px] text-mute">{conditionLabel[unit.condition] || unit.condition}</span>
@@ -256,6 +264,25 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const [products, setProducts] = useState([]), [branches, setBranches] = useState([]), [units, setUnits] = useState([]), [removedUnits, setRemovedUnits] = useState([]), [reservations, setReservations] = useState([]), [transfers, setTransfers] = useState([]), [locations, setLocations] = useState([])
   const [tab, setTab] = useState(tabProp && INVENTARIO_TABS.includes(tabProp) && (tabProp !== 'alertas' || canViewAlerts) ? tabProp : 'unidades'), [query, setQuery] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [orden, setOrden] = useState('recientes'), [exportando, setExportando] = useState(false)
   const [stockAlerts, setStockAlerts] = useState({ alerts: [], outOfStock: [] })
+  const toast = useToast()
+  const [seleccionados, setSeleccionados] = useState([])
+  const unidadesElegidas = () => units.filter((unit) => seleccionados.includes(unit.id))
+  async function copiarImeis() {
+    const texto = unidadesElegidas().map((unit) => `${nombreProducto(unit.product || {})} · IMEI ${unit.serial || ''}`).join('\n')
+    try { await navigator.clipboard.writeText(texto); toast.success(`${unidadesElegidas().length} IMEI(s) copiados.`) } catch { toast.error('No se pudieron copiar los IMEIs.') }
+  }
+  function exportarUnidadesSeleccionadas() {
+    const lista = unidadesElegidas()
+    const filas = [['Producto', 'IMEI / Serial', 'Condición', 'Ubicación', 'Verificado'], ...lista.map((unit) => [nombreProducto(unit.product || {}), unit.serial || '', conditionLabel[unit.condition] || unit.condition || '', unit.location?.name || '', unit.lastVerifiedAt ? fechaVerificacion(unit.lastVerifiedAt) : 'Sin verificar'])]
+    const csv = filas.map((fila) => fila.map((celda) => `"${String(celda).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
+    const enlace = document.createElement('a')
+    enlace.href = url
+    enlace.download = 'mobos-unidades-seleccionadas.csv'
+    enlace.click()
+    URL.revokeObjectURL(url)
+    toast.success(`${lista.length} unidad(es) exportadas.`)
+  }
   const [alertsLoading, setAlertsLoading] = useState(false)
   const [alertsError, setAlertsError] = useState('')
   const [threshold, setThreshold] = useState(null)
@@ -509,7 +536,11 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   async function createTransfer(event) { event.preventDefault(); const serials = transfer.serials.split(/[\n,;]+/).map(normalizeScan).filter(Boolean); if (!serials.length) { setError('Indicá al menos un IMEI/serial para trasladar.'); return }; await setAndRefresh(async () => { await resources.transfers.create({ ...transfer, destinationLocationId: transfer.destinationLocationId || null, lines: [{ productId: transfer.productId, quantity: serials.length, serials }] }); setTransfer({ sourceBranchId: '', destinationBranchId: '', destinationLocationId: '', productId: '', serials: '', notes: '' }); setTransferOpen(false) }, 'Transferencia registrada con trazabilidad por IMEI.') }
   if (!apiMode) return <Card><h2 className="font-bold">Inventario operativo</h2><p className="mt-2 text-sm text-mute">Ingresá con una cuenta real para controlar IMEI, reservas, ubicaciones y transferencias. La demo conserva sus datos aislados.</p></Card>
   return <div className="space-y-4"><Card className="p-4 md:p-5"><PageHeader title="Inventario operativo" subtitle="Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría." actions={<><Button onClick={() => setReceiveOpen(true)}>+ Recibir unidad</Button><Button variant="outline" onClick={() => setReserveOpen(true)}>Reservar</Button><Button variant="outline" onClick={() => setTransferOpen(true)}>Transferir</Button></>} /><form onSubmit={search} className="mt-4 flex flex-wrap gap-2"><Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" autoCapitalize="characters" className="min-w-0 flex-1" /><Select value={orden} onChange={event => setOrden(event.target.value)} className="w-auto"><option value="recientes">Recientes</option><option value="modelo-az">Modelo A→Z</option><option value="modelo-za">Modelo Z→A</option><option value="nuevos">Nuevos primero</option><option value="semis">Seminuevos primero</option><option value="mezclado">Modelos mezclados</option></Select><Button type="button" variant="outline" onClick={() => setScannerOpen(true)}>Escanear</Button><Button type="button" variant="outline" onClick={startCount}>Conteo rápido</Button><ListGridToggle value={vistaUnidades} onChange={(next) => { setVistaUnidades(next); localStorage.setItem('mobos:inventario-vista', next) }} />{disponibles.length > 0 && <Button type="button" variant="outline" onClick={() => printLabels(disponibles)}>Etiquetas ({disponibles.length})</Button>}{tab === 'unidades' && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando || busy} onClick={exportarUnidades}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}<Button type="submit" variant="outline" disabled={busy}>Buscar</Button></form><div className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">{[['unidades', `Inventario (${disponibles.length})`], ...(canViewAlerts ? [['alertas', `Alertas (${(stockAlerts.alerts?.length || 0) + (stockAlerts.outOfStock?.length || 0)})`]] : []), ['reservas', `Reservas (${reservations.length})`], ['traslados', `Traslados (${transfers.length})`], ['vendidos', `Vendidos (${vendidos.length})`], ['transito', `En tránsito (${enTransito.length})`], ['ubicaciones', `Ubicaciones (${locations.length})`], ['compartido', 'Compartido'], ['eliminados', `Eliminados (${removedUnits.length})`]].map(([key, label]) => <button key={key} onClick={() => cambiarTab(key)} className={`shrink-0 rounded-md px-3 py-2 text-xs font-semibold ${tab === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>)}</div>{notice && <p className="mt-3 rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">{notice}</p>}{error && <p className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
-    {tab === 'unidades' && vistaUnidades === 'list' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades /><div className="space-y-1">{disponibles.map(unit => <FilaUnidad key={unit.id} unit={unit} perfilEmpresa={perfilEmpresa} busy={busy} onVerify={verify} onSell={sellUnit} onClick={() => setDetalleUnidad(unit)} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en inventario.'} />}</div></div>}
+    <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
+      <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={copiarImeis}>Copiar IMEIs</button>
+      <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={exportarUnidadesSeleccionadas}>Exportar CSV</button>
+    </BarraLote>
+    {tab === 'unidades' && vistaUnidades === 'list' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades seleccionado={disponibles.length > 0 && seleccionados.length === disponibles.length} onSeleccionar={() => setSeleccionados((actuales) => seleccionarTodos(disponibles, actuales))} /><div className="space-y-1">{disponibles.map(unit => <FilaUnidad key={unit.id} unit={unit} perfilEmpresa={perfilEmpresa} busy={busy} onVerify={verify} onSell={sellUnit} onClick={() => setDetalleUnidad(unit)} seleccionado={seleccionados.includes(unit.id)} onAlternar={() => setSeleccionados((actuales) => alternarId(actuales, unit.id))} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en inventario.'} />}</div></div>}
     {tab === 'unidades' && vistaUnidades === 'grid' && <div className="mt-4 grid gap-2 sm:grid-cols-2 min-[1200px]:grid-cols-3">{disponibles.map(unit => <TarjetaUnidad key={unit.id} unit={unit} perfilEmpresa={perfilEmpresa} onClick={() => setDetalleUnidad(unit)} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay stock disponible.'} />}</div>}
     {tab === 'vendidos' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades /><div className="space-y-1">{vendidos.map(unit => <FilaUnidad key={unit.id} unit={unit} perfilEmpresa={perfilEmpresa} busy={busy} onClick={() => setDetalleUnidad(unit)} />)}{!vendidos.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'Todavía no hay vendidos en el período.'} />}</div></div>}
     {tab === 'transito' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades /><div className="space-y-1">{enTransito.map(unit => <FilaUnidad key={unit.id} unit={unit} perfilEmpresa={perfilEmpresa} busy={busy} onClick={() => setDetalleUnidad(unit)} />)}{!enTransito.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en tránsito.'} />}</div></div>}
