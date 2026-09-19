@@ -57,6 +57,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const [inicio, setInicio] = useState('')
   const [limiteGasto, setLimiteGasto] = useState('')
   const [limiteCompra, setLimiteCompra] = useState('')
+  const [limiteBajoLista, setLimiteBajoLista] = useState('')
   const [password, setPassword] = useState('')
   const [archiveReason, setArchiveReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -154,6 +155,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
     setInicio(account.tenant.orderNextNumber ? String(account.tenant.orderNextNumber) : '')
     setLimiteGasto(String(account.tenant.expenseLimitPyg ?? 1000000))
     setLimiteCompra(String(account.tenant.purchaseCreditLimitPyg ?? 5000000))
+    setLimiteBajoLista(String(account.tenant.belowListPct ?? 10))
   }, [account])
 
   async function guardarNumeracion() {
@@ -170,12 +172,14 @@ export default function Config({ seccion = 'negocio' } = {}) {
     if (busy) return
     const gasto = Number(limiteGasto)
     const compra = Number(limiteCompra)
+    const bajoLista = Number(limiteBajoLista)
     if (!Number.isSafeInteger(gasto) || gasto < 0 || !Number.isSafeInteger(compra) || compra < 0) { setFailure('Los límites deben ser enteros no negativos.'); return }
+    if (!Number.isSafeInteger(bajoLista) || bajoLista < 0 || bajoLista > 100) { setFailure('El porcentaje bajo lista debe ser un entero entre 0 y 100.'); return }
     setBusy(true); setFailure(''); setNotice('')
     try {
-      await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra })
-      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra } } : current)
-      actualizarEmpresa?.({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra })
+      await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista })
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista } } : current)
+      actualizarEmpresa?.({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista })
       setNotice('Límites de autorización guardados.')
     } catch (error) { setFailure(error?.message || 'No se pudieron guardar los límites.') } finally { setBusy(false) }
   }
@@ -199,7 +203,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
         {esDueno && <Card className="space-y-3">
           <div>
             <h2 className="font-semibold">Límites de autorización</h2>
-            <p className="mt-1 text-sm text-mute">Por encima de estos montos, los roles operativos (cajera, vendedor) necesitan una autorización aprobada de gerencia para registrar un gasto o una compra a crédito. El dueño y gerencia no la necesitan.</p>
+            <p className="mt-1 text-sm text-mute">Por encima de estos montos, los roles operativos (cajera, vendedor) necesitan una autorización aprobada de gerencia para registrar un gasto o una compra a crédito. La venta bajo lista hasta el porcentaje indicado no pide autorización; más abajo, sí. El dueño y gerencia no la necesitan.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField label="Gasto sin autorización (Gs.)" htmlFor="limite-gasto">
@@ -208,10 +212,13 @@ export default function Config({ seccion = 'negocio' } = {}) {
             <FormField label="Compra a crédito sin autorización (Gs.)" htmlFor="limite-compra">
               <MoneyInput id="limite-compra" disabled={busy} value={limiteCompra} onValueChange={setLimiteCompra} placeholder="5.000.000" />
             </FormField>
+            <FormField label="Bajo lista sin autorización (%)" htmlFor="limite-bajo-lista">
+              <Input id="limite-bajo-lista" inputMode="numeric" maxLength={3} disabled={busy} value={limiteBajoLista} onChange={event => setLimiteBajoLista(event.target.value.replace(/\D/g, ''))} placeholder="10" />
+            </FormField>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" disabled={busy || !limiteGasto || !limiteCompra} onClick={guardarLimites}>Guardar límites</Button>
-            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)}.</p>
+            <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === ''} onClick={guardarLimites}>Guardar límites</Button>
+            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}%.</p>
           </div>
         </Card>}
         {esDueno && <Card className="space-y-3">

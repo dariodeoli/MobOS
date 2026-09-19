@@ -6,7 +6,7 @@ import { requireSession } from '../../../lib/auth'
 import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
 import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
-import { consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
+import { consumeAuthorization, usableAuthorization, DEFAULT_BELOW_LIST_PCT } from '../../../lib/authorizations'
 import { armarComprobante } from '../../../lib/orders'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { serialKey } from '../../../lib/validation'
@@ -218,7 +218,10 @@ export async function POST(request: Request) {
   }
   // Precio por debajo de lista: misma regla de un solo uso, con la autorización
   // de tipo BELOW_LIST_PRICE que pida el vendedor desde el carrito. Se valida
-  // acá para fallar temprano y se consume dentro de la transacción.
+  // acá para fallar temprano y se consume dentro de la transacción. Hasta el
+  // porcentaje configurado por la empresa (default 10%) no pide autorización.
+  const limitesEmpresa = await prisma.tenant.findUnique({ where: { id: tenant }, select: { belowListPct: true } })
+  const belowListPct = Number(limitesEmpresa?.belowListPct ?? DEFAULT_BELOW_LIST_PCT)
   let priceAuthorization: { id: string; maxDiscountPyg: number } | null = null
   if (!canDiscount) {
     const rawPriceAuthorizationId = body.priceAuthorizationId
@@ -289,8 +292,10 @@ export async function POST(request: Request) {
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()
       // Diferencia acumulada entre precio de lista y precio cargado (venta bajo
-      // lista): es lo que debe cubrir la autorización BELOW_LIST_PRICE.
+      // lista): es lo que debe cubrir la autorización BELOW_LIST_PRICE. La base
+      // (lista × cantidad de las líneas rebajadas) mide el porcentaje permitido.
       let belowListPyg = 0
+      let belowListBasePyg = 0
       for (const item of items) {
         objectInput(item)
         if (['coupon', 'couponCodes', 'discountCode', 'promoCode', 'promotionSnapshot'].some(key => key in item)) throw new InputError('Enviá solo couponCode como metadata del cupón.')
@@ -322,7 +327,8 @@ export async function POST(request: Request) {
             const gap = (listPricePyg - price) * quantity
             if (!Number.isSafeInteger(gap)) throw new Error('Diferencia bajo lista fuera de rango.')
             belowListPyg += gap
-            if (!Number.isSafeInteger(belowListPyg)) throw new Error('Diferencia bajo lista fuera de rango.')
+            belowListBasePyg += listPricePyg * quantity
+            if (!Number.isSafeInteger(belowListPyg) || !Number.isSafeInteger(belowListBasePyg)) throw new Error('Diferencia bajo lista fuera de rango.')
           }
           const policy = product.category ? await tx.costPolicy.findFirst({ where: { tenantId: tenant, category: product.category, isActive: true }, select: { insuranceRate: true } }) : null
           const rate = product.insuranceRate === null || product.insuranceRate === undefined ? Number(policy?.insuranceRate ?? 0) : Number(product.insuranceRate)
@@ -375,13 +381,16 @@ export async function POST(request: Request) {
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery
       if (!safeInt(subtotal) || !safeInt(total)) throw new Error('Total inválido.')
-      // Venta bajo lista sin permiso de descuento: la autorización debe cubrir
-      // la diferencia total entre lista y precio cargado.
+      // Venta bajo lista sin permiso de descuento: hasta el porcentaje
+      // configurado no pide autorización; el excedente debe estar cubierto por
+      // la autorización BELOW_LIST_PRICE vigente.
       const priceAuth = priceAuthorization
+      const permitidoBajoLista = Math.floor((belowListBasePyg * belowListPct) / 100)
+      const excedenteBajoLista = Math.max(0, belowListPyg - permitidoBajoLista)
       if (belowListPyg > 0 && !canDiscount) {
-        if (!priceAuth) throw new InputError('El precio está por debajo de lista y tu rol no puede autorizarlo. Solicitá autorización de precio desde el carrito.', 403)
-        if (belowListPyg > priceAuth.maxDiscountPyg) {
-          throw new InputError(`La autorización de precio no alcanza para esta venta (bajo lista Gs ${belowListPyg.toLocaleString('es-PY')}, máx Gs ${priceAuth.maxDiscountPyg.toLocaleString('es-PY')}). Solicitá una nueva.`, 403)
+        if (excedenteBajoLista > 0 && !priceAuth) throw new InputError(`El precio está más de ${belowListPct}% por debajo de lista y tu rol no puede autorizarlo. Solicitá autorización de precio desde el carrito.`, 403)
+        if (priceAuth && excedenteBajoLista > priceAuth.maxDiscountPyg) {
+          throw new InputError(`La autorización de precio no alcanza para esta venta (excedente bajo lista Gs ${excedenteBajoLista.toLocaleString('es-PY')}, máx Gs ${priceAuth.maxDiscountPyg.toLocaleString('es-PY')}). Solicitá una nueva.`, 403)
         }
       }
       // Venta a crédito: plazo y límite del cliente (control de mora).
@@ -427,7 +436,7 @@ export async function POST(request: Request) {
         await consumeAuthorization(tx, { id: discountAuth.id, tenantId: tenant, kinds: ['DISCOUNT'], userId: session.user.id, label: 'descuento', usedByOrderId: order.id })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_DISCOUNT_AUTHORIZED', entity: 'Order', entityId: order.id, metadata: { authorizationId: discountAuth.id, maxDiscountPyg: discountAuth.maxDiscountPyg, discountPyg: discount, subtotalPyg: subtotal } } })
       }
-      if (priceAuth && belowListPyg > 0) {
+      if (priceAuth && excedenteBajoLista > 0) {
         // La autorización de precio se consume una sola vez y deja auditoría
         // del monto bajo lista que cubrió.
         await consumeAuthorization(tx, { id: priceAuth.id, tenantId: tenant, kinds: ['BELOW_LIST_PRICE'], userId: session.user.id, label: 'precio', usedByOrderId: order.id })

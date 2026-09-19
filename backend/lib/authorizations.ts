@@ -27,6 +27,8 @@ export const AUTHORIZATION_MAX_AGE_MS = 24 * 60 * 60 * 1000
 // Límites por defecto cuando la empresa no configuró los suyos.
 export const DEFAULT_EXPENSE_LIMIT_PYG = 1000000
 export const DEFAULT_PURCHASE_CREDIT_LIMIT_PYG = 5000000
+// Venta bajo lista: hasta este porcentaje de diferencia no pide autorización.
+export const DEFAULT_BELOW_LIST_PCT = 10
 
 const INT_MAX = 2147483647
 

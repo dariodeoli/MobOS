@@ -16,7 +16,7 @@ function adaptarUsuario(user) {
 function adaptarEmpresa(user, tenant) {
   if (user.tenantId === 'mobos-demo') return { id: 'mobos-demo', nombre: 'MobOS Tienda Demo', slug: 'demo', email: null, rol: user.role === 'ADMIN' ? 'dueno' : 'VENDEDOR' }
   const context = getCompanyContext()
-  return { id: user.tenantId || context?.tenant?.id, nombre: context?.tenant?.name || user.tenantName || 'Mi tienda', slug: context?.tenant?.slug || user.tenantSlug || 'mi-tienda', email: tenant?.email || context?.tenant?.email || user.tenantEmail || null, rol: user.role === 'ADMIN' ? 'dueno' : user.role, expenseLimitPyg: tenant?.expenseLimitPyg ?? context?.tenant?.expenseLimitPyg ?? null, purchaseCreditLimitPyg: tenant?.purchaseCreditLimitPyg ?? context?.tenant?.purchaseCreditLimitPyg ?? null }
+  return { id: user.tenantId || context?.tenant?.id, nombre: context?.tenant?.name || user.tenantName || 'Mi tienda', slug: context?.tenant?.slug || user.tenantSlug || 'mi-tienda', email: tenant?.email || context?.tenant?.email || user.tenantEmail || null, rol: user.role === 'ADMIN' ? 'dueno' : user.role, expenseLimitPyg: tenant?.expenseLimitPyg ?? context?.tenant?.expenseLimitPyg ?? null, purchaseCreditLimitPyg: tenant?.purchaseCreditLimitPyg ?? context?.tenant?.purchaseCreditLimitPyg ?? null, belowListPct: tenant?.belowListPct ?? context?.tenant?.belowListPct ?? null }
 }
 
 // El perfil del dueño que responde /api/auth/me (persistido en la identidad

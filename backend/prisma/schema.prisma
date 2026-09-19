@@ -37,6 +37,8 @@ model Tenant {
   // gerencia para los roles operativos. Null usa el default de la aplicación.
   expenseLimitPyg        Int?
   purchaseCreditLimitPyg Int?
+  // Porcentaje de venta bajo lista permitido sin autorización (default 10).
+  belowListPct           Int?
   settings            Json             @default("{}")
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt

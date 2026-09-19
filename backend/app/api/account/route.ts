@@ -41,7 +41,7 @@ export async function GET(request: Request) {
   const { session } = context
   const now = new Date()
   const [tenant, sessions, ownerAccess] = await Promise.all([
-    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true, orderPrefix: true, orderNextNumber: true, expenseLimitPyg: true, purchaseCreditLimitPyg: true, logos: { select: { variant: true, updatedAt: true, mimeType: true } } } }),
+    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true, orderPrefix: true, orderNextNumber: true, expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true, logos: { select: { variant: true, updatedAt: true, mimeType: true } } } }),
     prisma.session.findMany({ where: { tenantId: session.user.tenantId, revokedAt: null, expiresAt: { gt: now } }, orderBy: { lastSeenAt: 'desc' }, take: 50, select: { id: true, level: true, deviceId: true, branchId: true, createdAt: true, lastSeenAt: true, expiresAt: true, user: { select: { name: true, email: true, role: true } } } }),
     prisma.googleStoreAccess.findFirst({ where: { tenantId: session.user.tenantId, owner: true }, select: { subject: true } }),
   ])
@@ -128,17 +128,20 @@ export async function PATCH(request: Request) {
       }
       const expenseLimitPyg = limitOf(body.expenseLimitPyg, 'El límite de gasto')
       const purchaseCreditLimitPyg = limitOf(body.purchaseCreditLimitPyg, 'El límite de compra a crédito')
-      if (expenseLimitPyg === undefined && purchaseCreditLimitPyg === undefined) return error('Indicá al menos un límite para actualizar.', 400)
+      const belowListPct = limitOf(body.belowListPct, 'El porcentaje bajo lista')
+      if (belowListPct !== undefined && belowListPct !== null && belowListPct > 100) throw new Error('El porcentaje bajo lista debe ser un entero entre 0 y 100.')
+      if (expenseLimitPyg === undefined && purchaseCreditLimitPyg === undefined && belowListPct === undefined) return error('Indicá al menos un límite para actualizar.', 400)
       const updated = await prisma.$transaction(async tx => {
         const tenant = await tx.tenant.update({
           where: { id: session.user.tenantId },
           data: {
             ...(expenseLimitPyg === undefined ? {} : { expenseLimitPyg }),
             ...(purchaseCreditLimitPyg === undefined ? {} : { purchaseCreditLimitPyg }),
+            ...(belowListPct === undefined ? {} : { belowListPct }),
           },
-          select: { expenseLimitPyg: true, purchaseCreditLimitPyg: true },
+          select: { expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true },
         })
-        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_AUTHORIZATION_LIMITS_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { expenseLimitPyg: tenant.expenseLimitPyg, purchaseCreditLimitPyg: tenant.purchaseCreditLimitPyg } } })
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_AUTHORIZATION_LIMITS_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { expenseLimitPyg: tenant.expenseLimitPyg, purchaseCreditLimitPyg: tenant.purchaseCreditLimitPyg, belowListPct: tenant.belowListPct } } })
         return tenant
       })
       return json({ ok: true, ...updated })

@@ -573,13 +573,17 @@ result = await request('/api/account', 'PATCH', { action: 'orderNumbering', pref
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 
 // ── Autorizaciones genéricas: venta por debajo de lista ─────────────────────
-// El precio de lista mayorista de un producto nuevo es 550.000: vender en
-// 530.000 sin autorización se rechaza con un motivo accionable.
+// El precio de lista mayorista de un producto nuevo es 550.000. Hasta el 10%
+// por debajo (55.000) el vendedor no necesita autorización; más abajo, sí.
 let resultProductoBajo = await request('/api/products', 'POST', { sku: `BAJO-SKU-${Date.now()}`, name: 'Equipo precio bajo lista', pricePyg: 600000, wholesalePricePyg: 550000, stock: 5, branchId: 'branch-a-it' })
 assert.equal(resultProductoBajo.response.status, 201, JSON.stringify(resultProductoBajo.payload))
 const productoBajoLista = resultProductoBajo.payload
+// Dentro del umbral (530.000 = 3,6% bajo lista): se vende sin autorización.
 result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 530000 }], payments: [{ method: 'CASH', amountPyg: 530000 }] })
-assert.equal(result.response.status, 403, 'Vender bajo lista sin autorización debe rechazarse.')
+assert.equal(result.response.status, 201, 'Dentro del porcentaje permitido no pide autorización.')
+// Más de 10% bajo lista (480.000 = 12,7%): se rechaza con un motivo accionable.
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 480000 }], payments: [{ method: 'CASH', amountPyg: 480000 }] })
+assert.equal(result.response.status, 403, 'Vender más de 10% bajo lista sin autorización debe rechazarse.')
 assert.match(String(result.payload?.message || ''), /debajo de lista/i)
 
 // El vendedor pide autorización por 50.000 de diferencia; gerencia autoriza
@@ -597,19 +601,20 @@ result = await request('/api/authorizations', 'PATCH', { id: authPrecio.id, acti
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 assert.deepEqual(result.payload.resolvedValue, { maxDiscountPyg: 30000 })
 
-// Por encima del máximo autorizado la venta se rechaza; dentro del máximo se
-// crea, consume la autorización y audita el precio autorizado en el pedido.
-result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 510000 }], payments: [{ method: 'CASH', amountPyg: 510000 }], priceAuthorizationId: authPrecio.id })
+// Por encima del máximo autorizado la venta se rechaza (excedente 45.000 sobre
+// el 10% permitido); dentro del máximo se crea, consume la autorización y
+// audita el precio autorizado en el pedido.
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 450000 }], payments: [{ method: 'CASH', amountPyg: 450000 }], priceAuthorizationId: authPrecio.id })
 assert.equal(result.response.status, 403, 'La autorización de precio no puede cubrir más que su máximo.')
 assert.match(String(result.payload?.message || ''), /no alcanza/i)
-result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 530000 }], payments: [{ method: 'CASH', amountPyg: 530000 }], priceAuthorizationId: authPrecio.id })
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 480000 }], payments: [{ method: 'CASH', amountPyg: 480000 }], priceAuthorizationId: authPrecio.id })
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const ventaBajoLista = result.payload
 assert.equal(ventaBajoLista.items[0].listPricePyg, 550000, 'La venta debe congelar el precio de lista.')
 result = await sellerRequest(`/api/orders/${encodeURIComponent(ventaBajoLista.id)}/history`)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 assert.ok(result.payload.events.some(event => event.action === 'ORDER_PRICE_AUTHORIZED'), 'La cronología debe auditar el precio autorizado.')
-result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 530000 }], payments: [{ method: 'CASH', amountPyg: 530000 }], priceAuthorizationId: authPrecio.id })
+result = await sellerRequest('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: productoBajoLista.id, quantity: 1, unitPricePyg: 480000 }], payments: [{ method: 'CASH', amountPyg: 480000 }], priceAuthorizationId: authPrecio.id })
 assert.equal(result.response.status, 403, 'Una autorización de precio usada no puede reutilizarse.')
 assert.match(String(result.payload?.message || ''), /se usó/i)
 

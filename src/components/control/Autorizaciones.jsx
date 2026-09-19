@@ -16,6 +16,7 @@ import {
   Skeleton,
   Textarea,
   Modal,
+  Select,
   useToast,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -108,6 +109,7 @@ export default function Autorizaciones() {
   const { usuario, esDemo } = useSesion()
   const toast = useToast()
   const [filtro, setFiltro] = useUrlState('estado', '')
+  const [tipo, setTipo] = useUrlState('tipo', '')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -124,7 +126,10 @@ export default function Autorizaciones() {
     setLoading(true)
     setError('')
     try {
-      const query = filtro ? `?status=${filtro}` : ''
+      const params = new URLSearchParams()
+      if (filtro) params.set('status', filtro)
+      if (tipo) params.set('kind', tipo)
+      const query = params.toString() ? `?${params.toString()}` : ''
       setRows(await api.get(`/api/authorizations${query}`))
     } catch (cause) {
       setError(cause?.message || 'No se pudieron cargar las solicitudes.')
@@ -135,7 +140,7 @@ export default function Autorizaciones() {
 
   useEffect(() => {
     load()
-  }, [esDemo, filtro]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [esDemo, filtro, tipo]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const pendientes = useMemo(() => rows.filter(row => row.status === 'PENDING').length, [rows])
 
@@ -301,6 +306,14 @@ export default function Autorizaciones() {
               {label}
             </button>
           ))}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <label htmlFor="filtro-tipo" className="text-xs font-bold uppercase tracking-wider text-mute">Tipo</label>
+          <Select id="filtro-tipo" className="w-56" value={tipo} onChange={event => setTipo(event.target.value)}>
+            <option value="">Todos los tipos</option>
+            {Object.entries(KINDS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </Select>
+          {tipo && <button type="button" className="text-xs font-semibold text-mute hover:text-fore" onClick={() => setTipo('')}>Quitar filtro</button>}
         </div>
         {error && (
           <p
