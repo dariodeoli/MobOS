@@ -58,3 +58,18 @@ test('el prefijo usb: de una cola CUPS migra a cups: y lan queda igual', () => {
   assert.equal(normalizarDestino('lan:192.168.1.23:9100'), 'lan:192.168.1.23:9100')
   assert.equal(normalizarDestino(''), '')
 })
+
+test('el espejo del backend (sin URL) no se descarta ni inventa dirección', () => {
+  const espejo = {
+    impresoras: [],
+    bridges: [
+      { id: 'b-1', nombre: 'Mac local', url: '', token: '', backend: true, predeterminado: true },
+      { id: 'b-2', nombre: 'Depósito', url: '', token: '', backend: true, predeterminado: false },
+    ],
+  }
+  assert.equal(normalizarStore(espejo), espejo)
+  assert.equal(puenteDe(espejo, { bridgeId: 'b-2' }).id, 'b-2')
+  assert.equal(puenteDe(espejo, { bridgeId: 'inexistente' }).id, 'b-1')
+  // La empresa mantiene un solo puente predeterminado también en el espejo.
+  assert.equal(espejo.bridges.filter((puente) => puente.predeterminado).length, 1)
+})
