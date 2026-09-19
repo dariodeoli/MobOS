@@ -76,19 +76,35 @@ function formatPyg(value: number) {
   return `Gs. ${Number(value).toLocaleString('es-PY')}`
 }
 
+// Paleta del tema claro de la app: el correo se ve como el producto.
+const COLOR = {
+  papel: '#f4f7fa',
+  tinta: '#ffffff',
+  borde: '#cbd5e2',
+  linea: '#e0e7f0',
+  texto: '#080e1a',
+  suave: '#3a465a',
+  marca: '#10b981',
+  sobreMarca: '#041c12',
+}
+
+// Un solo encabezado: el asunto visual es el título; el "eyebrow" viaja como
+// preheader oculto (texto de vista previa) y nunca se repite como cabecera.
+// El relay de correo ya agrega su propia cabecera con la marca.
 function template(input: { eyebrow: string; title: string; body: string; lead?: string; action?: { label: string; url: string }; footer: string; contentHtml?: string; contentText?: string }) {
   const leadText = input.lead ? `${input.lead}\n\n` : ''
   const contentText = input.contentText ? `\n\n${input.contentText}` : ''
   const actionText = input.action ? `\n\n${input.action.label}: ${input.action.url}` : ''
-  const text = `${input.eyebrow.toUpperCase()}\n\n${input.title}\n\n${leadText}${input.body}${contentText}${actionText}\n\n${input.footer}\n\napp.moboss.online · Email ${EMAIL_VERSION}`
+  const text = `${input.title}\n\n${leadText}${input.body}${contentText}${actionText}\n\n${input.footer}\n\napp.moboss.online · Email ${EMAIL_VERSION}`
   const leadHtml = input.lead
-    ? `<p style="margin:0 0 16px;color:#0b1822;font-weight:700;line-height:1.65">${escapeHtml(input.lead)}</p>`
+    ? `<p style="margin:0 0 14px;color:${COLOR.texto};font-size:15px;font-weight:700;line-height:1.6">${escapeHtml(input.lead)}</p>`
     : ''
   const actionHtml = input.action
-    ? `<p style="margin:28px 0 0"><a href="${escapeHtml(input.action.url)}" style="display:inline-block;padding:14px 28px;border-radius:14px;background:#05f19c;color:#062118;text-decoration:none;font-weight:700;font-size:15px">${escapeHtml(input.action.label)}</a></p>`
+    ? `<p style="margin:26px 0 0"><a href="${escapeHtml(input.action.url)}" style="display:inline-block;padding:13px 26px;border-radius:12px;background:${COLOR.marca};color:${COLOR.sobreMarca};text-decoration:none;font-weight:700;font-size:15px">${escapeHtml(input.action.label)}</a></p>`
     : ''
+  const preheader = `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeHtml(input.eyebrow)} · ${escapeHtml(input.title)}</div>`
   // contentHtml es HTML de confianza interna: quien lo provee ya escapó su entrada.
-  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#ffffff;color:#0b1822;font-family:Arial,Helvetica,sans-serif"><div style="max-width:600px;margin:0 auto;padding:32px 20px"><div style="border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;background:#ffffff"><div style="background:#05f19c;padding:28px 32px"><p style="margin:0;color:#062118;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase">${escapeHtml(input.eyebrow)}</p></div><div style="padding:32px"><h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#0b1822">${escapeHtml(input.title)}</h1>${leadHtml}<p style="margin:0;color:#1e293b;line-height:1.65">${escapeHtml(input.body)}</p>${input.contentHtml || ''}${actionHtml}<p style="margin:28px 0 0;padding-top:20px;border-top:1px solid #e2e8f0;color:#64748b;font-size:13px;line-height:1.6">${escapeHtml(input.footer)}</p></div></div><p style="color:#64748b;font-size:12px;text-align:center;margin:20px 0 0">app.moboss.online · Email ${EMAIL_VERSION}</p></div></body></html>`
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeHtml(input.title)}</title></head><body style="margin:0;padding:0;background:${COLOR.papel};color:${COLOR.texto};font-family:Arial,Helvetica,sans-serif">${preheader}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${COLOR.papel};border-collapse:collapse"><tbody><tr><td align="center" style="padding:28px 16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:${COLOR.tinta};border:1px solid ${COLOR.borde};border-radius:16px;border-collapse:separate"><tbody><tr><td style="padding:32px"><h1 style="margin:0 0 14px;font-size:22px;line-height:1.3;color:${COLOR.texto}">${escapeHtml(input.title)}</h1>${leadHtml}<p style="margin:0;color:${COLOR.suave};font-size:15px;line-height:1.65">${escapeHtml(input.body)}</p>${input.contentHtml || ''}${actionHtml}<p style="margin:26px 0 0;padding-top:18px;border-top:1px solid ${COLOR.linea};color:${COLOR.suave};font-size:13px;line-height:1.6">${escapeHtml(input.footer)}</p></td></tr></tbody></table><p style="margin:14px 0 0;color:${COLOR.suave};font-size:11px">app.moboss.online · Email ${EMAIL_VERSION}</p></td></tr></tbody></table></body></html>`
   return { html, text }
 }
 
@@ -123,9 +139,9 @@ export function teamInvitationEmail(input: { to: string; inviteeName: string; co
 export function receiptEmail(input: { to: string; customerName: string; orderNumber: string; lines: Array<{ quantity: number; description: string; totalPyg: number }>; totalPyg: number; trackingUrl: string; companyName?: string }) {
   if (!emailPattern.test(input.to) || !input.orderNumber.trim() || !input.trackingUrl.trim()) return null
   const company = input.companyName?.trim() || 'MobOS'
-  const linesHtml = input.lines.map((line) => `<tr><td style="padding:10px 0;border-bottom:1px solid #e2e8f0;color:#1e293b;font-size:14px;line-height:1.5">${escapeHtml(String(line.quantity))} × ${escapeHtml(line.description)}</td><td style="padding:10px 0;border-bottom:1px solid #e2e8f0;color:#1e293b;font-size:14px;line-height:1.5;text-align:right;white-space:nowrap">${escapeHtml(formatPyg(line.totalPyg))}</td></tr>`).join('')
+  const linesHtml = input.lines.map((line) => `<tr><td style="padding:10px 0;border-bottom:1px solid #e0e7f0;color:#3a465a;font-size:14px;line-height:1.5">${escapeHtml(String(line.quantity))} × ${escapeHtml(line.description)}</td><td style="padding:10px 0;border-bottom:1px solid #e0e7f0;color:#3a465a;font-size:14px;line-height:1.5;text-align:right;white-space:nowrap">${escapeHtml(formatPyg(line.totalPyg))}</td></tr>`).join('')
   const linesText = input.lines.map((line) => `${line.quantity} × ${line.description} — ${formatPyg(line.totalPyg)}`).join('\n')
-  const contentHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0 0;border-collapse:collapse"><tbody>${linesHtml}</tbody></table><p style="margin:16px 0 0;text-align:right;font-size:17px;font-weight:800;color:#0b1822">Total: ${escapeHtml(formatPyg(input.totalPyg))}</p>`
+  const contentHtml = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0 0;border-collapse:collapse"><tbody>${linesHtml}</tbody></table><p style="margin:16px 0 0;text-align:right;font-size:17px;font-weight:800;color:#080e1a">Total: ${escapeHtml(formatPyg(input.totalPyg))}</p>`
   const contentText = `${linesText}\nTotal: ${formatPyg(input.totalPyg)}`
   const content = template({ eyebrow: 'Comprobante de compra', title: `Comprobante ${input.orderNumber}`, lead: input.customerName.trim() ? `Hola ${input.customerName},` : undefined, body: `Gracias por tu compra en ${company}.`, contentHtml, contentText, action: { label: 'Seguí tu pedido', url: input.trackingUrl }, footer: 'MobOS nunca envía PIN ni contraseñas por este canal.' })
   return { to: input.to, subject: `Comprobante ${input.orderNumber}`, ...content }

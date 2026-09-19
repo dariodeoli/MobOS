@@ -4,6 +4,7 @@ const fs = require('node:fs')
 require.extensions['.ts'] = (module, path) => module._compile(ts.transpileModule(fs.readFileSync(path, 'utf8'), {
   compilerOptions: { esModuleInterop: true, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText, path)
+require('./email-template.test.ts')
 require('./attachment-storage.test.ts')
 require('./payment-proofs.test.ts')
 require('./aex-webhook.test.ts')
