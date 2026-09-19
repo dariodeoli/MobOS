@@ -8,19 +8,30 @@ import { fechaClave, gs } from '@/utils/calculos'
 import { parseGsInput } from '@/utils/moneda'
 import { Card, Button, Input, Label, Select, Badge, EmptyState, MoneyInput, IconAction } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
+import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 
 const EMPTY = () => ({ originalAmount: '', description: '', date: fechaClave(), currency: 'PYG', exchangeRatePyg: '1', accountId: '', kind: 'EXPENSE', counterparty: '', reference: '', dueAt: '' })
 const KINDS = { EXPENSE: 'Gasto', CHEQUE: 'Cheque emitido/cobrado', SUPPLIER_ADVANCE: 'Adelanto a proveedor', TRANSFER: 'Transferencia', OWNER_WITHDRAWAL: 'Retiro del dueño', ADJUSTMENT: 'Ajuste' }
+const DEFAULT_EXPENSE_LIMIT_PYG = 1000000
 
 export default function Gastos() {
-  const { esDemo, sucursal } = useSesion()
+  const { esDemo, sucursal, empresa, sesion } = useSesion()
   const [form, setForm] = useState(EMPTY)
   const [rows, setRows] = useState([])
   const [accounts, setAccounts] = useState([])
   const [loading, setLoading] = useState(!esDemo)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [authGasto, setAuthGasto] = useState(null)
   const branch = sucursal?.id ? `?branchId=${encodeURIComponent(sucursal.id)}` : ''
+  const puedeSinAutorizacion = sesion?.rol === 'dueno' || sesion?.rol === 'GERENTE'
+  const limiteGastos = Number(empresa?.expenseLimitPyg ?? DEFAULT_EXPENSE_LIMIT_PYG)
+  // El límite se compara en guaraníes: en otra moneda se congela la cotización.
+  const montoPyg = form.currency === 'PYG'
+    ? Number(parseGsInput(form.originalAmount)) || 0
+    : Math.round((Number(form.originalAmount) || 0) * (Number(form.exchangeRatePyg) || 0))
+  const requiereAutorizacion = form.kind === 'EXPENSE' && !puedeSinAutorizacion && montoPyg > limiteGastos
+  useEffect(() => { if (!requiereAutorizacion) setAuthGasto(null) }, [requiereAutorizacion])
 
   const load = useCallback(async () => {
     if (isDemoRuntime) { setRows(listGastos()); setLoading(false); return }
@@ -38,14 +49,15 @@ export default function Gastos() {
     event.preventDefault(); setMessage('')
     const originalAmount = form.currency === 'PYG' ? parseGsInput(form.originalAmount) : form.originalAmount
     if (!Number(originalAmount) || !form.description.trim()) { setMessage('Completá monto y descripción.'); return }
+    if (requiereAutorizacion && !authGasto) { setMessage('El gasto supera el límite sin autorización. Solicitá autorización a gerencia y esperá la aprobación.'); return }
     setBusy(true)
     try {
       if (isDemoRuntime) {
         addGasto({ monto: Number(originalAmount), motivo: form.description, fecha: form.date, categoria: 'Otros' })
         setRows(listGastos()); setForm(EMPTY()); return
       }
-      await api.post(`/api/finance${branch}`, { action: 'movement', kind: form.kind, direction: 'OUT', currency: form.currency, originalAmount, exchangeRatePyg: form.currency === 'PYG' ? 1 : form.exchangeRatePyg, accountId: form.accountId || null, description: form.description, counterparty: form.counterparty || null, reference: form.reference || null, dueAt: form.kind === 'CHEQUE' && form.dueAt ? form.dueAt : null })
-      setForm(EMPTY()); await load()
+      await api.post(`/api/finance${branch}`, { action: 'movement', kind: form.kind, direction: 'OUT', currency: form.currency, originalAmount, exchangeRatePyg: form.currency === 'PYG' ? 1 : form.exchangeRatePyg, accountId: form.accountId || null, description: form.description, counterparty: form.counterparty || null, reference: form.reference || null, dueAt: form.kind === 'CHEQUE' && form.dueAt ? form.dueAt : null, ...(requiereAutorizacion && authGasto ? { expenseAuthorizationId: authGasto.id } : {}) })
+      setForm(EMPTY()); setAuthGasto(null); await load()
     } catch (error) { setMessage(error.message || 'No se pudo guardar el movimiento.') } finally { setBusy(false) }
   }
   async function updateStatus(id, action) {
@@ -69,6 +81,20 @@ export default function Gastos() {
         <div className="md:col-span-2"><Label htmlFor="descripcion">Descripción</Label><Input id="descripcion" required value={form.description} onChange={event => set('description', event.target.value)} placeholder="Ej. Seguro de mercadería" /></div>
         <div><Label htmlFor="contraparte">Contraparte</Label><Input id="contraparte" value={form.counterparty} onChange={event => set('counterparty', event.target.value)} placeholder="Proveedor o beneficiario" /></div>
         <div><Label htmlFor="referencia">Referencia</Label><Input id="referencia" value={form.reference} onChange={event => set('reference', event.target.value)} placeholder="N.º transferencia o cheque" /></div>
+        {requiereAutorizacion && !esDemo && (
+          <AutorizacionBloque
+            kind="EXPENSE_OVER_LIMIT"
+            entity="EXPENSE"
+            entityId={null}
+            titulo="Gasto por encima del límite"
+            descripcion={`El monto supera el límite sin autorización (${gs(limiteGastos)}). Pedí autorización a gerencia y ejecutá el gasto con la aprobación.`}
+            requestedValue={{ amountPyg: montoPyg, description: form.description.trim() }}
+            monto={montoPyg}
+            campoMax="maxAmountPyg"
+            onSelect={setAuthGasto}
+            bloqueado={busy}
+          />
+        )}
         <div className="flex items-end"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar movimiento'}</Button></div>
       </form>
     </Card>

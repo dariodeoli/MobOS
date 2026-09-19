@@ -15,12 +15,18 @@ export const AUTHORIZATION_KINDS = [
   'BELOW_LIST_PRICE',
   'STOCK_ADJUST',
   'ORDER_VOID',
+  'EXPENSE_OVER_LIMIT',
+  'TRANSFER',
+  'PURCHASE_CREDIT',
 ] as const
 export type AuthorizationKind = typeof AUTHORIZATION_KINDS[number]
 
 export const AUTHORIZATION_RESOLVERS = ['ADMIN', 'GERENTE'] as const
 export const DISCOUNT_MAX_PYG = 100000000
 export const AUTHORIZATION_MAX_AGE_MS = 24 * 60 * 60 * 1000
+// Límites por defecto cuando la empresa no configuró los suyos.
+export const DEFAULT_EXPENSE_LIMIT_PYG = 1000000
+export const DEFAULT_PURCHASE_CREDIT_LIMIT_PYG = 5000000
 
 const INT_MAX = 2147483647
 
@@ -38,6 +44,16 @@ export type AuthorizationValue = {
   orderId?: string
   approved?: boolean
   adjustedStock?: number
+  amountPyg?: number
+  maxAmountPyg?: number
+  sourceBranchId?: string
+  destinationBranchId?: string
+  quantity?: number
+  serials?: string[]
+  supplierId?: string
+  supplierName?: string
+  totalPyg?: number
+  maxTotalPyg?: number
 }
 
 export function safeIntValue(value: unknown, minimum: number, maximum: number): value is number {
@@ -53,6 +69,14 @@ export function maxDiscountPygOf(resolvedValue: unknown): number {
   const value = authorizationValueOf(resolvedValue)
   const amount = Number(value.maxDiscountPyg)
   return safeIntValue(amount, 0, DISCOUNT_MAX_PYG) ? amount : 0
+}
+
+// El máximo autorizado de un gasto (maxAmountPyg) o de una compra a crédito
+// (maxTotalPyg). Devuelve -1 cuando la resolución no trae un monto válido.
+export function authorizedAmountOf(resolvedValue: unknown, key: 'maxAmountPyg' | 'maxTotalPyg'): number {
+  const value = authorizationValueOf(resolvedValue)
+  const amount = Number(value[key])
+  return safeIntValue(amount, 0, INT_MAX) ? amount : -1
 }
 
 type UsableAuthorization = {

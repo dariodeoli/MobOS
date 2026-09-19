@@ -3,6 +3,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { canAccessOrder } from '../../../lib/orders'
+import { serialKey } from '../../../lib/validation'
 import {
   AUTHORIZATION_KINDS,
   AUTHORIZATION_RESOLVERS,
@@ -13,16 +14,18 @@ import {
 
 // Autorizaciones comerciales y operativas: cualquier vendedor pide cambios de
 // condición (mayorista, crédito, días), un descuento fuera de política, una
-// venta bajo lista, un ajuste de stock o la anulación de un pedido; y
-// administración/gerencia resuelve. El motor es el mismo para todos los tipos:
-// una pendiente por vendedor + tipo + sujeto, resolución única y consumo de un
-// solo uso.
+// venta bajo lista, un ajuste de stock, la anulación de un pedido, un gasto
+// fuera del límite, una transferencia entre sucursales o una compra a crédito
+// por encima del umbral; y administración/gerencia resuelve. El motor es el
+// mismo para todos los tipos: una pendiente por vendedor + tipo + sujeto,
+// resolución única y consumo de un solo uso.
 // VENDEDOR ve solo sus pedidos; ADMIN/GERENTE ven todas las del tenant.
 const STATUSES = ['PENDING', 'APPROVED', 'REJECTED']
 const INT_MAX = 2147483647
-// Los tipos con sujeto propio (unidad, pedido, producto) no exigen ficha de
-// cliente: el sujeto es la operación, no la condición comercial del cliente.
-const SUBJECT_KINDS = ['BELOW_LIST_PRICE', 'STOCK_ADJUST', 'ORDER_VOID']
+// Los tipos con sujeto propio (unidad, pedido, producto, gasto, transferencia,
+// compra) no exigen ficha de cliente: el sujeto es la operación, no la
+// condición comercial del cliente.
+const SUBJECT_KINDS = ['BELOW_LIST_PRICE', 'STOCK_ADJUST', 'ORDER_VOID', 'EXPENSE_OVER_LIMIT', 'TRANSFER', 'PURCHASE_CREDIT']
 const STOCK_ACTIONS = ['remove', 'adjust']
 const clean = (value: unknown, max: number) => typeof value === 'string' ? value.trim().slice(0, max) : ''
 const safeInt = safeIntValue
@@ -83,13 +86,27 @@ const inputObject = (value: unknown): Record<string, unknown> => value && typeof
 function normalizeSubjectResolution(kind: string, raw: unknown, requestedValue: unknown, label: string): Prisma.InputJsonValue | string {
   const input = inputObject(raw)
   const requested = authorizationValueOf(requestedValue)
-  if (kind === 'ORDER_VOID') return { approved: true }
+  if (kind === 'ORDER_VOID' || kind === 'TRANSFER') return { approved: true }
   if (kind === 'STOCK_ADJUST') {
     const rawStock = input.adjustedStock ?? input.stock
     if (rawStock === undefined || rawStock === null || rawStock === '') return { approved: true }
     const adjustedStock = Number(rawStock)
     if (!safeInt(adjustedStock, 0, INT_MAX)) return `${label}: la existencia autorizada debe ser un entero entre 0 y ${INT_MAX}.`
     return { approved: true, adjustedStock }
+  }
+  // EXPENSE_OVER_LIMIT y PURCHASE_CREDIT: el máximo autorizado puede ser menor
+  // (o 0) al pedido; sin resolución explícita se autoriza lo pedido.
+  if (kind === 'EXPENSE_OVER_LIMIT') {
+    const rawAmount = input.maxAmountPyg ?? requested.amountPyg
+    const amount = Number(rawAmount)
+    if (!safeInt(amount, 0, INT_MAX)) return `${label}: el máximo autorizado debe ser un entero entre 0 y ${INT_MAX}.`
+    return { maxAmountPyg: amount }
+  }
+  if (kind === 'PURCHASE_CREDIT') {
+    const rawAmount = input.maxTotalPyg ?? requested.totalPyg
+    const amount = Number(rawAmount)
+    if (!safeInt(amount, 0, INT_MAX)) return `${label}: el máximo autorizado debe ser un entero entre 0 y ${INT_MAX}.`
+    return { maxTotalPyg: amount }
   }
   // BELOW_LIST_PRICE: el máximo autorizado puede ser menor (o 0) al pedido.
   const rawAmount = input.maxDiscountPyg ?? input.discountPyg ?? requested.discountPyg
@@ -207,6 +224,62 @@ export async function POST(request: Request) {
         ...(productId ? { productId } : {}),
         ...(description ? { description } : {}),
       }
+    } else if (kind === 'EXPENSE_OVER_LIMIT') {
+      // Gasto por encima del límite de la empresa: el sujeto es el gasto, que
+      // recién existe al ejecutarse. La aprobación fija el monto máximo.
+      const raw = inputObject(body?.requestedValue)
+      const amountPyg = Number(raw.amountPyg)
+      const expenseDescription = clean(raw.description, 300)
+      if (!safeInt(amountPyg, 1, INT_MAX)) return error('Solicitud: el monto del gasto debe ser un entero mayor a 0.')
+      if (expenseDescription.length < 3) return error('Solicitud: describí el gasto en 3 a 300 caracteres.')
+      entity = 'EXPENSE'
+      requestedJson = { amountPyg, description: expenseDescription }
+    } else if (kind === 'TRANSFER') {
+      // Traslado entre sucursales: el sujeto es el producto a mover desde la
+      // sucursal de origen, dentro del alcance del solicitante.
+      const raw = inputObject(body?.requestedValue)
+      const sourceBranchId = clean(raw.sourceBranchId, 128)
+      const destinationBranchId = clean(raw.destinationBranchId, 128)
+      const productId = clean(raw.productId, 128)
+      if (!sourceBranchId || !destinationBranchId || sourceBranchId === destinationBranchId || !productId) return error('Solicitud: origen, destino distintos y producto son obligatorios.')
+      if (session.user.role !== 'ADMIN' && session.user.branchId !== sourceBranchId) return error('No autorizado para esa sucursal.', 403)
+      const branches = await prisma.branch.findMany({ where: { tenantId: session.user.tenantId, id: { in: [sourceBranchId, destinationBranchId] }, isActive: true }, select: { id: true } })
+      if (branches.length !== 2) return error('Solicitud: sucursal de origen o destino no encontrada.')
+      const product = await prisma.product.findFirst({ where: { id: productId, tenantId: session.user.tenantId, branchId: sourceBranchId, isActive: true }, select: { id: true } })
+      if (!product) return error('Producto no encontrado en la sucursal de origen.', 404)
+      let quantity: number | undefined
+      if (raw.quantity !== undefined && raw.quantity !== null && raw.quantity !== '') {
+        quantity = Number(raw.quantity)
+        if (!safeInt(quantity, 1, INT_MAX)) return error('Solicitud: la cantidad debe ser un entero mayor a 0.')
+      }
+      const rawSerials = raw.serials === undefined ? [] : Array.isArray(raw.serials) ? raw.serials : null
+      if (rawSerials === null || rawSerials.length > 200) return error('Solicitud: los IMEI/seriales no son válidos.')
+      const serials = rawSerials.map(serial => typeof serial === 'string' ? serialKey(serial) : '').filter(Boolean)
+      if (serials.length !== rawSerials.length || new Set(serials).size !== serials.length) return error('Solicitud: cada IMEI/serial debe ser válido y único.')
+      const effectiveQuantity = quantity ?? serials.length
+      if (effectiveQuantity < 1) return error('Solicitud: indicá la cantidad o los IMEI/seriales a transferir.')
+      if (serials.length > effectiveQuantity) return error('Solicitud: hay más IMEI/seriales que la cantidad indicada.')
+      entity = 'STOCK_TRANSFER'
+      entityId = productId
+      requestedJson = { sourceBranchId, destinationBranchId, productId, quantity: effectiveQuantity, ...(serials.length ? { serials } : {}) }
+    } else if (kind === 'PURCHASE_CREDIT') {
+      // Compra a crédito por encima del umbral: el sujeto es el proveedor (si
+      // ya existe la ficha) y el total pedido.
+      const raw = inputObject(body?.requestedValue)
+      const totalPyg = Number(raw.totalPyg)
+      if (!safeInt(totalPyg, 1, INT_MAX)) return error('Solicitud: el total de la compra debe ser un entero mayor a 0.')
+      const requestedSupplierId = clean(raw.supplierId, 128) || null
+      const requestedSupplierName = clean(raw.supplierName, 160) || null
+      if (!requestedSupplierId && !requestedSupplierName) return error('Solicitud: indicá el proveedor de la compra a crédito.')
+      let supplierName = requestedSupplierName
+      if (requestedSupplierId) {
+        const supplier = await prisma.supplier.findFirst({ where: { id: requestedSupplierId, tenantId: session.user.tenantId, isActive: true }, select: { id: true, name: true } })
+        if (!supplier) return error('Proveedor no encontrado.', 404)
+        supplierName = supplier.name
+      }
+      entity = 'PURCHASE'
+      entityId = requestedSupplierId
+      requestedJson = { totalPyg, ...(requestedSupplierId ? { supplierId: requestedSupplierId } : {}), ...(supplierName ? { supplierName } : {}) }
     } else {
       const normalized = normalizeValue(kind, body?.requestedValue, 'Solicitud')
       if (typeof normalized === 'string') return error(normalized)
@@ -227,12 +300,18 @@ export async function POST(request: Request) {
       if (kind === 'BELOW_LIST_PRICE') return error('Ya tenés una solicitud de precio bajo lista pendiente. Esperá a que gerencia la resuelva.', 409)
       if (kind === 'STOCK_ADJUST') return error('Ya tenés una solicitud pendiente para esa unidad. Esperá a que gerencia la resuelva.', 409)
       if (kind === 'ORDER_VOID') return error('Ya tenés una solicitud de anulación pendiente para ese pedido. Esperá a que gerencia la resuelva.', 409)
+      if (kind === 'EXPENSE_OVER_LIMIT') return error('Ya tenés una solicitud de gasto pendiente. Esperá a que gerencia la resuelva.', 409)
+      if (kind === 'TRANSFER') return error('Ya tenés una solicitud de transferencia pendiente para ese producto. Esperá a que gerencia la resuelva.', 409)
+      if (kind === 'PURCHASE_CREDIT') return error('Ya tenés una solicitud de compra a crédito pendiente. Esperá a que gerencia la resuelva.', 409)
       return error('Ya hay una solicitud pendiente de este tipo para el cliente.', 409)
     }
     const auditSubject = kind === 'STOCK_ADJUST' ? { entity: 'InventoryUnit', entityId: entityId as string }
       : kind === 'ORDER_VOID' ? { entity: 'Order', entityId: entityId as string }
         : kind === 'BELOW_LIST_PRICE' ? { entity: entity ? 'Product' : customerId ? 'Customer' : 'Order', entityId: entityId ?? customerId ?? 'below-list-price' }
-          : { entity: customerId ? 'Customer' : 'Order', entityId: customerId ?? 'discount' }
+          : kind === 'EXPENSE_OVER_LIMIT' ? { entity: 'CashMovement', entityId: 'expense' }
+            : kind === 'TRANSFER' ? { entity: 'StockTransfer', entityId: entityId ?? 'transfer' }
+              : kind === 'PURCHASE_CREDIT' ? { entity: 'PurchaseOrder', entityId: entityId ?? 'purchase-credit' }
+                : { entity: customerId ? 'Customer' : 'Order', entityId: customerId ?? 'discount' }
     const created = await prisma.$transaction(async tx => {
       const authorization = await tx.customerAuthorization.create({
         data: { tenantId: session.user.tenantId, customerId, kind, entity, entityId, requestedValue: requestedJson ?? Prisma.DbNull, requestedById: session.user.id, note },
@@ -296,9 +375,15 @@ export async function PATCH(request: Request) {
         resolvedJson = current.kind === 'WHOLESALE' ? null : (applied as Prisma.InputJsonValue)
       }
     }
-    // Audit en la cronología del sujeto (unidad, pedido o producto) para que
-    // la resolución aparezca donde se pidió.
-    const subjectEntity = current.entity === 'INVENTORY_UNIT' ? 'InventoryUnit' : current.entity === 'ORDER' ? 'Order' : current.entity === 'PRODUCT' ? 'Product' : null
+    // Audit en la cronología del sujeto (unidad, pedido, producto, gasto,
+    // transferencia o compra) para que la resolución aparezca donde se pidió.
+    const subjectEntity = current.entity === 'INVENTORY_UNIT' ? 'InventoryUnit'
+      : current.entity === 'ORDER' ? 'Order'
+        : current.entity === 'PRODUCT' ? 'Product'
+          : current.entity === 'EXPENSE' ? 'CashMovement'
+            : current.entity === 'STOCK_TRANSFER' ? 'StockTransfer'
+              : current.entity === 'PURCHASE' ? 'PurchaseOrder'
+                : null
     const auditEntity = subjectEntity ?? (current.customerId ? 'Customer' : 'Order')
     const auditEntityId = subjectEntity ? (current.entityId ?? 'unknown') : (current.customerId ?? 'discount')
 

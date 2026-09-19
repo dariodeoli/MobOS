@@ -33,6 +33,10 @@ model Tenant {
   // Identificador comercial visible de los pedidos: "MOB #310840".
   orderPrefix         String?
   orderNextNumber     Int?
+  // Umbrales de autorización: gasto y compra a crédito sin autorización de
+  // gerencia para los roles operativos. Null usa el default de la aplicación.
+  expenseLimitPyg        Int?
+  purchaseCreditLimitPyg Int?
   settings            Json             @default("{}")
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt

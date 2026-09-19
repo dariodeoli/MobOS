@@ -20,12 +20,18 @@ const KINDS = {
   BELOW_LIST_PRICE: 'Precio bajo lista',
   STOCK_ADJUST: 'Ajuste de stock',
   ORDER_VOID: 'Anulación de pedido',
+  EXPENSE_OVER_LIMIT: 'Gasto sobre límite',
+  TRANSFER: 'Transferencia',
+  PURCHASE_CREDIT: 'Compra a crédito',
 }
 
 const SUJETOS = {
   INVENTORY_UNIT: 'Unidad',
   ORDER: 'Pedido',
   PRODUCT: 'Producto',
+  EXPENSE: 'Gasto',
+  STOCK_TRANSFER: 'Transferencia',
+  PURCHASE: 'Compra',
 }
 
 // El sujeto reemplaza al cliente en los tipos operativos (unidad, pedido,
@@ -59,11 +65,19 @@ function resumenValor(kind, value) {
   if (kind === 'WHOLESALE') return 'Pasar a precio mayorista'
   if (kind === 'ORDER_VOID') return 'Anulación total del pedido'
   if (kind === 'STOCK_ADJUST') return `${data.action === 'remove' ? 'Retirar unidad' : 'Ajustar unidad'}${data.reason ? ` · ${data.reason}` : ''}`
+  if (kind === 'EXPENSE_OVER_LIMIT') return [`Gasto ${data.amountPyg !== undefined ? formatGs(data.amountPyg) : ''}`.trim(), data.description].filter(Boolean).join(' · ') || '—'
+  if (kind === 'TRANSFER') {
+    const ruta = data.sourceBranchId || data.destinationBranchId ? `Origen ${String(data.sourceBranchId || '').slice(-6)} → destino ${String(data.destinationBranchId || '').slice(-6)}` : ''
+    return [ruta, data.quantity ? `${data.quantity} unidad${Number(data.quantity) === 1 ? '' : 'es'}` : '', Array.isArray(data.serials) && data.serials.length ? `${data.serials.length} IMEI` : ''].filter(Boolean).join(' · ') || '—'
+  }
+  if (kind === 'PURCHASE_CREDIT') return [`Compra a crédito ${data.totalPyg !== undefined ? formatGs(data.totalPyg) : ''}`.trim(), data.supplierName].filter(Boolean).join(' · ') || '—'
   const parts = []
   if (data.creditLimitPyg !== undefined && data.creditLimitPyg !== null) parts.push(`Límite ${formatGs(data.creditLimitPyg)}`)
   if (data.creditDays !== undefined && data.creditDays !== null) parts.push(`${data.creditDays} día${Number(data.creditDays) === 1 ? '' : 's'}`)
   if (data.discountPyg !== undefined && data.discountPyg !== null) parts.push(`Descuento ${formatGs(data.discountPyg)}`)
   if (data.maxDiscountPyg !== undefined && data.maxDiscountPyg !== null) parts.push(`Máximo ${formatGs(data.maxDiscountPyg)}`)
+  if (data.maxAmountPyg !== undefined && data.maxAmountPyg !== null) parts.push(`Máximo ${formatGs(data.maxAmountPyg)}`)
+  if (data.maxTotalPyg !== undefined && data.maxTotalPyg !== null) parts.push(`Máximo ${formatGs(data.maxTotalPyg)}`)
   if (data.discountPct !== undefined && data.discountPct !== null) parts.push(`${data.discountPct}%`)
   if (data.description) parts.push(String(data.description))
   if (data.reason) parts.push(String(data.reason))
@@ -81,7 +95,7 @@ export default function Autorizaciones() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [approveTarget, setApproveTarget] = useState(null)
-  const [approveForm, setApproveForm] = useState({ creditLimitPyg: '', creditDays: '', maxDiscountPyg: '', resolvedNote: '' })
+  const [approveForm, setApproveForm] = useState({ creditLimitPyg: '', creditDays: '', maxDiscountPyg: '', maxAmountPyg: '', maxTotalPyg: '', resolvedNote: '' })
   const [rejectTarget, setRejectTarget] = useState(null)
   const [rejectNote, setRejectNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -113,6 +127,8 @@ export default function Autorizaciones() {
       creditDays: value.creditDays ?? '',
       // El máximo autorizado arranca en lo pedido; se puede bajar (o poner 0).
       maxDiscountPyg: value.discountPyg ?? '',
+      maxAmountPyg: value.amountPyg ?? '',
+      maxTotalPyg: value.totalPyg ?? '',
       resolvedNote: '',
     })
     setApproveTarget(row)
@@ -137,6 +153,16 @@ export default function Autorizaciones() {
         return
       }
       resolvedValue.maxDiscountPyg = max
+    }
+    if (kind === 'EXPENSE_OVER_LIMIT' || kind === 'PURCHASE_CREDIT') {
+      const rawMax = kind === 'EXPENSE_OVER_LIMIT' ? approveForm.maxAmountPyg : approveForm.maxTotalPyg
+      const max = Number(rawMax)
+      if (!Number.isSafeInteger(max) || max < 0) {
+        toast.error('Máximo inválido', 'El máximo autorizado debe ser un entero en guaraníes, mayor o igual a 0.')
+        return
+      }
+      if (kind === 'EXPENSE_OVER_LIMIT') resolvedValue.maxAmountPyg = max
+      else resolvedValue.maxTotalPyg = max
     }
     if (kind === 'CREDIT' || kind === 'CREDIT_DAYS') {
       if (approveForm.creditDays === '' && kind === 'CREDIT_DAYS') {
@@ -302,11 +328,20 @@ export default function Autorizaciones() {
             <p className="text-sm text-mute">
               {approveTarget.customer?.name || sujetoDe(approveTarget) || 'Cliente'} · pedido por {approveTarget.requestedBy?.name || 'Sistema'}: <b className="text-fore">{resumenValor(approveTarget.kind, approveTarget.requestedValue)}</b>
             </p>
-            {(approveTarget.kind === 'STOCK_ADJUST' || approveTarget.kind === 'ORDER_VOID') && (
+            {(approveTarget.kind === 'STOCK_ADJUST' || approveTarget.kind === 'ORDER_VOID' || approveTarget.kind === 'TRANSFER') && (
               <p className="rounded-lg border border-fono/30 bg-fono/5 px-3 py-2 text-xs text-fono-light">
                 {approveTarget.kind === 'STOCK_ADJUST'
                   ? 'Al aprobar, el vendedor puede ejecutar el retiro o ajuste de esa unidad una sola vez.'
-                  : 'Al aprobar, el vendedor puede anular ese pedido una sola vez; los pagos no se reembolsan automáticamente.'}
+                  : approveTarget.kind === 'ORDER_VOID'
+                    ? 'Al aprobar, el vendedor puede anular ese pedido una sola vez; los pagos no se reembolsan automáticamente.'
+                    : 'Al aprobar, el vendedor puede ejecutar esa transferencia entre sucursales una sola vez.'}
+              </p>
+            )}
+            {(approveTarget.kind === 'EXPENSE_OVER_LIMIT' || approveTarget.kind === 'PURCHASE_CREDIT') && (
+              <p className="rounded-lg border border-fono/30 bg-fono/5 px-3 py-2 text-xs text-fono-light">
+                {approveTarget.kind === 'EXPENSE_OVER_LIMIT'
+                  ? 'Al aprobar, el rol operativo puede registrar un gasto hasta el máximo autorizado.'
+                  : 'Al aprobar, el rol operativo puede crear esa compra a crédito hasta el máximo autorizado.'}
               </p>
             )}
             {approveTarget.kind === 'CREDIT' && (
@@ -321,6 +356,24 @@ export default function Autorizaciones() {
                 htmlFor="auth-discount"
               >
                 <MoneyInput id="auth-discount" value={approveForm.maxDiscountPyg} onValueChange={(value) => setApproveForm((form) => ({ ...form, maxDiscountPyg: value }))} placeholder="50.000" />
+              </FormField>
+            )}
+            {approveTarget.kind === 'EXPENSE_OVER_LIMIT' && (
+              <FormField
+                label="Monto máximo autorizado (Gs.)"
+                hint="Arranca en lo pedido; podés autorizar menos (o 0). El gasto no podrá superar este máximo."
+                htmlFor="auth-expense"
+              >
+                <MoneyInput id="auth-expense" value={approveForm.maxAmountPyg} onValueChange={(value) => setApproveForm((form) => ({ ...form, maxAmountPyg: value }))} placeholder="150.000" />
+              </FormField>
+            )}
+            {approveTarget.kind === 'PURCHASE_CREDIT' && (
+              <FormField
+                label="Total máximo autorizado (Gs.)"
+                hint="Arranca en lo pedido; podés autorizar menos (o 0). La compra no podrá superar este total."
+                htmlFor="auth-purchase"
+              >
+                <MoneyInput id="auth-purchase" value={approveForm.maxTotalPyg} onValueChange={(value) => setApproveForm((form) => ({ ...form, maxTotalPyg: value }))} placeholder="5.000.000" />
               </FormField>
             )}
             {(approveTarget.kind === 'CREDIT' || approveTarget.kind === 'CREDIT_DAYS') && (

@@ -1,12 +1,16 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { InputError } from '../../../lib/payment-input'
 import { serialKey } from '../../../lib/validation'
 import { changeStock } from '../../../lib/stock'
+import { authorizationValueOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 
 const INT_MAX = 2147483647
 const text = (value: unknown, max = 160) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max ? value.trim() : null
 
+// ADMIN y GERENTE transfieren por su rol; el resto de los roles necesita una
+// autorización de gerencia aprobada y de un solo uso.
 function permitted(role: string) { return role === 'ADMIN' || role === 'GERENTE' }
 
 export async function GET(request: Request) {  const tenant = await tenantId(request); const session = await requireSession(request)
@@ -31,16 +35,22 @@ export async function GET(request: Request) {  const tenant = await tenantId(req
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!permitted(session.user.role)) return error('No autorizado.', 403)
   let body: any
   try { body = await request.json() } catch { return error('JSON inválido.') }
+  const porRol = permitted(session.user.role)
+  if (!porRol && !text(body?.transferAuthorizationId, 128)) return error('Tu rol necesita autorización de gerencia para transferir entre sucursales.', 403)
   const sourceBranchId = text(body?.sourceBranchId, 128); const destinationBranchId = text(body?.destinationBranchId, 128)
   const destinationLocationId = body?.destinationLocationId === undefined || body?.destinationLocationId === null || body?.destinationLocationId === '' ? null : text(body.destinationLocationId, 128)
   const notes = body?.notes === undefined || body?.notes === null || body?.notes === '' ? null : text(body.notes, 2000)
   const rawLines = Array.isArray(body?.lines) ? body.lines : []
   if (!sourceBranchId || !destinationBranchId || sourceBranchId === destinationBranchId || rawLines.length === 0 || rawLines.length > 200) return error('Origen, destino distintos y al menos una línea son obligatorios.')
   if (body?.notes !== undefined && body?.notes !== null && body?.notes !== '' && !notes) return error('Las observaciones no pueden superar 2000 caracteres.')
-  if (session.user.role === 'GERENTE' && session.user.branchId !== sourceBranchId) return error('Solo podés transferir desde tu sucursal.', 403)
+  if (session.user.role !== 'ADMIN' && session.user.branchId !== sourceBranchId) return error('Solo podés transferir desde tu sucursal.', 403)
+  const authorizationId = text(body?.transferAuthorizationId, 128)
+  if (!porRol) {
+    if (rawLines.length !== 1) return error('La transferencia autorizada mueve un solo producto.', 403)
+    if (!authorizationId) return error('Tu rol necesita autorización de gerencia para transferir entre sucursales.', 403)
+  }
 
   const seenProducts = new Set<string>()
   const lines: Array<{ productId: string; quantity: number; serials: string[] }> = []
@@ -60,6 +70,25 @@ export async function POST(request: Request) {
       const branches = await tx.branch.findMany({ where: { tenantId: tenant, id: { in: [sourceBranchId, destinationBranchId] }, isActive: true }, select: { id: true } })
       if (branches.length !== 2) throw new Error('Sucursal de origen o destino no encontrada.')
       if (destinationLocationId && !(await tx.stockLocation.findFirst({ where: { id: destinationLocationId, tenantId: tenant, branchId: destinationBranchId, isActive: true }, select: { id: true } }))) throw new Error('Ubicación de destino no encontrada.')
+      // El sujeto autorizado debe coincidir con la operación que se ejecuta.
+      let autorizacion: { id: string } | null = null
+      if (!porRol && authorizationId) {
+        const authorization = await tx.customerAuthorization.findFirst({ where: { id: authorizationId, tenantId: tenant } })
+        usableAuthorization(authorization, { userId: session.user.id, kinds: ['TRANSFER'], label: 'transferencia' })
+        const requested = authorizationValueOf(authorization!.requestedValue)
+        const [line] = lines
+        if (requested.sourceBranchId !== sourceBranchId || requested.destinationBranchId !== destinationBranchId || requested.productId !== line.productId) {
+          throw new InputError('La autorización de transferencia no corresponde a esta operación. Solicitá una nueva.', 403)
+        }
+        if (Number.isSafeInteger(requested.quantity) && line.quantity > Number(requested.quantity)) {
+          throw new InputError('La autorización de transferencia no alcanza la cantidad. Solicitá una nueva.', 403)
+        }
+        if (Array.isArray(requested.serials) && requested.serials.length > 0) {
+          const autorizados = new Set(requested.serials)
+          if (line.serials.some(serial => !autorizados.has(serial))) throw new InputError('La autorización de transferencia no corresponde a estos IMEI/seriales. Solicitá una nueva.', 403)
+        }
+        autorizacion = { id: authorization!.id }
+      }
       const created = await tx.stockTransfer.create({ data: { tenantId: tenant, sourceBranchId, destinationBranchId, createdById: session.user.id, notes } })
       for (const line of lines) {
         const source = await tx.product.findFirst({ where: { id: line.productId, tenantId: tenant, branchId: sourceBranchId, isActive: true } })
@@ -86,11 +115,18 @@ export async function POST(request: Request) {
         }
         await tx.stockTransferLine.create({ data: { transferId: created.id, sourceProductId: source.id, destinationProductId: destination.id, quantity: line.quantity, serials: line.serials } })
       }
+      if (autorizacion) {
+        await consumeAuthorization(tx, { id: autorizacion.id, tenantId: tenant, kinds: ['TRANSFER'], userId: session.user.id, label: 'transferencia' })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'TRANSFER_AUTHORIZED', entity: 'StockTransfer', entityId: created.id, metadata: { authorizationId: autorizacion.id, sourceBranchId, destinationBranchId, lineCount: lines.length } } })
+      }
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'STOCK_TRANSFERRED', entity: 'StockTransfer', entityId: created.id, metadata: { sourceBranchId, destinationBranchId, destinationLocationId, lineCount: lines.length } } })
       return tx.stockTransfer.findUniqueOrThrow({ where: { id: created.id }, include: { sourceBranch: { select: { id: true, name: true } }, destinationBranch: { select: { id: true, name: true } }, lines: { include: { sourceProduct: { select: { id: true, name: true, sku: true } }, destinationProduct: { select: { id: true, name: true, sku: true } } } } } })
     })
     return json(transfer, { status: 201 })
-  } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo completar la transferencia.', 409) }
+  } catch (e) {
+    if (e instanceof InputError) return error(e.message, e.status)
+    return error(e instanceof Error ? e.message : 'No se pudo completar la transferencia.', 409)
+  }
 }
 
 // Adjunta la guía de envío AEX a un traslado ya registrado (se conoce recién

@@ -18,6 +18,6 @@ assert.equal(acumularSegundos(hace(70_000), true, ahora), 60, 'un hueco largo de
 
 assert.equal(normalizarAlcance('  inventario  '), 'inventario')
 assert.equal(normalizarAlcance(''), null)
-assert.equal(normalizarAlcance('x'.repeat(120)).length, 60, 'el alcance se recorta a 60 caracteres')
+assert.equal(normalizarAlcance('x'.repeat(120))?.length, 60, 'el alcance se recorta a 60 caracteres')
 
 console.log('PASS: reglas puras de presencia (ventana de 75 s, consumo con actividad y alcance)')
