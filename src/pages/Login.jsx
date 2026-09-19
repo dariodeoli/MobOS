@@ -34,6 +34,17 @@ export default function Login() {
   const [signupErrors, setSignupErrors] = useState({})
   const [signupTouched, setSignupTouched] = useState({})
 
+  // Si la sesión sigue viva se entra directo a la app: el login queda solo para
+  // quien tiene que autenticarse.
+  useEffect(() => {
+    if (modo !== 'entrar') return
+    let vigente = true
+    sessionApi.me()
+      .then((sesion) => { if (vigente && sesion?.user) window.location.assign('/pos/cargar') })
+      .catch(() => {})
+    return () => { vigente = false }
+  }, [modo])
+
   function showCompany(result) {
     const lista = result.sellers || []
     setNombreEmpresa(result.tenant?.name || '')
