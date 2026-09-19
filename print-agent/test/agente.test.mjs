@@ -195,6 +195,31 @@ test('el agente imprime por red, encola si la impresora está caída y protege c
   assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://app.moboss.online')
 })
 
+test('la app local (loopback + origen permitido) imprime sin token', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'mobos-print-app-'))
+  const puertoAgente = await puertoLibre()
+  const puertoImpresora = await puertoLibre()
+  const base = `http://127.0.0.1:${puertoAgente}`
+  const impresora = await impresoraFalsa(puertoImpresora)
+  t.after(() => impresora.cerrar())
+  const agente = await arrancarAgente(dir, { impresora: `lan:127.0.0.1:${puertoImpresora}`, puerto: puertoAgente })
+  t.after(() => agente.kill('SIGKILL'))
+
+  const app = await fetch(`${base}/health`, { headers: { Origin: 'https://app.moboss.online' } }).then((r) => r.json())
+  assert.ok(app.impresoras, 'la app local ve el estado completo sin token')
+  const ajeno = await fetch(`${base}/health`, { headers: { Origin: 'https://otro.example' } }).then((r) => r.json())
+  assert.equal(ajeno.impresoras, undefined, 'otro origen no pasa sin token')
+
+  const ticket = Buffer.from('APP-LOCAL').toString('base64')
+  const impreso = await fetch(`${base}/print`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: 'https://app.moboss.online' },
+    body: JSON.stringify({ impresora: `lan:127.0.0.1:${puertoImpresora}`, data: ticket }),
+  }).then((r) => r.json())
+  assert.equal(impreso.ok, true)
+  assert.ok(await esperar(() => impresora.conDatos().length > 0), 'la app local imprimió sin token')
+})
+
 test('el parser de lpstat -v corta los dos puntos del nombre de la cola', async () => {
   const { parsearColasCups } = await import('../transportes.mjs')
   const colas = parsearColasCups('device for ZKP8008: socket://192.168.1.23:9100\ndevice for Otra: usb://Zebra/ZD220\n')

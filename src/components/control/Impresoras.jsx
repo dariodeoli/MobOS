@@ -126,6 +126,7 @@ export default function Impresoras() {
   const [seleccionados, setSeleccionados] = useState([])
   const [reparando, setReparando] = useState(false)
   const [puentesAbiertos, setPuentesAbiertos] = useState(false)
+  const [guiaAbierta, setGuiaAbierta] = useState(false)
   const [puenteNuevo, setPuenteNuevo] = useState(null)
   const [creandoPuente, setCreandoPuente] = useState(false)
   const [codigoVinculacion, setCodigoVinculacion] = useState(null)
@@ -650,6 +651,7 @@ export default function Impresoras() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={consultar} disabled={cargando}><Icon name="refresh" className="h-3.5 w-3.5" />Actualizar estado</Button>
+          <Button type="button" variant="outline" onClick={() => setGuiaAbierta(true)}><Icon name="info" className="h-3.5 w-3.5" />Guía de impresión</Button>
           <Button type="button" onClick={() => abrirFormulario(null)}><Icon name="plus" className="h-3.5 w-3.5" />Agregar impresora</Button>
         </div>
       </div>
@@ -1005,6 +1007,10 @@ export default function Impresoras() {
         </div>
       </Modal>
 
+      <Modal open={guiaAbierta} onClose={() => setGuiaAbierta(false)} title="Guía de impresión" className="max-w-2xl">
+        <GuiaImpresion />
+      </Modal>
+
       <ConfirmDialog
         open={Boolean(eliminarId)}
         onCancel={() => setEliminarId(null)}
@@ -1299,6 +1305,72 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
         </div>
       </div>
     </Modal>
+  )
+}
+
+// Guía operativa del sistema de impresión: los dos modos, cómo instalar el
+// agente en una computadora y qué hacer cuando algo no sale. Está pensada para
+// que el local no dependa de soporte técnico para operar y reinstalar.
+function GuiaImpresion() {
+  return (
+    <div className="space-y-5 text-sm">
+      <section className="space-y-2">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Cómo se imprime</h4>
+        <div className="rounded-xl border border-ink-600 p-3">
+          <p className="font-semibold text-fore">Modo rápido · esta computadora</p>
+          <p className="mt-1 text-mute">Si acá hay un agente instalado y vinculado, la app le manda el ticket por 127.0.0.1 y sale al instante: directo por LAN o por la cola CUPS. Es el modo de la Mac del local.</p>
+        </div>
+        <div className="rounded-xl border border-ink-600 p-3">
+          <p className="font-semibold text-fore">Modo puente · cualquier dispositivo</p>
+          <p className="mt-1 text-mute">Desde el celular, otra PC o fuera del local, el ticket viaja al servidor y lo imprime la computadora puente vinculada (tarda unos segundos más: el puente reclama cada 2 s).</p>
+        </div>
+        <p className="text-mute">La app elige solo: si el agente de <b className="text-fore">esta</b> computadora responde y la impresora es de su puente, imprime local; si no, encola remoto. Los dos modos conviven: la Mac del local imprime rápido mientras el resto de los equipos encola hacia ese mismo puente.</p>
+      </section>
+
+      <section className="space-y-2">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Instalar el modo rápido en una computadora</h4>
+        <ol className="list-decimal space-y-1 pl-5 text-mute">
+          <li>En <b className="text-fore">Gestionar puentes → Código</b>, generá el código de un solo uso (vence en 15 minutos).</li>
+          <li>En esa Mac, pegá este comando en la Terminal con el código (reemplazá ABCDE-FGHIJ):</li>
+        </ol>
+        <code className="block overflow-x-auto rounded bg-ink-700 p-2 text-xs text-fore">curl -fsSL https://api.moboss.online/print-agent/install.sh | bash -s -- --code ABCDE-FGHIJ</code>
+        <ul className="space-y-1 text-mute">
+          <li>El instalador deja el agente arrancando al iniciar sesión, verifica la descarga y avisa si falta algo de red.</li>
+          <li>Volvé a esta pantalla y tocá <b className="text-fore">Actualizar estado</b>: debe decir <b className="text-fore">Agente conectado</b>. Después, <b className="text-fore">Imprimir prueba</b>.</li>
+          <li>Para actualizar el agente, volvé a correr el mismo comando (sin código si ya está vinculado).</li>
+        </ul>
+      </section>
+
+      <section className="space-y-2">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Pasar de un modo a otro</h4>
+        <ul className="space-y-1 text-mute">
+          <li><b className="text-fore">Rápido</b>: tener el agente instalado y vinculado en esa computadora (arranca solo con la sesión).</li>
+          <li><b className="text-fore">Remoto (puente)</b>: no hace falta nada; cualquier PC, tablet o celular lo usa automáticamente.</li>
+          <li>Si esta computadora tiene agente pero la impresora elegida depende de <b className="text-fore">otro</b> puente, el trabajo se encola remoto solo.</li>
+          <li>El modo activo se ve en <b className="text-fore">Estado del sistema de impresión</b>: «Agente conectado» = rápido en este equipo; «Sin agente local» = remoto.</li>
+        </ul>
+      </section>
+
+      <section className="space-y-2">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Cuando algo no imprime</h4>
+        <ul className="space-y-2 text-mute">
+          <li><b className="text-fore">«Sin agente local»</b>: la Mac del local está apagada o el servicio no arrancó. Encendela y esperá un minuto; si sigue, reinstalá el agente con el comando de arriba.</li>
+          <li><b className="text-fore">«Sin respuesta» en el panel</b>: revisá <b className="text-fore">Actividad</b>; si el trabajo figura <b className="text-fore">aceptado</b>, ya salió del puente y solo falta confirmar el número impreso en el papel.</li>
+          <li><b className="text-fore">La impresora no responde por TCP</b>: el agente imprime igual por la cola CUPS del sistema (el daemon de macOS sí llega a la red). Es el respaldo normal; no hay que hacer nada.</li>
+          <li><b className="text-fore">Permiso de Red Local</b>: solo hace falta para TCP directo. Si macOS lo pide, se habilita para «node» en Ajustes → Privacidad y seguridad → Red local. Sin ese permiso, el respaldo CUPS imprime igual.</li>
+          <li><b className="text-fore">No sale nada</b>: verificá que la impresora esté encendida, con papel y con la IP correcta (<b className="text-fore">Editar</b> en la impresora).</li>
+        </ul>
+      </section>
+
+      <section className="space-y-2">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Confirmación y mantenimiento</h4>
+        <ul className="space-y-1 text-mute">
+          <li>Cada prueba imprime un <b className="text-fore">número secreto</b>: escribilo en Actividad para confirmar que el papel salió de verdad.</li>
+          <li>Los logs del agente quedan en <code className="rounded bg-ink-700 px-1">~/.mobos-print/agente.log</code>.</li>
+          <li>Para dar de baja un puente: <b className="text-fore">Gestionar puentes → Revocar</b> (su token deja de autenticar).</li>
+        </ul>
+      </section>
+    </div>
   )
 }
 

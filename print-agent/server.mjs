@@ -108,7 +108,13 @@ const responder = (response, datos, status = 200) => {
   response.end(JSON.stringify(datos))
 }
 
-const tokenValido = (request) => !config.token || request.headers['x-mobos-print-token'] === config.token
+// La app vive en un dominio público y llama a ESTA computadora por 127.0.0.1:
+// un origen permitido que llega por loopback es la app local y no necesita
+// token (así el modo rápido funciona sin pegar credenciales). Cualquier
+// cliente que llegue por la red sigue obligado a mandar el token.
+const origenPermitido = (request) => ORIGENES.some((permitido) => permitido.test(String(request.headers.origin || '')))
+const esLoopback = (request) => ['127.0.0.1', '::1'].includes(String(request.socket?.remoteAddress || '').replace(/^::ffff:/, ''))
+const tokenValido = (request) => !config.token || request.headers['x-mobos-print-token'] === config.token || (esLoopback(request) && origenPermitido(request))
 
 // IP real del equipo que llama (la del socket: no se confía en headers que el
 // cliente puede inventar). Sirve para saber desde qué computadora se imprimió.
