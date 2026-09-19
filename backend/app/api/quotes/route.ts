@@ -7,7 +7,7 @@ import { enforceRateLimit } from '../../../lib/rate-limit'
 import { esNumeroCotizacionDuplicado, nextQuoteNumber } from '../../../lib/quote-number'
 
 const INT_MAX = 2147483647
-const STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'CONVERTED', 'EXPIRED', 'CANCELLED']
+const STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'CONVERTED', 'EXPIRED', 'CANCELLED']
 const safeInt = (value: unknown, min = 0) => Number.isSafeInteger(value) && (value as number) >= min && (value as number) <= INT_MAX
 const text = (value: unknown, max = 300) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
 

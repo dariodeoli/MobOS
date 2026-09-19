@@ -532,8 +532,14 @@ model StockTransfer {
   // Guía de envío AEX cuando el traslado viaja con transportadora: se adjunta
   // al despachar y habilita el seguimiento por API.
   aexGuide            String?
+  // Acceso público del remito: token no enumerable que viaja en el QR impreso
+  // y permite confirmar la recepción física sin sesión.
+  publicToken         String?             @unique @default(cuid())
   // Se completa cuando todas las unidades del traslado llegaron a destino.
   receivedAt          DateTime?
+  // Quién y con qué nota confirmó la recepción (null en el flujo público).
+  receivedById        String?
+  receivedNote        String?
   createdAt           DateTime            @default(now())
   lines               StockTransferLine[]
 
@@ -791,6 +797,7 @@ enum QuoteStatus {
   DRAFT
   SENT
   ACCEPTED
+  REJECTED
   CONVERTED
   EXPIRED
   CANCELLED
@@ -816,6 +823,9 @@ model Quote {
   notes        String?
   validUntil   DateTime?
   status       QuoteStatus @default(DRAFT)
+  // Acceso público del cliente: token no enumerable que viaja en el QR/enlace
+  // para aceptar o rechazar la cotización sin sesión.
+  publicToken  String?     @unique @default(cuid())
   orderId      String?
   order        Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
   createdAt    DateTime    @default(now())

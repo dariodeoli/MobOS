@@ -32,9 +32,18 @@ export async function GET(request: Request) {
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (session.user.role === 'VENDEDOR') return error('No autorizado.', 403)
   const branchId = scope(session); if (branchId === '') return json([])
-  const params = [tenant]; const branchSql = branchId ? ' AND po."branchId" = $2' : ''
+  // Búsqueda del header global: proveedor (nombre o código), referencia y número interno.
+  const q = (new URL(request.url).searchParams.get('q') || '').trim().slice(0, 120)
+  const params: unknown[] = [tenant]; const branchSql = branchId ? ' AND po."branchId" = $2' : ''
   if (branchId) params.push(branchId)
-  const rows = await prisma.$queryRawUnsafe<any[]>(`SELECT po.*, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pl."id", 'productId', pl."productId", 'productName', p."name", 'quantity', pl."quantity", 'unitCostPyg', pl."unitCostPyg", 'lotReference', pl."lotReference", 'baseTotalPyg', pl."baseTotalPyg", 'allocatedShippingPyg', pl."allocatedShippingPyg", 'allocatedCustomsPyg', pl."allocatedCustomsPyg", 'allocatedInsurancePyg', pl."allocatedInsurancePyg", 'allocatedTaxesPyg', pl."allocatedTaxesPyg", 'allocatedOtherCostsPyg', pl."allocatedOtherCostsPyg", 'allocatedExtraCostPyg', pl."allocatedExtraCostPyg", 'finalTotalCostPyg', pl."finalTotalCostPyg", 'finalUnitCostPyg', pl."finalUnitCostPyg")) FILTER (WHERE pl."id" IS NOT NULL), '[]') AS lines, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pp."id", 'amountPyg', pp."amountPyg", 'currency', pp."currency", 'originalAmount', pp."originalAmount", 'reference', pp."reference", 'kind', pp."kind", 'paidAt', pp."paidAt")) FILTER (WHERE pp."id" IS NOT NULL), '[]') AS payments FROM "PurchaseOrder" po LEFT JOIN "PurchaseLine" pl ON pl."purchaseId" = po."id" LEFT JOIN "Product" p ON p."id" = pl."productId" LEFT JOIN "PurchasePayment" pp ON pp."purchaseId" = po."id" WHERE po."tenantId" = $1${branchSql} GROUP BY po."id" ORDER BY po."createdAt" DESC LIMIT 100`, ...params)
+  let searchSql = ''
+  if (q) {
+    // Patrón LIKE literal: % y _ del texto buscado no actúan como comodines.
+    params.push(`%${q.replace(/[\\%_]/g, '\\$&')}%`)
+    const pos = `$${params.length}`
+    searchSql = ` AND (po."supplierName" ILIKE ${pos} OR COALESCE(po."supplierReference", '') ILIKE ${pos} OR po."id" ILIKE ${pos} OR EXISTS (SELECT 1 FROM "Supplier" s WHERE s."id" = po."supplierId" AND (s."name" ILIKE ${pos} OR COALESCE(s."code", '') ILIKE ${pos})))`
+  }
+  const rows = await prisma.$queryRawUnsafe<any[]>(`SELECT po.*, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pl."id", 'productId', pl."productId", 'productName', p."name", 'quantity', pl."quantity", 'unitCostPyg', pl."unitCostPyg", 'lotReference', pl."lotReference", 'baseTotalPyg', pl."baseTotalPyg", 'allocatedShippingPyg', pl."allocatedShippingPyg", 'allocatedCustomsPyg', pl."allocatedCustomsPyg", 'allocatedInsurancePyg', pl."allocatedInsurancePyg", 'allocatedTaxesPyg', pl."allocatedTaxesPyg", 'allocatedOtherCostsPyg', pl."allocatedOtherCostsPyg", 'allocatedExtraCostPyg', pl."allocatedExtraCostPyg", 'finalTotalCostPyg', pl."finalTotalCostPyg", 'finalUnitCostPyg', pl."finalUnitCostPyg")) FILTER (WHERE pl."id" IS NOT NULL), '[]') AS lines, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pp."id", 'amountPyg', pp."amountPyg", 'currency', pp."currency", 'originalAmount', pp."originalAmount", 'reference', pp."reference", 'kind', pp."kind", 'paidAt', pp."paidAt")) FILTER (WHERE pp."id" IS NOT NULL), '[]') AS payments FROM "PurchaseOrder" po LEFT JOIN "PurchaseLine" pl ON pl."purchaseId" = po."id" LEFT JOIN "Product" p ON p."id" = pl."productId" LEFT JOIN "PurchasePayment" pp ON pp."purchaseId" = po."id" WHERE po."tenantId" = $1${branchSql}${searchSql} GROUP BY po."id" ORDER BY po."createdAt" DESC LIMIT 100`, ...params)
   return json(rows.map(row => ({ ...row, ...purchaseTotals(row.lines || [], row.payments || []) })))
 }
 

@@ -1,22 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
 import { Badge, Button, Input, Modal, MoneyInput, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import QRCode from 'qrcode'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Cronologia from '@/components/shared/Cronologia'
+import { printQuoteReceipt, quoteUrlFor } from '@/components/shared/OrderReceipt'
 import { cn } from '@/lib/utils'
 import { resources } from '@/lib/api'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { internationalPhone } from '@/utils/telefono'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 
-const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPTED: ['Aceptada', 'orange'], CONVERTED: ['Convertida', 'green'], EXPIRED: ['Vencida', 'red'], CANCELLED: ['Cancelada', 'slate'] }
+const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPTED: ['Aceptada', 'orange'], REJECTED: ['Rechazada', 'red'], CONVERTED: ['Convertida', 'green'], EXPIRED: ['Vencida', 'red'], CANCELLED: ['Cancelada', 'slate'] }
 // Chips de estado resueltos en el servidor (mismo patrón que Pedidos).
 const ABIERTAS = ['DRAFT', 'SENT', 'ACCEPTED']
-const FILTROS = [['todas', 'Todas'], ['abiertas', 'Abiertas'], ['DRAFT', 'Borrador'], ['SENT', 'Enviada'], ['ACCEPTED', 'Aceptada'], ['CONVERTED', 'Convertida']]
+const FILTROS = [['todas', 'Todas'], ['abiertas', 'Abiertas'], ['DRAFT', 'Borrador'], ['SENT', 'Enviada'], ['ACCEPTED', 'Aceptada'], ['REJECTED', 'Rechazada'], ['CONVERTED', 'Convertida']]
 const identity = row => row
 const demoQuotes = () => []
 const emptyItem = (product = null) => ({ productId: product?.id || '', description: product?.nombre || '', quantity: '1', unitPricePyg: product && product.precioVenta > 0 ? String(product.precioVenta) : '' })
@@ -46,7 +49,11 @@ export default function SellerQuotes() {
   const { esDemo } = useSesion()
   const productos = getProductos().filter(product => product.activo !== false)
   const [filtro, setFiltro] = useState('todas')
-  const [query, setQuery] = useState('')
+  // La búsqueda global abre el listado con ?q= aplicado.
+  const [searchParams] = useSearchParams()
+  const qParam = searchParams.get('q') || ''
+  const [query, setQuery] = useState(qParam)
+  useEffect(() => { if (qParam) setQuery(qParam) }, [qParam])
   // Búsqueda y estado van al servidor (cubren todas las cotizaciones del
   // alcance del usuario, no solo la página cargada). El texto se difiere 250 ms.
   const busqueda = useBusquedaDiferida(query)
@@ -61,6 +68,11 @@ export default function SellerQuotes() {
   const data = useSellerData(path, identity, demoQuotes, esDemo, { limit: 50 })
   const [crearOpen, setCrearOpen] = useState(false)
   const [historial, setHistorial] = useState(null)
+  const [enlace, setEnlace] = useState(null)
+  const [qr, setQr] = useState('')
+  const [enlaceBusy, setEnlaceBusy] = useState(false)
+  const [enlaceError, setEnlaceError] = useState('')
+  const enlaceSeq = useRef(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -112,6 +124,50 @@ export default function SellerQuotes() {
   }
   const convertir = row => accion(async () => { const order = await resources.quotes.convert(row.id); setNotice(`Cotización ${row.number} convertida en el pedido ${codigoPedido(order.orderNumber)} (queda pendiente de cobro en Pedidos).`) }, 'Conversión completada.')
 
+  // Enlace/QR del cliente: el vendedor lo comparte y el cliente acepta o
+  // rechaza desde su teléfono; regenerar invalida el enlace anterior.
+  async function abrirEnlace(row) {
+    const seq = ++enlaceSeq.current
+    setEnlace({ ...row, publicToken: row.publicToken || '' }); setQr(''); setEnlaceError(''); setEnlaceBusy(true)
+    try {
+      const data = await resources.quotes.accessToken(row.id)
+      if (seq !== enlaceSeq.current) return
+      const token = data?.token || ''
+      if (!token) throw new Error('No se pudo preparar el enlace.')
+      setEnlace(current => current && current.id === row.id ? { ...current, publicToken: token } : current)
+      const url = quoteUrlFor(token)
+      if (url) setQr(await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, width: 220 }))
+    } catch (cause) {
+      if (seq === enlaceSeq.current) setEnlaceError(cause?.message || 'No se pudo preparar el enlace.')
+    } finally { if (seq === enlaceSeq.current) setEnlaceBusy(false) }
+  }
+  async function regenerarEnlace() {
+    if (!enlace || enlaceBusy) return
+    const seq = ++enlaceSeq.current
+    setEnlaceBusy(true); setEnlaceError('')
+    try {
+      const data = await resources.quotes.accessToken(enlace.id, true)
+      if (seq !== enlaceSeq.current) return
+      const token = data?.token || ''
+      if (!token) throw new Error('No se pudo regenerar el enlace.')
+      setEnlace(current => current ? { ...current, publicToken: token } : current)
+      const url = quoteUrlFor(token)
+      if (url) setQr(await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, width: 220 }))
+      setNotice('Enlace regenerado: el anterior dejó de funcionar.')
+    } catch (cause) {
+      if (seq === enlaceSeq.current) setEnlaceError(cause?.message || 'No se pudo regenerar el enlace.')
+    } finally { if (seq === enlaceSeq.current) setEnlaceBusy(false) }
+  }
+  async function copiarEnlace() {
+    const url = quoteUrlFor(enlace?.publicToken)
+    if (!url) return
+    try { await navigator.clipboard.writeText(url); setNotice('Enlace copiado al portapapeles.') } catch { setEnlaceError('No se pudo copiar el enlace.') }
+  }
+  async function imprimirEnlace() {
+    if (!enlace) return
+    try { await printQuoteReceipt(enlace, { format: 'a4', token: enlace.publicToken }) } catch { setEnlaceError('No se pudo preparar la impresión.') }
+  }
+
   return <SellerSection title="Cotizaciones" description="Pipeline de ventas: cotizá, seguí el vencimiento y convertí en pedido cuando el cliente acepte.">
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS.map(([key, label]) => <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('rounded-lg px-3 py-1.5 text-xs font-semibold transition', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
@@ -154,6 +210,7 @@ export default function SellerQuotes() {
                 {row.status === 'ACCEPTED' && <Button type="button" className="h-8 px-2 text-xs" title="Convertir en pedido" disabled={busy} onClick={() => convertir(row)}>Convertir</Button>}
                 <button type="button" disabled={busy} className="h-8 rounded-lg border border-bad/30 px-2 text-xs font-semibold text-bad transition hover:bg-bad/10" onClick={() => accion(() => resources.quotes.update({ id: row.id, status: 'CANCELLED' }), 'Cotización cancelada.')}>Cancelar</button>
               </>}
+              {!esDemo && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirEnlace(row)}>Enlace/QR</Button>}
               {!esDemo && <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setHistorial(row)}>Historial</Button>}
             </span>
           </div>
@@ -197,6 +254,23 @@ export default function SellerQuotes() {
     </Modal>
     <Modal open={historial !== null} onClose={() => setHistorial(null)} title={`Historial de ${historial?.number || 'cotización'}`}>
       {historial && <Cronologia endpoint={`/api/quotes/${historial.id}/history`} active={historial !== null} vacio="Sin actividad" descripcionVacio="Los cambios de estado, la conversión en pedido y las notas de esta cotización aparecerán acá." />}
+    </Modal>
+    <Modal open={enlace !== null} onClose={() => { setEnlace(null); setQr(''); setEnlaceError('') }} title={`Enlace de ${enlace?.number || 'la cotización'}`}>
+      <div className="space-y-4 text-center">
+        <p className="text-sm text-mute">Compartí este enlace o QR con el cliente: puede aceptar o rechazar la cotización desde su teléfono, sin instalar nada.</p>
+        {enlaceBusy && !qr
+          ? <p className="py-10 text-sm text-mute">Preparando enlace…</p>
+          : qr
+            ? <img src={qr} alt="QR de la cotización" className="mx-auto h-44 w-44 rounded-xl bg-white p-2" />
+            : null}
+        <p className="break-all rounded-lg border border-ink-600 bg-ink-900 px-3 py-2 text-[11px] text-mute">{quoteUrlFor(enlace?.publicToken) || '—'}</p>
+        {enlaceError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{enlaceError}</p>}
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button type="button" variant="outline" disabled={!enlace?.publicToken} onClick={copiarEnlace}><Icon name="copy" className="h-4 w-4" />Copiar enlace</Button>
+          <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={regenerarEnlace}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>
+          <Button type="button" disabled={enlaceBusy || !enlace} onClick={imprimirEnlace}><Icon name="printer" className="h-4 w-4" />Imprimir</Button>
+        </div>
+      </div>
     </Modal>
   </SellerSection>
 }

@@ -395,21 +395,33 @@ export default function PanelVendedor() {
     if (routeVista && routeVista !== vista && accesibles.includes(routeVista)) setVista(routeVista)
   }, [subpadre, seccionRuta, routeVista, vista, accesibles, esDemo])
 
-  function ir(id) {
+  // `opciones` permite que la búsqueda global abra el destino con el filtro
+  // aplicado (q), la ficha del cliente o el detalle del pedido.
+  function ir(id, opciones = {}) {
     const sellerIds = SELLER_NAV.flatMap(group => group.items).map(([key]) => key)
     if (!esOwner && !sellerIds.includes(id)) {
       setVista('cargar')
       return
     }
+    const consulta = []
+    if (opciones.q) consulta.push(`q=${encodeURIComponent(opciones.q)}`)
+    if (opciones.clienteId) consulta.push(`cliente=${encodeURIComponent(opciones.clienteId)}`)
+    const sufijo = consulta.length ? `?${consulta.join('&')}` : ''
     const destino = SUBPAGINA_DE_VISTA[id]
     if (destino) {
-      const primera = tabsDeSubpagina(destino, esDemo)[0][0]
+      const tabs = tabsDeSubpagina(destino, esDemo)
+      const primera = opciones.subtab && tabs.some(([key]) => key === opciones.subtab) ? opciones.subtab : tabs[0][0]
       setVista(primera)
-      navigate(`/${destino}/${primera}`)
+      navigate(`/${destino}/${primera}${sufijo}`)
+      return
+    }
+    if (id === 'pedidos' && opciones.orderId) {
+      setVista('pedidos')
+      navigate(`/pos/pedidos/${encodeURIComponent(opciones.orderId)}`)
       return
     }
     setVista(id)
-    navigate(`/pos/${id}`)
+    navigate(`/pos/${id}${sufijo}`)
   }
 
   // Pestaña de un subpadre: la pestaña activa vive en la URL hija.
@@ -935,6 +947,7 @@ export default function PanelVendedor() {
         open={busquedaAbierta}
         onClose={() => setBusquedaAbierta(false)}
         onNavigate={ir}
+        vistas={accesibles}
       />
     </>
   )

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createContext, forwardRef, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { formatGs, formatGsInput, parseGsInput, formatUsdInput, parseUsdInput } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
@@ -26,9 +26,11 @@ export function Button({ className, variant = 'primary', ...props }) {
 }
 
 // ── Input ───────────────────────────────────────────────────────────
-export function Input({ className, ...props }) {
+// forwardRef: la búsqueda global y el catálogo enfocan el campo por ref.
+export const Input = forwardRef(function Input({ className, ...props }, ref) {
   return (
     <input
+      ref={ref}
       className={cn(
         'w-full rounded-lg border border-ink-500 bg-ink-800 px-3.5 text-fore',
         'h-11 md:h-9 text-base md:text-sm outline-none transition',
@@ -38,7 +40,7 @@ export function Input({ className, ...props }) {
       {...props}
     />
   )
-}
+})
 
 // Campo de contraseña reutilizable: mantiene el valor oculto por defecto y
 // permite comprobarlo puntualmente sin perder foco ni accesibilidad.
