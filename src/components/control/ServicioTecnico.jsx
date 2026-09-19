@@ -3,6 +3,7 @@ import { useUrlState } from '@/hooks/useUrlState'
 import { Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SerialField from '@/components/shared/SerialField'
+import { CHECKLISTS } from '@/lib/servicioChecklist'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { coincideCliente } from '@/utils/cliente'
@@ -25,14 +26,6 @@ const ESTADO_TONE = Object.fromEntries(ESTADOS.map(([id, , tone]) => [id, tone])
 const SIGUIENTE = { RECIBIDO: 'DIAGNOSTICO', DIAGNOSTICO: 'CON_TECNICO', CON_TECNICO: 'ESPERANDO_REPUESTO', ESPERANDO_REPUESTO: 'REPARADO', REPARADO: 'LISTO', LISTO: 'ENTREGADO' }
 const FORM_VACIO = { customerName: '', customerId: '', deviceType: 'iPhone', serviceName: '', device: '', serial: '', reportedIssue: '', diagnosis: '', technicianName: '', status: 'RECIBIDO', pricePyg: '', costPyg: '', notes: '', checklist: {} }
 const DEVICE_TYPES = ['iPhone', 'MacBook', 'AirPods', 'iPad', 'Apple Watch', 'Otros']
-const CHECKLISTS = {
-  iPhone: ['Enciende', 'Pantalla', 'Touch', 'Cámaras', 'Micrófono', 'Parlantes', 'Carga', 'Botones', 'Face ID / biometría', 'Wi-Fi / Bluetooth', 'Batería', 'Estado físico'],
-  MacBook: ['Enciende', 'Pantalla', 'Teclado', 'Trackpad', 'Puertos', 'Carga', 'Wi-Fi / Bluetooth', 'Batería', 'Estado físico'],
-  AirPods: ['Carga', 'Audio', 'Micrófono', 'Cancelación de ruido', 'Estado físico'],
-  iPad: ['Enciende', 'Pantalla', 'Touch', 'Cámaras', 'Carga', 'Botones', 'Wi-Fi / Bluetooth', 'Batería', 'Estado físico'],
-  'Apple Watch': ['Enciende', 'Pantalla', 'Touch', 'Corona', 'Carga', 'Batería', 'Estado físico'],
-  Otros: ['Enciende', 'Funciona', 'Estado físico'],
-}
 const fecha = (value) => value ? new Date(value).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '') : '—'
 const utilidad = (row) => Number(row.pricePyg || 0) - Number(row.costPyg || 0)
 // Etiqueta corta para el botón de avance: la completa queda en el title.
