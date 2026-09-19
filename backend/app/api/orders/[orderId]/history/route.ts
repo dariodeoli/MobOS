@@ -31,13 +31,14 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
     }),
   ])
   const userIds = [...new Set(payments.map(payment => payment.userId).filter((id): id is string => Boolean(id)))]
-  const pagadores = userIds.length ? await prisma.user.findMany({ where: { tenantId: tenant, id: { in: userIds } }, select: { id: true, name: true } }) : []
+  const pagadores = userIds.length ? await prisma.user.findMany({ where: { tenantId: tenant, id: { in: userIds } }, select: { id: true, name: true, avatar: { select: { updatedAt: true } } } }) : []
   const nombrePorUsuario = new Map(pagadores.map(user => [user.id, user.name]))
+  const conFotoPorUsuario = new Map(pagadores.map(user => [user.id, Boolean(user.avatar)]))
   const events = [
     { type: 'created', at: order.createdAt, id: `order-${order.id}` },
-    ...audits.map(audit => ({ type: 'audit', at: audit.createdAt, id: audit.id, action: audit.action, metadata: audit.metadata, user: audit.user })),
-    ...payments.map(payment => ({ type: 'payment', at: payment.createdAt, id: payment.id, payment, user: payment.userId && nombrePorUsuario.has(payment.userId) ? { id: payment.userId, name: nombrePorUsuario.get(payment.userId) } : null })),
-    ...comments.map(comment => ({ type: 'comment', at: comment.createdAt, id: comment.id, body: comment.body, user: comment.user, photos: comment.photos })),
+    ...audits.map(audit => ({ type: 'audit', at: audit.createdAt, id: audit.id, action: audit.action, metadata: audit.metadata, user: audit.user ? { id: audit.user.id, name: audit.user.name, hasAvatar: Boolean(audit.user.avatar) } : null })),
+    ...payments.map(payment => ({ type: 'payment', at: payment.createdAt, id: payment.id, payment, user: payment.userId && nombrePorUsuario.has(payment.userId) ? { id: payment.userId, name: nombrePorUsuario.get(payment.userId), hasAvatar: conFotoPorUsuario.get(payment.userId) === true } : null })),
+    ...comments.map(comment => ({ type: 'comment', at: comment.createdAt, id: comment.id, body: comment.body, user: comment.user ? { id: comment.user.id, name: comment.user.name, hasAvatar: Boolean(comment.user.avatar) } : null, photos: comment.photos })),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, 200)
   return json({ events })
 }

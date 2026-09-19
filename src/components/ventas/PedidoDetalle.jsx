@@ -3,6 +3,8 @@ import PresenciaPedido from './PresenciaPedido'
 import { Drawer, Badge, Button, Input, Money, Select, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
+import ActorAvatar from '@/components/customers/ActorAvatar'
+import { primerNombre } from '@/lib/utils'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import { api, API_URL } from '@/lib/api/client'
@@ -191,10 +193,12 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       setAccesoMsg(cause?.message || 'No se pudo preparar el enlace.')
     } finally { setAccesoBusy(false) }
   }
-  function copiarAcceso(token) {
+  function copiarAcceso(token, nivel = '') {
     const url = accessUrlFor(token)
     if (!url) { setAccesoMsg('No se pudo armar el enlace.'); return }
-    navigator.clipboard?.writeText(url).then(() => setAccesoMsg('Enlace copiado.')).catch(() => setAccesoMsg(url))
+    navigator.clipboard?.writeText(url)
+      .then(() => toast.success('Enlace copiado', nivel ? `Acceso ${nivel.toLowerCase()} listo para compartir.` : 'Listo para compartir.'))
+      .catch(() => setAccesoMsg(url))
   }
   const cambiarEntrega = (fulfillmentStatus) => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { fulfillmentStatus }), 'Entrega actualizada.')
   const alternarArchivado = () => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { action: archivado ? 'unarchive' : 'archive' }), archivado ? 'Pedido desarchivado.' : 'Pedido archivado.')
@@ -297,7 +301,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                       <span className="flex flex-wrap items-center gap-3">
                         {token ? (
                           <>
-                            <button type="button" className="font-semibold text-fono-light hover:underline" onClick={() => copiarAcceso(token)}>Copiar enlace</button>
+                            <button type="button" className="font-semibold text-fono-light hover:underline" onClick={() => copiarAcceso(token, label)}>Copiar enlace</button>
                             <button type="button" className="text-mute hover:text-warn" disabled={accesoBusy} onClick={() => generarAcceso(level, true)}>Regenerar</button>
                           </>
                         ) : (
@@ -428,9 +432,9 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 </form>
                 <div className="mt-4 space-y-4">
                   {events.map(event => <article key={`${event.type}-${event.id}`} className="flex gap-3">
-                    <span title={nombreActor(event.user?.name) || 'Sistema'}><Avatar name={nombreActor(event.user?.name) || 'Sistema'} size="sm" /></span>
+                    <ActorAvatar user={event.user || { name: 'Sistema' }} hasAvatar={event.user?.hasAvatar === true} size="sm" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs text-mute"><span className="font-semibold text-fore">{relativeDate(event.at)}</span></p>
+                      <p className="text-xs text-mute" title={event.user?.name || 'Sistema'}><span className="font-semibold text-fore">{primerNombre(event.user?.name) || 'Sistema'}</span> · {relativeDate(event.at)}</p>
                       {event.type === 'comment' && <>
                         <p className="mt-1 whitespace-pre-wrap text-sm">{event.body}</p>
                         {(event.photos || []).length > 0 && <div className="mt-2 flex flex-wrap gap-2">{event.photos.map(photo => <PhotoThumb key={photo.id} orderId={order.id} commentId={event.id} photo={photo} />)}</div>}
