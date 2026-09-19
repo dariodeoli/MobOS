@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Input } from '@/components/ui'
+import { cn } from '@/lib/utils'
 
 // Correo con sugerencias: mientras se escribe con teclado sugiere dominios
 // frecuentes y completa el valor al elegir una. No interfiere con pegado,
@@ -95,7 +96,7 @@ export default function EmailField({
         {...props}
         ref={inputRef}
         type="email"
-        className="w-full"
+        className={cn('w-full', className)}
         value={value}
         disabled={disabled}
         placeholder={placeholder}
