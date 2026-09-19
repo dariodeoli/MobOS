@@ -39,6 +39,12 @@ model Tenant {
   purchaseCreditLimitPyg Int?
   // Porcentaje de venta bajo lista permitido sin autorización (default 10).
   belowListPct           Int?
+  // Perfil del negocio que encabeza los comprobantes no fiscales.
+  address                String?
+  city                   String?
+  department             String?
+  phone                  String?
+  ruc                    String?
   settings            Json             @default("{}")
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt

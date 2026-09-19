@@ -41,7 +41,7 @@ export async function GET(request: Request) {
   const { session } = context
   const now = new Date()
   const [tenant, sessions, ownerAccess] = await Promise.all([
-    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true, orderPrefix: true, orderNextNumber: true, expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true, logos: { select: { variant: true, updatedAt: true, mimeType: true } } } }),
+    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true, orderPrefix: true, orderNextNumber: true, expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true, address: true, city: true, department: true, phone: true, ruc: true, logos: { select: { variant: true, updatedAt: true, mimeType: true } } } }),
     prisma.session.findMany({ where: { tenantId: session.user.tenantId, revokedAt: null, expiresAt: { gt: now } }, orderBy: { lastSeenAt: 'desc' }, take: 50, select: { id: true, level: true, deviceId: true, branchId: true, createdAt: true, lastSeenAt: true, expiresAt: true, user: { select: { name: true, email: true, role: true } } } }),
     prisma.googleStoreAccess.findFirst({ where: { tenantId: session.user.tenantId, owner: true }, select: { subject: true } }),
   ])
@@ -150,18 +150,36 @@ export async function PATCH(request: Request) {
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       const name = body.name === undefined ? undefined : input(body.name, 'Nombre de la tienda', 2, 120)
       const email = body.email === undefined ? undefined : input(body.email, 'Correo de la empresa', 3, 160)
-      if (name === undefined && email === undefined) return error('Indicá el nombre o el correo a actualizar.', 400)
+      const profileField = (value: unknown, field: string, max: number) => {
+        if (value === undefined) return undefined
+        if (value === null || value === '') return null
+        return input(value, field, 1, max)
+      }
+      const address = profileField(body.address, 'La dirección de la empresa', 400)
+      const city = profileField(body.city, 'La ciudad de la empresa', 120)
+      const department = profileField(body.department, 'El departamento de la empresa', 120)
+      const phone = profileField(body.phone, 'El teléfono de la empresa', 40)
+      const ruc = profileField(body.ruc, 'El RUC de la empresa', 20)
+      const hasProfile = [address, city, department, phone, ruc].some(value => value !== undefined)
+      if (name === undefined && email === undefined && !hasProfile) return error('Indicá qué dato actualizar.', 400)
       if (email !== undefined && !emailPattern.test(email)) return error('El correo de la empresa no es válido.', 400)
-      const current = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { name: true, email: true } })
+      const current = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { name: true, email: true, address: true, city: true, department: true, phone: true, ruc: true } })
       if (!current) return error('Empresa no encontrada.', 404)
       const nextName = name ?? current.name
       const nextEmail = email ? email.toLowerCase() : current.email
       if (nextEmail !== current.email && await prisma.tenant.findFirst({ where: { email: nextEmail, id: { not: session.user.tenantId } }, select: { id: true } })) return error('Ese correo ya lo usa otra empresa.', 409)
+      const perfil = {
+        address: address === undefined ? current.address : address,
+        city: city === undefined ? current.city : city,
+        department: department === undefined ? current.department : department,
+        phone: phone === undefined ? current.phone : phone,
+        ruc: ruc === undefined ? current.ruc : ruc,
+      }
       await prisma.$transaction(async tx => {
-        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { name: nextName, email: nextEmail } })
-        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_PROFILE_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { before: { name: current.name, email: current.email }, after: { name: nextName, email: nextEmail } } } })
+        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { name: nextName, email: nextEmail, ...perfil } })
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_PROFILE_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { before: { name: current.name, email: current.email, address: current.address, city: current.city, department: current.department, phone: current.phone, ruc: current.ruc }, after: { name: nextName, email: nextEmail, ...perfil } } } })
       })
-      return json({ ok: true, name: nextName, email: nextEmail })
+      return json({ ok: true, name: nextName, email: nextEmail, ...perfil })
     }
     if (action === 'leaveStore') {
       if (body.confirm !== 'ABANDONAR') return error('Escribí ABANDONAR para confirmar que dejás la tienda.', 400)

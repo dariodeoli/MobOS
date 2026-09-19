@@ -14,6 +14,7 @@ import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
+import RucField from '@/components/shared/RucField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import { ROLE_LABELS } from '@/lib/roles'
@@ -257,7 +258,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
         </Card>}
         <SeccionTiendas account={account} />
         <SeccionInvitaciones />
-        <IdentidadCuenta reauthValidUntil={account?.reauthValidUntil} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} />
+        <IdentidadCuenta tenant={account?.tenant} reauthValidUntil={account?.reauthValidUntil} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} />
       </>}
       {seccion === 'sucursales' && <>
         {esDueno && <SeccionSucursales />}
@@ -292,7 +293,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   )
 }
 
-function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
+function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
   const toast = useToast()
   const { empresa, actualizarEmpresa, usuario } = useSesion()
   const [foto, setFoto] = useState('')
@@ -306,6 +307,10 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
   const valores = [
     { etiqueta: 'Nombre de la tienda', valor: empresa?.nombre || null },
     { etiqueta: 'Correo de la empresa', valor: empresa?.email || null },
+    { etiqueta: 'Dirección', valor: tenant?.address || null },
+    { etiqueta: 'Ciudad', valor: [tenant?.city, tenant?.department].filter(Boolean).join(' · ') || null },
+    { etiqueta: 'Teléfono', valor: tenant?.phone || null },
+    { etiqueta: 'RUC', valor: tenant?.ruc || null },
     { etiqueta: 'ID de la tienda', valor: empresa?.id || null },
   ]
   const reauthVigente = Boolean(reauthValidUntil && new Date(reauthValidUntil) > new Date())
@@ -340,7 +345,18 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
   }
 
   function abrir() {
-    setForm({ name: empresa?.nombre || '', email: empresa?.email || '', password: '' })
+    const telefono = parseTelefono(tenant?.phone)
+    setForm({
+      name: empresa?.nombre || '',
+      email: empresa?.email || '',
+      password: '',
+      address: tenant?.address || '',
+      city: tenant?.city || '',
+      department: tenant?.department || '',
+      countryCode: telefono.countryCode,
+      phone: telefono.phone,
+      ruc: tenant?.ruc || '',
+    })
     setError('')
     setEditOpen(true)
   }
@@ -355,6 +371,18 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
     const cambios = {}
     if (nombre !== (empresa?.nombre || '')) cambios.name = nombre
     if (correo !== (empresa?.email || '')) cambios.email = correo
+    const perfil = {
+      address: (form?.address || '').trim(),
+      city: (form?.city || '').trim(),
+      department: (form?.department || '').trim(),
+      phone: componerTelefono(form?.countryCode, form?.phone),
+      ruc: (form?.ruc || '').trim(),
+    }
+    if (perfil.address !== (tenant?.address || '')) cambios.address = perfil.address
+    if (perfil.city !== (tenant?.city || '')) cambios.city = perfil.city
+    if (perfil.department !== (tenant?.department || '')) cambios.department = perfil.department
+    if (perfil.phone !== (tenant?.phone || '')) cambios.phone = perfil.phone
+    if (perfil.ruc !== (tenant?.ruc || '')) cambios.ruc = perfil.ruc
     setBusy(true); setError('')
     try {
       if (!reauthVigente) {
@@ -411,6 +439,21 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
           </FormField>
           <FormField label="Correo de la empresa" htmlFor="edit-correo">
             <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => setForm(current => ({ ...current, email: value }))} placeholder="Correo de la empresa" />
+          </FormField>
+          <FormField label="Dirección" htmlFor="edit-direccion">
+            <Input id="edit-direccion" maxLength={400} disabled={busy} value={form?.address || ''} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} placeholder="Dirección del negocio (para el comprobante)" />
+          </FormField>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormField label="Ciudad">
+              <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => setForm(current => ({ ...current, city, department }))} placeholder="Ciudad del negocio" />
+            </FormField>
+            <FormField label="Teléfono" htmlFor="edit-telefono">
+              <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => setForm(current => ({ ...current, countryCode }))} onChange={phone => setForm(current => ({ ...current, phone }))} placeholder="Teléfono del negocio" />
+            </FormField>
+          </div>
+          {form?.department && <p className="px-1 text-xs text-fono-light">Departamento: {form.department}</p>}
+          <FormField label="RUC" htmlFor="edit-ruc">
+            <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => setForm(current => ({ ...current, ruc }))} disabled={busy} placeholder="RUC del negocio (opcional)" autoComplete="off" />
           </FormField>
           {reauthVigente ? (
             <p className="text-xs text-ok">Tu contraseña fue verificada hace menos de 10 minutos: no hace falta escribirla de nuevo.</p>

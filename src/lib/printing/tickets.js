@@ -32,6 +32,10 @@ export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link 
 
   if (completo && (empresa || sucursal)) {
     t.texto(empresa || APP_NAME)
+    if (order.tenant?.ruc) t.texto(`RUC ${order.tenant.ruc}`)
+    const direccionEmpresa = [order.tenant?.address, order.tenant?.city, order.tenant?.department].filter(Boolean).join(', ')
+    if (direccionEmpresa) t.texto(direccionEmpresa)
+    if (order.tenant?.phone) t.texto(order.tenant.phone)
     if (sucursal?.name) t.texto(sucursal.name)
     const direccion = [sucursal?.address, sucursal?.city, sucursal?.department].filter(Boolean).join(', ')
     if (direccion) t.texto(direccion)
