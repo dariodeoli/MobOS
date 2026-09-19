@@ -21,6 +21,7 @@ export default function AttachmentInput({
   id,
   children,
   etiqueta,
+  mensaje = MENSAJE_ADJUNTO,
   ...props
 }) {
   const propioRef = useRef(null)
@@ -33,16 +34,16 @@ export default function AttachmentInput({
     if (!file) return
     const tipos = accept.split(',').map((tipo) => tipo.trim())
     if (!tipos.includes(file.type)) {
-      setError(MENSAJE_ADJUNTO)
-      onError?.(MENSAJE_ADJUNTO)
+      setError(mensaje)
+      onError?.(mensaje)
       return
     }
     // Las fotos se comprimen antes de subir (con fallback al original): el
     // límite del cliente y del backend sigue siendo el mismo.
     const listo = file.type.startsWith('image/') ? await comprimirImagen(file) : file
     if (listo.size > maxBytes) {
-      setError(MENSAJE_ADJUNTO)
-      onError?.(MENSAJE_ADJUNTO)
+      setError(mensaje)
+      onError?.(mensaje)
       return
     }
     setError('')

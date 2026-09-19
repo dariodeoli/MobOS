@@ -3,6 +3,7 @@ import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { Badge, Button, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import AttachmentInput from '@/components/shared/AttachmentInput'
 import { parseDelimited } from '@/utils/csv'
 import { gs, num } from '@/utils/calculos'
 
@@ -64,8 +65,7 @@ export default function ImportarProductosCSV({ onImportada }) {
   const filasAImportar = (filas || []).slice(0, MAX_FILAS)
   const superaTope = Boolean(filas && filas.length > MAX_FILAS)
 
-  async function seleccionar(event) {
-    const archivoElegido = event.target.files?.[0]
+  async function seleccionar(archivoElegido) {
     setResumen(null)
     setError('')
     setFilas(null)
@@ -168,17 +168,19 @@ export default function ImportarProductosCSV({ onImportada }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-fore transition hover:border-fono hover:bg-fono/10">
-              <Icon name="upload" className="h-4 w-4" />
-              {archivo ? archivo.name : 'Elegir archivo .csv'}
-              <input
-                type="file"
-                accept=".csv,text/csv"
-                className="sr-only"
-                disabled={importando}
-                onChange={seleccionar}
-              />
-            </label>
+            <AttachmentInput
+              accept=".csv,text/csv"
+              etiqueta="Elegir archivo .csv"
+              mensaje="El archivo debe ser un CSV (.csv o text/csv) de hasta 5 MiB."
+              disabled={importando}
+              onSelect={seleccionar}
+              onError={setError}
+            >
+              <span className="inline-flex h-9 items-center gap-2 rounded-lg border border-ink-500 px-3 text-xs font-semibold text-fore transition hover:border-fono hover:bg-fono/10">
+                <Icon name="upload" className="h-4 w-4" />
+                {archivo ? archivo.name : 'Elegir archivo .csv'}
+              </span>
+            </AttachmentInput>
             {Boolean(filasAImportar.length) && (
               <Button
                 type="button"
