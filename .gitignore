@@ -29,3 +29,6 @@ npm-debug.log*
 
 # Estado de sesión del arnés E2E (cookies HttpOnly sembradas)
 /e2e/.auth/
+
+# Registro local de skills (lo genera sdd-init)
+.atl/

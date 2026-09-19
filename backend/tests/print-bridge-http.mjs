@@ -2,6 +2,7 @@
 // tope por empresa y manifest del instalador. Corre dentro del arnés temporal.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 
 const [baseUrl, adminToken, sellerToken, databaseUrl] = process.argv.slice(2)
@@ -294,7 +295,7 @@ assert.equal(resultado.status, 200, 'un espejo local aceptado también se confir
 
 // 7i. Requeue por lease vencido, purga de 180 días y aislamiento por empresa.
 psql(`INSERT INTO "PrintJob" ("id", "tenantId", "destination", "kind", "state", "attempts", "leaseId", "leaseExpiresAt", "claimedAt", "payload", "updatedAt") VALUES ('it-job-exp-1', 'tenant-a-it', 'lan:10.0.0.11:9100', 'prueba', 'RECLAMADO', 1, 'lease-it-1', now() - interval '5 minutes', now() - interval '10 minutes', 'QUJDRA==', CURRENT_TIMESTAMP);`)
-psql(`INSERT INTO "PrintJob" ("id", "tenantId", "destination", "kind", "state", "attempts", "leaseId", "leaseExpiresAt", "claimedAt", "updatedAt") VALUES ('it-job-exp-2', 'tenant-a-it', 'lan:10.0.0.11:9100', 'prueba', 'RECLAMADO', 3, 'lease-it-2', now() - interval '1 minute', now() - interval '10 minutes', CURRENT_TIMESTAMP);`)
+psql(`INSERT INTO "PrintJob" ("id", "tenantId", "destination", "kind", "state", "attempts", "leaseId", "leaseExpiresAt", "claimedAt", "payload", "updatedAt") VALUES ('it-job-exp-2', 'tenant-a-it', 'lan:10.0.0.11:9100', 'prueba', 'RECLAMADO', 3, 'lease-it-2', now() - interval '1 minute', now() - interval '10 minutes', 'QUJDRA==', CURRENT_TIMESTAMP);`)
 psql(`INSERT INTO "PrintJob" ("id", "tenantId", "destination", "kind", "state", "createdAt", "updatedAt") VALUES ('it-job-old-1', 'tenant-a-it', 'lan:10.0.0.11:9100', 'prueba', 'ACEPTADO', now() - interval '200 days', CURRENT_TIMESTAMP);`)
 psql(`INSERT INTO "PrintJob" ("id", "tenantId", "destination", "kind", "state", "updatedAt") VALUES ('it-job-b-1', 'tenant-b-it', 'lan:10.0.0.12:9100', 'prueba', 'PENDIENTE', CURRENT_TIMESTAMP);`)
 resultado = await agente('/api/print/bridge/claim', { token: tokenJobs, body: {} })
@@ -305,6 +306,7 @@ assert.equal(resultado.payload.jobs[0]?.id, 'it-job-exp-1', 'el trabajo reencola
 assert.equal(psql(`SELECT COUNT(*) FROM "PrintJob" WHERE "id" = 'it-job-old-1';`), '0', 'la purga borra metadatos de más de 180 días')
 assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "action" = 'PRINT_JOB_REQUEUED' AND "entityId" = 'it-job-exp-1';`), '1', 'el requeue se audita')
 assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "action" = 'PRINT_JOB_FAILED' AND "entityId" = 'it-job-exp-2';`), '1', 'el fallo por vencimiento se audita')
+assert.equal(psql(`SELECT "payload" IS NULL FROM "PrintJob" WHERE "id" = 'it-job-exp-2';`), 't', 'el fallo terminal borra el payload')
 assert.equal(psql(`SELECT state FROM "PrintJob" WHERE "id" = 'it-job-b-1';`), 'PENDIENTE', 'el claim no toca trabajos de otra empresa')
 
 // 7j. Configuración del puente y kill switch.
@@ -359,5 +361,38 @@ if (manifest.status === 503) {
   const cuerpo = await manifest.json()
   assert.ok(cuerpo.version && cuerpo.file && /^[a-f0-9]{64}$/i.test(cuerpo.sha256) && cuerpo.size > 0 && cuerpo.installUrl, 'el manifest publica versión, archivo, checksum, tamaño e installUrl')
 }
+
+// 7m. Rotación del token: el token viejo deja de autenticar y el nuevo sí.
+// Puente propio: los anteriores quedaron revocados y los rellenos del tope
+// (it-cap-*) ya cumplieron su caso, así que se liberan.
+psql(`DELETE FROM "PrintBridge" WHERE "id" LIKE 'it-cap-%';`)
+resultado = await request('/api/print/bridges', { method: 'POST', body: { name: 'Puente rotación' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const puenteRotacion = resultado.payload.bridge
+resultado = await agente('/api/print/bridge/pair', { body: { code: resultado.payload.pairingCode, name: 'Mac rotada', version: '1.6.0' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const tokenViejo = resultado.payload.token
+resultado = await request(`/api/print/bridges/${puenteRotacion.id}/pairing`, { method: 'POST' })
+assert.equal(resultado.status, 200, JSON.stringify(resultado.payload))
+resultado = await agente('/api/print/bridge/pair', { body: { code: resultado.payload.pairingCode, name: 'Mac rotada', version: '1.6.0' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const tokenRotado = resultado.payload.token
+assert.match(String(tokenRotado), /^[a-f0-9]{64}$/, 'la rotación entrega un token nuevo')
+assert.notEqual(tokenRotado, tokenViejo, 'el token rotado es distinto del anterior')
+resultado = await agente('/api/print/bridge/heartbeat', { token: tokenViejo, body: {} })
+assert.equal(resultado.status, 401, 'el token viejo deja de autenticar tras rotar')
+resultado = await agente('/api/print/bridge/heartbeat', { token: tokenRotado, body: {} })
+assert.equal(resultado.status, 200, 'el token rotado autentica')
+
+// 7n. El tarball público coincide con el checksum que publica el manifest.
+const manifestPublico = await fetch(`${baseUrl}/print-agent/manifest.json`)
+assert.equal(manifestPublico.status, 200, 'el manifest estático se sirve')
+const publico = await manifestPublico.json()
+const tarball = await fetch(`${baseUrl}/print-agent/${publico.file}`)
+assert.equal(tarball.status, 200, 'el tarball se sirve desde el backend')
+const bytes = Buffer.from(await tarball.arrayBuffer())
+const resumen = createHash('sha256').update(bytes).digest('hex')
+assert.equal(resumen, publico.sha256, 'el checksum del tarball servido coincide con el manifest')
+assert.equal(bytes.length, publico.size, 'el tamaño del tarball servido coincide con el manifest')
 
 console.log('print-bridge-http: puentes, impresoras, import idempotente, trabajos con lease y confirmación, tope y manifest OK.')
