@@ -7,7 +7,7 @@ import { crearCola } from './cola.mjs'
 import { aplicarConfigRemota, crearRemoto } from './remoto.mjs'
 import { aliasSecundario, colaLanDeCups, colaUri, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola } from './transportes.mjs'
 
-const VERSION = '1.6.1'
+const VERSION = '1.6.2'
 const config = cargarConfig()
 // Transporte real del último envío (directo | cups | usb): la app solo debe
 // marcar éxito cuando hubo entrega confirmada, no solo encolado. La cola local

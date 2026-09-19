@@ -229,6 +229,22 @@ test('el parser de lpstat -v corta los dos puntos del nombre de la cola', async 
   ])
 })
 
+test('la cache del camino directo evita el intento bloqueado hasta el TTL', async () => {
+  const { crearCacheDirecto } = await import('../transportes.mjs')
+  let ahora = 1_000
+  const cache = crearCacheDirecto({ ttlMs: 500, ahora: () => ahora })
+  assert.equal(cache.bloqueado(), false)
+  cache.bloquear()
+  assert.equal(cache.bloqueado(), true, 'tras el fallo queda bloqueado')
+  ahora += 499
+  assert.equal(cache.bloqueado(), true, 'antes del TTL sigue bloqueado')
+  ahora += 1
+  assert.equal(cache.bloqueado(), false, 'el TTL lo rehabilita')
+  cache.bloquear()
+  cache.habilitar()
+  assert.equal(cache.bloqueado(), false, 'un alcance exitoso lo rehabilita')
+})
+
 test('la cola CUPS de respaldo se resuelve por la impresora del destino', async () => {
   const { colaRedParaDestino } = await import('../transportes.mjs')
   const colas = [

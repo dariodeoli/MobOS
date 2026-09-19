@@ -148,6 +148,22 @@ export async function colaLanDeCups(nombre = 'MobOS_LAN', destino = '') {
   return colaRedParaDestino(colas, destino)
 }
 
+// Cache del camino directo: cuando el sistema bloquea la salida TCP del
+// proceso (p. ej. macOS con un agente de launchd), cada ticket pagaba los
+// reintentos antes de caer al respaldo CUPS. Tras un fallo de ruta con cola
+// de respaldo disponible se saltea el intento directo unos minutos; un
+// alcance exitoso (autotest) o el vencimiento del TTL lo rehabilitan.
+export function crearCacheDirecto({ ttlMs = 120000, ahora = () => Date.now() } = {}) {
+  let bloqueadoHasta = 0
+  return {
+    bloqueado: () => ahora() < bloqueadoHasta,
+    bloquear: () => { bloqueadoHasta = ahora() + ttlMs },
+    habilitar: () => { bloqueadoHasta = 0 },
+  }
+}
+
+const cacheDirecto = crearCacheDirecto()
+
 // Destino: `lan:192.168.1.23:9100` o `usb:NombreDeLaCola`. Devuelve el
 // transporte real usado ('directo' | 'cups' | 'usb') para que la app solo
 // marque éxito cuando hubo entrega por un transporte real.
@@ -156,13 +172,22 @@ export async function enviar(destino, bytes, { lanCups = 'MobOS_LAN', alias = ''
   if (!valor) throw new Error('Elegí una impresora.')
   // `cups:` es el nombre honesto; `usb:` se acepta por compatibilidad con la app vieja.
   if (/^(usb|cups):/.test(valor)) { await enviarUsb(valor.slice(valor.indexOf(':') + 1), bytes); return 'usb' }
+  if (cacheDirecto.bloqueado()) {
+    // Esta máquina viene fallando el directo: si hay respaldo, no se paga el
+    // intento (con su cola resuelta por nombre o por la impresora del destino).
+    const cola = await colaLanDeCups(lanCups, valor)
+    if (cola) { await enviarUsb(cola, bytes); return 'cups' }
+    cacheDirecto.habilitar()
+  }
   try {
     await enviarLan(valor, bytes, { alias })
+    cacheDirecto.habilitar()
     return 'directo'
   } catch (error) {
     if (!/EHOSTUNREACH|ENETUNREACH/i.test(error?.message || '')) throw error
     const cola = await colaLanDeCups(lanCups, valor)
     if (!cola) throw error
+    cacheDirecto.bloquear()
     await enviarUsb(cola, bytes)
     return 'cups'
   }
@@ -188,7 +213,7 @@ export function probarConexionDetalle(destino, { timeoutMs = 1500, alias = '' } 
     const fin = (ok, mensaje = '', errno = '') => { socket.destroy(); resolve({ ok, error: mensaje, errno, origen: localAddress || '' }) }
     socket.setTimeout(timeoutMs, () => fin(false, `Sin respuesta de ${host}:${puerto} en ${timeoutMs} ms.`, 'ETIMEDOUT'))
     socket.on('error', (error) => fin(false, `${error?.code || 'ERROR'} ${host}:${puerto}`, error?.code || ''))
-    socket.on('connect', () => fin(true))
+    socket.on('connect', () => { cacheDirecto.habilitar(); fin(true) })
   })
 }
 
