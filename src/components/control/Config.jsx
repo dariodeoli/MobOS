@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
+import PhotoCropper from '@/components/shared/PhotoCropper'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { getLogoDataUrl, olvidarLogo } from '@/lib/tenantLogo'
 import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
@@ -240,6 +241,7 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
   const [foto, setFoto] = useState('')
   const [fotoError, setFotoError] = useState('')
   const [fotoBusy, setFotoBusy] = useState(false)
+  const [fotoAConfirmar, setFotoAConfirmar] = useState(null)
   const [editOpen, setEditOpen] = useState(false)
   const [form, setForm] = useState(null) // { name, email, password }
   const [busy, setBusy] = useState(false)
@@ -326,13 +328,14 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid }) {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <AttachmentInput onSelect={subirFoto} onError={setFotoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={fotoBusy}>
+          <AttachmentInput onSelect={(file) => setFotoAConfirmar(file)} onError={setFotoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={fotoBusy}>
             <Button type="button" variant="outline" disabled={fotoBusy}>{foto ? 'Reemplazar foto' : 'Subir foto'}</Button>
           </AttachmentInput>
           {foto && <Button type="button" variant="ghost" disabled={fotoBusy} onClick={quitarFoto}>Quitar</Button>}
         </div>
       </div>}
       {fotoError && <p role="alert" className="text-sm text-bad">{fotoError}</p>}
+      {fotoAConfirmar && <PhotoCropper file={fotoAConfirmar} onCancel={() => setFotoAConfirmar(null)} onCropped={async (recortada) => { setFotoAConfirmar(null); await subirFoto(recortada) }} />}
       <div className="space-y-2">
         {valores.map(({ etiqueta, valor }) => (
           <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
