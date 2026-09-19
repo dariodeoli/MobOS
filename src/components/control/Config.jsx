@@ -6,7 +6,8 @@ import { getLogoDataUrl, olvidarLogo } from '@/lib/tenantLogo'
 import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
 import { promptLogo } from '@/lib/logoPrompt'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
-import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, PasswordInput, PinInput, useToast } from '@/components/ui'
+import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, useToast } from '@/components/ui'
+import { formatGs } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
@@ -42,7 +43,7 @@ async function copiarValor(toast, valor, etiqueta) {
 
 
 export default function Config({ seccion = 'negocio' } = {}) {
-  const { sesion, empresa, sucursal, perfilEmpresa } = useSesion()
+  const { sesion, empresa, sucursal, perfilEmpresa, actualizarEmpresa } = useSesion()
   const toast = useToast()
   const esDueno = sesion?.esPropietario
   const [account, setAccount] = useState(null)
@@ -51,6 +52,8 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const [logoBusy, setLogoBusy] = useState(false)
   const [prefijo, setPrefijo] = useState('')
   const [inicio, setInicio] = useState('')
+  const [limiteGasto, setLimiteGasto] = useState('')
+  const [limiteCompra, setLimiteCompra] = useState('')
   const [password, setPassword] = useState('')
   const [archiveReason, setArchiveReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -133,6 +136,8 @@ export default function Config({ seccion = 'negocio' } = {}) {
     if (!account?.tenant) return
     setPrefijo(account.tenant.orderPrefix || '')
     setInicio(account.tenant.orderNextNumber ? String(account.tenant.orderNextNumber) : '')
+    setLimiteGasto(String(account.tenant.expenseLimitPyg ?? 1000000))
+    setLimiteCompra(String(account.tenant.purchaseCreditLimitPyg ?? 5000000))
   }, [account])
 
   async function guardarNumeracion() {
@@ -143,6 +148,20 @@ export default function Config({ seccion = 'negocio' } = {}) {
       setAccount(current => current ? { ...current, tenant: { ...current.tenant, orderPrefix: data.prefix, orderNextNumber: data.nextNumber } } : current)
       setNotice(`Numeración guardada: ${data.preview}.`)
     } catch (error) { setFailure(error?.message || 'No se pudo guardar la numeración.') } finally { setBusy(false) }
+  }
+
+  async function guardarLimites() {
+    if (busy) return
+    const gasto = Number(limiteGasto)
+    const compra = Number(limiteCompra)
+    if (!Number.isSafeInteger(gasto) || gasto < 0 || !Number.isSafeInteger(compra) || compra < 0) { setFailure('Los límites deben ser enteros no negativos.'); return }
+    setBusy(true); setFailure(''); setNotice('')
+    try {
+      await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra })
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra } } : current)
+      actualizarEmpresa?.({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra })
+      setNotice('Límites de autorización guardados.')
+    } catch (error) { setFailure(error?.message || 'No se pudieron guardar los límites.') } finally { setBusy(false) }
   }
 
   return (
@@ -160,6 +179,24 @@ export default function Config({ seccion = 'negocio' } = {}) {
         </div>
         <p className="text-xs text-mute">Los pedidos ya creados conservan su número; los nuevos siguen esta secuencia.</p>
       </Card>
+        {esDueno && <Card className="space-y-3">
+          <div>
+            <h2 className="font-semibold">Límites de autorización</h2>
+            <p className="mt-1 text-sm text-mute">Por encima de estos montos, los roles operativos (cajera, vendedor) necesitan una autorización aprobada de gerencia para registrar un gasto o una compra a crédito. El dueño y gerencia no la necesitan.</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormField label="Gasto sin autorización (Gs.)" htmlFor="limite-gasto">
+              <MoneyInput id="limite-gasto" disabled={busy} value={limiteGasto} onValueChange={setLimiteGasto} placeholder="1.000.000" />
+            </FormField>
+            <FormField label="Compra a crédito sin autorización (Gs.)" htmlFor="limite-compra">
+              <MoneyInput id="limite-compra" disabled={busy} value={limiteCompra} onValueChange={setLimiteCompra} placeholder="5.000.000" />
+            </FormField>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" disabled={busy || !limiteGasto || !limiteCompra} onClick={guardarLimites}>Guardar límites</Button>
+            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)}.</p>
+          </div>
+        </Card>}
         {esDueno && <Card className="space-y-3">
           <div>
             <h2 className="font-semibold">Logo de la empresa</h2>

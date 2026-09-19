@@ -17,6 +17,7 @@ import Icon from '@/components/shared/Icon'
 import { descargarCsv } from '@/utils/descargarCsv'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import CurrencySelect from '@/components/shared/CurrencySelect'
+import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import { cn } from '@/lib/utils'
 import { normalizarBusqueda } from '@/utils/cliente'
 
@@ -46,6 +47,7 @@ import Cronologia from '@/components/shared/Cronologia'
 import AttachmentList from '@/components/shared/AttachmentList'
 
 const emptyLine = () => ({ productId: '', quantity: '1', unitCostPyg: '0', lotReference: '' })
+const DEFAULT_PURCHASE_CREDIT_LIMIT_PYG = 5000000
 const totalOf = (lines, costs) => lines.reduce((total, line) => total + Number(line.quantity || 0) * Number(line.unitCostPyg || 0), 0) + Object.values(costs).reduce((total, value) => total + Number(value || 0), 0)
 const COST_FIELDS = [['shippingPyg', 'Flete'], ['customsPyg', 'Aduana'], ['insurancePyg', 'Seguro'], ['taxesPyg', 'Impuestos'], ['otherCostsPyg', 'Otros costos']]
 const SUPPLIER_FIELDS = [
@@ -74,7 +76,7 @@ function ProductLine({ products, line, currency, onChange, onSelectProduct, onCr
 
 export default function Compras() {
   const demo = isDemoRuntime; const products = getProductos(); const toast = useToast()
-  const { sucursal, sucursales } = useSesion()
+  const { sucursal, sucursales, sesion, empresa } = useSesion()
   const branchTouched = useRef(false)
   const branchOptions = sucursales.length > 0 ? sucursales : (sucursal ? [sucursal] : [])
   const [purchases, setPurchases] = useState(demo ? loadDemoPurchases() : [])
@@ -98,6 +100,7 @@ export default function Compras() {
   const [supplierBalance, setSupplierBalance] = useState(null)
   const [lineCostEdits, setLineCostEdits] = useState({})
   const [expandida, setExpandida] = useState(null)
+  const [compraAuth, setCompraAuth] = useState(null)
   const [orden, setOrden] = useState({ key: 'fecha', dir: 'desc' })
   const [busy, setBusy] = useState(!demo); const [error, setError] = useState(''); const [message, setMessage] = useState(''); const [exportando, setExportando] = useState(false)
 
@@ -111,6 +114,16 @@ export default function Compras() {
     const total = totalOf(lines, costs)
     return currency === 'PYG' ? total : Math.round(total * (Number(exchangeRatePyg) || 1))
   }, [lines, costs, currency, exchangeRatePyg])
+  // Compra a crédito por encima del umbral: solo el dueño (ADMIN) no necesita
+  // autorización; gerencia y el resto sí.
+  const esAdmin = sesion?.rol === 'dueno'
+  const limiteCredito = Number(empresa?.purchaseCreditLimitPyg ?? DEFAULT_PURCHASE_CREDIT_LIMIT_PYG)
+  const proveedorSeleccionado = supplierId && supplierId !== 'new' ? suppliers.find(item => item.id === supplierId) || null : null
+  const proveedorAuth = supplierId === 'new'
+    ? { supplierName: newSupplier.name.trim() }
+    : proveedorSeleccionado ? { supplierId: proveedorSeleccionado.id, supplierName: proveedorSeleccionado.name } : null
+  const requiereCompraAuth = Boolean(creditEnabled && !esAdmin && estimatedTotal > limiteCredito && proveedorAuth?.supplierName)
+  useEffect(() => { if (!requiereCompraAuth) setCompraAuth(null) }, [requiereCompraAuth])
   const updateLine = (index, value) => setLines(items => items.map((item, itemIndex) => itemIndex === index ? value : item))
   useEffect(() => { if (!branchTouched.current) setBranchId(sucursal?.id || '') }, [sucursal])
   const rate = currency === 'PYG' ? 1 : Number(exchangeRatePyg)
@@ -134,6 +147,7 @@ export default function Compras() {
     const linesValid = lines.length && rateValid && lines.every(line => line.productId && Number.isSafeInteger(Number(line.quantity)) && Number(line.quantity) > 0 && costValid(line.unitCostPyg))
     const supplierValid = supplierId === 'new' ? Boolean(newSupplier.name.trim()) : suppliers.some(item => item.id === supplierId)
     if (!linesValid || !supplierValid) return setError(!rateValid ? 'Indicá la cotización PYG de la compra.' : 'Indicá proveedor y completá cada línea con producto, cantidad y costo.')
+    if (requiereCompraAuth && !compraAuth) return setError('La compra a crédito supera el límite sin autorización. Solicitá autorización a gerencia y esperá la aprobación.')
     setBusy(true)
     try {
       let finalSupplierId = supplierId
@@ -143,10 +157,10 @@ export default function Compras() {
         finalSupplierId = created.id; finalSupplierName = created.name
         setSuppliers(items => [...items, created].sort((a, b) => a.name.localeCompare(b.name)))
       }
-      const payload = { supplierName: finalSupplierName, ...(finalSupplierId && finalSupplierId !== 'new' ? { supplierId: finalSupplierId } : {}), branchId: branchId || undefined, ...Object.fromEntries(Object.entries(costs).map(([key, value]) => [key, toPyg(value)])), currency, exchangeRatePyg: currency === 'PYG' ? 1 : rate, creditEnabled, dueAt: dueAt || undefined, supplierReference: supplierReference || undefined, costAllocationMethod, lines: lines.map(line => ({ ...line, quantity: Number(line.quantity), unitCostPyg: toPyg(line.unitCostPyg) })) }
+      const payload = { supplierName: finalSupplierName, ...(finalSupplierId && finalSupplierId !== 'new' ? { supplierId: finalSupplierId } : {}), ...(requiereCompraAuth && compraAuth ? { purchaseAuthorizationId: compraAuth.id } : {}), branchId: branchId || undefined, ...Object.fromEntries(Object.entries(costs).map(([key, value]) => [key, toPyg(value)])), currency, exchangeRatePyg: currency === 'PYG' ? 1 : rate, creditEnabled, dueAt: dueAt || undefined, supplierReference: supplierReference || undefined, costAllocationMethod, lines: lines.map(line => ({ ...line, quantity: Number(line.quantity), unitCostPyg: toPyg(line.unitCostPyg) })) }
       if (demo) { const created = { ...payload, id: `demo-purchase-${Date.now()}`, status: 'DRAFT', createdAt: new Date().toISOString(), receivedAt: null, payments: [], lines: payload.lines.map((line, index) => ({ ...line, id: `demo-line-${Date.now()}-${index}`, productName: products.find((p) => p.id === line.productId)?.nombre, baseTotalPyg: line.quantity * line.unitCostPyg, finalTotalCostPyg: line.quantity * line.unitCostPyg })) }; createDemoPurchase(created); setPurchases(loadDemoPurchases()) }
       else { const created = await purchasesApi.create(payload); setPurchases(items => [created, ...items]); if (!suppliers.some(item => item.name === created.supplierName)) setSuppliers(items => [...items, { id: created.supplierId, name: created.supplierName }].sort((a, b) => a.name.localeCompare(b.name))) }
-      setSupplierId(''); setNewSupplier({ name: '', countryCode: '+595', phone: '', city: '', department: '', address: '' }); setLines([emptyLine()]); setCosts({ shippingPyg: '0', customsPyg: '0', insurancePyg: '0', taxesPyg: '0', otherCostsPyg: '0' }); setCreditEnabled(false); setDueAt(''); setSupplierReference(''); setMessage('Compra creada con costo final distribuido por línea.')
+      setSupplierId(''); setNewSupplier({ name: '', countryCode: '+595', phone: '', city: '', department: '', address: '' }); setLines([emptyLine()]); setCosts({ shippingPyg: '0', customsPyg: '0', insurancePyg: '0', taxesPyg: '0', otherCostsPyg: '0' }); setCreditEnabled(false); setCompraAuth(null); setDueAt(''); setSupplierReference(''); setMessage('Compra creada con costo final distribuido por línea.')
     } catch (err) { setError(err?.message || 'No se pudo crear la compra.') } finally { setBusy(false) }
   }
   async function receive(purchase) { setBusy(true); setError(''); try { if (demo) { receiveDemoPurchase(purchase.id); setPurchases(loadDemoPurchases()) } else { await purchasesApi.receive(purchase.id); await load() }; setMessage('Compra recibida y stock actualizado.') } catch (err) { setError(err?.message || 'No se pudo recibir la compra.') } finally { setBusy(false) } }
@@ -261,6 +275,20 @@ export default function Compras() {
         <details className="rounded-xl border border-ink-600/70 p-3"><summary className="cursor-pointer select-none text-sm font-semibold text-fore">Costos de importación (flete, aduana, seguro…) <span className="ml-1 text-xs font-normal text-mute">· {gs(costsTotalPyg)}</span></summary><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{COST_FIELDS.map(([key, label]) => <MoneyInput key={key} currency={currency} value={costs[key]} onValueChange={(value) => setCosts(current => ({ ...current, [key]: value }))} placeholder={label} />)}</div></details>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3"><Select value={costAllocationMethod} onChange={(e) => setCostAllocationMethod(e.target.value)}><option value="PROPORTIONAL_VALUE">Distribuir por valor</option><option value="PROPORTIONAL_QUANTITY">Distribuir por cantidad</option></Select><CurrencySelect value={currency} onChange={(e) => setCurrency(e.target.value)} />{currency !== 'PYG' && <MoneyInput currency="USD" symbol="Gs." value={exchangeRatePyg} onValueChange={setExchangeRatePyg} placeholder="Cotización PYG" />}</div>
         <div className="grid gap-2 rounded-xl border border-ink-600/70 p-3 sm:grid-cols-3"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={creditEnabled} onChange={(e) => setCreditEnabled(e.target.checked)} /> Compra a crédito</label><Input type="date" disabled={!creditEnabled} value={dueAt} onChange={(e) => setDueAt(e.target.value)} aria-label="Vencimiento de crédito" /><Input value={supplierReference} onChange={(e) => setSupplierReference(e.target.value)} placeholder="Referencia proveedor" /></div>
+        {!demo && requiereCompraAuth && (
+          <AutorizacionBloque
+            kind="PURCHASE_CREDIT"
+            entity="PURCHASE"
+            entityId={proveedorAuth?.supplierId ?? null}
+            titulo="Compra a crédito por encima del límite"
+            descripcion={`El total supera el límite sin autorización (${gs(limiteCredito)}). Pedí autorización a gerencia y confirmá la compra con la aprobación.`}
+            requestedValue={{ ...(proveedorAuth?.supplierId ? { supplierId: proveedorAuth.supplierId } : {}), supplierName: proveedorAuth?.supplierName, totalPyg: estimatedTotal }}
+            monto={estimatedTotal}
+            campoMax="maxTotalPyg"
+            onSelect={setCompraAuth}
+            bloqueado={busy}
+          />
+        )}
         <div className="sticky bottom-3 z-10 flex items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3 py-2 text-sm text-mute shadow-lg shadow-black/10"><span>Total final estimado: <strong className="text-fore">{gs(estimatedTotal)}</strong></span><Button type="submit" disabled={busy}>Crear pedido</Button></div>
       </form>{error && <p className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}{message && <p className="mt-3 rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">{message}</p>}
     </Card>

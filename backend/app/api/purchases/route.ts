@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { InputError } from '../../../lib/payment-input'
 import { applyPurchaseLineOverrides, distributePurchaseCosts, purchaseTotals } from '../../../lib/purchases'
 import type { PurchaseLineCostOverride } from '../../../lib/purchases'
+import { DEFAULT_PURCHASE_CREDIT_LIMIT_PYG, authorizedAmountOf, authorizationValueOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 
 const INT_MAX = 2147483647
 const MAX_TEXT = 160
@@ -86,13 +88,41 @@ export async function POST(request: Request) {
       if (dueAt && !Number.isFinite(dueAt.getTime())) throw new Error('Fecha de vencimiento inválida.')
       const supplierReference = body.supplierReference === undefined || body.supplierReference === '' ? null : boundedText(body.supplierReference, 200) ? String(body.supplierReference).trim() : null
       if (body.supplierReference !== undefined && body.supplierReference !== '' && !supplierReference) throw new Error('Referencia de proveedor inválida.')
+      // Compra a crédito por encima del umbral de la empresa: los roles que no
+      // son ADMIN necesitan una autorización aprobada que cubra el total.
+      let compraAutorizada: { id: string; maxTotalPyg: number } | null = null
+      if (Boolean(body.creditEnabled) && session.user.role !== 'ADMIN') {
+        const tenantLimits = await tx.tenant.findUnique({ where: { id: tenant }, select: { purchaseCreditLimitPyg: true } })
+        const limit = tenantLimits?.purchaseCreditLimitPyg ?? DEFAULT_PURCHASE_CREDIT_LIMIT_PYG
+        if (totalCost > limit) {
+          const authorizationId = typeof body.purchaseAuthorizationId === 'string' ? body.purchaseAuthorizationId.trim().slice(0, 128) : ''
+          const authorization = authorizationId
+            ? await tx.customerAuthorization.findFirst({ where: { id: authorizationId, tenantId: tenant } })
+            : null
+          usableAuthorization(authorization, { userId: session.user.id, kinds: ['PURCHASE_CREDIT'], label: 'compra a crédito' })
+          const maxTotalPyg = authorizedAmountOf(authorization!.resolvedValue, 'maxTotalPyg')
+          if (maxTotalPyg < 0 || totalCost > maxTotalPyg) throw new InputError('La autorización de compra a crédito no alcanza el total. Solicitá una nueva.', 403)
+          const requested = authorizationValueOf(authorization!.requestedValue)
+          if (typeof requested.supplierId === 'string' && supplierId && requested.supplierId !== supplierId) {
+            throw new InputError('La autorización de compra es de otro proveedor. Solicitá una nueva.', 403)
+          }
+          compraAutorizada = { id: authorization!.id, maxTotalPyg }
+        }
+      }
       await tx.$executeRaw`INSERT INTO "PurchaseOrder" ("id", "tenantId", "branchId", "supplierName", "supplierId", "createdById", "shippingPyg", "customsPyg", "insurancePyg", "taxesPyg", "otherCostsPyg", "currency", "exchangeRatePyg", "originalSubtotal", "dueAt", "supplierReference", "creditEnabled", "costAllocationMethod") VALUES (${purchaseId}, ${tenant}, ${branchId}, ${supplierName}, ${supplierId}, ${session.user.id}, ${shippingPyg}, ${customsPyg}, ${insurancePyg}, ${taxesPyg}, ${otherCostsPyg}, ${currency}::"PaymentCurrency", ${String(exchangeRatePyg)}::decimal, ${body.originalSubtotal === undefined ? null : String(body.originalSubtotal)}::decimal, ${dueAt}, ${supplierReference}, ${Boolean(body.creditEnabled)}, ${costAllocationMethod}::"PurchaseCostAllocationMethod")`
       for (const line of costing) await tx.$executeRaw`INSERT INTO "PurchaseLine" ("id", "purchaseId", "productId", "quantity", "unitCostPyg", "lotReference", "baseTotalPyg", "allocatedShippingPyg", "allocatedCustomsPyg", "allocatedInsurancePyg", "allocatedTaxesPyg", "allocatedOtherCostsPyg", "allocatedExtraCostPyg", "finalTotalCostPyg", "finalUnitCostPyg") VALUES (${line.id}, ${purchaseId}, ${line.productId}, ${line.quantity}, ${line.unitCostPyg}, ${line.lotReference}, ${line.baseTotalPyg}, ${line.allocatedShippingPyg}, ${line.allocatedCustomsPyg}, ${line.allocatedInsurancePyg}, ${line.allocatedTaxesPyg}, ${line.allocatedOtherCostsPyg}, ${line.allocatedExtraCostPyg}, ${line.finalTotalCostPyg}, ${line.finalUnitCostPyg})`
+      if (compraAutorizada) {
+        await consumeAuthorization(tx, { id: compraAutorizada.id, tenantId: tenant, kinds: ['PURCHASE_CREDIT'], userId: session.user.id, label: 'compra a crédito' })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_AUTHORIZED', entity: 'PurchaseOrder', entityId: purchaseId, metadata: { authorizationId: compraAutorizada.id, totalPyg: totalCost, maxTotalPyg: compraAutorizada.maxTotalPyg, supplierId } } })
+      }
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_CREATED', entity: 'PurchaseOrder', entityId: purchaseId, metadata: { branchId, supplierId, supplierName, lineCount: normalized.length, shippingPyg, customsPyg, insurancePyg, taxesPyg, otherCostsPyg, currency, exchangeRatePyg, costAllocationMethod, creditEnabled: Boolean(body.creditEnabled), totalCost, allocations: costing.map(line => ({ productId: line.productId, lotReference: line.lotReference, baseTotalPyg: line.baseTotalPyg, extraPyg: line.allocatedExtraCostPyg, finalTotalPyg: line.finalTotalCostPyg })) } } })
       return { id: purchaseId, tenantId: tenant, branchId, supplierId, supplierName, status: 'DRAFT', shippingPyg, customsPyg, insurancePyg, taxesPyg, otherCostsPyg, currency, exchangeRatePyg, costAllocationMethod, creditEnabled: Boolean(body.creditEnabled), lines: costing, payments: [], ...purchaseTotals(costing) }
     })
     return json(result, { status: 201 })
-  } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo crear la compra.', 409) }
+  } catch (e) {
+    if (e instanceof InputError) return error(e.message, e.status)
+    return error(e instanceof Error ? e.message : 'No se pudo crear la compra.', 409)
+  }
 }
 
 export async function PATCH(request: Request) {

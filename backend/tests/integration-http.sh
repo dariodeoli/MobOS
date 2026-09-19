@@ -101,6 +101,8 @@ INSERT INTO "User" ("id", "tenantId", "branchId", "name", "email", "pinHash", "r
   ('user-admin-it', 'tenant-a-it', 'branch-a-it', 'Admin Test', 'admin-it@example.invalid', :'pin_hash', 'ADMIN', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-a-it', 'tenant-a-it', 'branch-a-it', 'Seller A', 'seller-a-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-a-2-it', 'tenant-a-it', 'branch-a-it', 'Seller A Two', 'seller-a-2-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
+  ('user-cajera-it', 'tenant-a-it', 'branch-a-it', 'Caja A', 'cajera-a-it@example.invalid', :'pin_hash', 'CAJERA', 'ACTIVE', CURRENT_TIMESTAMP),
+  ('user-gerente-it', 'tenant-a-it', 'branch-a-it', 'Gerente A', 'gerente-a-it@example.invalid', :'pin_hash', 'GERENTE', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-lock-it', 'tenant-a-it', 'branch-a-it', 'Seller Lock', 'seller-lock-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-pinunique-it', 'tenant-a-it', 'branch-a-it', 'Seller Unique Pin', 'seller-pinunique-it@example.invalid', :'pin_hash_2', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-b-it', 'tenant-b-it', 'branch-b-it', 'Seller B', 'seller-b-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
@@ -427,6 +429,8 @@ assert_confirmed_payment_total "$out" IT-CONCURRENT-001 60000 || { echo "Los pag
 
 node "$BACKEND_ROOT/tests/new-modules.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
 out="$(response_file)"; ADMIN_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
+out="$(response_file)"; CAJERA_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-cajera-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
+out="$(response_file)"; GERENTE_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-gerente-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; request PATCH /api/products 200 '{"id":"prod-a-rollback-it","costPyg":55000}' "$out" "$ADMIN_TOKEN" ''
 if [[ "$(json_field "$out" costPyg)" != "55000" ]]; then echo "PATCH no guardó el costo del producto." >&2; exit 1; fi
 out="$(response_file)"; request PATCH /api/products 400 '{"id":"prod-a-rollback-it","costPyg":-1}' "$out" "$ADMIN_TOKEN" ''
@@ -459,6 +463,7 @@ out="$(response_file)"; CHECKOUT_SELLER_B="$(auth_cookie POST /api/auth/pin 200 
 MOBOS_IT_EXECUTE=1 node "$BACKEND_ROOT/tests/checkout-customer.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$COMPANY_TOKEN_A" "$CHECKOUT_SELLER_B"
 node "$BACKEND_ROOT/tests/invitation-app.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CHECKOUT_SELLER_B"
 MOBOS_SECURITY_PAYMENT_ID="$PAYMENT_PROOF_ID" node "$BACKEND_ROOT/tests/security-regression.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
+node "$BACKEND_ROOT/tests/authorization-limits.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN"
 
 echo "Reportes por producto, categoría, vendedor y día..."
 REPORTS_TO="$(node -e 'process.stdout.write(new Date().toISOString().slice(0,10))')"

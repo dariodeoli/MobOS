@@ -7,8 +7,10 @@ import { Button } from '@/components/ui'
 // Bloque genérico de autorización de un solo uso. El vendedor pide, gerencia
 // resuelve en su panel y acá se refleja el estado; si hay una aprobada vigente
 // (sin usar y que alcanza para lo pedido) se entrega al flujo que la consume.
-// Sirve para descuentos, ventas bajo lista, ajustes de stock y anulaciones:
-// `requestedValue` es el pedido y `monto` el importe que el máximo debe cubrir.
+// Sirve para descuentos, ventas bajo lista, ajustes de stock, anulaciones,
+// gastos fuera de límite, transferencias y compras a crédito: `requestedValue`
+// es el pedido, `monto` el importe que el máximo debe cubrir y `campoMax` la
+// clave del monto autorizado en la resolución.
 export default function AutorizacionBloque({
   kind,
   titulo,
@@ -19,6 +21,7 @@ export default function AutorizacionBloque({
   entityId,
   monto = 0,
   sinMonto = false,
+  campoMax = 'maxDiscountPyg',
   soloEstado = false,
   nota,
   onSelect,
@@ -49,14 +52,14 @@ export default function AutorizacionBloque({
   const pendiente = rows.find(row => row.status === 'PENDING' && esDelSujeto(row)) || null
   const aprobada = rows.find(row => row.status === 'APPROVED' && !row.usedAt && esDelSujeto(row)) || null
   const rechazada = !pendiente && !aprobada ? rows.find(row => row.status === 'REJECTED' && esDelSujeto(row)) || null : null
-  const maxAprobado = aprobada ? Number(aprobada.resolvedValue?.maxDiscountPyg ?? 0) : 0
+  const maxAprobado = aprobada ? Number(aprobada.resolvedValue?.[campoMax] ?? 0) : 0
   const alcanza = Boolean(aprobada) && (sinMonto || (monto > 0 && monto <= maxAprobado))
 
   // El callback viaja por ref para no re-disparar el efecto en cada render.
   const onSelectRef = useRef(onSelect)
   useEffect(() => { onSelectRef.current = onSelect })
   useEffect(() => {
-    onSelectRef.current?.(alcanza ? { id: aprobada.id, maxDiscountPyg: maxAprobado } : null)
+    onSelectRef.current?.(alcanza ? { id: aprobada.id, maxDiscountPyg: maxAprobado, maxAutorizado: maxAprobado } : null)
   }, [alcanza, aprobada?.id, maxAprobado])
 
   async function solicitar() {

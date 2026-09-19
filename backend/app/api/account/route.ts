@@ -41,7 +41,7 @@ export async function GET(request: Request) {
   const { session } = context
   const now = new Date()
   const [tenant, sessions, ownerAccess] = await Promise.all([
-    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true, orderPrefix: true, orderNextNumber: true, logo: { select: { updatedAt: true, mimeType: true } } } }),
+    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true, orderPrefix: true, orderNextNumber: true, expenseLimitPyg: true, purchaseCreditLimitPyg: true, logo: { select: { updatedAt: true, mimeType: true } } } }),
     prisma.session.findMany({ where: { tenantId: session.user.tenantId, revokedAt: null, expiresAt: { gt: now } }, orderBy: { lastSeenAt: 'desc' }, take: 50, select: { id: true, level: true, deviceId: true, branchId: true, createdAt: true, lastSeenAt: true, expiresAt: true, user: { select: { name: true, email: true, role: true } } } }),
     prisma.googleStoreAccess.findFirst({ where: { tenantId: session.user.tenantId, owner: true }, select: { subject: true } }),
   ])
@@ -111,6 +111,33 @@ export async function PATCH(request: Request) {
         return siguiente
       })
       return json({ ok: true, prefix, nextNumber, preview: orderNumber })
+    }
+    if (action === 'updateLimits') {
+      // Umbrales de autorización por empresa: gasto y compra a crédito sin
+      // autorización de gerencia. Null/ausente deja el valor como estaba.
+      const limitOf = (value: unknown, field: string) => {
+        if (value === undefined) return undefined
+        if (value === null || value === '') return null
+        const amount = Number(value)
+        if (!Number.isSafeInteger(amount) || amount < 0 || amount > 2147483647) throw new Error(`${field} debe ser un entero entre 0 y 2147483647.`)
+        return amount
+      }
+      const expenseLimitPyg = limitOf(body.expenseLimitPyg, 'El límite de gasto')
+      const purchaseCreditLimitPyg = limitOf(body.purchaseCreditLimitPyg, 'El límite de compra a crédito')
+      if (expenseLimitPyg === undefined && purchaseCreditLimitPyg === undefined) return error('Indicá al menos un límite para actualizar.', 400)
+      const updated = await prisma.$transaction(async tx => {
+        const tenant = await tx.tenant.update({
+          where: { id: session.user.tenantId },
+          data: {
+            ...(expenseLimitPyg === undefined ? {} : { expenseLimitPyg }),
+            ...(purchaseCreditLimitPyg === undefined ? {} : { purchaseCreditLimitPyg }),
+          },
+          select: { expenseLimitPyg: true, purchaseCreditLimitPyg: true },
+        })
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_AUTHORIZATION_LIMITS_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { expenseLimitPyg: tenant.expenseLimitPyg, purchaseCreditLimitPyg: tenant.purchaseCreditLimitPyg } } })
+        return tenant
+      })
+      return json({ ok: true, ...updated })
     }
     if (action === 'updateProfile') {
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

@@ -2,9 +2,11 @@ import type { CashDirection, CashMovementKind, PaymentCurrency } from '@prisma/c
 import { prisma } from '../../../lib/prisma'
 import { requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
+import { InputError } from '../../../lib/payment-input'
 import { ensureStoreBranch } from '../../../lib/store-branch'
-import { FINANCE_CURRENCIES, FinanceInputError, purchasePayable, realMargin } from '../../../lib/finance'
+import { FINANCE_CURRENCIES, FinanceInputError, frozenAmountPyg, purchasePayable, realMargin } from '../../../lib/finance'
 import { createCashMovement } from '../../../lib/cash-movements'
+import { DEFAULT_EXPENSE_LIMIT_PYG, authorizedAmountOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 
 const ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
 const WRITE_ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
@@ -82,7 +84,25 @@ export async function POST(request: Request) {
           const account = await tx.paymentAccount.findFirst({ where: { id: accountId, tenantId: ctx.session.user.tenantId, isActive: true }, select: { id: true, currency: true } })
           if (!account || account.currency !== currency) throw new FinanceInputError('La cuenta no corresponde a la moneda.')
         }
-        return createCashMovement(tx, {
+        // Gasto por encima del umbral de la empresa: los roles operativos
+        // necesitan una autorización aprobada que cubra el monto.
+        const amountPyg = frozenAmountPyg(originalAmount, currency as PaymentCurrency, exchangeRatePyg)
+        let gastoAutorizado: { id: string; maxAmountPyg: number } | null = null
+        if (kind === 'EXPENSE' && ctx.session.user.role !== 'ADMIN' && ctx.session.user.role !== 'GERENTE') {
+          const tenantLimits = await tx.tenant.findUnique({ where: { id: ctx.session.user.tenantId }, select: { expenseLimitPyg: true } })
+          const limit = tenantLimits?.expenseLimitPyg ?? DEFAULT_EXPENSE_LIMIT_PYG
+          if (amountPyg > limit) {
+            const authorizationId = typeof body.expenseAuthorizationId === 'string' ? body.expenseAuthorizationId.trim().slice(0, 200) : ''
+            const authorization = authorizationId
+              ? await tx.customerAuthorization.findFirst({ where: { id: authorizationId, tenantId: ctx.session.user.tenantId } })
+              : null
+            usableAuthorization(authorization, { userId: ctx.session.user.id, kinds: ['EXPENSE_OVER_LIMIT'], label: 'gasto' })
+            const maxAmountPyg = authorizedAmountOf(authorization!.resolvedValue, 'maxAmountPyg')
+            if (maxAmountPyg < 0 || amountPyg > maxAmountPyg) throw new InputError('La autorización de gasto no alcanza el monto. Solicitá una nueva.', 403)
+            gastoAutorizado = { id: authorization!.id, maxAmountPyg }
+          }
+        }
+        const movement = await createCashMovement(tx, {
           tenantId: ctx.session.user.tenantId, branchId: ctx.branchId, createdById: ctx.session.user.id,
           kind: kind as CashMovementKind, direction: direction as CashDirection, currency: currency as PaymentCurrency,
           originalAmount, exchangeRatePyg,
@@ -90,6 +110,11 @@ export async function POST(request: Request) {
           reference: text(body.reference, 'Referencia', 200),
           description, dueAt, accountId,
         }, { auditAction: 'FINANCE_MOVEMENT_CREATED' })
+        if (gastoAutorizado) {
+          await consumeAuthorization(tx, { id: gastoAutorizado.id, tenantId: ctx.session.user.tenantId, kinds: ['EXPENSE_OVER_LIMIT'], userId: ctx.session.user.id, label: 'gasto' })
+          await tx.auditLog.create({ data: { tenantId: ctx.session.user.tenantId, userId: ctx.session.user.id, action: 'EXPENSE_AUTHORIZED', entity: 'CashMovement', entityId: movement.id, metadata: { authorizationId: gastoAutorizado.id, amountPyg, maxAmountPyg: gastoAutorizado.maxAmountPyg, kind } } })
+        }
+        return movement
       })
       return json(movement, { status: 201 })
     }
@@ -101,5 +126,8 @@ export async function POST(request: Request) {
       return json({ id, status: action === 'clear' ? 'CLEARED' : 'VOID' })
     }
     throw new FinanceInputError('Acción financiera inválida.')
-  } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo guardar el movimiento.', cause instanceof FinanceInputError || cause instanceof SyntaxError ? 400 : 409) }
+  } catch (cause) {
+    if (cause instanceof InputError) return error(cause.message, cause.status)
+    return error(cause instanceof Error ? cause.message : 'No se pudo guardar el movimiento.', cause instanceof FinanceInputError || cause instanceof SyntaxError ? 400 : 409)
+  }
 }
