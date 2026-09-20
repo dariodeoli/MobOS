@@ -61,8 +61,6 @@ const protectedSections = {
   '/inventario/compartido': 'Compartido',
   '/inventario/eliminados': 'Eliminados',
   '/pos/servicio': 'Servicio posventa',
-  '/clientes': 'Portal de clientes',
-  '/portal': 'Portal de clientes',
   '/pos/tradein-admin': 'Gestión de trade-in',
   '/pos/plantillas': 'Plantillas de WhatsApp',
 }

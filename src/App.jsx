@@ -9,7 +9,6 @@ import PanelVendedor from '@/pages/PanelVendedor'
 import { applyPageMetadata } from '@/lib/seo'
 import DemoAccess from '@/pages/DemoAccess'
 import PedidoPublico from '@/pages/PedidoPublico'
-import ClientesLanding from '@/pages/ClientesLanding'
 import GarantiaPublica from '@/pages/GarantiaPublica'
 import CotizacionPublica from '@/pages/CotizacionPublica'
 import CuentaPublica from '@/pages/CuentaPublica'
@@ -182,8 +181,6 @@ export default function App() {
           <Route path="/restablecer-contrasena/:token?" element={<RecuperarContrasena />} />
           <Route path="/aceptar-invitacion/:token?" element={<AceptarInvitacion />} />
           <Route path="/verificar-correo/:token?" element={<VerificarCorreo />} />
-          <Route path="/clientes" element={<ClientesLanding />} />
-          <Route path="/portal" element={<ClientesLanding />} />
           <Route path="/pedido/:token" element={<PedidoPublico />} />
           <Route path="/p/:token" element={<PedidoPublico />} />
           <Route path="/garantia/:token" element={<GarantiaPublica />} />
