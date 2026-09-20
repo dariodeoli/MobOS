@@ -178,31 +178,55 @@ export function crearCacheDirecto({ ttlMs = 120000, ahora = () => Date.now() } =
 
 const cacheDirecto = crearCacheDirecto()
 
+// El USB directo solo aplica cuando el trabajo va a la impresora configurada
+// del agente: un trabajo dirigido a otra impresora explícita (p. ej. la red de
+// otra sucursal) respeta su transporte y nunca se desvía a un USB distinto.
+export function usbAplicaA(destino, impresoraConfigurada = '') {
+  const valor = String(destino || '').trim()
+  return Boolean(valor) && valor === String(impresoraConfigurada || '').trim()
+}
+
 // Destino: `lan:192.168.1.23:9100` o `usb:NombreDeLaCola`. Devuelve el
-// transporte real usado ('directo' | 'cups' | 'usb') para que la app solo
+// transporte real usado ('usb' | 'cups' | 'directo') para que la app solo
 // marque éxito cuando hubo entrega por un transporte real.
-export async function enviar(destino, bytes, { lanCups = 'MobOS_LAN', alias = '' } = {}) {
+// Con la bandera USB encendida (opciones.usb) el orden es USB directo → cola
+// CUPS → LAN directa. Sin bandera se conserva el camino histórico
+// (LAN directo → respaldo CUPS). `deps` inyecta los transportes en los tests.
+export async function enviar(destino, bytes, { lanCups = 'MobOS_LAN', alias = '', usb = null, deps = {} } = {}) {
   const valor = String(destino || '').trim()
   if (!valor) throw new Error('Elegí una impresora.')
-  // `cups:` es el nombre honesto; `usb:` se acepta por compatibilidad con la app vieja.
-  if (/^(usb|cups):/.test(valor)) { await enviarUsb(valor.slice(valor.indexOf(':') + 1), bytes); return 'usb' }
+  const porLan = deps.enviarLan || enviarLan
+  const porCola = deps.enviarUsb || enviarUsb
+  const colaDeCups = deps.colaLanDeCups || colaLanDeCups
+  // 1) USB directo: solo si la bandera está encendida y el dispositivo aparece.
+  if (usb?.disponible) {
+    try { await usb.enviar(bytes); return 'usb' } catch (error) { usb.ultimoError = error?.message || String(error) }
+  }
+  // 2) Cola CUPS: destino de cola (`usb:` se acepta por compatibilidad con la
+  // app vieja) o respaldo cuando el USB está activo pero no entregó.
+  if (/^(usb|cups):/.test(valor)) { await porCola(valor.slice(valor.indexOf(':') + 1), bytes); return 'cups' }
+  if (usb) {
+    const cola = await colaDeCups(lanCups, valor)
+    if (cola) { await porCola(cola, bytes); return 'cups' }
+  }
+  // 3) LAN directa, con el respaldo CUPS histórico.
   if (cacheDirecto.bloqueado()) {
     // Esta máquina viene fallando el directo: si hay respaldo, no se paga el
     // intento (con su cola resuelta por nombre o por la impresora del destino).
-    const cola = await colaLanDeCups(lanCups, valor)
-    if (cola) { await enviarUsb(cola, bytes); return 'cups' }
+    const cola = await colaDeCups(lanCups, valor)
+    if (cola) { await porCola(cola, bytes); return 'cups' }
     cacheDirecto.habilitar()
   }
   try {
-    await enviarLan(valor, bytes, { alias })
+    await porLan(valor, bytes, { alias })
     cacheDirecto.habilitar()
     return 'directo'
   } catch (error) {
     if (!/EHOSTUNREACH|ENETUNREACH/i.test(error?.message || '')) throw error
-    const cola = await colaLanDeCups(lanCups, valor)
+    const cola = await colaDeCups(lanCups, valor)
     if (!cola) throw error
     cacheDirecto.bloquear()
-    await enviarUsb(cola, bytes)
+    await porCola(cola, bytes)
     return 'cups'
   }
 }

@@ -433,6 +433,8 @@ model Product {
   @@unique([tenantId, branchId, sku])
   @@index([tenantId, branchId])
   @@index([tenantId, imei])
+  // Búsqueda difusa por nombre (pg_trgm, GIN): ILIKE '%texto%' sin escanear.
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "Product_name_trgm_idx", type: Gin)
 }
 
 enum InventoryUnitStatus {
@@ -645,6 +647,9 @@ model Customer {
   acceptsWhatsappMarketing  Boolean  @default(false)
   taxExempt                 Boolean  @default(false)
   tags                      String[] @default([])
+  // Último contacto de una campaña de marketing (recompra, saldo, etc.):
+  // evita mandarle el mismo mensaje dos veces a la misma persona.
+  marketingContactedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -665,6 +670,8 @@ model Customer {
   @@index([tenantId, phone])
   @@index([tenantId, externalId])
   @@index([priceListId])
+  // Búsqueda difusa por nombre (pg_trgm, GIN): ILIKE '%texto%' sin escanear.
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "Customer_name_trgm_idx", type: Gin)
 }
 
 // Solicitud de autorización comercial (mayorista, crédito, plazo o descuento).
@@ -935,6 +942,8 @@ model Order {
   @@index([tenantId, status])
   @@index([tenantId, archivedAt])
   @@index([branchId])
+  // Búsqueda difusa por número de pedido (pg_trgm, GIN): ILIKE '%texto%'.
+  @@index([orderNumber(ops: raw("gin_trgm_ops"))], map: "Order_orderNumber_trgm_idx", type: Gin)
 }
 
 // Acceso público del pedido por nivel de información. Cada token es aleatorio,
@@ -1113,6 +1122,8 @@ model OrderItemSerial {
 
   @@unique([orderItemId, serial])
   @@index([serial])
+  // Búsqueda difusa por serial/IMEI (pg_trgm, GIN): ILIKE '%texto%'.
+  @@index([serial(ops: raw("gin_trgm_ops"))], map: "OrderItemSerial_serial_trgm_idx", type: Gin)
 }
 
 // Plantilla por categoría: por ejemplo Teléfonos = seguro 2%. Un producto

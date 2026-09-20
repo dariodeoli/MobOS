@@ -119,7 +119,7 @@ while IFS= read -r entrada; do
     exit 1
   fi
   resto="${entrada#"$PREFIJO"}"
-  if [[ ! "$resto" =~ ^(server|transportes|cola|config|remoto|pair)\.mjs$ && "$resto" != "package.json" ]]; then
+  if [[ ! "$resto" =~ ^(server|transportes|cola|config|remoto|usb|pair)\.mjs$ && "$resto" != "package.json" ]]; then
     echo "El paquete contiene un archivo no permitido: $entrada" >&2
     exit 1
   fi
