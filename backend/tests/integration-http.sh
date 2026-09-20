@@ -543,4 +543,6 @@ out="$(response_file)"; request POST /api/auth/logout 200 '' "$out" "$COMPANY_TO
 out="$(response_file)"; request POST /api/auth/pin 401 '{"sellerId":"user-a-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 
 node "$BACKEND_ROOT/tests/stock-consistency.mjs"
+# Chequeos de consistencia de caja, créditos, comisiones, promociones y garantías.
+node "$BACKEND_ROOT/tests/consistency-check.mjs"
 echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración y logout."
