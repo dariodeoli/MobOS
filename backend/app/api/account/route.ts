@@ -4,9 +4,15 @@ import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { googleStores } from '../../../lib/google-company'
 import { formatOrderNumber, maxOrderSequence } from '../../../lib/order-number'
+import { recoveryDeadline } from '../../../lib/tenant-archive'
+import { purgeTenantData, type TenantPurgeCounts } from '../../../lib/tenant-purge'
 
 const REAUTH_WINDOW_MS = 10 * 60 * 1000
 const ADMIN_ROLE = 'ADMIN'
+
+// Falta la reautenticación reciente: es una condición de autorización de la
+// acción sensible, no un error de datos (por eso 403 y no 400).
+class ReauthRequiredError extends Error {}
 
 function input(value: unknown, field: string, min = 1, max = 500) {
   if (typeof value !== 'string' || value.trim().length < min || value.trim().length > max) throw new Error(`${field} inválido.`)
@@ -22,7 +28,7 @@ async function adminSession(request: Request) {
 
 async function assertRecentReauth(sessionId: string, tenantId: string) {
   const session = await prisma.session.findFirst({ where: { id: sessionId, tenantId, revokedAt: null }, select: { reauthenticatedAt: true } })
-  if (!session?.reauthenticatedAt || Date.now() - session.reauthenticatedAt.getTime() > REAUTH_WINDOW_MS) throw new Error('Reautenticá tu contraseña para continuar.')
+  if (!session?.reauthenticatedAt || Date.now() - session.reauthenticatedAt.getTime() > REAUTH_WINDOW_MS) throw new ReauthRequiredError('Reautenticá tu contraseña para continuar.')
 }
 
 async function verifyCredential(tenantId: string, userId: string, password: string) {
@@ -40,10 +46,11 @@ export async function GET(request: Request) {
   if ('error' in context) return context.error
   const { session } = context
   const now = new Date()
-  const [tenant, sessions, ownerAccess] = await Promise.all([
-    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, createdAt: true, orderPrefix: true, orderNextNumber: true, expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true, address: true, city: true, department: true, phone: true, ruc: true, logos: { select: { variant: true, updatedAt: true, mimeType: true } } } }),
+  const [tenant, sessions, ownerAccess, current] = await Promise.all([
+    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, recoverableUntil: true, createdAt: true, orderPrefix: true, orderNextNumber: true, expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true, address: true, city: true, department: true, phone: true, ruc: true, logos: { select: { variant: true, updatedAt: true, mimeType: true } } } }),
     prisma.session.findMany({ where: { tenantId: session.user.tenantId, revokedAt: null, expiresAt: { gt: now } }, orderBy: { lastSeenAt: 'desc' }, take: 50, select: { id: true, level: true, deviceId: true, branchId: true, createdAt: true, lastSeenAt: true, expiresAt: true, user: { select: { name: true, email: true, role: true } } } }),
     prisma.googleStoreAccess.findFirst({ where: { tenantId: session.user.tenantId, owner: true }, select: { subject: true } }),
+    prisma.session.findUnique({ where: { id: session.sessionId }, select: { reauthenticatedAt: true } }),
   ])
   if (!tenant) return error('Empresa no encontrada.', 404)
   // Para el dueño Google: todas las tiendas de su persona, con la actual marcada.
@@ -52,7 +59,13 @@ export async function GET(request: Request) {
   // `logos` es el detalle por variante y no se expone suelto.
   const { logos, ...restoTenant } = tenant
   const logo = logos.find((item) => item.variant === 'light') ?? logos[0] ?? null
-  return json({ tenant: { ...restoTenant, logo, logos }, currentSessionId: session.sessionId, reauthValidUntil: null, sessions, stores })
+  // La reautenticación vive en la sesión (reauthenticatedAt): informar la
+  // ventana vigente evita que un GET posterior borre el estado que el
+  // formulario acaba de habilitar.
+  const reauthValidUntil = current?.reauthenticatedAt && now.getTime() - current.reauthenticatedAt.getTime() < REAUTH_WINDOW_MS
+    ? new Date(current.reauthenticatedAt.getTime() + REAUTH_WINDOW_MS)
+    : null
+  return json({ tenant: { ...restoTenant, logo, logos }, currentSessionId: session.sessionId, reauthValidUntil, sessions, stores })
 }
 
 export async function POST(request: Request) {
@@ -93,12 +106,13 @@ export async function PATCH(request: Request) {
     }
     if (action === 'archive') {
       const reason = input(body.reason, 'Motivo de archivado', 10, 500)
+      const recoverableUntil = recoveryDeadline(now)
       await prisma.$transaction(async tx => {
-        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { archivedAt: now, archivedReason: reason, lockedUntil: new Date('9999-12-31T23:59:59.999Z') } })
+        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { archivedAt: now, archivedReason: reason, recoverableUntil, lockedUntil: new Date('9999-12-31T23:59:59.999Z') } })
         await tx.session.updateMany({ where: { tenantId: session.user.tenantId, revokedAt: null }, data: { revokedAt: now } })
-        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_ARCHIVED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { reason } } })
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_ARCHIVED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { reason, recoverableUntil } } })
       })
-      return json({ ok: true, archivedAt: now })
+      return json({ ok: true, archivedAt: now, recoverableUntil })
     }
     if (action === 'orderNumbering') {
       const prefix = input(body.prefix, 'Prefijo', 2, 3).toUpperCase()
@@ -241,39 +255,48 @@ export async function PATCH(request: Request) {
       return json({ ok: true })
     }
     if (action === 'archiveStore') {
-      // Archivar por defecto: la historia se conserva y soporte puede restaurar.
+      // Archivar por defecto: la historia se conserva y el dueño puede
+      // restaurarla dentro de la ventana recuperable con RESTORE.
       if (body.confirm !== 'ARCHIVAR') return error('Escribí ARCHIVAR para confirmar el archivado de la tienda.', 400)
       const password = input(body.password, 'Contraseña', 1, 72)
-      const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, archivedAt: true } })
+      const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, archivedAt: true, recoverableUntil: true } })
       if (!tenant || !(await verifyCredential(session.user.tenantId, session.user.id, password))) return error('No se pudo reautenticar la cuenta.', 401)
-      if (tenant.archivedAt) return json({ ok: true, yaArchivada: true })
+      if (tenant.archivedAt) return json({ ok: true, yaArchivada: true, recoverableUntil: tenant.recoverableUntil })
+      const recoverableUntil = recoveryDeadline(now)
       const [products, orders] = await Promise.all([
         prisma.product.count({ where: { tenantId: session.user.tenantId } }),
         prisma.order.count({ where: { tenantId: session.user.tenantId } }),
       ])
       await prisma.$transaction(async tx => {
-        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { archivedAt: new Date(), archivedReason: 'Archivada por el dueño desde la app' } })
-        await tx.session.updateMany({ where: { tenantId: session.user.tenantId, revokedAt: null }, data: { revokedAt: new Date() } })
-        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_ARCHIVED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { products, orders } } })
+        await tx.tenant.update({ where: { id: session.user.tenantId }, data: { archivedAt: now, archivedReason: 'Archivada por el dueño desde la app', recoverableUntil } })
+        await tx.session.updateMany({ where: { tenantId: session.user.tenantId, revokedAt: null }, data: { revokedAt: now } })
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_ARCHIVED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { products, orders, recoverableUntil } } })
       })
-      return json({ ok: true })
+      return json({ ok: true, archivedAt: now, recoverableUntil })
     }
     if (action === 'purgeStore') {
-      if (body.confirm !== 'ELIMINAR') return error('Escribí ELIMINAR para confirmar la eliminación de la tienda.', 400)
+      // Eliminación definitiva: solo el dueño (ADMIN) con confirmación fuerte
+      // y contraseña. Borra en orden de dependencias (FKs Restrict incluidas)
+      // y no puede deshacerse.
+      if (body.confirm !== 'ELIMINAR') return error('Escribí ELIMINAR para confirmar la eliminación definitiva de la tienda.', 400)
       const password = input(body.password, 'Contraseña', 1, 72)
-      const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true } })
+      const tenant = await prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true } })
       if (!tenant || !(await verifyCredential(session.user.tenantId, session.user.id, password))) return error('No se pudo reautenticar la cuenta.', 401)
       const [products, orders, accesses] = await Promise.all([
         prisma.product.count({ where: { tenantId: session.user.tenantId } }),
         prisma.order.count({ where: { tenantId: session.user.tenantId } }),
         prisma.googleStoreAccess.findMany({ where: { tenantId: session.user.tenantId }, select: { subject: true } }),
       ])
+      let counts: TenantPurgeCounts = {}
       await prisma.$transaction(async tx => {
-        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'STORE_PURGED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { products, orders } } })
-        await tx.tenant.delete({ where: { id: session.user.tenantId } })
+        // El AuditLog de la empresa se borra con ella: para que la acción no
+        // quede sin rastro se deja primero la fila (misma transacción) y el
+        // detalle en el log del servidor, que sí sobrevive.
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'STORE_PURGED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { products, orders, actorId: session.user.id, actorName: session.user.name } } })
+        counts = await purgeTenantData(tx, session.user.tenantId)
       })
-      // El cascade del tenant retira los accesos; las identidades que quedan
-      // sin ninguna tienda se eliminan.
+      console.info(JSON.stringify({ action: 'TENANT_PURGED', tenantId: session.user.tenantId, tenantName: tenant.name, actorId: session.user.id, products, orders, counts }))
+      // Las identidades que quedan sin ninguna tienda se eliminan.
       for (const access of accesses) {
         const remaining = await prisma.googleStoreAccess.count({ where: { subject: access.subject } })
         if (remaining === 0) await prisma.googleIdentity.deleteMany({ where: { subject: access.subject } })
@@ -281,5 +304,8 @@ export async function PATCH(request: Request) {
       return json({ ok: true })
     }
     return error('Acción de cuenta no admitida.', 400)
-  } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo actualizar la cuenta.', 400) }
+  } catch (cause) {
+    if (cause instanceof ReauthRequiredError) return error(cause.message, 403)
+    return error(cause instanceof Error ? cause.message : 'No se pudo actualizar la cuenta.', 400)
+  }
 }

@@ -66,6 +66,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const [failure, setFailure] = useState('')
   const [confirmar, setConfirmar] = useState(null)
   const [cerrarCuentaAbierto, setCerrarCuentaAbierto] = useState(false)
+  const [eliminarAbierto, setEliminarAbierto] = useState(false)
 
   const load = useCallback(async () => {
     if (!esDueno) return
@@ -142,6 +143,16 @@ export default function Config({ seccion = 'negocio' } = {}) {
       await sessionApi.logout().catch(() => {})
       window.location.assign('/login')
     } catch (error) { setFailure(error.message || 'No se pudo cerrar la cuenta.') } finally { setBusy(false) }
+  }
+
+  async function eliminarEmpresa({ password }) {
+    if (busy) return
+    setBusy(true); setFailure('')
+    try {
+      await api.patch('/api/account', { action: 'purgeStore', confirm: 'ELIMINAR', password })
+      await sessionApi.logout().catch(() => {})
+      window.location.assign('/login')
+    } catch (error) { setFailure(error.message || 'No se pudo eliminar la empresa.') } finally { setBusy(false) }
   }
 
   async function archive() {
@@ -273,7 +284,10 @@ export default function Config({ seccion = 'negocio' } = {}) {
         {esDueno && <UsoEquipo />}
         <Card className="space-y-3"><div><h2 className="font-semibold">Exportación básica</h2><p className="mt-1 text-sm text-mute">Descarga JSON de empresa, sucursales, equipo, clientes, productos, órdenes y pagos. Excluye credenciales, tokens, PIN y archivos de comprobantes.</p></div><Button variant="outline" onClick={exportData} disabled={busy}>Descargar mis datos</Button></Card>
 
-        <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Archivar empresa</h2><p className="mt-1 text-sm text-mute">No borra ventas ni historial. Cierra sesiones y bloquea el acceso por contraseña hasta restaurarla con correo, contraseña y la confirmación RESTORE.</p></div><Input aria-label="Motivo de archivado" value={archiveReason} onChange={event => setArchiveReason(event.target.value)} placeholder="Motivo del archivado (mínimo 10 caracteres)" /><Button variant="outline" onClick={() => setConfirmar({ tipo: 'archivar' })} disabled={busy || archiveReason.trim().length < 10} className="border-bad/50 text-bad hover:bg-bad/10">Archivar empresa</Button></Card>
+        <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Archivar empresa</h2><p className="mt-1 text-sm text-mute">No borra ventas ni historial. Cierra sesiones y bloquea el acceso hasta restaurarla con correo, contraseña y la confirmación RESTORE, durante los 30 días posteriores al archivado.</p></div><Input aria-label="Motivo de archivado" value={archiveReason} onChange={event => setArchiveReason(event.target.value)} placeholder="Motivo del archivado (mínimo 10 caracteres)" /><Button variant="outline" onClick={() => setConfirmar({ tipo: 'archivar' })} disabled={busy || archiveReason.trim().length < 10 || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Archivar empresa</Button></Card>
+
+        {esDueno && <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Eliminar empresa definitivamente</h2><p className="mt-1 text-sm text-mute">Borra la empresa y todo su historial: ventas, clientes, pagos, stock, integrantes y auditoría. No se puede deshacer ni recuperar. Si solo querés dejar de usarla por un tiempo, usá <b className="text-fore">Archivar empresa</b>: se conserva todo y podés restaurarla.</p></div><Button variant="outline" onClick={() => { setFailure(''); setEliminarAbierto(true) }} disabled={busy || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Eliminar empresa</Button></Card>}
+        {esDueno && !account?.reauthValidUntil && <p className="text-xs text-mute">Confirmá tu identidad arriba para habilitar el archivado y la eliminación de la empresa.</p>}
         {failure && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{failure}</p>}{notice && <p role="status" className="rounded-xl border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{notice}</p>}
       </>}
       <DialogoDestructivo
@@ -288,7 +302,19 @@ export default function Config({ seccion = 'negocio' } = {}) {
         onCancel={() => !busy && setCerrarCuentaAbierto(false)}
         onConfirm={cerrarCuenta}
       />
-      <ConfirmDialog open={Boolean(confirmar)} onCancel={() => setConfirmar(null)} onConfirm={async () => { const actual = confirmar; setConfirmar(null); if (actual?.tipo === 'revocar') await revoke(actual.sessionId); if (actual?.tipo === 'archivar') await archive() }} title={confirmar?.tipo === 'archivar' ? '¿Archivar esta empresa?' : '¿Revocar esta sesión?'} description={confirmar?.tipo === 'archivar' ? 'La empresa quedará cerrada de forma recuperable y se revocarán todas las sesiones activas. Las ventas y el historial se conservan.' : 'El dispositivo perderá acceso inmediatamente y deberá iniciar sesión de nuevo.'} confirmLabel={confirmar?.tipo === 'archivar' ? 'Archivar empresa' : 'Revocar sesión'} variant="danger" />
+      <ConfirmDialog open={Boolean(confirmar)} onCancel={() => setConfirmar(null)} onConfirm={async () => { const actual = confirmar; setConfirmar(null); if (actual?.tipo === 'revocar') await revoke(actual.sessionId); if (actual?.tipo === 'archivar') await archive() }} title={confirmar?.tipo === 'archivar' ? '¿Archivar esta empresa?' : '¿Revocar esta sesión?'} description={confirmar?.tipo === 'archivar' ? 'La empresa quedará cerrada de forma recuperable durante 30 días y se revocarán todas las sesiones activas. Las ventas y el historial se conservan; podés restaurarla con la confirmación RESTORE.' : 'El dispositivo perderá acceso inmediatamente y deberá iniciar sesión de nuevo.'} confirmLabel={confirmar?.tipo === 'archivar' ? 'Archivar empresa' : 'Revocar sesión'} variant="danger" />
+      <DialogoDestructivo
+        open={eliminarAbierto}
+        title="¿Eliminar la empresa para siempre?"
+        description="Se borran la empresa y todo su historial: ventas, clientes, pagos, stock, integrantes y auditoría. Esta acción es irreversible y no tiene ventana de recuperación. Para confirmar, escribí tu contraseña de empresa y la palabra ELIMINAR."
+        palabra="ELIMINAR"
+        necesitaClave
+        confirmLabel="Eliminar empresa"
+        busy={busy}
+        error={failure}
+        onCancel={() => !busy && setEliminarAbierto(false)}
+        onConfirm={eliminarEmpresa}
+      />
     </div>
   )
 }
@@ -614,7 +640,7 @@ function SeccionTiendas({ account }) {
       <DialogoDestructivo
         open={dialogo === 'archivar'}
         title="¿Archivar esta tienda?"
-        description="La tienda queda archivada y no se puede entrar hasta restaurarla; se conserva toda su información (productos, ventas, clientes, pagos e integrantes). Para confirmar, escribí tu contraseña de empresa y la palabra ARCHIVAR."
+        description="La tienda queda archivada y no se puede entrar hasta restaurarla durante los 30 días posteriores; se conserva toda su información (productos, ventas, clientes, pagos e integrantes). Para confirmar, escribí tu contraseña de empresa y la palabra ARCHIVAR."
         palabra="ARCHIVAR"
         necesitaClave
         confirmLabel="Archivar tienda"

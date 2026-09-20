@@ -27,8 +27,10 @@ model Tenant {
   passwordHash        String?
   failedLoginAttempts Int              @default(0)
   lockedUntil         DateTime?
-  archivedAt          DateTime?
-  archivedReason      String?
+  archivedAt            DateTime?
+  archivedReason        String?
+  // Hasta cuándo el dueño puede restaurar la empresa archivada desde la app.
+  recoverableUntil      DateTime?
   slug                String           @unique
   // Identificador comercial visible de los pedidos: "MOB #310840".
   orderPrefix         String?

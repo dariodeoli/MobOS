@@ -82,6 +82,12 @@ export DATABASE_URL
 (cd "$BACKEND_ROOT" && ./node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma)
 (cd "$BACKEND_ROOT" && ./node_modules/.bin/prisma generate --schema prisma/schema.prisma >/dev/null)
 
+# Base migrada y vacía: el chequeo de consistencia no debe romper sin datos.
+(cd "$BACKEND_ROOT" && node tests/consistency-check.mjs) || {
+  echo "El chequeo de consistencia falló sobre una base vacía." >&2
+  exit 1
+}
+
 PIN_HASH="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('2468', 10))")"
 PIN_HASH_2="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('1357', 10))")"
 PASSWORD_HASH="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('company-password-it', 10))")"
@@ -633,4 +639,21 @@ out="$(response_file)"; request POST /api/auth/logout 200 '' "$out" "$COMPANY_TO
 out="$(response_file)"; request POST /api/auth/pin 401 '{"sellerId":"user-a-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 
 node "$BACKEND_ROOT/tests/stock-consistency.mjs"
-echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración y logout."
+
+echo "Ciclo de vida de la empresa: archivar, reactivar y eliminar definitivamente..."
+node "$BACKEND_ROOT/tests/account-lifecycle.mjs" "$BASE_URL" "$DATABASE_URL"
+
+echo "Consistencia financiera: la base del arnés da verde y los casos sembrados fallan..."
+(cd "$BACKEND_ROOT" && node tests/consistency-check.mjs) || {
+  echo "El chequeo de consistencia encontró inconsistencias reales en una base consistente." >&2
+  exit 1
+}
+(cd "$BACKEND_ROOT" && node tests/consistency-selftest.mjs) || {
+  echo "El autotest de consistencia falló: una inconsistencia sembrada no introdujo el fallo o --fix no recompuso." >&2
+  exit 1
+}
+(cd "$BACKEND_ROOT" && node tests/consistency-check.mjs) || {
+  echo "El chequeo de consistencia no volvió a dar verde tras la limpieza del autotest." >&2
+  exit 1
+}
+echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia y logout."

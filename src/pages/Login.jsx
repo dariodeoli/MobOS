@@ -310,7 +310,7 @@ export default function Login() {
             />
           </div>
           {/* Llevamos el correo ya escrito para no volver a tipearlo en recuperación. */}
-          <div className="-mt-1 text-right"><Link to={`/restablecer-contrasena${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="text-xs text-mute hover:text-fore">¿Olvidaste tu contraseña? Recuperar</Link></div>
+          <div className="-mt-1 flex flex-wrap items-center justify-between gap-2 text-xs"><Link to={`/restablecer-contrasena${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="text-mute hover:text-fore">¿Olvidaste tu contraseña? Recuperar</Link><Link to={`/recuperar-empresa${f.correo?.trim() ? `?email=${encodeURIComponent(f.correo.trim())}` : ''}`} className="text-mute hover:text-fore">¿Archivaste tu empresa? Recuperala</Link></div>
           </>}
 
           {error && (
