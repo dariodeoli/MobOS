@@ -7,3 +7,8 @@
 --
 -- Se conserva vacía y registrada para no reescribir la historia de migraciones:
 -- cualquier base que la haya aplicado antes ya tiene los objetos de la 21.
+
+-- El precio congelado por línea (`OrderItem.priceSource`) llegó después y el
+-- schema lo declara; la migración que lo agregaba era esta, así que se conserva
+-- el ALTER idempotente.
+ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "priceSource" TEXT;

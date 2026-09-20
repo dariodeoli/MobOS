@@ -1,20 +1,8 @@
-// Verificación de consistencia de los módulos financieros y de posventa.
-//
-//  - caja: la sesión cerrada congela expectedPyg; se recalcula con la misma
-//    fórmula de /api/cash (apertura + cobros CASH confirmados de la sucursal
-//    dentro de la ventana) y --fix recompone el derivado.
-//  - créditos: cobros confirmados contra el total del pedido, estado del
-//    pedido y coherencia del plazo (creditDays/dueAt).
-//  - comisiones: validez de las reglas (un solo destino, porcentaje 0–100,
-//    usuario de la misma empresa) y banderas de costo de las ventas.
-//  - promociones: usedUnits contra los consumos reales de las líneas.
-//  - garantías: casos contra la venta y el cliente que los originaron.
+// Chequeos de consistencia de datos (issue #29): caja, créditos, comisiones,
+// promociones y garantías. FALLA solo ante inconsistencias reales; informa las
+// revisables a mano. --fix recomputa únicamente lo seguro.
 //
 // Uso: DATABASE_URL=... node tests/consistency-check.mjs [--fix]
-// --fix solo recompone espejos derivados seguros (never inventa datos):
-// expectedPyg de sesiones cerradas y usedUnits de promociones.
-// Salida: 0 sin inconsistencias reales (las revisables se informan), 1 con
-// inconsistencias reales que quedan pendientes, 2 sin DATABASE_URL.
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
@@ -31,20 +19,16 @@ const avisos = []
 const reparables = []
 
 try {
-  await checkCaja()
-  await checkCreditos()
-  await checkComisiones()
-  await checkPromociones()
-  await checkGarantias()
-  const dominios = ['caja', 'movimientos', 'créditos', 'comisiones', 'promociones', 'garantías']
-  for (const dominio of dominios) {
-    const propios = findings.filter((item) => item.domain === dominio)
-    const reales = propios.filter((item) => item.level === 'real')
-    for (const item of reales) console.log(`FALLA · ${item.message}`)
-    for (const item of propios.filter((item) => item.level === 'review')) console.log(`REVISAR · ${item.message}`)
-    const corregidos = fixed.filter((item) => item.domain === dominio)
-    if (!propios.length && !corregidos.length) console.log(`${dominio}: OK`)
-    else if (!reales.length) console.log(`${dominio}: OK (${propios.length} revisable(s), ${corregidos.length} corregido(s))`)
+  // ── Caja: cierres coherentes (contado/esperado presentes solo al cerrar) ──
+  const cierres = await prisma.$queryRaw`
+    SELECT "id", "status", "closedAt", "countedPyg", "expectedPyg"
+    FROM "CashSession"
+    WHERE ("closedAt" IS NOT NULL AND ("countedPyg" IS NULL OR "expectedPyg" IS NULL))
+       OR ("closedAt" IS NULL AND ("countedPyg" IS NOT NULL OR "expectedPyg" IS NOT NULL))
+       OR "countedPyg" < 0 OR "expectedPyg" < 0
+    LIMIT 200`
+  for (const fila of cierres) {
+    fallos.push(`caja ${fila.id}: cierre incoherente (estado ${fila.status}, contado ${fila.countedPyg}, esperado ${fila.expectedPyg}, cerrada ${fila.closedAt ? 'sí' : 'no'})`)
   }
   // ── Caja: el esperado de un turno cerrado se reconstruye desde la apertura,
   //    los cobros en efectivo del responsable y sus movimientos de caja ──
@@ -193,4 +177,8 @@ try {
   process.exit(1)
 } finally {
   await prisma.$disconnect()
+}
+
+function huerfanosTotal(rows) {
+  return rows?.[0]?.total || 0
 }
