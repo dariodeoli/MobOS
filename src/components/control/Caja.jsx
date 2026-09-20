@@ -4,7 +4,19 @@ import { useSesion } from '@/lib/sesion'
 import { formatGsInput, parseGsInput } from '@/utils/moneda'
 import { getDemoCash, getDemoCashExpected, openDemoCash, closeDemoCash } from '@/lib/demoCash'
 import { listVentas } from '@/lib/storage'
-import { Button, Card, Eyebrow, Input, Label, Modal, Money, MoneyInput, Skeleton } from '@/components/ui'
+import {
+  Badge,
+  Button,
+  Card,
+  Eyebrow,
+  Input,
+  Label,
+  Modal,
+  Money,
+  MoneyInput,
+  Skeleton,
+  Textarea,
+} from '@/components/ui'
 import AuditoriaMedios from './AuditoriaMedios'
 import AttachmentList from '@/components/shared/AttachmentList'
 import Cronologia from '@/components/shared/Cronologia'
@@ -15,6 +27,7 @@ import { cobrosDeAuditoria, cobrosDePagos, armarCierreCaja } from '@/utils/repor
 import { ticketCierreCaja } from '@/lib/printing/reportes'
 import { imprimirDocumento } from '@/lib/printing/agent'
 import { descargarCsv } from '@/utils/descargarCsv'
+import { parseDelimited } from '@/utils/csv'
 
 // Denominaciones del arqueo en guaraníes: son las mismas que acepta el backend
 // y el total contado se deriva de acá cuando hay desglose.
@@ -102,8 +115,154 @@ function ArqueoDenominaciones({ cantidades, onCambiar, id }) {
   )
 }
 
+// ── Conciliación bancaria por extracto ───────────────────────────────
+// El CSV se parsea acá con el helper compartido (src/utils/csv.js) y solo se
+// envían filas ya normalizadas al backend, que sugiere coincidencias.
+const CLAVES_FECHA = ['fecha', 'date']
+const CLAVES_MONTO = ['monto', 'importe', 'amount', 'credito', 'haber']
+const CLAVES_REFERENCIA = [
+  'referencia',
+  'reference',
+  'comprobante',
+  'documento',
+  'operacion',
+  'nro',
+]
+const CLAVES_DESCRIPCION = [
+  'descripcion',
+  'description',
+  'detalle',
+  'concepto',
+  'glosa',
+  'movimiento',
+]
+
+function sinAcentos(texto) {
+  return String(texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function columnaDe(encabezados, claves) {
+  return encabezados.findIndex(celda =>
+    claves.some(clave => celda === clave || celda.includes(clave)),
+  )
+}
+
+function armarFecha(anio, mes, dia) {
+  const y = Number(anio)
+  const m = Number(mes)
+  const d = Number(dia)
+  if (!y || m < 1 || m > 12 || d < 1 || d > 31) return null
+  const fecha = new Date(Date.UTC(y, m - 1, d))
+  if (fecha.getUTCFullYear() !== y || fecha.getUTCMonth() !== m - 1 || fecha.getUTCDate() !== d)
+    return null
+  return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
+function fechaDeExtracto(valor) {
+  const texto = String(valor || '').trim()
+  let partes = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(texto)
+  if (partes) return armarFecha(partes[1], partes[2], partes[3])
+  partes = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})$/.exec(texto)
+  if (partes)
+    return armarFecha(partes[3].length === 2 ? `20${partes[3]}` : partes[3], partes[2], partes[1])
+  partes = /^(\d{4})(\d{2})(\d{2})$/.exec(texto)
+  if (partes) return armarFecha(partes[1], partes[2], partes[3])
+  return null
+}
+
+// Los extractos en guaraníes escriben miles con punto y, a veces, centavos con
+// coma; el monto que se compara contra los cobros es siempre el entero en Gs.
+function montoDeExtracto(valor) {
+  let texto = String(valor || '').replace(/[^\d.,-]/g, '')
+  if (!texto) return null
+  const negativo = texto.startsWith('-')
+  texto = texto.replace(/-/g, '')
+  const ultimaComa = texto.lastIndexOf(',')
+  const ultimoPunto = texto.lastIndexOf('.')
+  let limpio = texto
+  if (ultimaComa >= 0 && ultimoPunto >= 0) {
+    limpio =
+      ultimaComa > ultimoPunto
+        ? texto.replace(/\./g, '').replace(',', '.')
+        : texto.replace(/,/g, '')
+  } else if (ultimaComa >= 0) {
+    const partes = texto.split(',')
+    limpio =
+      partes.length > 2 || (partes[1] || '').length === 3
+        ? texto.replace(/,/g, '')
+        : texto.replace(',', '.')
+  } else if (ultimoPunto >= 0) {
+    const partes = texto.split('.')
+    limpio = partes.length > 2 || (partes[1] || '').length === 3 ? texto.replace(/\./g, '') : texto
+  }
+  const numero = Number(limpio)
+  if (!Number.isFinite(numero)) return null
+  const entero = Math.round(Math.abs(numero))
+  if (!Number.isSafeInteger(entero) || entero === 0) return null
+  return negativo ? -entero : entero
+}
+
+function extraerFilasExtracto(texto) {
+  const crudas = parseDelimited(texto)
+  if (!crudas.length) return { rows: [], ignoradas: 0 }
+  const encabezados = crudas[0].map(sinAcentos)
+  const idxFecha = columnaDe(encabezados, CLAVES_FECHA)
+  const idxMonto = columnaDe(encabezados, CLAVES_MONTO)
+  const conEncabezado = idxFecha >= 0 && idxMonto >= 0
+  const indiceFecha = conEncabezado ? idxFecha : 0
+  const indiceMonto = conEncabezado ? idxMonto : 1
+  const indiceReferencia = conEncabezado ? columnaDe(encabezados, CLAVES_REFERENCIA) : 2
+  const indiceDescripcion = conEncabezado ? columnaDe(encabezados, CLAVES_DESCRIPCION) : 3
+  const rows = []
+  let ignoradas = 0
+  for (const fila of conEncabezado ? crudas.slice(1) : crudas) {
+    const date = fechaDeExtracto(fila[indiceFecha])
+    const amountPyg = montoDeExtracto(fila[indiceMonto])
+    if (!date || !amountPyg || amountPyg <= 0) {
+      ignoradas += 1
+      continue
+    }
+    const reference =
+      indiceReferencia >= 0
+        ? String(fila[indiceReferencia] ?? '')
+            .trim()
+            .slice(0, 300)
+        : ''
+    const description =
+      indiceDescripcion >= 0
+        ? String(fila[indiceDescripcion] ?? '')
+            .trim()
+            .slice(0, 300)
+        : ''
+    rows.push({
+      date,
+      amountPyg,
+      ...(reference ? { reference } : {}),
+      ...(description ? { description } : {}),
+    })
+  }
+  return { rows, ignoradas }
+}
+
+function fechaCorta(iso) {
+  const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''))
+  return partes ? `${partes[3]}/${partes[2]}/${partes[1]}` : String(iso || '—')
+}
+
+// El backend compara los días en hora de Paraguay (UTC-3): la fecha que se
+// muestra sale del mismo instante para no discrepar con la coincidencia.
+function fechaPagoLocal(paidAt) {
+  const instante = Date.parse(paidAt)
+  if (!Number.isFinite(instante)) return String(paidAt || '')
+  return new Date(instante - 180 * 60000).toISOString().slice(0, 10)
+}
+
 export default function Caja() {
-  const { esDemo, sucursal, sesion: usuarioSesion, empresa } = useSesion()
+  const { esDemo, sucursal, sesion: usuarioSesion, empresa, usuario } = useSesion()
   const [cash, setCash] = useState(null)
   const [finance, setFinance] = useState(null)
   const [opening, setOpening] = useState('500000')
@@ -121,6 +280,13 @@ export default function Caja() {
   const [exportando, setExportando] = useState(false)
   const [cierreOpen, setCierreOpen] = useState(false)
   const [cobros, setCobros] = useState([])
+  const [extractoTexto, setExtractoTexto] = useState('')
+  const [extractoAnalizando, setExtractoAnalizando] = useState(false)
+  const [extractoResultado, setExtractoResultado] = useState(null)
+  const [extractoError, setExtractoError] = useState('')
+  const [extractoAviso, setExtractoAviso] = useState('')
+  const [conciliando, setConciliando] = useState('')
+  const [conciliadas, setConciliadas] = useState({})
 
   const load = useCallback(
     async ({ silencioso = false } = {}) => {
@@ -162,6 +328,7 @@ export default function Caja() {
     Boolean(
       usuarioSesion?.esPropietario || ['ADMIN', 'GERENTE', 'dueno'].includes(usuarioSesion?.rol),
     )
+  const puedeConciliar = !esDemo && ['ADMIN', 'GERENTE', 'CAJERA'].includes(usuario?.role)
   const nombreTurno = shift =>
     esMio(shift)
       ? usuarioSesion?.nombre || 'Vos'
@@ -316,6 +483,65 @@ export default function Caja() {
       setExportando(false)
     }
   }
+  async function analizarExtracto() {
+    setExtractoError('')
+    setExtractoAviso('')
+    setExtractoResultado(null)
+    setConciliadas({})
+    let extraido
+    try {
+      extraido = extraerFilasExtracto(extractoTexto)
+    } catch {
+      setExtractoError('No se pudo leer el extracto. Revisá el formato.')
+      return
+    }
+    if (!extraido.rows.length) {
+      setExtractoError(
+        'No se reconoció ninguna fila con fecha y monto. Se esperan columnas fecha, monto y referencia/descripción.',
+      )
+      return
+    }
+    if (extraido.rows.length > 500) {
+      setExtractoError(
+        'El extracto supera los 500 movimientos. Dividilo en partes y analizá de a una.',
+      )
+      return
+    }
+    setExtractoAnalizando(true)
+    try {
+      const resultado = await api.post('/api/payments/reconcile-import', { rows: extraido.rows })
+      setExtractoResultado(resultado)
+      if (extraido.ignoradas)
+        setExtractoAviso(
+          `Se ignoraron ${extraido.ignoradas} fila(s) sin fecha válida o con monto cero/negativo (los débitos no se concilian).`,
+        )
+    } catch (cause) {
+      setExtractoError(cause?.message || 'No se pudo analizar el extracto.')
+    } finally {
+      setExtractoAnalizando(false)
+    }
+  }
+  async function conciliarPorExtracto(indice, paymentId) {
+    if (conciliando) return
+    setConciliando(paymentId)
+    setExtractoError('')
+    try {
+      await api.patch(`/api/payments/${encodeURIComponent(paymentId)}/reconciliation`, {
+        state: 'VERIFIED',
+        note: 'Conciliado por extracto',
+      })
+      setConciliadas(actual => ({ ...actual, [indice]: paymentId }))
+      setExtractoAviso('Pago conciliado. La venta quedó actualizada con el cobro confirmado.')
+    } catch (cause) {
+      setExtractoError(cause?.message || 'No se pudo conciliar el pago.')
+    } finally {
+      setConciliando('')
+    }
+  }
+  const filasExtracto = extractoResultado?.filas || []
+  const conciliadasExtracto = filasExtracto.filter((fila, indice) => conciliadas[indice]).length
+  const pendientesExtracto =
+    filasExtracto.filter(fila => fila.matches.length > 0).length - conciliadasExtracto
   if (loading)
     return (
       <div className="space-y-6">
@@ -514,6 +740,157 @@ export default function Caja() {
               Cerrar caja · <Money value={contado} />
             </Button>
           </div>
+        </Card>
+      )}
+      {puedeConciliar && (
+        <Card>
+          <details className="group">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+              <span>
+                <h3 className="font-bold">Conciliación bancaria</h3>
+                <p className="mt-1 text-sm text-mute">
+                  Pegá el extracto del banco (CSV con fecha, monto y referencia/descripción) y
+                  confirmá las coincidencias contra los cobros confirmados del sistema.
+                </p>
+              </span>
+              <Icon
+                name="chevron"
+                className="h-4 w-4 shrink-0 text-mute transition group-open:rotate-180"
+              />
+            </summary>
+            <div className="mt-4 space-y-4">
+              <div>
+                <Label htmlFor="extracto-csv">Extracto (CSV)</Label>
+                <Textarea
+                  id="extracto-csv"
+                  rows={6}
+                  value={extractoTexto}
+                  onChange={event => setExtractoTexto(event.target.value)}
+                  placeholder={
+                    'Fecha;Monto;Referencia;Descripción\n2026-09-18;1.250.000;TRF-9021;Juan Pérez'
+                  }
+                  className="font-mono text-xs"
+                />
+                <p className="mt-1.5 text-xs text-mute">
+                  Acepta separador coma o punto y coma, con o sin encabezados, hasta 500
+                  movimientos.
+                </p>
+              </div>
+              <Button
+                type="button"
+                onClick={analizarExtracto}
+                disabled={extractoAnalizando || !extractoTexto.trim()}
+              >
+                {extractoAnalizando ? 'Analizando…' : 'Analizar extracto'}
+              </Button>
+              {extractoError && (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad"
+                >
+                  {extractoError}
+                </p>
+              )}
+              {extractoAviso && (
+                <p className="rounded-lg bg-fono/10 px-3 py-2 text-sm text-mute">{extractoAviso}</p>
+              )}
+              {extractoResultado && (
+                <div className="space-y-2">
+                  <p className="text-sm text-mute">
+                    {extractoResultado.resumen.filas} movimiento(s) ·{' '}
+                    {extractoResultado.resumen.conCoincidencia} con coincidencia (
+                    {conciliadasExtracto} conciliada(s), {pendientesExtracto} pendiente(s)) ·{' '}
+                    {extractoResultado.resumen.sinCoincidencia} sin coincidencia
+                    {extractoResultado.resumen.ambiguas > 0
+                      ? ` · ${extractoResultado.resumen.ambiguas} con más de un candidato`
+                      : ''}
+                  </p>
+                  {filasExtracto.map((fila, indice) => {
+                    const elegido = conciliadas[indice]
+                    return (
+                      <article
+                        key={`${fila.row.date}-${fila.row.amountPyg}-${indice}`}
+                        className={`rounded-xl border p-3 ${elegido ? 'border-ok/40 bg-ok/5' : 'border-ink-600'}`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold tabular-nums">
+                              {fechaCorta(fila.row.date)} · <Money value={fila.row.amountPyg} />
+                            </p>
+                            <p className="truncate text-xs text-mute">
+                              {[fila.row.reference, fila.row.description]
+                                .filter(Boolean)
+                                .join(' · ') || 'Sin referencia'}
+                            </p>
+                          </div>
+                          {elegido ? (
+                            <Badge color="green">Conciliada</Badge>
+                          ) : (
+                            <Badge color={fila.matches.length > 1 ? 'orange' : 'slate'}>
+                              {fila.matches.length === 0
+                                ? 'Sin coincidencia'
+                                : `${fila.matches.length} candidata(s)`}
+                            </Badge>
+                          )}
+                        </div>
+                        {fila.matches.map(match => (
+                          <div
+                            key={match.paymentId}
+                            className="mt-2 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-ink-700/60 px-3 py-2"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm">
+                                {match.orderNumber} · {match.customerName || 'Sin cliente'}
+                              </p>
+                              <p className="text-xs text-mute">
+                                {fechaCorta(fechaPagoLocal(match.paidAt))}
+                                {match.reference ? ` · Ref. ${match.reference}` : ''}
+                                {match.alreadyReconciled ? ' · con conciliación previa' : ''}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                color={
+                                  match.matchingScore >= 85
+                                    ? 'green'
+                                    : match.matchingScore >= 70
+                                      ? 'blue'
+                                      : 'slate'
+                                }
+                              >
+                                {match.matchingScore}%
+                              </Badge>
+                              {elegido ? (
+                                elegido === match.paymentId && (
+                                  <Badge color="green">Confirmada</Badge>
+                                )
+                              ) : (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="h-8 px-3 text-xs"
+                                  disabled={Boolean(conciliando)}
+                                  onClick={() => conciliarPorExtracto(indice, match.paymentId)}
+                                >
+                                  {conciliando === match.paymentId ? 'Conciliando…' : 'Conciliar'}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {!fila.matches.length && (
+                          <p className="mt-2 text-xs text-mute">
+                            Ningún cobro confirmado coincide con el monto y la fecha (ventana de 3
+                            días).
+                          </p>
+                        )}
+                      </article>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </details>
         </Card>
       )}
       {otrosTurnos.length > 0 && (
