@@ -96,7 +96,8 @@ export default function Caja() {
     try {
       const cerrada = esDemo ? closeDemoCash(parseGsInput(counted), expected, notes) : await api.post(`/api/cash?branchId=${encodeURIComponent(sucursal?.id || '')}`, { action: 'close', countedPyg: parseGsInput(counted), notes })
       setCash(cerrada)
-      await abrirCierre()
+      // El cierre queda a un clic de imprimirse con «Imprimir cierre»; no se
+      // abre solo para no tapar la pantalla (el operador decide si lo imprime).
     } catch (err) { setError(err?.message || 'No se pudo cerrar la caja.') } finally { setSaving(false) }
   }
   async function exportarMovimientos() {
