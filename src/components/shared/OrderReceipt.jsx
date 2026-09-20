@@ -490,7 +490,7 @@ export async function buildProformaHtml(quote, { format = 'a4' } = {}) {
 export async function printProformaReceipt(quote, options = {}) {
   const html = await buildProformaHtml(quote, options)
   return printHtml(html)
-
+}
 
 const hora = (valor) => (valor ? new Date(valor).toLocaleString('es-PY') : '—')
 
