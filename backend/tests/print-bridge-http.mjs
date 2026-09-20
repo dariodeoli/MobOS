@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
+import { ticketPruebaTipo } from '../../src/lib/printing/tickets.js'
 
 const [baseUrl, adminToken, sellerToken, databaseUrl] = process.argv.slice(2)
 if (!baseUrl || !adminToken || !sellerToken || !databaseUrl) throw new Error('Uso: print-bridge-http.mjs <baseUrl> <adminToken> <sellerToken> <databaseUrl>')
@@ -100,10 +101,47 @@ resultado = await request('/api/print/printers/puente-inexistente', { method: 'P
 assert.equal(resultado.status, 404, 'editar una impresora inexistente da 404')
 resultado = await request(`/api/print/printers/${impresora.id}`, { method: 'PATCH', body: { destination: 'ftp:roto' } })
 assert.equal(resultado.status, 400, 'el PATCH valida el destino')
+
+// 4b. Desactivar y reactivar dejan su evento propio (issue #63).
+resultado = await request(`/api/print/printers/${impresora.id}`, { method: 'PATCH', body: { isActive: false } })
+assert.equal(resultado.status, 200, JSON.stringify(resultado.payload))
+assert.equal(resultado.payload.isActive, false)
+resultado = await request(`/api/print/printers/${impresora.id}`, { method: 'PATCH', body: { isActive: true } })
+assert.equal(resultado.status, 200, JSON.stringify(resultado.payload))
+assert.equal(resultado.payload.isActive, true)
+
 resultado = await request(`/api/print/printers/${segunda.id}`, { method: 'DELETE' })
 assert.equal(resultado.status, 200, 'la baja responde ok')
 resultado = await request(`/api/print/printers/${segunda.id}`, { method: 'DELETE' })
 assert.equal(resultado.status, 404, 'la segunda baja da 404')
+
+// 4c. Auditoría de impresoras visible en GET /api/audit: alta, edición con
+// antes/después, predeterminada, activa/inactiva y baja. El destino LAN se
+// guarda enmascarado y nunca se auditan tokens.
+async function auditoria(action) {
+  const respuesta = await request(`/api/audit?action=${action}&limit=200`)
+  assert.equal(respuesta.status, 200, `GET /api/audit?action=${action}`)
+  return respuesta.payload
+}
+
+const altas = (await auditoria('PRINT_PRINTER_CREATED')).filter(fila => fila.entityId === impresora.id)
+assert.equal(altas.length, 1, 'el alta de la impresora deja PRINT_PRINTER_CREATED')
+assert.equal(altas[0].metadata?.name, 'Caja', 'la auditoría guarda el nombre')
+assert.equal(altas[0].metadata?.destination, 'lan:10.0.0.x:9100', 'el destino LAN se audita con la IP enmascarada')
+const ediciones = (await auditoria('PRINT_PRINTER_UPDATED')).filter(fila => fila.entityId === impresora.id)
+assert.equal(ediciones.length, 3, 'cada edición con cambios deja PRINT_PRINTER_UPDATED (nombre, desactivar, reactivar)')
+const edicionNombre = ediciones.find(fila => fila.metadata?.changes?.name)
+assert.equal(edicionNombre?.metadata.changes.name.from, 'Caja', 'queda el valor anterior')
+assert.equal(edicionNombre?.metadata.changes.name.to, 'Caja principal', 'queda el valor nuevo')
+const predeterminada = (await auditoria('PRINT_DEFAULT_PRINTER_CHANGED')).filter(fila => fila.entityId === impresora.id)
+assert.equal(predeterminada.length, 1, 'cambiar la predeterminada deja PRINT_DEFAULT_PRINTER_CHANGED')
+assert.equal(predeterminada[0].metadata?.previousDefaultId, segunda.id, 'queda la predeterminada anterior')
+assert.equal((await auditoria('PRINT_PRINTER_DISABLED')).filter(fila => fila.entityId === impresora.id).length, 1, 'desactivar deja PRINT_PRINTER_DISABLED')
+assert.equal((await auditoria('PRINT_PRINTER_ENABLED')).filter(fila => fila.entityId === impresora.id).length, 1, 'reactivar deja PRINT_PRINTER_ENABLED')
+const bajas = (await auditoria('PRINT_PRINTER_DELETED')).filter(fila => fila.entityId === segunda.id)
+assert.equal(bajas.length, 1, 'la baja deja PRINT_PRINTER_DELETED')
+assert.equal(bajas[0].metadata?.name, 'Mostrador', 'la baja recuerda el nombre de la impresora')
+assert.ok((await auditoria('PRINT_PRINTER_CREATED')).every(fila => !/tokenHash|tokenPista/.test(JSON.stringify(fila.metadata))), 'las altas nunca auditan tokens')
 
 // 5. Import legacy: 409 sin force, idempotente con force y con mapa de ids.
 const importBody = {
@@ -122,6 +160,12 @@ resultado = await request('/api/print/printers/import', { method: 'POST', body: 
 assert.equal(resultado.status, 200, 'reaplicar el import con force no falla')
 assert.equal((await request('/api/print/printers')).payload.printers.length, totalTrasImport, 'el import repetido no duplica impresoras')
 assert.equal((await request('/api/print/bridges')).payload.bridges.length, puentesTrasImport, 'el import repetido no duplica puentes')
+const imports = await auditoria('PRINT_PRINTERS_IMPORTED')
+assert.equal(imports.length, 2, 'cada import exitoso deja PRINT_PRINTERS_IMPORTED')
+assert.equal(imports[1].metadata?.created, 1, 'el primer import audita la impresora creada')
+assert.equal(imports[1].metadata?.updated, 0, 'el primer import no actualiza nada')
+assert.equal(imports[0].metadata?.created, 0, 'el segundo import no crea nada')
+assert.equal(imports[0].metadata?.updated, 1, 'el segundo import audita la impresora actualizada')
 
 // 6. Revocación: el puente desaparece y su código ya no se regenera.
 resultado = await request(`/api/print/bridges/${puente.id}`, { method: 'DELETE' })
@@ -276,6 +320,23 @@ assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "action" = 'PRINT_JOB_A
 resultado = await agente(`/api/print/bridge/jobs/${jobLibre.id}/result`, { token: tokenGanadorLibre, body: { leaseId: jobLibreReclamado.leaseId, state: 'FALLIDO', error: 'x'.repeat(500) } })
 assert.equal(resultado.payload.state, 'FALLIDO', 'el fallo cierra el trabajo')
 assert.equal(psql(`SELECT LENGTH("error") FROM "PrintJob" WHERE "id" = '${jobLibre.id}';`), '200', 'el error del puente se trunca a 200 caracteres')
+
+// 7g-bis. Ticket real: el corte físico viaja en los bytes que el agente
+// reclama. `GS V 0` (1D 56 00) va precedido de la alimentación de 4 líneas
+// (ESC d 4) que agrega `corte()`.
+const ticketReal = ticketPruebaTipo('corta', { ancho: 80, impresora: 'lan:10.0.0.11:9100', nombre: 'Impresora jobs', equipo: 'arnes-it' })
+const corteFisico = Buffer.from([0x1b, 0x64, 0x04, 0x1d, 0x56, 0x00])
+const bytesTicket = Buffer.from(ticketReal.base64(), 'base64')
+assert.equal(ticketReal.corte, true, 'el ticket real marca el corte como enviado')
+assert.ok(bytesTicket.includes(corteFisico), 'el ticket real lleva alimentación de 4 líneas y corte GS V 0')
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: 'lan:10.0.0.11:9100', payload: ticketReal.base64(), printerId: impresoraJobs.id, reference: ticketReal.ref, validation: ticketReal.validacion, width: 80, copies: 1 } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const jobTicket = resultado.payload.job
+const claimTicket = await agente('/api/print/bridge/claim', { token: tokenJobs, body: {} })
+assert.equal(claimTicket.payload.jobs[0]?.id, jobTicket.id, 'el ticket real se reclama')
+assert.ok(Buffer.from(claimTicket.payload.jobs[0].payload, 'base64').includes(corteFisico), 'el corte viaja intacto hasta el agente')
+resultado = await agente(`/api/print/bridge/jobs/${jobTicket.id}/result`, { token: tokenJobs, body: { leaseId: claimTicket.payload.jobs[0].leaseId, state: 'ACEPTADO', transport: 'directo' } })
+assert.equal(resultado.payload.applied, true, 'el ticket real se cierra como aceptado')
 
 // 7h. Confirmación en papel: sufijo incorrecto no expone el hash, correcto confirma.
 const hashSufijoJob = psql(`SELECT "suffixHash" FROM "PrintJob" WHERE "id" = '${job.id}';`)

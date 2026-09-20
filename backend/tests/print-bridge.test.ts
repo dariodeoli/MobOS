@@ -18,6 +18,7 @@ import {
 } from '../lib/print-bridge'
 import { hashToken } from '../lib/auth'
 import { InputError } from '../lib/payment-input'
+import { cambiosDeImpresora, enmascararDestino, resumenImpresora } from '../lib/print-audit'
 import {
   ESTADOS_RESULTADO,
   LEASE_MAX_MS,
@@ -223,7 +224,25 @@ async function main() {
   assert.equal('leaseId' in publicoJob, false, 'el shape público nunca expone el lease')
   assert.equal(MAX_ABIERTOS_POR_EMPRESA, 200, 'el cap de trabajos abiertos por empresa es explícito')
 
-  console.log('PASS: token, pairing, autenticación multi-puente, validación de impresoras y trabajos de impresión')
+  // ── Auditoría de impresoras: IP enmascarada y diff sin secretos ──────────
+  assert.equal(enmascararDestino('lan:192.168.1.23:9100'), 'lan:192.168.1.x:9100', 'la IP LAN se audita enmascarada')
+  assert.equal(enmascararDestino('cups:MobOS_LAN'), 'cups:MobOS_LAN', 'una cola CUPS no se toca')
+  assert.deepEqual(
+    cambiosDeImpresora(
+      { name: 'Caja', destination: 'lan:10.0.0.5:9100', width: 58, isActive: true, bridgeId: null },
+      { name: 'Caja principal', destination: 'lan:10.0.0.5:9100', width: 80, isActive: true, bridgeId: null },
+    ),
+    { name: { from: 'Caja', to: 'Caja principal' }, width: { from: 58, to: 80 } },
+    'el diff audita solo los campos que cambiaron',
+  )
+  assert.equal(JSON.stringify(cambiosDeImpresora({ destination: 'lan:10.0.0.5:9100' }, { destination: 'lan:10.0.0.9:9100' })).includes('10.0.0.'), false, 'el diff nunca guarda la IP completa')
+  assert.deepEqual(
+    resumenImpresora({ name: 'Caja', connection: 'lan', destination: 'lan:10.0.0.5:9100', width: 58, copies: 2, isDefault: true, isActive: true }),
+    { name: 'Caja', connection: 'lan', destination: 'lan:10.0.0.x:9100', width: 58, copies: 2, isDefault: true, isActive: true },
+    'el resumen de auditoría describe la impresora sin la IP completa',
+  )
+
+  console.log('PASS: token, pairing, autenticación multi-puente, validación de impresoras, auditoría y trabajos de impresión')
 }
 
 main().catch(error => { console.error(error); process.exit(1) })

@@ -91,6 +91,25 @@ const ACCIONES = {
   STOCK_TRANSFER_RECEIVED: ['Traslado recibido en destino', 'green'],
   STOCK_LOCATION_CREATED: ['Ubicación creada', 'green'],
   STOCK_LOCATION_UPDATED: ['Ubicación editada', 'slate'],
+  PRINT_JOB_ENQUEUED: ['Trabajo en cola', 'blue'],
+  PRINT_JOB_ACCEPTED: ['Trabajo aceptado', 'green'],
+  PRINT_JOB_INCIERTO: ['Trabajo incierto', 'orange'],
+  PRINT_JOB_FAILED: ['Trabajo fallido', 'red'],
+  PRINT_JOB_REQUEUED: ['Reingresó a la cola', 'orange'],
+  PRINT_JOB_CONFIRMED: ['Trabajo confirmado', 'green'],
+  PRINT_JOB_CONFIRM_FAILED: ['Confirmación fallida', 'red'],
+  PRINT_BRIDGE_PAIRED: ['Puente vinculado', 'green'],
+  PRINT_BRIDGE_PAIR_FAILED: ['Vinculación fallida', 'orange'],
+  PRINT_BRIDGE_CREATED: ['Puente creado', 'blue'],
+  PRINT_BRIDGE_REVOKED: ['Puente revocado', 'red'],
+  PRINT_PRINTER_CREATED: ['Impresora creada', 'green'],
+  PRINT_PRINTER_UPDATED: ['Impresora editada', 'slate'],
+  PRINT_PRINTER_DELETED: ['Impresora eliminada', 'red'],
+  PRINT_PRINTER_DISABLED: ['Impresora desactivada', 'orange'],
+  PRINT_PRINTER_ENABLED: ['Impresora activada', 'green'],
+  PRINT_PRINTERS_IMPORTED: ['Impresoras importadas', 'blue'],
+  PRINT_PRINTER_IMPORTED: ['Impresoras importadas', 'blue'],
+  PRINT_DEFAULT_PRINTER_CHANGED: ['Impresora predeterminada', 'blue'],
 }
 
 // Entidades con las que se filtra la lista.
@@ -108,6 +127,9 @@ const ENTIDADES = [
   ['TradeInDevice', 'Trade-In'],
   ['User', 'Equipo'],
   ['Session', 'Sesiones'],
+  ['PrintJob', 'Impresión · trabajo'],
+  ['PrintBridge', 'Impresión · puente'],
+  ['PrintPrinter', 'Impresión · impresora'],
 ]
 
 // Área legible para la columna: el nombre técnico no dice nada.
@@ -125,7 +147,7 @@ function fechaHora(value) {
 
 // El metadata es libre por acción: se muestra como pares legibles y los campos
 // técnicos largos (ids) se recortan para que la fila siga siendo de una línea.
-const ETIQUETAS = { serial: 'IMEI', serials: 'IMEI', reason: 'Motivo', customer: 'Cliente', customerName: 'Cliente', status: 'Estado', from: 'Antes', to: 'Después', amountPyg: 'Monto', totalPyg: 'Total', minutes: 'Minutos', level: 'Nivel', tags: 'Etiquetas', discountPyg: 'Descuento', method: 'Medio', role: 'Rol', name: 'Nombre', email: 'Correo', action: 'Acción' }
+const ETIQUETAS = { serial: 'IMEI', serials: 'IMEI', reason: 'Motivo', customer: 'Cliente', customerName: 'Cliente', status: 'Estado', from: 'Antes', to: 'Después', amountPyg: 'Monto', totalPyg: 'Total', minutes: 'Minutos', level: 'Nivel', tags: 'Etiquetas', discountPyg: 'Descuento', method: 'Medio', role: 'Rol', name: 'Nombre', email: 'Correo', action: 'Acción', jobId: 'Trabajo', path: 'Camino', kind: 'Tipo', transport: 'Transporte', transporte: 'Transporte', printerId: 'Impresora', printerName: 'Impresora', bytes: 'Tamaño', attempts: 'Intentos', intentos: 'Intentos', error: 'Error', connection: 'Conexión', destination: 'Destino', width: 'Ancho', copies: 'Copias', count: 'Cantidad', created: 'Creadas', updated: 'Actualizadas', bridges: 'Puentes', validation: 'Validación', isDefault: 'Predeterminada', isActive: 'Activa' }
 function detalleDe(metadata) {
   if (!metadata || typeof metadata !== 'object') return ''
   return Object.entries(metadata)
@@ -133,6 +155,80 @@ function detalleDe(metadata) {
     .slice(0, 4)
     .map(([clave, valor]) => `${ETIQUETAS[clave] || clave}: ${String(valor).slice(0, 40)}`)
     .join(' · ')
+}
+
+// Eventos del módulo de impresión: se leen en español y con los ids recortados,
+// nunca con el JSON crudo del backend (issue #60).
+const AREAS_IMPRESION = new Set(['PrintJob', 'PrintBridge', 'PrintPrinter'])
+const CAMPOS_IMPRESORA = { name: 'Nombre', brand: 'Marca', model: 'Modelo', location: 'Ubicación', connection: 'Conexión', destination: 'Destino', width: 'Ancho', copies: 'Copias', cut: 'Corte', density: 'Densidad', characters: 'Caracteres', isDefault: 'Predeterminada', isActive: 'Activa', bridgeId: 'Puente' }
+const TRANSPORTES = { directo: 'TCP directo', cups: 'Cola CUPS', usb: 'USB', lan: 'LAN' }
+const CAMINOS = { REMOTO: 'Remoto', LOCAL: 'Local' }
+
+const idCorto = (valor) => {
+  const texto = String(valor ?? '')
+  return texto.length > 10 ? `${texto.slice(0, 8)}…` : texto
+}
+
+function valorDeImpresora(campo, valor) {
+  if (valor === null || valor === undefined || valor === '') return '—'
+  if (typeof valor === 'boolean') return valor ? 'Sí' : 'No'
+  if (campo === 'connection') return valor === 'lan' ? 'LAN' : valor === 'cups' ? 'CUPS (cola local)' : String(valor)
+  if (campo === 'width') return `${valor} mm`
+  return String(valor)
+}
+
+// Devuelve el resumen de la fila y las líneas del panel abierto. `null` cuando
+// no es un evento de impresión (esos siguen con el detalle genérico).
+function detalleImpresion(row) {
+  if (!AREAS_IMPRESION.has(row.entity)) return null
+  const m = row.metadata && typeof row.metadata === 'object' ? row.metadata : {}
+  const resumen = []
+  const lineas = []
+  const agregar = (etiqueta, valor) => {
+    if (valor === null || valor === undefined || valor === '') return
+    lineas.push([etiqueta, String(valor)])
+    resumen.push(`${etiqueta}: ${String(valor)}`)
+  }
+
+  if (m.printerName || m.name) agregar('Impresora', m.printerName || m.name)
+  else if (m.printerId) agregar('Impresora', idCorto(m.printerId))
+  if (m.jobId) agregar('Trabajo', idCorto(m.jobId))
+  if (row.action === 'PRINT_DEFAULT_PRINTER_CHANGED') {
+    agregar('Antes', m.previousDefaultName || (m.previousDefaultId ? idCorto(m.previousDefaultId) : 'Sin predeterminada'))
+    agregar('Después', m.printerName || m.name || '—')
+  }
+  if (m.connection !== undefined) agregar('Conexión', valorDeImpresora('connection', m.connection))
+  if (m.destination) agregar('Destino', m.destination)
+  if (m.path) agregar('Camino', CAMINOS[m.path] || m.path)
+  if (m.kind) agregar('Tipo', m.kind)
+  if (m.transport || m.transporte) {
+    const transporte = m.transport || m.transporte
+    agregar('Transporte', TRANSPORTES[transporte] || transporte)
+  }
+  if (m.width) agregar('Ancho', `${m.width} mm`)
+  if (m.copies) agregar('Copias', m.copies)
+  if (m.bytes) agregar('Tamaño', `${m.bytes} bytes`)
+  if (m.attempts || m.intentos) agregar('Intentos', m.attempts || m.intentos)
+  if (m.validation) agregar('Validación', m.validation)
+  if (m.isDefault !== undefined) agregar('Predeterminada', m.isDefault ? 'Sí' : 'No')
+  if (m.isActive !== undefined) agregar('Activa', m.isActive ? 'Sí' : 'No')
+  if (m.bridgeId) agregar('Puente', idCorto(m.bridgeId))
+  if (m.error) agregar('Error', m.error)
+  if (row.action === 'PRINT_PRINTERS_IMPORTED' || row.action === 'PRINT_PRINTER_IMPORTED') {
+    agregar('Total', m.total)
+    agregar('Creadas', m.created)
+    agregar('Actualizadas', m.updated)
+    agregar('Puentes', m.bridges)
+  }
+  if (m.changes && typeof m.changes === 'object') {
+    const cambios = Object.entries(m.changes)
+      .map(([campo, valores]) => `${CAMPOS_IMPRESORA[campo] || campo}: ${valorDeImpresora(campo, valores?.from)} → ${valorDeImpresora(campo, valores?.to)}`)
+      .join(' · ')
+    if (cambios) agregar('Cambios', cambios)
+  }
+
+  const visible = resumen.slice(0, 4).join(' · ')
+  return { resumen: visible, lineas }
 }
 
 export default function Auditoria() {
@@ -205,7 +301,8 @@ export default function Auditoria() {
         <div className="space-y-1">
           {rows.map((row) => {
             const [label, tone] = ACCIONES[row.action] || [row.action, 'slate']
-            const detalle = detalleDe(row.metadata)
+            const impresion = detalleImpresion(row)
+            const detalle = impresion ? impresion.resumen : detalleDe(row.metadata)
             const abierto = abiertos.has(row.id)
             const completo = detalleDe(row.metadata)
             return <div key={row.id}>
@@ -226,8 +323,12 @@ export default function Auditoria() {
               {abierto && <div className="mt-1 space-y-1 rounded-xl border border-ink-600 bg-ink-800/60 p-3 text-xs text-mute">
                 <p><span className="font-semibold text-fore">Acción:</span> {row.action}</p>
                 <p><span className="font-semibold text-fore">Entidad:</span> {row.entity}{row.entityId ? ` · ${row.entityId}` : ''}</p>
-                {completo ? <p><span className="font-semibold text-fore">Detalle:</span> {completo}</p> : null}
-                {row.metadata && Object.keys(row.metadata).length > 0 && <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-ink-700/60 p-2 text-[11px]">{JSON.stringify(row.metadata, null, 2)}</pre>}
+                {impresion
+                  ? impresion.lineas.map(([etiqueta, valor]) => <p key={etiqueta}><span className="font-semibold text-fore">{etiqueta}:</span> {valor}</p>)
+                  : <>
+                    {completo ? <p><span className="font-semibold text-fore">Detalle:</span> {completo}</p> : null}
+                    {row.metadata && Object.keys(row.metadata).length > 0 && <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-ink-700/60 p-2 text-[11px]">{JSON.stringify(row.metadata, null, 2)}</pre>}
+                  </>}
               </div>}
             </div>
           })}

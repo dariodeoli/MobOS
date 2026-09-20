@@ -33,6 +33,8 @@ export async function POST(request: Request) {
       }
       const mapPrinters: Record<string, string> = {}
       const guardadas = []
+      let creadas = 0
+      let actualizadas = 0
       for (const bruto of printers) {
         const entrada = bruto && typeof bruto === 'object' && !Array.isArray(bruto) ? bruto as Record<string, unknown> : {}
         const localId = typeof entrada.id === 'string' ? entrada.id : ''
@@ -41,17 +43,30 @@ export async function POST(request: Request) {
         // puente asignado (el predeterminado decide al reclamar).
         const bridgeId = impresora.bridgeId && mapBridges[impresora.bridgeId] ? mapBridges[impresora.bridgeId] : null
         const datos = { ...impresora, bridgeId }
-        const guardada = await tx.printPrinter.upsert({
+        const existente = await tx.printPrinter.findUnique({
           where: { tenantId_destination: { tenantId, destination: impresora.destination } },
-          create: { ...datos, tenantId },
-          update: datos,
+          select: { id: true },
         })
+        const guardada = existente
+          ? await tx.printPrinter.update({ where: { id: existente.id }, data: datos })
+          : await tx.printPrinter.create({ data: { ...datos, tenantId } })
+        if (existente) actualizadas += 1
+        else creadas += 1
         if (localId) mapPrinters[localId] = guardada.id
         guardadas.push(guardada)
       }
       // Un solo puente predeterminado local: la primera que lo pida gana.
       const predeterminada = guardadas.find(impresora => impresora.isDefault)
       if (predeterminada) await tx.printPrinter.updateMany({ where: { tenantId, isDefault: true, id: { not: predeterminada.id } }, data: { isDefault: false } })
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId: session.user.id,
+          action: 'PRINT_PRINTERS_IMPORTED',
+          entity: 'PrintPrinter',
+          metadata: { total: guardadas.length, created: creadas, updated: actualizadas, bridges: bridges.length },
+        },
+      })
       const activos = await tx.printBridge.findMany({ where: { tenantId, revokedAt: null }, orderBy: { createdAt: 'asc' } })
       return { printers: guardadas, bridges: activos.map(puente => shapePuente(puente)), map: { printers: mapPrinters, bridges: mapBridges } }
     })
