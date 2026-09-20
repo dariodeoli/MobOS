@@ -12,6 +12,7 @@
 //   qrPrueba(datos)      -> <base>/prueba?d=&v=&f=&t=  prueba de impresión
 //   qrGarantia(token)    -> <base>/garantia/<token>    enlace del caso (copia/QR)
 //   qrLiquidacion(token) -> <base>/liquidacion/<token> comprobante de comisiones
+//   qrCaja(token)        -> <base>/caja/<token>        verificación del cierre
 //
 // La base sale de `VITE_APP_URL`; si no está, del origen donde corre la app
 // (`window.location.origin`) y, en tests, del parámetro explícito `base`. Si no
@@ -87,6 +88,14 @@ export function qrGarantia(token, base = '') {
 export function qrLiquidacion(token, base = '') {
   const valor = segmento(token)
   return valor ? conRespaldo(enlaceConBase(base, `/liquidacion/${valor}`), `MOBOS:LIQ:${valor}`) : ''
+}
+
+// Verificación del cierre de caja: el QR del comprobante abre la página
+// pública (`/caja/<token>`). Como la liquidación, sin base cae al payload
+// histórico para que el papel nunca salga sin código.
+export function qrCaja(token, base = '') {
+  const valor = segmento(token)
+  return valor ? conRespaldo(enlaceConBase(base, `/caja/${valor}`), `MOBOS:CAJA:${valor}`) : ''
 }
 
 export function qrPrueba({ destino = '', validacion = '', fecha = '', tipo = '' } = {}, base = '') {

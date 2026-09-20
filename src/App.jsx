@@ -20,6 +20,7 @@ import PruebaImpresion from '@/pages/PruebaImpresion'
 import UnidadPublica from '@/pages/UnidadPublica'
 import ProductoPublico from '@/pages/ProductoPublico'
 import LiquidacionPublica from '@/pages/LiquidacionPublica'
+import CajaPublica from '@/pages/CajaPublica'
 
 // Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
 const Landing = lazy(() => import('@/pages/Landing'))
@@ -171,6 +172,7 @@ export default function App() {
             <Route path="/garantia/:token" element={<GarantiaPublica />} />
             <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
             <Route path="/remito/:token" element={<RemitoPublico />} />
+            <Route path="/caja/:token" element={<CajaPublica />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
@@ -202,6 +204,7 @@ export default function App() {
           <Route path="/u/:serial" element={<UnidadPublica />} />
           <Route path="/producto/:sku" element={<ProductoPublico />} />
           <Route path="/liquidacion/:token" element={<LiquidacionPublica />} />
+          <Route path="/caja/:token" element={<CajaPublica />} />
           <Route
             path="/"
             element={

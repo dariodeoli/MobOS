@@ -88,6 +88,8 @@ function resolveRoute(pathname) {
   if (pathname.startsWith('/producto/')) return { label: 'Producto' }
   // QR del comprobante de comisiones: verificación pública por token.
   if (pathname.startsWith('/liquidacion/')) return { label: 'Liquidación de comisiones' }
+  // QR del cierre de caja: verificación pública por token.
+  if (pathname.startsWith('/caja/')) return { label: 'Cierre de caja' }
   return { label: 'Página no encontrada', error: true }
 }
 

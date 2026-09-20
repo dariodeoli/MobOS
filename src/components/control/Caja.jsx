@@ -28,40 +28,10 @@ import { ticketCierreCaja } from '@/lib/printing/reportes'
 import { imprimirDocumento } from '@/lib/printing/agent'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { parseDelimited } from '@/utils/csv'
-
-// Denominaciones del arqueo en guaraníes: son las mismas que acepta el backend
-// y el total contado se deriva de acá cuando hay desglose.
-const DENOMINACIONES = [
-  { valor: 100000, tipo: 'Billete' },
-  { valor: 50000, tipo: 'Billete' },
-  { valor: 20000, tipo: 'Billete' },
-  { valor: 10000, tipo: 'Billete' },
-  { valor: 5000, tipo: 'Billete' },
-  { valor: 2000, tipo: 'Billete' },
-  { valor: 1000, tipo: 'Moneda' },
-  { valor: 500, tipo: 'Moneda' },
-  { valor: 100, tipo: 'Moneda' },
-]
+import { DENOMINACIONES, desgloseItems, desglosePayload, diferenciaArqueo, totalArqueo } from '@/lib/arqueo'
 
 const fechaHora = value =>
   value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY') : '—'
-
-function desgloseItems(cantidades) {
-  return DENOMINACIONES.map(({ valor }) => ({
-    valor,
-    cantidad: Number(cantidades[valor] || 0),
-  })).filter(item => item.cantidad > 0)
-}
-
-function totalArqueo(cantidades) {
-  return desgloseItems(cantidades).reduce((total, item) => total + item.valor * item.cantidad, 0)
-}
-
-function desglosePayload(cantidades) {
-  const payload = {}
-  for (const item of desgloseItems(cantidades)) payload[String(item.valor)] = item.cantidad
-  return payload
-}
 
 // Grilla compartida por el cierre propio y el cierre de otro turno (admin):
 // cada fila suma su subtotal y el total se calcula en vivo.
@@ -364,9 +334,9 @@ export default function Caja() {
   const contadoAjenoTotal = hayArqueoAjeno ? totalArqueo(arqueoAjeno) : parseGsInput(contadoAjeno)
   const difference =
     turno?.status === 'CLOSED'
-      ? Number(turno.countedPyg ?? 0) - Number(turno.expectedPyg ?? 0)
+      ? diferenciaArqueo(turno.countedPyg, turno.expectedPyg)
       : abierta
-        ? contado - expected
+        ? diferenciaArqueo(contado, expected)
         : 0
 
   // Arma el cierre con los mismos números de la pantalla y suma los cobros por

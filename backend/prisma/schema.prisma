@@ -1873,6 +1873,8 @@ model CashSession {
   countedBreakdown Json?
   status      String    @default("OPEN")
   notes       String?
+  // Token del QR del cierre impreso: verificación pública sin sesión.
+  publicToken String?   @unique @default(cuid())
 
   // Un turno abierto por persona y sucursal: índice parcial definido en SQL.
   @@index([tenantId, branchId, openedAt])

@@ -5,6 +5,7 @@ import { canAccessAny, requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 import { ensureStoreBranch } from '../../../lib/store-branch'
 import { CASH_MOVEMENT_KINDS, createCashMovement } from '../../../lib/cash-movements'
+import { cashDifferencePyg, cashExpectedPyg, countedBreakdownInput } from '../../../lib/cash-shift'
 import { FINANCE_CURRENCIES, frozenAmountPyg } from '../../../lib/finance'
 
 type QueryDb = Pick<typeof prisma, '$queryRaw'> | Pick<Prisma.TransactionClient, '$queryRaw'>
@@ -23,28 +24,9 @@ async function context(request: Request) {
   return branch ? { session, branchId } : { error: 403 as const }
 }
 
-// Denominaciones válidas del arqueo en guaraníes (billetes y monedas).
-const DENOMINACIONES = [100000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 100, 50]
-
-// Arqueo por denominación: devuelve el mapa limpio y el total contado, o
-// `null` si no vino, o `undefined` si es inválido.
-function countedBreakdownInput(value: unknown): { breakdown: Record<string, number> | null; countedPyg: number } | undefined {
-  if (value === null || value === undefined || value === '') return { breakdown: null, countedPyg: 0 }
-  if (typeof value !== 'object' || Array.isArray(value)) return undefined
-  const entries = Object.entries(value as Record<string, unknown>)
-  if (!entries.length || entries.length > DENOMINACIONES.length) return undefined
-  const breakdown: Record<string, number> = {}
-  let total = 0
-  for (const [key, raw] of entries) {
-    const denom = Number(key); const count = Number(raw)
-    if (!DENOMINACIONES.includes(denom) || !Number.isInteger(count) || count < 0 || count > 1000000) return undefined
-    if (count > 0) { breakdown[String(denom)] = count; total += denom * count }
-    if (total > 2147483647) return undefined
-  }
-  return { breakdown, countedPyg: total }
-}
-
-async function expected(db: QueryDb, tenantId: string, branchId: string, openedAt: Date, until = new Date(), userId?: string) {
+// Efectivo esperado del turno: apertura + cobros CASH confirmados + el neto de
+// los movimientos de caja ya liquidados (la aritmética vive en `lib/cash-shift`).
+async function expected(db: QueryDb, tenantId: string, branchId: string, openingPyg: number, openedAt: Date, until = new Date(), userId?: string) {
   const rows = await db.$queryRaw<Array<{ total: bigint }>>`
     SELECT COALESCE(SUM(p."amountPyg"), 0)::bigint AS total
     FROM "Payment" p JOIN "Order" o ON o."id" = p."orderId"
@@ -67,7 +49,7 @@ async function expected(db: QueryDb, tenantId: string, branchId: string, openedA
       ${userId ? Prisma.sql`AND m."createdById" = ${userId}` : Prisma.empty}`
   const movements = Number(movementRows[0]?.total || 0n)
   if (!Number.isSafeInteger(movements)) throw new Error('El total de movimientos excede el rango permitido.')
-  return Math.max(0, total + movements)
+  return cashExpectedPyg({ openingPyg, paymentsPyg: total, movementsPyg: movements })
 }
 
 export async function GET(request: Request) {
@@ -86,7 +68,7 @@ export async function GET(request: Request) {
   if (!row[0]) return json({ session: null, openSessions, movements })
   const session = row[0]
   if (session.status === 'OPEN') {
-    const expectedPyg = Number(session.openingPyg) + await expected(prisma, tenant, ctx.branchId, new Date(String(session.openedAt)), new Date(), String(session.openedById))
+    const expectedPyg = await expected(prisma, tenant, ctx.branchId, Number(session.openingPyg), new Date(String(session.openedAt)), new Date(), String(session.openedById))
     if (!int(expectedPyg)) return error('El total esperado excede el rango permitido.', 422)
     session.expectedPyg = expectedPyg
   }
@@ -103,9 +85,12 @@ export async function POST(request: Request) {
       const result = await prisma.$transaction(async (tx) => {
         const id = randomUUID()
         const openedAt = new Date()
+        // El token del QR se genera acá: el INSERT es SQL crudo y el default de
+        // Prisma no corre (ver `publicToken` en el schema).
+        const publicToken = randomUUID().replace(/-/g, '')
         const row = await tx.$queryRaw<Array<Record<string, unknown>>>`
-          INSERT INTO "CashSession" ("id", "tenantId", "branchId", "openedById", "openingPyg", "status", "notes", "openedAt")
-          VALUES (${id}, ${ctx.session.user.tenantId}, ${ctx.branchId}, ${ctx.session.user.id}, ${openingPyg}, 'OPEN', ${notes}, ${openedAt}) RETURNING *`
+          INSERT INTO "CashSession" ("id", "tenantId", "branchId", "openedById", "openingPyg", "status", "notes", "openedAt", "publicToken")
+          VALUES (${id}, ${ctx.session.user.tenantId}, ${ctx.branchId}, ${ctx.session.user.id}, ${openingPyg}, 'OPEN', ${notes}, ${openedAt}, ${publicToken}) RETURNING *`
         await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${ctx.session.user.tenantId}, ${ctx.session.user.id}, 'CASH_OPENED', 'CashSession', ${id}, ${JSON.stringify({ branchId: ctx.branchId, openingPyg, openedById: ctx.session.user.id })}::jsonb)`
         return row[0]
       })
@@ -127,14 +112,14 @@ export async function POST(request: Request) {
       if (!open[0]) return null
       // Cerrar el turno de otra persona es de administración/gerencia.
       if (open[0].openedById !== ctx.session.user.id && !['ADMIN', 'GERENTE'].includes(ctx.session.user.role)) throw new Error('Solo administración o gerencia pueden cerrar el turno de otra persona.')
-      const expectedPyg = Number(open[0].openingPyg) + await expected(tx, ctx.session.user.tenantId, ctx.branchId, open[0].openedAt, new Date(), open[0].openedById)
+      const expectedPyg = await expected(tx, ctx.session.user.tenantId, ctx.branchId, Number(open[0].openingPyg), open[0].openedAt, new Date(), open[0].openedById)
       if (!int(expectedPyg)) throw new Error('El total esperado excede el rango permitido.')
       const row = await tx.$queryRaw<Array<Record<string, unknown>>>`UPDATE "CashSession" SET "closedById" = ${ctx.session.user.id}, "closedAt" = ${new Date()}, "countedPyg" = ${countedPyg}, "expectedPyg" = ${expectedPyg}, "status" = 'CLOSED', "notes" = ${notes}, "countedBreakdown" = ${arqueo.breakdown ? JSON.stringify(arqueo.breakdown) : null}::jsonb WHERE "id" = ${open[0].id} RETURNING *`
-      await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${ctx.session.user.tenantId}, ${ctx.session.user.id}, 'CASH_CLOSED', 'CashSession', ${open[0].id}, ${JSON.stringify({ branchId: ctx.branchId, countedPyg, expectedPyg, differencePyg: countedPyg - expectedPyg, openedById: open[0].openedById, closedById: ctx.session.user.id, arqueo: Boolean(arqueo.breakdown) })}::jsonb)`
+      await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${ctx.session.user.tenantId}, ${ctx.session.user.id}, 'CASH_CLOSED', 'CashSession', ${open[0].id}, ${JSON.stringify({ branchId: ctx.branchId, countedPyg, expectedPyg, differencePyg: cashDifferencePyg(countedPyg, expectedPyg), openedById: open[0].openedById, closedById: ctx.session.user.id, arqueo: Boolean(arqueo.breakdown) })}::jsonb)`
       return { row: row[0], expectedPyg }
     })
     if (!result) return error('No hay un turno de caja abierto para cerrar.', 409)
-    return json({ ...result.row, differencePyg: countedPyg - result.expectedPyg })
+    return json({ ...result.row, differencePyg: cashDifferencePyg(countedPyg, result.expectedPyg) })
   }
   if (action === 'movement') {
     const kind = body.kind; const direction = body.direction; const currency = body.currency ?? 'PYG'

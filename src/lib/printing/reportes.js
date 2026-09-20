@@ -5,6 +5,7 @@
 import { gs } from '../../utils/calculos.js'
 import { APP_NAME } from '../brand.js'
 import { crearTicket } from './escpos.js'
+import { qrCaja } from './qr.js'
 
 const fecha = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 const fechaCorta = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY') : '')
@@ -38,6 +39,20 @@ export function ticketCierreCaja(cierre = {}, { ancho = 80 } = {}) {
     t.par('Contado', 'se completa al cerrar')
   }
 
+  // Arqueo por denominación: solo con el cierre cerrado y desglose cargado.
+  const arqueo = Array.isArray(cierre.arqueo) ? cierre.arqueo : []
+  if (cerrada && arqueo.length) {
+    t.linea()
+    t.negrita().texto('Arqueo por denominación').negrita(false)
+    for (const fila of arqueo) {
+      t.par(`${gs(fila.valor)} x ${fila.cantidad}`, gs(fila.subtotal))
+    }
+    t.par('Total del arqueo', gs(arqueo.reduce((total, fila) => total + Number(fila.subtotal || 0), 0)))
+  } else if (cerrada) {
+    t.linea()
+    t.texto('Sin desglose por denominación: total contado cargado a mano.')
+  }
+
   t.linea()
   t.negrita().texto(`Movimientos de la sesión (${movimientos.length})`).negrita(false)
   for (const movimiento of movimientos) {
@@ -61,6 +76,15 @@ export function ticketCierreCaja(cierre = {}, { ancho = 80 } = {}) {
     t.texto(`Notas: ${cierre.notas}`)
   }
   t.linea()
+  // Verificación pública del cierre: el QR abre `/caja/<token>` (ver qr.js).
+  const enlace = cierre.verificationToken ? qrCaja(cierre.verificationToken) : ''
+  if (enlace) {
+    t.avanza(1)
+    t.centrado('Verificación del cierre')
+    t.qr(enlace, { tamano: 7 })
+    t.texto(enlace)
+  }
+  t.centrado('Documento no fiscal. No válido como factura.')
   t.avanza(2)
   t.texto('Firma del responsable: ______________________')
   t.avanza(2)

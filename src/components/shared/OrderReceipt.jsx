@@ -504,6 +504,8 @@ export async function buildCierreCajaHtml(cierre = {}, { format = 'a4' } = {}) {
   const cerrada = cierre.estado === 'CLOSED'
   const movimientosRows = movimientos.map((movimiento) => `<tr><td>${escapeHtml(movimiento.descripcion || 'Movimiento')}${movimiento.cuenta ? `<br><span class="muted">${escapeHtml(movimiento.cuenta)}</span>` : ''}</td><td class="num">${escapeHtml(hora(movimiento.fecha))}</td><td class="num">${movimiento.direccion === 'OUT' ? '−' : '+'} ${escapeHtml(gs(movimiento.montoPyg))}</td></tr>`).join('')
   const cobrosRows = cobros.map((cobro) => `<tr><td>${escapeHtml(cobro.label || cobro.method || 'Pago')}${cobro.count ? ` <span class="muted">· ${escapeHtml(String(cobro.count))} cobro(s)</span>` : ''}</td><td class="num">${escapeHtml(gs(cobro.montoPyg))}</td></tr>`).join('')
+  const arqueo = Array.isArray(cierre.arqueo) ? cierre.arqueo : []
+  const arqueoRows = arqueo.map((fila) => `<tr><td>${escapeHtml(gs(fila.valor))} <span class="muted">× ${escapeHtml(String(fila.cantidad))}</span></td><td class="num">${escapeHtml(gs(fila.subtotal))}</td></tr>`).join('')
   const firma = '<div style="display:flex;gap:24px;margin-top:28px"><div style="flex:1;border-top:1px solid #0f1720;padding-top:4px;font-size:10px;text-align:center">Firma del responsable</div><div style="flex:1;border-top:1px solid #0f1720;padding-top:4px;font-size:10px;text-align:center">Firma de control</div></div>'
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cierre de caja</title><style>${styles(format)}</style></head><body>
     ${header('Cierre de caja', `Apertura ${hora(cierre.abiertoEn)}${cerrada ? ` · Cierre ${hora(cierre.cerradoEn)}` : ' · sesión abierta'}`, logo)}
@@ -517,6 +519,10 @@ export async function buildCierreCajaHtml(cierre = {}, { format = 'a4' } = {}) {
       <tr><td>Contado</td><td class="num">${cerrada ? escapeHtml(gs(cierre.contado)) : 'se completa al cerrar'}</td></tr>
       ${cerrada ? `<tr class="saldo"><td>Diferencia</td><td class="num">${escapeHtml(gs(cierre.diferencia))}</td></tr>` : ''}
     </table>
+    ${cerrada && arqueo.length
+      ? `<h2 style="font-size:13px;margin:14px 0 4px">Arqueo por denominación (${arqueo.length})</h2>
+    <table><thead><tr><th>Denominación</th><th class="num">Subtotal</th></tr></thead><tbody>${arqueoRows}<tr class="saldo"><td>Total del arqueo</td><td class="num">${escapeHtml(gs(arqueo.reduce((total, fila) => total + Number(fila.subtotal || 0), 0)))}</td></tr></tbody></table>`
+      : ''}
     <h2 style="font-size:13px;margin:14px 0 4px">Cobros por medio de pago</h2>
     <table><thead><tr><th>Medio</th><th class="num">Monto</th></tr></thead><tbody>${cobrosRows || '<tr><td class="muted">Sin cobros para el período.</td><td class="num"></td></tr>'}</tbody></table>
     <h2 style="font-size:13px;margin:14px 0 4px">Movimientos de la sesión (${movimientos.length})</h2>

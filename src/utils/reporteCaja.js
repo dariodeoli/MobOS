@@ -2,6 +2,7 @@
 // papel (ticket y HTML): una sola fuente para que el cierre impreso coincida
 // con lo que se ve. Sin dependencias del navegador para poder testearlo.
 import { ETIQUETAS_MEDIO_PAGO } from '../lib/constants.js'
+import { desgloseItems } from '../lib/arqueo.js'
 import { num } from './calculos.js'
 
 const etiquetaMedio = (method) => ETIQUETAS_MEDIO_PAGO[method] || method || 'Otro'
@@ -88,5 +89,9 @@ export function armarCierreCaja({ cash = {}, movimientos = [], cobros = [], empr
     cobros: listaCobros,
     totalCobros: listaCobros.reduce((total, cobro) => total + num(cobro.montoPyg), 0),
     cobrosFecha: cash?.openedAt || null,
+    // Arqueo por denominación del cierre y token del QR de verificación. Sin
+    // desglose (total contado a mano) `arqueo` queda vacío.
+    arqueo: desgloseItems(cash?.countedBreakdown),
+    verificationToken: typeof cash?.publicToken === 'string' ? cash.publicToken : '',
   }
 }
