@@ -117,7 +117,10 @@ export async function POST(request: Request) {
     const countryCode = typeof body.countryCode === 'string' && /^\+\d{1,4}$/.test(body.countryCode) ? body.countryCode : '+595'
     const tags = Array.isArray(body.tags) ? body.tags.map((tag) => clean(tag, 50)).filter(Boolean).slice(0, 20) : []
     const pricingTier: 'RETAIL' | 'WHOLESALE' = body.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL'
-    const priceListId = body.priceListId === undefined ? undefined : body.priceListId === '' || body.priceListId === null ? null : clean(body.priceListId, 128)
+    const priceListId = body.priceListId === undefined ? undefined : (() => {
+      const valor = body.priceListId === null ? '' : clean(body.priceListId, 128)
+      return valor || null
+    })()
     if (priceListId && !await prisma.priceList.findFirst({ where: { id: priceListId, tenantId: tenant, isActive: true }, select: { id: true } })) return error('Lista de precios no encontrada.', 404)
     const creditLimitPyg = body.creditLimitPyg === undefined || body.creditLimitPyg === '' || body.creditLimitPyg === null ? undefined : Number(body.creditLimitPyg)
     if (creditLimitPyg !== undefined && (!Number.isSafeInteger(creditLimitPyg) || creditLimitPyg < 0 || creditLimitPyg > 2147483647)) return error('Límite de crédito inválido.')

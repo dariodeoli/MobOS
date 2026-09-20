@@ -50,8 +50,10 @@ function porcentaje(value: unknown): number | null {
  * define exactamente un origen de precio y los escalones solo tienen sentido en
  * guaraníes.
  */
+import { normalizarCategoria } from './pricing'
+
 export function parsePriceListItems(input: unknown): NormalizedPriceItem[] | undefined {
-  if (input === undefined) return undefined
+  if (input === undefined || input === null) return undefined
   if (!Array.isArray(input)) throw new PriceListInputError('Los ítems deben enviarse como una lista.')
   if (input.length > 300) throw new PriceListInputError('Una lista admite hasta 300 ítems.')
   const vistos = new Set<string>()
@@ -68,7 +70,7 @@ export function parsePriceListItems(input: unknown): NormalizedPriceItem[] | und
     const origenes = [unitPricePyg, unitPriceUsd, discountPct].filter(value => value !== null).length
     if (origenes === 0) throw new PriceListInputError(`Ítem ${index + 1}: definí un precio en guaraníes, un precio en USD o un descuento.`)
     if (origenes > 1) throw new PriceListInputError(`Ítem ${index + 1}: usá un solo origen de precio (monto en Gs, monto en USD o descuento), no varios.`)
-    const clave = scope === 'PRODUCT' ? `P:${productId}` : `C:${category!.toLocaleLowerCase()}`
+    const clave = scope === 'PRODUCT' ? `P:${productId}` : `C:${normalizarCategoria(category)}`
     if (vistos.has(clave)) throw new PriceListInputError(`Ítem ${index + 1}: ya hay un ítem para ese ${scope === 'PRODUCT' ? 'producto' : 'categoría'}.`)
     vistos.add(clave)
     const tiersInput = item.tiers === undefined || item.tiers === null ? [] : item.tiers

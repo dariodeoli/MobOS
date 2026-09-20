@@ -81,3 +81,18 @@ test('sin lista ni mayorista queda el minorista y el USD se marca aparte', () =>
 })
 
 console.log('pricing: 9 casos OK')
+
+// #89: la categoría de la lista matchea sin importar mayúsculas ni acentos.
+test('lista por categoría ignora mayúsculas y acentos', () => {
+  const producto = { id: 'p1', category: 'Audio', pricePyg: 100000 }
+  const conLista = (categoria: string) => resolveUnitPrice({
+    product: producto,
+    quantity: 1,
+    customer: null,
+    priceList: { items: [{ scope: 'CATEGORY', category: categoria, unitPricePyg: 80000, tiers: [] }] },
+  })
+  assert.equal(conLista('audio').unitPricePyg, 80000)
+  assert.equal(conLista('AUDIO').origin, 'LIST')
+  assert.equal(conLista('Audío').unitPricePyg, 80000)
+  assert.equal(resolveUnitPrice({ product: producto, quantity: 1, customer: null, priceList: { items: [{ scope: 'CATEGORY', category: 'Audio', unitPricePyg: 80000, tiers: [] }] } }).unitPricePyg, 80000)
+})

@@ -4,6 +4,11 @@
 
 export class PricingError extends Error {}
 
+// Clave de comparación de categorías: sin mayúsculas ni acentos, para que
+// "Audio", "audio" y "Audío" apunten al mismo ítem (issue #89).
+export const normalizarCategoria = (value: unknown) => String(value ?? '')
+  .normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase()
+
 const INT_MAX = 2147483647
 const int = (value: unknown, min = 0) => Number.isSafeInteger(value) && (value as number) >= min && (value as number) <= INT_MAX
 
@@ -109,7 +114,7 @@ export function resolveUnitPrice(input: {
   const quantity = int(input.quantity, 1) ? (input.quantity as number) : 1
   const items = Array.isArray(input.priceList?.items) ? input.priceList!.items! : []
   const applicable = items.find(item => item?.scope === 'PRODUCT' && product.id && item.productId === product.id)
-    || items.find(item => item?.scope === 'CATEGORY' && !!item.category && !!product.category && item.category === product.category)
+    || items.find(item => item?.scope === 'CATEGORY' && !!item.category && !!product.category && normalizarCategoria(item.category) === normalizarCategoria(product.category))
     || null
 
   if (applicable) {
