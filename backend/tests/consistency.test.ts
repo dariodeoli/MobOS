@@ -52,7 +52,7 @@ test('promociones: el código se normaliza y el alta valida descuento y vigencia
   assert.throws(() => promotionInput({ name: 'Verano', kind: 'PERCENT', value: 10, startsAt: '2026-02-01', endsAt: '2026-01-01' }), /vigencia/i)
   assert.throws(() => promotionInput({ name: 'Verano', kind: 'PERCENT', value: 10, startsAt: '2026-01-01', endsAt: '2026-02-01', extra: 1 }), /admit/i)
   // Alta completa: pasa y recorta el nombre.
-  const creada = promotionInput({ name: '  Verano  ', kind: 'PERCENT', value: 10, startsAt: '2026-01-01', endsAt: '2026-02-01' })
+  const creada = promotionInput({ code: 'VERANO', name: '  Verano  ', kind: 'PERCENT', value: 10, startsAt: '2026-01-01', endsAt: '2026-02-01' })
   assert.equal(creada.name, 'Verano')
   assert.equal(creada.value, 10)
 })
