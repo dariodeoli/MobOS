@@ -52,8 +52,10 @@ export function useSellerData(path, project, demoRead, esDemo, options = {}) {
 }
 
 export function SellerSection({ title, description, children }) {
-  return <section className="space-y-5">
-    <div><h1 className="text-2xl font-bold tracking-tight">{title}</h1><p className="mt-1.5 text-sm text-mute">{description}</p></div>
+  // El título lo muestra el shell (topbar): acá queda solo accesible para
+  // lectores de pantalla y para los tests, sin repetirlo visualmente (#57).
+  return <section className="space-y-4">
+    <div><h1 className="sr-only">{title}</h1><p className="text-sm text-mute">{description}</p></div>
     {children}
   </section>
 }
