@@ -331,7 +331,9 @@ export default function Caja() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm text-mute">
+        <Eyebrow>Finanzas</Eyebrow>
+        <h2 className="mt-2 text-2xl font-bold tracking-tight">Caja y control financiero</h2>
+        <p className="mt-1 text-sm text-mute">
           Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados.
         </p>
       </div>

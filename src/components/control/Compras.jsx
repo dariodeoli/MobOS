@@ -9,7 +9,7 @@ import { suppliersApi } from '@/lib/api/suppliers'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { loadDemoPurchases, createDemoPurchase, receiveDemoPurchase, updateDemoPurchaseCosts } from '@/lib/demoPurchases'
 import { gs } from '@/utils/calculos'
-import { Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
@@ -45,6 +45,25 @@ const vencimientoCompra = (purchase) => {
   if (dias < 0) return { texto: 'venció', urgente: true, titulo }
   return { texto: fechaCompra(purchase.dueAt), urgente: dias <= 3, titulo }
 }
+// Estado visible de la orden: el backend solo completa `receivedAt` cuando la
+// recepción termina; mientras falte mercadería la orden queda en PARTIAL.
+const ESTADOS_COMPRA = {
+  DRAFT: { texto: 'Borrador', color: 'orange' },
+  PARTIAL: { texto: 'Parcial', color: 'blue' },
+  RECEIVED: { texto: 'Recibida', color: 'green' },
+}
+const estadoCompra = (purchase) => ESTADOS_COMPRA[purchase.status] || ESTADOS_COMPRA.DRAFT
+const fechaRecepcion = (value) => {
+  const date = new Date(value)
+  if (!value || Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '')
+}
+// `receivedQty` llega por línea desde la API; los datos demo viejos no lo traen
+// y una compra recibida equivale a todas sus unidades.
+const recibidoDeLinea = (purchase, item) => Number.isFinite(Number(item?.receivedQty)) ? Number(item.receivedQty) : (purchase.status === 'RECEIVED' ? Number(item?.quantity || 0) : 0)
+const pendienteDeLinea = (purchase, item) => Math.max(0, Number(item?.quantity || 0) - recibidoDeLinea(purchase, item))
+const devueltoDeLinea = (devoluciones, purchase, item) => Number(devoluciones[`${purchase.id}:${item.id}`] || 0)
+const devolvibleDeLinea = (devoluciones, purchase, item) => Math.max(0, recibidoDeLinea(purchase, item) - devueltoDeLinea(devoluciones, purchase, item))
 import Cronologia from '@/components/shared/Cronologia'
 import AttachmentList from '@/components/shared/AttachmentList'
 
@@ -107,6 +126,16 @@ export default function Compras() {
   const [supplierBalance, setSupplierBalance] = useState(null)
   const [lineCostEdits, setLineCostEdits] = useState({})
   const [expandida, setExpandida] = useState(null)
+  const [recepcionDe, setRecepcionDe] = useState(null)
+  const [recepcionCantidades, setRecepcionCantidades] = useState({})
+  const [devolucionDe, setDevolucionDe] = useState(null)
+  const [devolucionCantidades, setDevolucionCantidades] = useState({})
+  const [devolucionMotivo, setDevolucionMotivo] = useState('')
+  const [devolucionPaso, setDevolucionPaso] = useState('datos')
+  // Devoluciones hechas en esta sesión: la API no expone lo ya devuelto por
+  // línea, así que se descuentan localmente y el backend valida igual.
+  const [devolucionesLocales, setDevolucionesLocales] = useState({})
+  const [accionError, setAccionError] = useState('')
   const [compraAuth, setCompraAuth] = useState(null)
   const [orden, setOrden] = useState({ key: 'fecha', dir: 'desc' })
   const [busy, setBusy] = useState(!demo); const [error, setError] = useState(''); const [message, setMessage] = useState(''); const [exportando, setExportando] = useState(false)
@@ -173,7 +202,81 @@ export default function Compras() {
       setSupplierId(''); setNewSupplier({ name: '', countryCode: '+595', phone: '', city: '', department: '', address: '' }); setLines([emptyLine()]); setCosts({ shippingPyg: '0', customsPyg: '0', insurancePyg: '0', taxesPyg: '0', otherCostsPyg: '0' }); setCreditEnabled(false); setCompraAuth(null); setDueAt(''); setSupplierReference(''); setMessage('Compra creada con costo final distribuido por línea.')
     } catch (err) { setError(err?.message || 'No se pudo crear la compra.') } finally { setBusy(false) }
   }
-  async function receive(purchase) { setBusy(true); setError(''); try { if (demo) { receiveDemoPurchase(purchase.id); setPurchases(loadDemoPurchases()) } else { await purchasesApi.receive(purchase.id); await load() }; setMessage('Compra recibida y stock actualizado.') } catch (err) { setError(err?.message || 'No se pudo recibir la compra.') } finally { setBusy(false) } }
+  const lineasDevolucion = useMemo(() => {
+    if (!devolucionDe) return []
+    return (devolucionDe.lines || []).map(item => {
+      const maximo = devolvibleDeLinea(devolucionesLocales, devolucionDe, item)
+      const crudo = devolucionCantidades[item.id]
+      const cantidad = crudo === '' || crudo === undefined ? 0 : Number(crudo)
+      return { item, maximo, cantidad, totalPyg: cantidad * Number(item.finalUnitCostPyg ?? item.unitCostPyg ?? 0) }
+    }).filter(line => line.maximo > 0 || line.cantidad > 0)
+  }, [devolucionDe, devolucionCantidades, devolucionesLocales])
+  const totalDevolucionPyg = lineasDevolucion.reduce((sum, line) => sum + line.totalPyg, 0)
+  function abrirRecepcion(purchase) {
+    setError(''); setMessage(''); setAccionError('')
+    setRecepcionDe(purchase)
+    setRecepcionCantidades(Object.fromEntries((purchase.lines || []).map(item => [item.id, String(pendienteDeLinea(purchase, item))])))
+  }
+  async function recibirTodo(purchase) {
+    setBusy(true); setError(''); setAccionError('')
+    try {
+      if (demo) { receiveDemoPurchase(purchase.id); setPurchases(loadDemoPurchases()) }
+      else { await purchasesApi.receive(purchase.id); await load() }
+      setMessage('Compra recibida y stock actualizado.')
+      setRecepcionDe(null)
+    } catch (err) { setAccionError(err?.message || 'No se pudo recibir la compra.') } finally { setBusy(false) }
+  }
+  async function confirmarRecepcion(event) {
+    event.preventDefault(); if (!recepcionDe) return
+    const lineas = (recepcionDe.lines || []).map(item => {
+      const pendiente = pendienteDeLinea(recepcionDe, item)
+      const crudo = recepcionCantidades[item.id]
+      return { item, pendiente, cantidad: crudo === '' || crudo === undefined ? 0 : Number(crudo) }
+    }).filter(line => line.pendiente > 0)
+    if (lineas.some(line => !Number.isSafeInteger(line.cantidad) || line.cantidad < 0 || line.cantidad > line.pendiente)) return setAccionError('Revisá las cantidades: tienen que ser enteros y no superar lo pendiente.')
+    const elegidas = lineas.filter(line => line.cantidad > 0)
+    if (!elegidas.length) return setAccionError('Elegí al menos una cantidad pendiente para recibir.')
+    setBusy(true); setAccionError('')
+    try {
+      const result = await purchasesApi.receive(recepcionDe.id, elegidas.map(line => ({ id: line.item.id, quantity: line.cantidad })))
+      await load()
+      setRecepcionDe(null)
+      toast.success('Recepción registrada.', result?.status === 'RECEIVED' ? 'La compra quedó recibida por completo.' : 'Quedó parcial: el resto sigue pendiente.')
+    } catch (err) { setAccionError(err?.message || 'No se pudo recibir la compra.') } finally { setBusy(false) }
+  }
+  function abrirDevolucion(purchase) {
+    setError(''); setMessage(''); setAccionError('')
+    if (demo) { toast.info('Devolución al proveedor', 'Requiere conexión con el servidor: la demo no registra devoluciones ni movimientos de stock.'); return }
+    setDevolucionDe(purchase)
+    setDevolucionCantidades(Object.fromEntries((purchase.lines || []).map(item => [item.id, ''])))
+    setDevolucionMotivo('')
+    setDevolucionPaso('datos')
+  }
+  function revisarDevolucion(event) {
+    event.preventDefault(); if (!devolucionDe) return
+    if (!devolucionMotivo.trim()) return setAccionError('Indicá el motivo de la devolución al proveedor.')
+    if (lineasDevolucion.some(line => !Number.isSafeInteger(line.cantidad) || line.cantidad < 0 || line.cantidad > line.maximo)) return setAccionError('Revisá las cantidades: no pueden superar lo devolvible por línea.')
+    if (!lineasDevolucion.some(line => line.cantidad > 0)) return setAccionError('Elegí al menos una cantidad para devolver.')
+    setAccionError(''); setDevolucionPaso('confirmar')
+  }
+  async function registrarDevolucion() {
+    if (!devolucionDe) return
+    const elegidas = lineasDevolucion.filter(line => line.cantidad > 0)
+    setBusy(true); setAccionError('')
+    try {
+      await purchasesApi.returnPurchase(devolucionDe.id, { reason: devolucionMotivo.trim(), lines: elegidas.map(line => ({ id: line.item.id, quantity: line.cantidad })) })
+      setDevolucionesLocales(prev => {
+        const next = { ...prev }
+        for (const line of elegidas) { const key = `${devolucionDe.id}:${line.item.id}`; next[key] = (Number(next[key]) || 0) + line.cantidad }
+        return next
+      })
+      await load()
+      if (devolucionDe.supplierId) { try { setSupplierBalance(await suppliersApi.balance(devolucionDe.supplierId)) } catch { setSupplierBalance(null) } }
+      const unidades = elegidas.reduce((sum, line) => sum + line.cantidad, 0)
+      toast.success('Devolución registrada.', `${unidades} unidad${unidades === 1 ? '' : 'es'} menos de stock por ${gs(totalDevolucionPyg)}.`)
+      setDevolucionDe(null); setDevolucionPaso('datos')
+    } catch (err) { setAccionError(err?.message || 'No se pudo registrar la devolución.'); setDevolucionPaso('datos') } finally { setBusy(false) }
+  }
 
   async function exportar() {
     if (demo) return
@@ -330,6 +433,8 @@ export default function Compras() {
             const saldo = Number(purchase.outstandingPyg || 0)
             const lineas = purchase.lines || []
             const vencimiento = vencimientoCompra(purchase)
+            const estado = estadoCompra(purchase)
+            const pendientes = lineas.reduce((sum, item) => sum + pendienteDeLinea(purchase, item), 0)
             return <div key={purchase.id}>
               <div
                 role="button"
@@ -343,14 +448,14 @@ export default function Compras() {
                   <Icon name={abierta ? 'chevron' : 'chevron'} className={cn('h-3.5 w-3.5 shrink-0 text-mute transition', abierta ? 'rotate-180' : '-rotate-90')} />
                   <b className="truncate text-sm" title={purchase.supplierName}>{purchase.supplierName}</b>
                 </span>
-                <Badge color={purchase.status === 'RECEIVED' ? 'green' : 'orange'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{purchase.status === 'RECEIVED' ? 'Recibida' : 'Borrador'}</Badge>
+                <Badge color={estado.color} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{estado.texto}</Badge>
                 <span className="truncate text-xs tabular-nums text-mute">{lineas.length}</span>
                 <span className="truncate text-xs text-mute">{fechaCompra(purchase.createdAt)}</span>
                 <span className={cn('truncate text-xs', vencimiento.urgente ? 'font-semibold text-warn' : 'text-mute')} title={vencimiento.titulo}>{vencimiento.texto}</span>
                 <span className="truncate text-right text-sm font-semibold tabular-nums text-fore">{gs(purchase.finalCostPyg ?? 0)}</span>
                 <span className={cn('truncate text-right text-sm font-semibold tabular-nums', saldo > 0 ? 'text-warn' : 'text-ok')}>{gs(saldo)}</span>
                 <span className="flex flex-wrap items-center justify-end gap-1">
-                  {!demo && <Button variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={event => { event.stopPropagation(); setAdjuntosDe(purchase) }}>Adjuntos</Button>}{!demo && <Button variant="ghost" className="h-8 px-2 text-xs" disabled={busy} onClick={event => { event.stopPropagation(); setHistorialDe(purchase) }}>Historial</Button>}{purchase.status === 'DRAFT' && <Button variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={event => { event.stopPropagation(); receive(purchase) }}>Recibir</Button>}
+                  {!demo && <Button variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={event => { event.stopPropagation(); setAdjuntosDe(purchase) }}>Adjuntos</Button>}{!demo && <Button variant="ghost" className="h-8 px-2 text-xs" disabled={busy} onClick={event => { event.stopPropagation(); setHistorialDe(purchase) }}>Historial</Button>}{(purchase.status === 'DRAFT' || purchase.status === 'PARTIAL') && <Button variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={event => { event.stopPropagation(); abrirRecepcion(purchase) }}>Recibir mercadería</Button>}{(purchase.status === 'RECEIVED' || purchase.status === 'PARTIAL') && <Button variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={event => { event.stopPropagation(); abrirDevolucion(purchase) }}>Devolver al proveedor</Button>}
                   {!demo && saldo > 0 && <Button className="h-8 px-2 text-xs" disabled={busy || !accounts.length} onClick={event => { event.stopPropagation(); openPayment(purchase) }}>Pagar</Button>}
                 </span>
               </div>
@@ -359,10 +464,12 @@ export default function Compras() {
                   {purchase.creditEnabled && <Badge color="orange">Crédito</Badge>}
                   {purchase.supplierReference && <span className="text-[11px] text-mute">Ref. {purchase.supplierReference}</span>}
                   <span className="text-[11px] text-mute">Pagado {gs(purchase.paidPyg ?? 0)}</span>
+                  {purchase.receivedAt && <span className="text-[11px] text-mute">Recibida el {fechaRecepcion(purchase.receivedAt)}</span>}
+                  {pendientes > 0 && <span className="text-[11px] text-warn">Pendiente de recibir: {pendientes}</span>}
                 </div>
                 {purchase.status === 'DRAFT'
                   ? <div className="space-y-1">{lineas.map(item => <div key={item.id} className="flex items-center gap-2"><span className="min-w-0 flex-1 truncate text-sm">{item.productName || item.productId} × {item.quantity}{item.lotReference ? ` · ${item.lotReference}` : ''}</span><MoneyInput aria-label={`Costo unitario de ${item.productName || item.productId}`} value={lineCostValue(purchase, item)} onValueChange={(value) => setLineCost(purchase.id, item.id, value)} className="w-36 shrink-0" placeholder="Costo ₲" /></div>)}</div>
-                  : <div className="space-y-1 text-sm">{lineas.map(item => <div key={item.id} className="flex justify-between gap-3"><span className="min-w-0 truncate">{item.productName || item.productId} × {item.quantity}{item.lotReference ? ` · ${item.lotReference}` : ''}</span><span className="shrink-0 tabular-nums">{gs(item.finalTotalCostPyg ?? Number(item.quantity) * Number(item.unitCostPyg))}</span></div>)}</div>}
+                  : <div className="space-y-1 text-sm">{lineas.map(item => { const pendiente = pendienteDeLinea(purchase, item); return <div key={item.id} className="flex justify-between gap-3"><span className="min-w-0 truncate">{item.productName || item.productId} × {item.quantity}{item.lotReference ? ` · ${item.lotReference}` : ''}{pendiente > 0 ? ` · recibido ${recibidoDeLinea(purchase, item)} · quedan ${pendiente}` : ''}</span><span className="shrink-0 tabular-nums">{gs(item.finalTotalCostPyg ?? Number(item.quantity) * Number(item.unitCostPyg))}</span></div> })}</div>}
                 {costChanges(purchase).length > 0 && <Button type="button" variant="outline" disabled={busy} onClick={() => saveCosts(purchase)}>Guardar costos</Button>}
               </div>}
             </div>
@@ -383,6 +490,65 @@ export default function Compras() {
     </Modal>
     <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title={`Historial de ${historialDe?.supplierName || 'compra'}`}>
       {historialDe && <Cronologia endpoint={`/api/purchases/${historialDe.id}/history`} active={historialDe !== null} vacio="Sin actividad" descripcionVacio="El alta, los costos, la recepción, los pagos y los adjuntos de esta compra aparecerán acá." />}
+    </Modal>
+    <Modal open={recepcionDe !== null} onClose={() => !busy && setRecepcionDe(null)} title="Recibir mercadería">
+      {recepcionDe && <form onSubmit={event => { event.preventDefault(); if (demo) recibirTodo(recepcionDe); else confirmarRecepcion(event) }} className="space-y-4">
+        <p className="text-sm text-mute">{recepcionDe.supplierName} · {estadoCompra(recepcionDe).texto}. Lo que elijas entra al stock; el resto queda pendiente en la orden.</p>
+        {demo && <p className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-sm text-warn">La recepción parcial requiere conexión con el servidor: en la demo solo se puede recibir la compra completa.</p>}
+        <div className="space-y-2">
+          {(recepcionDe.lines || []).map(item => {
+            const pendiente = pendienteDeLinea(recepcionDe, item)
+            return <div key={item.id} className="grid gap-2 rounded-xl border border-ink-600/70 p-2 sm:grid-cols-[minmax(0,1fr)_10rem_6.5rem] sm:items-center">
+              <span className="min-w-0 truncate text-sm">{item.productName || item.productId}{item.lotReference ? ` · ${item.lotReference}` : ''}</span>
+              <span className="text-[11px] text-mute">Pedido {item.quantity} · Recibido {recibidoDeLinea(recepcionDe, item)} · <b className={pendiente > 0 ? 'text-warn' : 'text-ok'}>Pendiente {pendiente}</b></span>
+              {pendiente > 0
+                ? (demo
+                  ? <span className="text-[11px] text-mute">Se recibe completo</span>
+                  : <Input inputMode="numeric" aria-label={`Recibir ${item.productName || item.productId}`} value={recepcionCantidades[item.id] ?? ''} onChange={(event) => setRecepcionCantidades(current => ({ ...current, [item.id]: event.target.value.replace(/\D/g, '') }))} placeholder="Cantidad" />)
+                : <span className="text-[11px] text-ok">Completa</span>}
+            </div>
+          })}
+        </div>
+        {accionError && <p className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{accionError}</p>}
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="ghost" disabled={busy} onClick={() => setRecepcionDe(null)}>Cancelar</Button>
+          <Button type="submit" disabled={busy}>{demo ? 'Recibir todo' : 'Recibir cantidades'}</Button>
+        </div>
+      </form>}
+    </Modal>
+    <Modal open={devolucionDe !== null} onClose={() => !busy && setDevolucionDe(null)} title="Devolver al proveedor">
+      {devolucionDe && <form onSubmit={revisarDevolucion} className="space-y-4">
+        <p className="text-sm text-mute">{devolucionDe.supplierName}. La devolución descuenta stock y el saldo pendiente con el proveedor.</p>
+        {devolucionPaso === 'datos' ? <>
+          <div className="space-y-2">
+            {lineasDevolucion.length === 0 && <p className="rounded-lg border border-ink-600 px-3 py-2 text-sm text-mute">No quedan unidades recibidas pendientes de devolución en esta compra.</p>}
+            {lineasDevolucion.map(({ item, maximo }) => <div key={item.id} className="grid gap-2 rounded-xl border border-ink-600/70 p-2 sm:grid-cols-[minmax(0,1fr)_10rem_6.5rem] sm:items-center">
+              <span className="min-w-0 truncate text-sm">{item.productName || item.productId}{item.lotReference ? ` · ${item.lotReference}` : ''}</span>
+              <span className="text-[11px] text-mute">Recibido {recibidoDeLinea(devolucionDe, item)} · <b className="text-fore">Devolvible {maximo}</b></span>
+              <Input inputMode="numeric" aria-label={`Devolver ${item.productName || item.productId}`} value={devolucionCantidades[item.id] ?? ''} onChange={(event) => setDevolucionCantidades(current => ({ ...current, [item.id]: event.target.value.replace(/\D/g, '') }))} placeholder="Cantidad" />
+            </div>)}
+          </div>
+          {lineasDevolucion.length > 0 && <p className="text-xs text-mute">El servidor valida que no se devuelva más de lo recibido pendiente de devolución.</p>}
+          <div><Label htmlFor="motivo-devolucion">Motivo de la devolución</Label><Textarea id="motivo-devolucion" value={devolucionMotivo} onChange={(event) => setDevolucionMotivo(event.target.value)} placeholder="Ej: mercadería dañada o distinta a lo pedido…" rows={2} required /></div>
+          {accionError && <p className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{accionError}</p>}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="ghost" disabled={busy} onClick={() => setDevolucionDe(null)}>Cancelar</Button>
+            <Button type="submit" variant="danger" disabled={busy || lineasDevolucion.length === 0}>Revisar devolución</Button>
+          </div>
+        </> : <>
+          <div className="space-y-2 rounded-xl border border-ink-600 p-3 text-sm">
+            {lineasDevolucion.filter(line => line.cantidad > 0).map(line => <div key={line.item.id} className="flex justify-between gap-3"><span className="min-w-0 truncate">{line.item.productName || line.item.productId} × {line.cantidad}</span><span className="shrink-0 tabular-nums">{gs(line.totalPyg)}</span></div>)}
+            <div className="flex justify-between gap-3 border-t border-ink-600 pt-2 font-semibold"><span>Total a devolver</span><span className="tabular-nums">{gs(totalDevolucionPyg)}</span></div>
+            <p className="text-xs text-mute">Motivo: {devolucionMotivo.trim()}</p>
+          </div>
+          <p className="text-sm text-mute">Se darán de baja {lineasDevolucion.reduce((sum, line) => sum + line.cantidad, 0)} unidad(es) de stock y el saldo con el proveedor bajará {gs(totalDevolucionPyg)}.</p>
+          {accionError && <p className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{accionError}</p>}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="ghost" disabled={busy} onClick={() => { setAccionError(''); setDevolucionPaso('datos') }}>Volver</Button>
+            <Button type="button" variant="danger" disabled={busy} onClick={registrarDevolucion}>{busy ? 'Registrando…' : 'Confirmar devolución'}</Button>
+          </div>
+        </>}
+      </form>}
     </Modal>
   </div>
 }

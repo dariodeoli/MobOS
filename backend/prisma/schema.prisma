@@ -16,6 +16,8 @@ model Tenant {
   tradeInDevices      TradeInDevice[]
   cashSessions        CashSession[]
   purchases           PurchaseOrder[]
+  purchaseReturns     PurchaseReturn[]
+  purchaseReturnLines PurchaseReturnLine[]
   suppliers           Supplier[]
   warrantyCases       WarrantyCase[]
   cashMovements       CashMovement[]
@@ -95,6 +97,9 @@ model Tenant {
   priceLists              PriceList[]
   storeCredits            StoreCredit[]
   storeCreditUses         StoreCreditUse[]
+  inventoryCounts         InventoryCount[]
+  inventoryCountLines     InventoryCountLine[]
+  suspendedSales          SuspendedSale[]
 
   @@index([archivedAt])
 }
@@ -227,6 +232,8 @@ model Branch {
   incomingTransfers StockTransfer[] @relation("TransferDestinationBranch")
   quotes            Quote[]
   combos            Combo[]
+  inventoryCounts   InventoryCount[]
+  suspendedSales    SuspendedSale[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -243,6 +250,7 @@ model User {
   quotes              Quote[]
   inventoryUnitComments InventoryUnitComment[]
   purchases           PurchaseOrder[]
+  suspendedSales      SuspendedSale[]
   id                  String          @id @default(cuid())
   tenantId            String
   tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -389,6 +397,7 @@ model Product {
   tradeInDevice TradeInDevice?
   destination   ProductDestination @default(NORMAL)
   purchaseLines PurchaseLine[]
+  purchaseReturnLines PurchaseReturnLine[]
   id            String             @id @default(cuid())
   tenantId      String
   tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -429,6 +438,7 @@ model Product {
   transferSourceLines      StockTransferLine[] @relation("TransferSourceProduct")
   transferDestinationLines StockTransferLine[] @relation("TransferDestinationProduct")
   priceListItems           PriceListItem[]
+  inventoryCountLines      InventoryCountLine[]
 
   @@unique([tenantId, branchId, sku])
   @@index([tenantId, branchId])
@@ -441,6 +451,54 @@ enum InventoryUnitStatus {
   SOLD
   DEFECTIVE
   IN_TRANSIT
+}
+
+// Conteo físico auditable: documento con las unidades escaneadas en una
+// sucursal, las diferencias contra el sistema y la aprobación de gerencia.
+// Aplicarlo da de baja (defectuoso) lo que no apareció y queda en auditoría.
+enum InventoryCountStatus {
+  DRAFT
+  APPLIED
+  CANCELLED
+}
+
+model InventoryCount {
+  id          String               @id @default(cuid())
+  tenantId    String
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId    String
+  branch      Branch               @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  status      InventoryCountStatus @default(DRAFT)
+  note        String?
+  createdById String
+  appliedById String?
+  appliedAt   DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  lines       InventoryCountLine[]
+
+  @@index([tenantId, branchId, status])
+  @@index([tenantId, createdAt])
+}
+
+model InventoryCountLine {
+  id          String          @id @default(cuid())
+  tenantId    String
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  countId     String
+  count       InventoryCount  @relation(fields: [countId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  // IMEI/serial escaneado. Null en productos sin serie (se cuenta por cantidad).
+  serial      String?
+  quantity    Int             @default(1)
+  // La unidad ya estaba AVAILABLE en la sucursal al contar (lo esperado).
+  expected    Boolean         @default(false)
+  scannedById String
+  createdAt   DateTime        @default(now())
+
+  @@unique([countId, serial])
+  @@index([countId])
 }
 
 model InventoryUnit {
@@ -661,6 +719,7 @@ model Customer {
   billingIdentities CustomerBillingIdentity[]
   portalTokens      CustomerPortalToken[]
   storeCredits      StoreCredit[]
+  suspendedSales    SuspendedSale[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -922,6 +981,10 @@ model Order {
   totalPyg          Int
   // Comprobante congelado al emitir la venta: lo que se imprimió o mostró no
   // cambia aunque después se edite el producto, el cliente o la empresa.
+  // Pedido especial con seña: la venta se toma con anticipo y fecha esperada
+  // de llegada/entrega; el saldo se cobra al entregar.
+  isSpecialOrder    Boolean           @default(false)
+  expectedAt        DateTime?
   receiptSnapshot   Json?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -1502,6 +1565,30 @@ enum ReconciliationState {
   REJECTED
 }
 
+// Venta suspendida (carrito en espera): guarda el borrador del POS para
+// retomarlo desde cualquier caja autorizada de la sucursal. No toca stock,
+// caja ni deuda hasta que se recupera y se cobra.
+model SuspendedSale {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  label       String?
+  // Estado del carrito tal como lo serializa el POS (items, cliente, descuento,
+  // entrega y facturación). El backend no lo interpreta.
+  payload     Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, branchId, createdAt])
+  @@index([tenantId, userId])
+}
+
 model AuditLog {
   id        String   @id @default(cuid())
   tenantId  String
@@ -1601,6 +1688,7 @@ enum CashMovementStatus {
 
 enum PurchaseStatus {
   DRAFT
+  PARTIAL
   RECEIVED
 }
 
@@ -1633,6 +1721,7 @@ model PurchaseOrder {
   costAllocationMethod PurchaseCostAllocationMethod @default(PROPORTIONAL_VALUE)
   lines        PurchaseLine[]
   payments     PurchasePayment[]
+  returns      PurchaseReturn[]
 
   @@index([tenantId, createdAt])
   @@index([tenantId, status])
@@ -1680,6 +1769,8 @@ model PurchaseLine {
   productId   String
   product     Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
   quantity    Int
+  // Unidades ya recibidas: permite recepción parcial contra la misma orden.
+  receivedQty Int @default(0)
   // unitCostPyg es el costo base pactado; los valores finales quedan congelados
   // para que una modificación posterior de flete o de catálogo no reescriba historia.
   unitCostPyg Int
@@ -1695,6 +1786,42 @@ model PurchaseLine {
   finalUnitCostPyg Int @default(0)
 
   @@index([purchaseId])
+  @@index([productId])
+}
+
+// Devolución al proveedor: sale stock y baja la deuda de esa compra. Cada
+// línea conserva el costo final congelado con el que salió del inventario.
+model PurchaseReturn {
+  id          String               @id @default(cuid())
+  tenantId    String
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purchaseId  String
+  purchase    PurchaseOrder        @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  supplierId  String?
+  reason      String
+  totalPyg    Int
+  createdById String
+  createdAt   DateTime             @default(now())
+  lines       PurchaseReturnLine[]
+
+  @@index([tenantId, purchaseId])
+  @@index([tenantId, supplierId])
+}
+
+model PurchaseReturnLine {
+  id           String         @id @default(cuid())
+  tenantId     String
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  returnId     String
+  purchaseReturn PurchaseReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  purchaseLineId String
+  productId    String
+  product      Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity     Int
+  unitCostPyg  Int
+  totalPyg     Int
+
+  @@index([returnId])
   @@index([productId])
 }
 

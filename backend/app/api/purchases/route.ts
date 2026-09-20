@@ -4,6 +4,7 @@ import { error, json, tenantId } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError } from '../../../lib/payment-input'
 import { applyPurchaseLineOverrides, distributePurchaseCosts, purchaseTotals } from '../../../lib/purchases'
+import { changeStock } from '../../../lib/stock'
 import type { PurchaseLineCostOverride } from '../../../lib/purchases'
 import { DEFAULT_PURCHASE_CREDIT_LIMIT_PYG, authorizedAmountOf, authorizationValueOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
     const pos = `$${params.length}`
     searchSql = ` AND (po."supplierName" ILIKE ${pos} OR COALESCE(po."supplierReference", '') ILIKE ${pos} OR po."id" ILIKE ${pos} OR EXISTS (SELECT 1 FROM "Supplier" s WHERE s."id" = po."supplierId" AND (s."name" ILIKE ${pos} OR COALESCE(s."code", '') ILIKE ${pos})))`
   }
-  const rows = await prisma.$queryRawUnsafe<any[]>(`SELECT po.*, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pl."id", 'productId', pl."productId", 'productName', p."name", 'quantity', pl."quantity", 'unitCostPyg', pl."unitCostPyg", 'lotReference', pl."lotReference", 'baseTotalPyg', pl."baseTotalPyg", 'allocatedShippingPyg', pl."allocatedShippingPyg", 'allocatedCustomsPyg', pl."allocatedCustomsPyg", 'allocatedInsurancePyg', pl."allocatedInsurancePyg", 'allocatedTaxesPyg', pl."allocatedTaxesPyg", 'allocatedOtherCostsPyg', pl."allocatedOtherCostsPyg", 'allocatedExtraCostPyg', pl."allocatedExtraCostPyg", 'finalTotalCostPyg', pl."finalTotalCostPyg", 'finalUnitCostPyg', pl."finalUnitCostPyg")) FILTER (WHERE pl."id" IS NOT NULL), '[]') AS lines, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pp."id", 'amountPyg', pp."amountPyg", 'currency', pp."currency", 'originalAmount', pp."originalAmount", 'reference', pp."reference", 'kind', pp."kind", 'paidAt', pp."paidAt")) FILTER (WHERE pp."id" IS NOT NULL), '[]') AS payments FROM "PurchaseOrder" po LEFT JOIN "PurchaseLine" pl ON pl."purchaseId" = po."id" LEFT JOIN "Product" p ON p."id" = pl."productId" LEFT JOIN "PurchasePayment" pp ON pp."purchaseId" = po."id" WHERE po."tenantId" = $1${branchSql}${searchSql} GROUP BY po."id" ORDER BY po."createdAt" DESC LIMIT 100`, ...params)
+  const rows = await prisma.$queryRawUnsafe<any[]>(`SELECT po.*, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pl."id", 'productId', pl."productId", 'productName', p."name", 'quantity', pl."quantity", 'receivedQty', pl."receivedQty", 'returnedQty', COALESCE((SELECT SUM(prl."quantity")::int FROM "PurchaseReturnLine" prl JOIN "PurchaseReturn" pr ON pr."id" = prl."returnId" WHERE prl."purchaseLineId" = pl."id"), 0), 'unitCostPyg', pl."unitCostPyg", 'lotReference', pl."lotReference", 'baseTotalPyg', pl."baseTotalPyg", 'allocatedShippingPyg', pl."allocatedShippingPyg", 'allocatedCustomsPyg', pl."allocatedCustomsPyg", 'allocatedInsurancePyg', pl."allocatedInsurancePyg", 'allocatedTaxesPyg', pl."allocatedTaxesPyg", 'allocatedOtherCostsPyg', pl."allocatedOtherCostsPyg", 'allocatedExtraCostPyg', pl."allocatedExtraCostPyg", 'finalTotalCostPyg', pl."finalTotalCostPyg", 'finalUnitCostPyg', pl."finalUnitCostPyg")) FILTER (WHERE pl."id" IS NOT NULL), '[]') AS lines, COALESCE(json_agg(DISTINCT jsonb_build_object('id', pp."id", 'amountPyg', pp."amountPyg", 'currency', pp."currency", 'originalAmount', pp."originalAmount", 'reference', pp."reference", 'kind', pp."kind", 'paidAt', pp."paidAt")) FILTER (WHERE pp."id" IS NOT NULL), '[]') AS payments FROM "PurchaseOrder" po LEFT JOIN "PurchaseLine" pl ON pl."purchaseId" = po."id" LEFT JOIN "Product" p ON p."id" = pl."productId" LEFT JOIN "PurchasePayment" pp ON pp."purchaseId" = po."id" WHERE po."tenantId" = $1${branchSql}${searchSql} GROUP BY po."id" ORDER BY po."createdAt" DESC LIMIT 100`, ...params)
   return json(rows.map(row => ({ ...row, ...purchaseTotals(row.lines || [], row.payments || []) })))
 }
 
@@ -138,10 +139,10 @@ export async function PATCH(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
   if (!canAccessAny(session.user, ['purchases:manage'])) return error('No autorizado.', 403)
-  const body = await request.json(); if (!boundedText(body.id, MAX_ID) || !['receive', 'pay', 'advance', 'update-costs'].includes(body.action)) return error('Compra y acción válida son obligatorias.')
+  const body = await request.json(); if (!boundedText(body.id, MAX_ID) || !['receive', 'pay', 'advance', 'update-costs', 'return'].includes(body.action)) return error('Compra y acción válida son obligatorias.')
   try {
     const result = await prisma.$transaction(async tx => {
-      const rows = await tx.$queryRaw<Array<{ id: string; branchId: string | null; status: string }>>`SELECT "id", "branchId", "status" FROM "PurchaseOrder" WHERE "id" = ${body.id} AND "tenantId" = ${tenant} FOR UPDATE`
+      const rows = await tx.$queryRaw<Array<{ id: string; branchId: string | null; status: string; supplierId: string | null }>>`SELECT "id", "branchId", "status", "supplierId" FROM "PurchaseOrder" WHERE "id" = ${body.id} AND "tenantId" = ${tenant} FOR UPDATE`
       const purchase = rows[0]
       const branchId = scope(session)
       if (!purchase || (branchId !== null && purchase.branchId !== branchId)) throw new Error('Compra no encontrada.')
@@ -192,15 +193,62 @@ export async function PATCH(request: Request) {
         const paidRows = await tx.$queryRaw<Array<{ paidPyg: number }>>`SELECT COALESCE(SUM("amountPyg")::int, 0) AS "paidPyg" FROM "PurchasePayment" WHERE "purchaseId" = ${purchase.id}`
         return { id: purchase.id, status: purchase.status, lines: updated, finalCostPyg, paidPyg: paidRows[0].paidPyg, outstandingPyg: finalCostPyg - paidRows[0].paidPyg }
       }
-      if (purchase.status !== 'DRAFT') throw new Error('La compra ya fue recibida.')
-      const lines = await tx.$queryRaw`SELECT pl."productId", pl."quantity" FROM "PurchaseLine" pl WHERE pl."purchaseId" = ${purchase.id}` as Array<{ productId: string; quantity: number }>
-      for (const line of lines) {
-        const updated = await tx.$executeRaw`UPDATE "Product" SET "stock" = "stock" + ${line.quantity}, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ${line.productId} AND "tenantId" = ${tenant} AND "isActive" = true AND "stock" + ${line.quantity} <= ${INT_MAX}`
-        if (updated !== 1) throw new Error('Producto inexistente o stock fuera de rango.')
+      // Devolución al proveedor: sale stock y baja la deuda de la compra.
+      if (body.action === 'return') {
+        if (purchase.status === 'DRAFT') throw new Error('Solo se puede devolver mercadería ya recibida.')
+        const reason = boundedText(body.reason, 300) ? String(body.reason).trim() : ''
+        if (!reason) throw new Error('Indicá el motivo de la devolución al proveedor.')
+        const inputLines = Array.isArray(body.lines) ? body.lines : []
+        if (!inputLines.length || inputLines.length > MAX_LINES) throw new Error('Líneas de devolución inválidas.')
+        const purchaseLines = await tx.$queryRaw<Array<{ id: string; productId: string; receivedQty: number; finalUnitCostPyg: number }>>`SELECT "id", "productId", "receivedQty", "finalUnitCostPyg" FROM "PurchaseLine" WHERE "purchaseId" = ${purchase.id} FOR UPDATE`
+        const byId = new Map(purchaseLines.map(line => [line.id, line]))
+        const priorRows = await tx.$queryRaw<Array<{ purchaseLineId: string; quantity: bigint }>>`SELECT "purchaseLineId", COALESCE(SUM("quantity"), 0)::bigint AS quantity FROM "PurchaseReturnLine" WHERE "tenantId" = ${tenant} AND "returnId" IN (SELECT "id" FROM "PurchaseReturn" WHERE "purchaseId" = ${purchase.id}) GROUP BY "purchaseLineId"`
+        const returnedByLine = new Map(priorRows.map(row => [row.purchaseLineId, Number(row.quantity)]))
+        const returnLines: Array<{ purchaseLineId: string; productId: string; quantity: number; unitCostPyg: number; totalPyg: number }> = []
+        for (const item of inputLines) {
+          const line = byId.get(String(item?.id))
+          const quantity = Number(item?.quantity)
+          if (!line || !Number.isSafeInteger(quantity) || quantity <= 0) throw new Error('Cantidad de devolución inválida.')
+          const available = line.receivedQty - (returnedByLine.get(line.id) || 0)
+          if (quantity > available) throw new Error('No se puede devolver más de lo recibido pendiente de devolución.')
+          returnLines.push({ purchaseLineId: line.id, productId: line.productId, quantity, unitCostPyg: line.finalUnitCostPyg, totalPyg: quantity * line.finalUnitCostPyg })
+        }
+        for (const line of returnLines) await changeStock(tx, { tenantId: tenant, productId: line.productId, delta: -line.quantity, branchId: purchase.branchId, includeBranchless: true, message: 'Stock insuficiente para devolver al proveedor.' })
+        const totalPyg = returnLines.reduce((sum, line) => sum + line.totalPyg, 0)
+        if (!safePyg(totalPyg)) throw new Error('Total de devolución fuera de rango.')
+        const purchaseReturn = await tx.purchaseReturn.create({ data: { tenantId: tenant, purchaseId: purchase.id, supplierId: purchase.supplierId, reason, totalPyg, createdById: session.user.id, lines: { create: returnLines.map(line => ({ tenantId: tenant, purchaseLineId: line.purchaseLineId, productId: line.productId, quantity: line.quantity, unitCostPyg: line.unitCostPyg, totalPyg: line.totalPyg })) } } })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_RETURNED', entity: 'PurchaseReturn', entityId: purchaseReturn.id, metadata: { purchaseId: purchase.id, supplierId: purchase.supplierId, reason, totalPyg, lines: returnLines.map(line => ({ purchaseLineId: line.purchaseLineId, productId: line.productId, quantity: line.quantity, unitCostPyg: line.unitCostPyg })) } } })
+        return { id: purchaseReturn.id, purchaseId: purchase.id, totalPyg, lines: returnLines }
       }
-      await tx.$executeRaw`UPDATE "PurchaseOrder" SET "status" = 'RECEIVED', "receivedAt" = CURRENT_TIMESTAMP WHERE "id" = ${purchase.id} AND "status" = 'DRAFT'`
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_RECEIVED', entity: 'PurchaseOrder', entityId: purchase.id, metadata: { branchId: purchase.branchId, lineCount: lines.length } } })
-      return { id: purchase.id, status: 'RECEIVED', receivedAt: new Date().toISOString() }
+      if (purchase.status === 'RECEIVED') throw new Error('La compra ya fue recibida por completo.')
+      // Recepción total o PARCIAL: `lines: [{ id, quantity }]` recibe solo esas
+      // cantidades; sin líneas se recibe todo lo pendiente (comportamiento previo).
+      const lines = await tx.$queryRaw<Array<{ id: string; productId: string; quantity: number; receivedQty: number }>>`SELECT "id", "productId", "quantity", "receivedQty" FROM "PurchaseLine" WHERE "purchaseId" = ${purchase.id} FOR UPDATE` as Array<{ id: string; productId: string; quantity: number; receivedQty: number }>
+      if (!lines.length) throw new Error('La compra no tiene líneas.')
+      const requestedLines = Array.isArray(body.lines) ? body.lines : null
+      const requestedById = new Map<string, number>()
+      if (requestedLines) for (const item of requestedLines) {
+        if (!item || !boundedText(item.id, MAX_ID)) throw new Error('Línea de recepción inválida.')
+        requestedById.set(String(item.id), Number(item.quantity))
+      }
+      let receivedNow = 0
+      for (const line of lines) {
+        const remaining = line.quantity - line.receivedQty
+        const take = requestedLines ? (requestedById.get(line.id) ?? 0) : remaining
+        if (!Number.isSafeInteger(take) || take < 0 || take > remaining) throw new Error('Cantidad a recibir inválida o mayor al saldo pendiente.')
+        if (!take) continue
+        const updated = await tx.$executeRaw`UPDATE "Product" SET "stock" = "stock" + ${take}, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ${line.productId} AND "tenantId" = ${tenant} AND "isActive" = true AND "stock" + ${take} <= ${INT_MAX}`
+        if (updated !== 1) throw new Error('Producto inexistente o stock fuera de rango.')
+        await tx.$executeRaw`UPDATE "PurchaseLine" SET "receivedQty" = "receivedQty" + ${take} WHERE "id" = ${line.id}`
+        receivedNow += take
+      }
+      if (!receivedNow) throw new Error('No hay cantidades pendientes para recibir.')
+      const pendingRows = await tx.$queryRaw<Array<{ pending: bigint }>>`SELECT COUNT(*)::bigint AS pending FROM "PurchaseLine" WHERE "purchaseId" = ${purchase.id} AND "receivedQty" < "quantity"`
+      const complete = Number(pendingRows[0]?.pending || 0n) === 0
+      const nextStatus = complete ? 'RECEIVED' : 'PARTIAL'
+      await tx.$executeRaw`UPDATE "PurchaseOrder" SET "status" = ${nextStatus}::"PurchaseStatus", "receivedAt" = CASE WHEN ${complete} THEN CURRENT_TIMESTAMP ELSE "receivedAt" END WHERE "id" = ${purchase.id}`
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_RECEIVED', entity: 'PurchaseOrder', entityId: purchase.id, metadata: { branchId: purchase.branchId, lineCount: lines.length, receivedNow, complete, partial: !complete } } })
+      return { id: purchase.id, status: nextStatus, receivedNow, complete, receivedAt: complete ? new Date().toISOString() : null }
     })
     return json(result)
   } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo recibir la compra.', 409) }
