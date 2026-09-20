@@ -184,7 +184,56 @@ La prueba de corte por hardware todavía no está cerrada. Para hacerla:
   revisá el ancho configurado (módulo 1 sale ilegible) y que el papel no haya
   salido corrido.
 
-## 8. Reportes imprimibles: cierre de caja y resumen (#98)
+## 8. Telemetría y comparativa de impresoras
+
+### Qué mide cada tiempo
+
+| Campo | Cuándo se escribe | Qué significa |
+| --- | --- | --- |
+| `enqueuedAt` | Al crear el trabajo (`POST /api/print/jobs`) | Instante en que la app encoló el ticket. |
+| `claimedAt` | Al reclamarlo el puente (`POST /api/print/bridge/claim`) | Cuándo un puente tomó el trabajo. |
+| `confirmedAt` | Al reportar el resultado (ACEPTADO/INCIERTO/FALLIDO) o al vencer el lease | Cierre del trabajo. La confirmación en papel no lo pisa; solo lo completa en espejos locales. |
+| `queueMs` | Con el resultado | `claimedAt - enqueuedAt`: lo que esperó en la cola. |
+| `durationMs` | Con el resultado | `confirmedAt - enqueuedAt`: el total, de encolado a cierre. |
+| `transport` | Lo informa el agente | `directo`, `cups` o `usb`: por dónde salió de verdad. |
+| `printerName` | Al encolar | Foto del nombre: sobrevive a renombres y bajas. |
+
+- Los tiempos son enteros `>= 0` (un reloj atrasado no produce negativos) y se
+  calculan con el reloj de la app, no con `now()` de la base: las etapas se
+  comparan entre sí y no pueden mezclar relojes.
+- En Actividad cada trabajo muestra fecha con **hora:minuto:segundo**, el
+  transporte y las líneas `en cola N ms` / `total N ms`; el detalle agrega
+  encolado, reclamado, ambos tiempos y el transporte. El CSV exporta esas
+  columnas.
+- `GET /api/print/metrics?desde=&hasta=&printerId=&reference=` (ADMIN/GERENTE;
+  por defecto, últimas 24 h; rango máximo 90 días) devuelve totales con tasa de
+  éxito, latencia promedio y p95 global y por impresora, serie por hora
+  (incluidos los huecos) y los últimos 20 trabajos. `reference` filtra por
+  prefijo y es lo que usa la comparativa.
+
+### Comparar hasta tres impresoras
+
+1. En **Configuración → Impresoras → Comparar impresoras**, elegí entre 2 y 3
+   impresoras activas y vinculadas a un puente (si falta el puente, la sección
+   avisa el paso que falta y ofrece gestionarlos).
+2. **Enviar prueba a todas** encola el **mismo ticket** (marca
+   `COMP-…` impresa en el papel y como prefijo de `reference`) a cada impresora
+   por el camino remoto, y sondea las métricas hasta que todas reportan.
+3. La tabla muestra impresora, ancho, transporte, cola, total, resultado y
+   marca **Ganadora** a la de menor tiempo total entre las aceptadas. Un
+   trabajo que no llegó a reportar queda en `pendiente` y no puede ganar.
+
+### Panel de gráficos
+
+- **Panel de impresiones** (misma pantalla) dibuja con SVG propio, sin
+  librerías: barras de trabajos por hora, barras de latencia promedio por
+  impresora e indicador de tasa de éxito, con contadores de total, promedio,
+  p95 y fallos.
+- Los filtros de rango (24 h / 7 d / 30 d) y de impresora se aplican en el
+  servidor; la UI solo reagrupa la serie horaria cuando hay más barras de las
+  que se pueden leer (7 y 30 días). Los números no se recalculan en pantalla.
+
+## 9. Reportes imprimibles: cierre de caja y resumen (#98)
 
 - **Cierre de caja**: desde Caja, al cerrar la sesión se abre la vista previa
   del cierre y queda el botón «Imprimir cierre» en la sesión cerrada. Incluye

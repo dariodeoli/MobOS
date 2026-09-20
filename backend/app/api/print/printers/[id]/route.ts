@@ -37,6 +37,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       isDefault: tomar('isDefault'),
       isActive: tomar('isActive'),
       bridgeId: tomar('bridgeId'),
+      branchId: tomar('branchId'),
     })
   } catch (cause) {
     return error(cause instanceof InputError ? cause.message : 'Datos de impresora inválidos.', cause instanceof InputError ? cause.status : 400)
@@ -44,6 +45,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (impresora.bridgeId) {
     const puente = await prisma.printBridge.findFirst({ where: { id: impresora.bridgeId, tenantId, revokedAt: null }, select: { id: true } })
     if (!puente) return error('El puente elegido no existe o está revocado.')
+  }
+  if (impresora.branchId) {
+    const sucursal = await prisma.branch.findFirst({ where: { id: impresora.branchId, tenantId }, select: { id: true } })
+    if (!sucursal) return error('La sucursal elegida no existe en la empresa.', 404)
   }
   const lastTest = entrada.lastTest === undefined ? undefined : entrada.lastTest === null ? Prisma.JsonNull : (entrada.lastTest as Prisma.InputJsonValue)
   try {

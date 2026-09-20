@@ -39,7 +39,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const confirmado = await prisma.$transaction(async tx => {
     const cambio = await tx.printJob.updateMany({
       where: { id, tenantId, state: 'ACEPTADO', suffixHash: trabajo.suffixHash },
-      data: { state: 'CONFIRMADO', confirmedAt: new Date(), suffixHash: '' },
+      // `confirmedAt` ya quedó en el reporte del puente; no se pisa para no
+      // romper la duración medida. Solo completa los espejos locales, que
+      // nacen sin reporte.
+      data: { state: 'CONFIRMADO', confirmedAt: trabajo.confirmedAt ?? new Date(), suffixHash: '' },
     })
     if (!cambio.count) return false
     await tx.auditLog.create({

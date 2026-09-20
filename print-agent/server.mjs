@@ -5,17 +5,44 @@ import { promisify } from 'node:util'
 import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config.mjs'
 import { crearCola } from './cola.mjs'
 import { aplicarConfigRemota, crearRemoto } from './remoto.mjs'
-import { aliasSecundario, colaLanDeCups, colaUri, comandoColaLan, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola } from './transportes.mjs'
+import { aliasSecundario, colaLanDeCups, colaUri, comandoColaLan, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola, usbAplicaA } from './transportes.mjs'
+import { estadoUsb, enviarUsbDirecto } from './usb.mjs'
 
-const VERSION = '1.6.3'
+const VERSION = '1.7.0'
 const config = cargarConfig()
+// `--usb` enciende el USB directo en esta corrida sin tocar config.json.
+if (process.argv.includes('--usb')) config.usb = true
 // Transporte real del último envío (directo | cups | usb): la app solo debe
 // marcar éxito cuando hubo entrega confirmada, no solo encolado. La cola local
 // y el poller remoto comparten este camino: sin la config (cola CUPS y alias),
 // el remoto no bindea la IP secundaria ni respeta la cola configurada.
 let ultimoTransporte = ''
+// USB directo: se refresca al arrancar, cada 90 s y en /health, así conectar la
+// impresora o cambiar la bandera se refleja sin reiniciar el agente. Si el USB
+// no está disponible, el trabajo sigue por CUPS/LAN sin interrumpirse.
+let usbEstado = { activo: Boolean(config.usb), disponible: false, vid: null, pid: null, motivo: '' }
+async function refrescarUsb() {
+  const anterior = usbEstado.ultimoError
+  usbEstado = await estadoUsb({ activo: config.usb, vid: config.usbVid, pid: config.usbPid })
+  // El último error del USB se conserva mientras siga sin estar disponible,
+  // para poder contarlo en /health.
+  if (anterior && !usbEstado.disponible) usbEstado.ultimoError = anterior
+  return usbEstado
+}
+const usbParaEnviar = () => (config.usb ? {
+  disponible: usbEstado.disponible,
+  enviar: async (bytes) => {
+    try {
+      const enviado = await enviarUsbDirecto(bytes, { vid: config.usbVid, pid: config.usbPid, timeoutMs: 8000 })
+      delete usbEstado.ultimoError
+      return enviado
+    } catch (error) { usbEstado.ultimoError = error?.message || String(error); throw error }
+  },
+} : null)
 const enviarConConfig = async (destino, bytes) => {
-  const transporte = await enviar(destino, bytes, { lanCups: config.lanCups, alias: config.alias })
+  // El USB directo solo se intenta para la impresora configurada del agente;
+  // un trabajo a otra impresora explícita respeta su transporte.
+  const transporte = await enviar(destino, bytes, { lanCups: config.lanCups, alias: config.alias, usb: usbAplicaA(destino, config.impresora) ? usbParaEnviar() : null })
   ultimoTransporte = transporte
   return transporte
 }
@@ -197,6 +224,7 @@ const servidor = createServer(async (request, response) => {
       if (!tokenValido(request)) return responder(response, { ok: true, version: VERSION })
       const usb = await impresorasUsb()
       const cups = await colaLanDeCups(config.lanCups || 'MobOS_LAN', config.impresora)
+      const estadoUsbActual = await refrescarUsb()
       return responder(response, {
         ok: true,
         version: VERSION,
@@ -205,6 +233,15 @@ const servidor = createServer(async (request, response) => {
         ancho: config.ancho,
         copias: config.copias,
         impresoras: { lan: config.lan, usb },
+        usb: {
+          activo: estadoUsbActual.activo,
+          disponible: estadoUsbActual.disponible,
+          vid: estadoUsbActual.vid,
+          pid: estadoUsbActual.pid,
+          transporte: estadoUsbActual.disponible ? 'usb' : (cups ? 'cups' : 'directo'),
+          ...(estadoUsbActual.motivo ? { motivo: estadoUsbActual.motivo } : {}),
+          ...(estadoUsbActual.ultimoError ? { ultimoError: estadoUsbActual.ultimoError } : {}),
+        },
         impresoraOk: await impresoraResponde(),
         red: {
           tcp: await impresoraResponde(),
@@ -231,7 +268,16 @@ const servidor = createServer(async (request, response) => {
     if (request.method === 'GET' && url.pathname === '/diagnostico') {
       if (!tokenValido(request)) return responder(response, { ok: false, error: 'Token inválido.' }, 401)
       const destino = url.searchParams.get('destino') || config.impresora
-      return responder(response, { ok: true, ...(await diagnosticoRed(destino, { alias: config.alias, cups: config.lanCups || 'MobOS_LAN' })) })
+      const estadoUsbActual = await refrescarUsb()
+      const usb = {
+        activo: estadoUsbActual.activo,
+        disponible: estadoUsbActual.disponible,
+        vid: estadoUsbActual.vid,
+        pid: estadoUsbActual.pid,
+        transporte: estadoUsbActual.disponible ? 'usb' : 'ninguno',
+        motivo: estadoUsbActual.motivo || '',
+      }
+      return responder(response, { ok: true, ...(await diagnosticoRed(destino, { alias: config.alias, cups: config.lanCups || 'MobOS_LAN' })), usb })
     }
 
     if (request.method === 'GET' && url.pathname === '/historial') {
@@ -355,9 +401,18 @@ const servidor = createServer(async (request, response) => {
 
 ejecutarAutotest().then((resultado) => console.log(`[autotest] ${resultado.ok ? 'TCP OK' : `falla: ${resultado.error || 'sin detalle'}`}${resultado.cups ? ` · CUPS ${resultado.cups}` : ' · sin CUPS'}`)).catch((error) => console.error(`[autotest] no fatal: ${error?.message || error}`))
 
+// USB directo: si está encendido, se informa al arrancar por qué camino sale.
+refrescarUsb().then((estado) => {
+  if (!estado.activo) return
+  if (estado.disponible) console.log(`[usb] impresora USB detectada (VID ${estado.vid || '?'} PID ${estado.pid || '?'}): USB directo activo.`)
+  else console.log(`[usb] USB directo pedido pero no disponible: ${estado.motivo}`)
+}).catch((error) => console.error(`[usb] no fatal: ${error?.message || error}`))
+
 // Cada 90 segundos: si la IP secundaria se perdió (reinicio o cambio de red),
-// se intenta recrearla en silencio (necesita el permiso del instalador).
+// se intenta recrearla en silencio (necesita el permiso del instalador) y se
+// refresca la disponibilidad del USB directo.
 setInterval(async () => {
+  refrescarUsb().catch(() => {})
   const alias = await aliasSecundario(config.alias)
   if (!alias.presente) {
     const reparada = await repararRed()

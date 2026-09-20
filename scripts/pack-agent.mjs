@@ -22,6 +22,7 @@ export const ARCHIVOS_AGENTE = [
   'cola.mjs',
   'config.mjs',
   'remoto.mjs',
+  'usb.mjs',
   'pair.mjs',
   'package.json',
 ]

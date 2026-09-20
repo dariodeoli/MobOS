@@ -1,7 +1,7 @@
 import { prisma } from '../../../lib/prisma'
 import { requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
-import { PricingError, resolveUnitPrice, type PriceListItemInput } from '../../../lib/pricing'
+import { PricingError, resolveUnitPrice, unitPricePygFallback, type PriceListItemInput } from '../../../lib/pricing'
 
 // Precio efectivo autoritativo de un producto para un cliente y una cantidad.
 // La UI del POS lo consulta al agregar, al cambiar de cliente y al cambiar la
@@ -19,17 +19,17 @@ export async function GET(request: Request) {
 
   const customerId = (params.get('customerId') || '').trim().slice(0, 128)
   let customer: { id: string; pricingTier: string } | null = null
-  let lista: { id: string; name: string; currency: string; items: PriceListItemInput[] } | null = null
+  let lista: { id: string; name: string; items: PriceListItemInput[] } | null = null
   if (customerId) {
     const found = await prisma.customer.findFirst({ where: { id: customerId, tenantId }, select: { id: true, pricingTier: true, priceListId: true } })
     if (!found) return error('Cliente no encontrado.', 404)
     customer = { id: found.id, pricingTier: found.pricingTier }
     if (found.priceListId) {
       const priceList = await prisma.priceList.findFirst({ where: { id: found.priceListId, tenantId, isActive: true }, include: priceListInclude })
-      if (priceList) lista = { id: priceList.id, name: priceList.name, currency: priceList.currency, items: priceList.items }
+      if (priceList) lista = { id: priceList.id, name: priceList.name, items: priceList.items }
     }
   }
-  const priceList = lista ? { id: lista.id, name: lista.name, currency: lista.currency } : null
+  const priceList = lista ? { id: lista.id, name: lista.name } : null
 
   const single = (params.get('productId') || '').trim()
   const ids = single
@@ -41,7 +41,12 @@ export async function GET(request: Request) {
   const byId = new Map(products.map(product => [product.id, product]))
 
   try {
-    const resolver = (product: (typeof products)[number]) => resolveUnitPrice({ product, quantity, customer, priceList: lista ? { currency: lista.currency, items: lista.items } : null })
+    // El fallback USD→retail viaja en la misma respuesta para que la UI no
+    // reimplemente la regla y coincida con el POST de pedidos (issue #79).
+    const resolver = (product: (typeof products)[number]) => {
+      const resolucion = resolveUnitPrice({ product, quantity, customer, priceList: lista ? { items: lista.items } : null })
+      return { ...resolucion, unitPricePygFallback: unitPricePygFallback(resolucion, product.pricePyg) }
+    }
     if (single) {
       const product = byId.get(single)
       if (!product) return error('Producto no encontrado.', 404)

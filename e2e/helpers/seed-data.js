@@ -16,6 +16,9 @@ export const SEED = {
   ],
   branchId: 'e2e-branch-1',
   branchName: 'Sucursal E2E',
+  // Segunda sucursal del arnés: multi-puente por sucursal (#95).
+  branch2Id: 'e2e-branch-2',
+  branch2Name: 'Sucursal E2E Dos',
   products: {
     cable: { sku: 'E2E-CABLE', name: 'Cable USB-C E2E', category: 'Accesorios', pricePyg: 45000, stock: 25, costPyg: 20000 },
     funda: { sku: 'E2E-FUNDA', name: 'Funda E2E Silicone', category: 'Accesorios', pricePyg: 80000, stock: 15, costPyg: 35000 },

@@ -1,7 +1,7 @@
 {
   "name": "mobos-print-agent",
   "private": true,
-  "version": "1.6.3",
+  "version": "1.7.0",
   "type": "module",
   "description": "Agente local de impresi\u00f3n t\u00e9rmica ESC/POS para MobOS (LAN y USB).",
   "scripts": {

@@ -6,7 +6,8 @@ import { api } from './client'
 // (configuración y cola se refrescan a mano).
 export const printingApi = {
   puentes: () => api.get('/api/print/bridges', { cacheMs: 0 }),
-  crearPuente: (name) => api.post('/api/print/bridges', { name }),
+  crearPuente: (name, branchId = null) => api.post('/api/print/bridges', { name, ...(branchId ? { branchId } : {}) }),
+  actualizarPuente: (id, datos) => api.patch(`/api/print/bridges/${encodeURIComponent(id)}`, datos),
   regenerarCodigo: (id) => api.post(`/api/print/bridges/${encodeURIComponent(id)}/pairing`),
   revocarPuente: (id) => api.delete(`/api/print/bridges/${encodeURIComponent(id)}`),
   impresoras: () => api.get('/api/print/printers', { cacheMs: 0 }),
@@ -24,4 +25,15 @@ export const printingApi = {
     return api.get(`/api/print/jobs${query ? `?${query}` : ''}`, { cacheMs: 0 })
   },
   confirmar: (id, suffix) => api.post(`/api/print/jobs/${encodeURIComponent(id)}/confirm`, { suffix }),
+  // Métricas de impresión: rango, impresora y la marca de una corrida de
+  // comparativa (prefijo de `reference`). Siempre frescas: alimentan gráficos.
+  metricas: ({ desde, hasta, printerId, reference } = {}) => {
+    const params = new URLSearchParams()
+    if (desde) params.set('desde', desde)
+    if (hasta) params.set('hasta', hasta)
+    if (printerId) params.set('printerId', printerId)
+    if (reference) params.set('reference', reference)
+    const query = params.toString()
+    return api.get(`/api/print/metrics${query ? `?${query}` : ''}`, { cacheMs: 0 })
+  },
 }

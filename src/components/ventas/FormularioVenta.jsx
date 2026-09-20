@@ -428,14 +428,16 @@ export default function FormularioVenta({
     setItems(arr => arr.map(it => {
       if (it.key !== key || it.precioManual || it.couponCode || it.combo) return it
       const esUsd = info.currency === 'USD'
+      // El fallback USD→retail lo decide el servidor (#79); la UI solo lo usa.
+      const precioPyg = Number(info.unitPricePygFallback ?? info.unitPricePyg) || 0
       return {
         ...it,
-        precio: esUsd ? Number(it.precio) || 0 : Number(info.unitPricePyg) || 0,
+        precio: precioPyg,
         precioOrigen: info.origin,
         precioLista: info.priceList?.name || null,
         precioMinQty: info.minQty ?? null,
         precioUsd: esUsd ? Number(info.unitPriceUsd) : null,
-        precioListaValor: esUsd ? null : Number(info.unitPricePyg) || 0,
+        precioListaValor: esUsd ? null : precioPyg,
       }
     }))
   }
@@ -459,7 +461,7 @@ export default function FormularioVenta({
     const producto = productos.find(p => p.id === id)
     if (!producto) return undefined
     const info = preciosCache.current.get(`${customer?.id || ''}:${id}:${quantity}`)
-    if (info && info.currency !== 'USD') return Number(info.unitPricePyg) || 0
+    if (info) return Number(info.unitPricePygFallback ?? info.unitPricePyg) || 0
     if (customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) return Number(producto.wholesalePricePyg)
     return Number(producto.precioVenta) || 0
   }

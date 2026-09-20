@@ -2,7 +2,8 @@ import { prisma } from '../../../../lib/prisma'
 import { requireSession } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
-import { parsePriceListItems, PriceListInputError } from '../../../../lib/price-lists'
+import { PricingError } from '../../../../lib/pricing'
+import { parsePriceListItems, PriceListInputError, validarReemplazoExplicito } from '../../../../lib/price-lists'
 
 type RouteContext = { params: { id: string } }
 
@@ -17,9 +18,12 @@ async function listaDelTenant(tenantId: string, id: string) {
   return prisma.priceList.findFirst({ where: { id, tenantId }, select: { id: true } })
 }
 
+// El detalle de una lista (categorías y precios) es información comercial
+// sensible: solo ADMIN/GERENTE. El vendedor resuelve precios por /api/pricing.
 export async function GET(request: Request, { params }: RouteContext) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
+  if (!ROLES_GESTION.includes(session.user.role)) return error('Solo administración o gerencia ven el detalle de las listas de precios.', 403)
   const id = (params.id || '').trim().slice(0, 128)
   if (!id) return error('Lista obligatoria.')
   const lista = await prisma.priceList.findFirst({ where: { id, tenantId: session.user.tenantId }, include: priceListInclude })
@@ -37,14 +41,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     const body = objectInput(await request.json())
     const data: Record<string, unknown> = {}
     if (body.name !== undefined) data.name = textInput(body.name, 'Nombre', 120)
-    if (body.currency !== undefined) {
-      if (body.currency !== 'PYG' && body.currency !== 'USD') throw new InputError('La moneda debe ser PYG o USD.')
-      data.currency = body.currency
-    }
     if (body.isActive !== undefined) {
       if (typeof body.isActive !== 'boolean') throw new InputError('isActive debe ser verdadero o falso.')
       data.isActive = body.isActive
     }
+    // Los ítems se reemplazan por completo: el reemplazo debe ser explícito
+    // (`replaceItems: true`), nunca implícito (issue #78).
+    validarReemplazoExplicito(body)
     const items = parsePriceListItems(body.items)
     if (items !== undefined) {
       const ids = items.filter(item => item.scope === 'PRODUCT').map(item => item.productId as string)
@@ -54,12 +57,18 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       // se crean los nuevos (no hay merge por categoría).
       data.items = { deleteMany: {}, create: items.map(item => ({ ...item, tiers: { create: item.tiers } })) }
     }
-    if (!Object.keys(data).length) throw new InputError('No enviaste cambios.')
+    if (!Object.keys(data).length) {
+      // `items: null` (o un cuerpo sin cambios) significa "no tocar los ítems":
+      // se devuelve la lista tal como está en vez de un 400 confuso (#78).
+      const actual = await prisma.priceList.findFirst({ where: { id, tenantId: session.user.tenantId }, include: priceListInclude })
+      if (!actual) return error('Lista no encontrada.', 404)
+      return json(actual)
+    }
     const updated = await prisma.priceList.update({ where: { id }, data, include: priceListInclude })
     await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'PRICE_LIST_UPDATED', entity: 'PriceList', entityId: updated.id, metadata: { fields: Object.keys(data), items: items?.length } } })
     return json(updated)
   } catch (cause) {
-    if (cause instanceof PriceListInputError || cause instanceof InputError) return error(cause.message, 400)
+    if (cause instanceof PriceListInputError || cause instanceof PricingError || cause instanceof InputError) return error(cause.message, 400)
     return error('No se pudo actualizar la lista (¿ya existe otra con ese nombre?).', 409)
   }
 }

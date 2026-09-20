@@ -24,7 +24,7 @@ fi
 NODE="$(command -v node)"
 echo "Instalando el agente en: $DESTINO"
 mkdir -p "$DESTINO" "$HOME/Library/LaunchAgents" "$CONFIG_DIR"
-cp "$ORIGEN/server.mjs" "$ORIGEN/transportes.mjs" "$ORIGEN/cola.mjs" "$ORIGEN/config.mjs" "$ORIGEN/package.json" "$ORIGEN/red-mac.sh" "$DESTINO/"
+cp "$ORIGEN/server.mjs" "$ORIGEN/transportes.mjs" "$ORIGEN/cola.mjs" "$ORIGEN/config.mjs" "$ORIGEN/usb.mjs" "$ORIGEN/package.json" "$ORIGEN/red-mac.sh" "$DESTINO/"
 
 # Impresora conocida: LAN de la ZKP8008 con ancho 80 mm.
 if [[ ! -f "$CONFIG" || -n "$TOKEN" ]]; then

@@ -34,6 +34,13 @@ export function cargarConfig() {
     // secundaria del puente (red de la impresora).
     lanCups: String(guardado.lanCups || 'MobOS_LAN'),
     alias: String(guardado.alias || '192.168.1.100'),
+    // USB directo (#96): apagado por defecto. Se enciende con `"usb": true` en
+    // config.json, `--usb` al arrancar o MOBOS_PRINT_USB=1. usbVid/usbPid
+    // identifican la impresora (hex o decimal); sin ellos se detecta la
+    // primera con interfaz de clase printer.
+    usb: guardado.usb === true || process.env.MOBOS_PRINT_USB === '1',
+    usbVid: guardado.usbVid ?? process.env.MOBOS_PRINT_USB_VID ?? null,
+    usbPid: guardado.usbPid ?? process.env.MOBOS_PRINT_USB_PID ?? null,
     // Vínculo remoto (pair.mjs escribe apiUrl + bridgeToken). Sin ambos el
     // poller no se arranca y todo sigue por el camino local.
     apiUrl: String(guardado.apiUrl || process.env.MOBOS_PRINT_API_URL || '').replace(/\/+$/, ''),

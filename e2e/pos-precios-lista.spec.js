@@ -33,7 +33,6 @@ test('POS: un cliente con lista ve el precio de lista y su escalón por cantidad
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: nombreLista,
-            currency: 'PYG',
             items: [
               {
                 scope: 'PRODUCT',

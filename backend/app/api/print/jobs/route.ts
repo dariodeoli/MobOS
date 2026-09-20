@@ -3,7 +3,7 @@ import { requireSession } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { prisma } from '../../../../lib/prisma'
 import { InputError } from '../../../../lib/payment-input'
-import { remoteEnabledDeTenant } from '../../../../lib/print-bridge'
+import { remoteEnabledDeTenant, resolverPuenteDeImpresion } from '../../../../lib/print-bridge'
 import {
   ESTADOS_ABIERTOS,
   ESTADOS_RESULTADO,
@@ -60,13 +60,30 @@ export async function POST(request: Request) {
     }
 
     let bridgeId: string | null = null
+    let bridgeName = textoOpcional(tomar('bridgeName', 'puente'), 80)
+    let bridgeOrigen = 'SIN_PUENTE'
     let printerName = ''
     if (printerId) {
       const impresora = await prisma.printPrinter.findFirst({ where: { id: printerId, tenantId }, select: { id: true, bridgeId: true, name: true } })
       if (!impresora) throw new InputError('La impresora elegida no existe en la empresa.', 404)
-      bridgeId = impresora.bridgeId
       printerName = impresora.name
     }
+    // Sucursal del trabajo (#95): la del body (pedido/vendedor), la de la
+    // impresora o la del usuario que encola. El puente se resuelve por esa
+    // sucursal con fallback al predeterminado de la empresa.
+    const branchIdPedida = textoOpcional(tomar('branchId', 'sucursalId'), 200) || null
+    if (branchIdPedida) {
+      const sucursal = await prisma.branch.findFirst({ where: { id: branchIdPedida, tenantId }, select: { id: true } })
+      if (!sucursal) throw new InputError('La sucursal elegida no existe en la empresa.', 404)
+    }
+    const resolucion = await resolverPuenteDeImpresion(prisma, tenantId, {
+      printerId,
+      branchId: branchIdPedida,
+      userBranchId: session.user.branchId,
+    })
+    bridgeId = resolucion.bridgeId
+    bridgeOrigen = resolucion.origen
+    if (!bridgeName) bridgeName = resolucion.bridgeName || ''
 
     // Idempotencia: repetir la clave (o el trabajo local espejado) devuelve el
     // existente sin crear otro ni descontar cupo.
@@ -90,10 +107,14 @@ export async function POST(request: Request) {
           tenantId,
           bridgeId,
           printerId,
+          printerName: printerName || null,
           destination,
           kind,
           state,
           path: camino,
+          // Reloj de la app (no el default de la base): las etapas de la
+          // telemetría se comparan entre sí y no pueden mezclar relojes.
+          enqueuedAt: new Date(),
           payload,
           payloadBytes: payload ? Buffer.from(payload, 'base64').length : 0,
           validation: textoOpcional(tomar('validation', 'validacion'), 12),
@@ -102,7 +123,7 @@ export async function POST(request: Request) {
           requestedByUserId: session.user.id,
           requestedByName: textoOpcional(tomar('requestedByName', 'usuario'), 80) || session.user.name.slice(0, 80),
           deviceName: textoOpcional(tomar('deviceName', 'equipo'), 80),
-          bridgeName: textoOpcional(tomar('bridgeName', 'puente'), 80),
+          bridgeName: bridgeName.slice(0, 80),
           tokenHint: textoOpcional(tomar('tokenHint', 'tokenPista'), 40),
           mode: textoOpcional(tomar('mode', 'modo'), 40),
           width: entero(tomar('width', 'ancho'), 'Ancho', 0, 120, 80),
@@ -118,7 +139,16 @@ export async function POST(request: Request) {
           action: 'PRINT_JOB_ENQUEUED',
           entity: 'PrintJob',
           entityId: job.id,
-          metadata: { jobId: job.id, path: camino, kind, ...(printerId ? { printerId, ...(printerName ? { printerName } : {}) } : {}), bytes: job.payloadBytes },
+          metadata: {
+            jobId: job.id,
+            path: camino,
+            kind,
+            ...(printerId ? { printerId, ...(printerName ? { printerName } : {}) } : {}),
+            ...(bridgeId ? { bridgeId } : {}),
+            bridgeOrigin: bridgeOrigen,
+            ...(branchIdPedida ? { branchId: branchIdPedida } : {}),
+            bytes: job.payloadBytes,
+          },
         },
       })
       return job

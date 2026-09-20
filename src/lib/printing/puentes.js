@@ -16,10 +16,12 @@ export const normalizarStore = (store) => {
   return { ...store, bridges: [puente] }
 }
 
-// Puente de una impresora: el suyo si existe, si no el predeterminado.
+// Puente de una impresora: el suyo si existe, si no el de su sucursal, si no
+// el predeterminado de la empresa (#95).
 export const puenteDe = (store, impresora = null) => {
   const lista = Array.isArray(store?.bridges) ? store.bridges : []
   const elegido = lista.find((puente) => puente.id && puente.id === impresora?.bridgeId)
+    || lista.find((puente) => puente.branchId && puente.branchId === impresora?.branchId)
     || lista.find((puente) => puente.predeterminado)
     || lista[0]
   return elegido || { id: '', nombre: 'Computadora puente', url: store?.agentUrl || URL_AGENTE_DEFECTO, token: store?.agentToken || '' }

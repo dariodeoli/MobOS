@@ -1,6 +1,7 @@
 // Listas de precios por cliente: normalización de los ítems que llegan por la
 // API. Centralizarla evita que POST y PATCH acepten combinaciones distintas
 // (producto vs categoría, precio fijo vs descuento, escalones inválidos).
+import { normalizarCategoria } from './pricing'
 
 const INT_MAX = 2147483647
 
@@ -45,13 +46,26 @@ function porcentaje(value: unknown): number | null {
 }
 
 /**
- * Valida los ítems de una lista. `undefined` significa "no tocar los ítems";
- * un arreglo (posiblemente vacío) reemplaza el conjunto completo. Cada ítem
- * define exactamente un origen de precio y los escalones solo tienen sentido en
- * guaraníes.
+ * El PATCH de una lista reemplaza los ítems completos (`deleteMany` + `create`),
+ * nunca los mezcla con los existentes. Para que el reemplazo sea explícito y
+ * nadie lo use esperando un merge, el cuerpo debe traer `replaceItems: true`
+ * cuando manda `items`. `undefined`/`null` siguen significando "sin cambios".
  */
-import { normalizarCategoria } from './pricing'
+export function validarReemplazoExplicito(input: unknown): void {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new PriceListInputError('El cuerpo debe ser un objeto.')
+  const items = (input as Record<string, unknown>).items
+  if (items === undefined || items === null) return
+  if ((input as Record<string, unknown>).replaceItems !== true) {
+    throw new PriceListInputError('Los ítems de la lista se reemplazan por completo (no se mezclan): enviá replaceItems: true para confirmarlo.')
+  }
+}
 
+/**
+ * Valida los ítems de una lista. `undefined` o `null` significan "no tocar los
+ * ítems"; un arreglo (posiblemente vacío) reemplaza el conjunto completo. Cada
+ * ítem define exactamente un origen de precio y los escalones solo tienen
+ * sentido en guaraníes.
+ */
 export function parsePriceListItems(input: unknown): NormalizedPriceItem[] | undefined {
   if (input === undefined || input === null) return undefined
   if (!Array.isArray(input)) throw new PriceListInputError('Los ítems deben enviarse como una lista.')

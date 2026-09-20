@@ -519,6 +519,15 @@ MOBOS_SECURITY_PAYMENT_ID="$PAYMENT_PROOF_ID" node "$BACKEND_ROOT/tests/security
 node "$BACKEND_ROOT/tests/authorization-limits.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN"
 node "$BACKEND_ROOT/tests/price-lists.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 
+echo "Campañas de recompra: segmentos, permisos, consentimiento y marca de contacto..."
+node "$BACKEND_ROOT/tests/customer-segments.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+
+echo "Índices pg_trgm: aplicados y medición antes/después..."
+node "$BACKEND_ROOT/tests/pg-trgm.mjs" "$DATABASE_URL" "$PG_BIN"
+
+echo "Auditoría: búsqueda en metadatos (IMEI, jobId) y filtros de actor/fecha..."
+node "$BACKEND_ROOT/tests/audit-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
+
 echo "Reportes por producto, categoría, vendedor y día..."
 REPORTS_TO="$(node -e 'process.stdout.write(new Date().toISOString().slice(0,10))')"
 REPORTS_FROM="$(node -e 'process.stdout.write(new Date(Date.now() - 29 * 86400000).toISOString().slice(0,10))')"

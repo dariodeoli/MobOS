@@ -243,6 +243,8 @@ model Branch {
 
   @@unique([tenantId, name])
   @@index([tenantId])
+  printBridges   PrintBridge[]  @relation("PrintBridgeBranch")
+  printPrinters  PrintPrinter[] @relation("PrintPrinterBranch")
 }
 
 model User {
@@ -452,6 +454,8 @@ model Product {
   @@unique([tenantId, branchId, sku])
   @@index([tenantId, branchId])
   @@index([tenantId, imei])
+  // Búsqueda difusa por nombre (pg_trgm, GIN): ILIKE '%texto%' sin escanear.
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "Product_name_trgm_idx", type: Gin)
 }
 
 enum InventoryUnitStatus {
@@ -715,6 +719,9 @@ model Customer {
   acceptsWhatsappMarketing  Boolean  @default(false)
   taxExempt                 Boolean  @default(false)
   tags                      String[] @default([])
+  // Último contacto de una campaña de marketing (recompra, saldo, etc.):
+  // evita mandarle el mismo mensaje dos veces a la misma persona.
+  marketingContactedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -738,6 +745,8 @@ model Customer {
   @@index([tenantId, phone])
   @@index([tenantId, externalId])
   @@index([priceListId])
+  // Búsqueda difusa por nombre (pg_trgm, GIN): ILIKE '%texto%' sin escanear.
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "Customer_name_trgm_idx", type: Gin)
 }
 
 // Solicitud de autorización comercial (mayorista, crédito, plazo o descuento).
@@ -1053,6 +1062,8 @@ model Order {
   @@index([tenantId, status])
   @@index([tenantId, archivedAt])
   @@index([branchId])
+  // Búsqueda difusa por número de pedido (pg_trgm, GIN): ILIKE '%texto%'.
+  @@index([orderNumber(ops: raw("gin_trgm_ops"))], map: "Order_orderNumber_trgm_idx", type: Gin)
 }
 
 // Acceso público del pedido por nivel de información. Cada token es aleatorio,
@@ -1237,6 +1248,8 @@ model OrderItemSerial {
 
   @@unique([orderItemId, serial])
   @@index([serial])
+  // Búsqueda difusa por serial/IMEI (pg_trgm, GIN): ILIKE '%texto%'.
+  @@index([serial(ops: raw("gin_trgm_ops"))], map: "OrderItemSerial_serial_trgm_idx", type: Gin)
 }
 
 // Plantilla por categoría: por ejemplo Teléfonos = seguro 2%. Un producto
@@ -2173,6 +2186,9 @@ model PrintBridge {
   pairingAttempts  Int       @default(0)
   createdByUserId  String?
   createdBy        User?     @relation("PrintBridgeCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  // Sucursal que sirve este puente (null = puente de empresa, fallback).
+  branchId         String?
+  branch           Branch?   @relation("PrintBridgeBranch", fields: [branchId], references: [id], onDelete: SetNull)
   version          String?
   platform         String?
   lastSeenAt       DateTime?
@@ -2193,6 +2209,9 @@ model PrintPrinter {
   id          String       @id @default(cuid())
   tenantId    String
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Sucursal que sirve esta impresora (null = empresa, fallback).
+  branchId    String?
+  branch      Branch?  @relation("PrintPrinterBranch", fields: [branchId], references: [id], onDelete: SetNull)
   bridgeId    String?
   bridge      PrintBridge? @relation(fields: [bridgeId], references: [id], onDelete: SetNull)
   name        String
@@ -2245,6 +2264,12 @@ model PrintJob {
   tokenHint         String        @default("")
   mode              String        @default("")
   width             Int           @default(80)
+  // Telemetría del trabajo: tiempos reales hasta imprimir (issue de comparativa).
+  printerName       String?
+  enqueuedAt        DateTime      @default(now())
+  queueMs           Int?
+  durationMs        Int?
+  transport         String?
   copies            Int           @default(1)
   attempts          Int           @default(0)
   leaseId           String?
@@ -2263,6 +2288,7 @@ model PrintJob {
   @@index([tenantId, state, createdAt])
   @@index([bridgeId, state])
   @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, enqueuedAt(sort: Desc)])
 }
 
 enum PrintJobState {

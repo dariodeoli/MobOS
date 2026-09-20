@@ -3,6 +3,7 @@
 // punta con un puente falso (claim + result), sin impresora real.
 
 import { test, expect } from '@playwright/test'
+import { execFileSync } from 'node:child_process'
 import { SEED } from './helpers/seed-data.js'
 import { crearPuenteFalso, parearPuente } from './helpers/fake-bridge.mjs'
 
@@ -14,6 +15,29 @@ const NOMBRE_REMOTO = 'Térmica puente E2E'
 const DESTINO_REMOTO = 'lan:10.99.99.20:9100'
 const NOMBRE_REVOCADO = 'Térmica puente revocado E2E'
 const DESTINO_REVOCADO = 'lan:10.99.99.21:9100'
+const NOMBRE_COMPARATIVA_A = 'Térmica E2E comparativa A'
+const DESTINO_COMPARATIVA_A = 'lan:10.99.99.30:9100'
+const NOMBRE_COMPARATIVA_B = 'Térmica E2E comparativa B'
+const DESTINO_COMPARATIVA_B = 'lan:10.99.99.31:9100'
+const NOMBRE_SUCURSAL_A = 'Térmica E2E sucursal A'
+const DESTINO_SUCURSAL_A = 'lan:10.99.99.40:9100'
+const NOMBRE_SUCURSAL_B = 'Térmica E2E sucursal B'
+const DESTINO_SUCURSAL_B = 'lan:10.99.99.41:9100'
+
+// Venta sintética en la segunda sucursal: el arnés no tiene forma de vender
+// desde otra sucursal (el pedido toma la del vendedor), así que la alerta de
+// "sucursal con ventas sin puente" se sembraría con una fila directa. Es
+// idempotente y solo toca la base temporal del e2e.
+function sembrarVentaSucursalDos() {
+  execFileSync('/opt/homebrew/bin/psql', [
+    '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
+    '-v', 'ON_ERROR_STOP=1', '-c',
+    `INSERT INTO "Order" ("id", "tenantId", "branchId", "sellerId", "orderNumber", "publicToken", "subtotalPyg", "totalPyg", "createdAt", "updatedAt")
+     SELECT 'e2e-order-branch2-95', t."id", '${SEED.branch2Id}', (SELECT u."id" FROM "User" u WHERE u."tenantId" = t."id" AND u."role" = 'ADMIN' LIMIT 1), 'E2E-BRANCH2-95', md5(random()::text || clock_timestamp()::text), 1000, 1000, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+     FROM "Tenant" t WHERE t."email" = '${SEED.company.email}'
+     ON CONFLICT DO NOTHING;`,
+  ], { stdio: 'ignore' })
+}
 
 async function apiImpresion(page, ruta, opciones = {}) {
   return page.evaluate(
@@ -57,6 +81,33 @@ async function asegurarImpresora(page) {
   return creada.datos
 }
 
+// Impresora suelta (sin puente), idempotente entre corridas: es la que usa la
+// comparativa para demostrar que sin puente falta un paso.
+async function asegurarImpresoraSuelta(page, { nombre, destino }) {
+  const lista = await apiImpresion(page, '/api/print/printers')
+  const existente = (lista.datos?.printers || []).find((impresora) => impresora.destination === destino)
+  if (existente) return existente
+  const creada = await apiImpresion(page, '/api/print/printers', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: nombre,
+      brand: 'E2E',
+      model: 'Comparativa',
+      connection: 'lan',
+      destination: destino,
+      width: 80,
+      copies: 1,
+      cut: true,
+      density: 3,
+      characters: true,
+      isDefault: false,
+      isActive: true,
+    }),
+  })
+  if (creada.status !== 201) throw new Error(`no se pudo crear la impresora comparativa E2E: HTTP ${creada.status}`)
+  return creada.datos
+}
+
 function leerCache(page) {
   return page.evaluate(() => {
     const clave = Object.keys(localStorage).find((k) => k.startsWith('mobos:impresoras:v1:'))
@@ -86,15 +137,16 @@ async function crearPuentePorUi(page, nombre) {
 }
 
 // Impresora asignada a un puente (la crea o le actualiza el puente si ya
-// existía de una corrida anterior).
-async function asegurarImpresoraRemota(page, { nombre, destino, bridgeId }) {
+// existía de una corrida anterior). `branchId` permite probar la resolución
+// por sucursal sin puente explícito.
+async function asegurarImpresoraRemota(page, { nombre, destino, bridgeId, branchId = null }) {
   const lista = await apiImpresion(page, '/api/print/printers')
   const existente = (lista.datos?.printers || []).find((impresora) => impresora.destination === destino)
   if (existente) {
-    if (existente.bridgeId === bridgeId) return existente
+    if (existente.bridgeId === bridgeId && (existente.branchId || null) === branchId) return existente
     const actualizada = await apiImpresion(page, `/api/print/printers/${existente.id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ bridgeId }),
+      body: JSON.stringify({ bridgeId, branchId }),
     })
     if (actualizada.status !== 200) throw new Error(`no se pudo asignar la impresora al puente: HTTP ${actualizada.status}`)
     return actualizada.datos
@@ -116,6 +168,7 @@ async function asegurarImpresoraRemota(page, { nombre, destino, bridgeId }) {
       isDefault: false,
       isActive: true,
       bridgeId,
+      branchId,
     }),
   })
   if (creada.status !== 201) throw new Error(`no se pudo crear la impresora remota E2E: HTTP ${creada.status}`)
@@ -222,6 +275,26 @@ test.describe('impresión remota: configuración', () => {
       const cache = await leerCache(page)
       return (cache?.store?.impresoras || []).some((impresora) => impresora.nombre === nombreNuevo)
     }, { timeout: 10_000 }).toBe(true)
+  })
+
+  test('la comparativa lista dos impresoras y avisa que falta vincular el puente', async ({ page }) => {
+    await page.goto('/configuracion/impresoras')
+    await asegurarImpresoraSuelta(page, { nombre: NOMBRE_COMPARATIVA_A, destino: DESTINO_COMPARATIVA_A })
+    await asegurarImpresoraSuelta(page, { nombre: NOMBRE_COMPARATIVA_B, destino: DESTINO_COMPARATIVA_B })
+    await page.reload()
+
+    const panel = page.getByTestId('comparativa-impresoras')
+    await expect(panel).toBeVisible({ timeout: 20_000 })
+    await expect(panel.getByText(NOMBRE_COMPARATIVA_A, { exact: false }).first()).toBeVisible()
+    await expect(panel.getByText(NOMBRE_COMPARATIVA_B, { exact: false }).first()).toBeVisible()
+
+    await panel.getByLabel(`Comparar ${NOMBRE_COMPARATIVA_A}`, { exact: true }).check()
+    await panel.getByLabel(`Comparar ${NOMBRE_COMPARATIVA_B}`, { exact: true }).check()
+
+    // Ninguna tiene puente: la comparativa explica el paso que falta y no deja
+    // disparar la prueba.
+    await expect(panel.getByText(/vincular la computadora puente/i)).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Enviar prueba a todas' })).toBeDisabled()
   })
 })
 
@@ -355,8 +428,100 @@ test.describe('impresión remota: cola con puente falso', () => {
     }
   })
 
-  test('con el agente local disponible la prueba no pasa por el backend', async ({ page }) => {
+  test('dos sucursales: cada trabajo sale por el puente de su sucursal', async ({ page }) => {
     await page.goto('/configuracion/impresoras')
+    sembrarVentaSucursalDos()
+    // Los E2E de impresión reusan la base: los puentes de esta prueba se
+    // revocan antes de crear los nuevos para no agotar el tope de 20.
+    const puentesViejos = await apiImpresion(page, '/api/print/bridges')
+    for (const puente of puentesViejos.datos?.bridges || []) {
+      if (/^Puente sucursal (A|B) E2E/.test(String(puente.name || ''))) await apiImpresion(page, `/api/print/bridges/${puente.id}`, { method: 'DELETE' })
+    }
+
+    const puenteA = await apiImpresion(page, '/api/print/bridges', {
+      method: 'POST',
+      body: JSON.stringify({ name: `Puente sucursal A E2E ${Date.now()}`, branchId: SEED.branchId }),
+    })
+    expect(puenteA.status).toBe(201)
+    const puenteB = await apiImpresion(page, '/api/print/bridges', {
+      method: 'POST',
+      body: JSON.stringify({ name: `Puente sucursal B E2E ${Date.now()}`, branchId: SEED.branch2Id }),
+    })
+    expect(puenteB.status).toBe(201)
+    expect(puenteA.datos.bridge.branchId).toBe(SEED.branchId)
+    expect(puenteB.datos.bridge.branchId).toBe(SEED.branch2Id)
+
+    const { token: tokenA } = await parearPuente({ api: API, code: puenteA.datos.pairingCode })
+    const { token: tokenB } = await parearPuente({ api: API, code: puenteB.datos.pairingCode })
+    const puenteFalsoA = crearPuenteFalso({ api: API, token: tokenA })
+    const puenteFalsoB = crearPuenteFalso({ api: API, token: tokenB })
+    puenteFalsoA.iniciar()
+    puenteFalsoB.iniciar()
+    let impresoraA = null
+    let impresoraB = null
+    try {
+      // Impresoras de cada sucursal SIN puente explícito: el backend resuelve
+      // el puente por la sucursal del trabajo.
+      impresoraA = await asegurarImpresoraRemota(page, { nombre: NOMBRE_SUCURSAL_A, destino: DESTINO_SUCURSAL_A, bridgeId: null, branchId: SEED.branchId })
+      impresoraB = await asegurarImpresoraRemota(page, { nombre: NOMBRE_SUCURSAL_B, destino: DESTINO_SUCURSAL_B, bridgeId: null, branchId: SEED.branch2Id })
+
+      const encoladoA = await apiImpresion(page, '/api/print/jobs', {
+        method: 'POST',
+        body: JSON.stringify({ destination: DESTINO_SUCURSAL_A, printerId: impresoraA.id, branchId: SEED.branchId, payload: 'TU9CT1M=', kind: 'prueba', validation: '7001' }),
+      })
+      const encoladoB = await apiImpresion(page, '/api/print/jobs', {
+        method: 'POST',
+        body: JSON.stringify({ destination: DESTINO_SUCURSAL_B, printerId: impresoraB.id, branchId: SEED.branch2Id, payload: 'TU9CT1M=', kind: 'prueba', validation: '7002' }),
+      })
+      expect(encoladoA.status).toBe(201)
+      expect(encoladoB.status).toBe(201)
+      expect(encoladoA.datos.job.bridgeId).toBe(puenteA.datos.bridge.id)
+      expect(encoladoB.datos.job.bridgeId).toBe(puenteB.datos.bridge.id)
+
+      const trabajoA = await puenteFalsoA.esperarTrabajo((item) => item.id === encoladoA.datos.job.id)
+      const trabajoB = await puenteFalsoB.esperarTrabajo((item) => item.id === encoladoB.datos.job.id)
+      expect(trabajoA.printerId).toBe(impresoraA.id)
+      expect(trabajoB.printerId).toBe(impresoraB.id)
+      expect(puenteFalsoA.trabajos().some((item) => item.id === encoladoB.datos.job.id)).toBe(false)
+      expect(puenteFalsoB.trabajos().some((item) => item.id === encoladoA.datos.job.id)).toBe(false)
+
+      // Panel: cobertura por sucursal con ambos puentes en línea.
+      for (const token of [tokenA, tokenB]) {
+        const latido = await fetch(`${API}/api/print/bridge/heartbeat`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+          body: JSON.stringify({ version: '1.6.0', platform: 'e2e' }),
+        })
+        expect(latido.ok).toBe(true)
+      }
+      await page.goto('/configuracion/impresoras')
+      const cobertura = page.getByTestId('cobertura-sucursales')
+      await expect(cobertura).toBeVisible({ timeout: 20_000 })
+      await expect(cobertura.getByText(SEED.branchName, { exact: true })).toBeVisible()
+      await expect(cobertura.getByText(SEED.branch2Name, { exact: true })).toBeVisible()
+      await expect(cobertura.getByText('Puente en línea').first()).toBeVisible()
+
+      // Alerta: la sucursal B tiene ventas y queda sin puente activo.
+      const bajaB = await apiImpresion(page, `/api/print/bridges/${puenteB.datos.bridge.id}`, { method: 'DELETE' })
+      expect(bajaB.status).toBe(200)
+      await page.goto('/configuracion/impresoras')
+      const alerta = page.getByTestId('alerta-sucursal-sin-puente')
+      await expect(alerta).toBeVisible({ timeout: 20_000 })
+      await expect(alerta).toContainText(SEED.branch2Name)
+    } finally {
+      puenteFalsoA.detener()
+      puenteFalsoB.detener()
+      // Limpieza para las corridas siguientes (la base e2e se reutiliza): las
+      // impresoras de la prueba dejan de preferirse por sucursal y el puente A
+      // se revoca (el B ya se revocó en el caso de la alerta).
+      for (const impresora of [impresoraA, impresoraB]) {
+        if (impresora) await apiImpresion(page, `/api/print/printers/${impresora.id}`, { method: 'PATCH', body: JSON.stringify({ branchId: null, bridgeId: null }) })
+      }
+      await apiImpresion(page, `/api/print/bridges/${puenteA.datos.bridge.id}`, { method: 'DELETE' })
+    }
+  })
+
+  test('con el agente local disponible la prueba no pasa por el backend', async ({ page }) => {    await page.goto('/configuracion/impresoras')
     await asegurarImpresora(page)
     await page.reload()
 

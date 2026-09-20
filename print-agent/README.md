@@ -89,6 +89,14 @@ En la app, Configuración → Impresoras:
 4. **Imprimir prueba**: sale texto, acentos, negrita, doble alto, QR y código de
    barras. Si todo eso sale bien, la impresora quedó lista.
 
+### USB directo (opcional, detrás de bandera)
+
+Con `"usb": true` (o `node server.mjs --usb`) el agente detecta la impresora por
+VID/PID y le escribe los bytes ESC/POS directamente, sin CUPS; si el USB no está
+disponible o falla, el trabajo sigue por CUPS/LAN solo. Requiere instalar la
+dependencia opcional `usb` (`npm install usb` en la carpeta del agente). Detalle,
+estado real y prueba con la ZKP8008: [`USB-DIRECTO.md`](USB-DIRECTO.md).
+
 ## Red
 
 La impresora del local está configurada en `192.168.1.23:9100` (máscara 255.255.255.0, gateway 192.168.1.1, DHCP desactivado, ESC/POS, cortador habilitado) y el instalador la deja cargada como destino.
@@ -161,7 +169,8 @@ arriba y cubre también usuarios fuera del local o con datos móviles.
 
 | Método | Ruta | Para qué |
 | --- | --- | --- |
-| GET | `/health` | Estado, impresoras detectadas, cola y bloque `remoto` (activo, backoff, pendientes de reporte). |
+| GET | `/health` | Estado, impresoras detectadas, cola, bloque `remoto` (activo, backoff, pendientes de reporte) y `usb` (disponible, VID/PID, transporte). |
+| GET | `/diagnostico` | Alcance de red, respaldo CUPS y motivo del USB directo (`usb.motivo`). |
 | POST | `/print` | `{impresora, ancho, copias, data}` con `data` en base64 ESC/POS. |
 | GET | `/jobs/:id` | Estado de un trabajo encolado. |
 | POST | `/config` | Cambia impresora, ancho y copias sin tocar el archivo. |
