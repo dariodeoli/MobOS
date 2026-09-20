@@ -1274,6 +1274,8 @@ model OrderItem {
   listPricePyg         Int?
   // Origen congelado del precio resuelto al vender (TIER, LIST, WHOLESALE, RETAIL, USD).
   priceSource          String?
+  // Lista del cliente que originó el precio congelado de esta línea.
+  priceListId          String?
   unitCostPyg          Int?
   baseUnitCostPyg      Int?
   insurancePyg         Int            @default(0)

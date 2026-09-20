@@ -5,6 +5,8 @@
 -- que `npm run db:check` los marcaba como diferencia. Aditiva, idempotente y
 -- re-ejecutable: solo elimina lo que ya no está en el schema.
 DROP INDEX IF EXISTS "Customer_tenantId_priceListId_idx";
-ALTER TABLE "OrderItem" DROP COLUMN IF EXISTS "priceListId";
+-- `OrderItem.priceListId` SÍ está en el modelo (congela la lista usada en la
+-- línea): se asegura en vez de borrarse.
+ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "priceListId" TEXT;
 ALTER TABLE "PriceListItem" DROP COLUMN IF EXISTS "adjustment";
 DROP TYPE IF EXISTS "PriceListAdjustment";
