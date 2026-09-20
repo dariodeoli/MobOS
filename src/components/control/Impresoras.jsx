@@ -1163,6 +1163,12 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
           <p className="text-mute">No hay ruta hacia {host}: la computadora puente pudo cambiar de Wi‑Fi/red, o la impresora cambió de IP. Conectá la Mac a la red de la impresora (o corregí la IP) y volvé a probar. No es un permiso de macOS.</p>
         </div>
       )}
+      {metodo === 'LAN' && !diagnostico.alcance && diagnostico.motivo === 'permiso_o_red' && aliasPresente && (
+        <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
+          <p className="font-semibold text-warn">El agente automático no pudo salir a la red local.</p>
+          <p className="text-mute">Falló con {diagnostico.errno || 'EHOSTUNREACH'} y la IP secundaria <b className="text-fore">{diagnostico.alias?.ip || estado?.alias?.ip || '192.168.1.100'}</b> está presente. Si desde Terminal <code className="rounded bg-ink-700 px-1">ping {host}</code> y <code className="rounded bg-ink-700 px-1">nc -vz {host} {puerto}</code> conectan, falta el <b className="text-fore">permiso de Red Local</b>: Ajustes → Privacidad y seguridad → Red local → habilitá <b className="text-fore">node</b> (reinstalar con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code> abre el panel). Si tampoco conectan, revisá que la impresora esté encendida y en la misma red. Después usá <b className="text-fore">Reparar conexión → Imprimir prueba</b>.</p>
+        </div>
+      )}
       {metodo === 'LAN' && !diagnostico.alcance && (!diagnostico.motivo || diagnostico.motivo === 'permisos_red_local') && aliasPresente && (
         <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
           <p className="font-semibold text-warn">El agente automático no puede salir a la red (permiso de macOS).</p>

@@ -29,6 +29,7 @@ export const TONO_ESTADO = Object.freeze({
 const MOTIVO_TEXTO = Object.freeze({
   red_cambiada: 'La impresora no está en esta red',
   permisos_red_local: 'macOS bloqueó la salida a la red local',
+  permiso_o_red: 'Puede faltar el permiso de Red Local de macOS',
   impresora_apagada: 'La impresora rechazó la conexión',
 })
 
