@@ -51,10 +51,12 @@ export function useSellerData(path, project, demoRead, esDemo, options = {}) {
   return { ...state, hayMas: page.hayMas, cargandoMas: page.loading, cargarMas, refresh: () => setRevision((value) => value + 1) }
 }
 
-// El título vive en el topbar (AppShell); la página solo aporta el apoyo.
-export function SellerSection({ description, children }) {
-  return <section className="space-y-5">
-    {description && <p className="text-sm text-mute">{description}</p>}
+
+export function SellerSection({ title, description, children }) {
+  // El título lo muestra el shell (topbar): acá queda solo accesible para
+  // lectores de pantalla y para los tests, sin repetirlo visualmente (#57).
+  return <section className="space-y-4">
+    <div><h1 className="sr-only">{title}</h1><p className="text-sm text-mute">{description}</p></div>
     {children}
   </section>
 }
