@@ -1,17 +1,23 @@
 -- Conteo de inventario auditable: documento, líneas escaneadas y aprobación.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'InventoryCountStatus') THEN
+    CREATE TYPE "InventoryCountStatus" AS ENUM ('DRAFT', 'APPLIED', 'CANCELLED');
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS "InventoryCount" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "branchId" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "status" "InventoryCountStatus" NOT NULL DEFAULT 'DRAFT',
     "note" TEXT,
     "createdById" TEXT NOT NULL,
     "appliedById" TEXT,
     "appliedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "InventoryCount_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "InventoryCount_status_check" CHECK ("status" IN ('DRAFT', 'APPLIED', 'CANCELLED'))
+    CONSTRAINT "InventoryCount_pkey" PRIMARY KEY ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "InventoryCountLine" (

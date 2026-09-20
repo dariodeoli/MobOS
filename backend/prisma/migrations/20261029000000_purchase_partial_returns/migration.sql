@@ -36,7 +36,6 @@ CREATE TABLE IF NOT EXISTS "PurchaseReturnLine" (
 CREATE INDEX IF NOT EXISTS "PurchaseReturn_tenantId_purchaseId_idx" ON "PurchaseReturn"("tenantId", "purchaseId");
 CREATE INDEX IF NOT EXISTS "PurchaseReturn_tenantId_supplierId_idx" ON "PurchaseReturn"("tenantId", "supplierId");
 CREATE INDEX IF NOT EXISTS "PurchaseReturnLine_returnId_idx" ON "PurchaseReturnLine"("returnId");
-CREATE INDEX IF NOT EXISTS "PurchaseReturnLine_purchaseLineId_idx" ON "PurchaseReturnLine"("purchaseLineId");
 CREATE INDEX IF NOT EXISTS "PurchaseReturnLine_productId_idx" ON "PurchaseReturnLine"("productId");
 
 DO $$
