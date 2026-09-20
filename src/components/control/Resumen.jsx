@@ -5,7 +5,9 @@ import { useUrlState } from '@/hooks/useUrlState'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { listVentas, getVendedores, productosById, getProductos, listGastos } from '@/lib/storage'
 import { api } from '@/lib/api/client'
-import { comisionDeVentas, cobradoDeVenta, num, gs } from '@/utils/calculos'
+import { useSesion } from '@/lib/sesion'
+import { num, gs } from '@/utils/calculos'
+import { armarResumenDia } from '@/utils/reporteResumen'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
 import RangoFechas, {
   rangoDeParams,
@@ -13,6 +15,10 @@ import RangoFechas, {
   rangoAnterior,
   etiquetaRango,
 } from '@/components/shared/RangoFechas'
+import ReportePreview from '@/components/shared/ReportePreview'
+import { buildResumenDiaHtml } from '@/components/shared/OrderReceipt'
+import { ticketResumenDia } from '@/lib/printing/reportes'
+import { imprimirDocumento } from '@/lib/printing/agent'
 import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
 import { Card, Badge, Dot, EmptyState, Button } from '@/components/ui'
@@ -69,11 +75,11 @@ function Metrica({ label, valor, delta, sub, tono = 'blue', accion }) {
   )
 }
 
-const enRango = (v, r) => v.fecha >= r.desde && v.fecha <= r.hasta
-const suma = (arr, f = x => num(x.precio)) => arr.reduce((a, x) => a + f(x), 0)
 const variacion = (hoy, antes) => (antes > 0 ? ((hoy - antes) / antes) * 100 : null)
 
 export default function Resumen() {
+  const { empresa } = useSesion()
+  const [resumenOpen, setResumenOpen] = useState(false)
   const [pendientesHoy, setPendientesHoy] = useState(null)
   useEffect(() => {
     if (isDemoRuntime) return
@@ -118,76 +124,12 @@ export default function Resumen() {
     [vendedores],
   )
 
-  const d = useMemo(() => {
-    const prev = rangoAnterior(rango)
-    const act = ventas.filter(v => enRango(v, rango))
-    const ant = ventas.filter(v => enRango(v, prev))
-    const gastosR = gastos.filter(g => enRango(g, rango))
-
-    const total = suma(act)
-    const totalAnt = suma(ant)
-    const comision = comisionDeVentas(act, prods)
-    const delivery = suma(act, x => num(x.montoDelivery))
-    const ticket = act.length ? total / act.length : 0
-    const ticketAnt = ant.length ? totalAnt / ant.length : 0
-    const cobrado = act.reduce((sum, v) => sum + cobradoDeVenta(v), 0)
-    const pendiente = Math.max(0, total - cobrado)
-
-    // Por vendedor
-    const porVend = {}
-    act.forEach(v => {
-      const k = v.vendedorId || 'sin'
-      porVend[k] ??= { n: 0, total: 0, com: 0 }
-      porVend[k].n++
-      porVend[k].total += num(v.precio)
-      porVend[k].com += num(v.comision ?? prods[v.productoId]?.comision)
-    })
-    const ranking = Object.entries(porVend)
-      .map(([k, x]) => ({ id: k, nombre: vendedoresById[k] || 'Sin vendedor', ...x }))
-      .sort((a, b) => b.total - a.total)
-
-    // Por medio de pago
-    const porMedio = {}
-    act.forEach(v => {
-      const k = v.medioPago || '—'
-      porMedio[k] = (porMedio[k] || 0) + num(v.precio)
-    })
-    const medios = Object.entries(porMedio)
-      .map(([medio, monto]) => ({ medio, monto, pct: total > 0 ? (monto / total) * 100 : 0 }))
-      .sort((a, b) => b.monto - a.monto)
-
-    // Serie diaria (para el mini-gráfico)
-    const porDia = {}
-    act.forEach(v => (porDia[v.fecha] = (porDia[v.fecha] || 0) + num(v.precio)))
-    const serie = Object.entries(porDia).sort(([a], [b]) => a.localeCompare(b))
-
-    const pagadas = act.filter(v => v.estadoPago === 'Pagado').length
-
-    // Costos pendientes: líneas vendidas sin costo cargado. Mientras existan,
-    // el margen real y las comisiones no son definitivos.
-    const lineasSinCosto = act.flatMap(v => Array.isArray(v.items) ? v.items : []).filter(it => it.costPending === true)
-    const montoSinCosto = lineasSinCosto.reduce((sum, it) => sum + num(it.totalPyg ?? num(it.unitPricePyg) * (it.quantity || 1)), 0)
-
-    return {
-      act,
-      sinCosto: { lineas: lineasSinCosto.length, monto: montoSinCosto },
-      total,
-      totalAnt,
-      comision,
-      delivery,
-      ticket,
-      ticketAnt,
-      cobrado,
-      pendiente,
-      ranking,
-      medios,
-      serie,
-      pagadas,
-      sinPagar: act.length - pagadas,
-      gastos: suma(gastosR, x => num(x.monto)),
-      prev,
-    }
-  }, [ventas, gastos, prods, rango, vendedoresById])
+  // Mismos números en pantalla y en el papel: el cálculo vive en
+  // `armarResumenDia` y el cierre imprimible lo reusa tal cual.
+  const d = useMemo(
+    () => armarResumenDia({ ventas, gastos, prods, vendedoresById, rango, prev: rangoAnterior(rango) }),
+    [ventas, gastos, prods, rango, vendedoresById],
+  )
 
   const maxSerie = Math.max(...d.serie.map(([, v]) => v), 1)
   const maxVend = Math.max(...d.ranking.map(r => r.total), 1)
@@ -248,6 +190,14 @@ export default function Resumen() {
           >
             <Icon name="receipt" className="h-4 w-4" />
             Cobrar pendientes
+          </Button>
+          <Button
+            variant="outline"
+            className="h-9 px-3 text-xs font-medium"
+            onClick={() => setResumenOpen(true)}
+          >
+            <Icon name="printer" className="h-4 w-4" />
+            Imprimir resumen
           </Button>
           <RangoFechas valor={rango} onChange={cambiarRango} />
         </div>
@@ -535,6 +485,13 @@ export default function Resumen() {
           onFiltroChange={setFiltroLista}
         />
       </div>
+      <ReportePreview
+        open={resumenOpen}
+        onClose={() => setResumenOpen(false)}
+        titulo="Resumen del día"
+        construir={(format) => buildResumenDiaHtml({ ...d, rango, etiqueta: etiquetaRango(rango), empresa: empresa?.nombre || '' }, { format })}
+        directo={({ ancho }) => imprimirDocumento(ticketResumenDia({ ...d, rango, etiqueta: etiquetaRango(rango), empresa: empresa?.nombre || '' }, { ancho }), { tipo: 'resumen-dia' })}
+      />
     </div>
   )
 }

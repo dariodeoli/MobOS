@@ -131,8 +131,53 @@ La prueba de corte por hardware todavía no está cerrada. Para hacerla:
 ## 6. Verificación antes de entregar
 
 - `npm test` (incluye `src/lib/printing/*.test.js` y `print-agent/test/*.mjs`).
-- `npm run test:e2e` con `e2e/impresion-remota.spec.js` (puente, cola y UI).
+- `npm run test:e2e` con `e2e/impresion-remota.spec.js` (puente, cola y UI) y
+  `e2e/etiquetas-gondola.spec.js` (etiquetas de góndola por el diálogo).
 - `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` si se tocó
   backend de impresión.
 - Si se tocó `print-agent/`: `npm run pack:agent` y commitear
   `backend/public/print-agent/` (`npm run pack:agent:check` es el gate).
+
+## 7. Etiquetas de producto/góndola (#97)
+
+- Se disparan desde **Productos** (selección múltiple → «Etiquetas», o la ficha
+  del producto → «Etiqueta de precio») y desde **Inventario** (botón
+  «Etiquetas de góndola», con búsqueda por nombre o SKU).
+- En el modal se eligen los productos y la **cantidad de etiquetas por
+  producto**. «Imprimir etiquetas» manda el ESC/POS
+  (`ticketEtiquetasProducto`) a la impresora configurada y, si no hay agente ni
+  impresora remota, cae al diálogo del navegador con el HTML
+  (`buildProductLabelsHtml`); «Descargar PDF» abre ese mismo HTML para guardarlo.
+- Formato: 58 y 80 mm según el ancho de la impresora predeterminada
+  (`configImpresora().ancho`). Cada etiqueta corta al final.
+- Contenido: nombre, precio, SKU y **código de barras sobre el SKU**. Si el SKU
+  es un EAN-13 válido (12 o 13 dígitos con verificador correcto) se usa
+  **EAN-13** nativo (`GS k 67`, la impresora calcula el verificador); si no,
+  **CODE128** (`GS k 73`) con módulo 2 y altura 80 puntos. El precio es
+  `pricePyg`; si quien llama pasa `precioPyg`/`lista` (lista del cliente o
+  escalón por cantidad), ese manda y la etiqueta aclara la lista.
+- **Verificación con el lector del local**: escaneá la etiqueta impresa; el
+  valor leído debe ser exactamente el SKU (o el EAN-13 con su verificador) y el
+  precio del papel debe coincidir con el de la venta. Si el lector no toma,
+  revisá el ancho configurado (módulo 1 sale ilegible) y que el papel no haya
+  salido corrido.
+
+## 8. Reportes imprimibles: cierre de caja y resumen (#98)
+
+- **Cierre de caja**: desde Caja, al cerrar la sesión se abre la vista previa
+  del cierre y queda el botón «Imprimir cierre» en la sesión cerrada. Incluye
+  apertura, cobros por medio de pago, movimientos de la sesión,
+  esperado/contado/diferencia y espacio de firma.
+- **Resumen del día**: desde Resumen, botón «Imprimir resumen» con el rango
+  activo. Incluye ventas, facturado, ticket promedio, productos más vendidos,
+  cobrado, pendiente, comisiones, gastos y medios de pago.
+- Formatos: A4, 80 mm y 58 mm (mismo selector y misma vista previa que los
+  comprobantes). La impresión directa usa `ticketCierreCaja` y
+  `ticketResumenDia` (ESC/POS); el HTML usa `buildCierreCajaHtml` y
+  `buildResumenDiaHtml`.
+- De dónde salen los números: `src/utils/reporteCaja.js` (`armarCierreCaja`) y
+  `src/utils/reporteResumen.js` (`armarResumenDia`) son las **mismas funciones**
+  que usan las pantallas; el papel no recalcula nada por su cuenta. Los
+  movimientos del cierre se filtran a la ventana de la sesión (apertura→cierre)
+  y los cobros por medio de pago salen de `GET /api/cash/audit?branchId=&date=`
+  (el día de la apertura; en demo, de los pagos locales).

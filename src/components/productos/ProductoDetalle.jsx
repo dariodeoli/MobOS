@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Drawer, Badge, Button, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
-import { printPriceLabel } from '@/components/shared/OrderReceipt'
-import { imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
-import { ticketEtiquetaPrecio } from '@/lib/printing/tickets'
 import Icon from '@/components/shared/Icon'
 import Cronologia from '@/components/shared/Cronologia'
+import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { api } from '@/lib/api/client'
 import { num } from '@/utils/calculos'
@@ -32,6 +30,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
   const [busy, setBusy] = useState(false)
   const [editando, setEditando] = useState(false)
   const [cronologiaAbierta, setCronologiaAbierta] = useState(false)
+  const [etiquetasOpen, setEtiquetasOpen] = useState(false)
   const [form, setForm] = useState(() => ({
     categoria: product?.category || 'Otros',
     condicion: product?.condition || 'NEW',
@@ -107,7 +106,8 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
   }
 
   return (
-    <Drawer open onClose={onClose} title={nombre(current)} className="w-full sm:max-w-xl">
+    <>
+      <Drawer open onClose={onClose} title={nombre(current)} className="w-full sm:max-w-xl">
       <div className="space-y-5">
         <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -130,7 +130,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button disabled={busy} onClick={() => onSell?.(current)}>Vender</Button>
-            <Button variant="outline" disabled={busy} onClick={async () => { const resultado = await imprimirDocumento(ticketEtiquetaPrecio(current), { tipo: 'etiqueta-precio' }); if (resultado?.ok) { if (resultado.encolado) toast.success('Etiqueta encolada', resultado.remoto ? 'La imprime el puente cuando la reclame.' : 'La impresora no respondió; se reintenta solo.'); return } if (puedeCaerAlDialogo(resultado)) await printPriceLabel(current, { format: 'thermal' }); else toast.error('No se pudo imprimir', resultado?.error || 'Revisá la impresora.') }}>Etiqueta de precio</Button>
+            <Button variant="outline" disabled={busy} onClick={() => setEtiquetasOpen(true)}>Etiqueta de precio</Button>
             {canManage && !esDemo && <Button variant="outline" disabled={busy} onClick={() => setEditando(value => !value)}>{editando ? 'Cancelar edición' : 'Editar'}</Button>}
             {canManage && !esDemo && <button type="button" disabled={busy} onClick={desactivar} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad">Desactivar</button>}
           </div>
@@ -201,6 +201,8 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
           </div>
         </section>
       </div>
-    </Drawer>
+      </Drawer>
+      <EtiquetasProductoModal open={etiquetasOpen} onClose={() => setEtiquetasOpen(false)} productos={[current]} seleccionInicial={[current?.id || current?.sku]} />
+    </>
   )
 }
