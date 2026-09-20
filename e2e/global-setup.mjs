@@ -176,6 +176,52 @@ async function ensureSellers(ctx, adminToken) {
   }
 }
 
+// Repartidor del seed: mismo patrón que los vendedores, con rol REPARTIDOR.
+async function ensureRepartidor(ctx, adminToken) {
+  const res = await ctx.get('/api/users', { headers: bearer(adminToken) })
+  if (!res.ok()) throw new Error(`users list failed: HTTP ${res.status()}`)
+  const users = await res.json()
+  const found = users.find((u) => u.email === SEED.repartidor.email)
+  if (found) {
+    const patch = await ctx.patch('/api/users', { headers: bearer(adminToken), data: { id: found.id, resetPin: true, pin: SEED.repartidor.pin } })
+    if (!patch.ok()) throw new Error(`repartidor PIN reset failed: HTTP ${patch.status()} ${await patch.text()}`)
+    SEED.repartidor.id = found.id
+    return
+  }
+  const created = await ctx.post('/api/users', { headers: bearer(adminToken), data: { name: SEED.repartidor.name, email: SEED.repartidor.email, pin: SEED.repartidor.pin, role: 'REPARTIDOR' } })
+  if (!created.ok()) throw new Error(`repartidor create failed: HTTP ${created.status()} ${await created.text()}`)
+  SEED.repartidor.id = (await created.json()).id
+}
+
+// Pedido de reparto del seed: sin cobros, asignado al repartidor y reiniciado
+// en cada corrida para que el ciclo asignar → cobrar → rendir se pueda repetir.
+async function ensureDeliveryOrder(ctx, sellerToken, adminToken) {
+  const state = await ctx.get(`/api/delivery/orders?estado=todos&asignado=${SEED.repartidor.id}`, { headers: bearer(adminToken) })
+  if (!state.ok()) throw new Error(`delivery orders list failed: HTTP ${state.status()}`)
+  const existente = (await state.json()).find((row) => row.orderNumber === SEED.deliveryOrderNumber)
+  if (existente) {
+    execFileSync(`${PG_BIN}/psql`, [
+      '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
+      '-v', 'ON_ERROR_STOP=1',
+      '-c', `DELETE FROM "DeliverySettlement" WHERE "deliveryUserId" = (SELECT "id" FROM "User" WHERE "email" = '${SEED.repartidor.email}'); UPDATE "Order" SET "fulfillmentStatus" = 'PROCESSING', "status" = 'PENDING', "assignedToId" = '${SEED.repartidor.id}' WHERE "orderNumber" = '${SEED.deliveryOrderNumber}'; DELETE FROM "Payment" WHERE "orderId" = (SELECT "id" FROM "Order" WHERE "orderNumber" = '${SEED.deliveryOrderNumber}');`,
+    ], { stdio: 'ignore' })
+    return
+  }
+  const created = await ctx.post('/api/orders', {
+    headers: bearer(sellerToken),
+    data: {
+      orderNumber: SEED.deliveryOrderNumber,
+      customer: { name: SEED.deliveryCustomer.name, phone: SEED.deliveryCustomer.phone, addresses: [{ label: 'Entrega', address: 'Av. Reparto E2E 123', city: 'Asunción', isDefault: true }] },
+      deliveryType: 'Delivery',
+      items: [{ productId: SEED.products.cable.id, description: SEED.products.cable.name, quantity: 1, unitPricePyg: SEED.products.cable.pricePyg }],
+    },
+  })
+  if (!created.ok()) throw new Error(`delivery order create failed: HTTP ${created.status()} ${await created.text()}`)
+  const order = await created.json()
+  const assigned = await ctx.post(`/api/orders/${order.id}/assignment`, { headers: bearer(adminToken), data: { assignedToId: SEED.repartidor.id } })
+  if (!assigned.ok()) throw new Error(`delivery order assign failed: HTTP ${assigned.status()} ${await assigned.text()}`)
+}
+
 async function ensureProducts(ctx, adminToken) {
   const res = await ctx.get('/api/products', { headers: bearer(adminToken) })
   if (!res.ok()) throw new Error(`products list failed: HTTP ${res.status()}`)
@@ -351,6 +397,8 @@ async function refreshStorageStates(ctx) {
   await ensureProducts(ctx, adminToken)
   await ensurePaymentAccounts(ctx, adminToken)
   const sellerToken = await ensureSeedOrder(ctx, company.token, seller.id, adminToken)
+  await ensureRepartidor(ctx, adminToken)
+  await ensureDeliveryOrder(ctx, sellerToken, adminToken)
   await writeStorageState(SELLER_STATE, company.token, sellerToken)
   await writeStorageState(ADMIN_STATE, company.token, adminToken)
   await ensureInvitations()
@@ -373,6 +421,7 @@ async function seedFresh(ctx) {
   // views need a branch assignment.
   await ensureBranch()
   await ensureSellers(ctx, adminToken)
+  await ensureRepartidor(ctx, adminToken)
   await ensureProducts(ctx, adminToken)
   await ensurePaymentAccounts(ctx, adminToken)
 
@@ -387,12 +436,15 @@ async function seedFresh(ctx) {
   // la respuesta de login/registro sólo lista vendedores preexistentes.
   const sellerAssign = await ctx.patch('/api/users', { headers: bearer(adminToken), data: { id: SEED.sellers[0].id, branchId: SEED.branchId } })
   if (!sellerAssign.ok()) throw new Error(`seller branch assign failed: HTTP ${sellerAssign.status()} ${await sellerAssign.text()}`)
+  const repartidorAssign = await ctx.patch('/api/users', { headers: bearer(adminToken), data: { id: SEED.repartidor.id, branchId: SEED.branchId } })
+  if (!repartidorAssign.ok()) throw new Error(`repartidor branch assign failed: HTTP ${repartidorAssign.status()} ${await repartidorAssign.text()}`)
 
   // Re-check the serialized product now that the branch exists (it may have
   // been created without a unit in an older partial seed).
   await ensureProducts(ctx, adminToken)
 
   const sellerToken = await ensureSeedOrder(ctx, companyToken, SEED.sellers[0].id, adminToken)
+  await ensureDeliveryOrder(ctx, sellerToken, adminToken)
 
   await writeStorageState(SELLER_STATE, companyToken, sellerToken)
   await writeStorageState(ADMIN_STATE, companyToken, adminToken)

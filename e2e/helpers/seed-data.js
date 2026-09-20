@@ -14,6 +14,11 @@ export const SEED = {
     { name: 'Vendedor E2E Uno', email: 'vendedor-uno@test.local', pin: '2468' },
     { name: 'Vendedor E2E Dos', email: 'vendedor-dos@test.local', pin: '2469' },
   ],
+  // Reparto propio: usuario con rol REPARTIDOR y un pedido sin cobrar que se
+  // resetea en cada corrida (ver ensureDeliveryOrder en global-setup).
+  repartidor: { name: 'Repartidor E2E', email: 'repartidor-e2e@test.local', pin: '3579' },
+  deliveryOrderNumber: 'E2E-DELIVERY-001',
+  deliveryCustomer: { name: 'Cliente E2E Delivery', phone: '981555111' },
   branchId: 'e2e-branch-1',
   branchName: 'Sucursal E2E',
   products: {

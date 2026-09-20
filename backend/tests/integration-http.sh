@@ -90,9 +90,10 @@ export DATABASE_URL
 
 PIN_HASH="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('2468', 10))")"
 PIN_HASH_2="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('1357', 10))")"
+PIN_HASH_3="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('8642', 10))")"
 PASSWORD_HASH="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('company-password-it', 10))")"
 
-"$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -v pin_hash="$PIN_HASH" -v pin_hash_2="$PIN_HASH_2" -v password_hash="$PASSWORD_HASH" >/dev/null <<'SQL'
+"$PG_BIN/psql" "$DATABASE_URL" -v ON_ERROR_STOP=1 -v pin_hash="$PIN_HASH" -v pin_hash_2="$PIN_HASH_2" -v pin_hash_3="$PIN_HASH_3" -v password_hash="$PASSWORD_HASH" >/dev/null <<'SQL'
 INSERT INTO "Tenant" ("id", "name", "slug", "email", "passwordHash", "updatedAt") VALUES
   ('tenant-a-it', 'Tenant A Integration', 'tenant-a-it', 'company-a-it@example.invalid', :'password_hash', CURRENT_TIMESTAMP),
   ('tenant-b-it', 'Tenant B Integration', 'tenant-b-it', 'company-b-it@example.invalid', :'password_hash', CURRENT_TIMESTAMP),
@@ -112,7 +113,8 @@ INSERT INTO "User" ("id", "tenantId", "branchId", "name", "email", "pinHash", "r
   ('user-lock-it', 'tenant-a-it', 'branch-a-it', 'Seller Lock', 'seller-lock-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-pinunique-it', 'tenant-a-it', 'branch-a-it', 'Seller Unique Pin', 'seller-pinunique-it@example.invalid', :'pin_hash_2', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-b-it', 'tenant-b-it', 'branch-b-it', 'Seller B', 'seller-b-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
-  ('user-c-admin-it', 'tenant-c-it', NULL, 'Admin C', 'admin-c-it@example.invalid', :'pin_hash', 'ADMIN', 'ACTIVE', CURRENT_TIMESTAMP);
+  ('user-c-admin-it', 'tenant-c-it', NULL, 'Admin C', 'admin-c-it@example.invalid', :'pin_hash', 'ADMIN', 'ACTIVE', CURRENT_TIMESTAMP),
+  ('user-repartidor-it', 'tenant-a-it', 'branch-a-it', 'Repartidor IT', 'repartidor-it@example.invalid', :'pin_hash_3', 'REPARTIDOR', 'ACTIVE', CURRENT_TIMESTAMP);
 
 -- Invitaciones sembradas para invitation-app.mjs y para los casos de listado,
 -- reenvío y revocación. El relay de correo apunta a un host .invalid: el envío
@@ -518,6 +520,10 @@ node "$BACKEND_ROOT/tests/invitation-app.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN
 MOBOS_SECURITY_PAYMENT_ID="$PAYMENT_PROOF_ID" node "$BACKEND_ROOT/tests/security-regression.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKEN_A"
 node "$BACKEND_ROOT/tests/authorization-limits.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN"
 node "$BACKEND_ROOT/tests/price-lists.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+
+echo "Delivery propio: asignar → cobrar → rendir → verificar, con permisos y auditoría..."
+out="$(response_file)"; REPARTIDOR_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-repartidor-it","pin":"8642"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
+node "$BACKEND_ROOT/tests/delivery.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$REPARTIDOR_TOKEN"
 
 echo "Reportes por producto, categoría, vendedor y día..."
 REPORTS_TO="$(node -e 'process.stdout.write(new Date().toISOString().slice(0,10))')"
