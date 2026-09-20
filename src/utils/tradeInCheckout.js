@@ -1,3 +1,18 @@
+// Clave de comparación del modelo: sin mayúsculas, sin acentos y con espacios
+// simples. Debe coincidir con la `modelKey` que guarda DeviceValuation.
+export const normalizarModelo = value => String(value ?? '')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+
+// Elige la valuación cargada para el modelo y la condición exactos. Sin una
+// coincidencia no hay sugerencia: el POS nunca inventa un número.
+export function valorSugerido(valuations, model, condition) {
+  if (!Array.isArray(valuations)) return null
+  const key = normalizarModelo(model)
+  if (!key) return null
+  return valuations.find(valuation => valuation && valuation.isActive !== false
+    && valuation.modelKey === key && (!condition || valuation.condition === condition)) || null
+}
+
 // Una ficha se convierte en un pago preparado; solo confirmar la venta lo registra.
 export function tradeInDraftPayment(draft, accounts, payments = []) {
   const account = accounts.find(a => a.isActive && a.kind === 'TRADE_IN' && a.currency === 'PYG')

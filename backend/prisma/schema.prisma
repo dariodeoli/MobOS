@@ -14,6 +14,7 @@ model Tenant {
   logos                 TenantLogo[]
   paymentAccounts     PaymentAccount[]
   tradeInDevices      TradeInDevice[]
+  deviceValuations    DeviceValuation[]
   cashSessions        CashSession[]
   purchases           PurchaseOrder[]
   purchaseReturns     PurchaseReturn[]
@@ -1591,6 +1592,31 @@ model TradeInDevice {
   @@unique([tenantId, serial])
   @@index([tenantId, branchId, status])
   @@index([orderId])
+}
+
+// Valor sugerido de toma por modelo, capacidad y condición. El POS lo muestra
+// al cargar un equipo como parte de pago: es una sugerencia editable, nunca un
+// tope. `modelKey` es la clave de comparación sin mayúsculas ni acentos y
+// `storage` vacío evita el NULL que rompería el índice único.
+model DeviceValuation {
+  id           String           @id @default(cuid())
+  tenantId     String
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  model        String
+  modelKey     String
+  storage      String           @default("")
+  condition    ProductCondition @default(USED)
+  baseValuePyg Int
+  maxValuePyg  Int?
+  notes        String?
+  isActive     Boolean          @default(true)
+  createdById  String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([tenantId, modelKey, storage, condition])
+  @@index([tenantId, isActive])
+  @@index([tenantId, condition, isActive])
 }
 
 enum PaymentStatus {
