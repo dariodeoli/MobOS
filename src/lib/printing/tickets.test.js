@@ -266,7 +266,7 @@ test('los documentos no fiscales entran en 58 mm sin desbordar', () => {
     for (const linea of lineas) assert.ok(linea.length <= 32, `línea de 58 mm dentro del ancho (${linea.length}): ${linea.slice(0, 40)}`)
     assert.ok(texto.includes('Documento no fiscal'))
   }
-
+})
 
 const productoEtiqueta = { name: "Cable USB-C E2E", sku: "E2E-CABLE", pricePyg: 45000 }
 
