@@ -38,7 +38,9 @@ export async function POST(request: Request) {
   try {
     const creada = await prisma.$transaction(async tx => {
       if (impresora.isDefault) await tx.printPrinter.updateMany({ where: { tenantId, isDefault: true }, data: { isDefault: false } })
-      return tx.printPrinter.create({ data: { ...impresora, tenantId } })
+      const creada = await tx.printPrinter.create({ data: { ...impresora, tenantId } })
+      await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'PRINT_PRINTER_CREATED', entity: 'PrintPrinter', entityId: creada.id, metadata: { name: creada.name, destino: creada.destination, ancho: creada.width, modelo: creada.model } } })
+      return creada
     })
     return json(creada, { status: 201 })
   } catch (cause) {

@@ -40,6 +40,7 @@ const Compras = lazy(() => import('@/components/control/Compras'))
 const Config = lazy(() => import('@/components/control/Config'))
 const MiIdentidad = lazy(() => import('@/components/control/Config').then(modulo => ({ default: modulo.MiIdentidad })))
 const Vendedores = lazy(() => import('@/components/control/Vendedores'))
+const SeccionComisiones = lazy(() => import('@/components/control/Vendedores').then(modulo => ({ default: modulo.SeccionComisiones })))
 const Autorizaciones = lazy(() => import('@/components/control/Autorizaciones'))
 const Garantias = lazy(() => import('@/components/control/Garantias'))
 const ServicioTecnico = lazy(() => import('@/components/control/ServicioTecnico'))
@@ -148,6 +149,7 @@ const TABS_FINANZAS = [
   ['bancos', 'Bancos y cuentas'],
   ['creditos', 'Créditos'],
   ['cuotas', 'Cuotas'],
+  ['comisiones', 'Comisiones'],
   ['publicidad', 'Publicidad'],
 ]
 const TABS_INVENTARIO = [
@@ -736,6 +738,7 @@ export default function PanelVendedor() {
               {vista === 'bancos' && <PaymentAccounts />}
               {vista === 'creditos' && <Creditos />}
               {vista === 'cuotas' && <Cobranzas />}
+              {vista === 'comisiones' && <SeccionComisiones />}
               {vista === 'publicidad' && <Ads />}
             </div>
           )}
