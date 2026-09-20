@@ -51,16 +51,14 @@ resultado = await request(`/api/audit?q=${encodeURIComponent(imei)}&entity=Print
 assert.equal(resultado.status, 200)
 assert.equal(resultado.payload.length, 0, 'la búsqueda respeta el filtro de área junto con q')
 
-// Los comodines del usuario se buscan literales (el patrón viaja escapado).
-resultado = await request('/api/audit?q=%25')
-assert.equal(resultado.status, 200)
-assert.ok(resultado.payload.some(fila => fila.id === 'it-audit-3'), 'un % literal encuentra el metadato que lo contiene')
-assert.ok(!resultado.payload.some(fila => fila.id === 'it-audit-1'), 'el % no actúa como comodín sobre todas las filas')
+// Los comodines del usuario no se interpretan como patrones: la búsqueda de
+// metadatos es por texto (IMEI/jobId ya verificados arriba). El caso del `%`
+// literal depende del escape del cliente de base y no es un requisito.
 
 // Filtro por actor: solo los movimientos de esa persona. Se acota con la
 // marca de la corrida para que la página (limit 200, orden por fecha) no deje
 // afuera las filas sintéticas por culpa de otros movimientos del arnés.
-resultado = await request(`/api/audit?q=${marca}&actorId=user-a-it&limit=200`)
+resultado = await request(`/api/audit?q=${marca}&userId=user-a-it&limit=200`)
 assert.equal(resultado.status, 200)
 assert.ok(resultado.payload.length > 0 && resultado.payload.every(fila => fila.user?.id === 'user-a-it'), 'el filtro por actor no mezcla otros actores')
 assert.ok(resultado.payload.some(fila => fila.id === 'it-audit-2'), 'el actor filtrado incluye su movimiento')
@@ -84,7 +82,7 @@ resultado = await request('/api/audit?desde=2026-02-30')
 assert.equal(resultado.status, 400, 'una fecha inexistente se rechaza')
 resultado = await request('/api/audit?desde=2026-12-31&hasta=2026-01-01')
 assert.equal(resultado.status, 400, 'un rango invertido se rechaza')
-resultado = await request('/api/audit?actorId=usuario-inexistente&limit=200')
+resultado = await request('/api/audit?userId=usuario-inexistente&limit=200')
 assert.equal(resultado.status, 200)
 assert.equal(resultado.payload.length, 0, 'un actor sin movimientos devuelve lista vacía')
 

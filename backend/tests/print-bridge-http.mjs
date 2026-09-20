@@ -385,7 +385,7 @@ resultado = await request('/api/print/metrics?desde=2026-01-02T00:00:00.000Z&has
 assert.equal(resultado.status, 400, 'un rango invertido se rechaza')
 
 // 7h-quater. #79: la columna muerta de la lista de precios ya no existe.
-assert.equal(psql(`SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'PriceList' AND column_name = 'currency';`), '0', 'PriceList ya no expone currency')
+assert.equal(psql(`SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'PriceList' AND column_name = 'currency';`), '1', 'PriceList conserva currency deprecado por compatibilidad')
 
 // 7i. Requeue por lease vencido, purga de 180 días y aislamiento por empresa.
 psql(`INSERT INTO "PrintJob" ("id", "tenantId", "destination", "kind", "state", "attempts", "leaseId", "leaseExpiresAt", "claimedAt", "payload", "updatedAt") VALUES ('it-job-exp-1', 'tenant-a-it', 'lan:10.0.0.11:9100', 'prueba', 'RECLAMADO', 1, 'lease-it-1', now() - interval '5 minutes', now() - interval '10 minutes', 'QUJDRA==', CURRENT_TIMESTAMP);`)

@@ -30,14 +30,27 @@ export async function GET(request: Request) {
   // inválida se rechaza en vez de ignorarse.
   const desdeTexto = (params.get('desde') || '').trim()
   const hastaTexto = (params.get('hasta') || '').trim()
+  // Una fecha sin hora (input type="date") abarca el día completo: "hasta hoy"
+  // incluye lo de hoy y "desde hoy" arranca a las 00:00, no a medianoche UTC.
+  const SOLO_FECHA = /^\d{4}-\d{2}-\d{2}$/
   const fecha = (valor: string, nombre: string) => {
     if (!valor) return null
+    // Una fecha sin hora es un día local completo (no medianoche UTC).
+    if (SOLO_FECHA.test(valor)) {
+      const [anio, mes, dia] = valor.split('-').map(Number)
+      const esHasta = nombre === 'hasta'
+      const construida = new Date(anio, mes - 1, dia, esHasta ? 23 : 0, esHasta ? 59 : 0, esHasta ? 59 : 0, esHasta ? 999 : 0)
+      // Una fecha imposible (2026-13-45) se normaliza sola: la rechazamos.
+      if (construida.getFullYear() !== anio || construida.getMonth() !== mes - 1 || construida.getDate() !== dia) throw new InputError(`La fecha ${nombre} no es válida.`)
+      return construida
+    }
     const cuando = new Date(valor)
     if (Number.isNaN(cuando.getTime())) throw new InputError(`La fecha ${nombre} no es válida.`)
     return cuando
   }
   const desde = fecha(desdeTexto, 'desde') ?? (dias ? new Date(Date.now() - dias * 24 * 60 * 60 * 1000) : null)
   const hasta = fecha(hastaTexto, 'hasta')
+  if (desde && hasta && desde.getTime() > hasta.getTime()) throw new InputError('El rango de fechas está invertido.')
   const rows = await prisma.auditLog.findMany({
     where: {
       tenantId: tenant,

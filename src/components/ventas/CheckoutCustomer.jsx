@@ -29,7 +29,13 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     const timer = setTimeout(async () => {
       try {
         const rows = esDemo ? JSON.parse(localStorage.getItem('mobos:demo-customers:v1') || '[]') : await api.get(`/api/customers?q=${encodeURIComponent(query)}`)
-        if (active) { setMatches(rows.filter(customer => coincideCliente(customer, query)).slice(0, 5)); setError('') }
+        if (!active) return
+        const coincidencias = rows.filter(customer => coincideCliente(customer, query))
+        setMatches(coincidencias.slice(0, 5)); setError('')
+        // Si lo escrito coincide exacto con una única ficha, se selecciona sola:
+        // así la venta toma su lista de precios sin un clic extra.
+        const exactos = coincidencias.filter(customer => String(customer.name || '').trim().toLowerCase() === query.toLowerCase())
+        if (!value.id && exactos.length === 1) elegirCliente(exactos[0])
       } catch { if (active) setError('No se pudo consultar clientes. Reintentá antes de confirmar.') }
     }, 250)
     return () => { active = false; clearTimeout(timer) }
