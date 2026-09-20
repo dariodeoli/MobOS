@@ -42,7 +42,7 @@ export default function Login() {
     const next = rutaInterna(new URLSearchParams(window.location.search).get('next'))
     let vigente = true
     sessionApi.me()
-      .then((sesion) => { if (vigente && sesion?.user) window.location.assign(next || '/pos/cargar') })
+      .then((sesion) => { if (vigente && sesion?.user) window.location.assign(next || (sesion.user.role === 'REPARTIDOR' ? '/delivery/repartos' : '/pos/cargar')) })
       .catch(() => {})
       .finally(() => { if (vigente) setVerificandoSesion(false) })
     return () => { vigente = false }

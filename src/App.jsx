@@ -6,6 +6,7 @@ import { Button, ToastProvider } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import Login from '@/pages/Login'
 import PanelVendedor from '@/pages/PanelVendedor'
+import PanelDelivery from '@/pages/PanelDelivery'
 import { applyPageMetadata } from '@/lib/seo'
 import { rutaInterna } from '@/lib/urls'
 import DemoAccess from '@/pages/DemoAccess'
@@ -27,7 +28,6 @@ const Comparador = lazy(() => import('@/pages/Comparador'))
 const Celulares = lazy(() => import('@/pages/Celulares'))
 const Status = lazy(() => import('@/pages/Status'))
 const RecuperarContrasena = lazy(() => import('@/pages/RecuperarContrasena'))
-const PortalClientesEntrada = lazy(() => import('@/pages/PortalClientesEntrada'))
 const RecuperarEmpresa = lazy(() => import('@/pages/RecuperarEmpresa'))
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
@@ -96,7 +96,9 @@ function SoloPropietario({ children }) {
 function InicioPorRol() {
   const { sesion } = useSesion()
   // El dueño entra a la lectura diaria del negocio; quien vende entra directo
-  // al flujo de venta. Ambos viven en la misma aplicación y navegación.
+  // al flujo de venta; el repartidor tiene su propio panel. Todos viven en la
+  // misma aplicación y navegación.
+  if (sesion?.rol === 'REPARTIDOR') return <Navigate to="/delivery/repartos" replace />
   return <Navigate to={sesion?.esPropietario ? "/pos/resumen" : "/pos/cargar"} replace />
 }
 
@@ -117,12 +119,22 @@ function AreaProtegida({ owner = false, children }) {
   return owner ? <SoloPropietario>{children}</SoloPropietario> : <Protegida>{children}</Protegida>
 }
 
-function MetadatosPagina({ publicPage = false, clientPortal = false }) {
+// El repartidor tiene su propio panel: si entra a la URL del panel de venta
+// (enlace viejo, historial o tipeo directo) se lo devuelve a sus repartos. El
+// backend ya rechaza sus escrituras; esto evita además montar una pantalla que
+// no le corresponde.
+function PanelDeVenta() {
+  const { sesion } = useSesion()
+  if (sesion?.rol === 'REPARTIDOR') return <Navigate to="/delivery/repartos" replace />
+  return <PanelVendedor />
+}
+
+function MetadatosPagina({ publicPage = false }) {
   const { pathname } = useLocation()
 
   useEffect(() => {
-    applyPageMetadata({ pathname, publicPage, clientPortal })
-  }, [clientPortal, publicPage, pathname])
+    applyPageMetadata({ pathname, publicPage })
+  }, [publicPage, pathname])
 
   return null
 }
@@ -155,28 +167,6 @@ export default function App() {
   const landing = ['moboss.online', 'www.moboss.online'].includes(host) || landingPreview
   const status = typeof window !== 'undefined' && window.location.pathname === '/status'
   if (landing) return <><MetadatosPagina publicPage /><Suspense fallback={<PaginaCargando />}>{status ? <Status /> : <Landing />}</Suspense></>
-
-  const clientPortalPreview = import.meta.env.DEV && window.location.pathname === '/clientes-preview'
-  const clientPortal = ['clientes.moboss.online', 'www.clientes.moboss.online'].includes(host) || clientPortalPreview
-  if (clientPortal) {
-    return (
-      <>
-        <MetadatosPagina publicPage clientPortal />
-        <Suspense fallback={<PaginaCargando />}>
-          <Routes>
-            <Route path="/" element={<PortalClientesEntrada />} />
-            <Route path="/cuenta/:token" element={<CuentaPublica />} />
-            <Route path="/pedido/:token" element={<PedidoPublico />} />
-            <Route path="/p/:token" element={<PedidoPublico />} />
-            <Route path="/garantia/:token" element={<GarantiaPublica />} />
-            <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
-            <Route path="/remito/:token" element={<RemitoPublico />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </>
-    )
-  }
   return (
     <SesionProvider>
       <ToastProvider>
@@ -210,14 +200,16 @@ export default function App() {
           />
           {/* El pedido individual vive en la URL por su id interno: el código
               comercial (MOB-#0001) es solo para humanos y puede cambiar. */}
-          <Route path="/pos/:vista?/:orderId?" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
+          <Route path="/pos/:vista?/:orderId?" element={<AreaProtegida><PanelDeVenta /></AreaProtegida>} />
+          {/* Panel de reparto: login propio, separado del panel del vendedor. */}
+          <Route path="/delivery/:vista?" element={<Protegida><PanelDelivery /></Protegida>} />
           {/* Apartados con pestañas: cada subpágina es un slug hijo recuperable
               (/configuracion/negocio, /analisis/reportes, /finanzas/caja,
               /inventario/unidades…). */}
-          <Route path="/configuracion/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
-          <Route path="/analisis/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
-          <Route path="/finanzas/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
-          <Route path="/inventario/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          <Route path="/configuracion/:seccion?" element={<AreaProtegida owner><PanelDeVenta /></AreaProtegida>} />
+          <Route path="/analisis/:seccion?" element={<AreaProtegida owner><PanelDeVenta /></AreaProtegida>} />
+          <Route path="/finanzas/:seccion?" element={<AreaProtegida owner><PanelDeVenta /></AreaProtegida>} />
+          <Route path="/inventario/:seccion?" element={<AreaProtegida owner><PanelDeVenta /></AreaProtegida>} />
           <Route path="/control/:tab?" element={<AreaProtegida owner><ControlRedirect /></AreaProtegida>} />
           <Route path="/celulares" element={<AreaProtegida owner><Celulares /></AreaProtegida>} />
           <Route path="/comparador" element={<AreaProtegida owner><Comparador /></AreaProtegida>} />

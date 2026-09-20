@@ -93,6 +93,7 @@ model Tenant {
   printJobs               PrintJob[]
   customerPortalTokens    CustomerPortalToken[]
   priceLists              PriceList[]
+  deliverySettlements     DeliverySettlement[]
 
   @@index([archivedAt])
 }
@@ -225,6 +226,7 @@ model Branch {
   incomingTransfers StockTransfer[] @relation("TransferDestinationBranch")
   quotes            Quote[]
   combos            Combo[]
+  deliverySettlements DeliverySettlement[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -281,6 +283,10 @@ model User {
   invitationsSent UserInvitation[] @relation("InvitationInviter")
   printBridgesCreated PrintBridge[] @relation("PrintBridgeCreatedBy")
   printJobsRequested  PrintJob[]    @relation("PrintJobRequestedBy")
+  ordersAssigned      Order[]       @relation("OrderDeliveryAssignedTo")
+  paymentsCollected   Payment[]     @relation("PaymentCollectedBy")
+  deliverySettlementsRendered DeliverySettlement[] @relation("DeliverySettlementRenderedBy")
+  deliverySettlementsVerified DeliverySettlement[] @relation("DeliverySettlementVerifiedBy")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -375,6 +381,7 @@ enum UserRole {
   VENDEDOR
   CAJERA
   TECNICO
+  REPARTIDOR
 }
 
 enum UserStatus {
@@ -892,6 +899,11 @@ model Order {
   customer          Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
   sellerId          String
   seller            User              @relation(fields: [sellerId], references: [id])
+  // Reparto propio: a qué repartidor está asignado el pedido y desde cuándo.
+  // Null = sin asignar (el local lo ve y lo puede asignar).
+  assignedToId      String?
+  assignedTo        User?             @relation("OrderDeliveryAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedAt        DateTime?
   orderNumber       String
   idempotencyKey    String?
   publicToken       String            @unique @default(cuid())
@@ -933,6 +945,8 @@ model Order {
   @@index([tenantId, status])
   @@index([tenantId, archivedAt])
   @@index([branchId])
+  @@index([assignedToId])
+  @@index([tenantId, assignedToId, fulfillmentStatus])
 }
 
 // Acceso público del pedido por nivel de información. Cada token es aleatorio,
@@ -1181,6 +1195,15 @@ model Payment {
   overdueRemindedAt DateTime?
   // Fecha estimada de acreditación en la cuenta de la empresa (tarjetas/PIX).
   settlesAt       DateTime?
+  // Pre-cobro del reparto propio: quién lo cobró en la calle, cuándo y en qué
+  // rendición viajó. El pago nace PENDING y solo pasa a CONFIRMED cuando la
+  // tienda verifica la rendición; hasta entonces no cuenta en caja ni cierra
+  // el saldo del pedido.
+  deliveryUserId  String?
+  deliveryUser    User?            @relation("PaymentCollectedBy", fields: [deliveryUserId], references: [id], onDelete: SetNull)
+  collectedAt     DateTime?
+  deliverySettlementId String?
+  deliverySettlement   DeliverySettlement? @relation(fields: [deliverySettlementId], references: [id], onDelete: SetNull)
   createdAt       DateTime         @default(now())
 
   proofs         PaymentProof[]
@@ -1189,6 +1212,8 @@ model Payment {
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId])
   @@index([orderId])
+  @@index([deliveryUserId, deliverySettlementId])
+  @@index([deliverySettlementId])
 }
 
 model PaymentProof {
@@ -1263,6 +1288,44 @@ model PaymentReconciliation {
 
   @@index([tenantId, state])
   @@index([verifiedById, updatedAt])
+}
+
+// Rendición del reparto: el repartidor entrega en la tienda lo que cobró en la
+// calle (efectivo o transferencia) y declara el saldo que quedó pendiente. El
+// vendedor o la caja la verifica y recién ahí los pre-cobros pasan a CONFIRMED
+// y se reflejan en el pedido y en caja/finanzas.
+model DeliverySettlement {
+  id               String                   @id @default(cuid())
+  tenantId         String
+  tenant           Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId         String?
+  branch           Branch?                  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  deliveryUserId   String
+  deliveryUser     User                     @relation("DeliverySettlementRenderedBy", fields: [deliveryUserId], references: [id], onDelete: Restrict)
+  // Lo que el repartidor entrega (suma de los pre-cobros rendidos) y el saldo
+  // que queda vivo en esos pedidos después de esta rendición.
+  totalPyg         Int
+  pendingPyg       Int                      @default(0)
+  ordersCount      Int                      @default(0)
+  note             String?
+  status           DeliverySettlementStatus @default(PENDING)
+  verifiedById     String?
+  verifiedBy       User?                    @relation("DeliverySettlementVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
+  verifiedAt       DateTime?
+  verificationNote String?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  payments Payment[]
+
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, deliveryUserId, createdAt])
+}
+
+enum DeliverySettlementStatus {
+  PENDING
+  VERIFIED
+  REJECTED
 }
 
 enum PaymentMethod {

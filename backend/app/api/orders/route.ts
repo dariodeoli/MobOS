@@ -79,9 +79,12 @@ export async function GET(request: Request) {
   const cursor = params.get('cursor')
   const q = (params.get('q') || '').trim().slice(0, 120)
   // Alcance por rol: VENDEDOR ve lo suyo de su sucursal; CAJERA su sucursal;
-  // ADMIN/GERENTE todo el tenant. Sin sucursal asignada el alcance es NULL.
+  // ADMIN/GERENTE todo el tenant. El repartidor solo lo que tiene asignado
+  // (su panel es /api/delivery/orders). Sin sucursal asignada el alcance es NULL.
   const condiciones: Prisma.Sql[] = [Prisma.sql`o."tenantId" = ${tenant}`]
-  if (session.user.role === 'VENDEDOR') {
+  if (session.user.role === 'REPARTIDOR') {
+    condiciones.push(Prisma.sql`o."assignedToId" = ${session.user.id}`)
+  } else if (session.user.role === 'VENDEDOR') {
     condiciones.push(Prisma.sql`o."sellerId" = ${session.user.id}`)
     condiciones.push(session.user.branchId ? Prisma.sql`o."branchId" = ${session.user.branchId}` : Prisma.sql`o."branchId" IS NULL`)
   } else if (session.user.role === 'CAJERA') {
@@ -151,7 +154,7 @@ export async function GET(request: Request) {
   if (!ids.length) return json([])
   // Segunda consulta con el include de siempre; el orden lo fija la lista de
   // ids para conservar la paginación por cursor.
-  const rows = await prisma.order.findMany({ where: { id: { in: ids.map((row) => row.id) } }, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } } })
+  const rows = await prisma.order.findMany({ where: { id: { in: ids.map((row) => row.id) } }, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } }, assignedTo: { select: { id: true, name: true } } } })
   const porId = new Map(rows.map((row) => [row.id, row]))
   return json(ids.map((row) => porId.get(row.id)).filter(Boolean))
 }

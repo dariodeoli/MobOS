@@ -127,7 +127,7 @@ function BottomNav({ items, active, onNavigate, onOpenMenu, menuLabel }) {
   )
 }
 
-function SidebarFooter({ sesionNombre, esOwner, onSwitchUser, onLockRequest, collapsed, perfilEmpresa }) {
+function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitchUser, onLockRequest, collapsed, perfilEmpresa }) {
   const clicsRef = useRef([])
   const clicsTimer = useRef(null)
   useEffect(() => () => clearTimeout(clicsTimer.current), [])
@@ -174,7 +174,7 @@ function SidebarFooter({ sesionNombre, esOwner, onSwitchUser, onLockRequest, col
           <span className={cn('flex min-w-0 flex-1 flex-col gap-0.5', collapsed && 'lg:hidden')}>
             <strong className="truncate text-[13px] font-medium leading-snug text-fore">{nombreUsuario}</strong>
             <small className="truncate text-[10px] uppercase leading-snug tracking-wider text-mute">
-              {esOwner ? 'Dueño' : 'Vendedor'}
+              {esOwner ? 'Dueño' : roleLabel}
             </small>
           </span>
           <Icon name="refresh" className={cn('ml-auto h-3 w-3 shrink-0 text-mute', collapsed && 'lg:hidden')} />
@@ -233,6 +233,7 @@ export default function AppShell({
   onStatsToggle,
   statsCollapsed,
   perfilEmpresa,
+  roleLabel,
 }) {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const enLinea = useOnlineStatus()
@@ -303,6 +304,7 @@ export default function AppShell({
         <SidebarFooter
           sesionNombre={sesionNombre}
           esOwner={esOwner}
+          roleLabel={roleLabel}
           onSwitchUser={onSwitchUser}
           onLockRequest={onLockRequest}
           collapsed={collapsed}
@@ -328,6 +330,7 @@ export default function AppShell({
           <SidebarFooter
             sesionNombre={sesionNombre}
             esOwner={esOwner}
+            roleLabel={roleLabel}
             onSwitchUser={onSwitchUser}
             onLockRequest={onLockRequest}
             collapsed={false}

@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
 import SellerOrders from '@/components/ventas/SellerOrders'
+import StoreDelivery from '@/components/delivery/StoreDelivery'
 import SellerQuotes from '@/components/ventas/SellerQuotes'
 import SellerTools from '@/components/ventas/SellerTools'
 import ResumenControl from '@/components/control/Resumen'
@@ -59,6 +60,7 @@ const SELLER_NAV = [
     items: [
       ['cargar', 'Cargar venta', 'receipt'],
       ['pedidos', 'Mis pedidos', 'box'],
+      ['repartos', 'Delivery', 'truck'],
       ['clientes', 'Clientes', 'users'],
     ],
   },
@@ -80,6 +82,7 @@ const OWNER_NAV = [
     items: [
       ['cargar', 'Cargar venta', 'receipt'],
       ['pedidos', 'Pedidos', 'box'],
+      ['repartos', 'Delivery', 'truck'],
       ['clientes', 'Clientes', 'users'],
       ['promociones', 'Promociones', 'store'],
       ['precios', 'Precios', 'tag'],
@@ -123,6 +126,7 @@ const TECNICO_NAV = [
 const SELLER_BOTTOM = [
   ['cargar', 'Vender', 'receipt'],
   ['pedidos', 'Pedidos', 'box'],
+  ['repartos', 'Delivery', 'truck'],
   ['clientes', 'Clientes', 'users'],
   ['productos', 'Productos', 'phone'],
   ['cotizaciones', 'Cotizaciones', 'report'],
@@ -215,6 +219,7 @@ const SUBPAGINA_DE_TAB = Object.fromEntries(
 const LABELS = {
   clientes: 'Clientes',
   pedidos: 'Mis pedidos',
+  repartos: 'Delivery',
   productos: 'Productos',
   promociones: 'Promociones',
   precios: 'Precios',
@@ -701,6 +706,7 @@ export default function PanelVendedor() {
             {vista === 'clientes' && <SellerCustomers />}
             {vista === 'productos' && <SellerCatalog />}
             {vista === 'pedidos' && <SellerOrders />}
+            {vista === 'repartos' && <StoreDelivery />}
             {vista === 'promociones' && <SellerTools vista="promociones" />}
             {vista === 'cotizaciones' && <SellerQuotes />}
             <div hidden={vista !== 'cotizador'}>

@@ -116,6 +116,41 @@ export function usableAuthorization(
   return { id: authorization.id, maxDiscountPyg }
 }
 
+/**
+ * Autorización de entrega con saldo a nombre del repartidor asignado. El
+ * repartidor no opera el panel de venta, así que no puede pedirla: gerencia la
+ * concede al asignarle el reparto (misma tabla, mismas reglas de vigencia y
+ * consumo de un solo uso; `usableAuthorization` la valida igual que una
+ * solicitud resuelta). Si ya hay una vigente sin usar, no se duplica.
+ */
+export async function grantOrderDeliveryAuthorization(
+  tx: Prisma.TransactionClient,
+  input: { tenantId: string; orderId: string; userId: string; grantedById: string; note?: string | null },
+): Promise<string> {
+  const vigente = await tx.customerAuthorization.findFirst({
+    where: { tenantId: input.tenantId, kind: 'ORDER_DELIVER_UNPAID', entity: 'ORDER', entityId: input.orderId, status: 'APPROVED', requestedById: input.userId, usedAt: null },
+    select: { id: true },
+  })
+  if (vigente) return vigente.id
+  const created = await tx.customerAuthorization.create({
+    data: {
+      tenantId: input.tenantId,
+      kind: 'ORDER_DELIVER_UNPAID',
+      status: 'APPROVED',
+      entity: 'ORDER',
+      entityId: input.orderId,
+      requestedById: input.userId,
+      resolvedById: input.grantedById,
+      resolvedAt: new Date(),
+      resolvedValue: { approved: true },
+      requestedValue: { orderId: input.orderId, reason: input.note?.trim() || 'Reparto asignado con cobro en la calle' },
+      note: input.note?.trim() || null,
+    },
+    select: { id: true },
+  })
+  return created.id
+}
+
 // Consumo atómico: dos operaciones concurrentes con la misma autorización no
 // pueden usarla dos veces; la que pierde revierte su transacción entera.
 export async function consumeAuthorization(

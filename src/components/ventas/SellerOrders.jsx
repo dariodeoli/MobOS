@@ -38,6 +38,7 @@ export const orderFields = (row) => {
     products: products.join(', '),
     fulfillmentStatus: row.fulfillmentStatus || row.entrega || 'PROCESSING',
     deliveryType: row.deliveryType || row.entrega || '',
+    assignedTo: row.assignedTo?.name || '',
     publicToken: row.publicToken,
     items, payments: pagos, seriales,
     quantity: items.reduce((sum, item) => sum + Number(item.quantity || 1), 0) || (products.length ? 1 : 0),
