@@ -453,6 +453,7 @@ export default function FormularioVenta({
         serials: [],
         sobrePedido: false,
         combo: combo.name,
+        comboId: combo.id,
       }
     })
     setItems(arr => [...arr, ...nuevas])
@@ -711,6 +712,7 @@ export default function FormularioVenta({
         soldWithoutInsurance: Boolean(it.soldWithoutInsurance),
         ...(it.serials?.length ? { inventoryUnitSerials: it.serials } : {}),
         ...(it.couponCode ? { couponCode: it.couponCode } : {}),
+        ...(it.comboId ? { comboId: it.comboId } : it.combo ? { comboName: it.combo } : {}),
         ...(pct > 0 ? { discountPct: pct } : fijo > 0 ? { discountPyg: fijo } : {}),
       }
     })

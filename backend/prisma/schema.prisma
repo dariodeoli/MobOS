@@ -835,6 +835,7 @@ model Combo {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  orderItems OrderItem[]
 
   @@index([tenantId, isActive])
   @@index([branchId])
@@ -1099,9 +1100,15 @@ model OrderItem {
   // Descuento por línea: fijo en guaraníes o porcentual (uno de los dos).
   discountPyg          Int            @default(0)
   discountPct          Decimal?       @db.Decimal(5, 2)
+  // Combo del que salió la línea (trazabilidad comercial): el precio ya viene
+  // repartido por componente y el nombre queda congelado por si el combo cambia.
+  comboId              String?
+  combo                Combo?         @relation(fields: [comboId], references: [id], onDelete: SetNull)
+  comboName            String?
   serialsList          OrderItemSerial[]
 
   @@index([orderId])
+  @@index([comboId])
 }
 
 // Espejo indexado de OrderItem.serials: permite responder "¿qué venta tiene
