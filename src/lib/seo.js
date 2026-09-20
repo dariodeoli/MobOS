@@ -21,8 +21,8 @@ function syncStructuredData(landing) {
   if (!current) document.head.appendChild(script)
 }
 
-export function applyPageMetadata({ pathname, publicPage }) {
-  const metadata = resolvePageMetadata({ pathname, publicPage, appName: APP_NAME })
+export function applyPageMetadata({ pathname, publicPage, clientPortal = false }) {
+  const metadata = resolvePageMetadata({ pathname, publicPage, clientPortal, appName: APP_NAME })
   document.title = metadata.title
 
   document.head.querySelector('link[rel="canonical"]')?.setAttribute('href', metadata.canonical)

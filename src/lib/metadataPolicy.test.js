@@ -10,6 +10,14 @@ test('public landing metadata uses the canonical public origin and is indexable'
   assert.equal(metadata.landing, true)
 })
 
+test('customer portal metadata uses its own canonical origin and remains private', () => {
+  const metadata = resolvePageMetadata({ pathname: '/', publicPage: true, clientPortal: true })
+  assert.equal(metadata.canonical, 'https://clientes.moboss.online/')
+  assert.equal(metadata.title, 'Portal de clientes · MobOS')
+  assert.equal(metadata.robots, 'noindex, nofollow')
+  assert.equal(metadata.landing, false)
+})
+
 test('public status metadata remains canonical and indexable', () => {
   const metadata = resolvePageMetadata({ pathname: '/status/', publicPage: true })
 

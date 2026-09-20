@@ -1,9 +1,13 @@
-// Enlace público del portal del cliente (resumen de cuenta por QR). Mismo
-// criterio que los comprobantes: la URL configurada manda y, en su defecto, el
-// origen donde corre la app.
+import { publicUrls } from './urls.js'
+
+// En producción el portal vive en su propio subdominio. Durante desarrollo el
+// enlace conserva el origen local para que las pruebas E2E no salten a datos
+// reales. VITE_CLIENT_PORTAL_URL permite un entorno de staging independiente.
+const env = import.meta.env || {}
+
 const publicBase = () =>
-  String(import.meta.env.VITE_PUBLIC_TRACKING_URL || '').replace(/\/$/, '') ||
-  (typeof window !== 'undefined' ? window.location.origin : '')
+  String(env.VITE_CLIENT_PORTAL_URL || '').replace(/\/$/, '') ||
+  (env.DEV && typeof window !== 'undefined' ? window.location.origin : publicUrls.clientPortal)
 
 export const portalUrlFor = (token) => {
   const base = publicBase()

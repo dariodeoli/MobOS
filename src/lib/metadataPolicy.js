@@ -84,18 +84,22 @@ function resolveRoute(pathname) {
   return { label: 'Página no encontrada', error: true }
 }
 
-export function resolvePageMetadata({ pathname, publicPage = false, appName = 'MobOS' }) {
+export function resolvePageMetadata({ pathname, publicPage = false, clientPortal = false, appName = 'MobOS' }) {
   const path = normalizePathname(pathname)
   const route = resolveRoute(path)
   const landing = publicPage && path === '/'
-  const indexable = landing || (publicPage && route.public === true)
-  const canonicalOrigin = publicPage ? publicUrls.landing : publicUrls.app
+  const indexable = !clientPortal && (landing || (publicPage && route.public === true))
+  const canonicalOrigin = clientPortal ? publicUrls.clientPortal : publicPage ? publicUrls.landing : publicUrls.app
   const canonicalPath = route.error ? '/' : path
   const canonical = `${canonicalOrigin}${canonicalPath === '/' ? '/' : canonicalPath}`
-  const title = landing
+  const title = clientPortal
+    ? path === '/' ? `Portal de clientes · ${appName}` : `${route.label} · ${appName}`
+    : landing
     ? `${appName} · Control total para tu tienda móvil`
     : `${route.label} · ${appName}`
-  const description = landing
+  const description = clientPortal
+    ? 'Accedé de forma segura a tu cuenta, pedidos, comprobantes y garantías mediante el enlace que te envió tu tienda.'
+    : landing
     ? 'POS, inventario por IMEI, caja, clientes, compras, garantías y posventa para tiendas de celulares y accesorios.'
     : route.description || `${route.label} en ${appName}. ${DEFAULT_DESCRIPTION}`
 
@@ -103,7 +107,7 @@ export function resolvePageMetadata({ pathname, publicPage = false, appName = 'M
     canonical,
     description,
     indexable,
-    landing,
+    landing: landing && !clientPortal,
     robots: indexable ? 'index, follow' : 'noindex, nofollow',
     socialImage: SOCIAL_IMAGE,
     title,

@@ -23,6 +23,7 @@ const Comparador = lazy(() => import('@/pages/Comparador'))
 const Celulares = lazy(() => import('@/pages/Celulares'))
 const Status = lazy(() => import('@/pages/Status'))
 const RecuperarContrasena = lazy(() => import('@/pages/RecuperarContrasena'))
+const PortalClientesEntrada = lazy(() => import('@/pages/PortalClientesEntrada'))
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -109,12 +110,12 @@ function AreaProtegida({ owner = false, children }) {
   return owner ? <SoloPropietario>{children}</SoloPropietario> : <Protegida>{children}</Protegida>
 }
 
-function MetadatosPagina({ publicPage = false }) {
+function MetadatosPagina({ publicPage = false, clientPortal = false }) {
   const { pathname } = useLocation()
 
   useEffect(() => {
-    applyPageMetadata({ pathname, publicPage })
-  }, [publicPage, pathname])
+    applyPageMetadata({ pathname, publicPage, clientPortal })
+  }, [clientPortal, publicPage, pathname])
 
   return null
 }
@@ -147,6 +148,28 @@ export default function App() {
   const landing = ['moboss.online', 'www.moboss.online'].includes(host) || landingPreview
   const status = typeof window !== 'undefined' && window.location.pathname === '/status'
   if (landing) return <><MetadatosPagina publicPage /><Suspense fallback={<PaginaCargando />}>{status ? <Status /> : <Landing />}</Suspense></>
+
+  const clientPortalPreview = import.meta.env.DEV && window.location.pathname === '/clientes-preview'
+  const clientPortal = ['clientes.moboss.online', 'www.clientes.moboss.online'].includes(host) || clientPortalPreview
+  if (clientPortal) {
+    return (
+      <>
+        <MetadatosPagina publicPage clientPortal />
+        <Suspense fallback={<PaginaCargando />}>
+          <Routes>
+            <Route path="/" element={<PortalClientesEntrada />} />
+            <Route path="/cuenta/:token" element={<CuentaPublica />} />
+            <Route path="/pedido/:token" element={<PedidoPublico />} />
+            <Route path="/p/:token" element={<PedidoPublico />} />
+            <Route path="/garantia/:token" element={<GarantiaPublica />} />
+            <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
+            <Route path="/remito/:token" element={<RemitoPublico />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </>
+    )
+  }
   return (
     <SesionProvider>
       <ToastProvider>
