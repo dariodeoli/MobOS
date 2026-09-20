@@ -45,9 +45,11 @@ test('la sección Campañas lista el segmento y marca el contacto en la ficha', 
   await fila.getByRole('button', { name: 'WhatsApp' }).click()
   await expect(fila.getByText(/^Contactado /)).toBeVisible()
 
-  // La marca quedó persistida en el backend.
-  const segmento = await api(page, '/api/customers/segments?segment=inactivos6m')
-  expect(segmento.status).toBe(200)
-  const guardado = (segmento.body.customers || []).find((row) => row.id === cliente.body.id)
-  expect(guardado?.marketingContactedAt).toBeTruthy()
+  // La marca quedó persistida en el backend (la UI la muestra optimista: se
+  // reintenta leer el segmento hasta que el POST termine).
+  await expect.poll(async () => {
+    const segmento = await api(page, '/api/customers/segments?segment=inactivos6m')
+    const guardado = (segmento.body?.customers || []).find((row) => row.id === cliente.body.id)
+    return guardado?.marketingContactedAt || null
+  }, { timeout: 5000 }).toBeTruthy()
 })

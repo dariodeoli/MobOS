@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
-import { canAccessAny, requireSession } from '../../../lib/auth'
+import { requireSession } from '../../../lib/auth'
 import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
 import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
@@ -10,7 +10,7 @@ import { consumeAuthorization, usableAuthorization, DEFAULT_BELOW_LIST_PCT } fro
 import { armarComprobante } from '../../../lib/orders'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { serialKey } from '../../../lib/validation'
-import { lineDiscount as lineDiscountFor, warrantyDaysFor, resolveUnitPrice, PricingError } from '../../../lib/pricing'
+import { lineDiscount as lineDiscountFor, warrantyDaysFor, resolveUnitPrice, unitPricePygFallback, PricingError } from '../../../lib/pricing'
 import { changeStock } from '../../../lib/stock'
 import { syncOrderItemSerials } from '../../../lib/order-serials'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../lib/order-number'
@@ -79,12 +79,9 @@ export async function GET(request: Request) {
   const cursor = params.get('cursor')
   const q = (params.get('q') || '').trim().slice(0, 120)
   // Alcance por rol: VENDEDOR ve lo suyo de su sucursal; CAJERA su sucursal;
-  // ADMIN/GERENTE todo el tenant. El repartidor solo lo que tiene asignado
-  // (su panel es /api/delivery/orders). Sin sucursal asignada el alcance es NULL.
+  // ADMIN/GERENTE todo el tenant. Sin sucursal asignada el alcance es NULL.
   const condiciones: Prisma.Sql[] = [Prisma.sql`o."tenantId" = ${tenant}`]
-  if (session.user.role === 'REPARTIDOR') {
-    condiciones.push(Prisma.sql`o."assignedToId" = ${session.user.id}`)
-  } else if (session.user.role === 'VENDEDOR') {
+  if (session.user.role === 'VENDEDOR') {
     condiciones.push(Prisma.sql`o."sellerId" = ${session.user.id}`)
     condiciones.push(session.user.branchId ? Prisma.sql`o."branchId" = ${session.user.branchId}` : Prisma.sql`o."branchId" IS NULL`)
   } else if (session.user.role === 'CAJERA') {
@@ -154,7 +151,7 @@ export async function GET(request: Request) {
   if (!ids.length) return json([])
   // Segunda consulta con el include de siempre; el orden lo fija la lista de
   // ids para conservar la paginación por cursor.
-  const rows = await prisma.order.findMany({ where: { id: { in: ids.map((row) => row.id) } }, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } }, assignedTo: { select: { id: true, name: true } } } })
+  const rows = await prisma.order.findMany({ where: { id: { in: ids.map((row) => row.id) } }, include: { items: true, payments: true, customer: true, seller: { select: { id: true, name: true } } } })
   const porId = new Map(rows.map((row) => [row.id, row]))
   return json(ids.map((row) => porId.get(row.id)).filter(Boolean))
 }
@@ -162,9 +159,6 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  // Permiso efectivo: el administrador puede quitarle la venta a un rol y el
-  // backend lo respeta (los permisos configurados solo recortan la base del rol).
-  if (!canAccessAny(session.user, ['pos:use', 'orders:manage', 'orders:own', 'orders:branch'])) return error('Tu rol no puede registrar ventas.', 403)
   const limited = enforceRateLimit(request, 'orders', 120, 60_000)
   if (limited) return limited
   const idempotencyKey = request.headers.get('Idempotency-Key') || null
@@ -228,10 +222,8 @@ export async function POST(request: Request) {
   // de tipo BELOW_LIST_PRICE que pida el vendedor desde el carrito. Se valida
   // acá para fallar temprano y se consume dentro de la transacción. Hasta el
   // porcentaje configurado por la empresa (default 10%) no pide autorización.
-  const limitesEmpresa = await prisma.tenant.findUnique({ where: { id: tenant }, select: { belowListPct: true, loyaltyPct: true } })
+  const limitesEmpresa = await prisma.tenant.findUnique({ where: { id: tenant }, select: { belowListPct: true } })
   const belowListPct = Number(limitesEmpresa?.belowListPct ?? DEFAULT_BELOW_LIST_PCT)
-  // Fidelización: 0 (default) la deja apagada y la venta no cambia en nada.
-  const loyaltyPct = Math.min(100, Math.max(0, Number(limitesEmpresa?.loyaltyPct ?? 0)))
   let priceAuthorization: { id: string; maxDiscountPyg: number } | null = null
   if (!canDiscount) {
     const rawPriceAuthorizationId = body.priceAuthorizationId
@@ -309,7 +301,7 @@ export async function POST(request: Request) {
           create: { tenantId: tenant, customerId, name: billingName, document: billingDocument, createdById: session.user.id },
         })
       }
-      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; priceSource?: string; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any; comboId?: string; comboName?: string }> = []
+      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; priceSource?: string; priceListId?: string; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()
       // Diferencia acumulada entre precio de lista y precio cargado (venta bajo
@@ -327,17 +319,6 @@ export async function POST(request: Request) {
         serials.forEach(serial => serialsInOrder.add(serial))
         const promotion = item.couponCode === undefined ? undefined : await quotePromotion(tx, tenant, branchId, { ...item, quantity }, true)
         if (promotion && price !== promotion.unitPricePyg) throw new InputError('El precio del cupón cambió o fue alterado. Volvé a aplicarlo.', 409)
-        // Combo: la línea puede recordar de qué combo salió. Se valida contra la
-        // empresa y se congela el nombre para que el reporte no dependa del combo vivo.
-        let comboId: string | undefined; let comboName: string | undefined
-        if (item.comboId !== undefined && item.comboId !== null && item.comboId !== '') {
-          comboId = textInput(item.comboId, 'comboId', 200)
-          const combo = await tx.combo.findFirst({ where: { id: comboId, tenantId: tenant }, select: { name: true } })
-          if (!combo) throw new InputError('El combo de la línea no pertenece a esta empresa.', 404)
-          comboName = combo.name
-        } else if (item.comboName !== undefined && item.comboName !== null && item.comboName !== '') {
-          comboName = textInput(item.comboName, 'comboName', 200)
-        }
         let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let listPricePyg: number | undefined; let priceSource: string | undefined; let insurancePyg = 0; let extraCostPyg = 0; let costPending = false; let serialsPending = 0
         const soldWithoutInsurance = item.soldWithoutInsurance === true
         if (item.soldWithoutInsurance !== undefined && typeof item.soldWithoutInsurance !== 'boolean') throw new InputError('"Vendido sin seguro" debe ser verdadero o falso.')
@@ -354,9 +335,10 @@ export async function POST(request: Request) {
           // Precio de lista congelado: la lista del cliente (escalón/ítem),
           // el mayorista o el minorista, con la misma autoridad que
           // /api/pricing. Un precio en USD no cotiza en guaraníes: la línea
-          // conserva el precio retail como referencia.
+          // conserva el precio retail como referencia (mismo helper que el
+          // endpoint, issue #79).
           const resolvedPrice = resolveUnitPrice({ product, quantity, customer: { pricingTier }, priceList })
-          listPricePyg = resolvedPrice.currency === 'USD' ? product.pricePyg : resolvedPrice.unitPricePyg
+          listPricePyg = unitPricePygFallback(resolvedPrice, product.pricePyg)
           priceSource = resolvedPrice.origin
           // El precio de cupón ya viene cotizado por el servidor: no cuenta
           // como venta bajo lista discrecional.
@@ -414,7 +396,7 @@ export async function POST(request: Request) {
         subtotal += lineTotal
         if (!Number.isSafeInteger(subtotal)) throw new Error('Total fuera de rango seguro.')
         normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(listPricePyg === undefined ? {} : { listPricePyg }),
-          ...(priceSource === undefined ? {} : { priceSource }), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}), ...(comboId ? { comboId } : {}), ...(comboName ? { comboName } : {}) })
+          ...(priceSource === undefined ? {} : { priceSource }), ...(priceListId ? { priceListId } : {}), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
       }
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery
@@ -465,25 +447,8 @@ export async function POST(request: Request) {
       // transaccional del tenant; un número explícito del cliente manda.
       const orderNumber = typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : await nextOrderNumber(tx, tenant)
 
-      // Pedido especial con seña: marca y fecha esperada de entrega opcional.
-      const isSpecialOrder = body.specialOrder === true
-      let expectedAt: Date | null = null
-      if (body.expectedAt !== undefined && body.expectedAt !== null && body.expectedAt !== '') {
-        expectedAt = new Date(String(body.expectedAt))
-        if (Number.isNaN(expectedAt.getTime())) throw new InputError('Fecha esperada del pedido especial inválida.')
-      }
-      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), ...(isSpecialOrder ? { isSpecialOrder: true } : {}), ...(expectedAt ? { expectedAt } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREATED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, totalPyg: total, items: normalized.length, ...(customerId ? { customerId } : {}) } } })
-      // Fidelización: acredita puntos por la venta (1 punto = 1 Gs.) dentro de
-      // la misma transacción. Con loyaltyPct en 0 no se toca nada.
-      if (loyaltyPct > 0 && order.customerId && total > 0) {
-        const pointsPyg = Math.floor((total * loyaltyPct) / 100)
-        if (pointsPyg > 0) {
-          await tx.loyaltyMovement.create({ data: { tenantId: tenant, customerId: order.customerId, orderId: order.id, kind: 'ACCRUAL', pointsPyg, note: `Venta ${order.orderNumber}`, createdById: session.user.id } })
-          await tx.customer.update({ where: { id: order.customerId }, data: { loyaltyPointsPyg: { increment: pointsPyg } } })
-          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'LOYALTY_ACCRUED', entity: 'Customer', entityId: order.customerId, metadata: { orderId: order.id, orderNumber: order.orderNumber, pointsPyg, loyaltyPct, totalPyg: total } } })
-        }
-      }
       const discountAuth = discountAuthorization
       if (discountAuth) {
         // Consumo atómico: dos ventas concurrentes con la misma autorización no

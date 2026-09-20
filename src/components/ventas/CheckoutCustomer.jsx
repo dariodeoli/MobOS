@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { Button, Input } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
@@ -22,6 +22,10 @@ const customerValue = (customer) => ({
 export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, onBillingChange, nombreLista = '' }) {
   const [matches, setMatches] = useState([])
   const [error, setError] = useState('')
+  // Última versión de `elegirCliente` accesible desde el efecto de búsqueda sin
+  // recrearlo en cada render (evita reconsultas en loop).
+  const elegirClienteRef = useRef(null)
+  useEffect(() => { elegirClienteRef.current = elegirCliente })
   useEffect(() => {
     let active = true
     const query = (value.name || '').trim()
@@ -37,11 +41,11 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
         // nombre completo dejaba la venta como "cliente nuevo" y el precio no
         // tomaba la lista asignada.
         const exactos = encontrados.filter(customer => String(customer.name || '').trim().toLowerCase() === query.toLowerCase())
-        if (!value.id && exactos.length === 1) elegirCliente(exactos[0])
+        if (!value.id && exactos.length === 1) elegirClienteRef.current?.(exactos[0])
       } catch { if (active) setError('No se pudo consultar clientes. Reintentá antes de confirmar.') }
     }, 250)
     return () => { active = false; clearTimeout(timer) }
-  }, [value.name, esDemo])
+  }, [value.name, value.id, esDemo])
 
   function elegirCliente(customer) {
     onChange(customerValue(customer))
