@@ -5,9 +5,9 @@ import { promisify } from 'node:util'
 import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config.mjs'
 import { crearCola } from './cola.mjs'
 import { aplicarConfigRemota, crearRemoto } from './remoto.mjs'
-import { aliasSecundario, colaLanDeCups, colaUri, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola } from './transportes.mjs'
+import { aliasSecundario, colaLanDeCups, colaUri, comandoColaLan, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola } from './transportes.mjs'
 
-const VERSION = '1.6.2'
+const VERSION = '1.6.3'
 const config = cargarConfig()
 // Transporte real del último envío (directo | cups | usb): la app solo debe
 // marcar éxito cuando hubo entrega confirmada, no solo encolado. La cola local
@@ -141,14 +141,17 @@ async function repararRed() {
     }
   })()
   cacheAlcance = { hasta: 0, ok: null }
-  // macOS moderno ya no permite crear colas "raw" con lpadmin: no se crea
-  // nada. Si la cola existe, se reporta su URI real para que la app decida
-  // (p. ej. socket://… = CUPS sobre LAN; usb://… = CUPS sobre USB físico).
+  // El agente no crea colas (necesita administrador): si la cola existe, se
+  // reporta su URI real (socket://… = CUPS sobre LAN; usb://… = USB físico) y
+  // si no, se devuelve el comando exacto para crearla a mano en el puente.
   const nombreCola = config.lanCups || 'MobOS_LAN'
   const colaExistente = await colaLanDeCups(nombreCola, config.impresora)
+  const comando = comandoColaLan(nombreCola, config.impresora)
   const cups = colaExistente
     ? { ok: true, cola: colaExistente, uri: await colaUri(colaExistente) }
-    : { ok: false, cola: nombreCola, uri: '', motivo: 'No existe una cola con ese nombre. macOS moderno no crea colas raw; se conserva TCP directo y diálogo.' }
+    : { ok: false, cola: nombreCola, uri: '', comando, motivo: comando
+        ? `No existe una cola con ese nombre. Mientras tanto rige el TCP directo; para el respaldo CUPS corré en el puente: ${comando}`
+        : 'No existe una cola con ese nombre. Mientras tanto rige el TCP directo.' }
   return {
     alias,
     iface,

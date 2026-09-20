@@ -93,7 +93,7 @@ En la app, Configuración → Impresoras:
 
 La impresora del local está configurada en `192.168.1.23:9100` (máscara 255.255.255.0, gateway 192.168.1.1, DHCP desactivado, ESC/POS, cortador habilitado) y el instalador la deja cargada como destino.
 
-Ojo con la red: la Mac está en `192.168.100.x` y la impresora en `192.168.1.23`, así que **por LAN no se ven** aunque el agente esté andando (el diagnóstico muestra `EHOSTUNREACH` o `red_cambiada`). La impresión real por **USB/CUPS** (`usb:<cola>` de macOS) sí funciona y es la vía recomendada mientras la impresora no esté en la red del router.
+Ojo con la red: la impresora está en `192.168.1.23` y el instalador agrega la IP secundaria `192.168.1.100` para alcanzarla. Si el diagnóstico muestra `red_cambiada`, falta esa IP o cambió la red; si muestra `permiso_o_red`, el alias está presente y el fallo es del **permiso de Red Local** de macOS (Ajustes → Privacidad y seguridad → Red local → habilitá `node`) o de la impresora sin responder. El agente bindea el alias y, si el proceso de launchd sigue bloqueado, cae solo al respaldo CUPS (`socket://…`).
 
 **Solución recomendada (definitiva):** que la impresora viva en la red del router. Dos caminos:
 - En el panel de la impresora (o en `http://192.168.1.23`), activar **DHCP** para que el router le dé una IP `192.168.100.x` (y reservarla en el router para que no cambie).
