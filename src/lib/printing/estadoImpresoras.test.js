@@ -63,6 +63,7 @@ test('estadoDeDiagnostico: TCP alcanzable, cola CUPS con URI y fallos', () => {
 test('motivoDeDiagnostico traduce los códigos y cae al error real', () => {
   assert.equal(motivoDeDiagnostico({ motivo: 'red_cambiada' }), 'La impresora no está en esta red')
   assert.equal(motivoDeDiagnostico({ motivo: 'permisos_red_local' }), 'macOS bloqueó la salida a la red local')
+  assert.equal(motivoDeDiagnostico({ motivo: 'permiso_o_red' }), 'Puede faltar el permiso de Red Local de macOS')
   assert.equal(motivoDeDiagnostico({ motivo: 'impresora_apagada' }), 'La impresora rechazó la conexión')
   assert.equal(motivoDeDiagnostico({ error: 'ETIMEDOUT 10.0.0.5:9100' }), 'ETIMEDOUT 10.0.0.5:9100')
   assert.equal(motivoDeDiagnostico({ metodo: 'CUPS', cupsUri: '' }), 'La cola CUPS no existe en esta computadora')

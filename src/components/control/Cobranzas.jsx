@@ -59,8 +59,7 @@ export default function Cobranzas() {
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="font-bold">Cuotas por cobrar</h2>
-            <p className="mt-1 text-sm text-mute">Planes de crédito con vencimiento: avisá por WhatsApp y cobrá cada cuota desde su pedido.</p>
+            <p className="text-sm text-mute">Planes de crédito con vencimiento: avisá por WhatsApp y cobrá cada cuota desde su pedido.</p>
           </div>
           <Badge color={totalPendiente > 0 ? 'orange' : 'green'}>Pendiente total {gs(totalPendiente)}</Badge>
         </div>

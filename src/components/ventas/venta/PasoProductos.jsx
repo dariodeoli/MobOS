@@ -45,6 +45,8 @@ export default function PasoProductos({
   onImei,
   puedeDescontar,
   precioDe,
+  precioListaDe,
+  nombreLista = '',
   guardando,
   puedePaso2,
   siguientePaso,
@@ -83,6 +85,7 @@ export default function PasoProductos({
         }}
         billingTo={billingTo}
         onBillingChange={setBillingTo}
+        nombreLista={nombreLista}
       />
 
       {/* Producto: un clic agrega a la venta y se edita en la lista */}
@@ -207,6 +210,7 @@ export default function PasoProductos({
           guardando={guardando}
           puedeDescontar={puedeDescontar}
           precioDe={precioDe}
+          precioListaDe={precioListaDe}
           totalCarrito={totalCarrito}
           quitarItem={quitarItem}
           editarItem={editarItem}

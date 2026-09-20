@@ -30,6 +30,7 @@ import Caja from '@/components/control/Caja'
 import PaymentAccounts from '@/components/control/PaymentAccounts'
 import Creditos from '@/components/control/Creditos'
 import Cobranzas from '@/components/control/Cobranzas'
+import Comisiones from '@/components/control/Comisiones'
 import RolesPermisos from '@/components/control/RolesPermisos'
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
@@ -151,6 +152,7 @@ const TABS_FINANZAS = [
   ['cuotas', 'Cuotas'],
   ['comisiones', 'Comisiones'],
   ['publicidad', 'Publicidad'],
+  ['comisiones', 'Comisiones'],
 ]
 const TABS_INVENTARIO = [
   ['unidades', 'Unidades'],
@@ -173,6 +175,7 @@ const SUBPAGINAS = {
       ['roles', 'Roles y permisos'],
       ['historial', 'Auditoría'],
       ['negocio', 'Negocio'],
+      ['precios', 'Listas de precios'],
       ['sucursales', 'Sucursales'],
       ['impresoras', 'Impresoras'],
       ['sistema', 'Estado del sistema'],
@@ -193,7 +196,7 @@ function tabsDeSubpagina(slug, esDemo) {
     // Estado del sistema necesita el API real; en demo queda oculta.
     return tabs.filter(([id]) => (id === 'sistema' ? !esDemo : true))
   }
-  if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas') ? !esDemo : true))
+  if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas' || id === 'comisiones') ? !esDemo : true))
   return tabs
 }
 
@@ -201,7 +204,7 @@ function tabsDeSubpagina(slug, esDemo) {
 // Invitaciones vive dentro de Equipo (una sola vez, sin pestaña duplicada).
 const GRUPOS_CONFIG = [
   { id: 'personas', label: 'Personas', icon: 'users', tabs: ['equipo', 'identidad', 'roles'] },
-  { id: 'negocio', label: 'Negocio', icon: 'store', tabs: ['negocio', 'sucursales'] },
+  { id: 'negocio', label: 'Negocio', icon: 'store', tabs: ['negocio', 'precios', 'sucursales'] },
   { id: 'seguridad', label: 'Seguridad', icon: 'lock', tabs: ['seguridad', 'historial'] },
   { id: 'sistema', label: 'Sistema', icon: 'settings', tabs: ['impresoras', 'sistema'] },
 ]
@@ -228,6 +231,7 @@ const LABELS = {
   roles: 'Roles y permisos',
   historial: 'Auditoría',
   negocio: 'Negocio',
+  precios: 'Listas de precios',
   sucursales: 'Sucursales',
   seguridad: 'Seguridad',
   impresoras: 'Impresoras',
@@ -242,6 +246,7 @@ const LABELS = {
   creditos: 'Créditos',
   cuotas: 'Cuotas',
   publicidad: 'Publicidad',
+  comisiones: 'Comisiones',
   unidades: 'Unidades',
   alertas: 'Alertas',
   reservas: 'Reservas',
@@ -740,6 +745,7 @@ export default function PanelVendedor() {
               {vista === 'cuotas' && <Cobranzas />}
               {vista === 'comisiones' && <SeccionComisiones />}
               {vista === 'publicidad' && <Ads />}
+              {vista === 'comisiones' && <Comisiones />}
             </div>
           )}
           {esOwner && subpadre === 'configuracion' && (
@@ -772,6 +778,7 @@ export default function PanelVendedor() {
               {vista === 'roles' && <RolesPermisos />}
               {vista === 'historial' && (esDemo ? <Historial /> : <Auditoria />)}
               {vista === 'negocio' && <Config seccion="negocio" />}
+              {vista === 'precios' && <Precios />}
               {vista === 'sucursales' && <Config seccion="sucursales" />}
               {vista === 'seguridad' && <Config seccion="seguridad" />}
               {vista === 'impresoras' && <Impresoras />}

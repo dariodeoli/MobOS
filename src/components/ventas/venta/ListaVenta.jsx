@@ -12,6 +12,7 @@ export default function ListaVenta({
   guardando,
   puedeDescontar,
   precioDe,
+  precioListaDe,
   totalCarrito,
   quitarItem,
   editarItem,
@@ -47,6 +48,7 @@ export default function ListaVenta({
               esDemo={esDemo}
               guardando={guardando}
               precioDe={precioDe}
+              precioLista={precioListaDe?.(it)}
               onEditar={patch => editarItem(it.key, patch)}
               onQuitar={() => quitarItem(it.key)}
               onImei={() => onImei(it.key)}

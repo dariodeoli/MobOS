@@ -6,15 +6,17 @@ import { createHash, randomUUID, timingSafeEqual } from 'node:crypto'
 // documentación de la API v1.5.4 (flujo autorizacion-acceso → envios/ciudades);
 // queda pendiente de prueba real cuando Dario obtenga las credenciales.
 
-const AEX_API = String(process.env.MOBOS_AEX_API_URL || 'https://aex.com.py/api/v1').replace(/\/$/, '')
-const PUBLIC_KEY = String(process.env.MOBOS_AEX_PUBLIC_KEY || '')
-const PRIVATE_KEY = String(process.env.MOBOS_AEX_PRIVATE_KEY || '')
+const aexApi = () => String(process.env.MOBOS_AEX_API_URL || 'https://aex.com.py/api/v1').replace(/\/$/, '')
+// Las credenciales se leen en cada llamada (no al cargar el módulo) para que
+// las pruebas puedan alternar entre sandbox y configuración ausente.
+const publicKey = () => String(process.env.MOBOS_AEX_PUBLIC_KEY || '')
+const privateKey = () => String(process.env.MOBOS_AEX_PRIVATE_KEY || '')
 const TOKEN_TTL_MS = 9 * 60 * 1000 // el token dura 10 minutos; se renueva antes
 
 let cachedToken: { token: string; until: number } | null = null
 
 async function post(path: string, body: Record<string, unknown>, timeoutMs = 12000) {
-  const response = await fetch(`${AEX_API}${path}`, {
+  const response = await fetch(`${aexApi()}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -27,9 +29,9 @@ async function autorizar(): Promise<string> {
   if (cachedToken && Date.now() < cachedToken.until) return cachedToken.token
   const codigoSesion = randomUUID()
   const respuesta = await post('/autorizacion-acceso/generar', {
-    clave_publica: PUBLIC_KEY,
+    clave_publica: publicKey(),
     codigo_sesion: codigoSesion,
-    clave_privada: createHash('md5').update(`${PRIVATE_KEY}${codigoSesion}`).digest('hex'),
+    clave_privada: createHash('md5').update(`${privateKey()}${codigoSesion}`).digest('hex'),
   })
   const token = typeof respuesta?.codigo_autorizacion === 'string' ? respuesta.codigo_autorizacion : ''
   if (!token) throw new Error(String(respuesta?.mensaje || 'AEX no devolvió el código de autorización.'))
@@ -44,12 +46,12 @@ export type AexTrackingEvent = { fecha: string; estado: string; tipoEvento: stri
 // Seguimiento de una guía. Sin credenciales devuelve null: el llamador muestra
 // el enlace web de seguimiento. Los eventos vienen ordenados por fecha.
 export async function aexTracking(guia: string): Promise<AexTrackingEvent[] | null> {
-  if (!PUBLIC_KEY || !PRIVATE_KEY) return null
+  if (!publicKey() || !privateKey()) return null
   const numero = (guia || '').trim()
   if (!numero) return null
   try {
     const token = await autorizar()
-    const respuesta = await post('/envios/tracking', { clave_publica: PUBLIC_KEY, codigo_autorizacion: token, numero_guia: numero })
+    const respuesta = await post('/envios/tracking', { clave_publica: publicKey(), codigo_autorizacion: token, numero_guia: numero })
     const rows = Array.isArray(respuesta?.datos) ? respuesta.datos : []
     return rows.map((evento: any) => ({
       fecha: String(evento?.fecha || ''),
@@ -73,10 +75,10 @@ export function aexWebTrackingUrl(guia: string) {
 type AexCiudadRow = { codigo: string; denominacion: string }
 
 async function ciudadesConCobertura(): Promise<AexCiudadRow[] | null> {
-  if (!PUBLIC_KEY || !PRIVATE_KEY) return null
+  if (!publicKey() || !privateKey()) return null
   try {
     const token = await autorizar()
-    const respuesta = await post('/envios/ciudades', { clave_publica: PUBLIC_KEY, codigo_autorizacion: token })
+    const respuesta = await post('/envios/ciudades', { clave_publica: publicKey(), codigo_autorizacion: token })
     const rows = Array.isArray(respuesta?.datos) ? respuesta.datos : []
     return rows.map((row: any) => ({ codigo: String(row?.codigo_ciudad || ''), denominacion: String(row?.denominacion || '').trim() })).filter((row) => row.codigo && row.denominacion)
   } catch { return null }
@@ -102,7 +104,7 @@ export async function aexQuote(origen: string, destino: string, pesoKg: number):
   try {
     const token = await autorizar()
     const respuesta = await post('/envios/calcular', {
-      clave_publica: PUBLIC_KEY,
+      clave_publica: publicKey(),
       codigo_autorizacion: token,
       origen: codigoOrigen,
       destino: codigoDestino,
@@ -130,7 +132,7 @@ export async function aexShip(origen: string, destino: string, pesoKg: number, c
   try {
     const token = await autorizar()
     const solicitud = await post('/envios/solicitar_servicio', {
-      clave_publica: PUBLIC_KEY, codigo_autorizacion: token,
+      clave_publica: publicKey(), codigo_autorizacion: token,
       origen: codigoOrigen, destino: codigoDestino, codigo_operacion: codigoOperacion,
       codigo_tipo_carga: 'P',
       paquetes: [{ descripcion: 'Mercadería', peso: pesoKg, largo: 30, alto: 20, ancho: 20, cantidad: 1, valor: 0 }],
@@ -139,7 +141,7 @@ export async function aexShip(origen: string, destino: string, pesoKg: number, c
     const idSolicitud = Number(datos?.id_solicitud || 0)
     if (!idSolicitud) return null
     const confirmacion = await post('/envios/confirmar_servicio', {
-      clave_publica: PUBLIC_KEY, codigo_autorizacion: token,
+      clave_publica: publicKey(), codigo_autorizacion: token,
       id_solicitud: idSolicitud, id_tipo_servicio: elegida.serviceId,
       pickup: { direccion: direccionOrigen || 'AEX Casa Matriz', ciudad: codigoOrigen, referencias: origen },
       entrega: { direccion: direccionDestino || 'Sucursal destino', ciudad: codigoDestino, referencias: destino },
@@ -149,6 +151,47 @@ export async function aexShip(origen: string, destino: string, pesoKg: number, c
     if (!guia) return null
     return { guide: guia, costPyg: elegida.costPyg, serviceName: elegida.serviceName }
   } catch { return null }
+}
+
+// ── Impresión de la guía/etiqueta ──────────────────────────────────────────
+// La doc v1.5.4 expone POST /envios/imprimir y devuelve el PDF directo. Los
+// códigos válidos son los de la lista de formatos; AEX usa "guia" por defecto.
+export const AEX_LABEL_FORMATS = ['etiqueta65x45', 'etiqueta8x10', 'etiqueta8x6', 'guia', 'guia_A4', 'guia_A5', 'guia_A6'] as const
+export type AexLabelFormat = (typeof AEX_LABEL_FORMATS)[number]
+
+export function aexLabelFormatValido(valor: unknown): valor is AexLabelFormat {
+  return typeof valor === 'string' && (AEX_LABEL_FORMATS as readonly string[]).includes(valor)
+}
+
+export type AexLabelResult = { ok: true; pdf: ArrayBuffer } | { ok: false; motivo: 'unconfigured' | 'unavailable' }
+
+// Descarga la etiqueta o guía en PDF para el formato pedido. Sin credenciales
+// devuelve `unconfigured` (la interfaz ofrece el enlace web) y ante una
+// respuesta que no es PDF devuelve `unavailable`, sin inventar el archivo.
+export async function aexLabel(guia: string, formato: AexLabelFormat, imprimirPartida = false): Promise<AexLabelResult> {
+  if (!publicKey() || !privateKey()) return { ok: false, motivo: 'unconfigured' }
+  const numero = (guia || '').trim()
+  if (!numero) return { ok: false, motivo: 'unavailable' }
+  try {
+    const token = await autorizar()
+    const response = await fetch(`${aexApi()}/envios/imprimir`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clave_publica: publicKey(),
+        codigo_autorizacion: token,
+        guia: numero,
+        formato,
+        imprimir_partida: imprimirPartida,
+      }),
+      signal: AbortSignal.timeout(30000),
+    })
+    const tipo = response.headers.get('content-type') || ''
+    if (!response.ok || !tipo.includes('application/pdf')) return { ok: false, motivo: 'unavailable' }
+    const pdf = await response.arrayBuffer()
+    if (!pdf.byteLength) return { ok: false, motivo: 'unavailable' }
+    return { ok: true, pdf }
+  } catch { return { ok: false, motivo: 'unavailable' } }
 }
 
 export type AexWebhookEvento = {
@@ -185,7 +228,7 @@ export function normalizarEventoWebhook(payload: unknown): AexWebhookEvento | nu
 
 // Credenciales del adaptador cargadas en el entorno.
 export function aexConfigurado() {
-  return Boolean(PUBLIC_KEY && PRIVATE_KEY)
+  return Boolean(publicKey() && privateKey())
 }
 
 // Token del webhook: se acuerda con AEX y viaja en el header configurado

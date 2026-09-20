@@ -21,7 +21,7 @@ export function invitationStatus(invitation: { consumedAt: Date | null; revokedA
   return 'PENDING'
 }
 export function serializeInvitation(invitation: any) {
-  return { id: invitation.id, email: invitation.email, name: invitation.name, role: invitation.role, branchId: invitation.branchId, permissions: invitation.permissions, expiresAt: invitation.expiresAt, sentAt: invitation.sentAt, resendAvailableAt: invitation.resendAvailableAt, consumedAt: invitation.consumedAt, revokedAt: invitation.revokedAt, status: invitationStatus(invitation) }
+  return { id: invitation.id, email: invitation.email, name: invitation.name, role: invitation.role, branchId: invitation.branchId, permissions: invitation.permissions, inviterId: invitation.inviterId ?? invitation.inviter?.id ?? null, inviterName: invitation.inviter?.name ?? null, createdAt: invitation.createdAt, expiresAt: invitation.expiresAt, sentAt: invitation.sentAt, resendAvailableAt: invitation.resendAvailableAt, consumedAt: invitation.consumedAt, revokedAt: invitation.revokedAt, status: invitationStatus(invitation) }
 }
 export function invitationToken() {
   const token = randomBytes(32).toString('hex')

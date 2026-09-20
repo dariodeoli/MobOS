@@ -4,6 +4,11 @@ import { error, json } from '../../../../../lib/http'
 import { prisma } from '../../../../../lib/prisma'
 import { InputError } from '../../../../../lib/payment-input'
 import { normalizarImpresora } from '../../../../../lib/print-bridge'
+import { diffCampos } from '../../../../../lib/audit'
+
+// Campos de impresora que dejan rastro: la prueba de impresión (lastTest) es
+// operativa y no ensucia la auditoría.
+const CAMPOS_IMPRESORA = ['name', 'brand', 'model', 'location', 'connection', 'destination', 'width', 'copies', 'cut', 'density', 'characters', 'isDefault', 'isActive', 'bridgeId'] as const
 
 // Edición de una impresora (solo ADMIN): se valida el estado final, no el
 // parche, para que ningún cambio parcial deje datos incoherentes.
@@ -45,10 +50,24 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     if (!puente) return error('El puente elegido no existe o está revocado.')
   }
   const lastTest = entrada.lastTest === undefined ? undefined : entrada.lastTest === null ? Prisma.JsonNull : (entrada.lastTest as Prisma.InputJsonValue)
+  const cambios = diffCampos(actual, impresora, CAMPOS_IMPRESORA)
   try {
     const guardada = await prisma.$transaction(async tx => {
       if (impresora.isDefault) await tx.printPrinter.updateMany({ where: { tenantId, isDefault: true, id: { not: id } }, data: { isDefault: false } })
-      return tx.printPrinter.update({ where: { id }, data: { ...impresora, ...(lastTest === undefined ? {} : { lastTest }) } })
+      const actualizada = await tx.printPrinter.update({ where: { id }, data: { ...impresora, ...(lastTest === undefined ? {} : { lastTest }) } })
+      if (Object.keys(cambios).length) {
+        await tx.auditLog.create({
+          data: {
+            tenantId,
+            userId: session.user.id,
+            action: 'PRINT_PRINTER_UPDATED',
+            entity: 'PrintPrinter',
+            entityId: id,
+            metadata: cambios as Prisma.InputJsonValue,
+          },
+        })
+      }
+      return actualizada
     })
     return json(guardada)
   } catch (cause) {
@@ -64,7 +83,24 @@ export async function DELETE(request: Request, context: { params: Promise<{ id: 
   if (!session) return error('Falta sesión.', 401)
   if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)
   const { id } = await context.params
-  const borrada = await prisma.printPrinter.deleteMany({ where: { id, tenantId: session.user.tenantId } })
+  const tenantId = session.user.tenantId
+  const actual = await prisma.printPrinter.findFirst({ where: { id, tenantId }, select: { name: true, destination: true } })
+  if (!actual) return error('Impresora no encontrada.', 404)
+  const borrada = await prisma.$transaction(async tx => {
+    const resultado = await tx.printPrinter.deleteMany({ where: { id, tenantId } })
+    if (resultado.count === 0) return resultado
+    await tx.auditLog.create({
+      data: {
+        tenantId,
+        userId: session.user.id,
+        action: 'PRINT_PRINTER_DELETED',
+        entity: 'PrintPrinter',
+        entityId: id,
+        metadata: { name: actual.name, destination: actual.destination },
+      },
+    })
+    return resultado
+  })
   if (borrada.count === 0) return error('Impresora no encontrada.', 404)
   return json({ ok: true })
 }

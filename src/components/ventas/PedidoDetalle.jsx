@@ -9,8 +9,11 @@ import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import { api, API_URL } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
-import { accessUrlFor, FORMATOS_PEDIDO } from '@/components/shared/OrderReceipt'
+import { accessUrlFor, FORMATOS_PEDIDO, printDeliveryNote } from '@/components/shared/OrderReceipt'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
+import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
+import { configImpresora } from '@/lib/printing/agent'
+import { ticketNotaEntrega } from '@/lib/printing/tickets'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { DEMO_MESSAGE_TEMPLATES } from '@/components/customers/customerMessaging'
 import { gs } from '@/utils/calculos'
@@ -210,6 +213,24 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       .then(() => toast.success('Enlace copiado', nivel ? `Acceso ${nivel.toLowerCase()} listo para compartir.` : 'Listo para compartir.'))
       .catch(() => setAccesoMsg(url))
   }
+  // Nota de entrega: primero la térmica (agente o puente) y solo si el fallo
+  // fue claro cae al diálogo con el A4, igual que el comprobante.
+  async function imprimirNotaEntrega() {
+    const { ancho } = configImpresora()
+    const resultado = await imprimirDocumentoNoFiscal(ticketNotaEntrega(order, { ancho }), {
+      tipo: 'nota-entrega',
+      respaldo: () => printDeliveryNote(order, { format: 'a4' }),
+    })
+    if (resultado.ok) {
+      toast.success(
+        resultado.encolado ? 'Nota de entrega encolada' : 'Nota de entrega enviada a la impresora',
+        resultado.encolado ? (resultado.remoto ? 'La imprime el puente cuando la reclame.' : 'La impresora no respondió; se reintenta solo.') : '',
+      )
+      return
+    }
+    if (resultado.dialogo) return
+    toast.error('No se pudo imprimir la nota de entrega', resultado.error || 'Revisá la impresora.')
+  }
   const cambiarEntrega = (fulfillmentStatus) => {
     if (fulfillmentStatus === 'DELIVERED' && pendiente > 0 && !clienteConCredito && !puedeAnular) {
       setEntregaMotivo(''); setEntregaError(''); setEntregaAuth(null)
@@ -318,6 +339,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
               {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
               <Button variant="outline" onClick={() => setComprobante(true)}>Imprimir comprobante</Button>
+              <Button variant="outline" onClick={imprimirNotaEntrega}>Nota de entrega</Button>
               {!esDemo && !anulado && <Button variant="outline" onClick={abrirAnular}>Anular pedido</Button>}
               {!esDemo && <button type="button" disabled={busy} onClick={alternarArchivado} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">{archivado ? 'Desarchivar' : 'Archivar'}</button>}
             </div>

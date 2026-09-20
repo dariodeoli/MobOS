@@ -363,7 +363,10 @@ test.describe('owner panel', () => {
 
   test('finanzas → Caja can open the cash session', async ({ page }) => {
     await page.goto('/finanzas/caja')
-    await expect(page.getByRole('heading', { name: 'Caja y control financiero' })).toBeVisible()
+    // El título de la página vive en el topbar (AppShell) y aparece antes que
+    // los datos: se espera el estado de caja antes de decidir abrir o cerrar.
+    await expect(page.getByRole('heading', { name: 'Caja', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /Abrir caja|Cerrar caja/ })).toBeVisible()
 
     // Re-runs may find the cash session still open from a previous run.
     if (await page.getByRole('heading', { name: 'Cerrar caja' }).isVisible()) {
@@ -501,6 +504,10 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   // Las plantillas ya no viven dentro de Configuración: tienen vista propia.
   await page.goto('/pos/plantillas')
   await expect(page.getByRole('heading', { name: 'Plantillas de WhatsApp' })).toBeVisible()
+  // Las plantillas de pedidos se listan bajo la categoría Pedidos (el contexto
+  // es espejo de la categoría, issue #34): si alguna queda en 'clientes', la
+  // pantalla la pierde.
+  await expect(page.getByTestId('plantilla-fila').filter({ hasText: 'Pedido listo para retirar' })).toBeVisible()
 })
 
 // El dueño trabaja solo: su propia solicitud se resuelve desde la misma

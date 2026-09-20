@@ -130,6 +130,33 @@ async function ensureBranch() {
   ], { stdio: 'ignore' })
 }
 
+// Invitaciones visibles en Configuración → Equipo (issue #54). Se recrean en
+// cada corrida porque una spec ejerce la revocación real; ids fijos y acotados.
+const INVITACIONES_E2E = [
+  ['e2e-invite-pendiente', 'invitado.pendiente@test.local', 'Invitado E2E Pendiente', `ee${'1'.repeat(62)}`, '7 days', '-1 minute'],
+  ['e2e-invite-vencida', 'invitado.vencida@test.local', 'Invitado E2E Vencido', `ee${'2'.repeat(62)}`, '-1 day', '-2 days'],
+  ['e2e-invite-conflicto', 'invitado.conflicto@test.local', 'Invitado E2E Conflicto', `ee${'3'.repeat(62)}`, '7 days', '-1 minute'],
+]
+
+async function ensureInvitations() {
+  const idList = INVITACIONES_E2E.map(([id]) => `'${id}'`).join(', ')
+  const inserts = INVITACIONES_E2E.map(([id, email, name, tokenHash, expira, reenvio]) =>
+    `INSERT INTO "UserInvitation" ("id", "tenantId", "email", "name", "role", "branchId", "inviterId", "tokenHash", "expiresAt", "sentAt", "resendAvailableAt", "updatedAt")
+     SELECT '${id}', t."id", '${email}', '${name}', 'VENDEDOR'::"UserRole", NULL, (SELECT u."id" FROM "User" u WHERE u."tenantId" = t."id" AND u."role" = 'ADMIN' ORDER BY u."createdAt" ASC LIMIT 1), '${tokenHash}', CURRENT_TIMESTAMP + INTERVAL '${expira}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '${reenvio}', CURRENT_TIMESTAMP
+     FROM "Tenant" t
+     WHERE t."email" = '${SEED.company.email}' AND EXISTS (SELECT 1 FROM "User" u WHERE u."tenantId" = t."id" AND u."role" = 'ADMIN');`
+  ).join(' ')
+  try {
+    execFileSync(`${PG_BIN}/psql`, [
+      '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
+      '-v', 'ON_ERROR_STOP=1',
+      '-c', `DELETE FROM "UserInvitation" WHERE "id" IN (${idList}); ${inserts}`,
+    ], { stdio: 'ignore' })
+  } catch (error) {
+    console.warn('[e2e] no se pudieron sembrar las invitaciones:', error?.message || error)
+  }
+}
+
 async function ensureSellers(ctx, adminToken) {
   const res = await ctx.get('/api/users', { headers: bearer(adminToken) })
   if (!res.ok()) throw new Error(`users list failed: HTTP ${res.status()}`)
@@ -271,7 +298,7 @@ export default async function globalSetup() {
   try {
     execFileSync(`${PG_BIN}/psql`, [
       '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
-      '-c', `UPDATE "User" SET status = 'INACTIVE' WHERE name LIKE 'Vendedor E2E%' AND email IS NULL;`,
+      '-c', `UPDATE "User" SET status = 'INACTIVE' WHERE (name LIKE 'Vendedor E2E%' OR name LIKE 'Integrante E2E%') AND email IS NULL;`,
     ], { stdio: 'ignore' })
   } catch {
     // Si el prune falla, la suite sigue: el seed propio no depende de esto.
@@ -326,6 +353,7 @@ async function refreshStorageStates(ctx) {
   const sellerToken = await ensureSeedOrder(ctx, company.token, seller.id, adminToken)
   await writeStorageState(SELLER_STATE, company.token, sellerToken)
   await writeStorageState(ADMIN_STATE, company.token, adminToken)
+  await ensureInvitations()
 }
 
 async function seedFresh(ctx) {
@@ -368,6 +396,7 @@ async function seedFresh(ctx) {
 
   await writeStorageState(SELLER_STATE, companyToken, sellerToken)
   await writeStorageState(ADMIN_STATE, companyToken, adminToken)
+  await ensureInvitations()
 
   await writeFile(MARKER, JSON.stringify({
     seededAt: new Date().toISOString(),

@@ -20,6 +20,28 @@ sepa **qué mirar en menos de un minuto**.
 - El QR del comprobante va con corrección **H** y el módulo térmico en **7**:
   un QR chico o claro es la causa número uno de "no me lee el código".
 
+### Documentos no fiscales (entrega, cobro y cotización)
+
+| Documento | Se emite desde | Caminos |
+| --- | --- | --- |
+| **Nota de entrega** | Detalle del pedido (`/pos/pedidos/:id`) | Térmica (agente o puente) y A4 por diálogo |
+| **Remisión interna** | Traslados (`/inventario/traslados`) | Térmica y A4, con firma de entrega y recepción |
+| **Recibo interno** | Cobro del pedido (Pagos y comprobantes) | Térmica y A4, para un pago puntual |
+| **Proforma / presupuesto** | Cotización (Enlace/QR) | Térmica y A4, sin el QR de aceptación |
+| **Etiqueta/guía AEX** | Traslados con guía AEX | PDF que emite AEX (`/api/aex/label`), abierto para imprimir |
+
+- Todos llevan la leyenda visible **«Documento no fiscal»** y salen por
+  `imprimirDocumentoNoFiscal` (`src/lib/printing/documentos.js`): primero la
+  térmica (agente local o puente); el diálogo del navegador es solo el respaldo
+  de un fallo claro. Tras encolar o un resultado incierto no se abre el diálogo.
+- Los tickets ESC/POS viven en `src/lib/printing/tickets.js`; los HTML A4, en
+  `src/components/shared/OrderReceipt.jsx` (mismo `styles()` que el comprobante).
+- La **etiqueta AEX** es la excepción al camino térmico: AEX devuelve un PDF ya
+  maquetado (formatos `etiqueta8x6`, `etiqueta8x10`, `etiqueta65x45`, `guia`,
+  `guia_A4`, `guia_A5`, `guia_A6`) y no se re-renderiza. Se descarga por
+  `GET /api/aex/label?guia=&formato=&partida=` y se abre en una pestaña para el
+  diálogo del sistema; sin credenciales de AEX la app ofrece el enlace web.
+
 ## 2. Tokens del QR impreso (regla dura)
 
 - El QR del comprobante usa el **token de impresión** del nivel

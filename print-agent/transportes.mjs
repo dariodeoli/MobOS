@@ -42,6 +42,9 @@ export function enviarLan(destino, bytes, { timeoutMs = 6000, alias = '' } = {})
     socket.on('connect', () => { conectado = true; socket.end(Buffer.from(bytes), () => terminar()) })
   })
   const esRuta = (error) => /EHOSTUNREACH|ENETUNREACH|ECONNREFUSED/i.test(error?.message || '')
+  // EADDRNOTAVAIL: la IP del alias ya no está en la máquina (se perdió al
+  // reiniciar o cambiar de red). No se reintenta: se pasa al intento sin bind.
+  const esBind = (error) => /EADDRNOTAVAIL/i.test(error?.message || '')
   const intentar = async (origen) => {
     for (let intento = 0; intento < 3; intento += 1) {
       try { return await escribir(origen) } catch (error) {
@@ -55,12 +58,13 @@ export function enviarLan(destino, bytes, { timeoutMs = 6000, alias = '' } = {})
     // 1) Con bind al alias: es la MISMA ruta que la prueba manual (nc/ESC-POS
     //    salen con origen 192.168.1.100). Un proceso de launchd sin bind puede
     //    salir por la ruta primaria y devolver EHOSTUNREACH.
-    // 2) Sin bind: si el bind falla por algún motivo (alias recién agregado).
+    // 2) Sin bind: si el alias no está en la máquina (EADDRNOTAVAIL) o la ruta
+    //    con origen falla, se usa la ruta primaria como Terminal.
     // 3) El llamador decide el respaldo CUPS si esto tira el último error.
     try {
       if (localAddress) return await intentar(localAddress)
     } catch (error) {
-      if (!esRuta(error)) throw error
+      if (!esRuta(error) && !esBind(error)) throw error
     }
     return intentar('')
   })()
@@ -137,6 +141,16 @@ export function colaRedParaDestino(colas, destino = '') {
   return cola ? cola.nombre : ''
 }
 
+// Comando exacto para crear a mano la cola CUPS de respaldo (el agente no la
+// crea: lpadmin necesita administrador). Vacío si el destino no es LAN.
+export function comandoColaLan(nombre = 'MobOS_LAN', destino = '') {
+  const valor = String(destino || '').trim()
+  if (/^(usb|cups):/.test(valor)) return ''
+  const [host, puerto] = valor.replace(/^lan:/, '').split(':')
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(host || '')) return ''
+  return `sudo lpadmin -p ${nombre} -E -v socket://${host}:${Number(puerto) || 9100} -m raw`
+}
+
 // Cola CUPS de red (socket://) que respalda la salida directa cuando macOS
 // bloquea al proceso del agente: el daemon CUPS del sistema sí tiene permiso
 // de red local, así que el trabajo sale por acá. Primero por nombre exacto y,
@@ -208,13 +222,31 @@ export function probarConexionDetalle(destino, { timeoutMs = 1500, alias = '' } 
   }
   const [host, puerto] = valor.replace(/^lan:/, '').split(':')
   const localAddress = origenPara(host, alias)
-  return new Promise((resolve) => {
-    const socket = connect({ host, port: Number(puerto) || 9100, ...(localAddress ? { localAddress } : {}) })
-    const fin = (ok, mensaje = '', errno = '') => { socket.destroy(); resolve({ ok, error: mensaje, errno, origen: localAddress || '' }) }
+  const intento = (origen) => new Promise((resolve) => {
+    const socket = connect({ host, port: Number(puerto) || 9100, ...(origen ? { localAddress: origen } : {}) })
+    const fin = (ok, mensaje = '', errno = '') => { socket.destroy(); resolve({ ok, error: mensaje, errno, origen: origen || '' }) }
     socket.setTimeout(timeoutMs, () => fin(false, `Sin respuesta de ${host}:${puerto} en ${timeoutMs} ms.`, 'ETIMEDOUT'))
     socket.on('error', (error) => fin(false, `${error?.code || 'ERROR'} ${host}:${puerto}`, error?.code || ''))
     socket.on('connect', () => { cacheDirecto.habilitar(); fin(true) })
   })
+  // Alias ausente (EADDRNOTAVAIL): se prueba sin bind, igual que Terminal, para
+  // no reportar "no responde" cuando la ruta primaria sí alcanza la impresora.
+  if (!localAddress) return intento('')
+  return intento(localAddress).then((detalle) => (detalle.errno === 'EADDRNOTAVAIL' ? intento('') : detalle))
+}
+
+// Clasificación del fallo TCP para el diagnóstico. macOS puede negar la salida
+// del proceso de launchd con EHOSTUNREACH (permiso de Red Local) aunque el
+// alias esté presente: si la impresora pertenece a la subred del alias, el
+// fallo es ambiguo (permiso o impresora sin responder) y la UI guía primero
+// por el permiso; sin alias, EHOSTUNREACH es falta de ruta real.
+export function motivoDeFalloRed({ errno = '', aliasPresente = false, host = '', aliasIp = '' } = {}) {
+  if (/EACCES|EPERM/i.test(errno)) return 'permisos_red_local'
+  if (/ECONNREFUSED/i.test(errno)) return 'impresora_apagada'
+  if (/EHOSTUNREACH|ENETUNREACH/i.test(errno)) {
+    return aliasPresente && host && aliasIp && mismaSubred(host, aliasIp) ? 'permiso_o_red' : 'red_cambiada'
+  }
+  return 'otro'
 }
 
 export async function probarConexion(destino, opciones = {}) {
@@ -261,14 +293,10 @@ export async function diagnosticoRed(destino, { alias = '192.168.1.100', cups = 
     info.alcance = detalle.ok
     info.error = detalle.ok ? '' : (detalle.error || '')
     info.errno = detalle.errno || ''
-    // Interpretación honesta del errno: la falta de ruta NO es un permiso de
-    // macOS; los permisos de Red Local se manifiestan como EACCES/EPERM.
-    if (!detalle.ok) {
-      if (/EHOSTUNREACH|ENETUNREACH/.test(info.errno)) info.motivo = 'red_cambiada'
-      else if (/EACCES|EPERM/.test(info.errno)) info.motivo = 'permisos_red_local'
-      else if (/ECONNREFUSED/.test(info.errno)) info.motivo = 'impresora_apagada'
-      else info.motivo = 'otro'
-    }
+    // Interpretación honesta del errno: los permisos de Red Local pueden
+    // manifestarse como EACCES/EPERM y también como EHOSTUNREACH cuando el
+    // alias está presente (la ruta existe, pero macOS bloquea al proceso).
+    if (!detalle.ok) info.motivo = motivoDeFalloRed({ errno: info.errno, aliasPresente: info.alias?.presente, host: info.host, aliasIp: info.alias?.ip })
     if (info.alias?.presente && info.host && mismaSubred(info.host, info.alias.ip)) info.origen = info.alias.ip
   }
   info.tcpReal = info.alcance

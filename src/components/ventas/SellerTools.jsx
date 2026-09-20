@@ -13,7 +13,7 @@ export default function SellerTools({ vista, onCargarVenta }) {
   const [conditionNotes, setConditionNotes] = useState('')
   const valid = Boolean(model.trim() && imei.trim() && conditionNotes.trim() && String(value ?? '').trim() && Number.isSafeInteger(Number(value)) && Number(value) > 0 && Number(value) <= 2147483647)
   if (vista === 'promociones') return <SellerPromotions />
-  return <SellerSection title="Trade-In" description="Prepará los datos del equipo y el valor de toma ya acordado para cargarlo como parte de pago.">
+  return <SellerSection description="Prepará los datos del equipo y el valor de toma ya acordado para cargarlo como parte de pago.">
     <form className="space-y-4 rounded-2xl border border-fono/25 bg-gradient-to-br from-fono/[.06] to-transparent p-5" onSubmit={(event) => { event.preventDefault(); if (valid) { onCargarVenta?.({ model: model.trim(), imei: imei.trim(), conditionNotes: conditionNotes.trim(), value: Number(value) }); setModel(''); setImei(''); setValue(''); setConditionNotes('') } }}>
       <div className="flex items-center gap-2">
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-fono/15 text-fono-light"><Icon name="refresh" className="h-4 w-4" /></span>

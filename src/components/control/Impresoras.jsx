@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Input, Modal, Select, Skeleton, useToast } from '@/components/ui'
+import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Modal, Select, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
@@ -645,9 +645,7 @@ export default function Impresoras() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <Eyebrow>Impresoras</Eyebrow>
-          <h2 className="mt-1 font-semibold">Impresoras</h2>
-          <p className="mt-1 text-sm text-mute">Configurá, probá y monitoreá tus impresoras térmicas.</p>
+          <p className="text-sm text-mute">Configurá, probá y monitoreá tus impresoras térmicas.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={consultar} disabled={cargando}><Icon name="refresh" className="h-3.5 w-3.5" />Actualizar estado</Button>
@@ -1163,6 +1161,12 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
         <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
           <p className="font-semibold text-warn">La impresora no está en esta red.</p>
           <p className="text-mute">No hay ruta hacia {host}: la computadora puente pudo cambiar de Wi‑Fi/red, o la impresora cambió de IP. Conectá la Mac a la red de la impresora (o corregí la IP) y volvé a probar. No es un permiso de macOS.</p>
+        </div>
+      )}
+      {metodo === 'LAN' && !diagnostico.alcance && diagnostico.motivo === 'permiso_o_red' && aliasPresente && (
+        <div className="space-y-1 rounded-lg border border-warn/30 bg-warn/10 p-2">
+          <p className="font-semibold text-warn">El agente automático no pudo salir a la red local.</p>
+          <p className="text-mute">Falló con {diagnostico.errno || 'EHOSTUNREACH'} y la IP secundaria <b className="text-fore">{diagnostico.alias?.ip || estado?.alias?.ip || '192.168.1.100'}</b> está presente. Si desde Terminal <code className="rounded bg-ink-700 px-1">ping {host}</code> y <code className="rounded bg-ink-700 px-1">nc -vz {host} {puerto}</code> conectan, falta el <b className="text-fore">permiso de Red Local</b>: Ajustes → Privacidad y seguridad → Red local → habilitá <b className="text-fore">node</b> (reinstalar con <code className="rounded bg-ink-700 px-1">bash print-agent/install-macos.sh</code> abre el panel). Si tampoco conectan, revisá que la impresora esté encendida y en la misma red. Después usá <b className="text-fore">Reparar conexión → Imprimir prueba</b>.</p>
         </div>
       )}
       {metodo === 'LAN' && !diagnostico.alcance && (!diagnostico.motivo || diagnostico.motivo === 'permisos_red_local') && aliasPresente && (

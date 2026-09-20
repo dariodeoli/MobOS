@@ -98,8 +98,7 @@ export default function WhatsAppTemplates() {
     <Card className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-semibold">Plantillas de WhatsApp</h2>
-          <p className="mt-1 text-sm text-mute">Mensajes reutilizables por contexto para clientes, pedidos y servicio. Las variables se completan al enviar.</p>
+          <p className="text-sm text-mute">Mensajes reutilizables por contexto para clientes, pedidos y servicio. Las variables se completan al enviar.</p>
         </div>
         <Button type="button" onClick={() => abrirEditor(editorVacio(categoria))}><Icon name="plus" className="h-3.5 w-3.5" />Nueva plantilla</Button>
       </div>

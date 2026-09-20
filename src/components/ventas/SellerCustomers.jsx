@@ -225,7 +225,7 @@ export default function SellerCustomers() {
   }, [esDemo])
 
 
-  return <SellerSection title="Clientes" description={esDemo ? 'Demo local: ingresá únicamente datos ficticios.' : 'Buscá por nombre, teléfono, RUC, correo o ciudad. Filtrá y cargá más resultados.'}>
+  return <SellerSection description={esDemo ? 'Demo local: ingresá únicamente datos ficticios.' : 'Buscá por nombre, teléfono, RUC, correo o ciudad. Filtrá y cargá más resultados.'}>
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS_CLIENTES.map(([key, label]) => <button key={key} type="button" aria-pressed={filtro === key} onClick={() => setFiltro(key)} className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
       <form onSubmit={(event) => { event.preventDefault(); setSearch(busquedaDiferida.trim()) }} className="flex min-w-0 flex-1 gap-2">

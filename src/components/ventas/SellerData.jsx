@@ -51,9 +51,10 @@ export function useSellerData(path, project, demoRead, esDemo, options = {}) {
   return { ...state, hayMas: page.hayMas, cargandoMas: page.loading, cargarMas, refresh: () => setRevision((value) => value + 1) }
 }
 
-export function SellerSection({ title, description, children }) {
+// El título vive en el topbar (AppShell); la página solo aporta el apoyo.
+export function SellerSection({ description, children }) {
   return <section className="space-y-5">
-    <div><h1 className="text-2xl font-bold tracking-tight">{title}</h1><p className="mt-1.5 text-sm text-mute">{description}</p></div>
+    {description && <p className="text-sm text-mute">{description}</p>}
     {children}
   </section>
 }

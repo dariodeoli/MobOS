@@ -142,6 +142,32 @@ test('el agente arranca el poller remoto con apiUrl+token y lo reporta en /healt
   assert.ok(backend.pedidos.includes('/api/print/bridge/claim'), 'el poller reclamó trabajo')
 })
 
+test('el agente sobrevive sin impresora y sin red: apiUrl inalcanzable no lo tumba', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'mobos-print-sin-red-'))
+  const puertoAgente = await puertoLibre()
+  // Puerto libre que nadie escucha: el poll remoto falla en cada intento.
+  const puertoMuerto = await puertoLibre()
+  const agente = await arrancarAgente(dir, {
+    impresora: '',
+    puerto: puertoAgente,
+    extra: { apiUrl: `http://127.0.0.1:${puertoMuerto}`, bridgeToken: 'token-sin-red', intervaloPollMs: 250 },
+  })
+  t.after(() => { try { agente.kill('SIGKILL') } catch { /* ya muerto */ } })
+  let salud = null
+  await esperar(async () => {
+    try {
+      const res = await fetch(`http://127.0.0.1:${puertoAgente}/health`, { headers: { 'x-mobos-print-token': TOKEN } })
+      if (!res.ok) return false
+      salud = await res.json()
+      return Boolean(salud?.remoto?.ultimoError)
+    } catch { return false }
+  }, { intentos: 60, espera: 150 })
+  assert.ok(salud, 'el agente responde /health aunque el backend no exista')
+  assert.equal(salud.red.autotest.ok, false, 'sin impresora el autotest queda en falla')
+  assert.ok(salud.remoto.ultimoError, 'el poller reporta el error de red sin tumbar el proceso')
+  assert.equal(agente.exitCode, null, 'el proceso sigue vivo')
+})
+
 test('el agente imprime por red, encola si la impresora está caída y protege con token', async (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'mobos-print-'))
   const puertoAgente = await puertoLibre()

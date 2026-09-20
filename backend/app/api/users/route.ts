@@ -21,10 +21,12 @@ const userStatuses = ['ACTIVE', 'INACTIVE', 'SUSPENDED'] as const
 const userSelect = {
   id: true, name: true, email: true, role: true, status: true, branchId: true, permissions: true, accessSchedule: true,
   failedLoginAttempts: true, lockedUntil: true, lastAccessAt: true, dailyGoalPyg: true, createdAt: true, updatedAt: true,
+  avatar: { select: { userId: true } },
 } as const
 
 function serializeUser(user: any) {
-  return { ...user, effectivePermissions: effectivePermissions(user.role, user.permissions), isLocked: !!user.lockedUntil && user.lockedUntil > new Date() }
+  const { avatar, ...rest } = user
+  return { ...rest, hasAvatar: Boolean(avatar), effectivePermissions: effectivePermissions(user.role, user.permissions), isLocked: !!user.lockedUntil && user.lockedUntil > new Date() }
 }
 
 async function adminSession(request: Request) {

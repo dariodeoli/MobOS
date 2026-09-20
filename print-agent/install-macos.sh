@@ -95,18 +95,21 @@ else
 fi
 rm -f "$SUDOERS_TMP"
 
-# Cola CUPS: en macOS moderno lpadmin ya NO permite crear colas "raw".
-# Si la cola ya existe (p. ej. creada por el sistema al instalar la impresora),
-# se informa su URI real; si no, no se intenta crear nada.
+# Cola CUPS: el instalador no crea colas (lpadmin necesita administrador y el
+# agente corre como usuario). Si la cola ya existe (creada por el sistema al
+# instalar la impresora), se informa su URI real; si no, se deja el comando.
 if lpstat -p 2>/dev/null | grep -q "printer ZKP8008"; then
   URI_ZKP="$(lpstat -v ZKP8008 2>/dev/null | sed -n 's/.*: //p')"
   echo "Cola ZKP8008 presente: $URI_ZKP"
   echo "  (socket://… = CUPS sobre LAN · usb://… = CUPS sobre USB físico)"
 else
   echo "No hay cola CUPS local para la impresora."
-  echo "  Este macOS no permite crear colas raw (lpadmin -m raw fue eliminado)."
-  echo "  Caminos disponibles: TCP directo (agente), CUPS si el sistema ya creó"
-  echo "  una cola al instalar la impresora, o el diálogo del navegador."
+  echo "  El agente ya usa TCP directo; si querés el respaldo CUPS, creá la cola"
+  echo "  en el puente (pide tu contraseña):"
+  echo
+  echo "      sudo lpadmin -p MobOS_LAN -E -v socket://${IMPRESORA}:${PUERTO} -m raw"
+  echo
+  echo "  Verificá después con:  lpstat -v MobOS_LAN"
 fi
 
 # Permiso de Red Local: launchd puede ser bloqueado por macOS aunque Terminal

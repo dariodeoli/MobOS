@@ -19,7 +19,7 @@ export class AuthRateLimitError extends Error {
 // solo soporte puede restaurarla.
 export class ArchivedTenantError extends Error {
   constructor() {
-    super('Esta tienda está archivada. Escribinos para restaurarla.')
+    super('Esta tienda está archivada. Recuperala con el correo y la contraseña de la empresa desde «¿Archivaste tu empresa?», o escribinos.')
   }
 }
 

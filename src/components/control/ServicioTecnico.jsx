@@ -249,9 +249,7 @@ export default function ServicioTecnico() {
     <Card className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="eyebrow">Taller</p>
-          <h2 className="mt-1 text-2xl font-bold tracking-tight">Servicio Técnico</h2>
-          <p className="mt-1 text-sm text-mute">Recepción, diagnóstico, reparación, costos y entrega de cada equipo.</p>
+          <p className="text-sm text-mute">Recepción, diagnóstico, reparación, costos y entrega de cada equipo.</p>
         </div>
         <span className="flex flex-wrap items-center gap-2">{servicios.length === 0 && <Button variant="outline" onClick={cargarCatalogoSugerido}>Cargar catálogo sugerido</Button>}<Button onClick={() => { setEditing(null); setForm({ ...FORM_VACIO }) }}>+ Nueva orden</Button></span>
       </div>

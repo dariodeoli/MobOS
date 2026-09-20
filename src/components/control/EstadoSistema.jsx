@@ -73,9 +73,7 @@ export default function EstadoSistema() {
       <Card className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <p className="text-xs uppercase tracking-wider text-mute">Sistema</p>
-            <h2 className="mt-1 font-semibold">Estado del sistema</h2>
-            <p className="mt-1 text-sm text-mute">Los chequeos que se corren antes de publicar una versión, acá adentro. Si algo queda “a revisar”, la función asociada no está operativa.</p>
+            <p className="text-sm text-mute">Los chequeos que se corren antes de publicar una versión, acá adentro. Si algo queda “a revisar”, la función asociada no está operativa.</p>
           </div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={copiar} disabled={cargando}><Icon name="copy" className="h-3.5 w-3.5" />Copiar informe</Button>

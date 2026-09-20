@@ -224,8 +224,7 @@ export default function Resumen() {
       {/* ── Encabezado + período ─────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Resumen general</h1>
-          <p className="mt-0.5 text-sm text-mute">
+          <p className="text-sm text-mute">
             Acá ves el movimiento de la tienda en el período elegido.
           </p>
         </div>

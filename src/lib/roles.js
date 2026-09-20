@@ -51,7 +51,7 @@ export const CAPACIDADES = [
   { id: 'promociones', dominio: 'Servicio', label: 'Gestionar promociones', description: 'Crear, activar y desactivar códigos de descuento.', roles: ['ADMIN'] },
   { id: 'garantias', dominio: 'Servicio', label: 'Garantías y servicio', description: 'Coberturas, reparaciones y seguimiento postventa.', roles: ['ADMIN'] },
 
-  { id: 'equipo', dominio: 'Equipo y configuración', label: 'Gestionar equipo', description: 'Altas, invitaciones, roles, metas y comisiones.', roles: ['ADMIN'] },
+  { id: 'equipo', dominio: 'Equipo y configuración', label: 'Gestionar equipo', description: 'Altas, invitaciones, roles, metas y horarios.', roles: ['ADMIN'] },
   { id: 'configuracion', dominio: 'Equipo y configuración', label: 'Configurar la empresa', description: 'Datos, sucursales, cuentas de cobro, claves y facturación.', roles: ['ADMIN'] },
   { id: 'reportes', dominio: 'Equipo y configuración', label: 'Reportes y comisiones', description: 'Resultados por producto, categoría, vendedor y día.', roles: ['ADMIN'] },
 ]

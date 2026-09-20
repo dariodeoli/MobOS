@@ -82,6 +82,12 @@ export DATABASE_URL
 (cd "$BACKEND_ROOT" && ./node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma)
 (cd "$BACKEND_ROOT" && ./node_modules/.bin/prisma generate --schema prisma/schema.prisma >/dev/null)
 
+# Base migrada y vacía: el chequeo de consistencia no debe romper sin datos.
+(cd "$BACKEND_ROOT" && node tests/consistency-check.mjs) || {
+  echo "El chequeo de consistencia falló sobre una base vacía." >&2
+  exit 1
+}
+
 PIN_HASH="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('2468', 10))")"
 PIN_HASH_2="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('1357', 10))")"
 PASSWORD_HASH="$(cd "$BACKEND_ROOT" && node --input-type=module -e "import bcrypt from 'bcryptjs'; console.log(await bcrypt.hash('company-password-it', 10))")"
@@ -108,13 +114,15 @@ INSERT INTO "User" ("id", "tenantId", "branchId", "name", "email", "pinHash", "r
   ('user-b-it', 'tenant-b-it', 'branch-b-it', 'Seller B', 'seller-b-it@example.invalid', :'pin_hash', 'VENDEDOR', 'ACTIVE', CURRENT_TIMESTAMP),
   ('user-c-admin-it', 'tenant-c-it', NULL, 'Admin C', 'admin-c-it@example.invalid', :'pin_hash', 'ADMIN', 'ACTIVE', CURRENT_TIMESTAMP);
 
--- Invitaciones sembradas para invitation-app.mjs: el arnés no configura el
--- relay de correo, así que POST /api/user-invitations respondería 503. Los
+-- Invitaciones sembradas para invitation-app.mjs y para los casos de listado,
+-- reenvío y revocación. El relay de correo apunta a un host .invalid: el envío
+-- falla de forma tolerada (deliveryState=queued) sin tocar la red real. Los
 -- tokenHash son valores sintéticos únicos (nunca se usan por aceptación vía id).
 INSERT INTO "UserInvitation" ("id", "tenantId", "email", "name", "role", "branchId", "inviterId", "tokenHash", "expiresAt", "sentAt", "resendAvailableAt", "updatedAt") VALUES
   ('invite-a-b-it', 'tenant-a-it', 'seller-b-it@example.invalid', 'Seller B', 'VENDEDOR', 'branch-a-it', 'user-admin-it', '00000000000000000000000000000000000000000000000000000000000000a1', CURRENT_TIMESTAMP + INTERVAL '7 days', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
   ('invite-b-b-it', 'tenant-b-it', 'seller-b-it@example.invalid', 'Seller B', 'VENDEDOR', 'branch-b-it', 'user-b-it', '00000000000000000000000000000000000000000000000000000000000000b2', CURRENT_TIMESTAMP + INTERVAL '7 days', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('invite-c-b-it', 'tenant-c-it', 'seller-b-it@example.invalid', 'Seller B', 'GERENTE', NULL, 'user-c-admin-it', '00000000000000000000000000000000000000000000000000000000000000c3', CURRENT_TIMESTAMP + INTERVAL '7 days', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+  ('invite-c-b-it', 'tenant-c-it', 'seller-b-it@example.invalid', 'Seller B', 'GERENTE', NULL, 'user-c-admin-it', '00000000000000000000000000000000000000000000000000000000000000c3', CURRENT_TIMESTAMP + INTERVAL '7 days', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('invite-revoke-it', 'tenant-a-it', 'revoke-target-it@example.invalid', 'Revoke Target', 'VENDEDOR', 'branch-a-it', 'user-admin-it', '00000000000000000000000000000000000000000000000000000000000000d4', CURRENT_TIMESTAMP + INTERVAL '7 days', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP - INTERVAL '1 minute', CURRENT_TIMESTAMP);
 
 INSERT INTO "Product" ("id", "tenantId", "branchId", "sku", "name", "category", "pricePyg", "stock", "isActive", "updatedAt") VALUES
   ('prod-a-order-it', 'tenant-a-it', 'branch-a-it', 'SKU-A-ORDER-IT', 'Synthetic Product A Order', 'Test', 100000, 10, true, CURRENT_TIMESTAMP),
@@ -136,6 +144,8 @@ SQL
     MOBOS_MAINTENANCE_TOKEN="it-maintenance-token" \
     MOBOS_EMAIL_OUTBOX_ACTIVE_KEY_ID="it-v1" \
     MOBOS_EMAIL_OUTBOX_ENCRYPTION_KEYS_JSON='{"it-v1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}' \
+    WEEM_EMAIL_RELAY_URL="https://relay.invalid/api/internal/email/send" \
+    WEEM_EMAIL_RELAY_TOKEN="it-relay-token-000000000000" \
     exec "$BACKEND_ROOT/node_modules/.bin/next" start -H 127.0.0.1 -p "$API_PORT" >"$SERVER_LOG" 2>&1
 ) &
 SERVER_PID=$!
@@ -251,6 +261,42 @@ assert_products_for_tenant() {
 const fs = require('node:fs')
 const rows = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
 if (!Array.isArray(rows) || !rows.some((row) => row.id === 'prod-a-order-it') || rows.some((row) => row.id === 'prod-b-it')) process.exit(1)
+NODE
+}
+
+# Listado de invitaciones: la sembrada trae autor, estado y fechas, y nunca
+# expone tokenHash ni token.
+assert_invitation_list() {
+  node - "$1" <<'NODE'
+const fs = require('node:fs')
+const rows = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
+const seeded = Array.isArray(rows) ? rows.find((row) => row.id === 'invite-revoke-it') : null
+if (!seeded || seeded.status !== 'PENDING' || seeded.inviterName !== 'Admin Test' || seeded.inviterId !== 'user-admin-it') process.exit(1)
+if (!seeded.createdAt || !seeded.expiresAt || !seeded.email) process.exit(1)
+if ('tokenHash' in seeded || 'token' in seeded) process.exit(1)
+NODE
+}
+
+assert_invitation_revoked() {
+  node - "$1" <<'NODE'
+const fs = require('node:fs')
+const rows = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'))
+const revoked = Array.isArray(rows) ? rows.find((row) => row.id === 'invite-revoke-it') : null
+if (!revoked || revoked.status !== 'REVOKED' || !revoked.revokedAt) process.exit(1)
+NODE
+}
+
+# Historial del integrante: el cambio de rol quedó auditado en ambos sentidos y
+# sin filtrar el hash del PIN.
+assert_role_history() {
+  node - "$1" <<'NODE'
+const fs = require('node:fs')
+const events = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')).events
+if (!Array.isArray(events)) process.exit(1)
+const ida = events.find((event) => typeof event.detail === 'string' && event.detail.includes('Rol: Vendedor → Gerente'))
+const vuelta = events.find((event) => typeof event.detail === 'string' && event.detail.includes('Rol: Gerente → Vendedor'))
+if (!ida || !vuelta) process.exit(1)
+if (events.some((event) => /pinHash/i.test(JSON.stringify(event)))) process.exit(1)
 NODE
 }
 
@@ -432,6 +478,9 @@ out="$(response_file)"; ADMIN_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sel
 out="$(response_file)"; CAJERA_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-cajera-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; GERENTE_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-gerente-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 node "$BACKEND_ROOT/tests/print-bridge-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
+# Auditoría central: rastro de impresoras, catálogo y promociones, búsqueda por
+# metadato, filtros de fecha/actor y exportación CSV con los mismos filtros.
+MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/audit.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 out="$(response_file)"; request PATCH /api/products 200 '{"id":"prod-a-rollback-it","costPyg":55000}' "$out" "$ADMIN_TOKEN" ''
 if [[ "$(json_field "$out" costPyg)" != "55000" ]]; then echo "PATCH no guardó el costo del producto." >&2; exit 1; fi
 out="$(response_file)"; request PATCH /api/products 400 '{"id":"prod-a-rollback-it","costPyg":-1}' "$out" "$ADMIN_TOKEN" ''
@@ -450,8 +499,9 @@ node "$BACKEND_ROOT/tests/accounts-tradein.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOK
 node "$BACKEND_ROOT/tests/inventory-transfers.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 node "$BACKEND_ROOT/tests/public-quote-transfer.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN"
 node "$BACKEND_ROOT/tests/customer-portal.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$DATABASE_URL" "$PG_BIN"
-node "$BACKEND_ROOT/tests/orders-credit-discounts.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+MOBOS_TEST_PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/orders-credit-discounts.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 node "$BACKEND_ROOT/tests/mobos-1.2.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+node "$BACKEND_ROOT/tests/price-lists.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 out="$(response_file)"; COMPANY_TOKEN_C="$(auth_cookie POST /api/auth/login 200 '{"email":"company-c-it@example.invalid","password":"company-password-it","deviceId":"device-c-it"}' "$out" '' mobos_company_session)"
 out="$(response_file)"; ADMIN_TOKEN_C="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-c-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_C" mobos_seller_session)"
 node "$BACKEND_ROOT/tests/store-branch.mjs" "$BASE_URL" "$ADMIN_TOKEN_C"
@@ -498,6 +548,54 @@ if [[ "$EXPORTS_AUDIT" -lt 1 ]]; then
   exit 1
 fi
 
+echo "Invitaciones y equipo: listado, 409 con salida, reenvío, revocación, rol e historial..."
+# Listado visible con autor, estado y fechas (invitación sembrada por SQL).
+out="$(response_file)"; request GET /api/user-invitations 200 '' "$out" "$ADMIN_TOKEN" ''
+assert_invitation_list "$out" || { echo "El listado de invitaciones no trae autor, estado o fechas." >&2; exit 1; }
+# Alta nueva: devuelve autor y fechas serializadas.
+out="$(response_file)"; request POST /api/user-invitations 201 '{"name":"Listado E2E","email":"listado-it@example.invalid","role":"VENDEDOR"}' "$out" "$ADMIN_TOKEN" ''
+INVITE_LISTADO_ID="$(json_field "$out" id)"
+if [[ -z "$INVITE_LISTADO_ID" || "$(json_field "$out" inviterName)" != "Admin Test" || -z "$(json_field "$out" createdAt)" ]]; then
+  echo "El alta de invitación no devolvió identificador, autor o fecha." >&2
+  exit 1
+fi
+# 409 con salida: el conflicto devuelve la invitación activa existente.
+out="$(response_file)"; request POST /api/user-invitations 409 '{"name":"Listado E2E","email":"listado-it@example.invalid","role":"VENDEDOR"}' "$out" "$ADMIN_TOKEN" ''
+if [[ "$(json_field "$out" details.invitation.id)" != "$INVITE_LISTADO_ID" || "$(json_field "$out" details.invitation.status)" != "PENDING" ]]; then
+  echo "El 409 no devolvió la invitación activa existente." >&2
+  exit 1
+fi
+# Reenvío con el correo ya entregado: respeta el enfriamiento (429).
+"$PG_BIN/psql" "$DATABASE_URL" -At -c "UPDATE \"EmailOutbox\" SET \"sentAt\" = CURRENT_TIMESTAMP, \"payload\" = '', \"recipient\" = '' WHERE \"aggregateType\" = 'UserInvitation' AND \"aggregateId\" = '$INVITE_LISTADO_ID' AND \"sentAt\" IS NULL;" >/dev/null
+out="$(response_file)"; request POST "/api/user-invitations/$INVITE_LISTADO_ID/resend" 429 '' "$out" "$ADMIN_TOKEN" ''
+if [[ "$(json_field "$out" details.retryAfterSeconds)" -le 0 ]]; then
+  echo "El reenvío en enfriamiento no devolvió retryAfterSeconds." >&2
+  exit 1
+fi
+# Vencido el enfriamiento, el reenvío regenera el enlace de la misma invitación.
+"$PG_BIN/psql" "$DATABASE_URL" -At -c "UPDATE \"UserInvitation\" SET \"resendAvailableAt\" = CURRENT_TIMESTAMP - INTERVAL '1 minute' WHERE \"id\" = '$INVITE_LISTADO_ID';" >/dev/null
+out="$(response_file)"; request POST "/api/user-invitations/$INVITE_LISTADO_ID/resend" 200 '' "$out" "$ADMIN_TOKEN" ''
+if [[ "$(json_field "$out" id)" != "$INVITE_LISTADO_ID" ]]; then
+  echo "El reenvío no devolvió la misma invitación." >&2
+  exit 1
+fi
+# Revocación: la invitación deja de estar disponible y queda REVOKED en el listado.
+out="$(response_file)"; request POST /api/user-invitations/invite-revoke-it/revoke 200 '' "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"; request GET /api/user-invitations 200 '' "$out" "$ADMIN_TOKEN" ''
+assert_invitation_revoked "$out" || { echo "La invitación revocada no figura como REVOKED." >&2; exit 1; }
+out="$(response_file)"; request POST /api/user-invitations/invite-revoke-it/revoke 404 '' "$out" "$ADMIN_TOKEN" ''
+# Cambio de rol desde la ficha: PATCH /api/users lo aplica y lo audita.
+out="$(response_file)"; request PATCH /api/users 200 '{"id":"user-a-2-it","role":"GERENTE"}' "$out" "$ADMIN_TOKEN" ''
+if [[ "$(json_field "$out" role)" != "GERENTE" || "$(json_field "$out" hasAvatar)" != "false" ]]; then
+  echo "PATCH /api/users no cambió el rol o no expone hasAvatar." >&2
+  exit 1
+fi
+out="$(response_file)"; request PATCH /api/users 200 '{"id":"user-a-2-it","role":"VENDEDOR"}' "$out" "$ADMIN_TOKEN" ''
+out="$(response_file)"; request GET /api/users/user-a-2-it/history 200 '' "$out" "$ADMIN_TOKEN" ''
+assert_role_history "$out" || { echo "El historial no registró el cambio de rol." >&2; exit 1; }
+out="$(response_file)"; request GET /api/users/user-a-2-it/history 403 '' "$out" "$TOKEN_A" ''
+out="$(response_file)"; request GET /api/user-invitations 403 '' "$out" "$TOKEN_A" ''
+
 echo "10/13 Límite de reportes de error por IP: 429 con Retry-After..."
 # MOBOS_TRUST_PROXY=true habilita la resolución de IP desde x-forwarded-for
 # (como en producción detrás del Hub). Solo estas solicitudes envían el
@@ -543,6 +641,21 @@ out="$(response_file)"; request POST /api/auth/logout 200 '' "$out" "$COMPANY_TO
 out="$(response_file)"; request POST /api/auth/pin 401 '{"sellerId":"user-a-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 
 node "$BACKEND_ROOT/tests/stock-consistency.mjs"
-# Chequeos de consistencia de caja, créditos, comisiones, promociones y garantías.
-node "$BACKEND_ROOT/tests/consistency-check.mjs"
-echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración y logout."
+
+echo "Ciclo de vida de la empresa: archivar, reactivar y eliminar definitivamente..."
+node "$BACKEND_ROOT/tests/account-lifecycle.mjs" "$BASE_URL" "$DATABASE_URL"
+
+echo "Consistencia financiera: la base del arnés da verde y los casos sembrados fallan..."
+(cd "$BACKEND_ROOT" && node tests/consistency-check.mjs) || {
+  echo "El chequeo de consistencia encontró inconsistencias reales en una base consistente." >&2
+  exit 1
+}
+(cd "$BACKEND_ROOT" && node tests/consistency-selftest.mjs) || {
+  echo "El autotest de consistencia falló: una inconsistencia sembrada no introdujo el fallo o --fix no recompuso." >&2
+  exit 1
+}
+(cd "$BACKEND_ROOT" && node tests/consistency-check.mjs) || {
+  echo "El chequeo de consistencia no volvió a dar verde tras la limpieza del autotest." >&2
+  exit 1
+}
+echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia y logout."

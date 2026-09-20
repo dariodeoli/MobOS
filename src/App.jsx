@@ -24,6 +24,7 @@ const Celulares = lazy(() => import('@/pages/Celulares'))
 const Status = lazy(() => import('@/pages/Status'))
 const RecuperarContrasena = lazy(() => import('@/pages/RecuperarContrasena'))
 const PortalClientesEntrada = lazy(() => import('@/pages/PortalClientesEntrada'))
+const RecuperarEmpresa = lazy(() => import('@/pages/RecuperarEmpresa'))
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -179,6 +180,7 @@ export default function App() {
           <Route path="/demo" element={<DemoAccess />} />
           <Route path="/login" element={<SoloFuera />} />
           <Route path="/restablecer-contrasena/:token?" element={<RecuperarContrasena />} />
+          <Route path="/recuperar-empresa" element={<RecuperarEmpresa />} />
           <Route path="/aceptar-invitacion/:token?" element={<AceptarInvitacion />} />
           <Route path="/verificar-correo/:token?" element={<VerificarCorreo />} />
           <Route path="/pedido/:token" element={<PedidoPublico />} />

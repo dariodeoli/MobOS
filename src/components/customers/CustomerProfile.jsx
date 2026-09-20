@@ -136,6 +136,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [notaInterna, setNotaInterna] = useState('')
   const [notaPublica, setNotaPublica] = useState('')
   const [guardandoNotas, setGuardandoNotas] = useState(false)
+  // Listas de precios disponibles para asignar a la ficha.
+  const [listasPrecios, setListasPrecios] = useState([])
+  const [asignandoLista, setAsignandoLista] = useState(false)
 
   useEffect(() => {
     setNotaInterna(profile?.customer?.notes || customer?.notes || '')
@@ -344,6 +347,25 @@ export default function CustomerProfile({ customer, open, onClose }) {
     return () => { active = false }
   }, [open, customer?.id, tab, revision, esDemo])
 
+  // Listas de precios de la empresa: se cargan al abrir la ficha para poder
+  // asignar una a este cliente.
+  useEffect(() => {
+    if (!open || !customer?.id || esDemo) return undefined
+    let active = true
+    api.get('/api/price-lists').then((data) => { if (active) setListasPrecios(Array.isArray(data) ? data : []) }).catch(() => { if (active) setListasPrecios([]) })
+    return () => { active = false }
+  }, [open, customer?.id, esDemo])
+
+  async function asignarLista(priceListId) {
+    if (!customer?.id || asignandoLista) return
+    setAsignandoLista(true)
+    try {
+      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { priceListId: priceListId || null })
+      toast.success(priceListId ? 'Lista de precios asignada.' : 'Lista de precios quitada.')
+      refresh()
+    } catch (cause) { toast.error(cause?.message || 'No se pudo asignar la lista.') } finally { setAsignandoLista(false) }
+  }
+
   // Cronología del cliente: se pide al abrir su pestaña y al reintentar.
   useEffect(() => {
     if (!open || !customer?.id || tab !== 'cronologia') return undefined
@@ -379,6 +401,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const notes = profile?.notes || []
   const followUps = profile?.followUps || []
   const mayorista = (profile?.customer?.pricingTier || customer?.pricingTier) === 'WHOLESALE'
+  const puedeAsignarLista = ['ADMIN', 'GERENTE'].includes(usuario?.role)
   const clienteCredito = profile?.customer?.creditLimitPyg ?? customer?.creditLimitPyg ?? 0
   const clientePlazo = profile?.customer?.creditDays ?? customer?.creditDays ?? 0
   const identidades = profile?.billingIdentities || []
@@ -799,6 +822,14 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 {!mayorista && <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('WHOLESALE')}>Solicitar mayorista</Button>}
                 {!(Number(clienteCredito || 0) > 0) && <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('CREDIT')}>Solicitar crédito</Button>}
               </span>
+              {puedeAsignarLista && <div className="w-full border-t border-ink-600 pt-2">
+                <label className="block text-xs text-mute" htmlFor="cliente-lista-precios">Lista de precios</label>
+                <Select id="cliente-lista-precios" className="mt-1 max-w-xs" value={profile?.customer?.priceListId || customer?.priceListId || ''} disabled={asignandoLista} onChange={(event) => asignarLista(event.target.value)}>
+                  <option value="">Sin lista (mayorista o minorista)</option>
+                  {listasPrecios.map(lista => <option key={lista.id} value={lista.id}>{lista.name}</option>)}
+                </Select>
+                <p className="mt-1 text-xs text-mute">Con lista asignada, sus ítems ganan sobre el precio mayorista o minorista en los productos que cubren.</p>
+              </div>}
             </div>
           )}
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { TIPOS_TICKET_PRUEBA, ticketComprobante, ticketPruebaTipo } from './tickets.js'
+import { TIPOS_TICKET_PRUEBA, ticketComprobante, ticketNotaEntrega, ticketProforma, ticketPruebaTipo, ticketReciboInterno, ticketRemision } from './tickets.js'
 
 const opciones = { ancho: 80, impresora: 'lan:192.168.1.23:9100', nombre: 'ZKP8008', equipo: 'mac-puente', copias: 1 }
 
@@ -151,4 +151,117 @@ test('un comprobante sin saldo no imprime la línea de saldo', () => {
   const texto = ticketComprobante(order, { nivel: 'rapido', ancho: 80 }).lineas().join('')
   assert.ok(!texto.includes('SALDO PENDIENTE'))
   assert.ok(texto.includes('Total de ítems'))
+})
+
+const PEDIDO = {
+  orderNumber: 'MOB-#0042',
+  createdAt: new Date('2026-09-19T12:00:00Z').toISOString(),
+  fulfillmentStatus: 'READY_TO_SHIP',
+  deliveryType: 'Delivery',
+  items: [
+    { description: 'iPhone 13 128GB', quantity: 2, unitPricePyg: 3000000, totalPyg: 6000000 },
+    { description: 'Funda silicona', quantity: 1, unitPricePyg: 150000, totalPyg: 150000 },
+  ],
+  customer: { name: 'Ana Gómez', document: '1234567' },
+  branch: { name: 'Sucursal Central' },
+  tenant: { name: 'MobOS Demo' },
+}
+
+test('la nota de entrega lista cantidades, receptor y firma con leyenda no fiscal', () => {
+  const ticket = ticketNotaEntrega(PEDIDO, { ancho: 80 })
+  const texto = ticket.lineas().join('')
+  assert.ok(texto.includes('Nota de entrega'))
+  assert.ok(texto.includes('MOB-#0042'))
+  assert.ok(texto.includes('Ana Gómez'))
+  assert.ok(texto.includes('iPhone 13 128GB'))
+  assert.ok(texto.includes('Funda silicona'))
+  assert.ok(texto.includes('Total de unidades'))
+  assert.ok(texto.includes('Receptor'))
+  assert.ok(texto.includes('Firma'))
+  assert.ok(texto.includes('Documento no fiscal'))
+  assert.ok(texto.includes('[CORTE]'))
+  assert.ok(ticket.base64().length > 100)
+})
+
+test('la remisión informa origen, destino, seriales y las dos firmas', () => {
+  const transfer = {
+    sourceBranch: { name: 'Central' },
+    destinationBranch: { name: 'Shopping' },
+    createdAt: new Date('2026-09-19T12:00:00Z').toISOString(),
+    aexGuide: 'A003526979',
+    createdBy: { name: 'Dario' },
+    lines: [{ sourceProduct: { name: 'iPhone 14' }, quantity: 1, serials: ['356789012345678'] }],
+  }
+  const ticket = ticketRemision(transfer, { ancho: 80 })
+  const texto = ticket.lineas().join('')
+  assert.ok(texto.includes('Remisión interna'))
+  assert.ok(texto.includes('Central -> Shopping'))
+  assert.ok(texto.includes('Guía AEX'))
+  assert.ok(texto.includes('A003526979'))
+  assert.ok(texto.includes('356789012345678'))
+  assert.ok(texto.includes('Entrega:'))
+  assert.ok(texto.includes('Recepción:'))
+  assert.ok(texto.includes('Documento no fiscal'))
+  assert.ok(texto.includes('[CORTE]'))
+})
+
+test('el recibo interno detalla el cobro, el medio y las firmas', () => {
+  const pago = {
+    id: 'pay-9876',
+    amountPyg: 450000,
+    method: 'TRANSFER',
+    reference: 'Itaú 000123',
+    paidAt: new Date('2026-09-19T12:00:00Z').toISOString(),
+  }
+  const ticket = ticketReciboInterno(pago, PEDIDO, { ancho: 80 })
+  const texto = ticket.lineas().join('')
+  assert.ok(texto.includes('Recibo interno'))
+  assert.ok(texto.includes('MOB-#0042-9876'))
+  assert.ok(texto.includes('Ana Gómez'))
+  assert.ok(texto.includes('Transferencia'))
+  assert.ok(texto.includes('Itaú 000123'))
+  assert.ok(texto.includes('Gs 450.000'))
+  assert.ok(texto.includes('Firma de quien recibe'))
+  assert.ok(texto.includes('Firma de quien entrega'))
+  assert.ok(texto.includes('Documento no fiscal'))
+  assert.ok(texto.includes('[CORTE]'))
+})
+
+test('la proforma imprime ítems, totales y validez sin validez fiscal', () => {
+  const quote = {
+    number: 'COT-#0007',
+    createdAt: new Date('2026-09-19T12:00:00Z').toISOString(),
+    validUntil: new Date('2026-09-30T12:00:00Z').toISOString(),
+    customerName: 'Carlos Benítez',
+    subtotalPyg: 1000000,
+    discountPyg: 100000,
+    totalPyg: 900000,
+    items: [{ description: 'iPhone 12', quantity: 1, unitPricePyg: 1000000, totalPyg: 1000000 }],
+  }
+  const ticket = ticketProforma(quote, { ancho: 80 })
+  const texto = ticket.lineas().join('')
+  assert.ok(texto.includes('Factura proforma'))
+  assert.ok(texto.includes('COT-#0007'))
+  assert.ok(texto.includes('Carlos Benítez'))
+  assert.ok(texto.includes('iPhone 12'))
+  assert.ok(texto.includes('Gs 1.000.000'))
+  assert.ok(texto.includes('Descuento'))
+  assert.ok(texto.includes('Gs 900.000'))
+  assert.ok(texto.includes('Documento no fiscal'))
+  assert.ok(texto.includes('[CORTE]'))
+})
+
+test('los documentos no fiscales entran en 58 mm sin desbordar', () => {
+  const tickets = [
+    ticketNotaEntrega(PEDIDO, { ancho: 58 }),
+    ticketRemision({ sourceBranch: { name: 'Central' }, destinationBranch: { name: 'Shopping' }, lines: [{ sourceProduct: { name: 'iPhone 14 Pro Max' }, quantity: 1, serials: ['356789012345678'] }] }, { ancho: 58 }),
+    ticketReciboInterno({ amountPyg: 450000, method: 'CASH', reference: 'Caja 1' }, PEDIDO, { ancho: 58 }),
+    ticketProforma({ number: 'COT-#0007', items: [{ description: 'iPhone 12 128GB', quantity: 1, unitPricePyg: 1000000 }], totalPyg: 1000000 }, { ancho: 58 }),
+  ]
+  for (const ticket of tickets) {
+    const texto = ticket.lineas().join('')
+    const lineas = texto.split('\n').filter((linea) => !linea.includes('[QR]') && !linea.includes('[BARRA]') && !linea.includes('[LOGO]'))
+    for (const linea of lineas) assert.ok(linea.length <= 32, `línea de 58 mm dentro del ancho (${linea.length}): ${linea.slice(0, 40)}`)
+    assert.ok(texto.includes('Documento no fiscal'))
+  }
 })

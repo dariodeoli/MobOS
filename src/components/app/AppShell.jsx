@@ -29,8 +29,8 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
   return (
     <nav
       className={cn(
-        'flex flex-col gap-2.5',
-        scrollable && 'flex-1 overflow-y-auto p-3',
+        'flex flex-col gap-2',
+        scrollable && 'flex-1 overflow-y-auto p-2.5',
         collapsed && scrollable && 'lg:p-2',
       )}
     >
@@ -38,13 +38,13 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
         const cerrado = Boolean(closedGroups[g.titulo])
         const tieneActivo = g.items.some(([id]) => id === active)
         return (
-          <div key={g.titulo} className={cn('flex flex-col', groupIndex > 0 && !collapsed && 'border-t border-fore/[.07] pt-2')}>
+          <div key={g.titulo} className={cn('flex flex-col', groupIndex > 0 && !collapsed && 'border-t border-fore/[.07] pt-1.5')}>
             {!collapsed && (
               <button
                 type="button"
                 onClick={() => toggleGroup(g.titulo)}
                 aria-expanded={!cerrado}
-                className="mb-1 flex w-full items-center justify-between gap-1 rounded-md px-2.5 py-0.5 text-left transition hover:bg-fore/5"
+                className="mb-0.5 flex w-full items-center justify-between gap-1 rounded-md px-2.5 py-0.5 text-left transition hover:bg-fore/5"
                 title={cerrado ? `Mostrar ${g.titulo}` : `Ocultar ${g.titulo}`}
               >
                 <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-fono-light/75">
@@ -69,7 +69,7 @@ function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = tru
                         aria-label={label}
                         title={label}
                         className={cn(
-                        'group relative flex w-full items-center gap-2.5 overflow-visible rounded-[10px] border px-2.5 py-[5px] text-left text-[12.5px] leading-snug transition',
+                        'group relative flex w-full items-center gap-2 overflow-visible rounded-[10px] border px-2.5 py-1 text-left text-[12.5px] leading-snug transition',
                         collapsed && 'lg:justify-center lg:px-0',
                         activo
                           ? 'border-fono/30 bg-gradient-to-r from-fono/[.16] to-fono/[.05] font-semibold text-fore'
@@ -152,8 +152,8 @@ function SidebarFooter({ sesionNombre, esOwner, onSwitchUser, onLockRequest, col
   const nombreUsuario = perfilEmpresa?.name || sesionNombre || 'Usuario'
 
   return (
-    <div className={cn('border-t border-fore/10 p-3 pb-safe', collapsed && 'lg:p-2')}>
-      <div className={cn('mt-2.5 flex items-center gap-1.5', collapsed && 'lg:mt-1 lg:flex-col')}>
+    <div className={cn('border-t border-fore/10 p-2.5 pb-safe', collapsed && 'lg:p-2')}>
+      <div className={cn('mt-2 flex items-center gap-1.5', collapsed && 'lg:mt-1 lg:flex-col')}>
         <button
           type="button"
           onClick={manejarClicUsuario}
@@ -186,7 +186,7 @@ function SidebarFooter({ sesionNombre, esOwner, onSwitchUser, onLockRequest, col
 
 function StatsPanel({ title = 'Vendido hoy', collapsed, onToggle, children }) {
   return (
-    <div className="flex flex-col gap-2 border-t border-fono/20 p-2.5 pb-safe">
+    <div className="flex flex-col gap-1.5 border-t border-fono/20 p-2 pb-safe">
       <button
         type="button"
         onClick={onToggle}
@@ -349,10 +349,10 @@ export default function AppShell({
             </button>
             <div className="hidden sm:block">
               <Eyebrow>{grupoActivo ? `${grupoActivo} · ${APP_NAME}` : APP_NAME}</Eyebrow>
-              <span className="mt-1 block truncate text-lg font-semibold tracking-tight">{title}</span>
+              <h1 className="mt-1 block truncate text-lg font-semibold tracking-tight">{title}</h1>
               {subtitle && <span className="mt-0.5 block truncate text-xs text-mute">{subtitle}</span>}
             </div>
-            <span className="min-w-0 truncate text-base font-semibold tracking-tight sm:hidden">{title}</span>
+            <h1 className="min-w-0 truncate text-base font-semibold tracking-tight sm:hidden">{title}</h1>
           </div>
 
           <div className="flex items-center gap-2.5">
