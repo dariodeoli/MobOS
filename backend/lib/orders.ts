@@ -1,6 +1,8 @@
 import type { AuthUser } from './auth'
 import { InputError, textInput } from './payment-input'
 
+export { returnRequest } from './returns'
+
 export const FULFILLMENT_STATES = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED'] as const
 export type FulfillmentState = typeof FULFILLMENT_STATES[number]
 
@@ -44,29 +46,6 @@ export function validateFulfillmentTransition(current: string, requested: unknow
     throw new InputError('La transición de entrega no está permitida.', 409)
   }
   return next
-}
-
-export function returnRequest(input: Record<string, unknown>) {
-  if (Object.keys(input).some(key => !['operation', 'reason', 'refundPyg', 'replacementOrderId', 'replacementOrderNumber', 'refundMode', 'restock'].includes(key))) throw new InputError('La devolución contiene campos no admitidos.')
-  const operation = textInput(input.operation, 'Operación', 20).toUpperCase()
-  if (!['RETURN', 'EXCHANGE', 'CANCEL'].includes(operation)) throw new InputError('Operación de postventa inválida.')
-  const reason = textInput(input.reason, 'Motivo', 1000)
-  if (reason.length < 3) throw new InputError('Indicá un motivo de al menos 3 caracteres.')
-  const refundPyg = input.refundPyg === undefined ? undefined : Number(input.refundPyg)
-  if (refundPyg !== undefined && (!Number.isSafeInteger(refundPyg) || refundPyg < 0)) throw new InputError('Monto de devolución inválido.')
-  const replacementOrderId = input.replacementOrderId === undefined ? undefined : textInput(input.replacementOrderId, 'Pedido de cambio', 200)
-  const replacementOrderNumber = input.replacementOrderNumber === undefined ? undefined : textInput(input.replacementOrderNumber, 'Número de pedido de cambio', 200)
-  if (operation === 'EXCHANGE' && !replacementOrderId && !replacementOrderNumber) throw new InputError('Indicá el pedido que reemplaza esta venta.')
-  // Cómo se devuelve el dinero: en efectivo/cuenta (comportamiento histórico) o
-  // como saldo a favor del cliente (nota de crédito interna reutilizable).
-  const refundMode = input.refundMode === undefined || input.refundMode === null || input.refundMode === '' ? 'CASH' : textInput(input.refundMode, 'Modo de reembolso', 10).toUpperCase()
-  if (!['CASH', 'CREDIT'].includes(refundMode)) throw new InputError('Modo de reembolso inválido.')
-  // Qué hacer con el stock devuelto: nada (revisión aparte), volver a la venta
-  // o dejarlo marcado como defectuoso para revisión.
-  const restock = input.restock === undefined || input.restock === null || input.restock === '' ? 'NONE' : textInput(input.restock, 'Reposición', 10).toUpperCase()
-  if (!['NONE', 'AVAILABLE', 'REVIEW'].includes(restock)) throw new InputError('Reposición de stock inválida.')
-  if (operation === 'EXCHANGE' && refundMode === 'CREDIT') throw new InputError('Un cambio no genera saldo a favor.')
-  return { operation, reason, refundPyg, replacementOrderId, replacementOrderNumber, refundMode, restock }
 }
 
 // Comprobante congelado al emitir: guarda una copia de lo que el comprobante

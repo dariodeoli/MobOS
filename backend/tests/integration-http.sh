@@ -488,6 +488,12 @@ out="$(response_file)"; SUSPENDED_COMPANY_B="$(auth_cookie POST /api/auth/login 
 out="$(response_file)"; SUSPENDED_SELLER_B="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-b-it","pin":"2468"}' "$out" "$SUSPENDED_COMPANY_B" mobos_seller_session)"
 node "$BACKEND_ROOT/tests/suspended-sales.mjs" "$BASE_URL" "$TOKEN_A" "$ADMIN_TOKEN" "$SUSPENDED_SELLER_B" "$DATABASE_URL" "$PG_BIN"
 
+echo "Devoluciones: reposición por unidad, saldo a favor y uso en otra venta (#101)..."
+node "$BACKEND_ROOT/tests/returns-store-credit.mjs" "$BASE_URL" "$TOKEN_A" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN" "$SUSPENDED_SELLER_B"
+
+echo "Pedido especial con seña: anticipo, saldo, cobro y cancelación (#108)..."
+node "$BACKEND_ROOT/tests/special-order-deposit.mjs" "$BASE_URL" "$TOKEN_A" "$ADMIN_TOKEN" "$DATABASE_URL" "$PG_BIN" "$SUSPENDED_SELLER_B"
+
 node "$BACKEND_ROOT/tests/print-bridge-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 # Auditoría central: rastro de impresoras, catálogo y promociones, búsqueda por
 # metadato, filtros de fecha/actor y exportación CSV con los mismos filtros.

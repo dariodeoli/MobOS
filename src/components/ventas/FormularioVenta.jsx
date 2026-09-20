@@ -235,6 +235,9 @@ export default function FormularioVenta({
   const [pagos, setPagos] = useState(() =>
     Array.isArray(cartInicial?.pagos) ? cartInicial.pagos : [],
   )
+  // Saldo a favor del cliente identificado: se puede aplicar como medio de pago
+  // en esta misma venta (mismo camino de pagos, sin circuito paralelo).
+  const [saldoFavor, setSaldoFavor] = useState(0)
   const [errorVenta, setErrorVenta] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [paso, setPaso] = useState(1)
@@ -303,6 +306,27 @@ export default function FormularioVenta({
       vigente = false
     }
   }, [esDemo, intentoCuentas])
+
+  // Saldo a favor del cliente identificado: alimenta el cobro con saldo a favor
+  // en esta misma venta (el backend valida el disponible al registrar el pago).
+  useEffect(() => {
+    let vigente = true
+    if (esDemo || !customer.id) {
+      setSaldoFavor(0)
+      return undefined
+    }
+    api
+      .get(`/api/store-credits?customerId=${encodeURIComponent(customer.id)}`)
+      .then(data => {
+        if (vigente) setSaldoFavor(Math.max(0, Number(data?.availablePyg) || 0))
+      })
+      .catch(() => {
+        if (vigente) setSaldoFavor(0)
+      })
+    return () => {
+      vigente = false
+    }
+  }, [customer.id, esDemo])
 
   const set = k => e => setF(s => ({ ...s, [k]: e.target.value }))
 
@@ -836,18 +860,22 @@ export default function FormularioVenta({
       // Los campos de moneda (originalAmount/currency/exchangeRatePyg) se
       // rechazan sin accountId.
       payments = usaCuentas
-        ? pagos.map(p => accountPayment(p, cuentas))
+        ? pagos.map(p => p.storeCredit
+            ? { method: 'STORE_CREDIT', amountPyg: gsNum(p.monto), status: 'CONFIRMED', reference: 'Saldo a favor' }
+            : accountPayment(p, cuentas))
         : pagos.map(p => ({
-            method: /efectivo/i.test(p.medioPago)
-              ? 'CASH'
-              : /tarjeta|pos/i.test(p.medioPago)
-                ? 'CARD'
-                : 'TRANSFER',
+            method: p.storeCredit
+              ? 'STORE_CREDIT'
+              : /efectivo/i.test(p.medioPago)
+                ? 'CASH'
+                : /tarjeta|pos/i.test(p.medioPago)
+                  ? 'CARD'
+                  : 'TRANSFER',
             amountPyg: gsNum(p.monto),
             status: 'CONFIRMED',
             ...([p.medioPago, p.cuenta].filter(Boolean).join(' · ').trim()
-              ? { reference: [p.medioPago, p.cuenta].filter(Boolean).join(' · ') }
-              : {}),
+              ? { reference: p.storeCredit ? 'Saldo a favor' : [p.medioPago, p.cuenta].filter(Boolean).join(' · ') }
+              : p.storeCredit ? { reference: 'Saldo a favor' } : {}),
           }))
       if (esDemo)
         payments = payments.map(p => {
@@ -1077,6 +1105,17 @@ export default function FormularioVenta({
         ? { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '' }
         : { ...PAGO_VACIO, monto: pendiente > 0 ? String(pendiente) : '' },
     ])
+  }
+
+  // Cobro con el saldo a favor del cliente: una fila más del mismo camino de
+  // pagos. Se precarga lo que alcance para cubrir el pendiente de esta venta.
+  function agregarSaldoFavor() {
+    if (saldoFavor <= 0) return
+    setPagos(arr => {
+      if (arr.some(p => p.storeCredit)) return arr
+      const monto = Math.min(saldoFavor, pendiente > 0 ? pendiente : saldoFavor)
+      return [...arr, { storeCredit: true, monto: String(monto), cuenta: 'Saldo a favor' }]
+    })
   }
 
   // ── Ventas suspendidas ──────────────────────────────────────────────
@@ -1635,6 +1674,8 @@ export default function FormularioVenta({
           pagos={pagos}
           setPagos={setPagos}
           onAgregarPago={agregarPago}
+          saldoFavor={saldoFavor}
+          onAgregarSaldoFavor={agregarSaldoFavor}
           guardando={guardando}
           guardadoIncompleto={guardadoIncompleto}
           descuentoMedioPct={descuentoMedioPct}

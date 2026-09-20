@@ -8,6 +8,8 @@ import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
 import { consumeAuthorization, usableAuthorization, DEFAULT_BELOW_LIST_PCT } from '../../../lib/authorizations'
 import { armarComprobante } from '../../../lib/orders'
+import { parseSpecialOrder, validateCharge } from '../../../lib/special-orders'
+import { consumeStoreCredit } from '../../../lib/store-credit'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { serialKey } from '../../../lib/validation'
 import { lineDiscount as lineDiscountFor, warrantyDaysFor, resolveUnitPrice, unitPricePygFallback, PricingError } from '../../../lib/pricing'
@@ -205,6 +207,10 @@ export async function POST(request: Request) {
     if (!billingName && !billingDocument) throw new InputError('El titular de factura necesita nombre o RUC.')
   }
   const orderNotes = body.notes === undefined || body.notes === null || body.notes === '' ? null : textInput(body.notes, 'Comentario', 2000)
+  // Pedido especial con seña: la marca y la fecha esperada de llegada/entrega
+  // se guardan en el pedido; la seña es el pago parcial que ya viaja en
+  // `payments` y el saldo se cobra después con el mismo camino de pagos.
+  const specialOrder = parseSpecialOrder({ specialOrder: body.specialOrder, expectedAt: body.expectedAt })
   const discount = body.discountPyg ?? 0; const delivery = body.deliveryPyg ?? 0
   if (!safeInt(discount) || !safeInt(delivery)) return error('Descuento y delivery inválidos.')
   // Descuento fuera de política: el vendedor necesita una autorización DISCOUNT
@@ -434,7 +440,11 @@ export async function POST(request: Request) {
         const normalizedPayment = await normalizePayment(tx, tenant, payment)
         normalizedPayments.push(normalizedPayment)
         const amount = normalizedPayment.amountPyg; const status = normalizedPayment.status
-        if (status === 'CONFIRMED') { confirmed += amount; if (!Number.isSafeInteger(confirmed) || confirmed > total) throw new Error('Los pagos superan el total.') }
+        if (status === 'CONFIRMED') {
+          const check = validateCharge({ totalPyg: total, collectedPyg: confirmed, amountPyg: amount })
+          if (!check.ok) throw new Error(check.code === 'OVER_BALANCE' ? 'Los pagos superan el total.' : check.message)
+          confirmed = check.collectedPyg + amount
+        }
       }
       // Límite de crédito: pendiente histórico + lo nuevo a crédito ≤ límite.
       if (creditLimit !== null && customerId) {
@@ -450,8 +460,8 @@ export async function POST(request: Request) {
       // transaccional del tenant; un número explícito del cliente manda.
       const orderNumber = typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : await nextOrderNumber(tx, tenant)
 
-      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREATED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, totalPyg: total, items: normalized.length, ...(customerId ? { customerId } : {}) } } })
+      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), ...(specialOrder.isSpecialOrder ? { isSpecialOrder: true, ...(specialOrder.expectedAt ? { expectedAt: specialOrder.expectedAt } : {}) } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREATED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, totalPyg: total, items: normalized.length, ...(customerId ? { customerId } : {}), ...(specialOrder.isSpecialOrder ? { isSpecialOrder: true, expectedAt: specialOrder.expectedAt?.toISOString() ?? null, depositPyg: confirmed } : {}) } } })
       const discountAuth = discountAuthorization
       if (discountAuth) {
         // Consumo atómico: dos ventas concurrentes con la misma autorización no
@@ -470,6 +480,9 @@ export async function POST(request: Request) {
       for (const { tradeIn, ...paymentData } of normalizedPayments) {
         const payment = await tx.payment.create({ data: { ...paymentData, tenantId: tenant, orderId: order.id, createdById: session.user.id, userId: session.user.id } })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
+        // La venta creada desde el POS puede pagarse con el saldo a favor del
+        // cliente: se consume igual que en el cobro suelto, con auditoría.
+        await consumeStoreCredit(tx, { tenantId: tenant, customerId: order.customerId, orderId: order.id, paymentId: payment.id, userId: session.user.id, amountPyg: payment.amountPyg, method: payment.method })
       }
       // Comprobante congelado al emitir: queda guardado con los ítems, los pagos
       // y los datos de las partes tal como estaban en esta venta.

@@ -93,7 +93,7 @@ export default defineConfig({
     {
       // Seeded owner session (PIN 1234) for control views.
       name: 'admin',
-      testMatch: /admin\.spec\.js|pos-resumen-fijo\.spec\.js|public-quote-transfer\.spec\.js|impresion-remota\.spec\.js|documentos-no-fiscales\.spec\.js|selector-sucursal\.spec\.js|invitar-persona\.spec\.js|auditoria\.spec\.js|equipo-integrantes\.spec\.js|equipo-invitaciones\.spec\.js|finanzas-comisiones\.spec\.js|seguridad-cuenta\.spec\.js|precios-listas\.spec\.js|etiquetas-gondola\.spec\.js|campanas-recompra\.spec\.js|cobro-cuotas\.spec\.js|caja-arqueo-turnos\.spec\.js/,
+      testMatch: /admin\.spec\.js|pos-resumen-fijo\.spec\.js|public-quote-transfer\.spec\.js|impresion-remota\.spec\.js|documentos-no-fiscales\.spec\.js|selector-sucursal\.spec\.js|invitar-persona\.spec\.js|auditoria\.spec\.js|equipo-integrantes\.spec\.js|equipo-invitaciones\.spec\.js|finanzas-comisiones\.spec\.js|seguridad-cuenta\.spec\.js|precios-listas\.spec\.js|etiquetas-gondola\.spec\.js|campanas-recompra\.spec\.js|cobro-cuotas\.spec\.js|caja-arqueo-turnos\.spec\.js|devoluciones-saldo-favor\.spec\.js|pos-pedido-especial-sena\.spec\.js/,
       use: { storageState: 'e2e/.auth/admin.json' },
     },
   ],

@@ -22,6 +22,8 @@ export default function PasoCobro({
   pagos,
   setPagos,
   onAgregarPago,
+  saldoFavor = 0,
+  onAgregarSaldoFavor,
   guardando,
   guardadoIncompleto,
   descuentoMedioPct,
@@ -103,6 +105,16 @@ export default function PasoCobro({
             + Agregar pago
           </Button>
         </div>
+        {saldoFavor > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ok/30 bg-ok/5 px-3 py-2" data-testid="saldo-favor-pos">
+            <p className="text-xs text-mute">El cliente tiene saldo a favor: <b className="text-ok">{gs(saldoFavor)}</b></p>
+            {!pagos.some(p => p.storeCredit) && (
+              <Button type="button" variant="outline" onClick={onAgregarSaldoFavor} disabled={guardando || guardadoIncompleto}>
+                Usar saldo a favor
+              </Button>
+            )}
+          </div>
+        )}
         {!cuentas && !errorCuentas && (
           <p role="status" className="text-sm text-mute">
             Cargando cuentas de cobro…
@@ -127,7 +139,35 @@ export default function PasoCobro({
               No hay cuentas activas en USD o PYG para recibir pagos.
             </p>
           )}
-        {pagos.map((p, i) => (
+        {pagos.map((p, i) => p.storeCredit ? (
+          <div key={i} className="flex flex-wrap items-end gap-2 rounded-2xl border border-ok/30 bg-ok/5 p-3" data-testid="pago-saldo-favor">
+            <div className="min-w-[12rem] flex-1">
+              <Label htmlFor={`saldo-favor-${i}`}>Saldo a favor del cliente</Label>
+              <MoneyInput
+                id={`saldo-favor-${i}`}
+                aria-label="Monto con saldo a favor"
+                value={String(p.monto || '').replace(/\D/g, '')}
+                onValueChange={v =>
+                  setPagos(a =>
+                    a.map((x, j) =>
+                      j === i ? { ...x, monto: v === '' ? '' : String(Math.min(Number(v) || 0, saldoFavor)) } : x,
+                    ),
+                  )
+                }
+                placeholder="0"
+              />
+              <p className="mt-1 text-xs text-mute">Disponible: <b className="text-ok">{gs(saldoFavor)}</b> · se descuenta como un pago más.</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              aria-label="Quitar este pago"
+              onClick={() => setPagos(a => a.filter((_, j) => j !== i))}
+            >
+              <Icon name="trash" className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
           <div
             key={i}
             className={cn('grid grid-cols-1 gap-2 items-end sm:grid-cols-[1.2fr_1fr_1fr_auto]', !usaCuentas && 'rounded-2xl border border-ink-600 bg-ink-800/30 p-3')}

@@ -55,6 +55,39 @@ test('la diferencia se calcula igual que la pantalla aunque no venga explícita'
   assert.ok(ticketCierreCaja(cierre, { ancho: 58 }).lineas().join('').includes('Gs -20'))
 })
 
+test('el cierre imprime el arqueo por denominación, el QR de verificación y la leyenda', () => {
+  const cierre = armarCierreCaja({
+    cash: {
+      status: 'CLOSED',
+      openingPyg: 500000,
+      expectedPyg: 800000,
+      countedPyg: 780000,
+      countedBreakdown: { 100000: 5, 50000: 5, 10000: 3 },
+      publicToken: 'tok-caja-1',
+    },
+    empresa: 'MobOS',
+    sucursal: 'Central',
+    usuario: 'Dario',
+  })
+  const texto = ticketCierreCaja(cierre, { ancho: 80 }).lineas().join('')
+  assert.ok(texto.includes('Arqueo por denominación'))
+  assert.ok(texto.includes('Gs 100.000 x 5'), 'billete de 100 mil con cantidad')
+  assert.ok(texto.includes('Gs 500.000'), 'subtotal del arqueo')
+  assert.ok(texto.includes('Gs 10.000 x 3'), 'moneda con cantidad')
+  assert.ok(texto.includes('Total del arqueo'))
+  assert.ok(texto.includes('[QR] MOBOS:CAJA:tok-caja-1'), 'QR de verificación sin base')
+  assert.ok(texto.includes('Documento no fiscal. No válido como factura.'))
+})
+
+test('sin desglose el cierre avisa que el total se cargó a mano', () => {
+  const cierre = armarCierreCaja({
+    cash: { status: 'CLOSED', openingPyg: 100, expectedPyg: 300, countedPyg: 280 },
+  })
+  const texto = ticketCierreCaja(cierre, { ancho: 80 }).lineas().join('')
+  assert.ok(texto.includes('Sin desglose por denominación'))
+  assert.ok(!texto.includes('[QR]'))
+})
+
 test('los cobros locales se agrupan por medio y DINERO es Efectivo', () => {
   const cobros = cobrosDePagos([
     { medioPago: 'DINERO', monto: 100000 },

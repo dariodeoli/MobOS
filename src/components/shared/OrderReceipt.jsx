@@ -238,10 +238,15 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
     ? `<div class="card"><div class="label">Empresa</div><div>${escapeHtml(empresa || APP_NAME)}${empresaTenant?.ruc ? ` · RUC ${escapeHtml(empresaTenant.ruc)}` : ''}${empresaDireccion ? `<br>${escapeHtml(empresaDireccion)}` : ''}${empresaTenant?.phone ? `<br>${escapeHtml(empresaTenant.phone)}` : ''}${sucursal?.name || sucursal?.address || sucursal?.city ? `<br>${escapeHtml([sucursal?.name, sucursal?.address, sucursal?.city, sucursal?.department].filter(Boolean).join(' · '))}` : ''}${sucursal?.phone ? `<br>${escapeHtml(sucursal.phone)}` : ''}${order.seller?.name ? `<br>Vendedor: ${escapeHtml(order.seller.name)}` : ''}</div></div>`
     : ''
   const pagosRows = pagosConfirmados.length
-    ? `<div class="card"><div class="label">Pagos</div><table class="totals">${pagosConfirmados.map(payment => `<tr><td>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${completo && (payment.reference || payment.cuenta || payment.accountSnapshot?.name) ? ` · ${escapeHtml(payment.reference || payment.cuenta || payment.accountSnapshot.name)}` : ''}${detallado && (payment.paidAt || payment.createdAt) ? `<br><span class="muted">${escapeHtml(new Date(payment.paidAt || payment.createdAt).toLocaleString('es-PY'))}</span>` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>`
+    ? `<div class="card"><div class="label">Pagos</div><table class="totals">${pagosConfirmados.map(payment => `<tr><td>${order.isSpecialOrder && pendiente > 0 ? 'Seña · ' : ''}${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${completo && (payment.reference || payment.cuenta || payment.accountSnapshot?.name) ? ` · ${escapeHtml(payment.reference || payment.cuenta || payment.accountSnapshot.name)}` : ''}${detallado && (payment.paidAt || payment.createdAt) ? `<br><span class="muted">${escapeHtml(new Date(payment.paidAt || payment.createdAt).toLocaleString('es-PY'))}</span>` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>`
     : ''
   const credito = completo && Number(order.creditDays || 0) > 0
     ? `<p><span class="tag">A crédito · ${escapeHtml(String(order.creditDays))} días${order.dueAt ? ` · vence ${escapeHtml(new Date(order.dueAt).toLocaleDateString('es-PY'))}` : ''}</span></p>`
+    : ''
+  // Pedido especial con seña: el comprobante acredita el anticipo y el saldo
+  // que queda para la entrega, con la fecha esperada cuando está cargada.
+  const pedidoEspecial = completo && order.isSpecialOrder
+    ? `<p><span class="tag">Pedido especial con seña${order.expectedAt && !Number.isNaN(Date.parse(order.expectedAt)) ? ` · llegada esperada ${escapeHtml(new Date(order.expectedAt).toLocaleDateString('es-PY'))}` : ''}${pendiente > 0 ? ` · saldo al entregar ${escapeHtml(gs(pendiente))}` : ''}</span></p>`
     : ''
   const cronologia = detallado && Array.isArray(order.timeline) && order.timeline.length
     ? `<div class="card"><div class="label">Cronología</div><table class="totals">${order.timeline.map(evento => `<tr><td>${escapeHtml(evento.type === 'created' ? 'Pedido creado' : evento.type === 'payment' ? `Pago ${gs(evento.amountPyg || 0)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}` : `Entrega: ${FULFILLMENT[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`)}</td><td class="num">${escapeHtml(new Date(evento.at).toLocaleString('es-PY'))}</td></tr>`).join('')}</table></div>`
@@ -267,6 +272,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
       ${pendiente > 0 ? `<tr class="saldo"><td>Saldo pendiente</td><td class="num">${escapeHtml(gs(pendiente))}</td></tr>` : ''}
     </table>
     ${pagosRows}
+    ${pedidoEspecial}
     ${credito}
     ${entregaNotas}
     <p><span class="tag">${escapeHtml(FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación')}</span></p>

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { baseDeApp, leerEtiqueta, leerPrueba, qrGarantia, qrLiquidacion, qrPedido, qrProducto, qrPrueba, qrUnidad } from './qr.js'
+import { baseDeApp, leerEtiqueta, leerPrueba, qrCaja, qrGarantia, qrLiquidacion, qrPedido, qrProducto, qrPrueba, qrUnidad } from './qr.js'
 
 const BASE = 'https://app.moboss.online'
 
@@ -17,6 +17,13 @@ test('el comprobante de comisiones apunta a la verificación pública de la app'
   // Sin base el papel igual lleva el payload histórico del comprobante.
   assert.equal(qrLiquidacion('tok-liq-1'), 'MOBOS:LIQ:tok-liq-1')
   assert.equal(qrLiquidacion(''), '')
+})
+
+test('el cierre de caja apunta a la verificación pública de la app', () => {
+  assert.equal(qrCaja('tok-caja-1', BASE), `${BASE}/caja/tok-caja-1`)
+  assert.equal(qrCaja('token con espacios', BASE), `${BASE}/caja/token%20con%20espacios`)
+  assert.equal(qrCaja('tok-caja-1'), 'MOBOS:CAJA:tok-caja-1')
+  assert.equal(qrCaja(''), '')
 })
 
 test('la base sale del parámetro explícito y se le quita la barra final', () => {
