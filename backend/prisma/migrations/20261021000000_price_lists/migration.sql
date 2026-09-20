@@ -1,7 +1,8 @@
 -- Listas de precios por cliente (issue #28): listas con ítems por producto o
 -- categoría, escalones por cantidad y asignación opcional a la ficha del
--- cliente. Aditiva, idempotente y re-ejecutable: los objetos pueden existir por
--- una corrida previa.
+-- cliente. Aditiva, idempotente y re-ejecutable: cada objeto se crea solo si
+-- falta y los índices/relaciones se agregan únicamente cuando sus columnas
+-- existen (puede convivir con corridas previas de otra migración de precios).
 
 DO $$ BEGIN
   CREATE TYPE "PriceListCurrency" AS ENUM ('PYG', 'USD');
@@ -50,26 +51,47 @@ ALTER TABLE "Customer" ADD COLUMN IF NOT EXISTS "priceListId" TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS "PriceList_tenantId_name_key" ON "PriceList"("tenantId", "name");
 CREATE INDEX IF NOT EXISTS "PriceList_tenantId_isActive_idx" ON "PriceList"("tenantId", "isActive");
 CREATE INDEX IF NOT EXISTS "PriceListItem_priceListId_idx" ON "PriceListItem"("priceListId");
-CREATE INDEX IF NOT EXISTS "PriceListItem_productId_idx" ON "PriceListItem"("productId");
-CREATE UNIQUE INDEX IF NOT EXISTS "PriceTier_priceListItemId_minQty_key" ON "PriceTier"("priceListItemId", "minQty");
+
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'PriceListItem' AND column_name = 'productId') THEN
+    CREATE INDEX IF NOT EXISTS "PriceListItem_productId_idx" ON "PriceListItem"("productId");
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'PriceTier' AND column_name = 'priceListItemId') THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS "PriceTier_priceListItemId_minQty_key" ON "PriceTier"("priceListItemId", "minQty");
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS "Customer_priceListId_idx" ON "Customer"("priceListId");
 
 DO $$ BEGIN
-  ALTER TABLE "PriceList" ADD CONSTRAINT "PriceList_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'PriceList' AND column_name = 'tenantId') THEN
+    ALTER TABLE "PriceList" ADD CONSTRAINT "PriceList_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-  ALTER TABLE "PriceListItem" ADD CONSTRAINT "PriceListItem_priceListId_fkey" FOREIGN KEY ("priceListId") REFERENCES "PriceList"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'PriceListItem' AND column_name = 'priceListId') THEN
+    ALTER TABLE "PriceListItem" ADD CONSTRAINT "PriceListItem_priceListId_fkey" FOREIGN KEY ("priceListId") REFERENCES "PriceList"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-  ALTER TABLE "PriceListItem" ADD CONSTRAINT "PriceListItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'PriceListItem' AND column_name = 'productId') THEN
+    ALTER TABLE "PriceListItem" ADD CONSTRAINT "PriceListItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-  ALTER TABLE "PriceTier" ADD CONSTRAINT "PriceTier_priceListItemId_fkey" FOREIGN KEY ("priceListItemId") REFERENCES "PriceListItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'PriceTier' AND column_name = 'priceListItemId') THEN
+    ALTER TABLE "PriceTier" ADD CONSTRAINT "PriceTier_priceListItemId_fkey" FOREIGN KEY ("priceListItemId") REFERENCES "PriceListItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-  ALTER TABLE "Customer" ADD CONSTRAINT "Customer_priceListId_fkey" FOREIGN KEY ("priceListId") REFERENCES "PriceList"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'Customer' AND column_name = 'priceListId') THEN
+    ALTER TABLE "Customer" ADD CONSTRAINT "Customer_priceListId_fkey" FOREIGN KEY ("priceListId") REFERENCES "PriceList"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
