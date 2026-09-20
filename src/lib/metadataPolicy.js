@@ -8,6 +8,7 @@ const exactRoutes = {
   '/login': { label: 'Acceso' },
   '/restablecer-contrasena': { label: 'Restablecer contraseña' },
   '/demo': { label: 'Demo interactiva' },
+  '/prueba': { label: 'Prueba de impresión' },
   '/status': {
     label: 'Estado del sistema',
     description: 'Estado operativo de los servicios públicos de MobOS.',
@@ -81,6 +82,9 @@ function resolveRoute(pathname) {
   if (pathname.startsWith('/cotizacion/')) return { label: 'Cotización' }
   if (pathname.startsWith('/cuenta/')) return { label: 'Mi cuenta' }
   if (pathname.startsWith('/remito/')) return { label: 'Remito de traslado' }
+  // QR internos (ver printing/qr.js): fichas de unidad y producto.
+  if (pathname.startsWith('/u/')) return { label: 'Unidad' }
+  if (pathname.startsWith('/producto/')) return { label: 'Producto' }
   return { label: 'Página no encontrada', error: true }
 }
 

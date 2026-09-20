@@ -6,6 +6,7 @@ import { ETIQUETAS_MEDIO_PAGO } from '../constants.js'
 import { CHECKLISTS } from '../servicioChecklist.js'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from './codigos.js'
 import { crearTicket } from './escpos.js'
+import { baseDeApp, qrProducto, qrPrueba, qrUnidad } from './qr.js'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 
@@ -126,10 +127,12 @@ export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link 
 }
 
 // Una etiqueta de unidad dentro de un ticket ya abierto (sirve para una suelta
-// o para un lote, sin duplicar el diseño).
-function etiquetaUnidadEn(t, unit) {
+// o para un lote, sin duplicar el diseño). `base` es la base de la app para el
+// QR: sin base no se imprime un código muerto (ver `qr.js`).
+function etiquetaUnidadEn(t, unit, { base = baseDeApp() } = {}) {
   const serial = String(unit.serial || '')
   const condicion = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }[unit.condition] || unit.condition || ''
+  const enlace = qrUnidad(serial, base)
   t.centrado(`${APP_NAME} · ETIQUETA`)
   t.linea()
   t.negrita().texto(unit.product?.name || 'Producto').negrita(false)
@@ -142,7 +145,9 @@ function etiquetaUnidadEn(t, unit) {
     t.centrado('IMEI / Serial')
     t.centrado(serial)
     t.avanza(1)
-    t.qr(`MOBOS:${serial}`, { tamano: 7, etiqueta: 'QR de la unidad' })
+    // El QR abre la unidad en la app; el código de barras sigue siendo el que
+    // lee el escáner del local (`MOBOS:<serial>`).
+    if (enlace) t.qr(enlace, { tamano: 7, etiqueta: 'QR de la unidad' })
     t.barcode(`MOBOS:${serial}`, { etiqueta: 'Código de barras' })
   }
   t.linea()
@@ -151,15 +156,16 @@ function etiquetaUnidadEn(t, unit) {
 }
 
 // Etiqueta de una unidad de stock: producto, estado, IMEI y QR/código de barras.
-export function ticketEtiquetaUnidad(unit, { ancho = 80 } = {}) {
-  return etiquetaUnidadEn(crearTicket({ ancho }).iniciar(), unit)
+export function ticketEtiquetaUnidad(unit, { ancho = 80, base = baseDeApp() } = {}) {
+  return etiquetaUnidadEn(crearTicket({ ancho }).iniciar(), unit, { base })
 }
 
 // Etiqueta de precio/góndola con QR que abre el producto.
-export function ticketEtiquetaPrecio(product, { ancho = 80 } = {}) {
+export function ticketEtiquetaPrecio(product, { ancho = 80, base = baseDeApp() } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   const precio = Number(product.pricePyg ?? product.precioVenta ?? 0)
   const mayorista = Number(product.wholesalePricePyg ?? 0)
+  const enlace = qrProducto(product.sku || product.id || '', base)
   t.centrado(`${APP_NAME} · ETIQUETA DE PRECIO`)
   t.linea()
   t.negrita().texto(product.name || '').negrita(false)
@@ -168,7 +174,7 @@ export function ticketEtiquetaPrecio(product, { ancho = 80 } = {}) {
   t.centrado(precio > 0 ? gs(precio) : '—')
   if (mayorista > 0) t.centrado(`Mayorista: ${gs(mayorista)}`)
   t.avanza(1)
-  t.qr(`MOBOS:PROD:${product.sku || product.id || ''}`, { tamano: 6, etiqueta: 'QR del producto' })
+  if (enlace) t.qr(enlace, { tamano: 6, etiqueta: 'QR del producto' })
   return t.avanza(2).corte()
 }
 
@@ -288,6 +294,7 @@ export function ticketPruebaTipo(tipo, {
   puente = '',
   tokenPista = '',
   usuario = '',
+  base = baseDeApp(),
 } = {}) {
   // Método honesto: lo informa quien arma el ticket (CUPS local, LAN TCP,
   // CUPS-USB…); el prefijo `usb:` es histórico y no implica cable USB.
@@ -297,6 +304,10 @@ export function ticketPruebaTipo(tipo, {
   const sufijo = pruebaSufijo()
   const validador = `${validacion}-${sufijo}`
   const ref = refDePrueba()
+  const ahora = new Date().toISOString()
+  // El QR de la prueba abre una página autocontenida: destino, validación,
+  // fecha y formato viajan en la URL (esta prueba no vive en la base).
+  const enlacePrueba = qrPrueba({ destino: impresora, validacion, fecha: ahora, tipo }, base)
   const t = crearTicket({ ancho }).iniciar()
 
   // Pie común: todo lo que hace auditable la prueba desde el papel.
@@ -313,7 +324,7 @@ export function ticketPruebaTipo(tipo, {
     t.par('Ancho', `${ancho} mm`)
     t.par('Copias', String(copias))
     t.par('Usuario', usuario || '—')
-    t.par('Fecha', fecha(new Date().toISOString()))
+    t.par('Fecha', fecha(ahora))
     t.par('Equipo', equipo || '—')
     t.par('Trabajo', ref)
   }
@@ -322,7 +333,7 @@ export function ticketPruebaTipo(tipo, {
   const codigos = (sufijo) => {
     t.linea()
     t.centrado('Escanear')
-    t.qr(`MOBOS:PRUEBA:${sufijo}:${validacion}`, { tamano: 6, etiqueta: 'QR' })
+    if (enlacePrueba) t.qr(enlacePrueba, { tamano: 6, etiqueta: 'QR' })
     t.barcode(`MOBOS-${sufijo}-${validacion}`, { etiqueta: 'Código de barras' })
     t.linea()
     t.texto('Acentos: á é í ó ú ü ñ Ñ ¿? ¡!')
@@ -431,9 +442,9 @@ export function ticketPrueba(opciones = {}) {
 }
 
 // Varias etiquetas de unidad en un solo trabajo (una por etiqueta).
-export function ticketEtiquetasUnidad(units = [], { ancho = 80 } = {}) {
+export function ticketEtiquetasUnidad(units = [], { ancho = 80, base = baseDeApp() } = {}) {
   const t = crearTicket({ ancho }).iniciar()
-  for (const unit of units) etiquetaUnidadEn(t, unit)
+  for (const unit of units) etiquetaUnidadEn(t, unit, { base })
   return t
 }
 

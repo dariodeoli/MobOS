@@ -20,6 +20,33 @@ sepa **qué mirar en menos de un minuto**.
 - El QR del comprobante va con corrección **H** y el módulo térmico en **7**:
   un QR chico o claro es la causa número uno de "no me lee el código".
 
+### Contrato de los códigos QR (regla dura)
+
+Todo QR que imprime MobOS es una **URL absoluta de la app**, nunca un texto
+interno tipo `MOBOS:...`: quien lo escanee con el teléfono tiene que abrir una
+página. El dueño del contrato es `src/lib/printing/qr.js`; la base sale de
+`VITE_APP_URL`, después de `VITE_PUBLIC_TRACKING_URL` y, en su defecto, del
+origen donde corre la app (`window.location.origin`). Sin base no se imprime un
+QR muerto: se omite el código.
+
+| QR | Ruta | Página |
+| --- | --- | --- |
+| Comprobante | `/p/<token>` | Seguimiento del pedido (token de impresión) |
+| Etiqueta de unidad | `/u/<serial>` | Ficha de la unidad (pide sesión) |
+| Etiqueta de precio | `/producto/<sku>` | Ficha del producto (pide sesión) |
+| Ticket de prueba | `/prueba?d=&v=&f=&t=` | Verificación física de la impresión |
+
+- La **prueba es local del agente** y no existe en la base: destino, validación,
+  fecha y formato viajan en la URL para que la página sea autocontenida.
+- Los QR viejos `MOBOS:<serial>`, `MOBOS:PROD:<sku>` y `MOBOS:PRUEBA:...` **ya
+  no se imprimen**. El **código de barras** sigue diciendo `MOBOS:` a propósito:
+  lo lee el escáner del local (teclado) y los flujos lo normalizan con
+  `normalizarSerial`/`normalizeScan`, que también aceptan la URL nueva.
+- La etiqueta de **ubicación** sigue con `MOBOS:UBI:<id>` como QR y código de
+  barras (el flujo de recepción lo parsea); migrarlo a URL requiere su página.
+- Los enlaces públicos que se muestran en pantalla (cotización, cuenta, remito,
+  niveles) usan la misma base que los QR: no hay una segunda regla.
+
 ### Documentos no fiscales (entrega, cobro y cotización)
 
 | Documento | Se emite desde | Caminos |
@@ -149,12 +176,15 @@ La prueba de corte por hardware todavía no está cerrada. Para hacerla:
 | El puente no reclama trabajos | Token de puente vencido/revocado | Gestionar puentes y revalidar el código de vinculación. |
 | Salen dos tickets | Diálogo abierto con cola pendiente | Confirmar el papel y no reabrir el diálogo (el aviso ya existe). |
 | USB no imprime | La cola USB depende de CUPS/driver | Probar el test de impresión de Configuración → Impresoras. |
+| Un QR de etiqueta abre "Página no encontrada" | El papel es anterior al cambio a URLs (decía `MOBOS:`) o la base `VITE_APP_URL` quedó mal | Reimprimir la etiqueta; los códigos viejos siguen leyéndose por el código de barras. Ver "Contrato de los códigos QR". |
 
 ## 6. Verificación antes de entregar
 
-- `npm test` (incluye `src/lib/printing/*.test.js` y `print-agent/test/*.mjs`).
-- `npm run test:e2e` con `e2e/impresion-remota.spec.js` (puente, cola y UI) y
-  `e2e/etiquetas-gondola.spec.js` (etiquetas de góndola por el diálogo).
+- `npm test` (incluye `src/lib/printing/*.test.js`, `src/lib/urls.test.js`,
+  `src/lib/metadataPolicy.test.js` y `src/lib/printing/qr.test.js`).
+- `npm run test:e2e` con `e2e/impresion-remota.spec.js` (puente, cola y UI),
+  `e2e/etiquetas-gondola.spec.js` (etiquetas de góndola) y
+  `e2e/qr-unificado.spec.js` (QR con URL, `/prueba` y fichas sin sesión).
 - `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` si se tocó
   backend de impresión.
 - Si se tocó `print-agent/`: `npm run pack:agent` y commitear

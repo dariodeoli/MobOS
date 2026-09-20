@@ -82,6 +82,20 @@ test('unknown routes are noindex and canonicalize to the surface root', () => {
   assert.equal(metadata.robots, 'noindex, nofollow')
 })
 
+test('las páginas de los QR internos tienen título propio y no se indexan', () => {
+  const rutas = {
+    '/prueba': 'Prueba de impresión',
+    '/u/356789012345678': 'Unidad',
+    '/producto/IPH-15-128': 'Producto',
+  }
+  for (const [pathname, label] of Object.entries(rutas)) {
+    const metadata = resolvePageMetadata({ pathname })
+    assert.equal(metadata.title, `${label} · MobOS`)
+    assert.equal(metadata.canonical, `https://app.moboss.online${pathname}`)
+    assert.equal(metadata.robots, 'noindex, nofollow')
+  }
+})
+
 test('structured data does not invent pricing or offline capability', () => {
   const structuredData = landingStructuredData()
 
