@@ -5,21 +5,23 @@ import { canAccessAny, requireSession } from '../../../lib/auth'
 import {
   MAX_REPORT_ORDERS,
   ReportInputError,
-  aggregateCommissions,
   dayBounds,
-  localDayKey,
   parseReportQuery,
   type CommissionRuleLike,
   type OrderLike,
 } from '../../../lib/reporting'
+import { calcularLiquidacionComisiones } from '../../../lib/commission-settlements'
 
 // Liquidaciones de comisiones por vendedor: cerrar un período, congelar el
 // detalle por venta y emitir el comprobante con token de verificación. El
 // cálculo reutiliza el reporte de comisiones (`aggregateCommissions`): la
 // liquidación cobra exactamente lo que muestra Reportes → Comisiones.
 //
-// Permiso: reports:read o payments:manage, siempre dentro de la empresa.
-const PERMISSIONS = ['reports:read', 'payments:manage'] as const
+// Permiso: liquidar es de administración y gerencia (`commissions:settle`),
+// siempre dentro de la empresa. Leer la liquidación también alcanza con
+// reports:read para que gerencia la vea sin poder pagarla si se recorta.
+const READ_PERMISSIONS = ['reports:read', 'commissions:settle'] as const
+const SETTLE_PERMISSION = 'commissions:settle'
 const MAX_SETTLEMENTS = 200
 const STATUSES = ['DRAFT', 'PAID', 'CANCELLED'] as const
 
@@ -81,7 +83,7 @@ const SETTLEMENT_SELECT = {
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!canAccessAny(session.user, PERMISSIONS)) return error('No autorizado.', 403)
+  if (!canAccessAny(session.user, READ_PERMISSIONS)) return error('No autorizado.', 403)
 
   const url = new URL(request.url)
   const sellerId = text(url.searchParams.get('sellerId'))
@@ -102,7 +104,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!canAccessAny(session.user, PERMISSIONS)) return error('No autorizado.', 403)
+  if (!canAccessAny(session.user, [SETTLE_PERMISSION])) return error('No autorizado.', 403)
 
   const body = await request.json().catch(() => null) as Record<string, unknown> | null
   const sellerId = text(body?.sellerId)
@@ -155,7 +157,6 @@ export async function POST(request: Request) {
       role: rule.role,
       percentPyg: rule.percentPyg === null ? null : Number(rule.percentPyg),
     }))
-    const sellers = { [seller.id]: { name: seller.name, role: seller.role } }
     const ordersLike: OrderLike[] = orders.map((order) => ({
       id: order.id,
       status: order.status,
@@ -172,35 +173,17 @@ export async function POST(request: Request) {
         totalPyg: item.totalPyg,
       })),
     }))
+    const orderNumbers = Object.fromEntries(orders.map((order) => [order.id, order.orderNumber ?? '']))
 
-    const commissions = aggregateCommissions(ordersLike, ruleLikes, sellers)
-    const row = commissions.sellers.find((sellerRow) => sellerRow.sellerId === seller.id)
-    if (!row || row.orders === 0) return error('El vendedor no tiene ventas en el período.', 409)
-    if (row.commissionPct === null) return error('El vendedor no tiene una regla de comisión vigente.', 409)
-
-    // Detalle congelado por venta. Se calcula con la MISMA función del reporte
-    // (una orden por vez) para no duplicar la regla de margen ni el porcentaje.
-    const lines = ordersLike
-      .map((order, index) => ({ order, orderNumber: orders[index]?.orderNumber ?? '' }))
-      .filter(({ order }) => order.status !== 'CANCELLED')
-      .map(({ order, orderNumber }) => {
-        const single = aggregateCommissions([order], ruleLikes, sellers).sellers[0]
-        return {
-          orderNumber,
-          date: localDayKey(order.createdAt, offsetMinutes),
-          totalPyg: order.totalPyg,
-          basePyg: single?.marginPyg ?? 0,
-          commissionPct: single?.commissionPct ?? row.commissionPct,
-          commissionPyg: single?.commissionPyg ?? 0,
-        }
-      })
-    // El total sale del reporte (redondeo sobre el margen acumulado); si la
-    // suma de las líneas no coincide por redondeo, la diferencia se explicita.
-    const lineTotal = lines.reduce((sum, line) => sum + line.commissionPyg, 0)
-    const adjustment = row.commissionPyg - lineTotal
-    if (adjustment !== 0) {
-      lines.push({ orderNumber: 'Ajuste por redondeo', date: periodTo, totalPyg: 0, basePyg: 0, commissionPct: row.commissionPct, commissionPyg: adjustment })
-    }
+    const liquidacion = calcularLiquidacionComisiones({
+      orders: ordersLike,
+      orderNumbers,
+      rules: ruleLikes,
+      seller: { id: seller.id, name: seller.name, role: seller.role },
+      periodTo,
+      offsetMinutes,
+    })
+    if (!liquidacion.ok) return error(liquidacion.message, 409)
 
     const created = await prisma.$transaction(async (tx) => {
       const settlement = await tx.commissionSettlement.create({
@@ -209,10 +192,10 @@ export async function POST(request: Request) {
           sellerId: seller.id,
           periodFrom,
           periodTo,
-          totalPyg: row.commissionPyg,
-          marginPyg: row.marginPyg,
-          commissionPct: row.commissionPct,
-          linesJson: lines as unknown as Prisma.InputJsonValue,
+          totalPyg: liquidacion.totalPyg,
+          marginPyg: liquidacion.marginPyg,
+          commissionPct: liquidacion.commissionPct,
+          linesJson: liquidacion.lines as unknown as Prisma.InputJsonValue,
           createdById: session.user.id,
         },
         select: SETTLEMENT_SELECT,
@@ -224,7 +207,7 @@ export async function POST(request: Request) {
           action: 'COMMISSION_SETTLED',
           entity: 'CommissionSettlement',
           entityId: settlement.id,
-          metadata: { sellerId: seller.id, sellerName: seller.name, periodFrom, periodTo, totalPyg: row.commissionPyg, orders: row.orders },
+          metadata: { sellerId: seller.id, sellerName: seller.name, periodFrom, periodTo, totalPyg: liquidacion.totalPyg, orders: liquidacion.orders },
         },
       })
       return settlement

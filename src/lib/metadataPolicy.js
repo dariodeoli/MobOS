@@ -86,6 +86,8 @@ function resolveRoute(pathname) {
   // QR internos (ver printing/qr.js): fichas de unidad y producto.
   if (pathname.startsWith('/u/')) return { label: 'Unidad' }
   if (pathname.startsWith('/producto/')) return { label: 'Producto' }
+  // QR del comprobante de comisiones: verificación pública por token.
+  if (pathname.startsWith('/liquidacion/')) return { label: 'Liquidación de comisiones' }
   return { label: 'Página no encontrada', error: true }
 }
 

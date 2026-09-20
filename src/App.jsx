@@ -16,6 +16,10 @@ import PortalCliente from '@/pages/PortalCliente'
 import RemitoPublico from '@/pages/RemitoPublico'
 import AceptarInvitacion from '@/pages/AceptarInvitacion'
 import VerificarCorreo from '@/pages/VerificarCorreo'
+import PruebaImpresion from '@/pages/PruebaImpresion'
+import UnidadPublica from '@/pages/UnidadPublica'
+import ProductoPublico from '@/pages/ProductoPublico'
+import LiquidacionPublica from '@/pages/LiquidacionPublica'
 
 // Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
 const Landing = lazy(() => import('@/pages/Landing'))
@@ -192,6 +196,12 @@ export default function App() {
           <Route path="/cuenta/:token" element={<CuentaPublica />} />
           <Route path="/portal/:token" element={<PortalCliente />} />
           <Route path="/remito/:token" element={<RemitoPublico />} />
+          {/* QR de la app (ver printing/qr.js): prueba de impresión, ficha de
+              unidad y de producto, y verificación del comprobante de comisiones. */}
+          <Route path="/prueba" element={<PruebaImpresion />} />
+          <Route path="/u/:serial" element={<UnidadPublica />} />
+          <Route path="/producto/:sku" element={<ProductoPublico />} />
+          <Route path="/liquidacion/:token" element={<LiquidacionPublica />} />
           <Route
             path="/"
             element={

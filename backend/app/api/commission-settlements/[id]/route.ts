@@ -6,9 +6,9 @@ import { canAccessAny, requireSession } from '../../../../lib/auth'
 // Detalle y ciclo de vida de una liquidación de comisiones. El comprobante
 // impreso sale de `linesJson`, que quedó congelado al cerrar el período.
 //
-// Permiso de lectura: reports:read o payments:manage. Marcar pagada o anular
-// exige payments:manage (mueve dinero).
-const READ_PERMISSIONS = ['reports:read', 'payments:manage'] as const
+// Permiso de lectura: reports:read o commissions:settle. Marcar pagada o
+// anular exige commissions:settle (mueve dinero) y es de ADMIN/GERENTE.
+const READ_PERMISSIONS = ['reports:read', 'commissions:settle'] as const
 
 type SettlementDetail = {
   id: string
@@ -91,7 +91,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!canAccessAny(session.user, ['payments:manage'])) return error('No autorizado.', 403)
+  if (!canAccessAny(session.user, ['commissions:settle'])) return error('No autorizado.', 403)
   const { id: rawId } = await context.params
   const id = String(rawId || '').trim()
   const body = await request.json().catch(() => null) as Record<string, unknown> | null
