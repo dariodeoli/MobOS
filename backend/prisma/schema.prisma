@@ -1076,6 +1076,8 @@ model OrderItem {
   // cliente lo es). La UI y el comprobante muestran el descuento solo cuando
   // la línea se vendió más barato; por encima de lista se muestra normal.
   listPricePyg         Int?
+  // Origen congelado del precio resuelto al vender (TIER, LIST, WHOLESALE, RETAIL, USD).
+  priceSource          String?
   unitCostPyg          Int?
   baseUnitCostPyg      Int?
   insurancePyg         Int            @default(0)

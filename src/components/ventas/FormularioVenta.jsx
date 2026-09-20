@@ -714,13 +714,12 @@ export default function FormularioVenta({
         ...(pct > 0 ? { discountPct: pct } : fijo > 0 ? { discountPyg: fijo } : {}),
       }
     })
-    // El demo registra una venta por unidad: las filas con cantidad > 1 se
-    // expanden para que descuento, pagos y stock se repartan por unidad.
-    const listaDemo = esDemo
-      ? lista.flatMap(it =>
-          Array.from({ length: it.quantity || 1 }, () => ({ ...it, quantity: 1 })),
-        )
-      : lista
+    // La venta se registra por unidad: las filas con cantidad > 1 se expanden
+    // para que descuento, pagos y stock se repartan por unidad (sin esto, el
+    // total sumaba el precio unitario y los pagos "superaban el total").
+    const listaDemo = lista.flatMap(it =>
+      Array.from({ length: it.quantity || 1 }, () => ({ ...it, quantity: 1 })),
+    )
     setErrorVenta('')
     if (!idempotencyKeyRef.current) idempotencyKeyRef.current = `pos-${crypto.randomUUID()}`
     let lineas

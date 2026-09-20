@@ -301,7 +301,7 @@ export async function POST(request: Request) {
           create: { tenantId: tenant, customerId, name: billingName, document: billingDocument, createdById: session.user.id },
         })
       }
-      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
+      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; priceSource?: string; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()
       // Diferencia acumulada entre precio de lista y precio cargado (venta bajo
@@ -319,7 +319,7 @@ export async function POST(request: Request) {
         serials.forEach(serial => serialsInOrder.add(serial))
         const promotion = item.couponCode === undefined ? undefined : await quotePromotion(tx, tenant, branchId, { ...item, quantity }, true)
         if (promotion && price !== promotion.unitPricePyg) throw new InputError('El precio del cupón cambió o fue alterado. Volvé a aplicarlo.', 409)
-        let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let listPricePyg: number | undefined; let insurancePyg = 0; let extraCostPyg = 0; let costPending = false; let serialsPending = 0
+        let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let listPricePyg: number | undefined; let priceSource: string | undefined; let insurancePyg = 0; let extraCostPyg = 0; let costPending = false; let serialsPending = 0
         const soldWithoutInsurance = item.soldWithoutInsurance === true
         if (item.soldWithoutInsurance !== undefined && typeof item.soldWithoutInsurance !== 'boolean') throw new InputError('"Vendido sin seguro" debe ser verdadero o falso.')
         if (item.extraCostPyg !== undefined) {
@@ -338,6 +338,7 @@ export async function POST(request: Request) {
           // conserva el precio retail como referencia.
           const resolvedPrice = resolveUnitPrice({ product, quantity, customer: { pricingTier }, priceList })
           listPricePyg = resolvedPrice.currency === 'USD' ? product.pricePyg : resolvedPrice.unitPricePyg
+          priceSource = resolvedPrice.origin
           // El precio de cupón ya viene cotizado por el servidor: no cuenta
           // como venta bajo lista discrecional.
           if (item.couponCode === undefined && price < listPricePyg) {
@@ -393,7 +394,8 @@ export async function POST(request: Request) {
         const line = quantity * price
         subtotal += lineTotal
         if (!Number.isSafeInteger(subtotal)) throw new Error('Total fuera de rango seguro.')
-        normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(listPricePyg === undefined ? {} : { listPricePyg }), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
+        normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(listPricePyg === undefined ? {} : { listPricePyg }),
+          ...(priceSource === undefined ? {} : { priceSource }), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
       }
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery
