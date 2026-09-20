@@ -1,12 +1,13 @@
 import { lazy, Suspense, useEffect } from 'react'
 import LoadingScreen from '@/components/app/LoadingScreen'
-import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { SesionProvider, useSesion } from '@/lib/sesion'
 import { Button, ToastProvider } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import Login from '@/pages/Login'
 import PanelVendedor from '@/pages/PanelVendedor'
 import { applyPageMetadata } from '@/lib/seo'
+import { rutaInterna } from '@/lib/urls'
 import DemoAccess from '@/pages/DemoAccess'
 import PedidoPublico from '@/pages/PedidoPublico'
 import GarantiaPublica from '@/pages/GarantiaPublica'
@@ -15,6 +16,9 @@ import CuentaPublica from '@/pages/CuentaPublica'
 import RemitoPublico from '@/pages/RemitoPublico'
 import AceptarInvitacion from '@/pages/AceptarInvitacion'
 import VerificarCorreo from '@/pages/VerificarCorreo'
+import PruebaImpresion from '@/pages/PruebaImpresion'
+import UnidadPublica from '@/pages/UnidadPublica'
+import ProductoPublico from '@/pages/ProductoPublico'
 
 // Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
 const Landing = lazy(() => import('@/pages/Landing'))
@@ -61,11 +65,13 @@ function PaginaCargando() {
   return <LoadingScreen mensaje="Cargando…" />
 }
 
-// El login solo tiene sentido si NO hay sesión; si ya entraste, al panel.
+// El login solo tiene sentido si NO hay sesión; si ya entraste, al panel. El
+// parámetro `next` (ruta interna) devuelve a la página del QR escaneado.
 function SoloFuera() {
   const { estado } = useSesion()
+  const [parametros] = useSearchParams()
   if (estado === 'cargando') return <Cargando />
-  if (estado === 'dentro') return <Navigate to="/" replace />
+  if (estado === 'dentro') return <Navigate to={rutaInterna(parametros.get('next')) || '/'} replace />
   if (estado === 'sinEmpresa') return <SinEmpresa />
   return <Login />
 }
@@ -189,6 +195,11 @@ export default function App() {
           <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
           <Route path="/cuenta/:token" element={<CuentaPublica />} />
           <Route path="/remito/:token" element={<RemitoPublico />} />
+          {/* QR internos (ver src/lib/printing/qr.js): prueba de impresión y
+              fichas de unidad/producto. Sin sesión piden login con retorno. */}
+          <Route path="/prueba" element={<PruebaImpresion />} />
+          <Route path="/u/:serial" element={<UnidadPublica />} />
+          <Route path="/producto/:sku" element={<ProductoPublico />} />
           <Route
             path="/"
             element={

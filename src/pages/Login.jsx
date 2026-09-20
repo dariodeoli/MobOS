@@ -4,7 +4,7 @@ import { useSesion } from '@/lib/sesion'
 import { Button, Input, Label, PasswordInput, PinInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
-import { publicUrls } from '@/lib/urls'
+import { publicUrls, rutaInterna } from '@/lib/urls'
 import { sessionApi, getCompanyContext } from '@/lib/api/session'
 import AuthLayout from '@/components/auth/AuthLayout'
 import GoogleButton, { OAuthDivider } from '@/components/auth/GoogleButton'
@@ -36,12 +36,13 @@ export default function Login() {
   const [signupTouched, setSignupTouched] = useState({})
 
   // Si la sesión sigue viva se entra directo a la app: el login queda solo para
-  // quien tiene que autenticarse.
+  // quien tiene que autenticarse. El destino guardado (`next`) manda.
   useEffect(() => {
     if (modo !== 'entrar') { setVerificandoSesion(false); return }
+    const next = rutaInterna(new URLSearchParams(window.location.search).get('next'))
     let vigente = true
     sessionApi.me()
-      .then((sesion) => { if (vigente && sesion?.user) window.location.assign('/pos/cargar') })
+      .then((sesion) => { if (vigente && sesion?.user) window.location.assign(next || '/pos/cargar') })
       .catch(() => {})
       .finally(() => { if (vigente) setVerificandoSesion(false) })
     return () => { vigente = false }
