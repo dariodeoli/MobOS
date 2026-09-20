@@ -1538,10 +1538,13 @@ model CashSession {
   openingPyg  Int
   countedPyg  Int?
   expectedPyg Int?
+  // Arqueo por denominación del turno: {"100000": 3, "50000": 1, ...}. El total
+  // contado se deriva de acá cuando está presente.
+  countedBreakdown Json?
   status      String    @default("OPEN")
   notes       String?
 
-  // Una caja abierta por sucursal: índice parcial definido en la migración SQL.
+  // Un turno abierto por persona y sucursal: índice parcial definido en SQL.
   @@index([tenantId, branchId, openedAt])
 }
 
