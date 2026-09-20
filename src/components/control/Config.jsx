@@ -15,6 +15,7 @@ import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import RucField from '@/components/shared/RucField'
+import PercentField from '@/components/shared/PercentField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import { ROLE_LABELS } from '@/lib/roles'
@@ -59,6 +60,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const [limiteGasto, setLimiteGasto] = useState('')
   const [limiteCompra, setLimiteCompra] = useState('')
   const [limiteBajoLista, setLimiteBajoLista] = useState('')
+  const [limiteMora, setLimiteMora] = useState('')
   const [password, setPassword] = useState('')
   const [archiveReason, setArchiveReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -168,6 +170,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
     setLimiteGasto(String(account.tenant.expenseLimitPyg ?? 1000000))
     setLimiteCompra(String(account.tenant.purchaseCreditLimitPyg ?? 5000000))
     setLimiteBajoLista(String(account.tenant.belowListPct ?? 10))
+    setLimiteMora(account.tenant.collectionLateFeeBpPerDay ? String(account.tenant.collectionLateFeeBpPerDay / 100).replace('.', ',') : '')
   }, [account])
 
   async function guardarNumeracion() {
@@ -187,10 +190,12 @@ export default function Config({ seccion = 'negocio' } = {}) {
     const bajoLista = Number(limiteBajoLista)
     if (!Number.isSafeInteger(gasto) || gasto < 0 || !Number.isSafeInteger(compra) || compra < 0) { setFailure('Los límites deben ser enteros no negativos.'); return }
     if (!Number.isSafeInteger(bajoLista) || bajoLista < 0 || bajoLista > 100) { setFailure('El porcentaje bajo lista debe ser un entero entre 0 y 100.'); return }
+    const mora = limiteMora.trim() === '' ? null : Number(limiteMora.replace(',', '.'))
+    if (mora !== null && (!Number.isFinite(mora) || mora < 0 || mora > 100)) { setFailure('El recargo por mora debe ser un porcentaje entre 0 y 100.'); return }
     setBusy(true); setFailure(''); setNotice('')
     try {
-      await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista })
-      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista } } : current)
+      await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, collectionLateFeeBpPerDay: limiteMora.trim() })
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, collectionLateFeeBpPerDay: mora === null || mora === 0 ? null : Math.round(mora * 100) } } : current)
       actualizarEmpresa?.({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista })
       setNotice('Límites de autorización guardados.')
     } catch (error) { setFailure(error?.message || 'No se pudieron guardar los límites.') } finally { setBusy(false) }
@@ -227,10 +232,13 @@ export default function Config({ seccion = 'negocio' } = {}) {
             <FormField label="Bajo lista sin autorización (%)" htmlFor="limite-bajo-lista">
               <Input id="limite-bajo-lista" inputMode="numeric" maxLength={3} disabled={busy} value={limiteBajoLista} onChange={event => setLimiteBajoLista(event.target.value.replace(/\D/g, ''))} placeholder="10" />
             </FormField>
+            <FormField label="Recargo por mora (% diario)" htmlFor="limite-mora" hint="Vacío o 0 = sin recargo; solo se informan los días de atraso en Cobranzas.">
+              <PercentField id="limite-mora" disabled={busy} value={limiteMora} onChange={setLimiteMora} placeholder="0,5" />
+            </FormField>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === ''} onClick={guardarLimites}>Guardar límites</Button>
-            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}%.</p>
+            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}% · mora {account?.tenant?.collectionLateFeeBpPerDay ? `${account.tenant.collectionLateFeeBpPerDay / 100}% diario` : 'sin recargo'}.</p>
           </div>
         </Card>}
         {esDueno && <Card className="space-y-3">

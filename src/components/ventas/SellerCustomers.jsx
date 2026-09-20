@@ -47,6 +47,7 @@ import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import CustomerCommunicationCard from '@/components/customers/CustomerCommunicationCard'
 import ClientesTabla from '@/components/customers/ClientesTabla'
 import CustomerProfile from '@/components/customers/CustomerProfile'
+import MarketingCampaigns from '@/components/customers/MarketingCampaigns'
 import { customerMetadata, DEMO_MESSAGE_TEMPLATES, readCustomerMetadata, whatsappUrl } from '@/components/customers/customerMessaging'
 
 export const DEMO_CUSTOMERS_KEY = 'mobos:demo-customers:v1'
@@ -76,7 +77,11 @@ export function readDemoCustomers() {
 }
 
 export default function SellerCustomers() {
-  const { esDemo } = useSesion()
+  const { esDemo, usuario } = useSesion()
+  // Marketing (segmentos y campañas) es de administración y gerencia: los
+  // roles de venta no ven el acceso, igual que en el backend.
+  const puedeMarketing = !esDemo && ['ADMIN', 'GERENTE'].includes(usuario?.role)
+  const [campanasAbierto, setCampanasAbierto] = useState(false)
   // La búsqueda global abre la sección con ?q= y, si eligió un cliente puntual,
   // con ?cliente=<id> para abrir su ficha directo.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -239,6 +244,7 @@ export default function SellerCustomers() {
       </Select>
       <ListGridToggle value={vista} onChange={(next) => { setVista(next); localStorage.setItem('mobos:clientes-vista', next) }} />
       <Button type="button" onClick={abrirCrear}>+ Crear cliente</Button>
+      {puedeMarketing && <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setCampanasAbierto(true)}><Icon name="megaphone" className="h-4 w-4" />Campañas</Button>}
       {!esDemo && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
       {!esDemo && <Button type="button" variant="outline" onClick={() => { setImportAbierto(true); setImportError(''); setImportResultado(null) }}>Importar</Button>}
     </div>
@@ -263,6 +269,7 @@ export default function SellerCustomers() {
     {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={esDemo ? undefined : setProfileCustomer} />}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={cerrarPerfil} />
+    <MarketingCampaigns open={campanasAbierto} onClose={() => setCampanasAbierto(false)} onContacted={() => data.refresh()} />
     {!templateData.loading && templateData.error && <p className="rounded-xl border border-amber-400/30 bg-amber-300/10 p-3 text-sm text-warn">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</p>}
     <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" className="max-w-2xl">
       <form onSubmit={importar} className="space-y-3">
