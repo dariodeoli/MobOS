@@ -35,7 +35,6 @@ export default function PasoCobro({
   f,
   setF,
   set,
-  onAtras,
   valido,
   cantTotal,
   ok,
@@ -244,9 +243,6 @@ export default function PasoCobro({
       </div>
 
       <div className="md:col-span-2 flex items-center gap-3">
-        <Button type="button" variant="ghost" onClick={onAtras} className="min-h-12">
-          Atrás
-        </Button>
         <Button
           type="submit"
           variant="success"

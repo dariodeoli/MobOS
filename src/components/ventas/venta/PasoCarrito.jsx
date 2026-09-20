@@ -1,5 +1,4 @@
-import { Button, Input, Label, MoneyInput } from '@/components/ui'
-import Icon from '@/components/shared/Icon'
+import { Input, Label, MoneyInput } from '@/components/ui'
 import ListaVenta from './ListaVenta'
 import AutorizacionDescuento from './AutorizacionDescuento'
 import AutorizacionBloque from './AutorizacionBloque'
@@ -29,8 +28,6 @@ export default function PasoCarrito({
   tieneCupon,
   f,
   setF,
-  onAtras,
-  onSiguiente,
 }) {
   return (
     <div className={visible ? 'contents' : 'hidden'}>
@@ -103,14 +100,6 @@ export default function PasoCarrito({
         />
       </div>
 
-      <div className="flex justify-between gap-2 md:col-span-2">
-        <Button type="button" variant="ghost" onClick={onAtras} className="min-h-11">
-          Atrás
-        </Button>
-        <Button type="button" onClick={onSiguiente} className="min-h-11">
-          Ir a cobrar <Icon name="chevron" className="ml-2 h-4 w-4 -rotate-90" />
-        </Button>
-      </div>
     </div>
   )
 }

@@ -48,7 +48,7 @@ function TotalVenta({ carrito, totalCompra, unidadesCarrito }) {
         className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-onbrand/15 px-4 text-sm font-bold text-onbrand transition hover:bg-onbrand/25 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Icon name="cart" className="h-4 w-4" />
-        Revisar carrito
+        Ver carrito
       </button>
     </div>
   )
@@ -78,7 +78,7 @@ function BarraTotal({ carrito, totalCompra, unidadesCarrito }) {
           className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-onbrand/15 px-4 text-sm font-bold text-onbrand transition hover:bg-onbrand/25 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Icon name="cart" className="h-4 w-4" />
-          Revisar carrito
+          Ver carrito
         </button>
       </div>
     </div>

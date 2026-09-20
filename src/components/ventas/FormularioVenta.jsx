@@ -16,7 +16,6 @@ import {
 } from '@/lib/storage'
 import { leerCarrito, guardarCarrito, borrarCarrito } from '@/lib/posCart'
 import { fechaClave, num, gs } from '@/utils/calculos'
-import { cn } from '@/lib/utils'
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
 import { validateDemoPromotionItems, recordDemoPromotionUsage } from '@/lib/demoPromotions'
@@ -237,7 +236,6 @@ export default function FormularioVenta({
   )
   const [errorVenta, setErrorVenta] = useState('')
   const [guardando, setGuardando] = useState(false)
-  const [paso, setPaso] = useState(1)
   const [cuentas, setCuentas] = useState(null)
   const [errorCuentas, setErrorCuentas] = useState('')
   const [intentoCuentas, setIntentoCuentas] = useState(0)
@@ -632,8 +630,8 @@ export default function FormularioVenta({
     onCarrito({
       items: paraLateral,
       quitar: quitarItem,
-      puedeRevisar: puedePaso2,
-      irARevisar: () => setPaso(2),
+      puedeRevisar: items.length > 0,
+      irARevisar: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, f.cliente])
@@ -749,7 +747,6 @@ export default function FormularioVenta({
 
   async function guardar(e) {
     e.preventDefault()
-    if (paso !== 3) return
     if (guardando || guardadoEnCurso.current || guardadoIncompleto) return
     const lista = [...items]
     if (
@@ -1049,7 +1046,6 @@ export default function FormularioVenta({
       setF(VACIO(f.vendedorId))
       setBusquedaProducto('')
       setLastOrder(completedOrder)
-      setPaso(1)
       setOk(true)
       setTimeout(() => setOk(false), 2500)
       onGuardado?.()
@@ -1114,7 +1110,6 @@ export default function FormularioVenta({
     setCreditoDias('')
     setCustomer({ ...CLIENTE_VACIO })
     setF(VACIO(f.vendedorId))
-    setPaso(1)
   }
   async function abrirSuspendidas() {
     if (esDemo) {
@@ -1230,7 +1225,6 @@ export default function FormularioVenta({
       specialOrder: Boolean(payload.specialOrder),
       expectedAt: typeof payload.expectedAt === 'string' ? payload.expectedAt : '',
     })
-    setPaso(1)
     setSuspendidas(list => list.filter(item => item.id !== suspendida.id))
     setAvisoSuspension('Venta recuperada. Revisá el carrito antes de cobrar.')
     try {
@@ -1257,13 +1251,6 @@ export default function FormularioVenta({
     } finally {
       setDescartando(false)
     }
-  }
-
-  const pasos = ['Cliente y productos', 'Revisar carrito', 'Cobrar']
-  const puedePaso2 = Boolean(f.cliente.trim() && items.length > 0)
-  function siguientePaso() {
-    if (paso === 1 && puedePaso2) setPaso(2)
-    else if (paso === 2) setPaso(3)
   }
 
   // Atajos del POS. Solo actúan mientras esta vista está visible (el panel la
@@ -1293,23 +1280,8 @@ export default function FormularioVenta({
         busqueda?.focus()
         return
       }
-      if (event.key === 'F6') {
-        if (paso === 1 && puedePaso2) {
-          event.preventDefault()
-          setPaso(2)
-        }
-        return
-      }
-      if (event.key === 'F7') {
-        if (paso === 2) {
-          event.preventDefault()
-          setPaso(3)
-        }
-        return
-      }
       if ((event.ctrlKey || event.metaKey) && (event.key === 's' || event.key === 'S')) {
         if (
-          paso === 3 &&
           valido &&
           !guardando &&
           !guardadoEnCurso.current &&
@@ -1388,7 +1360,7 @@ export default function FormularioVenta({
           </button>
         </div>
       )}
-      {paso !== 3 && pagos.some(p => p.tradeIn) && (
+      {pagos.some(p => p.tradeIn) && (
         <p role="status" className="mb-4 rounded-xl border border-fono/30 bg-fono/10 p-3 text-sm">
           Canje preparado como parte de pago. Revisá sus datos y el saldo pendiente en Cobrar.
         </p>
@@ -1400,13 +1372,8 @@ export default function FormularioVenta({
           const target = event.target
           if (!(target instanceof HTMLElement)) return
           if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.tagName === 'SELECT' || target.tagName === 'A') return
-          // Enter avanza entre pasos; en "Cobrar" el Enter nativo confirma la venta.
-          if (paso < 3) {
-            event.preventDefault()
-            siguientePaso()
-          }
         }}
-        className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2"
+        className="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-[minmax(0,1fr)_minmax(340px,400px)]"
       >
         {errorVenta && (
           <p
@@ -1416,45 +1383,6 @@ export default function FormularioVenta({
             {errorVenta}
           </p>
         )}
-        <nav
-          aria-label="Pasos de la venta"
-          className="grid grid-cols-3 gap-1 rounded-2xl border border-ink-600 bg-ink-800/50 p-1 md:col-span-2"
-        >
-          {pasos.map((nombre, index) => {
-            const n = index + 1
-            const completado = n < paso
-            return (
-              <button
-                key={nombre}
-                type="button"
-                onClick={() => n <= paso && setPaso(n)}
-                disabled={n > paso}
-                className={cn(
-                  'flex min-h-11 items-center gap-2 rounded-xl px-2 text-left text-xs font-semibold transition sm:px-3',
-                  paso === n
-                    ? 'bg-fono text-onbrand shadow-lg shadow-fono/15'
-                    : completado
-                      ? 'text-fono-light hover:bg-fono/10'
-                      : 'cursor-not-allowed text-mute/60',
-                )}
-              >
-                <span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold', paso === n ? 'bg-onbrand/20' : completado ? 'bg-fono/20' : 'bg-ink-700')}>
-                  {completado ? <Icon name="check" className="h-3 w-3" /> : `0${n}`}
-                </span>
-                <span className="truncate">{nombre}</span>
-              </button>
-            )
-          })}
-        </nav>
-        <div className="h-1 overflow-hidden rounded-full bg-ink-700 md:col-span-2">
-          <div className="h-full rounded-full bg-fono transition-all duration-300" style={{ width: `${(paso / 3) * 100}%` }} />
-        </div>
-        <div className="flex items-center justify-between text-xs text-mute md:col-span-2">
-          <span>Paso {paso} de 3</span>
-          {paso === 3 && (
-            <span className="text-fono-light">Revisá los montos antes de confirmar</span>
-          )}
-        </div>
         {/* Carrito en espera: suspender la venta actual y retomar otra. */}
         <div className="flex flex-wrap items-center justify-end gap-2 md:col-span-2">
           <Button type="button" variant="outline" onClick={abrirSuspendidas}>
@@ -1471,13 +1399,11 @@ export default function FormularioVenta({
         <div className="hidden items-center gap-x-4 gap-y-1.5 text-[11px] text-mute md:col-span-2 md:flex">
           <span className="font-semibold uppercase tracking-wider text-mute/60">Atajos</span>
           <Atajo k="F2" label="Buscar producto" />
-          <Atajo k="F6" label="Revisar carrito" />
-          <Atajo k="F7" label="Ir a cobrar" />
           <Atajo k="Ctrl+S" label="Guardar venta" />
           <Atajo k="Esc" label="Cerrar ventana" />
         </div>
         <PasoProductos
-          visible={paso === 1}
+          visible
           sesion={sesion}
           esDemo={esDemo}
           customer={customer}
@@ -1517,15 +1443,15 @@ export default function FormularioVenta({
           puedeDescontar={puedeDescontar}
           precioDe={precioDe}
           guardando={guardando}
-          puedePaso2={puedePaso2}
-          siguientePaso={siguientePaso}
           setNuevoVend={setNuevoVend}
           setErrorVend={setErrorVend}
           setPinVend={setPinVend}
         />
 
+        {/* Columna derecha: resumen, descuentos y cobro en la misma página. */}
+        <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
         <PasoCarrito
-          visible={paso === 2}
+          visible
           items={items}
           productos={productos}
           familias={familias}
@@ -1548,14 +1474,11 @@ export default function FormularioVenta({
           tieneCupon={tieneCupon}
           f={f}
           setF={setF}
-          onAtras={() => setPaso(1)}
-          onSiguiente={siguientePaso}
         />
 
         {/* Pedido especial con seña: solo marca el pedido y su fecha esperada;
             las reglas de cobro no cambian (la seña es un pago parcial). */}
-        {paso === 3 && (
-          <div className="rounded-2xl border border-warn/30 bg-warn/5 p-4 md:col-span-2">
+        <div className="rounded-2xl border border-warn/30 bg-warn/5 p-4">
             <label className="flex items-start gap-2 text-sm">
               <input
                 type="checkbox"
@@ -1587,10 +1510,9 @@ export default function FormularioVenta({
               </div>
             )}
           </div>
-        )}
 
         <PasoCobro
-          visible={paso === 3}
+          visible
           customer={customer}
           venderACredito={venderACredito}
           setVenderACredito={setVenderACredito}
@@ -1616,11 +1538,11 @@ export default function FormularioVenta({
           f={f}
           setF={setF}
           set={set}
-          onAtras={() => setPaso(2)}
           valido={valido}
           cantTotal={cantTotal}
           ok={ok}
         />
+        </aside>
       </form>
 
       <Modal

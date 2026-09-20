@@ -45,19 +45,12 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await expect(productCard).toBeVisible()
   // Un clic agrega el producto a la lista de la venta.
   await productCard.click()
-  await expect(page.getByText('Seleccionados')).toBeVisible()
+  await expect(page.getByText('Productos de esta venta')).toBeVisible()
 
-  // El botón del formulario (el lateral del resumen es otro acceso al mismo paso).
-  await expect(
-    page.getByRole('button', { name: 'Revisar carrito', exact: true }).first(),
-  ).toBeEnabled()
-  await page.getByRole('button', { name: 'Revisar carrito', exact: true }).first().click()
-
-  // Step 2: cart review.
+  // Todo en una página: carrito y cobro conviven, sin pasos.
   await expect(page.getByText(SEED.products.cable.name).last()).toBeVisible()
-  await page.getByRole('button', { name: 'Ir a cobrar' }).click()
 
-  // Step 3: payments. The seeded tenant has two PYG accounts (CASH and
+  // Payments. The seeded tenant has two PYG accounts (CASH and
   // TRANSFER), so the account-based rows are used.
   const addPayment = page.getByRole('button', { name: '+ Agregar pago' })
   await expect(addPayment).toBeEnabled()
@@ -229,7 +222,6 @@ test('POS clears the address country and the summary opens the cart', async ({ p
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
   await expect(page.getByText('Total de esta venta')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Revisar carrito', exact: true }).last().click()
   await expect(page.getByText('Productos de esta venta')).toBeVisible()
 })
 
@@ -318,8 +310,6 @@ test('POS manual price below list stores the list price for the receipt', async 
     await page.getByLabel(`Precio de venta de ${SEED.products.cable.name}`).fill('40000')
     await expect(page.getByText('descuento − Gs 5.000')).toBeVisible()
 
-    await page.getByRole('button', { name: 'Revisar carrito', exact: true }).first().click()
-    await page.getByRole('button', { name: 'Ir a cobrar' }).click()
 
     const paymentsSection = page
       .locator('div.space-y-3')
@@ -355,8 +345,6 @@ test('POS shows the price authorization block for a below-list price', async ({ 
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
   await page.getByLabel(`Precio de venta de ${SEED.products.cable.name}`).fill('40000')
-  await page.getByRole('button', { name: 'Revisar carrito', exact: true }).first().click()
-
   await expect(page.getByText('Precio por debajo de lista')).toBeVisible()
   const solicitar = page.getByRole('button', { name: 'Solicitar autorización' })
   if ((await solicitar.count()) && (await solicitar.first().isEnabled())) {

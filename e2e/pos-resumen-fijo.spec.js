@@ -20,7 +20,7 @@ async function agregarProducto(page) {
   const producto = page.getByRole('button', { name: new RegExp(SEED.products.cable.name) })
   await expect(producto).toBeVisible()
   await producto.click()
-  await expect(page.getByText('Seleccionados')).toBeVisible()
+  await expect(page.getByText('Productos de esta venta')).toBeVisible()
 }
 
 function medicion(page) {

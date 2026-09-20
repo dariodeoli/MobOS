@@ -2,7 +2,6 @@ import { Button, Input, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import CheckoutCustomer from '../CheckoutCustomer'
-import ListaVenta from './ListaVenta'
 import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 
@@ -37,19 +36,8 @@ export default function PasoProductos({
   noticeCombo,
   familiasVisibles,
   agregarProducto,
-  familias,
-  items,
-  totalCarrito,
-  quitarItem,
-  editarItem,
-  onImei,
-  puedeDescontar,
-  precioDe,
-  precioListaDe,
   nombreLista = '',
   guardando,
-  puedePaso2,
-  siguientePaso,
   setNuevoVend,
   setErrorVend,
   setPinVend,
@@ -201,34 +189,6 @@ export default function PasoProductos({
         )}
       </div>
 
-      {visible && items.length > 0 && (
-        <ListaVenta
-          items={items}
-          productos={productos}
-          familias={familias}
-          esDemo={esDemo}
-          guardando={guardando}
-          puedeDescontar={puedeDescontar}
-          precioDe={precioDe}
-          precioListaDe={precioListaDe}
-          totalCarrito={totalCarrito}
-          quitarItem={quitarItem}
-          editarItem={editarItem}
-          onImei={onImei}
-          titulo="Seleccionados"
-        />
-      )}
-
-      <div className="flex justify-end md:col-span-2">
-        <Button
-          type="button"
-          disabled={!puedePaso2}
-          onClick={siguientePaso}
-          className="min-h-11 w-full sm:w-auto"
-        >
-          Revisar carrito <Icon name="chevron" className="ml-2 h-4 w-4 -rotate-90" />
-        </Button>
-      </div>
     </div>
   )
 }
