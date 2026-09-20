@@ -40,7 +40,7 @@ export function whatsappTrackingLink(order, extra = '', template = null) {
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
 }
 
-const METODOS_PAGO = ['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'PIX']
+const METODOS_PAGO = ['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'PIX', 'STORE_CREDIT']
 const FOREIGN = (currency) => currency === 'USD' || currency === 'BRL'
 
 export default function PagosPedido({ venta, onClose }) {
@@ -70,6 +70,14 @@ export default function PagosPedido({ venta, onClose }) {
   const [device, setDevice] = useState({ serial: '', model: '', conditionNotes: '' })
   const account = accounts.find(a => a.id === accountId)
   useEffect(() => { let active = true; getPaymentAccounts().then(rows => { if (active) setAccounts(rows.filter(a => a.isActive)) }).catch(e => { if (active) setError(e.message) }); return () => { active = false } }, [])
+  useEffect(() => {
+    let active = true
+    if (esDemo || !order.customer?.id) { setSaldoFavor(null); return undefined }
+    api.get(`/api/store-credits?customerId=${encodeURIComponent(order.customer.id)}`)
+      .then(data => { if (active) setSaldoFavor(data) })
+      .catch(() => { if (active) setSaldoFavor(null) })
+    return () => { active = false }
+  }, [order.customer?.id, esDemo])
   const [proofs, setProofs] = useState({})
   const [reconciliations, setReconciliations] = useState({})
   const [notes, setNotes] = useState({})
@@ -90,6 +98,8 @@ export default function PagosPedido({ venta, onClose }) {
   // Cuota concreta que se está cobrando: el cobro se concilia sobre esa cuota
   // en vez de crear otro movimiento.
   const [cuotaPago, setCuotaPago] = useState(null)
+  // Saldo a favor del cliente (nota de crédito interna) para poder cobrar con él.
+  const [saldoFavor, setSaldoFavor] = useState(null)
   const tienePlanCuotas = payments.some(p => p.status === 'PENDING' && p.dueAt)
 
   async function crearPlanCuotas(event) {
@@ -113,7 +123,7 @@ export default function PagosPedido({ venta, onClose }) {
       setNotice(result?.already ? 'El comprobante ya estaba encolado para este pedido.' : 'Comprobante encolado. Llega al correo del cliente en unos minutos.')
     } catch (cause) { setError(cause?.message || 'No se pudo encolar el comprobante.') } finally { setEmailBusy(false) }
   }
-  const [postventa, setPostventa] = useState({ operation: 'RETURN', reason: '', replacementNumber: '', refundPyg: '' })
+  const [postventa, setPostventa] = useState({ operation: 'RETURN', reason: '', replacementNumber: '', refundPyg: '', refundMode: 'CASH', restock: 'NONE' })
   const [postventaBusy, setPostventaBusy] = useState(false)
   const cobrado = payments.filter(p => p.status === undefined || p.status === 'CONFIRMED').reduce((sum, p) => sum + num(p.monto), 0)
 
@@ -123,6 +133,10 @@ export default function PagosPedido({ venta, onClose }) {
     setAmount(String(num(pago.monto)))
     setError(''); setNotice('')
   }
+  async function refrescarSaldoFavor() {
+    if (esDemo || !order.customer?.id) return
+    try { setSaldoFavor(await api.get(`/api/store-credits?customerId=${encodeURIComponent(order.customer.id)}`)) } catch { /* se reintenta al reabrir */ }
+  }
 
   async function registrarPostventa(event) {
     event.preventDefault()
@@ -131,12 +145,15 @@ export default function PagosPedido({ venta, onClose }) {
     try {
       const reembolso = postventa.operation === 'EXCHANGE' ? 0 : Number(String(postventa.refundPyg).replace(/\D/g, '')) || 0
       if (postventa.operation !== 'EXCHANGE' && reembolso > cobrado) { setError('El reembolso no puede superar el total cobrado.'); return }
-      const payload = { operation: postventa.operation, reason: postventa.reason.trim(), ...(postventa.operation === 'EXCHANGE' ? { replacementOrderNumber: postventa.replacementNumber.trim() } : { refundPyg: reembolso }) }
+      if (postventa.refundMode === 'CREDIT' && !order.customer?.id) { setError('Para dejar saldo a favor el pedido necesita un cliente identificado.'); return }
+      const payload = { operation: postventa.operation, reason: postventa.reason.trim(), restock: postventa.restock, ...(postventa.operation === 'EXCHANGE' ? { replacementOrderNumber: postventa.replacementNumber.trim() } : { refundPyg: reembolso, refundMode: postventa.refundMode }) }
       await api.post(`/api/orders/${encodeURIComponent(order.id)}/return`, payload)
       setPostventaOpen(false)
-      setPostventa({ operation: 'RETURN', reason: '', replacementNumber: '', refundPyg: '' })
-      setNotice(postventa.operation === 'CANCEL' ? 'Pedido cancelado y reembolso registrado.' : postventa.operation === 'RETURN' ? 'Devolución registrada con su reembolso. La reposición de stock se revisa aparte.' : 'Cambio registrado. El equipo devuelto queda para revisión aparte.')
+      setPostventa({ operation: 'RETURN', reason: '', replacementNumber: '', refundPyg: '', refundMode: 'CASH', restock: 'NONE' })
+      const reposicion = postventa.restock === 'AVAILABLE' ? ' El stock volvió a estar disponible.' : postventa.restock === 'REVIEW' ? ' El stock quedó marcado para revisión.' : ''
+      setNotice(postventa.operation === 'CANCEL' ? `Pedido cancelado.${reposicion}` : postventa.operation === 'RETURN' ? (postventa.refundMode === 'CREDIT' ? `Devolución registrada como saldo a favor del cliente.${reposicion}` : `Devolución registrada con su reembolso.${reposicion}`) : `Cambio registrado.${reposicion}`)
       try { await refrescar() } catch { setNeedsRefresh(true) }
+      await refrescarSaldoFavor()
     } catch (cause) { setError(cause?.message || 'No se pudo registrar la postventa.') } finally { setPostventaBusy(false) }
   }
 
@@ -188,6 +205,11 @@ export default function PagosPedido({ venta, onClose }) {
     const value = Math.round(originalAmount * exchangeRatePyg)
     if (!Number.isSafeInteger(value) || value <= 0 || value > pending) { setError('El monto debe ser positivo y no superar el saldo pendiente.'); return }
     if (cuotaPago && value !== num(cuotaPago.monto)) { setError(`El monto debe ser exactamente el de la cuota (${gs(cuotaPago.monto)}).`); return }
+    if (!account && method === 'STORE_CREDIT') {
+      const disponible = num(saldoFavor?.availablePyg)
+      if (disponible <= 0) { setError('El cliente no tiene saldo a favor disponible.'); return }
+      if (value > disponible) { setError(`El saldo a favor disponible es ${gs(disponible)}.`); return }
+    }
     setBusy(true); setError(''); setNotice('')
     try {
       const tradeIn = account?.kind === 'TRADE_IN' ? device : undefined
@@ -223,6 +245,7 @@ export default function PagosPedido({ venta, onClose }) {
       }
       setOrder(listVentas().find(v => v.id === order.id) || order)
       setAmount(''); setReference(''); setCuotaPago(null); setNotice(cuotaPago ? 'Cuota cobrada y conciliada: la deuda bajó y ya no se reclama.' : 'Pago registrado. Podés adjuntar su comprobante abajo.')
+      await refrescarSaldoFavor()
     } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
 
@@ -289,6 +312,7 @@ export default function PagosPedido({ venta, onClose }) {
       <div className="rounded-2xl border border-ok/25 bg-gradient-to-br from-ok/10 to-transparent p-4"><p className="text-xs text-mute">Pagado</p><strong className="mt-1 block text-xl tabular-nums text-ok">{gs(order.totalPagado)}</strong></div>
       <div className={`rounded-2xl border p-4 ${pending > 0 ? 'border-warn/25 bg-gradient-to-br from-warn/10 to-transparent' : 'border-ink-600'}`}><p className="text-xs text-mute">Pendiente</p><strong className={`mt-1 block text-xl tabular-nums ${pending > 0 ? 'text-warn' : ''}`}>{gs(pending)}</strong></div>
       <div className="col-span-2 h-1.5 overflow-hidden rounded-full bg-ink-700"><div className="h-full rounded-full bg-ok transition-all" style={{ width: `${Number(order.precio || order.totalPyg || 0) > 0 ? Math.min(100, Math.round((Number(order.totalPagado || 0) / Number(order.precio || order.totalPyg || 1)) * 100)) : 0}%` }} /></div>
+      {saldoFavor?.availablePyg > 0 && <p className="col-span-2 text-xs text-ok">Saldo a favor disponible: {gs(saldoFavor.availablePyg)}</p>}
     </div>
     {canReturn && !postventaOpen && (
       <div className="mb-5">
@@ -298,14 +322,29 @@ export default function PagosPedido({ venta, onClose }) {
     {canReturn && postventaOpen && (
       <form onSubmit={registrarPostventa} className="mb-6 space-y-3 rounded-xl border border-bad/30 bg-bad/5 p-4">
         <h3 className="font-semibold">Cambio o devolución</h3>
-        <p className="text-xs text-mute">La devolución completa reembolsa los pagos confirmados ({gs(cobrado)}) y cancela el pedido. El stock devuelto se revisa aparte antes de volver a venderse.</p>
+        <p className="text-xs text-mute">La devolución completa reembolsa los pagos confirmados ({gs(cobrado)}) y cancela el pedido. Podés dejar el dinero como saldo a favor y decidir qué pasa con el stock devuelto.</p>
         <div className="flex gap-2">
           {[['RETURN', 'Devolución'], ['EXCHANGE', 'Cambio por otro pedido'], ['CANCEL', 'Cancelar pedido']].map(([value, label]) => (
             <button key={value} type="button" className={`rounded-lg border px-3 py-2 text-sm ${postventa.operation === value ? 'border-bad bg-bad/15 font-semibold text-bad' : 'border-ink-600 text-mute'}`} onClick={() => setPostventa(current => ({ ...current, operation: value }))}>{label}</button>
           ))}
         </div>
         {postventa.operation === 'EXCHANGE' && <Input aria-label="Número del pedido que reemplaza" required maxLength={100} value={postventa.replacementNumber} onChange={event => setPostventa(current => ({ ...current, replacementNumber: event.target.value }))} placeholder="N.º de pedido del cambio (ej: MOB-123)" />}
-        {postventa.operation !== 'EXCHANGE' && <label className="block text-xs text-mute">Reembolso (Gs.) — total cobrado {gs(cobrado)}<MoneyInput aria-label="Monto de reembolso" currency="PYG" value={postventa.refundPyg} onValueChange={next => setPostventa(current => ({ ...current, refundPyg: next === '' ? '' : String(next) }))} placeholder={String(cobrado)} /></label>}
+        {postventa.operation !== 'EXCHANGE' && <>
+          <div className="flex flex-wrap gap-2">
+            {[['CASH', 'Reembolsar el dinero'], ['CREDIT', 'Dejar saldo a favor']].map(([value, label]) => (
+              <button key={value} type="button" className={`rounded-lg border px-3 py-2 text-xs font-semibold ${postventa.refundMode === value ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute'}`} onClick={() => setPostventa(current => ({ ...current, refundMode: value }))}>{label}</button>
+            ))}
+          </div>
+          {postventa.refundMode === 'CREDIT' && !order.customer?.id && <p className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">Este pedido no tiene cliente identificado: para dejar saldo a favor primero asignale un cliente.</p>}
+          <label className="block text-xs text-mute">Monto — total cobrado {gs(cobrado)}<MoneyInput aria-label="Monto de reembolso" currency="PYG" value={postventa.refundPyg} onValueChange={next => setPostventa(current => ({ ...current, refundPyg: next === '' ? '' : String(next) }))} placeholder={String(cobrado)} /></label>
+        </>}
+        <label className="block text-xs text-mute">Stock devuelto
+          <Select aria-label="Stock devuelto" className="mt-1" value={postventa.restock} onChange={event => setPostventa(current => ({ ...current, restock: event.target.value }))}>
+            <option value="NONE">No reponer (se revisa aparte)</option>
+            <option value="AVAILABLE">Volver a disponible para la venta</option>
+            <option value="REVIEW">Dejar en revisión (defectuoso)</option>
+          </Select>
+        </label>
         <Input aria-label="Motivo de la postventa" required minLength={3} maxLength={1000} value={postventa.reason} onChange={event => setPostventa(current => ({ ...current, reason: event.target.value }))} placeholder="Motivo (mínimo 3 caracteres)" />
         <div className="flex flex-wrap gap-2"><Button type="submit" disabled={postventaBusy || postventa.reason.trim().length < 3 || (postventa.operation === 'EXCHANGE' && !postventa.replacementNumber.trim())}>{postventaBusy ? 'Registrando…' : 'Confirmar postventa'}</Button><Button type="button" variant="ghost" disabled={postventaBusy} onClick={() => setPostventaOpen(false)}>Cancelar</Button></div>
       </form>
@@ -340,7 +379,7 @@ export default function PagosPedido({ venta, onClose }) {
       {FOREIGN(account?.currency) && <div><label className="block text-xs text-mute">Cotización: Gs por {account.currency}<MoneyInput currency="USD" symbol="Gs." value={rate} onValueChange={setRate} placeholder="7500" /></label><button type="button" disabled={fxLoading || busy} onClick={fetchFx} className="mt-1 rounded-lg border border-fono/40 px-2 py-1 text-[11px] font-semibold text-fono-light disabled:opacity-40">{fxLoading ? 'Consultando BCP…' : 'Usar cotización BCP'}</button>{fx?.referencialDiario && <span className="ml-2 text-[11px] text-mute">BCP {fx.referencialDiario} · {fx.updated}</span>}</div>}
       {account && !cuotaPago && <label className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" checked={asPending} onChange={e => setAsPending(e.target.checked)} /> Queda pendiente (ej. Pix recibido en cuenta personal, se confirma al pasar a la empresa)</label>}
       {account?.kind === 'TRADE_IN' && <div className="space-y-2"><SerialField aria-label="IMEI o serial" placeholder="IMEI / serial" value={device.serial} onChange={value => setDevice(d => ({ ...d, serial: value }))} /><Input aria-label="Modelo recibido" placeholder="Modelo recibido" value={device.model} onChange={e => setDevice(d => ({ ...d, model: e.target.value }))} /><Input placeholder="Estado y observaciones" value={device.conditionNotes} onChange={e => setDevice(d => ({ ...d, conditionNotes: e.target.value }))} /></div>}
-      {!account && <label className="block text-xs text-mute">Método<Select className="mt-1" value={method} onChange={e => setMethod(e.target.value)}>{METODOS_PAGO.map(key => <option key={key} value={key}>{ETIQUETAS_MEDIO_PAGO[key]}</option>)}</Select></label>}
+      {!account && <label className="block text-xs text-mute">Método<Select className="mt-1" value={method} onChange={e => setMethod(e.target.value)}>{METODOS_PAGO.map(key => <option key={key} value={key}>{key === 'STORE_CREDIT' ? `Saldo a favor${saldoFavor?.availablePyg ? ` (${gs(saldoFavor.availablePyg)})` : ''}` : ETIQUETAS_MEDIO_PAGO[key]}</option>)}</Select></label>}
       <label className="block text-xs text-mute">Cuenta / referencia<Input value={reference} onChange={e => setReference(e.target.value)} maxLength={200} placeholder="Banco, cuenta o referencia de operación" /></label>
       <Button disabled={busy || needsRefresh} type="submit">{busy ? 'Guardando…' : 'Registrar pago'}</Button>
     </form>}

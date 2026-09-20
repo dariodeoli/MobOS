@@ -14,6 +14,8 @@ const ACCIONES = {
   ORDER_DISCOUNT_APPROVED: ['Descuento aprobado', 'orange'],
   PAYMENT_RECORDED: ['Cobro registrado', 'green'],
   CREDIT_INSTALLMENT_PAID: ['Cuota cobrada', 'green'],
+  STORE_CREDIT_ISSUED: ['Saldo a favor emitido', 'blue'],
+  STORE_CREDIT_USED: ['Saldo a favor usado', 'green'],
   PAYMENT_CONFIRMED: ['Pago pendiente confirmado', 'green'],
   PAYMENT_REJECTED: ['Pago pendiente rechazado', 'red'],
   ORDER_ARCHIVED: ['Pedido archivado', 'slate'],

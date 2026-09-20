@@ -93,6 +93,8 @@ model Tenant {
   printJobs               PrintJob[]
   customerPortalTokens    CustomerPortalToken[]
   priceLists              PriceList[]
+  storeCredits            StoreCredit[]
+  storeCreditUses         StoreCreditUse[]
 
   @@index([archivedAt])
 }
@@ -658,6 +660,7 @@ model Customer {
   authorizations    CustomerAuthorization[]
   billingIdentities CustomerBillingIdentity[]
   portalTokens      CustomerPortalToken[]
+  storeCredits      StoreCredit[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -927,6 +930,8 @@ model Order {
   comments OrderComment[]
   quotes   Quote[]
   accessTokens OrderAccessToken[]
+  storeCredits StoreCredit[]
+  storeCreditUses StoreCreditUse[]
 
   @@unique([tenantId, orderNumber])
   @@unique([tenantId, idempotencyKey])
@@ -1185,6 +1190,7 @@ model Payment {
 
   proofs         PaymentProof[]
   reconciliation PaymentReconciliation?
+  storeCreditUse StoreCreditUse?
 
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId])
@@ -1265,6 +1271,49 @@ model PaymentReconciliation {
   @@index([verifiedById, updatedAt])
 }
 
+// Saldo a favor del cliente (nota de crédito interna): nace de una devolución
+// sin reembolso en efectivo o de un crédito manual de gerencia. Es una deuda
+// de la tienda con el cliente, no un medio de pago externo.
+model StoreCredit {
+  id           String      @id @default(cuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  // Pedido que lo originó (devolución/cambio); null en un crédito manual.
+  orderId      String?
+  order        Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  amountPyg    Int
+  remainingPyg Int
+  note         String?
+  createdById  String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  uses         StoreCreditUse[]
+
+  @@index([tenantId, customerId])
+  @@index([tenantId, remainingPyg])
+}
+
+// Consumo del saldo a favor: cada uso queda atado al pedido y al cobro que lo
+// aplicó, para que el estado de cuenta del cliente sea reconstruible.
+model StoreCreditUse {
+  id          String      @id @default(cuid())
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  creditId    String
+  credit      StoreCredit @relation(fields: [creditId], references: [id], onDelete: Cascade)
+  orderId     String
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentId   String?     @unique
+  payment     Payment?    @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  amountPyg   Int
+  createdById String?
+  createdAt   DateTime    @default(now())
+
+  @@index([tenantId, orderId])
+}
+
 enum PaymentMethod {
   CASH
   TRANSFER
@@ -1272,6 +1321,7 @@ enum PaymentMethod {
   CREDIT
   TRADE_IN
   PIX
+  STORE_CREDIT
 }
 
 enum PaymentCurrency {

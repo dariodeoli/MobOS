@@ -7,6 +7,7 @@ export const PAYMENT_METHOD_LABELS = {
   PIX: 'Pix',
   CREDIT: 'Crédito',
   TRADE_IN: 'Canje',
+  STORE_CREDIT: 'Saldo a favor',
 }
 
 export const paymentMethodLabel = (value) => PAYMENT_METHOD_LABELS[value] || value || ''

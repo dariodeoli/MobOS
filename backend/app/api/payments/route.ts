@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
@@ -7,6 +8,30 @@ import { enforceRateLimit } from '../../../lib/rate-limit'
 const INT_MAX = 2147483647
 class PaymentScopeError extends Error {
   readonly status = 403
+}
+
+// Consume saldo a favor del cliente (FIFO por antigüedad) y registra cada uso
+// contra el pedido y el cobro. Si no alcanza, la transacción entera revierte.
+async function consumeStoreCredit(tx: Prisma.TransactionClient, input: {
+  tenantId: string; customerId: string | null; orderId: string; paymentId: string; userId: string; amountPyg: number; method: string
+}) {
+  if (input.method !== 'STORE_CREDIT') return
+  if (!input.customerId) throw new InputError('El saldo a favor necesita un cliente identificado en la venta.', 409)
+  const credits = await tx.$queryRaw<Array<{ id: string; remainingPyg: number }>>`
+    SELECT "id", "remainingPyg" FROM "StoreCredit"
+    WHERE "tenantId" = ${input.tenantId} AND "customerId" = ${input.customerId} AND "remainingPyg" > 0
+    ORDER BY "createdAt" ASC FOR UPDATE`
+  const available = credits.reduce((sum, credit) => sum + credit.remainingPyg, 0)
+  if (available < input.amountPyg) throw new InputError('El cliente no tiene saldo a favor suficiente.', 409)
+  let left = input.amountPyg
+  for (const credit of credits) {
+    if (left <= 0) break
+    const take = Math.min(credit.remainingPyg, left)
+    await tx.storeCredit.update({ where: { id: credit.id }, data: { remainingPyg: { decrement: take } } })
+    await tx.storeCreditUse.create({ data: { tenantId: input.tenantId, creditId: credit.id, orderId: input.orderId, paymentId: input.paymentId, amountPyg: take, createdById: input.userId } })
+    left -= take
+  }
+  await tx.auditLog.create({ data: { tenantId: input.tenantId, userId: input.userId, action: 'STORE_CREDIT_USED', entity: 'Order', entityId: input.orderId, metadata: { paymentId: input.paymentId, amountPyg: input.amountPyg } } })
 }
 
 export async function POST(request: Request) {
@@ -25,7 +50,7 @@ export async function POST(request: Request) {
     // otro movimiento: la deuda no se duplica.
     const installmentId = body.installmentId === undefined || body.installmentId === null || body.installmentId === '' ? null : textInput(body.installmentId, 'installmentId', 200)
     const result = await prisma.$transaction(async tx => {
-      const locked = await tx.$queryRaw<Array<{ id: string; branchId: string | null; sellerId: string; status: string; totalPyg: number; orderNumber: string }>>`SELECT "id", "branchId", "sellerId", "status", "totalPyg", "orderNumber" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenant} FOR UPDATE`
+      const locked = await tx.$queryRaw<Array<{ id: string; branchId: string | null; sellerId: string; status: string; totalPyg: number; orderNumber: string; customerId: string | null }>>`SELECT "id", "branchId", "sellerId", "status", "totalPyg", "orderNumber", "customerId" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenant} FOR UPDATE`
       const order = locked[0]
       if (!order) throw new Error('Venta no encontrada.')
       if (session.user.role === 'VENDEDOR' && order.sellerId !== session.user.id) throw new PaymentScopeError('La venta pertenece a otro vendedor.')
@@ -59,6 +84,7 @@ export async function POST(request: Request) {
         if (amount !== cuota.amountPyg) throw new InputError(`El monto debe ser exactamente el de la cuota (${cuota.amountPyg} Gs.).`)
         const payment = await tx.payment.update({ where: { id: cuota.id }, data: { ...normalized, idempotencyKey, userId: session.user.id, createdById: session.user.id, paidAt: new Date() } })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
+        await consumeStoreCredit(tx, { tenantId: tenant, customerId: order.customerId, orderId: order.id, paymentId: payment.id, userId: session.user.id, amountPyg: payment.amountPyg, method: normalized.method })
         const paidInstallment = await tx.payment.aggregate({ where: { orderId: order.id, tenantId: tenant, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
         if ((paidInstallment._sum.amountPyg || 0) >= order.totalPyg) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'CREDIT_INSTALLMENT_PAID', entity: 'Payment', entityId: payment.id, metadata: { orderId: order.id, orderNumber: order.orderNumber, amountPyg: payment.amountPyg, method: payment.method, dueAt: cuota.dueAt, installment: true } } })
@@ -69,6 +95,7 @@ export async function POST(request: Request) {
       if (!Number.isSafeInteger(order.totalPyg) || order.totalPyg < 0 || order.totalPyg > INT_MAX || (status === 'CONFIRMED' && (!Number.isSafeInteger(confirmed + amount) || confirmed + amount > INT_MAX || confirmed + amount > order.totalPyg))) throw new Error('El pago supera el total de la venta.')
       const payment = await tx.payment.create({ data: { ...normalized, tenantId: tenant, orderId: order.id, idempotencyKey, createdById: session.user.id, userId: session.user.id } })
       await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
+      await consumeStoreCredit(tx, { tenantId: tenant, customerId: order.customerId, orderId: order.id, paymentId: payment.id, userId: session.user.id, amountPyg: payment.amountPyg, method: normalized.method })
       if (status === 'CONFIRMED' && confirmed + amount === order.totalPyg) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PAYMENT_RECORDED', entity: 'Payment', entityId: payment.id, metadata: { orderId: order.id, orderNumber: order.orderNumber, amountPyg: amount, status: normalized.status, method: normalized.method } } })
       return payment
