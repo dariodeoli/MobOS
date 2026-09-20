@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas, productosById, refrescar } from '@/lib/storage'
@@ -55,6 +56,8 @@ export default function Vendedores({ seccion = 'equipo' }) {
   const [confirmarRevocar, setConfirmarRevocar] = useState(null)
   const [invitarAbierto, setInvitarAbierto] = useState(false)
   const [modoInvitacion, setModoInvitacion] = useState('correo')
+  const [invitacionDuplicada, setInvitacionDuplicada] = useState(false)
+  const navigate = useNavigate()
 
   const cargarInvitaciones = useCallback(async () => {
     if (esDemo) return
@@ -65,7 +68,7 @@ export default function Vendedores({ seccion = 'equipo' }) {
   async function refreshTeam() { if (!esDemo) await refrescar(); setRevision(value => value + 1) }
 
   async function crearDirecto(event) {
-    event.preventDefault(); setError(''); setMessage('')
+    event.preventDefault(); setError(''); setMessage(''); setInvitacionDuplicada(false)
     const name = directo.name.trim()
     if (!name) return setError('Ingresá el nombre del integrante.')
     if (!esDemo && !/^\d{4}$/.test(directo.pin)) return setError('Ingresá un PIN de exactamente 4 dígitos.')
@@ -86,7 +89,12 @@ export default function Vendedores({ seccion = 'equipo' }) {
     try {
       const result = await api.post('/api/user-invitations', { ...invitacion, name: invitacion.name.trim(), email: invitacion.email.trim().toLowerCase() })
       setInvitacion({ name: '', email: '', role: 'VENDEDOR' }); await cargarInvitaciones(); notifySuccess(result.deliveryState === 'sent' ? 'Invitación enviada correctamente.' : 'Invitación guardada. El correo quedó pendiente; volvé a intentar el reenvío en unos minutos.')
-    } catch (cause) { setError(cause?.message || 'No se pudo enviar la invitación.') }
+    } catch (cause) {
+      // 409: ya hay una invitación activa para ese correo. Se avisa y se ofrece
+      // la salida: la lista de invitaciones, donde se reenvía o se revoca.
+      setInvitacionDuplicada(cause?.status === 409)
+      setError(cause?.message || 'No se pudo enviar la invitación.')
+    }
     finally { setBusy(false) }
   }
 
@@ -195,7 +203,7 @@ export default function Vendedores({ seccion = 'equipo' }) {
             <button key={key} type="button" onClick={() => setModoInvitacion(key)} className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${modoInvitacion === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>
           ))}
         </div>
-        {modoInvitacion === 'correo' ? <>{!esDemo && <Card><h2 className="font-bold">Invitar por correo</h2><p className="mt-1 text-sm text-mute">La persona recibe un enlace seguro y elige su propio PIN. Nunca enviamos credenciales por correo.</p><form onSubmit={invitar} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(11rem,1.3fr)_minmax(13rem,1.5fr)_minmax(8rem,1fr)_auto]"><div><Label htmlFor="invite-name">Nombre</Label><Input id="invite-name" value={invitacion.name} onChange={event => setInvitacion({ ...invitacion, name: event.target.value })} onBlur={() => !invitacion.name.trim() && setError('Ingresá el nombre del integrante.')} required /></div><div><Label htmlFor="invite-email">Correo</Label><EmailField id="invite-email" value={invitacion.email} onChange={value => setInvitacion({ ...invitacion, email: value })} required /></div><div><Label htmlFor="invite-role">Rol</Label><Select id="invite-role" value={invitacion.role} onChange={event => setInvitacion({ ...invitacion, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Enviar invitación</Button></div></form></Card>}</> : <><Card><h2 className="font-bold">Agregar directamente</h2><p className="mt-1 text-sm text-mute">{esDemo ? 'Agregá vendedores al entorno demo.' : 'Opción compatible para alta inmediata con un PIN definido por el administrador.'}</p><form onSubmit={crearDirecto} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(11rem,1.1fr)_minmax(13rem,1.3fr)_minmax(8rem,1fr)_minmax(7rem,0.7fr)_auto]"><div><Label htmlFor="direct-name">Nombre</Label><Input id="direct-name" value={directo.name} onChange={event => setDirecto({ ...directo, name: event.target.value })} required /></div>{!esDemo && <><div><Label htmlFor="direct-email">Correo</Label><EmailField id="direct-email" value={directo.email} onChange={value => setDirecto({ ...directo, email: value })} /></div><div><Label htmlFor="direct-role">Rol</Label><Select id="direct-role" value={directo.role} onChange={event => setDirecto({ ...directo, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div><Label htmlFor="direct-pin">PIN temporal</Label><Input id="direct-pin" inputMode="numeric" maxLength={4} value={directo.pin} onChange={event => setDirecto({ ...directo, pin: event.target.value.replace(/\D/g, '').slice(0, 4) })} required /></div></>}<div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Agregar</Button></div></form></Card></>}
+        {modoInvitacion === 'correo' ? <>{!esDemo && <Card><h2 className="font-bold">Invitar por correo</h2><p className="mt-1 text-sm text-mute">La persona recibe un enlace seguro y elige su propio PIN. Nunca enviamos credenciales por correo.</p><form onSubmit={invitar} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(11rem,1.3fr)_minmax(13rem,1.5fr)_minmax(8rem,1fr)_auto]"><div><Label htmlFor="invite-name">Nombre</Label><Input id="invite-name" value={invitacion.name} onChange={event => setInvitacion({ ...invitacion, name: event.target.value })} onBlur={() => !invitacion.name.trim() && setError('Ingresá el nombre del integrante.')} required /></div><div><Label htmlFor="invite-email">Correo</Label><EmailField id="invite-email" value={invitacion.email} onChange={value => setInvitacion({ ...invitacion, email: value })} required /></div><div><Label htmlFor="invite-role">Rol</Label><Select id="invite-role" value={invitacion.role} onChange={event => setInvitacion({ ...invitacion, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Enviar invitación</Button></div></form>{invitacionDuplicada && <p className="mt-3 rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">Ya hay una invitación activa para ese correo. Podés <b className="text-fore">reenviarla o revocarla</b> desde Invitaciones.<Button type="button" variant="outline" className="ml-2 h-8 px-2 text-xs" onClick={() => { setInvitarAbierto(false); navigate('/configuracion/invitaciones') }}>Ver invitaciones</Button></p>}</Card>}</> : <><Card><h2 className="font-bold">Agregar directamente</h2><p className="mt-1 text-sm text-mute">{esDemo ? 'Agregá vendedores al entorno demo.' : 'Opción compatible para alta inmediata con un PIN definido por el administrador.'}</p><form onSubmit={crearDirecto} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(11rem,1.1fr)_minmax(13rem,1.3fr)_minmax(8rem,1fr)_minmax(7rem,0.7fr)_auto]"><div><Label htmlFor="direct-name">Nombre</Label><Input id="direct-name" value={directo.name} onChange={event => setDirecto({ ...directo, name: event.target.value })} required /></div>{!esDemo && <><div><Label htmlFor="direct-email">Correo</Label><EmailField id="direct-email" value={directo.email} onChange={value => setDirecto({ ...directo, email: value })} /></div><div><Label htmlFor="direct-role">Rol</Label><Select id="direct-role" value={directo.role} onChange={event => setDirecto({ ...directo, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div><Label htmlFor="direct-pin">PIN temporal</Label><Input id="direct-pin" inputMode="numeric" maxLength={4} value={directo.pin} onChange={event => setDirecto({ ...directo, pin: event.target.value.replace(/\D/g, '').slice(0, 4) })} required /></div></>}<div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Agregar</Button></div></form></Card></>}
       </div>
     </Modal>
     <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title={`Historial de ${historialDe?.nombre || 'funcionario'}`}>
