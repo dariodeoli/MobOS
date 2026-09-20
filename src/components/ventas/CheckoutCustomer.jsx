@@ -10,11 +10,11 @@ import { coincideCliente, datosFacturacionCliente } from '@/utils/cliente'
 import { capitalizarPrimera } from '@/utils/texto'
 
 const emptyAddress = () => ({ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay', notes: '', isDefault: true })
-const clienteVacio = () => ({ id: undefined, name: '', phone: '', countryCode: '+595', email: '', document: '', pricingTier: 'RETAIL', creditLimitPyg: null, creditDays: null, addresses: [], billingName: '', billingDocument: '' })
+const clienteVacio = () => ({ id: undefined, name: '', phone: '', countryCode: '+595', email: '', document: '', pricingTier: 'RETAIL', priceListId: null, creditLimitPyg: null, creditDays: null, addresses: [], billingName: '', billingDocument: '' })
 const customerValue = (customer) => ({
   id: customer.id, name: customer.name || '', phone: customer.phone || '', countryCode: customer.countryCode || '+595',
   email: customer.email || '', document: customer.document || '',
-  pricingTier: customer.pricingTier || 'RETAIL', creditLimitPyg: customer.creditLimitPyg ?? null, creditDays: customer.creditDays ?? null,
+  pricingTier: customer.pricingTier || 'RETAIL', priceListId: customer.priceListId || null, creditLimitPyg: customer.creditLimitPyg ?? null, creditDays: customer.creditDays ?? null,
   addresses: Array.isArray(customer.addresses) ? customer.addresses.map(({ id, ...address }) => address) : [],
   billingName: customer.billingName || '', billingDocument: customer.billingDocument || '',
 })

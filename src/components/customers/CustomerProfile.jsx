@@ -167,6 +167,21 @@ export default function CustomerProfile({ customer, open, onClose }) {
     } catch (cause) { toast.error(cause?.message || 'No se pudieron guardar las notas.') } finally { setGuardandoNotas(false) }
   }
 
+  // Lista de precios de la ficha: vacía vuelve al precio por tipo de cliente.
+  async function cambiarListaPrecios(value) {
+    if (guardandoLista || !customer?.id) return
+    setGuardandoLista(true)
+    try {
+      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { priceListId: value || null })
+      toast.success(value ? 'Lista de precios asignada.' : 'La ficha vuelve a su precio por tipo de cliente.')
+      refresh()
+    } catch (cause) {
+      toast.error(cause?.message || 'No se pudo asignar la lista.')
+    } finally {
+      setGuardandoLista(false)
+    }
+  }
+
   // Portal del cliente: prepara (o regenera) el enlace del nivel elegido y su QR.
   async function prepararPortal(nivel = portalNivel, regenerate = false) {
     if (esDemo || !customer?.id || portalBusy) return
@@ -247,6 +262,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [authorizations, setAuthorizations] = useState([])
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
+  // Listas de precios activas de la empresa para asignar a la ficha.
+  const [listas, setListas] = useState([])
+  const [guardandoLista, setGuardandoLista] = useState(false)
   const [requestKind, setRequestKind] = useState('')
   const [requestForm, setRequestForm] = useState({ creditLimitPyg: '', creditDays: '', note: '' })
   const [requestBusy, setRequestBusy] = useState(false)
@@ -342,6 +360,17 @@ export default function CustomerProfile({ customer, open, onClose }) {
     return () => { active = false }
   }, [open, customer?.id, tab, timelineRevision])
 
+  // Listas de precios activas: se piden al abrir la pestaña comercial.
+  useEffect(() => {
+    if (!open || tab !== 'comercial' || esDemo) return undefined
+    let active = true
+    api
+      .get('/api/price-lists')
+      .then((data) => { if (active) setListas(Array.isArray(data) ? data.filter((lista) => lista.isActive) : []) })
+      .catch(() => { if (active) setListas([]) })
+    return () => { active = false }
+  }, [open, tab, esDemo])
+
   const refresh = () => setRevision((value) => value + 1)
   const phone = profile?.customer?.phone || customer?.phone || ''
   const documentValue = profile?.customer?.document || customer?.document || ''
@@ -362,6 +391,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const hayPendiente = (kind) => pendientes.some((row) => row.kind === kind)
   const creditoHabilitado = Number(profile?.customer?.creditLimitPyg ?? 0) > 0
   const diasCredito = profile?.customer?.creditDays
+  const listaPreciosId = profile?.customer?.priceListId || customer?.priceListId || ''
+  const nombreListaPrecios = listas.find((lista) => lista.id === listaPreciosId)?.name || null
   const puedeResolver = RESOLVERS.includes(usuario?.role)
   const ordenesConSaldo = orders.filter((order) => saldoOrden(order) > 0)
   const facturaActual = Boolean(profile?.customer?.billingName || profile?.customer?.billingDocument)
@@ -1068,6 +1099,27 @@ export default function CustomerProfile({ customer, open, onClose }) {
                   <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Límite</p>
                   <p className="mt-1 text-sm font-semibold">{creditoHabilitado ? formatGs(profile?.customer?.creditLimitPyg) : '—'}</p>
                 </div>
+              </div>
+
+              <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3" data-testid="perfil-lista-precios">
+                <div className="min-w-[16rem] flex-1">
+                  <FormField
+                    label="Lista de precios"
+                    htmlFor="profile-lista-precios"
+                    hint="La lista manda sobre el precio mayorista o minorista del producto, con sus escalones por cantidad."
+                  >
+                    <Select
+                      id="profile-lista-precios"
+                      disabled={guardandoLista || esDemo}
+                      value={listaPreciosId}
+                      onChange={(event) => cambiarListaPrecios(event.target.value)}
+                    >
+                      <option value="">Sin lista (según el tipo de cliente)</option>
+                      {listas.map((lista) => <option key={lista.id} value={lista.id}>{lista.name}</option>)}
+                    </Select>
+                  </FormField>
+                </div>
+                {nombreListaPrecios && <Badge color="blue">{nombreListaPrecios}</Badge>}
               </div>
 
               <div className="flex flex-wrap gap-2">

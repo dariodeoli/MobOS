@@ -47,6 +47,7 @@ const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'
 const Impresoras = lazy(() => import('@/components/control/Impresoras'))
 const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
 const WhatsAppTemplates = lazy(() => import('@/components/control/WhatsAppTemplates'))
+const Precios = lazy(() => import('@/components/control/Precios'))
 
 // Navegación por flujo de trabajo: primero la operación del día, después el
 // catálogo/stock y al final las herramientas de gestión. Los permisos definen
@@ -65,6 +66,7 @@ const SELLER_NAV = [
     items: [
       ['productos', 'Productos', 'phone'],
       ['promociones', 'Promociones', 'store'],
+      ['precios', 'Precios', 'tag'],
       ['cotizador', 'Trade-In', 'refresh'],
       ['cotizaciones', 'Cotizaciones', 'report'],
     ],
@@ -79,6 +81,7 @@ const OWNER_NAV = [
       ['pedidos', 'Pedidos', 'box'],
       ['clientes', 'Clientes', 'users'],
       ['promociones', 'Promociones', 'store'],
+      ['precios', 'Precios', 'tag'],
       ['cotizaciones', 'Cotizaciones', 'report'],
       ['plantillas', 'Plantillas', 'send'],
     ],
@@ -210,6 +213,7 @@ const LABELS = {
   pedidos: 'Mis pedidos',
   productos: 'Productos',
   promociones: 'Promociones',
+  precios: 'Precios',
   cotizaciones: 'Cotizaciones',
   plantillas: 'Plantillas de WhatsApp',
   cotizador: 'Trade-In',
@@ -692,6 +696,7 @@ export default function PanelVendedor() {
             {vista === 'productos' && <SellerCatalog />}
             {vista === 'pedidos' && <SellerOrders />}
             {vista === 'promociones' && <SellerTools vista="promociones" />}
+            {vista === 'precios' && <Precios />}
             {vista === 'cotizaciones' && <SellerQuotes />}
             <div hidden={vista !== 'cotizador'}>
               <SellerTools
