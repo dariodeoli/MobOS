@@ -29,6 +29,8 @@ model Tenant {
   lockedUntil         DateTime?
   archivedAt          DateTime?
   archivedReason      String?
+  // Hasta cuándo el dueño puede restaurar la empresa archivada desde la app.
+  recoverableUntil    DateTime?
   slug                String           @unique
   // Identificador comercial visible de los pedidos: "MOB #310840".
   orderPrefix         String?
@@ -1453,6 +1455,11 @@ model AuditLog {
 
   @@index([tenantId, createdAt])
   @@index([entity, entityId])
+  // Texto denormalizado (acción + entidad + id + metadato) que mantiene un
+  // trigger en la base: la búsqueda de la auditoría alcanza el detalle sin
+  // recorrer el JSONB fila por fila.
+  searchText String  @default("")
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model CashSession {

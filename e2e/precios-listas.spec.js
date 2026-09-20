@@ -122,7 +122,6 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   await page.evaluate(
     async ({ api, productoId, clienteId, nombreLista }) => {
       const json = { credentials: 'include', headers: { 'Content-Type': 'application/json' } }
-      await fetch(`${api}/api/price-tiers`, { ...json, method: 'POST', body: JSON.stringify({ productId: productoId, tiers: [] }) })
       await fetch(`${api}/api/customers/${encodeURIComponent(clienteId)}`, { ...json, method: 'PATCH', body: JSON.stringify({ priceListId: null }) })
       const listas = await fetch(`${api}/api/price-lists?all=1`, { credentials: 'include' }).then((response) => response.json()).catch(() => [])
       const lista = (listas || []).find((row) => row.name === nombreLista)
