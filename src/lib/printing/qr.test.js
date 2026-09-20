@@ -14,9 +14,11 @@ test('los QR de pedido, unidad, producto y garantía son URLs absolutas de la ap
 test('la base sale del parámetro explícito y se le quita la barra final', () => {
   assert.equal(baseDeApp(`${BASE}/`), BASE)
   assert.equal(qrUnidad('ABC', `${BASE}/`), `${BASE}/u/ABC`)
-  // Sin base (fuera del navegador y sin variable) no se inventa ruta relativa.
+  // Sin base no se inventa ruta relativa: los códigos de unidad, producto y
+  // prueba caen al payload histórico que entiende el lector del local.
   assert.equal(baseDeApp(), '')
-  assert.equal(qrUnidad('ABC'), '')
+  assert.equal(qrUnidad('ABC'), 'MOBOS:ABC')
+  assert.equal(qrProducto('IPH-15-128'), 'MOBOS:PROD:IPH-15-128')
   assert.equal(qrPedido(''), '')
 })
 
@@ -38,7 +40,7 @@ test('la prueba arma una URL autocontenida con destino, validación, fecha y tip
   )
   // Los cuatro parámetros viajan siempre, en el mismo orden.
   assert.deepEqual([...new URL(enlace).searchParams.keys()], ['d', 'v', 'f', 't'])
-  assert.equal(qrPrueba({}, ''), '')
+  assert.equal(qrPrueba({ tipo: 'corta', validacion: '1234' }, ''), 'MOBOS:PRUEBA:corta:1234')
 })
 
 test('leerPrueba recupera exactamente lo que puso qrPrueba', () => {
