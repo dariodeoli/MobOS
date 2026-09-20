@@ -156,6 +156,9 @@ export default function Auditoria() {
   const [cargandoMas, setCargandoMas] = useState(false)
   const [entidad, setEntidad] = useState('')
   const [query, setQuery] = useState('')
+  const [rango, setRango] = useState('todo')
+  const [exportando, setExportando] = useState(false)
+  const [actor, setActor] = useState('')
   const [abiertos, setAbiertos] = useState(() => new Set())
 
   const load = useCallback(async () => {
@@ -164,10 +167,12 @@ export default function Auditoria() {
       const params = new URLSearchParams({ limit: '50' })
       if (entidad) params.set('entity', entidad)
       if (query.trim()) params.set('q', query.trim())
+      if (rango !== 'todo') params.set('rango', rango)
+      if (actor) params.set('actor', actor)
       const data = await api.get(`/api/audit?${params}`)
       setRows(data); setHayMas(data.length >= 50)
     } catch (cause) { setError(cause?.message || 'No se pudo cargar la auditoría.') } finally { setLoading(false) }
-  }, [entidad, query])
+  }, [entidad, query, rango, actor])
   useEffect(() => { load() }, [load])
 
   const cargarMas = async () => {
@@ -178,9 +183,52 @@ export default function Auditoria() {
       const params = new URLSearchParams({ limit: '50', cursor: ultimo })
       if (entidad) params.set('entity', entidad)
       if (query.trim()) params.set('q', query.trim())
+      if (rango !== 'todo') params.set('rango', rango)
+      if (actor) params.set('actor', actor)
       const data = await api.get(`/api/audit?${params}`)
       setRows((actual) => [...actual, ...data]); setHayMas(data.length >= 50)
     } catch { /* se conserva lo cargado */ } finally { setCargandoMas(false) }
+  }
+
+  // Actores vistos en los movimientos cargados (los que tienen actividad).
+  const actores = useMemo(() => {
+    const vistos = new Map()
+    for (const fila of rows) if (fila.user?.id) vistos.set(fila.user.id, fila.user.name || 'Usuario')
+    return [...vistos.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'es'))
+  }, [rows])
+
+  // Exportación con los filtros actuales (hasta 1000 movimientos), con la misma
+  // etiqueta en español que muestra la pantalla.
+  async function exportarCsv() {
+    if (exportando) return
+    setExportando(true); setError('')
+    try {
+      const params = new URLSearchParams({ limit: '1000' })
+      if (entidad) params.set('entity', entidad)
+      if (query.trim()) params.set('q', query.trim())
+      if (rango !== 'todo') params.set('rango', rango)
+      if (actor) params.set('actor', actor)
+      const datos = await api.get(`/api/audit?${params}`)
+      const filas = [['Fecha', 'Acción', 'Actor', 'Área', 'Entidad', 'ID', 'Detalle']]
+      for (const fila of datos) {
+        const [label] = ACCIONES[fila.action] || [fila.action]
+        filas.push([
+          new Date(fila.createdAt).toLocaleString('es-PY'),
+          label,
+          fila.user?.name || 'Sistema',
+          ENTIDAD_LABEL[fila.entity] || fila.entity || '',
+          fila.entity || '',
+          fila.entityId || '',
+          detalleDe(fila.metadata),
+        ])
+      }
+      const csv = filas.map((fila) => fila.map((celda) => `"${String(celda ?? '').replace(/"/g, '""')}"`).join(';')).join('\n')
+      const enlace = document.createElement('a')
+      enlace.href = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
+      enlace.download = `auditoria-${new Date().toISOString().slice(0, 10)}.csv`
+      enlace.click()
+      URL.revokeObjectURL(enlace.href)
+    } catch (cause) { setError(cause?.message || 'No se pudo exportar la auditoría.') } finally { setExportando(false) }
   }
 
   const total = useMemo(() => rows.length, [rows])
@@ -199,7 +247,18 @@ export default function Auditoria() {
           {ENTIDADES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </Select>
         <div className="min-w-[200px] flex-1"><Input aria-label="Buscar en la auditoría" placeholder="Acción o identificador (IMEI, pedido…)" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
+        <Select aria-label="Rango de fechas" className="w-auto" value={rango} onChange={(event) => setRango(event.target.value)}>
+          <option value="todo">Todo</option>
+          <option value="hoy">Hoy</option>
+          <option value="semana">Últimos 7 días</option>
+          <option value="mes">Últimos 30 días</option>
+        </Select>
+        <Select aria-label="Filtrar por actor" className="w-auto" value={actor} onChange={(event) => setActor(event.target.value)}>
+          <option value="">Todos los actores</option>
+          {actores.map((persona) => <option key={persona.id} value={persona.id}>{persona.name}</option>)}
+        </Select>
         <button type="button" onClick={load} disabled={loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
+        <button type="button" onClick={exportarCsv} disabled={exportando} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{exportando ? 'Exportando…' : 'Exportar CSV'}</button>
       </div>
     </Card>
 
