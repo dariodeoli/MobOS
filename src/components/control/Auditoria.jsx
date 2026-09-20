@@ -113,6 +113,10 @@ const ACCIONES = {
   PROMOTION_CREATED: ['Promoción creada', 'green'],
   PROMOTION_ACTIVATED: ['Promoción activada', 'green'],
   PROMOTION_DEACTIVATED: ['Promoción desactivada', 'slate'],
+  PRICE_LIST_CREATED: ['Lista de precios creada', 'green'],
+  PRICE_LIST_UPDATED: ['Lista de precios actualizada', 'blue'],
+  PRICE_LIST_DELETED: ['Lista de precios eliminada', 'red'],
+  PRICE_TIERS_UPDATED: ['Precios por cantidad actualizados', 'blue'],
 }
 
 // Entidades con las que se filtra la lista. Impresiones agrupa las tres

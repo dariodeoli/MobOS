@@ -142,6 +142,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       if (limit !== null && (!Number.isSafeInteger(limit) || limit < 0 || limit > 2147483647)) throw new InputError('Límite de crédito inválido.')
       data.creditLimitPyg = limit
     }
+    // Lista de precios propia del cliente: gana sobre mayorista/minorista en
+    // los productos que cubre.
+    if (body.priceListId !== undefined) {
+      if (!gestionaCredito) throw new InputError('Solo administración o gerencia pueden asignar la lista de precios.', 403)
+      const priceListId = body.priceListId === null || body.priceListId === '' ? null : textInput(body.priceListId, 'Lista de precios', 128)
+      if (priceListId && !await prisma.priceList.findFirst({ where: { id: priceListId, tenantId: session.user.tenantId }, select: { id: true } })) throw new InputError('Lista de precios no encontrada.', 404)
+      data.priceListId = priceListId
+    }
     if (!Object.keys(data).length) throw new InputError('No enviaste cambios.')
     const updated = await prisma.customer.update({ where: { id: existing.id }, data, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })
     await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'CUSTOMER_UPDATED', entity: 'Customer', entityId: updated.id, metadata: { fields: Object.keys(data) } } })

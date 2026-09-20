@@ -92,6 +92,9 @@ model Tenant {
   printers                PrintPrinter[]
   printJobs               PrintJob[]
   customerPortalTokens    CustomerPortalToken[]
+  priceLists              PriceList[]
+  priceListItems          PriceListItem[]
+  priceTiers              PriceTier[]
 
   @@index([archivedAt])
 }
@@ -425,6 +428,8 @@ model Product {
   inventoryUnits           InventoryUnit[]
   transferSourceLines      StockTransferLine[] @relation("TransferSourceProduct")
   transferDestinationLines StockTransferLine[] @relation("TransferDestinationProduct")
+  priceListItems           PriceListItem[]
+  priceTiers               PriceTier[]
 
   @@unique([tenantId, branchId, sku])
   @@index([tenantId, branchId])
@@ -627,6 +632,10 @@ model Customer {
   createdById String?
   // Precio minorista o mayorista; el mayorista usa wholesalePricePyg del producto.
   pricingTier CustomerPricing @default(RETAIL)
+  // Lista de precios propia del cliente; si está asignada, gana sobre
+  // mayorista/minorista en los productos que la lista cubre.
+  priceListId String?
+  priceList   PriceList? @relation(fields: [priceListId], references: [id], onDelete: SetNull)
   // Límite de crédito en guaraníes (null = sin venta a crédito).
   creditLimitPyg Int?
   // Plazo de crédito estándar en días para este cliente.
@@ -656,6 +665,7 @@ model Customer {
   @@index([tenantId])
   @@index([tenantId, phone])
   @@index([tenantId, externalId])
+  @@index([tenantId, priceListId])
 }
 
 // Solicitud de autorización comercial (mayorista, crédito, plazo o descuento).
@@ -1069,6 +1079,10 @@ model OrderItem {
   // cliente lo es). La UI y el comprobante muestran el descuento solo cuando
   // la línea se vendió más barato; por encima de lista se muestra normal.
   listPricePyg         Int?
+  // Cómo se resolvió el precio de la línea (TIER, LIST, WHOLESALE, RETAIL,
+  // USD) y qué lista del cliente lo fijó, congelados al vender.
+  priceSource          String?
+  priceListId          String?
   unitCostPyg          Int?
   baseUnitCostPyg      Int?
   insurancePyg         Int            @default(0)
@@ -1138,6 +1152,64 @@ model Promotion {
   updatedAt DateTime @updatedAt
 
   @@unique([tenantId, code])
+}
+
+// Lista de precios propia de un cliente: reemplaza la lista mayorista/minorista
+// en los productos que cubre. Los ítems ajustan (descuento o recargo) el precio
+// minorista del producto o de toda su categoría.
+model PriceList {
+  id        String          @id @default(cuid())
+  tenantId  String
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  currency  PaymentCurrency @default(PYG)
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  items     PriceListItem[]
+  customers Customer[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isActive])
+}
+
+// Ajuste de la lista sobre el precio minorista. El ítem por producto gana
+// sobre el de categoría si ambos cubren el mismo producto.
+model PriceListItem {
+  id          String              @id @default(cuid())
+  tenantId    String
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  priceListId String
+  priceList   PriceList           @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product?            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category    String?
+  adjustment  PriceListAdjustment @default(DISCOUNT)
+  valuePct    Decimal             @db.Decimal(6, 2)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([tenantId, priceListId])
+  @@index([productId])
+}
+
+// Escalón por cantidad: desde `minQuantity` unidades el precio unitario de la
+// línea es `unitPricePyg`. Gana sobre la lista del cliente, el mayorista y el
+// minorista (el más alto de los escalones alcanzados).
+model PriceTier {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  minQuantity  Int
+  unitPricePyg Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, productId, minQuantity])
+  @@index([tenantId, productId])
 }
 
 model Payment {
@@ -1284,6 +1356,12 @@ enum PaymentAccountKind {
 enum CustomerPricing {
   RETAIL
   WHOLESALE
+}
+
+// Cómo ajusta un ítem de lista de precios al precio minorista del producto.
+enum PriceListAdjustment {
+  DISCOUNT
+  SURCHARGE
 }
 
 enum ProductDestination {

@@ -13,6 +13,7 @@ export default function PasoCarrito({
   guardando,
   puedeDescontar,
   precioDe,
+  precioListaDe,
   totalCarrito,
   quitarItem,
   editarItem,
@@ -41,6 +42,7 @@ export default function PasoCarrito({
         guardando={guardando}
         puedeDescontar={puedeDescontar}
         precioDe={precioDe}
+        precioListaDe={precioListaDe}
         totalCarrito={totalCarrito}
         quitarItem={quitarItem}
         editarItem={editarItem}

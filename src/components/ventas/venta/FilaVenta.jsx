@@ -18,6 +18,7 @@ export default function FilaVenta({
   esDemo,
   guardando,
   precioDe,
+  precioLista,
   onEditar,
   onQuitar,
   onImei,
@@ -29,7 +30,7 @@ export default function FilaVenta({
 
   const cantidad = Math.max(1, Number(item.quantity) || 1)
   const precio = Number(item.precio) || 0
-  const lista = Number(producto?.precioVenta) || 0
+  const lista = Number(precioLista ?? producto?.precioVenta) || 0
   const descuentoLinea =
     Number(item.descuentoPct || 0) > 0
       ? Math.round((precio * cantidad * Number(item.descuentoPct)) / 100)

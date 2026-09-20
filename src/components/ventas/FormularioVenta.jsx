@@ -15,6 +15,7 @@ import {
   ENTREGA,
 } from '@/lib/storage'
 import { leerCarrito, guardarCarrito, borrarCarrito } from '@/lib/posCart'
+import { resolverPrecio } from '@/lib/precios'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { cn } from '@/lib/utils'
 import { allocateCheckout } from '@/utils/checkout'
@@ -172,6 +173,10 @@ export default function FormularioVenta({
   const [creandoProd, setCreandoProd] = useState(false)
   const [combos, setCombos] = useState([])
   const [noticeCombo, setNoticeCombo] = useState('')
+  // Precios de la empresa: listas por cliente y escalones por cantidad. Con
+  // ellos el carrito resuelve el mismo precio que el servidor congela al vender.
+  const [listasPrecios, setListasPrecios] = useState([])
+  const [escalones, setEscalones] = useState([])
   const [busquedaProducto, setBusquedaProducto] = useState('')
   // Fila de la venta cuyo selector de IMEI está abierto.
   const [imeiPara, setImeiPara] = useState(null)
@@ -334,22 +339,43 @@ export default function FormularioVenta({
     resources.combos.list().then(setCombos).catch(() => setCombos([]))
   }, [esDemo])
 
+  // Listas de precios y escalones por cantidad de la empresa (solo API real).
+  useEffect(() => {
+    if (esDemo) { setListasPrecios([]); setEscalones([]); return }
+    let vigente = true
+    Promise.all([resources.priceLists.list().catch(() => []), resources.priceTiers.list().catch(() => [])])
+      .then(([listas, tiers]) => { if (vigente) { setListasPrecios(Array.isArray(listas) ? listas : []); setEscalones(Array.isArray(tiers) ? tiers : []) } })
+    return () => { vigente = false }
+  }, [esDemo])
+
   function nombreDe(id) {
     return productos.find(p => p.id === id)?.nombre || ''
   }
-  // Precio de lista que corresponde a esta venta: mayorista si el cliente lo es.
-  function precioListaDe(id) {
-    const producto = productos.find(p => p.id === id)
+  const listaDelCliente = listasPrecios.find(lista => lista.id === customer?.priceListId && lista.isActive !== false) || null
+  const escalonesDe = (productoId) => escalones.filter(escalon => escalon.productId === productoId)
+  // Precio resuelto por prioridad: escalón por cantidad > lista del cliente >
+  // mayorista > minorista > priceUsd (mismo resolvedor que el servidor).
+  function precioResuelto(producto, cantidad = 1) {
+    if (!producto) return { unitPricePyg: 0, source: 'RETAIL' }
+    // El modo demo/local guarda el precio como `precioVenta`/`precioMayorista`.
+    const normalizado = { ...producto, pricePyg: producto.pricePyg ?? producto.precioVenta, wholesalePricePyg: producto.wholesalePricePyg ?? producto.precioMayorista }
+    try {
+      return resolverPrecio({ quantity: cantidad, product: normalizado, tiers: escalonesDe(producto.id), priceList: listaDelCliente, customerPricingTier: customer?.pricingTier })
+    } catch { return { unitPricePyg: Number(producto.precioVenta) || 0, source: 'RETAIL' } }
+  }
+  // Precio de lista que corresponde a esta venta (lo que debería pagar el
+  // cliente): base del control de venta bajo lista.
+  function precioListaDe(item) {
+    const producto = productos.find(p => p.id === (item?.productoId ?? item))
     if (!producto) return undefined
-    if (customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) return Number(producto.wholesalePricePyg)
-    return Number(producto.precioVenta) || 0
+    return precioResuelto(producto, item?.quantity || 1).unitPricePyg
   }
   // Venta bajo lista: diferencia acumulada entre el precio de lista y el precio
   // manual de cada línea (espejo del control del servidor). Los cupones ya
   // vienen cotizados por el servidor y no cuentan como precio discrecional.
   const bajoLista = items.reduce((acc, it) => {
     if (it.couponCode) return acc
-    const lista = precioListaDe(it.productoId)
+    const lista = precioListaDe(it)
     if (lista === undefined) return acc
     const gap = (Number(lista) - Number(it.precio || 0)) * (it.quantity || 1)
     if (gap <= 0) return acc
@@ -396,13 +422,10 @@ export default function FormularioVenta({
     setNoticeCombo(`Combo ${combo.name} agregado: ${nuevas.length} componentes por ${gs(precioCombo)}.`)
   }
 
-  // Precio con el que entra un producto a la venta: mayorista si el cliente lo es.
-  function precioDe(producto) {
+  // Precio con el que entra un producto a la venta, resuelto por prioridad.
+  function precioDe(producto, cantidad = 1) {
     if (!producto) return 0
-    if (customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) {
-      return Number(producto.wholesalePricePyg)
-    }
-    return Number(producto.precioVenta) || 0
+    return precioResuelto(producto, cantidad).unitPricePyg
   }
 
   // Clic en el buscador: el producto entra a la venta y se termina de editar
@@ -415,15 +438,25 @@ export default function FormularioVenta({
         it => it.productoId === producto.id && !it.serials?.length && !it.couponCode,
       )
       if (indice >= 0) {
-        return arr.map((it, i) => (i === indice ? { ...it, quantity: (it.quantity || 1) + 1 } : it))
+        // Al subir la cantidad puede cambiar el escalón: si el precio seguía
+        // siendo el automático, se recalcula.
+        return arr.map((it, i) => {
+          if (i !== indice) return it
+          const cantidad = (it.quantity || 1) + 1
+          const auto = it.precioAuto !== undefined && Number(it.precio) === Number(it.precioAuto)
+          const precio = auto ? precioDe(producto, cantidad) : it.precio
+          return { ...it, quantity: cantidad, ...(auto ? { precio, precioAuto: precio } : {}) }
+        })
       }
+      const precio = precioDe(producto)
       return [
         ...arr,
         {
           key,
           productoId: producto.id,
           nombre: producto.nombre,
-          precio: precioDe(producto),
+          precio,
+          precioAuto: precio,
           quantity: 1,
           couponCode: null,
           soldWithoutInsurance: false,
@@ -453,7 +486,20 @@ export default function FormularioVenta({
     setItems(arr => arr.filter(x => x.key !== key))
   }
   function editarItem(key, patch) {
-    setItems(arr => arr.map(x => (x.key === key ? { ...x, ...patch } : x)))
+    setItems(arr => arr.map(x => {
+      if (x.key !== key) return x
+      const actualizado = { ...x, ...patch }
+      // Editar el precio a mano lo marca como discrecional: la cantidad ya no
+      // lo pisa (y el control de venta bajo lista sigue viendo el precio real).
+      if ('precio' in patch) actualizado.precioAuto = null
+      if (patch.quantity !== undefined && x.precioAuto !== undefined && Number(x.precio) === Number(x.precioAuto)) {
+        const producto = productos.find(p => p.id === x.productoId)
+        const precio = precioDe(producto, Number(patch.quantity) || 1)
+        actualizado.precio = precio
+        actualizado.precioAuto = precio
+      }
+      return actualizado
+    }))
   }
   // Descuento por línea: porcentual si hay %, si no el fijo en guaraníes.
   const descuentoItem = it => {
@@ -848,7 +894,7 @@ export default function FormularioVenta({
             estadoPago: pendiente === 0 ? 'Pagado' : totalPagado > 0 ? 'Parcial' : 'Pendiente',
             fecha: fechaVenta,
             precio: it.precio,
-            listPricePyg: precioListaDe(it.productoId),
+            listPricePyg: precioListaDe(it),
             medioPago: f.medioPago,
             entrega: i === 0 ? f.entrega : 'Retiro en tienda',
             montoDelivery: it.montoDelivery,
@@ -1162,6 +1208,8 @@ export default function FormularioVenta({
           onImei={setImeiPara}
           puedeDescontar={puedeDescontar}
           precioDe={precioDe}
+          precioListaDe={precioListaDe}
+          nombreLista={listaDelCliente?.name || ''}
           guardando={guardando}
           puedePaso2={puedePaso2}
           siguientePaso={siguientePaso}
@@ -1179,6 +1227,7 @@ export default function FormularioVenta({
           guardando={guardando}
           puedeDescontar={puedeDescontar}
           precioDe={precioDe}
+          precioListaDe={precioListaDe}
           totalCarrito={totalCarrito}
           quitarItem={quitarItem}
           editarItem={editarItem}

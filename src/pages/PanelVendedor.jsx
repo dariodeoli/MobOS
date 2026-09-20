@@ -48,6 +48,7 @@ const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'
 const Impresoras = lazy(() => import('@/components/control/Impresoras'))
 const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
 const WhatsAppTemplates = lazy(() => import('@/components/control/WhatsAppTemplates'))
+const Precios = lazy(() => import('@/components/control/Precios'))
 
 // Navegación por flujo de trabajo: primero la operación del día, después el
 // catálogo/stock y al final las herramientas de gestión. Los permisos definen
@@ -170,6 +171,7 @@ const SUBPAGINAS = {
       ['roles', 'Roles y permisos'],
       ['historial', 'Auditoría'],
       ['negocio', 'Negocio'],
+      ['precios', 'Listas de precios'],
       ['sucursales', 'Sucursales'],
       ['impresoras', 'Impresoras'],
       ['sistema', 'Estado del sistema'],
@@ -198,7 +200,7 @@ function tabsDeSubpagina(slug, esDemo) {
 // Invitaciones vive dentro de Equipo (una sola vez, sin pestaña duplicada).
 const GRUPOS_CONFIG = [
   { id: 'personas', label: 'Personas', icon: 'users', tabs: ['equipo', 'identidad', 'roles'] },
-  { id: 'negocio', label: 'Negocio', icon: 'store', tabs: ['negocio', 'sucursales'] },
+  { id: 'negocio', label: 'Negocio', icon: 'store', tabs: ['negocio', 'precios', 'sucursales'] },
   { id: 'seguridad', label: 'Seguridad', icon: 'lock', tabs: ['seguridad', 'historial'] },
   { id: 'sistema', label: 'Sistema', icon: 'settings', tabs: ['impresoras', 'sistema'] },
 ]
@@ -224,6 +226,7 @@ const LABELS = {
   roles: 'Roles y permisos',
   historial: 'Auditoría',
   negocio: 'Negocio',
+  precios: 'Listas de precios',
   sucursales: 'Sucursales',
   seguridad: 'Seguridad',
   impresoras: 'Impresoras',
@@ -768,6 +771,7 @@ export default function PanelVendedor() {
               {vista === 'roles' && <RolesPermisos />}
               {vista === 'historial' && (esDemo ? <Historial /> : <Auditoria />)}
               {vista === 'negocio' && <Config seccion="negocio" />}
+              {vista === 'precios' && <Precios />}
               {vista === 'sucursales' && <Config seccion="sucursales" />}
               {vista === 'seguridad' && <Config seccion="seguridad" />}
               {vista === 'impresoras' && <Impresoras />}

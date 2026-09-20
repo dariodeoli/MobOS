@@ -16,6 +16,8 @@ export const resources = {
   tenants: { search: (q = '') => api.get(`/api/tenants?q=${encodeURIComponent(q)}`) },
   transfers: { list: () => api.get('/api/transfers'), create: data => api.post('/api/transfers', data), update: data => api.patch('/api/transfers', data), accessToken: (id, regenerate = false) => api.post(`/api/transfers/${encodeURIComponent(id)}/access-token`, { regenerate }) },
   combos: { list: (all = false) => api.get('/api/combos' + (all ? '?all=1' : '')), create: data => api.post('/api/combos', data), update: data => api.patch('/api/combos', data) },
+  priceLists: { list: (all = false) => api.get('/api/price-lists' + (all ? '?all=1' : '')), create: data => api.post('/api/price-lists', data), update: data => api.patch('/api/price-lists', data), remove: id => api.delete(`/api/price-lists?id=${encodeURIComponent(id)}`) },
+  priceTiers: { list: (productId = '') => api.get(`/api/price-tiers${productId ? `?productId=${encodeURIComponent(productId)}` : ''}`), save: data => api.post('/api/price-tiers', data) },
   quotes: { list: (status = '') => api.get(`/api/quotes${status ? `?status=${status}` : ''}`), create: data => api.post('/api/quotes', data), update: data => api.patch('/api/quotes', data), convert: id => api.post(`/api/quotes/${encodeURIComponent(id)}/convert`, {}), accessToken: (id, regenerate = false) => api.post(`/api/quotes/${encodeURIComponent(id)}/access-token`, { regenerate }) },
   orders: { list: () => api.get('/api/orders'), create: data => api.post('/api/orders', data), get: id => api.get(`/api/orders/${encodeURIComponent(id)}`), updateDelivery: (id, data) => api.patch(`/api/orders/${encodeURIComponent(id)}`, data) },
   payments: { create: data => api.post('/api/payments', data) },
