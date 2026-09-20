@@ -14,7 +14,7 @@ import {
   ESTADOS_PAGO,
   ENTREGA,
 } from '@/lib/storage'
-import { leerCarrito, guardarCarrito, borrarCarrito } from '@/lib/posCart'
+import { leerCarrito, guardarCarrito, borrarCarrito, resolverCarritoSuspendido } from '@/lib/posCart'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { cn } from '@/lib/utils'
 import { allocateCheckout } from '@/utils/checkout'
@@ -402,9 +402,12 @@ export default function FormularioVenta({
   const itemsRef = useRef(items)
   itemsRef.current = items
 
-  async function resolverPrecio(productoId, quantity) {
+  async function resolverPrecio(productoId, quantity, clienteExplicito) {
     if (esDemo || !productoId) return null
-    const clienteId = customer?.id || ''
+    // El cliente puede venir explícito: al retomar una suspendida el estado
+    // todavía tiene el cliente anterior y el precio debe ser el del titular
+    // que se está recuperando.
+    const clienteId = clienteExplicito ?? (customer?.id || '')
     const clave = `${clienteId}:${productoId}:${quantity}`
     if (preciosCache.current.has(clave)) return preciosCache.current.get(clave)
     try {
@@ -1203,7 +1206,8 @@ export default function FormularioVenta({
       return
     }
     const cliente = clienteGuardado(payload.customer)
-    setItems(itemsGuardados(payload.items))
+    const filas = itemsGuardados(payload.items)
+    setItems(filas)
     setCustomer(cliente)
     setDescuento(
       payload.descuento === undefined || payload.descuento === null
@@ -1233,6 +1237,34 @@ export default function FormularioVenta({
     setPaso(1)
     setSuspendidas(list => list.filter(item => item.id !== suspendida.id))
     setAvisoSuspension('Venta recuperada. Revisá el carrito antes de cobrar.')
+    if (!esDemo) {
+      // Precios vigentes al retomar: cada línea se re-resuelve contra el
+      // servidor (escalón por cantidad y lista del cliente incluidos) y se
+      // avisa si alguno cambió respecto del guardado. La referencia del
+      // cliente se adelanta para que el efecto de cambio de cliente no repita
+      // las mismas consultas.
+      const clienteId = cliente.id || ''
+      clientePreciosRef.current = clienteId
+      const precios = {}
+      await Promise.all(
+        filas.map(async fila => {
+          if (fila.precioManual || fila.couponCode || fila.combo) return
+          const info = await resolverPrecio(fila.productoId, fila.quantity || 1, clienteId)
+          if (info) precios[fila.key] = info
+        }),
+      )
+      const { items: actualizados, cambios } = resolverCarritoSuspendido(filas, precios)
+      setItems(actualizados)
+      if (cambios.length) {
+        const detalle = cambios
+          .slice(0, 3)
+          .map(cambio => `${cambio.nombre || 'Producto'}: ${gs(cambio.antes)} → ${gs(cambio.despues)}`)
+          .join(' · ')
+        setAvisoSuspension(
+          `Venta recuperada. Se actualizaron ${cambios.length} precio(s) a la lista vigente: ${detalle}${cambios.length > 3 ? ' …' : ''}`,
+        )
+      }
+    }
     try {
       await api.delete(`/api/suspended-sales?id=${encodeURIComponent(suspendida.id)}`)
       setSuspendidasOpen(false)
@@ -1735,7 +1767,8 @@ export default function FormularioVenta({
           <p className="text-sm text-mute">
             El carrito queda guardado en el servidor para esta sucursal, con el cliente, la
             entrega, la facturación, los pagos y el descuento cargados. Cualquier persona con
-            permiso de venta puede retomarlo.
+            permiso de venta puede retomarlo. Hasta 50 por sucursal; los que nadie retoma se
+            descartan solos a los 7 días.
           </p>
           <div>
             <Label htmlFor="etiqueta-suspendida">Etiqueta (opcional)</Label>
@@ -1806,8 +1839,11 @@ export default function FormularioVenta({
                     {suspendida.label?.trim() || 'Sin etiqueta'}
                   </p>
                   <p className="mt-0.5 text-xs text-mute">
-                    {suspendida.customer?.name || 'Sin cliente'} ·{' '}
+                    {suspendida.customerName || suspendida.customer?.name || 'Sin cliente'} ·{' '}
                     {suspendida.user?.name || 'Vendedor'} · {fechaSuspendida(suspendida.createdAt)}
+                  </p>
+                  <p className="mt-0.5 text-xs font-semibold tabular-nums text-mute">
+                    Total {gs(Number(suspendida.totalPyg) || 0)}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

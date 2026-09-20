@@ -57,3 +57,41 @@ export function borrarCarrito(empresaId, sucursalId) {
     /* noop */
   }
 }
+
+// Precios vigentes de un carrito suspendido al retomarlo. `precios` es un mapa
+// por `key` de fila con la resolución autoritativa del servidor
+// (`{ unitPricePyg, unitPricePygFallback?, origin, priceList?, minQty?, ... }`).
+// Devuelve las filas con el precio nuevo y la lista de cambios para avisarle a
+// quien retoma. Las filas con precio manual, cupón o combo conservan su precio:
+// fueron una decisión de la venta, no una lista vigente.
+export function resolverCarritoSuspendido(items, precios = {}) {
+  const cambios = []
+  const filas = Array.isArray(items) ? items : []
+  const resueltas = filas.map((item) => {
+    if (!item || typeof item !== 'object') return item
+    if (item.precioManual || item.couponCode || item.combo) return item
+    const info = precios[item.key]
+    if (!info) return item
+    const precioNuevo = Number(info.unitPricePygFallback ?? info.unitPricePyg)
+    if (!Number.isFinite(precioNuevo) || precioNuevo <= 0) return item
+    const precioViejo = Number(item.precio) || 0
+    if (precioNuevo === precioViejo) return item
+    cambios.push({
+      key: item.key,
+      nombre: typeof item.nombre === 'string' ? item.nombre : '',
+      antes: precioViejo,
+      despues: precioNuevo,
+      origen: typeof info.origin === 'string' ? info.origin : '',
+    })
+    return {
+      ...item,
+      precio: precioNuevo,
+      precioOrigen: info.origin ?? item.precioOrigen ?? null,
+      precioLista: info.priceList?.name ?? null,
+      precioMinQty: info.minQty ?? null,
+      precioUsd: info.currency === 'USD' ? Number(info.unitPriceUsd) : null,
+      precioListaValor: info.currency === 'USD' ? null : precioNuevo,
+    }
+  })
+  return { items: resueltas, cambios }
+}
