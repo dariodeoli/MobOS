@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { Badge, Card, EmptyState, Input, Select, Skeleton } from '@/components/ui'
-import { descargarCsv } from '@/utils/descargarCsv'
 import { cn } from '@/lib/utils'
 
 // Pantalla real de auditoría: el registro que escribe el backend en cada
@@ -92,41 +91,32 @@ const ACCIONES = {
   STOCK_TRANSFER_RECEIVED: ['Traslado recibido en destino', 'green'],
   STOCK_LOCATION_CREATED: ['Ubicación creada', 'green'],
   STOCK_LOCATION_UPDATED: ['Ubicación editada', 'slate'],
-  PRINT_JOB_ENQUEUED: ['Job en cola', 'blue'],
-  PRINT_JOB_ACCEPTED: ['Job aceptado', 'green'],
-  PRINT_JOB_INCIERTO: ['Job incierto', 'orange'],
-  PRINT_JOB_FAILED: ['Job fallido', 'red'],
-  PRINT_JOB_REQUEUED: ['Job reingresó a cola', 'orange'],
-  PRINT_JOB_CONFIRMED: ['Job confirmado', 'green'],
+  PRINT_JOB_ENQUEUED: ['Trabajo en cola', 'blue'],
+  PRINT_JOB_ACCEPTED: ['Trabajo aceptado', 'green'],
+  PRINT_JOB_INCIERTO: ['Trabajo incierto', 'orange'],
+  PRINT_JOB_FAILED: ['Trabajo fallido', 'red'],
+  PRINT_JOB_REQUEUED: ['Reingresó a la cola', 'orange'],
+  PRINT_JOB_CONFIRMED: ['Trabajo confirmado', 'green'],
   PRINT_JOB_CONFIRM_FAILED: ['Confirmación fallida', 'red'],
-  PRINT_BRIDGE_CREATED: ['Puente creado', 'blue'],
   PRINT_BRIDGE_PAIRED: ['Puente vinculado', 'green'],
   PRINT_BRIDGE_PAIR_FAILED: ['Vinculación fallida', 'orange'],
-  PRINT_BRIDGE_REVOKED: ['Puente desvinculado', 'red'],
+  PRINT_BRIDGE_CREATED: ['Puente creado', 'blue'],
+  PRINT_BRIDGE_REVOKED: ['Puente revocado', 'red'],
   PRINT_PRINTER_CREATED: ['Impresora creada', 'green'],
   PRINT_PRINTER_UPDATED: ['Impresora editada', 'slate'],
   PRINT_PRINTER_DELETED: ['Impresora eliminada', 'red'],
+  PRINT_PRINTER_DISABLED: ['Impresora desactivada', 'orange'],
+  PRINT_PRINTER_ENABLED: ['Impresora activada', 'green'],
+  PRINT_PRINTERS_IMPORTED: ['Impresoras importadas', 'blue'],
   PRINT_PRINTER_IMPORTED: ['Impresoras importadas', 'blue'],
-  PRODUCT_CREATED: ['Producto creado', 'green'],
-  PRODUCT_UPDATED: ['Producto editado', 'slate'],
-  PRODUCT_DELETED: ['Producto eliminado', 'red'],
-  PROMOTION_CREATED: ['Promoción creada', 'green'],
-  PROMOTION_ACTIVATED: ['Promoción activada', 'green'],
-  PROMOTION_DEACTIVATED: ['Promoción desactivada', 'slate'],
-  PRICE_LIST_CREATED: ['Lista de precios creada', 'green'],
-  PRICE_LIST_UPDATED: ['Lista de precios actualizada', 'blue'],
-  PRICE_LIST_DELETED: ['Lista de precios eliminada', 'red'],
-  PRICE_TIERS_UPDATED: ['Precios por cantidad actualizados', 'blue'],
+  PRINT_DEFAULT_PRINTER_CHANGED: ['Impresora predeterminada', 'blue'],
 }
 
-// Entidades con las que se filtra la lista. Impresiones agrupa las tres
-// entidades del módulo en una sola opción (el endpoint acepta la lista).
+// Entidades con las que se filtra la lista.
 const ENTIDADES = [
   ['', 'Todo'],
   ['Order', 'Pedidos'],
   ['InventoryUnit', 'Inventario'],
-  ['Product', 'Inventario'],
-  ['Promotion', 'Promociones'],
   ['Customer', 'Clientes'],
   ['Payment', 'Pagos'],
   ['CashMovement', 'Caja y finanzas'],
@@ -137,50 +127,13 @@ const ENTIDADES = [
   ['TradeInDevice', 'Trade-In'],
   ['User', 'Equipo'],
   ['Session', 'Sesiones'],
-  ['PrintJob,PrintBridge,PrintPrinter', 'Impresiones'],
+  ['PrintJob', 'Impresión · trabajo'],
+  ['PrintBridge', 'Impresión · puente'],
+  ['PrintPrinter', 'Impresión · impresora'],
 ]
 
 // Área legible para la columna: el nombre técnico no dice nada.
-const ENTIDAD_LABEL = {
-  Order: 'Pedidos',
-  InventoryUnit: 'Inventario',
-  Product: 'Inventario',
-  Promotion: 'Promociones',
-  Customer: 'Clientes',
-  Payment: 'Pagos',
-  CashMovement: 'Caja y finanzas',
-  PurchaseOrder: 'Compras',
-  WarrantyCase: 'Garantías',
-  ServiceOrder: 'Servicio técnico',
-  Quote: 'Cotizaciones',
-  TradeInDevice: 'Trade-In',
-  User: 'Equipo',
-  Session: 'Sesiones',
-  PrintJob: 'Impresiones',
-  PrintBridge: 'Impresiones',
-  PrintPrinter: 'Impresiones',
-}
-
-// Rangos de fecha: el navegador conoce el día del negocio y manda el inicio
-// como instante; el backend filtra por createdAt.
-const RANGOS = [
-  ['', 'Cualquier fecha'],
-  ['hoy', 'Hoy'],
-  ['semana', 'Esta semana'],
-  ['mes', 'Este mes'],
-]
-
-function desdeDelRango(rango) {
-  if (!rango) return null
-  const ahora = new Date()
-  if (rango === 'hoy') return new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())
-  if (rango === 'semana') {
-    const desdeElLunes = (ahora.getDay() + 6) % 7
-    return new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - desdeElLunes)
-  }
-  if (rango === 'mes') return new Date(ahora.getFullYear(), ahora.getMonth(), 1)
-  return null
-}
+const ENTIDAD_LABEL = Object.fromEntries(ENTIDADES.filter(([value]) => value).map(([value, label]) => [value, label]))
 
 const GRID_AUDITORIA = 'grid min-w-[52rem] grid-cols-[minmax(9rem,1.1fr)_minmax(7rem,0.9fr)_minmax(6rem,0.7fr)_minmax(10rem,1.8fr)_8rem] items-center gap-x-2'
 const CELDA_AUD = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
@@ -194,44 +147,88 @@ function fechaHora(value) {
 
 // El metadata es libre por acción: se muestra como pares legibles y los campos
 // técnicos largos (ids) se recortan para que la fila siga siendo de una línea.
-// Los cambios campo a campo (`{ from, to }`) se leen como "antes → después".
-const ETIQUETAS = {
-  serial: 'IMEI', serials: 'IMEI', imei: 'IMEI', reason: 'Motivo', customer: 'Cliente', customerName: 'Cliente', status: 'Estado',
-  from: 'Antes', to: 'Después', before: 'Antes', after: 'Después', amountPyg: 'Monto', totalPyg: 'Total', minutes: 'Minutos',
-  level: 'Nivel', tags: 'Etiquetas', discountPyg: 'Descuento', method: 'Medio', role: 'Rol', name: 'Nombre', email: 'Correo',
-  action: 'Acción', jobId: 'Job', attempts: 'Intentos', intentos: 'Intentos', transport: 'Transporte', path: 'Camino',
-  kind: 'Tipo', bytes: 'Tamaños', printerId: 'Impresora', error: 'Error', sku: 'SKU', pricePyg: 'Precio', costPyg: 'Costo',
-  stock: 'Stock', reorderPoint: 'Punto de reorden', wholesalePricePyg: 'Precio mayorista', isActive: 'Activo',
-  condition: 'Condición', category: 'Categoría', model: 'Modelo', color: 'Color', capacity: 'Capacidad', destination: 'Destino',
-  connection: 'Conexión', isDefault: 'Predeterminada', brand: 'Marca', location: 'Ubicación', width: 'Ancho', copies: 'Copias',
-  cut: 'Corte', density: 'Densidad', characters: 'Caracteres', bridgeId: 'Puente', printers: 'Impresoras', bridges: 'Puentes',
-  force: 'Forzar', code: 'Código', value: 'Valor', maxUnits: 'Unidades máximas', productId: 'Producto', usedUnits: 'Unidades usadas',
+const ETIQUETAS = { serial: 'IMEI', serials: 'IMEI', reason: 'Motivo', customer: 'Cliente', customerName: 'Cliente', status: 'Estado', from: 'Antes', to: 'Después', amountPyg: 'Monto', totalPyg: 'Total', minutes: 'Minutos', level: 'Nivel', tags: 'Etiquetas', discountPyg: 'Descuento', method: 'Medio', role: 'Rol', name: 'Nombre', email: 'Correo', action: 'Acción', jobId: 'Trabajo', path: 'Camino', kind: 'Tipo', transport: 'Transporte', transporte: 'Transporte', printerId: 'Impresora', printerName: 'Impresora', bytes: 'Tamaño', attempts: 'Intentos', intentos: 'Intentos', error: 'Error', connection: 'Conexión', destination: 'Destino', width: 'Ancho', copies: 'Copias', count: 'Cantidad', created: 'Creadas', updated: 'Actualizadas', bridges: 'Puentes', validation: 'Validación', isDefault: 'Predeterminada', isActive: 'Activa' }
+function detalleDe(metadata) {
+  if (!metadata || typeof metadata !== 'object') return ''
+  return Object.entries(metadata)
+    .filter(([, valor]) => valor !== null && valor !== undefined && valor !== '' && typeof valor !== 'object')
+    .slice(0, 4)
+    .map(([clave, valor]) => `${ETIQUETAS[clave] || clave}: ${String(valor).slice(0, 40)}`)
+    .join(' · ')
 }
 
-function formatearValor(valor) {
-  if (valor === null || valor === undefined) return ''
+// Eventos del módulo de impresión: se leen en español y con los ids recortados,
+// nunca con el JSON crudo del backend (issue #60).
+const AREAS_IMPRESION = new Set(['PrintJob', 'PrintBridge', 'PrintPrinter'])
+const CAMPOS_IMPRESORA = { name: 'Nombre', brand: 'Marca', model: 'Modelo', location: 'Ubicación', connection: 'Conexión', destination: 'Destino', width: 'Ancho', copies: 'Copias', cut: 'Corte', density: 'Densidad', characters: 'Caracteres', isDefault: 'Predeterminada', isActive: 'Activa', bridgeId: 'Puente' }
+const TRANSPORTES = { directo: 'TCP directo', cups: 'Cola CUPS', usb: 'USB', lan: 'LAN' }
+const CAMINOS = { REMOTO: 'Remoto', LOCAL: 'Local' }
+
+const idCorto = (valor) => {
+  const texto = String(valor ?? '')
+  return texto.length > 10 ? `${texto.slice(0, 8)}…` : texto
+}
+
+function valorDeImpresora(campo, valor) {
+  if (valor === null || valor === undefined || valor === '') return '—'
   if (typeof valor === 'boolean') return valor ? 'Sí' : 'No'
-  if (typeof valor === 'object') {
-    if ('from' in valor || 'to' in valor) return `${formatearValor(valor.from)} → ${formatearValor(valor.to)}`
-    if ('before' in valor || 'after' in valor) return `${formatearValor(valor.before)} → ${formatearValor(valor.after)}`
-    return ''
-  }
+  if (campo === 'connection') return valor === 'lan' ? 'LAN' : valor === 'cups' ? 'CUPS (cola local)' : String(valor)
+  if (campo === 'width') return `${valor} mm`
   return String(valor)
 }
 
-function detalleDe(metadata) {
-  if (!metadata || typeof metadata !== 'object') return ''
-  const entradas = Object.entries(metadata)
-    .map(([clave, valor]) => [clave, formatearValor(valor)])
-    .filter(([, texto]) => texto !== '')
-  // El JSONB no conserva el orden de las claves y los booleanos suelen ser
-  // ruido: quedan al final para que los identificadores entren en la línea.
-  const relevantes = entradas.filter(([clave]) => typeof metadata[clave] !== 'boolean')
-  const booleanas = entradas.filter(([clave]) => typeof metadata[clave] === 'boolean')
-  return [...relevantes, ...booleanas]
-    .slice(0, 4)
-    .map(([clave, texto]) => `${ETIQUETAS[clave] || clave}: ${texto.slice(0, 40)}`)
-    .join(' · ')
+// Devuelve el resumen de la fila y las líneas del panel abierto. `null` cuando
+// no es un evento de impresión (esos siguen con el detalle genérico).
+function detalleImpresion(row) {
+  if (!AREAS_IMPRESION.has(row.entity)) return null
+  const m = row.metadata && typeof row.metadata === 'object' ? row.metadata : {}
+  const resumen = []
+  const lineas = []
+  const agregar = (etiqueta, valor) => {
+    if (valor === null || valor === undefined || valor === '') return
+    lineas.push([etiqueta, String(valor)])
+    resumen.push(`${etiqueta}: ${String(valor)}`)
+  }
+
+  if (m.printerName || m.name) agregar('Impresora', m.printerName || m.name)
+  else if (m.printerId) agregar('Impresora', idCorto(m.printerId))
+  if (m.jobId) agregar('Trabajo', idCorto(m.jobId))
+  if (row.action === 'PRINT_DEFAULT_PRINTER_CHANGED') {
+    agregar('Antes', m.previousDefaultName || (m.previousDefaultId ? idCorto(m.previousDefaultId) : 'Sin predeterminada'))
+    agregar('Después', m.printerName || m.name || '—')
+  }
+  if (m.connection !== undefined) agregar('Conexión', valorDeImpresora('connection', m.connection))
+  if (m.destination) agregar('Destino', m.destination)
+  if (m.path) agregar('Camino', CAMINOS[m.path] || m.path)
+  if (m.kind) agregar('Tipo', m.kind)
+  if (m.transport || m.transporte) {
+    const transporte = m.transport || m.transporte
+    agregar('Transporte', TRANSPORTES[transporte] || transporte)
+  }
+  if (m.width) agregar('Ancho', `${m.width} mm`)
+  if (m.copies) agregar('Copias', m.copies)
+  if (m.bytes) agregar('Tamaño', `${m.bytes} bytes`)
+  if (m.attempts || m.intentos) agregar('Intentos', m.attempts || m.intentos)
+  if (m.validation) agregar('Validación', m.validation)
+  if (m.isDefault !== undefined) agregar('Predeterminada', m.isDefault ? 'Sí' : 'No')
+  if (m.isActive !== undefined) agregar('Activa', m.isActive ? 'Sí' : 'No')
+  if (m.bridgeId) agregar('Puente', idCorto(m.bridgeId))
+  if (m.error) agregar('Error', m.error)
+  if (row.action === 'PRINT_PRINTERS_IMPORTED' || row.action === 'PRINT_PRINTER_IMPORTED') {
+    agregar('Total', m.total)
+    agregar('Creadas', m.created)
+    agregar('Actualizadas', m.updated)
+    agregar('Puentes', m.bridges)
+  }
+  if (m.changes && typeof m.changes === 'object') {
+    const cambios = Object.entries(m.changes)
+      .map(([campo, valores]) => `${CAMPOS_IMPRESORA[campo] || campo}: ${valorDeImpresora(campo, valores?.from)} → ${valorDeImpresora(campo, valores?.to)}`)
+      .join(' · ')
+    if (cambios) agregar('Cambios', cambios)
+  }
+
+  const visible = resumen.slice(0, 4).join(' · ')
+  return { resumen: visible, lineas }
 }
 
 export default function Auditoria() {
@@ -240,63 +237,33 @@ export default function Auditoria() {
   const [error, setError] = useState('')
   const [hayMas, setHayMas] = useState(false)
   const [cargandoMas, setCargandoMas] = useState(false)
-  const [exportando, setExportando] = useState(false)
   const [entidad, setEntidad] = useState('')
   const [query, setQuery] = useState('')
-  const [rango, setRango] = useState('')
-  const [actor, setActor] = useState('')
-  const [actores, setActores] = useState([])
   const [abiertos, setAbiertos] = useState(() => new Set())
-
-  const paramsDeFiltros = useCallback((extra = {}) => {
-    const params = new URLSearchParams({ limit: '50', ...extra })
-    if (entidad) params.set('entity', entidad)
-    if (query.trim()) params.set('q', query.trim())
-    const desde = desdeDelRango(rango)
-    if (desde) params.set('desde', desde.toISOString())
-    if (actor) params.set('userId', actor)
-    return params
-  }, [entidad, query, rango, actor])
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const data = await api.get(`/api/audit?${paramsDeFiltros()}`)
+      const params = new URLSearchParams({ limit: '50' })
+      if (entidad) params.set('entity', entidad)
+      if (query.trim()) params.set('q', query.trim())
+      const data = await api.get(`/api/audit?${params}`)
       setRows(data); setHayMas(data.length >= 50)
     } catch (cause) { setError(cause?.message || 'No se pudo cargar la auditoría.') } finally { setLoading(false) }
-  }, [paramsDeFiltros])
+  }, [entidad, query])
   useEffect(() => { load() }, [load])
-
-  // Actores con movimientos: alimentan el filtro "quién hizo qué".
-  useEffect(() => {
-    let vigente = true
-    api.get('/api/audit/actors')
-      .then((data) => { if (vigente) setActores(Array.isArray(data?.actores) ? data.actores : []) })
-      .catch(() => { if (vigente) setActores([]) })
-    return () => { vigente = false }
-  }, [])
 
   const cargarMas = async () => {
     const ultimo = rows[rows.length - 1]?.id
     if (!ultimo || cargandoMas) return
     setCargandoMas(true)
     try {
-      const data = await api.get(`/api/audit?${paramsDeFiltros({ cursor: ultimo })}`)
+      const params = new URLSearchParams({ limit: '50', cursor: ultimo })
+      if (entidad) params.set('entity', entidad)
+      if (query.trim()) params.set('q', query.trim())
+      const data = await api.get(`/api/audit?${params}`)
       setRows((actual) => [...actual, ...data]); setHayMas(data.length >= 50)
     } catch { /* se conserva lo cargado */ } finally { setCargandoMas(false) }
-  }
-
-  const exportar = async () => {
-    setExportando(true); setError('')
-    try {
-      const desde = desdeDelRango(rango)
-      await descargarCsv('audit.csv', {
-        entity: entidad || undefined,
-        q: query.trim() || undefined,
-        desde: desde ? desde.toISOString() : undefined,
-        userId: actor || undefined,
-      }, 'mobos-auditoria.csv')
-    } catch (cause) { setError(cause?.message || 'No se pudo exportar el CSV.') } finally { setExportando(false) }
   }
 
   const total = useMemo(() => rows.length, [rows])
@@ -305,7 +272,8 @@ export default function Auditoria() {
     <Card>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm text-mute">Quién hizo qué y cuándo: ventas, inventario, cobros, equipo y configuración.</p>
+          <h2 className="font-bold">Auditoría</h2>
+          <p className="mt-1 text-sm text-mute">Quién hizo qué y cuándo: ventas, inventario, cobros, equipo y configuración.</p>
         </div>
         <span className="text-xs text-mute">{total}{hayMas ? '+' : ''} movimientos</span>
       </div>
@@ -313,22 +281,14 @@ export default function Auditoria() {
         <Select aria-label="Filtrar por área" className="w-auto" value={entidad} onChange={(event) => setEntidad(event.target.value)}>
           {ENTIDADES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </Select>
-        <Select aria-label="Filtrar por fecha" className="w-auto" value={rango} onChange={(event) => setRango(event.target.value)}>
-          {RANGOS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </Select>
-        <Select aria-label="Filtrar por actor" className="w-auto" value={actor} onChange={(event) => setActor(event.target.value)}>
-          <option value="">Todos los actores</option>
-          {actores.map((persona) => <option key={persona.id} value={persona.id}>{persona.name}</option>)}
-        </Select>
-        <div className="min-w-[200px] flex-1"><Input aria-label="Buscar en la auditoría" placeholder="Acción, IMEI, pedido, impresora…" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
-        <button type="button" onClick={exportar} disabled={exportando} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{exportando ? 'Exportando…' : 'Exportar CSV'}</button>
+        <div className="min-w-[200px] flex-1"><Input aria-label="Buscar en la auditoría" placeholder="Acción o identificador (IMEI, pedido…)" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
         <button type="button" onClick={load} disabled={loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
       </div>
     </Card>
 
     {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
     {loading && <div className="space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>}
-    {!loading && !error && !rows.length && <Card><EmptyState compact icon="clock" title="Sin movimientos para ese filtro." description="Probá con otra área, otro rango de fechas o quitá la búsqueda." /></Card>}
+    {!loading && !error && !rows.length && <Card><EmptyState compact icon="clock" title="Sin movimientos para ese filtro." description="Probá con otra área o quitá la búsqueda." /></Card>}
     {!loading && !error && rows.length > 0 && <Card className="p-4">
       <div className="overflow-x-auto" data-testid="auditoria-tabla">
         <div className={cn(GRID_AUDITORIA, 'px-3.5 pb-2 pt-1')}>
@@ -341,16 +301,17 @@ export default function Auditoria() {
         <div className="space-y-1">
           {rows.map((row) => {
             const [label, tone] = ACCIONES[row.action] || [row.action, 'slate']
-            const detalle = detalleDe(row.metadata)
+            const impresion = detalleImpresion(row)
+            const detalle = impresion ? impresion.resumen : detalleDe(row.metadata)
             const abierto = abiertos.has(row.id)
-            const alternar = () => setAbiertos(prev => { const next = new Set(prev); next.has(row.id) ? next.delete(row.id) : next.add(row.id); return next })
+            const completo = detalleDe(row.metadata)
             return <div key={row.id}>
               <div
                 role="button"
                 tabIndex={0}
                 data-testid="auditoria-fila"
-                onClick={alternar}
-                onKeyDown={(event) => { if (event.key === 'Enter') alternar() }}
+                onClick={() => setAbiertos(prev => { const next = new Set(prev); next.has(row.id) ? next.delete(row.id) : next.add(row.id); return next })}
+                onKeyDown={(event) => { if (event.key === 'Enter') setAbiertos(prev => { const next = new Set(prev); next.has(row.id) ? next.delete(row.id) : next.add(row.id); return next }) }}
                 className={cn(GRID_AUDITORIA, 'cursor-pointer rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40', abierto && 'border-fono/40')}
               >
                 <span className="min-w-0"><Badge color={tone} className="w-fit max-w-full truncate whitespace-nowrap px-1.5 py-0.5 text-[10px]" title={row.action}>{label}</Badge></span>
@@ -360,10 +321,14 @@ export default function Auditoria() {
                 <span className="truncate text-right text-[11px] text-mute">{fechaHora(row.createdAt)}</span>
               </div>
               {abierto && <div className="mt-1 space-y-1 rounded-xl border border-ink-600 bg-ink-800/60 p-3 text-xs text-mute">
-                <p><span className="font-semibold text-fore">Acción:</span> {label}</p>
-                <p><span className="font-semibold text-fore">Área:</span> {ENTIDAD_LABEL[row.entity] || row.entity}{row.entityId ? ` · ${row.entityId}` : ''}</p>
-                {detalle ? <p><span className="font-semibold text-fore">Detalle:</span> {detalle}</p> : null}
-                {row.metadata && Object.keys(row.metadata).length > 0 && <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-ink-700/60 p-2 text-[11px]">{JSON.stringify(row.metadata, null, 2)}</pre>}
+                <p><span className="font-semibold text-fore">Acción:</span> {row.action}</p>
+                <p><span className="font-semibold text-fore">Entidad:</span> {row.entity}{row.entityId ? ` · ${row.entityId}` : ''}</p>
+                {impresion
+                  ? impresion.lineas.map(([etiqueta, valor]) => <p key={etiqueta}><span className="font-semibold text-fore">{etiqueta}:</span> {valor}</p>)
+                  : <>
+                    {completo ? <p><span className="font-semibold text-fore">Detalle:</span> {completo}</p> : null}
+                    {row.metadata && Object.keys(row.metadata).length > 0 && <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-ink-700/60 p-2 text-[11px]">{JSON.stringify(row.metadata, null, 2)}</pre>}
+                  </>}
               </div>}
             </div>
           })}

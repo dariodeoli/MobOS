@@ -3,6 +3,7 @@ import { error, json } from '../../../../lib/http'
 import { prisma } from '../../../../lib/prisma'
 import { InputError } from '../../../../lib/payment-input'
 import { normalizarImpresora, remoteEnabledDeTenant, shapePuente } from '../../../../lib/print-bridge'
+import { resumenImpresora } from '../../../../lib/print-audit'
 
 // Configuración de impresión de la empresa: impresoras, puentes activos y el
 // estado del encolado remoto (kill switch por empresa).
@@ -38,9 +39,18 @@ export async function POST(request: Request) {
   try {
     const creada = await prisma.$transaction(async tx => {
       if (impresora.isDefault) await tx.printPrinter.updateMany({ where: { tenantId, isDefault: true }, data: { isDefault: false } })
-      const creada = await tx.printPrinter.create({ data: { ...impresora, tenantId } })
-      await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'PRINT_PRINTER_CREATED', entity: 'PrintPrinter', entityId: creada.id, metadata: { name: creada.name, destino: creada.destination, ancho: creada.width, modelo: creada.model } } })
-      return creada
+      const nueva = await tx.printPrinter.create({ data: { ...impresora, tenantId } })
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId: session.user.id,
+          action: 'PRINT_PRINTER_CREATED',
+          entity: 'PrintPrinter',
+          entityId: nueva.id,
+          metadata: { ...resumenImpresora(nueva), bridgeId: nueva.bridgeId ?? null },
+        },
+      })
+      return nueva
     })
     return json(creada, { status: 201 })
   } catch (cause) {

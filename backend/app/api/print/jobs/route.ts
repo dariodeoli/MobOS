@@ -60,10 +60,12 @@ export async function POST(request: Request) {
     }
 
     let bridgeId: string | null = null
+    let printerName = ''
     if (printerId) {
-      const impresora = await prisma.printPrinter.findFirst({ where: { id: printerId, tenantId }, select: { id: true, bridgeId: true } })
+      const impresora = await prisma.printPrinter.findFirst({ where: { id: printerId, tenantId }, select: { id: true, bridgeId: true, name: true } })
       if (!impresora) throw new InputError('La impresora elegida no existe en la empresa.', 404)
       bridgeId = impresora.bridgeId
+      printerName = impresora.name
     }
 
     // Idempotencia: repetir la clave (o el trabajo local espejado) devuelve el
@@ -116,7 +118,7 @@ export async function POST(request: Request) {
           action: 'PRINT_JOB_ENQUEUED',
           entity: 'PrintJob',
           entityId: job.id,
-          metadata: { jobId: job.id, path: camino, kind, ...(printerId ? { printerId } : {}), bytes: job.payloadBytes },
+          metadata: { jobId: job.id, path: camino, kind, ...(printerId ? { printerId, ...(printerName ? { printerName } : {}) } : {}), bytes: job.payloadBytes },
         },
       })
       return job

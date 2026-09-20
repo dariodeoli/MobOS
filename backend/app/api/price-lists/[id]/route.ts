@@ -50,6 +50,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       const ids = items.filter(item => item.scope === 'PRODUCT').map(item => item.productId as string)
       const propios = ids.length ? await prisma.product.count({ where: { id: { in: [...new Set(ids)] }, tenantId: session.user.tenantId } }) : 0
       if (ids.length && propios !== new Set(ids).size) throw new InputError('Alguno de los productos no pertenece a la empresa.')
+      // Editar los ítems REEMPLAZA la lista completa: se borran los anteriores y
+      // se crean los nuevos (no hay merge por categoría).
       data.items = { deleteMany: {}, create: items.map(item => ({ ...item, tiers: { create: item.tiers } })) }
     }
     if (!Object.keys(data).length) throw new InputError('No enviaste cambios.')

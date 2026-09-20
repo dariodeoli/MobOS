@@ -47,7 +47,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         action: nuevo === 'ACEPTADO' ? 'PRINT_JOB_ACCEPTED' : nuevo === 'INCIERTO' ? 'PRINT_JOB_INCIERTO' : 'PRINT_JOB_FAILED',
         entity: 'PrintJob',
         entityId: trabajo.id,
-        metadata: { jobId: trabajo.id, attempts: trabajo.attempts, ...(transporte ? { transport: transporte } : {}), ...(nuevo !== 'ACEPTADO' && errorReportado ? { error: errorReportado } : {}) },
+        metadata: { jobId: trabajo.id, attempts: trabajo.attempts, ...(trabajo.printerId ? { printerId: trabajo.printerId } : {}), ...(transporte ? { transport: transporte } : {}), ...(nuevo !== 'ACEPTADO' && errorReportado ? { error: errorReportado } : {}) },
       },
     })
     return true

@@ -19,9 +19,15 @@ async function productosDelTenant(tenantId: string, items: ReturnType<typeof par
   return propios === new Set(ids).size
 }
 
+// El detalle (categorías y precios por lista) es información comercial: la
+// pantalla que lo consume es de administración. Los vendedores resuelven su
+// precio por /api/pricing, que devuelve el precio aplicable sin exponer la lista.
+const PUEDE_VER_LISTAS = ['ADMIN', 'GERENTE']
+
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
+  if (!PUEDE_VER_LISTAS.includes(session.user.role)) return error('Solo administración puede ver las listas de precios.', 403)
   return json(await prisma.priceList.findMany({
     where: { tenantId: session.user.tenantId },
     include: priceListInclude,

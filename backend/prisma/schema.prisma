@@ -1312,6 +1312,8 @@ model PriceList {
   tenantId  String
   tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name      String
+  // Deprecada: no interviene en la resolución (el precio de cada ítem define su
+  // moneda con `unitPriceUsd`). Se mantiene por compatibilidad de respuestas.
   currency  PriceListCurrency @default(PYG)
   isActive  Boolean           @default(true)
   createdAt DateTime          @default(now())
