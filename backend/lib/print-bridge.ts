@@ -21,6 +21,7 @@ export type CodigoVinculacion = { code: string; codeHash: string; expiresAt: Dat
 export type PuentePublico = {
   id: string
   name: string
+  branchId: string | null
   version: string | null
   platform: string | null
   lastSeenAt: Date | null
@@ -44,6 +45,7 @@ export type ImpresoraNormalizada = {
   isDefault: boolean
   isActive: boolean
   bridgeId: string | null
+  branchId: string | null
 }
 
 export function generarTokenPuente(): string {
@@ -115,6 +117,7 @@ export function shapePuente(puente: PrintBridge, ahora: Date = new Date()): Puen
   return {
     id: puente.id,
     name: puente.name,
+    branchId: puente.branchId ?? null,
     version: puente.version,
     platform: puente.platform,
     lastSeenAt: puente.lastSeenAt,
@@ -173,6 +176,7 @@ export function normalizarImpresora(valor: unknown): ImpresoraNormalizada {
   const width = entero(entrada.width, 'Ancho', 58, 80, 80)
   if (width !== 58 && width !== 80) throw new InputError('El ancho debe ser 58 u 80 mm.')
   const bridgeIdCrudo = texto(entrada.bridgeId, 'Puente', 200)
+  const branchIdCrudo = texto(entrada.branchId, 'Sucursal', 200)
   return {
     name,
     brand,
@@ -188,11 +192,14 @@ export function normalizarImpresora(valor: unknown): ImpresoraNormalizada {
     isDefault: booleano(entrada.isDefault, 'Predeterminada', false),
     isActive: booleano(entrada.isActive, 'Activa', true),
     bridgeId: bridgeIdCrudo || null,
+    branchId: branchIdCrudo || null,
   }
 }
 
 // La configuración legacy de localStorage usa claves en español; se aceptan
 // las canónicas en inglés para no atarse a la forma vieja del cliente.
+// `branchId` queda afuera a propósito: la sucursal es del backend y una
+// configuración local no puede inventar ids de sucursal.
 export function impresoraDesdeLegacy(valor: unknown): ImpresoraNormalizada {
   if (!valor || typeof valor !== 'object' || Array.isArray(valor)) throw new InputError('Impresora legacy inválida.')
   const entrada = valor as Record<string, unknown>
@@ -213,4 +220,54 @@ export function impresoraDesdeLegacy(valor: unknown): ImpresoraNormalizada {
     isActive: tomar('isActive', 'activa'),
     bridgeId: tomar('bridgeId', 'bridgeId'),
   })
+}
+
+type LectorDeImpresion = Pick<PrismaClient, 'printBridge' | 'printPrinter'>
+
+export type OrigenPuente = 'IMPRESORA' | 'SUCURSAL' | 'EMPRESA' | 'SIN_PUENTE'
+
+export type ResolucionPuente = {
+  bridgeId: string | null
+  bridgeName: string | null
+  origen: OrigenPuente
+}
+
+/**
+ * Resuelve el puente que debe imprimir un trabajo (#95):
+ * 1. el puente explícito de la impresora elegida (configuración manda);
+ * 2. el puente activo de la sucursal del trabajo (pedido/vendedor o de la
+ *    propia impresora), el más antiguo primero;
+ * 3. el puente predeterminado de la empresa: el de la impresora activa
+ *    marcada `isDefault` o, sin ella, el puente activo más antiguo;
+ * 4. sin puentes activos, `null`: el trabajo queda sin asignar y lo reclama el
+ *    primer puente que aparezca.
+ */
+export async function resolverPuenteDeImpresion(
+  db: LectorDeImpresion,
+  tenantId: string,
+  opciones: { printerId?: string | null; branchId?: string | null; userBranchId?: string | null } = {},
+): Promise<ResolucionPuente> {
+  const impresora = opciones.printerId
+    ? await db.printPrinter.findFirst({ where: { id: opciones.printerId, tenantId }, select: { bridgeId: true, branchId: true } })
+    : null
+  if (impresora?.bridgeId) {
+    const puente = await db.printBridge.findFirst({ where: { id: impresora.bridgeId, tenantId, revokedAt: null }, select: { id: true, name: true } })
+    if (puente) return { bridgeId: puente.id, bridgeName: puente.name, origen: 'IMPRESORA' }
+  }
+  const sucursal = opciones.branchId || impresora?.branchId || opciones.userBranchId || null
+  if (sucursal) {
+    const puente = await db.printBridge.findFirst({ where: { tenantId, branchId: sucursal, revokedAt: null }, orderBy: { createdAt: 'asc' }, select: { id: true, name: true } })
+    if (puente) return { bridgeId: puente.id, bridgeName: puente.name, origen: 'SUCURSAL' }
+  }
+  const predeterminada = await db.printPrinter.findFirst({
+    where: { tenantId, isDefault: true, isActive: true, bridgeId: { not: null } },
+    select: { bridgeId: true },
+  })
+  if (predeterminada?.bridgeId) {
+    const puente = await db.printBridge.findFirst({ where: { id: predeterminada.bridgeId, tenantId, revokedAt: null }, select: { id: true, name: true } })
+    if (puente) return { bridgeId: puente.id, bridgeName: puente.name, origen: 'EMPRESA' }
+  }
+  const empresa = await db.printBridge.findFirst({ where: { tenantId, revokedAt: null }, orderBy: { createdAt: 'asc' }, select: { id: true, name: true } })
+  if (empresa) return { bridgeId: empresa.id, bridgeName: empresa.name, origen: 'EMPRESA' }
+  return { bridgeId: null, bridgeName: null, origen: 'SIN_PUENTE' }
 }

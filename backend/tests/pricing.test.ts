@@ -80,6 +80,19 @@ test('sin lista ni mayorista queda el minorista y el USD se marca aparte', () =>
   assert.equal(soloUsd.unitPriceUsd, 30)
 })
 
+// #78: un dato de precio inválido es un error tipado (la ruta de pedidos lo
+// mapea a 400 y muestra el mensaje, no un 409/500 genérico).
+test('un dato de precio inválido lanza PricingError con mensaje claro', () => {
+  assert.throws(
+    () => resolveUnitPrice({ product: { id: 'p4', pricePyg: -1 }, quantity: 1 }),
+    (cause: unknown) => cause instanceof PricingError && /Precio inválido/.test(cause.message),
+  )
+  assert.throws(
+    () => unitPricePygFallback({ unitPricePyg: 0, origin: 'USD', currency: 'USD', tiers: [] }, 'no-es-numero'),
+    PricingError,
+  )
+})
+
 // #79: el fallback USD→retail tiene un solo dueño y también vale para un ítem
 // de lista cotizado en USD sobre un producto con precio en guaraníes.
 test('fallback USD a retail centralizado', () => {

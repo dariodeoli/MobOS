@@ -13,6 +13,7 @@ import {
   normalizarCodigoVinculacion,
   normalizarImpresora,
   remoteEnabledDeTenant,
+  resolverPuenteDeImpresion,
   shapePuente,
   topeDePuentesAlcanzado,
 } from '../lib/print-bridge'
@@ -190,6 +191,7 @@ async function main() {
     state: 'RECLAMADO' as PrintJobState,
     path: 'REMOTO',
     kind: 'prueba',
+    bridgeId: 'puente-1',
     printerId: 'impresora-1',
     destination: 'lan:10.0.0.5:9100',
     validation: '1234',
@@ -217,7 +219,7 @@ async function main() {
   const publicoJob = shapePublico(jobInterno)
   assert.deepEqual(
     Object.keys(publicoJob).sort(),
-    ['acceptedAt', 'attempts', 'bridgeName', 'claimedAt', 'confirmedAt', 'copies', 'createdAt', 'destination', 'deviceName', 'durationMs', 'enqueuedAt', 'error', 'id', 'kind', 'mode', 'path', 'payloadBytes', 'printerId', 'printerName', 'queueMs', 'reference', 'requestedByName', 'state', 'tokenHint', 'transport', 'validation', 'width'],
+    ['acceptedAt', 'attempts', 'bridgeId', 'bridgeName', 'claimedAt', 'confirmedAt', 'copies', 'createdAt', 'destination', 'deviceName', 'durationMs', 'enqueuedAt', 'error', 'id', 'kind', 'mode', 'path', 'payloadBytes', 'printerId', 'printerName', 'queueMs', 'reference', 'requestedByName', 'state', 'tokenHint', 'transport', 'validation', 'width'],
     'el shape público es una lista blanca exacta',
   )
   assert.equal('payload' in publicoJob, false, 'el shape público nunca expone bytes ESC/POS')
@@ -245,11 +247,48 @@ async function main() {
   assert.equal(JSON.stringify(cambiosDeImpresora({ destination: 'lan:10.0.0.5:9100' }, { destination: 'lan:10.0.0.9:9100' })).includes('10.0.0.'), false, 'el diff nunca guarda la IP completa')
   assert.deepEqual(
     resumenImpresora({ name: 'Caja', connection: 'lan', destination: 'lan:10.0.0.5:9100', width: 58, copies: 2, isDefault: true, isActive: true }),
-    { name: 'Caja', connection: 'lan', destination: 'lan:10.0.0.x:9100', width: 58, copies: 2, isDefault: true, isActive: true },
+    { name: 'Caja', connection: 'lan', destination: 'lan:10.0.0.x:9100', width: 58, copies: 2, isDefault: true, isActive: true, branchId: null },
     'el resumen de auditoría describe la impresora sin la IP completa',
   )
 
-  console.log('PASS: token, pairing, autenticación multi-puente, validación de impresoras, auditoría y trabajos de impresión')
+  // ── Resolución del puente por sucursal (#95) ─────────────────────────────
+  // Doble mínimo de Prisma: `where` escalar con soporte de `not` y arrays en
+  // orden de prioridad, que es lo que la resolución necesita.
+  type FilaResolucion = Record<string, unknown>
+  const coincide = (fila: FilaResolucion, where: Record<string, unknown>) => Object.entries(where).every(([clave, valor]) => {
+    if (valor && typeof valor === 'object' && !Array.isArray(valor) && 'not' in (valor as Record<string, unknown>)) return fila[clave] !== (valor as { not: unknown }).not
+    return fila[clave] === valor
+  })
+  const puentesResolucion: FilaResolucion[] = [
+    { id: 'puente-empresa', tenantId: 'tenant-a', branchId: null, revokedAt: null, name: 'Puente empresa' },
+    { id: 'puente-sucursal', tenantId: 'tenant-a', branchId: 'sucursal-a', revokedAt: null, name: 'Puente sucursal' },
+    { id: 'puente-revocado', tenantId: 'tenant-a', branchId: 'sucursal-b', revokedAt: ahora, name: 'Puente revocado' },
+  ]
+  const impresorasResolucion: FilaResolucion[] = [
+    { id: 'imp-con-puente', tenantId: 'tenant-a', branchId: null, bridgeId: 'puente-empresa', isDefault: false, isActive: true },
+    { id: 'imp-sucursal', tenantId: 'tenant-a', branchId: 'sucursal-a', bridgeId: null, isDefault: false, isActive: true },
+    { id: 'imp-otra-sucursal', tenantId: 'tenant-a', branchId: 'sucursal-sin-puente', bridgeId: null, isDefault: false, isActive: true },
+  ]
+  const dbResolucion = {
+    printBridge: { findFirst: async ({ where }: { where: Record<string, unknown> }) => puentesResolucion.find(fila => coincide(fila, where)) ?? null },
+    printPrinter: { findFirst: async ({ where }: { where: Record<string, unknown> }) => impresorasResolucion.find(fila => coincide(fila, where)) ?? null },
+  } as unknown as Parameters<typeof resolverPuenteDeImpresion>[0]
+
+  const conPuente = await resolverPuenteDeImpresion(dbResolucion, 'tenant-a', { printerId: 'imp-con-puente' })
+  assert.deepEqual(conPuente, { bridgeId: 'puente-empresa', bridgeName: 'Puente empresa', origen: 'IMPRESORA' }, 'la impresora con puente explícito manda')
+  const porSucursal = await resolverPuenteDeImpresion(dbResolucion, 'tenant-a', { printerId: 'imp-sucursal' })
+  assert.deepEqual(porSucursal, { bridgeId: 'puente-sucursal', bridgeName: 'Puente sucursal', origen: 'SUCURSAL' }, 'la sucursal de la impresora resuelve su puente')
+  const porSucursalDelJob = await resolverPuenteDeImpresion(dbResolucion, 'tenant-a', { branchId: 'sucursal-a' })
+  assert.equal(porSucursalDelJob.origen, 'SUCURSAL', 'la sucursal del trabajo gana sin impresora')
+  const fallback = await resolverPuenteDeImpresion(dbResolucion, 'tenant-a', { printerId: 'imp-otra-sucursal' })
+  assert.deepEqual(fallback, { bridgeId: 'puente-empresa', bridgeName: 'Puente empresa', origen: 'EMPRESA' }, 'sin puente de sucursal cae al de la empresa')
+  const porUsuario = await resolverPuenteDeImpresion(dbResolucion, 'tenant-a', { userBranchId: 'sucursal-a' })
+  assert.equal(porUsuario.origen, 'SUCURSAL', 'la sucursal del usuario que encola también resuelve')
+  const ajeno = await resolverPuenteDeImpresion(dbResolucion, 'tenant-b', { branchId: 'sucursal-a' })
+  assert.deepEqual(ajeno, { bridgeId: null, bridgeName: null, origen: 'SIN_PUENTE' }, 'otra empresa no ve puentes ni sucursales')
+  assert.equal((await resolverPuenteDeImpresion({ printBridge: { findFirst: async () => null }, printPrinter: { findFirst: async () => null } } as unknown as Parameters<typeof resolverPuenteDeImpresion>[0], 'tenant-a', {})).origen, 'SIN_PUENTE', 'sin puentes activos el trabajo queda libre para el primero que reclame')
+
+  console.log('PASS: token, pairing, autenticación multi-puente, validación de impresoras, auditoría, resolución por sucursal y trabajos de impresión')
 }
 
 main().catch(error => { console.error(error); process.exit(1) })

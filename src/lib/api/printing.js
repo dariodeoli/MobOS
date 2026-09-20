@@ -6,7 +6,8 @@ import { api } from './client'
 // (configuración y cola se refrescan a mano).
 export const printingApi = {
   puentes: () => api.get('/api/print/bridges', { cacheMs: 0 }),
-  crearPuente: (name) => api.post('/api/print/bridges', { name }),
+  crearPuente: (name, branchId = null) => api.post('/api/print/bridges', { name, ...(branchId ? { branchId } : {}) }),
+  actualizarPuente: (id, datos) => api.patch(`/api/print/bridges/${encodeURIComponent(id)}`, datos),
   regenerarCodigo: (id) => api.post(`/api/print/bridges/${encodeURIComponent(id)}/pairing`),
   revocarPuente: (id) => api.delete(`/api/print/bridges/${encodeURIComponent(id)}`),
   impresoras: () => api.get('/api/print/printers', { cacheMs: 0 }),

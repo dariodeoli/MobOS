@@ -38,7 +38,7 @@ try {
   for (const tenant of ['a','b']) {
     await prisma.tenant.create({ data: { id:tenant,name:tenant,slug:tenant } })
     await prisma.branch.create({ data: { id:tenant,tenantId:tenant,name:tenant } })
-    for (const role of ['ADMIN','VENDEDOR']) {
+    for (const role of ['ADMIN','VENDEDOR','CAJERA']) {
       const id = `${tenant}-${role}`
       await prisma.user.create({ data: { id,tenantId:tenant,branchId:tenant,name:id,role,pinHash:'unused' } })
       await prisma.session.create({ data: { tenantId:tenant,userId:id,level:'SELLER',deviceId:'test',tokenHash:hashToken(id),expiresAt:new Date(Date.now()+3600000) } })
@@ -73,12 +73,23 @@ try {
   assert.equal(lista._count.customers, 0)
   assert.equal(lista.items.find(i => i.scope === 'PRODUCT').tiers[0].unitPricePyg, 70000)
 
+  // #77: el vendedor solo ve listas activas y sin el detalle ajeno. Sin
+  // customerId recibe el listado mínimo; con customerId, solo la asignada.
+  assert.deepEqual(await req(lists.GET, { token: 'a-VENDEDOR' }), [{ id: lista.id, name: 'Mayorista VIP' }])
+  assert.deepEqual(await req(lists.GET, { token: 'a-CAJERA' }), [{ id: lista.id, name: 'Mayorista VIP' }])
+  await req(listById.GET, { token: 'a-VENDEDOR', ctx: { params: { id: lista.id } }, status: 403 })
+
   const sinLista = await priceOf('a')
   assert.equal(sinLista.origin, 'RETAIL'); assert.equal(sinLista.unitPricePyg, 100000)
 
   // Cliente mayorista con la lista: el ítem de lista gana sobre el mayorista.
   const cliente = await req(customers.POST, { method: 'POST', token: 'a-VENDEDOR', body: { name: 'Cliente VIP', pricingTier: 'WHOLESALE', priceListId: lista.id }, status: 201 })
   assert.equal(cliente.priceListId, lista.id)
+  // Con customerId el vendedor solo recibe la lista asignada a ese cliente.
+  const asignada = await req(lists.GET, { url: `http://localhost/api/price-lists?customerId=${cliente.id}`, token: 'a-VENDEDOR' })
+  assert.equal(asignada.length, 1); assert.equal(asignada[0].id, lista.id); assert.equal(asignada[0].items.length, 2)
+  await req(lists.GET, { url: `http://localhost/api/price-lists?customerId=${cliente.id}`, token: 'a-CAJERA', status: 200 })
+  await req(lists.GET, { url: 'http://localhost/api/price-lists?customerId=inexistente', token: 'a-VENDEDOR', status: 404 })
   const conLista = await priceOf('a', { quantity: 2, customerId: cliente.id })
   assert.equal(conLista.origin, 'LIST'); assert.equal(conLista.unitPricePyg, 90000)
   const porCantidad = await priceOf('a', { quantity: 3, customerId: cliente.id })
@@ -96,17 +107,22 @@ try {
   assert.equal(conCliente.origin, 'LIST'); assert.equal(conCliente.unitPricePyg, 90000)
   assert.equal(conCliente.customerId, cliente.id)
 
+  // #78: el PATCH de ítems reemplaza la lista completa; sin `replaceItems` el
+  // reemplazo implícito se rechaza con 400.
+  await req(listById.PATCH, { method: 'PATCH', ctx: { params: { id: lista.id } }, body: { items: [{ scope: 'PRODUCT', productId: 'a2', unitPricePyg: 2000 }] }, status: 400 })
+  await req(listById.PATCH, { method: 'PATCH', ctx: { params: { id: lista.id } }, body: { items: null } })
+
   // #79: un ítem en USD no cotiza en guaraníes y el fallback al retail vive en
   // pricing.ts: el endpoint lo devuelve y el POST de pedidos congela el mismo
   // valor para la misma resolución.
-  await req(listById.PATCH, { method: 'PATCH', ctx: { params: { id: lista.id } }, body: { items: [{ scope: 'PRODUCT', productId: 'a', unitPriceUsd: 25 }] } })
+  await req(listById.PATCH, { method: 'PATCH', ctx: { params: { id: lista.id } }, body: { replaceItems: true, items: [{ scope: 'PRODUCT', productId: 'a', unitPriceUsd: 25 }] } })
   const usdDeLista = await priceOf('a', { customerId: cliente.id })
   assert.equal(usdDeLista.origin, 'USD'); assert.equal(usdDeLista.unitPricePygFallback, 100000, 'el fallback del endpoint es el retail')
   const pedidoUsd = await req(order.POST, { method: 'POST', token: 'a-VENDEDOR', url: 'http://localhost/api/orders', body: { customerId: cliente.id, orderNumber: 'PL-USD-001', items: [{ productId: 'a', description: 'Audio', quantity: 1, unitPricePyg: 100000 }] }, status: 201 })
   assert.equal(pedidoUsd.items[0].listPricePyg, 100000, 'el POST de pedidos usa el mismo fallback que /api/pricing')
 
   // Reemplazo de ítems: sin el ítem del producto cae al mayorista del cliente.
-  await req(listById.PATCH, { method: 'PATCH', ctx: { params: { id: lista.id } }, body: { items: [{ scope: 'PRODUCT', productId: 'a2', unitPricePyg: 1000 }] } })
+  await req(listById.PATCH, { method: 'PATCH', ctx: { params: { id: lista.id } }, body: { replaceItems: true, items: [{ scope: 'PRODUCT', productId: 'a2', unitPricePyg: 1000 }] } })
   const mayorista = await priceOf('a', { customerId: cliente.id })
   assert.equal(mayorista.origin, 'WHOLESALE'); assert.equal(mayorista.unitPricePyg, 80000)
   await req(listById.PATCH, { method: 'PATCH', ctx: { params: { id: lista.id } }, token: 'a-VENDEDOR', body: { name: 'No' }, status: 403 })
@@ -118,12 +134,19 @@ try {
   await req(listById.GET, { token: 'b-ADMIN', ctx: { params: { id: lista.id } }, status: 404 })
 
   // Venta: la línea congela el precio de lista resuelto (no el minorista).
-  await req(listById.PATCH, { method: 'PATCH', ctx: { params: { id: lista.id } }, body: { items: [{ scope: 'PRODUCT', productId: 'a', unitPricePyg: 95000 }] } })
+  await req(listById.PATCH, { method: 'PATCH', ctx: { params: { id: lista.id } }, body: { replaceItems: true, items: [{ scope: 'PRODUCT', productId: 'a', unitPricePyg: 95000 }] } })
   const creada = await req(order.POST, { method: 'POST', token: 'a-VENDEDOR', url: 'http://localhost/api/orders', body: { customerId: cliente.id, orderNumber: 'PL-001', items: [{ productId: 'a', description: 'Audio', quantity: 1, unitPricePyg: 95000 }] }, status: 201 })
   assert.equal(creada.items[0].listPricePyg, 95000)
 
+  // #78: un precio corrupto en la base no puede salir como 409/500: el POST de
+  // pedidos mapea el PricingError a 400 con el mensaje del dato.
+  await prisma.product.update({ where: { id: 'a' }, data: { pricePyg: -1 } })
+  await req(order.POST, { method: 'POST', token: 'a-VENDEDOR', url: 'http://localhost/api/orders', body: { orderNumber: 'PL-PRICING-400', items: [{ productId: 'a', description: 'Audio', quantity: 1, unitPricePyg: 10000 }] }, status: 400 })
+  await prisma.product.update({ where: { id: 'a' }, data: { pricePyg: 100000 } })
+
   // Lista inactiva: se ignora en la resolución y no se puede asignar.
   await req(listById.DELETE, { method: 'DELETE', ctx: { params: { id: lista.id } } })
+  assert.deepEqual(await req(lists.GET, { token: 'a-VENDEDOR' }), [])
   const inactiva = await priceOf('a', { customerId: cliente.id })
   assert.equal(inactiva.origin, 'WHOLESALE'); assert.equal(inactiva.priceList, null)
   await req(customers.POST, { method: 'POST', body: { name: 'Cliente Tardío', pricingTier: 'WHOLESALE', priceListId: lista.id }, status: 404 })

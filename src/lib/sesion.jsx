@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { isDemoRuntime, demoSessionActive, demoSessionRole, saveDemoSession, clearDemoSession } from './demoMode'
 import { clearSession, getCompanyContext, sessionApi, resources } from '@/lib/api'
 import { setActor, setContexto, prepararDatosDemo } from '@/lib/storage'
-import { usarTenantImpresoras } from '@/lib/printing/agent'
+import { usarTenantImpresoras, usarSucursalImpresoras } from '@/lib/printing/agent'
 
 const SesionContext = createContext(null)
 
@@ -81,8 +81,9 @@ export function SesionProvider({ children }) {
   }, [activarSesion, entrarDemo])
   useEffect(() => { setActor(usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, esPropietario: empresa?.rol === 'dueno' } : null) }, [usuario, empresa])
   // En render (no en effect) para que los componentes que leen configImpresora()
-  // vean el tenant correcto desde su primer render.
+  // vean el tenant/sucursal correctos desde su primer render.
   usarTenantImpresoras(usuario?.tenantId)
+  usarSucursalImpresoras(sucursal?.id)
   async function entrarEmpresa(credentials) { const result = await sessionApi.loginCompany(credentials); setEmpresa(result.tenant ? { id: result.tenant.id, nombre: result.tenant.name, rol: null } : null); setEmpresas(result.tenant ? [result.tenant] : []); setVendedores(result.sellers || []); return result }
   async function entrarVendedor(credentials) { const result = await sessionApi.loginSeller(credentials); const contexto = await sessionApi.me().catch(() => null); await activarSesion(result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile) }); return result }
   async function cambiarVendedor(credentials) { const result = await sessionApi.switchSeller(credentials); const contexto = await sessionApi.me().catch(() => null); await activarSesion(result.user, { tenant: contexto?.tenant, perfil: combinarPerfil(contexto?.ownerProfile) }); return result }
