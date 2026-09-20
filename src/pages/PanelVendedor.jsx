@@ -776,7 +776,6 @@ export default function PanelVendedor() {
               {vista === 'roles' && <RolesPermisos />}
               {vista === 'historial' && (esDemo ? <Historial /> : <Auditoria />)}
               {vista === 'negocio' && <Config seccion="negocio" />}
-              {vista === 'precios' && <Precios />}
               {vista === 'sucursales' && <Config seccion="sucursales" />}
               {vista === 'seguridad' && <Config seccion="seguridad" />}
               {vista === 'impresoras' && <Impresoras />}

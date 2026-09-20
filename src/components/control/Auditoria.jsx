@@ -228,8 +228,16 @@ function detalleDe(metadata) {
   // ruido: quedan al final para que los identificadores entren en la línea.
   const relevantes = entradas.filter(([clave]) => typeof metadata[clave] !== 'boolean')
   const booleanas = entradas.filter(([clave]) => typeof metadata[clave] === 'boolean')
-  return [...relevantes, ...booleanas]
-    .slice(0, 4)
+  // Los identificadores del movimiento van primero: si el JSONB los deja al
+  // final, el detalle visible podía quedar sin el IMEI/destino buscado.
+  const identificadores = ['destination', 'serial', 'serials', 'imei', 'jobId', 'ref', 'email', 'orderNumber', 'pedido', 'code']
+  const ordenados = [...relevantes].sort(([a], [b]) => {
+    const pa = identificadores.includes(a) ? 0 : 1
+    const pb = identificadores.includes(b) ? 0 : 1
+    return pa - pb
+  })
+  return [...ordenados, ...booleanas]
+    .slice(0, 5)
     .map(([clave, texto]) => `${ETIQUETAS[clave] || clave}: ${texto.slice(0, 40)}`)
     .join(' · ')
 }
