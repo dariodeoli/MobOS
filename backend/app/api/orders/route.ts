@@ -10,7 +10,7 @@ import { consumeAuthorization, usableAuthorization, DEFAULT_BELOW_LIST_PCT } fro
 import { armarComprobante } from '../../../lib/orders'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { serialKey } from '../../../lib/validation'
-import { lineDiscount as lineDiscountFor, warrantyDaysFor, resolveUnitPrice } from '../../../lib/pricing'
+import { lineDiscount as lineDiscountFor, warrantyDaysFor, resolveUnitPrice, PricingError } from '../../../lib/pricing'
 import { changeStock } from '../../../lib/stock'
 import { syncOrderItemSerials } from '../../../lib/order-serials'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../lib/order-number'
@@ -563,6 +563,9 @@ export async function POST(request: Request) {
         if (previous) return json(previous)
       } catch { /* cae al error genérico */ }
     }
+    // Un error de precios es de datos (4xx) y se muestra tal cual: la venta no
+    // se crea y el vendedor sabe qué corregir (issue #78).
+    if (e instanceof PricingError) return error(e.message, 400)
     return error(e instanceof Error ? e.message : 'No se pudo crear la venta.', e instanceof InputError ? e.status : 409)
   }
 }

@@ -29,16 +29,32 @@ export async function GET(request: Request) {
   const hastaParam = (params.get('hasta') || '').trim()
   let desde = dias ? new Date(Date.now() - dias * 24 * 60 * 60 * 1000) : null
   let hasta: Date | null = null
+  // Una fecha sin hora (YYYY-MM-DD) se interpreta en la hora local del equipo
+  // (mediodía local del día pedido), no en UTC: el panel y los tests comparan
+  // contra medianoche local y con UTC se colaban movimientos del día anterior.
+  const fechaLocal = (valor: string, finDelDia: boolean) => {
+    const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor)
+    if (partes) {
+      const [anio, mes, dia] = [Number(partes[1]), Number(partes[2]), Number(partes[3])]
+      const cuando = new Date(anio, mes - 1, dia, finDelDia ? 23 : 0, finDelDia ? 59 : 0, finDelDia ? 59 : 0, finDelDia ? 999 : 0)
+      // Si el día no existe (2026-02-30) el constructor lo desborda: se rechaza.
+      if (cuando.getFullYear() !== anio || cuando.getMonth() !== mes - 1 || cuando.getDate() !== dia) return null
+      return cuando
+    }
+    const cuando = new Date(valor)
+    return Number.isNaN(cuando.getTime()) ? null : cuando
+  }
   if (desdeParam) {
-    const value = new Date(desdeParam)
-    if (Number.isNaN(value.getTime())) return error('Fecha desde inválida.')
+    const value = fechaLocal(desdeParam, false)
+    if (!value) return error('Fecha desde inválida.')
     desde = value
   }
   if (hastaParam) {
-    const value = new Date(hastaParam)
-    if (Number.isNaN(value.getTime())) return error('Fecha hasta inválida.')
+    const value = fechaLocal(hastaParam, true)
+    if (!value) return error('Fecha hasta inválida.')
     hasta = value
   }
+  if (desde && hasta && desde.getTime() > hasta.getTime()) return error('El rango de fechas está invertido.')
   const rows = await prisma.auditLog.findMany({
     where: {
       tenantId: tenant,
