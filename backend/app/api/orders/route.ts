@@ -301,7 +301,7 @@ export async function POST(request: Request) {
           create: { tenantId: tenant, customerId, name: billingName, document: billingDocument, createdById: session.user.id },
         })
       }
-      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; priceSource?: string; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
+      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; priceSource?: string; priceListId?: string; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()
       // Diferencia acumulada entre precio de lista y precio cargado (venta bajo
@@ -396,7 +396,7 @@ export async function POST(request: Request) {
         subtotal += lineTotal
         if (!Number.isSafeInteger(subtotal)) throw new Error('Total fuera de rango seguro.')
         normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(listPricePyg === undefined ? {} : { listPricePyg }),
-          ...(priceSource === undefined ? {} : { priceSource }), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
+          ...(priceSource === undefined ? {} : { priceSource }), ...(priceListId ? { priceListId } : {}), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
       }
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery

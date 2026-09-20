@@ -669,6 +669,7 @@ model Customer {
   @@index([tenantId])
   @@index([tenantId, phone])
   @@index([tenantId, externalId])
+  @@index([tenantId, priceListId])
   @@index([priceListId])
   // Búsqueda difusa por nombre (pg_trgm, GIN): ILIKE '%texto%' sin escanear.
   @@index([name(ops: raw("gin_trgm_ops"))], map: "Customer_name_trgm_idx", type: Gin)
@@ -1089,6 +1090,8 @@ model OrderItem {
   listPricePyg         Int?
   // Origen congelado del precio resuelto al vender (TIER, LIST, WHOLESALE, RETAIL, USD).
   priceSource          String?
+  // Lista de precios usada en la línea: auditoría del precio aplicado.
+  priceListId          String?
   unitCostPyg          Int?
   baseUnitCostPyg      Int?
   insurancePyg         Int            @default(0)
@@ -1472,6 +1475,7 @@ model AuditLog {
 
   @@index([tenantId, createdAt])
   @@index([entity, entityId])
+  @@index([metadata], type: Gin)
   // Texto denormalizado (acción + entidad + id + metadato) que mantiene un
   // trigger en la base: la búsqueda de la auditoría alcanza el detalle sin
   // recorrer el JSONB fila por fila.
@@ -1910,6 +1914,7 @@ model PrintBridge {
 
   @@index([tenantId, revokedAt])
   @@index([pairingCodeHash])
+  @@index([tenantId, branchId])
 }
 
 // Impresora configurada por empresa. `destination` usa el formato del agente:
@@ -1944,6 +1949,7 @@ model PrintPrinter {
 
   @@unique([tenantId, destination])
   @@index([tenantId, isActive])
+  @@index([tenantId, branchId])
 }
 
 // Trabajo de impresión. El payload ESC/POS es transitorio: se borra al
