@@ -41,6 +41,10 @@ model Tenant {
   purchaseCreditLimitPyg Int?
   // Porcentaje de venta bajo lista permitido sin autorización (default 10).
   belowListPct           Int?
+  // Recargo diario por mora en puntos básicos (100 bp = 1 % por día de atraso).
+  // Null o 0 = sin recargo: solo se informan los días de atraso. Se configura
+  // en Configuración → Negocio y es reversible (vaciar el campo lo desactiva).
+  collectionLateFeeBpPerDay Int?
   // Perfil del negocio que encabeza los comprobantes no fiscales.
   address                String?
   city                   String?
@@ -62,6 +66,7 @@ model Tenant {
   paymentProofs           PaymentProof[]
   paymentReconciliations  PaymentReconciliation[]
   orderComments           OrderComment[]
+  marketingCampaigns      MarketingCampaign[]
   quotes                  Quote[]
   combos                  Combo[]
   orderCommentPhotos      OrderCommentPhoto[]
@@ -287,6 +292,7 @@ model User {
   paymentsCollected   Payment[]     @relation("PaymentCollectedBy")
   deliverySettlementsRendered DeliverySettlement[] @relation("DeliverySettlementRenderedBy")
   deliverySettlementsVerified DeliverySettlement[] @relation("DeliverySettlementVerifiedBy")
+  marketingCampaigns          MarketingCampaign[]   @relation("MarketingCampaignCreatedBy")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -648,6 +654,9 @@ model Customer {
   acceptsEmailMarketing     Boolean  @default(false)
   acceptsSmsMarketing       Boolean  @default(false)
   acceptsWhatsappMarketing  Boolean  @default(false)
+  // Última campaña de marketing registrada para esta ficha: la vista de
+  // inactivos no repite el envío hasta que pase la ventana de enfriamiento.
+  marketingContactedAt      DateTime?
   taxExempt                 Boolean  @default(false)
   tags                      String[] @default([])
   createdAt   DateTime @default(now())
@@ -665,6 +674,7 @@ model Customer {
   authorizations    CustomerAuthorization[]
   billingIdentities CustomerBillingIdentity[]
   portalTokens      CustomerPortalToken[]
+  marketingRecipients MarketingRecipient[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -1075,6 +1085,48 @@ model MessageTemplate {
   @@index([tenantId, context])
 }
 
+// Campaña de recompra/marketing: agrupa a los clientes contactados en un envío
+// con la misma plantilla. El mensaje se congela para auditar qué se dijo.
+model MarketingCampaign {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name           String
+  segment        String
+  templateKey    String
+  message        String
+  // Parámetros del segmento al momento de armar la campaña (días de
+  // inactividad, mínimo de compras, categoría), para poder reconstruirla.
+  segmentParams  Json?
+  recipientCount Int      @default(0)
+  skippedCount   Int      @default(0)
+  createdById    String?
+  createdBy      User?    @relation("MarketingCampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+
+  recipients MarketingRecipient[]
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([createdById])
+}
+
+// Registro por destinatario: a quién se le envió y cuándo, para no repetir.
+model MarketingRecipient {
+  id         String   @id @default(cuid())
+  tenantId   String
+  campaignId String
+  campaign   MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  channel    String   @default("WHATSAPP")
+  phone      String?
+  createdAt  DateTime @default(now())
+
+  @@unique([campaignId, customerId])
+  @@index([tenantId, customerId])
+  @@index([tenantId, createdAt(sort: Desc)])
+}
+
 model OrderItem {
   promotionSnapshot    Json?
   warrantyCases        WarrantyCase[]
@@ -1193,6 +1245,12 @@ model Payment {
   // Cuándo se avisó que la cuota ya venció. Se marca aparte para que el aviso
   // previo al vencimiento no consuma el reclamo posterior.
   overdueRemindedAt DateTime?
+  // Recordatorio de cuota por WhatsApp: el enlace wa.me lo abre una persona
+  // desde Cobranzas, así que el aviso se marca acá al generarlo. Van separados
+  // de los flags del email para no consumir el correo ni al revés: un canal no
+  // silencia al otro, y cada uno avisa una sola vez por cuota.
+  whatsappRemindedAt DateTime?
+  whatsappOverdueRemindedAt DateTime?
   // Fecha estimada de acreditación en la cuenta de la empresa (tarjetas/PIX).
   settlesAt       DateTime?
   // Pre-cobro del reparto propio: quién lo cobró en la calle, cuándo y en qué

@@ -4,16 +4,16 @@ import { error, json } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 
 // Soporta las dos interfaces históricas de la API:
-// - `category` (ORDERS | CUSTOMERS | SERVICE) — componente WhatsAppTemplates.
-// - `context` (pedidos | clientes | servicio) — componente PlantillasWhatsApp.
+// - `category` (ORDERS | CUSTOMERS | SERVICE | COLLECTIONS) — componente WhatsAppTemplates.
+// - `context` (pedidos | clientes | servicio | cobranzas) — componente PlantillasWhatsApp.
 // Se persisten AMBOS campos (espejo): la categoría es canónica y el contexto
 // es el alias en minúsculas. La migración conserva ambas columnas.
 
-type Category = 'ORDERS' | 'CUSTOMERS' | 'SERVICE'
+type Category = 'ORDERS' | 'CUSTOMERS' | 'SERVICE' | 'COLLECTIONS'
 
-const CATEGORIES: Category[] = ['ORDERS', 'CUSTOMERS', 'SERVICE']
-const CATEGORY_TO_CONTEXT: Record<Category, string> = { ORDERS: 'pedidos', CUSTOMERS: 'clientes', SERVICE: 'servicio' }
-const CONTEXT_TO_CATEGORY: Record<string, Category> = { pedidos: 'ORDERS', clientes: 'CUSTOMERS', servicio: 'SERVICE' }
+const CATEGORIES: Category[] = ['ORDERS', 'CUSTOMERS', 'SERVICE', 'COLLECTIONS']
+const CATEGORY_TO_CONTEXT: Record<Category, string> = { ORDERS: 'pedidos', CUSTOMERS: 'clientes', SERVICE: 'servicio', COLLECTIONS: 'cobranzas' }
+const CONTEXT_TO_CATEGORY: Record<string, Category> = { pedidos: 'ORDERS', clientes: 'CUSTOMERS', servicio: 'SERVICE', cobranzas: 'COLLECTIONS' }
 
 // Plantillas base por contexto, listas para usar (tono profesional y emojis
 // medidos). La siembra es idempotente: agrega solo las que faltan por clave, así
@@ -42,6 +42,10 @@ const DEFAULTS: Record<Category, Array<[string, string, string]>> = {
     ['esperando_repuesto', 'Esperando repuesto', '¡Hola {{cliente}}! ⏳ Tu {{equipo}} está esperando un repuesto. Apenas llegue te avisamos para continuar con la reparación.'],
     ['reparacion_lista', 'Reparación lista', '¡Hola {{cliente}}! ✅ Tu {{equipo}} ya está listo para retirar en {{sucursal}}. Te esperamos con el comprobante.'],
     ['presupuesto', 'Presupuesto del servicio', '¡Hola {{cliente}}! 🧾 El presupuesto de tu {{equipo}} es {{total}}. Si lo aprobás, arrancamos con la reparación.'],
+  ],
+  COLLECTIONS: [
+    ['cuota_por_vencer', 'Cuota por vencer', '¡Hola {{cliente}}! 👋 Te recordamos que la cuota del pedido {{pedido}} vence el {{vencimiento}} por {{saldo_pendiente}}. Podés coordinar el pago con nosotros. ¡Gracias! — {{empresa}}'],
+    ['cuota_vencida', 'Cuota vencida', '¡Hola {{cliente}}! 👋 La cuota del pedido {{pedido}} venció el {{vencimiento}} y tiene un saldo de {{saldo_pendiente}} ({{dias_atraso}} día(s) de atraso). Podés coordinar el pago con nosotros. ¡Gracias! — {{empresa}}'],
   ],
 }
 
