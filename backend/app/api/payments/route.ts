@@ -19,6 +19,10 @@ export async function POST(request: Request) {
   try {
     const body = objectInput(await request.json())
     const orderId = textInput(body.orderId, 'orderId', 200)
+    // Cuota concreta del plan de crédito que este cobro viene a saldar. Al
+    // indicarla, el pago se concilia sobre la cuota existente en vez de crear
+    // otro movimiento: la deuda no se duplica.
+    const installmentId = body.installmentId === undefined || body.installmentId === null || body.installmentId === '' ? null : textInput(body.installmentId, 'installmentId', 200)
     const result = await prisma.$transaction(async tx => {
       const locked = await tx.$queryRaw<Array<{ id: string; branchId: string | null; sellerId: string; status: string; totalPyg: number; orderNumber: string }>>`SELECT "id", "branchId", "sellerId", "status", "totalPyg", "orderNumber" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenant} FOR UPDATE`
       const order = locked[0]
@@ -40,6 +44,25 @@ export async function POST(request: Request) {
       if (order.status === 'CANCELLED' || order.status === 'COMPLETED') throw new Error('La venta no admite nuevos pagos.')
       const { tradeIn, ...normalized } = await normalizePayment(tx, tenant, body)
       const amount = normalized.amountPyg; const status = normalized.status
+      // Cobro de una cuota del plan de crédito: se confirma la cuota misma y
+      // queda conciliada en un solo paso. El monto debe ser exactamente el de
+      // la cuota; la deuda del cliente baja y los recordatorios se detienen.
+      if (installmentId) {
+        const rows = await tx.$queryRaw<Array<{ id: string; status: string; amountPyg: number; dueAt: Date | null }>>`
+          SELECT "id", "status"::text, "amountPyg", "dueAt" FROM "Payment"
+          WHERE "id" = ${installmentId} AND "tenantId" = ${tenant} AND "orderId" = ${order.id} FOR UPDATE`
+        const cuota = rows[0]
+        if (!cuota?.dueAt) throw new InputError('La cuota indicada no pertenece a esta venta.', 404)
+        if (cuota.status !== 'PENDING') throw new InputError('Esa cuota ya fue cobrada o no está pendiente.', 409)
+        if (status !== 'CONFIRMED') throw new InputError('Una cuota se cobra como pago confirmado.')
+        if (amount !== cuota.amountPyg) throw new InputError(`El monto debe ser exactamente el de la cuota (${cuota.amountPyg} Gs.).`)
+        const payment = await tx.payment.update({ where: { id: cuota.id }, data: { ...normalized, idempotencyKey, userId: session.user.id, createdById: session.user.id, paidAt: new Date() } })
+        await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
+        const paidInstallment = await tx.payment.aggregate({ where: { orderId: order.id, tenantId: tenant, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
+        if ((paidInstallment._sum.amountPyg || 0) >= order.totalPyg) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'CREDIT_INSTALLMENT_PAID', entity: 'Payment', entityId: payment.id, metadata: { orderId: order.id, orderNumber: order.orderNumber, amountPyg: payment.amountPyg, method: payment.method, dueAt: cuota.dueAt, installment: true } } })
+        return payment
+      }
       const paid = await tx.payment.aggregate({ where: { orderId: order.id, tenantId: tenant, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
       const confirmed = paid._sum.amountPyg || 0
       if (!Number.isSafeInteger(order.totalPyg) || order.totalPyg < 0 || order.totalPyg > INT_MAX || (status === 'CONFIRMED' && (!Number.isSafeInteger(confirmed + amount) || confirmed + amount > INT_MAX || confirmed + amount > order.totalPyg))) throw new Error('El pago supera el total de la venta.')

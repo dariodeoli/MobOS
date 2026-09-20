@@ -87,6 +87,9 @@ export default function PagosPedido({ venta, onClose }) {
   const [cuotasOpen, setCuotasOpen] = useState(false)
   const [cuotasForm, setCuotasForm] = useState({ count: '3', firstDueAt: '' })
   const [cuotasBusy, setCuotasBusy] = useState(false)
+  // Cuota concreta que se está cobrando: el cobro se concilia sobre esa cuota
+  // en vez de crear otro movimiento.
+  const [cuotaPago, setCuotaPago] = useState(null)
   const tienePlanCuotas = payments.some(p => p.status === 'PENDING' && p.dueAt)
 
   async function crearPlanCuotas(event) {
@@ -113,6 +116,13 @@ export default function PagosPedido({ venta, onClose }) {
   const [postventa, setPostventa] = useState({ operation: 'RETURN', reason: '', replacementNumber: '', refundPyg: '' })
   const [postventaBusy, setPostventaBusy] = useState(false)
   const cobrado = payments.filter(p => p.status === undefined || p.status === 'CONFIRMED').reduce((sum, p) => sum + num(p.monto), 0)
+
+  // Elegir una cuota prepara el cobro: monto fijo, cuota seleccionada y aviso.
+  function cobrarCuota(pago) {
+    setCuotaPago(pago)
+    setAmount(String(num(pago.monto)))
+    setError(''); setNotice('')
+  }
 
   async function registrarPostventa(event) {
     event.preventDefault()
@@ -177,23 +187,30 @@ export default function PagosPedido({ venta, onClose }) {
     if (!Number.isFinite(originalAmount) || !Number.isFinite(exchangeRatePyg) || exchangeRatePyg <= 0) { setError('Completá el monto y la cotización.'); return }
     const value = Math.round(originalAmount * exchangeRatePyg)
     if (!Number.isSafeInteger(value) || value <= 0 || value > pending) { setError('El monto debe ser positivo y no superar el saldo pendiente.'); return }
+    if (cuotaPago && value !== num(cuotaPago.monto)) { setError(`El monto debe ser exactamente el de la cuota (${gs(cuotaPago.monto)}).`); return }
     setBusy(true); setError(''); setNotice('')
     try {
       const tradeIn = account?.kind === 'TRADE_IN' ? device : undefined
       if (tradeIn && (!device.serial.trim() || !device.model.trim() || !device.conditionNotes.trim())) throw new Error('Completá IMEI/serial, modelo y estado del teléfono recibido.')
       const details = account ? { accountId, originalAmount, exchangeRatePyg, currency: account.currency, accountSnapshot: { ...account }, tradeIn } : {}
       if (esDemo) {
-        const newPayment = { id: crypto.randomUUID(), ...details, method: account?.kind || method, medioPago: account?.name || ETIQUETAS_MEDIO_PAGO[method], monto: value, amountPyg: value, cuenta: reference, fecha: new Date().toISOString(), reconciliationState: 'PENDING' }
-        await validateDemoTradeIns([newPayment])
-        const updatedPayments = [...payments, newPayment]
-        const paid = num(order.totalPagado) + value
-        updateVenta(order.id, { pagos: updatedPayments, totalPagado: paid, totalPendiente: pending - value, estadoPago: pending === value ? 'Pagado' : 'Parcial' })
-        try { await recordDemoTradeIns(order, [newPayment]) } catch (error) {
-          setNeedsRefresh(true)
-          throw new Error(`El pago demo se guardó, pero el equipo requiere revisión. No repitas el cobro. ${error.message}`)
+        if (cuotaPago) {
+          const updatedPayments = payments.map(p => p.id !== cuotaPago.id ? p : { ...p, status: 'CONFIRMED', fecha: new Date().toISOString() })
+          const paid = num(order.totalPagado) + value
+          updateVenta(order.id, { pagos: updatedPayments, totalPagado: paid, totalPendiente: pending - value, estadoPago: pending === value ? 'Pagado' : 'Parcial' })
+        } else {
+          const newPayment = { id: crypto.randomUUID(), ...details, method: account?.kind || method, medioPago: account?.name || ETIQUETAS_MEDIO_PAGO[method], monto: value, amountPyg: value, cuenta: reference, fecha: new Date().toISOString(), reconciliationState: 'PENDING' }
+          await validateDemoTradeIns([newPayment])
+          const updatedPayments = [...payments, newPayment]
+          const paid = num(order.totalPagado) + value
+          updateVenta(order.id, { pagos: updatedPayments, totalPagado: paid, totalPendiente: pending - value, estadoPago: pending === value ? 'Pagado' : 'Parcial' })
+          try { await recordDemoTradeIns(order, [newPayment]) } catch (error) {
+            setNeedsRefresh(true)
+            throw new Error(`El pago demo se guardó, pero el equipo requiere revisión. No repitas el cobro. ${error.message}`)
+          }
         }
       } else {
-        const payload = { orderId: order.id, method: account?.kind || method, amountPyg: value, reference, ...(asPending ? { status: 'PENDING' } : {}), ...details }
+        const payload = { orderId: order.id, method: account?.kind || method, amountPyg: value, reference, ...(asPending && !cuotaPago ? { status: 'PENDING' } : {}), ...(cuotaPago ? { installmentId: cuotaPago.id } : {}), ...details }
         const signature = JSON.stringify(payload)
         if (!attempt.current || attempt.current.signature !== signature) attempt.current = { signature, key: crypto.randomUUID() }
         await api.post('/api/payments', payload, { headers: { 'Idempotency-Key': attempt.current.key } })
@@ -205,7 +222,7 @@ export default function PagosPedido({ venta, onClose }) {
         attempt.current = null
       }
       setOrder(listVentas().find(v => v.id === order.id) || order)
-      setAmount(''); setReference(''); setNotice('Pago registrado. Podés adjuntar su comprobante abajo.')
+      setAmount(''); setReference(''); setCuotaPago(null); setNotice(cuotaPago ? 'Cuota cobrada y conciliada: la deuda bajó y ya no se reclama.' : 'Pago registrado. Podés adjuntar su comprobante abajo.')
     } catch (e) { setError(e.message) } finally { setBusy(false) }
   }
 
@@ -301,7 +318,7 @@ export default function PagosPedido({ venta, onClose }) {
     {cuotasOpen && (
       <form onSubmit={crearPlanCuotas} className="mb-6 space-y-3 rounded-xl border border-fono/20 bg-fono/5 p-4">
         <h3 className="font-semibold">Plan de cuotas</h3>
-        <p className="text-xs text-mute">Se reparte el saldo pendiente ({gs(pending)}) en cuotas mensuales a crédito, cada una con su vencimiento. Al cobrar una cuota se registra como pago normal.</p>
+        <p className="text-xs text-mute">Se reparte el saldo pendiente ({gs(pending)}) en cuotas mensuales a crédito, cada una con su vencimiento. Cada cuota se cobra con su botón «Cobrar cuota»: queda conciliada, la deuda baja y el recordatorio se detiene.</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-xs text-mute">Cantidad de cuotas (2 a 24)<Input inputMode="numeric" maxLength={2} value={cuotasForm.count} onChange={event => setCuotasForm(current => ({ ...current, count: event.target.value.replace(/\D/g, '').slice(0, 2) }))} placeholder="3" /></label>
           <label className="block text-xs text-mute">Vence la primera (opcional)<Input type="date" value={cuotasForm.firstDueAt} onChange={event => setCuotasForm(current => ({ ...current, firstDueAt: event.target.value }))} /></label>
@@ -311,10 +328,17 @@ export default function PagosPedido({ venta, onClose }) {
     )}
     {pending > 0 && <form onSubmit={register} className="mb-6 space-y-3 rounded-xl border border-fono/20 bg-fono/5 p-4">
       <h3 className="font-semibold">Registrar pago parcial o total</h3>
+      {cuotaPago && (
+        <div className="rounded-lg border border-fono/30 bg-ink-800 p-3 text-xs">
+          <p className="font-semibold text-fono-light">Cobrando la cuota {cuotaPago.reference || ''} · vence {new Date(cuotaPago.dueAt).toLocaleDateString('es-PY')} · {gs(cuotaPago.monto)}</p>
+          <p className="mt-1 text-mute">El monto ya está fijado: al registrar, esa cuota queda cobrada y la deuda baja.</p>
+          <button type="button" className="mt-2 text-mute underline" onClick={() => { setCuotaPago(null); setAmount('') }}>Cancelar y cobrar libre</button>
+        </div>
+      )}
       <label className="block text-xs text-mute">Cuenta de destino<Select aria-label="Cuenta de destino" className="mt-1" value={accountId} onChange={e => { setAccountId(e.target.value); setAmount(''); setRate(''); setAsPending(false) }}><option value="">Método manual sin cuenta</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.accountNumber || a.kind}</option>)}</Select></label>
       <label className="block text-xs text-mute">Monto en {FOREIGN(account?.currency) ? account.currency : 'guaraníes'}<MoneyInput aria-label="Monto del pago" currency={FOREIGN(account?.currency) ? account.currency : 'PYG'} value={amount} onValueChange={v => setAmount(v === '' ? '' : String(v))} placeholder={FOREIGN(account?.currency) ? '10,50' : 'Gs 0'} />{!FOREIGN(account?.currency) && <NumericKeypad value={String(amount || '').replace(/\D/g, '')} onChange={v => setAmount(formatGsInput(v))} />}</label>
       {FOREIGN(account?.currency) && <div><label className="block text-xs text-mute">Cotización: Gs por {account.currency}<MoneyInput currency="USD" symbol="Gs." value={rate} onValueChange={setRate} placeholder="7500" /></label><button type="button" disabled={fxLoading || busy} onClick={fetchFx} className="mt-1 rounded-lg border border-fono/40 px-2 py-1 text-[11px] font-semibold text-fono-light disabled:opacity-40">{fxLoading ? 'Consultando BCP…' : 'Usar cotización BCP'}</button>{fx?.referencialDiario && <span className="ml-2 text-[11px] text-mute">BCP {fx.referencialDiario} · {fx.updated}</span>}</div>}
-      {account && <label className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" checked={asPending} onChange={e => setAsPending(e.target.checked)} /> Queda pendiente (ej. Pix recibido en cuenta personal, se confirma al pasar a la empresa)</label>}
+      {account && !cuotaPago && <label className="flex items-center gap-2 text-xs text-mute"><input type="checkbox" checked={asPending} onChange={e => setAsPending(e.target.checked)} /> Queda pendiente (ej. Pix recibido en cuenta personal, se confirma al pasar a la empresa)</label>}
       {account?.kind === 'TRADE_IN' && <div className="space-y-2"><SerialField aria-label="IMEI o serial" placeholder="IMEI / serial" value={device.serial} onChange={value => setDevice(d => ({ ...d, serial: value }))} /><Input aria-label="Modelo recibido" placeholder="Modelo recibido" value={device.model} onChange={e => setDevice(d => ({ ...d, model: e.target.value }))} /><Input placeholder="Estado y observaciones" value={device.conditionNotes} onChange={e => setDevice(d => ({ ...d, conditionNotes: e.target.value }))} /></div>}
       {!account && <label className="block text-xs text-mute">Método<Select className="mt-1" value={method} onChange={e => setMethod(e.target.value)}>{METODOS_PAGO.map(key => <option key={key} value={key}>{ETIQUETAS_MEDIO_PAGO[key]}</option>)}</Select></label>}
       <label className="block text-xs text-mute">Cuenta / referencia<Input value={reference} onChange={e => setReference(e.target.value)} maxLength={200} placeholder="Banco, cuenta o referencia de operación" /></label>
@@ -333,6 +357,7 @@ export default function PagosPedido({ venta, onClose }) {
             <Badge color="slate">{ETIQUETAS_MEDIO_PAGO[p.medioPago] || p.medioPago}</Badge>
             <Badge color={concTone}>{concLabel}</Badge>
             {p.dueAt && <Badge color="orange">Vence {new Date(p.dueAt).toLocaleDateString('es-PY')}</Badge>}
+            {p.status === 'PENDING' && p.dueAt && canReconcile && <button type="button" className="rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => cobrarCuota(p)}>Cobrar cuota</button>}
           </div>
           {p.status === undefined || p.status === 'CONFIRMED' ? <button type="button" className="rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => imprimirReciboInterno(p)}>Recibo interno</button> : null}
         </div>

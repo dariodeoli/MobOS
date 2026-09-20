@@ -44,7 +44,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const reconciliation = await prisma.$transaction(async tx => {
     const locked = await tx.payment.findFirst({
       where: { id: payment.id, tenantId: session.user.tenantId },
-      select: { id: true },
+      select: { id: true, orderId: true, status: true, amountPyg: true },
     })
     if (!locked) return null
     const result = await tx.paymentReconciliation.upsert({
@@ -53,6 +53,21 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       update: { state: body.state as 'VERIFIED' | 'REJECTED', note, verifiedById: session.user.id },
       select: { id: true, paymentId: true, state: true, note: true, createdAt: true, updatedAt: true, verifiedBy: { select: { id: true, name: true, role: true } } },
     })
+    // Conciliar un pago que seguía pendiente lo confirma (o lo rechaza) de
+    // verdad: antes la conciliación era solo un estado paralelo y el cobro
+    // pendiente no bajaba nunca de la deuda.
+    if (locked.status === 'PENDING' && (body.state === 'VERIFIED' || body.state === 'REJECTED')) {
+      const nextStatus = body.state === 'VERIFIED' ? 'CONFIRMED' : 'REJECTED'
+      await tx.payment.update({ where: { id: locked.id }, data: { status: nextStatus, ...(nextStatus === 'CONFIRMED' ? { paidAt: new Date() } : {}) } })
+      if (nextStatus === 'CONFIRMED') {
+        const order = await tx.order.findUnique({ where: { id: locked.orderId }, select: { id: true, totalPyg: true, status: true } })
+        if (order && order.status === 'PENDING') {
+          const paid = await tx.payment.aggregate({ where: { orderId: order.id, tenantId: session.user.tenantId, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
+          if ((paid._sum.amountPyg || 0) >= order.totalPyg) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
+        }
+      }
+      await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: nextStatus === 'CONFIRMED' ? 'PAYMENT_CONFIRMED' : 'PAYMENT_REJECTED', entity: 'Payment', entityId: locked.id, metadata: { orderId: locked.orderId, amountPyg: locked.amountPyg, note } } })
+    }
     await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'PAYMENT_RECONCILIATION_UPDATED', entity: 'PaymentReconciliation', entityId: result.id, metadata: { paymentId: payment.id, state: result.state, note } } })
     return result
   })
