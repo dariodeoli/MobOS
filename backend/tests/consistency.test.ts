@@ -59,7 +59,7 @@ test('promociones: el código se normaliza y el alta valida descuento y vigencia
 
 test('créditos: el saldo nunca es negativo y el cobrado no supera el total', () => {
   // Invariante usada por el perfil, la lista de créditos y el inicio.
-  const saldo = (total, cobrado) => Math.max(0, Number(total || 0) - Number(cobrado || 0))
+  const saldo = (total: number, cobrado: number) => Math.max(0, Number(total || 0) - Number(cobrado || 0))
   assert.equal(saldo(200000, 50000), 150000)
   assert.equal(saldo(200000, 200000), 0)
   assert.equal(saldo(200000, 250000), 0, 'un pago de más no genera saldo negativo')
