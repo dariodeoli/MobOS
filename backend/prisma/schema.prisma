@@ -737,7 +737,6 @@ model Customer {
   tags                      String[] @default([])
   // Último contacto de una campaña de marketing (recompra, saldo, etc.):
   // evita mandarle el mismo mensaje dos veces a la misma persona.
-  marketingContactedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1557,6 +1556,8 @@ model LoyaltyMovement {
   createdAt   DateTime            @default(now())
 
   @@index([tenantId, customerId, createdAt])
+}
+
 // Rendición del reparto: el repartidor entrega en la tienda lo que cobró en la
 // calle (efectivo o transferencia) y declara el saldo que quedó pendiente. El
 // vendedor o la caja la verifica y recién ahí los pre-cobros pasan a CONFIRMED

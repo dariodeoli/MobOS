@@ -2,6 +2,8 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
+import { consultarClientes } from '../../../../lib/customer-segments'
+import { SEGMENTOS as SEGMENTOS_MARKETING, clasificarCliente, motivoNoElegible, opcionesSegmento, puedeGestionarMarketing, type SegmentoKey } from '../../../../lib/segments'
 
 // Campañas de recompra (#82): segmentos calculados en SQL sobre todas las
 // fichas del tenant. La pantalla Clientes → Campañas los usa para elegir
@@ -60,9 +62,53 @@ function ordenDe(segmento: Segmento) {
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!puedeGestionar(session.user.role)) return error('No autorizado.', 403)
+  if (!puedeGestionar(session.user.role) && !puedeGestionarMarketing(session.user.role)) return error('No autorizado.', 403)
   const tenant = session.user.tenantId
-  const segmento = (new URL(request.url).searchParams.get('segment') || 'inactivos6m') as Segmento
+  const params = new URL(request.url).searchParams
+  const pedido = (params.get('segment') || 'inactivos6m').trim()
+
+  // Camino de marketing (segmentos con opciones): INACTIVE, NO_PURCHASES,
+  // FREQUENT y CATEGORY. Devuelve `rows` con elegibilidad y también
+  // `customers` para quien consuma el contrato viejo.
+  const claveMarketing = pedido.toUpperCase() as SegmentoKey
+  if (SEGMENTOS_MARKETING.some((item) => item.key === claveMarketing)) {
+    const opciones = opcionesSegmento({
+      days: params.get('days') ?? undefined,
+      minOrders: params.get('minOrders') ?? undefined,
+      category: params.get('category') ?? undefined,
+      cooldownDays: params.get('cooldownDays') ?? undefined,
+    })
+    const limite = Math.min(500, Math.max(1, Number(params.get('limit')) || 200))
+    const ahora = new Date()
+    const clientes = await consultarClientes(tenant, { segmento: claveMarketing, opciones })
+    const delSegmento = clientes.filter((cliente) => clasificarCliente(cliente, claveMarketing, opciones, ahora))
+    const rows = delSegmento.slice(0, limite).map((cliente) => {
+      const reason = motivoNoElegible(cliente, ahora, opciones.cooldownDays)
+      return {
+        id: cliente.id,
+        name: cliente.name,
+        phone: cliente.phone,
+        countryCode: cliente.countryCode,
+        acceptsWhatsappMarketing: cliente.acceptsWhatsappMarketing,
+        marketingContactedAt: cliente.marketingContactedAt,
+        lastOrderAt: cliente.lastOrderAt,
+        totalSpentPyg: cliente.totalSpentPyg,
+        eligible: reason === null,
+        reason,
+      }
+    })
+    return json({
+      segment: claveMarketing,
+      segmento: SEGMENTOS_MARKETING.find((item) => item.key === claveMarketing),
+      opciones,
+      total: delSegmento.length,
+      elegibles: rows.filter((row) => row.eligible).length,
+      rows,
+      customers: rows,
+    })
+  }
+
+  const segmento = pedido as Segmento
   if (!SEGMENTOS.includes(segmento)) return error('Segmento inválido.')
   const condicion = condicionDe(segmento, tenant)
   const [{ total }] = await prisma.$queryRaw<Array<{ total: number }>>(Prisma.sql`
@@ -85,10 +131,20 @@ export async function GET(request: Request) {
     ${ordenDe(segmento)}
     LIMIT ${TOPE}
   `)
+  const filas = customers.map((row) => ({
+    ...row,
+    totalSpentPyg: Number(row.totalSpentPyg),
+    pendingPyg: Number(row.pendingPyg),
+    eligible: row.acceptsWhatsappMarketing === true,
+    reason: row.acceptsWhatsappMarketing === true ? null : 'sin-consentimiento',
+  }))
   return json({
-    segment: segmento,
+    segment: pedido,
+    segmento,
     total,
-    customers: customers.map((row) => ({ ...row, totalSpentPyg: Number(row.totalSpentPyg), pendingPyg: Number(row.pendingPyg) })),
+    elegibles: filas.filter((fila) => fila.eligible).length,
+    customers: filas,
+    rows: filas,
   })
 }
 

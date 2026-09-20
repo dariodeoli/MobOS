@@ -334,7 +334,9 @@ export function ticketPruebaTipo(tipo, {
   const codigos = (sufijo) => {
     t.linea()
     t.centrado('Escanear')
-    if (enlacePrueba) t.qr(enlacePrueba, { tamano: 6, etiqueta: 'QR' })
+    // Con base de la app el QR abre la prueba (destino, validación y fecha);
+    // sin base igual se imprime un QR de trazabilidad (no un código muerto).
+    t.qr(enlacePrueba || `MOBOS:PRUEBA:${sufijo}:${validacion}`, { tamano: 6, etiqueta: 'QR' })
     t.barcode(`MOBOS-${sufijo}-${validacion}`, { etiqueta: 'Código de barras' })
     t.linea()
     t.texto('Acentos: á é í ó ú ü ñ Ñ ¿? ¡!')
