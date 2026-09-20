@@ -24,4 +24,15 @@ export const printingApi = {
     return api.get(`/api/print/jobs${query ? `?${query}` : ''}`, { cacheMs: 0 })
   },
   confirmar: (id, suffix) => api.post(`/api/print/jobs/${encodeURIComponent(id)}/confirm`, { suffix }),
+  // Métricas de impresión: rango, impresora y la marca de una corrida de
+  // comparativa (prefijo de `reference`). Siempre frescas: alimentan gráficos.
+  metricas: ({ desde, hasta, printerId, reference } = {}) => {
+    const params = new URLSearchParams()
+    if (desde) params.set('desde', desde)
+    if (hasta) params.set('hasta', hasta)
+    if (printerId) params.set('printerId', printerId)
+    if (reference) params.set('reference', reference)
+    const query = params.toString()
+    return api.get(`/api/print/metrics${query ? `?${query}` : ''}`, { cacheMs: 0 })
+  },
 }

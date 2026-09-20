@@ -63,11 +63,13 @@ try {
   await req(lists.POST, { method: 'POST', body: { name: 'Ajena', items: [{ scope: 'PRODUCT', productId: 'b', unitPricePyg: 1000 }] }, status: 400 })
   await req(lists.POST, { method: 'POST', body: { name: 'Doble', items: [{ scope: 'PRODUCT', productId: 'a', unitPricePyg: 1, discountPct: 5 }] }, status: 400 })
 
-  const lista = await req(lists.POST, { method: 'POST', body: { name: 'Mayorista VIP', currency: 'PYG', items: [
+  const lista = await req(lists.POST, { method: 'POST', body: { name: 'Mayorista VIP', items: [
     { scope: 'PRODUCT', productId: 'a', unitPricePyg: 90000, tiers: [{ minQty: 3, unitPricePyg: 70000 }] },
     { scope: 'CATEGORY', category: 'Accesorios', discountPct: 10 },
   ] }, status: 201 })
   assert.equal(lista.items.length, 2)
+  // #79: la moneda de la lista quedó eliminada; el USD vive en cada ítem.
+  assert.equal('currency' in lista, false, 'la lista ya no expone currency')
   assert.equal(lista._count.customers, 0)
   assert.equal(lista.items.find(i => i.scope === 'PRODUCT').tiers[0].unitPricePyg, 70000)
 
@@ -87,11 +89,21 @@ try {
   assert.equal(categoria.priceList.name, 'Mayorista VIP')
   const enDolares = await priceOf('a-usd', { customerId: cliente.id })
   assert.equal(enDolares.origin, 'USD'); assert.equal(enDolares.currency, 'USD'); assert.equal(enDolares.unitPriceUsd, 25)
+  assert.equal(enDolares.unitPricePygFallback, 0, 'sin retail el fallback también es cero')
   await req(pricing.GET, { url: 'http://localhost/api/pricing?productId=b', status: 404 })
   await req(pricing.GET, { url: 'http://localhost/api/pricing?quantity=0&productId=a', status: 400 })
   const conCliente = await priceOf('a', { quantity: 1, customerId: cliente.id })
   assert.equal(conCliente.origin, 'LIST'); assert.equal(conCliente.unitPricePyg, 90000)
   assert.equal(conCliente.customerId, cliente.id)
+
+  // #79: un ítem en USD no cotiza en guaraníes y el fallback al retail vive en
+  // pricing.ts: el endpoint lo devuelve y el POST de pedidos congela el mismo
+  // valor para la misma resolución.
+  await req(listById.PATCH, { method: 'PATCH', ctx: { params: { id: lista.id } }, body: { items: [{ scope: 'PRODUCT', productId: 'a', unitPriceUsd: 25 }] } })
+  const usdDeLista = await priceOf('a', { customerId: cliente.id })
+  assert.equal(usdDeLista.origin, 'USD'); assert.equal(usdDeLista.unitPricePygFallback, 100000, 'el fallback del endpoint es el retail')
+  const pedidoUsd = await req(order.POST, { method: 'POST', token: 'a-VENDEDOR', url: 'http://localhost/api/orders', body: { customerId: cliente.id, orderNumber: 'PL-USD-001', items: [{ productId: 'a', description: 'Audio', quantity: 1, unitPricePyg: 100000 }] }, status: 201 })
+  assert.equal(pedidoUsd.items[0].listPricePyg, 100000, 'el POST de pedidos usa el mismo fallback que /api/pricing')
 
   // Reemplazo de ítems: sin el ítem del producto cae al mayorista del cliente.
   await req(listById.PATCH, { method: 'PATCH', ctx: { params: { id: lista.id } }, body: { items: [{ scope: 'PRODUCT', productId: 'a2', unitPricePyg: 1000 }] } })

@@ -1,7 +1,7 @@
 import { error, json } from '../../../../../../../lib/http'
 import { prisma } from '../../../../../../../lib/prisma'
 import { autenticarPuente } from '../../../../../../../lib/print-bridge'
-import { ESTADOS_RESULTADO, estadoTrasResultado, textoOpcional } from '../../../../../../../lib/print-jobs'
+import { ESTADOS_RESULTADO, estadoTrasResultado, milisegundosEntre, textoOpcional } from '../../../../../../../lib/print-jobs'
 import type { ResultadoAgente } from '../../../../../../../lib/print-jobs'
 
 // Resultado reportado por el puente. El payload se borra en la misma
@@ -27,6 +27,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   const errorReportado = textoOpcional(body?.error, 200)
   const transporte = textoOpcional(body?.transport, 40)
+  const ahora = new Date()
   const aplicado = await prisma.$transaction(async tx => {
     const cambio = await tx.printJob.updateMany({
       where: { id: trabajo.id, tenantId: puente.tenantId, state: 'RECLAMADO', leaseId },
@@ -35,7 +36,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         payload: null,
         leaseId: null,
         leaseExpiresAt: null,
-        ...(nuevo === 'ACEPTADO' ? { acceptedAt: new Date() } : {}),
+        // El resultado terminal es el cierre de la telemetría: la cola es lo
+        // que tardó el puente en reclamar y la duración, hasta el reporte.
+        confirmedAt: ahora,
+        queueMs: milisegundosEntre(trabajo.enqueuedAt, trabajo.claimedAt),
+        durationMs: milisegundosEntre(trabajo.enqueuedAt, ahora),
+        ...(transporte ? { transport: transporte } : {}),
+        ...(nuevo === 'ACEPTADO' ? { acceptedAt: ahora } : {}),
         ...(nuevo === 'FALLIDO' && !errorReportado ? { error: 'El puente reportó un fallo.' } : {}),
         ...(nuevo !== 'ACEPTADO' && errorReportado ? { error: errorReportado } : {}),
       },

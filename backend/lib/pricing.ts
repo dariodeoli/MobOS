@@ -62,7 +62,7 @@ export type PriceListItemInput = {
   tiers?: PriceListTierInput[] | null
 }
 
-export type PriceListInput = { currency?: unknown; items?: PriceListItemInput[] | null } | null | undefined
+export type PriceListInput = { items?: PriceListItemInput[] | null } | null | undefined
 
 export type PriceResolution = {
   unitPricePyg: number
@@ -142,4 +142,15 @@ export function resolveUnitPrice(input: {
   const usd = amount(product.priceUsd, 'Precio en USD')
   if (usd !== undefined) return { unitPricePyg: 0, origin: 'USD', currency: 'USD', unitPriceUsd: usd, tiers: [] }
   return { unitPricePyg: retail, origin: 'RETAIL', currency: 'PYG', tiers: [] }
+}
+
+/**
+ * Precio en guaraníes que corresponde a una resolución que no cotiza en PYG
+ * (ítem o precio de producto en USD): cae al precio minorista `pricePyg` del
+ * producto, el mismo que congela la línea del pedido. Dueño único del fallback
+ * USD→retail (issue #79): lo consumen `GET /api/pricing` y el POST de pedidos.
+ */
+export function unitPricePygFallback(resolution: PriceResolution, pricePyg: unknown): number {
+  if (resolution.currency !== 'USD') return resolution.unitPricePyg
+  return amount(pricePyg, 'Precio') ?? 0
 }
