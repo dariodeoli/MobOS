@@ -27,7 +27,9 @@ const PUEDE_VER_LISTAS = ['ADMIN', 'GERENTE']
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!PUEDE_VER_LISTAS.includes(session.user.role)) return error('Solo administración puede ver las listas de precios.', 403)
+  // Sin permiso, el listado se ve vacío (el vendedor cobra con /api/pricing):
+  // así la pantalla no rompe y no se exponen las listas de la empresa.
+  if (!PUEDE_VER_LISTAS.includes(session.user.role)) return json([])
   return json(await prisma.priceList.findMany({
     where: { tenantId: session.user.tenantId },
     include: priceListInclude,

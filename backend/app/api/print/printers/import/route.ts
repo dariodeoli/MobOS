@@ -62,11 +62,12 @@ export async function POST(request: Request) {
         data: {
           tenantId,
           userId: session.user.id,
-          action: 'PRINT_PRINTERS_IMPORTED',
+          action: 'PRINT_PRINTER_IMPORTED',
           entity: 'PrintPrinter',
           metadata: { total: guardadas.length, created: creadas, updated: actualizadas, bridges: bridges.length },
         },
       })
+      console.log('[debug-import] creadas:', creadas, 'actualizadas:', actualizadas)
       const activos = await tx.printBridge.findMany({ where: { tenantId, revokedAt: null }, orderBy: { createdAt: 'asc' } })
       return { printers: guardadas, bridges: activos.map(puente => shapePuente(puente)), map: { printers: mapPrinters, bridges: mapBridges } }
     })
