@@ -440,6 +440,50 @@ assert.equal(resultado.status, 401, 'revocar corta el latido')
 resultado = await agente('/api/print/bridge/claim', { token: tokenJobs, body: {} })
 assert.equal(resultado.status, 401, 'revocar corta el claim')
 
+// 7o. Multi-puente por sucursal (#95): el puente se resuelve por la sucursal
+// del trabajo y cae al de la empresa; una sucursal ajena se rechaza.
+resultado = await request('/api/print/bridges', { method: 'POST', body: { name: 'Puente sucursal A IT', branchId: 'branch-a-it' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const puenteSucursal = resultado.payload.bridge
+assert.equal(puenteSucursal.branchId, 'branch-a-it', 'el alta guarda la sucursal del puente')
+resultado = await request('/api/print/bridges', { method: 'POST', body: { name: 'Puente sucursal ajena', branchId: 'branch-b-it' } })
+assert.equal(resultado.status, 404, 'un puente no puede apuntar a una sucursal de otra empresa')
+resultado = await request(`/api/print/bridges/${puenteSucursal.id}`, { method: 'PATCH', body: { branchId: 'branch-b-it' } })
+assert.equal(resultado.status, 404, 'el PATCH del puente valida el tenant de la sucursal')
+resultado = await request('/api/print/printers', { method: 'POST', body: { name: 'Térmica sucursal A2', destination: 'lan:10.0.0.14:9100', branchId: 'branch-a2-it' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const impresoraSucursal2 = resultado.payload
+assert.equal(impresoraSucursal2.branchId, 'branch-a2-it', 'la impresora recuerda su sucursal')
+resultado = await request('/api/print/printers', { method: 'POST', body: { name: 'Térmica sucursal ajena', destination: 'lan:10.0.0.15:9100', branchId: 'branch-b-it' } })
+assert.equal(resultado.status, 404, 'una impresora no puede apuntar a una sucursal de otra empresa')
+
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: 'lan:10.0.0.14:9100', payload: 'QUJDRA==', branchId: 'branch-a-it', reference: 'IT-SUC-1' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const jobSucursal = resultado.payload.job
+assert.equal(psql(`SELECT "bridgeId" FROM "PrintJob" WHERE "id" = '${jobSucursal.id}';`), puenteSucursal.id, 'el trabajo de la sucursal sale por su puente')
+assert.equal(psql(`SELECT "metadata"->>'bridgeOrigin' FROM "AuditLog" WHERE "action" = 'PRINT_JOB_ENQUEUED' AND "entityId" = '${jobSucursal.id}';`), 'SUCURSAL', 'la auditoría registra que el puente salió de la sucursal')
+
+// Sin puente en su sucursal (branch-a2-it), la impresora cae al puente de la
+// empresa: el activo más antiguo (la predeterminada apunta a un revocado).
+const puenteEmpresa = psql(`SELECT id FROM "PrintBridge" WHERE "tenantId" = 'tenant-a-it' AND "revokedAt" IS NULL ORDER BY "createdAt" ASC LIMIT 1;`)
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: 'lan:10.0.0.14:9100', payload: 'QUJDRA==', printerId: impresoraSucursal2.id, reference: 'IT-SUC-2' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+assert.equal(psql(`SELECT "bridgeId" FROM "PrintJob" WHERE "id" = '${resultado.payload.job.id}';`), puenteEmpresa, 'sin puente de sucursal cae al puente de la empresa')
+assert.equal(psql(`SELECT "metadata"->>'bridgeOrigin' FROM "AuditLog" WHERE "action" = 'PRINT_JOB_ENQUEUED' AND "entityId" = '${resultado.payload.job.id}';`), 'EMPRESA', 'la auditoría registra el fallback de empresa')
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: 'lan:10.0.0.14:9100', payload: 'QUJDRA==', branchId: 'branch-b-it' } })
+assert.equal(resultado.status, 404, 'un trabajo no puede apuntar a una sucursal de otra empresa')
+
+resultado = await request(`/api/print/bridges/${puenteJobsB.id}`, { method: 'PATCH', body: { branchId: 'branch-a2-it' } })
+assert.equal(resultado.status, 200, JSON.stringify(resultado.payload))
+assert.equal(resultado.payload.branchId, 'branch-a2-it', 'el PATCH asigna la sucursal del puente')
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: 'lan:10.0.0.14:9100', payload: 'QUJDRA==', printerId: impresoraSucursal2.id, branchId: 'branch-a2-it', reference: 'IT-SUC-3' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+assert.equal(psql(`SELECT "bridgeId" FROM "PrintJob" WHERE "id" = '${resultado.payload.job.id}';`), puenteJobsB.id, 'con puente en la sucursal, el trabajo va a ese puente')
+assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "action" = 'PRINT_BRIDGE_UPDATED' AND "entityId" = '${puenteJobsB.id}';`), '1', 'la sucursal del puente se audita')
+const configSucursales = (await request('/api/print/printers')).payload
+assert.ok(Array.isArray(configSucursales.branches) && configSucursales.branches.some(sucursal => sucursal.id === 'branch-a-it' && typeof sucursal.hasSales === 'boolean'), 'la config devuelve las sucursales con ventas para la alerta del panel')
+assert.ok(configSucursales.bridges.some(item => item.id === puenteSucursal.id && item.branchId === 'branch-a-it'), 'los puentes listados exponen su sucursal')
+
 // 8. Tope de puentes por empresa: 20 activos, el 21.º da 429.
 const activos = Number(psql(`SELECT COUNT(*) FROM "PrintBridge" WHERE "tenantId" = 'tenant-a-it' AND "revokedAt" IS NULL;`))
 psql(`INSERT INTO "PrintBridge" ("id", "tenantId", "name", "tokenHash", "updatedAt") SELECT 'it-cap-' || serie, 'tenant-a-it', 'Cap ' || serie, md5('cap-' || serie || clock_timestamp()::text), CURRENT_TIMESTAMP FROM generate_series(1, ${20 - activos}) serie;`)

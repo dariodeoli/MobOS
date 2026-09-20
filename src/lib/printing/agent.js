@@ -56,13 +56,15 @@ const baseImpresora = () => ({
   caracteres: true,
   predeterminada: false,
   activa: true,
-  // Puente que la sirve ('' = el predeterminado). Permite varias computadoras
-  // puente con impresoras repartidas.
+  // Puente que la sirve ('' = el de su sucursal o el predeterminado). Permite
+  // varias computadoras puente con impresoras repartidas.
   bridgeId: '',
+  // Sucursal de la impresora: los documentos de esa sucursal la prefieren.
+  branchId: '',
   ultimaPrueba: null,
 })
 
-const vacio = () => ({ version: VERSION_STORE, syncedAt: null, importedAt: null, localBridgeId: '', remoteEnabled: true, agentUrl: URL_AGENTE, agentToken: '', bridges: [], impresoras: [] })
+const vacio = () => ({ version: VERSION_STORE, syncedAt: null, importedAt: null, localBridgeId: '', remoteEnabled: true, agentUrl: URL_AGENTE, agentToken: '', bridges: [], impresoras: [], sucursales: [] })
 
 // Normaliza una caché (v1 o v2) al shape version 2 sin inventar datos: el
 // backend pisa lo suyo en el próximo refresco.
@@ -76,6 +78,7 @@ const normalizarCache = (store) => ({
   agentUrl: String(store?.agentUrl || URL_AGENTE),
   agentToken: String(store?.agentToken || ''),
   bridges: Array.isArray(store?.bridges) ? store.bridges : [],
+  sucursales: Array.isArray(store?.sucursales) ? store.sucursales : [],
   impresoras: (Array.isArray(store?.impresoras) ? store.impresoras : []).map((impresora) => ({
     ...impresora,
     // Migración suave: `usb:<cola>` era una cola CUPS; pasa a `cups:<cola>`.
@@ -132,6 +135,9 @@ export const esIdBackend = (id) => Boolean(id) && !String(id).startsWith('imp-')
 export const puenteDesdeBackend = (puente, predeterminado = false) => ({
   id: String(puente?.id || ''),
   nombre: String(puente?.name || 'Computadora puente'),
+  // Sucursal que sirve este puente ('' = puente de empresa). El backend es la
+  // autoridad: acá solo se espeja para elegir y mostrar.
+  branchId: String(puente?.branchId || ''),
   url: '',
   token: '',
   predeterminado: Boolean(predeterminado),
@@ -158,6 +164,7 @@ export const impresoraDesdeBackend = (impresora) => ({
   predeterminada: Boolean(impresora?.isDefault),
   activa: impresora?.isActive !== false,
   bridgeId: impresora?.bridgeId || '',
+  branchId: impresora?.branchId || '',
   ultimaPrueba: impresora?.lastTest || null,
   origen: 'backend',
 })
@@ -177,6 +184,7 @@ export const impresoraHaciaBackend = (impresora) => ({
   isDefault: Boolean(impresora?.predeterminada),
   isActive: impresora?.activa !== false,
   bridgeId: impresora?.bridgeId || null,
+  branchId: impresora?.branchId || null,
 })
 
 // Refresca la caché desde el backend: el backend manda y pisa lo guardado.
@@ -184,12 +192,16 @@ export const impresoraHaciaBackend = (impresora) => ({
 export async function refrescarDesdeBackend(tenantId, { api: cliente = printingApi } = {}) {
   const datos = await cliente.impresoras()
   const anterior = cargarImpresoras(tenantId)
+  const sucursales = Array.isArray(datos?.branches)
+    ? datos.branches.map((sucursal) => ({ id: String(sucursal?.id || ''), nombre: String(sucursal?.name || ''), activa: sucursal?.isActive !== false, hasSales: Boolean(sucursal?.hasSales) }))
+    : anterior.sucursales || []
   const siguiente = normalizarCache({
     ...anterior,
     syncedAt: new Date().toISOString(),
     remoteEnabled: datos?.remoteEnabled !== false,
     bridges: (datos?.bridges || []).map((puente, indice) => puenteDesdeBackend(puente, indice === 0)),
     impresoras: (datos?.printers || []).map(impresoraDesdeBackend),
+    sucursales,
   })
   escribir(claveTenant(tenantId), siguiente)
   return siguiente
@@ -264,9 +276,12 @@ export function guardarImpresoras(tenantId, cambios) {
   return siguiente
 }
 
-export const imprimirConDestino = (store) => {
+export const imprimirConDestino = (store, sucursalId = null) => {
   const activas = store.impresoras.filter((item) => item.activa)
-  const predeterminada = activas.find((item) => item.predeterminada) || activas[0] || null
+  // La impresora de la sucursal activa gana sobre la predeterminada de la
+  // empresa: cada sucursal imprime en la suya (#95).
+  const deSucursal = sucursalId ? activas.filter((item) => item.branchId === sucursalId) : []
+  const predeterminada = deSucursal.find((item) => item.predeterminada) || deSucursal[0] || activas.find((item) => item.predeterminada) || activas[0] || null
   return { predeterminada, activas }
 }
 
@@ -274,10 +289,13 @@ export const imprimirConDestino = (store) => {
 // Otros componentes leen configImpresora(): devuelve la impresora
 // predeterminada del tenant (o vacío) con la URL y el token del agente.
 let tenantActivo = null
+let sucursalActiva = null
 export function usarTenantImpresoras(tenantId) { tenantActivo = tenantId || null }
+// La sucursal de la sesión: la app prefiere la impresora de esa sucursal.
+export function usarSucursalImpresoras(branchId) { sucursalActiva = branchId || null }
 
 // Impresora predeterminada de la empresa en ESTE dispositivo (caché local).
-export const impresoraPredeterminada = () => imprimirConDestino(cargarImpresoras(tenantActivo)).predeterminada || null
+export const impresoraPredeterminada = () => imprimirConDestino(cargarImpresoras(tenantActivo), sucursalActiva).predeterminada || null
 
 // Configuración para imprimir: caché local y, si todavía no hay impresora (o
 // `forzar`), una consulta al backend. `forzar` se usa cuando la decisión
@@ -285,7 +303,7 @@ export const impresoraPredeterminada = () => imprimirConDestino(cargarImpresoras
 // vieja; si la consulta falla se conserva la caché.
 export async function cargarImpresorasRemotas({ forzar = false } = {}) {
   const actual = cargarImpresoras(tenantActivo)
-  if (!forzar && imprimirConDestino(actual).predeterminada) return actual
+  if (!forzar && imprimirConDestino(actual, sucursalActiva).predeterminada) return actual
   try { return await refrescarDesdeBackend(tenantActivo) } catch { return actual }
 }
 
@@ -293,7 +311,7 @@ export const configImpresora = () => {
   const base = { url: URL_AGENTE, impresora: '', ancho: 80, copias: 1, token: '' }
   try {
     const store = cargarImpresoras(tenantActivo)
-    const { predeterminada } = imprimirConDestino(store)
+    const { predeterminada } = imprimirConDestino(store, sucursalActiva)
     // Cada impresora usa su puente; la predeterminada decide el de la app.
     const puente = puenteDe(store, predeterminada)
     const guardado = {
@@ -432,6 +450,7 @@ export async function encolarRemoto(ticket, { impresora, copias, usuario = '', t
     width: Number(impresora?.ancho) === 58 ? 58 : 80,
     copies: Math.min(5, Math.max(1, Number(copias) || Number(impresora?.copias) || 1)),
     ...(esIdBackend(impresora?.id) ? { printerId: impresora.id } : {}),
+    ...(impresora?.branchId ? { branchId: impresora.branchId } : {}),
     ...(ticket?.ref ? { idempotencyKey: `ticket-${ticket.ref}` } : {}),
   }
   try {
@@ -540,7 +559,7 @@ export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuari
   // tener la caché vieja (u otra predeterminada) y el trabajo saldría al
   // destino equivocado. Si el backend no responde, se usa la última caché.
   let actual = store || (estado?.disponible ? cargarImpresoras(tenantActivo) : await cargarImpresorasRemotas({ forzar: true }))
-  const elegida = impresora || imprimirConDestino(actual).predeterminada
+  const elegida = impresora || imprimirConDestino(actual, sucursalActiva).predeterminada
   const puente = puenteDe(actual, elegida)
   const { camino } = resolverCamino(actual, elegida, { disponible: Boolean(estado?.disponible) })
   if (camino === 'local') {

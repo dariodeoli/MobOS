@@ -361,6 +361,57 @@ test.describe('owner panel', () => {
     ).toBeLessThanOrEqual(clientWidth + 1)
   })
 
+  // #59/#61: la búsqueda cruza el metadato (un nombre de impresora que solo
+  // vive en metadata) y hay filtros de actor y de rango de fechas.
+  test('auditoría: busca en el metadato y filtra por actor y período', async ({ page }) => {
+    await page.goto('/configuracion/historial')
+    // Impresora propia de la prueba (idempotente por destino) y trabajo espejo
+    // cuya auditoría guarda el nombre de la impresora solo en `metadata`.
+    const nombreImpresora = `Térmica auditoría E2E ${Date.now()}`
+    const destino = 'lan:10.99.99.50:9100'
+    const creado = await page.evaluate(
+      async ({ api, nombre, destino }) => {
+        const lista = await fetch(`${api}/api/print/printers`, { credentials: 'include' })
+        const { printers = [] } = await lista.json().catch(() => ({}))
+        let impresora = printers.find((item) => item.destination === destino)
+        if (!impresora) {
+          const creada = await fetch(`${api}/api/print/printers`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ name: nombre, destination: destino, isActive: true }),
+          })
+          impresora = await creada.json()
+        }
+        const job = await fetch(`${api}/api/print/jobs`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ path: 'LOCAL', destination: destino, printerId: impresora.id, sourceJobId: `e2e-audit-${Date.now()}`, state: 'ACEPTADO' }),
+        })
+        // La base e2e se reutiliza: la impresora puede venir de una corrida
+        // anterior, así que la búsqueda usa su nombre real y no el nuevo.
+        return { jobId: (await job.json())?.job?.id || '', printerName: impresora.name }
+      },
+      { api: API, nombre: nombreImpresora, destino },
+    )
+    expect(creado.jobId).not.toBe('')
+
+    // Un valor que solo existe en el metadato tiene que encontrar la fila.
+    await page.getByLabel('Buscar en la auditoría').fill(creado.printerName)
+    await page.getByRole('button', { name: 'Actualizar' }).click()
+    const fila = page.getByTestId('auditoria-fila').filter({ hasText: 'Trabajo en cola' }).first()
+    await expect(fila).toBeVisible({ timeout: 20_000 })
+
+    // Filtros nuevos: por actor y por período no rompen el listado.
+    await page.getByLabel('Buscar en la auditoría').fill('')
+    await page.getByLabel('Filtrar por actor').selectOption({ label: 'Administrador' })
+    await expect(page.getByTestId('auditoria-fila').first()).toBeVisible({ timeout: 20_000 })
+    await page.getByLabel('Filtrar por período').selectOption('hoy')
+    await expect(page.getByTestId('auditoria-fila').first()).toBeVisible({ timeout: 20_000 })
+    await page.getByLabel('Filtrar por período').selectOption('todo')
+  })
+
   test('finanzas → Caja can open the cash session', async ({ page }) => {
     await page.goto('/finanzas/caja')
     // El título de la página vive en el topbar (AppShell) y aparece antes que

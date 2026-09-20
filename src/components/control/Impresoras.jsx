@@ -83,6 +83,7 @@ const vacioFormulario = () => ({
   corte: true,
   densidad: 3,
   caracteres: true,
+  branchId: '',
 })
 
 // Los trabajos del backend se muestran con la misma forma que el historial del
@@ -124,7 +125,7 @@ const filaColaDesdeJob = (job) => ({
 })
 
 // Firma de los campos que el backend guarda: evita PATCH cuando nada cambió.
-const CAMPOS_IMPRESORA = ['nombre', 'marca', 'modelo', 'ubicacion', 'conexion', 'destino', 'ancho', 'copias', 'corte', 'densidad', 'caracteres', 'predeterminada', 'activa', 'bridgeId']
+const CAMPOS_IMPRESORA = ['nombre', 'marca', 'modelo', 'ubicacion', 'conexion', 'destino', 'ancho', 'copias', 'corte', 'densidad', 'caracteres', 'predeterminada', 'activa', 'bridgeId', 'branchId']
 const firmaImpresora = (impresora) => JSON.stringify(CAMPOS_IMPRESORA.map((campo) => impresora?.[campo] ?? null))
 
 // Impresoras: una sola pantalla para configurar, probar y monitorear las
@@ -249,6 +250,22 @@ export default function Impresoras() {
   const predeterminada = impresoras.find((item) => item.activa && item.predeterminada) || impresoras.find((item) => item.activa) || null
 
   const puentePrincipal = puenteDe(store)
+
+  const sucursales = useMemo(() => store.sucursales || [], [store.sucursales])
+  // Cobertura por sucursal (#95): qué puente sirve a cada una, cuántas
+  // impresoras tiene y alerta cuando una sucursal con ventas quedó sin puente.
+  const cobertura = useMemo(() => sucursales.map((sucursal) => {
+    const puentes = (store.bridges || []).filter((puente) => puente.branchId === sucursal.id)
+    const impresorasDe = impresoras.filter((impresora) => impresora.branchId === sucursal.id)
+    return {
+      ...sucursal,
+      puentes,
+      impresoras: impresorasDe,
+      online: puentes.some((puente) => puente.online),
+      alerta: sucursal.activa !== false && sucursal.hasSales && puentes.length === 0,
+    }
+  }), [sucursales, store.bridges, impresoras])
+  const sucursalesSinPuente = cobertura.filter((sucursal) => sucursal.alerta)
 
   // Verificación invisible de las impresoras activas. Se pausa mientras hay
   // una impresión, prueba o diagnóstico en curso para no competir con el agente.
@@ -383,6 +400,7 @@ export default function Impresoras() {
       predeterminada: Boolean(impresora.predeterminada),
       conexion: impresora.conexion === 'usb' ? 'cups' : impresora.conexion,
       puenteId: impresora.bridgeId || '',
+      branchId: impresora.branchId || '',
       destinoUsb: /^(usb|cups):/.test(destino) ? destino.slice(destino.indexOf(':') + 1) : '',
       ip: ip || '192.168.1.23',
       puerto: puerto || '9100',
@@ -413,6 +431,7 @@ export default function Impresoras() {
       conexion: f.conexion,
       destino,
       bridgeId: f.puenteId || '',
+      branchId: f.branchId || '',
       ancho: f.ancho,
       copias: f.copias,
       corte: f.corte,
@@ -524,13 +543,25 @@ export default function Impresoras() {
     if (creandoPuente) return
     setCreandoPuente(true)
     try {
-      const datos = await printingApi.crearPuente(nombre)
+      const datos = await printingApi.crearPuente(nombre, puenteNuevo?.branchId || null)
       setCodigoVinculacion({ nombre: datos?.bridge?.name || nombre, code: datos?.pairingCode || '', expiresAt: datos?.expiresAt || null })
       setPuenteNuevo(null)
       await consultar()
     } catch (cause) {
       toast.error('No se pudo crear el puente', cause?.message || 'Revisá tu sesión y permisos.')
     } finally { setCreandoPuente(false) }
+  }
+
+  // Cambia la sucursal de un puente ya creado: el backend valida el tenant y
+  // deja auditoría del antes/después.
+  async function cambiarSucursalPuente(puente, branchId) {
+    try {
+      await printingApi.actualizarPuente(puente.id, { branchId: branchId || null })
+      toast.success('Sucursal del puente actualizada', branchId ? `${puente.nombre} sirve a la sucursal elegida.` : `${puente.nombre} vuelve a ser puente de empresa.`)
+      await consultar()
+    } catch (cause) {
+      toast.error('No se pudo cambiar la sucursal', cause?.message || 'Intentá de nuevo.')
+    }
   }
 
   async function generarCodigo(puente) {
@@ -757,6 +788,34 @@ export default function Impresoras() {
           </div>
         )}
       </Card>
+
+      {sucursales.length > 0 && (
+        <Card className="space-y-3" data-testid="cobertura-sucursales">
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="store" className="h-4 w-4 text-mute" />Cobertura por sucursal</h3>
+            <p className="mt-1 text-sm text-mute">Cada trabajo sale por el puente de la sucursal del pedido o del vendedor. Si la sucursal no tiene puente activo, el trabajo se encola al puente de la empresa.</p>
+          </div>
+          {sucursalesSinPuente.length > 0 && (
+            <p role="alert" data-testid="alerta-sucursal-sin-puente" className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
+              <b className="text-warn">Sucursal sin puente activo:</b> {sucursalesSinPuente.map((sucursal) => sucursal.nombre).join(', ')} {sucursalesSinPuente.length === 1 ? 'tiene' : 'tienen'} ventas y ningún puente asignado. Sus impresiones se encolan al puente de la empresa.
+            </p>
+          )}
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {cobertura.map((sucursal) => (
+              <div key={sucursal.id} className="rounded-xl border border-ink-600 p-3">
+                <p className="flex items-center justify-between gap-2 text-sm font-semibold">
+                  <span className="truncate" title={sucursal.nombre}>{sucursal.nombre}</span>
+                  <Badge color={sucursal.alerta ? 'orange' : sucursal.puentes.length ? (sucursal.online ? 'green' : 'slate') : 'slate'}>
+                    {sucursal.alerta ? 'Sin puente activo' : sucursal.puentes.length ? (sucursal.online ? 'Puente en línea' : 'Puente sin conexión') : 'Sin puente'}
+                  </Badge>
+                </p>
+                <p className="mt-1 truncate text-xs text-mute" title={sucursal.puentes.map((puente) => puente.nombre).join(', ')}>{sucursal.puentes.length ? `Puente: ${sucursal.puentes.map((puente) => puente.nombre).join(', ')}` : 'Puente: el de la empresa (respaldo)'}</p>
+                <p className="mt-0.5 text-xs text-mute">{sucursal.impresoras.length ? `Impresoras: ${sucursal.impresoras.length}` : 'Sin impresoras propias'}{sucursal.hasSales ? ' · con ventas' : ''}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {impresoras.length === 0 ? (
         <Card>
@@ -989,6 +1048,7 @@ export default function Impresoras() {
           setFormulario={setFormulario}
           estado={estado}
           bridges={store.bridges || []}
+          sucursales={sucursales}
           onGuardar={guardarFormulario}
           onGestionarPuentes={() => { setFormulario(null); setPuentesAbiertos(true) }}
         />
@@ -1029,6 +1089,13 @@ export default function Impresoras() {
                     <p className="mt-0.5 truncate text-xs text-mute">{puente.plataforma ? `${puente.plataforma} · ` : ''}reclama trabajos por HTTPS (conexión saliente)</p>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <label className="flex items-center gap-1.5 text-xs text-mute">
+                      Sucursal
+                      <Select aria-label={`Sucursal de ${puente.nombre}`} className="w-40" value={puente.branchId || ''} onChange={(event) => cambiarSucursalPuente(puente, event.target.value)}>
+                        <option value="">Toda la empresa</option>
+                        {sucursales.map((sucursal) => <option key={sucursal.id} value={sucursal.id}>{sucursal.nombre}</option>)}
+                      </Select>
+                    </label>
                     <Button type="button" variant="ghost" onClick={() => generarCodigo(puente)}>Código</Button>
                     <Button type="button" variant="ghost" className="text-bad" onClick={() => setPuenteRevocar(puente)}>Revocar</Button>
                   </div>
@@ -1048,13 +1115,19 @@ export default function Impresoras() {
               <FormField label="Nombre del puente" htmlFor="puente-nombre">
                 <Input id="puente-nombre" value={puenteNuevo.nombre} onChange={(event) => setPuenteNuevo((actual) => ({ ...actual, nombre: event.target.value }))} placeholder="Mac del local" />
               </FormField>
+              <FormField label="Sucursal que sirve" htmlFor="puente-sucursal" hint="Con sucursal, solo imprime los trabajos de esa sucursal. Sin sucursal, es el puente de respaldo de la empresa.">
+                <Select id="puente-sucursal" value={puenteNuevo.branchId || ''} onChange={(event) => setPuenteNuevo((actual) => ({ ...actual, branchId: event.target.value }))}>
+                  <option value="">Toda la empresa</option>
+                  {sucursales.map((sucursal) => <option key={sucursal.id} value={sucursal.id}>{sucursal.nombre}</option>)}
+                </Select>
+              </FormField>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setPuenteNuevo(null)}>Cancelar</Button>
                 <Button type="button" onClick={crearPuente} disabled={creandoPuente}>{creandoPuente ? 'Creando…' : 'Crear y vincular'}</Button>
               </div>
             </div>
           ) : (
-            <Button type="button" variant="outline" onClick={() => setPuenteNuevo({ nombre: '' })}><Icon name="plus" className="h-3.5 w-3.5" />Agregar puente</Button>
+            <Button type="button" variant="outline" onClick={() => setPuenteNuevo({ nombre: '', branchId: '' })}><Icon name="plus" className="h-3.5 w-3.5" />Agregar puente</Button>
           )}
         </div>
       </Modal>
@@ -1236,7 +1309,7 @@ function ExplicacionDiagnostico({ diagnostico, estado, nombre }) {
   )
 }
 
-function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], onGuardar, onGestionarPuentes }) {
+function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], sucursales = [], onGuardar, onGestionarPuentes }) {
   const [validacion, setValidacion] = useState(null)
   const [validando, setValidando] = useState(false)
   const f = formulario
@@ -1343,12 +1416,20 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
         <div>
           <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Agente</h4>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
-            <FormField label="Puente" htmlFor="imp-puente" hint="El puente que imprime esta impresora. Sin elección, el primero de la empresa.">
+            <FormField label="Sucursal" htmlFor="imp-sucursal" hint="Los documentos de esta sucursal prefieren esta impresora. Sin sucursal, sirve a toda la empresa.">
+              <Select id="imp-sucursal" value={f.branchId || ''} onChange={(event) => set({ branchId: event.target.value })}>
+                <option value="">Toda la empresa</option>
+                {sucursales.map((sucursal) => <option key={sucursal.id} value={sucursal.id}>{sucursal.nombre}</option>)}
+              </Select>
+            </FormField>
+            <FormField label="Puente" htmlFor="imp-puente" hint="El puente que imprime esta impresora. Sin elección, el de su sucursal o el primero de la empresa.">
               <Select id="imp-puente" value={f.puenteId || ''} onChange={(event) => set({ puenteId: event.target.value })}>
-                <option value="">Puente predeterminado</option>
+                <option value="">Puente de la sucursal o predeterminado</option>
                 {bridges.map((puente) => <option key={puente.id} value={puente.id}>{puente.nombre}{puente.predeterminado ? ' (predeterminado)' : ''}</option>)}
               </Select>
             </FormField>
+          </div>
+          <div className="mt-2">
             <FormField label="Vinculación" htmlFor="imp-puentes-gestionar" hint="Los puentes se vinculan con un código de un solo uso.">
               <Button id="imp-puentes-gestionar" type="button" variant="outline" onClick={onGestionarPuentes}>Gestionar puentes</Button>
             </FormField>

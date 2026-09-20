@@ -105,6 +105,7 @@ export function shapePublico(job: PrintJob) {
     state: job.state,
     path: job.path,
     kind: job.kind,
+    bridgeId: job.bridgeId,
     printerId: job.printerId,
     destination: job.destination,
     validation: job.validation,

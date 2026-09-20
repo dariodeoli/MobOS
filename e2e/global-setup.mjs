@@ -118,14 +118,16 @@ function guardarSnapshot() {
 
 async function ensureBranch() {
   // The API has no branch-creation endpoint in this phase, so the harness
-  // inserts the single test branch directly (idempotent, fixed id).
+  // inserts the two test branches directly (idempotent, fixed ids).
   execFileSync(`${PG_BIN}/psql`, [
     '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
     '-v', 'ON_ERROR_STOP=1',
     '-c',
     `INSERT INTO "Branch" ("id", "tenantId", "name", "updatedAt")
-     SELECT '${SEED.branchId}', t."id", '${SEED.branchName}', CURRENT_TIMESTAMP
-     FROM "Tenant" t WHERE t."email" = '${SEED.company.email}'
+     SELECT branch."id", t."id", branch."name", CURRENT_TIMESTAMP
+     FROM "Tenant" t
+     CROSS JOIN (VALUES ('${SEED.branchId}', '${SEED.branchName}'), ('${SEED.branch2Id}', '${SEED.branch2Name}')) AS branch("id", "name")
+     WHERE t."email" = '${SEED.company.email}'
      ON CONFLICT ("id") DO NOTHING;`,
   ], { stdio: 'ignore' })
 }

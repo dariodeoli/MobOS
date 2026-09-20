@@ -228,6 +228,8 @@ model Branch {
 
   @@unique([tenantId, name])
   @@index([tenantId])
+  printBridges   PrintBridge[]  @relation("PrintBridgeBranch")
+  printPrinters  PrintPrinter[] @relation("PrintPrinterBranch")
 }
 
 model User {
@@ -1880,6 +1882,9 @@ model PrintBridge {
   pairingAttempts  Int       @default(0)
   createdByUserId  String?
   createdBy        User?     @relation("PrintBridgeCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  // Sucursal que sirve este puente (null = puente de empresa, fallback).
+  branchId         String?
+  branch           Branch?   @relation("PrintBridgeBranch", fields: [branchId], references: [id], onDelete: SetNull)
   version          String?
   platform         String?
   lastSeenAt       DateTime?
@@ -1900,6 +1905,9 @@ model PrintPrinter {
   id          String       @id @default(cuid())
   tenantId    String
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  // Sucursal que sirve esta impresora (null = empresa, fallback).
+  branchId    String?
+  branch      Branch?  @relation("PrintPrinterBranch", fields: [branchId], references: [id], onDelete: SetNull)
   bridgeId    String?
   bridge      PrintBridge? @relation(fields: [bridgeId], references: [id], onDelete: SetNull)
   name        String
@@ -1952,6 +1960,12 @@ model PrintJob {
   tokenHint         String        @default("")
   mode              String        @default("")
   width             Int           @default(80)
+  // Telemetría del trabajo: tiempos reales hasta imprimir (issue de comparativa).
+  printerName       String?
+  enqueuedAt        DateTime      @default(now())
+  queueMs           Int?
+  durationMs        Int?
+  transport         String?
   copies            Int           @default(1)
   attempts          Int           @default(0)
   leaseId           String?
@@ -1970,6 +1984,7 @@ model PrintJob {
   @@index([tenantId, state, createdAt])
   @@index([bridgeId, state])
   @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, enqueuedAt(sort: Desc)])
 }
 
 enum PrintJobState {

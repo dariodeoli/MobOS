@@ -21,6 +21,7 @@ const CAMPOS = [
   'isDefault',
   'isActive',
   'bridgeId',
+  'branchId',
 ] as const
 
 export function enmascararDestino(destination: unknown): string {
@@ -29,7 +30,7 @@ export function enmascararDestino(destination: unknown): string {
 }
 
 // Resumen estable de una impresora para crear, borrar o describir el estado.
-export function resumenImpresora(impresora: Pick<PrintPrinter, 'name' | 'connection' | 'destination' | 'width' | 'copies' | 'isDefault' | 'isActive'>) {
+export function resumenImpresora(impresora: Pick<PrintPrinter, 'name' | 'connection' | 'destination' | 'width' | 'copies' | 'isDefault' | 'isActive'> & { branchId?: string | null }) {
   return {
     name: impresora.name,
     connection: impresora.connection,
@@ -38,6 +39,7 @@ export function resumenImpresora(impresora: Pick<PrintPrinter, 'name' | 'connect
     copies: impresora.copies,
     isDefault: impresora.isDefault,
     isActive: impresora.isActive,
+    branchId: impresora.branchId ?? null,
   }
 }
 
