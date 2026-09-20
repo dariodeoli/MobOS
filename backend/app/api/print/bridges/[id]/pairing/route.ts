@@ -1,4 +1,4 @@
-import { requireSession } from '../../../../../../lib/auth'
+import { hasPermission, requireSession } from '../../../../../../lib/auth'
 import { error, json } from '../../../../../../lib/http'
 import { prisma } from '../../../../../../lib/prisma'
 import { crearCodigoVinculacion } from '../../../../../../lib/print-bridge'
@@ -8,7 +8,7 @@ import { crearCodigoVinculacion } from '../../../../../../lib/print-bridge'
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'print:manage')) return error('No autorizado.', 403)
   const { id } = await context.params
   const puente = await prisma.printBridge.findFirst({ where: { id, tenantId: session.user.tenantId } })
   if (!puente) return error('Puente no encontrado.', 404)

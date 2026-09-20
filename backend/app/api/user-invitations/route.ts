@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client'
-import { authRequestMetadata, requireSession } from '../../../lib/auth'
+import { authRequestMetadata, hasPermission, requireSession } from '../../../lib/auth'
 import { emailTransportConfigured } from '../../../lib/email'
 import { deliverInvitation, emailPattern, enqueueInvitation, invitationToken, INVITATION_COOLDOWN_MS, INVITATION_TTL_MS, permissionsData, serializeInvitation, validPermissions, validRole } from '../../../lib/user-invitations'
 import { error, json } from '../../../lib/http'
@@ -9,7 +9,7 @@ import { prisma } from '../../../lib/prisma'
 async function adminSession(request: Request) {
   const session = await requireSession(request)
   if (!session) return { response: error('Sesión inválida.', 401) }
-  if (session.user.role !== 'ADMIN') return { response: error('No autorizado.', 403) }
+  if (!hasPermission(session.user, 'team:manage')) return { response: error('No autorizado.', 403) }
   return { session }
 }
 

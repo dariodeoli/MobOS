@@ -22,8 +22,8 @@ const fechaCorta = (value) => {
 const project = ({ id, code, name, kind, value, productId, startsAt, endsAt, maxUnits, usedUnits, isActive }) => ({ id, code, name, kind, value, productId, startsAt, endsAt, maxUnits, usedUnits, isActive })
 const empty = { code: '', name: '', kind: 'PERCENT', value: '10', productId: '', startsAt: '', endsAt: '', maxUnits: '' }
 export default function SellerPromotions() {
-  const { esDemo, usuario } = useSesion()
-  const admin = usuario?.role === 'ADMIN'
+  const { esDemo, puede } = useSesion()
+  const admin = puede('promotions:manage')
   const products = getProductos().filter(p => p.activo)
   const data = useSellerData('/api/promotions', project, readDemoPromotions, esDemo)
   const [form, setForm] = useState(empty)

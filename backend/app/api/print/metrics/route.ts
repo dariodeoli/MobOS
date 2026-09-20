@@ -1,4 +1,4 @@
-import { requireSession } from '../../../../lib/auth'
+import { hasPermission, requireSession } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { prisma } from '../../../../lib/prisma'
 import { MAX_HORAS_SERIE, resumenImpresion } from '../../../../lib/print-metrics'
@@ -6,7 +6,6 @@ import { MAX_HORAS_SERIE, resumenImpresion } from '../../../../lib/print-metrics
 // Métricas de impresión de la empresa: totales, latencia promedio y p95 por
 // impresora, serie por hora y los últimos trabajos con sus tiempos. La consulta
 // vive acá; el resumen es una función pura de print-metrics.ts.
-const ROLES_METRICAS = ['ADMIN', 'GERENTE']
 // Tope duro de filas para que un rango amplio no traiga la tabla completa: con
 // 10.000 trabajos por rango alcanza para agregados honestos de un local.
 const MAX_TRABAJOS = 10_000
@@ -21,7 +20,7 @@ function fecha(valor: string | null): Date | null {
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!ROLES_METRICAS.includes(session.user.role)) return error('Solo administración o gerencia ven las métricas de impresión.', 403)
+  if (!hasPermission(session.user, 'print:metrics')) return error('Solo administración o gerencia ven las métricas de impresión.', 403)
   const url = new URL(request.url)
 
   const hasta = fecha(url.searchParams.get('hasta')) ?? new Date()

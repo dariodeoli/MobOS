@@ -1,6 +1,6 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
-import { requireSession } from '../../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { internationalPhone } from '../../../../lib/validation'
 import {
   DIA_MS,
@@ -19,7 +19,6 @@ import {
 // el enlace), así que se marca recién al generar el recordatorio y queda
 // auditado en la cronología del cliente y del pedido. Los flags del email
 // (remindedAt/overdueRemindedAt) no se tocan: cada canal avisa una vez.
-const ROLES = ['ADMIN', 'GERENTE', 'CAJERA']
 const VENTANA_DIAS_DEFAULT = 7
 const VENTANA_DIAS_MAX = 60
 const DIAS_MS = DIA_MS
@@ -47,7 +46,7 @@ function fechaDeCuota(cuota: Pick<FilaCuota, 'dueAt' | 'order'>): Date | null {
 async function contexto(request: Request) {
   const session = await requireSession(request)
   if (!session) return { error: error('Falta sesión.', 401) }
-  if (!ROLES.includes(session.user.role)) return { error: error('No autorizado.', 403) }
+  if (!canAccessAny(session.user, ['collections:manage'])) return { error: error('No autorizado.', 403) }
   return { session }
 }
 

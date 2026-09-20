@@ -77,7 +77,6 @@ const AUTH_STATUS = {
   APPROVED: { label: 'Aprobada', color: 'green' },
   REJECTED: { label: 'Rechazada', color: 'red' },
 }
-const RESOLVERS = ['ADMIN', 'GERENTE']
 const resumenValor = (kind, value) => {
   const data = value && typeof value === 'object' ? value : {}
   if (kind === 'WHOLESALE') return 'Pasar a mayorista'
@@ -127,7 +126,7 @@ const conCodigos = (texto) => String(texto || '').replace(/MOB-(\d+)/g, 'MOB #$1
 // Texto legible por tipo de evento de la cronología del cliente.
 export default function CustomerProfile({ customer, open, onClose }) {
   const toast = useToast()
-  const { usuario, esDemo } = useSesion()
+  const { usuario, esDemo, puede } = useSesion()
   const [revision, setRevision] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -472,7 +471,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const diasCredito = profile?.customer?.creditDays
   const listaPreciosId = profile?.customer?.priceListId || customer?.priceListId || ''
   const nombreListaPrecios = listas.find((lista) => lista.id === listaPreciosId)?.name || null
-  const puedeResolver = RESOLVERS.includes(usuario?.role)
+  const puedeResolver = puede('authorizations:resolve')
   const ordenesConSaldo = orders.filter((order) => saldoOrden(order) > 0)
   const facturaActual = Boolean(profile?.customer?.billingName || profile?.customer?.billingDocument)
   const puntos = Number(loyalty?.pointsPyg ?? 0)

@@ -53,15 +53,21 @@ export type UserRole = (typeof USER_ROLES)[number]
 // authority; configured permissions can only reduce the baseline of a role.
 const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
   ADMIN: ['*'],
-  GERENTE: ['dashboard:read', 'reports:read', 'products:manage', 'stock:manage', 'orders:manage', 'customers:manage', 'purchases:manage', 'cash:manage', 'warranties:manage', 'tradeins:manage', 'promotions:manage', 'service:manage', 'delivery:manage'],
+  GERENTE: ['dashboard:read', 'reports:read', 'products:manage', 'stock:manage', 'orders:manage', 'customers:manage', 'purchases:manage', 'cash:manage', 'warranties:manage', 'tradeins:manage', 'promotions:manage', 'service:manage', 'delivery:manage', 'finance:read', 'finance:manage', 'collections:manage', 'marketing:manage', 'print:metrics', 'authorizations:resolve', 'commissions:settle'],
   VENDEDOR: ['pos:use', 'orders:own', 'customers:manage', 'products:read', 'stock:read', 'promotions:read', 'tradeins:receive', 'delivery:manage'],
-  CAJERA: ['pos:use', 'orders:branch', 'customers:manage', 'products:read', 'stock:read', 'payments:manage', 'delivery:manage'],
+  CAJERA: ['pos:use', 'orders:branch', 'customers:manage', 'products:read', 'stock:read', 'payments:manage', 'delivery:manage', 'finance:read', 'finance:manage', 'collections:manage'],
   // Taller: ve stock y clientes y gestiona las órdenes de servicio técnico.
   TECNICO: ['customers:manage', 'products:read', 'stock:read', 'service:manage', 'warranties:manage'],
   // Reparto propio: solo sus pedidos asignados, el pre-cobro en la calle y la
   // rendición en la tienda. No cobra ni vende desde el panel de venta.
   REPARTIDOR: ['delivery:use'],
 }
+
+// Permisos que solo tiene el dueño (su `*`): no viven en la base de ningún rol
+// operativo, así que ninguna configuración por integrante puede concederlos.
+// Igual se declaran para que la ruta los exija por nombre y el día que se
+// decida abrirlos a un rol alcance con agregarlos a su línea base.
+export const OWNER_ONLY_PERMISSIONS = ['team:manage', 'print:manage', 'finance:config'] as const
 
 type ScheduleWindow = { days: number[]; start: string; end: string }
 export type AccessSchedule = { timezone: string; windows: ScheduleWindow[] }
@@ -90,6 +96,19 @@ export const PERMISSION_CATALOG: readonly { id: string; label: string }[] = [
   { id: 'tradeins:manage', label: 'Pipeline de Trade-In' },
   { id: 'promotions:read', label: 'Consultar promociones' },
   { id: 'promotions:manage', label: 'Gestionar promociones' },
+  { id: 'delivery:use', label: 'Reparto: sus pedidos asignados y el cobro en la calle' },
+  { id: 'delivery:manage', label: 'Reparto: asignar pedidos y verificar rendiciones' },
+  { id: 'finance:read', label: 'Ver caja, finanzas y créditos' },
+  { id: 'finance:manage', label: 'Operar caja, gastos y créditos' },
+  { id: 'collections:manage', label: 'Cobranzas y recordatorios por WhatsApp' },
+  { id: 'marketing:manage', label: 'Marketing, segmentos y plantillas' },
+  { id: 'authorizations:resolve', label: 'Resolver autorizaciones de gerencia' },
+  { id: 'commissions:settle', label: 'Liquidar y pagar comisiones' },
+  { id: 'print:metrics', label: 'Métricas de impresión' },
+  // Solo el dueño: no aparecen en la base de ningún rol operativo.
+  { id: 'team:manage', label: 'Equipo: integrantes, invitaciones y permisos' },
+  { id: 'print:manage', label: 'Impresoras y puentes' },
+  { id: 'finance:config', label: 'Cuentas de cobro y configuración financiera' },
 ]
 
 /** Permisos base del rol (sin el comodín del ADMIN). */

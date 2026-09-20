@@ -77,9 +77,9 @@ export function readDemoCustomers() {
 }
 
 export default function SellerCustomers() {
-  const { esDemo, usuario, empresa, sucursal, sesion } = useSesion()
-  // Campañas: solo administración/gerencia y solo con datos reales.
-  const puedeCampanas = !esDemo && ['ADMIN', 'GERENTE'].includes(usuario?.role)
+  const { esDemo, empresa, sucursal, sesion, puede } = useSesion()
+  // Campañas: mismo permiso que aplica el backend, y solo con datos reales.
+  const puedeCampanas = !esDemo && puede('marketing:manage')
   const [seccion, setSeccion] = useState('clientes')
   // La búsqueda global abre la sección con ?q= y, si eligió un cliente puntual,
   // con ?cliente=<id> para abrir su ficha directo.

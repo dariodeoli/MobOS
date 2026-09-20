@@ -1,9 +1,9 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
-import { requireSession } from '../../../../lib/auth'
+import { hasPermission, requireSession } from '../../../../lib/auth'
 import { consultarClientes } from '../../../../lib/customer-segments'
-import { SEGMENTOS as SEGMENTOS_MARKETING, clasificarCliente, motivoNoElegible, opcionesSegmento, puedeGestionarMarketing, type SegmentoKey } from '../../../../lib/segments'
+import { SEGMENTOS as SEGMENTOS_MARKETING, clasificarCliente, motivoNoElegible, opcionesSegmento, type SegmentoKey } from '../../../../lib/segments'
 
 // Campañas de recompra (#82): segmentos calculados en SQL sobre todas las
 // fichas del tenant. La pantalla Clientes → Campañas los usa para elegir
@@ -16,7 +16,7 @@ const SEGMENTOS = ['inactivos6m', 'mayoristasDormidos', 'deudoresAlDia'] as cons
 type Segmento = (typeof SEGMENTOS)[number]
 
 const TOPE = 200
-const puedeGestionar = (role: string) => ['ADMIN', 'GERENTE'].includes(role)
+
 
 // Saldo pendiente: total de pedidos PENDING menos pagos confirmados. La misma
 // cuenta que usa Créditos para no mostrar dos verdades distintas.
@@ -62,7 +62,7 @@ function ordenDe(segmento: Segmento) {
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!puedeGestionar(session.user.role) && !puedeGestionarMarketing(session.user.role)) return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'marketing:manage')) return error('No autorizado.', 403)
   const tenant = session.user.tenantId
   const params = new URL(request.url).searchParams
   const pedido = (params.get('segment') || 'inactivos6m').trim()
@@ -153,7 +153,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!puedeGestionar(session.user.role)) return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'marketing:manage')) return error('No autorizado.', 403)
   const tenant = session.user.tenantId
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
   const ids = Array.isArray(body.customerIds) ? Array.from(new Set(body.customerIds.filter((id): id is string => typeof id === 'string' && Boolean(id)))) : []

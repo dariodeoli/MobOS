@@ -1,6 +1,6 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 
 const text = (value: unknown, max: number, required = false) => {
   if (value === undefined || value === null || value === '') return required ? null : null
@@ -18,7 +18,7 @@ const SUPPLIER_FIELDS = { name: 160, code: 32, document: 48, phone: 40, address:
 async function context(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return null
-  if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return false
+  if (!canAccessAny(session.user, ['purchases:manage'])) return false
   return { tenant, session }
 }
 

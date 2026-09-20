@@ -1,13 +1,14 @@
 import { prisma } from '../../../lib/prisma'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { error, json, tenantId } from '../../../lib/http'
 
 // Control de créditos: pendiente por cliente, límite, uso y días de mora.
-// Los roles de administración y caja lo usan como pantalla de compliance.
+// Administración, gerencia y caja lo usan como pantalla de compliance
+// (`finance:read`, recortable por integrante).
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!['ADMIN', 'GERENTE', 'CAJERA'].includes(session.user.role)) return error('No autorizado.', 403)
+  if (!canAccessAny(session.user, ['finance:read'])) return error('No autorizado.', 403)
   const branchId = session.user.branchId || new URL(request.url).searchParams.get('branchId') || null
   const rows = await prisma.$queryRaw<Array<{ customerId: string; name: string; phone: string | null; document: string | null; pricingTier: string; creditLimitPyg: number | null; creditDays: number | null; pendingOrders: number; outstandingPyg: bigint; oldestDueAt: Date | null; overdueOrders: number; overduePyg: bigint; maxOverdueDays: number | null; dueSoonPyg: bigint; dueSoonOrders: number }>>`
     SELECT c."id" AS "customerId", c."name", c."phone", c."document", c."pricingTier"::text, c."creditLimitPyg", c."creditDays",

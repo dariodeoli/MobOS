@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client'
-import { requireSession } from '../../../../../lib/auth'
+import { hasPermission, requireSession } from '../../../../../lib/auth'
 import { error, json } from '../../../../../lib/http'
 import { prisma } from '../../../../../lib/prisma'
 import { InputError } from '../../../../../lib/payment-input'
@@ -11,7 +11,7 @@ import { cambiosDeImpresora, resumenImpresora } from '../../../../../lib/print-a
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'print:manage')) return error('No autorizado.', 403)
   const { id } = await context.params
   const tenantId = session.user.tenantId
   const actual = await prisma.printPrinter.findFirst({ where: { id, tenantId } })
@@ -112,7 +112,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'print:manage')) return error('No autorizado.', 403)
   const { id } = await context.params
   const tenantId = session.user.tenantId
   const borrada = await prisma.$transaction(async tx => {

@@ -1,4 +1,4 @@
-import { requireSession } from '../../../../lib/auth'
+import { hasPermission, requireSession } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { prisma } from '../../../../lib/prisma'
 import { InputError } from '../../../../lib/payment-input'
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'print:manage')) return error('No autorizado.', 403)
   const tenantId = session.user.tenantId
   const body = await request.json().catch(() => null)
   let impresora

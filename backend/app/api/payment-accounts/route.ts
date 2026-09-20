@@ -1,6 +1,6 @@
 import { Prisma, type PaymentAccountKind, type PaymentCurrency } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
-import { requireSession } from '../../../lib/auth'
+import { hasPermission, requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 import { accountSnapshot, decimalInput, InputError, objectInput, textInput } from '../../../lib/payment-input'
 
@@ -51,13 +51,13 @@ function validateTransfer(account: { kind?: PaymentAccountKind; bank?: string | 
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  return json(await prisma.paymentAccount.findMany({ where: { tenantId: session.user.tenantId, ...(session.user.role === 'ADMIN' ? {} : { isActive: true }) }, orderBy: { name: 'asc' } }))
+  return json(await prisma.paymentAccount.findMany({ where: { tenantId: session.user.tenantId, ...(hasPermission(session.user, 'finance:config') ? {} : { isActive: true }) }, orderBy: { name: 'asc' } }))
 }
 
 async function write(request: Request, create: boolean) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'finance:config')) return error('No autorizado.', 403)
   try {
     const body = objectInput(await request.json())
     const data = accountData(body, create)

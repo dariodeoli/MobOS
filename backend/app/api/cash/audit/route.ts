@@ -1,9 +1,10 @@
 import { prisma } from '../../../../lib/prisma'
-import { requireSession } from '../../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../../lib/auth'
 import { error, json, tenantId } from '../../../../lib/http'
 import { ensureStoreBranch } from '../../../../lib/store-branch'
 
-const ROLES = ['ADMIN', 'GERENTE', 'CAJERA']
+// Quien opera caja o cobros puede auditar el día (recortable por integrante).
+const CASH_PERMISSIONS = ['cash:manage', 'payments:manage'] as const
 const METHODS = ['CASH', 'TRANSFER', 'CARD', 'PIX', 'CREDIT', 'TRADE_IN'] as const
 // Paraguay usa UTC-4: el "día" operativo de la sucursal se delimita así.
 const OFFSET = '-04:00'
@@ -14,7 +15,7 @@ const OFFSET = '-04:00'
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!ROLES.includes(session.user.role)) return error('No autorizado.', 403)
+  if (!canAccessAny(session.user, CASH_PERMISSIONS)) return error('No autorizado.', 403)
   const params = new URL(request.url).searchParams
   const requested = params.get('branchId')
   let branchId: string | null = session.user.branchId || (session.user.role === 'ADMIN' ? requested : null)

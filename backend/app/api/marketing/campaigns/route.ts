@@ -1,10 +1,10 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
-import { requireSession } from '../../../../lib/auth'
+import { hasPermission, requireSession } from '../../../../lib/auth'
 import { internationalPhone } from '../../../../lib/validation'
 import { formatearGs, renderPlantilla } from '../../../../lib/collections'
 import { consultarClientes } from '../../../../lib/customer-segments'
-import { SEGMENTOS, clasificarCliente, motivoNoElegible, opcionesSegmento, puedeGestionarMarketing, type SegmentoKey } from '../../../../lib/segments'
+import { SEGMENTOS, clasificarCliente, motivoNoElegible, opcionesSegmento, type SegmentoKey } from '../../../../lib/segments'
 
 // Campañas de recompra: se elige un segmento y una plantilla de clientes, y el
 // servidor arma el enlace wa.me de cada destinatario. El envío real lo hace una
@@ -22,7 +22,7 @@ const MOTIVOS: Record<string, string> = {
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!puedeGestionarMarketing(session.user.role)) return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'marketing:manage')) return error('No autorizado.', 403)
   const campaigns = await prisma.marketingCampaign.findMany({
     where: { tenantId: session.user.tenantId },
     select: {
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!puedeGestionarMarketing(session.user.role)) return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'marketing:manage')) return error('No autorizado.', 403)
   const tenantId = session.user.tenantId
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
   const segment = (typeof body.segment === 'string' ? body.segment.trim().toUpperCase() : '') as SegmentoKey

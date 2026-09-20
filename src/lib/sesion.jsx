@@ -109,7 +109,16 @@ export function SesionProvider({ children }) {
   function actualizarNombreUsuario(nombre) {
     setUsuario(current => current ? { ...current, name: nombre, user_metadata: { ...(current.user_metadata || {}), nombre } } : current)
   }
-  const sesion = usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, correo: usuario.email, esPropietario: empresa?.rol === 'dueno', rol: empresa?.rol || null } : null
-  return <SesionContext.Provider value={{ estado, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, perfilEmpresa, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal, cambiarEmpresa, actualizarEmpresa, actualizarNombreUsuario, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
+  // Permisos efectivos que manda el backend (`session.user.permissions`): la
+  // interfaz decide visibilidad con `puede()` y no repite listas de roles. En
+  // la demo no hay permisos reales: el dueño demo ve todo y el resto nada.
+  const permisos = Array.isArray(usuario?.permissions) ? usuario.permissions : null
+  const puede = useCallback((permiso) => {
+    if (!permiso) return false
+    if (permisos) return permisos.includes('*') || permisos.includes(permiso)
+    return empresa?.rol === 'dueno'
+  }, [permisos, empresa?.rol])
+  const sesion = usuario ? { vendedorId: usuario.id, nombre: usuario.user_metadata?.nombre || usuario.email, correo: usuario.email, esPropietario: empresa?.rol === 'dueno', rol: empresa?.rol || null, permisos, puede } : null
+  return <SesionContext.Provider value={{ estado, sesion, usuario, empresa, empresas, sucursal, sucursales, vendedores, perfilEmpresa, puede, entrar, entrarEmpresa, entrarVendedor, cambiarVendedor, entrarDemo, esDemo: isDemoRuntime, salir, cambiarSucursal, cambiarEmpresa, actualizarEmpresa, actualizarNombreUsuario, recargarEmpresas: async () => {} }}>{children}</SesionContext.Provider>
 }
 export function useSesion() { return useContext(SesionContext) }

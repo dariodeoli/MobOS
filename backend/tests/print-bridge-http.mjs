@@ -31,14 +31,18 @@ async function agente(path, { method = 'POST', token = null, body } = {}) {
 
 const codigoValido = codigo => /^[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}$/.test(String(codigo))
 
-// 1. Permisos: sesión para listar, ADMIN para crear.
+// 1. Permisos: los puentes son de `print:manage` (solo el dueño).
+// La ruta de impresoras sigue abierta a cualquier sesión porque el que vende
+// necesita los destinos para imprimir; los puentes se administran aparte.
 let resultado = await request('/api/print/bridges', { token: null })
 assert.equal(resultado.status, 401, 'sin sesión la lista de puentes exige 401')
 resultado = await request('/api/print/bridges', { token: sellerToken })
-assert.equal(resultado.status, 200, 'un vendedor puede listar los puentes')
-assert.ok(Array.isArray(resultado.payload.bridges), 'la lista devuelve bridges')
+assert.equal(resultado.status, 403, 'un vendedor no lista ni administra puentes')
 resultado = await request('/api/print/bridges', { method: 'POST', body: { name: 'Puente vendedor' }, token: sellerToken })
 assert.equal(resultado.status, 403, 'un vendedor no crea puentes')
+resultado = await request('/api/print/bridges')
+assert.equal(resultado.status, 200, 'el dueño lista los puentes')
+assert.ok(Array.isArray(resultado.payload.bridges), 'la lista devuelve bridges')
 
 // 2. Alta de puente: nombre obligatorio y código de un solo uso en la respuesta.
 resultado = await request('/api/print/bridges', { method: 'POST', body: { name: '   ' } })

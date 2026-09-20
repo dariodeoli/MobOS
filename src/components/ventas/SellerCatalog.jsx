@@ -78,7 +78,7 @@ function TarjetaProducto({ row, onClick }) {
 }
 
 export default function SellerCatalog() {
-  const { esDemo, sesion, usuario } = useSesion()
+  const { esDemo, sesion, usuario, puede } = useSesion()
   const toast = useToast()
   const [seleccionados, setSeleccionados] = useState([])
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
@@ -96,7 +96,7 @@ export default function SellerCatalog() {
   const searchRef = useRef(null)
   useEffect(() => { setSearch(busquedaDiferida.trim()) }, [busquedaDiferida])
   const data = useSellerData(`/api/products?q=${encodeURIComponent(search)}`, productFields, demoProducts, esDemo, { limit: 50 })
-  const canManage = Boolean(sesion?.esPropietario || ['ADMIN', 'GERENTE'].includes(sesion?.rol) || ['ADMIN', 'GERENTE'].includes(usuario?.role))
+  const canManage = puede('products:manage')
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
     return data.rows

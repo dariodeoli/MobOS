@@ -1,12 +1,11 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { canAccessOrder } from '../../../lib/orders'
 import { serialKey } from '../../../lib/validation'
 import {
   AUTHORIZATION_KINDS,
-  AUTHORIZATION_RESOLVERS,
   DISCOUNT_MAX_PYG,
   authorizationValueOf,
   safeIntValue,
@@ -125,7 +124,7 @@ export async function GET(request: Request) {
   const mine = params.get('mine') === '1'
   if (status && !STATUSES.includes(status)) return error('Estado de solicitud inválido.')
   if (kind && !(AUTHORIZATION_KINDS as readonly string[]).includes(kind)) return error('Tipo de autorización inválido.')
-  const seeAll = (AUTHORIZATION_RESOLVERS as readonly string[]).includes(session.user.role)
+  const seeAll = canAccessAny(session.user, ['authorizations:resolve'])
   const rows = await prisma.customerAuthorization.findMany({
     where: {
       tenantId: session.user.tenantId,
@@ -348,7 +347,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!(AUTHORIZATION_RESOLVERS as readonly string[]).includes(session.user.role)) return error('Solo gerencia o el dueño pueden resolver solicitudes.', 403)
+  if (!canAccessAny(session.user, ['authorizations:resolve'])) return error('Solo gerencia o el dueño pueden resolver solicitudes.', 403)
   try {
     const body = await request.json().catch(() => null) as Record<string, unknown> | null
     const id = clean(body?.id, 128)

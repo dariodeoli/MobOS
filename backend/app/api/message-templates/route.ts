@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { hasPermission, requireSession } from '../../../lib/auth'
 
 // Soporta las dos interfaces históricas de la API:
 // - `category` (ORDERS | CUSTOMERS | SERVICE | COLLECTIONS) — componente WhatsAppTemplates.
@@ -59,7 +59,6 @@ const slugDe = (value: string) => value
 
 const nuevaKey = (name: string) => `${slugDe(name) || 'plantilla'}_${randomUUID().replace(/-/g, '').slice(0, 8)}`.slice(0, 64)
 
-const puedeGestionar = (role: string) => ['ADMIN', 'GERENTE'].includes(role)
 
 function categoriaDe(body: Record<string, unknown>, fallback: Category): Category | null {
   if (typeof body.category === 'string' && body.category) {
@@ -128,7 +127,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const session = await requireSession(request); if (!session) return error('Falta sesión.', 401)
-  if (!puedeGestionar(session.user.role)) return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'marketing:manage')) return error('No autorizado.', 403)
   const tenantId = session.user.tenantId
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
   const duplicateId = typeof body.duplicateOf === 'string' ? body.duplicateOf : typeof body.duplicate === 'string' ? body.duplicate : ''
@@ -176,7 +175,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   const session = await requireSession(request); if (!session) return error('Falta sesión.', 401)
-  if (!puedeGestionar(session.user.role)) return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'marketing:manage')) return error('No autorizado.', 403)
   const tenantId = session.user.tenantId
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
   const id = typeof body.id === 'string' ? body.id : ''
@@ -220,7 +219,7 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   const session = await requireSession(request); if (!session) return error('Falta sesión.', 401)
-  if (!puedeGestionar(session.user.role)) return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'marketing:manage')) return error('No autorizado.', 403)
   const tenantId = session.user.tenantId
   const id = new URL(request.url).searchParams.get('id') || ''
   if (!id) return error('Falta la plantilla a eliminar.')

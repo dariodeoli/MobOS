@@ -24,9 +24,9 @@ const TEMPLATES = [
 ]
 
 export default function PaymentAccounts() {
-  const { sesion, empresa } = useSesion()
+  const { empresa, puede } = useSesion()
   // Remount al cambiar de empresa para no mostrar cuentas del contexto anterior.
-  if (!sesion?.esPropietario) return null
+  if (!puede('finance:config')) return null
   return <AccountManager key={empresa?.id || 'default'} />
 }
 

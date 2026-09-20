@@ -1,4 +1,4 @@
-import { requireSession } from '../../../../../lib/auth'
+import { hasPermission, requireSession } from '../../../../../lib/auth'
 import { emailTransportConfigured } from '../../../../../lib/email'
 import { deliverInvitation, enqueueInvitation, invitationToken, INVITATION_COOLDOWN_MS, INVITATION_TTL_MS, serializeInvitation } from '../../../../../lib/user-invitations'
 import { error, json } from '../../../../../lib/http'
@@ -7,7 +7,7 @@ import { withEmailOutboxTransaction } from '../../../../../lib/email-outbox'
 export async function POST(request: Request, context: { params: { id: string } }) {
   const session = await requireSession(request)
   if (!session) return error('Sesión inválida.', 401)
-  if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'team:manage')) return error('No autorizado.', 403)
   if (!emailTransportConfigured()) return error('El envío de correo todavía no está configurado.', 503)
   const tenantId = session.user.tenantId
   const now = new Date()

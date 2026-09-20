@@ -367,7 +367,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const [receivedStock, setReceivedStock] = useState([])
   const [visibilityError, setVisibilityError] = useState('')
   const apiMode = modoDatosActual() === 'api'
-  const { sesion, sucursal, perfilEmpresa, esDemo } = useSesion()
+  const { sesion, sucursal, perfilEmpresa, esDemo, puede } = useSesion()
   // Aviso del resultado de una etiqueta: el respaldo con diálogo se abre solo
   // (dentro de las funciones de impresión); acá se informa el resto.
   const avisarImpresion = (resultado, nombre = 'Etiqueta') => {
@@ -383,8 +383,8 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const puedeTransferirSinAuth = sesion?.rol === 'dueno' || sesion?.rol === 'GERENTE'
   const transferSerials = transfer.serials.split(/[\n,;]+/).map(normalizeScan).filter(Boolean)
   useEffect(() => { setTransferAuth(null) }, [transfer.sourceBranchId, transfer.destinationBranchId, transfer.productId, transfer.serials])
-  const canViewAlerts = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
-  const canManageLocations = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
+  const canViewAlerts = puede('stock:manage')
+  const canManageLocations = puede('stock:manage')
   const canManageVisibility = Boolean(sesion?.esPropietario)
   // La pestaña activa vive en la URL (/inventario/<slug>). Sin slug válido o sin
   // permiso para Alertas, se cae en Unidades.
@@ -535,7 +535,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const [cancelarConteoOpen, setCancelarConteoOpen] = useState(false), [camaraConteoOpen, setCamaraConteoOpen] = useState(false)
   const conteoSerialRef = useRef(null)
   const escanearConteoRef = useRef(null)
-  const puedeAplicarConteo = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
+  const puedeAplicarConteo = puede('stock:manage')
   const cargarConteos = useCallback(async () => {
     if (!apiMode) return
     setConteosLoading(true); setConteosError('')

@@ -1,11 +1,11 @@
-import { requireSession } from '../../../../../lib/auth'
+import { hasPermission, requireSession } from '../../../../../lib/auth'
 import { error, json } from '../../../../../lib/http'
 import { prisma } from '../../../../../lib/prisma'
 
 export async function POST(request: Request, context: { params: { id: string } }) {
   const session = await requireSession(request)
   if (!session) return error('Sesión inválida.', 401)
-  if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'team:manage')) return error('No autorizado.', 403)
   const now = new Date()
   const invitation = await prisma.userInvitation.findFirst({ where: { id: context.params.id, tenantId: session.user.tenantId, consumedAt: null, revokedAt: null }, select: { id: true, tokenHash: true } })
   if (!invitation) return error('La invitación no está disponible.', 404)

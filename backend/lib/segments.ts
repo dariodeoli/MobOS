@@ -8,10 +8,6 @@ import { normalizarCategoria } from './pricing'
 
 export type SegmentoKey = 'INACTIVE' | 'NO_PURCHASES' | 'FREQUENT' | 'CATEGORY'
 
-// Campañas y segmentos son de administración y gerencia; los roles de venta no
-// los ven (misma vara que la configuración de plantillas).
-export const puedeGestionarMarketing = (role: string) => ['ADMIN', 'GERENTE'].includes(role)
-
 export const SEGMENTOS: Array<{ key: SegmentoKey; nombre: string; descripcion: string }> = [
   { key: 'INACTIVE', nombre: 'Inactivos', descripcion: 'Clientes con al menos una compra y cuya última compra fue hace N días o más.' },
   { key: 'NO_PURCHASES', nombre: 'Nunca compraron', descripcion: 'Fichas cargadas sin ningún pedido registrado.' },

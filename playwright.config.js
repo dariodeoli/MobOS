@@ -79,9 +79,10 @@ export default defineConfig({
   },
   projects: [
     {
-      // No storage state: UI login flows and anonymous API tracking.
+      // No storage state: UI login flows, anonymous API tracking y las páginas
+      // públicas de los QR (prueba, unidad, producto, liquidación).
       name: 'core',
-      testMatch: /auth\.spec\.js|public-tracking\.spec\.js|cliente-portal-entrada\.spec\.js/,
+      testMatch: /auth\.spec\.js|public-tracking\.spec\.js|cliente-portal-entrada\.spec\.js|qr-unificado\.spec\.js/,
     },
     {
       // Seeded seller session (PIN 2468) for POS and permissions coverage.

@@ -1,6 +1,6 @@
 import type { CashDirection, CashMovementKind, PaymentCurrency } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 import { InputError } from '../../../lib/payment-input'
 import { ensureStoreBranch } from '../../../lib/store-branch'
@@ -8,8 +8,9 @@ import { FINANCE_CURRENCIES, FinanceInputError, frozenAmountPyg, purchasePayable
 import { createCashMovement } from '../../../lib/cash-movements'
 import { DEFAULT_EXPENSE_LIMIT_PYG, authorizedAmountOf, consumeAuthorization, usableAuthorization } from '../../../lib/authorizations'
 
-const ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
-const WRITE_ROLES = ['ADMIN', 'GERENTE', 'CAJERA'] as const
+// Permiso efectivo: ver finanzas y operarlas (recortable por integrante).
+const READ_PERMISSION = 'finance:read'
+const WRITE_PERMISSION = 'finance:manage'
 const KINDS = ['EXPENSE', 'TRANSFER', 'SUPPLIER_ADVANCE', 'CHEQUE', 'OWNER_WITHDRAWAL', 'ADJUSTMENT'] as const
 
 function text(value: unknown, field: string, max = 500, required = false) {
@@ -24,7 +25,7 @@ function text(value: unknown, field: string, max = 500, required = false) {
 async function scope(request: Request, write = false) {
   const session = await requireSession(request)
   if (!session) return { status: 401 as const }
-  if (!(write ? WRITE_ROLES : ROLES).includes(session.user.role as (typeof ROLES)[number])) return { status: 403 as const }
+  if (!canAccessAny(session.user, [write ? WRITE_PERMISSION : READ_PERMISSION])) return { status: 403 as const }
   const requestedBranch = new URL(request.url).searchParams.get('branchId')
   let branchId: string | null = session.user.role === 'ADMIN' ? requestedBranch || null : session.user.branchId
   if (session.user.role !== 'ADMIN' && !branchId) branchId = await ensureStoreBranch(session)

@@ -22,7 +22,6 @@ export const AUTHORIZATION_KINDS = [
 ] as const
 export type AuthorizationKind = typeof AUTHORIZATION_KINDS[number]
 
-export const AUTHORIZATION_RESOLVERS = ['ADMIN', 'GERENTE'] as const
 export const DISCOUNT_MAX_PYG = 100000000
 export const AUTHORIZATION_MAX_AGE_MS = 24 * 60 * 60 * 1000
 // Límites por defecto cuando la empresa no configuró los suyos.

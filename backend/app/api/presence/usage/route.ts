@@ -1,6 +1,6 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
-import { requireSession } from '../../../../lib/auth'
+import { hasPermission, requireSession } from '../../../../lib/auth'
 import { VENTANA_EN_LINEA_MS } from '../../../../lib/presence'
 
 const DIAS = 30
@@ -10,7 +10,7 @@ const DIAS = 30
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (session.user.role !== 'ADMIN') return error('Solo el dueño puede ver el uso del equipo.', 403)
+  if (!hasPermission(session.user, 'team:manage')) return error('Solo el dueño puede ver el uso del equipo.', 403)
   const { tenantId } = session.user
   const url = new URL(request.url)
   const userId = url.searchParams.get('userId')

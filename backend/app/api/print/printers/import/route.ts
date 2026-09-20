@@ -1,4 +1,4 @@
-import { hashToken, requireSession } from '../../../../../lib/auth'
+import { hashToken, hasPermission, requireSession } from '../../../../../lib/auth'
 import { error, json } from '../../../../../lib/http'
 import { prisma } from '../../../../../lib/prisma'
 import { InputError } from '../../../../../lib/payment-input'
@@ -11,7 +11,7 @@ import { generarTokenPuente, impresoraDesdeLegacy, shapePuente } from '../../../
 export async function POST(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'print:manage')) return error('No autorizado.', 403)
   const body = await request.json().catch(() => null)
   const printers = Array.isArray(body?.printers) ? body.printers : null
   const bridges = Array.isArray(body?.bridges) ? body.bridges : []

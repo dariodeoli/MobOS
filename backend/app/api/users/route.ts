@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
-import { effectivePermissions, normalizeAccessSchedule, requireSession, USER_ROLES } from '../../../lib/auth'
+import { effectivePermissions, hasPermission, normalizeAccessSchedule, requireSession, USER_ROLES } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -32,7 +32,7 @@ function serializeUser(user: any) {
 async function adminSession(request: Request) {
   const session = await requireSession(request)
   if (!session) return { error: error('Sesión inválida.', 401) }
-  if (session.user.role !== 'ADMIN') return { error: error('No autorizado.', 403) }
+  if (!hasPermission(session.user, 'team:manage')) return { error: error('No autorizado.', 403) }
   return { session }
 }
 

@@ -1,13 +1,15 @@
-import { hashToken, requireSession } from '../../../../lib/auth'
+import { hashToken, hasPermission, requireSession } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
 import { prisma } from '../../../../lib/prisma'
 import { MAX_PUENTES_POR_EMPRESA, crearCodigoVinculacion, generarTokenPuente, shapePuente, topeDePuentesAlcanzado } from '../../../../lib/print-bridge'
 
-// Lista los puentes activos de la empresa. El token y el código de vinculación
-// nunca se devuelven: solo su nombre, versión y última conexión.
+// Lista los puentes activos de la empresa (permiso de impresión). El token y
+// el código de vinculación nunca se devuelven: solo su nombre, versión y
+// última conexión.
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
+  if (!hasPermission(session.user, 'print:manage')) return error('No autorizado.', 403)
   const bridges = await prisma.printBridge.findMany({ where: { tenantId: session.user.tenantId, revokedAt: null }, orderBy: { createdAt: 'asc' } })
   return json({ bridges: bridges.map(puente => shapePuente(puente)) })
 }
@@ -17,7 +19,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (session.user.role !== 'ADMIN') return error('No autorizado.', 403)
+  if (!hasPermission(session.user, 'print:manage')) return error('No autorizado.', 403)
   const body = await request.json().catch(() => null)
   const name = typeof body?.name === 'string' ? body.name.trim() : ''
   if (!name || name.length > 120) return error('El nombre del puente es obligatorio (hasta 120 caracteres).')

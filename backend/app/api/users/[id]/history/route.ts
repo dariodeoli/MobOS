@@ -1,6 +1,6 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
-import { requireSession } from '../../../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../../../lib/auth'
 
 type RouteContext = { params: { id: string } }
 
@@ -48,7 +48,8 @@ type TimelineEvent = {
 export async function GET(request: Request, { params }: RouteContext) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
+  // El dueño administra el equipo; gerencia lee el historial con su alcance de reportes.
+  if (!canAccessAny(session.user, ['team:manage', 'reports:read'])) return error('No autorizado.', 403)
   const tenant = session.user.tenantId
   const id = (params.id || '').trim().slice(0, 128)
   if (!id) return error('Usuario obligatorio.')

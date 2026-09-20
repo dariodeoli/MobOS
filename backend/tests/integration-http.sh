@@ -535,6 +535,9 @@ echo "Delivery propio: asignar → cobrar → rendir → verificar, con permisos
 out="$(response_file)"; REPARTIDOR_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-repartidor-it","pin":"8642"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 node "$BACKEND_ROOT/tests/delivery.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$REPARTIDOR_TOKEN"
 
+echo "Liquidación de comisiones: cerrar → pagar → auditoría → verificación pública por token..."
+node "$BACKEND_ROOT/tests/commission-settlements.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$COMPANY_TOKEN_A"
+
 echo "Reportes por producto, categoría, vendedor y día..."
 REPORTS_TO="$(node -e 'process.stdout.write(new Date().toISOString().slice(0,10))')"
 REPORTS_FROM="$(node -e 'process.stdout.write(new Date(Date.now() - 29 * 86400000).toISOString().slice(0,10))')"
@@ -612,6 +615,11 @@ assert_role_history "$out" || { echo "El historial no registró el cambio de rol
 out="$(response_file)"; request GET /api/users/user-a-2-it/history 403 '' "$out" "$TOKEN_A" ''
 out="$(response_file)"; request GET /api/user-invitations 403 '' "$out" "$TOKEN_A" ''
 
+echo "Permisos granulares: catálogo, matriz por rol y recorte efectivo por integrante..."
+# Este arnés recorta permisos (y con eso revoca sesiones del objetivo): va al
+# final del bloque de equipo, cuando las sesiones de gerencia/caja ya no se usan.
+node "$BACKEND_ROOT/tests/permissions-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$CAJERA_TOKEN" "$GERENTE_TOKEN" "$COMPANY_TOKEN_A"
+
 echo "10/13 Límite de reportes de error por IP: 429 con Retry-After..."
 # MOBOS_TRUST_PROXY=true habilita la resolución de IP desde x-forwarded-for
 # (como en producción detrás del Hub). Solo estas solicitudes envían el
@@ -639,6 +647,11 @@ echo "11/13 Restauración de backup en cluster nuevo..."
 node "$BACKEND_ROOT/tests/backup-restore.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$PG_BIN" "$DATABASE_URL" "$RUN_ROOT/backups"
 
 echo "12/13 Bloqueo de login empresarial después de cinco intentos..."
+# El throttle por IP de /api/auth/pin comparte el bucket 127.0.0.1 entre TODOS
+# los arneses (el proxy interno pisa X-Forwarded-For). Esta sección prueba el
+# bloqueo por cuenta, no el throttle: se limpia el bucket para que el conteo de
+# logins de las pruebas anteriores no la vuelva frágil.
+"$PG_BIN/psql" "$DATABASE_URL" -At -c "DELETE FROM \"AuthAttempt\" WHERE \"scope\" = 'seller-pin';" >/dev/null
 out="$(response_file)"; request POST /api/auth/pin 200 '{"sellerId":"user-lock-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" ''
 for _ in 1 2 3 4 5; do
   out="$(response_file)"; request POST /api/auth/login 401 '{"email":"company-a-it@example.invalid","password":"wrong-company-password","deviceId":"device-lock-it"}' "$out" '' ''

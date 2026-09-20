@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { baseDeApp, leerEtiqueta, leerPrueba, qrGarantia, qrPedido, qrProducto, qrPrueba, qrUnidad } from './qr.js'
+import { baseDeApp, leerEtiqueta, leerPrueba, qrGarantia, qrLiquidacion, qrPedido, qrProducto, qrPrueba, qrUnidad } from './qr.js'
 
 const BASE = 'https://app.moboss.online'
 
@@ -9,6 +9,14 @@ test('los QR de pedido, unidad, producto y garantía son URLs absolutas de la ap
   assert.equal(qrUnidad('356789012345678', BASE), `${BASE}/u/356789012345678`)
   assert.equal(qrProducto('IPH-15-128', BASE), `${BASE}/producto/IPH-15-128`)
   assert.equal(qrGarantia('token-garantia', BASE), `${BASE}/garantia/token-garantia`)
+})
+
+test('el comprobante de comisiones apunta a la verificación pública de la app', () => {
+  assert.equal(qrLiquidacion('tok-liq-1', BASE), `${BASE}/liquidacion/tok-liq-1`)
+  assert.equal(qrLiquidacion('token con espacios', BASE), `${BASE}/liquidacion/token%20con%20espacios`)
+  // Sin base el papel igual lleva el payload histórico del comprobante.
+  assert.equal(qrLiquidacion('tok-liq-1'), 'MOBOS:LIQ:tok-liq-1')
+  assert.equal(qrLiquidacion(''), '')
 })
 
 test('la base sale del parámetro explícito y se le quita la barra final', () => {

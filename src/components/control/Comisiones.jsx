@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import QRCode from 'qrcode'
-import { api, API_URL } from '@/lib/api/client'
+import { api } from '@/lib/api/client'
 import { Button, Card, ConfirmDialog, EmptyState, Select, Input, Badge, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
@@ -9,6 +9,7 @@ import { printHtml } from '@/utils/printHtml'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { configImpresora } from '@/lib/printing/agent'
 import { ticketLiquidacionComision } from '@/lib/printing/tickets'
+import { qrLiquidacion } from '@/lib/printing/qr'
 
 // Reglas de comisión sobre el margen y liquidaciones por vendedor
 // (Finanzas → Comisiones). Mismo contrato que Configuración → Equipo usaba:
@@ -23,8 +24,9 @@ const diaLocal = (fecha) => `${fecha.getFullYear()}-${String(fecha.getMonth() + 
 const hoy = () => diaLocal(new Date())
 const inicioDeMes = () => { const fecha = new Date(); return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-01` }
 
-// El QR abre la verificación pública del comprobante (sin sesión).
-const enlaceVerificacion = (token) => token && API_URL ? `${API_URL}/api/public/commission-settlements/${encodeURIComponent(token)}` : ''
+// El QR abre la verificación pública del comprobante (sin sesión) en la app:
+// `/liquidacion/<token>`, el contrato único de printing/qr.js.
+const enlaceVerificacion = (token) => qrLiquidacion(token)
 
 // Respaldo A4 del comprobante cuando la térmica no está disponible: mismo
 // contenido que el ticket, con el QR para verificar la liquidación.

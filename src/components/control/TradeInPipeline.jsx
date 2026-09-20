@@ -291,8 +291,8 @@ function Valuaciones({ esDemo }) {
 }
 
 export default function TradeInPipeline() {
-  const { esDemo, sesion, usuario } = useSesion()
-  const admin = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
+  const { esDemo, puede } = useSesion()
+  const admin = puede('tradeins:manage')
   const [items, setItems] = useState([])
   const [filter, setFilter] = useState('')
   const [query, setQuery] = useState('')
