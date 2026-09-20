@@ -29,6 +29,18 @@ const DESTINO_SUCURSAL_B = 'lan:10.99.99.41:9100'
 // "sucursal con ventas sin puente" se sembraría con una fila directa. Es
 // idempotente y solo toca la base temporal del e2e.
 function sembrarVentaSucursalDos() {
+  // El snapshot de la base e2e puede ser viejo y no traer las sucursales fijas
+  // del seed: se aseguran acá antes de sembrar la venta (idempotente).
+  execFileSync('/opt/homebrew/bin/psql', [
+    '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
+    '-v', 'ON_ERROR_STOP=1', '-c',
+    `INSERT INTO "Branch" ("id", "tenantId", "name", "updatedAt")
+     SELECT branch."id", t."id", branch."name", CURRENT_TIMESTAMP
+     FROM "Tenant" t
+     CROSS JOIN (VALUES ('${SEED.branchId}', '${SEED.branchName}'), ('${SEED.branch2Id}', '${SEED.branch2Name}')) AS branch("id", "name")
+     WHERE t."email" = '${SEED.company.email}'
+     ON CONFLICT ("id") DO UPDATE SET "name" = EXCLUDED."name";`,
+  ], { stdio: 'ignore' })
   execFileSync('/opt/homebrew/bin/psql', [
     '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
     '-v', 'ON_ERROR_STOP=1', '-c',

@@ -53,7 +53,7 @@ test('el portal del cliente se abre desde la ficha y muestra el saldo pendiente'
 
   // "Abrir" lleva al resumen público: saldo pendiente = total − pagos.
   const popup = page.context().waitForEvent('page')
-  await page.getByRole('button', { name: 'Abrir' }).click()
+  await page.getByRole('button', { name: 'Abrir', exact: true }).click()
   const portal = await popup
   await portal.waitForLoadState()
   await expect(portal.getByRole('heading', { name: 'Tienda E2E' })).toBeVisible()
