@@ -29,8 +29,11 @@ test('búsqueda global: encuentra una cotización por su número y la abre filtr
   await buscador.fill(cotizacion.number)
 
   await expect(page.getByRole('group', { name: 'Cotizaciones' })).toBeVisible()
-  await expect(page.getByRole('option').filter({ hasText: cotizacion.number })).toBeVisible()
-  await expect(page.getByRole('option').first()).toContainText(cotizacion.number)
+  // El buscador global tiene su propia lista: se acota para no chocar con los
+  // <option> nativos de la página (la venta ahora es todo en uno).
+  const listaGlobal = page.getByRole('dialog').getByRole('listbox')
+  await expect(listaGlobal.getByRole('option').filter({ hasText: cotizacion.number })).toBeVisible()
+  await expect(listaGlobal.getByRole('option').first()).toContainText(cotizacion.number)
 
   // Esc cierra el diálogo sin navegar.
   await buscador.press('Escape')
