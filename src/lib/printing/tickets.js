@@ -4,6 +4,7 @@ import { gs } from '../../utils/calculos.js'
 import { APP_NAME } from '../brand.js'
 import { ETIQUETAS_MEDIO_PAGO } from '../constants.js'
 import { CHECKLISTS } from '../servicioChecklist.js'
+import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from './codigos.js'
 import { crearTicket } from './escpos.js'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
@@ -169,6 +170,53 @@ export function ticketEtiquetaPrecio(product, { ancho = 80 } = {}) {
   t.avanza(1)
   t.qr(`MOBOS:PROD:${product.sku || product.id || ''}`, { tamano: 6, etiqueta: 'QR del producto' })
   return t.avanza(2).corte()
+}
+
+// Una etiqueta de producto/góndola dentro de un ticket ya abierto: nombre,
+// precio, SKU y código de barras sobre el SKU (EAN-13 si el SKU lo es; si no,
+// CODE128). `precioPyg` permite pasar el precio ya resuelto por la lista del
+// cliente o el escalón; sin eso se usa pricePyg. Cada etiqueta corta al final
+// para poder despegarla.
+function etiquetaProductoEn(t, product, { precioPyg = null, lista = '', indice = 0, total = 1 } = {}) {
+  const nombre = product?.name || product?.nombre || 'Producto'
+  const sku = String(product?.sku || '')
+  const codigo = sku || String(product?.id || '')
+  const formato = formatoDeCodigo(codigo)
+  const precio = Number(precioPyg ?? product?.pricePyg ?? product?.precioVenta ?? 0)
+  t.centrado(`${APP_NAME} · ETIQUETA DE PRODUCTO`)
+  t.linea()
+  t.negrita().texto(nombre).negrita(false)
+  t.avanza(1)
+  t.doble().centrado(precio > 0 ? gs(precio) : '—').doble(false)
+  if (precioPyg != null && lista) t.centrado(`Lista: ${lista}`)
+  t.linea()
+  if (sku) t.par('SKU', sku)
+  if (total > 1) t.par('Etiqueta', `${indice + 1} de ${total}`)
+  t.avanza(1)
+  t.barcode(datosDeCodigo(codigo), { etiqueta: ETIQUETA_FORMATO[formato], formato })
+  return t.avanza(2).corte()
+}
+
+// Etiqueta de góndola de un producto. `cantidad` imprime esa cantidad de
+// etiquetas (una por corte) y `precioPyg`/`lista` dejan imprimir el precio de
+// la lista del cliente o del escalón por cantidad; sin eso va el pricePyg.
+export function ticketEtiquetaProducto(product, { ancho = 80, cantidad = 1, precioPyg = null, lista = '' } = {}) {
+  const total = Math.max(1, Math.min(99, Number(cantidad) || 1))
+  const t = crearTicket({ ancho }).iniciar()
+  for (let indice = 0; indice < total; indice += 1) etiquetaProductoEn(t, product, { precioPyg, lista, indice, total })
+  return t
+}
+
+// Lote de etiquetas de góndola: `items` = [{ product, cantidad, precioPyg, lista }].
+export function ticketEtiquetasProducto(items = [], { ancho = 80 } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
+  for (const item of Array.isArray(items) ? items : []) {
+    const total = Math.max(1, Math.min(99, Number(item?.cantidad) || 1))
+    for (let indice = 0; indice < total; indice += 1) {
+      etiquetaProductoEn(t, item?.product || item, { precioPyg: item?.precioPyg, lista: item?.lista, indice, total })
+    }
+  }
+  return t
 }
 
 // Remito de traslado entre sucursales, con los IMEI para control físico.

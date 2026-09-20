@@ -163,18 +163,23 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
       partes.push(ESC, 0x61, 0x00) // vuelve a la izquierda
       return api
     },
-    // Código de barras CODE128 (GS k 73: incluye el largo). El juego de códigos
-    // B se declara con {B, como pide el estándar ESC/POS.
-    barcode(datos, { etiqueta = '' } = {}) {
+    // Código de barras. CODE128 (GS k 73: incluye el largo) con el juego de
+    // códigos B declarado como {B, o EAN-13 nativo (GS k 67: 12 dígitos, la
+    // impresora calcula el verificador). `datos` ya viene normalizado por quien
+    // llama (ver codigos.js): módulo 2 = barras legibles por lectores de local.
+    barcode(datos, { etiqueta = '', formato = 'code128' } = {}) {
       if (etiqueta) escribir(`${centrar(etiqueta)}\n`)
       espejoCentrado(`[BARRA] ${datos}`)
       partes.push(ESC, 0x61, 0x01)
-      const contenido = [0x7b, 0x42, ...bytesDeTexto(datos)]
-      if (contenido.length && contenido.length <= 255) {
-        partes.push(GS, 0x68, 0x50) // altura 80 puntos
-        partes.push(GS, 0x77, 0x02) // módulo angosto
-        partes.push(GS, 0x48, 0x02) // texto abajo
-        partes.push(GS, 0x6b, 0x49, contenido.length, ...contenido)
+      partes.push(GS, 0x68, 0x50) // altura 80 puntos
+      partes.push(GS, 0x77, 0x02) // módulo angosto
+      partes.push(GS, 0x48, 0x02) // texto abajo
+      if (String(formato).toLowerCase() === 'ean13') {
+        const contenido = bytesDeTexto(String(datos).replace(/\D/g, '').slice(0, 12))
+        if (contenido.length === 12) partes.push(GS, 0x6b, 0x43, 12, ...contenido)
+      } else {
+        const contenido = [0x7b, 0x42, ...bytesDeTexto(datos)]
+        if (contenido.length && contenido.length <= 255) partes.push(GS, 0x6b, 0x49, contenido.length, ...contenido)
       }
       partes.push(ESC, 0x61, 0x00)
       return api

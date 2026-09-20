@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { TIPOS_TICKET_PRUEBA, ticketComprobante, ticketNotaEntrega, ticketProforma, ticketPruebaTipo, ticketReciboInterno, ticketRemision } from './tickets.js'
+import { TIPOS_TICKET_PRUEBA, ticketComprobante, ticketEtiquetaProducto, ticketEtiquetasProducto, ticketNotaEntrega, ticketProforma, ticketPruebaTipo, ticketReciboInterno, ticketRemision } from './tickets.js'
+import { digitoVerificadorEan, esEan13, formatoDeCodigo } from './codigos.js'
 
 const opciones = { ancho: 80, impresora: 'lan:192.168.1.23:9100', nombre: 'ZKP8008', equipo: 'mac-puente', copias: 1 }
 
@@ -153,6 +154,7 @@ test('un comprobante sin saldo no imprime la línea de saldo', () => {
   assert.ok(texto.includes('Total de ítems'))
 })
 
+
 const PEDIDO = {
   orderNumber: 'MOB-#0042',
   createdAt: new Date('2026-09-19T12:00:00Z').toISOString(),
@@ -264,4 +266,57 @@ test('los documentos no fiscales entran en 58 mm sin desbordar', () => {
     for (const linea of lineas) assert.ok(linea.length <= 32, `línea de 58 mm dentro del ancho (${linea.length}): ${linea.slice(0, 40)}`)
     assert.ok(texto.includes('Documento no fiscal'))
   }
+
+
+const productoEtiqueta = { name: "Cable USB-C E2E", sku: "E2E-CABLE", pricePyg: 45000 }
+
+test("la etiqueta de producto imprime nombre, SKU, precio y código de barras", () => {
+  const texto = ticketEtiquetaProducto(productoEtiqueta, { ancho: 80 }).lineas().join("")
+  assert.ok(texto.includes("Cable USB-C E2E"), "nombre")
+  assert.ok(texto.includes("SKU"), "rótulo SKU")
+  assert.ok(texto.includes("E2E-CABLE"), "SKU impreso")
+  assert.ok(texto.includes("Gs 45.000"), "precio de venta")
+  assert.ok(texto.includes("[BARRA] E2E-CABLE"), "código de barras sobre el SKU")
+  assert.ok(texto.includes("CODE128"), "formato por defecto")
+})
+
+test("la etiqueta respeta el precio pasado por lista o escalón", () => {
+  const texto = ticketEtiquetaProducto(productoEtiqueta, { ancho: 80, precioPyg: 39000, lista: "Mayorista" }).lineas().join("")
+  assert.ok(texto.includes("Gs 39.000"), "precio de la lista")
+  assert.ok(!texto.includes("Gs 45.000"), "no imprime el pricePyg si vino otro precio")
+  assert.ok(texto.includes("Lista: Mayorista"), "origen del precio")
+})
+
+test("un SKU EAN-13 válido sale como EAN-13 y la cantidad repite las etiquetas", () => {
+  const ean = "7791234567898"
+  assert.equal(digitoVerificadorEan(ean.slice(0, 12)), ean[12])
+  assert.equal(esEan13(ean), true)
+  assert.equal(formatoDeCodigo(ean), "ean13")
+  const ticket = ticketEtiquetaProducto({ name: "Producto EAN", sku: ean, pricePyg: 10000 }, { ancho: 58, cantidad: 3 })
+  const texto = ticket.lineas().join("")
+  assert.equal(ticket.lineas().filter((linea) => linea.includes("[BARRA]")).length, 3)
+  assert.ok(texto.includes("EAN-13"), "rótulo EAN-13")
+  assert.ok(texto.includes("2 de 3"), "numeración de copias")
+  const bytes = Array.from(ticket.bytes())
+  const comando = [0x1d, 0x6b, 0x43, 0x0c].join(",")
+  assert.ok(bytes.some((_, indice) => bytes.slice(indice, indice + 4).join(",") === comando), "usa GS k 67 (EAN-13)")
+})
+
+test("un SKU que no es EAN válido cae a CODE128", () => {
+  const ticket = ticketEtiquetaProducto({ name: "Producto", sku: "7791234567890", pricePyg: 0 }, { ancho: 80 })
+  const texto = ticket.lineas().join("")
+  assert.equal(formatoDeCodigo("7791234567890"), "code128")
+  assert.ok(texto.includes("CODE128"))
+  assert.ok(texto.includes("Gs 0") || texto.includes("—"), "sin precio, guion")
+})
+
+test("el lote de etiquetas imprime la cantidad pedida por producto", () => {
+  const ticket = ticketEtiquetasProducto([
+    { product: productoEtiqueta, cantidad: 1 },
+    { product: { name: "Funda E2E", sku: "E2E-FUNDA", pricePyg: 80000 }, cantidad: 2 },
+  ], { ancho: 80 })
+  const texto = ticket.lineas().join("")
+  assert.equal(ticket.lineas().filter((linea) => linea.includes("[BARRA]")).length, 3)
+  assert.ok(texto.includes("E2E-FUNDA"))
+  assert.ok(texto.includes("Gs 80.000"))
 })

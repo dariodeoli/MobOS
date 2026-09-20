@@ -3,7 +3,9 @@ import { printHtml } from '@/utils/printHtml'
 import { APP_NAME } from '@/lib/brand'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { ahorroDeLinea } from '@/utils/precioLista'
+import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from '@/lib/printing/codigos'
 import QRCode from 'qrcode'
+import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
 
@@ -31,17 +33,63 @@ export async function printTransferReceipt(transfer, { format = 'a4' } = {}) {
   return printHtml(html)
 }
 
-// Etiqueta de precio/góndola: nombre, SKU, precio (y mayorista) con QR que
-// abre el producto al escanearlo.
-export async function printPriceLabel(product, { format = 'thermal' } = {}) {
-  const code = `MOBOS:PROD:${product.sku || product.id || ''}`
-  let qr = ''
-  try { qr = await QRCode.toDataURL(code, { errorCorrectionLevel: 'M', margin: 0, width: 140 }) } catch { /* La etiqueta sigue útil sin el QR. */ }
-  const precio = Number(product.pricePyg ?? product.precioVenta ?? 0)
-  const mayorista = Number(product.wholesalePricePyg ?? 0)
-  const thermal = Boolean(thermalWidth(format))
-  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Precio ${escapeHtml(product.name || product.sku || '')}</title><style>@page{size:58mm auto;margin:2mm}body{width:54mm;margin:0;font-family:Arial,sans-serif;color:#111}.brand{color:#0c8876;font-size:9px;font-weight:900;letter-spacing:1px}.name{font-size:12px;font-weight:800;margin:2mm 0}.sku{font-size:8px;color:#555}.price{font-size:${thermal ? '26px' : '30px'};font-weight:900;margin:2mm 0}.sub{font-size:9px;color:#555}.qr{width:22mm;height:22mm;margin:2mm auto;display:block}</style></head><body><div class="brand">MOBOS · ETIQUETA DE PRECIO</div><div class="name">${escapeHtml(product.name || '')}</div>${product.sku ? `<div class="sku">${escapeHtml(product.sku)}</div>` : ''}<div class="price">${precio > 0 ? `Gs. ${precio.toLocaleString('es-PY')}` : '—'}</div>${mayorista > 0 ? `<div class="sub">Mayorista: Gs. ${mayorista.toLocaleString('es-PY')}</div>` : ''}${qr ? `<img class="qr" src="${qr}" alt="QR">` : ''}</body></html>`
-  return printHtml(html)
+// Etiqueta de producto/góndola: nombre, precio, SKU y código de barras sobre
+// el SKU (EAN-13 si el SKU lo es; si no, CODE128). El precio puede venir ya
+// resuelto (`precioPyg` de la lista del cliente o del escalón); sin eso se usa
+// pricePyg. `cantidad` repite la etiqueta, en térmica una por página y en A4
+// en grilla.
+const normalizarEtiqueta = (item = {}) => {
+  const product = item.product || item
+  return {
+    product,
+    cantidad: Math.max(1, Math.min(99, Number(item.cantidad) || 1)),
+    precioPyg: item.precioPyg ?? null,
+    lista: item.lista || '',
+  }
+}
+
+export async function buildProductLabelsHtml(items = [], { format = 'thermal-58' } = {}) {
+  const width = thermalWidth(format) || (format === 'a4' ? 0 : 58)
+  const etiquetas = []
+  for (const item of Array.isArray(items) ? items : []) {
+    const { product, cantidad, precioPyg, lista } = normalizarEtiqueta(item)
+    const nombre = product?.name || product?.nombre || 'Producto'
+    const sku = String(product?.sku || '')
+    const codigo = sku || String(product?.id || '')
+    const formatoCodigo = formatoDeCodigo(codigo)
+    const precio = Number(precioPyg ?? product?.pricePyg ?? product?.precioVenta ?? 0)
+    let barras = ''
+    if (codigo) {
+      try {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+        JsBarcode(svg, datosDeCodigo(codigo), {
+          format: formatoCodigo === 'ean13' ? 'EAN13' : 'CODE128',
+          displayValue: true,
+          fontSize: 11,
+          textMargin: 1,
+          height: 42,
+          width: 1.6,
+          margin: 0,
+        })
+        barras = `<div class="barcode">${svg.outerHTML}<span class="code-label">${escapeHtml(ETIQUETA_FORMATO[formatoCodigo])}</span></div>`
+      } catch { /* sin barras, la etiqueta conserva nombre, precio y SKU */ }
+    }
+    for (let copia = 0; copia < cantidad; copia += 1) {
+      etiquetas.push(`<section class="label"><div class="brand"><span>${escapeHtml(APP_NAME)}</span><span>ETIQUETA DE PRODUCTO</span></div><div class="name">${escapeHtml(nombre)}</div><div class="price">${precio > 0 ? escapeHtml(gs(precio)) : '—'}</div>${lista ? `<div class="list">Lista: ${escapeHtml(lista)}</div>` : ''}<div class="sku">${sku ? `SKU ${escapeHtml(sku)}` : 'Sin SKU'}${cantidad > 1 ? ` · Etiqueta ${copia + 1} de ${cantidad}` : ''}</div>${barras}<footer>Verificá el precio con el lector del local.</footer></section>`)
+    }
+  }
+  const anchoHoja = width ? `${width}mm auto` : 'A4'
+  const margenHoja = width ? '2mm' : '12mm'
+  const anchoCuerpo = width ? `${width - 4}mm` : '186mm'
+  const cuerpo = width ? 'display:block' : 'display:grid;grid-template-columns:repeat(3,1fr);gap:4mm'
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de producto</title><style>@page{size:${anchoHoja};margin:${margenHoja}}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoCuerpo};font:11px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720;${cuerpo}}.label{page-break-after:always;border-bottom:1px dashed #999;padding:1mm 0 2mm;text-align:center}.label:last-child{page-break-after:auto;border-bottom:0}.brand{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.name{font-size:12px;font-weight:800;min-height:2.4em}.price{font-size:22px;font-weight:900;margin:1mm 0}.list{font-size:8px;color:#555}.sku{font-size:8px;color:#555}.barcode{margin-top:1.5mm}.barcode svg{width:100%;height:auto;max-height:14mm}.code-label{display:block;font-size:6.5px;letter-spacing:.14em;color:#66707a}footer{margin-top:1mm;font-size:7px;color:#66707a}@media print{.label{margin-bottom:0;padding-bottom:1.5mm}}</style></head><body>${etiquetas.join('')}</body></html>`
+  return html
+}
+
+// Compatibilidad: la etiqueta de precio clásica ahora es la de producto con
+// código de barras (una sola copia).
+export async function printPriceLabel(product, { format = 'thermal-58' } = {}) {
+  return printHtml(await buildProductLabelsHtml([{ product, cantidad: 1 }], { format }))
 }
 
 export const trackingUrlFor = (order) => {
@@ -312,6 +360,7 @@ export async function printReservationReceipt(reservation, { format = 'a4' } = {
   return printHtml(html)
 }
 
+
 // Nota de entrega: respalda la entrega física de la mercadería con el receptor
 // y su firma. Lista cantidades, no precios (el comprobante ya los detalla).
 export async function buildDeliveryNoteHtml(order, { format = 'a4' } = {}) {
@@ -441,4 +490,75 @@ export async function buildProformaHtml(quote, { format = 'a4' } = {}) {
 export async function printProformaReceipt(quote, options = {}) {
   const html = await buildProformaHtml(quote, options)
   return printHtml(html)
+
+
+const hora = (valor) => (valor ? new Date(valor).toLocaleString('es-PY') : '—')
+
+// Cierre de caja imprimible: apertura, movimientos de la sesión, cobros por
+// medio de pago, esperado/contado/diferencia y firma. Los números llegan de
+// `armarCierreCaja`, los mismos que muestra Caja.jsx.
+export async function buildCierreCajaHtml(cierre = {}, { format = 'a4' } = {}) {
+  const logo = await getLogoDataUrl()
+  const movimientos = Array.isArray(cierre.movimientos) ? cierre.movimientos : []
+  const cobros = Array.isArray(cierre.cobros) ? cierre.cobros : []
+  const cerrada = cierre.estado === 'CLOSED'
+  const movimientosRows = movimientos.map((movimiento) => `<tr><td>${escapeHtml(movimiento.descripcion || 'Movimiento')}${movimiento.cuenta ? `<br><span class="muted">${escapeHtml(movimiento.cuenta)}</span>` : ''}</td><td class="num">${escapeHtml(hora(movimiento.fecha))}</td><td class="num">${movimiento.direccion === 'OUT' ? '−' : '+'} ${escapeHtml(gs(movimiento.montoPyg))}</td></tr>`).join('')
+  const cobrosRows = cobros.map((cobro) => `<tr><td>${escapeHtml(cobro.label || cobro.method || 'Pago')}${cobro.count ? ` <span class="muted">· ${escapeHtml(String(cobro.count))} cobro(s)</span>` : ''}</td><td class="num">${escapeHtml(gs(cobro.montoPyg))}</td></tr>`).join('')
+  const firma = '<div style="display:flex;gap:24px;margin-top:28px"><div style="flex:1;border-top:1px solid #0f1720;padding-top:4px;font-size:10px;text-align:center">Firma del responsable</div><div style="flex:1;border-top:1px solid #0f1720;padding-top:4px;font-size:10px;text-align:center">Firma de control</div></div>'
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cierre de caja</title><style>${styles(format)}</style></head><body>
+    ${header('Cierre de caja', `Apertura ${hora(cierre.abiertoEn)}${cerrada ? ` · Cierre ${hora(cierre.cerradoEn)}` : ' · sesión abierta'}`, logo)}
+    <div class="card"><div class="label">Sesión</div><div><strong>${escapeHtml(cierre.empresa || APP_NAME)}</strong>${cierre.sucursal ? `<br>${escapeHtml(cierre.sucursal)}` : ''}${cierre.usuario ? `<br>Generado por: ${escapeHtml(cierre.usuario)}` : ''}${cierre.notas ? `<br>Notas: ${escapeHtml(cierre.notas)}` : ''}</div></div>
+    <table class="totals">
+      <tr><td>Apertura</td><td class="num">${escapeHtml(gs(cierre.apertura))}</td></tr>
+      <tr><td>Cobros${cierre.cobrosFecha ? ` (${escapeHtml(new Date(cierre.cobrosFecha).toLocaleDateString('es-PY'))})` : ''}</td><td class="num">${escapeHtml(gs(cierre.totalCobros))}</td></tr>
+      ${cierre.ingresos ? `<tr><td>Movimientos (entradas)</td><td class="num">${escapeHtml(gs(cierre.ingresos))}</td></tr>` : ''}
+      ${cierre.egresos ? `<tr><td>Movimientos (salidas)</td><td class="num">− ${escapeHtml(gs(cierre.egresos))}</td></tr>` : ''}
+      <tr><td>Esperado</td><td class="num">${escapeHtml(gs(cierre.esperado))}</td></tr>
+      <tr><td>Contado</td><td class="num">${cerrada ? escapeHtml(gs(cierre.contado)) : 'se completa al cerrar'}</td></tr>
+      ${cerrada ? `<tr class="saldo"><td>Diferencia</td><td class="num">${escapeHtml(gs(cierre.diferencia))}</td></tr>` : ''}
+    </table>
+    <h2 style="font-size:13px;margin:14px 0 4px">Cobros por medio de pago</h2>
+    <table><thead><tr><th>Medio</th><th class="num">Monto</th></tr></thead><tbody>${cobrosRows || '<tr><td class="muted">Sin cobros para el período.</td><td class="num"></td></tr>'}</tbody></table>
+    <h2 style="font-size:13px;margin:14px 0 4px">Movimientos de la sesión (${movimientos.length})</h2>
+    <table><thead><tr><th>Movimiento</th><th class="num">Fecha</th><th class="num">Monto</th></tr></thead><tbody>${movimientosRows || '<tr><td class="muted">Sin movimientos registrados.</td><td class="num"></td><td class="num"></td></tr>'}</tbody></table>
+    ${firma}
+    <footer>Documento de control interno. No es comprobante fiscal. Generado por ${escapeHtml(APP_NAME)}.</footer>
+  </body></html>`
+}
+
+export async function printCierreCaja(cierre, options = {}) {
+  return printHtml(await buildCierreCajaHtml(cierre, options))
+}
+
+// Resumen del día imprimible: ventas, ticket promedio, productos más vendidos,
+// cobrado y pendiente del rango activo. Los números llegan de
+// `armarResumenDia`, los mismos que muestra Resumen.jsx.
+export async function buildResumenDiaHtml(resumen = {}, { format = 'a4' } = {}) {
+  const logo = await getLogoDataUrl()
+  const top = Array.isArray(resumen.topProductos) ? resumen.topProductos : []
+  const medios = Array.isArray(resumen.medios) ? resumen.medios : []
+  const topRows = top.slice(0, 10).map((producto) => `<tr><td>${escapeHtml(producto.nombre || 'Producto')}</td><td class="num">${escapeHtml(String(producto.cantidad))}</td><td class="num">${escapeHtml(gs(producto.montoPyg))}</td></tr>`).join('')
+  const mediosRows = medios.map((medio) => `<tr><td>${escapeHtml(medio.medio || '—')}</td><td class="num">${escapeHtml(gs(medio.monto))}</td></tr>`).join('')
+  const etiqueta = resumen.etiqueta || `${new Date(resumen.rango?.desde || Date.now()).toLocaleDateString('es-PY')} a ${new Date(resumen.rango?.hasta || Date.now()).toLocaleDateString('es-PY')}`
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Resumen del día</title><style>${styles(format)}</style></head><body>
+    ${header('Resumen del día', etiqueta, logo)}
+    <table class="totals">
+      <tr><td>Ventas</td><td class="num">${escapeHtml(String(resumen.ventas ?? 0))}</td></tr>
+      <tr><td>Facturado</td><td class="num">${escapeHtml(gs(resumen.total))}</td></tr>
+      <tr><td>Ticket promedio</td><td class="num">${escapeHtml(gs(resumen.ticket))}</td></tr>
+      <tr><td>Cobrado</td><td class="num">${escapeHtml(gs(resumen.cobrado))}</td></tr>
+      <tr class="saldo"><td>Pendiente</td><td class="num">${escapeHtml(gs(resumen.pendiente))}</td></tr>
+      ${resumen.comision ? `<tr><td>Comisiones</td><td class="num">${escapeHtml(gs(resumen.comision))}</td></tr>` : ''}
+      ${resumen.gastos ? `<tr><td>Gastos</td><td class="num">${escapeHtml(gs(resumen.gastos))}</td></tr>` : ''}
+    </table>
+    <h2 style="font-size:13px;margin:14px 0 4px">Productos más vendidos</h2>
+    <table><thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Monto</th></tr></thead><tbody>${topRows || '<tr><td class="muted">Sin ventas en el período.</td><td class="num"></td><td class="num"></td></tr>'}</tbody></table>
+    <h2 style="font-size:13px;margin:14px 0 4px">Medios de pago</h2>
+    <table><thead><tr><th>Medio</th><th class="num">Monto</th></tr></thead><tbody>${mediosRows || '<tr><td class="muted">Sin datos.</td><td class="num"></td></tr>'}</tbody></table>
+    <footer>Documento de control interno. No es comprobante fiscal. Generado por ${escapeHtml(APP_NAME)}.</footer>
+  </body></html>`
+}
+
+export async function printResumenDia(resumen, options = {}) {
+  return printHtml(await buildResumenDiaHtml(resumen, options))
 }

@@ -4,15 +4,20 @@ import { useSesion } from '@/lib/sesion'
 import { formatGsInput, parseGsInput } from '@/utils/moneda'
 import { getDemoCash, getDemoCashExpected, openDemoCash, closeDemoCash } from '@/lib/demoCash'
 import { listVentas } from '@/lib/storage'
-import { Button, Card, Input, Label, Modal, Money, MoneyInput, Skeleton } from '@/components/ui'
+import { Button, Card, Eyebrow, Input, Label, Modal, Money, MoneyInput, Skeleton } from '@/components/ui'
 import AuditoriaMedios from './AuditoriaMedios'
 import AttachmentList from '@/components/shared/AttachmentList'
 import Cronologia from '@/components/shared/Cronologia'
 import Icon from '@/components/shared/Icon'
+import ReportePreview from '@/components/shared/ReportePreview'
+import { buildCierreCajaHtml } from '@/components/shared/OrderReceipt'
+import { cobrosDeAuditoria, cobrosDePagos, armarCierreCaja } from '@/utils/reporteCaja'
+import { ticketCierreCaja } from '@/lib/printing/reportes'
+import { imprimirDocumento } from '@/lib/printing/agent'
 import { descargarCsv } from '@/utils/descargarCsv'
 
 export default function Caja() {
-  const { esDemo, sucursal } = useSesion()
+  const { esDemo, sucursal, sesion, empresa } = useSesion()
   const [cash, setCash] = useState(null)
   const [finance, setFinance] = useState(null)
   const [opening, setOpening] = useState('500000')
@@ -23,6 +28,8 @@ export default function Caja() {
   const [saving, setSaving] = useState(false)
   const [cronologia, setCronologia] = useState(false)
   const [exportando, setExportando] = useState(false)
+  const [cierreOpen, setCierreOpen] = useState(false)
+  const [cobros, setCobros] = useState([])
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -50,13 +57,47 @@ export default function Caja() {
     }))
     return getDemoCashExpected(cash || undefined, new Date(), sales)
   }, [cash, esDemo])
+  // Arma el cierre con los mismos números de la pantalla y suma los cobros por
+  // medio de pago del día de la sesión (auditoría de caja; en demo, los pagos
+  // locales). Si la auditoría falla, el cierre sale sin el desglose.
+  const cierre = useMemo(() => armarCierreCaja({
+    cash,
+    movimientos: cash?.movements || finance?.movements || [],
+    cobros,
+    empresa: empresa?.nombre || '',
+    sucursal: sucursal?.nombre || '',
+    usuario: sesion?.nombre || '',
+  }), [cash, finance, cobros, empresa, sucursal, sesion])
+  async function abrirCierre() {
+    setError('')
+    const desde = cash?.openedAt ? new Date(cash.openedAt).getTime() : 0
+    const hasta = cash?.closedAt ? new Date(cash.closedAt).getTime() : Date.now()
+    try {
+      if (esDemo) {
+        const pagos = listVentas().flatMap(venta => venta.pagos || []).filter(pago => { const cuando = new Date(pago.fecha || 0).getTime(); return cuando >= desde && cuando <= hasta })
+        setCobros(cobrosDePagos(pagos))
+      } else {
+        const date = (cash?.openedAt ? new Date(cash.openedAt) : new Date()).toLocaleDateString('sv')
+        const params = new URLSearchParams()
+        if (sucursal?.id) params.set('branchId', sucursal.id)
+        params.set('date', date)
+        const data = await api.get(`/api/cash/audit?${params}`)
+        setCobros(cobrosDeAuditoria(data?.methods))
+      }
+    } catch { setCobros([]) }
+    setCierreOpen(true)
+  }
   async function abrir() {
     setSaving(true); setError('')
     try { setCash(esDemo ? openDemoCash(parseGsInput(opening), notes) : await api.post(`/api/cash?branchId=${encodeURIComponent(sucursal?.id || '')}`, { action: 'open', openingPyg: parseGsInput(opening), notes })) } catch (err) { setError(err?.message || 'No se pudo abrir la caja.') } finally { setSaving(false) }
   }
   async function cerrar() {
     setSaving(true); setError('')
-    try { setCash(esDemo ? closeDemoCash(parseGsInput(counted), expected, notes) : await api.post(`/api/cash?branchId=${encodeURIComponent(sucursal?.id || '')}`, { action: 'close', countedPyg: parseGsInput(counted), notes })) } catch (err) { setError(err?.message || 'No se pudo cerrar la caja.') } finally { setSaving(false) }
+    try {
+      const cerrada = esDemo ? closeDemoCash(parseGsInput(counted), expected, notes) : await api.post(`/api/cash?branchId=${encodeURIComponent(sucursal?.id || '')}`, { action: 'close', countedPyg: parseGsInput(counted), notes })
+      setCash(cerrada)
+      await abrirCierre()
+    } catch (err) { setError(err?.message || 'No se pudo cerrar la caja.') } finally { setSaving(false) }
   }
   async function exportarMovimientos() {
     if (esDemo || !cash?.openedAt) return
@@ -68,6 +109,6 @@ export default function Caja() {
   if (loading) return <div className="space-y-6"><Skeleton className="h-4 w-40" /><Skeleton className="h-8 w-64" /><div className="grid gap-4 md:grid-cols-3"><Skeleton className="h-28" /><Skeleton className="h-28" /><Skeleton className="h-28" /></div></div>
   const abierta = cash?.status === 'OPEN'
   const difference = cash?.differencePyg ?? (parseGsInput(counted) - expected)
-  return <div className="space-y-6"><div><p className="text-sm text-mute">Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados.</p></div>{error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}<div className="grid gap-4 md:grid-cols-3"><Card className={abierta ? 'border-ok/25 bg-gradient-to-br from-ok/10 to-transparent' : ''}><Label>Estado</Label><strong className={`flex items-center gap-2 ${abierta ? 'text-ok' : 'text-mute'}`}><span className={`h-2 w-2 rounded-full ${abierta ? 'bg-ok' : 'bg-mute'}`} />{abierta ? 'Abierta' : 'Cerrada'}</strong><p className="mt-2 text-xs text-mute">{cash?.openedAt ? new Date(cash.openedAt).toLocaleString('es-PY') : 'Sin apertura'}</p></Card><Card><Label>Saldo esperado</Label><strong className="text-xl tabular-nums"><Money value={expected} /></strong><p className="mt-2 text-xs text-mute">Apertura + efectivo confirmado en Gs</p></Card><Card className={difference === 0 ? '' : 'border-warn/25 bg-gradient-to-br from-warn/10 to-transparent'}><Label>Diferencia</Label><strong className={`text-xl tabular-nums ${difference === 0 ? 'text-ok' : 'text-warn'}`}><Money value={difference} /></strong><p className="mt-2 text-xs text-mute">Se calcula al cierre</p></Card></div>{finance && <div className="grid gap-4 md:grid-cols-4"><Card><Label>Por cobrar</Label><strong><Money value={finance.receivables?.totalPyg || 0} /></strong></Card><Card><Label>Por pagar</Label><strong><Money value={finance.payables?.totalPyg || 0} /></strong></Card><Card><Label>Margen real</Label><strong><Money value={finance.margin?.profitPyg || 0} /></strong><p className="mt-1 text-xs text-mute">{finance.margin?.marginPct ?? '—'}% · seguro y extras incluidos</p></Card><Card><Label>Cheques pendientes</Label><strong>{finance.movements?.filter(m => m.kind === 'CHEQUE' && m.status === 'PENDING').length || 0}</strong></Card></div>}{!abierta ? <Card><h3 className="font-bold">Abrir caja</h3><p className="mt-1 text-sm text-mute">Registrá el fondo inicial de esta sucursal.</p><div className="mt-5 grid gap-4 md:grid-cols-2"><div><Label htmlFor="opening">Fondo inicial (Gs)</Label><MoneyInput id="opening" value={opening} onValueChange={setOpening} placeholder="500.000" /></div><div><Label htmlFor="opening-notes">Nota</Label><Input id="opening-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Turno mañana" /></div></div><Button className="mt-5" onClick={abrir} disabled={saving}>Abrir caja</Button></Card> : <Card><h3 className="font-bold">Cerrar caja</h3><p className="mt-1 text-sm text-mute">Contá únicamente el efectivo físico en guaraníes. No incluyas dólares, transferencias ni tarjetas.</p><div className="mt-5 grid gap-4 md:grid-cols-2"><div><Label htmlFor="counted">Efectivo contado (Gs)</Label><Input id="counted" inputMode="numeric" value={formatGsInput(counted)} onChange={(e) => setCounted(formatGsInput(e.target.value))} placeholder="0" /></div><div><Label htmlFor="close-notes">Nota de cierre</Label><Input id="close-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Observación opcional" /></div></div><Button variant="success" className="mt-5" onClick={cerrar} disabled={saving || !counted}>Cerrar caja ·
-<Money value={parseGsInput(counted)} /></Button></Card>}{!esDemo && cash?.id && <Card className="space-y-3"><AttachmentList entity="CASH_SESSION" entityId={cash.id} puedeSubir={!abierta} titulo="Foto del arqueo" /><Button type="button" variant="outline" className="h-9 w-full px-3 text-xs" disabled={exportando} onClick={exportarMovimientos}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button><Button type="button" variant="outline" className="w-full" onClick={() => setCronologia(true)}>Cronología de la sesión</Button></Card>}<Modal open={cronologia} onClose={() => setCronologia(false)} title="Cronología de la sesión de caja">{cash?.id && <Cronologia endpoint={`/api/cash/sessions/${cash.id}/history`} active={cronologia} vacio="Sin actividad" descripcionVacio="La apertura, los movimientos, el cierre y el arqueo de esta sesión aparecerán acá." />}</Modal><AuditoriaMedios /></div>
+  return <div className="space-y-6"><div><Eyebrow>Finanzas</Eyebrow><h2 className="mt-2 text-2xl font-bold tracking-tight">Caja y control financiero</h2><p className="mt-1 text-sm text-mute">Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados.</p></div>{error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}<div className="grid gap-4 md:grid-cols-3"><Card className={abierta ? 'border-ok/25 bg-gradient-to-br from-ok/10 to-transparent' : ''}><Label>Estado</Label><strong className={`flex items-center gap-2 ${abierta ? 'text-ok' : 'text-mute'}`}><span className={`h-2 w-2 rounded-full ${abierta ? 'bg-ok' : 'bg-mute'}`} />{abierta ? 'Abierta' : 'Cerrada'}</strong><p className="mt-2 text-xs text-mute">{cash?.openedAt ? new Date(cash.openedAt).toLocaleString('es-PY') : 'Sin apertura'}</p></Card><Card><Label>Saldo esperado</Label><strong className="text-xl tabular-nums"><Money value={expected} /></strong><p className="mt-2 text-xs text-mute">Apertura + efectivo confirmado en Gs</p></Card><Card className={difference === 0 ? '' : 'border-warn/25 bg-gradient-to-br from-warn/10 to-transparent'}><Label>Diferencia</Label><strong className={`text-xl tabular-nums ${difference === 0 ? 'text-ok' : 'text-warn'}`}><Money value={difference} /></strong><p className="mt-2 text-xs text-mute">Se calcula al cierre</p></Card></div>{finance && <div className="grid gap-4 md:grid-cols-4"><Card><Label>Por cobrar</Label><strong><Money value={finance.receivables?.totalPyg || 0} /></strong></Card><Card><Label>Por pagar</Label><strong><Money value={finance.payables?.totalPyg || 0} /></strong></Card><Card><Label>Margen real</Label><strong><Money value={finance.margin?.profitPyg || 0} /></strong><p className="mt-1 text-xs text-mute">{finance.margin?.marginPct ?? '—'}% · seguro y extras incluidos</p></Card><Card><Label>Cheques pendientes</Label><strong>{finance.movements?.filter(m => m.kind === 'CHEQUE' && m.status === 'PENDING').length || 0}</strong></Card></div>}{!abierta ? <Card><h3 className="font-bold">Abrir caja</h3><p className="mt-1 text-sm text-mute">Registrá el fondo inicial de esta sucursal.</p><div className="mt-5 grid gap-4 md:grid-cols-2"><div><Label htmlFor="opening">Fondo inicial (Gs)</Label><MoneyInput id="opening" value={opening} onValueChange={setOpening} placeholder="500.000" /></div><div><Label htmlFor="opening-notes">Nota</Label><Input id="opening-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Turno mañana" /></div></div><Button className="mt-5" onClick={abrir} disabled={saving}>Abrir caja</Button></Card> : <Card><h3 className="font-bold">Cerrar caja</h3><p className="mt-1 text-sm text-mute">Contá únicamente el efectivo físico en guaraníes. No incluyas dólares, transferencias ni tarjetas.</p><div className="mt-5 grid gap-4 md:grid-cols-2"><div><Label htmlFor="counted">Efectivo contado (Gs)</Label><Input id="counted" inputMode="numeric" value={formatGsInput(counted)} onChange={(e) => setCounted(formatGsInput(e.target.value))} placeholder="0" /></div><div><Label htmlFor="close-notes">Nota de cierre</Label><Input id="close-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Observación opcional" /></div></div><Button variant="success" className="mt-5" onClick={cerrar} disabled={saving || !counted}>Cerrar caja ·
+<Money value={parseGsInput(counted)} /></Button></Card>}{!esDemo && cash?.id && <Card className="space-y-3"><AttachmentList entity="CASH_SESSION" entityId={cash.id} puedeSubir={!abierta} titulo="Foto del arqueo" /><Button type="button" variant="outline" className="h-9 w-full px-3 text-xs" disabled={exportando} onClick={exportarMovimientos}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>{!abierta && <Button type="button" variant="outline" className="w-full" onClick={abrirCierre}><Icon name="printer" className="h-4 w-4" />Imprimir cierre</Button>}<Button type="button" variant="outline" className="w-full" onClick={() => setCronologia(true)}>Cronología de la sesión</Button></Card>}{esDemo && cash?.id && !abierta && <Card className="space-y-3"><Button type="button" variant="outline" className="w-full" onClick={abrirCierre}><Icon name="printer" className="h-4 w-4" />Imprimir cierre</Button></Card>}<Modal open={cronologia} onClose={() => setCronologia(false)} title="Cronología de la sesión de caja">{cash?.id && <Cronologia endpoint={`/api/cash/sessions/${cash.id}/history`} active={cronologia} vacio="Sin actividad" descripcionVacio="La apertura, los movimientos, el cierre y el arqueo de esta sesión aparecerán acá." />}</Modal><ReportePreview open={cierreOpen} onClose={() => setCierreOpen(false)} titulo="Cierre de caja" construir={(format) => buildCierreCajaHtml(cierre, { format })} directo={({ ancho }) => imprimirDocumento(ticketCierreCaja(cierre, { ancho }), { tipo: 'cierre-caja' })} /><AuditoriaMedios /></div>
 }

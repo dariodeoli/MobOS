@@ -12,6 +12,7 @@ import ListGridToggle from '@/components/shared/ListGridToggle'
 import ComboManager from '@/components/productos/ComboManager'
 import ImportarProductosCSV from './ImportarProductosCSV'
 import BarraLote from '@/components/shared/BarraLote'
+import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { useToast } from '@/components/ui'
 
@@ -91,6 +92,7 @@ export default function SellerCatalog() {
   const [vista, setVista] = useState(() => localStorage.getItem('mobos:productos-vista') || 'list')
   const [seleccion, setSeleccion] = useState(null)
   const [combosOpen, setCombosOpen] = useState(false)
+  const [etiquetasOpen, setEtiquetasOpen] = useState(false)
   const searchRef = useRef(null)
   useEffect(() => { setSearch(busquedaDiferida.trim()) }, [busquedaDiferida])
   const data = useSellerData(`/api/products?q=${encodeURIComponent(search)}`, productFields, demoProducts, esDemo, { limit: 50 })
@@ -185,6 +187,7 @@ export default function SellerCatalog() {
     </div>
     <SellerFeedback {...data} empty={!rows.length} />
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
+      <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={() => setEtiquetasOpen(true)}>Etiquetas</button>
       <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={copiarPrecios}>Copiar precios</button>
       <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={exportarSeleccionados}>Exportar CSV</button>
     </BarraLote>
@@ -205,6 +208,7 @@ export default function SellerCatalog() {
     {!data.loading && !data.error && vista === 'grid' && <div className="grid gap-3 sm:grid-cols-2 min-[1200px]:grid-cols-3">{rows.map((row) => <TarjetaProducto key={row.id} row={row} onClick={() => setSeleccion(row)} />)}</div>}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más productos'}</button></div>}
     <ComboManager open={combosOpen} onClose={() => setCombosOpen(false)} />
+    <EtiquetasProductoModal open={etiquetasOpen} onClose={() => setEtiquetasOpen(false)} productos={rows} seleccionInicial={seleccionados} />
     {seleccion && <ProductoDetalle product={seleccion} canManage={canManage} esDemo={esDemo} onClose={() => setSeleccion(null)} onChanged={data.refresh} onSell={vender} />}
   </SellerSection>
 }
