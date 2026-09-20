@@ -214,6 +214,7 @@ export default function FormularioVenta({
   const [busquedaProducto, setBusquedaProducto] = useState('')
   // Fila de la venta cuyo selector de IMEI está abierto.
   const [imeiPara, setImeiPara] = useState(null)
+  const [unidadesDeImei, setUnidadesDeImei] = useState(0)
   const [nuevoVend, setNuevoVend] = useState(false)
   const [nombreVend, setNombreVend] = useState('')
   const [pinVend, setPinVend] = useState('')
@@ -399,6 +400,20 @@ export default function FormularioVenta({
   const clientePreciosRef = useRef('__inicial__')
   const itemsRef = useRef(items)
   itemsRef.current = items
+
+  // Unidades disponibles del producto que se está por vender: con stock no se
+  // puede "sobre pedir" (el servidor exige el IMEI exacto); el modal lo avisa.
+  useEffect(() => {
+    const fila = itemsRef.current.find(it => it.key === imeiPara)
+    const producto = fila ? productos.find(p => p.id === fila.productoId) : null
+    if (!imeiPara || !producto || esDemo) { setUnidadesDeImei(0); return undefined }
+    let vivo = true
+    api.get(`/api/inventory-units?q=${encodeURIComponent(producto.sku || producto.nombre || '')}`)
+      .then(rows => { if (vivo) setUnidadesDeImei((rows || []).filter(unit => unit.productId === producto.id && unit.status === 'AVAILABLE').length) })
+      .catch(() => { if (vivo) setUnidadesDeImei(0) })
+    return () => { vivo = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imeiPara])
 
   async function resolverPrecio(productoId, quantity) {
     if (esDemo || !productoId) return null
@@ -1567,16 +1582,18 @@ export default function FormularioVenta({
                 onChange={serials => editarItem(fila.key, { serials })}
                 disabled={guardando}
               />
-              <label className="flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/5 p-3 text-sm text-mute">
+              <label className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${unidadesDeImei > 0 ? 'border-ink-600 bg-ink-800/40 text-mute/70' : 'border-warn/30 bg-warn/5 text-mute'}`}>
                 <input
                   type="checkbox"
-                  className="mt-0.5 h-4 w-4 accent-warn"
+                  className="mt-0.5 h-4 w-4 accent-warn disabled:opacity-40"
+                  disabled={unidadesDeImei > 0}
                   checked={Boolean(fila.sobrePedido)}
                   onChange={event => editarItem(fila.key, { sobrePedido: event.target.checked, serials: event.target.checked ? [] : fila.serials || [] })}
                 />
                 <span>
-                  Vender <b className="text-fore">sin IMEI (sobre pedido)</b>: el cliente reserva sin
-                  stock; el IMEI se completa al entregar.
+                  {unidadesDeImei > 0
+                    ? <>Con stock no se vende sin IMEI: elegí la unidad de arriba (hay {unidadesDeImei} disponible{unidadesDeImei === 1 ? '' : 's'}).</>
+                    : <>Vender <b className="text-fore">sin IMEI (sobre pedido)</b>: el cliente reserva sin stock; el IMEI se completa al entregar.</>}
                 </span>
               </label>
               <div className="flex justify-end">

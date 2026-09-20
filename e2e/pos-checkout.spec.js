@@ -354,3 +354,30 @@ test('POS shows the price authorization block for a below-list price', async ({ 
   }
   await expect(page.getByText('Pendiente').first()).toBeVisible()
 })
+
+// Con stock disponible, el servidor exige el IMEI exacto: el modal bloquea
+// "vender sin IMEI" y la venta se completa reservando la unidad física.
+test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con stock', async ({ page }) => {
+  await page.goto('/pos/cargar')
+  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente serial ${Date.now().toString(36)}`)
+  await page.getByPlaceholder('Buscar producto…').fill(SEED.products.iphone.name)
+  await page.getByRole('button', { name: new RegExp(SEED.products.iphone.name) }).first().click()
+
+  await page.getByRole('button', { name: 'Elegir IMEI' }).click()
+  const dialogo = page.getByRole('dialog')
+  await expect(dialogo.getByText('Equipo físico / IMEI')).toBeVisible()
+  // Hay una unidad disponible: "sin IMEI" queda bloqueado y se explica.
+  await expect(dialogo.getByRole('checkbox')).toBeDisabled()
+  await expect(dialogo.getByText(/Con stock no se vende sin IMEI/)).toBeVisible()
+  await dialogo.getByRole('button', { name: 'Reservar este' }).first().click()
+  await dialogo.getByRole('button', { name: 'Listo' }).click()
+  await expect(page.getByRole('button', { name: 'Cambiar IMEI' })).toBeVisible()
+
+  await page.getByRole('button', { name: '+ Agregar pago' }).click()
+  const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+  await paymentsSection.getByLabel('Cuenta de cobro').nth(0).selectOption({ label: 'Caja E2E · PYG · CASH' })
+  await paymentsSection.getByLabel('Monto original').nth(0).fill(String(SEED.products.iphone.pricePyg))
+  await page.getByRole('button', { name: /^Guardar venta/ }).click()
+  await expect(page.getByText('Venta registrada correctamente. Ya podés cargar la siguiente.')).toBeVisible({ timeout: 15_000 })
+})
