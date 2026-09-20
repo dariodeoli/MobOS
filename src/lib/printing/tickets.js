@@ -405,6 +405,135 @@ export function ticketEtiquetaUbicacion(location, { ancho = 80 } = {}) {
   return t.avanza(2).corte()
 }
 
+// Pie común de los documentos no fiscales: la leyenda tiene que verse en el
+// papel, no solo en la pantalla.
+const LEYENDA_NO_FISCAL = 'Documento no fiscal. No válido como factura.'
+
+// Nota de entrega: respalda la entrega física de la mercadería con el receptor
+// y su firma. Sin precios: el comprobante de venta ya los detalla.
+export function ticketNotaEntrega(order, { ancho = 80 } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
+  const items = Array.isArray(order.items) ? order.items : []
+  const empresa = order.tenant?.name || order.empresaNombre || ''
+  const sucursal = order.branch || null
+  const cliente = order.customer || null
+  t.centrado(empresa || APP_NAME).negrita().centrado('Nota de entrega').negrita(false)
+  t.centrado(`${order.orderNumber || order.codigo || 'Pedido'} · ${fecha(order.createdAt || order.creadoEn || order.fecha)}`)
+  t.linea()
+  if (sucursal?.name) t.texto(sucursal.name)
+  t.par('Cliente', cliente?.name || order.cliente || 'Consumidor final')
+  if (cliente?.document) t.par('Documento', cliente.document)
+  const direccion = [order.deliveryAddress?.address, order.deliveryAddress?.city, order.deliveryAddress?.department].filter(Boolean).join(', ')
+  if (direccion) t.texto(`Dirección: ${direccion}`)
+  if (order.deliveryType || order.deliveryNotes) t.texto(`Entrega: ${order.deliveryType || '—'}${order.deliveryNotes ? ` · ${order.deliveryNotes}` : ''}`)
+  t.linea()
+  let unidades = 0
+  for (const item of items) {
+    const cantidad = Number(item.quantity || 1)
+    unidades += cantidad
+    t.par(item.description || item.nombre || 'Producto', `x${cantidad}`)
+  }
+  t.linea()
+  t.par('Total de unidades', String(unidades))
+  t.avanza(1)
+  t.texto('Recibí conforme la mercadería detallada.')
+  t.texto('Receptor: ______________________________')
+  t.texto('Documento: _____________________________')
+  t.texto('Firma: _________________________________')
+  t.linea()
+  t.centrado(LEYENDA_NO_FISCAL)
+  return t.avanza(2).corte()
+}
+
+// Remisión: traslado interno entre sucursales con las firmas de quien despacha
+// y quien recibe. El remito de traslado ya lista los IMEI; esta nota agrega el
+// control firmado de entrega y recepción.
+export function ticketRemision(transfer, { ancho = 80 } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
+  const lineas = Array.isArray(transfer.lines) ? transfer.lines : []
+  t.centrado(APP_NAME).negrita().centrado('Remisión interna').negrita(false)
+  t.centrado(`${transfer.sourceBranch?.name || 'Origen'} -> ${transfer.destinationBranch?.name || 'Destino'}`)
+  t.centrado(fecha(transfer.createdAt))
+  t.linea()
+  for (const linea of lineas) {
+    t.negrita().par(`${linea.sourceProduct?.name || 'Producto'} x${linea.quantity || 1}`, '').negrita(false)
+    const seriales = Array.isArray(linea.serials) ? linea.serials : []
+    for (const serial of seriales) t.texto(`  ${serial}`)
+  }
+  t.linea()
+  if (transfer.aexGuide) t.par('Guía AEX', transfer.aexGuide)
+  if (transfer.createdBy?.name) t.par('Despachado por', transfer.createdBy.name)
+  if (transfer.notes) t.texto(transfer.notes)
+  if (transfer.destinationLocation?.name) t.texto(`Destino en depósito: ${transfer.destinationLocation.name}`)
+  t.avanza(1)
+  t.texto('Entrega: _______________________________')
+  t.texto('Recepción: _____________________________')
+  t.linea()
+  t.centrado(LEYENDA_NO_FISCAL)
+  return t.avanza(2).corte()
+}
+
+// Recibo interno de un cobro puntual (no fiscal): monto, medio y referencia,
+// con las firmas de quien recibe y quien entrega.
+export function ticketReciboInterno(payment = {}, order = {}, { ancho = 80 } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
+  const monto = payment.amountPyg ?? payment.monto ?? 0
+  const metodo = ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago'
+  const referencia = payment.reference || payment.cuenta || payment.accountSnapshot?.name || ''
+  const cuando = payment.paidAt || payment.createdAt || payment.fecha || new Date().toISOString()
+  const pedido = order.orderNumber || order.codigo || 'Pedido'
+  const numero = payment.receiptNumber || payment.number || `${pedido}-${String(payment.id || '').slice(-4).toUpperCase() || 'R'}`
+  t.centrado(APP_NAME).negrita().centrado('Recibo interno').negrita(false)
+  t.centrado(`N.º ${numero}`)
+  t.centrado(fecha(cuando))
+  t.linea()
+  t.par('Recibí de', order.customer?.name || order.cliente || 'Consumidor final')
+  t.texto(`Concepto: cobro del pedido ${pedido}`)
+  t.linea()
+  t.par('Medio', metodo)
+  if (referencia) t.par('Referencia', referencia)
+  if (payment.settlesAt) t.par('Acredita', fecha(payment.settlesAt))
+  t.doble().par('TOTAL', gs(monto)).doble(false)
+  t.avanza(1)
+  t.texto('Firma de quien recibe: __________________')
+  t.texto('Firma de quien entrega: _________________')
+  t.linea()
+  t.centrado(LEYENDA_NO_FISCAL)
+  return t.avanza(2).corte()
+}
+
+// Proforma / presupuesto de una cotización: mismos ítems, precios y validez,
+// con la leyenda de que no tiene validez fiscal.
+export function ticketProforma(quote = {}, { ancho = 80 } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
+  const items = Array.isArray(quote.items) ? quote.items : []
+  const empresa = quote.tenant?.name || quote.companyName || ''
+  t.centrado(empresa || APP_NAME).negrita().centrado('Factura proforma').negrita(false)
+  t.centrado(`Presupuesto ${quote.number || ''}`)
+  t.centrado(fecha(quote.createdAt))
+  t.linea()
+  t.par('Cliente', quote.customer?.name || quote.customerName || 'Consumidor final')
+  if (quote.customer?.document) t.par('Documento', quote.customer.document)
+  if (quote.validUntil) t.par('Validez', `hasta ${fecha(quote.validUntil)}`)
+  t.linea()
+  for (const item of items) {
+    const cantidad = Number(item.quantity || 1)
+    const unitario = Number(item.unitPricePyg ?? 0)
+    const lineaTotal = Number(item.totalPyg ?? cantidad * unitario)
+    t.texto(item.description || 'Producto')
+    t.par(`  ${cantidad} x ${gs(unitario)}`, gs(lineaTotal))
+  }
+  t.linea()
+  t.par('Subtotal', gs(quote.subtotalPyg ?? quote.totalPyg ?? 0))
+  const descuento = Number(quote.discountPyg || 0)
+  if (descuento) t.par('Descuento', `- ${gs(descuento)}`)
+  t.doble().par('TOTAL', gs(quote.totalPyg ?? 0)).doble(false)
+  if (quote.notes) { t.linea(); t.texto(quote.notes) }
+  t.linea()
+  t.centrado(LEYENDA_NO_FISCAL)
+  return t.avanza(2).corte()
+}
+
 // Recepción de servicio técnico para ticketera: datos, desbloqueo, checklist
 // marcado y firma. Usa [x]/[ ] porque la térmica no imprime los símbolos ☑/☐.
 export function ticketRecepcionServicio(order, { ancho = 80 } = {}) {

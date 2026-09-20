@@ -14,7 +14,10 @@ import AttachmentInput from '@/components/shared/AttachmentInput'
 import { trackingUrlFor } from '@/components/shared/OrderReceipt'
 import { internationalPhone } from '@/utils/telefono'
 import { renderMessage } from '@/components/customers/customerMessaging'
-import { printPaymentReceipt, printOrderReceipt } from '@/components/shared/OrderReceipt'
+import { printInternalReceipt, printOrderReceipt } from '@/components/shared/OrderReceipt'
+import { configImpresora } from '@/lib/printing/agent'
+import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
+import { ticketReciboInterno } from '@/lib/printing/tickets'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 
 // Enlace de WhatsApp para compartir el seguimiento público del pedido. Usa la
@@ -233,6 +236,23 @@ export default function PagosPedido({ venta, onClose }) {
     } catch (e) { setError(e.message) }
   }
 
+  // Recibo interno de un cobro puntual: primero la térmica (agente o puente) y
+  // solo si el fallo fue claro cae al diálogo con el A4. Tras encolar o un
+  // resultado incierto no se abre nada: el reintento podría duplicar el papel.
+  async function imprimirReciboInterno(pago) {
+    setError(''); setNotice('')
+    const { ancho } = configImpresora()
+    const resultado = await imprimirDocumentoNoFiscal(ticketReciboInterno(pago, order, { ancho }), {
+      tipo: 'recibo-interno',
+      respaldo: () => printInternalReceipt(pago, order, { format: 'a4' }),
+    })
+    if (resultado.ok) {
+      setNotice(resultado.encolado ? (resultado.remoto ? 'Recibo interno encolado: lo imprime el puente cuando lo reclame.' : 'Recibo interno encolado: la impresora no respondió y se reintenta sola.') : 'Recibo interno enviado a la impresora.')
+      return
+    }
+    if (!resultado.dialogo) setError(resultado.error || 'No se pudo imprimir el recibo interno.')
+  }
+
   return <Modal open onClose={() => !busy && onClose()} title={`Pagos · ${order.codigo || order.cliente || 'Pedido'}`} className="max-w-2xl">
     <p className="mb-5 text-sm text-mute">Cada cobro conserva su fecha y referencia. Un archivo adjunto no confirma una transferencia.</p>
     {trackingUrlFor(order) && !esDemo && (
@@ -314,7 +334,7 @@ export default function PagosPedido({ venta, onClose }) {
             <Badge color={concTone}>{concLabel}</Badge>
             {p.dueAt && <Badge color="orange">Vence {new Date(p.dueAt).toLocaleDateString('es-PY')}</Badge>}
           </div>
-          {p.status === undefined || p.status === 'CONFIRMED' ? <button type="button" className="rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => printPaymentReceipt(p, order, { format: 'a4' })}>Imprimir recibo</button> : null}
+          {p.status === undefined || p.status === 'CONFIRMED' ? <button type="button" className="rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" onClick={() => imprimirReciboInterno(p)}>Recibo interno</button> : null}
         </div>
         <p className="mt-1 text-xs text-mute">{new Date(p.fecha || p.paidAt || p.createdAt).toLocaleString('es-PY')} · {p.cuenta || p.reference || 'Sin referencia'}{p.settlesAt ? ` · se acredita el ${new Date(p.settlesAt).toLocaleDateString('es-PY')}` : ''}</p>
         {p.accountSnapshot && <p className="mt-1 text-xs text-fono-light">{p.accountSnapshot.name} · {p.accountSnapshot.bank} · {p.accountSnapshot.accountNumber} · {p.currency} {p.originalAmount} · cotización {p.exchangeRatePyg}</p>}

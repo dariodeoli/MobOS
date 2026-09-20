@@ -108,10 +108,18 @@ const styles = (format) => {
   .brand img.logo{display:block;height:${width ? (width === 80 ? '14mm' : '12mm') : '16mm'};max-width:${width ? `${width - 20}mm` : '70mm'};object-fit:contain;margin:0 auto 4px}
   .qr{display:block;width:${qrSize};height:${qrSize};margin:10px auto 6px}
   .small{font-size:10px;word-break:break-all;text-align:center}
+  .nofiscal{border:2px solid #0f1720;padding:6px 8px;text-align:center;font-weight:800;letter-spacing:.05em;font-size:${width ? '10px' : '11px'};margin:12px 0}
+  .firmas{display:flex;flex-wrap:wrap;gap:14px 18px;margin:18px 0 4px;font-size:10px}
+  .firma{flex:1 1 40%;border-top:1px solid #0f1720;padding-top:4px}
   footer{margin-top:14px;border-top:1px solid #e3e8ec;padding-top:8px;font-size:10px;color:#66707a;text-align:center}
-  @media print{body{margin:0;color:#000}.muted{color:#222}.card,table,td,th,footer,.brand{border-color:#000}.brand b,.tag{color:#000}.tag{border-color:#000}}
+  @media print{body{margin:0;color:#000}.muted{color:#222}.card,table,td,th,footer,.brand,.nofiscal,.firma{border-color:#000}.brand b,.tag{color:#000}.tag{border-color:#000}}
 `
 }
+
+// Leyenda de los documentos no fiscales: tiene que verse, no esconderse en el
+// pie. El nombre completo del documento va en el encabezado.
+const avisoNoFiscal = () => '<div class="nofiscal">Documento no fiscal · No válido como factura</div>'
+const firmas = (...titulos) => `<div class="firmas">${titulos.map(titulo => `<div class="firma">${escapeHtml(titulo)}</div>`).join('')}</div>`
 
 
 const header = (title, when, logo = '') => `<div class="brand">${logo ? `<img class="logo" src="${logo}" alt="">` : `<b>${escapeHtml(APP_NAME)}</b>`}<span>${escapeHtml(title)}</span></div><h1>${escapeHtml(title)}</h1><p class="muted">${escapeHtml(when)}</p>`
@@ -301,5 +309,136 @@ export async function printReservationReceipt(reservation, { format = 'a4' } = {
     <p class="muted">La unidad queda apartada hasta la fecha indicada. Pasado el vencimiento se libera automáticamente.</p>
     ${footer()}
   </body></html>`
+  return printHtml(html)
+}
+
+// Nota de entrega: respalda la entrega física de la mercadería con el receptor
+// y su firma. Lista cantidades, no precios (el comprobante ya los detalla).
+export async function buildDeliveryNoteHtml(order, { format = 'a4' } = {}) {
+  const items = Array.isArray(order.items) ? order.items : []
+  const when = order.createdAt || order.creadoEn || order.fecha
+  const empresa = order.tenant?.name || order.empresaNombre || ''
+  const sucursal = order.branch || null
+  const cliente = order.customer || null
+  const logo = await getLogoDataUrl()
+  const unidades = items.reduce((suma, item) => suma + Number(item.quantity || 1), 0)
+  const itemsRows = items.map(item => `<tr><td>${escapeHtml(item.description || item.nombre || 'Producto')}</td><td class="num">${escapeHtml(item.quantity || 1)}</td></tr>`).join('')
+  const empresaCard = `<div class="card"><div class="label">Entrega</div><div>${escapeHtml(empresa || APP_NAME)}${sucursal?.name ? ` · ${escapeHtml(sucursal.name)}` : ''}${sucursal?.address || sucursal?.city ? `<br>${escapeHtml([sucursal.address, sucursal.city, sucursal.department].filter(Boolean).join(', '))}` : ''}${order.seller?.name ? `<br>Vendedor: ${escapeHtml(order.seller.name)}` : ''}</div></div>`
+  const direccion = order.deliveryAddress ? [order.deliveryAddress.address, order.deliveryAddress.city, order.deliveryAddress.department].filter(Boolean).join(', ') : (cliente?.addresses?.[0] ? [cliente.addresses[0].address, cliente.addresses[0].city, cliente.addresses[0].department].filter(Boolean).join(', ') : '')
+  const clienteCard = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente?.name || order.cliente || 'Consumidor final')}</strong>${cliente?.document ? ` · ${escapeHtml(cliente.document)}` : ''}${cliente?.phone ? `<br>${escapeHtml(`${cliente.countryCode || ''} ${cliente.phone}`.trim())}` : ''}${direccion ? `<br>${escapeHtml(direccion)}` : ''}</div></div>`
+  const entregaNotas = order.deliveryType || order.deliveryNotes ? `<p class="muted">Entrega: ${escapeHtml(order.deliveryType || '—')}${order.deliveryNotes ? ` · ${escapeHtml(order.deliveryNotes)}` : ''}</p>` : ''
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Nota de entrega ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(format)}</style></head><body>
+    ${header('Nota de entrega', `${order.orderNumber || order.codigo || 'Pedido'} · ${when ? new Date(when).toLocaleString('es-PY') : ''}`, logo)}
+    ${avisoNoFiscal()}
+    ${empresaCard}
+    ${clienteCard}
+    <table><thead><tr><th>Producto</th><th class="num">Cantidad</th></tr></thead><tbody>${itemsRows}</tbody></table>
+    <table class="totals"><tr><td>Total de unidades</td><td class="num">${escapeHtml(String(unidades))}</td></tr></table>
+    ${entregaNotas}
+    <p class="muted">Recibí conforme la mercadería detallada en este documento.</p>
+    ${firmas('Nombre del receptor', 'Documento', 'Firma', 'Fecha')}
+    <footer>Documento no fiscal. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+  </body></html>`
+}
+
+export async function printDeliveryNote(order, options = {}) {
+  const html = await buildDeliveryNoteHtml(order, options)
+  return printHtml(html)
+}
+
+// Remisión interna: traslado entre sucursales con la firma de quien despacha y
+// quien recibe. El remito ya lista los IMEI; acá se firma la entrega.
+export async function buildRemisionHtml(transfer, { format = 'a4' } = {}) {
+  const lines = Array.isArray(transfer.lines) ? transfer.lines : []
+  const lineas = lines.map((line) => {
+    const seriales = Array.isArray(line.serials) ? line.serials : []
+    return `<div class="item"><strong>${escapeHtml(line.sourceProduct?.name || 'Producto')} × ${escapeHtml(line.quantity || 1)}</strong>${seriales.length ? `<div class="serials">${seriales.map((serial) => escapeHtml(serial)).join('<br>')}</div>` : ''}</div>`
+  }).join('')
+  const logo = await getLogoDataUrl()
+  const empresa = transfer.tenant?.name || ''
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Remisión interna</title><style>${styles(format)}
+    .items{margin:10px 0;border-top:1px dashed #d5dbe0}.item{padding:8px 0;border-bottom:1px dashed #d5dbe0}.serials{font-size:9px;line-height:1.5;color:#333;margin-top:4px}
+    @media print{.items,.item{border-color:#000}}
+  </style></head><body>
+    ${header('Remisión interna', `${transfer.sourceBranch?.name || 'Origen'} → ${transfer.destinationBranch?.name || 'Destino'} · ${transfer.createdAt ? new Date(transfer.createdAt).toLocaleString('es-PY') : ''}`, logo)}
+    ${avisoNoFiscal()}
+    <div class="card"><div class="label">Datos</div><div>${escapeHtml(empresa || APP_NAME)}${transfer.createdBy?.name ? `<br>Despachado por: ${escapeHtml(transfer.createdBy.name)}` : ''}${transfer.destinationLocation?.name ? `<br>Destino en depósito: ${escapeHtml(transfer.destinationLocation.name)}` : ''}${transfer.aexGuide ? `<br>Guía AEX: ${escapeHtml(transfer.aexGuide)}` : ''}</div></div>
+    <div class="items">${lineas}</div>
+    ${transfer.notes ? `<p class="muted">${escapeHtml(transfer.notes)}</p>` : ''}
+    <p class="muted">Controlá el contenido contra esta remisión al recibir.</p>
+    ${firmas('Despachado por (firma)', 'Recibido por (firma)', 'Aclaración', 'Fecha')}
+    <footer>Documento no fiscal. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+  </body></html>`
+}
+
+export async function printRemisionReceipt(transfer, options = {}) {
+  const html = await buildRemisionHtml(transfer, options)
+  return printHtml(html)
+}
+
+// Recibo interno de un cobro puntual: monto, medio y referencia, con firmas.
+export async function buildInternalReceiptHtml(payment = {}, order = {}, { format = 'a4' } = {}) {
+  const monto = payment.amountPyg ?? payment.monto ?? 0
+  const metodo = ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago'
+  const referencia = payment.cuenta || payment.reference || payment.accountSnapshot?.name || ''
+  const when = payment.fecha || payment.paidAt || payment.createdAt || new Date().toISOString()
+  const pedido = order?.orderNumber || order?.codigo || 'Pedido'
+  const numero = payment.receiptNumber || payment.number || `${pedido}-${String(payment.id || '').slice(-4).toUpperCase() || 'R'}`
+  const logo = await getLogoDataUrl()
+  const empresa = order?.tenant?.name || order?.empresaNombre || ''
+  const cliente = order?.customer?.name || order?.cliente || 'Consumidor final'
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo interno ${escapeHtml(numero)}</title><style>${styles(format)}</style></head><body>
+    ${header('Recibo interno', `N.º ${numero} · ${new Date(when).toLocaleString('es-PY')}`, logo)}
+    ${avisoNoFiscal()}
+    <div class="card"><div class="label">Recibí de</div><div><strong>${escapeHtml(cliente)}</strong><br>Concepto: cobro del pedido ${escapeHtml(pedido)}</div></div>
+    <table class="totals">
+      <tr><td>Medio</td><td class="num">${escapeHtml(metodo)}</td></tr>
+      ${referencia ? `<tr><td>Cuenta / referencia</td><td class="num">${escapeHtml(referencia)}</td></tr>` : ''}
+      ${payment.settlesAt ? `<tr><td>Acredita</td><td class="num">${escapeHtml(new Date(payment.settlesAt).toLocaleDateString('es-PY'))}</td></tr>` : ''}
+      <tr><td>Monto cobrado</td><td class="num">${escapeHtml(gs(monto))}</td></tr>
+    </table>
+    ${firmas('Firma de quien recibe', 'Firma de quien entrega')}
+    <footer>Documento no fiscal. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+  </body></html>`
+}
+
+export async function printInternalReceipt(payment, order, options = {}) {
+  const html = await buildInternalReceiptHtml(payment, order, options)
+  return printHtml(html)
+}
+
+// Proforma / presupuesto de una cotización: ítems, descuento, total y validez,
+// sin el QR de aceptación (es un presupuesto impreso, no un enlace vivo).
+export async function buildProformaHtml(quote, { format = 'a4' } = {}) {
+  const items = Array.isArray(quote.items) ? quote.items : []
+  const logo = await getLogoDataUrl()
+  const empresa = quote.tenant?.name || quote.companyName || ''
+  const sucursal = quote.branch || null
+  const cliente = quote.customer?.name || quote.customerName || 'Consumidor final'
+  const itemsRows = items.map(item => `<tr><td>${escapeHtml(item.description || 'Producto')}</td><td class="num">${escapeHtml(item.quantity || 1)} × ${escapeHtml(gs(item.unitPricePyg ?? 0))}</td><td class="num">${escapeHtml(gs(item.totalPyg ?? (item.quantity || 1) * (item.unitPricePyg ?? 0)))}</td></tr>`).join('')
+  const descuento = Number(quote.discountPyg || 0)
+  const validez = quote.validUntil ? `Válida hasta el ${new Date(quote.validUntil).toLocaleDateString('es-PY')}` : 'Sin vencimiento'
+  const empresaCard = `<div class="card"><div class="label">Empresa</div><div>${escapeHtml(empresa || APP_NAME)}${sucursal?.name ? ` · ${escapeHtml(sucursal.name)}` : ''}${quote.seller?.name ? `<br>Vendedor: ${escapeHtml(quote.seller.name)}` : ''}</div></div>`
+  const clienteCard = `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente)}</strong>${quote.customer?.document ? ` · ${escapeHtml(quote.customer.document)}` : ''}${quote.customer?.phone ? `<br>${escapeHtml(`${quote.customer.countryCode || ''} ${quote.customer.phone}`.trim())}` : ''}</div></div>`
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Proforma ${escapeHtml(quote.number || '')}</title><style>${styles(format)}</style></head><body>
+    ${header('Factura proforma', `Presupuesto ${quote.number || ''} · ${quote.createdAt ? new Date(quote.createdAt).toLocaleString('es-PY') : ''}`, logo)}
+    ${avisoNoFiscal()}
+    ${empresaCard}
+    ${clienteCard}
+    <table><thead><tr><th>Producto</th><th class="num">Precio</th><th class="num">Total</th></tr></thead><tbody>${itemsRows}</tbody></table>
+    <table class="totals">
+      <tr><td>Subtotal</td><td class="num">${escapeHtml(gs(quote.subtotalPyg ?? quote.totalPyg))}</td></tr>
+      ${descuento ? `<tr><td>Descuento</td><td class="num">− ${escapeHtml(gs(descuento))}</td></tr>` : ''}
+      <tr><td>Total</td><td class="num">${escapeHtml(gs(quote.totalPyg))}</td></tr>
+      <tr><td>Validez</td><td class="num">${escapeHtml(validez)}</td></tr>
+    </table>
+    ${quote.notes ? `<p class="muted">${escapeHtml(quote.notes)}</p>` : ''}
+    <p class="muted">Presupuesto sin validez fiscal: no reemplaza a la factura.</p>
+    <footer>Documento no fiscal. Proforma generada por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
+  </body></html>`
+}
+
+export async function printProformaReceipt(quote, options = {}) {
+  const html = await buildProformaHtml(quote, options)
   return printHtml(html)
 }

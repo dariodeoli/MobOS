@@ -9,7 +9,10 @@ import Icon from '@/components/shared/Icon'
 import QRCode from 'qrcode'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Cronologia from '@/components/shared/Cronologia'
-import { printQuoteReceipt, quoteUrlFor } from '@/components/shared/OrderReceipt'
+import { printProformaReceipt, printQuoteReceipt, quoteUrlFor } from '@/components/shared/OrderReceipt'
+import { configImpresora } from '@/lib/printing/agent'
+import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
+import { ticketProforma } from '@/lib/printing/tickets'
 import { cn } from '@/lib/utils'
 import { resources } from '@/lib/api'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
@@ -167,6 +170,23 @@ export default function SellerQuotes() {
     if (!enlace) return
     try { await printQuoteReceipt(enlace, { format: 'a4', token: enlace.publicToken }) } catch { setEnlaceError('No se pudo preparar la impresión.') }
   }
+  // Proforma / presupuesto: térmica por el agente o el puente y, solo si el
+  // fallo fue claro, el A4 por el diálogo. Nunca tras encolar o un resultado
+  // incierto (el reintento podría duplicar el papel).
+  async function imprimirProforma() {
+    if (!enlace) return
+    setEnlaceError('')
+    const { ancho } = configImpresora()
+    const resultado = await imprimirDocumentoNoFiscal(ticketProforma(enlace, { ancho }), {
+      tipo: 'proforma',
+      respaldo: () => printProformaReceipt(enlace, { format: 'a4' }),
+    })
+    if (resultado.ok) {
+      setNotice(resultado.encolado ? (resultado.remoto ? 'Proforma encolada: la imprime el puente cuando la reclame.' : 'Proforma encolada: la impresora no respondió y se reintenta sola.') : 'Proforma enviada a la impresora.')
+      return
+    }
+    if (!resultado.dialogo) setEnlaceError(resultado.error || 'No se pudo imprimir la proforma.')
+  }
 
   return <SellerSection description="Pipeline de ventas: cotizá, seguí el vencimiento y convertí en pedido cuando el cliente acepte.">
     <div className="flex flex-wrap items-center gap-2">
@@ -269,6 +289,7 @@ export default function SellerQuotes() {
           <Button type="button" variant="outline" disabled={!enlace?.publicToken} onClick={copiarEnlace}><Icon name="copy" className="h-4 w-4" />Copiar enlace</Button>
           <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={regenerarEnlace}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>
           <Button type="button" disabled={enlaceBusy || !enlace} onClick={imprimirEnlace}><Icon name="printer" className="h-4 w-4" />Imprimir</Button>
+          <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={imprimirProforma}><Icon name="printer" className="h-4 w-4" />Proforma</Button>
         </div>
       </div>
     </Modal>
