@@ -1845,6 +1845,10 @@ model AuditLog {
   // recorrer el JSONB fila por fila.
   searchText String  @default("")
   @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
+  // Índice del JSONB para la búsqueda por metadato (migración
+  // 20261023000000_print_branch_bridges). La migración lo creó y el schema no
+  // lo declaraba: `npm run db:check` lo marcaba como sobrante.
+  @@index([metadata(ops: JsonbPathOps)], type: Gin)
 }
 
 model CashSession {
@@ -2321,6 +2325,7 @@ model PrintBridge {
 
   @@index([tenantId, revokedAt])
   @@index([pairingCodeHash])
+  @@index([tenantId, branchId])
 }
 
 // Impresora configurada por empresa. `destination` usa el formato del agente:
@@ -2355,6 +2360,7 @@ model PrintPrinter {
 
   @@unique([tenantId, destination])
   @@index([tenantId, isActive])
+  @@index([tenantId, branchId])
 }
 
 // Trabajo de impresión. El payload ESC/POS es transitorio: se borra al

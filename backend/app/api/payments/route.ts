@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     const orderId = textInput(body.orderId, 'orderId', 200)
     // Cuota concreta del plan de crédito que este cobro viene a saldar. Al
     // indicarla, el pago se concilia sobre la cuota existente en vez de crear
-    // otro movimiento: la deuda no se duplica.
+    // otro movimiento: la deuda no se duplica y el recordatorio se detiene.
     const installmentId = body.installmentId === undefined || body.installmentId === null || body.installmentId === '' ? null : textInput(body.installmentId, 'installmentId', 200)
     const result = await prisma.$transaction(async tx => {
       const locked = await tx.$queryRaw<Array<{ id: string; branchId: string | null; sellerId: string; status: string; totalPyg: number; orderNumber: string; customerId: string | null }>>`SELECT "id", "branchId", "sellerId", "status", "totalPyg", "orderNumber", "customerId" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenant} FOR UPDATE`
@@ -62,7 +62,13 @@ export async function POST(request: Request) {
         const previous = await tx.payment.findUnique({ where: { tenantId_idempotencyKey: { tenantId: tenant, idempotencyKey } } })
         if (previous) {
           const normalized = await normalizePayment(tx, tenant, body, previous).catch(() => { throw new InputError('El identificador ya pertenece a otro pago.', 409) })
-          if (!matchesPayment(previous, normalized, order.id)) throw new Error('El identificador ya pertenece a otro pago.')
+          // Reintento del cobro de una cuota: la cuota ya quedó saldada por el
+          // primer intento, así que el reintento devuelve ese mismo movimiento
+          // (la cuota conserva su vencimiento) en vez de duplicar el cobro.
+          const replayCuota = installmentId !== null && previous.id === installmentId && previous.orderId === order.id
+          if (replayCuota) {
+            if (previous.status !== 'CONFIRMED' || !previous.dueAt || normalized.status !== 'CONFIRMED' || previous.method !== normalized.method || previous.amountPyg !== normalized.amountPyg) throw new Error('El identificador ya pertenece a otro pago.')
+          } else if (!matchesPayment(previous, normalized, order.id)) throw new Error('El identificador ya pertenece a otro pago.')
           if (normalized.tradeIn) {
             const device = await tx.tradeInDevice.findUnique({ where: { paymentId: previous.id } })
             if (!device || device.serial !== normalized.tradeIn.serial || device.model !== normalized.tradeIn.model || device.conditionNotes !== normalized.tradeIn.conditionNotes) throw new Error('El identificador ya pertenece a otra recepción.')
@@ -73,23 +79,26 @@ export async function POST(request: Request) {
       if (order.status === 'CANCELLED' || order.status === 'COMPLETED') throw new Error('La venta no admite nuevos pagos.')
       const { tradeIn, ...normalized } = await normalizePayment(tx, tenant, body)
       const amount = normalized.amountPyg; const status = normalized.status
-      // Cobro de una cuota del plan de crédito: se confirma la cuota misma y
-      // queda conciliada en un solo paso. El monto debe ser exactamente el de
-      // la cuota; la deuda del cliente baja y los recordatorios se detienen.
+      // Cobro de una cuota del plan de crédito: se salda la cuota misma (mismo
+      // movimiento), se confirma con el medio real del cobro, se cierra el
+      // pedido si quedó pagado y el recordatorio se detiene. Bajo el FOR UPDATE
+      // del pedido y de la cuota, un reintento no descuenta dos veces.
       if (installmentId) {
-        const rows = await tx.$queryRaw<Array<{ id: string; status: string; amountPyg: number; dueAt: Date | null }>>`
-          SELECT "id", "status"::text, "amountPyg", "dueAt" FROM "Payment"
+        if (status !== 'CONFIRMED') throw new InputError('Una cuota se cobra como pago confirmado.')
+        const rows = await tx.$queryRaw<Array<{ id: string; status: string; amountPyg: number; dueAt: Date | null; reference: string | null }>>`
+          SELECT "id", "status"::text AS "status", "amountPyg", "dueAt", "reference" FROM "Payment"
           WHERE "id" = ${installmentId} AND "tenantId" = ${tenant} AND "orderId" = ${order.id} FOR UPDATE`
         const cuota = rows[0]
         if (!cuota?.dueAt) throw new InputError('La cuota indicada no pertenece a esta venta.', 404)
         if (cuota.status !== 'PENDING') throw new InputError('Esa cuota ya fue cobrada o no está pendiente.', 409)
-        if (status !== 'CONFIRMED') throw new InputError('Una cuota se cobra como pago confirmado.')
         if (amount !== cuota.amountPyg) throw new InputError(`El monto debe ser exactamente el de la cuota (${cuota.amountPyg} Gs.).`)
-        const payment = await tx.payment.update({ where: { id: cuota.id }, data: { ...normalized, idempotencyKey, userId: session.user.id, createdById: session.user.id, paidAt: new Date() } })
+        const cobrado = await tx.payment.aggregate({ where: { orderId: order.id, tenantId: tenant, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
+        const yaCobrado = cobrado._sum.amountPyg || 0
+        if (!Number.isSafeInteger(order.totalPyg) || order.totalPyg < 0 || order.totalPyg > INT_MAX || !Number.isSafeInteger(yaCobrado + amount) || yaCobrado + amount > INT_MAX || yaCobrado + amount > order.totalPyg) throw new Error('El pago supera el total de la venta.')
+        const payment = await tx.payment.update({ where: { id: cuota.id }, data: { ...normalized, reference: normalized.reference ?? cuota.reference, idempotencyKey, userId: session.user.id, createdById: session.user.id, paidAt: new Date() } })
         await receiveTradeIn(tx, tradeIn, payment, order, tenant, session.user.id)
         await consumeStoreCredit(tx, { tenantId: tenant, customerId: order.customerId, orderId: order.id, paymentId: payment.id, userId: session.user.id, amountPyg: payment.amountPyg, method: normalized.method })
-        const paidInstallment = await tx.payment.aggregate({ where: { orderId: order.id, tenantId: tenant, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
-        if ((paidInstallment._sum.amountPyg || 0) >= order.totalPyg) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
+        if (yaCobrado + amount >= order.totalPyg) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'CREDIT_INSTALLMENT_PAID', entity: 'Payment', entityId: payment.id, metadata: { orderId: order.id, orderNumber: order.orderNumber, amountPyg: payment.amountPyg, method: payment.method, dueAt: cuota.dueAt, installment: true } } })
         return payment
       }

@@ -53,10 +53,12 @@ export function useSellerData(path, project, demoRead, esDemo, options = {}) {
 
 
 export function SellerSection({ title, description, children }) {
-  // El título lo muestra el shell (topbar): acá queda solo accesible para
-  // lectores de pantalla y para los tests, sin repetirlo visualmente (#57).
-  return <section className="space-y-4">
-    <div><h1 className="sr-only">{title}</h1><p className="text-sm text-mute">{description}</p></div>
+  // El `h1` de la página vive en el shell (topbar) desde #57: repetirlo acá
+  // dejaba dos encabezados con el mismo nombre (rompía los tests por strict
+  // mode). El título sigue en el `aria-label` de la sección para lectores de
+  // pantalla y para ubicar la región en los tests.
+  return <section className="space-y-4" aria-label={title}>
+    <div><p className="text-sm text-mute">{description}</p></div>
     {children}
   </section>
 }

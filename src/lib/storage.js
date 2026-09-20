@@ -693,6 +693,11 @@ export function vendedoresById() {
 export function listVentas() {
   return cache.ventas
 }
+// Pedido del API con la misma forma que `listVentas`: lo usan las pantallas
+// que abren un pedido que no está en el caché del día (p. ej. Cobranzas).
+export function ventaDesdeApi(order) {
+  return mapOrdenApi(order)
+}
 export async function guardarOrdenApi(payload, opciones = {}) {
   if (!apiMode()) throw new Error('guardarOrdenApi solo está disponible con una sesión API real.')
   if (!payload || typeof payload !== 'object')

@@ -13,9 +13,10 @@
 //   qrGarantia(token)    -> <base>/garantia/<token>    enlace del caso (copia/QR)
 //
 // La base sale de `VITE_APP_URL`; si no está, del origen donde corre la app
-// (`window.location.origin`) y, en tests, del parámetro explícito `base`. Sin
-// base no se inventa una ruta relativa: la función devuelve `''` y el llamador
-// omite el QR antes que imprimir un código muerto.
+// (`window.location.origin`) y, en tests, del parámetro explícito `base`. Si no
+// hay base (tests con `node --test`, entornos sin origen), los QR de unidad,
+// producto y prueba caen al payload histórico `MOBOS:...`: el ticket nunca sale
+// sin código, y el lector del local lo sigue entendiendo.
 //
 // La prueba de impresión no existe en la base (es local del agente): sus datos
 // viajan en la URL para que la página sea autocontenida y muestre exactamente
@@ -53,19 +54,25 @@ const enlaceConBase = (base, ruta) => {
 
 const segmento = (valor) => encodeURIComponent(String(valor ?? '').trim())
 
+// Respaldo histórico: sin base no hay página que abrir, pero el papel igual
+// lleva un payload legible por el escáner del local.
+const conRespaldo = (enlace, respaldo) => enlace || respaldo
+
 export function qrPedido(token, base = '') {
   const valor = segmento(token)
   return valor ? enlaceConBase(base, `/p/${valor}`) : ''
 }
 
 export function qrUnidad(serial, base = '') {
-  const valor = segmento(serial)
-  return valor ? enlaceConBase(base, `/u/${valor}`) : ''
+  const valor = String(serial ?? '').trim()
+  if (!valor) return ''
+  return conRespaldo(enlaceConBase(base, `/u/${segmento(valor)}`), `MOBOS:${valor}`)
 }
 
 export function qrProducto(sku, base = '') {
-  const valor = segmento(sku)
-  return valor ? enlaceConBase(base, `/producto/${valor}`) : ''
+  const valor = String(sku ?? '').trim()
+  if (!valor) return ''
+  return conRespaldo(enlaceConBase(base, `/producto/${segmento(valor)}`), `MOBOS:PROD:${valor}`)
 }
 
 export function qrGarantia(token, base = '') {
@@ -75,7 +82,8 @@ export function qrGarantia(token, base = '') {
 
 export function qrPrueba({ destino = '', validacion = '', fecha = '', tipo = '' } = {}, base = '') {
   const origen = baseDeApp(base)
-  if (!origen) return ''
+  const respaldo = `MOBOS:PRUEBA:${String(tipo).trim()}:${String(validacion).trim()}`
+  if (!origen) return respaldo
   const consulta = new URLSearchParams({
     d: String(destino).trim(),
     v: String(validacion).trim(),

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
-import { listVentas } from '@/lib/storage'
+import { listVentas, ventaDesdeApi } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { agruparCuotas, diasDeAtraso, resumenCuotas } from '@/lib/cobranzas'
 import { Badge, Button, Card, EmptyState, Modal, useToast } from '@/components/ui'
@@ -42,7 +42,7 @@ export default function Cobranzas() {
     if (venta) { setPedido(venta); return }
     // La caché local solo guarda las ventas del día: si el pedido es más
     // viejo, se trae del API para poder cobrar la cuota desde acá.
-    try { setPedido(await api.get(`/api/orders/${encodeURIComponent(row.orderId)}`)) } catch (cause) { setError(cause?.message || 'No se pudo abrir el pedido.') }
+    try { setPedido(ventaDesdeApi(await api.get(`/api/orders/${encodeURIComponent(row.orderId)}`))) } catch (cause) { setError(cause?.message || 'No se pudo abrir el pedido.') }
   }
 
   // Abre WhatsApp primero (el navegador solo permite abrir en el clic) y

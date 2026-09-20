@@ -16,29 +16,23 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
   const listId = useId()
   const rootRef = useRef(null)
 
-  // Cierra el dropdown al hacer clic fuera: sin esto, el listado abierto
-  // se superpone a los resultados de productos y se come los clics.
-  // El fill/focus dispara un scroll del navegador: si el cierre por scroll lo
-  // tomara, el listado se cerraba justo al tipear. Se ignora el scroll pegado
-  // a la última tecla.
-  const ultimoTipeo = useRef(0)
+  // El listado va en flujo (no superpuesto), así que se cierra solo con un clic
+  // afuera o con Escape. Antes se cerraba con cualquier `scroll`: eso desmontaba
+  // la opción justo antes del clic cuando la herramienta la acercaba a la vista
+  // (`scrollIntoView` dispara `scroll`) y, en el POS, obligaba a scrollear para
+  // destapar la tarjeta de resultado. En flujo nada queda tapado.
   useEffect(() => {
-    // Cierra con cualquier clic fuera de una opción: el listado abierto se
-    // superpone a los resultados de productos y bloqueaba sus clics.
+    // En `click` y no en `mousedown`: con la lista en flujo, cerrarla en el
+    // mousedown la colapsa entre el mousedown y el mouseup y el clic deja de
+    // contar como clic del elemento destino (el navegador lo manda al
+    // ancestro común). Así el clic en la tarjeta de resultado suma el producto
+    // y recién después se cierra la lista.
     const cerrarFuera = (event) => {
-      const enOpcion = event.target instanceof Element && event.target.closest('button[role="option"]')
-      if (enOpcion) return
+      if (event.target instanceof Node && rootRef.current?.contains(event.target)) return
       close()
     }
-    const cerrarPorScroll = () => { if (Date.now() - ultimoTipeo.current > 250) close() }
-    document.addEventListener('mousedown', cerrarFuera)
-    // El scroll (incluido el del grid de resultados al hacer clic abajo)
-    // también cierra: el listado no debe seguir superpuesto a los productos.
-    document.addEventListener('scroll', cerrarPorScroll, true)
-    return () => {
-      document.removeEventListener('mousedown', cerrarFuera)
-      document.removeEventListener('scroll', cerrarPorScroll, true)
-    }
+    document.addEventListener('click', cerrarFuera)
+    return () => document.removeEventListener('click', cerrarFuera)
   }, [])
 
   const setearQuery = useCallback((next) => {
@@ -130,7 +124,6 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
         value={query}
         placeholder={placeholder}
         onChange={(event) => {
-          ultimoTipeo.current = Date.now()
           setearQuery(event.target.value)
           setOpen(true)
           setHighlight(0)
@@ -140,7 +133,7 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
         onKeyDown={onKeyDown}
       />
       {open && term && (
-        <ul id={listId} role="listbox" className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-ink-500 bg-ink-800 py-1 shadow-lg">
+        <ul id={listId} role="listbox" className="mt-1 max-h-48 w-full overflow-auto rounded-lg border border-ink-500 bg-ink-800 py-1 shadow-lg">
           {suggestions.map((product, index) => (
             <li key={product.id}>
               <button
