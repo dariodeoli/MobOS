@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError } from '../../../lib/payment-input'
 import { applyPurchaseLineOverrides, distributePurchaseCosts, purchaseTotals } from '../../../lib/purchases'
 import type { PurchaseLineCostOverride } from '../../../lib/purchases'
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
+  if (!canAccessAny(session.user, ['purchases:manage'])) return error('No autorizado.', 403)
   const body = await request.json(); const lines = Array.isArray(body.lines) ? body.lines : []
   const shippingPyg = Number(body.shippingPyg ?? 0); const customsPyg = Number(body.customsPyg ?? 0); const insurancePyg = Number(body.insurancePyg ?? 0); const taxesPyg = Number(body.taxesPyg ?? 0); const otherCostsPyg = Number(body.otherCostsPyg ?? 0)
   const currency = body.currency ?? 'PYG'; const exchangeRatePyg = body.exchangeRatePyg ?? 1
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
+  if (!canAccessAny(session.user, ['purchases:manage'])) return error('No autorizado.', 403)
   const body = await request.json(); if (!boundedText(body.id, MAX_ID) || !['receive', 'pay', 'advance', 'update-costs'].includes(body.action)) return error('Compra y acción válida son obligatorias.')
   try {
     const result = await prisma.$transaction(async tx => {

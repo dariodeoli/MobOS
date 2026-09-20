@@ -1,7 +1,7 @@
 import { prisma } from '../../../lib/prisma'
 import { PaymentCurrency, ProductCondition } from '@prisma/client'
 import { error, json, tenantId } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { ensureStoreBranch } from '../../../lib/store-branch'
 import { skuUnico } from '../../../lib/sku'
 import { serialKey } from '../../../lib/validation'
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const tenant = await tenantId(request); if (!tenant) return error('Falta sesión.', 401)
   const session = await requireSession(request); if (!session) return error('Sesión inválida.', 401)
-  if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
+  if (!canAccessAny(session.user, ['products:manage'])) return error('No autorizado.', 403)
   const b = await request.json(); const price = Number(b.pricePyg ?? b.price ?? 0); const stock = Number(b.stock ?? 0)
   const cost = b.costPyg === undefined || b.costPyg === null || b.costPyg === '' ? undefined : Number(b.costPyg)
   const wholesalePricePyg = b.wholesalePricePyg === undefined || b.wholesalePricePyg === null || b.wholesalePricePyg === '' ? null : Number(b.wholesalePricePyg)
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
+  if (!canAccessAny(session.user, ['products:manage'])) return error('No autorizado.', 403)
   const b = await request.json(); if (!b.id) return error('Producto obligatorio.')
   const price = b.pricePyg === undefined ? undefined : Number(b.pricePyg); const stock = b.stock === undefined ? undefined : Number(b.stock)
   const cost = b.costPyg === undefined ? undefined : b.costPyg === null || b.costPyg === '' ? null : Number(b.costPyg)
@@ -136,7 +136,7 @@ export async function PATCH(request: Request) {
 export async function DELETE(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!['ADMIN', 'GERENTE'].includes(session.user.role)) return error('No autorizado.', 403)
+  if (!canAccessAny(session.user, ['products:manage'])) return error('No autorizado.', 403)
   const id = new URL(request.url).searchParams.get('id'); if (!id) return error('Producto obligatorio.')
   const product = await prisma.product.findFirst({ where: { id, tenantId: tenant, isActive: true } })
   if (!product) return error('Producto no encontrado.', 404)

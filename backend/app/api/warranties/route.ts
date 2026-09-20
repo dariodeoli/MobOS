@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { prisma } from '../../../lib/prisma'
 import { resolveCustomerId } from '../../../lib/customer-link'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { error, json, tenantId } from '../../../lib/http'
 import { notifyWarrantyStatusChanged } from '../../../lib/email-notifications'
 
@@ -13,7 +13,7 @@ const STATUS_LABELS: Record<(typeof STATUSES)[number], string> = {
   DELIVERED: 'Entregado',
 }
 const rank = (status: string) => STATUSES.indexOf(status as (typeof STATUSES)[number])
-const canManage = (role: string) => role === 'ADMIN' || role === 'GERENTE'
+const canManage = (user: { permissions: string[] }) => canAccessAny(user, ['warranties:manage'])
 const withinLimit = (value: unknown) => typeof value === 'string' && value.trim().length <= 2000
 const validDate = (value: unknown) => value === undefined || value === null || (typeof value === 'string' && Number.isFinite(new Date(value).getTime()))
 const list = (value: unknown, name: string) => {
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!canManage(session.user.role)) return error('No autorizado.', 403)
+  if (!canManage(session.user)) return error('No autorizado.', 403)
   const body = await request.json()
   const customerName = typeof body.customerName === 'string' ? body.customerName.trim() : ''
   // La ficha se resuelve por id o, si no vino, por nombre exacto e inequívoco:
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!canManage(session.user.role)) return error('No autorizado.', 403)
+  if (!canManage(session.user)) return error('No autorizado.', 403)
   const body = await request.json(); if (!body.id) return error('El caso es obligatorio.')
   try {
     const result = await prisma.$transaction(async (tx) => {

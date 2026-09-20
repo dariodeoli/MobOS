@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
 import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
@@ -159,6 +159,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  // Permiso efectivo: el administrador puede quitarle la venta a un rol y el
+  // backend lo respeta (los permisos configurados solo recortan la base del rol).
+  if (!canAccessAny(session.user, ['pos:use', 'orders:manage', 'orders:own', 'orders:branch'])) return error('Tu rol no puede registrar ventas.', 403)
   const limited = enforceRateLimit(request, 'orders', 120, 60_000)
   if (limited) return limited
   const idempotencyKey = request.headers.get('Idempotency-Key') || null

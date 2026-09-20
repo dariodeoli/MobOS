@@ -1,18 +1,17 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError } from '../../../lib/payment-input'
 
 // La auditoría es la memoria del negocio: quién hizo qué y cuándo. Solo la ven
 // administración y gerencia, porque incluye movimientos de equipo y de dinero.
-const ROLES = ['ADMIN', 'GERENTE']
 const MAX_LIMIT = 200
 
 export async function GET(request: Request) {
   try {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!ROLES.includes(session.user.role)) return error('No autorizado.', 403)
+  if (!canAccessAny(session.user, ['reports:read'])) return error('No autorizado.', 403)
   const params = new URL(request.url).searchParams
   const limit = Math.min(MAX_LIMIT, Math.max(1, Number(params.get('limit')) || 50))
   const cursor = params.get('cursor')

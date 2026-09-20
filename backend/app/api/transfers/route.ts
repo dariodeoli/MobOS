@@ -1,6 +1,6 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError } from '../../../lib/payment-input'
 import { serialKey } from '../../../lib/validation'
 import { changeStock } from '../../../lib/stock'
@@ -10,12 +10,13 @@ const INT_MAX = 2147483647
 const text = (value: unknown, max = 160) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max ? value.trim() : null
 
 // ADMIN y GERENTE transfieren por su rol; el resto de los roles necesita una
-// autorización de gerencia aprobada y de un solo uso.
-function permitted(role: string) { return role === 'ADMIN' || role === 'GERENTE' }
+// autorización de gerencia aprobada y de un solo uso. El permiso efectivo
+// permite además recortar el traslado a un gerente en particular.
+function permitted(user: { permissions: string[] }) { return canAccessAny(user, ['stock:manage']) }
 
 export async function GET(request: Request) {  const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!permitted(session.user.role)) return error('No autorizado.', 403)
+  if (!permitted(session.user)) return error('No autorizado.', 403)
   const where = session.user.role === 'GERENTE' && session.user.branchId
     ? { tenantId: tenant, OR: [{ sourceBranchId: session.user.branchId }, { destinationBranchId: session.user.branchId }] }
     : { tenantId: tenant }
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
   if (!tenant || !session) return error('Falta sesión.', 401)
   let body: any
   try { body = await request.json() } catch { return error('JSON inválido.') }
-  const porRol = permitted(session.user.role)
+  const porRol = permitted(session.user)
   if (!porRol && !text(body?.transferAuthorizationId, 128)) return error('Tu rol necesita autorización de gerencia para transferir entre sucursales.', 403)
   const sourceBranchId = text(body?.sourceBranchId, 128); const destinationBranchId = text(body?.destinationBranchId, 128)
   const destinationLocationId = body?.destinationLocationId === undefined || body?.destinationLocationId === null || body?.destinationLocationId === '' ? null : text(body.destinationLocationId, 128)
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  if (!permitted(session.user.role)) return error('No autorizado.', 403)
+  if (!permitted(session.user)) return error('No autorizado.', 403)
   let body: any
   try { body = await request.json() } catch { return error('JSON inválido.') }
   const id = text(body?.id, 128)

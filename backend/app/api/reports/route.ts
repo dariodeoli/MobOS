@@ -1,9 +1,8 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import {
   MAX_REPORT_ORDERS,
-  REPORT_ROLES,
   ReportInputError,
   aggregateCommissions,
   aggregateReport,
@@ -22,7 +21,7 @@ import {
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!(REPORT_ROLES as readonly string[]).includes(session.user.role)) return error('No autorizado.', 403)
+  if (!canAccessAny(session.user, ['reports:read'])) return error('No autorizado.', 403)
 
   const url = new URL(request.url)
   const type = (url.searchParams.get('type') || '').trim()

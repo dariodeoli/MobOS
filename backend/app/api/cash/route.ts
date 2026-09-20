@@ -1,13 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 import { ensureStoreBranch } from '../../../lib/store-branch'
 import { CASH_MOVEMENT_KINDS, createCashMovement } from '../../../lib/cash-movements'
 import { FINANCE_CURRENCIES, frozenAmountPyg } from '../../../lib/finance'
 
-const ROLES = ['ADMIN', 'GERENTE', 'CAJERA']
 type QueryDb = Pick<typeof prisma, '$queryRaw'> | Pick<Prisma.TransactionClient, '$queryRaw'>
 const int = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0 && Number(value) <= 2147483647
 const note = (value: unknown) => value == null ? null : typeof value === 'string' && value.trim().length <= 500 ? value.trim() || null : undefined
@@ -15,7 +14,7 @@ const note = (value: unknown) => value == null ? null : typeof value === 'string
 async function context(request: Request) {
   const session = await requireSession(request)
   if (!session) return { error: 401 as const }
-  if (!ROLES.includes(session.user.role)) return { error: 403 as const }
+  if (!canAccessAny(session.user, ['cash:manage', 'payments:manage'])) return { error: 403 as const }
   const requested = new URL(request.url).searchParams.get('branchId')
   let branchId: string | null = session.user.branchId || (session.user.role === 'ADMIN' ? requested : null)
   if (!branchId) branchId = await ensureStoreBranch(session)

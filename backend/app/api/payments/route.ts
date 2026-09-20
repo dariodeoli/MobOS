@@ -1,6 +1,6 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError, matchesPayment, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 
@@ -12,6 +12,7 @@ class PaymentScopeError extends Error {
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  if (!canAccessAny(session.user, ['payments:manage', 'orders:manage', 'orders:own', 'orders:branch'])) return error('Tu rol no puede registrar cobros.', 403)
   const limited = enforceRateLimit(request, 'payments', 120, 60_000)
   if (limited) return limited
   const idempotencyKey = request.headers.get('Idempotency-Key') || null
