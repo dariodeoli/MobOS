@@ -44,20 +44,17 @@ export async function POST(request: Request) {
   try {
     const body = objectInput(await request.json())
     const name = textInput(body.name, 'Nombre', 120)
-    const currency = body.currency === 'USD' ? 'USD' : body.currency === 'PYG' || body.currency === undefined ? 'PYG' : null
-    if (!currency) throw new InputError('La moneda debe ser PYG o USD.')
     const items = parsePriceListItems(body.items) ?? []
     if (!await productosDelTenant(session.user.tenantId, items)) throw new InputError('Alguno de los productos no pertenece a la empresa.')
     const created = await prisma.priceList.create({
       data: {
         tenantId: session.user.tenantId,
         name,
-        currency,
         items: { create: items.map(item => ({ ...item, tiers: { create: item.tiers } })) },
       },
       include: priceListInclude,
     })
-    await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'PRICE_LIST_CREATED', entity: 'PriceList', entityId: created.id, metadata: { name: created.name, currency: created.currency, items: items.length } } })
+    await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'PRICE_LIST_CREATED', entity: 'PriceList', entityId: created.id, metadata: { name: created.name, items: items.length } } })
     return json(created, { status: 201 })
   } catch (cause) {
     if (cause instanceof PriceListInputError || cause instanceof InputError) return error(cause.message, 400)

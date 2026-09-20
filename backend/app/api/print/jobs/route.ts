@@ -90,10 +90,14 @@ export async function POST(request: Request) {
           tenantId,
           bridgeId,
           printerId,
+          printerName: printerName || null,
           destination,
           kind,
           state,
           path: camino,
+          // Reloj de la app (no el default de la base): las etapas de la
+          // telemetría se comparan entre sí y no pueden mezclar relojes.
+          enqueuedAt: new Date(),
           payload,
           payloadBytes: payload ? Buffer.from(payload, 'base64').length : 0,
           validation: textoOpcional(tomar('validation', 'validacion'), 12),

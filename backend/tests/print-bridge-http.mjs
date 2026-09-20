@@ -354,6 +354,39 @@ assert.equal(resultado.status, 409, 'un trabajo confirmado no se vuelve a confir
 resultado = await request(`/api/print/jobs/${espejo.id}/confirm`, { method: 'POST', body: { suffix: '3' } })
 assert.equal(resultado.status, 200, 'un espejo local aceptado también se confirma en el servidor')
 
+// 7h-bis. Telemetría del trabajo: el encolado, el claim, el resultado y la
+// confirmación en papel dejan tiempos calculados y sin negativos; el nombre de
+// la impresora queda congelado al encolar.
+assert.equal(psql(`SELECT "queueMs" IS NOT NULL AND "durationMs" IS NOT NULL AND "confirmedAt" IS NOT NULL AND "transport" = 'directo' FROM "PrintJob" WHERE "id" = '${job.id}';`), 't', 'el resultado deja la telemetría completa')
+assert.equal(psql(`SELECT "durationMs" >= "queueMs" AND "queueMs" >= 0 AND "enqueuedAt" <= "claimedAt" FROM "PrintJob" WHERE "id" = '${job.id}';`), 't', 'los tiempos son enteros coherentes')
+assert.equal(psql(`SELECT "queueMs" IS NOT NULL AND "durationMs" IS NOT NULL FROM "PrintJob" WHERE "id" = '${jobTicket.id}';`), 't', 'el ticket real también queda medido')
+assert.equal(psql(`SELECT "printerName" FROM "PrintJob" WHERE "id" = '${job.id}';`), 'Impresora jobs', 'el nombre de la impresora se congela al encolar')
+
+// 7h-ter. Métricas de impresión: totales, promedios, serie por hora y filtros,
+// solo para ADMIN/GERENTE.
+resultado = await request('/api/print/metrics')
+assert.equal(resultado.status, 200, JSON.stringify(resultado.payload))
+assert.equal(resultado.payload.totales?.trabajos > 0, true, 'las métricas cuentan los trabajos del rango')
+assert.ok(resultado.payload.latencias?.global?.promedioDurationMs !== null, 'las métricas promedian la duración')
+assert.ok(resultado.payload.latencias?.global?.p95DurationMs !== null, 'las métricas calculan el p95')
+assert.ok(Array.isArray(resultado.payload.serie) && resultado.payload.serie.length >= 1, 'las métricas devuelven la serie por hora')
+assert.ok(resultado.payload.serie.every(bucket => typeof bucket.hora === 'string' && typeof bucket.trabajos === 'number' && 'promedioDurationMs' in bucket), 'cada bucket trae fecha, trabajos y promedio')
+assert.ok(resultado.payload.ultimos.some(item => item.id === job.id && item.queueMs !== null && item.durationMs !== null && item.printerName === 'Impresora jobs' && item.transport === 'directo'), 'los últimos trabajos traen tiempos, impresora y transporte')
+assert.ok((resultado.payload.latencias?.porImpresora || []).some(grupo => grupo.printerId === impresoraJobs.id && grupo.trabajos > 0), 'las métricas agrupan por impresora')
+resultado = await request('/api/print/metrics?reference=IT-JOB')
+assert.equal(resultado.status, 200)
+assert.ok(resultado.payload.ultimos.length > 0 && resultado.payload.ultimos.every(item => item.reference.startsWith('IT-JOB')), 'el filtro reference acota la corrida comparativa')
+resultado = await request(`/api/print/metrics?printerId=${impresoraJobs.id}`)
+assert.equal(resultado.status, 200)
+assert.ok(resultado.payload.ultimos.every(item => item.printerId === impresoraJobs.id), 'el filtro printerId acota la impresora')
+resultado = await request('/api/print/metrics', { token: sellerToken })
+assert.equal(resultado.status, 403, 'un vendedor no ve las métricas de impresión')
+resultado = await request('/api/print/metrics?desde=2026-01-02T00:00:00.000Z&hasta=2026-01-01T00:00:00.000Z')
+assert.equal(resultado.status, 400, 'un rango invertido se rechaza')
+
+// 7h-quater. #79: la columna muerta de la lista de precios ya no existe.
+assert.equal(psql(`SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'PriceList' AND column_name = 'currency';`), '0', 'PriceList ya no expone currency')
+
 // 7i. Requeue por lease vencido, purga de 180 días y aislamiento por empresa.
 psql(`INSERT INTO "PrintJob" ("id", "tenantId", "destination", "kind", "state", "attempts", "leaseId", "leaseExpiresAt", "claimedAt", "payload", "updatedAt") VALUES ('it-job-exp-1', 'tenant-a-it', 'lan:10.0.0.11:9100', 'prueba', 'RECLAMADO', 1, 'lease-it-1', now() - interval '5 minutes', now() - interval '10 minutes', 'QUJDRA==', CURRENT_TIMESTAMP);`)
 psql(`INSERT INTO "PrintJob" ("id", "tenantId", "destination", "kind", "state", "attempts", "leaseId", "leaseExpiresAt", "claimedAt", "payload", "updatedAt") VALUES ('it-job-exp-2', 'tenant-a-it', 'lan:10.0.0.11:9100', 'prueba', 'RECLAMADO', 3, 'lease-it-2', now() - interval '1 minute', now() - interval '10 minutes', 'QUJDRA==', CURRENT_TIMESTAMP);`)

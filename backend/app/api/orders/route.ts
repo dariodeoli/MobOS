@@ -10,7 +10,7 @@ import { consumeAuthorization, usableAuthorization, DEFAULT_BELOW_LIST_PCT } fro
 import { armarComprobante } from '../../../lib/orders'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { serialKey } from '../../../lib/validation'
-import { lineDiscount as lineDiscountFor, warrantyDaysFor, resolveUnitPrice } from '../../../lib/pricing'
+import { lineDiscount as lineDiscountFor, warrantyDaysFor, resolveUnitPrice, unitPricePygFallback } from '../../../lib/pricing'
 import { changeStock } from '../../../lib/stock'
 import { syncOrderItemSerials } from '../../../lib/order-serials'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../lib/order-number'
@@ -335,9 +335,10 @@ export async function POST(request: Request) {
           // Precio de lista congelado: la lista del cliente (escalón/ítem),
           // el mayorista o el minorista, con la misma autoridad que
           // /api/pricing. Un precio en USD no cotiza en guaraníes: la línea
-          // conserva el precio retail como referencia.
+          // conserva el precio retail como referencia (mismo helper que el
+          // endpoint, issue #79).
           const resolvedPrice = resolveUnitPrice({ product, quantity, customer: { pricingTier }, priceList })
-          listPricePyg = resolvedPrice.currency === 'USD' ? product.pricePyg : resolvedPrice.unitPricePyg
+          listPricePyg = unitPricePygFallback(resolvedPrice, product.pricePyg)
           // El precio de cupón ya viene cotizado por el servidor: no cuenta
           // como venta bajo lista discrecional.
           if (item.couponCode === undefined && price < listPricePyg) {

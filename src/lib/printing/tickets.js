@@ -288,6 +288,7 @@ export function ticketPruebaTipo(tipo, {
   puente = '',
   tokenPista = '',
   usuario = '',
+  marca = '',
 } = {}) {
   // Método honesto: lo informa quien arma el ticket (CUPS local, LAN TCP,
   // CUPS-USB…); el prefijo `usb:` es histórico y no implica cable USB.
@@ -330,6 +331,9 @@ export function ticketPruebaTipo(tipo, {
 
   t.centrado(APP_NAME).negrita().doble().centrado('TICKET DE PRUEBA').doble(false).negrita(false)
   t.centrado(TIPOS_PRUEBA[tipo] || 'Prueba')
+  // Marca de la corrida comparativa: el mismo texto en las tres impresoras
+  // permite reconocer el papel y cruzar los trabajos con las métricas.
+  if (marca) t.centrado(`Comparativa ${marca}`)
   t.linea()
   // El validador va grande y arriba (y se repite en el pie): si algo cortara la
   // impresión, el código secreto igual salió en el papel.

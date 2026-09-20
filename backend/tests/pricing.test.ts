@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { lineDiscount, PricingError, quoteTotals, resolveUnitPrice, warrantyDaysFor } from '../lib/pricing'
+import { lineDiscount, PricingError, quoteTotals, resolveUnitPrice, unitPricePygFallback, warrantyDaysFor } from '../lib/pricing'
 
 test('descuento fijo por línea', () => {
   const result = lineDiscount({ quantity: 2, unitPricePyg: 100000, discountPyg: 50000 })
@@ -80,7 +80,20 @@ test('sin lista ni mayorista queda el minorista y el USD se marca aparte', () =>
   assert.equal(soloUsd.unitPriceUsd, 30)
 })
 
-console.log('pricing: 9 casos OK')
+// #79: el fallback USD→retail tiene un solo dueño y también vale para un ítem
+// de lista cotizado en USD sobre un producto con precio en guaraníes.
+test('fallback USD a retail centralizado', () => {
+  const minorista = resolveUnitPrice({ product: producto, quantity: 1 })
+  assert.equal(unitPricePygFallback(minorista, producto.pricePyg), minorista.unitPricePyg, 'una resolución en PYG no toca el precio')
+  const listaUsd = resolveUnitPrice({ product: producto, quantity: 1, priceList: { items: [itemProducto({ unitPriceUsd: '25.50' })] } })
+  assert.equal(listaUsd.currency, 'USD')
+  assert.equal(unitPricePygFallback(listaUsd, producto.pricePyg), 100000, 'un precio en USD cae al retail del producto')
+  const soloUsd = resolveUnitPrice({ product: { id: 'p3', pricePyg: 0, wholesalePricePyg: null, priceUsd: 30 }, quantity: 1 })
+  assert.equal(unitPricePygFallback(soloUsd, 0), 0, 'sin retail el fallback es cero, no un precio inventado')
+  assert.throws(() => unitPricePygFallback({ ...soloUsd, currency: 'USD' }, 'no-es-numero'), PricingError)
+})
+
+console.log('pricing: 10 casos OK')
 
 // #89: la categoría de la lista matchea sin importar mayúsculas ni acentos.
 test('lista por categoría ignora mayúsculas y acentos', () => {

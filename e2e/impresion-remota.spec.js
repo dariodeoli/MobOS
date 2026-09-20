@@ -14,6 +14,10 @@ const NOMBRE_REMOTO = 'Térmica puente E2E'
 const DESTINO_REMOTO = 'lan:10.99.99.20:9100'
 const NOMBRE_REVOCADO = 'Térmica puente revocado E2E'
 const DESTINO_REVOCADO = 'lan:10.99.99.21:9100'
+const NOMBRE_COMPARATIVA_A = 'Térmica E2E comparativa A'
+const DESTINO_COMPARATIVA_A = 'lan:10.99.99.30:9100'
+const NOMBRE_COMPARATIVA_B = 'Térmica E2E comparativa B'
+const DESTINO_COMPARATIVA_B = 'lan:10.99.99.31:9100'
 
 async function apiImpresion(page, ruta, opciones = {}) {
   return page.evaluate(
@@ -54,6 +58,33 @@ async function asegurarImpresora(page) {
     }),
   })
   if (creada.status !== 201) throw new Error(`no se pudo crear la impresora E2E: HTTP ${creada.status}`)
+  return creada.datos
+}
+
+// Impresora suelta (sin puente), idempotente entre corridas: es la que usa la
+// comparativa para demostrar que sin puente falta un paso.
+async function asegurarImpresoraSuelta(page, { nombre, destino }) {
+  const lista = await apiImpresion(page, '/api/print/printers')
+  const existente = (lista.datos?.printers || []).find((impresora) => impresora.destination === destino)
+  if (existente) return existente
+  const creada = await apiImpresion(page, '/api/print/printers', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: nombre,
+      brand: 'E2E',
+      model: 'Comparativa',
+      connection: 'lan',
+      destination: destino,
+      width: 80,
+      copies: 1,
+      cut: true,
+      density: 3,
+      characters: true,
+      isDefault: false,
+      isActive: true,
+    }),
+  })
+  if (creada.status !== 201) throw new Error(`no se pudo crear la impresora comparativa E2E: HTTP ${creada.status}`)
   return creada.datos
 }
 
@@ -222,6 +253,26 @@ test.describe('impresión remota: configuración', () => {
       const cache = await leerCache(page)
       return (cache?.store?.impresoras || []).some((impresora) => impresora.nombre === nombreNuevo)
     }, { timeout: 10_000 }).toBe(true)
+  })
+
+  test('la comparativa lista dos impresoras y avisa que falta vincular el puente', async ({ page }) => {
+    await page.goto('/configuracion/impresoras')
+    await asegurarImpresoraSuelta(page, { nombre: NOMBRE_COMPARATIVA_A, destino: DESTINO_COMPARATIVA_A })
+    await asegurarImpresoraSuelta(page, { nombre: NOMBRE_COMPARATIVA_B, destino: DESTINO_COMPARATIVA_B })
+    await page.reload()
+
+    const panel = page.getByTestId('comparativa-impresoras')
+    await expect(panel).toBeVisible({ timeout: 20_000 })
+    await expect(panel.getByText(NOMBRE_COMPARATIVA_A, { exact: false }).first()).toBeVisible()
+    await expect(panel.getByText(NOMBRE_COMPARATIVA_B, { exact: false }).first()).toBeVisible()
+
+    await panel.getByLabel(`Comparar ${NOMBRE_COMPARATIVA_A}`, { exact: true }).check()
+    await panel.getByLabel(`Comparar ${NOMBRE_COMPARATIVA_B}`, { exact: true }).check()
+
+    // Ninguna tiene puente: la comparativa explica el paso que falta y no deja
+    // disparar la prueba.
+    await expect(panel.getByText(/vincular la computadora puente/i)).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Enviar prueba a todas' })).toBeDisabled()
   })
 })
 

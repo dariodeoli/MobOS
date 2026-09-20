@@ -37,10 +37,6 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     const body = objectInput(await request.json())
     const data: Record<string, unknown> = {}
     if (body.name !== undefined) data.name = textInput(body.name, 'Nombre', 120)
-    if (body.currency !== undefined) {
-      if (body.currency !== 'PYG' && body.currency !== 'USD') throw new InputError('La moneda debe ser PYG o USD.')
-      data.currency = body.currency
-    }
     if (body.isActive !== undefined) {
       if (typeof body.isActive !== 'boolean') throw new InputError('isActive debe ser verdadero o falso.')
       data.isActive = body.isActive

@@ -30,6 +30,7 @@ import {
   calcularRequeue,
   estadoTrasResultado,
   hashSufijo,
+  milisegundosEntre,
   shapePublico,
   sufijoCoincide,
   validarPayload,
@@ -216,13 +217,19 @@ async function main() {
   const publicoJob = shapePublico(jobInterno)
   assert.deepEqual(
     Object.keys(publicoJob).sort(),
-    ['acceptedAt', 'attempts', 'bridgeName', 'confirmedAt', 'copies', 'createdAt', 'destination', 'deviceName', 'error', 'id', 'kind', 'mode', 'path', 'payloadBytes', 'printerId', 'reference', 'requestedByName', 'state', 'tokenHint', 'validation', 'width'],
+    ['acceptedAt', 'attempts', 'bridgeName', 'claimedAt', 'confirmedAt', 'copies', 'createdAt', 'destination', 'deviceName', 'durationMs', 'enqueuedAt', 'error', 'id', 'kind', 'mode', 'path', 'payloadBytes', 'printerId', 'printerName', 'queueMs', 'reference', 'requestedByName', 'state', 'tokenHint', 'transport', 'validation', 'width'],
     'el shape público es una lista blanca exacta',
   )
   assert.equal('payload' in publicoJob, false, 'el shape público nunca expone bytes ESC/POS')
   assert.equal('suffixHash' in publicoJob, false, 'el shape público nunca expone el hash del sufijo')
   assert.equal('leaseId' in publicoJob, false, 'el shape público nunca expone el lease')
   assert.equal(MAX_ABIERTOS_POR_EMPRESA, 200, 'el cap de trabajos abiertos por empresa es explícito')
+
+  // ── Telemetría: diferencias enteras y sin negativos ──────────────────────
+  assert.equal(milisegundosEntre(new Date('2026-09-19T12:00:00.000Z'), new Date('2026-09-19T12:00:01.500Z')), 1500, 'la diferencia se redondea a ms enteros')
+  assert.equal(milisegundosEntre(new Date('2026-09-19T12:00:02.000Z'), new Date('2026-09-19T12:00:01.000Z')), 0, 'un reloj atrasado no produce negativos')
+  assert.equal(milisegundosEntre(null, new Date()), null, 'sin instante inicial no hay medición')
+  assert.equal(milisegundosEntre(new Date(), undefined), null, 'sin instante final no hay medición')
 
   // ── Auditoría de impresoras: IP enmascarada y diff sin secretos ──────────
   assert.equal(enmascararDestino('lan:192.168.1.23:9100'), 'lan:192.168.1.x:9100', 'la IP LAN se audita enmascarada')

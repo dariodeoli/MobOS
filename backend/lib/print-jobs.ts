@@ -48,6 +48,17 @@ export function hashSufijo(sufijo: string): string {
   return hashToken(sufijo)
 }
 
+/**
+ * Diferencia en milisegundos enteros entre dos instantes de la telemetría.
+ * Sin extremos devuelve null; un reloj atrasado jamás produce negativos (el
+ * contrato de las métricas es `>= 0`).
+ */
+export function milisegundosEntre(desde: Date | null | undefined, hasta: Date | null | undefined): number | null {
+  if (!desde || !hasta) return null
+  const delta = hasta.getTime() - desde.getTime()
+  return Number.isFinite(delta) && delta > 0 ? Math.round(delta) : 0
+}
+
 // Comparación en tiempo constante con guarda de longitud (patrón
 // email-outbox/route.ts:5-12): el intento jamás se compara en claro ni se
 // expone cuánto se acercó al valor esperado.
@@ -108,9 +119,15 @@ export function shapePublico(job: PrintJob) {
     attempts: job.attempts,
     error: job.error,
     payloadBytes: job.payloadBytes,
+    printerName: job.printerName,
+    transport: job.transport,
     createdAt: job.createdAt,
+    enqueuedAt: job.enqueuedAt,
+    claimedAt: job.claimedAt,
     acceptedAt: job.acceptedAt,
     confirmedAt: job.confirmedAt,
+    queueMs: job.queueMs,
+    durationMs: job.durationMs,
   }
 }
 
@@ -173,7 +190,7 @@ export async function reencolarVencidos(
 ): Promise<Array<{ id: string; attempts: number; state: EstadoRequeue }>> {
   const vencidos = await db.printJob.findMany({
     where: { tenantId, state: 'RECLAMADO', leaseExpiresAt: { lt: ahora } },
-    select: { id: true, attempts: true, leaseExpiresAt: true },
+    select: { id: true, attempts: true, leaseExpiresAt: true, enqueuedAt: true, claimedAt: true },
     orderBy: { leaseExpiresAt: 'asc' },
     take: MAX_ABIERTOS_POR_EMPRESA,
   })
@@ -186,8 +203,18 @@ export async function reencolarVencidos(
       data: destino === 'PENDIENTE'
         ? { state: 'PENDIENTE', leaseId: null, leaseExpiresAt: null }
         // `FALLIDO` es terminal (no hay auto-reintento): el payload se borra
-        // igual que al imprimir, para no retener datos del cliente.
-        : { state: 'FALLIDO', leaseId: null, leaseExpiresAt: null, payload: null, error: MOTIVO_LEASE_VENCIDO },
+        // igual que al imprimir, para no retener datos del cliente. La fecha
+        // terminal y la telemetría quedan igual que en un resultado del puente.
+        : {
+            state: 'FALLIDO',
+            leaseId: null,
+            leaseExpiresAt: null,
+            payload: null,
+            error: MOTIVO_LEASE_VENCIDO,
+            confirmedAt: ahora,
+            queueMs: milisegundosEntre(vencido.enqueuedAt, vencido.claimedAt),
+            durationMs: milisegundosEntre(vencido.enqueuedAt, ahora),
+          },
     })
     if (cambio.count) cambios.push({ id: vencido.id, attempts: vencido.attempts, state: destino })
   }

@@ -9,8 +9,28 @@ import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
 import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, textoVerificacion } from '@/lib/printing/estadoImpresoras'
 import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
 import Avatar from '@/components/shared/Avatar'
+import ImpresionComparativa from './ImpresionComparativa'
+import ImpresionGraficos from './ImpresionGraficos'
 
 const fmt = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
+// Día y hora con segundos: la telemetría se mide en milisegundos y la columna
+// de actividad tiene que mostrar el segundo exacto, no solo el minuto.
+const fmtDia = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY', { dateStyle: 'short' }) : '—')
+const fmtHora = (valor) => (valor ? new Date(valor).toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '—')
+const fmtTiempo = (valor) => (typeof valor === 'number' && Number.isFinite(valor) ? `${Math.round(valor)} ms` : '—')
+const fechaConSegundos = (valor) => (valor ? `${fmtDia(valor)} ${fmtHora(valor)}` : '—')
+
+// Transporte real que reportó el agente; sin dato se cae al modo configurado.
+const etiquetaTransporte = (fila) => {
+  const transporte = String(fila.transporte || '').toLowerCase()
+  if (transporte === 'directo') return 'LAN directo'
+  if (transporte === 'cups') return 'CUPS'
+  if (transporte === 'usb') return 'USB'
+  if (transporte) return transporte
+  if (fila.modo === 'usb') return 'CUPS'
+  if (fila.modo === 'lan') return 'LAN'
+  return conexionDe(fila.impresora)
+}
 const hace = (valor) => {
   if (!valor) return 'sin registro'
   const minutos = Math.floor((Date.now() - new Date(valor).getTime()) / 60000)
@@ -70,8 +90,14 @@ const vacioFormulario = () => ({
 const filaDesdeJob = (job) => ({
   jobId: job.id,
   fecha: job.createdAt,
+  enqueuedAt: job.enqueuedAt || job.createdAt,
+  reclamadoEn: job.claimedAt || null,
+  enColaMs: typeof job.queueMs === 'number' ? job.queueMs : null,
+  totalMs: typeof job.durationMs === 'number' ? job.durationMs : null,
+  transporte: job.transport || '',
   usuario: job.requestedByName || '',
   impresora: job.destination || '',
+  impresoraNombre: job.printerName || '',
   modo: job.mode || '',
   puente: job.bridgeName || '',
   validacion: job.validation || '',
@@ -105,7 +131,7 @@ const firmaImpresora = (impresora) => JSON.stringify(CAMPOS_IMPRESORA.map((campo
 // térmicas. Configuración, estado, cola y actividad en un mismo lugar.
 export default function Impresoras() {
   const toast = useToast()
-  const { usuario, sesion, perfilEmpresa } = useSesion()
+  const { usuario, sesion, perfilEmpresa, esDemo } = useSesion()
   const tenantId = usuario?.tenantId || 'sin-tenant'
   const [store, setStore] = useState(() => cargarImpresoras(tenantId))
   const [estado, setEstado] = useState(null)
@@ -315,9 +341,9 @@ export default function Impresoras() {
   })
 
   function exportarActividad() {
-    const filas = [['Fecha', 'Usuario', 'Equipo', 'Impresora', 'Modo', 'Puente', 'Validación', 'Sufijo', 'Resultado', 'Bytes', 'Trabajo']]
+    const filas = [['Fecha', 'Hora', 'Usuario', 'Equipo', 'Impresora', 'Transporte', 'En cola (ms)', 'Total (ms)', 'Puente', 'Validación', 'Sufijo', 'Resultado', 'Bytes', 'Trabajo']]
     for (const fila of historialFiltrado) {
-      filas.push([fila.fecha, fila.usuario, fila.cliente, fila.impresora, fila.modo, fila.puente, fila.validacion, fila.sufijo, fila.resultado, fila.bytes, fila.ref])
+      filas.push([fmtDia(fila.fecha), fmtHora(fila.fecha), fila.usuario, fila.cliente, fila.impresoraNombre || fila.impresora, fila.transporte || '', fila.enColaMs ?? '', fila.totalMs ?? '', fila.puente, fila.validacion, fila.sufijo, fila.resultado, fila.bytes, fila.ref])
     }
     const csv = filas.map((columnas) => columnas.map((valor) => `"${String(valor ?? '').replaceAll('"', '""')}"`).join(';')).join('\n')
     const enlace = document.createElement('a')
@@ -783,6 +809,21 @@ export default function Impresoras() {
         </div>
       )}
 
+      {/* La demo no tiene puentes ni backend real: comparativa y métricas solo
+          con sesión real, para no mostrar errores que no existen. */}
+      {!esDemo && (
+        <>
+          <ImpresionComparativa
+            impresoras={impresoras}
+            usuario={sesion?.nombre || usuario?.name || ''}
+            equipo={estado?.equipo || 'navegador'}
+            onAgregar={() => abrirFormulario(null)}
+            onGestionarPuentes={() => setPuentesAbiertos(true)}
+          />
+          <ImpresionGraficos impresoras={impresorasActivas} />
+        </>
+      )}
+
       <Card className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -808,13 +849,14 @@ export default function Impresoras() {
           <EmptyState compact icon="receipt" title="Todavía no hay impresiones en este rango." description="Cuando imprimas un comprobante o una prueba, queda acá." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[56rem] text-sm">
+            <table className="w-full min-w-[64rem] text-sm">
               <thead>
                 <tr className="border-b border-ink-600 text-left text-xs uppercase tracking-wider text-mute">
                   <th className="px-2 py-2">Fecha</th>
                   <th className="px-2 py-2">Usuario</th>
                   <th className="px-2 py-2">Impresora</th>
-                  <th className="px-2 py-2">Modo</th>
+                  <th className="px-2 py-2">Transporte</th>
+                  <th className="px-2 py-2">Tiempos</th>
                   <th className="px-2 py-2">Puente</th>
                   <th className="px-2 py-2">Validación</th>
                   <th className="px-2 py-2">Confirmar en papel</th>
@@ -828,10 +870,17 @@ export default function Impresoras() {
                   const abierto = detalleAbierto === clave
                   return [
                     <tr key={`fila-${clave}`} className="border-b border-ink-600/50">
-                      <td className="px-2 py-2 text-xs text-mute">{fmt(fila.fecha)}</td>
+                      <td className="px-2 py-2 text-xs text-mute">
+                        <span className="block">{fmtDia(fila.fecha)}</span>
+                        <span className="block tabular-nums text-fore" title={`Creado ${fechaConSegundos(fila.fecha)}`}>{fmtHora(fila.fecha)}</span>
+                      </td>
                       <td className="px-2 py-2 text-xs">{fila.usuario || '—'}</td>
-                      <td className="px-2 py-2 truncate text-xs text-mute" title={`${fila.impresora}${fila.ancho ? ` · ${fila.ancho} mm` : ''}`}>{fila.impresora}</td>
-                      <td className="px-2 py-2 text-xs text-mute" title={fila.modo === 'usb' ? 'Cola CUPS local' : fila.modo === 'lan' ? 'LAN (TCP directo)' : undefined}>{fila.modo === 'usb' ? 'CUPS' : fila.modo === 'lan' ? 'LAN' : conexionDe(fila.impresora)}</td>
+                      <td className="px-2 py-2 truncate text-xs text-mute" title={`${fila.impresoraNombre || fila.impresora}${fila.ancho ? ` · ${fila.ancho} mm` : ''}`}>{fila.impresora}</td>
+                      <td className="px-2 py-2 text-xs text-mute" title={fila.transporte ? `Reportado por el agente: ${fila.transporte}` : 'Sin reporte del agente: se muestra el modo configurado'}>{etiquetaTransporte(fila)}</td>
+                      <td className="px-2 py-2 text-[11px] text-mute">
+                        <span className="block">en cola <b className="text-fore tabular-nums">{fmtTiempo(fila.enColaMs)}</b></span>
+                        <span className="block">total <b className="text-fore tabular-nums">{fmtTiempo(fila.totalMs)}</b></span>
+                      </td>
                       <td className="px-2 py-2 truncate text-xs text-mute" title={`${fila.puente || '—'}${fila.tokenPista ? ` · token ${fila.tokenPista}` : ''}`}>{fila.puente || '—'}</td>
                       <td className="px-2 py-2 text-xs font-semibold" title={fila.tipo ? `Tipo: ${fila.tipo}` : undefined}>{fila.validacion || '—'}</td>
                         {fila.resultado === 'pendiente' && sinRespuesta(fila) && <p className="mt-0.5 text-[10px] font-semibold text-warn" title="El puente no reportó el resultado; revisá la impresora y reintentá.">sin respuesta del puente</p>}
@@ -858,7 +907,7 @@ export default function Impresoras() {
                     </tr>,
                     abierto ? (
                       <tr key={`detalle-${clave}`} className="border-b border-ink-600/50 bg-ink-800/40">
-                        <td colSpan={9} className="px-3 py-3">
+                        <td colSpan={10} className="px-3 py-3">
                           <dl className="grid gap-x-6 gap-y-1 text-xs sm:grid-cols-3">
                             {[
                               ['Trabajo', fila.jobId || '—'],
@@ -867,7 +916,12 @@ export default function Impresoras() {
                               ['Ancho', fila.ancho ? `${fila.ancho} mm` : '—'],
                               ['Token', fila.tokenPista || 'sin token'],
                               ['Bytes', String(fila.bytes || 0)],
-                              ['Confirmado', fila.confirmadoEn ? fmt(fila.confirmadoEn) : '—'],
+                              ['Encolado', fechaConSegundos(fila.enqueuedAt)],
+                              ['Reclamado', fechaConSegundos(fila.reclamadoEn)],
+                              ['En cola', fmtTiempo(fila.enColaMs)],
+                              ['Total', fmtTiempo(fila.totalMs)],
+                              ['Transporte', fila.transporte || 'sin reporte'],
+                              ['Confirmado', fechaConSegundos(fila.confirmadoEn)],
                               ['Error', fila.error || '—'],
                             ].map(([etiqueta, valor]) => (
                               <div key={etiqueta} className="flex justify-between gap-2 border-b border-ink-600/40 pb-1">
