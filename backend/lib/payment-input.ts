@@ -24,6 +24,7 @@ type NormalizedPayment = {
   accountId?: string; accountSnapshot?: Prisma.InputJsonObject; currency?: 'PYG' | 'USD' | 'BRL' | 'EUR' | 'USDT';
   originalAmount?: Prisma.Decimal; exchangeRatePyg?: Prisma.Decimal;
   settlesAt?: Date;
+  dueAt?: Date;
   tradeIn?: TradeInInput;
 }
 export function accountSnapshot(account: PaymentAccount): Prisma.InputJsonObject {
@@ -80,6 +81,15 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
     const device = objectInput(input.tradeIn)
     result.tradeIn = { serial: textInput(device.serial, 'serial', 100).toUpperCase(), model: textInput(device.model, 'model', 200), conditionNotes: textInput(device.conditionNotes, 'conditionNotes') }
   } else if (input.tradeIn !== undefined && input.tradeIn !== null) throw new InputError('tradeIn solo corresponde al método TRADE_IN.')
+  // Vencimiento de una cuota a crédito pendiente: es la fecha que usan los
+  // recordatorios (email y WhatsApp) y el control de mora.
+  const rawDueAt = input.dueAt
+  if (rawDueAt !== undefined && rawDueAt !== null && rawDueAt !== '') {
+    if (result.status !== 'PENDING' || result.method !== 'CREDIT') throw new InputError('El vencimiento solo aplica a una cuota a crédito pendiente.')
+    const dueDate = rawDueAt instanceof Date ? rawDueAt : new Date(String(rawDueAt))
+    if (!Number.isFinite(dueDate.getTime())) throw new InputError('Vencimiento de la cuota inválido.')
+    result.dueAt = dueDate
+  }
   return result
 }
 
@@ -89,6 +99,7 @@ export function matchesPayment(previous: Payment, next: NormalizedPayment, order
     && (previous.accountId ?? null) === (next.accountId ?? null) && (previous.currency ?? null) === (next.currency ?? null)
     && (previous.originalAmount == null ? next.originalAmount === undefined : next.originalAmount !== undefined && previous.originalAmount.eq(next.originalAmount))
     && (previous.exchangeRatePyg == null ? next.exchangeRatePyg === undefined : next.exchangeRatePyg !== undefined && previous.exchangeRatePyg.eq(next.exchangeRatePyg))
+    && (previous.dueAt?.getTime() ?? null) === (next.dueAt?.getTime() ?? null)
 }
 
 export async function receiveTradeIn(tx: Prisma.TransactionClient, input: TradeInInput | undefined, payment: { id: string; amountPyg: number }, order: { id: string; branchId: string | null }, tenantId: string, userId: string) {

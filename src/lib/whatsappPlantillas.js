@@ -4,6 +4,7 @@ export const CATEGORIAS_PLANTILLA = [
   { clave: 'ORDERS', nombre: 'Pedidos' },
   { clave: 'CUSTOMERS', nombre: 'Clientes' },
   { clave: 'SERVICE', nombre: 'Servicio' },
+  { clave: 'COLLECTIONS', nombre: 'Cobranzas' },
 ]
 
 export const VARIABLES_POR_CONTEXTO = {
@@ -35,6 +36,18 @@ export const VARIABLES_POR_CONTEXTO = {
     { clave: 'estado', descripcion: 'Estado actual del caso' },
     { clave: 'sucursal', descripcion: 'Sucursal que atiende' },
     { clave: 'fecha', descripcion: 'Fecha del caso' },
+  ],
+  COLLECTIONS: [
+    { clave: 'cliente', descripcion: 'Nombre del cliente' },
+    { clave: 'nombre', descripcion: 'Nombre o contacto principal' },
+    { clave: 'pedido', descripcion: 'Número de pedido' },
+    { clave: 'vencimiento', descripcion: 'Fecha de vencimiento de la cuota' },
+    { clave: 'saldo_pendiente', descripcion: 'Saldo pendiente de la cuota' },
+    { clave: 'dias_atraso', descripcion: 'Días de atraso (si está vencida)' },
+    { clave: 'recargo', descripcion: 'Recargo por mora (vacío si no hay)' },
+    { clave: 'total', descripcion: 'Saldo más recargo' },
+    { clave: 'sucursal', descripcion: 'Sucursal que cobra' },
+    { clave: 'empresa', descripcion: 'Nombre de la empresa' },
   ],
 }
 

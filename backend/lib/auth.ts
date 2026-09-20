@@ -46,18 +46,21 @@ export function requiresAdminPinSetup(settings: unknown) {
   return !!onboarding && typeof onboarding === 'object' && !Array.isArray(onboarding) && (onboarding as Record<string, unknown>).adminPinPending === true
 }
 
-export const USER_ROLES = ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA', 'TECNICO'] as const
+export const USER_ROLES = ['ADMIN', 'GERENTE', 'VENDEDOR', 'CAJERA', 'TECNICO', 'REPARTIDOR'] as const
 export type UserRole = (typeof USER_ROLES)[number]
 
 // This is a strict allow-list. Existing server-side role checks remain the
 // authority; configured permissions can only reduce the baseline of a role.
 const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
   ADMIN: ['*'],
-  GERENTE: ['dashboard:read', 'reports:read', 'products:manage', 'stock:manage', 'orders:manage', 'customers:manage', 'purchases:manage', 'cash:manage', 'warranties:manage', 'tradeins:manage', 'promotions:manage', 'service:manage'],
-  VENDEDOR: ['pos:use', 'orders:own', 'customers:manage', 'products:read', 'stock:read', 'promotions:read', 'tradeins:receive'],
-  CAJERA: ['pos:use', 'orders:branch', 'customers:manage', 'products:read', 'stock:read', 'payments:manage'],
+  GERENTE: ['dashboard:read', 'reports:read', 'products:manage', 'stock:manage', 'orders:manage', 'customers:manage', 'purchases:manage', 'cash:manage', 'warranties:manage', 'tradeins:manage', 'promotions:manage', 'service:manage', 'delivery:manage'],
+  VENDEDOR: ['pos:use', 'orders:own', 'customers:manage', 'products:read', 'stock:read', 'promotions:read', 'tradeins:receive', 'delivery:manage'],
+  CAJERA: ['pos:use', 'orders:branch', 'customers:manage', 'products:read', 'stock:read', 'payments:manage', 'delivery:manage'],
   // Taller: ve stock y clientes y gestiona las órdenes de servicio técnico.
   TECNICO: ['customers:manage', 'products:read', 'stock:read', 'service:manage', 'warranties:manage'],
+  // Reparto propio: solo sus pedidos asignados, el pre-cobro en la calle y la
+  // rendición en la tienda. No cobra ni vende desde el panel de venta.
+  REPARTIDOR: ['delivery:use'],
 }
 
 type ScheduleWindow = { days: number[]; start: string; end: string }

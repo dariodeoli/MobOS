@@ -17,6 +17,9 @@ export class ProofValidationError extends Error {
 }
 
 export function canAccessPayment(session: SessionContext, branchId: string | null) {
+  // El repartidor no accede a comprobantes ni conciliaciones por esta vía: sus
+  // cobros se siguen desde la rendición.
+  if (session.user.role === 'REPARTIDOR') return false
   if (session.user.role === 'VENDEDOR') return session.user.branchId === branchId
   if (session.user.role === 'CAJERA') return session.user.branchId === branchId
   return true

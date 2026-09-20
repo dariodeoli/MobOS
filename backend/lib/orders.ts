@@ -27,6 +27,10 @@ export function canProcessOrderReturn(user: AuthUser) {
 }
 
 export function canAccessOrder(user: { id: string; role: string; branchId: string | null }, order: { sellerId: string; branchId: string | null }) {
+  // El repartidor no entra por el panel de venta: su acceso vive en
+  // /api/delivery (solo sus pedidos asignados y sin tocar cobros ni datos de
+  // venta). `false` acá cierra el resto de las rutas de pedido de una sola vez.
+  if (user.role === 'REPARTIDOR') return false
   if (user.role === 'VENDEDOR' && order.sellerId !== user.id) return false
   if ((user.branchId === null && order.branchId !== null) || (user.branchId && order.branchId !== null && order.branchId !== user.branchId)) return false
   return true

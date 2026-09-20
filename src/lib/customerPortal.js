@@ -1,8 +1,9 @@
 import { publicUrls } from './urls.js'
 
-// En producción el portal vive en su propio subdominio. Durante desarrollo el
-// enlace conserva el origen local para que las pruebas E2E no salten a datos
-// reales. VITE_CLIENT_PORTAL_URL permite un entorno de staging independiente.
+// Enlace público del portal del cliente (resumen de cuenta por QR). En
+// producción vive en su propio subdominio; en desarrollo se conserva el origen
+// local para que los e2e no salten a datos reales. VITE_CLIENT_PORTAL_URL
+// permite un entorno de staging independiente.
 const env = import.meta.env || {}
 
 const publicBase = () =>

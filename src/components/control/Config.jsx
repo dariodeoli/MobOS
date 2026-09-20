@@ -15,6 +15,7 @@ import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import RucField from '@/components/shared/RucField'
+import PercentField from '@/components/shared/PercentField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import { ROLE_LABELS } from '@/lib/roles'
@@ -60,6 +61,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const [limiteCompra, setLimiteCompra] = useState('')
   const [limiteBajoLista, setLimiteBajoLista] = useState('')
   const [limiteFidelizacion, setLimiteFidelizacion] = useState('')
+  const [limiteMora, setLimiteMora] = useState('')
   const [password, setPassword] = useState('')
   const [archiveReason, setArchiveReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -170,6 +172,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
     setLimiteCompra(String(account.tenant.purchaseCreditLimitPyg ?? 5000000))
     setLimiteBajoLista(String(account.tenant.belowListPct ?? 10))
     setLimiteFidelizacion(String(account.tenant.loyaltyPct ?? 0))
+    setLimiteMora(account.tenant.collectionLateFeeBpPerDay ? String(account.tenant.collectionLateFeeBpPerDay / 100).replace('.', ',') : '')
   }, [account])
 
   async function guardarNumeracion() {
@@ -196,6 +199,13 @@ export default function Config({ seccion = 'negocio' } = {}) {
       await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion })
       setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion } } : current)
       actualizarEmpresa?.({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion })
+    const mora = limiteMora.trim() === '' ? null : Number(limiteMora.replace(',', '.'))
+    if (mora !== null && (!Number.isFinite(mora) || mora < 0 || mora > 100)) { setFailure('El recargo por mora debe ser un porcentaje entre 0 y 100.'); return }
+    setBusy(true); setFailure(''); setNotice('')
+    try {
+      await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, collectionLateFeeBpPerDay: limiteMora.trim() })
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, collectionLateFeeBpPerDay: mora === null || mora === 0 ? null : Math.round(mora * 100) } } : current)
+      actualizarEmpresa?.({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista })
       setNotice('Límites de autorización guardados.')
     } catch (error) { setFailure(error?.message || 'No se pudieron guardar los límites.') } finally { setBusy(false) }
   }
@@ -238,6 +248,13 @@ export default function Config({ seccion = 'negocio' } = {}) {
           <div className="flex flex-wrap items-center gap-3">
             <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === '' || limiteFidelizacion === ''} onClick={guardarLimites}>Guardar límites</Button>
             <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}% · fidelización {account?.tenant?.loyaltyPct ?? 0}%.</p>
+            <FormField label="Recargo por mora (% diario)" htmlFor="limite-mora" hint="Vacío o 0 = sin recargo; solo se informan los días de atraso en Cobranzas.">
+              <PercentField id="limite-mora" disabled={busy} value={limiteMora} onChange={setLimiteMora} placeholder="0,5" />
+            </FormField>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === ''} onClick={guardarLimites}>Guardar límites</Button>
+            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}% · mora {account?.tenant?.collectionLateFeeBpPerDay ? `${account.tenant.collectionLateFeeBpPerDay / 100}% diario` : 'sin recargo'}.</p>
           </div>
         </Card>}
         {esDueno && <Card className="space-y-3">

@@ -37,6 +37,9 @@ async function consumeStoreCredit(tx: Prisma.TransactionClient, input: {
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  // El repartidor no registra pagos confirmados: su cobro de calle nace
+  // PENDING y pasa por la rendición (/api/delivery/orders/[id]/collections).
+  if (session.user.role === 'REPARTIDOR') return error('El cobro de la calle se registra desde el panel de reparto.', 403)
   if (!canAccessAny(session.user, ['payments:manage', 'orders:manage', 'orders:own', 'orders:branch'])) return error('Tu rol no puede registrar cobros.', 403)
   const limited = enforceRateLimit(request, 'payments', 120, 60_000)
   if (limited) return limited

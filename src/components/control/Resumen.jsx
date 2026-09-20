@@ -87,7 +87,7 @@ export default function Resumen() {
     Promise.allSettled([
       api.get('/api/inventory-reservations').then((filas) => (Array.isArray(filas) ? filas.filter((fila) => new Date(fila.reservedUntil).getTime() <= limite).length : 0)),
       api.get('/api/warranties').then((filas) => (Array.isArray(filas) ? filas.filter((fila) => fila.status !== 'DELIVERED' && fila.expiresAt && new Date(fila.expiresAt).getTime() <= Date.now()).length : 0)),
-      api.get('/api/payments/due?overdue=true').then((filas) => (Array.isArray(filas) ? filas.length : 0)),
+      api.get('/api/payments?overdue=true').then((filas) => (Array.isArray(filas) ? filas.length : 0)),
     ]).then((resultados) => {
       setPendientesHoy({ reservas: resultados[0].status === 'fulfilled' ? resultados[0].value : 0, garantias: resultados[1].status === 'fulfilled' ? resultados[1].value : 0, cuotas: resultados[2].status === 'fulfilled' ? resultados[2].value : 0 })
     })

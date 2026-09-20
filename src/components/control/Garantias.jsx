@@ -7,6 +7,7 @@ import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import SerialField from '@/components/shared/SerialField'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { api, API_URL } from '@/lib/api/client'
+import { qrGarantia } from '@/lib/printing/qr'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { useSesion } from '@/lib/sesion'
 import { gs } from '@/utils/calculos'
@@ -87,7 +88,7 @@ export default function Garantias() {
     })
   }, [items, q, esDemo, orden])
   const listInput = (value) => value.split('\n').map((item) => item.trim()).filter(Boolean)
-  async function create(e) { e.preventDefault(); setSaving(true); setError(''); try { const { partsText, photosText, warrantyDays, repairCostPyg, ...base } = form; const data = { ...base, parts: listInput(partsText), photos: listInput(photosText), branchId: form.branchId || sucursal?.id, ...(String(warrantyDays).trim() ? { warrantyDays: Number(warrantyDays) } : {}), ...(String(repairCostPyg).trim() ? { repairCostPyg: Number(repairCostPyg) } : {}) }; if (esDemo) setItems(saveDemoWarranties([{ ...data, id: `demo-${Date.now()}`, status: 'RECEIVED', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, ...items])); else { const saved = await api.post('/api/warranties', data); setItems([saved, ...items]); if (saved?.publicToken) { const url = `${window.location.origin}/garantia/${saved.publicToken}`; navigator.clipboard?.writeText(url).catch(() => {}); toast.success('Garantía creada. El enlace público quedó copiado.') } } setForm(blank) } catch (e) { setError(e.message) } finally { setSaving(false) } }
+  async function create(e) { e.preventDefault(); setSaving(true); setError(''); try { const { partsText, photosText, warrantyDays, repairCostPyg, ...base } = form; const data = { ...base, parts: listInput(partsText), photos: listInput(photosText), branchId: form.branchId || sucursal?.id, ...(String(warrantyDays).trim() ? { warrantyDays: Number(warrantyDays) } : {}), ...(String(repairCostPyg).trim() ? { repairCostPyg: Number(repairCostPyg) } : {}) }; if (esDemo) setItems(saveDemoWarranties([{ ...data, id: `demo-${Date.now()}`, status: 'RECEIVED', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, ...items])); else { const saved = await api.post('/api/warranties', data); setItems([saved, ...items]); if (saved?.publicToken) { const url = qrGarantia(saved.publicToken); navigator.clipboard?.writeText(url).catch(() => {}); toast.success('Garantía creada. El enlace público quedó copiado.') } } setForm(blank) } catch (e) { setError(e.message) } finally { setSaving(false) } }
   async function advance(item) { const next = STATES[STATES.findIndex(([s]) => s === item.status) + 1]?.[0]; if (!next || advancingId) return; setAdvancingId(item.id); setError(''); try { if (esDemo) { const nextItems = items.map((x) => x.id === item.id ? { ...x, status: next, updatedAt: new Date().toISOString() } : x); setItems(saveDemoWarranties(nextItems)) } else { const updated = await api.patch('/api/warranties', { id: item.id, status: next }); setItems(items.map((x) => x.id === item.id ? updated : x)) } } catch (e) { setError(e.message) } finally { setAdvancingId(null) } }
   async function abrirFotos(item) {
     setFotosDe(item); setFotos([]); setFotosCargando(true); setFotosError('')
@@ -134,7 +135,7 @@ export default function Garantias() {
             <Badge color={item.status === 'DELIVERED' ? 'green' : item.status === 'READY' ? 'orange' : 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{label[item.status]}</Badge>
             <span className="flex flex-wrap items-center justify-end gap-1">
               {telefonoDelCaso(item) && <WhatsAppMenu telefono={telefonoDelCaso(item)} countryCode={item.customerCountryCode || item.customer?.countryCode || '+595'} category="SERVICE" title={item.customerName} contexto={{ cliente: item.customerName || '', nombre: item.customerName || '', equipo: item.serial || '', servicio: item.description || '', estado: label[item.status] || '', fecha: item.createdAt ? new Date(item.createdAt).toLocaleDateString('es-PY') : '' }} />}
-              {item.publicToken && <IconAction icon="external" tone="mute" label="Enlace del caso" onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/garantia/${item.publicToken}`).catch(() => {}); toast.success('Enlace de garantía del cliente copiado.') }} />}
+              {item.publicToken && <IconAction icon="external" tone="mute" label="Enlace del caso" onClick={() => { navigator.clipboard?.writeText(qrGarantia(item.publicToken)).catch(() => {}); toast.success('Enlace de garantía del cliente copiado.') }} />}
               {!esDemo && <IconAction icon="image" tone="fono" label="Fotos" onClick={() => abrirFotos(item)} />}
               {item.status !== 'DELIVERED' && <IconAction icon="check" tone="ok" label={advancingId === item.id ? 'Actualizando…' : 'Avanzar'} disabled={advancingId !== null} onClick={() => advance(item)} />}
             </span>

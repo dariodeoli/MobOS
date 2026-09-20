@@ -19,6 +19,7 @@ const orderInclude = Prisma.validator<Prisma.OrderInclude>()({
   },
   customer: { include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } },
   seller: { select: { id: true, name: true } },
+  assignedTo: { select: { id: true, name: true } },
   tenant: { select: { name: true, address: true, city: true, department: true, phone: true, ruc: true } },
   branch: { select: { name: true, address: true, city: true, department: true, phone: true } },
 })
@@ -36,6 +37,9 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
 export async function PATCH(request: Request, context: { params: Promise<{ orderId: string }> }) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  // El repartidor no edita pedidos desde acá: su única escritura es el estado
+  // de entrega de sus repartos (con las mismas autorizaciones vigentes).
+  if (session.user.role === 'REPARTIDOR') return error('El reparto se actualiza desde el panel de reparto.', 403)
   try {
     const { orderId } = await context.params
     const body = objectInput(await request.json())

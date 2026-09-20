@@ -5,6 +5,7 @@ import AttachmentInput from '@/components/shared/AttachmentInput'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
+import { qrUnidad } from '@/lib/printing/qr'
 import { api, API_URL } from '@/lib/api/client'
 
 const statusLabel = { AVAILABLE: 'Disponible', RESERVED: 'Reservado', SOLD: 'Vendido', DEFECTIVE: 'En revisión', IN_TRANSIT: 'En tránsito' }
@@ -84,13 +85,16 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
   useEffect(() => { load() }, [load])
   useEffect(() => { setNota(unit.notes || '') }, [unit.notes])
 
-  // QR y código de barras de esta unidad (se generan al abrir el detalle).
+  // QR y código de barras de esta unidad (se generan al abrir el detalle). El
+  // QR abre la unidad en la app; el código de barras conserva `MOBOS:<serial>`
+  // para el escáner del local.
   useEffect(() => {
     let active = true
     const code = "MOBOS:" + unit.serial
+    const enlace = qrUnidad(unit.serial)
     ;(async () => {
       try {
-        const qr = await QRCode.toDataURL(code, { errorCorrectionLevel: 'M', margin: 0, width: 220 })
+        const qr = enlace ? await QRCode.toDataURL(enlace, { errorCorrectionLevel: 'M', margin: 0, width: 220 }) : ''
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
         JsBarcode(svg, code, { format: 'CODE128', displayValue: false, width: 2, height: 54, margin: 0 })
         if (active) setCodigos({ qr, barcode: svg.outerHTML })

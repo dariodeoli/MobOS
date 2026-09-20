@@ -43,6 +43,20 @@ test.describe('seller permissions', () => {
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
   })
 
+  // Marketing (cobranzas por WhatsApp, segmentos y campañas) es de
+  // administración y gerencia: el vendedor no ve el acceso ni puede pegarle a
+  // la API (#81, #82).
+  test('el marketing y las cobranzas por WhatsApp no están para un vendedor', async ({ page }) => {
+    await page.goto('/pos/clientes')
+    await expect(page.getByRole('heading', { name: 'Clientes' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Campañas' })).toHaveCount(0)
+
+    for (const path of ['/api/collections/reminders', '/api/customers/segments?segment=INACTIVE', '/api/marketing/campaigns']) {
+      const respuesta = await page.request.get(`${API}${path}`, { headers: { origin: new URL(page.url()).origin } })
+      expect(respuesta.status(), `${path} debe estar vedado para el vendedor`).toBe(403)
+    }
+  })
+
   // Fixed in the Phase-3 merge: PanelVendedor.jsx now redirects once
   // (navigate('/pos/cargar', { replace: true })) when the URL points to a
   // vista outside the seller's reach, instead of the old two-effects loop

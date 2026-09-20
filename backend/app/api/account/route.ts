@@ -48,6 +48,7 @@ export async function GET(request: Request) {
   const now = new Date()
   const [tenant, sessions, ownerAccess, current] = await Promise.all([
     prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, recoverableUntil: true, createdAt: true, orderPrefix: true, orderNextNumber: true, expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true, loyaltyPct: true, address: true, city: true, department: true, phone: true, ruc: true, logos: { select: { variant: true, updatedAt: true, mimeType: true } } } }),
+    prisma.tenant.findUnique({ where: { id: session.user.tenantId }, select: { id: true, name: true, email: true, slug: true, archivedAt: true, archivedReason: true, recoverableUntil: true, createdAt: true, orderPrefix: true, orderNextNumber: true, expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true, collectionLateFeeBpPerDay: true, address: true, city: true, department: true, phone: true, ruc: true, logos: { select: { variant: true, updatedAt: true, mimeType: true } } } }),
     prisma.session.findMany({ where: { tenantId: session.user.tenantId, revokedAt: null, expiresAt: { gt: now } }, orderBy: { lastSeenAt: 'desc' }, take: 50, select: { id: true, level: true, deviceId: true, branchId: true, createdAt: true, lastSeenAt: true, expiresAt: true, user: { select: { name: true, email: true, role: true } } } }),
     prisma.googleStoreAccess.findFirst({ where: { tenantId: session.user.tenantId, owner: true }, select: { subject: true } }),
     prisma.session.findUnique({ where: { id: session.sessionId }, select: { reauthenticatedAt: true } }),
@@ -149,6 +150,19 @@ export async function PATCH(request: Request) {
       const loyaltyPct = body.loyaltyPct === undefined || body.loyaltyPct === null || body.loyaltyPct === '' ? undefined : Number(body.loyaltyPct)
       if (loyaltyPct !== undefined && (!Number.isSafeInteger(loyaltyPct) || loyaltyPct < 0 || loyaltyPct > 100)) throw new Error('El porcentaje de fidelización debe ser un entero entre 0 y 100.')
       if (expenseLimitPyg === undefined && purchaseCreditLimitPyg === undefined && belowListPct === undefined && loyaltyPct === undefined) return error('Indicá al menos un límite para actualizar.', 400)
+      // Recargo diario por mora: porcentaje con hasta dos decimales (0–100).
+      // Vacío o 0 desactiva el recargo (solo se informan los días de atraso).
+      let collectionLateFeeBpPerDay: number | null | undefined
+      if (body.collectionLateFeeBpPerDay !== undefined) {
+        if (body.collectionLateFeeBpPerDay === null || body.collectionLateFeeBpPerDay === '') collectionLateFeeBpPerDay = null
+        else {
+          const pct = Number(String(body.collectionLateFeeBpPerDay).replace(',', '.'))
+          const bp = Math.round(pct * 100)
+          if (!Number.isFinite(pct) || pct < 0 || pct > 100 || Math.abs(pct * 100 - bp) > 1e-6) throw new Error('El recargo por mora debe ser un porcentaje entre 0 y 100 con hasta 2 decimales.')
+          collectionLateFeeBpPerDay = bp === 0 ? null : bp
+        }
+      }
+      if (expenseLimitPyg === undefined && purchaseCreditLimitPyg === undefined && belowListPct === undefined && collectionLateFeeBpPerDay === undefined) return error('Indicá al menos un límite para actualizar.', 400)
       const updated = await prisma.$transaction(async tx => {
         const tenant = await tx.tenant.update({
           where: { id: session.user.tenantId },
@@ -161,6 +175,11 @@ export async function PATCH(request: Request) {
           select: { expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true, loyaltyPct: true },
         })
         await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_AUTHORIZATION_LIMITS_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { expenseLimitPyg: tenant.expenseLimitPyg, purchaseCreditLimitPyg: tenant.purchaseCreditLimitPyg, belowListPct: tenant.belowListPct, loyaltyPct: tenant.loyaltyPct } } })
+            ...(collectionLateFeeBpPerDay === undefined ? {} : { collectionLateFeeBpPerDay }),
+          },
+          select: { expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true, collectionLateFeeBpPerDay: true },
+        })
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_AUTHORIZATION_LIMITS_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { expenseLimitPyg: tenant.expenseLimitPyg, purchaseCreditLimitPyg: tenant.purchaseCreditLimitPyg, belowListPct: tenant.belowListPct, collectionLateFeeBpPerDay: tenant.collectionLateFeeBpPerDay } } })
         return tenant
       })
       return json({ ok: true, ...updated })

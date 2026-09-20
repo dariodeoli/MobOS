@@ -18,6 +18,7 @@ import { printRemisionReceipt, printReservationReceipt, printTransferReceipt, tr
 import { configImpresora, imprimirConDialogo, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { ticketEtiquetasUnidad, ticketEtiquetaUbicacion, ticketEtiquetaUnidad, ticketRemision } from '@/lib/printing/tickets'
+import { leerEtiqueta, qrUnidad } from '@/lib/printing/qr'
 
 import UnidadDetalle from '@/components/inventory/UnidadDetalle'
 import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
@@ -182,7 +183,19 @@ function TarjetaUnidad({ unit, perfilEmpresa, onClick }) {
     {unit.reservationCustomer ? <span className="mt-1 truncate text-[11px] font-semibold text-reserved">Atajado por {unit.reservationCustomer}</span> : null}
   </button>
 }
-const normalizeScan = (value = '') => value.trim().replace(/^MOBOS:/i, '').replace(/[\s-]+/g, '').toUpperCase()
+// Un QR nuevo llega como URL de la app (`/u/<serial>`) y el lector de barras
+// sigue mandando `MOBOS:<serial>`: las dos formas entran al mismo flujo.
+const normalizeScan = (value = '') => {
+  const etiqueta = leerEtiqueta(value)
+  const crudo = etiqueta.tipo === 'UBI'
+    ? `UBI:${etiqueta.valor}`
+    : etiqueta.tipo === 'UNIDAD'
+      ? etiqueta.valor
+      : etiqueta.tipo
+        ? `${etiqueta.tipo}:${etiqueta.valor}`
+        : String(value)
+  return crudo.trim().replace(/^MOBOS:/i, '').replace(/[\s-]+/g, '').toUpperCase()
+}
 const safe = (value = '') => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]))
 
 // Impresión masiva: una página de 58 mm por unidad (por lote o ubicación).
@@ -197,7 +210,8 @@ async function printLabels(units = []) {
     const barcodeSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
     JsBarcode(barcodeSvg, code, { format: 'CODE128', displayValue: false, width: 1.4, height: 34, margin: 0 })
     let qr = ''
-    try { qr = await QRCode.toDataURL(code, { errorCorrectionLevel: 'M', margin: 0, width: 160 }) } catch { /* conserva el código de barras */ }
+    const enlace = qrUnidad(unit.serial)
+    try { if (enlace) qr = await QRCode.toDataURL(enlace, { errorCorrectionLevel: 'M', margin: 0, width: 160 }) } catch { /* conserva el código de barras */ }
     etiquetas.push(`<section class="label"><div class="brand"><span>${safe(APP_NAME)} · ETIQUETA</span><span>STOCK</span></div><div class="name">${safe(product.name)}</div><div class="meta">${safe(conditionLabel[unit.condition] || unit.condition)}${unit.batteryHealth ? ` · Batería ${safe(unit.batteryHealth)}%` : ''}${unit.location?.name ? ` · ${safe(unit.location.name)}` : ''}${unit.supplierName ? ` · ${safe(unit.supplierName)}` : ''}</div><div class="last">${lastFour}</div><div class="serial">IMEI / Serial: ${serial}</div><div class="codes"><div class="barcode">${barcodeSvg.outerHTML}</div>${qr ? `<img class="qr" src="${qr}" alt="QR">` : ''}</div><footer>Escaneá para buscar, vender o verificar esta unidad.</footer></section>`)
   }
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas (${units.length})</title><style>@page{size:58mm auto;margin:2mm}*{box-sizing:border-box}body{width:54mm;margin:0;font:11px/1.4 ui-sans-serif,system-ui,sans-serif;color:#0f1720}.label{page-break-after:always;border-bottom:1px dashed #bbb;padding-bottom:3mm;margin-bottom:3mm}.label:last-child{page-break-after:auto;border-bottom:0}.brand{display:flex;justify-content:space-between;gap:2mm;font-size:7.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1.5mm;margin-bottom:2mm}.name{font-size:12px;font-weight:800;letter-spacing:-.01em}.meta{font-size:8px;color:#66707a;margin-top:1mm}.last{font-size:30px;font-weight:900;letter-spacing:4px;text-align:center;margin:2.5mm 0 1.5mm}.serial{border-top:1px dashed #999;padding-top:1.5mm;font-size:7px;word-break:break-all;color:#66707a}.codes{display:flex;align-items:center;gap:2mm;margin-top:2mm}.barcode{width:34mm}.barcode svg{width:100%;height:auto}.qr{width:16mm;height:16mm}footer{margin-top:1.5mm;border-top:1px dashed #999;padding-top:1mm;font-size:7px;color:#66707a;text-align:center}@media print{.label{margin-bottom:0;padding-bottom:2mm}}</style></head><body>${etiquetas.join('')}<script>window.onload=()=>window.print()<\/script></body></html>`
@@ -229,7 +243,8 @@ async function printLabel(unit) {
   const barcodeSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   JsBarcode(barcodeSvg, code, { format: 'CODE128', displayValue: false, width: 1.4, height: 34, margin: 0 })
   let qr = ''
-  try { qr = await QRCode.toDataURL(code, { errorCorrectionLevel: 'M', margin: 0, width: 160 }) } catch { /* La etiqueta conserva el código de barras si el QR no puede renderizarse. */ }
+  const enlace = qrUnidad(unit.serial)
+  try { if (enlace) qr = await QRCode.toDataURL(enlace, { errorCorrectionLevel: 'M', margin: 0, width: 160 }) } catch { /* La etiqueta conserva el código de barras si el QR no puede renderizarse. */ }
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiqueta ${lastFour}</title><style>@page{size:58mm auto;margin:2mm}*{box-sizing:border-box}body{width:54mm;margin:0;font:11px/1.4 ui-sans-serif,system-ui,sans-serif;color:#0f1720}.brand{display:flex;justify-content:space-between;gap:2mm;font-size:7.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1.5mm;margin-bottom:2mm}.name{font-size:12px;font-weight:800;letter-spacing:-.01em}.meta{font-size:8px;color:#66707a;margin-top:1mm}.last{font-size:30px;font-weight:900;letter-spacing:4px;text-align:center;margin:2.5mm 0 1.5mm}.serial{border-top:1px dashed #999;padding-top:1.5mm;font-size:7px;word-break:break-all;color:#66707a}.codes{display:flex;align-items:center;gap:2mm;margin-top:2mm}.barcode{width:34mm}.barcode svg{width:100%;height:auto}.qr{width:16mm;height:16mm}footer{margin-top:1.5mm;border-top:1px dashed #999;padding-top:1mm;font-size:7px;color:#66707a;text-align:center}</style></head><body><div class="brand"><span>${safe(APP_NAME)} · ETIQUETA</span><span>STOCK</span></div><div class="name">${safe(product.name)}</div><div class="meta">${safe(conditionLabel[unit.condition] || unit.condition)}${unit.batteryHealth ? ` · Batería ${safe(unit.batteryHealth)}%` : ''}${unit.location?.name ? ` · ${safe(unit.location.name)}` : ''}${unit.supplierName ? ` · ${safe(unit.supplierName)}` : ''}</div><div class="last">${lastFour}</div><div class="serial">IMEI / Serial: ${serial}</div><div class="codes"><div class="barcode">${barcodeSvg.outerHTML}</div>${qr ? `<img class="qr" src="${qr}" alt="QR">` : ''}</div><footer>Escaneá para buscar, vender o verificar esta unidad.</footer><script>window.onload=()=>window.print()<\/script></body></html>`
   const resultado = await imprimirDocumento(ticketEtiquetaUnidad(unit), { tipo: 'etiqueta-stock' })
   // Diálogo solo si el fallo fue CLARO (nada se envió ni quedó en cola):
