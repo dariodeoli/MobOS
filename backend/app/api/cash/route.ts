@@ -102,9 +102,10 @@ export async function POST(request: Request) {
     try {
       const result = await prisma.$transaction(async (tx) => {
         const id = randomUUID()
+        const openedAt = new Date()
         const row = await tx.$queryRaw<Array<Record<string, unknown>>>`
-          INSERT INTO "CashSession" ("id", "tenantId", "branchId", "openedById", "openingPyg", "status", "notes")
-          VALUES (${id}, ${ctx.session.user.tenantId}, ${ctx.branchId}, ${ctx.session.user.id}, ${openingPyg}, 'OPEN', ${notes}) RETURNING *`
+          INSERT INTO "CashSession" ("id", "tenantId", "branchId", "openedById", "openingPyg", "status", "notes", "openedAt")
+          VALUES (${id}, ${ctx.session.user.tenantId}, ${ctx.branchId}, ${ctx.session.user.id}, ${openingPyg}, 'OPEN', ${notes}, ${openedAt}) RETURNING *`
         await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${ctx.session.user.tenantId}, ${ctx.session.user.id}, 'CASH_OPENED', 'CashSession', ${id}, ${JSON.stringify({ branchId: ctx.branchId, openingPyg, openedById: ctx.session.user.id })}::jsonb)`
         return row[0]
       })
@@ -128,7 +129,7 @@ export async function POST(request: Request) {
       if (open[0].openedById !== ctx.session.user.id && !['ADMIN', 'GERENTE'].includes(ctx.session.user.role)) throw new Error('Solo administración o gerencia pueden cerrar el turno de otra persona.')
       const expectedPyg = Number(open[0].openingPyg) + await expected(tx, ctx.session.user.tenantId, ctx.branchId, open[0].openedAt, new Date(), open[0].openedById)
       if (!int(expectedPyg)) throw new Error('El total esperado excede el rango permitido.')
-      const row = await tx.$queryRaw<Array<Record<string, unknown>>>`UPDATE "CashSession" SET "closedById" = ${ctx.session.user.id}, "closedAt" = CURRENT_TIMESTAMP, "countedPyg" = ${countedPyg}, "expectedPyg" = ${expectedPyg}, "status" = 'CLOSED', "notes" = ${notes}, "countedBreakdown" = ${arqueo.breakdown ? JSON.stringify(arqueo.breakdown) : null}::jsonb WHERE "id" = ${open[0].id} RETURNING *`
+      const row = await tx.$queryRaw<Array<Record<string, unknown>>>`UPDATE "CashSession" SET "closedById" = ${ctx.session.user.id}, "closedAt" = ${new Date()}, "countedPyg" = ${countedPyg}, "expectedPyg" = ${expectedPyg}, "status" = 'CLOSED', "notes" = ${notes}, "countedBreakdown" = ${arqueo.breakdown ? JSON.stringify(arqueo.breakdown) : null}::jsonb WHERE "id" = ${open[0].id} RETURNING *`
       await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${ctx.session.user.tenantId}, ${ctx.session.user.id}, 'CASH_CLOSED', 'CashSession', ${open[0].id}, ${JSON.stringify({ branchId: ctx.branchId, countedPyg, expectedPyg, differencePyg: countedPyg - expectedPyg, openedById: open[0].openedById, closedById: ctx.session.user.id, arqueo: Boolean(arqueo.breakdown) })}::jsonb)`
       return { row: row[0], expectedPyg }
     })

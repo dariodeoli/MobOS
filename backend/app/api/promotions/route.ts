@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   try {
     const data = promotionInput(await request.json())
     if (data.productId && !await prisma.product.findFirst({ where: { id: data.productId, tenantId: session.user.tenantId, isActive: true } })) return error('Producto no encontrado.', 404)
-    return json(await prisma.promotion.create({ data: { ...data, tenantId: session.user.tenantId } }).then(async (promocion) => { await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'PROMOTION_CREATED', entity: 'Promotion', entityId: promocion.id, metadata: { name: promocion.name } } }); return promocion }), { status: 201 })
+    return json(await prisma.promotion.create({ data: { ...data, tenantId: session.user.tenantId } }).then(async (promocion) => { await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'PROMOTION_CREATED', entity: 'Promotion', entityId: promocion.id, metadata: { name: promocion.name, code: promocion.code } } }); return promocion }), { status: 201 })
   } catch (e) { return error(e instanceof InputError ? e.message : 'Datos inválidos o código ya existente.', 400) }
 }
 export async function PATCH(request: Request) {
@@ -28,9 +28,9 @@ export async function PATCH(request: Request) {
     const b = objectInput(await request.json())
     if (Object.keys(b).some(k => !['id', 'isActive'].includes(k)) || typeof b.isActive !== 'boolean') throw new InputError('Enviá id e isActive.')
     const id = textInput(b.id, 'Promoción', 200)
-    const promo = await prisma.promotion.findFirst({ where: { id, tenantId: session.user.tenantId }, select: { code: true, name: true } })
+    const promotion = await prisma.promotion.findFirst({ where: { id, tenantId: session.user.tenantId }, select: { code: true, name: true } })
     const result = await prisma.promotion.updateMany({ where: { id, tenantId: session.user.tenantId }, data: { isActive: b.isActive } })
-    if (result.count) await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: b.isActive ? 'PROMOTION_ACTIVATED' : 'PROMOTION_DEACTIVATED', entity: 'Promotion', entityId: id, metadata: { code: promo?.code ?? null, name: promo?.name ?? null, isActive: b.isActive } } })
+    if (result.count) await prisma.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: b.isActive ? 'PROMOTION_ACTIVATED' : 'PROMOTION_DEACTIVATED', entity: 'Promotion', entityId: id, metadata: { isActive: b.isActive, code: promotion?.code, name: promotion?.name } } })
     return result.count ? json({ id, isActive: b.isActive }) : error('Promoción no encontrada.', 404)
   } catch (e) { return error(e instanceof InputError ? e.message : 'Datos inválidos.', 400) }
 }

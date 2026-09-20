@@ -94,11 +94,11 @@ async function main() {
   const cashOrder = `${TENANT}-cash-order`
   await seedOrder(cashOrder, TENANT, USER, `CONSIST-CASH-${stamp}`, 'COMPLETED', 1000, BRANCH)
   await prisma.$executeRaw`
-    INSERT INTO "Payment" ("id", "tenantId", "orderId", "method", "status", "amountPyg", "paidAt", "createdAt")
-    VALUES (${`${TENANT}-cash-payment`}, ${TENANT}, ${cashOrder}, 'CASH', 'CONFIRMED', 1000, (now() AT TIME ZONE 'UTC') - interval '5 minutes', CURRENT_TIMESTAMP)`
+    INSERT INTO "Payment" ("id", "tenantId", "orderId", "method", "status", "amountPyg", "userId", "createdById", "paidAt", "createdAt")
+    VALUES (${`${TENANT}-cash-payment`}, ${TENANT}, ${cashOrder}, 'CASH', 'CONFIRMED', 1000, ${USER}, ${USER}, (now() AT TIME ZONE 'UTC') - interval '5 minutes', CURRENT_TIMESTAMP)`
   await prisma.$executeRaw`
     INSERT INTO "CashSession" ("id", "tenantId", "branchId", "openedById", "closedById", "openingPyg", "countedPyg", "expectedPyg", "status", "openedAt", "closedAt")
-    VALUES (${`${TENANT}-cash-session`}, ${TENANT}, ${BRANCH}, ${USER}, ${USER}, 500, 0, 1, 'CLOSED', CURRENT_TIMESTAMP - interval '1 hour', CURRENT_TIMESTAMP)`
+    VALUES (${`${TENANT}-cash-session`}, ${TENANT}, ${BRANCH}, ${USER}, ${USER}, 500, 0, 1, 'CLOSED', (now() AT TIME ZONE 'UTC') - interval '1 hour', (now() AT TIME ZONE 'UTC'))`
   run(false, { expect: 1 })
   checks += 1
   console.log('ok · caja: un expectedPyg descuadrado hace fallar el chequeo')
