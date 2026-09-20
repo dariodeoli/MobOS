@@ -134,6 +134,11 @@ Versión publicada en `main`: **v1.0.110**. El deploy lo hace el integrador con
 5. **Impresión / logística:** #17 (falta la prueba física en la Mac: permiso de
    Red Local + ticket en papel), #3 (pendientes del flujo AEX).
 6. **Proceso:** #94 (dividir features grandes).
+7. **Features de impresora nuevas (creadas el 20/09):** #95 multi-puente por
+   sucursal (asignar qué puente imprime en cada sucursal, quedó fuera de alcance
+   de `print-bridge-remoto`), #96 USB físico directo en serio (`node-usb`, hoy
+   solo el diseño de #23), #97 etiquetas de producto/precio con código de barras,
+   #98 impresión de reportes (cierre de caja y resumen del día).
 
 ## 7. Cómo retomar (orden sugerido)
 
