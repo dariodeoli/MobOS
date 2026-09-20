@@ -30,6 +30,7 @@ import Caja from '@/components/control/Caja'
 import PaymentAccounts from '@/components/control/PaymentAccounts'
 import Creditos from '@/components/control/Creditos'
 import Cobranzas from '@/components/control/Cobranzas'
+import Comisiones from '@/components/control/Comisiones'
 import RolesPermisos from '@/components/control/RolesPermisos'
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
@@ -146,6 +147,7 @@ const TABS_FINANZAS = [
   ['creditos', 'Créditos'],
   ['cuotas', 'Cuotas'],
   ['publicidad', 'Publicidad'],
+  ['comisiones', 'Comisiones'],
 ]
 const TABS_INVENTARIO = [
   ['unidades', 'Unidades'],
@@ -188,7 +190,7 @@ function tabsDeSubpagina(slug, esDemo) {
     // Estado del sistema necesita el API real; en demo queda oculta.
     return tabs.filter(([id]) => (id === 'sistema' ? !esDemo : true))
   }
-  if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas') ? !esDemo : true))
+  if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas' || id === 'comisiones') ? !esDemo : true))
   return tabs
 }
 
@@ -236,6 +238,7 @@ const LABELS = {
   creditos: 'Créditos',
   cuotas: 'Cuotas',
   publicidad: 'Publicidad',
+  comisiones: 'Comisiones',
   unidades: 'Unidades',
   alertas: 'Alertas',
   reservas: 'Reservas',
@@ -732,6 +735,7 @@ export default function PanelVendedor() {
               {vista === 'creditos' && <Creditos />}
               {vista === 'cuotas' && <Cobranzas />}
               {vista === 'publicidad' && <Ads />}
+              {vista === 'comisiones' && <Comisiones />}
             </div>
           )}
           {esOwner && subpadre === 'configuracion' && (
