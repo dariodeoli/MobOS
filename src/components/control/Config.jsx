@@ -59,6 +59,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const [limiteGasto, setLimiteGasto] = useState('')
   const [limiteCompra, setLimiteCompra] = useState('')
   const [limiteBajoLista, setLimiteBajoLista] = useState('')
+  const [limiteFidelizacion, setLimiteFidelizacion] = useState('')
   const [password, setPassword] = useState('')
   const [archiveReason, setArchiveReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -168,6 +169,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
     setLimiteGasto(String(account.tenant.expenseLimitPyg ?? 1000000))
     setLimiteCompra(String(account.tenant.purchaseCreditLimitPyg ?? 5000000))
     setLimiteBajoLista(String(account.tenant.belowListPct ?? 10))
+    setLimiteFidelizacion(String(account.tenant.loyaltyPct ?? 0))
   }, [account])
 
   async function guardarNumeracion() {
@@ -185,13 +187,15 @@ export default function Config({ seccion = 'negocio' } = {}) {
     const gasto = Number(limiteGasto)
     const compra = Number(limiteCompra)
     const bajoLista = Number(limiteBajoLista)
+    const fidelizacion = Number(limiteFidelizacion)
     if (!Number.isSafeInteger(gasto) || gasto < 0 || !Number.isSafeInteger(compra) || compra < 0) { setFailure('Los límites deben ser enteros no negativos.'); return }
     if (!Number.isSafeInteger(bajoLista) || bajoLista < 0 || bajoLista > 100) { setFailure('El porcentaje bajo lista debe ser un entero entre 0 y 100.'); return }
+    if (!Number.isSafeInteger(fidelizacion) || fidelizacion < 0 || fidelizacion > 100) { setFailure('El porcentaje de fidelización debe ser un entero entre 0 y 100.'); return }
     setBusy(true); setFailure(''); setNotice('')
     try {
-      await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista })
-      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista } } : current)
-      actualizarEmpresa?.({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista })
+      await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion })
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion } } : current)
+      actualizarEmpresa?.({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion })
       setNotice('Límites de autorización guardados.')
     } catch (error) { setFailure(error?.message || 'No se pudieron guardar los límites.') } finally { setBusy(false) }
   }
@@ -215,7 +219,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
         {esDueno && <Card className="space-y-3">
           <div>
             <h2 className="font-semibold">Límites de autorización</h2>
-            <p className="mt-1 text-sm text-mute">Por encima de estos montos, los roles operativos (cajera, vendedor) necesitan una autorización aprobada de gerencia para registrar un gasto o una compra a crédito. La venta bajo lista hasta el porcentaje indicado no pide autorización; más abajo, sí. El dueño y gerencia no la necesitan.</p>
+            <p className="mt-1 text-sm text-mute">Por encima de estos montos, los roles operativos (cajera, vendedor) necesitan una autorización aprobada de gerencia para registrar un gasto o una compra a crédito. La venta bajo lista hasta el porcentaje indicado no pide autorización; más abajo, sí. El dueño y gerencia no la necesitan. La fidelización acredita al cliente, por cada venta, el porcentaje indicado del total como puntos canjeables por saldo a favor (1 punto = 1 Gs.); 0 la apaga.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField label="Gasto sin autorización (Gs.)" htmlFor="limite-gasto">
@@ -227,10 +231,13 @@ export default function Config({ seccion = 'negocio' } = {}) {
             <FormField label="Bajo lista sin autorización (%)" htmlFor="limite-bajo-lista">
               <Input id="limite-bajo-lista" inputMode="numeric" maxLength={3} disabled={busy} value={limiteBajoLista} onChange={event => setLimiteBajoLista(event.target.value.replace(/\D/g, ''))} placeholder="10" />
             </FormField>
+            <FormField label="Fidelización: puntos por venta (%)" hint="Porcentaje del total de cada venta que queda como puntos canjeables (1 punto = 1 Gs.). 0 la apaga." htmlFor="limite-fidelizacion">
+              <Input id="limite-fidelizacion" inputMode="numeric" maxLength={3} disabled={busy} value={limiteFidelizacion} onChange={event => setLimiteFidelizacion(event.target.value.replace(/\D/g, ''))} placeholder="0" />
+            </FormField>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === ''} onClick={guardarLimites}>Guardar límites</Button>
-            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}%.</p>
+            <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === '' || limiteFidelizacion === ''} onClick={guardarLimites}>Guardar límites</Button>
+            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}% · fidelización {account?.tenant?.loyaltyPct ?? 0}%.</p>
           </div>
         </Card>}
         {esDueno && <Card className="space-y-3">

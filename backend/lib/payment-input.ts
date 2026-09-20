@@ -66,7 +66,7 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
   } else {
     if (input.originalAmount !== undefined || input.exchangeRatePyg !== undefined || input.currency !== undefined) throw new InputError('Los campos de moneda requieren accountId.')
     const amountPyg = Number(input.amountPyg)
-    if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > INT_MAX || !['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'TRADE_IN', 'PIX'].includes(input.method as string)) throw new InputError('Monto entero positivo y método válido son obligatorios.')
+    if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > INT_MAX || !['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'TRADE_IN', 'PIX', 'STORE_CREDIT'].includes(input.method as string)) throw new InputError('Monto entero positivo y método válido son obligatorios.')
     result = { amountPyg, method: input.method as PaymentMethod, status: status as PaymentStatus, reference }
   }
   // Previsión de acreditación: medios con settlementDays (tarjeta, PIX) tienen

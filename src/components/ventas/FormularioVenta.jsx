@@ -26,6 +26,7 @@ import { agruparProductos } from '@/utils/colores'
 import {
   Button,
   Card,
+  ConfirmDialog,
   Input,
   Label,
   Modal,
@@ -67,6 +68,8 @@ const VACIO = vendedorId => ({
   entrega: ENTREGA[0],
   montoDelivery: '',
   observacion: '',
+  specialOrder: false,
+  expectedAt: '',
 })
 
 const PAGO_VACIO = { medioPago: MEDIOS_PAGO[0], cuenta: '', monto: '' }
@@ -130,6 +133,43 @@ function leerCarritoInicial() {
   } catch {
     return null
   }
+}
+
+const CLIENTE_VACIO = {
+  name: '',
+  phone: '',
+  countryCode: '+595',
+  email: '',
+  document: '',
+  addresses: [],
+}
+
+// Cliente guardado (carrito local o venta suspendida): completa los campos que
+// el formulario espera para que un registro viejo no lo rompa.
+function clienteGuardado(valor) {
+  if (!valor || typeof valor !== 'object') return { ...CLIENTE_VACIO }
+  return {
+    ...CLIENTE_VACIO,
+    ...valor,
+    addresses: Array.isArray(valor.addresses) ? valor.addresses : [],
+  }
+}
+
+// Líneas recuperadas de una venta suspendida: se descartan las que no tienen
+// producto y se normalizan cantidad, seriales y clave de fila. El resto de los
+// campos viaja tal cual (precio manual, cupón, combo, descuentos, etc.).
+function itemsGuardados(valor) {
+  if (!Array.isArray(valor)) return []
+  return valor
+    .filter(it => it && typeof it === 'object' && it.productoId)
+    .map((it, index) => ({
+      ...it,
+      key: typeof it.key === 'string' && it.key ? it.key : `suspendida-${Date.now()}-${index}`,
+      nombre: typeof it.nombre === 'string' ? it.nombre : '',
+      precio: Number(it.precio) || 0,
+      quantity: Number.isInteger(it.quantity) && it.quantity > 0 ? it.quantity : 1,
+      serials: Array.isArray(it.serials) ? it.serials.filter(serial => typeof serial === 'string') : [],
+    }))
 }
 
 export default function FormularioVenta({
@@ -215,6 +255,22 @@ export default function FormularioVenta({
   const idempotencyKeyRef = useRef(null)
   const usaCuentas = Boolean(cuentas?.length)
   const appliedTradeIn = useRef(null)
+
+  // Ventas suspendidas (carrito en espera): lista de la sucursal, alta con
+  // etiqueta opcional, recuperación y descarte.
+  const [suspendidasOpen, setSuspendidasOpen] = useState(false)
+  const [suspendidas, setSuspendidas] = useState([])
+  const [cargandoSuspendidas, setCargandoSuspendidas] = useState(false)
+  const [errorSuspendidas, setErrorSuspendidas] = useState('')
+  const [suspenderOpen, setSuspenderOpen] = useState(false)
+  const [labelSuspender, setLabelSuspender] = useState('')
+  const [errorSuspender, setErrorSuspender] = useState('')
+  const [suspendiendo, setSuspendiendo] = useState(false)
+  const [recuperarPendiente, setRecuperarPendiente] = useState(null)
+  const [descartarPendiente, setDescartarPendiente] = useState(null)
+  const [descartando, setDescartando] = useState(false)
+  const [avisoSuspension, setAvisoSuspension] = useState('')
+  const [avisoDemoSuspendidas, setAvisoDemoSuspendidas] = useState(false)
 
   useEffect(() => {
     if (!tradeInDraft || !cuentas || appliedTradeIn.current === tradeInDraft.id) return
@@ -453,6 +509,7 @@ export default function FormularioVenta({
         serials: [],
         sobrePedido: false,
         combo: combo.name,
+        comboId: combo.id,
       }
     })
     setItems(arr => [...arr, ...nuevas])
@@ -711,6 +768,7 @@ export default function FormularioVenta({
         soldWithoutInsurance: Boolean(it.soldWithoutInsurance),
         ...(it.serials?.length ? { inventoryUnitSerials: it.serials } : {}),
         ...(it.couponCode ? { couponCode: it.couponCode } : {}),
+        ...(it.comboId ? { comboId: it.comboId } : it.combo ? { comboName: it.combo } : {}),
         ...(pct > 0 ? { discountPct: pct } : fijo > 0 ? { discountPyg: fijo } : {}),
       }
     })
@@ -895,6 +953,11 @@ export default function FormularioVenta({
               : {}),
             // Venta a crédito: plazo en días; el vencimiento lo calcula el backend.
             ...(venderACredito ? { creditDays: Number(creditoDias) || 0 } : {}),
+            // Pedido especial con seña: la seña es el pago parcial ya cargado;
+            // solo viaja la marca y la fecha esperada opcional.
+            ...(f.specialOrder
+              ? { specialOrder: true, ...(f.expectedAt ? { expectedAt: f.expectedAt } : {}) }
+              : {}),
           },
           { idempotencyKey: idempotencyKeyRef.current },
         )
@@ -962,6 +1025,8 @@ export default function FormularioVenta({
           totalPyg: totalGeneral,
           payments,
           ventas,
+          isSpecialOrder: Boolean(f.specialOrder),
+          ...(f.expectedAt ? { expectedAt: f.expectedAt } : {}),
         }
         const result = await recordDemoTradeIns(order, payments)
         if (result === false || result?.error || result?.ok === false)
@@ -974,14 +1039,7 @@ export default function FormularioVenta({
       idempotencyKeyRef.current = null // la próxima venta arranca con clave nueva
       const { empresaId, sucursalId } = contextoActual()
       borrarCarrito(empresaId, sucursalId)
-      setCustomer({
-        name: '',
-        phone: '',
-        countryCode: '+595',
-        email: '',
-        document: '',
-        addresses: [],
-      })
+      setCustomer({ ...CLIENTE_VACIO })
       setItems([])
       setDescuento('')
       setAuthDescuento(null)
@@ -1014,6 +1072,189 @@ export default function FormularioVenta({
         ? { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '' }
         : { ...PAGO_VACIO, monto: pendiente > 0 ? String(pendiente) : '' },
     ])
+  }
+
+  // ── Ventas suspendidas ──────────────────────────────────────────────
+  const carritoConDatos = Boolean(
+    items.length ||
+      pagos.length ||
+      gsNum(descuento) ||
+      customer.name ||
+      customer.phone ||
+      customer.email ||
+      customer.document ||
+      customer.addresses?.length,
+  )
+  const puedeGestionarSuspendidas = Boolean(
+    sesion?.esPropietario || ['ADMIN', 'GERENTE', 'dueno'].includes(sesion?.rol),
+  )
+  const fechaSuspendida = value => {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime())
+      ? '—'
+      : date.toLocaleString('es-PY', {
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+  }
+  function limpiarCarrito() {
+    const { empresaId, sucursalId } = contextoActual()
+    borrarCarrito(empresaId, sucursalId)
+    setItems([])
+    setDescuento('')
+    setPagos([])
+    setAuthDescuento(null)
+    setAuthPrecio(null)
+    setBillingTo({ name: '', document: '' })
+    setVenderACredito(false)
+    setCreditoDias('')
+    setCustomer({ ...CLIENTE_VACIO })
+    setF(VACIO(f.vendedorId))
+    setPaso(1)
+  }
+  async function abrirSuspendidas() {
+    if (esDemo) {
+      setAvisoDemoSuspendidas(true)
+      return
+    }
+    setSuspendidasOpen(true)
+    setCargandoSuspendidas(true)
+    setErrorSuspendidas('')
+    try {
+      const { sucursalId } = contextoActual()
+      const filas = await api.get(
+        `/api/suspended-sales${sucursalId ? `?branchId=${encodeURIComponent(sucursalId)}` : ''}`,
+      )
+      if (!Array.isArray(filas))
+        throw new Error('Respuesta inválida al cargar las ventas suspendidas.')
+      setSuspendidas(filas)
+    } catch (error) {
+      setErrorSuspendidas(error?.message || 'No se pudieron cargar las ventas suspendidas.')
+    } finally {
+      setCargandoSuspendidas(false)
+    }
+  }
+  function abrirSuspender() {
+    if (esDemo) {
+      setAvisoDemoSuspendidas(true)
+      return
+    }
+    setLabelSuspender('')
+    setErrorSuspender('')
+    setSuspenderOpen(true)
+  }
+  // Guarda el carrito completo en el servidor y limpia el formulario: la venta
+  // queda en espera para retomarla desde esta u otra computadora de la sucursal.
+  async function suspenderVenta() {
+    if (suspendiendo) return
+    setSuspendiendo(true)
+    setErrorSuspender('')
+    try {
+      const { sucursalId } = contextoActual()
+      await api.post('/api/suspended-sales', {
+        ...(sucursalId ? { branchId: sucursalId } : {}),
+        ...(customer.id ? { customerId: customer.id } : {}),
+        ...(labelSuspender.trim() ? { label: labelSuspender.trim() } : {}),
+        payload: {
+          items,
+          customer,
+          descuento,
+          pagos,
+          entrega: f.entrega,
+          montoDelivery: f.montoDelivery,
+          observacion: f.observacion,
+          billingTo,
+          venderACredito,
+          creditoDias,
+          specialOrder: f.specialOrder,
+          expectedAt: f.expectedAt,
+        },
+      })
+      setSuspenderOpen(false)
+      setLabelSuspender('')
+      limpiarCarrito()
+      setAvisoSuspension('Venta suspendida. Podés retomarla desde “Ventas suspendidas”.')
+    } catch (error) {
+      setErrorSuspender(error?.message || 'No se pudo suspender la venta.')
+    } finally {
+      setSuspendiendo(false)
+    }
+  }
+  function pedirRecuperar(suspendida) {
+    if (carritoConDatos) {
+      setRecuperarPendiente(suspendida)
+      return
+    }
+    recuperarSuspendida(suspendida)
+  }
+  // Carga el payload guardado en el formulario y recién después descarta la
+  // suspendida: el backend no la borra sola al recuperarla.
+  async function recuperarSuspendida(suspendida) {
+    setRecuperarPendiente(null)
+    const payload = suspendida?.payload
+    if (!payload || typeof payload !== 'object') {
+      setErrorSuspendidas(
+        'El servidor no devolvió el carrito guardado: no se puede recuperar esta venta.',
+      )
+      return
+    }
+    const cliente = clienteGuardado(payload.customer)
+    setItems(itemsGuardados(payload.items))
+    setCustomer(cliente)
+    setDescuento(
+      payload.descuento === undefined || payload.descuento === null
+        ? ''
+        : String(payload.descuento),
+    )
+    setPagos(Array.isArray(payload.pagos) ? payload.pagos : [])
+    setBillingTo({
+      name: typeof payload.billingTo?.name === 'string' ? payload.billingTo.name : '',
+      document: typeof payload.billingTo?.document === 'string' ? payload.billingTo.document : '',
+    })
+    setVenderACredito(Boolean(payload.venderACredito))
+    setCreditoDias(
+      payload.creditoDias === undefined || payload.creditoDias === null
+        ? ''
+        : String(payload.creditoDias),
+    )
+    setF({
+      ...VACIO(f.vendedorId),
+      cliente: cliente.name,
+      ...(ENTREGA.includes(payload.entrega) ? { entrega: payload.entrega } : {}),
+      montoDelivery: typeof payload.montoDelivery === 'string' ? payload.montoDelivery : '',
+      observacion: typeof payload.observacion === 'string' ? payload.observacion : '',
+      specialOrder: Boolean(payload.specialOrder),
+      expectedAt: typeof payload.expectedAt === 'string' ? payload.expectedAt : '',
+    })
+    setPaso(1)
+    setSuspendidas(list => list.filter(item => item.id !== suspendida.id))
+    setAvisoSuspension('Venta recuperada. Revisá el carrito antes de cobrar.')
+    try {
+      await api.delete(`/api/suspended-sales?id=${encodeURIComponent(suspendida.id)}`)
+      setSuspendidasOpen(false)
+    } catch (error) {
+      setErrorSuspendidas(
+        error?.message ||
+          'La venta se recuperó, pero no se pudo quitarla del servidor: descartala para evitar duplicados.',
+      )
+    }
+  }
+  async function descartarSuspendida() {
+    if (!descartarPendiente || descartando) return
+    setDescartando(true)
+    setErrorSuspendidas('')
+    try {
+      await api.delete(`/api/suspended-sales?id=${encodeURIComponent(descartarPendiente.id)}`)
+      setSuspendidas(list => list.filter(item => item.id !== descartarPendiente.id))
+      setDescartarPendiente(null)
+    } catch (error) {
+      setErrorSuspendidas(error?.message || 'No se pudo descartar la venta suspendida.')
+      setDescartarPendiente(null)
+    } finally {
+      setDescartando(false)
+    }
   }
 
   const pasos = ['Cliente y productos', 'Revisar carrito', 'Cobrar']
@@ -1128,6 +1369,23 @@ export default function FormularioVenta({
           )}
         </div>
       )}
+      {avisoSuspension && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-fono/30 bg-fono/10 p-4 text-sm text-fono-light"
+        >
+          <span>{avisoSuspension}</span>
+          <button
+            type="button"
+            onClick={() => setAvisoSuspension('')}
+            className="rounded-md p-1 text-mute transition hover:bg-ink-700 hover:text-fore"
+            aria-label="Cerrar aviso"
+          >
+            ×
+          </button>
+        </div>
+      )}
       {paso !== 3 && pagos.some(p => p.tradeIn) && (
         <p role="status" className="mb-4 rounded-xl border border-fono/30 bg-fono/10 p-3 text-sm">
           Canje preparado como parte de pago. Revisá sus datos y el saldo pendiente en Cobrar.
@@ -1193,6 +1451,19 @@ export default function FormularioVenta({
           <span>Paso {paso} de 3</span>
           {paso === 3 && (
             <span className="text-fono-light">Revisá los montos antes de confirmar</span>
+          )}
+        </div>
+        {/* Carrito en espera: suspender la venta actual y retomar otra. */}
+        <div className="flex flex-wrap items-center justify-end gap-2 md:col-span-2">
+          <Button type="button" variant="outline" onClick={abrirSuspendidas}>
+            <Icon name="clock" className="h-4 w-4" />
+            Ventas suspendidas
+          </Button>
+          {items.length > 0 && (
+            <Button type="button" variant="outline" onClick={abrirSuspender} disabled={guardando}>
+              <Icon name="save" className="h-4 w-4" />
+              Suspender venta
+            </Button>
           )}
         </div>
         <div className="hidden items-center gap-x-4 gap-y-1.5 text-[11px] text-mute md:col-span-2 md:flex">
@@ -1278,6 +1549,43 @@ export default function FormularioVenta({
           onAtras={() => setPaso(1)}
           onSiguiente={siguientePaso}
         />
+
+        {/* Pedido especial con seña: solo marca el pedido y su fecha esperada;
+            las reglas de cobro no cambian (la seña es un pago parcial). */}
+        {paso === 3 && (
+          <div className="rounded-2xl border border-warn/30 bg-warn/5 p-4 md:col-span-2">
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-warn"
+                checked={Boolean(f.specialOrder)}
+                onChange={event =>
+                  setF(s => ({
+                    ...s,
+                    specialOrder: event.target.checked,
+                    ...(event.target.checked ? {} : { expectedAt: '' }),
+                  }))
+                }
+              />
+              <span>
+                <b className="text-fore">Pedido especial con seña</b>: el pedido se completa más
+                adelante y la seña es el pago parcial que cargás abajo.
+              </span>
+            </label>
+            {f.specialOrder && (
+              <div className="mt-3 max-w-xs">
+                <Label htmlFor="fecha-esperada">Fecha esperada (opcional)</Label>
+                <Input
+                  id="fecha-esperada"
+                  type="date"
+                  min={fechaClave()}
+                  value={f.expectedAt}
+                  onChange={set('expectedAt')}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <PasoCobro
           visible={paso === 3}
@@ -1415,6 +1723,174 @@ export default function FormularioVenta({
           </div>
         </div>
       </Modal>
+      <Modal
+        open={suspenderOpen}
+        onClose={suspendiendo ? undefined : () => setSuspenderOpen(false)}
+        title="Suspender venta"
+        className="max-w-md"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-mute">
+            El carrito queda guardado en el servidor para esta sucursal, con el cliente, la
+            entrega, la facturación, los pagos y el descuento cargados. Cualquier persona con
+            permiso de venta puede retomarlo.
+          </p>
+          <div>
+            <Label htmlFor="etiqueta-suspendida">Etiqueta (opcional)</Label>
+            <Input
+              id="etiqueta-suspendida"
+              maxLength={120}
+              value={labelSuspender}
+              onChange={event => setLabelSuspender(event.target.value)}
+              placeholder="Ej: nombre del cliente o seña"
+              autoCapitalize="sentences"
+            />
+          </div>
+          {errorSuspender && (
+            <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">
+              {errorSuspender}
+            </p>
+          )}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setSuspenderOpen(false)}
+              disabled={suspendiendo}
+            >
+              Cancelar
+            </Button>
+            <Button type="button" onClick={suspenderVenta} disabled={suspendiendo || !items.length}>
+              {suspendiendo ? 'Suspendiendo…' : 'Suspender venta'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={suspendidasOpen}
+        onClose={descartando ? undefined : () => setSuspendidasOpen(false)}
+        title="Ventas suspendidas"
+        className="max-w-2xl"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-mute">
+            Carritos en espera de esta sucursal. Al recuperar uno, el carrito actual se reemplaza
+            y la venta suspendida se quita de la lista.
+          </p>
+          {cargandoSuspendidas && (
+            <p role="status" className="text-sm text-mute">
+              Cargando ventas suspendidas…
+            </p>
+          )}
+          {errorSuspendidas && (
+            <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">
+              {errorSuspendidas}
+            </p>
+          )}
+          {!cargandoSuspendidas && !suspendidas.length && !errorSuspendidas && (
+            <p className="rounded-xl border border-ink-600 px-3 py-4 text-sm text-mute">
+              No hay ventas suspendidas en esta sucursal.
+            </p>
+          )}
+          <div className="space-y-2">
+            {suspendidas.map(suspendida => (
+              <article
+                key={suspendida.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">
+                    {suspendida.label?.trim() || 'Sin etiqueta'}
+                  </p>
+                  <p className="mt-0.5 text-xs text-mute">
+                    {suspendida.customer?.name || 'Sin cliente'} ·{' '}
+                    {suspendida.user?.name || 'Vendedor'} · {fechaSuspendida(suspendida.createdAt)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={descartando}
+                    onClick={() => pedirRecuperar(suspendida)}
+                  >
+                    Recuperar
+                  </Button>
+                  {(puedeGestionarSuspendidas || suspendida.userId === sesion?.vendedorId) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={descartando}
+                      onClick={() => {
+                        setErrorSuspendidas('')
+                        setDescartarPendiente(suspendida)
+                      }}
+                    >
+                      <Icon name="trash" className="h-4 w-4" />
+                      Descartar
+                    </Button>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setSuspendidasOpen(false)}
+              disabled={descartando}
+            >
+              Cerrar
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={Boolean(recuperarPendiente)}
+        onCancel={() => setRecuperarPendiente(null)}
+        onConfirm={() => recuperarSuspendida(recuperarPendiente)}
+        title="Reemplazar el carrito actual"
+        description="Tenés una venta en curso. Si recuperás la venta suspendida, el carrito actual se reemplaza por el guardado."
+        confirmLabel="Reemplazar y recuperar"
+      />
+
+      <ConfirmDialog
+        open={Boolean(descartarPendiente)}
+        onCancel={() => {
+          if (!descartando) setDescartarPendiente(null)
+        }}
+        onConfirm={descartarSuspendida}
+        title="Descartar venta suspendida"
+        description={`Se elimina definitivamente la venta suspendida${
+          descartarPendiente?.label?.trim() ? ` “${descartarPendiente.label.trim()}”` : ''
+        }. No se puede deshacer.`}
+        confirmLabel="Descartar"
+        variant="danger"
+        busy={descartando}
+      />
+
+      <Modal
+        open={avisoDemoSuspendidas}
+        onClose={() => setAvisoDemoSuspendidas(false)}
+        title="Ventas suspendidas"
+        className="max-w-md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-mute">
+            Las ventas suspendidas se guardan en el servidor de tu tienda y necesitan conexión.
+            En la demo no se guardan ni se simulan.
+          </p>
+          <div className="flex justify-end">
+            <Button type="button" onClick={() => setAvisoDemoSuspendidas(false)}>
+              Entendido
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {lastOrder && <ComprobantePreview order={lastOrder} open={comprobante} onClose={() => setComprobante(false)} />}
     </Card>
   )

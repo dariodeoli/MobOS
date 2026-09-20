@@ -7,7 +7,7 @@ import { getProductos, modoDatosActual } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import BarraLote from '@/components/shared/BarraLote'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
-import { Card, Button, Input, Badge, Modal, Select, Textarea, EmptyState, Skeleton, MoneyInput, Dot, PageHeader, Label, useToast } from '@/components/ui'
+import { Card, Button, Input, Badge, Modal, Select, Textarea, EmptyState, Skeleton, MoneyInput, Dot, PageHeader, Label, ConfirmDialog, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { resources } from '@/lib/api'
@@ -288,7 +288,8 @@ function CameraScan({ onDetected, onClose, continuous = false }) {
   return <div className="space-y-3"><video ref={video} className="aspect-video w-full rounded-xl bg-black object-cover" muted playsInline /><p className="text-sm text-mute">{message}</p></div>
 }
 
-const INVENTARIO_TABS = ['unidades', 'alertas', 'reservas', 'traslados', 'vendidos', 'transito', 'ubicaciones', 'compartido', 'eliminados']
+const INVENTARIO_TABS = ['unidades', 'alertas', 'reservas', 'traslados', 'vendidos', 'transito', 'ubicaciones', 'compartido', 'eliminados', 'conteos']
+const ESTADO_CONTEO = { DRAFT: ['Borrador', 'orange'], APPLIED: ['Aplicado', 'green'], CANCELLED: ['Cancelado', 'slate'] }
 
 export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   // La búsqueda global abre Unidades con ?q=<serial> ya aplicado.
@@ -351,7 +352,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const [receivedStock, setReceivedStock] = useState([])
   const [visibilityError, setVisibilityError] = useState('')
   const apiMode = modoDatosActual() === 'api'
-  const { sesion, sucursal, perfilEmpresa } = useSesion()
+  const { sesion, sucursal, perfilEmpresa, esDemo } = useSesion()
   // Aviso del resultado de una etiqueta: el respaldo con diálogo se abre solo
   // (dentro de las funciones de impresión); acá se informa el resto.
   const avisarImpresion = (resultado, nombre = 'Etiqueta') => {
@@ -506,6 +507,107 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
     const text = countMissing.map(unit => `${unit.product?.name} · IMEI ${unit.serial}${unit.location?.name ? ` · ${unit.location.name}` : ''}`).join('\n')
     navigator.clipboard?.writeText(text || 'Sin faltantes.').catch(() => {})
     setNotice(text ? 'Lista de faltantes copiada.' : 'No hay faltantes para copiar.')
+  }
+  // ── Conteos físicos auditables ──────────────────────────────────────
+  // Documento por sucursal con escaneo incremental; la aprobación (con o sin
+  // ajuste de stock) la resuelve gerencia desde el backend.
+  const [conteos, setConteos] = useState([]), [conteosLoading, setConteosLoading] = useState(false), [conteosError, setConteosError] = useState('')
+  const [conteoId, setConteoId] = useState(null), [conteoDetalle, setConteoDetalle] = useState(null), [conteoLoading, setConteoLoading] = useState(false), [conteoError, setConteoError] = useState('')
+  const [conteoSerial, setConteoSerial] = useState(''), [conteoFlash, setConteoFlash] = useState(null), [conteoBusy, setConteoBusy] = useState(false)
+  const [conteoSinSerie, setConteoSinSerie] = useState({ productId: '', quantity: '1' })
+  const [nuevoConteoOpen, setNuevoConteoOpen] = useState(false), [nuevoConteoNota, setNuevoConteoNota] = useState('')
+  const [aplicarConteoOpen, setAplicarConteoOpen] = useState(false), [ajustarConteo, setAjustarConteo] = useState(true)
+  const [cancelarConteoOpen, setCancelarConteoOpen] = useState(false), [camaraConteoOpen, setCamaraConteoOpen] = useState(false)
+  const conteoSerialRef = useRef(null)
+  const escanearConteoRef = useRef(null)
+  const puedeAplicarConteo = Boolean(sesion?.esPropietario || sesion?.rol === 'GERENTE')
+  const cargarConteos = useCallback(async () => {
+    if (!apiMode) return
+    setConteosLoading(true); setConteosError('')
+    try {
+      const params = new URLSearchParams()
+      if (sucursal?.id) params.set('branchId', sucursal.id)
+      const query = params.toString() ? `?${params}` : ''
+      setConteos((await api.get(`/api/inventory-counts${query}`)) || [])
+    } catch (cause) { setConteosError(cause?.message || 'No se pudieron cargar los conteos.') } finally { setConteosLoading(false) }
+  }, [apiMode, sucursal?.id])
+  const cargarConteo = useCallback(async (id, silencioso = false) => {
+    if (!id || !apiMode) return
+    if (!silencioso) setConteoLoading(true)
+    setConteoError('')
+    try { setConteoDetalle(await api.get(`/api/inventory-counts/${encodeURIComponent(id)}`)) }
+    catch (cause) { setConteoError(cause?.message || 'No se pudo cargar el conteo.') }
+    finally { if (!silencioso) setConteoLoading(false) }
+  }, [apiMode])
+  useEffect(() => { if (tab === 'conteos') cargarConteos() }, [tab, cargarConteos])
+  useEffect(() => { if (conteoId) cargarConteo(conteoId); else setConteoDetalle(null) }, [conteoId, cargarConteo])
+  useEffect(() => { escanearConteoRef.current = escanearConteo })
+  useEffect(() => {
+    if (!conteoFlash) return undefined
+    const timer = window.setTimeout(() => setConteoFlash(null), 2600)
+    return () => window.clearTimeout(timer)
+  }, [conteoFlash])
+  const detectarConteoCamara = useCallback((raw) => { escanearConteoRef.current?.(raw) }, [])
+  const cerrarCamaraConteo = useCallback(() => setCamaraConteoOpen(false), [])
+  function abrirConteo(item) { setConteoError(''); setConteoSerial(''); setConteoFlash(null); setConteoDetalle(null); setConteoId(item.id) }
+  function cerrarConteo() { setConteoId(null); setConteoDetalle(null); setConteoSerial(''); setConteoFlash(null); setConteoError(''); if (apiMode) cargarConteos() }
+  async function crearConteo(event) {
+    event.preventDefault()
+    if (conteoBusy) return
+    setConteoBusy(true); setConteosError('')
+    try {
+      const nota = nuevoConteoNota.trim()
+      const creado = await api.post('/api/inventory-counts', { ...(nota ? { note: nota } : {}), ...(sucursal?.id ? { branchId: sucursal.id } : {}) })
+      setNuevoConteoOpen(false); setNuevoConteoNota('')
+      await cargarConteos()
+      setConteoId(creado.id)
+      toast.success('Conteo iniciado: escaneá los equipos y aplicalo al terminar.')
+    } catch (cause) { setConteosError(cause?.message || 'No se pudo iniciar el conteo.'); setNuevoConteoOpen(false) } finally { setConteoBusy(false) }
+  }
+  async function escanearConteo(raw) {
+    const serial = normalizeScan(raw)
+    if (!serial || !conteoId || conteoBusy) return
+    if ((conteoDetalle?.lines || []).some(line => line.serial === serial)) { setConteoSerial(''); setConteoFlash({ kind: 'dup', serial }); conteoSerialRef.current?.focus(); return }
+    setConteoBusy(true); setConteoError('')
+    try {
+      const linea = await api.patch('/api/inventory-counts', { id: conteoId, action: 'scan', serial })
+      setConteoSerial(''); setConteoFlash({ kind: linea.expected ? 'ok' : 'miss', serial })
+      await cargarConteo(conteoId, true)
+      conteoSerialRef.current?.focus()
+    } catch (cause) { setConteoError(cause?.message || 'No se pudo registrar el escaneo.') } finally { setConteoBusy(false) }
+  }
+  async function enviarEscaneo(event) { event.preventDefault(); await escanearConteo(conteoSerial) }
+  async function sumarSinSerie(event) {
+    event.preventDefault()
+    const quantity = Number(conteoSinSerie.quantity)
+    if (!conteoId || !conteoSinSerie.productId || !Number.isSafeInteger(quantity) || quantity < 1 || conteoBusy) return
+    setConteoBusy(true); setConteoError('')
+    try {
+      await api.patch('/api/inventory-counts', { id: conteoId, action: 'scan', productId: conteoSinSerie.productId, quantity })
+      setConteoSinSerie({ productId: '', quantity: '1' })
+      await cargarConteo(conteoId, true)
+    } catch (cause) { setConteoError(cause?.message || 'No se pudo sumar el producto sin serie.') } finally { setConteoBusy(false) }
+  }
+  async function aplicarConteo() {
+    if (!conteoId || conteoBusy) return
+    setConteoBusy(true); setConteoError('')
+    try {
+      const resultado = await api.patch('/api/inventory-counts', { id: conteoId, action: 'apply', adjust: ajustarConteo })
+      setAplicarConteoOpen(false)
+      await Promise.all([cargarConteo(conteoId, true), cargarConteos()])
+      await refresh(busquedaDiferida)
+      toast.success(ajustarConteo ? `Conteo aplicado: ${resultado.missing} faltante(s) pasaron a defectuoso y el stock se recalculó.` : `Conteo aprobado sin ajustar stock (${resultado.missing} faltante(s)).`)
+    } catch (cause) { setConteoError(cause?.message || 'No se pudo aplicar el conteo.'); setAplicarConteoOpen(false) } finally { setConteoBusy(false) }
+  }
+  async function cancelarConteo() {
+    if (!conteoId || conteoBusy) return
+    setConteoBusy(true); setConteoError('')
+    try {
+      await api.patch('/api/inventory-counts', { id: conteoId, action: 'cancel' })
+      setCancelarConteoOpen(false)
+      await Promise.all([cargarConteo(conteoId, true), cargarConteos()])
+      toast.success('Conteo cancelado. El stock no cambió.')
+    } catch (cause) { setConteoError(cause?.message || 'No se pudo cancelar el conteo.'); setCancelarConteoOpen(false) } finally { setConteoBusy(false) }
   }
   function openReserveFor(unit) {
     // La reserva se abre sobre el inventario, no detrás del detalle de la unidad.
@@ -679,13 +781,15 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   function cambiarTab(next) {
     if (!tabValido(next)) return
     setTab(next)
-    onTabChange?.(next)
+    // Conteos vive solo en esta pantalla: el slug no está en la whitelist del
+    // panel, así que no se navega y la URL conserva la pestaña anterior.
+    if (next !== 'conteos') onTabChange?.(next)
   }
   function requestReason(kind, unit) { setReason(''); setReasonKind(''); setReasonAction({ kind, unit }) }
   async function applyReason(event) { event.preventDefault(); if (!reason.trim() || !reasonAction) return; const { kind, unit } = reasonAction; const lastFour = ultimos4(unit.serial); const motivo = reasonKind ? reasonKind + ': ' + reason.trim() : reason.trim(); if (kind === 'adjust') { const status = unit.status === 'DEFECTIVE' ? 'AVAILABLE' : 'DEFECTIVE'; await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'adjust', status, reason: motivo }), `IMEI ${lastFour} marcado como ${status === 'DEFECTIVE' ? 'en revisión' : 'disponible'}.`) } else if (kind === 'remove') { await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'remove', reason: motivo }), `IMEI ${lastFour} retirado. Podés restaurarlo desde Eliminados.`) } else { await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'restore', reason: reason.trim() }), `IMEI ${lastFour} restaurado a disponible.`) }; setReasonAction(null) }
   async function createTransfer(event) { event.preventDefault(); const serials = transfer.serials.split(/[\n,;]+/).map(normalizeScan).filter(Boolean); if (!serials.length) { setError('Indicá al menos un IMEI/serial para trasladar.'); return }; if (!puedeTransferirSinAuth && !transferAuth) { setError('Tu rol necesita autorización de gerencia para transferir entre sucursales. Solicitá la autorización y esperá la aprobación.'); return }; await setAndRefresh(async () => { await resources.transfers.create({ ...transfer, destinationLocationId: transfer.destinationLocationId || null, lines: [{ productId: transfer.productId, quantity: serials.length, serials }], ...(transferAuth && !puedeTransferirSinAuth ? { transferAuthorizationId: transferAuth.id } : {}) }); setTransfer({ sourceBranchId: '', destinationBranchId: '', destinationLocationId: '', productId: '', serials: '', notes: '' }); setTransferAuth(null); setTransferOpen(false) }, 'Transferencia registrada con trazabilidad por IMEI.') }
   if (!apiMode) return <Card><h2 className="font-bold">Inventario operativo</h2><p className="mt-2 text-sm text-mute">Ingresá con una cuenta real para controlar IMEI, reservas, ubicaciones y transferencias. La demo conserva sus datos aislados.</p></Card>
-  return <div className="space-y-4"><Card className="p-4 md:p-5"><PageHeader title="Inventario operativo" subtitle="Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría." actions={<><Button onClick={() => setReceiveOpen(true)}>+ Recibir unidad</Button><Button variant="outline" onClick={() => setReserveOpen(true)}>Reservar</Button><Button variant="outline" onClick={() => setTransferOpen(true)}>Transferir</Button></>} /><form onSubmit={search} className="mt-4 flex flex-wrap gap-2"><Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" autoCapitalize="characters" className="min-w-0 flex-1" /><Select value={orden} onChange={event => setOrden(event.target.value)} className="w-auto"><option value="recientes">Recientes</option><option value="modelo-az">Modelo A→Z</option><option value="modelo-za">Modelo Z→A</option><option value="nuevos">Nuevos primero</option><option value="semis">Seminuevos primero</option><option value="mezclado">Modelos mezclados</option></Select><Button type="button" variant="outline" onClick={() => setScannerOpen(true)}>Escanear</Button><Button type="button" variant="outline" onClick={startCount}>Conteo rápido</Button><ListGridToggle value={vistaUnidades} onChange={(next) => { setVistaUnidades(next); localStorage.setItem('mobos:inventario-vista', next) }} />{disponibles.length > 0 && <Button type="button" variant="outline" onClick={() => printLabels(disponibles).then(avisarImpresion)}>Etiquetas ({disponibles.length})</Button>}<Button type="button" variant="outline" onClick={() => setGondolaOpen(true)}>Etiquetas de góndola</Button>{tab === 'unidades' && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando || busy} onClick={exportarUnidades}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}<Button type="submit" variant="outline" disabled={busy}>Buscar</Button></form><div className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">{[['unidades', `Inventario (${disponibles.length})`], ...(canViewAlerts ? [['alertas', `Alertas (${(stockAlerts.alerts?.length || 0) + (stockAlerts.outOfStock?.length || 0)})`]] : []), ['reservas', `Reservas (${reservations.length})`], ['traslados', `Traslados (${transfers.length})`], ['vendidos', `Vendidos (${vendidos.length})`], ['transito', `En tránsito (${enTransito.length})`], ['ubicaciones', `Ubicaciones (${locations.length})`], ['compartido', 'Compartido'], ['eliminados', `Eliminados (${removedUnits.length})`]].map(([key, label]) => <button key={key} onClick={() => cambiarTab(key)} className={`shrink-0 rounded-md px-3 py-2 text-xs font-semibold ${tab === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>)}</div>{notice && <p className="mt-3 rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">{notice}</p>}{error && <p className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+  return <div className="space-y-4"><Card className="p-4 md:p-5"><PageHeader title="Inventario operativo" subtitle="Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría." actions={<><Button onClick={() => setReceiveOpen(true)}>+ Recibir unidad</Button><Button variant="outline" onClick={() => setReserveOpen(true)}>Reservar</Button><Button variant="outline" onClick={() => setTransferOpen(true)}>Transferir</Button></>} /><form onSubmit={search} className="mt-4 flex flex-wrap gap-2"><Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" autoCapitalize="characters" className="min-w-0 flex-1" /><Select value={orden} onChange={event => setOrden(event.target.value)} className="w-auto"><option value="recientes">Recientes</option><option value="modelo-az">Modelo A→Z</option><option value="modelo-za">Modelo Z→A</option><option value="nuevos">Nuevos primero</option><option value="semis">Seminuevos primero</option><option value="mezclado">Modelos mezclados</option></Select><Button type="button" variant="outline" onClick={() => setScannerOpen(true)}>Escanear</Button><Button type="button" variant="outline" onClick={startCount}>Conteo rápido</Button><ListGridToggle value={vistaUnidades} onChange={(next) => { setVistaUnidades(next); localStorage.setItem('mobos:inventario-vista', next) }} />{disponibles.length > 0 && <Button type="button" variant="outline" onClick={() => printLabels(disponibles).then(avisarImpresion)}>Etiquetas ({disponibles.length})</Button>}<Button type="button" variant="outline" onClick={() => setGondolaOpen(true)}>Etiquetas de góndola</Button>{tab === 'unidades' && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando || busy} onClick={exportarUnidades}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}<Button type="submit" variant="outline" disabled={busy}>Buscar</Button></form><div className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">{[['unidades', `Inventario (${disponibles.length})`], ...(canViewAlerts ? [['alertas', `Alertas (${(stockAlerts.alerts?.length || 0) + (stockAlerts.outOfStock?.length || 0)})`]] : []), ['reservas', `Reservas (${reservations.length})`], ['traslados', `Traslados (${transfers.length})`], ['vendidos', `Vendidos (${vendidos.length})`], ['transito', `En tránsito (${enTransito.length})`], ['ubicaciones', `Ubicaciones (${locations.length})`], ['compartido', 'Compartido'], ['eliminados', `Eliminados (${removedUnits.length})`], ['conteos', 'Conteos']].map(([key, label]) => <button key={key} onClick={() => cambiarTab(key)} className={`shrink-0 rounded-md px-3 py-2 text-xs font-semibold ${tab === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>)}</div>{notice && <p className="mt-3 rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">{notice}</p>}{error && <p className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
       <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={copiarImeis}>Copiar IMEIs</button>
       <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={exportarUnidadesSeleccionadas}>Exportar CSV</button>
@@ -700,6 +804,97 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
     {tab === 'ubicaciones' && <div className="mt-4 space-y-3">{canManageLocations && <div className="flex flex-wrap gap-2"><Button type="button" onClick={() => setLocationForm({ id: null, name: '', code: '', branchId: '' })}>+ Crear ubicación</Button><ListGridToggle value={vistaUbicaciones} onChange={(next) => { setVistaUbicaciones(next); localStorage.setItem('mobos:ubicaciones-vista', next) }} /></div>}<div className={vistaUbicaciones === 'grid' ? 'grid gap-2 sm:grid-cols-2' : 'space-y-1.5'}>{locations.map(location => { const sample = locationSample(units, location.id); return <article key={location.id} className="rounded-xl border border-ink-600 p-3"><div className="flex justify-between gap-2"><b className="text-sm">{location.name}</b><Badge color={location.isActive ? 'green' : 'slate'}>{location.isActive ? 'Activa' : 'Inactiva'}</Badge></div><p className="mt-1 text-xs text-mute">{location.branch?.name} · {location._count?.inventoryUnits || 0} unidades{location.code ? ` · ${location.code}` : ''}</p>{sample.length > 0 ? <div className="mt-2 flex flex-wrap gap-1.5">{sample.map(unit => <span key={unit.id} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-ink-500 bg-ink-800 px-2 py-0.5"><Dot color={badgeTone(unit)} className="h-1.5 w-1.5" /><span className="max-w-[9rem] truncate text-[11px] text-fore">{unit.product?.name}</span></span>)}</div> : <p className="mt-2 text-[11px] text-mute">Sin unidades</p>}{canManageLocations && <div className="mt-2 flex gap-3"><button type="button" className="text-xs font-semibold text-fono-light hover:underline" onClick={() => setLocationForm({ id: location.id, name: location.name, code: location.code || '', branchId: location.branchId })}>Editar</button><button type="button" className="text-xs font-semibold text-fono-light hover:underline" onClick={() => printLocationLabel(location).then(avisarImpresion)}>Etiqueta</button><button type="button" className="text-xs font-semibold text-fono-light hover:underline" onClick={() => printLabels(units.filter(unit => unit.locationId === location.id)).then(avisarImpresion)}>Etiquetas</button><button type="button" className="text-xs font-semibold text-mute hover:underline" disabled={busy} onClick={() => toggleLocation(location)}>{location.isActive ? 'Desactivar' : 'Reactivar'}</button></div>}</article> })}{!locations.length && <EmptyState compact icon="box" title={canManageLocations ? 'Creá tu primera ubicación para organizar el stock.' : 'Todavía no hay ubicaciones cargadas.'} />}</div></div>}
     {tab === 'compartido' && <div className="mt-4 space-y-5">{visibilityError && <p className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{visibilityError}</p>}{canManageVisibility && <section className="rounded-xl border border-ink-600 bg-ink-800/40 p-3"><h3 className="text-xs font-bold uppercase tracking-wider text-mute">Compartir mi disponibilidad</h3><p className="mt-1 text-sm text-mute">Otra empresa ve nombre, SKU, categoría, condición y cantidad disponible. Nunca precios, costos, IMEI, reservas ni clientes.</p><form onSubmit={searchRecipients} className="mt-3 flex gap-2"><Input value={recipientQuery} onChange={event => setRecipientQuery(event.target.value)} placeholder="Buscar empresa por nombre (mínimo 2 letras)" /><Button type="submit" variant="outline" disabled={searchingRecipient || recipientQuery.trim().length < 2}>{searchingRecipient ? 'Buscando…' : 'Buscar'}</Button></form>{recipientError && <p role="alert" className="mt-2 text-sm text-bad">{recipientError}</p>}{recipientResults.length > 0 && <div className="mt-3 space-y-2">{recipientResults.map(tenant => <article key={tenant.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 p-3"><b className="min-w-0 truncate text-sm">{tenant.name}</b>{grantedIds.has(tenant.id) ? <Button type="button" variant="ghost" disabled={busy} onClick={() => setGrant(tenant.id, false, tenant.name)}>Dejar de compartir</Button> : <Button type="button" disabled={busy} onClick={() => setGrant(tenant.id, true, tenant.name)}>Compartir</Button>}</article>)}</div>}<h4 className="mt-4 text-xs font-bold uppercase tracking-wider text-mute">Permisos otorgados</h4>{grants.length === 0 ? <p className="mt-2 text-sm text-mute">Todavía no compartís tu disponibilidad con nadie.</p> : <div className="mt-2 space-y-2">{grants.map(grant => <article key={grant.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 p-3"><div className="min-w-0"><b className="text-sm">{grant.recipientTenant?.name || 'Empresa'}</b><p className="text-xs text-mute">{grant.isActive ? 'Ve tu disponibilidad' : 'Permiso revocado'} · {new Date(grant.createdAt).toLocaleDateString('es-PY')}</p></div>{grant.isActive && <Button type="button" variant="outline" disabled={busy} onClick={() => setGrant(grant.recipientTenant.id, false, grant.recipientTenant.name)}>Revocar</Button>}</article>)}</div>}</section>}<section className="rounded-xl border border-ink-600 bg-ink-800/40 p-3"><h3 className="text-xs font-bold uppercase tracking-wider text-mute">Disponibilidad que veo de otras empresas</h3>{receivedStock.length === 0 ? <p className="mt-2 text-sm text-mute">Ninguna empresa comparte su disponibilidad con vos.</p> : <div className="mt-2 space-y-3">{Object.entries(receivedBySource).map(([source, rows]) => <div key={source}><p className="text-sm font-semibold text-fore">{source} · {rows.reduce((sum, row) => sum + Number(row.available || 0), 0)} disponibles</p><div className="mt-1.5 space-y-1">{rows.slice(0, 40).map((row, index) => <p key={`${row.product?.id}-${index}`} className="text-xs text-mute">{row.product?.name}{row.product?.sku ? ` · SKU ${row.product.sku}` : ''}{row.product?.condition ? ` · ${conditionLabel[row.product.condition] || row.product.condition}` : ''} · {row.branch?.name || 'Sin sucursal'} · <b className="text-fore">{row.available}</b></p>)}{rows.length > 40 && <p className="text-xs text-mute">+ {rows.length - 40} productos más</p>}</div></div>)}</div>}</section></div>}
     {tab === 'eliminados' && <div className="mt-4 overflow-x-auto" data-testid="eliminados-tabla"><div className={cn(GRID_ELIMINADOS, 'px-3.5 pb-2 pt-1')}><span className={CELDA_INV}>Producto</span><span className={CELDA_INV}>IMEI</span><span className={CELDA_INV}>Nota</span><span className={cn(CELDA_INV, 'text-right')}>Acciones</span></div><div className="space-y-1">{removedUnits.map(unit => { const serial = String(unit.serial || ''); return <div key={unit.id} data-testid="eliminado-fila" className={cn(GRID_ELIMINADOS, 'rounded-xl border border-bad/25 bg-bad/5 px-3.5 py-2')}><span className="truncate text-[13px] font-semibold" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {}) || 'Producto'}</span><SerialTexto serial={serial} className="truncate text-[11px] text-mute" /><span className="truncate text-[11px] text-mute">Conserva su historial de auditoría</span><span className="flex items-center justify-end"><Button className="h-8 px-2 text-xs" disabled={busy} onClick={() => requestReason('restore', unit)}>Restaurar</Button></span></div> })}{!removedUnits.length && <EmptyState compact icon="box" title="No hay unidades eliminadas recuperables." />}</div></div>}
+    {tab === 'conteos' && (esDemo
+      ? <div className="mt-4"><p className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-sm text-warn">Los conteos físicos auditables necesitan conexión con el servidor: en la demo no se guardan documentos ni se ajusta stock. Ingresá con una cuenta real para usarlos.</p></div>
+      : <div className="mt-4 space-y-4" data-testid="conteos-tab">
+        {conteoId ? <div className="space-y-4">
+          {conteoError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{conteoError}</p>}
+          {(conteoLoading || !conteoDetalle) && !conteoError && <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-44 w-full" /></div>}
+          {!conteoDetalle && conteoError && <Button type="button" variant="outline" onClick={cerrarConteo}>Volver a conteos</Button>}
+          {conteoDetalle && (() => {
+            const s = conteoDetalle.summary || { expected: 0, counted: 0, missing: 0, unexpected: 0, productsWithoutSerial: 0 }
+            const borrador = conteoDetalle.status === 'DRAFT'
+            const [estadoLabel, estadoTone] = ESTADO_CONTEO[conteoDetalle.status] || ['Conteo', 'slate']
+            return <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={cerrarConteo}><Icon name="back" className="h-4 w-4" />Volver</Button>
+                <Badge color={estadoTone}>{estadoLabel}</Badge>
+                <b className="min-w-0 truncate text-sm">{conteoDetalle.branch?.name || 'Sucursal'}</b>
+                <span className="text-xs text-mute">Iniciado {fechaReserva(conteoDetalle.createdAt)}{conteoDetalle.appliedAt ? ` · Aplicado ${fechaReserva(conteoDetalle.appliedAt)}` : ''}</span>
+                {conteoDetalle.note && <span className="min-w-0 truncate text-xs text-mute">· {conteoDetalle.note}</span>}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
+                {[['Esperados', s.expected, 'text-fore'], ['Contados', s.counted, 'text-ok'], ['Faltantes', s.missing, 'text-warn'], ['Inesperados', s.unexpected, 'text-bad']].map(([label, value, tone]) => <div key={label} className="rounded-xl border border-ink-600 p-3"><p className={`text-xl font-bold ${tone}`}>{value}</p><p className="text-[11px] text-mute">{label}</p></div>)}
+              </div>
+              {borrador && <form onSubmit={enviarEscaneo} className="rounded-xl border border-ink-600 bg-ink-800/40 p-3">
+                <Label htmlFor="conteo-serial">Escanear IMEI / serial</Label>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  <Input id="conteo-serial" ref={conteoSerialRef} className="min-w-0 flex-1" value={conteoSerial} onChange={event => setConteoSerial(event.target.value)} placeholder="Escaneá o escribí el IMEI y presioná Enter" autoCapitalize="characters" autoComplete="off" autoFocus />
+                  <Button type="submit" disabled={conteoBusy || !conteoSerial.trim()}>{conteoBusy ? 'Guardando…' : 'Escanear'}</Button>
+                  <Button type="button" variant="outline" onClick={() => setCamaraConteoOpen(true)}>Cámara</Button>
+                </div>
+                {conteoFlash && <p role="status" className={`mt-2 rounded-lg border px-3 py-1.5 text-sm ${conteoFlash.kind === 'ok' ? 'border-ok/40 bg-ok/10 text-ok' : conteoFlash.kind === 'miss' ? 'border-warn/40 bg-warn/10 text-warn' : 'border-bad/40 bg-bad/10 text-bad'}`}>{conteoFlash.kind === 'ok' ? `✓ IMEI ${conteoFlash.serial}: figura en el stock de esta sucursal.` : conteoFlash.kind === 'miss' ? `⚠ IMEI ${conteoFlash.serial}: no figura en el stock de esta sucursal.` : `⚠ IMEI ${conteoFlash.serial}: ya estaba escaneado en este conteo.`}</p>}
+                <p className="mt-2 text-xs text-mute">Cada lectura se guarda al instante, así podés cortar y seguir después. Un lector Bluetooth o USB que envíe Enter funciona igual que la cámara.</p>
+              </form>}
+              {borrador && <form onSubmit={sumarSinSerie} className="rounded-xl border border-ink-600 bg-ink-800/40 p-3">
+                <Label htmlFor="conteo-producto">Producto sin serie</Label>
+                <p className="mt-1 text-xs text-mute">Para accesorios o productos sin IMEI: sumá las unidades contadas y el resumen las muestra aparte.</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_auto]">
+                  <Select id="conteo-producto" value={conteoSinSerie.productId} onChange={event => setConteoSinSerie(current => ({ ...current, productId: event.target.value }))}><option value="">Elegí el producto</option>{availableProducts.map(product => <option key={product.id} value={product.id}>{product.nombre}{product.branch?.name ? ` · ${product.branch.name}` : ''}</option>)}</Select>
+                  <Input aria-label="Cantidad contada" inputMode="numeric" value={conteoSinSerie.quantity} onChange={event => setConteoSinSerie(current => ({ ...current, quantity: event.target.value.replace(/\D/g, '') }))} placeholder="Cantidad" />
+                  <Button type="submit" disabled={conteoBusy || !conteoSinSerie.productId || !conteoSinSerie.quantity}>Sumar</Button>
+                </div>
+              </form>}
+              <section>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Escaneados ({conteoDetalle.lines.length})</h4>
+                {conteoDetalle.lines.length === 0
+                  ? <p className="mt-2 text-sm text-mute">Todavía no hay líneas en este conteo.</p>
+                  : <div className="mt-2 max-h-72 space-y-1 overflow-y-auto">{conteoDetalle.lines.map(line => <div key={line.id} data-testid="conteo-linea" className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-3 py-1.5">{line.serial ? <SerialTexto serial={line.serial} className="w-40 shrink-0 text-[11px]" /> : <span className="shrink-0 text-[11px] text-mute">Sin serie × {line.quantity}</span>}<span className="min-w-0 flex-1 truncate text-xs" title={line.product?.name || 'Producto no reconocido'}>{line.product?.name || 'Producto no reconocido'}{line.product?.sku ? ` · SKU ${line.product.sku}` : ''}</span><Badge color={line.serial ? (line.expected ? 'green' : 'red') : 'slate'}>{line.serial ? (line.expected ? 'Esperado' : 'No esperado') : 'Sin serie'}</Badge></div>)}</div>}
+              </section>
+              {conteoDetalle.missing.length > 0 && <section>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Faltantes ({conteoDetalle.missing.length})</h4>
+                <p className="mt-1 text-xs text-mute">Figuran disponibles en la sucursal y no se escanearon. Al aplicar con ajuste pasan a defectuoso.</p>
+                <div className="mt-2 max-h-56 space-y-1 overflow-y-auto">{conteoDetalle.missing.map(unit => <div key={unit.id} data-testid="conteo-faltante" className="flex flex-wrap items-center gap-2 rounded-lg border border-warn/25 bg-warn/5 px-3 py-1.5"><span className="min-w-0 flex-1 truncate text-xs">{unit.product?.name || 'Producto'}{unit.product?.sku ? ` · SKU ${unit.product.sku}` : ''}</span><SerialTexto serial={unit.serial} className="w-40 shrink-0 text-[11px]" /></div>)}</div>
+              </section>}
+              {borrador
+                ? <div className="flex flex-wrap items-center gap-2">
+                  {puedeAplicarConteo && <Button type="button" disabled={conteoBusy} onClick={() => { setAjustarConteo(true); setAplicarConteoOpen(true) }}>Aplicar conteo</Button>}
+                  <Button type="button" variant="outline" disabled={conteoBusy} onClick={() => setCancelarConteoOpen(true)}>Cancelar conteo</Button>
+                  {!puedeAplicarConteo && <p className="text-xs text-mute">Solo administración o gerencia pueden aplicar el conteo: pediles la aprobación al terminar.</p>}
+                </div>
+                : <p className="rounded-lg border border-ink-600 bg-ink-800/40 px-3 py-2 text-sm text-mute">{conteoDetalle.status === 'APPLIED' ? 'Conteo aplicado y auditado: no admite más escaneos.' : 'Conteo cancelado: el stock no cambió.'}</p>}
+              <Modal open={aplicarConteoOpen} onClose={() => setAplicarConteoOpen(false)} title="Aplicar conteo">
+                <div className="space-y-4">
+                  <p className="text-sm text-mute">Vas a aprobar el conteo de <b className="text-fore">{conteoDetalle.branch?.name || 'la sucursal'}</b>: {s.counted} contados, {s.missing} faltantes y {s.unexpected} inesperados. La acción queda auditada y no se puede deshacer.</p>
+                  <label className="flex items-start gap-2 text-sm text-mute"><input type="checkbox" className="mt-0.5 h-4 w-4 accent-fono" checked={ajustarConteo} onChange={event => setAjustarConteo(event.target.checked)} /><span><b className="text-fore">Ajustar stock:</b> los faltantes pasan a defectuoso y se recalcula el stock. Sin marcar, solo se aprueba el documento.</span></label>
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button type="button" variant="ghost" onClick={() => setAplicarConteoOpen(false)} disabled={conteoBusy}>Volver</Button><Button type="button" onClick={aplicarConteo} disabled={conteoBusy}>{conteoBusy ? 'Aplicando…' : 'Aplicar conteo'}</Button></div>
+                </div>
+              </Modal>
+              <ConfirmDialog open={cancelarConteoOpen} onCancel={() => setCancelarConteoOpen(false)} onConfirm={cancelarConteo} busy={conteoBusy} variant="danger" title="Cancelar conteo" confirmLabel="Cancelar conteo" description="El conteo queda cancelado y no se puede volver a escanear. El stock no cambia." />
+              <Modal open={camaraConteoOpen} onClose={cerrarCamaraConteo} title="Escanear con cámara">
+                <CameraScan continuous onDetected={detectarConteoCamara} onClose={cerrarCamaraConteo} />
+                <p className="mt-2 text-xs text-mute">Cada equipo que enfoques se registra solo. Cerrá esta ventana para seguir con el conteo.</p>
+              </Modal>
+            </div>
+          })()}
+        </div> : <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div><h3 className="text-sm font-bold text-fore">Conteos físicos</h3><p className="mt-0.5 text-xs text-mute">Documento auditable por sucursal: escaneá, revisá diferencias y aprobalo al terminar.</p></div>
+            <Button type="button" onClick={() => setNuevoConteoOpen(true)} disabled={conteosLoading}><Icon name="plus" className="h-4 w-4" />Nuevo conteo</Button>
+          </div>
+          {conteosError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{conteosError}</p>}
+          {conteosLoading && conteos.length === 0 && <div className="space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
+          {!conteosLoading && conteos.length === 0 && <EmptyState compact icon="box" title="Todavía no hay conteos." description="Creá uno para comparar lo que hay físicamente contra el stock del sistema." />}
+          {conteos.length > 0 && <div className="space-y-1.5">{conteos.map(item => { const [estadoLabel, estadoTone] = ESTADO_CONTEO[item.status] || ['Conteo', 'slate']; return <button key={item.id} type="button" data-testid="conteo-fila" onClick={() => abrirConteo(item)} className="flex w-full flex-wrap items-center gap-2 rounded-xl border border-ink-600 bg-ink-800/40 px-3 py-2 text-left transition hover:border-fono/40"><Badge color={estadoTone}>{estadoLabel}</Badge><b className="min-w-0 truncate text-sm">{item.branch?.name || 'Sucursal'}</b><span className="text-xs text-mute">{fechaReserva(item.createdAt)}</span><span className="text-xs text-mute">{item._count?.lines || 0} línea(s)</span>{item.note && <span className="min-w-0 truncate text-xs text-mute">· {item.note}</span>}<span className="ml-auto flex shrink-0 items-center gap-1 text-xs font-semibold text-fono-light">Abrir<Icon name="chevron" className="h-3.5 w-3.5 -rotate-90" /></span></button> })}</div>}
+          <Modal open={nuevoConteoOpen} onClose={() => setNuevoConteoOpen(false)} title="Nuevo conteo">
+            <form onSubmit={crearConteo} className="space-y-3">
+              <p className="text-sm text-mute">Se abre un conteo en borrador para <b className="text-fore">{sucursal?.nombre || sucursal?.name || 'tu sucursal'}</b>. Escaneá los equipos y al terminar aplicalo con gerencia.</p>
+              <div><Label htmlFor="conteo-nota">Nota (opcional)</Label><Textarea id="conteo-nota" rows={2} maxLength={300} value={nuevoConteoNota} onChange={event => setNuevoConteoNota(event.target.value)} placeholder="Ej: conteo mensual, turno mañana…" /></div>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button type="button" variant="ghost" onClick={() => setNuevoConteoOpen(false)} disabled={conteoBusy}>Volver</Button><Button type="submit" disabled={conteoBusy}>{conteoBusy ? 'Iniciando…' : 'Iniciar conteo'}</Button></div>
+            </form>
+          </Modal>
+        </div>}
+      </div>)}
   </Card><Modal open={locationForm !== null} onClose={() => setLocationForm(null)} title={locationForm?.id ? 'Editar ubicación' : 'Crear ubicación'}><form onSubmit={saveLocation} className="space-y-3"><p className="text-sm text-mute">La ubicación organiza el stock dentro de una sucursal: piso de venta, depósito, recepción. Podés asignarla al recibir una unidad o declararla al trasladar.</p><Select required value={locationForm?.branchId || ''} disabled={Boolean(locationForm?.id)} onChange={event => setLocationForm(current => ({ ...current, branchId: event.target.value }))}><option value="">Elegí la sucursal</option>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}{branch.city ? ` · ${branch.city}` : ''}</option>)}</Select><Input required maxLength={120} autoFocus value={locationForm?.name || ''} onChange={event => setLocationForm(current => ({ ...current, name: event.target.value }))} placeholder="Nombre: Piso de venta, Depósito 1, Recepción…" /><Input maxLength={32} value={locationForm?.code || ''} onChange={event => setLocationForm(current => ({ ...current, code: event.target.value }))} placeholder="Código corto (opcional)" /><Button type="submit" disabled={busy || !locationForm?.name?.trim() || !locationForm?.branchId}>{busy ? 'Guardando…' : locationForm?.id ? 'Guardar cambios' : 'Crear ubicación'}</Button></form></Modal><Modal open={scannerOpen} onClose={() => setScannerOpen(false)} title="Escanear código"><CameraScan onDetected={value => { setQuery(normalizeScan(value)); refresh(normalizeScan(value)) }} onClose={() => setScannerOpen(false)} /></Modal><Modal open={countOpen} onClose={() => { setCountOpen(false); setCountSession(null) }} title="Conteo físico rápido" className="max-w-2xl">
   {!countSession && <div className="space-y-3"><p className="text-sm text-mute">Escaneá con la cámara el código de cada equipo (IMEI/serial). Cada lectura se compara contra el stock de tu sucursal, queda verificada en la auditoría y al final ves qué falta y qué no aparece en el sistema.</p><Button onClick={startCount}>Empezar conteo</Button></div>}
   {countSession?.scanning && <div className="space-y-3"><CameraScan continuous onDetected={countScan} onClose={() => {}} /><div className="grid grid-cols-3 gap-2 text-center">{[

@@ -58,6 +58,11 @@ export default function Vendedores({ seccion = 'equipo' }) {
   const [confirmarRevocar, setConfirmarRevocar] = useState(null)
   const [invitarAbierto, setInvitarAbierto] = useState(false)
   const [modoInvitacion, setModoInvitacion] = useState('correo')
+  // Permisos por integrante: el rol define el máximo y acá se recorta.
+  const [permisosDe, setPermisosDe] = useState(null)
+  const [catalogo, setCatalogo] = useState(null)
+  const [permisosSel, setPermisosSel] = useState([])
+  const [permisosBusy, setPermisosBusy] = useState(false)
 
   const cargarInvitaciones = useCallback(async () => {
     if (esDemo) return
@@ -113,6 +118,30 @@ export default function Vendedores({ seccion = 'equipo' }) {
     finally { setBusy(false) }
   }
 
+  // Abre el editor de permisos con el catálogo real del backend; lo que el rol
+  // tiene por defecto aparece marcado y lo desmarcado se aplica en el servidor.
+  async function abrirPermisos(v) {
+    setError(''); setPermisosDe(v); setPermisosSel([])
+    try {
+      const data = catalogo || await api.get('/api/permissions')
+      setCatalogo(data)
+      const delRol = (data.byRole?.[v.role] || []).map(item => item.id)
+      const configurados = Array.isArray(v.permissions) ? v.permissions : null
+      setPermisosSel(configurados ? delRol.filter(id => configurados.includes(id)) : delRol)
+    } catch (cause) { setError(cause?.message || 'No se pudieron cargar los permisos.') }
+  }
+  async function guardarPermisos() {
+    if (!permisosDe) return
+    const delRol = (catalogo?.byRole?.[permisosDe.role] || []).map(item => item.id)
+    const completo = delRol.length > 0 && delRol.every(id => permisosSel.includes(id))
+    setPermisosBusy(true); setError('')
+    try {
+      await actualizarUsuario(permisosDe.id, { permissions: completo ? null : permisosSel })
+      setPermisosDe(null)
+    } finally { setPermisosBusy(false) }
+  }
+  // Horario de acceso: el backend lo aplica al iniciar sesión (fuera de los
+  // rangos, el integrante no puede entrar). Sin rangos queda libre.
   function abrirHorario(v) {
     setHorario({
       userId: v.id,
@@ -223,6 +252,7 @@ export default function Vendedores({ seccion = 'equipo' }) {
             <div className="flex flex-wrap items-center gap-2 border-t border-ink-600/60 pt-2">
               <button type="button" onClick={() => setHistorialDe(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Historial de ${v.nombre}`}>Historial</button>
               <button type="button" onClick={() => abrirHorario(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Horario de ${v.nombre}`}>Horario</button>
+              {!esDemo && v.role !== 'ADMIN' && <button type="button" onClick={() => abrirPermisos(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Permisos de ${v.nombre}`} title="Permisos por acción">Permisos</button>}
               {v.activo
                 ? <button type="button" onClick={() => setConfirmarEliminar(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-bad transition hover:bg-bad/10" aria-label={`Desactivar a ${v.nombre} (conserva el historial)`}>Desactivar</button>
                 : <button type="button" onClick={() => reactivarUsuario(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-ok transition hover:bg-ok/10" aria-label={`Volver a activar a ${v.nombre}`}>Volver a activar</button>}
@@ -277,6 +307,27 @@ export default function Vendedores({ seccion = 'equipo' }) {
       )}
     </Card>}
 
+    <Modal open={permisosDe !== null} onClose={() => !permisosBusy && setPermisosDe(null)} title={`Permisos${permisosDe?.nombre ? ` · ${permisosDe.nombre}` : ''}`} className="max-w-lg">
+      <div className="space-y-3">
+        <p className="text-sm text-mute">El rol define el máximo; acá podés recortarlo. Lo que desmarques se rechaza también en el servidor, no solo en la pantalla.</p>
+        {(catalogo?.byRole?.[permisosDe?.role] || []).length === 0 && <p className="rounded-lg border border-ink-600 px-3 py-2 text-xs text-mute">Este rol no tiene permisos recortables.</p>}
+        <ul className="space-y-1.5">
+          {(catalogo?.byRole?.[permisosDe?.role] || []).map(item => (
+            <li key={item.id}>
+              <label className="flex items-center gap-2 rounded-lg border border-ink-600/60 bg-ink-800/60 px-3 py-2 text-sm">
+                <input type="checkbox" checked={permisosSel.includes(item.id)} onChange={() => setPermisosSel(sel => sel.includes(item.id) ? sel.filter(id => id !== item.id) : [...sel, item.id])} />
+                <span>{item.label}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={guardarPermisos} disabled={permisosBusy}>{permisosBusy ? 'Guardando…' : 'Guardar permisos'}</Button>
+          <Button type="button" variant="outline" onClick={() => setPermisosSel((catalogo?.byRole?.[permisosDe?.role] || []).map(item => item.id))}>Restaurar todo el rol</Button>
+          <Button type="button" variant="ghost" disabled={permisosBusy} onClick={() => setPermisosDe(null)}>Cancelar</Button>
+        </div>
+      </div>
+    </Modal>
     <Modal open={horario !== null} onClose={() => !busy && setHorario(null)} title={`Horario de acceso${horario?.nombre ? ` · ${horario.nombre}` : ''}`} className="max-w-lg">
       <form onSubmit={guardarHorario} className="space-y-3">
         <p className="text-sm text-mute">Fuera de estos rangos el integrante no puede ingresar al sistema. Sin rangos, el acceso queda libre.</p>

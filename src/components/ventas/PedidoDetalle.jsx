@@ -327,6 +327,14 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               <Badge color={PAYMENT_TONE(estadoPago)}>{estadoPago}</Badge>
               <Badge color={order.fulfillmentStatus === 'DELIVERED' ? 'green' : order.fulfillmentStatus === 'READY_TO_SHIP' ? 'blue' : order.fulfillmentStatus === 'READY_FOR_PICKUP' ? 'orange' : 'slate'}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Preparando'}</Badge>
               {archivado && <Badge color="slate">Archivado</Badge>}
+              {order.isSpecialOrder && (
+                <Badge color="orange">
+                  Pedido especial
+                  {order.expectedAt && !Number.isNaN(new Date(order.expectedAt).getTime())
+                    ? ` · esperado ${new Date(order.expectedAt).toLocaleDateString('es-PY')}`
+                    : ''}
+                </Badge>
+              )}
               {order.billingName && <Badge color="blue">Factura: {order.billingName}</Badge>}
             </div>
             <p className="mt-3 text-xs text-mute">

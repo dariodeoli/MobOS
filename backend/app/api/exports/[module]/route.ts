@@ -3,9 +3,10 @@ import { prisma } from '../../../../lib/prisma'
 import { error } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
 import type { SessionContext } from '../../../../lib/auth'
+import { canAccessAny } from '../../../../lib/auth'
 import { csvResponse } from '../../../../lib/csv'
 import { INVENTORY_REMOVED, INVENTORY_RESTORED, removedInventoryUnitIds } from '../../../../lib/inventory'
-import { MAX_REPORT_ORDERS, REPORT_ROLES, aggregateCommissions, dayBounds, parseReportQuery } from '../../../../lib/reporting'
+import { MAX_REPORT_ORDERS, aggregateCommissions, dayBounds, parseReportQuery } from '../../../../lib/reporting'
 import { serialKey } from '../../../../lib/validation'
 import { ensureStoreBranch } from '../../../../lib/store-branch'
 import { ACCIONES_AUDITORIA, AREAS_AUDITORIA, ROLES_AUDITORIA, detalleAuditoria, parseFiltrosAuditoria, whereAuditoria } from '../../../../lib/audit'
@@ -439,7 +440,7 @@ async function exportarAuditoria(session: SessionContext, params: URLSearchParam
 /* ── Comisiones ─────────────────────────────────────────────────────── */
 
 async function exportarComisiones(session: SessionContext, params: URLSearchParams): Promise<Exportacion> {
-  if (!(REPORT_ROLES as readonly string[]).includes(session.user.role)) throw new ExportError('No autorizado.', 403)
+  if (!canAccessAny(session.user, ['reports:read'])) throw new ExportError('No autorizado.', 403)
   const tenant = session.user.tenantId
   // El reporte usa from/to; la exportación acepta desde/hasta para hablar el
   // mismo idioma que el resto de los listados.

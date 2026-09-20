@@ -62,6 +62,45 @@ const ROLE_PERMISSIONS: Record<UserRole, readonly string[]> = {
 
 type ScheduleWindow = { days: number[]; start: string; end: string }
 export type AccessSchedule = { timezone: string; windows: ScheduleWindow[] }
+
+// Catálogo visible de permisos: es la lista que el dueño puede recortar por
+// integrante. Cada uno se aplica en el servidor (rutas y helpers), no solo en
+// la interfaz. El `*` del ADMIN no se expone: es el rol completo.
+export const PERMISSION_CATALOG: readonly { id: string; label: string }[] = [
+  { id: 'pos:use', label: 'Vender en el punto de venta' },
+  { id: 'orders:own', label: 'Gestionar sus propias ventas' },
+  { id: 'orders:branch', label: 'Gestionar las ventas de su sucursal' },
+  { id: 'orders:manage', label: 'Gestionar todas las ventas, descuentos y devoluciones' },
+  { id: 'payments:manage', label: 'Registrar y conciliar cobros' },
+  { id: 'customers:manage', label: 'Gestionar clientes' },
+  { id: 'products:read', label: 'Consultar el catálogo' },
+  { id: 'products:manage', label: 'Gestionar catálogo, precios y combos' },
+  { id: 'stock:read', label: 'Consultar stock e IMEI' },
+  { id: 'stock:manage', label: 'Inventario, ubicaciones, traslados y ajustes' },
+  { id: 'purchases:manage', label: 'Compras y proveedores' },
+  { id: 'cash:manage', label: 'Caja: apertura, movimientos y cierre' },
+  { id: 'reports:read', label: 'Reportes y auditoría' },
+  { id: 'dashboard:read', label: 'Centro de control' },
+  { id: 'warranties:manage', label: 'Garantías y servicio' },
+  { id: 'service:manage', label: 'Órdenes de servicio técnico' },
+  { id: 'tradeins:receive', label: 'Preparar Trade-In' },
+  { id: 'tradeins:manage', label: 'Pipeline de Trade-In' },
+  { id: 'promotions:read', label: 'Consultar promociones' },
+  { id: 'promotions:manage', label: 'Gestionar promociones' },
+]
+
+/** Permisos base del rol (sin el comodín del ADMIN). */
+export function baselinePermissions(role: string): string[] {
+  return (ROLE_PERMISSIONS[role as UserRole] || []).filter(permission => permission !== '*')
+}
+
+/** Catálogo de permisos que le corresponden al rol, listo para la interfaz. */
+export function catalogForRole(role: string) {
+  const baseline = new Set(baselinePermissions(role))
+  return PERMISSION_CATALOG.filter(item => baseline.has(item.id)).map(item => ({ ...item }))
+}
+
+
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/
 const weekDays: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
 

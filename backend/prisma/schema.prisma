@@ -14,8 +14,11 @@ model Tenant {
   logos                 TenantLogo[]
   paymentAccounts     PaymentAccount[]
   tradeInDevices      TradeInDevice[]
+  deviceValuations    DeviceValuation[]
   cashSessions        CashSession[]
   purchases           PurchaseOrder[]
+  purchaseReturns     PurchaseReturn[]
+  purchaseReturnLines PurchaseReturnLine[]
   suppliers           Supplier[]
   warrantyCases       WarrantyCase[]
   cashMovements       CashMovement[]
@@ -41,6 +44,9 @@ model Tenant {
   purchaseCreditLimitPyg Int?
   // Porcentaje de venta bajo lista permitido sin autorización (default 10).
   belowListPct           Int?
+  // Fidelización: porcentaje del total de cada venta que se acredita como
+  // puntos canjeables (1 punto = 1 Gs.). 0 apaga la fidelización.
+  loyaltyPct             Int              @default(0)
   // Perfil del negocio que encabeza los comprobantes no fiscales.
   address                String?
   city                   String?
@@ -93,6 +99,13 @@ model Tenant {
   printJobs               PrintJob[]
   customerPortalTokens    CustomerPortalToken[]
   priceLists              PriceList[]
+  storeCredits            StoreCredit[]
+  storeCreditUses         StoreCreditUse[]
+  loyaltyMovements        LoyaltyMovement[]
+  inventoryCounts         InventoryCount[]
+  inventoryCountLines     InventoryCountLine[]
+  suspendedSales          SuspendedSale[]
+  commissionSettlements   CommissionSettlement[]
 
   @@index([archivedAt])
 }
@@ -225,6 +238,8 @@ model Branch {
   incomingTransfers StockTransfer[] @relation("TransferDestinationBranch")
   quotes            Quote[]
   combos            Combo[]
+  inventoryCounts   InventoryCount[]
+  suspendedSales    SuspendedSale[]
 
   @@unique([tenantId, name])
   @@index([tenantId])
@@ -241,6 +256,7 @@ model User {
   quotes              Quote[]
   inventoryUnitComments InventoryUnitComment[]
   purchases           PurchaseOrder[]
+  suspendedSales      SuspendedSale[]
   id                  String          @id @default(cuid())
   tenantId            String
   tenant              Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -278,6 +294,9 @@ model User {
   customerAuthorizationsRequested CustomerAuthorization[] @relation("CustomerAuthorizationRequestedBy")
   customerAuthorizationsResolved  CustomerAuthorization[] @relation("CustomerAuthorizationResolvedBy")
   commissionRules  CommissionRule[]
+  commissionSettlementsAsSeller CommissionSettlement[] @relation("CommissionSettlementSeller")
+  commissionSettlementsCreated  CommissionSettlement[] @relation("CommissionSettlementCreatedBy")
+  commissionSettlementsPaid     CommissionSettlement[] @relation("CommissionSettlementPaidBy")
   invitationsSent UserInvitation[] @relation("InvitationInviter")
   printBridgesCreated PrintBridge[] @relation("PrintBridgeCreatedBy")
   printJobsRequested  PrintJob[]    @relation("PrintJobRequestedBy")
@@ -387,6 +406,7 @@ model Product {
   tradeInDevice TradeInDevice?
   destination   ProductDestination @default(NORMAL)
   purchaseLines PurchaseLine[]
+  purchaseReturnLines PurchaseReturnLine[]
   id            String             @id @default(cuid())
   tenantId      String
   tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -427,6 +447,7 @@ model Product {
   transferSourceLines      StockTransferLine[] @relation("TransferSourceProduct")
   transferDestinationLines StockTransferLine[] @relation("TransferDestinationProduct")
   priceListItems           PriceListItem[]
+  inventoryCountLines      InventoryCountLine[]
 
   @@unique([tenantId, branchId, sku])
   @@index([tenantId, branchId])
@@ -439,6 +460,54 @@ enum InventoryUnitStatus {
   SOLD
   DEFECTIVE
   IN_TRANSIT
+}
+
+// Conteo físico auditable: documento con las unidades escaneadas en una
+// sucursal, las diferencias contra el sistema y la aprobación de gerencia.
+// Aplicarlo da de baja (defectuoso) lo que no apareció y queda en auditoría.
+enum InventoryCountStatus {
+  DRAFT
+  APPLIED
+  CANCELLED
+}
+
+model InventoryCount {
+  id          String               @id @default(cuid())
+  tenantId    String
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId    String
+  branch      Branch               @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  status      InventoryCountStatus @default(DRAFT)
+  note        String?
+  createdById String
+  appliedById String?
+  appliedAt   DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  lines       InventoryCountLine[]
+
+  @@index([tenantId, branchId, status])
+  @@index([tenantId, createdAt])
+}
+
+model InventoryCountLine {
+  id          String          @id @default(cuid())
+  tenantId    String
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  countId     String
+  count       InventoryCount  @relation(fields: [countId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  // IMEI/serial escaneado. Null en productos sin serie (se cuenta por cantidad).
+  serial      String?
+  quantity    Int             @default(1)
+  // La unidad ya estaba AVAILABLE en la sucursal al contar (lo esperado).
+  expected    Boolean         @default(false)
+  scannedById String
+  createdAt   DateTime        @default(now())
+
+  @@unique([countId, serial])
+  @@index([countId])
 }
 
 model InventoryUnit {
@@ -637,6 +706,9 @@ model Customer {
   creditLimitPyg Int?
   // Plazo de crédito estándar en días para este cliente.
   creditDays Int?
+  // Caché del saldo de puntos de fidelización (1 punto = 1 Gs. canjeable);
+  // el detalle reconstruible vive en LoyaltyMovement.
+  loyaltyPointsPyg Int @default(0)
   // Consentimientos de marketing explícitos; por defecto apagados.
   acceptsEmailMarketing     Boolean  @default(false)
   acceptsSmsMarketing       Boolean  @default(false)
@@ -658,6 +730,9 @@ model Customer {
   authorizations    CustomerAuthorization[]
   billingIdentities CustomerBillingIdentity[]
   portalTokens      CustomerPortalToken[]
+  storeCredits      StoreCredit[]
+  loyaltyMovements  LoyaltyMovement[]
+  suspendedSales    SuspendedSale[]
 
   @@index([tenantId])
   @@index([tenantId, phone])
@@ -782,6 +857,43 @@ model CommissionRule {
   @@index([tenantId, role])
 }
 
+// Liquidación de comisiones de un vendedor para un período cerrado. El detalle
+// por venta queda CONGELADO en `linesJson`: lo que se liquidó y entregó no
+// cambia aunque después se editen las reglas, los costos o las ventas. El
+// comprobante se verifica sin sesión con su `verificationToken` (QR).
+model CommissionSettlement {
+  id                String   @id @default(cuid())
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sellerId          String
+  seller            User     @relation("CommissionSettlementSeller", fields: [sellerId], references: [id], onDelete: Restrict)
+  // Período local de la empresa (YYYY-MM-DD), extremos inclusive.
+  periodFrom        String
+  periodTo          String
+  // Comisión liquidada según el reporte de comisiones del período.
+  totalPyg          Int
+  // Margen acumulado sobre el que se calculó la comisión.
+  marginPyg         Int      @default(0)
+  commissionPct     Decimal? @db.Decimal(5, 2)
+  // Detalle congelado: [{ orderNumber, date, totalPyg, basePyg, commissionPct, commissionPyg }];
+  // la última línea puede ser un "Ajuste por redondeo" cuando la suma por venta
+  // no coincide exactamente con el total del reporte.
+  linesJson         Json     @default("[]")
+  status            String   @default("DRAFT")
+  verificationToken String   @unique @default(cuid())
+  notes             String?
+  createdById       String
+  createdBy         User     @relation("CommissionSettlementCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  paidAt            DateTime?
+  paidById          String?
+  paidBy            User?    @relation("CommissionSettlementPaidBy", fields: [paidById], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId, sellerId, periodFrom])
+  @@index([tenantId, status, createdAt])
+}
+
 model CustomerAddress {
   id         String   @id @default(cuid())
   customerId String
@@ -832,6 +944,7 @@ model Combo {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  orderItems OrderItem[]
 
   @@index([tenantId, isActive])
   @@index([branchId])
@@ -918,6 +1031,10 @@ model Order {
   totalPyg          Int
   // Comprobante congelado al emitir la venta: lo que se imprimió o mostró no
   // cambia aunque después se edite el producto, el cliente o la empresa.
+  // Pedido especial con seña: la venta se toma con anticipo y fecha esperada
+  // de llegada/entrega; el saldo se cobra al entregar.
+  isSpecialOrder    Boolean           @default(false)
+  expectedAt        DateTime?
   receiptSnapshot   Json?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -927,6 +1044,9 @@ model Order {
   comments OrderComment[]
   quotes   Quote[]
   accessTokens OrderAccessToken[]
+  storeCredits StoreCredit[]
+  storeCreditUses StoreCreditUse[]
+  loyaltyMovements LoyaltyMovement[]
 
   @@unique([tenantId, orderNumber])
   @@unique([tenantId, idempotencyKey])
@@ -1094,9 +1214,15 @@ model OrderItem {
   // Descuento por línea: fijo en guaraníes o porcentual (uno de los dos).
   discountPyg          Int            @default(0)
   discountPct          Decimal?       @db.Decimal(5, 2)
+  // Combo del que salió la línea (trazabilidad comercial): el precio ya viene
+  // repartido por componente y el nombre queda congelado por si el combo cambia.
+  comboId              String?
+  combo                Combo?         @relation(fields: [comboId], references: [id], onDelete: SetNull)
+  comboName            String?
   serialsList          OrderItemSerial[]
 
   @@index([orderId])
+  @@index([comboId])
 }
 
 // Espejo indexado de OrderItem.serials: permite responder "¿qué venta tiene
@@ -1185,6 +1311,7 @@ model Payment {
 
   proofs         PaymentProof[]
   reconciliation PaymentReconciliation?
+  storeCreditUse StoreCreditUse?
 
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId])
@@ -1265,6 +1392,77 @@ model PaymentReconciliation {
   @@index([verifiedById, updatedAt])
 }
 
+// Saldo a favor del cliente (nota de crédito interna): nace de una devolución
+// sin reembolso en efectivo o de un crédito manual de gerencia. Es una deuda
+// de la tienda con el cliente, no un medio de pago externo.
+model StoreCredit {
+  id           String      @id @default(cuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  // Pedido que lo originó (devolución/cambio); null en un crédito manual.
+  orderId      String?
+  order        Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  amountPyg    Int
+  remainingPyg Int
+  note         String?
+  createdById  String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  uses         StoreCreditUse[]
+
+  @@index([tenantId, customerId])
+  @@index([tenantId, remainingPyg])
+}
+
+// Consumo del saldo a favor: cada uso queda atado al pedido y al cobro que lo
+// aplicó, para que el estado de cuenta del cliente sea reconstruible.
+model StoreCreditUse {
+  id          String      @id @default(cuid())
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  creditId    String
+  credit      StoreCredit @relation(fields: [creditId], references: [id], onDelete: Cascade)
+  orderId     String
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentId   String?     @unique
+  payment     Payment?    @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  amountPyg   Int
+  createdById String?
+  createdAt   DateTime    @default(now())
+
+  @@index([tenantId, orderId])
+}
+
+// Fidelización: puntos por venta medidos en guaraníes (1 punto = 1 Gs. de
+// valor canjeable). El saldo vigente es Customer.loyaltyPointsPyg; estos
+// movimientos lo explican (devengo por venta, canje como saldo a favor o
+// ajuste manual).
+enum LoyaltyMovementKind {
+  ACCRUAL
+  REDEMPTION
+  ADJUSTMENT
+}
+
+model LoyaltyMovement {
+  id          String              @id @default(cuid())
+  tenantId    String
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderId     String?
+  order       Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  kind        LoyaltyMovementKind
+  // Positivo acredita, negativo descuenta. 1 punto = 1 Gs.
+  pointsPyg   Int
+  note        String?
+  createdById String?
+  createdAt   DateTime            @default(now())
+
+  @@index([tenantId, customerId, createdAt])
+}
+
 enum PaymentMethod {
   CASH
   TRANSFER
@@ -1272,6 +1470,7 @@ enum PaymentMethod {
   CREDIT
   TRADE_IN
   PIX
+  STORE_CREDIT
 }
 
 enum PaymentCurrency {
@@ -1432,6 +1631,31 @@ model TradeInDevice {
   @@index([orderId])
 }
 
+// Valor sugerido de toma por modelo, capacidad y condición. El POS lo muestra
+// al cargar un equipo como parte de pago: es una sugerencia editable, nunca un
+// tope. `modelKey` es la clave de comparación sin mayúsculas ni acentos y
+// `storage` vacío evita el NULL que rompería el índice único.
+model DeviceValuation {
+  id           String           @id @default(cuid())
+  tenantId     String
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  model        String
+  modelKey     String
+  storage      String           @default("")
+  condition    ProductCondition @default(USED)
+  baseValuePyg Int
+  maxValuePyg  Int?
+  notes        String?
+  isActive     Boolean          @default(true)
+  createdById  String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([tenantId, modelKey, storage, condition])
+  @@index([tenantId, isActive])
+  @@index([tenantId, condition, isActive])
+}
+
 enum PaymentStatus {
   PENDING
   CONFIRMED
@@ -1443,6 +1667,30 @@ enum ReconciliationState {
   PENDING
   VERIFIED
   REJECTED
+}
+
+// Venta suspendida (carrito en espera): guarda el borrador del POS para
+// retomarlo desde cualquier caja autorizada de la sucursal. No toca stock,
+// caja ni deuda hasta que se recupera y se cobra.
+model SuspendedSale {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId    String
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  label       String?
+  // Estado del carrito tal como lo serializa el POS (items, cliente, descuento,
+  // entrega y facturación). El backend no lo interpreta.
+  payload     Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, branchId, createdAt])
+  @@index([tenantId, userId])
 }
 
 model AuditLog {
@@ -1481,10 +1729,13 @@ model CashSession {
   openingPyg  Int
   countedPyg  Int?
   expectedPyg Int?
+  // Arqueo por denominación del turno: {"100000": 3, "50000": 1, ...}. El total
+  // contado se deriva de acá cuando está presente.
+  countedBreakdown Json?
   status      String    @default("OPEN")
   notes       String?
 
-  // Una caja abierta por sucursal: índice parcial definido en la migración SQL.
+  // Un turno abierto por persona y sucursal: índice parcial definido en SQL.
   @@index([tenantId, branchId, openedAt])
 }
 
@@ -1541,6 +1792,7 @@ enum CashMovementStatus {
 
 enum PurchaseStatus {
   DRAFT
+  PARTIAL
   RECEIVED
 }
 
@@ -1573,6 +1825,7 @@ model PurchaseOrder {
   costAllocationMethod PurchaseCostAllocationMethod @default(PROPORTIONAL_VALUE)
   lines        PurchaseLine[]
   payments     PurchasePayment[]
+  returns      PurchaseReturn[]
 
   @@index([tenantId, createdAt])
   @@index([tenantId, status])
@@ -1620,6 +1873,8 @@ model PurchaseLine {
   productId   String
   product     Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
   quantity    Int
+  // Unidades ya recibidas: permite recepción parcial contra la misma orden.
+  receivedQty Int @default(0)
   // unitCostPyg es el costo base pactado; los valores finales quedan congelados
   // para que una modificación posterior de flete o de catálogo no reescriba historia.
   unitCostPyg Int
@@ -1635,6 +1890,42 @@ model PurchaseLine {
   finalUnitCostPyg Int @default(0)
 
   @@index([purchaseId])
+  @@index([productId])
+}
+
+// Devolución al proveedor: sale stock y baja la deuda de esa compra. Cada
+// línea conserva el costo final congelado con el que salió del inventario.
+model PurchaseReturn {
+  id          String               @id @default(cuid())
+  tenantId    String
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purchaseId  String
+  purchase    PurchaseOrder        @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  supplierId  String?
+  reason      String
+  totalPyg    Int
+  createdById String
+  createdAt   DateTime             @default(now())
+  lines       PurchaseReturnLine[]
+
+  @@index([tenantId, purchaseId])
+  @@index([tenantId, supplierId])
+}
+
+model PurchaseReturnLine {
+  id           String         @id @default(cuid())
+  tenantId     String
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  returnId     String
+  purchaseReturn PurchaseReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  purchaseLineId String
+  productId    String
+  product      Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity     Int
+  unitCostPyg  Int
+  totalPyg     Int
+
+  @@index([returnId])
   @@index([productId])
 }
 

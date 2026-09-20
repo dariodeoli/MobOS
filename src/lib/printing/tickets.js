@@ -582,6 +582,43 @@ export function ticketProforma(quote = {}, { ancho = 80 } = {}) {
   return t.avanza(2).corte()
 }
 
+// Liquidación de comisiones de un vendedor: período, detalle congelado por
+// venta (base y comisión) y total a pagar, con el QR que verifica el
+// comprobante sin sesión. Es la copia en papel del comprobante del panel.
+export function ticketLiquidacionComision(settlement = {}, { ancho = 80, link = '' } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
+  const lines = Array.isArray(settlement.lines) ? settlement.lines : []
+  const estado = settlement.status === 'PAID' ? `Pagada${settlement.paidAt ? ` · ${fecha(settlement.paidAt)}` : ''}` : settlement.status === 'CANCELLED' ? 'ANULADA' : 'Borrador'
+  t.centrado(APP_NAME).negrita().centrado('Liquidación de comisiones').negrita(false)
+  t.centrado(`N.º ${String(settlement.id || '').slice(-6).toUpperCase() || '—'}`)
+  t.centrado(fecha(settlement.createdAt || new Date().toISOString()))
+  t.linea()
+  t.par('Vendedor', settlement.sellerName || '—')
+  t.par('Período', `${settlement.periodFrom || '—'} al ${settlement.periodTo || '—'}`)
+  if (settlement.commissionPct !== null && settlement.commissionPct !== undefined) t.par('Comisión', `${Number(settlement.commissionPct)}% sobre margen`)
+  t.par('Estado', estado)
+  t.linea()
+  for (const line of lines) {
+    t.texto(`${line.orderNumber || 'Venta'}${line.date ? ` · ${line.date}` : ''}`)
+    t.par(`  Base ${gs(line.basePyg || 0)}`, gs(line.commissionPyg || 0))
+  }
+  t.linea()
+  t.par('Margen liquidado', gs(settlement.marginPyg || 0))
+  t.doble().par('TOTAL A PAGAR', gs(settlement.totalPyg || 0)).doble(false)
+  t.avanza(1)
+  if (link) {
+    t.centrado('Verificación del comprobante')
+    t.qr(link, { tamano: 7 })
+    t.texto(link)
+  }
+  t.linea()
+  t.texto('Recibí conforme: _______________________')
+  t.texto('Aclaración: ____________________________')
+  t.linea()
+  t.centrado(LEYENDA_NO_FISCAL)
+  return t.avanza(2).corte()
+}
+
 // Recepción de servicio técnico para ticketera: datos, desbloqueo, checklist
 // marcado y firma. Usa [x]/[ ] porque la térmica no imprime los símbolos ☑/☐.
 export function ticketRecepcionServicio(order, { ancho = 80 } = {}) {

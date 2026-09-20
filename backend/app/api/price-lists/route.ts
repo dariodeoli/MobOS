@@ -1,5 +1,5 @@
 import { prisma } from '../../../lib/prisma'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { parsePriceListItems, PriceListInputError } from '../../../lib/price-lists'
@@ -9,7 +9,6 @@ const priceListInclude = {
   _count: { select: { customers: true } },
 }
 
-const ROLES_GESTION = ['ADMIN', 'GERENTE']
 
 // Los ítems por producto solo pueden apuntar a productos de la empresa.
 async function productosDelTenant(tenantId: string, items: ReturnType<typeof parsePriceListItems>) {
@@ -40,7 +39,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  if (!ROLES_GESTION.includes(session.user.role)) return error('Solo administración o gerencia gestionan listas de precios.', 403)
+  if (!canAccessAny(session.user, ['products:manage'])) return error('Solo administración o gerencia gestionan listas de precios.', 403)
   try {
     const body = objectInput(await request.json())
     const name = textInput(body.name, 'Nombre', 120)

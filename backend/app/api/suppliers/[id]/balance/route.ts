@@ -26,6 +26,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       id: true, createdAt: true, receivedAt: true, status: true, supplierReference: true,
       lines: { select: { finalTotalCostPyg: true } },
       payments: { select: { amountPyg: true, kind: true } },
+      returns: { select: { totalPyg: true } },
     },
     orderBy: { createdAt: 'desc' },
     take: 200,
@@ -34,10 +35,12 @@ export async function GET(request: Request, { params }: RouteContext) {
   const orderRows = orders.map(order => {
     const totalPyg = order.lines.reduce((sum, line) => sum + line.finalTotalCostPyg, 0)
     const paidPyg = order.payments.reduce((sum, payment) => sum + payment.amountPyg, 0)
-    return { id: order.id, orderNumber: order.supplierReference, createdAt: order.createdAt, receivedAt: order.receivedAt, status: order.status, totalPyg, paidPyg, outstandingPyg: Math.max(0, totalPyg - paidPyg) }
+    const returnedPyg = order.returns.reduce((sum, item) => sum + item.totalPyg, 0)
+    return { id: order.id, orderNumber: order.supplierReference, createdAt: order.createdAt, receivedAt: order.receivedAt, status: order.status, totalPyg, paidPyg, returnedPyg, outstandingPyg: Math.max(0, totalPyg - paidPyg - returnedPyg) }
   })
   const totalPurchasedPyg = orderRows.reduce((sum, order) => sum + order.totalPyg, 0)
   const paidPyg = orderRows.reduce((sum, order) => sum + order.paidPyg, 0)
+  const returnedPyg = orderRows.reduce((sum, order) => sum + order.returnedPyg, 0)
 
-  return json({ supplier: { id: supplier.id, name: supplier.name }, totalPurchasedPyg, paidPyg, outstandingPyg: Math.max(0, totalPurchasedPyg - paidPyg), orders: orderRows })
+  return json({ supplier: { id: supplier.id, name: supplier.name }, totalPurchasedPyg, paidPyg, returnedPyg, outstandingPyg: Math.max(0, totalPurchasedPyg - paidPyg - returnedPyg), orders: orderRows })
 }

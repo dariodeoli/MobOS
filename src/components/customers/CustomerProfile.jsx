@@ -5,7 +5,7 @@ import { formatGs } from '@/utils/moneda'
 import { codigoPedido } from '@/utils/pedido'
 import { cn } from '@/lib/utils'
 import { primerNombre } from '@/lib/utils'
-import { portalUrlFor } from '@/lib/customerPortal'
+import { portalUrlFor, portalVitrinaUrlFor } from '@/lib/customerPortal'
 import QRCode from 'qrcode'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { whatsappUrl } from './customerMessaging'
@@ -54,6 +54,11 @@ const FOLLOW_UP_KINDS = {
   VISIT: { label: 'Visita', color: 'orange' },
   OTHER: { label: 'Otro', color: 'slate' },
 }
+const LOYALTY_KINDS = {
+  ACCRUAL: { label: 'Acumulado', color: 'green' },
+  REDEMPTION: { label: 'Canjeado', color: 'orange' },
+  ADJUSTMENT: { label: 'Ajuste', color: 'slate' },
+}
 const STATUS_BADGE = (map, value) => {
   const item = map[value]
   return item ? <Badge color={item.color}>{item.label}</Badge> : <Badge>{value || 'Sin estado'}</Badge>
@@ -101,6 +106,7 @@ const TABS = [
   { key: 'notas', label: 'Notas' },
   { key: 'seguimientos', label: 'Seguimientos' },
   { key: 'comercial', label: 'Comercial' },
+  { key: 'puntos', label: 'Puntos' },
   { key: 'facturacion', label: 'Facturación' },
   { key: 'estadisticas', label: 'Estadísticas' },
   { key: 'cronologia', label: 'Cronología' },
@@ -288,6 +294,14 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [portalMsg, setPortalMsg] = useState('')
   const [portalError, setPortalError] = useState('')
   const [confirmarRegenerar, setConfirmarRegenerar] = useState(false)
+  // Fidelización: saldo de puntos, historial y canje como saldo a favor.
+  const [loyalty, setLoyalty] = useState(null)
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false)
+  const [loyaltyError, setLoyaltyError] = useState('')
+  const [loyaltyRevision, setLoyaltyRevision] = useState(0)
+  const [canjeAbierto, setCanjeAbierto] = useState(false)
+  const [canjePuntos, setCanjePuntos] = useState('')
+  const [canjeBusy, setCanjeBusy] = useState(false)
 
   useEffect(() => {
     if (!open || !customer?.id) return undefined
@@ -347,6 +361,22 @@ export default function CustomerProfile({ customer, open, onClose }) {
     return () => { active = false }
   }, [open, customer?.id, tab, revision, esDemo])
 
+  // Fidelización: se pide al abrir su pestaña y al canjear o reintentar.
+  useEffect(() => {
+    if (!open || !customer?.id || tab !== 'puntos' || esDemo) return undefined
+    let active = true
+    setLoyaltyLoading(true)
+    setLoyaltyError('')
+    api
+      .get(`/api/customers/${customer.id}/loyalty`)
+      .then((data) => { if (active) { setLoyalty(data); setLoyaltyLoading(false) } })
+      .catch((cause) => {
+        if (active) setLoyaltyError(cause?.message || 'No se pudo cargar la fidelización.')
+        if (active) setLoyaltyLoading(false)
+      })
+    return () => { active = false }
+  }, [open, customer?.id, tab, esDemo, loyaltyRevision])
+
   // Listas de precios de la empresa: se cargan al abrir la ficha para poder
   // asignar una a este cliente.
   useEffect(() => {
@@ -364,6 +394,32 @@ export default function CustomerProfile({ customer, open, onClose }) {
       toast.success(priceListId ? 'Lista de precios asignada.' : 'Lista de precios quitada.')
       refresh()
     } catch (cause) { toast.error(cause?.message || 'No se pudo asignar la lista.') } finally { setAsignandoLista(false) }
+  }
+
+  function abrirCanje() {
+    setCanjePuntos('')
+    setCanjeAbierto(true)
+  }
+
+  // Canje de puntos como saldo a favor: el backend re-chequea el saldo dentro
+  // de la transacción; acá solo se valida antes de enviar.
+  async function canjearPuntos(event) {
+    event.preventDefault()
+    if (canjeBusy || !customer?.id) return
+    const pointsPyg = Number(canjePuntos)
+    if (!Number.isSafeInteger(pointsPyg) || pointsPyg <= 0) { toast.error('Puntos inválidos', 'Ingresá una cantidad entera de puntos.'); return }
+    if (pointsPyg > puntos) { toast.error('Saldo insuficiente', `El cliente tiene ${formatGs(puntos)} en puntos.`); return }
+    setCanjeBusy(true)
+    try {
+      const result = await api.post(`/api/customers/${encodeURIComponent(customer.id)}/loyalty`, { pointsPyg })
+      toast.success('Puntos canjeados', `Se agregaron ${formatGs(pointsPyg)} de saldo a favor.`)
+      setCanjeAbierto(false)
+      setCanjePuntos('')
+      setLoyalty((actual) => actual ? { ...actual, pointsPyg: Number(result?.pointsPyg ?? Math.max(0, actual.pointsPyg - pointsPyg)) } : actual)
+      setLoyaltyRevision((value) => value + 1)
+    } catch (cause) {
+      toast.error('No se pudieron canjear los puntos', cause?.message)
+    } finally { setCanjeBusy(false) }
   }
 
   // Cronología del cliente: se pide al abrir su pestaña y al reintentar.
@@ -419,6 +475,10 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const puedeResolver = RESOLVERS.includes(usuario?.role)
   const ordenesConSaldo = orders.filter((order) => saldoOrden(order) > 0)
   const facturaActual = Boolean(profile?.customer?.billingName || profile?.customer?.billingDocument)
+  const puntos = Number(loyalty?.pointsPyg ?? 0)
+  const loyaltyPct = Number(loyalty?.loyaltyPct ?? 0)
+  const movimientosPuntos = loyalty?.movements || []
+  const puedeCanjearPuntos = Boolean(usuario && (usuario.permissions?.includes('*') || ['ADMIN', 'GERENTE'].includes(usuario.role) || usuario.permissions?.includes('orders:manage') || usuario.permissions?.includes('payments:manage')))
 
   const dispositivos = orders.flatMap(order => (order.items || []).flatMap(item => (item.serials || []).map(serial => ({ serial, model: item.description, date: order.createdAt, orderNumber: order.orderNumber, warranty: warranties.find(warranty => warranty.serial === serial) || null }))))
   const tabCounts = { compras: orders.length, dispositivos: dispositivos.length, garantias: warranties.length, notas: notes.length, seguimientos: followUps.length, cronologia: timeline.length }
@@ -1215,6 +1275,51 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </div>
           )}
 
+          {tab === 'puntos' && (
+            <div className="space-y-4">
+              {esDemo ? (
+                <p className="text-sm text-mute">La fidelización se calcula con las ventas reales de la tienda.</p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Saldo de puntos</p>
+                      <p className="mt-1 text-2xl font-semibold text-fore">{formatGs(puntos)}</p>
+                      <p className="mt-1 text-xs text-mute">{loyaltyPct > 0 ? `Se acredita el ${loyaltyPct}% del total de cada venta (1 punto = 1 Gs.).` : 'La fidelización está apagada: activala en Configuración → Negocio.'}</p>
+                    </div>
+                    <Button type="button" disabled={!puedeCanjearPuntos || puntos <= 0} onClick={abrirCanje}>Canjear como saldo a favor</Button>
+                  </div>
+                  {loyaltyLoading && <div className="space-y-2" aria-busy="true"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}
+                  {!loyaltyLoading && loyaltyError && (
+                    <EmptyState compact icon="alert" title="No se pudo cargar la fidelización" description={loyaltyError} action={<Button onClick={() => setLoyaltyRevision((value) => value + 1)}>Reintentar</Button>} />
+                  )}
+                  {!loyaltyLoading && !loyaltyError && !movimientosPuntos.length && (
+                    <EmptyState compact icon="wallet" title="Sin movimientos de puntos" description="Cada venta a este cliente suma puntos canjeables como saldo a favor." />
+                  )}
+                  {!loyaltyLoading && !loyaltyError && movimientosPuntos.length > 0 && (
+                    <ul className="space-y-1" data-testid="perfil-puntos">
+                      {movimientosPuntos.map((movimiento) => {
+                        const tipo = LOYALTY_KINDS[movimiento.kind] || { label: movimiento.kind, color: 'slate' }
+                        return (
+                          <li key={movimiento.id} data-testid="perfil-punto-movimiento" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2 text-sm">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <Badge color={tipo.color}>{tipo.label}</Badge>
+                              <span className="min-w-0 truncate text-xs text-mute">{movimiento.note || (movimiento.order?.orderNumber ? codigoPedido(movimiento.order.orderNumber) : '—')}</span>
+                            </span>
+                            <span className="flex items-center gap-3">
+                              <span className="text-xs text-mute">{fechaHora(movimiento.createdAt)}</span>
+                              <b className={cn('tabular-nums', movimiento.pointsPyg < 0 ? 'text-warn' : 'text-ok')}>{movimiento.pointsPyg > 0 ? '+' : ''}{formatGs(movimiento.pointsPyg)}</b>
+                            </span>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           {tab === 'facturacion' && (
             <div className="space-y-4">
               <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
@@ -1567,9 +1672,28 @@ export default function CustomerProfile({ customer, open, onClose }) {
           <div className="flex flex-wrap justify-center gap-2">
             <Button type="button" variant="outline" disabled={!portal?.token} onClick={copiarPortal}><Icon name="copy" className="h-4 w-4" />Copiar enlace</Button>
             <Button type="button" variant="outline" disabled={!portal?.token} onClick={() => window.open(portalUrlFor(portal.token), '_blank', 'noopener')}><Icon name="external" className="h-4 w-4" />Abrir</Button>
+            <Button type="button" variant="outline" disabled={!portal?.token} onClick={() => window.open(portalVitrinaUrlFor(portal.token), '_blank', 'noopener')}><Icon name="store" className="h-4 w-4" />Abrir vitrina</Button>
             <Button type="button" variant="outline" disabled={portalBusy || !portal?.token} onClick={() => setConfirmarRegenerar(true)}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={canjeAbierto}
+        onClose={() => { if (!canjeBusy) setCanjeAbierto(false) }}
+        title="Canjear puntos como saldo a favor"
+        className="max-w-md"
+      >
+        <form onSubmit={canjearPuntos} className="space-y-4">
+          <p className="text-sm text-mute">Los puntos canjeados quedan como saldo a favor del cliente y se descuentan de su saldo de <b className="text-fore">{formatGs(puntos)}</b>. 1 punto = 1 Gs.</p>
+          <FormField label="Puntos a canjear" htmlFor="profile-canje-puntos" hint={`Máximo ${formatGs(puntos)}.`}>
+            <MoneyInput id="profile-canje-puntos" autoFocus value={canjePuntos} onValueChange={setCanjePuntos} placeholder="0" />
+          </FormField>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" disabled={canjeBusy} onClick={() => setCanjeAbierto(false)}>Cancelar</Button>
+            <Button type="submit" disabled={canjeBusy || !Number(canjePuntos)}>{canjeBusy ? 'Canjeando…' : 'Canjear'}</Button>
+          </div>
+        </form>
       </Modal>
 
       <ConfirmDialog
