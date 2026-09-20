@@ -80,6 +80,7 @@ function resolveRoute(pathname) {
   if (pathname.startsWith('/garantia/')) return { label: 'Garantía' }
   if (pathname.startsWith('/cotizacion/')) return { label: 'Cotización' }
   if (pathname.startsWith('/cuenta/')) return { label: 'Mi cuenta' }
+  if (pathname.startsWith('/portal/')) return { label: 'Portal del cliente' }
   if (pathname.startsWith('/remito/')) return { label: 'Remito de traslado' }
   return { label: 'Página no encontrada', error: true }
 }

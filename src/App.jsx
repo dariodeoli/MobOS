@@ -12,6 +12,7 @@ import PedidoPublico from '@/pages/PedidoPublico'
 import GarantiaPublica from '@/pages/GarantiaPublica'
 import CotizacionPublica from '@/pages/CotizacionPublica'
 import CuentaPublica from '@/pages/CuentaPublica'
+import PortalCliente from '@/pages/PortalCliente'
 import RemitoPublico from '@/pages/RemitoPublico'
 import AceptarInvitacion from '@/pages/AceptarInvitacion'
 import VerificarCorreo from '@/pages/VerificarCorreo'
@@ -160,6 +161,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<PortalClientesEntrada />} />
             <Route path="/cuenta/:token" element={<CuentaPublica />} />
+            <Route path="/portal/:token" element={<PortalCliente />} />
             <Route path="/pedido/:token" element={<PedidoPublico />} />
             <Route path="/p/:token" element={<PedidoPublico />} />
             <Route path="/garantia/:token" element={<GarantiaPublica />} />
@@ -188,6 +190,7 @@ export default function App() {
           <Route path="/garantia/:token" element={<GarantiaPublica />} />
           <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
           <Route path="/cuenta/:token" element={<CuentaPublica />} />
+          <Route path="/portal/:token" element={<PortalCliente />} />
           <Route path="/remito/:token" element={<RemitoPublico />} />
           <Route
             path="/"

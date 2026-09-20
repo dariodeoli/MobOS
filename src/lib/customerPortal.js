@@ -13,3 +13,10 @@ export const portalUrlFor = (token) => {
   const base = publicBase()
   return token && base ? `${base}/cuenta/${encodeURIComponent(token)}` : ''
 }
+
+// Vitrina resumida del cliente (misma cuenta, vista liviana de pedidos,
+// garantías y saldo): comparte token y nivel con el portal completo.
+export const portalVitrinaUrlFor = (token) => {
+  const base = publicBase()
+  return token && base ? `${base}/portal/${encodeURIComponent(token)}` : ''
+}
