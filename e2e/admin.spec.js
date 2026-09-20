@@ -407,9 +407,9 @@ test.describe('owner panel', () => {
     await page.getByLabel('Buscar en la auditoría').fill('')
     await page.getByLabel('Filtrar por actor').selectOption({ label: 'Administrador' })
     await expect(page.getByTestId('auditoria-fila').first()).toBeVisible({ timeout: 20_000 })
-    await page.getByLabel('Filtrar por período').selectOption('hoy')
+    await page.getByLabel('Filtrar por fecha').selectOption('hoy')
     await expect(page.getByTestId('auditoria-fila').first()).toBeVisible({ timeout: 20_000 })
-    await page.getByLabel('Filtrar por período').selectOption('todo')
+    await page.getByLabel('Filtrar por fecha').selectOption('')
   })
 
   test('finanzas → Caja can open the cash session', async ({ page }) => {

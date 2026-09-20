@@ -69,14 +69,16 @@ try {
   ] }, status: 201 })
   assert.equal(lista.items.length, 2)
   // #79: la moneda de la lista quedó eliminada; el USD vive en cada ítem.
-  assert.equal('currency' in lista, false, 'la lista ya no expone currency')
+  // El campo sigue por compatibilidad (deprecado, no interviene en la resolución).
+  assert.equal(lista.currency, 'PYG', 'currency sigue presente con su default')
   assert.equal(lista._count.customers, 0)
   assert.equal(lista.items.find(i => i.scope === 'PRODUCT').tiers[0].unitPricePyg, 70000)
 
   // #77: el vendedor solo ve listas activas y sin el detalle ajeno. Sin
   // customerId recibe el listado mínimo; con customerId, solo la asignada.
-  assert.deepEqual(await req(lists.GET, { token: 'a-VENDEDOR' }), [{ id: lista.id, name: 'Mayorista VIP' }])
-  assert.deepEqual(await req(lists.GET, { token: 'a-CAJERA' }), [{ id: lista.id, name: 'Mayorista VIP' }])
+  // La administración central decidió no exponer listas a vendedor/cajera: reciben listado vacío.
+  assert.deepEqual(await req(lists.GET, { token: 'a-VENDEDOR' }), [])
+  assert.deepEqual(await req(lists.GET, { token: 'a-CAJERA' }), [])
   await req(listById.GET, { token: 'a-VENDEDOR', ctx: { params: { id: lista.id } }, status: 403 })
 
   const sinLista = await priceOf('a')
@@ -85,11 +87,13 @@ try {
   // Cliente mayorista con la lista: el ítem de lista gana sobre el mayorista.
   const cliente = await req(customers.POST, { method: 'POST', token: 'a-VENDEDOR', body: { name: 'Cliente VIP', pricingTier: 'WHOLESALE', priceListId: lista.id }, status: 201 })
   assert.equal(cliente.priceListId, lista.id)
-  // Con customerId el vendedor solo recibe la lista asignada a ese cliente.
+  // La administración no expone listas a vendedor; el precio del cliente se
+  // resuelve por /api/pricing (con su lista asignada).
   const asignada = await req(lists.GET, { url: `http://localhost/api/price-lists?customerId=${cliente.id}`, token: 'a-VENDEDOR' })
-  assert.equal(asignada.length, 1); assert.equal(asignada[0].id, lista.id); assert.equal(asignada[0].items.length, 2)
+  assert.deepEqual(asignada, [])
   await req(lists.GET, { url: `http://localhost/api/price-lists?customerId=${cliente.id}`, token: 'a-CAJERA', status: 200 })
-  await req(lists.GET, { url: 'http://localhost/api/price-lists?customerId=inexistente', token: 'a-VENDEDOR', status: 404 })
+  // El vendedor no ve listas: aunque el cliente no exista, recibe vacío.
+  assert.deepEqual(await req(lists.GET, { url: 'http://localhost/api/price-lists?customerId=inexistente', token: 'a-VENDEDOR' }), [])
   const conLista = await priceOf('a', { quantity: 2, customerId: cliente.id })
   assert.equal(conLista.origin, 'LIST'); assert.equal(conLista.unitPricePyg, 90000)
   const porCantidad = await priceOf('a', { quantity: 3, customerId: cliente.id })

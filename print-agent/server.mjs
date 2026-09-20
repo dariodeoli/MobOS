@@ -5,16 +5,10 @@ import { promisify } from 'node:util'
 import { cargarConfig, guardarConfig, RUTA_COLA, RUTA_HISTORIAL } from './config.mjs'
 import { crearCola } from './cola.mjs'
 import { aplicarConfigRemota, crearRemoto } from './remoto.mjs'
-<<<<<<< HEAD
-import { aliasSecundario, colaLanDeCups, colaUri, comandoColaLan, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola } from './transportes.mjs'
-
-const VERSION = '1.6.3'
-=======
-import { aliasSecundario, colaLanDeCups, colaUri, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola, usbAplicaA } from './transportes.mjs'
+import { aliasSecundario, colaLanDeCups, colaUri, comandoColaLan, diagnosticoRed, enviar, impresorasUsb, probarConexion, probarConexionDetalle, tipoDeCola, usbAplicaA } from './transportes.mjs'
 import { estadoUsb, enviarUsbDirecto } from './usb.mjs'
 
 const VERSION = '1.7.0'
->>>>>>> 5fde5c4 (feat(campanas): segmentos de recompra, indices pg_trgm y USB directo del agente (#82 #84 #96))
 const config = cargarConfig()
 // `--usb` enciende el USB directo en esta corrida sin tocar config.json.
 if (process.argv.includes('--usb')) config.usb = true

@@ -108,7 +108,7 @@ export default function Precios() {
     setBusy(true); setError('')
     try {
       const payload = { name: editor.name.trim(), isActive: editor.isActive, items }
-      if (editor.id) await resources.priceLists.update({ id: editor.id, ...payload })
+      if (editor.id) await resources.priceLists.update({ id: editor.id, ...payload, replaceItems: true })
       else await resources.priceLists.create(payload)
       setEditor(null)
       toast.success(editor.id ? 'Lista actualizada.' : 'Lista creada.')
@@ -169,7 +169,7 @@ export default function Precios() {
             tiers: escalones.map(escalon => ({ minQty: escalon.minQuantity, unitPricePyg: escalon.unitPricePyg })),
           }
         }).filter(Boolean)
-        await resources.priceLists.update(lista.id, { items })
+        await resources.priceLists.update(lista.id, { items, replaceItems: true })
       }
       toast.success('Precios por cantidad guardados.')
       await cargar()
