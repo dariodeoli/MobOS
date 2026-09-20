@@ -69,7 +69,7 @@ export default function SelectorSucursal({ className }) {
           className="flex h-[34px] items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[12.5px] text-mute transition hover:border-fono/60 hover:text-fore"
         >
           <Icon name="store" className="h-[15px] w-[15px]" />
-          <span className="max-w-[110px] truncate sm:max-w-[180px]">{etiqueta}</span>
+          <span className="max-w-[110px] truncate sm:max-w-[180px]">{sucursal?.nombre || empresa.nombre}</span>
           <Icon name="chevron" className={cn('h-3 w-3 transition', abierto && 'rotate-180')} />
         </button>
       ) : (
