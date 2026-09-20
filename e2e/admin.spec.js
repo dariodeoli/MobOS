@@ -504,6 +504,10 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   // Las plantillas ya no viven dentro de Configuración: tienen vista propia.
   await page.goto('/pos/plantillas')
   await expect(page.getByRole('heading', { name: 'Plantillas de WhatsApp' })).toBeVisible()
+  // Las plantillas de pedidos se listan bajo la categoría Pedidos (el contexto
+  // es espejo de la categoría, issue #34): si alguna queda en 'clientes', la
+  // pantalla la pierde.
+  await expect(page.getByTestId('plantilla-fila').filter({ hasText: 'Pedido listo para retirar' })).toBeVisible()
 })
 
 // El dueño trabaja solo: su propia solicitud se resuelve desde la misma

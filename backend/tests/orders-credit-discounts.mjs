@@ -1,8 +1,15 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
+import { join } from 'node:path'
 import { codigoPedido } from '../../src/utils/pedido.js'
 
-const [baseUrl, adminToken, sellerToken] = process.argv.slice(2)
-if (!baseUrl || !adminToken || !sellerToken) throw new Error('Uso: orders-credit-discounts.mjs <baseUrl> <adminToken> <sellerToken>')
+const [baseUrl, adminToken, sellerToken, databaseUrl] = process.argv.slice(2)
+if (!baseUrl || !adminToken || !sellerToken || !databaseUrl) throw new Error('Uso: orders-credit-discounts.mjs <baseUrl> <adminToken> <sellerToken> <databaseUrl>')
+
+// Consulta directa al cluster temporal del arnés (mismo patrón que audit.mjs):
+// permite sembrar la deriva real de producción y comprobar la autocorrección.
+const pgBin = process.env.MOBOS_TEST_PG_BIN || '/opt/homebrew/bin'
+const psql = (sql) => execFileSync(join(pgBin, 'psql'), ['-X', '--no-psqlrc', '-At', '-v', 'ON_ERROR_STOP=1', databaseUrl, '-c', sql], { stdio: ['pipe', 'pipe', 'pipe'] }).toString().trim()
 
 async function request(path, method = 'GET', body, headers = {}) {
   const response = await fetch(`${baseUrl}${path}`, { method, headers: { Authorization: `Bearer ${adminToken}`, 'x-tenant-id': 'tenant-a-it', ...(body ? { 'Content-Type': 'application/json' } : {}), ...headers }, ...(body ? { body: JSON.stringify(body) } : {}) })
@@ -437,6 +444,19 @@ assert.equal(result.payload.find(row => row.id === predeterminadaPrevia.id).isDe
 result = await request('/api/message-templates?category=ORDERS')
 assert.equal(result.response.status, 200)
 assert.ok(result.payload.some(row => row.key === 'ready_for_pickup') && result.payload.every(row => row.category === 'ORDERS'), 'ORDERS conserva sus plantillas base.')
+assert.ok(result.payload.every(row => row.context === 'pedidos'), 'El contexto de ORDERS debe ser el espejo de la categoría (issue #34).')
+// Deriva real de producción (issue #34): plantillas ORDERS sembradas por
+// versiones viejas quedaron con el contexto por defecto 'clientes'. El listado
+// las alinea sin tocar la clave y el aviso por estado las sigue encontrando.
+psql(`UPDATE "MessageTemplate" SET "context" = 'clientes' WHERE "tenantId" = 'tenant-a-it' AND "category" = 'ORDERS';`)
+assert.ok(Number(psql(`SELECT COUNT(*) FROM "MessageTemplate" WHERE "tenantId" = 'tenant-a-it' AND "category" = 'ORDERS' AND "context" = 'clientes';`)) > 0, 'La deriva de producción se sembró para la prueba.')
+result = await request('/api/message-templates?category=ORDERS')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.ok(result.payload.every(row => row.context === 'pedidos'), 'El contexto se corrige solo al listar, sin perder la clave.')
+assert.equal(Number(psql(`SELECT COUNT(*) FROM "MessageTemplate" WHERE "tenantId" = 'tenant-a-it' AND "category" = 'ORDERS' AND "context" = 'clientes';`)), 0, 'La base queda alineada tras el listado.')
+result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}/whatsapp-message`)
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.templateKey, 'ready_for_pickup', 'El aviso por estado sigue resolviendo la plantilla por clave.')
 // Envío con plantilla elegida: el POST arma el mensaje y marca el aviso.
 result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}/whatsapp-message`, 'POST', { templateKey: 'ready_for_pickup' })
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))

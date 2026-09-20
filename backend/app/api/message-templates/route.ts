@@ -88,6 +88,14 @@ async function seedCategory(tenantId: string, category: Category) {
     data: DEFAULTS[category].map(([key, name, body]) => ({ tenantId, key, name, body, category, context: CATEGORY_TO_CONTEXT[category] })),
     skipDuplicates: true,
   })
+  // Espejo context ↔ category: `skipDuplicates` no corrige las filas sembradas
+  // por versiones viejas, que quedaron con el contexto por defecto 'clientes'
+  // (issue #34). Se alinean al listar sin tocar la clave: el aviso por estado
+  // sigue encontrando la plantilla por (tenantId, key).
+  await prisma.messageTemplate.updateMany({
+    where: { tenantId, category, context: { not: CATEGORY_TO_CONTEXT[category] } },
+    data: { context: CATEGORY_TO_CONTEXT[category] },
+  })
 }
 
 async function marcarPredeterminada(tenantId: string, id: string, category: Category) {
