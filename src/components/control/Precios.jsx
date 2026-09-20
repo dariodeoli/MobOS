@@ -24,18 +24,67 @@ export default function Precios() {
   const [filasTier, setFilasTier] = useState([])
   const [busy, setBusy] = useState(false)
   const [aBorrar, setABorrar] = useState(null)
-  const productos = useMemo(() => getProductos().filter(p => p.activo !== false), [])
+  // El catálogo vive en el cache que se hidrata con la sesión; si la pantalla
+  // se abre antes (enlace directo), se pide a la API para no quedar vacía.
+  const [productos, setProductos] = useState(() => getProductos().filter(p => p.activo !== false))
+  useEffect(() => {
+    if (productos.length || esDemo) return undefined
+    let vivo = true
+    resources.products.list().then((filas) => {
+      if (!vivo || !Array.isArray(filas)) return
+      setProductos(filas.filter(p => p.isActive !== false).map(p => ({ ...p, nombre: p.name, categoria: p.category })))
+    }).catch(() => {})
+    return () => { vivo = false }
+  }, [productos.length, esDemo])
   const categorias = useMemo(() => [...new Set(productos.map(p => p.categoria || p.category).filter(Boolean))].sort(), [productos])
   const gestiona = Boolean(sesion?.esPropietario) || ['ADMIN', 'GERENTE'].includes(sesion?.rol)
 
   async function cargar() {
     setCargando(true); setError('')
     try {
-      const listasData = await resources.priceLists.list()
+      const [listasData, productosData] = await Promise.all([
+        resources.priceLists.list(),
+        resources.products.list().catch(() => null),
+      ])
       setListas(Array.isArray(listasData) ? listasData : [])
+      fusionarProductos(productosData)
     } catch (cause) { setError(cause?.message || 'No se pudieron cargar los precios.') } finally { setCargando(false) }
   }
   useEffect(() => { if (!esDemo) cargar() }, [esDemo])
+
+  // El catálogo global se hidrata después del montaje: al cambiar la sesión se
+  // vuelve a leer el cache para no quedarnos con la foto vacía del arranque.
+  useEffect(() => {
+    const delCache = getProductos().filter(p => p.activo !== false)
+    if (delCache.length) setProductos((actuales) => {
+      const porId = new Map(delCache.map(p => [p.id, p]))
+      for (const actual of actuales) if (!porId.has(actual.id)) porId.set(actual.id, actual)
+      return [...porId.values()]
+    })
+  }, [sesion])
+
+  // Fusión por id: nunca se pierde un producto ya visible (el catálogo de la
+  // API viene paginado y el recién creado puede quedar afuera de la página).
+  function fusionarProductos(filas) {
+    if (!Array.isArray(filas)) return
+    setProductos((actuales) => {
+      const porId = new Map(actuales.map(p => [p.id, p]))
+      for (const fila of filas) {
+        if (fila?.isActive === false) continue
+        porId.set(fila.id, { ...porId.get(fila.id), ...fila, nombre: fila.name, categoria: fila.category })
+      }
+      return [...porId.values()]
+    })
+  }
+
+  // Al tipear en un buscador de producto se consulta al servidor y se fusiona:
+  // así aparecen también los productos creados después de abrir la pantalla.
+  async function buscarProductos(texto) {
+    if (esDemo || String(texto || '').trim().length < 2) return
+    try {
+      fusionarProductos(await resources.products.list(texto.trim()))
+    } catch { /* la búsqueda del servidor es un extra */ }
+  }
 
   function abrirLista(lista = null) {
     setError('')
@@ -160,7 +209,7 @@ export default function Precios() {
         <h2 className="font-semibold">Precios por cantidad</h2>
         <p className="mt-1 text-sm text-mute">Desde la cantidad mínima, el precio unitario de la línea es el del escalón. Gana sobre cualquier lista, mayorista o minorista. Cargá el escalón más alto y el resto se resuelve solo.</p>
       </div>
-      <div className="max-w-md"><p className="mb-1 text-xs text-mute">Producto</p><ProductCombobox products={productos} selectedId={productoTier} onSelect={product => setProductoTier(product.id)} placeholder="Elegí el producto…" /></div>
+      <div className="max-w-md"><p className="mb-1 text-xs text-mute">Producto</p><ProductCombobox products={productos} selectedId={productoTier} onQueryChange={buscarProductos} onSelect={product => setProductoTier(product.id)} placeholder="Elegí el producto…" /></div>
       {productoTier && <form onSubmit={guardarTiers} className="space-y-2">
         {filasTier.map((fila, index) => <div key={index} className="flex flex-wrap items-end gap-2">
           <label className="text-xs text-mute">Desde<Input aria-label="Cantidad mínima" className="w-24" inputMode="numeric" value={fila.minQuantity} onChange={event => setFilasTier(filas => filas.map((row, i) => i === index ? { ...row, minQuantity: event.target.value.replace(/\D/g, '') } : row))} placeholder="3" /></label>
@@ -186,7 +235,7 @@ export default function Precios() {
           {editor.items.map((item, index) => <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-2 sm:grid-cols-[7rem_minmax(10rem,1fr)_7rem_2.75rem] sm:items-center">
             <Select aria-label="Tipo de ítem" value={item.scope} onChange={event => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...itemVacio(), scope: event.target.value } : row) }))}><option value="PRODUCT">Producto</option><option value="CATEGORY">Categoría</option></Select>
             {item.scope === 'PRODUCT'
-              ? <ProductCombobox products={productos} selectedId={item.productId} onSelect={product => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...row, productId: product.id } : row) }))} placeholder="Producto…" />
+              ? <ProductCombobox products={productos} selectedId={item.productId} onQueryChange={buscarProductos} onSelect={product => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...row, productId: product.id } : row) }))} placeholder="Producto…" />
               : <Select aria-label="Categoría" value={item.category} onChange={event => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...row, category: event.target.value } : row) }))}><option value="">Elegí categoría</option>{categorias.map(categoria => <option key={categoria} value={categoria}>{categoria}</option>)}</Select>}
             <PercentField aria-label="Porcentaje" value={item.valuePct} onChange={value => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...row, valuePct: value } : row) }))} />
             <IconAction icon="trash" tone="bad" label="Quitar ítem" onClick={() => setEditor(current => ({ ...current, items: current.items.filter((_, i) => i !== index) }))} />

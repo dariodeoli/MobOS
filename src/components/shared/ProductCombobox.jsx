@@ -18,6 +18,10 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
 
   // Cierra el dropdown al hacer clic fuera: sin esto, el listado abierto
   // se superpone a los resultados de productos y se come los clics.
+  // El fill/focus dispara un scroll del navegador: si el cierre por scroll lo
+  // tomara, el listado se cerraba justo al tipear. Se ignora el scroll pegado
+  // a la última tecla.
+  const ultimoTipeo = useRef(0)
   useEffect(() => {
     // Cierra con cualquier clic fuera de una opción: el listado abierto se
     // superpone a los resultados de productos y bloqueaba sus clics.
@@ -26,13 +30,14 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
       if (enOpcion) return
       close()
     }
+    const cerrarPorScroll = () => { if (Date.now() - ultimoTipeo.current > 250) close() }
     document.addEventListener('mousedown', cerrarFuera)
     // El scroll (incluido el del grid de resultados al hacer clic abajo)
     // también cierra: el listado no debe seguir superpuesto a los productos.
-    document.addEventListener('scroll', close, true)
+    document.addEventListener('scroll', cerrarPorScroll, true)
     return () => {
       document.removeEventListener('mousedown', cerrarFuera)
-      document.removeEventListener('scroll', close, true)
+      document.removeEventListener('scroll', cerrarPorScroll, true)
     }
   }, [])
 
@@ -125,6 +130,7 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
         value={query}
         placeholder={placeholder}
         onChange={(event) => {
+          ultimoTipeo.current = Date.now()
           setearQuery(event.target.value)
           setOpen(true)
           setHighlight(0)
