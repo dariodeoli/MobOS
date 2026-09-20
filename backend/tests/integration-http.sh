@@ -479,6 +479,15 @@ node "$BACKEND_ROOT/tests/new-modules.mjs" "$BASE_URL" "$TOKEN_A" "$COMPANY_TOKE
 out="$(response_file)"; ADMIN_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; CAJERA_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-cajera-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
 out="$(response_file)"; GERENTE_TOKEN="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-gerente-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_A" mobos_seller_session)"
+
+echo "Turnos de caja por usuario, arqueo por denominación y verificación del cierre (#103)..."
+node "$BACKEND_ROOT/tests/cash-shifts.mjs" "$BASE_URL" "$CAJERA_TOKEN" "$ADMIN_TOKEN" "$TOKEN_A"
+
+echo "Ventas suspendidas recuperables: suspender → listar → retomar → cobrar (#107)..."
+out="$(response_file)"; SUSPENDED_COMPANY_B="$(auth_cookie POST /api/auth/login 200 '{"email":"company-b-it@example.invalid","password":"company-password-it","deviceId":"suspended-b-it","branchId":"branch-b-it"}' "$out" '' mobos_company_session)"
+out="$(response_file)"; SUSPENDED_SELLER_B="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-b-it","pin":"2468"}' "$out" "$SUSPENDED_COMPANY_B" mobos_seller_session)"
+node "$BACKEND_ROOT/tests/suspended-sales.mjs" "$BASE_URL" "$TOKEN_A" "$ADMIN_TOKEN" "$SUSPENDED_SELLER_B" "$DATABASE_URL" "$PG_BIN"
+
 node "$BACKEND_ROOT/tests/print-bridge-http.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A" "$DATABASE_URL"
 # Auditoría central: rastro de impresoras, catálogo y promociones, búsqueda por
 # metadato, filtros de fecha/actor y exportación CSV con los mismos filtros.
