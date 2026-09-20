@@ -100,6 +100,7 @@ model Tenant {
   inventoryCounts         InventoryCount[]
   inventoryCountLines     InventoryCountLine[]
   suspendedSales          SuspendedSale[]
+  commissionSettlements   CommissionSettlement[]
 
   @@index([archivedAt])
 }
@@ -288,6 +289,9 @@ model User {
   customerAuthorizationsRequested CustomerAuthorization[] @relation("CustomerAuthorizationRequestedBy")
   customerAuthorizationsResolved  CustomerAuthorization[] @relation("CustomerAuthorizationResolvedBy")
   commissionRules  CommissionRule[]
+  commissionSettlementsAsSeller CommissionSettlement[] @relation("CommissionSettlementSeller")
+  commissionSettlementsCreated  CommissionSettlement[] @relation("CommissionSettlementCreatedBy")
+  commissionSettlementsPaid     CommissionSettlement[] @relation("CommissionSettlementPaidBy")
   invitationsSent UserInvitation[] @relation("InvitationInviter")
   printBridgesCreated PrintBridge[] @relation("PrintBridgeCreatedBy")
   printJobsRequested  PrintJob[]    @relation("PrintJobRequestedBy")
@@ -842,6 +846,43 @@ model CommissionRule {
 
   @@index([tenantId, userId])
   @@index([tenantId, role])
+}
+
+// Liquidación de comisiones de un vendedor para un período cerrado. El detalle
+// por venta queda CONGELADO en `linesJson`: lo que se liquidó y entregó no
+// cambia aunque después se editen las reglas, los costos o las ventas. El
+// comprobante se verifica sin sesión con su `verificationToken` (QR).
+model CommissionSettlement {
+  id                String   @id @default(cuid())
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sellerId          String
+  seller            User     @relation("CommissionSettlementSeller", fields: [sellerId], references: [id], onDelete: Restrict)
+  // Período local de la empresa (YYYY-MM-DD), extremos inclusive.
+  periodFrom        String
+  periodTo          String
+  // Comisión liquidada según el reporte de comisiones del período.
+  totalPyg          Int
+  // Margen acumulado sobre el que se calculó la comisión.
+  marginPyg         Int      @default(0)
+  commissionPct     Decimal? @db.Decimal(5, 2)
+  // Detalle congelado: [{ orderNumber, date, totalPyg, basePyg, commissionPct, commissionPyg }];
+  // la última línea puede ser un "Ajuste por redondeo" cuando la suma por venta
+  // no coincide exactamente con el total del reporte.
+  linesJson         Json     @default("[]")
+  status            String   @default("DRAFT")
+  verificationToken String   @unique @default(cuid())
+  notes             String?
+  createdById       String
+  createdBy         User     @relation("CommissionSettlementCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  paidAt            DateTime?
+  paidById          String?
+  paidBy            User?    @relation("CommissionSettlementPaidBy", fields: [paidById], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([tenantId, sellerId, periodFrom])
+  @@index([tenantId, status, createdAt])
 }
 
 model CustomerAddress {
