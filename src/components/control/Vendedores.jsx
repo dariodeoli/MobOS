@@ -4,8 +4,7 @@ import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas, productosById, refrescar } from '@/lib/storage'
 import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
-import { Card, Button, ConfirmDialog, Input, Select, Badge, Label, EmptyState, MoneyInput, Modal, IconAction } from '@/components/ui'
-import Avatar from '@/components/shared/Avatar'
+import { Card, Button, ConfirmDialog, Input, Select, Badge, Label, EmptyState, MoneyInput, Modal } from '@/components/ui'
 import EmailField from '@/components/shared/EmailField'
 import Cronologia from '@/components/shared/Cronologia'
 import { ROLE_LABELS } from '@/lib/roles'
@@ -13,8 +12,6 @@ import { ROLE_LABELS } from '@/lib/roles'
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const INVITE_STATUS = { PENDING: ['Pendiente', 'orange'], ACCEPTED: ['Aceptada', 'green'], EXPIRED: ['Vencida', 'slate'], REVOKED: ['Revocada', 'red'] }
 function mesLabel(clave) { const [y, m] = (clave || '').split('-'); return `${MESES[Number(m) - 1] || m} ${y}` }
-function fechaCorta(value) { return value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—' }
-function textoEspera(segundos) { const minutos = Math.max(1, Math.ceil(segundos / 60)); return `Reenviar en ${minutos} min` }
 
 // Meta diaria con separador de miles mientras se escribe; se guarda al salir.
 // En modo API persiste en el backend (User.dailyGoalPyg); en demo queda local.
@@ -37,66 +34,38 @@ function MetaDiaria({ vendor, esDemo, onGuardar }) {
   )
 }
 
-// Configuración → Equipo: integrantes (foto, rol, horario, meta, historial) e
-// invitaciones de la empresa (pendientes y vencidas, con reenvío y revocación).
-// Las reglas de comisión viven en Finanzas → Comisiones desde #56.
-export default function Vendedores() {
-  const { esDemo, sesion } = useSesion()
+// La pestaña activa llega por URL (/configuracion/equipo, /configuracion/invitaciones).
+export default function Vendedores({ seccion = 'equipo' }) {
   const navigate = useNavigate()
+  const { esDemo, sesion } = useSesion()
+  const equipoTab = seccion === 'invitaciones' ? 'invitaciones' : 'personas'
   const vendedores = getVendedores()
   const ventas = listVentas()
   const prods = productosById()
   const [revision, setRevision] = useState(0)
+  const [tabIntegrantes, setTabIntegrantes] = useState('activos')
   const [directo, setDirecto] = useState({ name: '', email: '', role: 'VENDEDOR', pin: '' })
   const [invitacion, setInvitacion] = useState({ name: '', email: '', role: 'VENDEDOR' })
   const [invitaciones, setInvitaciones] = useState([])
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
-  const [filtro, setFiltro] = useState('activos')
   const [confirmarEliminar, setConfirmarEliminar] = useState(null)
-  const [confirmarRol, setConfirmarRol] = useState(null)
+  const [cambioRol, setCambioRol] = useState(null)
+  const [conflicto, setConflicto] = useState(null)
   const [horario, setHorario] = useState(null)
   const [historialDe, setHistorialDe] = useState(null)
   const [confirmarRevocar, setConfirmarRevocar] = useState(null)
   const [invitarAbierto, setInvitarAbierto] = useState(false)
   const [modoInvitacion, setModoInvitacion] = useState('correo')
-  const [conflicto, setConflicto] = useState(null)
-  const [sucursales, setSucursales] = useState([])
-  const [ahora, setAhora] = useState(() => Date.now())
-
-  // Nombre de sucursal para la ficha: la API de usuarios solo trae branchId.
-  useEffect(() => {
-    if (esDemo) return undefined
-    let vivo = true
-    api.get('/api/branches').then(lista => { if (vivo) setSucursales(lista || []) }).catch(() => {})
-    return () => { vivo = false }
-  }, [esDemo])
-
-  // Los enfriamientos de reenvío se muestran en minutos: refrescarlos cada 30 s
-  // alcanza para que el botón se habilite sin recargar.
-  useEffect(() => {
-    const timer = window.setInterval(() => setAhora(Date.now()), 30000)
-    return () => window.clearInterval(timer)
-  }, [])
 
   const cargarInvitaciones = useCallback(async () => {
-    if (esDemo) return []
-    try {
-      const next = await api.get('/api/user-invitations')
-      const lista = next || []
-      setInvitaciones(lista)
-      return lista
-    } catch (cause) { setError(cause?.message || 'No se pudieron cargar las invitaciones.'); return [] }
+    if (esDemo) return
+    try { setInvitaciones(await api.get('/api/user-invitations')) } catch (cause) { setError(cause?.message || 'No se pudieron cargar las invitaciones.') }
   }, [esDemo])
   useEffect(() => { cargarInvitaciones() }, [cargarInvitaciones])
   function notifySuccess(value) { setError(''); setMessage(value); window.setTimeout(() => setMessage(''), 4500) }
   async function refreshTeam() { if (!esDemo) await refrescar(); setRevision(value => value + 1) }
-
-  function segundosParaReenviar(invite) {
-    const restante = new Date(invite?.resendAvailableAt || 0).getTime() - ahora
-    return restante > 0 ? Math.ceil(restante / 1000) : 0
-  }
 
   async function crearDirecto(event) {
     event.preventDefault(); setError(''); setMessage('')
@@ -116,22 +85,13 @@ export default function Vendedores() {
     event.preventDefault(); setError(''); setMessage(''); setConflicto(null)
     if (!invitacion.name.trim()) return setError('Ingresá el nombre del integrante.')
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(invitacion.email.trim())) return setError('Ingresá un correo válido.')
-    const email = invitacion.email.trim().toLowerCase()
-    const vencida = invitaciones.some(item => item.status === 'EXPIRED' && item.email?.toLowerCase() === email)
     setBusy(true)
     try {
-      const result = await api.post('/api/user-invitations', { ...invitacion, name: invitacion.name.trim(), email })
-      setInvitacion({ name: '', email: '', role: 'VENDEDOR' }); await cargarInvitaciones()
-      notifySuccess(result.deliveryState === 'sent'
-        ? (vencida ? 'La invitación anterior había vencido. Se envió una nueva.' : 'Invitación enviada correctamente.')
-        : (vencida ? 'La invitación anterior había vencido. La nueva quedó guardada; el correo sigue pendiente.' : 'Invitación guardada. El correo quedó pendiente; volvé a intentar el reenvío en unos minutos.'))
+      const result = await api.post('/api/user-invitations', { ...invitacion, name: invitacion.name.trim(), email: invitacion.email.trim().toLowerCase() })
+      setInvitacion({ name: '', email: '', role: 'VENDEDOR' }); await cargarInvitaciones(); notifySuccess(result.deliveryState === 'sent' ? 'Invitación enviada correctamente.' : 'Invitación guardada. El correo quedó pendiente; volvé a intentar el reenvío en unos minutos.')
     } catch (cause) {
-      if (cause?.status === 409) {
-        // Salida al callejón: mostrar la invitación activa con reenvío y revocación.
-        const lista = await cargarInvitaciones()
-        const existente = cause?.details?.invitation || lista.find(item => item.status === 'PENDING' && item.email?.toLowerCase() === email) || null
-        setConflicto({ email, invitation: existente })
-      } else { setError(cause?.message || 'No se pudo enviar la invitación.') }
+      if (cause?.details?.invitation) { setConflicto({ email: invitacion.email.trim().toLowerCase(), invitation: cause.details.invitation }); return }
+      setError(cause?.message || 'No se pudo enviar la invitación.')
     }
     finally { setBusy(false) }
   }
@@ -141,24 +101,18 @@ export default function Vendedores() {
     try { if (esDemo) updateVendedor(id, changes); else await api.patch('/api/users', { id, ...changes }); await refreshTeam(); notifySuccess('Integrante actualizado.') }
     catch (cause) { setError(cause?.message || 'No se pudo actualizar el integrante.') }
   }
-  async function cambiarRol() {
-    const target = confirmarRol; if (!target || busy) return
+
+  async function aplicarCambioRol() {
+    const target = cambioRol; if (!target) return
     setBusy(true); setError('')
     try {
-      if (esDemo) updateVendedor(target.vendedor.id, { role: target.role })
-      else await api.patch('/api/users', { id: target.vendedor.id, role: target.role })
-      setConfirmarRol(null); await refreshTeam(); notifySuccess(`Rol actualizado a ${ROLE_LABELS[target.role] || target.role}.`)
-    } catch (cause) { setError(cause?.message || 'No se pudo cambiar el rol.') } finally { setBusy(false) }
+      if (esDemo) updateVendedor(target.usuario.id, { role: target.nextRole })
+      else await api.patch('/api/users', { id: target.usuario.id, role: target.nextRole })
+      setCambioRol(null); await refreshTeam(); notifySuccess(`Rol actualizado a ${ROLE_LABELS[target.nextRole] || target.nextRole}.`)
+    } catch (cause) { setError(cause?.message || 'No se pudo cambiar el rol.') }
+    finally { setBusy(false) }
   }
-  async function reactivarUsuario(v) {
-    setError(''); setBusy(true)
-    try {
-      if (esDemo) updateVendedor(v.id, { activo: true }); else await api.patch('/api/users', { id: v.id, status: 'ACTIVE' })
-      await refreshTeam(); setFiltro('activos'); notifySuccess(`${v.nombre} vuelve a estar activo con su historial intacto.`)
-    } catch (cause) { setError(cause?.message || 'No se pudo reactivar al integrante.') } finally { setBusy(false) }
-  }
-  // Horario de acceso: el backend lo aplica al iniciar sesión (fuera de los
-  // rangos, el integrante no puede entrar). Sin rangos queda libre.
+
   function abrirHorario(v) {
     setHorario({
       userId: v.id,
@@ -173,7 +127,8 @@ export default function Vendedores() {
     setBusy(true); setError('')
     try {
       const windows = horario.windows.filter(fila => fila.days.length > 0 && fila.start && fila.end && fila.start !== fila.end)
-      await api.patch('/api/users', { id: horario.userId, accessSchedule: windows.length ? { timezone: horario.timezone || 'America/Asuncion', windows } : null })
+      if (esDemo) updateVendedor(horario.userId, { accessSchedule: windows.length ? { timezone: horario.timezone || 'America/Asuncion', windows } : null })
+      else await api.patch('/api/users', { id: horario.userId, accessSchedule: windows.length ? { timezone: horario.timezone || 'America/Asuncion', windows } : null })
       setHorario(null); await refreshTeam(); notifySuccess(windows.length ? 'Horario de acceso actualizado.' : 'Horario quitado: el acceso queda libre.')
     } catch (cause) { setError(cause?.message || 'No se pudo guardar el horario.') } finally { setBusy(false) }
   }
@@ -185,29 +140,29 @@ export default function Vendedores() {
     catch (cause) { setError(cause?.message || 'No se pudo completar la acción.') }
     finally { setBusy(false) }
   }
-  async function resend(invite) {
-    if (!invite) return
+  async function reactivarUsuario(v) {
     setBusy(true); setError('')
-    try {
-      const result = await api.post(`/api/user-invitations/${encodeURIComponent(invite.id)}/resend`, {})
-      await cargarInvitaciones(); setConflicto(null)
-      notifySuccess(result.deliveryState === 'sent' ? 'Invitación reenviada.' : 'El correo sigue pendiente. Podés volver a intentar más tarde.')
-    } catch (cause) { setError(cause?.message || 'No se pudo reenviar la invitación.') }
+    try { if (esDemo) updateVendedor(v.id, { activo: true }); else await api.patch('/api/users', { id: v.id, status: 'ACTIVE' }); setTabIntegrantes('activos'); await refreshTeam(); notifySuccess(`${v.nombre} vuelve a estar activo y puede volver a operar.`) }
+    catch (cause) { setError(cause?.message || 'No se pudo reactivar el integrante.') }
+    finally { setBusy(false) }
+  }
+  async function resend(invite) {
+    setBusy(true); setError('')
+    try { const result = await api.post(`/api/user-invitations/${encodeURIComponent(invite.id)}/resend`, {}); setConflicto(null); await cargarInvitaciones(); notifySuccess(result.deliveryState === 'sent' ? 'Invitación reenviada.' : 'El correo sigue pendiente. Podés volver a intentar más tarde.') }
+    catch (cause) { setError(cause?.message || 'No se pudo reenviar la invitación.') }
     finally { setBusy(false) }
   }
   async function revokeInvitation() {
     if (!confirmarRevocar) return
     setBusy(true); setError('')
-    try {
-      await api.post(`/api/user-invitations/${encodeURIComponent(confirmarRevocar.id)}/revoke`, {})
-      setConfirmarRevocar(null); setConflicto(null); await cargarInvitaciones(); notifySuccess('Invitación revocada. Ya podés invitar de nuevo a ese correo.')
-    } catch (cause) { setError(cause?.message || 'No se pudo revocar la invitación.') }
+    try { await api.post(`/api/user-invitations/${encodeURIComponent(confirmarRevocar.id)}/revoke`, {}); setConfirmarRevocar(null); setConflicto(null); await cargarInvitaciones(); notifySuccess('Invitación revocada.') }
+    catch (cause) { setError(cause?.message || 'No se pudo revocar la invitación.') }
     finally { setBusy(false) }
   }
-  function reinvitar(invite) {
-    setConflicto(null); setError(''); setMessage('')
-    setInvitacion({ name: invite.name || '', email: invite.email || '', role: invite.role || 'VENDEDOR' })
-    setModoInvitacion('correo'); setInvitarAbierto(true)
+  function invitarDeNuevo(invite) {
+    setInvitacion({ name: invite.name || '', email: invite.email, role: invite.role || 'VENDEDOR' })
+    setModoInvitacion('correo'); setConflicto(null)
+    setInvitarAbierto(true)
   }
 
   const nombreById = Object.fromEntries(vendedores.map(v => [v.id, v.nombre]))
@@ -217,9 +172,14 @@ export default function Vendedores() {
   const [abiertos, setAbiertos] = useState(() => new Set(meses.slice(0, 1)))
   function toggleMes(mes) { setAbiertos(prev => { const next = new Set(prev); next.has(mes) ? next.delete(mes) : next.add(mes); return next }) }
 
-  const visibles = vendedores.filter(v => filtro === 'todos' || (filtro === 'activos' ? v.activo : !v.activo))
-  const cuentaActivos = vendedores.filter(v => v.activo).length
-  const cuentaInactivos = vendedores.length - cuentaActivos
+  const inicialesDe = (nombre) => {
+    const palabras = String(nombre || '').trim().split(/\s+/).filter(Boolean)
+    const primera = palabras[0]?.[0] || ''
+    const ultima = palabras.length > 1 ? (palabras[palabras.length - 1][0] || '') : ''
+    return `${primera}${ultima}`.toUpperCase()
+  }
+  const fechaCortaInv = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY', { day: '2-digit', month: 'short', year: 'numeric' }) : '—')
+  const integrantesDeTab = tabIntegrantes === 'inactivos' ? vendedores.filter(v => !v.activo) : vendedores.filter(v => v.activo)
 
   return <div className="space-y-4" data-revision={revision}>
     {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
@@ -228,77 +188,93 @@ export default function Vendedores() {
       <Button onClick={() => { setConflicto(null); setInvitacion({ name: '', email: '', role: 'VENDEDOR' }); setInvitarAbierto(true) }}>+ Invitar persona</Button>
     </div>
 
+    {equipoTab === 'personas' && <>
     <Card>
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-bold mb-1">Funcionarios y metas</h2>
-          <p className="text-sm text-mute">Foto, rol, estado, horario y meta diaria de cada integrante. El historial se conserva siempre.</p>
+          <p className="text-sm text-mute">Administrá el estado del equipo y la meta diaria de cada vendedor.</p>
         </div>
-        <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1" role="tablist" aria-label="Filtrar integrantes">
-          {[['activos', `Activos (${cuentaActivos})`], ['inactivos', `Inactivos (${cuentaInactivos})`], ['todos', 'Todos']].map(([id, label]) => (
-            <button key={id} type="button" role="tab" aria-selected={filtro === id} onClick={() => setFiltro(id)} className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${filtro === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>
+        <div role="tablist" className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
+          {[['activos', 'Activos'], ['inactivos', 'Inactivos']].map(([clave, etiqueta]) => (
+            <button key={clave} role="tab" aria-selected={tabIntegrantes === clave} onClick={() => setTabIntegrantes(clave)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${tabIntegrantes === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{etiqueta} ({clave === 'activos' ? vendedores.filter(v => v.activo).length : vendedores.filter(v => !v.activo).length})</button>
           ))}
         </div>
       </div>
-      {vendedores.length === 0 ? <EmptyState compact icon="users" title="Sin integrantes todavía." description="Invitá a la primera persona para que pueda ingresar." /> : visibles.length === 0 ? <EmptyState compact icon="users" title="No hay integrantes en este filtro." description="Cambiá el filtro para ver los demás integrantes." /> : <div className="space-y-2.5">{visibles.map(v => { const t = totalesVendedor(ventas, v.id); const com = comisionDeVentas(ventasDelDia(ventas, fechaClave(), v.id), prods); const role = v.role || 'VENDEDOR'; return <div key={v.id} data-testid="integrante-fila" className="rounded-2xl border border-ink-600 p-2.5 transition hover:border-fono/40">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <Avatar user={{ id: v.id, name: v.nombre, hasAvatar: esDemo ? false : v.hasAvatar }} size="lg" />
-            <div className="min-w-0">
-              <input aria-label={`Nombre de ${v.nombre}`} defaultValue={v.nombre} onBlur={event => { const name = event.target.value.trim(); if (name && name !== v.nombre) actualizarUsuario(v.id, esDemo ? { nombre: name } : { name }) }} className="min-h-11 min-w-0 max-w-[15rem] bg-transparent text-[13px] font-bold outline-none border-b border-transparent focus:border-fono" />
-              {v.email && <div className="truncate text-xs text-mute">{v.email}</div>}
-              <div className="truncate text-xs text-mute">{v.branchId ? (sucursales.find(s => s.id === v.branchId)?.name || 'Sucursal') : 'Sin sucursal'}</div>
-              {v.id && <div className="text-[10px] text-mute" title={`ID del usuario: ${v.id}`}>ID: {v.id.slice(0, 8)}</div>}
+      <div className="space-y-2.5">
+        {integrantesDeTab.map(v => { const t = totalesVendedor(ventas, v.id); const com = comisionDeVentas(ventasDelDia(ventas, fechaClave(), v.id), prods); return (
+          <div key={v.id} data-testid="integrante-fila" className="rounded-2xl border border-ink-600 p-3 transition hover:border-fono/40">
+            <span className="sr-only">{v.nombre}</span>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-fono/15 text-xs font-bold text-fono-light" aria-hidden="true">{inicialesDe(v.nombre)}</span>
+                <div className="min-w-0">
+                  <input aria-label={`Nombre de ${v.nombre}`} defaultValue={v.nombre} onBlur={event => { const name = event.target.value.trim(); if (name && name !== v.nombre) actualizarUsuario(v.id, esDemo ? { nombre: name } : { name }) }} className="min-h-7 min-w-0 max-w-[15rem] bg-transparent text-[13px] font-bold outline-none border-b border-transparent focus:border-fono" />
+                  {v.email && <p className="truncate text-xs text-mute">{v.email}</p>}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge color={v.activo ? 'green' : 'slate'}>{v.activo ? 'Activo' : 'Inactivo'}</Badge>
+                <Select aria-label={`Rol de ${v.nombre}`} value={v.role || 'VENDEDOR'} onChange={event => setCambioRol({ usuario: v, nextRole: event.target.value })} className="h-8 w-auto py-0 text-xs">
+                  {Object.entries(ROLE_LABELS).map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}
+                </Select>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 border-t border-ink-600/60 pt-2">
+              <button type="button" onClick={() => setHistorialDe(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Historial de ${v.nombre}`}>Historial</button>
+              <button type="button" onClick={() => abrirHorario(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Horario de ${v.nombre}`}>Horario</button>
+              {v.activo
+                ? <button type="button" onClick={() => setConfirmarEliminar(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-bad transition hover:bg-bad/10" aria-label={`Desactivar a ${v.nombre} (conserva el historial)`}>Desactivar</button>
+                : <button type="button" onClick={() => reactivarUsuario(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-ok transition hover:bg-ok/10" aria-label={`Volver a activar a ${v.nombre}`}>Volver a activar</button>}
+            </div>
+            <div className="mt-1 grid grid-cols-2 items-end gap-2 border-t border-ink-600/60 pt-2 md:grid-cols-4">
+              <label className="col-span-2 block md:col-span-1"><span className="text-[10px] font-bold uppercase text-mute">Meta diaria ₲</span><MetaDiaria vendor={v} esDemo={esDemo} onGuardar={(meta) => actualizarUsuario(v.id, { dailyGoalPyg: meta })} /></label>
+              <Mini label="Hoy" valor={t.hoy} /><Mini label="Comisión hoy" valor={com} /><Mini label="Mes" valor={t.mes} />
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <label className="flex items-center gap-1.5">
-              <span className="sr-only">{`Rol de ${v.nombre}`}</span>
-              <Select aria-label={`Rol de ${v.nombre}`} value={role} disabled={busy} onChange={event => { const next = event.target.value; if (next !== role) setConfirmarRol({ vendedor: v, role: next }) }} className="h-9 w-32 text-xs">
-                {Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
-              </Select>
-            </label>
-            <button type="button" onClick={() => abrirHorario(v)} className="flex min-h-11 items-center rounded-lg px-2 text-xs font-semibold text-mute hover:bg-ink-700 hover:text-fore" aria-label={`Horario de ${v.nombre}`} title="Horario de acceso">Horario</button>
-            <IconAction icon="clock" label={`Historial de ${v.nombre}`} onClick={() => setHistorialDe(v)} />
-            <button type="button" onClick={() => v.activo ? actualizarUsuario(v.id, esDemo ? { activo: false } : { status: 'INACTIVE' }) : reactivarUsuario(v)} className="flex min-h-11 items-center" aria-label={v.activo ? `Desactivar a ${v.nombre}` : `Reactivar a ${v.nombre}`} title={v.activo ? 'Desactivar (conserva el historial)' : 'Reactivar'}><Badge color={v.activo ? 'green' : 'slate'}>{v.activo ? 'Activo' : 'Inactivo'}</Badge></button>
-            {v.activo
-              ? <IconAction icon="trash" tone="bad" label={esDemo ? `Eliminar a ${v.nombre}` : `Desactivar a ${v.nombre} (conserva el historial)`} onClick={() => setConfirmarEliminar(v)} />
-              : <IconAction icon="refresh" label={`Volver a activar a ${v.nombre}`} onClick={() => reactivarUsuario(v)} />}
-          </div>
-        </div>
-        <div className="mt-1 grid grid-cols-2 items-end gap-2 border-t border-ink-600/60 pt-2 md:grid-cols-4"><label className="col-span-2 block md:col-span-1"><span className="text-[10px] font-bold uppercase text-mute">Meta diaria ₲</span><MetaDiaria vendor={v} esDemo={esDemo} onGuardar={(meta) => actualizarUsuario(v.id, { dailyGoalPyg: meta })} /></label><Mini label="Hoy" valor={t.hoy} /><Mini label="Comisión hoy" valor={com} /><Mini label="Mes" valor={t.mes} /></div>
-      </div> })}</div>}
+        )})}
+        {!integrantesDeTab.length && <EmptyState compact icon="users" title={tabIntegrantes === 'inactivos' ? 'No hay integrantes inactivos.' : 'Todavía no hay integrantes activos.'} />}
+      </div>
     </Card>
 
     {meses.length > 0 && <Card><h2 className="font-bold mb-1">Historial mensual por vendedor</h2><div className="mt-4 space-y-4">{meses.map(mes => { const filas = Object.entries(porMes[mes]).map(([vid, lista]) => ({ vid, nombre: nombreById[vid] || 'Sin vendedor', total: lista.reduce((a, x) => a + num(x.precio), 0), com: comisionDeVentas(lista, prods), cant: lista.length })).sort((a, b) => b.total - a.total); const abierto = abiertos.has(mes); return <div key={mes} className="overflow-hidden rounded-xl border border-ink-600"><button type="button" onClick={() => toggleMes(mes)} className="flex min-h-11 w-full items-center justify-between gap-2 bg-ink-700 px-4 text-left"><span className="font-bold text-sm capitalize">{abierto ? '▼' : '▶'} {mesLabel(mes)}</span><Badge color="blue">Vendido {gs(filas.reduce((a, f) => a + f.total, 0))}</Badge></button>{abierto && <div className="divide-y divide-ink-600 border-t border-ink-600">{filas.map(f => <div key={f.vid} className="flex items-center justify-between gap-2 px-3 py-2.5"><div><div className="text-[13px] font-semibold">{f.nombre}</div><div className="text-xs text-mute">{f.cant} ventas</div></div><div className="text-right"><div className="font-bold text-fono">{gs(f.total)}</div><div className="text-xs text-ok">Comisión {gs(f.com)}</div></div></div>)}</div>}</div> })}</div></Card>}
-
     {!esDemo && sesion?.esPropietario && <Card>
       <h2 className="font-bold mb-1">Comisiones</h2>
-      <p className="text-sm text-mute mb-3">Las reglas de comisión por usuario o rol se movieron a <strong>Finanzas → Comisiones</strong>; acá quedan solo las personas, sus metas y horarios.</p>
-      <Button type="button" variant="outline" onClick={() => navigate('/finanzas/comisiones')}>Ir a Finanzas → Comisiones</Button>
+      <p className="text-sm text-mute">Las reglas de comisión se administran desde Finanzas → Comisiones.</p>
+      <Button type="button" variant="outline" className="mt-3" onClick={() => navigate('/finanzas/comisiones')}>Ir a Finanzas → Comisiones</Button>
     </Card>}
+    </>}
 
     {!esDemo && <Card>
-      <h2 className="font-bold mb-1">Invitaciones</h2>
-      <p className="text-sm text-mute mb-4">Invitaciones de la empresa con su estado. Reenviá el enlace (con espera de 5 minutos entre envíos) o revocalo para liberar el correo.</p>
-      {invitaciones.length === 0
-        ? <EmptyState compact icon="send" title="Sin invitaciones todavía." description="Invitá a una persona por correo y su invitación aparecerá acá con estado pendiente." />
-        : <div className="space-y-2">{invitaciones.map(invite => { const [label, color] = INVITE_STATUS[invite.status] || [invite.status, 'slate']; const espera = segundosParaReenviar(invite); return <div key={invite.id} data-testid="invitacion-fila" className="flex flex-col gap-3 rounded-xl border border-ink-600 p-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2"><strong className="truncate text-[13px]">{invite.name}</strong><Badge color={color}>{label}</Badge><Badge>{ROLE_LABELS[invite.role] || invite.role}</Badge></div>
-            <p className="mt-1 truncate text-xs text-mute">{invite.email}</p>
-            <p className="mt-0.5 text-[11px] text-mute">Invitó {invite.inviterName || '—'} · Creada {fechaCorta(invite.createdAt)} · {invite.status === 'EXPIRED' ? `Venció ${fechaCorta(invite.expiresAt)}` : `Expira ${fechaCorta(invite.expiresAt)}`}</p>
-            {invite.status === 'ACCEPTED' && <p className="mt-0.5 text-[11px] text-ok">Aceptada {fechaCorta(invite.consumedAt)}</p>}
-            {invite.status === 'REVOKED' && <p className="mt-0.5 text-[11px] text-bad">Revocada {fechaCorta(invite.revokedAt)}</p>}
+      <h2 className="font-bold">Invitaciones</h2>
+      {invitaciones.length > 0 ? (
+        <div className="mt-4 space-y-2">{invitaciones.map(invite => {
+          const [label, color] = INVITE_STATUS[invite.status] || [invite.status, 'slate']
+          const canResend = invite.status === 'PENDING' && new Date(invite.resendAvailableAt) <= new Date()
+          return <div key={invite.id} data-testid="invitacion-fila" className="flex flex-col gap-3 rounded-xl border border-ink-600 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <strong className="truncate text-[13px]">{invite.name || invite.email}</strong>
+                <Badge color={color}>{label}</Badge>
+                <Badge>{ROLE_LABELS[invite.role] || invite.role}</Badge>
+              </div>
+              <p className="mt-1 truncate text-xs text-mute">{invite.email}</p>
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-mute">
+                {invite.inviterName && <span>Invitó {invite.inviterName}</span>}
+                <span>Creada {fechaCortaInv(invite.createdAt)}</span>
+                {invite.status === 'EXPIRED' ? <span>Venció {fechaCortaInv(invite.expiresAt)}</span> : <span>Expira {fechaCortaInv(invite.expiresAt)}</span>}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {invite.status === 'PENDING' && <Button type="button" variant="outline" disabled={busy || !canResend} onClick={() => resend(invite)}>{canResend ? 'Reenviar' : 'Reenvío en espera'}</Button>}
+              {invite.status === 'EXPIRED' && <Button type="button" variant="outline" disabled={busy} onClick={() => invitarDeNuevo(invite)}>Invitar de nuevo</Button>}
+              {(invite.status === 'PENDING' || invite.status === 'EXPIRED') && <Button type="button" variant="ghost" disabled={busy} onClick={() => setConfirmarRevocar(invite)}>Revocar</Button>}
+            </div>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            {invite.status === 'PENDING' && <>
-              <Button type="button" variant="outline" disabled={busy || espera > 0} onClick={() => resend(invite)}>{espera > 0 ? textoEspera(espera) : 'Reenviar'}</Button>
-              <Button type="button" variant="ghost" disabled={busy} onClick={() => setConfirmarRevocar(invite)}>Revocar</Button>
-            </>}
-            {(invite.status === 'EXPIRED' || invite.status === 'REVOKED') && <Button type="button" variant="outline" disabled={busy} onClick={() => reinvitar(invite)}>Invitar de nuevo</Button>}
-          </div>
-        </div> })}</div>}
+        })}</div>
+      ) : (
+        <p className="mt-3 text-sm text-mute">Todavía no hay invitaciones. Usá “+ Invitar persona” para sumar integrantes por correo.</p>
+      )}
     </Card>}
 
     <Modal open={horario !== null} onClose={() => !busy && setHorario(null)} title={`Horario de acceso${horario?.nombre ? ` · ${horario.nombre}` : ''}`} className="max-w-lg">
@@ -334,23 +310,25 @@ export default function Vendedores() {
         {conflicto && <div role="alert" className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm">
           <p className="font-semibold">Ya existe una invitación activa para {conflicto.email}.</p>
           {conflicto.invitation
-            ? <p className="mt-1 text-xs text-mute">{conflicto.invitation.name} · {ROLE_LABELS[conflicto.invitation.role] || conflicto.invitation.role} · Creada {fechaCorta(conflicto.invitation.createdAt)} · Expira {fechaCorta(conflicto.invitation.expiresAt)}</p>
+            ? <p className="mt-1 text-xs text-mute">{conflicto.invitation.name} · {ROLE_LABELS[conflicto.invitation.role] || conflicto.invitation.role} · Creada {fechaCortaInv(conflicto.invitation.createdAt)} · Expira {fechaCortaInv(conflicto.invitation.expiresAt)}</p>
             : <p className="mt-1 text-xs text-mute">Actualizá el listado de invitaciones para verla, reenviarla o revocarla.</p>}
           <div className="mt-3 flex flex-wrap gap-2">
-            {conflicto.invitation && <Button type="button" variant="outline" disabled={busy || segundosParaReenviar(conflicto.invitation) > 0} onClick={() => resend(conflicto.invitation)}>{segundosParaReenviar(conflicto.invitation) > 0 ? textoEspera(segundosParaReenviar(conflicto.invitation)) : 'Reenviar invitación'}</Button>}
+            {conflicto.invitation && <Button type="button" variant="outline" disabled={busy || (conflicto.invitation.resendAvailableAt && new Date(conflicto.invitation.resendAvailableAt) > new Date())} onClick={() => resend(conflicto.invitation)}>{conflicto.invitation.resendAvailableAt && new Date(conflicto.invitation.resendAvailableAt) > new Date() ? 'Reenvío en espera' : 'Reenviar invitación'}</Button>}
             {conflicto.invitation && <Button type="button" variant="ghost" disabled={busy} onClick={() => setConfirmarRevocar(conflicto.invitation)}>Revocar invitación</Button>}
-            <Button type="button" variant="ghost" onClick={() => { setConflicto(null); setInvitarAbierto(false) }}>Ver todas las invitaciones</Button>
+            <Button type="button" variant="ghost" onClick={() => setConflicto(null)}>Cerrar aviso</Button>
           </div>
         </div>}
-        {modoInvitacion === 'correo' ? <>{!esDemo && <Card><h2 className="font-bold">Invitar por correo</h2><p className="mt-1 text-sm text-mute">La persona recibe un enlace seguro y elige su propio PIN. Nunca enviamos credenciales por correo.</p><form onSubmit={invitar} className="mt-4 grid gap-3 md:grid-cols-2"><div><Label htmlFor="invite-name">Nombre</Label><Input id="invite-name" value={invitacion.name} onChange={event => setInvitacion({ ...invitacion, name: event.target.value })} onBlur={() => !invitacion.name.trim() && setError('Ingresá el nombre del integrante.')} required /></div><div><Label htmlFor="invite-email">Correo</Label><EmailField id="invite-email" value={invitacion.email} onChange={value => setInvitacion({ ...invitacion, email: value })} required /></div><div><Label htmlFor="invite-role">Rol</Label><Select id="invite-role" value={invitacion.role} onChange={event => setInvitacion({ ...invitacion, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Enviar invitación</Button></div></form></Card>}</> : <><Card><h2 className="font-bold">Agregar directamente</h2><p className="mt-1 text-sm text-mute">{esDemo ? 'Agregá vendedores al entorno demo.' : 'Opción compatible para alta inmediata con un PIN definido por el administrador.'}</p><form onSubmit={crearDirecto} className="mt-4 grid gap-3 md:grid-cols-6"><div className="md:col-span-3"><Label htmlFor="direct-name">Nombre</Label><Input id="direct-name" value={directo.name} onChange={event => setDirecto({ ...directo, name: event.target.value })} required /></div>{!esDemo && <><div className="md:col-span-3"><Label htmlFor="direct-email">Correo</Label><EmailField id="direct-email" value={directo.email} onChange={value => setDirecto({ ...directo, email: value })} /></div><div className="md:col-span-2"><Label htmlFor="direct-role">Rol</Label><Select id="direct-role" value={directo.role} onChange={event => setDirecto({ ...directo, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div className="md:col-span-2"><Label htmlFor="direct-pin">PIN temporal</Label><Input id="direct-pin" inputMode="numeric" maxLength={4} value={directo.pin} onChange={event => setDirecto({ ...directo, pin: event.target.value.replace(/\D/g, '').slice(0, 4) })} required /></div></>}<div className={`flex items-end ${esDemo ? 'md:col-span-3' : 'md:col-span-2'}`}><Button type="submit" className="w-full" disabled={busy}>Agregar</Button></div></form></Card></>}
+        {modoInvitacion === 'correo' ? <>{!esDemo && <Card><h2 className="font-bold">Invitar por correo</h2><p className="mt-1 text-sm text-mute">La persona recibe un enlace seguro y elige su propio PIN. Nunca enviamos credenciales por correo.</p><form onSubmit={invitar} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(13rem,1.3fr)_minmax(13rem,1.5fr)_minmax(8rem,1fr)_auto]"><div><Label htmlFor="invite-name">Nombre</Label><Input id="invite-name" value={invitacion.name} onChange={event => setInvitacion({ ...invitacion, name: event.target.value })} onBlur={() => !invitacion.name.trim() && setError('Ingresá el nombre del integrante.')} required /></div><div><Label htmlFor="invite-email">Correo</Label><EmailField id="invite-email" value={invitacion.email} onChange={value => setInvitacion({ ...invitacion, email: value })} required /></div><div><Label htmlFor="invite-role">Rol</Label><Select id="invite-role" value={invitacion.role} onChange={event => setInvitacion({ ...invitacion, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Enviar invitación</Button></div></form></Card>}</> : <><Card><h2 className="font-bold">Agregar directamente</h2><p className="mt-1 text-sm text-mute">{esDemo ? 'Agregá vendedores al entorno demo.' : 'Opción compatible para alta inmediata con un PIN definido por el administrador.'}</p><form onSubmit={crearDirecto} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(13rem,1.1fr)_minmax(13rem,1.3fr)_minmax(8rem,1fr)_minmax(7rem,0.7fr)_auto]"><div><Label htmlFor="direct-name">Nombre</Label><Input id="direct-name" value={directo.name} onChange={event => setDirecto({ ...directo, name: event.target.value })} required /></div>{!esDemo && <><div><Label htmlFor="direct-email">Correo</Label><EmailField id="direct-email" value={directo.email} onChange={value => setDirecto({ ...directo, email: value })} /></div><div><Label htmlFor="direct-role">Rol</Label><Select id="direct-role" value={directo.role} onChange={event => setDirecto({ ...directo, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div><Label htmlFor="direct-pin">PIN temporal</Label><Input id="direct-pin" inputMode="numeric" maxLength={4} value={directo.pin} onChange={event => setDirecto({ ...directo, pin: event.target.value.replace(/\D/g, '').slice(0, 4) })} required /></div></>}<div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Agregar</Button></div></form></Card></>}
       </div>
     </Modal>
     <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title={`Historial de ${historialDe?.nombre || 'funcionario'}`}>
       {historialDe && <Cronologia endpoint={`/api/users/${historialDe.id}/history`} active={historialDe !== null} vacio="Sin actividad" descripcionVacio="El alta, los cambios de rol, sucursal o PIN, las comisiones y las ventas de este funcionario aparecerán acá." />}
     </Modal>
-    <ConfirmDialog open={Boolean(confirmarEliminar)} onCancel={() => setConfirmarEliminar(null)} onConfirm={eliminarUsuario} busy={busy} title={esDemo ? '¿Eliminar vendedor?' : '¿Desactivar integrante?'} description={esDemo ? `Se eliminará a ${confirmarEliminar?.nombre || 'este vendedor'}. Las ventas se conservan.` : `${confirmarEliminar?.nombre || 'Este integrante'} ya no podrá ingresar: se cierran sus sesiones. Su historial, ventas y comisiones se conservan y podés reactivarlo cuando quieras.`} confirmLabel={esDemo ? 'Eliminar vendedor' : 'Desactivar integrante'} variant="danger" />
-    <ConfirmDialog open={Boolean(confirmarRol)} onCancel={() => setConfirmarRol(null)} onConfirm={cambiarRol} busy={busy} title="¿Cambiar el rol del integrante?" description={`${confirmarRol?.vendedor?.nombre || 'El integrante'} pasa de ${ROLE_LABELS[confirmarRol?.vendedor?.role || 'VENDEDOR'] || 'Vendedor'} a ${ROLE_LABELS[confirmarRol?.role] || ''}. Se cierran sus sesiones abiertas y el cambio queda auditado.`} confirmLabel="Cambiar rol" />
-    <ConfirmDialog open={Boolean(confirmarRevocar)} onCancel={() => setConfirmarRevocar(null)} onConfirm={revokeInvitation} busy={busy} title="¿Revocar invitación?" description={`El enlace enviado a ${confirmarRevocar?.email || 'este correo'} dejará de funcionar y el correo queda libre para invitar de nuevo.`} confirmLabel="Revocar invitación" variant="danger" />
+
+    <ConfirmDialog open={Boolean(confirmarEliminar)} onCancel={() => setConfirmarEliminar(null)} onConfirm={eliminarUsuario} busy={busy} title={esDemo ? '¿Eliminar vendedor?' : '¿Desactivar integrante?'} description={esDemo ? `Se eliminará a ${confirmarEliminar?.nombre || 'este vendedor'}. Las ventas se conservan.` : `${confirmarEliminar?.nombre || 'Este integrante'} ya no podrá ingresar. Su historial se conserva y podés reactivarlo cuando quieras.`} confirmLabel={esDemo ? 'Eliminar vendedor' : 'Desactivar integrante'} variant="danger" />
+    <ConfirmDialog open={Boolean(cambioRol)} onCancel={() => setCambioRol(null)} onConfirm={aplicarCambioRol} busy={busy} title="¿Cambiar el rol del integrante?" description={`${cambioRol?.usuario?.nombre || 'Este integrante'} pasará de ${ROLE_LABELS[cambioRol?.usuario?.role] || cambioRol?.usuario?.role || '—'} a ${ROLE_LABELS[cambioRol?.nextRole] || cambioRol?.nextRole}. El cambio queda auditado en su historial.`} confirmLabel="Cambiar rol" />
+    <ConfirmDialog open={Boolean(confirmarRevocar)} onCancel={() => setConfirmarRevocar(null)} onConfirm={revokeInvitation} busy={busy} title="¿Revocar invitación?" description={`El enlace enviado a ${confirmarRevocar?.email || 'este correo'} dejará de funcionar.`} confirmLabel="Revocar invitación" variant="danger" />
   </div>
 }
+
 function Mini({ label, valor }) { return <div className="rounded-lg bg-ink-700 py-2 text-center"><div className="text-[10px] font-bold uppercase text-mute">{label}</div><div className="text-sm font-bold text-fono">{gs(valor)}</div></div> }

@@ -10,14 +10,13 @@ import PercentField, { formatPercent, parsePercent } from '@/components/shared/P
 // Gestión de precios: listas por cliente (con ítems por producto o categoría y
 // descuento/recargo) y precios por cantidad. El POS resuelve con la prioridad
 // escalón por cantidad > lista del cliente > mayorista > minorista > USD.
-const itemVacio = () => ({ tipo: 'PRODUCT', productId: '', category: '', adjustment: 'DISCOUNT', valuePct: '' })
+const itemVacio = () => ({ scope: 'PRODUCT', productId: '', category: '', valuePct: '' })
 const tierVacio = () => ({ minQuantity: '', unitPricePyg: '' })
 
 export default function Precios() {
   const { sesion, esDemo } = useSesion()
   const toast = useToast()
   const [listas, setListas] = useState([])
-  const [tiers, setTiers] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [editor, setEditor] = useState(null) // { id?, name, isActive, items }
@@ -32,9 +31,8 @@ export default function Precios() {
   async function cargar() {
     setCargando(true); setError('')
     try {
-      const [listasData, tiersData] = await Promise.all([resources.priceLists.list(true), resources.priceTiers.list()])
+      const listasData = await resources.priceLists.list()
       setListas(Array.isArray(listasData) ? listasData : [])
-      setTiers(Array.isArray(tiersData) ? tiersData : [])
     } catch (cause) { setError(cause?.message || 'No se pudieron cargar los precios.') } finally { setCargando(false) }
   }
   useEffect(() => { if (!esDemo) cargar() }, [esDemo])
@@ -42,7 +40,7 @@ export default function Precios() {
   function abrirLista(lista = null) {
     setError('')
     setEditor(lista
-      ? { id: lista.id, name: lista.name, isActive: lista.isActive !== false, items: (lista.items || []).map(item => ({ tipo: item.productId ? 'PRODUCT' : 'CATEGORY', productId: item.productId || '', category: item.category || '', adjustment: item.adjustment || 'DISCOUNT', valuePct: formatPercent(item.valuePct) })) }
+      ? { id: lista.id, name: lista.name, isActive: lista.isActive !== false, items: (lista.items || []).map(item => ({ scope: item.scope === 'CATEGORY' ? 'CATEGORY' : 'PRODUCT', productId: item.productId || '', category: item.category || '', valuePct: formatPercent(Number(item.discountPct) || 0) })) }
       : { id: null, name: '', isActive: true, items: [] })
   }
   const nombreProducto = (id) => productos.find(p => p.id === id)?.nombre || productos.find(p => p.id === id)?.name || 'Producto'
@@ -52,11 +50,11 @@ export default function Precios() {
     if (!editor || busy) return
     const items = []
     for (const item of editor.items) {
-      if (item.tipo === 'PRODUCT' && !item.productId) return setError('Elegí el producto de cada ítem o quitalo.')
-      if (item.tipo === 'CATEGORY' && !item.category) return setError('Elegí la categoría de cada ítem o quitalo.')
+      if (item.scope === 'PRODUCT' && !item.productId) return setError('Elegí el producto de cada ítem o quitalo.')
+      if (item.scope === 'CATEGORY' && !item.category) return setError('Elegí la categoría de cada ítem o quitalo.')
       const valuePct = parsePercent(item.valuePct)
-      if (valuePct === null || valuePct > 100) return setError('El porcentaje de cada ítem debe estar entre 0 y 100.')
-      items.push({ productId: item.tipo === 'PRODUCT' ? item.productId : null, category: item.tipo === 'CATEGORY' ? item.category : null, adjustment: item.adjustment, valuePct })
+      if (valuePct === null || valuePct <= 0 || valuePct > 100) return setError('El porcentaje de cada ítem debe estar entre 0 y 100.')
+      items.push({ scope: item.scope, productId: item.scope === 'PRODUCT' ? item.productId : null, category: item.scope === 'CATEGORY' ? item.category : null, discountPct: valuePct })
     }
     setBusy(true); setError('')
     try {
@@ -77,14 +75,24 @@ export default function Precios() {
   async function borrarLista() {
     if (!aBorrar || busy) return
     setBusy(true)
-    try { await resources.priceLists.remove(aBorrar.id); setABorrar(null); toast.success('Lista eliminada.'); await cargar() } catch (cause) { setError(cause?.message || 'No se pudo eliminar la lista.') } finally { setBusy(false) }
+    try { await resources.priceLists.deactivate(aBorrar.id); setABorrar(null); toast.success('Lista eliminada.'); await cargar() } catch (cause) { setError(cause?.message || 'No se pudo eliminar la lista.') } finally { setBusy(false) }
   }
 
-  // Precios por cantidad: al elegir producto se cargan sus escalones.
+  // Precios por cantidad: al elegir producto se cargan sus escalones desde
+  // los ítems de lista que lo apuntan (el escalón vive en el ítem).
   useEffect(() => {
     if (!productoTier) { setFilasTier([]); return }
-    setFilasTier(tiers.filter(t => t.productId === productoTier).sort((a, b) => a.minQuantity - b.minQuantity).map(t => ({ minQuantity: String(t.minQuantity), unitPricePyg: String(t.unitPricePyg) })))
-  }, [productoTier, tiers])
+    const vistos = new Map()
+    for (const lista of listas) {
+      for (const item of (lista.items || [])) {
+        if (item.scope !== 'PRODUCT' || item.productId !== productoTier) continue
+        for (const tier of (item.tiers || [])) {
+          if (!vistos.has(tier.minQty)) vistos.set(tier.minQty, { minQuantity: String(tier.minQty), unitPricePyg: String(tier.unitPricePyg) })
+        }
+      }
+    }
+    setFilasTier([...vistos.values()].sort((a, b) => Number(a.minQuantity) - Number(b.minQuantity)))
+  }, [productoTier, listas])
 
   async function guardarTiers(event) {
     event.preventDefault()
@@ -98,7 +106,22 @@ export default function Precios() {
     }
     setBusy(true); setError('')
     try {
-      await resources.priceTiers.save({ productId: productoTier, tiers: escalones })
+      for (const lista of listas) {
+        const itemAfectado = (lista.items || []).find(item => item.scope === 'PRODUCT' && item.productId === productoTier)
+        if (!itemAfectado) continue
+        const items = (lista.items || []).map(item => {
+          if (item.id !== itemAfectado.id) return undefined
+          return {
+            id: item.id,
+            scope: item.scope || 'PRODUCT',
+            productId: item.productId,
+            category: item.category,
+            discountPct: Number(item.discountPct) > 0 ? Number(item.discountPct) : undefined,
+            tiers: escalones.map(escalon => ({ minQty: escalon.minQuantity, unitPricePyg: escalon.unitPricePyg })),
+          }
+        }).filter(Boolean)
+        await resources.priceLists.update(lista.id, { items })
+      }
       toast.success('Precios por cantidad guardados.')
       await cargar()
     } catch (cause) { setError(cause?.message || 'No se pudieron guardar los escalones.') } finally { setBusy(false) }
@@ -150,7 +173,6 @@ export default function Precios() {
           <Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar escalones'}</Button>
         </div>
       </form>}
-      {tiers.length > 0 && <p className="text-xs text-mute">Con escalones configurados: {[...new Set(tiers.map(t => t.productId))].length} producto{[...new Set(tiers.map(t => t.productId))].length === 1 ? '' : 's'}.</p>}
     </Card>
 
     <Modal open={editor !== null} onClose={() => !busy && setEditor(null)} title={editor?.id ? 'Editar lista de precios' : 'Nueva lista de precios'} className="max-w-3xl">
@@ -161,12 +183,11 @@ export default function Precios() {
         <label className="flex items-center gap-2 text-sm text-mute"><input type="checkbox" className="h-4 w-4 accent-fono" checked={editor.isActive} onChange={event => setEditor(current => ({ ...current, isActive: event.target.checked }))} />Lista activa</label>
         <div className="space-y-2">
           <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Ítems</p>
-          {editor.items.map((item, index) => <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-2 sm:grid-cols-[7rem_minmax(10rem,1fr)_8rem_7rem_2.75rem] sm:items-center">
-            <Select aria-label="Tipo de ítem" value={item.tipo} onChange={event => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...itemVacio(), tipo: event.target.value } : row) }))}><option value="PRODUCT">Producto</option><option value="CATEGORY">Categoría</option></Select>
-            {item.tipo === 'PRODUCT'
+          {editor.items.map((item, index) => <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-2 sm:grid-cols-[7rem_minmax(10rem,1fr)_7rem_2.75rem] sm:items-center">
+            <Select aria-label="Tipo de ítem" value={item.scope} onChange={event => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...itemVacio(), scope: event.target.value } : row) }))}><option value="PRODUCT">Producto</option><option value="CATEGORY">Categoría</option></Select>
+            {item.scope === 'PRODUCT'
               ? <ProductCombobox products={productos} selectedId={item.productId} onSelect={product => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...row, productId: product.id } : row) }))} placeholder="Producto…" />
               : <Select aria-label="Categoría" value={item.category} onChange={event => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...row, category: event.target.value } : row) }))}><option value="">Elegí categoría</option>{categorias.map(categoria => <option key={categoria} value={categoria}>{categoria}</option>)}</Select>}
-            <Select aria-label="Ajuste" value={item.adjustment} onChange={event => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...row, adjustment: event.target.value } : row) }))}><option value="DISCOUNT">Descuento</option><option value="SURCHARGE">Recargo</option></Select>
             <PercentField aria-label="Porcentaje" value={item.valuePct} onChange={value => setEditor(current => ({ ...current, items: current.items.map((row, i) => i === index ? { ...row, valuePct: value } : row) }))} />
             <IconAction icon="trash" tone="bad" label="Quitar ítem" onClick={() => setEditor(current => ({ ...current, items: current.items.filter((_, i) => i !== index) }))} />
           </div>)}

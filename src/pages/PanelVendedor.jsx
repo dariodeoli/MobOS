@@ -702,7 +702,6 @@ export default function PanelVendedor() {
             {vista === 'productos' && <SellerCatalog />}
             {vista === 'pedidos' && <SellerOrders />}
             {vista === 'promociones' && <SellerTools vista="promociones" />}
-            {vista === 'precios' && <Precios />}
             {vista === 'cotizaciones' && <SellerQuotes />}
             <div hidden={vista !== 'cotizador'}>
               <SellerTools
@@ -772,10 +771,12 @@ export default function PanelVendedor() {
                 items={tabsConfig}
               />
               {vista === 'equipo' && <Vendedores />}
+              {vista === 'invitaciones' && <Vendedores seccion="invitaciones" />}
               {vista === 'identidad' && <MiIdentidad />}
               {vista === 'roles' && <RolesPermisos />}
               {vista === 'historial' && (esDemo ? <Historial /> : <Auditoria />)}
               {vista === 'negocio' && <Config seccion="negocio" />}
+              {vista === 'precios' && <Precios />}
               {vista === 'sucursales' && <Config seccion="sucursales" />}
               {vista === 'seguridad' && <Config seccion="seguridad" />}
               {vista === 'impresoras' && <Impresoras />}

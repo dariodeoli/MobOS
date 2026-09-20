@@ -85,7 +85,7 @@ export default function SelectorSucursal({ className }) {
           data-testid="sucursal-menu"
           role="menu"
           aria-label="Cambiar tienda o sucursal"
-          className="absolute right-0 top-[calc(100%+6px)] z-40 min-w-[190px] max-w-[260px] overflow-hidden rounded-xl border border-ink-500 bg-ink-800 py-1 shadow-xl"
+          className="absolute right-0 top-[calc(100%+6px)] z-40 max-h-[70dvh] min-w-[190px] max-w-[260px] overflow-y-auto overflow-x-hidden rounded-xl border border-ink-500 bg-ink-800 py-1 shadow-xl"
         >
           {variasEmpresas && (
             <div role="group" aria-label="Empresa">
