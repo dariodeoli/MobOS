@@ -72,6 +72,8 @@ const ACCIONES = {
   DEVICE_VALUATION_CREATED: ['Valor de toma creado', 'blue'],
   DEVICE_VALUATION_UPDATED: ['Valor de toma actualizado', 'slate'],
   BANK_STATEMENT_IMPORTED: ['Extracto bancario importado', 'blue'],
+  LOYALTY_ACCRUED: ['Puntos de fidelización acreditados', 'green'],
+  LOYALTY_REDEEMED: ['Puntos canjeados como saldo a favor', 'blue'],
   PURCHASE_COSTS_UPDATED: ['Costos de compra', 'orange'],
   PURCHASE_PAYMENT_RECORDED: ['Pago a proveedor', 'green'],
   PURCHASE_ADVANCE: ['Anticipo a proveedor', 'orange'],

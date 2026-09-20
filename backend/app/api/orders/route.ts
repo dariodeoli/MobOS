@@ -225,8 +225,10 @@ export async function POST(request: Request) {
   // de tipo BELOW_LIST_PRICE que pida el vendedor desde el carrito. Se valida
   // acá para fallar temprano y se consume dentro de la transacción. Hasta el
   // porcentaje configurado por la empresa (default 10%) no pide autorización.
-  const limitesEmpresa = await prisma.tenant.findUnique({ where: { id: tenant }, select: { belowListPct: true } })
+  const limitesEmpresa = await prisma.tenant.findUnique({ where: { id: tenant }, select: { belowListPct: true, loyaltyPct: true } })
   const belowListPct = Number(limitesEmpresa?.belowListPct ?? DEFAULT_BELOW_LIST_PCT)
+  // Fidelización: 0 (default) la deja apagada y la venta no cambia en nada.
+  const loyaltyPct = Math.min(100, Math.max(0, Number(limitesEmpresa?.loyaltyPct ?? 0)))
   let priceAuthorization: { id: string; maxDiscountPyg: number } | null = null
   if (!canDiscount) {
     const rawPriceAuthorizationId = body.priceAuthorizationId
@@ -469,6 +471,16 @@ export async function POST(request: Request) {
       }
       const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), ...(isSpecialOrder ? { isSpecialOrder: true } : {}), ...(expectedAt ? { expectedAt } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREATED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, totalPyg: total, items: normalized.length, ...(customerId ? { customerId } : {}) } } })
+      // Fidelización: acredita puntos por la venta (1 punto = 1 Gs.) dentro de
+      // la misma transacción. Con loyaltyPct en 0 no se toca nada.
+      if (loyaltyPct > 0 && order.customerId && total > 0) {
+        const pointsPyg = Math.floor((total * loyaltyPct) / 100)
+        if (pointsPyg > 0) {
+          await tx.loyaltyMovement.create({ data: { tenantId: tenant, customerId: order.customerId, orderId: order.id, kind: 'ACCRUAL', pointsPyg, note: `Venta ${order.orderNumber}`, createdById: session.user.id } })
+          await tx.customer.update({ where: { id: order.customerId }, data: { loyaltyPointsPyg: { increment: pointsPyg } } })
+          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'LOYALTY_ACCRUED', entity: 'Customer', entityId: order.customerId, metadata: { orderId: order.id, orderNumber: order.orderNumber, pointsPyg, loyaltyPct, totalPyg: total } } })
+        }
+      }
       const discountAuth = discountAuthorization
       if (discountAuth) {
         // Consumo atómico: dos ventas concurrentes con la misma autorización no

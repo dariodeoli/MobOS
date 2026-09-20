@@ -44,6 +44,9 @@ model Tenant {
   purchaseCreditLimitPyg Int?
   // Porcentaje de venta bajo lista permitido sin autorización (default 10).
   belowListPct           Int?
+  // Fidelización: porcentaje del total de cada venta que se acredita como
+  // puntos canjeables (1 punto = 1 Gs.). 0 apaga la fidelización.
+  loyaltyPct             Int              @default(0)
   // Perfil del negocio que encabeza los comprobantes no fiscales.
   address                String?
   city                   String?
@@ -98,6 +101,7 @@ model Tenant {
   priceLists              PriceList[]
   storeCredits            StoreCredit[]
   storeCreditUses         StoreCreditUse[]
+  loyaltyMovements        LoyaltyMovement[]
   inventoryCounts         InventoryCount[]
   inventoryCountLines     InventoryCountLine[]
   suspendedSales          SuspendedSale[]
@@ -702,6 +706,9 @@ model Customer {
   creditLimitPyg Int?
   // Plazo de crédito estándar en días para este cliente.
   creditDays Int?
+  // Caché del saldo de puntos de fidelización (1 punto = 1 Gs. canjeable);
+  // el detalle reconstruible vive en LoyaltyMovement.
+  loyaltyPointsPyg Int @default(0)
   // Consentimientos de marketing explícitos; por defecto apagados.
   acceptsEmailMarketing     Boolean  @default(false)
   acceptsSmsMarketing       Boolean  @default(false)
@@ -724,6 +731,7 @@ model Customer {
   billingIdentities CustomerBillingIdentity[]
   portalTokens      CustomerPortalToken[]
   storeCredits      StoreCredit[]
+  loyaltyMovements  LoyaltyMovement[]
   suspendedSales    SuspendedSale[]
 
   @@index([tenantId])
@@ -1038,6 +1046,7 @@ model Order {
   accessTokens OrderAccessToken[]
   storeCredits StoreCredit[]
   storeCreditUses StoreCreditUse[]
+  loyaltyMovements LoyaltyMovement[]
 
   @@unique([tenantId, orderNumber])
   @@unique([tenantId, idempotencyKey])
@@ -1424,6 +1433,34 @@ model StoreCreditUse {
   createdAt   DateTime    @default(now())
 
   @@index([tenantId, orderId])
+}
+
+// Fidelización: puntos por venta medidos en guaraníes (1 punto = 1 Gs. de
+// valor canjeable). El saldo vigente es Customer.loyaltyPointsPyg; estos
+// movimientos lo explican (devengo por venta, canje como saldo a favor o
+// ajuste manual).
+enum LoyaltyMovementKind {
+  ACCRUAL
+  REDEMPTION
+  ADJUSTMENT
+}
+
+model LoyaltyMovement {
+  id          String              @id @default(cuid())
+  tenantId    String
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orderId     String?
+  order       Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  kind        LoyaltyMovementKind
+  // Positivo acredita, negativo descuenta. 1 punto = 1 Gs.
+  pointsPyg   Int
+  note        String?
+  createdById String?
+  createdAt   DateTime            @default(now())
+
+  @@index([tenantId, customerId, createdAt])
 }
 
 enum PaymentMethod {
