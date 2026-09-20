@@ -337,10 +337,73 @@ export default function FormularioVenta({
   function nombreDe(id) {
     return productos.find(p => p.id === id)?.nombre || ''
   }
+  // Resolución autoritativa de precio por lista de cliente (issue #28): el
+  // servidor decide escalón > lista > mayorista > minorista > USD. La UI cachea
+  // por cliente+producto+cantidad y guarda el origen resuelto en la fila para
+  // mostrarlo y para calcular la venta bajo lista.
+  const preciosCache = useRef(new Map())
+  const clientePreciosRef = useRef('__inicial__')
+  const itemsRef = useRef(items)
+  itemsRef.current = items
+
+  async function resolverPrecio(productoId, quantity) {
+    if (esDemo || !productoId) return null
+    const clienteId = customer?.id || ''
+    const clave = `${clienteId}:${productoId}:${quantity}`
+    if (preciosCache.current.has(clave)) return preciosCache.current.get(clave)
+    try {
+      const info = await resources.priceLists.pricing({
+        productId: productoId,
+        quantity: String(quantity),
+        ...(clienteId ? { customerId: clienteId } : {}),
+      })
+      preciosCache.current.set(clave, info)
+      return info
+    } catch {
+      return null
+    }
+  }
+
+  // Aplica el precio resuelto por el servidor salvo que la fila tenga precio
+  // manual o un cupón (el cupón ya viene cotizado por el servidor).
+  async function aplicarPrecioResuelto(key, productoId, quantity) {
+    const info = await resolverPrecio(productoId, quantity)
+    if (!info) return
+    setItems(arr => arr.map(it => {
+      if (it.key !== key || it.precioManual || it.couponCode || it.combo) return it
+      const esUsd = info.currency === 'USD'
+      return {
+        ...it,
+        precio: esUsd ? Number(it.precio) || 0 : Number(info.unitPricePyg) || 0,
+        precioOrigen: info.origin,
+        precioLista: info.priceList?.name || null,
+        precioMinQty: info.minQty ?? null,
+        precioUsd: esUsd ? Number(info.unitPriceUsd) : null,
+        precioListaValor: esUsd ? null : Number(info.unitPricePyg) || 0,
+      }
+    }))
+  }
+
+  // Al cambiar de cliente se descarta la caché y se vuelven a resolver las
+  // filas sin precio manual, cupón ni combo. Corre también al montar para
+  // refrescar un carrito restaurado.
+  useEffect(() => {
+    if (esDemo) return
+    if (clientePreciosRef.current === (customer?.id || '')) return
+    clientePreciosRef.current = customer?.id || ''
+    preciosCache.current.clear()
+    for (const fila of itemsRef.current) {
+      if (!fila.precioManual && !fila.couponCode && !fila.combo) aplicarPrecioResuelto(fila.key, fila.productoId, fila.quantity || 1)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customer?.id, esDemo])
+
   // Precio de lista que corresponde a esta venta: mayorista si el cliente lo es.
-  function precioListaDe(id) {
+  function precioListaDe(id, quantity = 1) {
     const producto = productos.find(p => p.id === id)
     if (!producto) return undefined
+    const info = preciosCache.current.get(`${customer?.id || ''}:${id}:${quantity}`)
+    if (info && info.currency !== 'USD') return Number(info.unitPricePyg) || 0
     if (customer?.pricingTier === 'WHOLESALE' && Number(producto.wholesalePricePyg) > 0) return Number(producto.wholesalePricePyg)
     return Number(producto.precioVenta) || 0
   }
@@ -348,8 +411,8 @@ export default function FormularioVenta({
   // manual de cada línea (espejo del control del servidor). Los cupones ya
   // vienen cotizados por el servidor y no cuentan como precio discrecional.
   const bajoLista = items.reduce((acc, it) => {
-    if (it.couponCode) return acc
-    const lista = precioListaDe(it.productoId)
+    if (it.couponCode || it.combo) return acc
+    const lista = precioListaDe(it.productoId, it.quantity || 1)
     if (lista === undefined) return acc
     const gap = (Number(lista) - Number(it.precio || 0)) * (it.quantity || 1)
     if (gap <= 0) return acc
@@ -410,6 +473,9 @@ export default function FormularioVenta({
   function agregarProducto(producto) {
     if (!producto) return
     const key = `${Date.now()}-${Math.random()}`
+    const existente = itemsRef.current.find(
+      it => it.productoId === producto.id && !it.serials?.length && !it.couponCode && !it.combo,
+    )
     setItems(arr => {
       const indice = arr.findIndex(
         it => it.productoId === producto.id && !it.serials?.length && !it.couponCode,
@@ -434,6 +500,10 @@ export default function FormularioVenta({
     })
     setErrorVenta('')
     detectarUnidades(producto, key)
+    // El precio local es solo el adelanto: el servidor confirma el precio de
+    // lista del cliente (o el mayorista/minorista) para esta cantidad.
+    if (existente && !existente.precioManual) aplicarPrecioResuelto(existente.key, producto.id, (existente.quantity || 1) + 1)
+    else if (!existente) aplicarPrecioResuelto(key, producto.id, 1)
   }
 
   // Los productos con unidades serializadas piden IMEI en su fila.
@@ -453,7 +523,19 @@ export default function FormularioVenta({
     setItems(arr => arr.filter(x => x.key !== key))
   }
   function editarItem(key, patch) {
-    setItems(arr => arr.map(x => (x.key === key ? { ...x, ...patch } : x)))
+    setItems(arr => arr.map(x => {
+      if (x.key !== key) return x
+      const siguiente = { ...x, ...patch }
+      // Marcar el precio como manual (no lo pisa la resolución de lista) y
+      // limpiarlo al cambiar de producto o variante.
+      if (patch.precio !== undefined) siguiente.precioManual = true
+      if (patch.productoId !== undefined) { siguiente.precioManual = false; siguiente.couponCode = null }
+      return siguiente
+    }))
+    if (patch.quantity !== undefined || patch.productoId !== undefined) {
+      const fila = itemsRef.current.find(x => x.key === key)
+      if (fila) aplicarPrecioResuelto(key, patch.productoId || fila.productoId, Number(patch.quantity ?? fila.quantity) || 1)
+    }
   }
   // Descuento por línea: porcentual si hay %, si no el fijo en guaraníes.
   const descuentoItem = it => {

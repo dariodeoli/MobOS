@@ -10,7 +10,7 @@ import { consumeAuthorization, usableAuthorization, DEFAULT_BELOW_LIST_PCT } fro
 import { armarComprobante } from '../../../lib/orders'
 import { enforceRateLimit } from '../../../lib/rate-limit'
 import { serialKey } from '../../../lib/validation'
-import { lineDiscount as lineDiscountFor, warrantyDaysFor } from '../../../lib/pricing'
+import { lineDiscount as lineDiscountFor, warrantyDaysFor, resolveUnitPrice } from '../../../lib/pricing'
 import { changeStock } from '../../../lib/stock'
 import { syncOrderItemSerials } from '../../../lib/order-serials'
 import { esCodigoDuplicado, nextOrderNumber } from '../../../lib/order-number'
@@ -239,10 +239,12 @@ export async function POST(request: Request) {
       if (branchId && !await tx.branch.findFirst({ where: { id: branchId, tenantId: tenant, isActive: true }, select: { id: true } })) throw new Error('Sucursal no encontrada.')
       let customerId = selectedCustomerId
       let pricingTier = 'RETAIL'
+      let priceListId: string | null = null
       if (customerId) {
-        const selectedCustomer = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { id: true, pricingTier: true } })
+        const selectedCustomer = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { id: true, pricingTier: true, priceListId: true } })
         if (!selectedCustomer) throw new Error('Cliente no encontrado.')
         pricingTier = selectedCustomer.pricingTier || 'RETAIL'
+        priceListId = selectedCustomer.priceListId
       }
       if (customer) {
         // Serialize inline checkouts for this tenant/name, including when no customer exists yet.
@@ -270,6 +272,15 @@ export async function POST(request: Request) {
           customerId = created.id
         }
       }
+      // Si el cliente se resolvió/creó por nombre, el precio del cliente (tipo
+      // y lista) se relee por su id final antes de congelar los precios.
+      if (customerId && customerId !== selectedCustomerId) {
+        const resuelto = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { pricingTier: true, priceListId: true } })
+        if (resuelto) { pricingTier = resuelto.pricingTier || 'RETAIL'; priceListId = resuelto.priceListId }
+      }
+      const priceList = priceListId
+        ? await tx.priceList.findFirst({ where: { id: priceListId, tenantId: tenant, isActive: true }, include: { items: { include: { tiers: { orderBy: { minQty: 'asc' } } } } } })
+        : null
       // La factura a otro titular queda en la ficha del cliente: la próxima
       // venta la propone y la búsqueda puede encontrar por esa razón social.
       if (customerId && (billingName || billingDocument)) {
@@ -321,8 +332,12 @@ export async function POST(request: Request) {
           if ((branchId === null && product.branchId !== null) || (branchId && product.branchId !== null && product.branchId !== branchId)) throw new Error('El producto pertenece a otra sucursal.')
           // Foto del costo: la ganancia histórica no cambia si luego se actualiza el costo.
           if (product.costPyg !== null && product.costPyg !== undefined) baseUnitCostPyg = product.costPyg
-          // Precio de lista congelado: el mayorista del cliente si lo tiene.
-          listPricePyg = pricingTier === 'WHOLESALE' && Number(product.wholesalePricePyg || 0) > 0 ? Number(product.wholesalePricePyg) : product.pricePyg
+          // Precio de lista congelado: la lista del cliente (escalón/ítem),
+          // el mayorista o el minorista, con la misma autoridad que
+          // /api/pricing. Un precio en USD no cotiza en guaraníes: la línea
+          // conserva el precio retail como referencia.
+          const resolvedPrice = resolveUnitPrice({ product, quantity, customer: { pricingTier }, priceList })
+          listPricePyg = resolvedPrice.currency === 'USD' ? product.pricePyg : resolvedPrice.unitPricePyg
           // El precio de cupón ya viene cotizado por el servidor: no cuenta
           // como venta bajo lista discrecional.
           if (item.couponCode === undefined && price < listPricePyg) {

@@ -29,7 +29,7 @@ export default function FilaVenta({
 
   const cantidad = Math.max(1, Number(item.quantity) || 1)
   const precio = Number(item.precio) || 0
-  const lista = Number(producto?.precioVenta) || 0
+  const lista = Number(item.precioListaValor ?? producto?.precioVenta) || 0
   const descuentoLinea =
     Number(item.descuentoPct || 0) > 0
       ? Math.round((precio * cantidad * Number(item.descuentoPct)) / 100)
@@ -73,6 +73,10 @@ export default function FilaVenta({
           <div className="flex flex-wrap items-center gap-2">
             <b className="truncate text-sm">{item.nombre}</b>
             {item.couponCode && <Badge color="green">Cupón {item.couponCode}</Badge>}
+            {item.precioOrigen === 'LIST' && <Badge color="blue">{item.precioLista ? `Lista ${item.precioLista}` : 'Precio de lista'}</Badge>}
+            {item.precioOrigen === 'TIER' && <Badge color="green">{item.precioMinQty}+ unidades</Badge>}
+            {item.precioOrigen === 'WHOLESALE' && <Badge color="orange">Mayorista</Badge>}
+            {item.precioOrigen === 'USD' && <Badge color="slate">{`Precio en US$ ${Number(item.precioUsd || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}`}</Badge>}
             {item.serials?.length > 0 && (
               <Badge color="blue">IMEI {serialEnmascarado(item.serials[0])}</Badge>
             )}

@@ -11,6 +11,7 @@
     "test:reports": "node tests/run-reporting.cjs",
     "test:unit": "node tests/run-unit.cjs",
     "stock:check": "node tests/stock-consistency.mjs",
+    "consistency:check": "node tests/consistency-check.mjs",
     "audit:prune": "node tests/prune-audit.mjs"
   },
   "dependencies": {

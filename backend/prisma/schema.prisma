@@ -90,6 +90,7 @@ model Tenant {
   printers                PrintPrinter[]
   printJobs               PrintJob[]
   customerPortalTokens    CustomerPortalToken[]
+  priceLists              PriceList[]
 
   @@index([archivedAt])
 }
@@ -423,6 +424,7 @@ model Product {
   inventoryUnits           InventoryUnit[]
   transferSourceLines      StockTransferLine[] @relation("TransferSourceProduct")
   transferDestinationLines StockTransferLine[] @relation("TransferDestinationProduct")
+  priceListItems           PriceListItem[]
 
   @@unique([tenantId, branchId, sku])
   @@index([tenantId, branchId])
@@ -625,6 +627,10 @@ model Customer {
   createdById String?
   // Precio minorista o mayorista; el mayorista usa wholesalePricePyg del producto.
   pricingTier CustomerPricing @default(RETAIL)
+  // Lista de precios negociada (opcional): reemplaza al precio mayorista fijo
+  // cuando el ítem de la lista alcanza al producto o a su categoría.
+  priceListId String?
+  priceList   PriceList?     @relation(fields: [priceListId], references: [id], onDelete: SetNull)
   // Límite de crédito en guaraníes (null = sin venta a crédito).
   creditLimitPyg Int?
   // Plazo de crédito estándar en días para este cliente.
@@ -654,6 +660,7 @@ model Customer {
   @@index([tenantId])
   @@index([tenantId, phone])
   @@index([tenantId, externalId])
+  @@index([priceListId])
 }
 
 // Solicitud de autorización comercial (mayorista, crédito, plazo o descuento).
@@ -1282,6 +1289,70 @@ enum PaymentAccountKind {
 enum CustomerPricing {
   RETAIL
   WHOLESALE
+}
+
+enum PriceListCurrency {
+  PYG
+  USD
+}
+
+enum PriceListScope {
+  PRODUCT
+  CATEGORY
+}
+
+// Lista de precios por cliente: condiciones negociadas por producto o
+// categoría, con escalones por cantidad. Reemplaza al precio mayorista fijo
+// cuando el ítem aplicable existe; si no, la resolución cae al precio del
+// cliente (mayorista o minorista).
+model PriceList {
+  id        String            @id @default(cuid())
+  tenantId  String
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  currency  PriceListCurrency @default(PYG)
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  items     PriceListItem[]
+  customers Customer[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isActive])
+}
+
+// Ítem de una lista: alcanza a un producto exacto o a toda una categoría
+// (exactamente uno según `scope`) y define el precio por monto fijo en PYG,
+// monto en USD o descuento porcentual sobre pricePyg.
+model PriceListItem {
+  id           String          @id @default(cuid())
+  priceListId  String
+  priceList    PriceList       @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  scope        PriceListScope
+  productId    String?
+  product      Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category     String?
+  unitPricePyg Int?
+  unitPriceUsd Decimal?        @db.Decimal(14, 2)
+  discountPct  Decimal?        @db.Decimal(5, 2)
+
+  tiers        PriceTier[]
+
+  @@index([priceListId])
+  @@index([productId])
+}
+
+// Escalón por cantidad de un ítem: desde `minQty` unidades rige `unitPricePyg`.
+// Gana el escalón con el mayor minQty que no supere la cantidad vendida.
+model PriceTier {
+  id              String        @id @default(cuid())
+  priceListItemId String
+  priceListItem   PriceListItem @relation(fields: [priceListItemId], references: [id], onDelete: Cascade)
+  minQty          Int
+  unitPricePyg    Int
+
+  @@unique([priceListItemId, minQty])
 }
 
 enum ProductDestination {
