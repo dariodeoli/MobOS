@@ -3,6 +3,7 @@ import Avatar from '@/components/shared/Avatar'
 import Icon from '@/components/shared/Icon'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import { Button, Eyebrow, PinInput } from '@/components/ui'
+import { identidadDeUsuario } from '@/lib/identidad'
 import { getLogoDataUrl, varianteDeTema } from '@/lib/tenantLogo'
 
 // Pantalla de bloqueo del POS: identidad de la tienda, la sucursal y la
@@ -27,6 +28,9 @@ export default function PantallaBloqueada({
 }) {
   const cajaRef = useRef(null)
   const [logoEmpresa, setLogoEmpresa] = useState('')
+  // Identidad unificada (#211): nombre visible, primer nombre y foto con el
+  // mismo orden que el resto (foto local → Google → iniciales).
+  const identidad = identidadDeUsuario({ ...(usuario || { name: 'Sesión protegida' }), picture })
 
   // Logo de la tienda con la variante del tema (#163): la tarjeta sigue al
   // fondo claro/oscuro, así que se pide la variante activa al abrir. En la demo
@@ -86,9 +90,9 @@ export default function PantallaBloqueada({
         <p className="mt-1 text-xs text-mute">{sucursal ? `Sucursal ${sucursal}` : 'Todas las sucursales'}</p>
 
         <div className="mt-4 flex items-center justify-center gap-2.5">
-          <Avatar user={usuario || { name: 'Sesión protegida' }} picture={picture} size="xl" title={usuario?.name} />
+          <Avatar user={{ id: usuario?.id, name: identidad.nombre, hasAvatar: identidad.hasAvatar }} picture={identidad.picture} size="xl" title={identidad.nombre} />
           <div className="text-left">
-            <p className="text-sm font-semibold">{usuario?.name || 'Sesión protegida'}</p>
+            <p className="text-sm font-semibold">{identidad.nombre}</p>
             <p className="text-[11px] text-mute">Ingresá tu PIN de {pinLength} dígitos</p>
           </div>
         </div>
