@@ -50,6 +50,18 @@ try {
   const canonicalCors = await middleware(new Request('https://api.moboss.online/api/health', { method: 'OPTIONS', headers: { Origin: 'https://app.moboss.online' } }))
   assert.equal(canonicalCors.headers.get('access-control-allow-origin'), 'https://app.moboss.online'); checks++
   assert.equal(canonicalCors.headers.get('link'), identityConfig.MOBOS_IDENTITY_HEADERS.Link); checks++
+  // #129: el portal de clientes es un origen propio y hace preflight con credenciales.
+  assert.equal(identityConfig.MOBOS_IDENTITY.urls.clientPortal, 'https://clientes.moboss.online'); checks++
+  const portalCors = await middleware(new Request('https://api.moboss.online/api/health', { method: 'OPTIONS', headers: { Origin: 'https://clientes.moboss.online', 'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'content-type' } }))
+  assert.equal(portalCors.status, 204); checks++
+  assert.equal(portalCors.headers.get('access-control-allow-origin'), 'https://clientes.moboss.online'); checks++
+  assert.equal(portalCors.headers.get('access-control-allow-credentials'), 'true'); checks++
+  const websiteCors = await middleware(new Request('https://api.moboss.online/api/health', { method: 'OPTIONS', headers: { Origin: 'https://moboss.online' } }))
+  assert.equal(websiteCors.headers.get('access-control-allow-origin'), 'https://moboss.online'); checks++
+  const localCors = await middleware(new Request('https://api.moboss.online/api/health', { method: 'OPTIONS', headers: { Origin: 'http://localhost:5175' } }))
+  assert.equal(localCors.headers.get('access-control-allow-origin'), 'http://localhost:5175'); checks++
+  const desconocidoCors = await middleware(new Request('https://api.moboss.online/api/health', { method: 'OPTIONS', headers: { Origin: 'https://otro.example' } }))
+  assert.equal(desconocidoCors.headers.get('access-control-allow-origin'), null); checks++
   const legacyCors = await middleware(new Request('https://api.moboss.online/api/health', { method: 'OPTIONS', headers: { Origin: 'https://app.controlaria.online' } }))
   assert.equal(legacyCors.headers.get('access-control-allow-origin'), null); checks++
   const legacyApi = await middleware(new Request('https://api.controlaria.online/api/health', { headers: { Host: 'api.controlaria.online' } }))

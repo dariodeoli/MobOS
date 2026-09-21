@@ -57,3 +57,31 @@ test('recuperar contraseña lleva el correo que escribí en el acceso', async ({
   await expect(page).toHaveURL(/email=dueno%40tienda\.test/)
   await expect(page.getByLabel('Correo de la empresa')).toHaveValue('dueno@tienda.test')
 })
+
+// #129: el portal de clientes llama al API desde su propio origen. Preflight y
+// llamada real contra el middleware, y los orígenes existentes siguen igual.
+test('el portal de clientes puede llamar al API por CORS', async ({ request }) => {
+  const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
+  const portal = 'https://clientes.moboss.online'
+
+  const preflight = await request.fetch(`${API}/api/health`, {
+    method: 'OPTIONS',
+    headers: { Origin: portal, 'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'content-type' },
+  })
+  expect(preflight.status()).toBe(204)
+  expect(preflight.headers()['access-control-allow-origin']).toBe(portal)
+  expect(preflight.headers()['access-control-allow-credentials']).toBe('true')
+
+  const real = await request.get(`${API}/api/health`, { headers: { Origin: portal } })
+  expect(real.ok()).toBeTruthy()
+  expect(real.headers()['access-control-allow-origin']).toBe(portal)
+
+  for (const origin of ['https://app.moboss.online', 'https://moboss.online', 'http://localhost:5175']) {
+    const res = await request.get(`${API}/api/health`, { headers: { Origin: origin } })
+    expect(res.headers()['access-control-allow-origin'], `${origin} debe seguir permitido`).toBe(origin)
+  }
+
+  // Sin comodines: un origen ajeno no se refleja.
+  const ajeno = await request.get(`${API}/api/health`, { headers: { Origin: 'https://otro.example' } })
+  expect(ajeno.headers()['access-control-allow-origin']).toBeUndefined()
+})
