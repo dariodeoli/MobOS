@@ -125,3 +125,17 @@ test('pedidos: la cronología muestra al vendedor que creó el pedido', async ({
   await expect(creado).not.toContainText('Sistema')
   await expect(creado).toContainText(objetivo.seller.split(' ')[0])
 })
+
+// #175 (§21): la nota interna del pedido se agrega y edita desde el detalle.
+test('pedidos: la nota del pedido se edita desde el detalle', async ({ page }) => {
+  await page.goto('/pedidos')
+  await page.getByTestId('pedido-fila').first().click()
+  await expect(page.getByText('Artículos preparados')).toBeVisible()
+  const nota = `Nota E2E ${Date.now().toString(36)}`
+  // La sección de cliente (donde vive la nota) arranca plegada.
+  await page.locator('main').getByRole('button', { name: /^Cliente/ }).first().click()
+  await page.getByRole('button', { name: /Agregar nota|Editar nota/ }).click()
+  await page.getByLabel('Nota del pedido').fill(nota)
+  await page.getByRole('button', { name: 'Guardar nota' }).click()
+  await expect(page.getByText(`Nota: ${nota}`)).toBeVisible({ timeout: 15_000 })
+})

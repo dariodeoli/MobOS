@@ -445,6 +445,12 @@ export default function FormularioVenta({
     }
   }, [])
 
+  // Sin productos no queda nada que descontar: el descuento global no puede
+  // quedar "residual" de una venta anterior.
+  useEffect(() => {
+    if (items.length === 0 && gsNum(descuento) > 0) setDescuento('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length])
   // Combos activos de la tienda para agregarlos como varias líneas de una vez.
   useEffect(() => {
     if (esDemo) { setCombos([]); return }
