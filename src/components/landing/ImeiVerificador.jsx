@@ -110,9 +110,9 @@ export default function ImeiVerificador() {
           como <b className="text-fore">“No verificado”</b>, nunca un “limpio” inventado.
         </p>
         <ul className="mt-6 space-y-3 text-sm text-mute">
-          <li className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-fono-dark" />Se consulta solo cuando alguien lo confirma: no hay cargos automáticos.</li>
-          <li className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-fono-dark" />El resultado se puede adjuntar a la nota del cliente o al comprobante.</li>
-          <li className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-fono-dark" />En el demo se muestra <b className="text-fore">simulado</b>, con datos ficticios y sin consultar al proveedor.</li>
+          <li className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-fono-dark" /><span>Se consulta solo cuando alguien lo confirma: no hay cargos automáticos.</span></li>
+          <li className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-fono-dark" /><span>El resultado se puede adjuntar a la nota del cliente o al comprobante.</span></li>
+          <li className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-fono-dark" /><span>En el demo se muestra <b className="text-fore">simulado</b>, con datos ficticios y sin consultar al proveedor.</span></li>
         </ul>
         <p className="mt-6 rounded-2xl border border-fore/10 bg-ink p-4 text-xs leading-6 text-mute">
           <b className="text-fore">Honestidad ante todo:</b> la verificación corre en <b className="text-fore">modo mock
