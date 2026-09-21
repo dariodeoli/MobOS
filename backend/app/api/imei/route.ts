@@ -1,7 +1,7 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
-import { SERVICIOS, consultarImei, enmascararImei, etiquetaEstado, validarImei } from '../../../lib/imeicheck'
+import { SERVICIOS, consultarImei, enmascararImei, etiquetaEstado, validarImei, type EscenarioMock } from '../../../lib/imeicheck'
 
 // Flujo de consulta de IMEI (#193) — FASE 1 (mocks).
 //
@@ -63,6 +63,11 @@ export async function POST(request: Request) {
   if (!accion) return error('Acción inválida: usá precheck o checks.')
   const clave = typeof body?.servicio === 'string' && SERVICIOS[body.servicio] ? body.servicio : 'APPLE_BASIC'
   const servicio = SERVICIOS[clave]
+  // QA de la Fase 1: en modo mock se puede forzar un escenario (parcial,
+  // pendiente, timeout, sin saldo) sin llamar al proveedor. Con IMEICHECK_LIVE=1
+  // se ignora por completo: en vivo nunca se simula una respuesta.
+  const ESCENARIOS_MOCK: EscenarioMock[] = ['ok', 'parcial', 'pendiente', 'timeout', 'sin-saldo', 'no-autorizado', 'imei-invalido']
+  const escenarioMock = process.env.IMEICHECK_LIVE === '1' || typeof body?.escenario !== 'string' || !ESCENARIOS_MOCK.includes(body.escenario as EscenarioMock) ? undefined : (body.escenario as EscenarioMock)
   const validacion = validarImei(body?.imei)
   if (!validacion.ok) return error(validacion.error, 400, { imei: String(body?.imei ?? '').slice(0, 40) })
 
@@ -90,7 +95,7 @@ export async function POST(request: Request) {
   const yaExiste = await prisma.imeiCheckQuery.findUnique({ where: { requestId } })
   if (yaExiste) return json(expectativa(yaExiste, ROLES_VER_CRUDO.includes(session.user.role)), { status: 200 })
 
-  const resultado = await consultarImei({ imei: validacion.imei, servicio: clave })
+  const resultado = await consultarImei({ imei: validacion.imei, servicio: clave, escenario: escenarioMock })
   const registro = await prisma.imeiCheckQuery.create({
     data: {
       tenantId: tenant,

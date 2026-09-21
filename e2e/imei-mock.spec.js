@@ -4,7 +4,15 @@ import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
 
 const API = SEED.api
-const IMEI = '490154203237518' // ficticio y con Luhn válido
+
+// IMEI ficticio con checksum Luhn válido, único por corrida: las aserciones no
+// dependen de registros que hayan dejado corridas anteriores.
+function imeiValido() {
+  const base = `35${String(Date.now()).slice(-11)}${Math.floor(Math.random() * 10)}`.slice(0, 14)
+  let suma = 0
+  for (let i = 0; i < 14; i += 1) { let digito = Number(base[13 - i]); if (i % 2 === 0) { digito *= 2; if (digito > 9) digito -= 9 } suma += digito }
+  return base + String((10 - (suma % 10)) % 10)
+}
 
 async function api(page, ruta, opciones) {
   return page.evaluate(async ({ api, ruta, opciones }) => {
@@ -14,6 +22,7 @@ async function api(page, ruta, opciones) {
 }
 
 test('el IMEI se valida antes de consultar y el precheck no cobra', async ({ page }) => {
+  const IMEI = imeiValido()
   await page.goto('/inventario/unidades')
   const invalido = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'precheck', imei: '123', servicio: 'APPLE_BASIC' }) })
   expect(invalido.status).toBe(400)
@@ -31,13 +40,14 @@ test('el IMEI se valida antes de consultar y el precheck no cobra', async ({ pag
   expect(historial.datos.consultas).toEqual([])
 })
 
-// TODO(#193): el flujo quedó verificado a mano; esta aserción fina (forma de la
-// respuesta de confirmación) queda pendiente de depurar sin bloquear la suite.
-test.fixme('sin confirmación explícita no se ejecuta y con requestId no se cobra dos veces', async ({ page }) => {
+// Matriz del brief (#193): sin confirmación no se ejecuta, el mismo requestId
+// no cobra dos veces y el listado siempre va enmascarado.
+test('sin confirmación explícita no se ejecuta y con requestId no se cobra dos veces', async ({ page }) => {
+  const IMEI = imeiValido()
   await page.goto('/inventario/unidades')
   const sinConfirmar = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'checks', imei: IMEI, servicio: 'APPLE_BASIC', requestId: `qa-193-a-${Date.now()}` }) })
   expect(sinConfirmar.status).toBe(409)
-  expect(sinConfirmar.datos?.requiereConfirmacion).toBe(true)
+  expect(sinConfirmar.datos?.details?.requiereConfirmacion).toBe(true)
 
   const requestId = `qa-193-${Date.now()}`
   const primera = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'checks', imei: IMEI, servicio: 'APPLE_BASIC', confirm: true, requestId }) })
@@ -64,11 +74,7 @@ test.fixme('sin confirmación explícita no se ejecuta y con requestId no se cob
 // Corre contra los mocks de la fase 1: sin llamadas pagas.
 test('la ficha de la unidad muestra el costo, pide confirmación y deja el resultado auditado', async ({ page }) => {
   await page.goto('/inventario/unidades')
-  // IMEI válido (Luhn) único por corrida: base aleatoria + dígito de control.
-  const base = `35${String(Date.now()).slice(-11)}${Math.floor(Math.random() * 10)}`.slice(0, 14)
-  let suma = 0
-  for (let i = 0; i < 14; i += 1) { let digito = Number(base[13 - i]); if (i % 2 === 0) { digito *= 2; if (digito > 9) digito -= 9 } suma += digito }
-  const imei = base + String((10 - (suma % 10)) % 10)
+  const imei = imeiValido()
   const marca = `UI${Date.now().toString(36)}`.toUpperCase()
   const creado = await page.evaluate(async ({ api, branchId, imei, marca }) => {
     const pedir = async (ruta, body) => {
@@ -94,6 +100,9 @@ test('la ficha de la unidad muestra el costo, pide confirmación y deja el resul
     await bloque.getByTestId('imei-confirmar').click()
     // Resultado con estado explícito, fuente del proveedor y campos normalizados.
     await expect(bloque).toContainText('Verificado')
+    // Sin IMEICHECK_LIVE la respuesta es simulada: se marca para no confundirla
+    // con una verificación real ni con un cobro.
+    await expect(bloque).toContainText('SIMULADO')
     await expect(bloque).toContainText('imeicheck.net')
     await expect(bloque).toContainText('Blacklist actual')
   } finally {
@@ -101,5 +110,99 @@ test('la ficha de la unidad muestra el costo, pide confirmación y deja el resul
       await fetch(`${api}/api/inventory-units`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: creado.unidadId, action: 'remove', reason: 'Limpieza del spec de IMEI UI' }) }).catch(() => {})
       await fetch(`${api}/api/products?id=${encodeURIComponent(creado.productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
     }, { api: API, creado })
+  }
+})
+
+// Matriz de mocks del brief (#193): parcial, pendiente, timeout, sin saldo y no
+// autorizado se registran con su estado honesto y sin cobro. `escenario` solo se
+// acepta sin IMEICHECK_LIVE=1 (en vivo se ignora): nunca se llama al proveedor.
+test('los estados del proveedor se registran sin cobro y sin llamar al proveedor', async ({ page }) => {
+  const IMEI = imeiValido()
+  await page.goto('/inventario/unidades')
+  const casos = [
+    { escenario: 'parcial', etiqueta: 'Parcial', costo: 0.06 },
+    { escenario: 'pendiente', etiqueta: 'No verificado', costo: 0 },
+    { escenario: 'timeout', etiqueta: 'No verificado', costo: 0 },
+    { escenario: 'sin-saldo', etiqueta: 'No verificado', costo: 0 },
+    { escenario: 'no-autorizado', etiqueta: 'No verificado', costo: 0 },
+  ]
+  for (const caso of casos) {
+    const respuesta = await api(page, 'imei', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'checks', imei: IMEI, servicio: 'APPLE_BASIC', confirm: true, requestId: `qa-193-${caso.escenario}-${Date.now()}-${Math.floor(Math.random() * 1000)}`, escenario: caso.escenario }),
+    })
+    expect(respuesta.status).toBe(201)
+    expect(respuesta.datos.esMock).toBe(true)
+    expect(respuesta.datos.etiqueta).toBe(caso.etiqueta)
+    expect(respuesta.datos.costUsd).toBe(caso.costo)
+  }
+})
+
+// Aislamiento por tienda (#193): el mismo IMEI consultado en dos tiendas no se
+// mezcla; cada una ve su historial y la advertencia de "consulta reciente" no
+// cruza de tenant. La segunda tienda se da de alta solo la primera vez.
+test('el mismo IMEI en dos tiendas queda aislado por tienda', async ({ page, browser }) => {
+  const IMEI_COMPARTIDO = imeiValido()
+  const tiendaB = { name: 'Tienda E2E IMEI Dos', email: 'tienda-imei-dos@test.local', password: 'E2e-imei-password-123', deviceId: 'e2e-imei-dos', pin: '4321' }
+  await page.goto('/inventario/unidades')
+
+  // Tienda A (seed): su consulta y su historial.
+  const consultaA = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'checks', imei: IMEI_COMPARTIDO, servicio: 'APPLE_BASIC', confirm: true, requestId: `qa-193-tienda-a-${Date.now()}` }) })
+  expect(consultaA.status).toBe(201)
+  const historialA1 = await api(page, `imei?imei=${IMEI_COMPARTIDO}`, { method: 'GET' })
+  expect(historialA1.datos.consultas.length).toBe(1)
+
+  // Tienda B: alta idempotente (register → onboarding → PIN) en su propio contexto.
+  const contexto = await browser.newContext()
+  try {
+    const apiB = contexto.request
+    const leerTokenEmpresa = (headers) => String(headers['set-cookie'] || '').match(/mobos_company_session=([^;,\n]*)/)?.[1] || ''
+    let sesion = null
+    let tokenEmpresa = ''
+    const registro = await apiB.post(`${API}/api/auth/register`, { data: { companyName: tiendaB.name, email: tiendaB.email, password: tiendaB.password, deviceId: tiendaB.deviceId } })
+    if (registro.ok()) {
+      sesion = await registro.json()
+      tokenEmpresa = leerTokenEmpresa(registro.headers())
+    } else if (registro.status() === 409) {
+      const login = await apiB.post(`${API}/api/auth/login`, { data: { email: tiendaB.email, password: tiendaB.password, deviceId: tiendaB.deviceId } })
+      expect(login.ok()).toBe(true)
+      sesion = await login.json()
+      tokenEmpresa = leerTokenEmpresa(login.headers())
+    } else {
+      throw new Error(`registro tienda B: HTTP ${registro.status()}`)
+    }
+    expect(tokenEmpresa).toBeTruthy()
+    const adminB = (sesion?.sellers || [])[0]
+    expect(adminB?.id).toBeTruthy()
+    const onboarding = await apiB.post(`${API}/api/auth/onboarding`, { headers: { Authorization: `Bearer ${tokenEmpresa}` }, data: { pin: tiendaB.pin } })
+    expect([200, 201, 204, 409]).toContain(onboarding.status())
+    const pin = await apiB.post(`${API}/api/auth/pin`, { headers: { Authorization: `Bearer ${tokenEmpresa}` }, data: { sellerId: adminB.id, pin: tiendaB.pin } })
+    expect(pin.ok()).toBe(true)
+    // Fuera del navegador no hay same-origin: se usa el Bearer del vendedor.
+    const tokenVendedor = String(pin.headers()['set-cookie'] || '').match(/mobos_seller_session=([^;,\n]*)/)?.[1] || ''
+    expect(tokenVendedor).toBeTruthy()
+    const cabecerasB = { Authorization: `Bearer ${tokenVendedor}` }
+
+    // Precheck en B: no ve la consulta reciente de A (aislamiento por tenant).
+    const precheckB = await apiB.post(`${API}/api/imei`, { headers: cabecerasB, data: { action: 'precheck', imei: IMEI_COMPARTIDO, servicio: 'APPLE_BASIC' } })
+    expect(precheckB.status()).toBe(200)
+    const precheckDatos = await precheckB.json()
+    expect(precheckDatos.advertencia).toBeNull()
+    expect(precheckDatos.costoEstimadoUsd).toBe(0.06)
+
+    // Consulta propia de B: queda solo en su historial.
+    const consultaB = await apiB.post(`${API}/api/imei`, { headers: cabecerasB, data: { action: 'checks', imei: IMEI_COMPARTIDO, servicio: 'APPLE_BASIC', confirm: true, requestId: `qa-193-tienda-b-${Date.now()}` } })
+    expect(consultaB.status()).toBe(201)
+    const datosB = await consultaB.json()
+    const historialB = await (await apiB.get(`${API}/api/imei?imei=${IMEI_COMPARTIDO}`, { headers: cabecerasB })).json()
+    expect(historialB.consultas.length).toBe(1)
+    expect(historialB.consultas[0].id).toBe(datosB.id)
+
+    // A sigue viendo solo lo suyo.
+    const historialA2 = await api(page, `imei?imei=${IMEI_COMPARTIDO}`, { method: 'GET' })
+    expect(historialA2.datos.consultas.length).toBe(1)
+    expect(historialA2.datos.consultas[0].id).toBe(consultaA.datos.id)
+  } finally {
+    await contexto.close()
   }
 })

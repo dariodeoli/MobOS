@@ -44,3 +44,28 @@ referencia USD 0,06) para el IMEI **350970405250150**.
 El resultado de esta consulta valida además el contrato público (`/v1/checks`):
 si sus claves difieren del JSON de `/frontend-api`, el mapeo de
 `normalizarRespuesta` ya contempla ambos formatos.
+
+## Probar la UI en mock en producción (post-merge, sin LIVE y sin cargos)
+
+Con la Fase 1 deployada y **sin** `IMEICHECK_LIVE=1` en Coolify, el endpoint
+nunca llama al proveedor: responde mocks marcados (`esMock: true`) y la UI los
+muestra con el badge **SIMULADO** y “Sin cobro”. Verificación sugerida:
+
+1. Inventario → Unidades: abrir (o crear) una unidad cuyo serial sea un IMEI de
+   15 dígitos con Luhn válido.
+2. Sección **Consulta de IMEI** → «Consultar IMEI (ver costo)»: debe mostrar
+   Apple Basic, los campos y el costo US$ 0,06, sin ejecutar nada.
+3. «Confirmar consulta (US$ 0.06)»: el resultado debe traer el badge
+   **SIMULADO**, el estado, los campos (blacklist, Find My/iCloud, garantía) con
+   fuente `imeicheck.net` y fecha.
+4. DevTools → Network: **ninguna** llamada a `imeicheck.net`; todo pasa por
+   `/api/imei`.
+5. El historial (`GET /api/imei`) sigue mostrando el IMEI enmascarado y el
+   registro auditado (estado, costo, fecha y requestId).
+6. Probar un fallo (QA): `POST /api/imei` con `confirm: true`, `requestId` y
+   `escenario: "sin-saldo"` (los escenarios solo se aceptan sin
+   `IMEICHECK_LIVE=1`; en vivo se ignoran) → la UI/registro debe decir
+   **No verificado**, sin costo. Repetir con el mismo `requestId` no crea otro
+   registro.
+7. Nada que desactivar: sin `IMEICHECK_LIVE=1` no hay cargos; el token puede
+   quedar cargado sin riesgo.

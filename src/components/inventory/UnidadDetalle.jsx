@@ -361,7 +361,8 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             <div className="mt-2 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge color={imeiDatos.status === 'verificado' ? 'green' : imeiDatos.status === 'parcial' ? 'orange' : 'slate'}>{imeiDatos.etiqueta || (imeiDatos.status === 'verificado' ? 'Verificado' : 'No verificado')}</Badge>
-                {imeiDatos.simulado ? <Badge color="blue">SIMULADO</Badge> : <span className="text-xs text-mute">Costo US$ {Number(imeiDatos.costUsd || 0).toFixed(2)} · {imeiDatos.serviceName || 'Apple Basic'}</span>}
+                {(imeiDatos.simulado || imeiDatos.esMock) ? <Badge color="blue">SIMULADO</Badge> : <span className="text-xs text-mute">Costo US$ {Number(imeiDatos.costUsd || 0).toFixed(2)} · {imeiDatos.serviceName || 'Apple Basic'}</span>}
+                {(imeiDatos.simulado || imeiDatos.esMock) && <span className="text-xs text-mute">Sin cobro: respuesta simulada de la fase 1</span>}
               </div>
               {(imeiDatos.campos || imeiDatos.normalized || []).map(campo => (
                 <p key={campo.clave} className="text-xs"><span className="font-semibold text-fore">{campo.etiqueta}:</span> <span className={campo.valor ? 'text-fore/90' : 'text-mute'}>{campo.valor || 'No verificado'}</span> <span className="text-mute">· {campo.fuente}{campo.hora ? ` · ${new Date(campo.hora).toLocaleString('es-PY')}` : ''}</span></p>
