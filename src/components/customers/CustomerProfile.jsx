@@ -1298,12 +1298,14 @@ export default function CustomerProfile({ customer, open, onClose }) {
                             <Badge color="blue">{AUTH_KINDS[row.kind] || row.kind}</Badge>
                             <Badge color={estado.color}>{estado.label}</Badge>
                           </div>
-                          <p className="mt-1 text-xs text-mute">
-                            Pedido: {resumenValor(row.kind, row.requestedValue)}
-                            {row.status === 'APPROVED' && <> · Autorizado: {resumenValor(row.kind, row.resolvedValue || row.requestedValue)}</>}
-                            {row.status === 'REJECTED' && ' · Rechazada'}
-                          </p>
+                          <p className="mt-1 text-xs text-mute">Pedido: {resumenValor(row.kind, row.requestedValue)}</p>
                           <p className="mt-1 text-xs text-mute">Pidió {row.requestedBy?.name || 'Sistema'} · {fechaHora(row.createdAt)}</p>
+                          {row.status !== 'PENDING' && (
+                            <p className="mt-1 text-xs text-mute">
+                              {row.status === 'APPROVED' ? 'Aprobó' : 'Rechazó'} {row.resolvedBy?.name || 'Sistema'} · {fechaHora(row.resolvedAt)}
+                              {row.status === 'APPROVED' && <> · Autorizado: {resumenValor(row.kind, row.resolvedValue || row.requestedValue)}</>}
+                            </p>
+                          )}
                           {row.note && <p className="mt-1 text-xs text-mute">Nota: {row.note}</p>}
                           {row.resolvedNote && <p className="mt-1 text-xs text-mute">Respuesta: {row.resolvedNote}</p>}
                           {puedeResolver && row.status === 'PENDING' && !propia && (
