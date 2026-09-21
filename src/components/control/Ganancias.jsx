@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
 import { isDemoRuntime } from '@/lib/demoMode'
+import { useSesion } from '@/lib/sesion'
+import { getDemoInsurancePct } from '@/lib/demoTenant'
 import { listVentas, listGastos, listAds, productosById } from '@/lib/storage'
 import { fechaClave, gs } from '@/utils/calculos'
-import { desdeDePeriodo, gananciaDelPeriodo, lineasDeGanancia, serieDeReporte } from '@/utils/ganancias'
+import { aplicarSeguro, desdeDePeriodo, gananciaDelPeriodo, lineasDeGanancia, serieDeReporte } from '@/utils/ganancias'
 import { reporteMetricas } from '@/lib/metricas'
 import { Card, Badge } from '@/components/ui'
 import PeriodoTabs from '@/components/shared/PeriodoTabs'
@@ -14,6 +16,7 @@ import CalendarioGanancias, { LineaValor } from '@/components/shared/CalendarioG
 // compone. Ingresos y costo salen del backend unificado (#171); gastos y
 // publicidad siguen en Finanzas. Sin API (demo/offline) rige el cálculo local.
 export default function Ganancias() {
+  const { esDemo } = useSesion()
   const [periodo, setPeriodo] = useUrlState('periodo', 'dia')
   const datos = {
     ventas: listVentas(),
@@ -30,7 +33,10 @@ export default function Ganancias() {
       .catch(() => { if (vigente) setSerieApi(null) })
     return () => { vigente = false }
   }, [periodo])
-  const g = gananciaDelPeriodo(periodo, datos, serieApi?.totales)
+  // En la demo el seguro se configura localmente (#194): el costo real incluye
+  // el % guardado en este navegador, igual que la fórmula del backend (#162).
+  const seguroPct = esDemo ? getDemoInsurancePct() : 0
+  const g = aplicarSeguro(gananciaDelPeriodo(periodo, datos, serieApi?.totales), seguroPct)
 
   const positivo = g.estado === 'ganancia'
   const negativo = g.estado === 'perdida'
@@ -61,11 +67,14 @@ export default function Ganancias() {
       </Card>
 
       {/* Calendario de resultados por día */}
-      <CalendarioGanancias datos={datos} serieApi={serieApi} />
+      <CalendarioGanancias datos={datos} serieApi={serieApi} seguroPct={seguroPct} />
 
       {/* Desglose */}
       <Card>
-        <h3 className="font-bold mb-3">Cómo se calcula</h3>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <h3 className="font-bold">Cómo se calcula</h3>
+          {g.seguroPct > 0 && <Badge color="orange">Incluye seguro {g.seguroPct}% (demo)</Badge>}
+        </div>
         <div className="space-y-2 text-sm">
           {lineasDeGanancia(g).map((linea) => <LineaValor key={linea.label} {...linea} />)}
           <div className="border-t border-ink-600 pt-2 flex items-center justify-between font-extrabold">

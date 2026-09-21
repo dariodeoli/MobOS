@@ -87,4 +87,17 @@ export function lineasDeGanancia(ganancia, { costo = 'Costo de mercadería vendi
   ]
 }
 
+/**
+ * Costo real con seguro de ventas (#162): costo + %, recalculando el resultado.
+ * Lo usa la demo (#194) para mostrar el efecto en el margen con sus datos
+ * ficticios; en producción el cálculo lo hace el backend.
+ */
+export function aplicarSeguro(ganancia, pct) {
+  const porcentaje = Number(pct) || 0
+  if (!ganancia || porcentaje <= 0) return ganancia
+  const costoMercaderia = Math.round(num(ganancia.costoMercaderia) * (1 + porcentaje / 100))
+  const gananciaReal = num(ganancia.ingresos) - costoMercaderia - num(ganancia.totalGastos) - num(ganancia.totalAds)
+  return { ...ganancia, costoMercaderia, ganancia: gananciaReal, estado: estadoDeGanancia(gananciaReal), seguroPct: porcentaje }
+}
+
 export { desdeDePeriodo, fechaClave }

@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
-import { ventaDesdeApi } from '@/lib/storage'
+import { ventaDesdeApi, listVentas } from '@/lib/storage'
+import { getPaymentAccounts } from '@/lib/paymentAccounts'
+import { construirDemoConciliacion, conciliarDemoLote } from '@/lib/demoConciliacion'
 import { gs } from '@/utils/calculos'
 import { formatMoney } from '@/utils/moneda'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango } from '@/components/shared/RangoFechas'
-import { Badge, Button, Card, EmptyState, Input, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
+import { Badge, Button, Card, Input, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
 import PagosPedido from '@/components/ventas/PagosPedido'
 import { cn } from '@/lib/utils'
 
@@ -120,10 +122,16 @@ export default function Conciliacion() {
   const [pedido, setPedido] = useState(null)
 
   const cargar = useCallback(async () => {
-    if (esDemo) return
     setLoading(true)
     setError('')
     try {
+      // En la demo la conciliación se arma con datos ficticios locales (#194):
+      // mismos grupos, items y lotes, sin consultar la API real.
+      if (esDemo) {
+        const [cuentas, ventas] = await Promise.all([getPaymentAccounts(), Promise.resolve(listVentas())])
+        setData(construirDemoConciliacion({ ventas, cuentas, desde: rango.desde, hasta: rango.hasta, ...filtros }))
+        return
+      }
       const params = new URLSearchParams({ from: rango.desde, to: rango.hasta })
       if (filtros.accountId) params.set('accountId', filtros.accountId)
       if (filtros.method) params.set('method', filtros.method)
@@ -133,7 +141,7 @@ export default function Conciliacion() {
       setError(cause?.message || 'No se pudo cargar la conciliación.')
       setData(null)
     } finally { setLoading(false) }
-  }, [esDemo, rango.desde, rango.hasta, filtros.accountId, filtros.method, filtros.processor])
+  }, [esDemo, rango.desde, rango.hasta, filtros])
 
   useEffect(() => { cargar() }, [cargar])
   // La selección y el formulario del lote no sobreviven a un cambio de filtro.
@@ -175,6 +183,13 @@ export default function Conciliacion() {
     setConciliando(true)
     setError('')
     try {
+      if (esDemo) {
+        const lote = conciliarDemoLote({ items: seleccionados, receivedPyg: Number(recibido) || 0, note: nota.trim() })
+        toast.success(`Lote conciliado (demo): ${lote.pagos} pago(s)${lote.differencePyg ? ` con diferencia de ${gs(lote.differencePyg)}` : ''}.`)
+        setSeleccion([]); setRecibido(''); setNota('')
+        await cargar()
+        return
+      }
       const resultado = await api.post('/api/finance/reconciliation', {
         action: 'batch',
         paymentIds: seleccionados.map((item) => item.id),
@@ -190,11 +205,15 @@ export default function Conciliacion() {
 
   async function verPedido(item) {
     if (!item.orderId) return
-    try { setPedido(ventaDesdeApi(await api.get(`/api/orders/${encodeURIComponent(item.orderId)}`))) } catch (cause) { setError(cause?.message || 'No se pudo abrir el pedido.') }
-  }
-
-  if (esDemo) {
-    return <Card><EmptyState compact icon="wallet" title="Conciliación no está disponible en la demo." description="Con datos reales vas a ver ingresos por cuenta, medio y procesadora, y conciliar los depósitos recibidos." /></Card>
+    try {
+      // En demo el pedido es una venta ficticia local: no se consulta la API.
+      if (esDemo) {
+        const venta = listVentas().find((fila) => fila.id === item.orderId)
+        if (venta) setPedido(venta)
+        return
+      }
+      setPedido(ventaDesdeApi(await api.get(`/api/orders/${encodeURIComponent(item.orderId)}`)))
+    } catch (cause) { setError(cause?.message || 'No se pudo abrir el pedido.') }
   }
 
   return (
@@ -204,6 +223,7 @@ export default function Conciliacion() {
           <div>
             <h2 className="font-bold">Conciliación y trazabilidad</h2>
             <p className="mt-1 text-sm text-mute">Ingresos por cuenta, medio y procesadora. Conciliá en lote el depósito o la transferencia recibida contra los pagos que debería cubrir: esperado vs recibido, diferencia y detalle hasta el pedido.</p>
+            {esDemo && <p className="mt-1 text-xs text-fono-light">Demo: cobros y cuentas ficticios; los lotes conciliados se guardan en este navegador.</p>}
           </div>
           <RangoFechas valor={rango} onChange={cambiarRango} />
         </div>

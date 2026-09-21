@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { fechaClave, gs } from '@/utils/calculos'
-import { gananciaDelDia, lineasDeGanancia } from '@/utils/ganancias'
+import { aplicarSeguro, gananciaDelDia, lineasDeGanancia } from '@/utils/ganancias'
 import { Card } from '@/components/ui'
 
 // Calendario mensual de resultados: cada día coloreado por ganancia/pérdida y
 // detalle del día elegido. Vivía dentro de Ganancias; desde #181 es compartido
-// (Ganancias y Reportes) y los cálculos salen de `utils/ganancias`.
+// (Ganancias y Reportes) y los cálculos salen de `utils/ganancias`. `seguroPct`
+// permite a la demo (#194) mostrar el costo real con seguro en cada día.
 
 const MESES = [
   'Enero',
@@ -30,7 +31,7 @@ const ESTILO_DIA = {
   vacio: 'bg-ink-800 text-mute border-ink-600',
 }
 
-export default function CalendarioGanancias({ datos, serieApi, titulo, nota }) {
+export default function CalendarioGanancias({ datos, serieApi, titulo, nota, seguroPct = 0 }) {
   const hoy = new Date()
   const [cursor, setCursor] = useState(() => new Date(hoy.getFullYear(), hoy.getMonth(), 1))
   const [sel, setSel] = useState(null)
@@ -47,7 +48,7 @@ export default function CalendarioGanancias({ datos, serieApi, titulo, nota }) {
   for (let i = 0; i < offset; i++) celdas.push(null)
   for (let d = 1; d <= diasEnMes; d++) {
     const clave = fechaClave(new Date(anio, mes, d))
-    celdas.push({ d, clave, ...gananciaDelDia(clave, datos, serieApi) })
+    celdas.push({ d, clave, ...aplicarSeguro(gananciaDelDia(clave, datos, serieApi), seguroPct) })
   }
 
   const irMes = (delta) => {
@@ -55,7 +56,7 @@ export default function CalendarioGanancias({ datos, serieApi, titulo, nota }) {
     setCursor(new Date(anio, mes + delta, 1))
   }
 
-  const detalle = sel ? gananciaDelDia(sel, datos, serieApi) : null
+  const detalle = sel ? aplicarSeguro(gananciaDelDia(sel, datos, serieApi), seguroPct) : null
 
   return (
     <Card>
