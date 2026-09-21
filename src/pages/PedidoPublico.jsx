@@ -31,10 +31,13 @@ export default function PedidoPublico() {
   // total, lo pagado y el saldo que salieron en el papel.
   const { total, pagado, pendiente } = totalesPedido(order)
   const aCredito = Boolean(order?.credit)
-  const entregadoConSaldo = order?.fulfillmentStatus === 'DELIVERED' && pendiente > 0
+  const entregadoConSaldo = ['DELIVERED', 'PICKED_UP'].includes(order?.fulfillmentStatus) && pendiente > 0
+  const tracking = order?.tracking
+  const etiquetaSeguimiento = tracking?.estadoLabel || FULFILLMENT[order?.fulfillmentStatus] || order?.fulfillmentStatus
+  const encabezadoSeguimiento = tracking?.encabezado || 'Seguimiento de pedido'
   const etiquetaEntrega = entregadoConSaldo
-    ? `${FULFILLMENT.DELIVERED} · ${aCredito ? 'a crédito' : 'pagado parcialmente'}`
-    : (FULFILLMENT[order?.fulfillmentStatus] || order?.fulfillmentStatus)
+    ? `${etiquetaSeguimiento} · ${aCredito ? 'a crédito' : 'pagado parcialmente'}`
+    : etiquetaSeguimiento
   const tonoEntrega = aCredito && entregadoConSaldo
     ? 'border-bad/30 bg-bad/10 text-bad'
     : entregadoConSaldo
@@ -42,6 +45,12 @@ export default function PedidoPublico() {
       : order?.status === 'COMPLETED' ? 'border-ok/30 bg-ok/10 text-ok' : order?.status === 'CANCELLED' ? 'border-bad/30 bg-bad/10 text-bad' : 'border-warn/30 bg-warn/10 text-warn'
 
   const pasoActual = PASOS.indexOf(order?.fulfillmentStatus)
+  // Línea de progreso del método de entrega (#191): el backend manda los pasos
+  // que aplican (delivery, retiro, retiro en otra sucursal o traslado) con su
+  // fecha; sin ese dato se cae al listado histórico genérico.
+  const pasosSeguimiento = tracking?.pasos?.length
+    ? tracking.pasos
+    : PASOS.map((step, index) => ({ key: step, label: FULFILLMENT[step], hecho: index <= pasoActual, actual: order?.fulfillmentStatus === step, at: null }))
   const items = order?.items || []
   const pagos = order?.payments || []
   const movimientos = order?.level === 'detallado' ? (order.timeline || []) : []
@@ -92,7 +101,7 @@ export default function PedidoPublico() {
               </div>
               <div className="mt-3 flex flex-wrap items-end justify-between gap-2 border-t border-ink-600/70 pt-3">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-[.2em] text-fono-light">Seguimiento de pedido</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[.2em] text-fono-light">{encabezadoSeguimiento}</p>
                   <h1 className="text-2xl font-bold tracking-tight">{codigoPedido(order.orderNumber) || 'Pedido'}</h1>
                   <p className="text-xs text-mute">
                     {order.customerName ? `Hola, ${order.customerName}` : 'Tu pedido'}
@@ -112,16 +121,14 @@ export default function PedidoPublico() {
                 <h2 className="text-xs font-bold uppercase tracking-wider text-mute">Estado del pedido</h2>
                 <span className="text-[11px] text-mute">{ORDER_STATUS[order.status] || order.status} · actualizado {fechaHora(order.updatedAt)}</span>
               </div>
-              <div className="mt-3 grid grid-cols-5 gap-1.5">
-                {PASOS.map((step, index) => {
-                  const hecho = index <= pasoActual
-                  return (
-                    <div key={step} className="text-center">
-                      <div className={`h-1.5 rounded-full ${hecho ? 'bg-fono-light' : 'bg-ink-600'}`} />
-                      <p className={`mt-1.5 text-[9px] font-semibold leading-tight sm:text-[10px] ${hecho ? 'text-fore' : 'text-mute'}`}>{FULFILLMENT[step]}</p>
-                    </div>
-                  )
-                })}
+              <div className="mt-3 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${pasosSeguimiento.length}, minmax(0, 1fr))` }}>
+                {pasosSeguimiento.map(paso => (
+                  <div key={paso.key} className="text-center">
+                    <div className={`h-1.5 rounded-full ${paso.hecho ? 'bg-fono-light' : 'bg-ink-600'} ${paso.actual ? 'ring-2 ring-fono/40' : ''}`} />
+                    <p className={`mt-1.5 text-[9px] font-semibold leading-tight sm:text-[10px] ${paso.hecho ? 'text-fore' : 'text-mute'}`}>{paso.label}</p>
+                    {paso.at && <p className="text-[9px] text-mute">{fechaHora(paso.at)}</p>}
+                  </div>
+                ))}
               </div>
               <dl className="mt-4 space-y-1.5 border-t border-ink-600/70 pt-3 text-sm">
                 <div className="flex items-center justify-between"><dt className="text-mute">Total</dt><dd className="font-semibold tabular-nums">{gs(total)}</dd></div>

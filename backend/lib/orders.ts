@@ -10,30 +10,156 @@ export const FULFILLMENT_STATES = [
 ] as const
 export type FulfillmentState = typeof FULFILLMENT_STATES[number]
 
-// Siguientes estados posibles desde cada uno (el grafo no cambia por tipo: el
-// tipo acota qué estados puede *usar* el pedido, no a dónde puede ir).
-const nextStates: Record<FulfillmentState, readonly FulfillmentState[]> = {
-  PENDING: ['PROCESSING', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'SHIPPED', 'IN_TRANSIT', 'PARTIAL', 'DELIVERED', 'NOT_DELIVERED'],
-  PROCESSING: ['READY_TO_SHIP', 'READY_FOR_PICKUP', 'SHIPPED', 'IN_TRANSIT', 'PARTIAL', 'DELIVERED', 'NOT_DELIVERED'],
-  READY_TO_SHIP: ['SHIPPED', 'IN_TRANSIT', 'READY_FOR_PICKUP', 'PARTIAL', 'DELIVERED', 'NOT_DELIVERED'],
-  SHIPPED: ['IN_TRANSIT', 'PARTIAL', 'DELIVERED', 'NOT_DELIVERED'],
-  IN_TRANSIT: ['PARTIAL', 'DELIVERED', 'NOT_DELIVERED'],
-  READY_FOR_PICKUP: ['PICKED_UP', 'PARTIAL', 'DELIVERED', 'NOT_DELIVERED'],
-  PICKED_UP: [],
-  PARTIAL: ['DELIVERED', 'PICKED_UP', 'IN_TRANSIT', 'NOT_DELIVERED'],
-  DELIVERED: [],
-  NOT_DELIVERED: ['PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'READY_FOR_PICKUP', 'IN_TRANSIT'],
+// El grafo de transiciones vive por método (arriba): un pedido de retiro nunca
+// puede pasar por "listo para enviar" y uno de reparto nunca por "retirar".
+
+// Métodos de entrega (#191). Cada método tiene su propia máquina de estados y
+// su propio lenguaje: "listo para enviar" es de reparto, "listo para retirar"
+// es de retiro y "en camino a la sucursal" es de traslado interno.
+export type MetodoEntrega = 'DELIVERY' | 'RETIRO' | 'RETIRO_SUCURSAL' | 'TRASLADO'
+
+export const METODO_ENTREGA_LABELS: Record<MetodoEntrega, string> = {
+  DELIVERY: 'Delivery',
+  RETIRO: 'Retiro en tienda',
+  RETIRO_SUCURSAL: 'Retiro en otra sucursal',
+  TRASLADO: 'Envío entre sucursales',
 }
 
-// Estados exclusivos de cada tipo: retirar es solo del retiro y enviar/no
-// entregar solo del reparto. Los estados históricos (procesando, listo, en
-// camino, entregado…) siguen valiendo para ambos: hay pedidos que cambiaron de
-// tipo a mitad de camino y la UI ahora ofrece solo los que corresponden.
-const SOLO_RETIRO: readonly FulfillmentState[] = ['PICKED_UP']
-const SOLO_DELIVERY: readonly FulfillmentState[] = ['SHIPPED', 'NOT_DELIVERED']
+export const SEGUIMIENTO_ENCABEZADO: Record<MetodoEntrega, string> = {
+  DELIVERY: 'Seguimiento de envío',
+  RETIRO: 'Seguimiento de retiro',
+  RETIRO_SUCURSAL: 'Seguimiento de retiro',
+  TRASLADO: 'Seguimiento de traslado',
+}
 
-export const tipoDeEntrega = (deliveryType?: string | null): 'RETIRO' | 'DELIVERY' =>
-  String(deliveryType || '').toLowerCase().includes('retiro') ? 'RETIRO' : 'DELIVERY'
+export function metodoDeEntrega(deliveryType?: string | null): MetodoEntrega {
+  const tipo = String(deliveryType || '').toLowerCase()
+  if (tipo.includes('entre sucursales')) return 'TRASLADO'
+  if (tipo.includes('otra sucursal')) return 'RETIRO_SUCURSAL'
+  if (tipo.includes('retiro')) return 'RETIRO'
+  return 'DELIVERY'
+}
+
+// Flujo principal de cada método, en orden. `PENDING` (solicitado / confirmado)
+// es la entrada histórica y se trata como el primer paso al pintar el avance.
+const FLUJOS: Record<MetodoEntrega, readonly FulfillmentState[]> = {
+  DELIVERY: ['PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT', 'DELIVERED'],
+  RETIRO: ['PROCESSING', 'READY_FOR_PICKUP', 'PICKED_UP'],
+  RETIRO_SUCURSAL: ['PROCESSING', 'IN_TRANSIT', 'READY_FOR_PICKUP', 'PICKED_UP'],
+  TRASLADO: ['PROCESSING', 'IN_TRANSIT', 'READY_FOR_PICKUP', 'PICKED_UP'],
+}
+
+// Estados que cada método puede usar (los laterales al final: parcial / no
+// entregado). Un estado que no está acá jamás se muestra ni se acepta para ese
+// método.
+export const ESTADOS_POR_METODO: Record<MetodoEntrega, readonly FulfillmentState[]> = {
+  DELIVERY: [...FLUJOS.DELIVERY, 'PARTIAL', 'NOT_DELIVERED'],
+  RETIRO: [...FLUJOS.RETIRO, 'PARTIAL'],
+  RETIRO_SUCURSAL: [...FLUJOS.RETIRO_SUCURSAL, 'PARTIAL'],
+  TRASLADO: [...FLUJOS.TRASLADO, 'PARTIAL'],
+}
+
+export const ETIQUETA_ESTADO_LATERAL: Record<string, string> = {
+  PARTIAL: 'Entrega parcial',
+  NOT_DELIVERED: 'No se pudo entregar',
+}
+
+const ETIQUETAS_FLUJO: Record<MetodoEntrega, Record<string, string>> = {
+  DELIVERY: {
+    PROCESSING: 'En preparación',
+    READY_TO_SHIP: 'Listo para enviar',
+    SHIPPED: 'Enviado',
+    IN_TRANSIT: 'En camino al cliente',
+    DELIVERED: 'Entregado',
+  },
+  RETIRO: {
+    PROCESSING: 'En preparación',
+    READY_FOR_PICKUP: 'Listo para retirar',
+    PICKED_UP: 'Retirado',
+  },
+  RETIRO_SUCURSAL: {
+    PROCESSING: 'En preparación',
+    IN_TRANSIT: 'En camino a la sucursal de retiro',
+    READY_FOR_PICKUP: 'Listo para retirar',
+    PICKED_UP: 'Retirado',
+  },
+  TRASLADO: {
+    PROCESSING: 'En preparación en sucursal origen',
+    IN_TRANSIT: 'En camino a la sucursal destino',
+    READY_FOR_PICKUP: 'Recibido en destino · listo para retirar',
+    PICKED_UP: 'Retirado',
+  },
+}
+
+// Transiciones válidas dentro de cada flujo. Los laterales se muestran como
+// estado actual, no como paso de la línea de progreso. La secuencia es flexible
+// (el repartidor puede salir a la calle sin pasar por "listo para enviar"), pero
+// los estados son exclusivos del método: nunca se cruzan.
+const TRANSICIONES: Record<MetodoEntrega, Partial<Record<FulfillmentState, readonly FulfillmentState[]>>> = {
+  DELIVERY: {
+    PENDING: ['PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT'],
+    PROCESSING: ['READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT'],
+    READY_TO_SHIP: ['SHIPPED', 'IN_TRANSIT'],
+    SHIPPED: ['IN_TRANSIT', 'DELIVERED'],
+    IN_TRANSIT: ['DELIVERED', 'PARTIAL', 'NOT_DELIVERED'],
+    NOT_DELIVERED: ['PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT'],
+    PARTIAL: ['DELIVERED', 'NOT_DELIVERED'],
+    DELIVERED: [],
+  },
+  RETIRO: {
+    PENDING: ['PROCESSING', 'READY_FOR_PICKUP'],
+    PROCESSING: ['READY_FOR_PICKUP'],
+    READY_FOR_PICKUP: ['PICKED_UP', 'PARTIAL'],
+    PARTIAL: ['PICKED_UP'],
+    PICKED_UP: [],
+  },
+  RETIRO_SUCURSAL: {
+    PENDING: ['PROCESSING', 'IN_TRANSIT', 'READY_FOR_PICKUP'],
+    PROCESSING: ['IN_TRANSIT', 'READY_FOR_PICKUP'],
+    IN_TRANSIT: ['READY_FOR_PICKUP', 'PICKED_UP'],
+    READY_FOR_PICKUP: ['PICKED_UP', 'PARTIAL'],
+    PARTIAL: ['PICKED_UP'],
+    PICKED_UP: [],
+  },
+  TRASLADO: {
+    PENDING: ['PROCESSING', 'IN_TRANSIT', 'READY_FOR_PICKUP'],
+    PROCESSING: ['IN_TRANSIT', 'READY_FOR_PICKUP'],
+    IN_TRANSIT: ['READY_FOR_PICKUP', 'PICKED_UP'],
+    READY_FOR_PICKUP: ['PICKED_UP', 'PARTIAL'],
+    PARTIAL: ['PICKED_UP'],
+    PICKED_UP: [],
+  },
+}
+
+// Un pedido viejo puede estar en un estado de otro flujo (p. ej. un retiro que
+// quedó "listo para enviar"): desde ahí solo se converge al flujo del método,
+// nunca a los primeros pasos.
+function convergencia(metodo: MetodoEntrega): readonly FulfillmentState[] {
+  return ESTADOS_POR_METODO[metodo].filter(estado => estado !== 'PENDING' && estado !== 'PROCESSING')
+}
+
+/** Estado de seguimiento con la línea de progreso del método. */
+export function seguimientoDeEntrega(deliveryType: string | null | undefined, estadoActual: string, fechas: Record<string, string> = {}) {
+  const metodo = metodoDeEntrega(deliveryType)
+  const flujo = FLUJOS[metodo]
+  const actual = estadoActual === 'PENDING' ? 'PROCESSING' : estadoActual
+  const indice = flujo.indexOf(actual as FulfillmentState)
+  const lateral = Object.hasOwn(ETIQUETA_ESTADO_LATERAL, estadoActual)
+  return {
+    metodo,
+    metodoLabel: METODO_ENTREGA_LABELS[metodo],
+    encabezado: SEGUIMIENTO_ENCABEZADO[metodo],
+    estado: estadoActual,
+    estadoLabel: lateral ? ETIQUETA_ESTADO_LATERAL[estadoActual] : ETIQUETAS_FLUJO[metodo][actual] || actual,
+    pasos: flujo.map((paso, posicion) => ({
+      key: paso,
+      label: ETIQUETAS_FLUJO[metodo][paso],
+      hecho: Boolean(fechas[paso]) || (indice >= 0 && posicion <= indice) || (lateral && posicion < flujo.length - 1),
+      actual: paso === actual,
+      at: fechas[paso] || null,
+    })),
+  }
+}
 
 
 function has(user: AuthUser, permission: string) {
@@ -64,14 +190,18 @@ export function validateFulfillmentTransition(current: string, requested: unknow
   const next = textInput(requested, 'Estado de entrega', 50) as FulfillmentState
   if (!FULFILLMENT_STATES.includes(next)) throw new InputError('Estado de entrega inválido.')
   if (current === next) throw new InputError('El pedido ya tiene ese estado de entrega.')
-  // Con tipo de entrega conocido se acotan los estados exclusivos del otro tipo.
-  if (options.deliveryType !== undefined) {
-    const tipo = tipoDeEntrega(options.deliveryType)
-    if (tipo === 'RETIRO' && SOLO_DELIVERY.includes(next)) throw new InputError('Ese estado es de una entrega por reparto, no de un retiro.', 409)
-    if (tipo === 'DELIVERY' && SOLO_RETIRO.includes(next)) throw new InputError('Ese estado es de un retiro en tienda, no de un reparto.', 409)
+  // El método (delivery / retiro / retiro en otra sucursal / traslado) define
+  // qué estados existen: jamás estados incompatibles. Dentro del método se
+  // acepta avanzar (incluso saltando pasos: el reparto real hace preparando →
+  // entregado) y reparar datos; el orden fino lo ofrece la UI.
+  const metodo = metodoDeEntrega(options.deliveryType)
+  const propios = ESTADOS_POR_METODO[metodo]
+  if (!propios.includes(next)) {
+    throw new InputError(`Ese estado no aplica a ${METODO_ENTREGA_LABELS[metodo]} (${SEGUIMIENTO_ENCABEZADO[metodo].toLowerCase()}).`, 409)
   }
-  if (!FULFILLMENT_STATES.includes(current as FulfillmentState) || !nextStates[current as FulfillmentState].includes(next)) {
-    throw new InputError('La transición de entrega no está permitida.', 409)
+  const finales: readonly FulfillmentState[] = ['DELIVERED', 'PICKED_UP']
+  if (finales.includes(current as FulfillmentState)) {
+    throw new InputError('El pedido ya está entregado.', 409)
   }
   return next
 }

@@ -110,4 +110,4 @@ export const MEDIOS_PAGO = [
 
 export const ESTADOS_PAGO = ['Pagado', 'No pagado']
 
-export const ENTREGA = ['Retiro en tienda', 'Delivery', 'Encomienda']
+export const ENTREGA = ['Retiro en tienda', 'Delivery', 'Encomienda', 'Retiro en otra sucursal', 'Envío entre sucursales']

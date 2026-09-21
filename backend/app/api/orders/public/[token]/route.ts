@@ -2,6 +2,7 @@ import { prisma } from '../../../../../lib/prisma'
 import { createHash } from 'node:crypto'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
+import { seguimientoDeEntrega } from '../../../../../lib/orders'
 
 // Vista pública del pedido. El token es aleatorio y no enumerable: autoriza una
 // sola vista según su nivel (rapido | completo | detallado). El token histórico
@@ -59,12 +60,28 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     },
   })
 
+  // Fechas por actualización de entrega (#191): la línea de progreso del
+  // tracking muestra cuándo se cumplió cada paso del método.
+  const eventosEntrega = await prisma.auditLog.findMany({
+    where: { tenantId: order.tenantId, entity: 'Order', entityId: order.id, action: 'ORDER_FULFILLMENT_UPDATED' },
+    orderBy: { createdAt: 'asc' },
+    select: { createdAt: true, metadata: true },
+  })
+  const fechasEntrega: Record<string, string> = {}
+  for (const evento of eventosEntrega) {
+    const actual = (evento.metadata as { current?: unknown } | null)?.current
+    if (typeof actual === 'string' && !fechasEntrega[actual]) fechasEntrega[actual] = evento.createdAt.toISOString()
+  }
+  if (!fechasEntrega[order.fulfillmentStatus]) fechasEntrega[order.fulfillmentStatus] = order.updatedAt.toISOString()
+  const tracking = seguimientoDeEntrega(order.deliveryType, order.fulfillmentStatus, fechasEntrega)
+
   const base = {
     level,
     orderNumber: order.orderNumber,
     status: order.status,
     fulfillmentStatus: order.fulfillmentStatus,
     deliveryType: order.deliveryType,
+    tracking,
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     customerName: order.customer?.name || null,
