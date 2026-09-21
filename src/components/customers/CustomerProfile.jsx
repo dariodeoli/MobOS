@@ -2106,7 +2106,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
             <Button type="button" variant="outline" disabled={!portal?.token} onClick={copiarPortal}><Icon name="copy" className="h-4 w-4" />Copiar enlace</Button>
             <Button type="button" variant="outline" disabled={!portal?.token} onClick={() => window.open(portalUrlFor(portal.token), '_blank', 'noopener')}><Icon name="external" className="h-4 w-4" />Abrir</Button>
             <Button type="button" variant="outline" disabled={!portal?.token} onClick={() => window.open(portalVitrinaUrlFor(portal.token), '_blank', 'noopener')}><Icon name="store" className="h-4 w-4" />Abrir vitrina</Button>
-            <Button type="button" variant="outline" disabled={portalBusy || !portal?.token} onClick={() => setConfirmarRegenerar(true)}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>
+            <Button type="button" variant="outline" disabled={portalBusy || (!portal?.token && !portal?.reused)} onClick={() => setConfirmarRegenerar(true)}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>
           </div>
         </div>
       </Modal>

@@ -1004,3 +1004,35 @@ test('portal del cliente → QA 360/768/1440 con nota pública, pedidos y compro
   expect(publica.status).toBe(200)
   expect(publica.serial).toBe(`PQA-${marca}`)
 })
+
+
+// Regresión #204: con un enlace del portal vigente (solo hash), la ficha avisa
+// que no se vuelve a mostrar y deja regenerarlo (antes el botón quedaba
+// deshabilitado sin salida).
+test('portal: el enlace vigente avisa y se puede regenerar', async ({ page }) => {
+  await page.goto('/clientes')
+  const marca = Date.now()
+  const cliente = await crmApi(page, '/api/customers', { method: 'POST', body: JSON.stringify({ name: `Portal Regen ${marca}` }) })
+  expect(cliente.status).toBe(201)
+
+  await page.goto(`/clientes?cliente=${encodeURIComponent(cliente.body.id)}`)
+  const ficha = page.getByRole('dialog')
+  await ficha.getByRole('button', { name: 'Portal del cliente' }).click()
+  await expect(page.getByAltText('QR del portal del cliente')).toBeVisible()
+  const primerEnlace = await page.locator('p.break-all').textContent()
+  expect(primerEnlace).toContain('/cuenta/')
+  await page.getByRole('dialog', { name: 'Portal del cliente' }).getByRole('button', { name: 'Cerrar' }).click()
+
+  // Reabrir: el enlace no se vuelve a mostrar, pero Regenerar está disponible.
+  await ficha.getByRole('button', { name: 'Portal del cliente' }).click()
+  await expect(page.getByText(/Ya hay un enlace vigente/)).toBeVisible()
+  const regenerar = ficha.getByRole('button', { name: 'Regenerar' })
+  await expect(regenerar).toBeEnabled()
+  await regenerar.click()
+  await ficha.getByRole('button', { name: 'Regenerar', exact: true }).last().click()
+  await expect(page.getByAltText('QR del portal del cliente')).toBeVisible({ timeout: 15000 })
+  const segundoEnlace = await page.locator('p.break-all').textContent()
+  expect(segundoEnlace).toContain('/cuenta/')
+  expect(segundoEnlace).not.toBe(primerEnlace)
+  await page.screenshot({ path: '/tmp/qa204-portal-regenerar.png' })
+})
