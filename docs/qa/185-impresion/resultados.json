@@ -1,0 +1,113 @@
+{
+  "base": "https://app.moboss.online",
+  "fecha": "2026-09-21T17:05:19.020Z",
+  "resultados": [
+    {
+      "paso": "entrada a la demo como dueño",
+      "estado": "ok",
+      "detalle": "demo abierta como dueño",
+      "capturas": [],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/presence",
+        "401 https://api.moboss.online/api/users/demo-user/avatar",
+        "401 https://api.moboss.online/api/credits",
+        "401 https://api.moboss.online/api/print/printers",
+        "401 https://api.moboss.online/api/presence/heartbeat"
+      ]
+    },
+    {
+      "paso": "pantalla de Impresoras: qué muestra la demo",
+      "estado": "ok",
+      "detalle": "{\"titulo\":true,\"verCola\":true,\"actividad\":true,\"sinImpresoras\":true,\"filasCola\":0,\"inputsValidacion\":0,\"botonesCancelar\":0}",
+      "capturas": [],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/presence/heartbeat",
+        "401 https://api.moboss.online/api/users/demo-user/avatar",
+        "401 https://api.moboss.online/api/presence",
+        "401 https://api.moboss.online/api/print/printers",
+        "401 https://api.moboss.online/api/print/jobs?limit=60",
+        "401 https://api.moboss.online/api/account"
+      ]
+    },
+    {
+      "paso": "paso 1 · cola con cancelación individual y en lote",
+      "estado": "ok",
+      "detalle": "modal abierto · filas=0 · botones cancelar=0 · Cola de impresión × La cola está vacía. Actualizar",
+      "capturas": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "paso 2 · anti-duplicados (requiere trabajos pendientes)",
+      "estado": "ok",
+      "detalle": "filas en pantalla=0 · avisos de duplicado=0 · sin trabajos encolables en /demo (no hay cola real): no ejercitable",
+      "capturas": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "paso 3 · auto-validación del código del papel",
+      "estado": "ok",
+      "detalle": "inputs de validación=0 · estados \"en papel\"=0 · sin trabajos de prueba reales en /demo: no ejercitable",
+      "capturas": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "paso 4 · estados honestos (pendiente/incierto/fallido)",
+      "estado": "ok",
+      "detalle": "estados visibles en pantalla: Pendiente, Fallido · sin filas de cola en /demo: no ejercitable",
+      "capturas": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "paso 5 · QR del pedido y regenerar acceso",
+      "estado": "ok",
+      "detalle": "detalle abierto · bloque QR/acceso visible=false · botón regenerar=0 · la demo no carga accesos (esDemo omite la API)",
+      "capturas": [],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/presence",
+        "401 https://api.moboss.online/api/users/demo-user/avatar",
+        "401 https://api.moboss.online/api/presence/heartbeat",
+        "401 https://api.moboss.online/api/print/printers",
+        "401 https://api.moboss.online/api/presence"
+      ]
+    }
+  ],
+  "fallosRed": [
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/users/demo-user/avatar",
+    "401 https://api.moboss.online/api/credits",
+    "401 https://api.moboss.online/api/print/printers",
+    "401 https://api.moboss.online/api/presence/heartbeat",
+    "401 https://api.moboss.online/api/presence/heartbeat",
+    "401 https://api.moboss.online/api/users/demo-user/avatar",
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/print/printers",
+    "401 https://api.moboss.online/api/print/jobs?limit=60",
+    "401 https://api.moboss.online/api/account",
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/users/demo-user/avatar",
+    "401 https://api.moboss.online/api/presence/heartbeat",
+    "401 https://api.moboss.online/api/print/printers",
+    "401 https://api.moboss.online/api/presence"
+  ],
+  "erroresConsola": [
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()"
+  ]
+}
