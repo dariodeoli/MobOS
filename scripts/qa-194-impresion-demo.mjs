@@ -63,13 +63,6 @@ async function paso(nombre, fn) {
   }
 }
 
-// Un paso que en el demo anónimo no se puede ejercitar (necesita API/sesión):
-// se documenta con su motivo y no hace fallar el veredicto.
-function pasoNoAplicable(nombre, motivo) {
-  resultados.push({ paso: nombre, estado: 'no-aplicable', detalle: motivo, capturas: [], llamadasApi: [] })
-  console.log(`N/A   ${nombre} — ${motivo}`)
-}
-
 const esperar = (ms) => page.waitForTimeout(ms)
 const filaDe = (validacion) => page.getByRole('row').filter({ hasText: validacion })
 
@@ -193,10 +186,42 @@ await paso('anti-duplicados demo: aviso de duplicado y «Reimprimir igual»', as
   return 'el segundo click avisó del duplicado y «Reimprimir igual» sumó una copia ficticia'
 })
 
-pasoNoAplicable(
-  'QR impreso que no vence y reimpresión',
-  'no se puede ejercitar en el demo anónimo: los tokens del QR salen del backend y el demo no tiene sesión; en el demo el acceso del cliente no se genera. Se verifica en el e2e de QR y en producción escaneando un comprobante real.',
-)
+const tokenDelComprobante = async (page) => {
+  const marco = page.locator('iframe[title="Vista previa del comprobante"]')
+  await marco.waitFor({ state: 'attached', timeout: 15000 })
+  const html = await marco.evaluate((nodo) => nodo.getAttribute('srcdoc') || '')
+  const encontrado = html.match(/\/pedidos\/([A-Za-z0-9._-]+)/)
+  return encontrado ? encontrado[1] : ''
+}
+
+await paso('QR del comprobante en demo: token ficticio estable y por nivel (#204)', async (captura) => {
+  await page.goto(`${BASE}/pedidos`, { waitUntil: 'domcontentloaded' })
+  await esperar(2500)
+  const fila = page.getByTestId('pedido-fila').first()
+  if (!(await fila.count())) throw new Error('la lista de pedidos de la demo no cargó filas')
+  await fila.click()
+  await esperar(1500)
+  await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
+  await esperar(1200)
+  await captura(shot('qr-comprobante-demo'))
+  const tokenCompleto = await tokenDelComprobante(page)
+  if (!/^demo-/.test(tokenCompleto)) throw new Error(`el QR demo no usa un token ficticio: ${tokenCompleto || '(vacío)'}`)
+  const html = await page.locator('iframe[title="Vista previa del comprobante"]').evaluate((nodo) => nodo.getAttribute('srcdoc') || '')
+  if (/MOBOS:/.test(html)) throw new Error('el QR demo usa el esquema viejo MOBOS:')
+  if (!/https?:\/\//.test(html)) throw new Error('el QR demo no apunta a una URL absoluta de la app')
+  // Cambiar de nivel emite el token de ese nivel…
+  await page.getByLabel('Tipo de comprobante').selectOption('detallado')
+  await esperar(1200)
+  const tokenDetallado = await tokenDelComprobante(page)
+  if (!tokenDetallado || tokenDetallado === tokenCompleto) throw new Error(`el nivel detallado reutilizó el token de completo: ${tokenDetallado}`)
+  await captura(shot('qr-demo-nivel-detallado'))
+  // …y volver al nivel original reutiliza el mismo token (reimpresión).
+  await page.getByLabel('Tipo de comprobante').selectOption('completo')
+  await esperar(1200)
+  const tokenReimpreso = await tokenDelComprobante(page)
+  if (tokenReimpreso !== tokenCompleto) throw new Error(`reimprimir el mismo nivel cambió el token: ${tokenReimpreso} vs ${tokenCompleto}`)
+  return `token ficticio estable por nivel (${tokenCompleto}) y reimpresión con el mismo token`
+})
 
 async function expectVisible(locator, timeout, mensaje) {
   try {

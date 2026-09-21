@@ -6,7 +6,7 @@ import { api } from '@/lib/api/client'
 import { printingApi } from '@/lib/api/printing'
 import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob, diagnosticoAgente, enmascararToken, esIdBackend, estadoAgente, historialAgente, impresoraHaciaBackend, importarConfigUnaVez, imprimirTicketRouter, limpiarFallidos, puenteDe, refrescarDesdeBackend, registrarUltimaPrueba, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
-import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, textoVerificacion } from '@/lib/printing/estadoImpresoras'
+import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, colorTrabajo, etiquetaTrabajo, textoVerificacion } from '@/lib/printing/estadoImpresoras'
 import { colaDemo, historialDemo, storeDemo } from '@/lib/printing/demo'
 import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
 import Avatar from '@/components/shared/Avatar'
@@ -52,8 +52,6 @@ function sinRespuesta(fila) {
   const cuando = fila?.fecha ? new Date(fila.fecha).getTime() : 0
   return Boolean(cuando) && Date.now() - cuando > MINUTOS_SIN_RESPUESTA * 60 * 1000
 }
-
-const COLOR_RESULTADO = { confirmado: 'green', impreso: 'green', aceptado: 'blue', incierto: 'orange', fallido: 'red' }
 
 // Tono semántico del estado vivo → color/clase del sistema de diseño.
 const COLOR_TONO = { ok: 'green', bad: 'red', slate: 'slate', blue: 'blue', orange: 'orange' }
@@ -1084,7 +1082,7 @@ export default function Impresoras() {
                         )}
                       </td>
                       <td className="px-2 py-2 text-right">
-                        <Badge color={COLOR_RESULTADO[fila.resultado] || 'slate'}>{fila.resultado}</Badge>
+                        <Badge color={colorTrabajo(fila.resultado)}>{etiquetaTrabajo(fila.resultado)}</Badge>
                       </td>
                       <td className="px-2 py-2 text-right">
                         <Button type="button" variant="ghost" className="h-auto px-1 py-1" onClick={() => setDetalleAbierto(abierto ? '' : clave)} aria-expanded={abierto} aria-label={abierto ? 'Ocultar detalle' : 'Ver detalle'}>
@@ -1148,7 +1146,7 @@ export default function Impresoras() {
         {equiposAbiertos && (sesiones === null ? (
           <Skeleton className="h-16 w-full" />
         ) : !sesiones.length ? (
-          <EmptyState compact icon="users" title="No hay sesiones registradas." />
+          <EmptyState compact icon="users" title="No hay sesiones registradas." description="Las sesiones activas de la empresa aparecen acá para revocarlas." />
         ) : (
           <div className="space-y-2">
             {sesiones.map((activa) => (
@@ -1287,7 +1285,7 @@ export default function Impresoras() {
       <Modal open={verColaAbierta} onClose={() => setVerColaAbierta(false)} title="Cola de impresión" className="max-w-2xl">
         <div className="space-y-4">
           {!pendientes.length && !fallidos.length && !remotosEnCurso.length ? (
-            <EmptyState compact icon="check" title="La cola está vacía." />
+            <EmptyState compact icon="check" title="La cola está vacía." description="Cuando un trabajo no sale, queda acá para reintentarlo o limpiarlo." />
           ) : (
             <div className="space-y-4">
               {pendientes.length > 0 && (

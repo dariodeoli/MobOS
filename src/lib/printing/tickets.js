@@ -683,5 +683,6 @@ export function ticketVerificacionImei(resumen, { ancho = 80 } = {}) {
   t.linea()
   t.texto('Comprobante informativo: no acredita propiedad ni reemplaza la')
   t.texto('verificación oficial del equipo.')
+  t.texto('Documento no fiscal.')
   return t.avanza(2).corte()
 }

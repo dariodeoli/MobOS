@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { TIPOS_TICKET_PRUEBA, ticketComprobante, ticketEtiquetaProducto, ticketEtiquetasProducto, ticketNotaEntrega, ticketProforma, ticketPruebaTipo, ticketReciboInterno, ticketRemision } from './tickets.js'
+import { TIPOS_TICKET_PRUEBA, ticketComprobante, ticketEtiquetaProducto, ticketEtiquetasProducto, ticketNotaEntrega, ticketProforma, ticketPruebaTipo, ticketReciboInterno, ticketRemision, ticketVerificacionImei } from './tickets.js'
 import { digitoVerificadorEan, esEan13, formatoDeCodigo } from './codigos.js'
 
 const opciones = { ancho: 80, impresora: 'lan:192.168.1.23:9100', nombre: 'ZKP8008', equipo: 'mac-puente', copias: 1 }
@@ -319,4 +319,32 @@ test("el lote de etiquetas imprime la cantidad pedida por producto", () => {
   assert.equal(ticket.lineas().filter((linea) => linea.includes("[BARRA]")).length, 3)
   assert.ok(texto.includes("E2E-FUNDA"))
   assert.ok(texto.includes("Gs 80.000"))
+})
+
+// #203: el comprobante de verificación de IMEI imprime la info mínima y
+// honesta (estado, fecha y fuente), avisa si es simulado y no expone datos
+// internos. La térmica corta el rollo como el resto de los comprobantes.
+test('el comprobante de verificación de IMEI imprime la info mínima y honesta', () => {
+  const ticket = ticketVerificacionImei({
+    imei: '•••••••••••1234',
+    etiqueta: 'Verificado',
+    detalle: 'IMEI verificado: sin reportes al 21/09/2026',
+    fechaTexto: '21/09/2026, 15:04',
+    fuente: 'IMEIcheck.net',
+    simulado: true,
+    cliente: 'Juan Pérez',
+    campos: [{ etiqueta: 'Blacklist actual', valor: 'Sin reportes actuales' }],
+  }, { ancho: 80 })
+  const texto = ticket.lineas().join('')
+  assert.ok(texto.includes('Verificación de IMEI'), 'título claro')
+  assert.ok(texto.includes('(simulada en demo)'), 'avisa cuando el resultado es ficticio')
+  assert.ok(texto.includes('•••••••••••1234'), 'el IMEI va enmascarado')
+  assert.ok(texto.includes('IMEI verificado: sin reportes al 21/09/2026'), 'estado y fecha')
+  assert.ok(texto.includes('IMEIcheck.net'), 'fuente visible')
+  assert.ok(texto.includes('Juan Pérez'), 'cliente en el comprobante')
+  assert.ok(texto.includes('Comprobante informativo'), 'aclaración honesta')
+  assert.ok(texto.includes('Documento no fiscal'), 'leyenda no fiscal (igual que el A4)')
+  assert.ok(!/costo|price|provider|raw/i.test(texto), 'sin datos internos')
+  assert.equal(ticket.corteEnviado(), true, 'envía el corte')
+  assert.ok(texto.includes('[CORTE]'), 'marca de corte en la vista previa')
 })

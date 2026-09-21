@@ -31,7 +31,7 @@ QR muerto: se omite el código.
 
 | QR | Ruta | Página |
 | --- | --- | --- |
-| Comprobante | `/p/<token>` | Seguimiento del pedido (token de impresión) |
+| Comprobante | `/pedidos/<token>` (`/p/<token>` redirige) | Seguimiento del pedido (token de impresión) |
 | Etiqueta de unidad | `/u/<serial>` | Ficha de la unidad (pide sesión) |
 | Etiqueta de precio | `/producto/<sku>` | Ficha del producto (pide sesión) |
 | Ticket de prueba | `/prueba?d=&v=&f=&t=` | Verificación física de la impresión |
@@ -227,6 +227,8 @@ estado se verifica en `/health.usb`.
 
 ## 6. Verificación antes de entregar
 
+- La **distribución del agente** (versiones, allow-list, checksum y rollback)
+  está en **`docs/IMPRESION-INSTALADOR.md`**.
 - `npm test` (unitarios de `src/**` + los del agente: `print-agent/test/**`,
   incluido el instalador y el empaquetado de `usb`).
 - `npm run test:e2e` con `e2e/impresion-remota.spec.js`: configuración, cola del

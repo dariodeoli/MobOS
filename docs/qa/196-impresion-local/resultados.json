@@ -1,6 +1,6 @@
 {
   "base": "http://127.0.0.1:5273",
-  "fecha": "2026-09-21T18:24:35.335Z",
+  "fecha": "2026-09-21T19:24:02.606Z",
   "resultados": [
     {
       "paso": "entrada a la demo como dueño",
@@ -90,10 +90,13 @@
       "llamadasApi": []
     },
     {
-      "paso": "QR impreso que no vence y reimpresión",
-      "estado": "no-aplicable",
-      "detalle": "no se puede ejercitar en el demo anónimo: los tokens del QR salen del backend y el demo no tiene sesión; en el demo el acceso del cliente no se genera. Se verifica en el e2e de QR y en producción escaneando un comprobante real.",
-      "capturas": [],
+      "paso": "QR del comprobante en demo: token ficticio estable y por nivel (#204)",
+      "estado": "ok",
+      "detalle": "token ficticio estable por nivel (demo-completo-demo-venta-hoy-partial) y reimpresión con el mismo token",
+      "capturas": [
+        "16-qr-comprobante-demo.jpg",
+        "17-qr-demo-nivel-detallado.jpg"
+      ],
       "llamadasApi": []
     }
   ],
@@ -104,6 +107,7 @@
     "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
     "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
     "Warning: validateDOMNesting(...): %s cannot appear as a child of <%s>.%s%s%s <p> tr   \n    at p\n    at tr\n    at tbody\n    at table\n    at div\n    at div\n    at Card (http://127.0.0.1:5273/src/components/ui/index.jsx:323:24)\n    at div\n    at Impresoras (http://127.0.0.1:5273/src/components/control/",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
     "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals"
   ],
   "erroresDeRed": [],
@@ -111,10 +115,11 @@
     "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
     "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
     "Warning: validateDOMNesting(...): %s cannot appear as a child of <%s>.%s%s%s <p> tr   \n    at p\n    at tr\n    at tbody\n    at table\n    at div\n    at div\n    at Card (http://127.0.0.1:5273/src/components/ui/index.jsx:323:24)\n    at div\n    at Impresoras (http://127.0.0.1:5273/src/components/control/",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
     "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals"
   ],
   "veredicto": {
-    "pasosOk": 9,
+    "pasosOk": 10,
     "pasosTotal": 10,
     "llamadasDeImpresion": 0,
     "llamadasDeOtrosModulos": 0,

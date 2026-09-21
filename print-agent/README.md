@@ -35,6 +35,9 @@ curl -fsSL https://api.moboss.online/print-agent/install.sh | bash
 Para desarrollo desde el clon: `bash print-agent/install.sh --from-repo`
 (equivale al instalador clásico `install-macos.sh`).
 
+Versiones, allow-list del paquete, verificación del checksum y rollback:
+**`docs/IMPRESION-INSTALADOR.md`**.
+
 ## Modo remoto (puente por el backend)
 
 Con un código de vinculación, el agente queda **pareado** y pasa a reclamar
