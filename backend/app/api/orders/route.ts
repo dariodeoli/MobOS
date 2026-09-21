@@ -314,7 +314,7 @@ export async function POST(request: Request) {
           create: { tenantId: tenant, customerId, name: billingName, document: billingDocument, createdById: session.user.id },
         })
       }
-      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; priceSource?: string; priceListId?: string; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
+      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; priceSource?: string; priceListId?: string; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any; comboId?: string; comboName?: string }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()
       // Diferencia acumulada entre precio de lista y precio cargado (venta bajo
@@ -332,6 +332,17 @@ export async function POST(request: Request) {
         serials.forEach(serial => serialsInOrder.add(serial))
         const promotion = item.couponCode === undefined ? undefined : await quotePromotion(tx, tenant, branchId, { ...item, quantity }, true)
         if (promotion && price !== promotion.unitPricePyg) throw new InputError('El precio del cupón cambió o fue alterado. Volvé a aplicarlo.', 409)
+        // Combo: la línea puede recordar de qué combo salió. Se valida contra la
+        // empresa y se congela el nombre para que el reporte no dependa del combo vivo.
+        let comboId: string | undefined; let comboName: string | undefined
+        if (item.comboId !== undefined && item.comboId !== null && item.comboId !== '') {
+          comboId = textInput(item.comboId, 'comboId', 200)
+          const combo = await tx.combo.findFirst({ where: { id: comboId, tenantId: tenant }, select: { name: true } })
+          if (!combo) throw new InputError('El combo de la línea no pertenece a esta empresa.', 404)
+          comboName = combo.name
+        } else if (item.comboName !== undefined && item.comboName !== null && item.comboName !== '') {
+          comboName = textInput(item.comboName, 'comboName', 200)
+        }
         let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let listPricePyg: number | undefined; let priceSource: string | undefined; let insurancePyg = 0; let extraCostPyg = 0; let costPending = false; let serialsPending = 0
         const soldWithoutInsurance = item.soldWithoutInsurance === true
         if (item.soldWithoutInsurance !== undefined && typeof item.soldWithoutInsurance !== 'boolean') throw new InputError('"Vendido sin seguro" debe ser verdadero o falso.')
@@ -409,7 +420,7 @@ export async function POST(request: Request) {
         subtotal += lineTotal
         if (!Number.isSafeInteger(subtotal)) throw new Error('Total fuera de rango seguro.')
         normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(listPricePyg === undefined ? {} : { listPricePyg }),
-          ...(priceSource === undefined ? {} : { priceSource }), ...(priceListId ? { priceListId } : {}), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
+          ...(priceSource === undefined ? {} : { priceSource }), ...(priceListId ? { priceListId } : {}), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}), ...(comboId ? { comboId } : {}), ...(comboName ? { comboName } : {}) })
       }
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery
