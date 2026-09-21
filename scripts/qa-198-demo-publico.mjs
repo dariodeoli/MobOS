@@ -283,7 +283,7 @@ try {
       await esperar(600)
       return `demo sin API: el modal abre pero responde «Falta sesión.» (no calcula métricas); verificado en su lugar en el encabezado del POS: ${tuDia.slice(0, 150)}`
     }
-    const boton7 = page.getByRole('button', { name: '7 días' })
+    const boton7 = page.getByText('7 días', { exact: true }).first()
     const conPeriodos = (await boton7.count()) > 0
     if (conPeriodos) {
       await boton7.click()

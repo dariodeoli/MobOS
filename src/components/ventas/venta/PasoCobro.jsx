@@ -294,14 +294,16 @@ export default function PasoCobro({
                   ? 'Delivery'
                   : x === 'Encomienda'
                     ? 'Envío por encomienda'
-                    : 'Retiro en tienda'}
+                    : x === 'Retiro en tienda'
+                      ? 'Retiro en tienda'
+                      : x}
               </option>
             ))}
           </Select>
         </div>
         <div>
           <Label htmlFor="monto-entrega">
-            {f.entrega === 'Encomienda' ? 'Costo de la encomienda (₲)' : 'Monto del delivery (₲)'}
+            {f.entrega === 'Retiro en tienda' ? 'Monto del delivery (₲)' : f.entrega === 'Encomienda' ? 'Costo de la encomienda (₲)' : 'Costo del envío (₲)'}
           </Label>
           <MoneyInput
             id="monto-entrega"

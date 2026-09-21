@@ -1,0 +1,32 @@
+{
+  "base": "https://app.moboss.online",
+  "fecha": "2026-09-21T19:34:57.976Z",
+  "filas": [
+    {
+      "viewport": "movil-360",
+      "ancho": 360,
+      "desbordeInicial": 0,
+      "desbordeCarrito": 0,
+      "desbordeCobro": 0,
+      "totalVisible": true,
+      "cobroVisible": true,
+      "bloquePago": 1,
+      "montoDeshabilitado": true,
+      "totalTexto": "TOTAL DE ESTA VENTA Gs 6.850.000 1 producto · 1 unidad TU DÍA 2 ventas · 2 pedidos Factura",
+      "erroresPagina": []
+    },
+    {
+      "viewport": "tablet-768",
+      "ancho": 768,
+      "desbordeInicial": 0,
+      "desbordeCarrito": 0,
+      "desbordeCobro": 0,
+      "totalVisible": true,
+      "cobroVisible": true,
+      "bloquePago": 1,
+      "montoDeshabilitado": true,
+      "totalTexto": "TOTAL DE ESTA VENTA Gs 6.850.000 1 producto · 1 unidad TU DÍA 2 ventas · 2 pedidos Factura",
+      "erroresPagina": []
+    }
+  ]
+}

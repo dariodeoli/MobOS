@@ -8,7 +8,7 @@ import Icon from '@/components/shared/Icon'
 // comparte el vendedor. Muestra lo mismo que el comprobante digital (productos,
 // precios, descuentos, total y condiciones) y un botón de checkout con el monto
 // que abre WhatsApp de la tienda para cerrar la compra.
-const TIPO_ENTREGA = { Delivery: 'Delivery', Encomienda: 'Envío por encomienda', 'Retiro en tienda': 'Retiro en tienda' }
+const TIPO_ENTREGA = { Delivery: 'Delivery', Encomienda: 'Envío por encomienda', 'Retiro en tienda': 'Retiro en tienda', 'Retiro en otra sucursal': 'Retiro en otra sucursal', 'Envío entre sucursales': 'Envío entre sucursales' }
 
 export default function CarritoPublico() {
   const { token } = useParams()
