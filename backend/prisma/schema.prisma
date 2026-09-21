@@ -112,6 +112,7 @@ model Tenant {
   suspendedSales          SuspendedSale[]
   commissionSettlements   CommissionSettlement[]
   deliverySettlements     DeliverySettlement[]
+  sifenDocuments          SifenDocument[]
 
   @@index([archivedAt])
 }
@@ -1089,6 +1090,7 @@ model Order {
   storeCredits StoreCredit[]
   storeCreditUses StoreCreditUse[]
   loyaltyMovements LoyaltyMovement[]
+  sifenDocuments SifenDocument[]
 
   @@unique([tenantId, orderNumber])
   @@unique([tenantId, idempotencyKey])
@@ -2470,4 +2472,48 @@ enum PrintJobState {
 enum PrintJobPath {
   LOCAL
   REMOTO
+}
+
+// Documento electrónico de SIFEN (#130, Fase 1). Guarda el XML, el CDC y el
+// estado por pedido. Sin certificado configurado la app sigue emitiendo
+// documentos no fiscales y esta tabla queda vacía: la emisión real es Fase 2.
+model SifenDocument {
+  id                String              @id @default(cuid())
+  tenantId          String
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderId           String
+  order             Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status            SifenDocumentStatus @default(DRAFT)
+  // Ambiente de SIFEN con el que se emitió (test | prod).
+  ambiente          String              @default("test")
+  tipoDocumento     Int                 @default(1)
+  establecimiento   String
+  puntoExpedicion   String
+  numero            Int
+  timbrado          String
+  // CDC de 44 dígitos; null mientras el borrador no se compone.
+  cdc               String?
+  // XML del DE (borrador sin firma hasta la Fase 2).
+  xml               String?
+  // Respuesta normalizada de SIFEN (código, mensaje y protocolo).
+  respuesta         Json?
+  // Último error de envío/consulta, en texto plano.
+  error             String?
+  enviadoAt         DateTime?
+  resueltoAt        DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Un DE por pedido y ambiente: reintentos y correcciones reutilizan la fila.
+  @@unique([orderId, ambiente])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@index([cdc])
+}
+
+enum SifenDocumentStatus {
+  DRAFT
+  SENT
+  APPROVED
+  REJECTED
 }
