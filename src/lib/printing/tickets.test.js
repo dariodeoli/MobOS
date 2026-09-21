@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { TIPOS_TICKET_PRUEBA, ticketComprobante, ticketEtiquetaProducto, ticketEtiquetasProducto, ticketNotaEntrega, ticketProforma, ticketPruebaTipo, ticketReciboInterno, ticketRemision, ticketVerificacionImei } from './tickets.js'
+import { TIPOS_TICKET_PRUEBA, ticketComprobante, ticketEtiquetaProducto, ticketEtiquetasProducto, ticketEtiquetaUnidad, ticketNotaEntrega, ticketProforma, ticketPruebaTipo, ticketReciboInterno, ticketRemision, ticketVerificacionImei } from './tickets.js'
 import { digitoVerificadorEan, esEan13, formatoDeCodigo } from './codigos.js'
 
 const opciones = { ancho: 80, impresora: 'lan:192.168.1.23:9100', nombre: 'ZKP8008', equipo: 'mac-puente', copias: 1 }
@@ -399,4 +399,47 @@ test('el comprobante de verificación de IMEI imprime la info mínima y honesta'
   assert.ok(!/costo|price|provider|raw/i.test(texto), 'sin datos internos')
   assert.equal(ticket.corteEnviado(), true, 'envía el corte')
   assert.ok(texto.includes('[CORTE]'), 'marca de corte en la vista previa')
+})
+
+// #220: la etiqueta de unidad lleva modelo, identificador, IMEI/serial completo
+// legible, QR y barras en bloques separados (no pegados): el operador tiene que
+// saber qué código escanear.
+test('la etiqueta de unidad separa modelo, identificador, IMEI, QR y barras (#220)', () => {
+  const unit = {
+    serial: '356789012345678',
+    condition: 'USED',
+    batteryHealth: 89,
+    supplierName: 'Proveedor XYZ',
+    location: { code: 'D2', name: 'Depósito 2' },
+    product: { model: 'iPhone 15 Pro', capacity: '256GB', color: 'Titanio' },
+  }
+  const lineas = ticketEtiquetaUnidad(unit, { ancho: 58, base: 'https://app.moboss.online' }).lineas()
+  const texto = lineas.join('\n')
+  // El modelo puede envolverse en 58 mm: se compara con espacios normalizados.
+  assert.ok(texto.replace(/\s+/g, ' ').includes('iPhone 15 Pro · 256GB · Titanio'), 'modelo')
+  assert.ok(texto.includes('IDENTIFICADOR'), 'rótulo del identificador')
+  assert.ok(texto.includes('5678'), 'identificador corto')
+  assert.ok(texto.includes('IMEI / SERIAL'), 'rótulo del serial')
+  assert.ok(texto.includes('356789012345678'), 'serial completo legible')
+  assert.ok(lineas.some((linea) => linea.trim() === '356789012345678'), 'el serial va completo en una línea')
+  assert.ok(texto.includes('CÓDIGO QR'), 'rótulo del QR')
+  assert.ok(texto.includes('[QR]'), 'el QR va en el ticket')
+  assert.ok(texto.includes('CÓDIGO DE UNIDAD'), 'rótulo del código de unidad')
+  assert.ok(texto.includes('MOBOS:356789012345678'), 'código de unidad como texto')
+
+  // Los payloads completos viajan en los bytes (la vista previa recorta):
+  // el QR con la URL de la unidad y las barras con el código MOBOS.
+  const bytes = atob(ticketEtiquetaUnidad(unit, { ancho: 58, base: 'https://app.moboss.online' }).base64())
+  assert.ok(bytes.includes('https://app.moboss.online/u/356789012345678'), 'el QR lleva la URL completa')
+  assert.ok(bytes.includes('MOBOS:356789012345678'), 'las barras llevan el código completo')
+
+  // Jerarquía: entre el QR y las barras hay una línea divisoria (no van pegados).
+  const iQr = lineas.findIndex((linea) => linea.includes('[QR]'))
+  const iBarra = lineas.findIndex((linea) => linea.includes('[BARRA]'))
+  assert.ok(iQr >= 0 && iBarra > iQr, 'QR antes que barras')
+  assert.ok(lineas.slice(iQr, iBarra).some((linea) => /^\s*-+\s*$/.test(linea)), 'divisoria entre QR y barras')
+
+  // En 80 mm el serial gana tamaño (doble ancho) sin cortarse.
+  const ancho80 = ticketEtiquetaUnidad(unit, { ancho: 80, base: 'https://app.moboss.online' }).lineas().join('\n')
+  assert.ok(ancho80.includes('356789012345678'), 'serial completo en 80 mm')
 })

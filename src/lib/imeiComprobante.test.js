@@ -7,6 +7,16 @@ test('el IMEI se muestra enmascarado (solo los últimos 4)', () => {
   assert.equal(enmascararImei('123'), '•••')
 })
 
+test('el IMEI ya enmascarado no se enmascara de nuevo (el comprobante conserva los últimos 4)', () => {
+  // El backend devuelve `imeiMasked`: volver a enmascarar borraba los dígitos.
+  const delBackend = resumenImei({ imei: '•••••••••••5673', status: 'verificado', normalized: [] })
+  assert.equal(delBackend.imei, '•••••••••••5673')
+  const crudo = resumenImei({ imei: '356789102345673', status: 'verificado', normalized: [] })
+  assert.equal(crudo.imei, '•••••••••••5673')
+  // El papel y el HTML usan el resumen tal cual.
+  assert.ok(htmlComprobanteImei(delBackend).includes('•••••••••••5673'))
+})
+
 test('valida el dígito control (Luhn) antes de consultar', () => {
   assert.equal(imeiValido('356789102345673'), true)
   assert.equal(imeiValido('356789102345679'), false)

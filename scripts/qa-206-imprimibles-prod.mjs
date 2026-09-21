@@ -3,7 +3,9 @@
 // Corre contra el demo anónimo (no toca datos reales) y deja la evidencia en
 // docs/qa/206-imprimibles-prod:
 //  1. Venta demo en el POS y comprobante en A4, 80 mm y 58 mm (rápido /
-//     completo / detallado): un PDF por tamaño y captura del documento.
+//     completo / detallado): un PDF por tamaño y captura del documento. El
+//     nivel y el formato se eligen igual con <select> o con el radiogroup de
+//     iconos (#208).
 //  2. Resumen del día en A4 (ejecutivo) y 58/80 mm: PDF por tamaño, captura y
 //     medición del bloque de firma en el layout real del rollo (rol, 18 mm de
 //     aire sobre la línea, aclaración, CI, fecha y observaciones).
@@ -40,6 +42,8 @@ const FORMATOS = [
   { id: 'thermal-80', etiqueta: 'térmico 80 mm', anchoMm: 80, margen: { top: '5mm', bottom: '5mm', left: '4mm', right: '4mm' } },
   { id: 'thermal-58', etiqueta: 'térmico 58 mm', anchoMm: 58, margen: { top: '5mm', bottom: '5mm', left: '4mm', right: '4mm' } },
 ]
+const ETIQUETA_FORMATO = { a4: 'A4', 'thermal-80': '80 mm', 'thermal-58': '58 mm' }
+const ETIQUETA_NIVEL = { rapido: 'Rápido', completo: 'Completo', detallado: 'Detallado' }
 const NIVELES = ['rapido', 'completo', 'detallado']
 const SELECTOR_COMPROBANTE = 'iframe[title="Vista previa del comprobante"]'
 const SELECTOR_REPORTE = 'iframe[title="Vista previa · Resumen ejecutivo"]'
@@ -149,6 +153,25 @@ async function pdfYCaptura(nombre, html, formato) {
   }
 }
 
+// El nivel y el formato se eligen con <select> (pantallas viejas) o con el
+// radiogroup de botones con iconos (#208). Se soportan los dos: devuelve true
+// si la opción ya estaba activa (no hubo cambio de HTML).
+async function aplicarControl({ radio, ariaLabel, valor }) {
+  const boton = radio ? page.getByRole('radio', { name: radio }) : null
+  if (boton && (await boton.count())) {
+    const activo = (await boton.getAttribute('aria-checked')) === 'true'
+    if (!activo) await boton.click()
+    return activo
+  }
+  const select = page.getByLabel(ariaLabel)
+  if ((await select.count()) && (await select.evaluate((el) => el.tagName)) === 'SELECT') {
+    const activo = (await select.inputValue()) === valor
+    if (!activo) await select.selectOption(valor)
+    return activo
+  }
+  throw new Error(`no encontré el control «${ariaLabel}»`)
+}
+
 // ── 1. Entrada al demo ──────────────────────────────────────────────────────
 await paso('entrada a la demo como dueño', async ({ captura: shot }) => {
   await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded', timeout: 60000 })
@@ -192,16 +215,9 @@ await paso('venta demo en el POS y comprobante A4/80/58', async ({ captura: shot
   // async, así que la espera es por cambio de contenido, no por tiempo).
   async function elegirComprobante(nivel, formato) {
     const htmlAntes = await htmlDeIframe(iframe)
-    let cambio = false
-    if ((await page.getByLabel('Tipo de comprobante').inputValue()) !== nivel) {
-      await page.getByLabel('Tipo de comprobante').selectOption(nivel)
-      cambio = true
-    }
-    if ((await page.getByLabel('Formato de impresión').inputValue()) !== formato.id) {
-      await page.getByLabel('Formato de impresión').selectOption(formato.id)
-      cambio = true
-    }
-    if (!cambio) return htmlAntes
+    const igualNivel = await aplicarControl({ radio: `Comprobante ${ETIQUETA_NIVEL[nivel]}`, ariaLabel: 'Tipo de comprobante', valor: nivel })
+    const igualFormato = await aplicarControl({ radio: `Formato ${ETIQUETA_FORMATO[formato.id]}`, ariaLabel: 'Formato de impresión', valor: formato.id })
+    if (igualNivel && igualFormato) return htmlAntes
     await esperarIframe(SELECTOR_COMPROBANTE, htmlAntes)
     return htmlDeIframe(iframe)
   }
@@ -239,8 +255,8 @@ await paso('resumen del día (A4, 80 y 58 mm) y firmas del rollo', async ({ capt
   const firmas = {}
   async function elegirFormato(formato) {
     const htmlAntes = await htmlDeIframe(iframe)
-    if ((await page.getByLabel('Formato de impresión').inputValue()) === formato.id) return htmlAntes
-    await page.getByLabel('Formato de impresión').selectOption(formato.id)
+    const igual = await aplicarControl({ radio: `Formato ${ETIQUETA_FORMATO[formato.id]}`, ariaLabel: 'Formato de impresión', valor: formato.id })
+    if (igual) return htmlAntes
     await esperarIframe(SELECTOR_REPORTE, htmlAntes)
     return htmlDeIframe(iframe)
   }
@@ -293,7 +309,10 @@ await paso('resumen del día (A4, 80 y 58 mm) y firmas del rollo', async ({ capt
     if (!observaciones || observaciones.lineas < 2) throw new Error(`${formato}: el área de observaciones no tiene dos líneas`)
     if (observaciones.altoLineaMm < 10) throw new Error(`${formato}: la línea de observaciones mide ${observaciones.altoLineaMm} mm`)
   }
-  return `${generados.length} PDFs · firmas medidas en ${Object.keys(firmas).join(' y ')}`
+  const detalleFirmas = Object.entries(firmas)
+    .map(([formato, medida]) => `${formato}: ${medida.firmas.map((firma) => `${firma.rol} ${firma.espacioMm} mm`).join(' / ')}`)
+    .join(' · ')
+  return `${generados.length} PDFs · firmas medidas → ${detalleFirmas}`
 })
 
 // ── 4. Comprobante de IMEI (#203) ───────────────────────────────────────────
@@ -318,6 +337,8 @@ await paso('comprobante de verificación de IMEI (#203)', async ({ captura: shot
   for (const marca of ['Simulada en demo', 'IMEI verificado', 'IMEIcheck.net', 'Comprobante informativo']) {
     if (!texto.includes(marca)) throw new Error(`la verificación de IMEI no muestra «${marca}»`)
   }
+  // El IMEI va enmascarado con los últimos 4 visibles (no solo bolitas).
+  if (!/•{4,}\d{4}/.test(texto)) throw new Error('el IMEI no muestra los últimos 4 dígitos')
   // En demo la impresión no se simula: avisa y no encola nada (se verifica
   // también al final que no haya llamadas al API de impresión).
   await modal.getByRole('button', { name: 'Imprimir comprobante' }).click()

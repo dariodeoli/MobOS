@@ -23,6 +23,25 @@ const NOMBRE_SUCURSAL_A = 'Térmica E2E sucursal A'
 const DESTINO_SUCURSAL_A = 'lan:10.99.99.40:9100'
 const NOMBRE_SUCURSAL_B = 'Térmica E2E sucursal B'
 const DESTINO_SUCURSAL_B = 'lan:10.99.99.41:9100'
+const NOMBRE_IMEI = 'Térmica E2E IMEI'
+const DESTINO_IMEI = 'lan:10.99.99.50:9100'
+
+// IMEI de 15 dígitos con verificador Luhn, único por corrida (mismo cálculo que
+// usa la prueba de #203 en admin.spec).
+function imeiValidoE2e(semilla) {
+  const base = String(semilla).padStart(14, '7').slice(0, 14)
+  const luhn = (cadena) => {
+    let suma = 0
+    for (let i = 0; i < 15; i += 1) {
+      let digito = Number(cadena[14 - i])
+      if (i % 2 === 1) { digito *= 2; if (digito > 9) digito -= 9 }
+      suma += digito
+    }
+    return suma % 10 === 0
+  }
+  for (let c = 0; c <= 9; c += 1) if (luhn(base + c)) return base + c
+  return `${base}0`
+}
 
 // Venta sintética en la segunda sucursal: el arnés no tiene forma de vender
 // desde otra sucursal (el pedido toma la del vendedor), así que la alerta de
@@ -844,6 +863,63 @@ test.describe('impresión remota: cola con puente falso', () => {
     await expect(page.getByText('Prueba enviada por TCP')).toBeVisible({ timeout: 15_000 })
     expect(locales).toBeGreaterThan(0)
     expect(remotos).toBe(0)
+  })
+
+  test('el comprobante de IMEI (#203) sale impreso por el puente con su ticket', async ({ page }) => {
+    // Sin agente local: el camino tiene que ser el remoto (el puente falso).
+    await page.route('http://127.0.0.1:17890/**', (ruta) => ruta.abort())
+    const nombrePuente = `Puente IMEI ${Date.now()}`
+    const codigo = await crearPuentePorUi(page, nombrePuente)
+    const { token, bridgeId } = await parearPuente({ api: API, code: codigo })
+    const puente = crearPuenteFalso({ api: API, token })
+    puente.iniciar()
+    try {
+      await asegurarImpresoraRemota(page, { nombre: NOMBRE_IMEI, destino: DESTINO_IMEI, bridgeId })
+      // Datos mínimos para que la ficha ofrezca el comprobante: cliente,
+      // producto, unidad con IMEI válido, pedido y verificación en modo mock.
+      const marca = Date.now()
+      const imei = imeiValidoE2e(marca)
+      const cliente = await apiImpresion(page, '/api/customers', { method: 'POST', body: JSON.stringify({ name: `IMEI Impresión ${marca}` }) })
+      expect(cliente.status).toBe(201)
+      const producto = await apiImpresion(page, '/api/products', { method: 'POST', body: JSON.stringify({ sku: `E2E-IMEI-IMP-${marca}`, name: 'Equipo IMEI impresión', category: 'Celulares', pricePyg: 1000000, costPyg: 700000, stock: 0, branchId: SEED.branchId }) })
+      expect(producto.status).toBe(201)
+      const unidad = await apiImpresion(page, '/api/inventory-units', { method: 'POST', body: JSON.stringify({ productId: producto.datos.id, branchId: SEED.branchId, serial: imei }) })
+      expect(unidad.status).toBe(201)
+      const pedido = await apiImpresion(page, '/api/orders', { method: 'POST', body: JSON.stringify({ orderNumber: `E2E-IMEI-IMP-${marca}`, customerId: cliente.datos.id, items: [{ productId: producto.datos.id, description: 'Equipo IMEI impresión', quantity: 1, unitPricePyg: 1000000, inventoryUnitSerials: [imei] }], payment: { method: 'CASH', amountPyg: 1000000 } }) })
+      expect(pedido.status).toBe(201)
+      const check = await apiImpresion(page, '/api/imei', { method: 'POST', body: JSON.stringify({ action: 'checks', imei, servicio: 'APPLE_BASIC', confirm: true, requestId: `e2e-imei-imp-${marca}` }) })
+      expect([200, 201]).toContain(check.status)
+
+      // #209: la impresora recordada para el tipo manda; se deja la del puente.
+      await page.goto(`/clientes?cliente=${encodeURIComponent(cliente.datos.id)}`)
+      await page.evaluate((destino) => {
+        const datos = JSON.parse(localStorage.getItem('mobos:impresion:ultimo') || '{}')
+        datos['imei-check'] = { ...datos['imei-check'], destino, ancho: 80 }
+        localStorage.setItem('mobos:impresion:ultimo', JSON.stringify(datos))
+      }, DESTINO_IMEI)
+      const ficha = page.getByRole('dialog')
+      await ficha.getByRole('tab', { name: /^Pedidos/ }).click()
+      await ficha.getByRole('button', { name: 'Verificación IMEI' }).first().click()
+      const modal = page.getByRole('dialog', { name: 'Verificación de IMEI' })
+      await expect(modal.getByText(/IMEI verificado: sin reportes/)).toBeVisible()
+      await expect(modal.getByText(/Fuente IMEIcheck\.net/)).toBeVisible()
+      await modal.getByRole('button', { name: 'Imprimir comprobante' }).click()
+
+      // El puente falso reclama el trabajo: el papel es el ticket de IMEI.
+      const trabajo = await puente.esperarTrabajo((item) => item.destination === DESTINO_IMEI)
+      const ticket = Buffer.from(String(trabajo.payload || ''), 'base64').toString('latin1')
+      expect(ticket).toContain('IMEIcheck.net')
+      expect(ticket).toContain('Documento no fiscal')
+      expect(ticket).toContain('Comprobante informativo')
+      expect(ticket).toContain('Fuente')
+      expect(ticket).toContain(imei.slice(-4))
+      const detalle = await apiImpresion(page, `/api/print/jobs/${trabajo.id}`)
+      expect(detalle.datos?.job?.kind).toBe('imei-check')
+      expect(detalle.datos?.job?.state).toBe('ACEPTADO')
+      await page.screenshot({ path: '/tmp/qa203-imei-impreso.png' })
+    } finally {
+      puente.detener()
+    }
   })
 })
 

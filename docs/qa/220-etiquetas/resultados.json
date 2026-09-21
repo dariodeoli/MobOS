@@ -1,0 +1,42 @@
+{
+  "base": "http://127.0.0.1:5279",
+  "fecha": "2026-09-21T22:31:11.564Z",
+  "resultados": [
+    {
+      "documento": "etiqueta-unidad-58",
+      "formato": "58 mm",
+      "tipo": "html",
+      "estado": "ok"
+    },
+    {
+      "documento": "etiquetas-lote-58",
+      "formato": "58 mm",
+      "tipo": "html",
+      "estado": "ok"
+    },
+    {
+      "documento": "etiqueta-unidad-58-termico",
+      "formato": "térmico 58 mm",
+      "tipo": "escpos",
+      "estado": "ok"
+    },
+    {
+      "documento": "etiqueta-unidad-80",
+      "formato": "80 mm",
+      "tipo": "html",
+      "estado": "ok"
+    },
+    {
+      "documento": "etiquetas-lote-80",
+      "formato": "80 mm",
+      "tipo": "html",
+      "estado": "ok"
+    },
+    {
+      "documento": "etiqueta-unidad-80-termico",
+      "formato": "térmico 80 mm",
+      "tipo": "escpos",
+      "estado": "ok"
+    }
+  ]
+}

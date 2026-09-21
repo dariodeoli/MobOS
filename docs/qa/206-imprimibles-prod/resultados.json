@@ -1,0 +1,89 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "1.0.133",
+  "fecha": "2026-09-21T22:32:58.199Z",
+  "resultados": [
+    {
+      "paso": "entrada a la demo como dueño",
+      "estado": "ok",
+      "detalle": "demo abierta como dueño",
+      "capturas": [
+        "01-panel-demo.jpg"
+      ],
+      "pdfs": [],
+      "llamadasApi": []
+    },
+    {
+      "paso": "venta demo en el POS y comprobante A4/80/58",
+      "estado": "ok",
+      "detalle": "9 PDFs (3 niveles × 3 tamaños)",
+      "capturas": [
+        "02-comprobante-vista-previa.jpg",
+        "03-comprobante-completo-a4.jpg",
+        "04-comprobante-completo-thermal-80.jpg",
+        "05-comprobante-completo-thermal-58.jpg"
+      ],
+      "pdfs": [
+        "comprobante-rapido-a4.pdf",
+        "comprobante-rapido-thermal-80.pdf",
+        "comprobante-rapido-thermal-58.pdf",
+        "comprobante-completo-a4.pdf",
+        "comprobante-completo-thermal-80.pdf",
+        "comprobante-completo-thermal-58.pdf",
+        "comprobante-detallado-a4.pdf",
+        "comprobante-detallado-thermal-80.pdf",
+        "comprobante-detallado-thermal-58.pdf"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "resumen del día (A4, 80 y 58 mm) y firmas del rollo",
+      "estado": "ok",
+      "detalle": "3 PDFs · firmas medidas → thermal-80: Responsable 18.3 mm / Control 18.3 mm · thermal-58: Responsable 18.3 mm / Control 18.3 mm",
+      "capturas": [
+        "06-resumen-dia-58.jpg"
+      ],
+      "pdfs": [
+        "resumen-dia-a4.pdf",
+        "resumen-dia-thermal-80.pdf",
+        "resumen-dia-thermal-58.pdf"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "comprobante de verificación de IMEI (#203)",
+      "estado": "fallo",
+      "detalle": "el IMEI no muestra los últimos 4 dígitos",
+      "capturas": [
+        "07-imei-verificacion-demo.jpg",
+        "08-fallo-comprobante-de-verificaci-n-de-IMEI-203.jpg"
+      ],
+      "pdfs": [],
+      "llamadasApi": []
+    },
+    {
+      "paso": "bundle de producción con los bloques de #206/#203",
+      "estado": "ok",
+      "detalle": "v1.0.133 con las 12 marcas de #206/#203 en 3 bundle(s)",
+      "capturas": [],
+      "pdfs": [],
+      "llamadasApi": []
+    },
+    {
+      "paso": "el demo no llama al API de impresión",
+      "estado": "ok",
+      "detalle": "0 llamadas · 0 al API general",
+      "capturas": [],
+      "pdfs": [],
+      "llamadasApi": []
+    }
+  ],
+  "llamadasApi": [],
+  "erroresConsola": [],
+  "veredicto": {
+    "pasosOk": 5,
+    "pasosTotal": 6,
+    "llamadasImpresion": 0,
+    "erroresConsola": 0
+  }
+}

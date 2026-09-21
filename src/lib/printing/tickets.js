@@ -6,7 +6,8 @@ import { ETIQUETAS_MEDIO_PAGO } from '../constants.js'
 import { CHECKLISTS } from '../servicioChecklist.js'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from './codigos.js'
 import { bloqueFirma, crearTicket } from './escpos.js'
-import { baseDeApp, qrProducto, qrPrueba, qrUnidad } from './qr.js'
+import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from './etiquetaUnidad.js'
+import { baseDeApp, qrProducto, qrPrueba } from './qr.js'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 
@@ -129,26 +130,32 @@ export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link 
 // Una etiqueta de unidad dentro de un ticket ya abierto (sirve para una suelta
 // o para un lote, sin duplicar el diseño). `base` es la base de la app para el
 // QR: sin base no se imprime un código muerto (ver `qr.js`).
+// Etiqueta de una unidad de stock (#220): modelo, identificador, IMEI/serial
+// completo legible, QR y código de barras en bloques separados por líneas, para
+// que no se confunda qué código escanear. El diseño de 58 mm no es el de 80
+// escalado: el serial va en doble ancho solo cuando entra completo.
 function etiquetaUnidadEn(t, unit, { base = baseDeApp() } = {}) {
-  const serial = String(unit.serial || '')
-  const condicion = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }[unit.condition] || unit.condition || ''
-  const enlace = qrUnidad(serial, base)
-  t.centrado(`${APP_NAME} · ETIQUETA`)
+  const datos = datosEtiquetaUnidad(unit, { base })
+  const contexto = contextoEtiquetaUnidad(datos)
+  t.centrado(`${APP_NAME} · ETIQUETA DE UNIDAD`)
   t.linea()
-  t.negrita().texto(unit.product?.name || 'Producto').negrita(false)
-  if (condicion) t.texto(condicion)
-  if (unit.batteryHealth) t.texto(`Batería ${unit.batteryHealth}%`)
-  if (unit.location?.name) t.texto(`Ubicación: ${unit.location.name}`)
-  if (unit.supplierName) t.texto(`Proveedor: ${unit.supplierName}`)
+  t.negrita().texto(datos.modelo).negrita(false)
+  if (contexto) t.texto(contexto)
   t.linea()
-  if (serial) {
-    t.centrado('IMEI / Serial')
-    t.centrado(serial)
-    t.avanza(1)
-    // El QR abre la unidad en la app; el código de barras sigue siendo el que
-    // lee el escáner del local (`MOBOS:<serial>`).
-    if (enlace) t.qr(enlace, { tamano: 7, etiqueta: 'QR de la unidad' })
-    t.barcode(`MOBOS:${serial}`, { etiqueta: 'Código de barras' })
+  // Identificador: el número corto que se tipea o se dicta.
+  t.centrado('IDENTIFICADOR')
+  t.negrita().doble().centrado(datos.identificador).doble(false).negrita(false)
+  if (datos.serial) {
+    t.centrado('IMEI / SERIAL')
+    if (t.columnas >= datos.serial.length * 2) t.doble().centrado(datos.serial).doble(false)
+    else t.centrado(datos.serial)
+  }
+  t.linea()
+  if (datos.enlace) t.qr(datos.enlace, { tamano: 7, etiqueta: 'CÓDIGO QR' })
+  t.linea()
+  if (datos.codigo) {
+    t.barcode(datos.codigo, { etiqueta: 'CÓDIGO DE UNIDAD' })
+    t.centrado(datos.codigo)
   }
   t.linea()
   t.centrado('Escaneá para buscar, vender o verificar esta unidad.')
