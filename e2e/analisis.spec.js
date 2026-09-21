@@ -25,4 +25,25 @@ test.describe('análisis', () => {
     await expect(page).toHaveURL(/\/analisis\/asistente$/)
     await expect(page.getByRole('heading', { name: 'Asistente de ganancias' })).toBeVisible()
   })
+
+  // #181: Reportes reutiliza el calendario y el desglose de Ganancias; los
+  // números tienen que coincidir para el mismo período.
+  test('Reportes reutiliza el resultado por día de Ganancias sin cambiar los números', async ({ page }) => {
+    const esperarReporteDiario = () => page.waitForResponse(
+      (respuesta) => respuesta.url().includes('/api/reports') && respuesta.url().includes('groupBy=day') && respuesta.status() === 200,
+    )
+
+    await Promise.all([esperarReporteDiario(), page.goto('/analisis/ganancias')])
+    await expect(page.getByRole('heading', { name: 'Cómo se calcula' })).toBeVisible()
+    const resultadoGanancias = (await page.getByTestId('ganancia-resultado').textContent())?.trim()
+
+    await Promise.all([esperarReporteDiario(), page.goto('/analisis/reportes?rango=hoy')])
+    await expect(page.getByRole('heading', { name: 'Resultado por día' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Cómo se calcula el resultado' })).toBeVisible()
+    await expect(page.getByText('Mismos números que Análisis → Ganancias')).toBeVisible()
+    await expect(page.getByText('Sin ventas', { exact: true })).toBeVisible()
+
+    const resultadoReportes = (await page.getByTestId('reporte-resultado').textContent())?.trim()
+    expect(resultadoReportes).toBe(resultadoGanancias)
+  })
 })
