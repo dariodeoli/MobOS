@@ -4,6 +4,7 @@ import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import SerialField from '@/components/shared/SerialField'
 import { api } from '@/lib/api/client'
+import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
 import { useEffect, useRef } from 'react'
 
 const decimal = (value) => {
@@ -59,7 +60,7 @@ export function updateAccountPayment(payment, change, accounts) {
   return { ...next, medioPago: account?.name || '', cuenta: account?.name || '', monto: account && original > 0 && rate > 0 && Number.isSafeInteger(amount) ? String(amount) : '' }
 }
 
-export default function PaymentAccountFields({ payment, accounts, onChange }) {
+export default function PaymentAccountFields({ payment, accounts, onChange, pendientePyg = 0 }) {
   const account = accounts.find((a) => a.id === payment.accountId)
   const onChangeRef = useRef(onChange)
   useEffect(() => { onChangeRef.current = onChange })
@@ -79,11 +80,21 @@ export default function PaymentAccountFields({ payment, accounts, onChange }) {
       <CuentaCobroCombobox
         value={payment.accountId || ''}
         accounts={accounts}
-        onChange={(accountId) => onChange({ accountId, originalAmount: '', exchangeRatePyg: '', tradeIn: undefined })}
+        onChange={(accountId) => {
+          // Al elegir la cuenta se propone el saldo que falta, en la moneda de
+          // la cuenta (así «dividir el pago» sale con un clic).
+          const elegida = accounts.find((a) => a.id === accountId)
+          const esPyg = !elegida || elegida.currency === 'PYG'
+          const rate = esPyg ? 1 : decimal(payment.exchangeRatePyg)
+          const propuesto = pendientePyg > 0 && rate > 0
+            ? (esPyg ? String(Math.round(pendientePyg)) : (pendientePyg / rate).toFixed(2).replace('.', ','))
+            : ''
+          onChange({ accountId, originalAmount: propuesto, exchangeRatePyg: payment.exchangeRatePyg, tradeIn: undefined })
+        }}
       />
       {account && <p className="mt-1 flex items-center gap-1.5 text-xs text-mute"><Icon name="wallet" className="h-3.5 w-3.5" />{[account.bank, account.accountNumber, account.holder].filter(Boolean).join(' · ') || 'Sin datos bancarios'}{account.settlementDays > 0 ? ` · acredita en ${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : ''}</p>}
     </div>
-    <div><Label htmlFor="monto-original">Monto original ({account?.currency || 'moneda de la cuenta'})</Label><MoneyInput id="monto-original" aria-label="Monto original" disabled={!account} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={FOREIGN(account?.currency) ? '0,00' : '0'} /></div>
+    <div><Label htmlFor="monto-original">Monto original ({account?.currency || 'moneda de la cuenta'})</Label><MoneyInput id="monto-original" aria-label="Monto original" disabled={!account} max={LIMITE_MONTO_VENTAS} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={FOREIGN(account?.currency) ? '0,00' : '0'} /></div>
     {FOREIGN(account?.currency) && <div><Label htmlFor="cotizacion-manual">Cotización (₲ por {account.currency}){account.currency === 'USD' ? ' · automática, editable' : ''}</Label><MoneyInput id="cotizacion-manual" aria-label={`Cotización manual ${account.currency} a PYG`} currency="USD" symbol="Gs." value={payment.exchangeRatePyg || ''} onValueChange={(v) => onChange({ exchangeRatePyg: v })} placeholder="Ingresar cotización" /></div>}
     <p className="rounded-lg border border-fono/20 bg-fono/5 px-3 py-2 text-sm sm:col-span-2">Equivalente: <b className="tabular-nums text-fore">{gs(Number(payment.monto) || 0)}</b></p>
     {account?.kind === 'TRADE_IN' && <>

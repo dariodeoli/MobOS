@@ -301,6 +301,10 @@ export default function PasoProductos({
               )}
               {familiasVisibles.map(fam => {
                 const p = fam.items[0]
+                // Stock y datos de la ficha para elegir sin adivinar.
+                const stockFamilia = fam.items.reduce((suma, item) => suma + num(item.stock), 0)
+                const modelo = p.model || p.modelo || ''
+                const capacidad = p.capacity || p.capacidad || ''
                 return (
                   <button
                     type="button"
@@ -323,9 +327,16 @@ export default function PasoProductos({
                     )}
                     <span className="min-w-0">
                       <strong className="block truncate text-sm">{fam.base}</strong>
-                      <span className="block text-xs text-mute">
+                      <span className="block truncate text-xs text-mute">
                         {fam.items.length > 1 ? fam.items.length + ' variantes · desde ' : ''}
                         {gs(Math.min(...fam.items.map(item => num(item.precioVenta))))}
+                      </span>
+                      <span className="block truncate text-[11px] text-mute">
+                        {[modelo, capacidad].filter(Boolean).join(' · ')}
+                        {modelo || capacidad ? ' · ' : ''}
+                        {stockFamilia > 0
+                          ? <b className="font-semibold text-ok">{stockFamilia} en stock</b>
+                          : <b className="font-semibold text-bad">Agotado</b>}
                       </span>
                     </span>
                   </button>

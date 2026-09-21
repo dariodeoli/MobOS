@@ -74,6 +74,9 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await amountInputs.nth(0).fill('25000')
   await expect(paymentsSection.getByText('Equivalente: Gs 25.000')).toBeVisible()
 
+  // Con un pago parcial aparece «Dividir saldo» con lo que falta.
+  await expect(paymentsSection.getByRole('button', { name: /^Dividir saldo/ })).toBeVisible()
+
   // Second payment account covers the remainder.
   await addPayment.click()
   await expect(accountSelects).toHaveCount(2)
@@ -95,6 +98,8 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
     .getByRole('status')
     .filter({ hasText: 'Venta registrada correctamente. Ya podés cargar la siguiente.' })
   await expect(banner).toBeVisible()
+  // La confirmación muestra el número de pedido recién creado.
+  await expect(banner).toContainText(/Pedido MOB-#\d{4,} creado/)
   // Vista previa del comprobante con nivel y formato elegibles.
   await banner.getByRole('button', { name: 'Imprimir comprobante' }).click()
   await expect(page.getByLabel('Tipo de comprobante')).toBeVisible()
@@ -563,6 +568,9 @@ test('POS: analytics del día y menciones en comentarios', async ({ page }) => {
   await expect(panel.getByText('Items por pedido')).toBeVisible()
   await expect(panel.getByText('Ubicación', { exact: false })).toHaveCount(0)
   await expect(panel.getByText('Top productos')).toBeVisible()
+  // Período de los desgloses y cobros por cuenta.
+  await panel.getByRole('tab', { name: '7 días' }).click()
+  await expect(panel.getByText('Cobros por cuenta')).toBeVisible()
   await panel.getByText('Cerrar', { exact: true }).click()
 
   // Comentario con mención: se elige del autocompletado y queda resaltada.
@@ -644,3 +652,22 @@ test('POS offline: reporte, conflicto al sincronizar y descarte', async ({ page,
   await page.getByRole('dialog').getByRole('button', { name: 'Descartar', exact: true }).click()
   await expect(page.getByTestId('cola-offline')).toHaveCount(0, { timeout: 15_000 })
 })
+
+// #175 (§6): el código escaneado se muestra y se agrega recién al confirmar.
+test('POS: el producto escaneado pide confirmación antes de entrar a la venta', async ({ page }) => {
+  await page.goto('/pos')
+  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await page.getByPlaceholder('Buscar producto…').fill(`MOBOS:PROD:${SEED.products.cable.sku}`)
+
+  const dialogo = page.getByRole('dialog')
+  await expect(dialogo.getByText('Producto escaneado')).toBeVisible()
+  await expect(dialogo.getByText(SEED.products.cable.name)).toBeVisible()
+  await dialogo.getByRole('button', { name: 'Cancelar' }).click()
+  await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
+
+  await page.getByPlaceholder('Buscar producto…').fill('')
+  await page.getByPlaceholder('Buscar producto…').fill(`MOBOS:PROD:${SEED.products.cable.sku}`)
+  await page.getByRole('dialog').getByRole('button', { name: 'Agregar a la venta' }).click()
+  await expect(page.getByLabel(`Cantidad de ${SEED.products.cable.name}`)).toBeVisible()
+})
+

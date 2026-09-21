@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import {
   getProductos,
@@ -17,6 +18,7 @@ import { leerCarrito, guardarCarrito, borrarCarrito, lineasParaResumen } from '@
 import { encolarVenta } from '@/lib/offline/ventas'
 import { descartarPreCliente } from '@/lib/preClientes'
 import { normalizarNombre } from '@/utils/nombre'
+import { codigoPedido } from '@/utils/pedido'
 import { esErrorDeRed } from '@/lib/offline/queue'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { allocateCheckout } from '@/utils/checkout'
@@ -230,6 +232,7 @@ export default function FormularioVenta({
   onTradeInConsumed,
 }) {
   const { sesion, esDemo, empresa } = useSesion()
+  const navigate = useNavigate()
   const puedeDescontar = esDemo || ['dueno', 'GERENTE'].includes(sesion?.rol)
   const productos = getProductos().filter(p => p.activo)
   const familias = agruparProductos(productos)
@@ -320,6 +323,9 @@ export default function FormularioVenta({
   const [enlacePublico, setEnlacePublico] = useState(null)
   const [avisoEnlace, setAvisoEnlace] = useState('')
   const [analyticsOpen, setAnalyticsOpen] = useState(false)
+  // Producto leído por el escáner: se muestra y se agrega recién al confirmar
+  // (evita sumar al carrito por una lectura accidental).
+  const [escaneado, setEscaneado] = useState(null)
   const [descartarPendiente, setDescartarPendiente] = useState(null)
   const [descartando, setDescartando] = useState(false)
   const [avisoSuspension, setAvisoSuspension] = useState('')
@@ -439,6 +445,12 @@ export default function FormularioVenta({
     }
   }, [])
 
+  // Sin productos no queda nada que descontar: el descuento global no puede
+  // quedar "residual" de una venta anterior.
+  useEffect(() => {
+    if (items.length === 0 && gsNum(descuento) > 0) setDescuento('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length])
   // Combos activos de la tienda para agregarlos como varias líneas de una vez.
   useEffect(() => {
     if (esDemo) { setCombos([]); return }
@@ -707,14 +719,15 @@ export default function FormularioVenta({
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, f.cliente])
-  // Escaneo de etiqueta de precio (MOBOS:PROD:<sku>): agrega el producto al
-  // carrito directo, sin buscarlo a mano. El lector USB escribe como teclado.
+  // Escaneo de etiqueta (MOBOS:PROD:<sku>): el lector USB escribe como teclado.
+  // Se muestra el producto y se agrega al confirmar, no de prepo.
   useEffect(() => {
     const match = busquedaProducto.trim().toUpperCase().match(/^MOBOS:PROD:([A-Z0-9-]+)$/)
     if (!match) return
     const producto = productos.find(item => String(item.sku || '').toUpperCase() === match[1])
-    if (producto) { agregarProducto(producto); setBusquedaProducto('') }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setBusquedaProducto('')
+    if (producto) setEscaneado(producto)
+    else setErrorVenta(`El código escaneado no está en el catálogo (${match[1]}).`)
   }, [busquedaProducto, productos])
 
   const familiasVisibles = familias.filter(fam => {
@@ -1164,13 +1177,16 @@ export default function FormularioVenta({
     }
   }
 
-  function agregarPago() {
+  // `prefill.monto` llega de «Dividir saldo» (el saldo que falta): en el cobro
+  // legacy se precarga tal cual; con cuentas, el monto lo propone la cuenta al
+  // elegirla (PaymentAccountFields conoce el pendiente).
+  function agregarPago(prefill = {}) {
     if (!cuentas) return
     setPagos(arr => [
       ...arr,
       usaCuentas
-        ? { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '' }
-        : { ...PAGO_VACIO, monto: pendiente > 0 ? String(pendiente) : '' },
+        ? { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '', ...(prefill.monto ? { monto: String(prefill.monto) } : {}) }
+        : { ...PAGO_VACIO, monto: prefill.monto ? String(prefill.monto) : pendiente > 0 ? String(pendiente) : '' },
     ])
   }
 
@@ -1497,7 +1513,15 @@ export default function FormularioVenta({
           aria-live="polite"
           className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-ok/30 bg-ok/10 p-4 text-ok"
         >
-          <span>Venta registrada correctamente. Ya podés cargar la siguiente.</span>
+          <span className="grid h-9 w-9 shrink-0 animate-pulse place-items-center rounded-full bg-ok/20">
+            <Icon name="check" className="h-4 w-4" />
+          </span>
+          <span className="min-w-0">
+            <b className="block">
+              {lastOrder?.orderNumber ? `Pedido ${codigoPedido(lastOrder.orderNumber)} creado` : 'Venta registrada'}
+            </b>
+            Venta registrada correctamente. Ya podés cargar la siguiente.
+          </span>
           {lastOrder && (
             <>
               {whatsappTrackingLink(lastOrder) && (
@@ -1512,6 +1536,13 @@ export default function FormularioVenta({
               )}
               <Button type="button" variant="outline" onClick={() => setComprobante(true)}>
                 Imprimir comprobante
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate(`/pedidos/${encodeURIComponent(lastOrder.id)}`)}
+              >
+                Ver pedido
               </Button>
             </>
           )}
@@ -1669,6 +1700,8 @@ export default function FormularioVenta({
               tieneCupon={tieneCupon}
               f={f}
               setF={setF}
+              cliente={customer?.name || f.cliente}
+              vendedor={sesion?.nombre}
             />
 
             <PasoCobro
@@ -1964,6 +1997,44 @@ export default function FormularioVenta({
       </Modal>
 
       <AnalyticsPos open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
+
+      {/* Código escaneado: se confirma antes de sumarlo a la venta. */}
+      <Modal open={Boolean(escaneado)} onClose={() => setEscaneado(null)} title="Producto escaneado" className="max-w-md">
+        {escaneado && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              {escaneado.imagen || escaneado.imageUrl ? (
+                <img src={escaneado.imagen || escaneado.imageUrl} alt="" className="h-14 w-14 rounded-lg object-cover" />
+              ) : (
+                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
+                  <Icon name="box" className="h-6 w-6" />
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{escaneado.nombre || escaneado.name}</p>
+                <p className="text-xs text-mute">
+                  {[escaneado.sku, escaneado.model || escaneado.modelo, escaneado.capacity || escaneado.capacidad].filter(Boolean).join(' · ')}
+                </p>
+                <p className="mt-0.5 text-sm">
+                  {gs(Number(escaneado.precioVenta) || 0)} ·{' '}
+                  {num(escaneado.stock) > 0
+                    ? <span className="text-ok">{num(escaneado.stock)} en stock</span>
+                    : <span className="text-bad">Agotado</span>}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="ghost" onClick={() => setEscaneado(null)}>Cancelar</Button>
+              <Button
+                type="button"
+                onClick={() => { agregarProducto(escaneado); setEscaneado(null) }}
+              >
+                Agregar a la venta
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {lastOrder && <ComprobantePreview order={lastOrder} open={comprobante} onClose={() => setComprobante(false)} />}
     </Card>

@@ -3,6 +3,7 @@ import { Modal, Button, Skeleton } from '@/components/ui'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { tableroPos, comparacion } from '@/lib/posAnalytics'
+import { fechaClave } from '@/utils/calculos'
 import { cn } from '@/lib/utils'
 
 // Tablero del POS (#156): ventas de hoy contra ayer, pedidos, unidades por
@@ -53,9 +54,22 @@ function Lista({ titulo, filas, valorDe, etiquetaDe }) {
   )
 }
 
+// Períodos de los desgloses (top productos, vendedores, pagos). El encabezado
+// siempre compara hoy contra ayer.
+const PERIODOS = [['hoy', 'Hoy'], ['7d', '7 días'], ['mes', 'Este mes']]
+const desdeDePeriodo = (periodo) => {
+  const hoy = new Date()
+  if (periodo === 'hoy') return fechaClave(hoy)
+  const desde = new Date(hoy)
+  if (periodo === '7d') desde.setDate(desde.getDate() - 6)
+  else desde.setDate(1)
+  return fechaClave(desde)
+}
+
 export default function AnalyticsPos({ open, onClose }) {
   const [ordenes, setOrdenes] = useState(null)
   const [error, setError] = useState('')
+  const [periodo, setPeriodo] = useState('hoy')
 
   useEffect(() => {
     if (!open) return undefined
@@ -68,7 +82,10 @@ export default function AnalyticsPos({ open, onClose }) {
     return () => { vivo = false }
   }, [open])
 
-  const tablero = useMemo(() => (ordenes ? tableroPos(ordenes) : null), [ordenes])
+  const tablero = useMemo(
+    () => (ordenes ? tableroPos(ordenes, { desde: desdeDePeriodo(periodo) }) : null),
+    [ordenes, periodo],
+  )
   const cambioVentas = tablero ? comparacion(tablero.hoy.ventas, tablero.ayer.ventas) : 0
 
   return (
@@ -77,6 +94,23 @@ export default function AnalyticsPos({ open, onClose }) {
       {!tablero && !error && <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-40 w-full" /></div>}
       {tablero && (
         <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-[10.5px] font-bold uppercase tracking-wider text-mute">Resumen de hoy</h3>
+            <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1" role="tablist" aria-label="Período del análisis">
+              {PERIODOS.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={periodo === id}
+                  onClick={() => setPeriodo(id)}
+                  className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', periodo === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Metrica label="Ventas de hoy" valor={gs(tablero.hoy.ventas)} extra={<Cambio valor={cambioVentas} />} />
             <Metrica label="Pedidos" valor={tablero.hoy.pedidos} extra={<span className="text-[11px] text-mute">ayer {tablero.ayer.pedidos}</span>} />
@@ -92,7 +126,8 @@ export default function AnalyticsPos({ open, onClose }) {
             <Lista titulo="Top productos" filas={tablero.topProductos} valorDe={(fila) => fila.ventas} etiquetaDe={(fila) => `${fila.nombre} · ${fila.unidades} u.`} />
             <Lista titulo="Ventas por vendedor" filas={tablero.porVendedor} valorDe={(fila) => fila.ventas} etiquetaDe={(fila) => `${fila.etiqueta} · ${fila.pedidos} ped.`} />
             <Lista titulo="Ventas por sucursal" filas={tablero.porSucursal} valorDe={(fila) => fila.ventas} etiquetaDe={(fila) => fila.etiqueta} />
-            <Lista titulo="Cobros por medio" filas={tablero.pagos} valorDe={(fila) => fila.monto} etiquetaDe={(fila) => `${fila.etiqueta} · ${fila.pagos} pago(s)`} />
+            <Lista titulo={`Cobros por medio · ${periodo === 'hoy' ? 'hoy' : periodo === '7d' ? '7 días' : 'mes'}`} filas={tablero.pagos} valorDe={(fila) => fila.monto} etiquetaDe={(fila) => `${fila.etiqueta} · ${fila.pagos} pago(s)`} />
+            <Lista titulo="Cobros por cuenta" filas={tablero.pagosPorCuenta} valorDe={(fila) => fila.monto} etiquetaDe={(fila) => `${fila.etiqueta} · ${fila.pagos} pago(s)`} />
           </div>
 
           <div className="flex justify-end">

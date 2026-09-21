@@ -21,7 +21,8 @@ import { DEMO_MESSAGE_TEMPLATES } from '@/components/customers/customerMessaging
 import { gs } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 import { codigoPedido } from '@/utils/pedido'
-import { getVendedores } from '@/lib/storage'
+import { getVendedores, ventaDesdeApi } from '@/lib/storage'
+import PagosPedido from './PagosPedido'
 import { consultaDeMencion, insertarMencion, tramosDeMencion } from '@/utils/menciones'
 
 const FULFILLMENT = FULFILLMENT_LABELS
@@ -106,6 +107,11 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const [accesoBusy, setAccesoBusy] = useState(false)
   const [accesoMsg, setAccesoMsg] = useState('')
   const [comprobante, setComprobante] = useState(false)
+  // Cobrar el saldo pendiente sin salir del detalle (mismo modal que Cobranzas).
+  const [cobroAbierto, setCobroAbierto] = useState(false)
+  // Nota del pedido editable desde el detalle (#21).
+  const [notaOpen, setNotaOpen] = useState(false)
+  const [notaTexto, setNotaTexto] = useState('')
   const [detail, setDetail] = useState(null)
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(!esDemo)
@@ -396,6 +402,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               {!esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
               {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
               {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
+              {!esDemo && !anulado && pendiente > 0 && <Button variant="outline" onClick={() => setCobroAbierto(true)}>Cobrar saldo · {gs(pendiente)}</Button>}
               <Button variant="outline" onClick={() => setComprobante(true)}>Imprimir comprobante</Button>
               <Button variant="outline" onClick={imprimirNotaEntrega}>Nota de entrega</Button>
               {!esDemo && !anulado && <Button variant="outline" onClick={abrirAnular}>Anular pedido</Button>}
@@ -530,7 +537,26 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 {!order.customer?.addresses?.length && <p className="mt-1 text-xs text-mute">Sin dirección cargada.</p>}
               </div>
             </div>
-            {order.notes && <p className="mt-3 rounded-lg bg-ink-700/60 px-3 py-2 text-xs text-mute">Nota: {order.notes}</p>}
+            {order.notes && !notaOpen && <p className="mt-3 rounded-lg bg-ink-700/60 px-3 py-2 text-xs text-mute">Nota: {order.notes}</p>}
+            {!esDemo && (notaOpen ? (
+              <div className="mt-3 space-y-2">
+                <Textarea rows={2} maxLength={2000} value={notaTexto} onChange={(event) => setNotaTexto(event.target.value)} placeholder="Nota interna del pedido" aria-label="Nota del pedido" />
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="ghost" onClick={() => setNotaOpen(false)}>Cancelar</Button>
+                  <Button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { notes: notaTexto }), 'Nota guardada.').then(() => setNotaOpen(false))}
+                  >
+                    Guardar nota
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="mt-2 text-xs font-semibold text-fono-light hover:underline" onClick={() => { setNotaTexto(order.notes || ''); setNotaOpen(true) }}>
+                {order.notes ? 'Editar nota' : '＋ Agregar nota'}
+              </button>
+            ))}
           </SeccionColapsable>
 
           {/* Cronología */}
@@ -586,6 +612,12 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
         </div>
       )}
       <ComprobantePreview order={{ ...order, timeline: timelineComprobante }} open={comprobante} onClose={() => setComprobante(false)}  formatos={FORMATOS_PEDIDO} />
+      {cobroAbierto && (
+        <PagosPedido
+          venta={ventaDesdeApi(order)}
+          onClose={() => { setCobroAbierto(false); load(); onChanged?.() }}
+        />
+      )}
       <Modal open={anularOpen} onClose={() => { if (!anularBusy) setAnularOpen(false) }} title="Anular pedido" className="max-w-lg">
         <div className="space-y-3">
           <p className="text-sm text-mute">
