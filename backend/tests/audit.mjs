@@ -57,7 +57,7 @@ assert.equal(Number(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "action" = 'PRIN
 resultado = await request('/api/products', { method: 'POST', body: { sku: 'AUDIT-SKU-1', name: 'Producto Auditoría', pricePyg: 100000, stock: 5, costPyg: 60000 } })
 assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
 const producto = resultado.payload
-resultado = await request('/api/products', { method: 'PATCH', body: { id: producto.id, pricePyg: 120000, stock: 3 } })
+resultado = await request('/api/products', { method: 'PATCH', body: { id: producto.id, pricePyg: 120000, stock: 3, reorderPoint: 4, sku: 'AUDIT-SKU-1B' } })
 assert.equal(resultado.status, 200, JSON.stringify(resultado.payload))
 resultado = await request(`/api/products?id=${producto.id}`, { method: 'DELETE' })
 assert.equal(resultado.status, 200, JSON.stringify(resultado.payload))
@@ -68,6 +68,8 @@ assert.equal(cuentaProducto('PRODUCT_DELETED'), 1, 'la baja de producto queda au
 const metadataProducto = psql(`SELECT "metadata"::text FROM "AuditLog" WHERE "action" = 'PRODUCT_UPDATED' AND "entityId" = '${producto.id}' LIMIT 1;`)
 assert.match(metadataProducto, /"pricePyg"/, 'la edición registra el precio cambiado')
 assert.match(metadataProducto, /"stock"/, 'la edición registra el stock cambiado')
+assert.match(metadataProducto, /"reorderPoint":\s*4/, 'la edición registra el punto de reorden cambiado')
+assert.match(metadataProducto, /"sku":\s*"AUDIT-SKU-1B"/, 'la edición registra el SKU cambiado')
 // La baja es lógica: el arnés compara el listado activo de la API contra el
 // total de la base (backup-restore), así que se reactiva la fila de prueba.
 psql(`UPDATE "Product" SET "isActive" = true, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = '${producto.id}';`)
