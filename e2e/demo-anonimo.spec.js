@@ -381,7 +381,7 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   const pagos = page.locator('div.space-y-3').filter({ hasText: 'Pagos de esta venta' })
   await pagos.getByLabel('Cuenta de cobro').first().click()
-  await page.getByRole('option', { name: /Caja demo · Gs/ }).first().click()
+  await page.getByRole('option', { name: /Caja · Guaraníes/ }).first().click()
   const dividir = pagos.getByRole('button', { name: /^Dividir saldo/ })
   if (await dividir.count()) await dividir.click()
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()

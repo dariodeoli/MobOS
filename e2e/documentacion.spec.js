@@ -49,7 +49,10 @@ test('la documentación cubre clientes, garantías y servicio técnico', async (
   await expect(page).toHaveURL(/\/garantias$/)
 
   // Servicio Técnico: WhatsApp por estado y enlace al taller.
+  // El módulo elegido queda como «último usado» (#209): se elige explícito
+  // para no depender de lo recordado por el paso anterior.
   await page.goto('/configuracion/documentacion')
+  await pantalla.getByRole('button', { name: 'Servicio Técnico', exact: true }).click()
   await page.getByLabel('Buscar en la documentación').fill('whatsapp por estado')
   await expect(page.getByRole('heading', { name: 'WhatsApp por estado de la orden' })).toBeVisible()
   await page.getByRole('button', { name: 'Ir a WhatsApp por estado de la orden' }).click()
