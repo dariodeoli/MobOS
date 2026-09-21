@@ -10,7 +10,7 @@ import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import ProductoDetalle from '@/components/productos/ProductoDetalle'
 import ListGridToggle from '@/components/shared/ListGridToggle'
 import ComboManager from '@/components/productos/ComboManager'
-import ImportarProductosCSV from './ImportarProductosCSV'
+import ImportarProductos from '@/components/productos/ImportarProductos'
 import BarraLote from '@/components/shared/BarraLote'
 import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
@@ -183,7 +183,7 @@ export default function SellerCatalog() {
       <ListGridToggle value={vista} onChange={(next) => { setVista(next); localStorage.setItem('mobos:productos-vista', next) }} />
       <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
       {canManage && !esDemo && <button type="button" onClick={() => setCombosOpen(true)} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Combos</button>}
-      {esOwner && !esDemo && <ImportarProductosCSV onImportada={data.refresh} />}
+      {esOwner && !esDemo && <ImportarProductos onImportada={data.refresh} />}
     </div>
     <SellerFeedback {...data} empty={!rows.length} />
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>

@@ -379,10 +379,13 @@ export default function PanelVendedor() {
   const lockEnCurso = useRef(false)
   const toast = useToast()
 
-  const accesibles = useMemo(
-    () => (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id),
-    [esOwner, esTecnico],
-  )
+  const accesibles = useMemo(() => {
+    const base = (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id)
+    // El catálogo ('productos') se abre desde la solapa Productos de Compras:
+    // no tiene ítem propio en el menú del dueño, pero la ruta tiene que ser
+    // válida o el guard la redirige a Cargar venta (importador incluido).
+    return esOwner ? [...base, 'productos'] : base
+  }, [esOwner, esTecnico])
   // Un slug plano de pestaña (p. ej. /precios, que también es pestaña de
   // Configuración) se canoniza a /<padre>/<hijo> cuando el rol la tiene.
   useEffect(() => {
