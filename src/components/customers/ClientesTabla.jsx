@@ -101,6 +101,7 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
             <div
               key={row.id}
               data-testid="cliente-fila"
+              data-id={row.id}
               role="button"
               tabIndex={0}
               onClick={() => onPerfil?.(row)}

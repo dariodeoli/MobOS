@@ -95,6 +95,8 @@ test('demo: la ficha del cliente abre sin sesión y no consulta el API', async (
   await page.goto('/demo')
   await page.getByRole('button', { name: /Dueño/ }).first().click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
+  // La guía de la demo se abre sola la primera vez por pestaña (#201).
+  if (await page.getByRole('dialog', { name: 'Cómo funciona la demo' }).count()) await page.getByRole('button', { name: 'Cerrar' }).last().click()
   await page.locator('aside nav, nav').first().getByRole('button', { name: 'Clientes', exact: true }).click()
   await expect(page.getByRole('button', { name: '+ Crear cliente' })).toBeVisible()
 
@@ -124,10 +126,12 @@ test('demo: la ficha del cliente abre sin sesión y no consulta el API', async (
   await page.keyboard.press('Escape')
 
   // ?cliente=<id demo> abre la misma ficha (resuelto contra el navegador).
-  const idDemo = await page.evaluate(() => {
-    const filas = JSON.parse(localStorage.getItem('mobos:demo-customers:v1') || '[]')
-    return (filas.find((row) => String(row.name || '').includes('DEMOQA')) || {}).id || ''
-  })
+  // El demo vive en memoria de la pestaña (#204): se usa un cliente del seed,
+  // estable tras la recarga, y el id sale del atributo de la fila.
+  await page.goto('/clientes')
+  const semilla = page.getByTestId('cliente-fila').filter({ hasText: 'Lucía Fernández' }).first()
+  await expect(semilla).toBeVisible()
+  const idDemo = await semilla.getAttribute('data-id')
   expect(idDemo).toBeTruthy()
   await page.goto(`/clientes?cliente=${encodeURIComponent(idDemo)}`)
   await expect(page.getByRole('dialog').getByText(/Modo demo/)).toBeVisible()
@@ -146,6 +150,8 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   await page.goto('/demo')
   await page.getByRole('button', { name: /Dueño/ }).first().click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
+  // La guía de la demo se abre sola la primera vez por pestaña (#201).
+  if (await page.getByRole('dialog', { name: 'Cómo funciona la demo' }).count()) await page.getByRole('button', { name: 'Cerrar' }).last().click()
   await page.locator('aside nav, nav').first().getByRole('button', { name: 'Clientes', exact: true }).click()
 
   await page.getByLabel('Buscar clientes').fill('Lucía')

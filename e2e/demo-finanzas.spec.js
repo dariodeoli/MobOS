@@ -2,10 +2,17 @@
 // ficticios visibles y sin "Falta sesión".
 import { test, expect } from '@playwright/test'
 
+async function cerrarGuia(page) {
+  // La guía de la demo se abre sola la primera vez por pestaña (#201).
+  const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
+  if (await guia.count()) await page.getByRole('button', { name: 'Cerrar' }).last().click()
+}
+
 async function entrarDemo(page) {
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
+  await cerrarGuia(page)
   await expect(page.getByText('Modo demo', { exact: false }).first()).toBeVisible()
 }
 
@@ -42,7 +49,10 @@ test.describe('demo de Finanzas', () => {
     await expect(page.getByText('Seguro guardado en este navegador (demo).')).toBeVisible()
     await expect(page.getByText('Falta sesión')).toHaveCount(0)
 
-    await page.goto('/analisis/ganancias')
+    // El demo vive en memoria de la pestaña (#204): se navega dentro de la app,
+    // sin recargar, para ver el efecto del seguro en el margen.
+    await page.getByRole('button', { name: 'Análisis', exact: true }).first().click()
+    await page.getByRole('tab', { name: 'Ganancias' }).click()
     await expect(page.getByText('Incluye seguro 25% (demo)')).toBeVisible()
     const conSeguro = (await page.getByTestId('ganancia-resultado').textContent())?.trim()
     expect(conSeguro).not.toBe(sinSeguro)

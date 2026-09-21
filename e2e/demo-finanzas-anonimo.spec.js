@@ -12,11 +12,18 @@ const API_PORT = process.env.MOBOS_E2E_API_PORT || '3001'
 const esLlamadaApi = (url) => url.includes(`localhost:${API_PORT}`) || url.includes('api.moboss.online')
 const url = (ruta) => `${BASE}${ruta}`
 
+async function cerrarGuia(page) {
+  // La guía de la demo se abre sola la primera vez por pestaña (#201).
+  const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
+  if (await guia.count()) await page.getByRole('button', { name: 'Cerrar' }).last().click()
+}
+
 async function entrarDemo(page) {
   await page.goto(url('/demo'))
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
   await page.waitForURL((destino) => !destino.pathname.startsWith('/demo'))
-  await expect(page.getByText(/los datos son ficticios/).first()).toBeVisible()
+  await cerrarGuia(page)
+  await expect(page.getByText(/datos ficticios/).first()).toBeVisible()
 }
 
 async function crearCuenta(page, { kind, campos = {}, nombre }) {
@@ -101,7 +108,9 @@ test.describe('demo anónimo · Finanzas', () => {
       await page.locator('#seguro-toggle').check({ force: true })
       await guardarSeguro.click()
       await expect(page.getByText('Seguro guardado en este navegador (demo).')).toBeVisible()
-      await page.goto(url('/analisis/ganancias'))
+      // El demo vive en memoria de la pestaña (#204): navegación dentro de la app.
+      await page.getByRole('button', { name: 'Análisis', exact: true }).first().click()
+      await page.getByRole('tab', { name: 'Ganancias' }).click()
       await expect(page.getByText('Incluye seguro 25% (demo)')).toBeVisible()
     } else {
       const notaSeguro = await page.getByText(/no se guardan los límites ni el seguro/)
