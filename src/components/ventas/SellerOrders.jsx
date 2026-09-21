@@ -5,7 +5,7 @@ import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
-import { codigoPedido } from '@/utils/pedido'
+import { codigoPedido, fechaCompacta } from '@/utils/pedido'
 import { normalizarBusqueda, nombreCortoCliente } from '@/utils/cliente'
 import { Input } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -72,15 +72,6 @@ const FILTROS = [
 // estado) para que la tabla entre sin scroll en pantallas de ~1024 px; el
 // scroll queda solo como respaldo en anchos muy chicos (< 46rem).
 const GRID = 'grid min-w-[46rem] grid-cols-[4.25rem_5.25rem_minmax(0,1.15fr)_minmax(0,1.6fr)_minmax(0,0.85fr)_2.25rem_3.75rem_3.75rem_4.75rem_6.5rem_1.75rem] items-center gap-x-1.5'
-
-function fechaCompacta(value) {
-  if (!value || Number.isNaN(Date.parse(value))) return 'Sin fecha'
-  const date = new Date(value)
-  const dia = date.toLocaleDateString('es-PY', { day: '2-digit' })
-  const mes = date.toLocaleDateString('es-PY', { month: 'short' }).replace('.', '')
-  const hora = date.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })
-  return `${dia} ${mes}·${hora}`
-}
 
 // Vista previa de artículos: hasta dos descripciones completas (con capacidad)
 // en una sola línea compacta y "+N" cuando el pedido trae más productos.
@@ -174,7 +165,9 @@ function FilaPedido({ row, onClick, onAcciones }) {
         <span className={cn('truncate text-xs text-mute', tachado)}>{ENTREGA[row.deliveryType] || row.deliveryType || 'Retiro'}</span>
         <BadgePago row={row} />
         <BadgeEstado row={row} />
-        <span className={cn('truncate text-right text-[13px] font-bold tabular-nums text-fore', tachado)}>
+        {/* La info financiera no se tacha ni en los pedidos cancelados: el
+            importe sigue siendo el dato que se necesita ver. */}
+        <span className="truncate text-right text-[13px] font-bold tabular-nums text-fore">
           {Number.isFinite(Number(row.total)) ? gs(row.total) : '—'}
         </span>
         {/* Vista rápida: es la última columna de la grilla, así queda alineada
@@ -314,7 +307,7 @@ export default function SellerOrders() {
           {encabezado('date', 'Fecha')}
           {encabezado('customer', 'Cliente')}
           {encabezado('products', 'Artículos')}
-          <span className="text-[10px] font-bold uppercase tracking-wider text-mute">Serial</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-mute">Serial/IMEI</span>
           {encabezado('quantity', 'Cant.')}
           {encabezado('delivery', 'Entrega')}
           {encabezado('payment', 'Pago')}

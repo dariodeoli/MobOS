@@ -37,8 +37,12 @@ test('no coincide cuando el dato no existe y la consulta vacía acepta todo', ()
 
 test('nombre corto: primer nombre y primer apellido', () => {
   assert.equal(nombreCortoCliente('Dario Oliveira'), 'Dario Oliveira')
-  assert.equal(nombreCortoCliente('  Dario  José   Oliveira  Benítez '), 'Dario José')
-  assert.equal(nombreCortoCliente('MERZIN S.A GTS'), 'MERZIN S.A')
+  // Nombre compuesto: se prioriza el apellido (el segundo nombre no aporta).
+  assert.equal(nombreCortoCliente('  Dario  José   Oliveira  Benítez '), 'Dario Oliveira')
+  assert.equal(nombreCortoCliente('María José Pérez'), 'María Pérez')
+  assert.equal(nombreCortoCliente('Juan Pérez Gómez'), 'Juan Gómez')
+  assert.equal(nombreCortoCliente('MERZIN S.A GTS'), 'MERZIN GTS')
+  assert.equal(nombreCortoCliente('  '), '')
   assert.equal(nombreCortoCliente(''), '')
   assert.equal(nombreCortoCliente(undefined), '')
 })
