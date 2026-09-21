@@ -569,6 +569,8 @@ test('POS: analytics del día y menciones en comentarios', async ({ page }) => {
   await page.goto('/pedidos')
   await page.getByTestId('pedido-fila').first().click()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
+  // La cronología (donde vive el comentario) arranca plegada (#164).
+  await page.getByRole('button', { name: /Cronología/ }).click()
   const comentario = page.getByLabel('Comentario del pedido')
   await comentario.fill('Revisar stock @')
   const sugerencia = page.getByRole('button', { name: /^@/ }).first()
