@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useUrlState } from '@/hooks/useUrlState'
 import { useSesion } from '@/lib/sesion'
-import { api } from '@/lib/api/client'
 import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { codigoPedido, fechaCompacta } from '@/utils/pedido'
 import { normalizarBusqueda, nombreCortoCliente } from '@/utils/cliente'
-import { Input } from '@/components/ui'
+import { Button, Input } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { ultimos4 } from '@/utils/serial'
@@ -196,6 +195,10 @@ export default function SellerOrders() {
   // El pedido abierto vive en la URL por su id interno (UUID), nunca por el
   // código comercial: si el código cambia, el enlace sigue resolviendo.
   const { orderId } = useParams()
+  // Los filtros de la lista viajan con el pedido para que «Volver a pedidos»
+  // restituya la misma vista (antes se perdía el filtro y el listado parecía
+  // recargarse solo).
+  const location = useLocation()
   const [query, setQuery] = useState('')
   // La búsqueda del listado se resuelve en el servidor: así encuentra pedidos
   // que todavía no están en la página cargada (número, cliente, RUC, vendedor).
@@ -263,27 +266,16 @@ export default function SellerOrders() {
     })
   }, [todas, filtro, query, orden, esDemo])
 
-  // El detalle sale de la fila cargada; si se entra por URL directa (recarga,
-  // enlace compartido) o el pedido quedó fuera de la página, se resuelve por
-  // su id contra la API. Si no existe, se vuelve al listado.
+  // El pedido abierto sale de la fila ya cargada (pintado instantáneo); si se
+  // entra por URL directa (recarga, enlace compartido, pedido fuera de la
+  // página) el detalle se resuelve solo por su id interno contra la API. La
+  // página es exclusiva: antes el detalle quedaba debajo del listado, fuera del
+  // viewport, y parecía que el enlace no cargaba.
   const seleccion = useMemo(() => (orderId ? rows.find((row) => row.id === orderId) || null : null), [orderId, rows])
-  const [pedidoDirecto, setPedidoDirecto] = useState(null)
-  useEffect(() => {
-    if (!orderId || seleccion) { setPedidoDirecto(null); return undefined }
-    let activo = true
-    api.get(`/api/orders/${encodeURIComponent(orderId)}`)
-      .then((row) => { if (activo) setPedidoDirecto(orderFields(row)) })
-      .catch(() => { if (activo) { setPedidoDirecto(null); navigate('/pedidos', { replace: true }) } })
-    return () => { activo = false }
-  }, [orderId, seleccion, navigate])
-  const recargarDirecto = async () => {
-    if (!orderId) return
-    try { setPedidoDirecto(orderFields(await api.get(`/api/orders/${encodeURIComponent(orderId)}`))) } catch { /* el listado ya se refrescó */ }
-  }
   const [pedidoPanel, setPedidoPanel] = useState(null)
-  const detalleAbierto = seleccion || pedidoDirecto
-  const abrirPedido = (row) => navigate(`/pedidos/${encodeURIComponent(row.id)}`)
-  const cerrarPedido = () => navigate('/pedidos')
+  const detalleAbierto = seleccion || (orderId && !esDemo ? { id: orderId } : null)
+  const abrirPedido = (row) => navigate(`/pedidos/${encodeURIComponent(row.id)}${location.search}`)
+  const cerrarPedido = () => navigate(`/pedidos${location.search}`)
 
   const ordenarPor = (key) => setOrden((current) => current.key === key ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'date' || key === 'total' || key === 'quantity' ? 'desc' : 'asc' })
   const encabezado = (key, label, extra = '') => (
@@ -292,6 +284,29 @@ export default function SellerOrders() {
       <span className="shrink-0">{orden.key === key ? (orden.dir === 'asc' ? '↑' : '↓') : ''}</span>
     </button>
   )
+
+  if (detalleAbierto) {
+    return <PedidoDetalle
+      key={detalleAbierto.id}
+      pagina
+      row={detalleAbierto}
+      esDemo={esDemo}
+      customerOrderCount={detalleAbierto.customerId ? porCliente[detalleAbierto.customerId] || 0 : 0}
+      onClose={cerrarPedido}
+      onChanged={data.refresh}
+    />
+  }
+
+  if (orderId) {
+    // Demo o pedido que no está en la lista local: no hay backend que lo
+    // resuelva, así que se avisa con salida en vez de quedar en blanco.
+    return <SellerSection title="Pedido" description="Ese pedido no está disponible en esta vista.">
+      <div role="status" className="rounded-2xl border border-ink-600 bg-ink-800/30 p-8 text-center text-mute">
+        <p className="text-sm">No encontramos el pedido en esta vista.</p>
+        <Button className="mt-3" variant="outline" onClick={cerrarPedido}>Volver a pedidos</Button>
+      </div>
+    </SellerSection>
+  }
 
   return <SellerSection description="Una fila por pedido, alineada y ordenable: entrá para ver artículos, IMEIs, cliente y cronología.">
     <div className="flex flex-wrap items-center gap-2">
@@ -319,17 +334,6 @@ export default function SellerOrders() {
       </div>
     )}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más pedidos'}</button></div>}
-    {detalleAbierto && (
-      <PedidoDetalle
-        key={detalleAbierto.id}
-        pagina
-        row={detalleAbierto}
-        esDemo={esDemo}
-        customerOrderCount={detalleAbierto.customerId ? porCliente[detalleAbierto.customerId] || 0 : 0}
-        onClose={cerrarPedido}
-        onChanged={() => { data.refresh(); recargarDirecto() }}
-      />
-    )}
     {pedidoPanel && !detalleAbierto && (
       <PedidoDetalle
         key={pedidoPanel.id}

@@ -335,7 +335,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                     : ''}
                 </Badge>
               )}
-              {order.assignedTo && <Badge color="blue">Reparto: {order.assignedTo}</Badge>}
+              {order.assignedTo?.name && <Badge color="blue">Reparto: {order.assignedTo.name}</Badge>}
               {order.billingName && <Badge color="blue">Factura: {order.billingName}</Badge>}
             </div>
             <p className="mt-3 text-xs text-mute">
