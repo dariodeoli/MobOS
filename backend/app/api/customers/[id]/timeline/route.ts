@@ -227,14 +227,20 @@ export async function GET(request: Request, { params }: RouteContext) {
       user: null,
       detail: `${warranty.description || 'Garantía'} · serial ${warranty.serial} · ${ESTADO_GARANTIA[warranty.status] || warranty.status}`,
     })),
-    ...audits.map(audit => ({
-      id: `audit-${audit.id}`,
-      type: 'audit',
-      action: ACCION_AUDITORIA[audit.action] || audit.action,
-      createdAt: audit.createdAt,
-      user: audit.user,
-      detail: detalleMetadata(audit.action, audit.metadata),
-    })),
+    ...audits.map(audit => {
+      const metadata = audit.metadata as Record<string, unknown> | null
+      const campos = Array.isArray(metadata?.fields) ? metadata.fields as string[] : []
+      return {
+        id: `audit-${audit.id}`,
+        type: 'audit',
+        action: audit.action === 'CUSTOMER_UPDATED' && campos.includes('pricingTier')
+          ? 'Tipo de cliente actualizado'
+          : ACCION_AUDITORIA[audit.action] || audit.action,
+        createdAt: audit.createdAt,
+        user: audit.user,
+        detail: detalleMetadata(audit.action, audit.metadata),
+      }
+    }),
   ]
   events.sort((a, b) => {
     const diferencia = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

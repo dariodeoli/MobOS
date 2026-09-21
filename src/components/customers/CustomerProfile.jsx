@@ -140,6 +140,47 @@ export default function CustomerProfile({ customer, open, onClose }) {
   // Listas de precios disponibles para asignar a la ficha.
   const [listasPrecios, setListasPrecios] = useState([])
   const [asignandoLista, setAsignandoLista] = useState(false)
+  // Edición directa de la configuración comercial (solo administración/gerencia).
+  const [comercialAbierto, setComercialAbierto] = useState(false)
+  const [comercialForm, setComercialForm] = useState({ pricingTier: 'RETAIL', creditHabilitado: false, creditDays: '', creditLimitPyg: '' })
+  const [guardandoComercial, setGuardandoComercial] = useState(false)
+
+  function abrirComercial() {
+    const ficha = profile?.customer || customer || {}
+    setComercialForm({
+      pricingTier: ficha.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL',
+      creditHabilitado: Number(ficha.creditLimitPyg || 0) > 0,
+      creditDays: ficha.creditDays ?? '',
+      creditLimitPyg: Number(ficha.creditLimitPyg || 0) > 0 ? ficha.creditLimitPyg : '',
+    })
+    setComercialAbierto(true)
+  }
+
+  async function guardarComercial(event) {
+    event.preventDefault()
+    if (guardandoComercial || !customer?.id) return
+    const body = { pricingTier: comercialForm.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL' }
+    if (comercialForm.creditHabilitado) {
+      const limite = Number(String(comercialForm.creditLimitPyg).replace(/\D/g, ''))
+      if (!Number.isSafeInteger(limite) || limite <= 0) { toast.error('Límite inválido', 'Para habilitar el crédito ingresá un límite mayor a cero.'); return }
+      const dias = comercialForm.creditDays === '' ? null : Number(comercialForm.creditDays)
+      if (dias !== null && (!Number.isSafeInteger(dias) || dias < 0 || dias > 365)) { toast.error('Días inválidos', 'Los días de crédito deben estar entre 0 y 365.'); return }
+      body.creditLimitPyg = limite
+      body.creditDays = dias
+    } else {
+      body.creditLimitPyg = null
+      body.creditDays = null
+    }
+    setGuardandoComercial(true)
+    try {
+      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, body)
+      toast.success('Configuración comercial guardada.')
+      setComercialAbierto(false)
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudo guardar la configuración', cause?.message)
+    } finally { setGuardandoComercial(false) }
+  }
 
   useEffect(() => {
     setNotaInterna(profile?.customer?.notes || customer?.notes || '')
@@ -1190,7 +1231,15 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
           {tab === 'datos' && (
             <div className="space-y-4">
-              <p className="text-sm font-semibold">Configuración comercial</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">Configuración comercial</p>
+                {puedeResolver && (
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={abrirComercial}>
+                    <Icon name="edit" className="h-3.5 w-3.5" />
+                    Editar configuración
+                  </Button>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
                   <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Tipo</p>
@@ -1685,6 +1734,41 @@ export default function CustomerProfile({ customer, open, onClose }) {
             <Button type="button" variant="outline" disabled={portalBusy || !portal?.token} onClick={() => setConfirmarRegenerar(true)}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={comercialAbierto}
+        onClose={() => { if (!guardandoComercial) setComercialAbierto(false) }}
+        title="Configuración comercial"
+        className="max-w-lg"
+      >
+        <form onSubmit={guardarComercial} className="space-y-4">
+          <FormField label="Tipo de cliente" htmlFor="comercial-tipo">
+            <Select id="comercial-tipo" disabled={guardandoComercial} value={comercialForm.pricingTier} onChange={(event) => setComercialForm((form) => ({ ...form, pricingTier: event.target.value }))}>
+              <option value="RETAIL">Cliente final</option>
+              <option value="WHOLESALE">Mayorista</option>
+            </Select>
+          </FormField>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" disabled={guardandoComercial} checked={comercialForm.creditHabilitado} onChange={(event) => setComercialForm((form) => ({ ...form, creditHabilitado: event.target.checked }))} />
+            Habilitar venta a crédito
+          </label>
+          {comercialForm.creditHabilitado && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField label="Límite de crédito (Gs.)" htmlFor="comercial-limite">
+                <MoneyInput id="comercial-limite" disabled={guardandoComercial} value={comercialForm.creditLimitPyg} onValueChange={(value) => setComercialForm((form) => ({ ...form, creditLimitPyg: value }))} placeholder="1.000.000" />
+              </FormField>
+              <FormField label="Días de crédito autorizados" htmlFor="comercial-dias" hint="0 = a la vista; vacío = sin plazo definido.">
+                <Input id="comercial-dias" type="number" min={0} max={365} disabled={guardandoComercial} value={comercialForm.creditDays} onChange={(event) => setComercialForm((form) => ({ ...form, creditDays: event.target.value }))} placeholder="30" />
+              </FormField>
+            </div>
+          )}
+          <p className="text-xs text-mute">El cambio queda registrado en la cronología del cliente.</p>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" disabled={guardandoComercial} onClick={() => setComercialAbierto(false)}>Cancelar</Button>
+            <Button type="submit" disabled={guardandoComercial}>{guardandoComercial ? 'Guardando…' : 'Guardar configuración'}</Button>
+          </div>
+        </form>
       </Modal>
 
       <Modal
