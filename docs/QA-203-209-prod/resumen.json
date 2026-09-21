@@ -1,0 +1,11 @@
+{
+  "onboardingCerrado": true,
+  "simulada": true,
+  "detalle": true,
+  "fuente": true,
+  "adjuntar": true,
+  "avisoImpresion": true,
+  "servicioDemo": true,
+  "portalDemo": true,
+  "apiReal": []
+}
