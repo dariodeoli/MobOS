@@ -167,15 +167,19 @@ patrón de uso de cada familia y un ejemplo corto.
 - **Encabezados y rótulos de tabla (#147):** las clases de la grilla se escriben
   una sola vez en `src/components/shared/tabla.js`:
   `ROTULO_DATO` (etiqueta de dato, 10 px), `CELDA_ENCABEZADO` (encabezado de
-  grilla en una línea, `truncate` + `ROTULO_DATO`) y `ROTULO_SECCION` (título
-  de sección, 12 px). Lo que agrega layout va con `cn(…, objeto)`; prohibido
-  copiar las clases o crear alias locales (`CELDA_INV`, `celda`, …).
+  grilla en una línea, `truncate` + `ROTULO_DATO`), `ROTULO_SECCION` (título
+  de sección, 12 px), `CELDA_DATO` (dato secundario truncado) y `CELDA_MONTO`
+  (monto o cantidad: `text-right tabular-nums`). Lo que agrega layout va con
+  `cn(objeto, '…')`; prohibido copiar las clases o crear alias locales
+  (`CELDA_INV`, `celda`, …).
 
 > Referencia MobOS: `Badge`, `Dot`, `Stat`, `Card`, `ListGridToggle`,
 > Referencia MobOS: `Badge`, `Dot`, `Stat`, `Card`, `ListGridToggle`,
 > `SeccionColapsable`, `FilaDato`, `CeldaMoneda`, `BarraProgreso`,
 > `ComprobantePreview`, `Cronologia`, `src/components/shared/tabla.js`
-> (`ROTULO_DATO`, `CELDA_ENCABEZADO`, `ROTULO_SECCION`).
+> (`ROTULO_DATO`, `CELDA_ENCABEZADO`, `ROTULO_SECCION`, `CELDA_DATO`,
+> `CELDA_MONTO`), `src/lib/estadosPedido.js`
+> (estados de pedido/entrega/garantía con su tono para las páginas del cliente).
 
 ## 4. Estados y avisos — únicos por concepto
 
@@ -309,6 +313,9 @@ patrón de uso de cada familia y un ejemplo corto.
   armar el texto con `toLocaleString` o repetir la función local de precio.
 - **Escape de plantillas HTML:** `escapeHtml` (`utils/printHtml.js`) es la única
   definición para comprobantes, informes y tickets.
+- **Enlace de WhatsApp:** `whatsappUrl(telefono, mensaje, countryCode)`
+  (`utils/telefono.js`): número internacional + mensaje escapado, `''` si no
+  hay teléfono. Prohibido armar `https://wa.me/…` por pantalla.
 - Montos, fechas y códigos: `nowrap` + `tabular-nums`.
 
 ### Último usado como predeterminado (#209)
@@ -343,9 +350,10 @@ por el sistema.
 
 > Referencia MobOS: `src/lib/api/client.js`, `src/lib/roles.js`,
 > `src/lib/utils.js`, `src/lib/urls.js`, `src/lib/constants.js`,
-> `src/lib/ultimoUsado.js`, `src/lib/deviceId.js`, `src/utils/fecha.js`,
-> `src/utils/portapapeles.js`, `src/utils/descargarArchivo.js`,
-> `src/utils/moneda.js`, `src/utils/printHtml.js`,
+> `src/lib/ultimoUsado.js`, `src/lib/deviceId.js`, `src/lib/estadosPedido.js`,
+> `src/utils/fecha.js`, `src/utils/portapapeles.js`,
+> `src/utils/descargarArchivo.js`, `src/utils/moneda.js`,
+> `src/utils/telefono.js`, `src/utils/printHtml.js`,
 > `src/hooks/useVistaListaGrid.js`.
 > Implementado: timeout por pedido, caché corta solo-GET e invalidación
 > (`src/lib/api/client.js`, `requestCache.test.js`); “último usado” en
