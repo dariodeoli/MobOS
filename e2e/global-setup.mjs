@@ -461,6 +461,7 @@ async function seedFresh(ctx) {
   await ensureSellers(ctx, adminToken)
   await ensureRepartidor(ctx, adminToken)
   await ensureProducts(ctx, adminToken)
+  await ensureQaInventory(ctx, adminToken)
   await ensurePaymentAccounts(ctx, adminToken)
 
   // Assign the branch to the admin (cash opens per branch). This revokes
