@@ -462,7 +462,10 @@ export default function Resumen() {
         <p className="min-w-0 text-sm text-mute">
           Acá ves el movimiento de la tienda en el período elegido.
         </p>
-        <RangoFechas valor={rango} onChange={cambiarRango} />
+        <div className="flex flex-wrap items-center gap-2">
+          {metricas?.truncado && <Badge color="orange">El período supera el tope de ventas analizadas</Badge>}
+          <RangoFechas valor={rango} onChange={cambiarRango} />
+        </div>
       </div>
 
       {/* ── Facturado (hero) + accesos rápidos ───────────────────── */}
