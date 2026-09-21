@@ -136,3 +136,112 @@ test('la reserva desde el detalle usa la ficha existente y deja la cronología',
     await expect(page.getByText('Reserva liberada y unidad disponible.')).toBeVisible({ timeout: 15_000 })
   } finally { await limpiar(page, datos) }
 })
+
+// Crea solo el producto (sin unidades) para los tests de costo.
+async function crearProducto(page, marca) {
+  await page.goto('/inventario/unidades')
+  return page.evaluate(async ({ api, branchId, marca }) => {
+    const respuesta = await fetch(`${api}/api/products`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku: `ZZ-COSTO-${marca}`, name: `Producto costo QA ${marca}`, category: 'Celulares', pricePyg: 3000000, costPyg: 2200000, stock: 0, branchId }),
+    })
+    const datos = await respuesta.json().catch(() => null)
+    if (!respuesta.ok) throw new Error(datos?.message || `products: ${respuesta.status}`)
+    return { productId: datos.id }
+  }, { api: API, branchId: SEED.branchId, marca })
+}
+
+// Limpieza por serial: saca las unidades creadas por el test y da de baja el producto.
+async function limpiarSeriales(page, seriales) {
+  try {
+    await page.evaluate(async ({ api, seriales }) => {
+      for (const serial of seriales) {
+        const filas = await fetch(`${api}/api/inventory-units?q=${encodeURIComponent(serial)}`, { credentials: 'include' }).then(r => r.json()).catch(() => [])
+        const unidad = (Array.isArray(filas) ? filas : []).find(item => item.serial === serial)
+        if (!unidad) continue
+        await fetch(`${api}/api/inventory-units`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: unidad.id, action: 'remove', reason: 'Limpieza del spec de costo' }) }).catch(() => {})
+        if (unidad.productId) await fetch(`${api}/api/products?id=${encodeURIComponent(unidad.productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+      }
+    }, { api: API, seriales })
+  } catch { /* la limpieza no puede hacer fallar el test */ }
+}
+
+test('la carga rápida guarda el costo en USD con su cotización y crea el proveedor', async ({ page }) => {
+  const clave = marca()
+  const serial = `ZZUSD${clave}`
+  const proveedor = `Proveedor QA ${clave}`
+  const { productId } = await crearProducto(page, clave)
+  try {
+    await page.goto('/inventario/unidades')
+    await page.getByRole('button', { name: '+ Recibir unidad' }).click()
+    const modal = page.getByRole('dialog', { name: 'Carga rápida de unidad' })
+    await expect(modal).toBeVisible()
+    // Lo mínimo: modelo y IMEI; el proveedor y el costo son opcionales.
+    await modal.getByLabel('Modelo', { exact: true }).selectOption(productId)
+    await modal.getByLabel('IMEI o serial', { exact: true }).fill(serial)
+    await modal.getByLabel('Proveedor', { exact: true }).fill(proveedor)
+    await modal.getByLabel('Moneda del costo', { exact: true }).selectOption('USD')
+    await modal.getByLabel('Monto del costo', { exact: true }).fill('350,50')
+    await modal.getByLabel('Cotización', { exact: true }).fill('7500')
+    await expect(modal.getByText('Costo en Gs:')).toBeVisible()
+    await modal.getByRole('button', { name: 'Guardar unidad' }).click()
+    await expect(page.getByText(/1 unidad recibida/)).toBeVisible({ timeout: 15_000 })
+
+    // El costo queda convertido a Gs y el proveedor nuevo, en el catálogo.
+    const datos = await page.evaluate(async ({ api, serial, proveedor }) => {
+      const filas = await fetch(`${api}/api/inventory-units?q=${encodeURIComponent(serial)}`, { credentials: 'include' }).then(r => r.json())
+      const unidad = (Array.isArray(filas) ? filas : []).find(item => item.serial === serial)
+      const proveedores = await fetch(`${api}/api/suppliers?q=${encodeURIComponent('Proveedor QA')}`, { credentials: 'include' }).then(r => r.json())
+      return {
+        costPyg: unidad?.costPyg, originalCost: unidad?.originalCost, costCurrency: unidad?.costCurrency, exchangeRatePyg: unidad?.exchangeRatePyg,
+        proveedor: unidad?.supplier?.name || unidad?.supplierName || null,
+        proveedorCreado: (Array.isArray(proveedores) ? proveedores : []).some(p => p.name === proveedor),
+      }
+    }, { api: API, serial, proveedor })
+    expect(datos.costPyg).toBe(2628750)
+    expect(Number(datos.originalCost)).toBe(350.5)
+    expect(datos.costCurrency).toBe('USD')
+    expect(Number(datos.exchangeRatePyg)).toBe(7500)
+    expect(datos.proveedor).toBe(proveedor)
+    expect(datos.proveedorCreado).toBe(true)
+
+    // En la tabla ya no figura como pendiente de costo.
+    const fila = await buscarUnidad(page, serial)
+    await expect(fila.getByText('Sin costo')).toHaveCount(0)
+  } finally { await limpiarSeriales(page, [serial]) }
+})
+
+test('el costo se puede dejar pendiente y completar desde el detalle', async ({ page }) => {
+  const clave = marca()
+  const serial = `ZZSINC${clave}`
+  const { productId } = await crearProducto(page, clave)
+  try {
+    // Alta sin costo (la carga rápida lo permite: queda pendiente).
+    await page.evaluate(async ({ api, productId, serial, branchId }) => {
+      const respuesta = await fetch(`${api}/api/inventory-units`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId, serial, branchId }) })
+      if (!respuesta.ok) throw new Error((await respuesta.json().catch(() => null))?.message || `inventory-units: ${respuesta.status}`)
+    }, { api: API, productId, serial, branchId: SEED.branchId })
+
+    const fila = await buscarUnidad(page, serial)
+    await expect(fila.getByText('Sin costo')).toBeVisible()
+
+    await fila.click()
+    const detalle = page.getByRole('dialog')
+    const costo = detalle.getByTestId('unidad-costo')
+    await expect(costo.getByText('Pendiente', { exact: true })).toBeVisible()
+    await costo.getByLabel('Monto del costo', { exact: true }).fill('1.500.000')
+    await costo.getByTestId('unidad-costo-guardar').click()
+    await expect(page.getByText('Costo guardado.')).toBeVisible({ timeout: 15_000 })
+    await expect(costo.getByText('Cargado', { exact: true })).toBeVisible()
+    // La cronología deja el evento del costo con su valor.
+    const cronologia = detalle.getByTestId('unidad-cronologia')
+    await expect(cronologia.getByText('Costo del equipo')).toBeVisible()
+    await expect(cronologia.getByText(/Gs 1\.500\.000/)).toBeVisible()
+
+    const guardado = await page.evaluate(async ({ api, serial }) => {
+      const filas = await fetch(`${api}/api/inventory-units?q=${encodeURIComponent(serial)}`, { credentials: 'include' }).then(r => r.json())
+      return (Array.isArray(filas) ? filas : []).find(item => item.serial === serial)?.costPyg ?? null
+    }, { api: API, serial })
+    expect(guardado).toBe(1500000)
+  } finally { await limpiarSeriales(page, [serial]) }
+})

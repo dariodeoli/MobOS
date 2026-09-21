@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Drawer, Badge, Button, Input, MoneyInput, Select, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
+import { Drawer, Badge, Button, Input, Label, MoneyInput, Select, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import Avatar from '@/components/shared/Avatar'
+import CurrencySelect from '@/components/shared/CurrencySelect'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
 import { qrUnidad } from '@/lib/printing/qr'
 import { api, API_URL } from '@/lib/api/client'
+import { cotizacionReferencia } from '@/lib/fx'
+import { gs } from '@/utils/calculos'
+import { sinCostoUnitario } from '@/utils/inventario'
 
 const statusLabel = { AVAILABLE: 'Disponible', RESERVED: 'Reservado', SOLD: 'Vendido', DEFECTIVE: 'En revisión', IN_TRANSIT: 'En tránsito' }
 const conditionLabel = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
@@ -70,6 +74,13 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   const [consignadorTel, setConsignadorTel] = useState(unit.consignorPhone || '')
   const [consignadorMonto, setConsignadorMonto] = useState(unit.consignorPyg === null || unit.consignorPyg === undefined ? '' : String(unit.consignorPyg))
   const [guardandoConsignacion, setGuardandoConsignacion] = useState(false)
+  // Costo del equipo: se puede cargar al recibir o completar después. En
+  // moneda extranjera se guarda el monto original y su cotización; el total en
+  // guaraníes lo calcula el backend.
+  const costoInicial = () => ({ currency: unit.costCurrency || 'PYG', monto: unit.originalCost !== null && unit.originalCost !== undefined ? String(unit.originalCost) : unit.costPyg !== null && unit.costPyg !== undefined ? String(unit.costPyg) : '', rate: unit.exchangeRatePyg !== null && unit.exchangeRatePyg !== undefined ? String(unit.exchangeRatePyg) : '' })
+  const [costo, setCosto] = useState(costoInicial)
+  const [guardandoCosto, setGuardandoCosto] = useState(false)
+  useEffect(() => { setCosto(costoInicial()) }, [unit.costPyg, unit.originalCost, unit.costCurrency, unit.exchangeRatePyg]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = useCallback(async () => {
     if (!canManage) { setLoading(false); return }
@@ -110,9 +121,30 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
     } catch (cause) { toast.error(cause?.message || 'No se pudo guardar la nota.') } finally { setGuardandoNota(false) }
   }
 
+  async function cambiarMonedaCosto(moneda) {
+    setCosto(current => ({ ...current, currency: moneda }))
+    if (moneda !== 'PYG' && !String(costo.rate || '').trim()) {
+      const sugerida = await cotizacionReferencia()
+      if (sugerida) setCosto(current => (String(current.rate || '').trim() ? current : { ...current, rate: String(sugerida) }))
+    }
+  }
+
+  async function guardarCosto() {
+    if (guardandoCosto) return
+    setGuardandoCosto(true)
+    try {
+      const monto = String(costo.monto || '').trim()
+      const payload = costo.currency === 'PYG'
+        ? { costPyg: monto ? Number(monto) : null }
+        : { originalCost: monto ? Number(monto) : null, ...(String(costo.rate || '').trim() ? { exchangeRatePyg: Number(costo.rate) } : {}) }
+      await api.patch('/api/inventory-units', { id: unit.id, action: 'details', costCurrency: monto ? costo.currency : 'PYG', ...payload })
+      toast.success(monto ? 'Costo guardado.' : 'Costo quitado: queda pendiente.')
+      await load(); onChanged?.()
+    } catch (cause) { toast.error(cause?.message || 'No se pudo guardar el costo.') } finally { setGuardandoCosto(false) }
+  }
+
   // Equipo de un tercero: la tienda lo vende y le paga el monto acordado.
-  async function guardarConsignacion() {
-    if (guardandoConsignacion) return
+  async function guardarConsignacion() {    if (guardandoConsignacion) return
     setGuardandoConsignacion(true)
     try {
       await api.patch('/api/inventory-units', { id: unit.id, action: 'details', consignorName: consignador.trim(), consignorPhone: consignadorTel.trim(), consignorPyg: consignadorMonto.trim() === '' ? null : Number(consignadorMonto) })
@@ -209,7 +241,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             </div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Batería</p><p className="mt-1 font-semibold">{unit.batteryHealth ? `${unit.batteryHealth}%` : '—'}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Proveedor</p><p className="mt-1 font-semibold">{unit.supplier?.name || unit.supplierName || '—'}{unit.supplier?.name && unit.supplier?.code ? ' (' + unit.supplier.code + ')' : ''}</p></div>
-            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{money(unit.originalCost, unit.costCurrency)}{unit.costPyg ? ` · ${money(unit.costPyg, 'PYG')}` : ''}</p></div>
+            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{sinCostoUnitario(unit) ? <span className="text-warn">Pendiente</span> : money(unit.originalCost, unit.costCurrency)}{!sinCostoUnitario(unit) && unit.costPyg ? ` · ${money(unit.costPyg, 'PYG')}` : ''}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Ingresó a stock</p><p className="mt-1 font-semibold">{ingreso ? ingreso.toLocaleDateString('es-PY') : '—'}{diasEnStock != null ? <span className="ml-2 text-xs font-normal text-mute">{diasEnStock} {diasEnStock === 1 ? 'día' : 'días'} en stock</span> : null}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Compra</p><p className="mt-1 font-semibold">{unit.purchasedAt ? new Date(unit.purchasedAt).toLocaleDateString('es-PY') : '—'}</p></div>
             {unit.reservedUntil && <div className="col-span-2 rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 p-3 text-sm"><p className="text-xs text-mute">Reserva</p><p className="mt-1 font-semibold">{unit.reservationCustomer || 'Cliente'} · vence {new Date(unit.reservedUntil).toLocaleString('es-PY')}</p></div>}
@@ -227,6 +259,30 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
               </div>
             </div>
             <div className="col-span-2 rounded-xl bg-ink-800/60 p-3 text-sm"><p className="text-xs text-mute">Nota interna</p><div className="mt-1.5 flex flex-wrap items-center gap-2"><Input aria-label="Nota interna de la unidad" maxLength={500} value={nota} onChange={event => setNota(event.target.value)} placeholder="Raya lateral, caja dañada, accesorio faltante…" className="min-h-9 min-w-[12rem] flex-1" /><Button type="button" variant="outline" disabled={guardandoNota || nota.trim() === (unit.notes || "")} onClick={guardarNota}>{guardandoNota ? "Guardando…" : "Guardar nota"}</Button></div></div>
+          </div>
+        </section>
+
+        {/* Costo del equipo: se puede completar después de recibirlo */}
+        <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-costo">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Costo del equipo</h3>
+            {sinCostoUnitario(unit) ? <Badge color="orange">Pendiente</Badge> : <Badge color="green">Cargado</Badge>}
+          </div>
+          <p className="mt-1 text-xs text-mute">En guaraníes (sin decimales) o en otra moneda con la cotización del día. Si todavía no lo sabés, dejalo vacío: queda pendiente y lo completás después. El dato alimenta el costo de la venta y la ganancia.</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)]">
+            <CurrencySelect aria-label="Moneda del costo" value={costo.currency} onChange={event => cambiarMonedaCosto(event.target.value)} />
+            <MoneyInput aria-label="Monto del costo" currency={costo.currency} value={costo.monto} onValueChange={value => setCosto(current => ({ ...current, monto: value === '' ? '' : String(value) }))} placeholder="Monto (vacío = pendiente)" />
+          </div>
+          {costo.currency !== 'PYG' && (
+            <div className="mt-2">
+              <Label htmlFor="unidad-costo-cotizacion">Cotización del {costo.currency} en Gs.</Label>
+              <MoneyInput id="unidad-costo-cotizacion" aria-label="Cotización" currency="USD" symbol="Gs." value={costo.rate} onValueChange={value => setCosto(current => ({ ...current, rate: value === '' ? '' : String(value) }))} placeholder="Ej. 7500" />
+            </div>
+          )}
+          {costo.currency !== 'PYG' && costo.monto !== '' && Number(costo.rate) > 0 && <p className="mt-2 text-xs text-mute">Costo en Gs: <b className="text-fore">{gs(Number(costo.monto) * Number(costo.rate))}</b></p>}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs text-mute">{sinCostoUnitario(unit) ? 'Todavía sin costo.' : `Actual: ${money(unit.originalCost, unit.costCurrency)}${unit.costPyg !== null && unit.costPyg !== undefined ? ` · ${money(unit.costPyg, 'PYG')}` : ''}`}</span>
+            <Button type="button" variant="outline" disabled={guardandoCosto} onClick={guardarCosto} data-testid="unidad-costo-guardar">{guardandoCosto ? 'Guardando…' : 'Guardar costo'}</Button>
           </div>
         </section>
 

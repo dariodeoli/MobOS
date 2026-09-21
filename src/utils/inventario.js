@@ -36,3 +36,23 @@ export function estadoInventario(unit = {}) {
   }
   return { clave: unit.status, label: ESTADOS_UNIDAD[unit.status] || unit.status || '—', tone: TONO_ESTADO[unit.status] || 'slate' }
 }
+
+// Costo diferido: la unidad se puede cargar sin costo y completarlo después.
+// Un costo 0 cargado a propósito no cuenta como pendiente.
+export function sinCostoUnitario(unit = {}) {
+  const sinPyg = unit?.costPyg === null || unit?.costPyg === undefined
+  const sinOriginal = unit?.originalCost === null || unit?.originalCost === undefined
+  return sinPyg && sinOriginal
+}
+
+// Costo total en guaraníes de una unidad: el guardado o, si está en moneda
+// extranjera, el monto original por su cotización. null = todavía sin costo.
+export function costoEnGs(unit = {}) {
+  if (unit?.costPyg !== null && unit?.costPyg !== undefined) return Number(unit.costPyg)
+  const monto = Number(unit?.originalCost)
+  if (!Number.isFinite(monto) || monto <= 0) return null
+  const moneda = unit?.costCurrency || 'PYG'
+  if (moneda === 'PYG') return Math.round(monto)
+  const rate = Number(unit?.exchangeRatePyg)
+  return Number.isFinite(rate) && rate > 0 ? Math.round(monto * rate) : null
+}
