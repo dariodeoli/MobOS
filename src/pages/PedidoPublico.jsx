@@ -4,11 +4,14 @@ import { API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { codigoPedido, totalesPedido } from '@/utils/pedido'
 import { varianteDeTema } from '@/lib/tenantLogo'
+import SeccionColapsable from '@/components/shared/SeccionColapsable'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 const ORDER_STATUS = { PENDING: 'Pendiente de pago', COMPLETED: 'Pagado', CANCELLED: 'Cancelado' }
 const WARRANTY_STATUS = { RECEIVED: 'Recibido', DIAGNOSIS: 'En diagnóstico', READY: 'Listo', DELIVERED: 'Entregado' }
 const LEVELS = { rapido: 'Comprobante rápido', completo: 'Comprobante completo', detallado: 'Comprobante detallado' }
+const PASOS = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED']
+const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 
 export default function PedidoPublico() {
   const { token } = useParams()
@@ -38,81 +41,97 @@ export default function PedidoPublico() {
       ? 'border-warn/30 bg-warn/10 text-warn'
       : order?.status === 'COMPLETED' ? 'border-ok/30 bg-ok/10 text-ok' : order?.status === 'CANCELLED' ? 'border-bad/30 bg-bad/10 text-bad' : 'border-warn/30 bg-warn/10 text-warn'
 
+  const pasoActual = PASOS.indexOf(order?.fulfillmentStatus)
+  const items = order?.items || []
+  const pagos = order?.payments || []
+  const movimientos = order?.level === 'detallado' ? (order.timeline || []) : []
+  const garantias = order?.warranties || []
+  const cantidadArticulos = items.reduce((suma, item) => suma + Number(item.quantity || 1), 0)
+  const facturacion = [order?.customer?.phone ? `${order.customer.countryCode || '+595'} ${order.customer.phone}` : '', order?.customer?.email || ''].filter(Boolean).join(' · ')
+  const ultimoMovimiento = movimientos[0]?.at ? fechaHora(movimientos[0].at) : ''
+
   return (
-    <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
-      <style>{`@media print{body,main{background:#fff!important}main,main *{color:#000!important}section{background:#fff!important;border-color:#cbd5e1!important}}`}</style>
-      <div className="mx-auto max-w-xl">
-        <header className="mb-8 text-center">
-          <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Seguimiento de pedido</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">{codigoPedido(order?.orderNumber) || 'Pedido'}</h1>
-          {order?.customerName && <p className="mt-1 text-sm text-mute">Hola, {order.customerName}</p>}
-          {order?.level && <p className="mt-2 text-[11px] uppercase tracking-wider text-mute">{LEVELS[order.level] || order.level}</p>}
-        </header>
+    <main className="min-h-screen bg-ink-950 px-3 py-6 text-fore sm:px-4 sm:py-10">
+      <style>{`@media print{body,main{background:#fff!important}main,main *{color:#000!important}section{background:#fff!important;border-color:#cbd5e1!important}section>div[hidden]{display:block!important}button[aria-expanded] svg{display:none!important}}`}</style>
+      <div className="mx-auto max-w-xl space-y-3">
         {error && <p className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-center text-sm text-bad">{error}</p>}
         {order && (
-          <div className="space-y-4">
-            {order.company?.name && (
-              <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5 text-center">
+          <>
+            {/* Encabezado: tienda, código y estado de un vistazo. */}
+            <header className="rounded-2xl border border-ink-600 bg-ink-900 px-4 py-3">
+              <div className="flex items-center gap-3">
                 {logoOk && (
                   <>
                     {/* Pantalla: la variante sigue al fondo activo (#163). Papel:
                         siempre la variante para fondo claro. */}
                     <img
                       src={`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=${varianteDeTema()}`}
-                      alt={`Logo de ${order.company.name}`}
+                      alt={`Logo de ${order.company?.name}`}
                       onError={() => setLogoOk(false)}
-                      className="mx-auto mb-3 h-14 w-auto max-w-[200px] object-contain print:hidden"
+                      className="h-10 w-auto max-w-[120px] shrink-0 object-contain print:hidden"
                     />
                     <img
                       src={`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=light`}
                       alt=""
-                      className="mx-auto mb-3 hidden h-14 w-auto max-w-[200px] object-contain print:block"
+                      className="hidden h-10 w-auto max-w-[120px] shrink-0 object-contain print:block"
                     />
                   </>
                 )}
-                <p className="text-sm font-bold">{order.company.name}</p>
-                {order.branch && (
-                  <p className="mt-1 text-xs text-mute">
-                    {order.branch.name}
-                    {[order.branch.address, order.branch.city, order.branch.department].filter(Boolean).length ? ` · ${[order.branch.address, order.branch.city, order.branch.department].filter(Boolean).join(', ')}` : ''}
-                    {order.branch.phone ? ` · ${order.branch.phone}` : ''}
-                    {order.branch.instagram ? ` · @${order.branch.instagram}` : ''}
-                  </p>
-                )}
-              </section>
-            )}
-
-            <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-semibold">{ORDER_STATUS[order.status] || order.status}</h2>
-                <span className={`rounded-lg border px-2.5 py-1 text-xs font-bold ${tonoEntrega}`}>{etiquetaEntrega}</span>
+                <div className="min-w-0 flex-1">
+                  {order.company?.name && <p className="truncate text-sm font-bold">{order.company.name}</p>}
+                  {order.branch && (
+                    <p className="truncate text-xs text-mute">
+                      {order.branch.name}
+                      {[order.branch.address, order.branch.city, order.branch.department].filter(Boolean).length ? ` · ${[order.branch.address, order.branch.city, order.branch.department].filter(Boolean).join(', ')}` : ''}
+                      {order.branch.phone ? ` · ${order.branch.phone}` : ''}
+                      {order.branch.instagram ? ` · @${order.branch.instagram}` : ''}
+                    </p>
+                  )}
+                </div>
+                <span className={`shrink-0 rounded-lg border px-2.5 py-1 text-xs font-bold ${tonoEntrega}`}>{etiquetaEntrega}</span>
               </div>
-              <div className="mt-5 grid grid-cols-5 gap-2">
-                {['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED'].map((step, index) => {
-                  const current = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED'].indexOf(order.fulfillmentStatus)
-                  const done = index <= current
+              <div className="mt-3 flex flex-wrap items-end justify-between gap-2 border-t border-ink-600/70 pt-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-[.2em] text-fono-light">Seguimiento de pedido</p>
+                  <h1 className="text-2xl font-bold tracking-tight">{codigoPedido(order.orderNumber) || 'Pedido'}</h1>
+                  <p className="text-xs text-mute">
+                    {order.customerName ? `Hola, ${order.customerName}` : 'Tu pedido'}
+                    {order.level ? ` · ${LEVELS[order.level] || order.level}` : ''}
+                  </p>
+                </div>
+                <div className="text-right text-sm">
+                  <p className="text-mute">Saldo pendiente</p>
+                  <p className={`text-lg font-bold tabular-nums ${pendiente > 0 ? 'text-warn' : 'text-ok'}`}>{gs(pendiente)}</p>
+                </div>
+              </div>
+            </header>
+
+            {/* Pedido: estado de la entrega y totales. Lo esencial, siempre visible. */}
+            <section className="rounded-2xl border border-ink-600 bg-ink-900 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-mute">Estado del pedido</h2>
+                <span className="text-[11px] text-mute">{ORDER_STATUS[order.status] || order.status} · actualizado {fechaHora(order.updatedAt)}</span>
+              </div>
+              <div className="mt-3 grid grid-cols-5 gap-1.5">
+                {PASOS.map((step, index) => {
+                  const hecho = index <= pasoActual
                   return (
                     <div key={step} className="text-center">
-                      <div className={`mx-auto h-2 rounded-full ${done ? 'bg-fono-light' : 'bg-ink-600'}`} />
-                      <p className={`mt-2 text-[10px] font-semibold ${done ? 'text-fore' : 'text-mute'}`}>{FULFILLMENT[step]}</p>
+                      <div className={`h-1.5 rounded-full ${hecho ? 'bg-fono-light' : 'bg-ink-600'}`} />
+                      <p className={`mt-1.5 text-[9px] font-semibold leading-tight sm:text-[10px] ${hecho ? 'text-fore' : 'text-mute'}`}>{FULFILLMENT[step]}</p>
                     </div>
                   )
                 })}
               </div>
-              <p className="mt-4 text-xs text-mute">Actualizado {order.updatedAt ? new Date(order.updatedAt).toLocaleString('es-PY') : '—'}</p>
-            </section>
-
-            {/* Totales: el saldo pendiente y el crédito se destacan siempre. */}
-            <section className={`rounded-2xl border p-5 ${pendiente > 0 ? 'border-warn/40 bg-warn/5' : 'border-ink-600 bg-ink-900'}`}>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between"><span className="text-mute">Total</span><b className="tabular-nums">{gs(total)}</b></div>
-                <div className="flex items-center justify-between"><span className="text-mute">Pagado</span><b className="tabular-nums text-ok">{gs(pagado)}</b></div>
-                <div className="flex items-center justify-between"><span className="text-mute">Pendiente</span><b className={`tabular-nums ${pendiente > 0 ? 'text-warn' : 'text-ok'}`}>{gs(pendiente)}</b></div>
-                {Number(order.discountPyg || 0) > 0 && <div className="flex items-center justify-between"><span className="text-mute">Descuento</span><b className="tabular-nums text-warn">− {gs(order.discountPyg)}</b></div>}
-                {Number(order.deliveryPyg || 0) > 0 && <div className="flex items-center justify-between"><span className="text-mute">Entrega</span><b className="tabular-nums">{gs(order.deliveryPyg)}</b></div>}
-              </div>
+              <dl className="mt-4 space-y-1.5 border-t border-ink-600/70 pt-3 text-sm">
+                <div className="flex items-center justify-between"><dt className="text-mute">Total</dt><dd className="font-semibold tabular-nums">{gs(total)}</dd></div>
+                <div className="flex items-center justify-between"><dt className="text-mute">Pagado</dt><dd className="font-semibold tabular-nums text-ok">{gs(pagado)}</dd></div>
+                <div className="flex items-center justify-between"><dt className="text-mute">Pendiente</dt><dd className={`font-semibold tabular-nums ${pendiente > 0 ? 'text-warn' : 'text-ok'}`}>{gs(pendiente)}</dd></div>
+                {Number(order.discountPyg || 0) > 0 && <div className="flex items-center justify-between"><dt className="text-mute">Descuento</dt><dd className="font-semibold tabular-nums text-warn">− {gs(order.discountPyg)}</dd></div>}
+                {Number(order.deliveryPyg || 0) > 0 && <div className="flex items-center justify-between"><dt className="text-mute">Entrega</dt><dd className="font-semibold tabular-nums">{gs(order.deliveryPyg)}</dd></div>}
+              </dl>
               {aCredito && (
-                <div className="mt-4 rounded-xl border border-bad/40 bg-bad/10 p-3 text-sm text-bad">
+                <div className="mt-3 rounded-xl border border-bad/40 bg-bad/10 p-3 text-sm text-bad">
                   <p className="font-bold uppercase tracking-wider">{entregadoConSaldo ? 'Entregado a crédito' : 'A crédito'}</p>
                   <p className="mt-1">
                     Saldo {gs(pendiente)}
@@ -123,11 +142,15 @@ export default function PedidoPublico() {
               )}
             </section>
 
-            <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
-              <h2 className="font-semibold">Productos</h2>
-              <div className="mt-3 space-y-2">
-                {(order.items || []).map((item, index) => (
-                  <div key={index} className="rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
+            <SeccionColapsable
+              id={`pedido-publico-${token}-articulos`}
+              titulo="Artículos"
+              icono="box"
+              resumen={items.length ? `${cantidadArticulos} artículo${cantidadArticulos === 1 ? '' : 's'} · ${gs(total)}` : 'Sin artículos detallados'}
+            >
+              <div className="space-y-2">
+                {items.map((item, index) => (
+                  <div key={index} className="rounded-xl bg-ink-800/60 px-3 py-2 text-sm">
                     <div className="flex items-center justify-between gap-3">
                       <span className="min-w-0 truncate">{item.description}</span>
                       <span className="shrink-0 text-mute">× {item.quantity}</span>
@@ -140,15 +163,20 @@ export default function PedidoPublico() {
                     )}
                   </div>
                 ))}
+                {!items.length && <p className="text-sm text-mute">El detalle de artículos no está disponible en este enlace.</p>}
               </div>
-            </section>
+            </SeccionColapsable>
 
-            {order.payments?.length > 0 && (
-              <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
-                <h2 className="font-semibold">Pagos</h2>
-                <div className="mt-3 space-y-2">
-                  {order.payments.map((payment, index) => (
-                    <div key={index} className="flex items-center justify-between gap-3 rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
+            {pagos.length > 0 && (
+              <SeccionColapsable
+                id={`pedido-publico-${token}-pagos`}
+                titulo="Pagos"
+                icono="money"
+                resumen={`${pagos.length} pago${pagos.length === 1 ? '' : 's'} · ${gs(pagado)}`}
+              >
+                <div className="space-y-2">
+                  {pagos.map((payment, index) => (
+                    <div key={index} className="flex items-center justify-between gap-3 rounded-xl bg-ink-800/60 px-3 py-2 text-sm">
                       <div className="min-w-0">
                         <p className="truncate">{payment.methodLabel || payment.method}</p>
                         <p className="mt-0.5 text-xs text-mute">
@@ -161,34 +189,17 @@ export default function PedidoPublico() {
                     </div>
                   ))}
                 </div>
-              </section>
-            )}
-
-            {order.level === 'detallado' && order.timeline?.length > 0 && (
-              <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
-                <h2 className="font-semibold">Cronología</h2>
-                <ol className="mt-3 space-y-3">
-                  {order.timeline.map((evento, index) => (
-                    <li key={index} className="flex gap-3 text-sm">
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-fono-light" />
-                      <div className="min-w-0">
-                        <p className="text-xs text-mute">{new Date(evento.at).toLocaleString('es-PY')}</p>
-                        <p className="mt-0.5">
-                          {evento.type === 'created' && 'Pedido creado'}
-                          {evento.type === 'payment' && `Pago recibido: ${gs(evento.amountPyg)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}${evento.account ? ` · ${evento.account}` : ''}`}
-                          {evento.type === 'fulfillment' && `Entrega: ${FULFILLMENT[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </section>
+              </SeccionColapsable>
             )}
 
             {(order.customer || order.billing) && (
-              <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5 text-sm">
-                <h2 className="font-semibold">Datos</h2>
-                <div className="mt-3 space-y-1.5 text-mute">
+              <SeccionColapsable
+                id={`pedido-publico-${token}-cliente`}
+                titulo="Tus datos"
+                icono="user"
+                resumen={[order.customer?.name || order.billing?.name, facturacion].filter(Boolean).join(' · ') || 'Datos de contacto y facturación'}
+              >
+                <div className="space-y-1.5 text-sm text-mute">
                   {order.customer?.name && <p><b className="text-fore">{order.customer.name}</b>{order.customer.document ? ` · ${order.customer.document}` : ''}</p>}
                   {order.customer?.phone && <p>{order.customer.countryCode || ''} {order.customer.phone}</p>}
                   {order.customer?.email && <p className="truncate">{order.customer.email}</p>}
@@ -199,15 +210,44 @@ export default function PedidoPublico() {
                   {order.seller && <p>Vendedor: {order.seller}</p>}
                   {order.deliveryType && <p>Entrega: {order.deliveryType}{order.deliveryNotes ? ` · ${order.deliveryNotes}` : ''}</p>}
                 </div>
-              </section>
+              </SeccionColapsable>
             )}
 
-            {order.warranties?.length > 0 && (
-              <section className="rounded-2xl border border-fono/25 bg-fono/5 p-5">
-                <h2 className="font-semibold">Tus garantías</h2>
-                <div className="mt-3 space-y-2">
-                  {order.warranties.map(warranty => (
-                    <Link key={warranty.token} to={`/garantia/${warranty.token}`} className="flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-900 px-3 py-3 transition hover:border-fono">
+            {movimientos.length > 0 && (
+              <SeccionColapsable
+                id={`pedido-publico-${token}-cronologia`}
+                titulo="Cronología"
+                icono="clock"
+                resumen={`${movimientos.length} movimiento${movimientos.length === 1 ? '' : 's'}${ultimoMovimiento ? ` · último ${ultimoMovimiento}` : ''}`}
+              >
+                <ol className="space-y-2.5">
+                  {movimientos.map((evento, index) => (
+                    <li key={index} className="flex gap-3 text-sm">
+                      <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-fono-light" />
+                      <div className="min-w-0">
+                        <p className="text-xs text-mute">{fechaHora(evento.at)}</p>
+                        <p className="mt-0.5">
+                          {evento.type === 'created' && 'Pedido creado'}
+                          {evento.type === 'payment' && `Pago recibido: ${gs(evento.amountPyg)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}${evento.account ? ` · ${evento.account}` : ''}`}
+                          {evento.type === 'fulfillment' && `Entrega: ${FULFILLMENT[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </SeccionColapsable>
+            )}
+
+            {garantias.length > 0 && (
+              <SeccionColapsable
+                id={`pedido-publico-${token}-garantias`}
+                titulo="Tus garantías"
+                icono="shield"
+                resumen={`${garantias.length} garantía${garantias.length === 1 ? '' : 's'} · abrí el enlace para ver el estado`}
+              >
+                <div className="space-y-2">
+                  {garantias.map(warranty => (
+                    <Link key={warranty.token} to={`/garantia/${warranty.token}`} className="flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2.5 transition hover:border-fono">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{warranty.productName}</p>
                         <p className="mt-0.5 text-xs text-mute">{WARRANTY_STATUS[warranty.status] || warranty.status}{warranty.daysRemaining != null ? ` · ${warranty.daysRemaining} días restantes` : ''}</p>
@@ -216,13 +256,13 @@ export default function PedidoPublico() {
                     </Link>
                   ))}
                 </div>
-              </section>
+              </SeccionColapsable>
             )}
 
-            <p className="pt-2 text-center text-[11px] text-mute">
+            <p className="pt-1 text-center text-[11px] text-mute">
               Documento no fiscal · Generado por MobOS para {order.company?.name || 'la tienda'}
             </p>
-          </div>
+          </>
         )}
       </div>
     </main>
