@@ -1,35 +1,31 @@
 {
-  "base": "http://localhost:5203",
-  "fecha": "2026-09-21T20:36:28.034Z",
+  "base": "https://app.moboss.online",
+  "fecha": "2026-09-21T22:48:25.621Z",
   "pasos": [
     {
       "paso": "entrada demo y venta rapida",
-      "estado": "ok",
-      "detalle": "versión v1.0.130 · total 180000",
-      "captura": "01-entrada demo y venta rapida.jpg"
+      "estado": "fallo",
+      "detalle": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('option').filter({ hasText: /Caja demo · Gs/i }).first()\u001b[22m\n"
     },
     {
       "paso": "abrir el dialogo del comprobante",
-      "estado": "ok",
-      "detalle": "iconos: true · nivel elegido: \"Rápido\" · formato elegido: \"80 mm\" · ancho vista previa: 0px · controles viejos: DIV",
-      "captura": "02-abrir el dialogo del comprobante.jpg"
+      "estado": "fallo",
+      "detalle": "locator.isDisabled: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /Confirmar venta/ }).last()\u001b[22m\n"
     },
     {
       "paso": "teclado: los iconos se alcanzan y cambian con el teclado",
-      "estado": "ok",
-      "detalle": "con foco + Space → \"A4\" · foco en: radio",
-      "captura": "03-teclado: los iconos se alcanzan y cambian con el teclado.jpg"
+      "estado": "fallo",
+      "detalle": "sin iconos todavía (lote sin desplegar)"
     },
     {
       "paso": "memoria del ultimo usado en el dialogo",
-      "estado": "ok",
-      "detalle": "guardado: | · al reabrir: \"\" + \"\"",
-      "captura": "04-memoria del ultimo usado en el dialogo.jpg"
+      "estado": "fallo",
+      "detalle": "sin iconos todavía (lote sin desplegar)"
     },
     {
       "paso": "ultimo usado en el POS (#209): usar, recargar y verificar",
       "estado": "ok",
-      "detalle": "guardado: Delivery|demo-cash-pyg · tras recargar → entrega: \"Delivery\" · cuenta del bloque nuevo: \"Caja demo · Gs\"",
+      "detalle": "guardado: | · tras recargar → entrega: \"Retiro en tienda\" · cuenta del bloque nuevo: \"\"",
       "captura": "05-ultimo usado en el POS (#209): usar, recargar y verificar.jpg"
     }
   ]

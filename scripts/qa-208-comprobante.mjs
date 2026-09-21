@@ -23,7 +23,7 @@ const paso = async (nombre, fn) => {
 await paso('entrada demo y venta rapida', async () => {
   await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1500)
   const version = ((await page.locator('body').innerText()).match(/v\d+\.\d+\.\d+/) || [''])[0]
-  await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
+  await page.getByRole('button', { name: /^(Entrar como )?Vendedor\b/ }).first().click()
   await page.waitForURL((u) => !u.pathname.startsWith('/demo'), { timeout: 30000 }); await page.waitForTimeout(2400)
   await page.goto(`${BASE}/pos`, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(2400)
   await page.locator('input[placeholder="Buscar cliente o escribir un nombre nuevo"]').fill('Comprobante QA')

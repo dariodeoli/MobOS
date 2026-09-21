@@ -18,7 +18,7 @@ for (const [ancho, alto, etiqueta] of [[360, 740, 'movil-360'], [768, 1024, 'tab
   page.on('pageerror', (error) => errores.push(String(error.message).slice(0, 160)))
   await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
-  await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
+  await page.getByRole('button', { name: /^(Entrar como )?Vendedor\b/ }).first().click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'), { timeout: 30000 })
   await page.waitForTimeout(2400)
   await page.goto(`${BASE}/pos`, { waitUntil: 'domcontentloaded' })
