@@ -11,6 +11,7 @@ import { printingApi } from '@/lib/api/printing'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { normalizarDestino, normalizarPuentes, puenteDe, basePuente } from './puentes'
 import { puedeCaerAlDialogo, resolverCamino, tokenDeAgente } from './ruteo'
+import { impresoraDeTipo, recordarImpresoraDeTipo } from './preferencias'
 import { storeDemo } from './demo'
 
 export { puenteDe, resolverCamino, puedeCaerAlDialogo }
@@ -582,7 +583,12 @@ export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuari
   // tener la caché vieja (u otra predeterminada) y el trabajo saldría al
   // destino equivocado. Si el backend no responde, se usa la última caché.
   let actual = store || (estado?.disponible ? cargarImpresoras(tenantActivo) : await cargarImpresorasRemotas({ forzar: true }))
-  const elegida = impresora || imprimirConDestino(actual, sucursalActiva).predeterminada
+  // "Último usado como predeterminado" (#209): la impresora recordada para el
+  // tipo de documento manda si sigue activa; si no existe, la predeterminada.
+  // Una impresora explícita del llamador siempre gana.
+  const recordada = tipo ? (actual.impresoras || []).find((item) => item.activa && item.destino === impresoraDeTipo(tipo)) : null
+  const elegida = impresora || recordada || imprimirConDestino(actual, sucursalActiva).predeterminada
+  const recordarUsada = () => { if (tipo && elegida?.destino) recordarImpresoraDeTipo(tipo, { destino: elegida.destino, ancho: elegida.ancho }) }
   const puente = puenteDe(actual, elegida)
   const { camino } = resolverCamino(actual, elegida, { disponible: Boolean(estado?.disponible) })
   if (camino === 'local') {
@@ -599,6 +605,7 @@ export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuari
       modo: elegida?.conexion,
     })
     if (local.ok || local.encolado || local.incierto) {
+      recordarUsada()
       return {
         ...local,
         ok: Boolean(local.ok),
@@ -610,7 +617,7 @@ export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuari
     // El agente local rechazó ANTES de aceptar: recién ahí vale el remoto.
     if (elegida?.destino) {
       const remoto = await encolarRemoto(ticket, { impresora: elegida, copias, usuario, tipo, equipo, puente, ref, reimprimir })
-      if (remoto.ok) return { ...remoto, camino: 'remoto' }
+      if (remoto.ok) { recordarUsada(); return { ...remoto, camino: 'remoto' } }
       if (remoto.duplicado) return { ok: false, camino: 'remoto', motivo: 'duplicado', duplicado: true, job: remoto.job || null, error: remoto.error }
       return { ok: false, camino: 'remoto', motivo: 'fallo', error: remoto.error || local.error || 'No se pudo imprimir.' }
     }
@@ -621,7 +628,7 @@ export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuari
     return { ok: false, camino: 'remoto', motivo: estado?.disponible ? 'sin-impresora' : 'agente-no-disponible', error: 'No hay impresora configurada.' }
   }
   const remoto = await encolarRemoto(ticket, { impresora: elegida, copias, usuario, tipo, equipo, puente, ref, reimprimir })
-  if (remoto.ok) return { ...remoto, camino: 'remoto' }
+  if (remoto.ok) { recordarUsada(); return { ...remoto, camino: 'remoto' } }
   if (remoto.duplicado) return { ok: false, camino: 'remoto', motivo: 'duplicado', duplicado: true, job: remoto.job || null, error: remoto.error }
   return { ok: false, camino: 'remoto', motivo: 'fallo', error: remoto.error || 'No se pudo encolar el trabajo.' }
 }
