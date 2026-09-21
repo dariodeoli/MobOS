@@ -10,11 +10,18 @@ import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
 
+import { publicUrls } from '@/lib/urls'
+
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]))
 
 const publicBase = () =>
   String(import.meta.env.VITE_PUBLIC_TRACKING_URL || '').replace(/\/$/, '') ||
   (typeof window !== 'undefined' ? window.location.origin : '')
+
+// Los enlaces del pedido viven en el portal de clientes (#197): la base propia
+// del entorno manda; si no, la canónica del subdominio.
+const pedidoBase = () =>
+  String(import.meta.env.VITE_PUBLIC_TRACKING_URL || '').replace(/\/$/, '') || publicUrls.clientPortal
 
 // Remito de traslado entre sucursales: lista completa de IMEI para control
 // físico al recibir, con origen, destino, fecha y guía AEX si ya está. Si el
@@ -95,8 +102,8 @@ export async function printPriceLabel(product, { format = 'thermal-58' } = {}) {
 
 export const trackingUrlFor = (order) => {
   // El QR del comprobante abre la página pública del pedido (estado + garantías).
-  const base = publicBase()
-  return order?.publicToken && base ? `${base}/pedido/${encodeURIComponent(order.publicToken)}` : ''
+  const base = pedidoBase()
+  return order?.publicToken && base ? `${base}/pedidos/${encodeURIComponent(order.publicToken)}` : ''
 }
 
 // Enlace privado del nivel de comprobante (rápido | completo | detallado).
