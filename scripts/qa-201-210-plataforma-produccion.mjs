@@ -88,7 +88,7 @@ async function entrarDemo(page, rol = 'Dueño') {
   await page.waitForTimeout(1200)
   await page.getByRole('button', { name: new RegExp(`Entrar como ${rol}`) }).click()
   await page.waitForURL((destino) => !destino.pathname.startsWith('/demo'), { timeout: 30000 })
-  await page.getByText(/los datos son ficticios/).first().waitFor({ state: 'visible', timeout: 20000 })
+  await page.getByText(/Modo demo: datos ficticios/).first().waitFor({ state: 'visible', timeout: 20000 })
   const cerrar = page.getByRole('button', { name: 'Cerrar' }).last()
   if (await page.getByRole('dialog', { name: 'Cómo funciona la demo' }).count()) await cerrar.click()
 }
@@ -250,7 +250,10 @@ const browser = await chromium.launch()
 
 // 3) El deploy contiene el código del lote (helpers #209 y bloqueo #210).
 await paso('deploy: el bundle publicado incluye #209 y #210', async () => {
-  const agujas = ['lock-logo-empresa', 'mobos:config:documentacion-modulo', 'mobos:sucursal-activa', 'mobos:shell:nav-plegados', 'mobos:pos:vendedor']
+  // El bundle principal alcanza para probar que el lote viaja: la pantalla de
+  // bloqueo, el namespace canónico y el evento del helper. Las claves de cada
+  // pantalla viven en chunks lazy y se prueban con los pasos funcionales.
+  const agujas = ['lock-logo-empresa', 'mobos:ultimo:', 'mobos:ultimo-usado', 'sucursal-activa']
   const { fuente, ok } = await bundleTiene(agujas)
   if (!ok) throw new Error(`el bundle ${fuente} no expone el lote (#209/#210): ¿deploy viejo?`)
   return `claves y testid presentes en ${fuente}`

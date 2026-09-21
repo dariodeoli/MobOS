@@ -1,0 +1,87 @@
+{
+  "verificado": "2026-09-21T22:26:24.204Z",
+  "base": "https://app.moboss.online",
+  "version": "v1.0.133",
+  "llamadasApi": [],
+  "erroresConsola": [],
+  "resultados": [
+    {
+      "paso": "bloqueo (claro): MobOS logo, avatar del usuario y PIN intactos",
+      "estado": "ok",
+      "detalle": "v1.0.133 · logo claro, iniciales y PIN auto-validado",
+      "capturas": [
+        "01-bloqueo-claro.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "último usado (#209): POS recordado en la sesión y descartado al recargar",
+      "estado": "ok",
+      "detalle": "recordado en la sesión, descartado al recargar y sin escritura en localStorage",
+      "capturas": [
+        "02-ultimo-usado-recordado.jpg",
+        "03-ultimo-usado-descartado.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#201: guardados de la demo no persisten",
+      "estado": "ok",
+      "detalle": "sin claves nuevas (local 1, sesión 3, idb 0)",
+      "capturas": [
+        "04-almacenamiento-limpio.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#201: la recarga descarta los guardados",
+      "estado": "ok",
+      "detalle": "los guardados vuelven al seed tras recargar",
+      "capturas": [
+        "05-recarga-reset.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#201: cero llamadas al API real",
+      "estado": "ok",
+      "detalle": "ninguna request a /api/ durante todo el recorrido",
+      "capturas": [],
+      "llamadasApi": []
+    },
+    {
+      "paso": "bloqueo (oscuro): el logo de MobOS cambia de variante",
+      "estado": "ok",
+      "detalle": "logo claro sobre fondo oscuro",
+      "capturas": [
+        "06-bloqueo-oscuro.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "bloqueo (móvil): entra completo en la pantalla",
+      "estado": "ok",
+      "detalle": "tarjeta completa a 390 px con logo y avatar",
+      "capturas": [
+        "07-bloqueo-movil.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "deploy: el bundle publicado incluye #209 y #210",
+      "estado": "ok",
+      "detalle": "claves y testid presentes en https://app.moboss.online/assets/index-CAsA0lAZ.js",
+      "capturas": [],
+      "llamadasApi": []
+    }
+  ],
+  "pendientesSinSesionReal": [
+    "Foto subida y logo de tienda reales: requieren sesión real. Pasos: entrar a /login con empresa + PIN, subir foto en Mi identidad y logo en Configuración → Negocio, bloquear pantalla (menú de tres puntos) y mirar foto + logo en claro/oscuro.",
+    "PresencePill con la foto de todas las personas: requiere sesión real con 2+ personas en línea (la demo no comparte presencia, #192). Local: e2e/shell-roles.spec.js mockea la presencia y verifica foto subida, iniciales y nombre corto."
+  ],
+  "resumen": {
+    "pasos": 8,
+    "ok": 8,
+    "fallos": 0
+  }
+}
