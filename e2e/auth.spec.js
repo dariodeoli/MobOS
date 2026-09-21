@@ -185,6 +185,10 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   await expect(imeiModal.getByText(/Fuente IMEIcheck\.net/)).toBeVisible()
   await imeiModal.getByRole('button', { name: 'Adjuntar al comentario' }).click()
   await expect(page.getByText('Agregado al comentario interno.')).toBeVisible()
+  // Imprimir en demo: se avisa que es ficticio, sin abrir nada.
+  await imeiModal.getByRole('button', { name: 'Imprimir comprobante' }).click()
+  await expect(page.getByText(/impresión no está disponible en el demo/i)).toBeVisible()
+  await page.screenshot({ path: '/tmp/qa203-demo-imei.png' })
   await imeiModal.getByRole('button', { name: 'Cerrar' }).click()
   await ficha.getByRole('tab', { name: /^Cronología/ }).click()
   await expect(ficha.getByText(/fuente IMEIcheck\.net/).first()).toBeVisible()
