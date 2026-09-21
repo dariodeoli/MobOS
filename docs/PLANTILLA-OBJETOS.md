@@ -142,6 +142,17 @@ patrón de uso de cada familia y un ejemplo corto.
   columnas alineadas, acciones ancladas al pie.
 - **Chip de atributo**: ícono opcional + etiqueta corta (moneda, categoría,
   sin precio).
+- **Fila etiqueta/valor: `ui/FilaDato` (#211)** — etiqueta en `mute` a la
+  izquierda, valor a la derecha en semibold con `tabular-nums` y tono
+  (`ok`/`warn`/`bad`/`mute`); `etiquetaComo`/`valorComo` mantienen `dt`/`dd`
+  dentro de un `<dl>`. Ejemplo: `<FilaDato etiqueta="Pagado" valor={gs(pagado)} tono="ok" />`.
+- **Celda de dinero: `ui/CeldaMoneda` (#211)** — celda de tablas y listas
+  alineada a la derecha con `Money`, `tabular-nums` y tono; el sufijo va como
+  `children`. Ejemplo: `<CeldaMoneda valor={pago.amountPyg} tono="ok" />`.
+- **Barra de progreso: `ui/BarraProgreso` (#211)** — accesible
+  (`role="progressbar"`), con tono (`fono`/`ok`/`warn`/`bad`/`mute`), altura
+  (`sm`/`md`/`lg`) y `etiqueta`. Ejemplo:
+  `<BarraProgreso valor={paso} max={pasos.length} etiqueta="Progreso de la verificación" />`.
 - **Sección de detalle plegable (#164)**: `shared/SeccionColapsable` — el
   encabezado muestra título + resumen del dato útil (cantidad, total, estado) y
   el detalle arranca **cerrado** (para abrir, no abierto); recuerda su estado
@@ -161,9 +172,10 @@ patrón de uso de cada familia y un ejemplo corto.
   copiar las clases o crear alias locales (`CELDA_INV`, `celda`, …).
 
 > Referencia MobOS: `Badge`, `Dot`, `Stat`, `Card`, `ListGridToggle`,
-> `SeccionColapsable`, `ComprobantePreview`, `Cronologia`,
-> `src/components/shared/tabla.js` (`ROTULO_DATO`, `CELDA_ENCABEZADO`,
-> `ROTULO_SECCION`).
+> Referencia MobOS: `Badge`, `Dot`, `Stat`, `Card`, `ListGridToggle`,
+> `SeccionColapsable`, `FilaDato`, `CeldaMoneda`, `BarraProgreso`,
+> `ComprobantePreview`, `Cronologia`, `src/components/shared/tabla.js`
+> (`ROTULO_DATO`, `CELDA_ENCABEZADO`, `ROTULO_SECCION`).
 
 ## 4. Estados y avisos — únicos por concepto
 
@@ -208,6 +220,20 @@ patrón de uso de cada familia y un ejemplo corto.
   foto subida → foto de la identidad (Google) → iniciales. Nunca `<img>` a mano
   y **nunca una imagen rota**: si la foto de Google falla, cae a iniciales
   (#164). Los timelines y las fichas pasan el `picture` cuando lo tienen.
+- **Identidad de persona: `shared/PersonaChip` (#211).** Es el **único objeto
+  para mostrar a alguien**: envuelve al Avatar y resuelve la foto en el orden
+  único (foto local por `id` → foto de Google `picture` → iniciales), con
+  `size`, `nombreCorto` (solo el **primer nombre** en contextos compactos),
+  `estado` de presencia (`en-linea` / `ausente` / `ocupado` / `offline`, punto
+  sobre el avatar), `title` y texto adicional como `children` ("está viendo este
+  pedido"). Los call sites no vuelven a pluckear `picture`, no dibujan la
+  persona por su cuenta y **no fuerzan `hasAvatar={false}`** (eso apaga la foto
+  real de la persona).
+  - **Adopción pendiente por dominio** (cada slot reporta el suyo): POS
+    (`PedidoDetalle` encabezado y cronología, #212), PLT (pantalla de bloqueo
+    #210 y `PresencePill`), CRM (`CustomerProfile`), PRN (`Impresoras`), INV
+    (`Inventario` y `UnidadDetalle`), PLT (`Vendedores`, `Config`) y shell
+    (`AppShell`). Ya migrado acá: `PresenciaPedido` (foto + primer nombre).
 - La foto externa se pasa **solo para quien corresponde** (nunca la del dueño a un
   tercero) y se sirve con sesión y `referrerPolicy="no-referrer"`.
 - **Formato de subida:** PNG/JPG/WebP hasta **1 MiB**, con validación de MIME y
@@ -233,7 +259,8 @@ patrón de uso de cada familia y un ejemplo corto.
   la variante con `ThemeLogo variante="dark"`. La regla vive una sola vez en
   `src/lib/tenantLogo.js`; no se duplica por pantalla.
 
-> Referencia MobOS: `src/components/shared/Avatar.jsx`, `src/lib/userAvatar.js`,
+> Referencia MobOS: `src/components/shared/PersonaChip.jsx`,
+> `src/components/shared/Avatar.jsx`, `src/lib/userAvatar.js`,
 > `src/lib/tenantLogo.js`, `src/components/shared/PhotoCropper.jsx`,
 > `AttachmentInput`/`AttachmentList`, `backend/lib/attachment-storage.ts`.
 > Reglas completas: `docs/AVATAR.md`.

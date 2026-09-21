@@ -673,3 +673,55 @@ export function Subtabs({ value, onChange, items = [], className }) {
     </div>
   )
 }
+
+// ── FilaDato ────────────────────────────────────────────────────────
+// Fila etiqueta/valor de los paneles de detalle (subtotal, total, pagado…):
+// etiqueta a la izquierda en `mute`, valor a la derecha en semibold con
+// números tabulares y tono semántico. `etiquetaComo`/`valorComo` permiten
+// mantener `dt`/`dd` dentro de un `<dl>`.
+const TONOS_VALOR = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad', mute: 'text-mute' }
+
+export function FilaDato({ etiqueta, valor, tono = '', etiquetaComo: Etiqueta = 'span', valorComo: Valor = 'span', className, valorClassName, children }) {
+  return (
+    <div className={cn('flex items-center justify-between gap-3', className)}>
+      <Etiqueta className="min-w-0 text-mute">{etiqueta ?? children}</Etiqueta>
+      <Valor className={cn('shrink-0 font-semibold tabular-nums', TONOS_VALOR[tono], valorClassName)}>{valor}</Valor>
+    </div>
+  )
+}
+
+// ── CeldaMoneda ─────────────────────────────────────────────────────
+// Celda de dinero para listas y tablas: alineada a la derecha, con `Money`
+// (el mismo formato que el resto de la app), números tabulares y tono. El
+// contenido extra (moneda, sufijo) va como children.
+export function CeldaMoneda({ valor, tono = '', currency = 'PYG', className, children }) {
+  return (
+    <span className={cn('inline-flex shrink-0 items-center justify-end gap-1 font-semibold tabular-nums', TONOS_VALOR[tono], className)}>
+      <Money value={Number(valor || 0)} currency={currency} />
+      {children}
+    </span>
+  )
+}
+
+// ── BarraProgreso ───────────────────────────────────────────────────
+// Barra de progreso accesible (role=progressbar) para avances, escaneos y
+// conciliaciones: tono semántico y altura chica/media/grande.
+const TONOS_BARRA = { fono: 'bg-fono', ok: 'bg-ok', warn: 'bg-warn', bad: 'bg-bad', mute: 'bg-mute' }
+const ALTURAS_BARRA = { sm: 'h-1', md: 'h-1.5', lg: 'h-2.5' }
+
+export function BarraProgreso({ valor = 0, max = 100, tono = 'fono', alto = 'md', etiqueta, className }) {
+  const total = Number(max) > 0 ? Number(max) : 100
+  const porcentaje = Math.min(100, Math.max(0, ((Number(valor) || 0) / total) * 100))
+  return (
+    <div
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(porcentaje)}
+      aria-label={etiqueta}
+      className={cn('overflow-hidden rounded-full bg-fore/10', ALTURAS_BARRA[alto] || ALTURAS_BARRA.md, className)}
+    >
+      <span className={cn('block h-full rounded-full transition-[width] duration-500 ease-out', TONOS_BARRA[tono] || TONOS_BARRA.fono)} style={{ width: `${porcentaje}%` }} />
+    </div>
+  )
+}
