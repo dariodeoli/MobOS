@@ -1,4 +1,4 @@
-// Registro reutilizable banco → logo (#119). Cubre las 28 entradas de
+// Registro reutilizable banco → logo (#119, #139). Cubre todas las entradas de
 // BANCOS_PARAGUAY con una de tres resoluciones:
 //   archivo    → asset propio en public/bancos (sin hotlinks)
 //   marca      → SVG vectorial que ya vive en components/shared/MedioPago.jsx
@@ -10,34 +10,28 @@ import { BANCOS_PARAGUAY } from './bancos-paraguay.js'
 export const MARCAS_MEDIO_PAGO_DISPONIBLES = ['ueno', 'upay', 'pik', 'dinelco', 'continental', 'familiar', 'dinero']
 
 export const LOGOS_BANCOS = {
-  'Banco Nacional de Fomento': { archivo: 'bnf.png' },
-  'Banco Continental': { marca: 'continental' },
-  'Banco Itaú Paraguay': { archivo: 'itau.png', alias: ['itau', 'banco itau', 'itau paraguay'] },
-  'Banco Sudameris': { archivo: 'sudameris.png' },
-  'Banco Regional': { monograma: 'BR', color: '#0F7B3D' },
-  'Visión Banco': { monograma: 'VB', color: '#00A15C' },
   'Banco Atlas': { archivo: 'banco-atlas.png' },
-  'Banco Familiar': { marca: 'familiar' },
-  'Banco GNB Paraguay': { archivo: 'banco-gnb.svg' },
   'Banco Basa': { archivo: 'banco-basa.svg' },
-  'Banco Interfisa': { archivo: 'interfisa.png' },
-  'Banco Itapúa': { monograma: 'BI', color: '#1A5CA8' },
-  'Banco Amambay': { monograma: 'BA', color: '#12659E' },
-  'Bancoex': { monograma: 'BX', color: '#173A76' },
-  'Banco Bilbao Vizcaya Argentaria Paraguay': { archivo: 'bbva.svg', alias: ['bbva', 'bbva paraguay'] },
+  'Banco Continental': { marca: 'continental' },
   'Banco de la Nación Argentina': { archivo: 'banco-nacion-argentina.png', chip: true, alias: ['banco nacion', 'bna'] },
   'Banco do Brasil': { archivo: 'banco-do-brasil.svg', alias: ['bb', 'brasil'] },
-  'Banco Río': { monograma: 'RÍO', color: '#1B84B8' },
-  'ueno bank': { marca: 'ueno', alias: ['ueno'] },
-  'Banca Privada de Inversión': { monograma: 'BPI', color: '#33414F' },
-  'Financiera Paraguayo Japonesa': { archivo: 'paraguayo-japonesa.png' },
-  'Solar Ahorro y Finanzas': { archivo: 'solar.svg', alias: ['solar'] },
+  'Banco Familiar': { marca: 'familiar' },
+  'Banco GNB Paraguay': { archivo: 'banco-gnb.svg' },
+  'Banco Interfisa': { archivo: 'interfisa.png' },
+  'Banco Itaú Paraguay': { archivo: 'itau.png', alias: ['itau', 'banco itau', 'itau paraguay'] },
+  'Banco Nacional de Fomento': { archivo: 'bnf.png' },
+  'Banco Sudameris': { archivo: 'sudameris.png' },
+  'Bancop': { archivo: 'bancop.png' },
+  'Citibank Paraguay': { archivo: 'citibank.svg', alias: ['citibank', 'citi'] },
+  'Coomecipar': { monograma: 'CO', color: '#0B6E4F' },
+  'Cooperativa Medalla Milagrosa': { monograma: 'MMM', color: '#6C3FA0' },
+  'Cooperativa San Cristóbal': { monograma: 'CSC', color: '#167A54' },
+  'Cooperativa Universitaria': { monograma: 'CU', color: '#1D4E9E' },
   'Financiera El Comercio': { monograma: 'FEC', color: '#0E7C7B' },
   'Financiera Finexpar': { monograma: 'FX', color: '#C24E1B' },
-  'Coomecipar': { monograma: 'CO', color: '#0B6E4F' },
-  'Cooperativa Universitaria': { monograma: 'CU', color: '#1D4E9E' },
-  'Cooperativa San Cristóbal': { monograma: 'CSC', color: '#167A54' },
-  'Cooperativa Medalla Milagrosa': { monograma: 'MMM', color: '#6C3FA0' },
+  'Financiera Paraguayo Japonesa': { archivo: 'paraguayo-japonesa.png' },
+  'Solar Banco': { archivo: 'solar.svg', alias: ['solar', 'solar ahorro y finanzas'] },
+  'ueno bank': { marca: 'ueno', alias: ['ueno'] },
 }
 
 // Paleta de respaldo para nombres escritos a mano fuera del catálogo.

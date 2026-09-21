@@ -11,16 +11,33 @@ import {
   logoDeBanco,
 } from './bancosLogos.js'
 
-// Aserción de fuente de #119: el registro de logos cubre TODO el catálogo de
-// bancos, los archivos existen en el repo (sin hotlinks) y los que no tienen
-// logo confiable caen a monograma con iniciales y color de marca.
+// Aserción de fuente de #119/#139: el registro de logos cubre TODO el catálogo
+// vigente de bancos, los archivos existen en el repo (sin hotlinks), los que no
+// tienen logo confiable caen a monograma con iniciales y color, y las entidades
+// absorbidas quedaron fuera del catálogo.
 
 const RAIZ = fileURLToPath(new URL('../..', import.meta.url))
 const leer = (ruta) => readFileSync(`${RAIZ}/${ruta}`, 'utf8')
 
-test('el registro cubre las 28 entradas del catálogo, sin sobras', () => {
+test('el registro cubre el catálogo completo, sin sobras', () => {
   assert.deepEqual(Object.keys(LOGOS_BANCOS).sort(), [...BANCOS_PARAGUAY].sort())
-  assert.equal(coberturaBancos().length, 28)
+  assert.equal(coberturaBancos().length, BANCOS_PARAGUAY.length)
+})
+
+test('el catálogo está en orden alfabético y sin repetidos', () => {
+  assert.deepEqual([...BANCOS_PARAGUAY].sort((a, b) => a.localeCompare(b, 'es')), [...BANCOS_PARAGUAY])
+  assert.equal(new Set(BANCOS_PARAGUAY).size, BANCOS_PARAGUAY.length)
+})
+
+test('las entidades absorbidas quedan fuera y sus sucesoras adentro', () => {
+  const fuera = ['Banco Regional', 'Visión Banco', 'Banco Bilbao Vizcaya Argentaria Paraguay', 'Banco Itaú', 'Banco Amambay', 'Banco Río', 'Bancoex', 'Banca Privada de Inversión', 'Solar Ahorro y Finanzas']
+  for (const nombre of fuera) {
+    assert.ok(!BANCOS_PARAGUAY.includes(nombre), `${nombre} ya no opera y no debe estar en el catálogo`)
+  }
+  for (const nombre of ['Banco Continental', 'Banco GNB Paraguay', 'Banco Sudameris', 'Banco Basa', 'Solar Banco', 'ueno bank']) {
+    assert.ok(BANCOS_PARAGUAY.includes(nombre), `falta ${nombre}`)
+  }
+  assert.ok(!existsSync(`${RAIZ}/public/bancos/bbva.svg`), 'el asset de BBVA se retiró')
 })
 
 test('cada banco resuelve a archivo, marca o monograma', () => {
@@ -57,12 +74,20 @@ test('un nombre fuera del catálogo cae a monograma y no rompe', () => {
   assert.equal(inventado.iniciales, 'IC')
   assert.equal(inventado.generico, true)
   assert.match(inventado.color, /^#[0-9A-F]{6}$/i)
-  // Los monogramas del catálogo no son genéricos: se muestran también en listados.
-  assert.equal(logoDeBanco('Banco Regional').generico, undefined)
+  // Una entidad que ya no está en el catálogo cae al monograma genérico.
+  assert.equal(logoDeBanco('Banco Regional').generico, true)
   // Alias frecuentes del catálogo.
   assert.equal(logoDeBanco('Banco Itau').tipo, 'archivo')
-  assert.equal(logoDeBanco('bbva').archivo, 'bbva.svg')
+  assert.equal(logoDeBanco('citi').archivo, 'citibank.svg')
+  assert.equal(logoDeBanco('solar ahorro y finanzas').archivo, 'solar.svg')
   assert.equal(inicialesDeBanco('Cooperativa Medalla Milagrosa'), 'MM')
+})
+
+test('el selector muestra el catálogo completo al abrir', () => {
+  const codigo = leer('src/components/shared/BancoCombobox.jsx')
+  assert.match(codigo, /if \(!termino\) return BANCOS_PARAGUAY/, 'sin texto debe listar todo el catálogo')
+  assert.ok(!/slice\(0, MAX_SUGERENCIAS\)/.test(codigo), 'no puede recortar la lista')
+  assert.match(codigo, /scrollIntoView/, 'la opción resaltada debe quedar a la vista')
 })
 
 test('MedioPago expone las marcas que el registro reutiliza', () => {
