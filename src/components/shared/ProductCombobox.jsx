@@ -49,9 +49,11 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
   const term = query.trim().toLowerCase()
   const suggestions = useMemo(() => {
     if (!term) return []
-    return products
-      .filter((product) => productName(product).toLowerCase().includes(term) || String(product.sku || '').toLowerCase().includes(term))
-      .slice(0, MAX_SUGGESTIONS)
+    // Coincidencia por lo que el vendedor ve y escribe: nombre, SKU, modelo,
+    // capacidad y color. El filtro server-side completo es /api/products/search.
+    const coincide = (product) => [productName(product), product.sku, product.model, product.capacity, product.color]
+      .some((valor) => String(valor || '').toLowerCase().includes(term))
+    return products.filter(coincide).slice(0, MAX_SUGGESTIONS)
   }, [products, term])
   const canCreate = Boolean(term && onCreate && suggestions.length === 0)
   const optionCount = suggestions.length + (canCreate ? 1 : 0)
