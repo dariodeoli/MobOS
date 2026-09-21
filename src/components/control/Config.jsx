@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import PhotoCropper from '@/components/shared/PhotoCropper'
@@ -9,7 +10,7 @@ import { getDemoTenant, setDemoInsurancePct, setDemoLimits, setDemoNumeracion } 
 import { promptLogo } from '@/lib/logoPrompt'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { comprimirImagen } from '@/utils/imagen'
-import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, Toggle, useToast } from '@/components/ui'
+import { Button, Card, Badge, ConfirmDialog, EmptyState, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, Toggle, useToast } from '@/components/ui'
 import { formatGs } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
@@ -291,7 +292,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
             </FormField>
           </div>
           <div className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600/70 bg-ink-800/30 p-3">
-            <span className="flex items-center gap-2 text-sm"><Toggle id="seguro-toggle" checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(on) => setSeguroPct(on ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} label="Aplica seguro" /><span>Seguro de ventas</span></span>
+            <span className="flex items-center gap-2 text-sm"><Toggle id="seguro-toggle" checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(on) => setSeguroPct(on ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} ariaLabel="Aplica seguro" /><span>Seguro de ventas</span></span>
             <FormField label="Porcentaje sobre el costo (%)" htmlFor="seguro-pct" hint="Costo real = costo + seguro. Ej.: costo 100.000 y 25% → 125.000; el margen baja en 25.000.">
               <PercentField id="seguro-pct" max={100} disabled={busy || seguroPct.trim() === ''} value={seguroPct} onChange={setSeguroPct} placeholder="25" />
             </FormField>
@@ -664,7 +665,7 @@ export function MiIdentidad() {
 
 function SeccionTiendas({ account }) {
   const toast = useToast()
-  const { salir } = useSesion()
+  const { salir, esDemo } = useSesion()
   const [dialogo, setDialogo] = useState(null) // 'abandonar' | 'eliminar'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -699,6 +700,17 @@ function SeccionTiendas({ account }) {
       await salir()
       window.location.assign('/login')
     } catch (cause) { setError(cause?.message || 'No se pudo archivar la tienda.') } finally { setBusy(false) }
+  }
+
+  // En demo no hay cuenta de Google: se explica en lugar de mostrar el error
+  // de carga (#205).
+  if (esDemo) {
+    return (
+      <Card>
+        <h2 className="font-semibold">Tiendas</h2>
+        <p className="mt-1 text-sm text-mute">Las tiendas de tu cuenta de Google se administran con una cuenta real.</p>
+      </Card>
+    )
   }
 
   return (
@@ -854,6 +866,7 @@ function DialogoDestructivo({ open, title, description, palabra, necesitaClave =
 
 function SeccionSucursales() {
   const toast = useToast()
+  const { esDemo } = useSesion()
   const [branches, setBranches] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -864,7 +877,12 @@ function SeccionSucursales() {
     setError('')
     try { setBranches(await api.get('/api/branches')) } catch (cause) { setError(cause?.message || 'No se pudieron cargar las sucursales.') }
   }
-  useEffect(() => { cargar() }, [])
+  useEffect(() => {
+    // En demo no se consulta el API: la sección muestra un aviso claro en vez
+    // de quedarse en "Cargando sucursales…" (#205).
+    if (esDemo) { setBranches([]); return }
+    cargar()
+  }, [esDemo])
 
   function irAlFormulario() {
     document.getElementById('sucursal-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
@@ -909,6 +927,20 @@ function SeccionSucursales() {
       toast.success(branch.isActive ? 'Sucursal desactivada.' : 'Sucursal reactivada.')
       await cargar()
     } catch (cause) { setError(cause?.message || 'No se pudo actualizar la sucursal.') } finally { setBusy(false) }
+  }
+
+  // En demo las sucursales no se administran: la sesión ficticia usa "Tienda demo".
+  if (esDemo) {
+    return (
+      <Card>
+        <EmptyState
+          icon="store"
+          title="Las sucursales se administran con una cuenta real"
+          description="En la demo operás en Tienda demo; con tu cuenta podés crear sucursales, editarlas y activarlas."
+          action={<Link to="/login" className="inline-flex min-h-11 items-center rounded-lg border border-ink-600 px-4 text-sm font-semibold text-fono-light transition hover:border-fono/50">Ingresar con mi cuenta</Link>}
+        />
+      </Card>
+    )
   }
 
   return (

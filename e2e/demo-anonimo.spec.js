@@ -310,3 +310,22 @@ test('la marca de demo no se filtra al login real de la misma pestaña', async (
   // La sesión real usa el API de verdad: ya no hay barrera de demo.
   expect(llamadas.length, 'el login real tiene que llamar al API').toBeGreaterThan(0)
 })
+
+test('configuración en demo muestra avisos claros y sin cargas colgadas', async ({ page }) => {
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
+  await expect(page).toHaveURL(/\/resumen$/)
+  await cerrarGuia(page)
+
+  // Sucursales y Precios explican que se administran con una cuenta real.
+  await page.goto('/configuracion/sucursales')
+  await expect(page.getByText('Las sucursales se administran con una cuenta real')).toBeVisible()
+  await expect(page.getByText('Cargando sucursales…')).toHaveCount(0)
+  await page.goto('/configuracion/precios')
+  await expect(page.getByText('Las listas de precios se configuran con una cuenta real')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Ingresar con mi cuenta' })).toBeVisible()
+
+  // El interruptor de seguro tiene nombre accesible y no expone atributos raros.
+  await page.goto('/configuracion/negocio')
+  await expect(page.getByRole('switch', { name: 'Aplica seguro' })).toBeVisible()
+})

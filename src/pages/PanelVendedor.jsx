@@ -830,7 +830,6 @@ export default function PanelVendedor() {
                 items={tabsConfig}
               />
               {vista === 'equipo' && <Vendedores />}
-              {vista === 'invitaciones' && <Vendedores seccion="invitaciones" />}
               {vista === 'identidad' && <MiIdentidad />}
               {vista === 'roles' && <RolesPermisos />}
               {vista === 'historial' && (esDemo ? <Historial /> : <Auditoria />)}
