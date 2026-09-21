@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { formatGs, formatGsInput, formatUsd, formatUsdInput, parseGsInput, parseUsdInput } from './moneda.js'
+import { formatGs, formatGsInput, formatUsd, formatUsdInput, parseGsInput, parseUsdInput, excedeMonto, LIMITE_MONTO_VENTAS } from './moneda.js'
 import { gs, gsInput } from './calculos.js'
 
 test('formatea guaraníes con separadores locales', () => {
@@ -19,6 +19,19 @@ test('formatea entrada de miles sin cambiar el valor numérico', () => {
 test('formatea USD con decimales sin aplicar tipo de cambio', () => {
   assert.equal(formatUsd(1234.5), 'USD 1.234,50')
   assert.equal(formatUsd(0), 'USD 0,00')
+})
+
+test('los montos respetan el tamaño de la app sin truncar', () => {
+  // #148 sección 9: general hasta 10.000.000.000; ventas hasta 99.000.000.000.
+  assert.equal(formatGsInput(9999999999), '9.999.999.999')
+  assert.equal(formatGsInput(99000000000), '99.000.000.000')
+  assert.equal(excedeMonto(10000000000), false)
+  assert.equal(excedeMonto(10000000001), true)
+  assert.equal(excedeMonto(99000000000, LIMITE_MONTO_VENTAS), false)
+  assert.equal(excedeMonto(99000000001, LIMITE_MONTO_VENTAS), true)
+  assert.equal(excedeMonto(''), false)
+  assert.equal(excedeMonto('98.000.000,50', LIMITE_MONTO_VENTAS), false)
+  assert.equal(excedeMonto(-10000000001), true)
 })
 
 test('la entrada de moneda respeta el contrato de cada divisa', () => {

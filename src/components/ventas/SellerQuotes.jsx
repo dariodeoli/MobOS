@@ -6,6 +6,7 @@ import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
 import { Badge, Button, Input, Modal, MoneyInput, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import SearchField from '@/components/shared/SearchField'
 import QRCode from 'qrcode'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Cronologia from '@/components/shared/Cronologia'
@@ -191,7 +192,7 @@ export default function SellerQuotes() {
   return <SellerSection description="Pipeline de ventas: cotizá, seguí el vencimiento y convertí en pedido cuando el cliente acepte.">
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS.map(([key, label]) => <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('rounded-lg px-3 py-1.5 text-xs font-semibold transition', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
-      <div className="min-w-[200px] flex-1"><Input aria-label="Buscar cotizaciones" placeholder="Número, cliente o ítem" value={query} onChange={event => setQuery(event.target.value)} /></div>
+      <div className="min-w-[200px] flex-1"><SearchField ariaLabel="Buscar cotizaciones" placeholder="Número, cliente o ítem" value={query} onChange={event => setQuery(event.target.value)} /></div>
       {!esDemo && <Button type="button" onClick={() => { setCrearOpen(true); setError(''); setNotice('') }}>+ Nueva cotización</Button>}
       <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
     </div>

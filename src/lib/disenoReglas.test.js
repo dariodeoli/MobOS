@@ -102,3 +102,69 @@ test('los campos de dinero y porcentaje del barrido usan las primitivas', () => 
     assert.match(leer(ruta), patron, `${ruta}: falta la primitiva en el campo`)
   }
 })
+
+test('la biblioteca de objetos: búsquedas, toggles y segmentados compartidos', () => {
+  // #147: los objetos canónicos existen, cubren el patrón y no se reimplementan
+  // sueltos en las pantallas del barrido.
+  for (const ruta of ['components/shared/SearchField.jsx', 'components/shared/Switch.jsx', 'components/shared/SegmentedField.jsx']) {
+    assert.ok(leer(ruta).length > 0, `falta ${ruta}`)
+  }
+  // SearchField en las búsquedas del barrido.
+  for (const ruta of [
+    'components/ventas/ListaVentasDia.jsx',
+    'components/ventas/SellerCatalog.jsx',
+    'components/ventas/SellerOrders.jsx',
+    'components/ventas/SellerCustomers.jsx',
+    'components/ventas/SellerQuotes.jsx',
+    'components/control/Compras.jsx',
+    'components/control/Garantias.jsx',
+    'components/control/Auditoria.jsx',
+    'components/control/ServicioTecnico.jsx',
+    'components/control/TradeInPipeline.jsx',
+  ]) {
+    assert.match(leer(ruta), /<SearchField[\s\S]{0,200}(placeholder|ariaLabel)=/, `${ruta}: la búsqueda va con SearchField`)
+  }
+  // Toggle estilo iPhone en los booleanos (no en selección múltiple).
+  for (const ruta of ['components/control/PaymentAccounts.jsx', 'components/control/Precios.jsx', 'components/control/Inventario.jsx']) {
+    assert.match(leer(ruta), /<Switch[\s\S]{0,160}checked=/, `${ruta}: el booleano va con Switch`)
+  }
+  // Segmentado y subtabs compartidos.
+  assert.match(leer('components/control/Ganancias.jsx'), /SegmentedField[\s\S]{0,120}options=\{PERIODOS\}/, 'Ganancias: el período va con SegmentedField')
+  assert.match(leer('components/control/ListaVentasDia.jsx'.replace('control', 'ventas')), /<SegmentedField/, 'ListaVentasDia: los filtros van con SegmentedField')
+  assert.ok(leer('components/ui/index.jsx').includes('export function Subtabs'), 'Subtabs vive en la UI compartida')
+  assert.ok(!/function Subtabs\(/.test(leer('pages/PanelVendedor.jsx')), 'PanelVendedor no redefine Subtabs')
+  // Estándar de tamaños de monto (#148 §9) en el campo compartido.
+  assert.match(leer('components/ui/index.jsx'), /excedeMonto\(value, max\)/, 'MoneyInput debe marcar el monto que supera el límite')
+  assert.match(leer('utils/moneda.js'), /LIMITE_MONTO_VENTAS = 99_000_000_000/, 'falta el límite de ventas')
+})
+
+test('el logo sigue al tema: fondo oscuro → logo claro y fondo claro → logo oscuro (#163)', () => {
+  const biblioteca = leer('lib/tenantLogo.js')
+  assert.match(biblioteca, /export function varianteDeTema\(\)/, 'la variante por tema vive en tenantLogo')
+  assert.match(biblioteca, /classList\.contains\('dark'\)/, 'la variante se decide por la clase dark de <html>')
+  assert.match(leer('components/app/ThemeLogo.jsx'), /variante/, 'ThemeLogo puede forzar la variante cuando el fondo no sigue al tema')
+  const pedido = sinComentarios(leer('pages/PedidoPublico.jsx'))
+  assert.match(pedido, /variant=\$\{varianteDeTema\(\)\}/, 'el seguimiento pide la variante del tema activo')
+  assert.doesNotMatch(pedido, /logo\?variant=dark/, 'el seguimiento no fija el logo claro sobre fondo claro')
+  const celulares = leer('pages/Celulares.jsx')
+  assert.match(celulares, /ThemeLogo[^>]{0,80}variante="dark"/, 'la tarjeta con degradé verde fuerza el logo claro')
+})
+
+test('el pedido: secciones plegables, avatar compartido y densidad (#164)', () => {
+  const colapsable = leer('components/shared/SeccionColapsable.jsx')
+  assert.match(colapsable, /aria-expanded/, 'la sección plegable expone su estado')
+  assert.match(colapsable, /sessionStorage/, 'recuerda el estado durante la sesión')
+  assert.match(colapsable, /hidden=\{!expandida\}/, 'el contenido se oculta sin desmontarse')
+  const publico = leer('pages/PedidoPublico.jsx')
+  assert.match(publico, /SeccionColapsable/, 'la página pública usa la sección plegable')
+  // Orden pedido → cliente → cronología.
+  const orden = ['titulo="Artículos"', 'titulo="Pagos"', 'titulo="Tus datos"', 'titulo="Cronología"'].map((titulo) => publico.indexOf(titulo))
+  assert.ok(orden.every((indice) => indice >= 0), 'la página pública rotula las secciones')
+  assert.ok(orden.every((indice, posicion) => posicion === 0 || indice > orden[posicion - 1]), 'la página pública ordena Pedido → Cliente → Cronología')
+  // El contenedor interno no dibuja su propio avatar y usa el compartido.
+  const detalle = leer('components/ventas/PedidoDetalle.jsx')
+  assert.match(detalle, /import Avatar from '@\/components\/shared\/Avatar'/, 'el detalle usa el Avatar compartido')
+  assert.doesNotMatch(detalle, /function Avatar\(/, 'el detalle no redefine el avatar')
+  assert.match(detalle, /picture=\{event\.user\?\.picture\}/, 'la cronología pasa la foto de Google al Avatar')
+  assert.match(leer('components/shared/Avatar.jsx'), /onError=\{\(\) => setGoogleRota\(true\)\}/, 'la foto de Google cae a iniciales si falla')
+})

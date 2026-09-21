@@ -27,6 +27,17 @@ export function getLogoDataUrl(variant = 'light') {
   return cache.get(variant)
 }
 
+// Variante del logo según el fondo activo (regla #163): fondo oscuro → logo
+// claro ('dark'); fondo claro → logo oscuro ('light'). El tema oscuro se marca
+// con la clase `dark` en <html> (index.html la aplica desde localStorage).
+export function varianteDeTema() {
+  try {
+    return typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+  } catch {
+    return 'light'
+  }
+}
+
 export function olvidarLogo(variant) {
   if (variant) cache.delete(variant)
   else cache.clear()

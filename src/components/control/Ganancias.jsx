@@ -3,6 +3,7 @@ import { useUrlState } from '@/hooks/useUrlState'
 import { listVentas, listGastos, listAds, productosById } from '@/lib/storage'
 import { calcularGanancia, calcularGananciaDia, fechaClave, gs } from '@/utils/calculos'
 import { Card, Badge } from '@/components/ui'
+import SegmentedField from '@/components/shared/SegmentedField'
 
 const PERIODOS = [
   ['dia', 'Día'],
@@ -12,22 +13,7 @@ const PERIODOS = [
 ]
 
 export function PeriodoTabs({ periodo, setPeriodo }) {
-  return (
-    <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
-      {PERIODOS.map(([k, label]) => (
-        <button
-          key={k}
-          onClick={() => setPeriodo(k)}
-          className={
-            'flex-1 rounded-lg py-2 text-sm font-bold transition ' +
-            (periodo === k ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')
-          }
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  )
+  return <SegmentedField value={periodo} onChange={setPeriodo} options={PERIODOS} ariaLabel="Período" />
 }
 
 export default function Ganancias() {

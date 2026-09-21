@@ -118,6 +118,8 @@ test('pedidos: la cronología muestra al vendedor que creó el pedido', async ({
   await fila.click()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
 
+  // La cronología arranca plegada (#164): se abre para leer los movimientos.
+  await page.getByRole('button', { name: /Cronología/ }).click()
   const creado = page.locator('article').filter({ hasText: 'Pedido creado' }).first()
   await expect(creado).toBeVisible()
   await expect(creado).not.toContainText('Sistema')

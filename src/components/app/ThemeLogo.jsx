@@ -5,7 +5,11 @@ function isDark() {
   return document.documentElement.classList.contains('dark')
 }
 
-export default function ThemeLogo({ className }) {
+// Logo de la marca por tema (regla #163): fondo oscuro → logo claro
+// (`/logo-dark.svg`), fondo claro → logo oscuro (`/logo.svg`). `variante`
+// permite forzar el fondo cuando la superficie no sigue al tema (p. ej. una
+// tarjeta con degradé verde en una app clara).
+export default function ThemeLogo({ className, variante }) {
   const [dark, setDark] = useState(isDark)
 
   useEffect(() => {
@@ -14,5 +18,6 @@ export default function ThemeLogo({ className }) {
     return () => observer.disconnect()
   }, [])
 
-  return <img src={dark ? '/logo-dark.svg' : '/logo.svg'} alt={APP_NAME} className={className} />
+  const sobreOscuro = variante ? variante === 'dark' : dark
+  return <img src={sobreOscuro ? '/logo-dark.svg' : '/logo.svg'} alt={APP_NAME} className={className} />
 }

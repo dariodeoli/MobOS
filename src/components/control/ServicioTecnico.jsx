@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
 import { Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import BarraLote from '@/components/shared/BarraLote'
+import SearchField from '@/components/shared/SearchField'
 import EsquemaEquipo from '@/components/shared/EsquemaEquipo'
 import PatronDesbloqueo from '@/components/shared/PatronDesbloqueo'
 import Icon from '@/components/shared/Icon'
@@ -382,7 +383,7 @@ export default function ServicioTecnico() {
             <button key={key} type="button" onClick={() => setFiltro(key)} className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>
           ))}
         </div>
-        <div className="min-w-[200px] flex-1"><Input aria-label="Buscar órdenes de servicio" placeholder="Cliente, equipo, IMEI, falla o técnico" value={q} onChange={event => setQ(event.target.value)} /></div>
+        <div className="min-w-[200px] flex-1"><SearchField ariaLabel="Buscar órdenes de servicio" placeholder="Cliente, equipo, IMEI, falla o técnico" value={q} onChange={event => setQ(event.target.value)} /></div>
         <Button variant="outline" onClick={load} disabled={loading}>Actualizar</Button>
       </div>
 
@@ -498,7 +499,7 @@ export default function ServicioTecnico() {
                 <Button type="button" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setCatalogoOpen(true)}>Gestionar catálogo</Button>
               </div>
               <div className="mt-1 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-                <Input id="buscar-servicio" aria-label="Buscar servicio" value={busquedaServicio} onChange={event => setBusquedaServicio(event.target.value)} placeholder="Buscar: display, batería…" />
+                <SearchField id="buscar-servicio" ariaLabel="Buscar servicio" value={busquedaServicio} onChange={event => setBusquedaServicio(event.target.value)} placeholder="Buscar: display, batería…" />
                 <Select aria-label="Servicio del catálogo" value={form.serviceName} onChange={event => { const servicio = servicios.find(item => item.name === event.target.value); setForm(current => ({ ...current, serviceName: event.target.value, ...(servicio && servicio.suggestedPricePyg > 0 ? { pricePyg: String(servicio.suggestedPricePyg) } : {}) })) }}>
                   <option value="">Sin servicio del catálogo</option>
                   {serviciosDelTipo.map(servicio => <option key={servicio.id} value={servicio.name}>{servicio.name}{servicio.suggestedPricePyg > 0 ? ` · sugerido ${gs(servicio.suggestedPricePyg)}` : ''}</option>)}

@@ -77,6 +77,18 @@ export function armarResumenDia({ ventas = [], gastos = [], prods = {}, vendedor
   const pagadas = act.filter((venta) => venta.estadoPago === 'Pagado').length
   const lineasSinCosto = act.flatMap((venta) => (Array.isArray(venta.items) ? venta.items : [])).filter((item) => item.costPending === true)
   const montoSinCosto = lineasSinCosto.reduce((suma, item) => suma + num(item.totalPyg ?? num(item.unitPricePyg) * (item.quantity || 1)), 0)
+  // Rentabilidad del período con la misma regla que Ganancias: se prefiere el
+  // costo "foto" guardado en la venta y, si falta, el costo actual del
+  // producto. La publicidad no entra acá (vive en Análisis → Ganancias).
+  const costoMercaderia = act.reduce((suma, venta) => suma + num(venta.precioCosto ?? prods[venta.productoId]?.precioCosto), 0)
+  const totalGastos = gastosR.reduce((suma, gasto) => suma + num(gasto.monto), 0)
+  const ganancia = total - costoMercaderia - totalGastos
+  // Descuentos otorgados: el extra del carrito (nivel venta) más los descuentos
+  // por línea que ya vienen en el detalle.
+  const descuentos = act.reduce((suma, venta) => {
+    const lineas = Array.isArray(venta.items) ? venta.items : []
+    return suma + num(venta.discountPyg) + lineas.reduce((parcial, item) => parcial + num(item.discountPyg), 0)
+  }, 0)
 
   return {
     act,
@@ -95,7 +107,10 @@ export function armarResumenDia({ ventas = [], gastos = [], prods = {}, vendedor
     serie,
     pagadas,
     sinPagar: act.length - pagadas,
-    gastos: gastosR.reduce((suma, gasto) => suma + num(gasto.monto), 0),
+    gastos: totalGastos,
+    costoMercaderia,
+    ganancia,
+    descuentos,
     topProductos: productosMasVendidos(act),
     prev,
   }

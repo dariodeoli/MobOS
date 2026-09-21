@@ -278,19 +278,33 @@ La prueba de corte por hardware todavía no está cerrada. Para hacerla:
   del cierre y queda el botón «Imprimir cierre» en la sesión cerrada. Incluye
   apertura, cobros por medio de pago, movimientos de la sesión,
   esperado/contado/diferencia y espacio de firma.
-- **Resumen del día**: desde Resumen, botón «Imprimir resumen» con el rango
-  activo. Incluye ventas, facturado, ticket promedio, productos más vendidos,
-  cobrado, pendiente, comisiones, gastos y medios de pago.
+- **Resumen ejecutivo del período (A4, #146)**: desde Resumen, botón
+  «Imprimir resumen» con el rango activo. El A4 es una **hoja única** con
+  jerarquía ejecutiva: ventas, facturado vs cobrado (barra sólida vs trama),
+  pendiente, variación contra el período anterior, ventas por día, cobros por
+  medio de pago, productos principales, rentabilidad estimada (facturado −
+  costo de mercadería − gastos), descuentos y envíos, stock a reponer y alertas
+  de conciliación. Se lee igual en color y en blanco y negro: los bloques
+  combinan tramas, bordes y etiquetas además del color. El HTML vive en
+  `src/components/shared/reporteEjecutivo.js` (`buildResumenEjecutivoHtml`).
+- **Resumen del día (58/80 mm)**: el mismo botón en formato térmico usa el
+  ticket ESC/POS (`ticketResumenDia`) y el HTML angosto
+  (`buildResumenDiaHtml`): ventas, facturado, ticket promedio, productos más
+  vendidos, cobrado, pendiente, comisiones, gastos y medios de pago.
 - Formatos: A4, 80 mm y 58 mm (mismo selector y misma vista previa que los
   comprobantes). La impresión directa usa `ticketCierreCaja` y
-  `ticketResumenDia` (ESC/POS); el HTML usa `buildCierreCajaHtml` y
-  `buildResumenDiaHtml`.
+  `ticketResumenDia` (ESC/POS); el HTML usa `buildCierreCajaHtml`,
+  `buildResumenDiaHtml` y `buildResumenEjecutivoHtml`.
 - De dónde salen los números: `src/utils/reporteCaja.js` (`armarCierreCaja`) y
   `src/utils/reporteResumen.js` (`armarResumenDia`) son las **mismas funciones**
-  que usan las pantallas; el papel no recalcula nada por su cuenta. Los
-  movimientos del cierre se filtran a la ventana de la sesión (apertura→cierre)
-  y los cobros por medio de pago salen de `GET /api/cash/audit?branchId=&date=`
-  (el día de la apertura; en demo, de los pagos locales).
+  que usan las pantallas; el papel no recalcula nada por su cuenta. La
+  rentabilidad del ejecutivo sale de `armarResumenDia` (`costoMercaderia`,
+  `ganancia`, `descuentos`) con la regla de Ganancias: costo foto de la venta y,
+  si falta, costo actual del producto; la publicidad y el detalle quedan en
+  Análisis → Ganancias. Los movimientos del cierre se filtran a la ventana de
+  la sesión (apertura→cierre) y los cobros por medio de pago salen de
+  `GET /api/cash/audit?branchId=&date=` (el día de la apertura; en demo, de los
+  pagos locales).
 
 ## 10. Cancelar trabajos pendientes (#128)
 

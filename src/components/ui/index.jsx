@@ -1,6 +1,6 @@
 import { createContext, forwardRef, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { formatGs, formatGsInput, parseGsInput, formatUsdInput, parseUsdInput } from '@/utils/moneda'
+import { formatGs, formatGsInput, parseGsInput, formatUsdInput, parseUsdInput, excedeMonto, LIMITE_MONTO_GENERAL } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
 
 // ── Button ──────────────────────────────────────────────────────────
@@ -106,12 +106,16 @@ export function PinInput({ value, onChange, onComplete, length = 4, autoFocus = 
 // Campo monetario central: PYG se escribe siempre con separador de miles;
 // el resto de las monedas conserva 2 decimales (coma es-PY). Entrega el
 // número limpio al formulario padre. `symbol` sobreescribe el prefijo cuando
-// el campo muestra un importe en una moneda distinta a su etiqueta.
+// el campo muestra un importe en una moneda distinta a su etiqueta. `max` es
+// el tamaño máximo del monto (por defecto el general de #148; las ventas
+// pasan `LIMITE_MONTO_VENTAS`): el campo nunca trunca lo escrito, solo lo
+// marca con `aria-invalid` para que el formulario lo valide.
 const MONEY_SYMBOL = { PYG: 'Gs.', USD: 'US$', BRL: 'R$', EUR: '€', USDT: 'USDT' }
-export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, className, ...props }) {
+export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, className, max = LIMITE_MONTO_GENERAL, ...props }) {
   const isPyg = currency === 'PYG'
   const prefix = symbol || MONEY_SYMBOL[currency] || currency
   const display = isPyg ? formatGsInput(value) : formatUsdInput(value)
+  const excede = excedeMonto(value, max)
   return (
     <div className="relative">
       <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-xs font-semibold text-mute">
@@ -119,6 +123,8 @@ export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, cla
       </span>
       <Input
         {...props}
+        aria-invalid={excede || undefined}
+        title={excede ? `El monto supera el máximo permitido (${max.toLocaleString('es-PY')})` : props.title}
         inputMode={isPyg ? 'numeric' : 'decimal'}
         value={display}
         onChange={(event) => {
@@ -615,5 +621,32 @@ export function Toggle({ checked = false, onChange, disabled = false, label = ''
     >
       <span aria-hidden className={cn('pointer-events-none inline-block h-5 w-5 rounded-full shadow transition', checked ? 'translate-x-[22px] bg-white' : 'translate-x-0.5 bg-mute')} />
     </button>
+  )
+}
+
+// ── Subtabs ─────────────────────────────────────────────────────────
+// Pestañas de una sección (subnavegación dentro de una vista). Es la variante
+// ancha del segmentado; una sola fuente para que todas las subpáginas se vean
+// igual. `items` usa la convención del repo: [id, etiqueta].
+export function Subtabs({ value, onChange, items = [], className }) {
+  if (!items.length) return null
+  return (
+    <div className={cn('mb-5 flex flex-wrap gap-2 rounded-2xl border border-fore/10 bg-ink p-2', className)} role="tablist">
+      {items.map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={value === id}
+          onClick={() => onChange(id)}
+          className={cn(
+            'rounded-xl px-3 py-2 text-sm font-medium transition',
+            value === id ? 'bg-fono text-onbrand' : 'text-mute hover:bg-fore/5 hover:text-fore',
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
   )
 }

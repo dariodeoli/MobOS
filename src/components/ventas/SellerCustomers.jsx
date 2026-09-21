@@ -5,6 +5,7 @@ import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
 import { Button, Input, Modal, MoneyInput, Select, Textarea, Badge } from '@/components/ui'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
+import SearchField from '@/components/shared/SearchField'
 import PhoneField from '@/components/shared/PhoneField'
 import EmailField from '@/components/shared/EmailField'
 import ListGridToggle from '@/components/shared/ListGridToggle'
@@ -247,7 +248,7 @@ export default function SellerCustomers() {
     <div className="flex flex-wrap items-center gap-2">
       <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{FILTROS_CLIENTES.map(([key, label]) => <button key={key} type="button" aria-pressed={filtro === key} onClick={() => setFiltro(key)} className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', filtro === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>
       <form onSubmit={(event) => { event.preventDefault(); setSearch(busquedaDiferida.trim()) }} className="flex min-w-0 flex-1 gap-2">
-        <Input aria-label="Buscar clientes" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre, teléfono, RUC/CI, correo, ciudad, notas…" />
+        <SearchField ariaLabel="Buscar clientes" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre, teléfono, RUC/CI, correo, ciudad, notas…" />
         <Button>Buscar</Button>
       </form>
       <Select aria-label="Ordenar clientes" className="h-9 w-auto" value={orden} onChange={(event) => setOrden(event.target.value)}>

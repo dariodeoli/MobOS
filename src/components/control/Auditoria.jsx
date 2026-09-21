@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
-import { Badge, Card, EmptyState, Input, Select, Skeleton } from '@/components/ui'
+import { Badge, Card, EmptyState, Select, Skeleton } from '@/components/ui'
+import SearchField from '@/components/shared/SearchField'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { cn } from '@/lib/utils'
 
@@ -354,7 +355,7 @@ export default function Auditoria() {
           <option value="">Todos los actores</option>
           {actores.map((persona) => <option key={persona.id} value={persona.id}>{persona.name}</option>)}
         </Select>
-        <div className="min-w-[200px] flex-1"><Input aria-label="Buscar en la auditoría" placeholder="Acción, IMEI, pedido, impresora…" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
+        <div className="min-w-[200px] flex-1"><SearchField ariaLabel="Buscar en la auditoría" placeholder="Acción, IMEI, pedido, impresora…" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
         <button type="button" onClick={exportar} disabled={exportando} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{exportando ? 'Exportando…' : 'Exportar CSV'}</button>
         <button type="button" onClick={load} disabled={loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
       </div>
