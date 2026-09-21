@@ -432,7 +432,9 @@ export async function caminoDeImpresion(store, impresora) {
 
 // Encola un ticket en el backend para que lo imprima el puente. El sufijo de
 // confirmación viaja hasheado del lado del servidor: nunca se guarda en claro.
-export async function encolarRemoto(ticket, { impresora, copias, usuario = '', tipo = '', equipo = '', puente = null, tokenPista = '' } = {}) {
+// `ref` identifica el documento/pedido (cola, guarda anti-duplicados y
+// auditoría); `reimprimir` es la confirmación explícita "Reimprimir igual".
+export async function encolarRemoto(ticket, { impresora, copias, usuario = '', tipo = '', equipo = '', puente = null, tokenPista = '', ref = '', reimprimir = false } = {}) {
   const sufijo = String(ticket?.sufijo ?? '')
   const cuerpo = {
     path: 'REMOTO',
@@ -441,7 +443,7 @@ export async function encolarRemoto(ticket, { impresora, copias, usuario = '', t
     kind: String(tipo || 'prueba').slice(0, 40),
     validation: String(ticket?.validacion || '').slice(0, 12),
     suffix: sufijo.slice(0, 8),
-    reference: String(ticket?.ref || '').slice(0, 64),
+    reference: String(ref || ticket?.ref || '').slice(0, 64),
     requestedByName: String(usuario || '').slice(0, 80),
     deviceName: String(equipo || '').slice(0, 80),
     bridgeName: String(puente?.nombre || '').slice(0, 80),
@@ -452,11 +454,18 @@ export async function encolarRemoto(ticket, { impresora, copias, usuario = '', t
     ...(esIdBackend(impresora?.id) ? { printerId: impresora.id } : {}),
     ...(impresora?.branchId ? { branchId: impresora.branchId } : {}),
     ...(ticket?.ref ? { idempotencyKey: `ticket-${ticket.ref}` } : {}),
+    ...(reimprimir ? { force: true } : {}),
   }
   try {
     const datos = await printingApi.encolar(cuerpo)
     return { ok: true, remoto: true, encolado: true, job: datos?.job || null, jobId: datos?.job?.id || null }
   } catch (cause) {
+    // Guarda anti-duplicados (#128): el backend bloquea el click repetido y
+    // devuelve el trabajo pendiente; quien llama ofrece "Reimprimir igual"
+    // (reimprimir=true) y decide la persona.
+    if (cause?.details?.duplicate) {
+      return { ok: false, remoto: true, duplicado: true, job: cause.details.job || null, error: cause?.message || 'Ya hay una impresión pendiente para este documento.' }
+    }
     return { ok: false, remoto: true, error: cause?.message || 'No se pudo encolar el trabajo en el servidor.', status: cause?.status || 0 }
   }
 }
@@ -464,7 +473,7 @@ export async function encolarRemoto(ticket, { impresora, copias, usuario = '', t
 // Router local↔remoto: en la Mac del puente imprime por 127.0.0.1; en
 // cualquier otro dispositivo encola remoto. Nunca los dos caminos por el mismo
 // trabajo: el remoto solo se usa si el local falló ANTES de aceptar.
-export async function imprimirTicketRouter(ticket, { store, impresora, copias, usuario = '', tipo = '', equipo = '', puente = null, tokenPista = '' } = {}) {
+export async function imprimirTicketRouter(ticket, { store, impresora, copias, usuario = '', tipo = '', equipo = '', puente = null, tokenPista = '', ref = '', reimprimir = false } = {}) {
   const estado = await estadoAgente()
   const { camino } = resolverCamino(store, impresora, { disponible: Boolean(estado?.disponible) })
   if (camino === 'local') {
@@ -483,10 +492,10 @@ export async function imprimirTicketRouter(ticket, { store, impresora, copias, u
     })
     // Aceptado, encolado local o incierto: no se encola remoto (duplicaría).
     if (local.ok || local.encolado || local.incierto) return { ...local, camino: 'local' }
-    const remoto = await encolarRemoto(ticket, { impresora, copias, usuario, tipo, equipo, puente, tokenPista })
+    const remoto = await encolarRemoto(ticket, { impresora, copias, usuario, tipo, equipo, puente, tokenPista, ref, reimprimir })
     return { ...remoto, camino: 'remoto', motivoLocal: local.error }
   }
-  const remoto = await encolarRemoto(ticket, { impresora, copias, usuario, tipo, equipo, puente, tokenPista })
+  const remoto = await encolarRemoto(ticket, { impresora, copias, usuario, tipo, equipo, puente, tokenPista, ref, reimprimir })
   return { ...remoto, camino: 'remoto' }
 }
 
@@ -553,7 +562,7 @@ export async function imprimirTicketDirecto(ticket, opciones = {}) {
 //   ok + directo    → salió por el agente local
 //   ok + encolado   → quedó en la cola local o en la del puente (remoto)
 //   !ok + motivo    → fallo/sin-impresora/agente-no-disponible/incierto/en-cola
-export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuario = '', copias, store = null, impresora = null } = {}) {
+export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuario = '', copias, store = null, impresora = null, ref = '', reimprimir = false } = {}) {
   const estado = await estadoAgente()
   // Sin agente local, la configuración del backend manda: el celular puede
   // tener la caché vieja (u otra predeterminada) y el trabajo saldría al
@@ -586,8 +595,9 @@ export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuari
     }
     // El agente local rechazó ANTES de aceptar: recién ahí vale el remoto.
     if (elegida?.destino) {
-      const remoto = await encolarRemoto(ticket, { impresora: elegida, copias, usuario, tipo, equipo, puente })
+      const remoto = await encolarRemoto(ticket, { impresora: elegida, copias, usuario, tipo, equipo, puente, ref, reimprimir })
       if (remoto.ok) return { ...remoto, camino: 'remoto' }
+      if (remoto.duplicado) return { ok: false, camino: 'remoto', motivo: 'duplicado', duplicado: true, job: remoto.job || null, error: remoto.error }
       return { ok: false, camino: 'remoto', motivo: 'fallo', error: remoto.error || local.error || 'No se pudo imprimir.' }
     }
     return { ok: false, camino: 'local', motivo: local.incierto ? 'incierto' : 'fallo', error: local.error || 'No se pudo imprimir.' }
@@ -596,8 +606,9 @@ export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuari
   if (!elegida?.destino) {
     return { ok: false, camino: 'remoto', motivo: estado?.disponible ? 'sin-impresora' : 'agente-no-disponible', error: 'No hay impresora configurada.' }
   }
-  const remoto = await encolarRemoto(ticket, { impresora: elegida, copias, usuario, tipo, equipo, puente })
+  const remoto = await encolarRemoto(ticket, { impresora: elegida, copias, usuario, tipo, equipo, puente, ref, reimprimir })
   if (remoto.ok) return { ...remoto, camino: 'remoto' }
+  if (remoto.duplicado) return { ok: false, camino: 'remoto', motivo: 'duplicado', duplicado: true, job: remoto.job || null, error: remoto.error }
   return { ok: false, camino: 'remoto', motivo: 'fallo', error: remoto.error || 'No se pudo encolar el trabajo.' }
 }
 

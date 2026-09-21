@@ -7,6 +7,7 @@ const ETIQUETAS_IMPRESION = {
   PRINT_PRINTER_ENABLED: 'Impresora habilitada',
   PRINT_PRINTER_DISABLED: 'Impresora deshabilitada',
   PRINT_DEFAULT_PRINTER_CHANGED: 'Impresora predeterminada cambiada',
+  PRINT_JOB_CANCELLED: 'Trabajo cancelado',
 } as const
 for (const [accion, etiqueta] of Object.entries(ETIQUETAS_IMPRESION)) {
   assert.equal(ACCIONES_AUDITORIA[accion], etiqueta, `${accion} debe tener etiqueta humana`)

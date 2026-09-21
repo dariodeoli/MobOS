@@ -25,6 +25,14 @@ export const printingApi = {
     return api.get(`/api/print/jobs${query ? `?${query}` : ''}`, { cacheMs: 0 })
   },
   confirmar: (id, suffix) => api.post(`/api/print/jobs/${encodeURIComponent(id)}/confirm`, { suffix }),
+  // Cancelación (#128): solo trabajos PENDIENTES; el backend responde 409 si el
+  // puente ya los reclamó. En lote, por selección de ids y/o impresora/tipo.
+  cancelar: (id) => api.post(`/api/print/jobs/${encodeURIComponent(id)}/cancel`),
+  cancelarLote: ({ ids, printerId, kind } = {}) => api.post('/api/print/jobs/cancel', {
+    ...(Array.isArray(ids) && ids.length ? { ids } : {}),
+    ...(printerId ? { printerId } : {}),
+    ...(kind ? { kind } : {}),
+  }),
   // Métricas de impresión: rango, impresora y la marca de una corrida de
   // comparativa (prefijo de `reference`). Siempre frescas: alimentan gráficos.
   metricas: ({ desde, hasta, printerId, reference } = {}) => {

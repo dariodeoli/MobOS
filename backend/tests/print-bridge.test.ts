@@ -27,6 +27,7 @@ import {
   MAX_ABIERTOS_POR_EMPRESA,
   MAX_INTENTOS_IMPRESION,
   PAYLOAD_MAX_B64,
+  VENTANA_DUPLICADO_MS,
   calcularLeaseExtendido,
   calcularRequeue,
   estadoTrasResultado,
@@ -196,6 +197,7 @@ async function main() {
     destination: 'lan:10.0.0.5:9100',
     validation: '1234',
     reference: 'TEST-1',
+    requestedByUserId: 'user-1',
     requestedByName: 'Admin',
     deviceName: 'Mac',
     bridgeName: 'Puente',
@@ -219,13 +221,15 @@ async function main() {
   const publicoJob = shapePublico(jobInterno)
   assert.deepEqual(
     Object.keys(publicoJob).sort(),
-    ['acceptedAt', 'attempts', 'bridgeId', 'bridgeName', 'claimedAt', 'confirmedAt', 'copies', 'createdAt', 'destination', 'deviceName', 'durationMs', 'enqueuedAt', 'error', 'id', 'kind', 'mode', 'path', 'payloadBytes', 'printerId', 'printerName', 'queueMs', 'reference', 'requestedByName', 'state', 'tokenHint', 'transport', 'validation', 'width'],
+    ['acceptedAt', 'attempts', 'bridgeId', 'bridgeName', 'claimedAt', 'confirmedAt', 'copies', 'createdAt', 'destination', 'deviceName', 'durationMs', 'enqueuedAt', 'error', 'id', 'kind', 'mode', 'path', 'payloadBytes', 'printerId', 'printerName', 'queueMs', 'reference', 'requestedByName', 'requestedByUserId', 'state', 'tokenHint', 'transport', 'validation', 'width'],
     'el shape público es una lista blanca exacta',
   )
+  assert.equal(publicoJob.requestedByUserId, 'user-1', 'el id del usuario que mandó el trabajo alimenta el avatar de la cola')
   assert.equal('payload' in publicoJob, false, 'el shape público nunca expone bytes ESC/POS')
   assert.equal('suffixHash' in publicoJob, false, 'el shape público nunca expone el hash del sufijo')
   assert.equal('leaseId' in publicoJob, false, 'el shape público nunca expone el lease')
   assert.equal(MAX_ABIERTOS_POR_EMPRESA, 200, 'el cap de trabajos abiertos por empresa es explícito')
+  assert.equal(VENTANA_DUPLICADO_MS, 60_000, 'la ventana del guarda anti-duplicados es explícita (#128)')
 
   // ── Telemetría: diferencias enteras y sin negativos ──────────────────────
   assert.equal(milisegundosEntre(new Date('2026-09-19T12:00:00.000Z'), new Date('2026-09-19T12:00:01.500Z')), 1500, 'la diferencia se redondea a ms enteros')

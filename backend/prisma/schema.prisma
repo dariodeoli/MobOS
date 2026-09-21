@@ -2448,6 +2448,7 @@ enum PrintJobState {
   INCIERTO
   FALLIDO
   CONFIRMADO
+  CANCELADO
 }
 
 enum PrintJobPath {

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Badge, Button, Card, Dot, Skeleton, useToast } from '@/components/ui'
+import { Badge, Button, Card, ConfirmDialog, Dot, Select, Skeleton, useToast } from '@/components/ui'
+import Avatar from '@/components/shared/Avatar'
 import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
+import { printingApi } from '@/lib/api/printing'
+import { useSesion } from '@/lib/sesion'
 import { APP_VERSION } from '@/lib/brand'
 import { configImpresora, estadoAgente } from '@/lib/printing/agent'
 
@@ -9,6 +12,33 @@ import { configImpresora, estadoAgente } from '@/lib/printing/agent'
 // una versión, dentro de la app, para ver de un vistazo qué configuración falta.
 const BADGE = { ok: 'green', atencion: 'orange', error: 'red' }
 const TEXTO = { ok: 'En orden', atencion: 'A revisar', error: 'Con error' }
+
+// Cola de impresión (#128): nombre en castellano de cada tipo de trabajo y
+// estado honesto (pendiente no es impreso; cancelado no salió nunca).
+const TIPO_TRABAJO = {
+  comprobante: 'Comprobante',
+  'nota-entrega': 'Nota de entrega',
+  'recibo-interno': 'Recibo interno',
+  proforma: 'Proforma',
+  remision: 'Remisión',
+  'cierre-caja': 'Cierre de caja',
+  'resumen-dia': 'Resumen del día',
+  'liquidacion-comision': 'Liquidación de comisión',
+  'etiquetas-stock': 'Etiquetas de unidades',
+  'etiqueta-ubicacion': 'Etiqueta de ubicación',
+  prueba: 'Ticket de prueba',
+  'prueba-corta': 'Prueba de corte',
+}
+const tipoTrabajo = (kind) => TIPO_TRABAJO[kind] || String(kind || '').replace(/-/g, ' ') || 'Impresión'
+const ESTADO_TRABAJO = {
+  PENDIENTE: ['Pendiente', 'orange'],
+  RECLAMADO: ['En el puente', 'blue'],
+  ACEPTADO: ['Impreso, sin confirmar', 'green'],
+  INCIERTO: ['Incierto', 'orange'],
+  FALLIDO: ['Fallido', 'red'],
+  CONFIRMADO: ['Confirmado en papel', 'green'],
+  CANCELADO: ['Cancelado', 'slate'],
+}
 
 const fmt = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 
@@ -30,18 +60,29 @@ function TarjetaSync({ titulo, tono = 'slate', principal, detalle }) {
 
 export default function EstadoSistema() {
   const toast = useToast()
+  const { sesion, usuario } = useSesion()
   const [datos, setDatos] = useState(null)
   const [sincronizacion, setSincronizacion] = useState(null)
   const [impresion, setImpresion] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [errorSync, setErrorSync] = useState('')
+  // Cola de impresión remota: detalle y cancelación de lo que todavía no salió.
+  const [trabajos, setTrabajos] = useState(null)
+  const [errorCola, setErrorCola] = useState('')
+  const [seleccion, setSeleccion] = useState([])
+  const [filtroImpresora, setFiltroImpresora] = useState('')
+  const [cancelando, setCancelando] = useState(false)
+  const [cancelarPregunta, setCancelarPregunta] = useState(null)
+  // Mismos permisos que el backend: solo administración o gerencia cancelan.
+  const puedeCancelar = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN' || usuario?.role === 'GERENTE')
 
   const consultar = useCallback(async () => {
     const config = configImpresora()
-    const [chequeos, sincro] = await Promise.allSettled([
+    const [chequeos, sincro, cola] = await Promise.allSettled([
       api.get('/api/system/checks'),
       api.get('/api/system/sync-status'),
+      printingApi.trabajos({ limit: 50 }),
     ])
     if (chequeos.status === 'fulfilled') {
       setDatos(chequeos.value)
@@ -55,12 +96,44 @@ export default function EstadoSistema() {
     } else {
       setErrorSync(sincro.reason?.message || 'No se pudo leer la sincronización.')
     }
+    if (cola.status === 'fulfilled') {
+      setTrabajos(cola.value?.jobs || [])
+      setErrorCola('')
+    } else {
+      setErrorCola(cola.reason?.message || 'No se pudo leer la cola de impresión.')
+    }
     const agente = await estadoAgente({ forzar: true })
     setImpresion({ agente, url: config.url })
     setCargando(false)
   }, [])
 
   useEffect(() => { consultar() }, [consultar])
+
+  const pendientes = (trabajos || []).filter((trabajo) => trabajo.state === 'PENDIENTE')
+  const conProblema = (trabajos || []).filter((trabajo) => trabajo.state === 'INCIERTO' || trabajo.state === 'FALLIDO').slice(0, 8)
+  const enCola = filtroImpresora ? pendientes.filter((trabajo) => (trabajo.printerName || trabajo.destination) === filtroImpresora) : pendientes
+  const impresorasEnCola = [...new Set(pendientes.map((trabajo) => trabajo.printerName || trabajo.destination).filter(Boolean))]
+  const idsSeleccionados = seleccion.filter((id) => pendientes.some((trabajo) => trabajo.id === id))
+  const alternar = (id) => setSeleccion((actual) => (actual.includes(id) ? actual.filter((valor) => valor !== id) : [...actual, id]))
+
+  // Una sola vía para cancelar: selección, por impresora o todos los pendientes.
+  // El backend vuelve a validar (solo PENDIENTE) y audita cada cancelación.
+  async function cancelar(filtros) {
+    if (cancelando) return
+    setCancelando(true)
+    try {
+      const resultado = await printingApi.cancelarLote(filtros)
+      const total = Number(resultado?.total || 0)
+      toast.success(total === 1 ? 'Trabajo cancelado' : `${total} trabajos cancelados`, total ? 'No van a salir cuando el puente reconecte.' : 'No había pendientes para cancelar.')
+    } catch (cause) {
+      toast.error('No se pudo cancelar', cause?.message || '')
+    } finally {
+      setCancelando(false)
+      setCancelarPregunta(null)
+      setSeleccion([])
+      consultar()
+    }
+  }
 
   const chequeos = [
     ...(datos?.checks || []),
@@ -258,6 +331,142 @@ export default function EstadoSistema() {
         )}
         {errorSync && sincronizacion && <p role="alert" className="text-sm text-bad">{errorSync}</p>}
       </Card>
+
+      {/* Cola de impresión remota (#128): detalle con el usuario real y acción
+          de cancelar solo para lo que sigue PENDIENTE. Lo que el puente ya
+          reclamó (o el transporte aceptó) no se cancela: se confirma o se
+          revisa en papel. */}
+      <Card className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="printer" className="h-4 w-4 text-mute" />Cola de impresión</h3>
+            <p className="mt-1 text-sm text-mute">Trabajos remotos de la empresa: qué son, quién los mandó y a qué impresora. Cancelar sirve para lo que quedó esperando (por ejemplo, el puente apagado); no toca lo que ya salió.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {impresorasEnCola.length > 1 && (
+              <Select
+                aria-label="Filtrar la cola por impresora"
+                className="w-48"
+                value={filtroImpresora}
+                onChange={(event) => { setFiltroImpresora(event.target.value); setSeleccion([]) }}
+              >
+                <option value="">Todas las impresoras</option>
+                {impresorasEnCola.map((nombre) => <option key={nombre} value={nombre}>{nombre}</option>)}
+              </Select>
+            )}
+            <Button type="button" variant="outline" onClick={consultar} disabled={cargando}><Icon name="refresh" className="h-3.5 w-3.5" />Actualizar</Button>
+          </div>
+        </div>
+
+        {errorCola && <p role="alert" className="text-sm text-bad">{errorCola}</p>}
+        {!errorCola && trabajos && !trabajos.length && <p className="text-sm text-mute">No hay trabajos de impresión registrados.</p>}
+
+        {!errorCola && enCola.length > 0 && (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs uppercase tracking-wider text-mute">{enCola.length} pendiente(s){filtroImpresora ? ` · ${filtroImpresora}` : ''}</p>
+              {puedeCancelar && (
+                <span className="flex flex-wrap items-center gap-2">
+                  {idsSeleccionados.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-bad/40 text-bad hover:bg-bad/10"
+                      onClick={() => setCancelarPregunta({ titulo: `Cancelar ${idsSeleccionados.length} trabajo(s)`, descripcion: 'Los seleccionados no van a salir cuando el puente reconecte. Queda registrado quién los canceló.', filtros: { ids: idsSeleccionados } })}
+                    >
+                      Cancelar seleccionados ({idsSeleccionados.length})
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-bad/40 text-bad hover:bg-bad/10"
+                    onClick={() => setCancelarPregunta({ titulo: `Cancelar ${enCola.length} pendiente(s)`, descripcion: `${filtroImpresora ? `Todos los pendientes de ${filtroImpresora}` : 'Todos los pendientes de la cola'} no van a salir cuando el puente reconecte. No se toca lo que el puente ya reclamó.`, filtros: { ids: enCola.map((trabajo) => trabajo.id) } })}
+                  >
+                    Cancelar todos los pendientes
+                  </Button>
+                </span>
+              )}
+            </div>
+            <ul className="divide-y divide-ink-600/60">
+              {enCola.map((trabajo) => (
+                <li key={trabajo.id} className="flex flex-wrap items-center gap-3 py-2">
+                  {puedeCancelar && (
+                    <input
+                      type="checkbox"
+                      aria-label={`Seleccionar ${tipoTrabajo(trabajo.kind)}${trabajo.reference ? ` de ${trabajo.reference}` : ''}`}
+                      checked={seleccion.includes(trabajo.id)}
+                      onChange={() => alternar(trabajo.id)}
+                      className="h-4 w-4 accent-bad"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                      <span className="truncate">{tipoTrabajo(trabajo.kind)}</span>
+                      {trabajo.reference && <span className="text-xs font-normal text-mute">{trabajo.reference}</span>}
+                      <Badge color={ESTADO_TRABAJO[trabajo.state]?.[1] || 'slate'}>{ESTADO_TRABAJO[trabajo.state]?.[0] || trabajo.state}</Badge>
+                    </p>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-mute">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Avatar user={{ id: trabajo.requestedByUserId || `job-${trabajo.id}`, name: trabajo.requestedByName || 'Sin usuario' }} size="xs" />
+                        {trabajo.requestedByName || 'Sin usuario'}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span className="truncate" title={[trabajo.printerName || trabajo.destination, trabajo.bridgeName].filter(Boolean).join(' · ')}>
+                        {trabajo.printerName || trabajo.destination || 'sin impresora'}{trabajo.bridgeName ? ` · ${trabajo.bridgeName}` : ''}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span>encolado {fmt(trabajo.enqueuedAt || trabajo.createdAt)}</span>
+                      {Number(trabajo.attempts) > 0 && <span>· {trabajo.attempts} intento(s)</span>}
+                    </p>
+                    {trabajo.error && <p className="mt-0.5 truncate text-xs text-bad" title={trabajo.error}>{trabajo.error}</p>}
+                  </div>
+                  {puedeCancelar && trabajo.state === 'PENDIENTE' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-bad/40 text-bad hover:bg-bad/10"
+                      onClick={() => setCancelarPregunta({ titulo: 'Cancelar trabajo', descripcion: `El ${tipoTrabajo(trabajo.kind).toLowerCase()}${trabajo.reference ? ` de ${trabajo.reference}` : ''} no va a salir cuando el puente reconecte. Queda registrado quién lo canceló.`, filtros: { ids: [trabajo.id] } })}
+                    >
+                      Cancelar
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {!errorCola && conProblema.length > 0 && (
+          <div className="rounded-xl border border-ink-600 p-3">
+            <p className="text-xs uppercase tracking-wider text-mute">Recientes con problema</p>
+            <ul className="mt-2 divide-y divide-ink-600/60">
+              {conProblema.map((trabajo) => (
+                <li key={trabajo.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 py-1.5 text-xs">
+                  <span className="truncate font-medium" title={trabajo.error || ''}>{tipoTrabajo(trabajo.kind)}{trabajo.reference ? ` · ${trabajo.reference}` : ''}</span>
+                  <span className="flex items-center gap-2 text-mute">
+                    <Badge color={ESTADO_TRABAJO[trabajo.state]?.[1] || 'slate'}>{ESTADO_TRABAJO[trabajo.state]?.[0] || trabajo.state}</Badge>
+                    <span>{trabajo.printerName || trabajo.destination || 'sin impresora'}</span>
+                    <span>· {fmt(trabajo.enqueuedAt || trabajo.createdAt)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {errorCola && <p className="text-xs text-mute">Sin la cola no se pueden cancelar trabajos: reintentá con «Actualizar».</p>}
+      </Card>
+
+      <ConfirmDialog
+        open={Boolean(cancelarPregunta)}
+        title={cancelarPregunta?.titulo || 'Cancelar trabajos'}
+        description={cancelarPregunta?.descripcion || ''}
+        confirmLabel="Cancelar trabajos"
+        variant="danger"
+        busy={cancelando}
+        onCancel={() => setCancelarPregunta(null)}
+        onConfirm={() => cancelar(cancelarPregunta?.filtros || {})}
+      />
     </div>
   )
 }

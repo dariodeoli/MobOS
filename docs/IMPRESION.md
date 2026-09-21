@@ -282,3 +282,61 @@ La prueba de corte por hardware todavía no está cerrada. Para hacerla:
   movimientos del cierre se filtran a la ventana de la sesión (apertura→cierre)
   y los cobros por medio de pago salen de `GET /api/cash/audit?branchId=&date=`
   (el día de la apertura; en demo, de los pagos locales).
+
+## 10. Cancelar trabajos pendientes (#128)
+
+La cola del monitor (**Configuración → Estado del sistema → Cola de impresión**)
+muestra los trabajos remotos de la empresa: tipo, pedido/comprobante
+(`reference`), impresora y puente/sucursal, **usuario real** (foto + nombre) que
+los mandó, estado, intentos y último error.
+
+- **Solo se cancelan los `PENDIENTE`.** Lo `RECLAMADO` (el puente lo tiene con
+  lease) y lo `ACEPTADO`/`INCIERTO` (el transporte pudo haber impreso) **no se
+  cancelan**: para eso está la confirmación en papel o la revisión. La API
+  responde 409 con el motivo y la UI no ofrece el botón.
+- **Un cancelado no sale nunca**: el claim del puente solo toma `PENDIENTE`
+  (`reclamarTrabajo`), así que reconectar el puente no lo imprime. Es la
+  respuesta al caso real: el puente estuvo caído, alguien apretó Imprimir
+  varias veces y quedaron N copias esperando.
+- **Al cancelar se borra el ticket** (`payload`): es un estado terminal, no se
+  retiene el ESC/POS. La purga de metadatos (180 días) lo alcanza igual que a
+  los otros terminales.
+- **Auditoría**: `PRINT_JOB_CANCELLED` por trabajo, con el actor real
+  (`userId` de la sesión, nunca «Sistema») y `via: individual | lote`. El
+  intento rechazado (ya reclamado/aceptado) **no** deja evento de cancelación.
+- **Permisos**: ADMIN/GERENTE (los mismos del monitor). Un vendedor recibe 403.
+- **En lote**: se puede cancelar una selección o todos los pendientes de la
+  impresora filtrada, con confirmación explícita; cada trabajo se audita por
+  separado. El lote está acotado (200, el tope de trabajos abiertos).
+
+API: `POST /api/print/jobs/[id]/cancel` (individual) y
+`POST /api/print/jobs/cancel` (lote: `{ ids? , printerId?, kind? }`; sin
+filtros responde 400). Ambos cancelan condicionado por estado, así que un claim
+concurrente gana y ese trabajo no se cancela.
+
+## 11. Guarda anti-duplicados al encolar (#128)
+
+**Decisión**: un trabajo idéntico **abierto** (`PENDIENTE`/`RECLAMADO`) del
+mismo documento (`reference`), mismo `kind` y misma impresora, encolado dentro
+de los últimos **60 segundos**, se bloquea con 409 y `duplicate: true` más el
+trabajo existente. El mensaje dice qué documento e impresora ya están en cola.
+
+- **Por qué 60 s y no siempre**: el objetivo es el click repetido («no salía y
+  apreté Imprimir 10 veces»), no impedir una reimpresión legítima. Pasada la
+  ventana, o si el trabajo previo ya es terminal, el encolado es normal.
+- **Quién decide**: la persona. La app ofrece **«Reimprimir igual»**, que
+  reenvía con `force: true`; eso crea un trabajo **nuevo** (salteando también
+  la `idempotencyKey`, que es permanente), y la auditoría del alta queda con
+  `reimpresion: true`. Nunca se bloquea en silencio ni se reimprime solo.
+- **Clave del documento**: el front manda `reference` (número de pedido,
+  comprobante, remito, liquidación). Sin `reference` no hay guarda: el trabajo
+  entra igual (el `idempotencyKey` de los tickets de prueba sigue funcionando
+  como siempre).
+- **Indicador en el diálogo**: antes de mandar, el diálogo de comprobante
+  muestra cuántos trabajos pendientes hay para esa impresora en la cola del
+  puente, para no encolar a ciegas (la cola local del agente ya avisaba por su
+  lado).
+
+API: `POST /api/print/jobs` responde 409 `{ message, duplicate: true, job }`;
+con `force: true` responde 201 y audita `PRINT_JOB_ENQUEUED` con
+`reimpresion: true`.

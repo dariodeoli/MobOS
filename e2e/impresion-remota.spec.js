@@ -398,6 +398,52 @@ test.describe('impresión remota: cola con puente falso', () => {
     }
   })
 
+  test('la cola del monitor cancela un pendiente y el puente no lo recibe', async ({ page }) => {
+    const codigo = await crearPuentePorUi(page, `Puente cancelar E2E ${Date.now()}`)
+    const { token, bridgeId } = await parearPuente({ api: API, code: codigo })
+    const impresora = await asegurarImpresoraRemota(page, { nombre: NOMBRE_REMOTO, destino: DESTINO_REMOTO, bridgeId })
+    const referencia = `E2E-CANCELA-${Date.now()}`
+    // El puente está apagado: nadie reclama el trabajo que se encola.
+    const encolado = await apiImpresion(page, '/api/print/jobs', {
+      method: 'POST',
+      body: JSON.stringify({
+        destination: DESTINO_REMOTO,
+        printerId: impresora.id,
+        payload: Buffer.from('TICKET-CANCELA').toString('base64'),
+        kind: 'comprobante',
+        reference: referencia,
+        requestedByName: 'Cancelación E2E',
+      }),
+    })
+    expect(encolado.status).toBe(201)
+    const jobId = encolado.datos.job.id
+    expect(encolado.datos.job.state).toBe('PENDIENTE')
+
+    // El monitor lo lista con tipo, referencia, usuario e impresora.
+    await page.goto('/configuracion/sistema')
+    const fila = page.getByRole('listitem').filter({ hasText: referencia })
+    await expect(fila).toBeVisible({ timeout: 20_000 })
+    await expect(fila.getByText('Comprobante', { exact: true })).toBeVisible()
+    await expect(fila.getByText('Cancelación E2E')).toBeVisible()
+    await expect(fila.getByText('Pendiente', { exact: true })).toBeVisible()
+
+    // Cancelar pide confirmación y deja el trabajo cancelado en la API.
+    await fila.getByRole('button', { name: 'Cancelar', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar trabajos' }).click()
+    await expect(page.getByText(/trabajos? cancelado/i).first()).toBeVisible({ timeout: 10_000 })
+    const detalle = await apiImpresion(page, `/api/print/jobs/${jobId}`)
+    expect(detalle.datos?.job?.state).toBe('CANCELADO')
+
+    // Al reconectar, el puente no recibe el trabajo cancelado.
+    const claim = await page.request.post(`${API}/api/print/bridge/claim`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {},
+    })
+    expect(claim.ok()).toBeTruthy()
+    const claimDatos = await claim.json()
+    expect((claimDatos.jobs || []).some((job) => job.id === jobId)).toBe(false)
+  })
+
   test('el puente aparece en línea en la UI después del latido', async ({ page }) => {
     const codigo = await crearPuentePorUi(page, `Puente latido E2E ${Date.now()}`)
     const { token } = await parearPuente({ api: API, code: codigo })

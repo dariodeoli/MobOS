@@ -104,6 +104,7 @@ export const ACCIONES_AUDITORIA: Record<string, string> = {
   PRINT_JOB_INCIERTO: 'Job incierto',
   PRINT_JOB_FAILED: 'Job fallido',
   PRINT_JOB_REQUEUED: 'Job reingresó a cola',
+  PRINT_JOB_CANCELLED: 'Trabajo cancelado',
   PRINT_JOB_CONFIRMED: 'Job confirmado',
   PRINT_JOB_CONFIRM_FAILED: 'Confirmación fallida',
   PRINT_BRIDGE_CREATED: 'Puente creado',
