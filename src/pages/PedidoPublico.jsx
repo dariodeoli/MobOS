@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
-import { codigoPedido } from '@/utils/pedido'
+import { codigoPedido, totalesPedido } from '@/utils/pedido'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 const ORDER_STATUS = { PENDING: 'Pendiente de pago', COMPLETED: 'Pagado', CANCELLED: 'Cancelado' }
@@ -23,7 +23,9 @@ export default function PedidoPublico() {
     return () => { active = false }
   }, [token])
 
-  const pendiente = Number(order?.pendingPyg || 0)
+  // Mismo cálculo que el comprobante impreso (utils/pedido): el cliente ve el
+  // total, lo pagado y el saldo que salieron en el papel.
+  const { total, pagado, pendiente } = totalesPedido(order)
   const aCredito = Boolean(order?.credit)
   const entregadoConSaldo = order?.fulfillmentStatus === 'DELIVERED' && pendiente > 0
   const etiquetaEntrega = entregadoConSaldo
@@ -100,8 +102,8 @@ export default function PedidoPublico() {
             {/* Totales: el saldo pendiente y el crédito se destacan siempre. */}
             <section className={`rounded-2xl border p-5 ${pendiente > 0 ? 'border-warn/40 bg-warn/5' : 'border-ink-600 bg-ink-900'}`}>
               <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between"><span className="text-mute">Total</span><b className="tabular-nums">{gs(order.totalPyg)}</b></div>
-                <div className="flex items-center justify-between"><span className="text-mute">Pagado</span><b className="tabular-nums text-ok">{gs(order.paidPyg)}</b></div>
+                <div className="flex items-center justify-between"><span className="text-mute">Total</span><b className="tabular-nums">{gs(total)}</b></div>
+                <div className="flex items-center justify-between"><span className="text-mute">Pagado</span><b className="tabular-nums text-ok">{gs(pagado)}</b></div>
                 <div className="flex items-center justify-between"><span className="text-mute">Pendiente</span><b className={`tabular-nums ${pendiente > 0 ? 'text-warn' : 'text-ok'}`}>{gs(pendiente)}</b></div>
                 {Number(order.discountPyg || 0) > 0 && <div className="flex items-center justify-between"><span className="text-mute">Descuento</span><b className="tabular-nums text-warn">− {gs(order.discountPyg)}</b></div>}
                 {Number(order.deliveryPyg || 0) > 0 && <div className="flex items-center justify-between"><span className="text-mute">Entrega</span><b className="tabular-nums">{gs(order.deliveryPyg)}</b></div>}

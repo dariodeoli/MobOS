@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { codigoPedido } from '../src/utils/pedido.js'
+import { SEED } from './helpers/seed-data.js'
 
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
@@ -66,8 +67,8 @@ test('pedidos: enlace directo a un pedido fuera de la página lo resuelve por AP
   await expect(page.getByText('Artículos preparados')).toBeVisible()
 })
 
-// Impresión del pedido: sin 58 mm, con 80 mm y A4 centrados y con márgenes.
-test('pedidos: el comprobante ofrece A4 y 80 mm centrados', async ({ page }) => {
+// Impresión del pedido: A4 y el rollo de 58 mm con diseño vertical propio.
+test('pedidos: el comprobante ofrece A4 y 58 mm con diseño propio', async ({ page }) => {
   await page.goto('/pedidos')
   await page.getByTestId('pedido-fila').first().click()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
@@ -76,15 +77,41 @@ test('pedidos: el comprobante ofrece A4 y 80 mm centrados', async ({ page }) => 
   const formato = page.getByLabel('Formato de impresión')
   await expect(formato).toBeVisible()
   const opciones = await formato.locator('option').allTextContents()
-  expect(opciones).toEqual(['A4', '80 mm'])
-  expect(opciones).not.toContain('58 mm')
+  expect(opciones).toEqual(['A4', '58 mm'])
 
-  await formato.selectOption('thermal-80')
   const frame = page.locator('iframe[title="Vista previa del comprobante"]')
-  await expect(frame).toHaveAttribute('srcdoc', /size:80mm auto/, { timeout: 15000 })
-  await expect(frame).toHaveAttribute('srcdoc', /margin:0 auto/)
-  await expect(frame).toHaveAttribute('srcdoc', /@page\{size:80mm auto;margin:5mm 4mm\}/)
+  // Los tres modelos: rápido identifica empresa y sucursal; el detallado imprime
+  // la cronología del pedido.
+  await page.getByLabel('Tipo de comprobante').selectOption('rapido')
+  await expect(frame).toHaveAttribute('srcdoc', /Empresa/, { timeout: 15000 })
+  await page.getByLabel('Tipo de comprobante').selectOption('detallado')
+  await expect(frame).toHaveAttribute('srcdoc', /Cronología/, { timeout: 15000 })
+
+  // 58 mm: una columna, total destacado y alto dinámico (no el A4 encogido).
+  await formato.selectOption('thermal-58')
+  await expect(frame).toHaveAttribute('srcdoc', /@page\{size:58mm auto;margin:3mm\}/, { timeout: 15000 })
+  await expect(frame).toHaveAttribute('srcdoc', /class="t58"/)
+  await expect(frame).toHaveAttribute('srcdoc', /class="row total"/)
+  await expect(frame).toHaveAttribute('srcdoc', /nofiscal/)
 
   await formato.selectOption('a4')
   await expect(frame).toHaveAttribute('srcdoc', /@page\{size:A4;margin:18mm 16mm\}/, { timeout: 15000 })
+})
+
+// La cronología tiene que mostrar a la persona real que creó el pedido, no un
+// genérico "Sistema": el actor sale del usuario que confirmó la venta.
+test('pedidos: la cronología muestra al vendedor que creó el pedido', async ({ page }) => {
+  await page.goto('/pedidos')
+  const fila = page
+    .getByTestId('pedido-fila')
+    .filter({ hasText: codigoPedido(SEED.seedOrderNumber) })
+    .first()
+  await expect(fila).toBeVisible()
+  await fila.click()
+  await expect(page.getByText('Artículos preparados')).toBeVisible()
+
+  const creado = page.locator('article').filter({ hasText: 'Pedido creado' }).first()
+  await expect(creado).toBeVisible()
+  await expect(creado).not.toContainText('Sistema')
+  await expect(creado).toContainText('Vendedor')
 })

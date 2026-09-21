@@ -33,7 +33,7 @@ export function ticketComprobante(order, { nivel = 'completo', ancho = 80, link 
     t.imagenRaster(logo.bytes, { ancho: logo.ancho, alto: logo.alto })
     t.avanza(1)
   }
-  t.centrado(empresa || APP_NAME).negrita().centrado('Comprobante de compra').negrita(false)
+  t.centrado([empresa || APP_NAME, sucursal?.name].filter(Boolean).join(' · ')).negrita().centrado('Comprobante de compra').negrita(false)
   t.centrado(`${order.orderNumber || order.codigo || 'Pedido'} · ${fecha(order.createdAt || order.creadoEn || order.fecha)}`)
   t.linea()
 

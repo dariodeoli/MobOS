@@ -30,12 +30,18 @@ export function coincideCliente(customer, query) {
   return palabras.every(palabra => buscable.includes(palabra))
 }
 
-// Nombre visible en listados: primer nombre + primer apellido. El nombre
-// completo (segundos nombres incluidos) queda en la ficha del cliente y en el
-// detalle del pedido.
+// Nombre visible en listados: primer nombre + primer apellido, para que el
+// apellido no desaparezca cuando el cliente tiene nombre compuesto o RUC con
+// dos apellidos. El nombre completo queda en la ficha y en el detalle.
+// - 1 a 3 tokens: tal cual ("Juan", "Juan Pérez", "Cliente E2E 4f2"); con tres
+//   tokens no se puede saber si el del medio es un segundo nombre o un primer
+//   apellido, así que se respeta el orden.
+// - 4 o más: primer apellido, el anterior al último ("Dario José Oliveira
+//   Benítez" → "Dario Oliveira").
 export function nombreCortoCliente(name) {
   const partes = String(name ?? '').trim().split(/\s+/).filter(Boolean)
-  return partes.slice(0, 2).join(' ')
+  if (partes.length <= 3) return partes.join(' ')
+  return `${partes[0]} ${partes[partes.length - 2]}`
 }
 
 export function datosFacturacionCliente(customer = {}) {
