@@ -168,6 +168,8 @@ patrón de uso de cada familia y un ejemplo corto.
 ## 4. Estados y avisos — únicos por concepto
 
 - Estados de **vacío / carga / error** compartidos; un solo objeto por concepto.
+  Los bloques de vacío van con `EmptyState` (`compact` dentro de tablas y
+  paneles); no se arma la caja ni el texto centrado a mano.
 - **Aviso inline:** el mensaje de resultado pegado al flujo (error de un
   formulario, confirmación de un guardado) va con `Aviso` (`ui/index.jsx`):
   `tono="error"` (role `alert`, borde/fondo rojo) u `tono="ok"` (role `status`);
@@ -271,6 +273,13 @@ patrón de uso de cada familia y un ejemplo corto.
 - **Identificador de dispositivo:** `deviceId()` (`src/lib/deviceId.js`): un
   solo id estable por navegador (registro de empresa, entrada y aceptar
   invitaciones lo usan); no leer ni escribir `mobos:device-id` por pantalla.
+- **Montos de pantalla:** `montoGs`, `montoUsd` y `montoTexto` (`utils/moneda.js`)
+  con el formato que ya usan `ui/Money` y las listas (`Gs 12.500`,
+  `US$ 1,234.56`); el vacío es explícito (`'—'` por defecto, `''` cuando la
+  celda queda en blanco) y `null`/`''` no se muestran como `Gs 0`. Prohibido
+  armar el texto con `toLocaleString` o repetir la función local de precio.
+- **Escape de plantillas HTML:** `escapeHtml` (`utils/printHtml.js`) es la única
+  definición para comprobantes, informes y tickets.
 - Montos, fechas y códigos: `nowrap` + `tabular-nums`.
 
 ### Último usado como predeterminado (#209)
@@ -307,6 +316,7 @@ por el sistema.
 > `src/lib/utils.js`, `src/lib/urls.js`, `src/lib/constants.js`,
 > `src/lib/ultimoUsado.js`, `src/lib/deviceId.js`, `src/utils/fecha.js`,
 > `src/utils/portapapeles.js`, `src/utils/descargarArchivo.js`,
+> `src/utils/moneda.js`, `src/utils/printHtml.js`,
 > `src/hooks/useVistaListaGrid.js`.
 > Implementado: timeout por pedido, caché corta solo-GET e invalidación
 > (`src/lib/api/client.js`, `requestCache.test.js`); “último usado” en

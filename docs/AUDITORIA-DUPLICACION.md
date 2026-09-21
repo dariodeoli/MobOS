@@ -39,21 +39,38 @@ regla de **24 h** y reemplaza los helpers locales sin revertir el barrido.
 Total de duplicación pendiente medida por el script: **60 → 16 usos** (quedan
 los pendientes de decisión de DSN: dinero y textareas).
 
+### Lote 3 — estados vacíos, montos y escape de plantillas (21-09)
+
+| Objeto | Dónde vive | Antes (evidencia) | Después |
+| --- | --- | --- | --- |
+| `EmptyState` (adopción) | `src/components/ui/index.jsx` | **6 cajas de vacío a mano** en 6 pantallas (`SellerData`, `SellerOrders`, `CampanasClientes`, `PanelColaOffline`, `KardexProducto`, `FormularioVenta`), con borde, padding y texto centrado propios | Las 6 usan `EmptyState` (`compact` en paneles y tablas); el vacío con acción (pedido no encontrado) usa `action` |
+| `montoGs` / `montoUsd` / `montoTexto` | `src/utils/moneda.js` | `US$ …toLocaleString('en-US')` y `Gs. …` repetidos en `Inventario`, `UnidadDetalle`, `SellerCatalog`, `FilaVenta`, `CheckoutCustomer` y `CampanasClientes` (dos funciones `precio`/`money` duplicadas) | Un solo módulo con la presentación de `ui/Money`; `null`/`''` dejan de mostrarse como `Gs 0`; los montos en USD quedan listos para el fallback del IMEIcheck |
+| `escapeHtml` | `src/utils/printHtml.js` | **3 definiciones idénticas** (`OrderReceipt`, `reporteEjecutivo`, `Comisiones`) con 166 usos | Una definición compartida; las plantillas la importan |
+
+Duplicación pendiente medida: **16 → 10 usos**. Quedan los `wa.me` (POS/CRM),
+un `Gs.` de impresión (PRN) y los `<textarea>` de DSN.
+
+### Identidad (#211) — sin duplicar
+
+Tras los últimos merges, la identidad está repartida así: `Avatar` compartido
+(14 usos), `PresencePill` del topbar y `PresenciaPedido` (POS) que consumen
+`lib/identidad.js`, un adaptador **preparado para el objeto unificado de DSN**.
+No hay fotos de persona a mano ni iniciales sueltas (los `charAt(0)` que quedan
+son de empresa, no de personas). MOS-CMP no crea el objeto de identidad: queda
+para DSN (#211), que ya tiene el inventario y los call sites.
+
 ## 2. Backlog priorizado (con evidencia)
 
 ### P1 — Decisiones de diseño antes de tocar (DSN)
 
-1. **Formato de dinero partido en dos.** `ui/Money` y `utils/moneda.js`
-   (`formatGs`/`formatUsd`) no dicen lo mismo:
-   - `Money` (USD): `US$ 1,234.56` (en-US); `formatUsd`: `USD 1.234,56` (es-PY).
-   - `formatGs`: `Gs 12.500`; y hay **7 usos a mano** de `Gs. …toLocaleString('es-PY')`
-     en `Inventario.jsx:73`, `inventory/UnidadDetalle.jsx:24`,
-     `customers/CampanasClientes.jsx:65/149`, `ventas/CheckoutCustomer.jsx:101`,
-     `lib/servicioImpresion.js:9`, `ventas/SellerCatalog.jsx:32/72`.
-   - `docs/TABLAS.md` documenta `Gs. 12.500.000`. Falta decidir el canónico
-     (`Gs` vs `Gs.`; `US$` en-US vs `USD` es-PY) y migrar; el caso duplicado
-     exacto `precio(amount, currency)` de `Inventario`/`UnidadDetalle` puede
-     unificarse apenas DSN confirme el texto.
+1. **Formato de dinero — casi resuelto.** El código ya usa la familia de
+   `ui/Money` (`Gs 12.500` sin punto y `US$ 1,234.56`): `gs()`/`formatGs`
+   (≈495 usos) y ahora `montoGs`/`montoUsd`/`montoTexto`. Los outliers con
+   `Gs.`/`US$` a mano se migraron en el lote 3. **Falta que DSN confirme el
+   canónico** (los docs muestran `Gs.`; el código usa `Gs`) y decida si
+   `formatUsd` (`USD 1.234,56`) converge con `Money` (`US$ 1,234.56`) y si el
+   `Gs.` de `lib/servicioImpresion.js` se alinea. Con eso, el cambio queda en
+   un archivo (`utils/moneda.js`).
 2. **Variantes compactas de fecha.** `fechaHoraCorta` (rendiciones:
    `17-sept., 15:30`) y `fechaCorta` (listas densas: `17-sept. · 15:30`) son
    dos variantes de la misma idea; DSN decide si convergen en una. Las horas ya
@@ -133,9 +150,10 @@ los pendientes de decisión de DSN: dinero y textareas).
     `lib/customerReport.js:49` mantienen su propio `fecha` (algunos con vacío
     `''`). Es del dominio de impresión (PRN): adoptar `utils/fecha.js` con el
     fallback vacío.
-8. **`Caja.jsx:47`** tiene un `fechaHora` con `toLocaleString('es-PY')` sin
-    opciones (formato largo): es otro formato; se deja hasta decidir el
-    estándar del punto 2.
+8. **Montos dentro de frases**: `components/control/Caja.jsx:101`
+   (aria-label "…guaraníes"), `delivery/DriverOrders.jsx:103` y
+   `delivery/StoreDelivery.jsx:204` arman el número con `toLocaleString` porque
+   el texto trae el sufijo; al reescribir esas frases conviene `montoTexto`.
 
 ## 3. Fuera de alcance en esta pasada
 
