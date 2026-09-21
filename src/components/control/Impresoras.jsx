@@ -721,6 +721,11 @@ export default function Impresoras() {
     if (fresco) toast.success('Impresora predeterminada', impresora.nombre)
   }
 
+  function cancelarDemo(ids) {
+    setCola((actual) => actual ? { ...actual, pendientes: actual.pendientes.filter((trabajo) => !ids.includes(trabajo.id)) } : actual)
+    toast.success(ids.length === 1 ? 'Trabajo cancelado (demo)' : `${ids.length} trabajos cancelados (demo)`, 'Dato ficticio: no salen cuando el puente reconecte.')
+  }
+
   async function reintentar() {
     if (esDemo) {
       // Demo (#194): simulación local, sin agente.
@@ -1288,7 +1293,7 @@ export default function Impresoras() {
               {pendientes.length > 0 && (
                 <section>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Pendientes del agente ({pendientes.length})</h4>
-                  <TablaTrabajos trabajos={pendientes} />
+                  <TablaTrabajos trabajos={pendientes} onCancelar={esDemo ? (trabajo) => cancelarDemo([trabajo.id]) : undefined} />
                 </section>
               )}
               {remotosEnCurso.length > 0 && (
@@ -1312,6 +1317,7 @@ export default function Impresoras() {
             </div>
           )}
           <div className="flex flex-wrap justify-end gap-2">
+            {esDemo && pendientes.length > 0 && <Button type="button" variant="outline" className="border-bad/40 text-bad hover:bg-bad/10" onClick={() => cancelarDemo(pendientes.map((trabajo) => trabajo.id))}>Cancelar pendientes ({pendientes.length})</Button>}
             {fallidos.length > 0 && <Button type="button" variant="outline" onClick={() => reintentar()}>Reintentar fallidos</Button>}
             {fallidos.length > 0 && <Button type="button" variant="ghost" disabled={!seleccionados.length} onClick={() => limpiar(seleccionados)}>Limpiar seleccionados ({seleccionados.length})</Button>}
             {fallidos.length > 0 && <Button type="button" variant="ghost" onClick={() => limpiar([])}>Limpiar todos</Button>}
@@ -1323,7 +1329,7 @@ export default function Impresoras() {
   )
 }
 
-function TablaTrabajos({ trabajos, seleccionados = [], onSeleccion }) {
+function TablaTrabajos({ trabajos, seleccionados = [], onSeleccion, onCancelar }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[36rem] text-sm">
@@ -1337,6 +1343,7 @@ function TablaTrabajos({ trabajos, seleccionados = [], onSeleccion }) {
             <th className="px-2 py-2">Intentos</th>
             <th className="px-2 py-2 text-right">Bytes</th>
             <th className="px-2 py-2">Error</th>
+            {onCancelar && <th className="px-2 py-2" />}
           </tr>
         </thead>
         <tbody>
@@ -1350,6 +1357,7 @@ function TablaTrabajos({ trabajos, seleccionados = [], onSeleccion }) {
               <td className="px-2 py-2 text-xs">{trabajo.intentos || 0}</td>
               <td className="px-2 py-2 text-right text-xs text-mute">{trabajo.bytes || 0}</td>
               <td className="px-2 py-2 max-w-[14rem] truncate text-[10px] text-bad" title={trabajo.error}>{trabajo.error || '—'}</td>
+              {onCancelar && <td className="px-2 py-2 text-right"><Button type="button" variant="outline" className="border-bad/40 text-bad hover:bg-bad/10" onClick={() => onCancelar(trabajo)}>Cancelar</Button></td>}
             </tr>
           ))}
         </tbody>

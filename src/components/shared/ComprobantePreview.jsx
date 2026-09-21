@@ -16,6 +16,8 @@ import { getLogoDataUrl } from '@/lib/tenantLogo'
 import { logoRasterDesdeDataUrl } from '@/lib/printing/logoRaster'
 import { cargarImpresorasRemotas, configImpresora, confirmarJob, esIdBackend, estadoAgente, imprimirConDestino, imprimirDocumento, impresoraPredeterminada } from '@/lib/printing/agent'
 import { printingApi } from '@/lib/api/printing'
+import { isDemoRuntime } from '@/lib/demoMode'
+import { encolarComprobanteDemo } from '@/lib/printing/demo'
 import { ticketComprobante } from '@/lib/printing/tickets'
 
 // Vista previa real del comprobante: nivel (Rápido/Completo/Detallado) y
@@ -142,6 +144,16 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
     // anti-duplicados (#128): un click repetido se bloquea y, si la persona
     // confirma, sale como reimpresión explícita.
     const referencia = String(order?.orderNumber || order?.codigo || order?.id || '')
+    if (isDemoRuntime) {
+      // Demo (#196): el encolado se simula con la misma ventana anti-duplicados
+      // que el backend; «Reimprimir igual» agrega una copia ficticia.
+      const simulado = encolarComprobanteDemo({ reference: referencia, force: reimprimir })
+      setEnviando(false)
+      if (simulado.duplicado) { setPreguntaDuplicado({ mensaje: simulado.mensaje }); return }
+      setJobEncColado(null)
+      toast.success(reimprimir ? 'Reimpresión encolada (demo)' : 'Comprobante encolado (demo)', 'Dato ficticio: no se envió nada al puente.')
+      return
+    }
     const resultado = await imprimirDocumento(ticketComprobante(order, { nivel, ancho, link, logo }), { tipo: 'comprobante', ref: referencia, reimprimir })
     setEnviando(false)
     if (resultado.duplicado) { setPreguntaDuplicado({ mensaje: resultado.error }); return }

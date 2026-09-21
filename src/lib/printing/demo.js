@@ -235,3 +235,30 @@ export function colaDemo() {
     ],
   }
 }
+
+// Anti-duplicados del demo (#196): misma ventana de 60 s que el backend, sobre
+// una lista ficticia de trabajos encolados. `force` es «Reimprimir igual».
+const VENTANA_DUPLICADO_MS = 60_000
+let encoladosDemo = []
+
+export function reiniciarDuplicadosDemo() {
+  encoladosDemo = []
+}
+
+export function encolarComprobanteDemo({ reference, kind = 'comprobante', force = false } = {}) {
+  const ahora = Date.now()
+  const clave = String(reference || 'sin-referencia')
+  const duplicado = force ? null : encoladosDemo.find((trabajo) => trabajo.reference === clave && trabajo.kind === kind && ahora - trabajo.creadoAt < VENTANA_DUPLICADO_MS)
+  if (duplicado) {
+    return {
+      duplicado: true,
+      mensaje: `Ya hay una impresión pendiente de ${clave} para Térmica mostrador (demo). Si querés otra copia, confirmá "Reimprimir igual".`,
+      job: duplicado,
+    }
+  }
+  const job = { id: `demo-encolado-${encoladosDemo.length + 1}`, reference: clave, kind, creadoAt: ahora, estado: 'PENDIENTE' }
+  encoladosDemo.push(job)
+  return { duplicado: false, job }
+}
+
+export const totalEncoladosDemo = () => encoladosDemo.length

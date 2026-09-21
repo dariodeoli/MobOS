@@ -1,12 +1,15 @@
-// QA del modo demo para impresión (#194).
+// Verificación del demo público de IMPRESIÓN (#194 y #196).
 //
-// Verifica que la pantalla de Impresoras se vea y funcione con DATOS DEMO
-// (impresoras, cola, actividad, verificación en papel) y que NO se llame al
-// backend real: el arnés corre contra un server local de la app (solo front) y
-// falla si aparece alguna request a /api/**.
+// Spec reutilizable: corre contra cualquier base (local o producción) y
+// verifica que la pantalla de Impresoras del demo anónimo se vea y funcione con
+// DATOS FICTICIOS: banner, impresoras, estados honestos, auto-validación del
+// código, cola con cancelación individual/lote, anti-duplicados y prueba
+// simulada. Falla si impresión llama al backend real (no hay sesión en el demo)
+// y reporta aparte las llamadas de otros módulos.
 //
-// Uso:  QA_BASE_URL=http://127.0.0.1:5273 node scripts/qa-194-impresion-demo.mjs
-// Salida: docs/qa/194-impresion/*.jpg + resultados.json
+// Uso local:   QA_BASE_URL=http://127.0.0.1:5273 node scripts/qa-194-impresion-demo.mjs
+// Uso prod:    QA_BASE_URL=https://app.moboss.online QA_OUT=docs/qa/196-impresion-prod node scripts/qa-194-impresion-demo.mjs
+// Salida: docs/qa/<carpeta>/*.jpg + resultados.json
 import { createRequire } from 'node:module'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -58,6 +61,13 @@ async function paso(nombre, fn) {
     console.log(`FALLO ${nombre}: ${mensaje}`)
     try { capturas.push(await shot(`fallo-${nombre}`)) } catch { /* sin captura */ }
   }
+}
+
+// Un paso que en el demo anónimo no se puede ejercitar (necesita API/sesión):
+// se documenta con su motivo y no hace fallar el veredicto.
+function pasoNoAplicable(nombre, motivo) {
+  resultados.push({ paso: nombre, estado: 'no-aplicable', detalle: motivo, capturas: [], llamadasApi: [] })
+  console.log(`N/A   ${nombre} — ${motivo}`)
 }
 
 const esperar = (ms) => page.waitForTimeout(ms)
@@ -142,6 +152,52 @@ await paso('prueba de impresión demo simulada', async (captura) => {
   return 'la prueba avisa que es simulada y no envía nada'
 })
 
+await paso('cancelación demo: individual y en lote desde la cola', async (captura) => {
+  await page.getByRole('button', { name: 'Ver cola' }).click()
+  await esperar(700)
+  const dialogo = page.getByRole('dialog')
+  await captura(shot('cola-antes-de-cancelar'))
+  const individual = dialogo.getByRole('button', { name: 'Cancelar', exact: true }).first()
+  await individual.click()
+  await expectVisible(page.getByText(/Trabajo cancelado \(demo\)|trabajos cancelados \(demo\)/).first(), 6000, 'no avisó la cancelación individual')
+  await captura(shot('cola-cancelacion-individual'))
+  const enLote = dialogo.getByRole('button', { name: /Cancelar pendientes/ })
+  if (await enLote.count()) {
+    await enLote.click()
+    await expectVisible(page.getByText(/trabajos cancelados \(demo\)/).first(), 6000, 'no avisó la cancelación en lote')
+    await captura(shot('cola-cancelacion-lote'))
+  }
+  await page.keyboard.press('Escape')
+  return 'cancelación individual y en lote con aviso de demo'
+})
+
+await paso('anti-duplicados demo: aviso de duplicado y «Reimprimir igual»', async (captura) => {
+  await page.goto(`${BASE}/pedidos`, { waitUntil: 'domcontentloaded' })
+  await esperar(2500)
+  const fila = page.getByTestId('pedido-fila').first()
+  if (!(await fila.count())) throw new Error('la lista de pedidos de la demo no cargó filas')
+  await fila.click()
+  await esperar(1500)
+  await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
+  await esperar(600)
+  await page.getByRole('dialog').getByRole('button', { name: 'Impresión directa' }).click()
+  await expectVisible(page.getByText(/Comprobante encolado \(demo\)/).first(), 8000, 'el primer encolado demo no avisó')
+  await captura(shot('duplicado-primer-encolado'))
+  await page.getByRole('dialog').getByRole('button', { name: 'Impresión directa' }).click()
+  const reimprimir = page.getByRole('button', { name: 'Reimprimir igual' })
+  await expectVisible(reimprimir, 8000, 'no apareció el aviso de duplicado con «Reimprimir igual»')
+  await captura(shot('duplicado-aviso'))
+  await reimprimir.click()
+  await expectVisible(page.getByText(/Reimpresión encolada \(demo\)/).first(), 8000, '«Reimprimir igual» no encoló la copia demo')
+  await captura(shot('duplicado-reimprimir'))
+  return 'el segundo click avisó del duplicado y «Reimprimir igual» sumó una copia ficticia'
+})
+
+pasoNoAplicable(
+  'QR impreso que no vence y reimpresión',
+  'no se puede ejercitar en el demo anónimo: los tokens del QR salen del backend y el demo no tiene sesión; en el demo el acceso del cliente no se genera. Se verifica en el e2e de QR y en producción escaneando un comprobante real.',
+)
+
 async function expectVisible(locator, timeout, mensaje) {
   try {
     await locator.waitFor({ state: 'visible', timeout })
@@ -178,6 +234,7 @@ console.log(`\nResultados: ${SALIDA}/resultados.json`)
 console.log(`Impresión → llamadas al API: ${llamadasImpresion.length} · pasos OK: ${informe.veredicto.pasosOk}/${informe.veredicto.pasosTotal}`)
 console.log(`Otros módulos → llamadas: ${llamadasOtros.length} · errores de red: ${erroresRed.length} · otros errores: ${erroresOtros.length}`)
 if (llamadasOtros.length) console.log(['(hallazgos de otros módulos)', ...new Set(llamadasOtros)].slice(0, 10).join('\n'))
-// Falla si la impresión tocó el API o si un paso no quedó OK; lo ajeno se reporta.
+// Falla si la impresión tocó el API o si un paso quedó en fallo; lo ajeno y lo
+// no-aplicable se reporta sin romper el veredicto.
 if (llamadasImpresion.length) { console.error('IMPRESIÓN llamó al API real:'); console.error(llamadasImpresion.slice(0, 8).join('\n')); process.exitCode = 1 }
-if (resultados.some((fila) => fila.estado !== 'ok')) process.exitCode = 1
+if (resultados.some((fila) => fila.estado === 'fallo')) process.exitCode = 1
