@@ -51,7 +51,7 @@ import CampanasClientes from '@/components/customers/CampanasClientes'
 import { customerMetadata, DEMO_MESSAGE_TEMPLATES, readCustomerMetadata, whatsappUrl } from '@/components/customers/customerMessaging'
 
 export const DEMO_CUSTOMERS_KEY = 'mobos:demo-customers:v1'
-const emptyCustomer = { name: '', document: '', email: '', phones: [''], addresses: [{ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay' }], acceptsEmailMarketing: false, acceptsSmsMarketing: false, acceptsWhatsappMarketing: false, taxExempt: false, tags: '', pricingTier: 'RETAIL', priceListId: '', creditLimitPyg: '', creditDays: '' }
+const emptyCustomer = { firstName: '', secondName: '', document: '', email: '', phones: [''], addresses: [{ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay' }], acceptsEmailMarketing: false, acceptsSmsMarketing: false, acceptsWhatsappMarketing: false, taxExempt: false, tags: '', pricingTier: 'RETAIL', priceListId: '', creditLimitPyg: '', creditDays: '' }
 const FILTROS_CLIENTES = [['todos', 'Todos'], ['mayoristas', 'Mayoristas'], ['deuda', 'Con deuda'], ['credito', 'Con crédito']]
 // Filtro local para la demo (sin API): espejo acotado del filtro del servidor.
 const coincideFiltroCliente = (row, filtro) => {
@@ -119,9 +119,12 @@ export default function SellerCustomers() {
     const params = new URLSearchParams()
     if (search) params.set('q', search)
     if (filtro !== 'todos') params.set('filtro', filtro)
+    // El orden también va al servidor (#160): cubre todas las fichas, no solo
+    // la página cargada. "Recientes" es actividad: el pedido nuevo manda.
+    params.set('orden', orden === 'recientes' ? 'actividad' : orden)
     const consulta = params.toString()
     return `/api/customers${consulta ? `?${consulta}` : ''}`
-  }, [search, filtro])
+  }, [search, filtro, orden])
   const data = useSellerData(path, customerFields, readDemoCustomers, esDemo, { limit: 50 })
   const templateData = useSellerData('/api/message-templates', templateFields, readDemoTemplates, esDemo)
   const rows = esDemo ? data.rows.filter((row) => coincideCliente(row, search) && coincideFiltroCliente(row, filtro)) : data.rows
@@ -167,7 +170,12 @@ export default function SellerCustomers() {
 
   async function create(event) {
     event.preventDefault()
-    if (savingRef.current || !form.name.trim()) return
+    // Nombres desdoblados (#160): el nombre completo visible se compone del
+    // primer y segundo nombre.
+    const firstName = form.firstName.trim()
+    const secondName = form.secondName.trim()
+    const nombre = [firstName, secondName].filter(Boolean).join(' ')
+    if (savingRef.current || !nombre) return
     savingRef.current = true
     setSaving(true); setMessage(''); setSaveError('')
     try {
@@ -175,10 +183,10 @@ export default function SellerCustomers() {
       if (phones.some((phone) => !telefonoValido(phone, form.countryCode || '+595'))) throw new Error(MENSAJE_TELEFONO)
       const addresses = form.addresses.filter((address) => address.address.trim()).map((address, index) => ({ label: address.label.trim() || `Dirección ${index + 1}`, address: address.address.trim(), ...(address.city.trim() ? { city: address.city.trim() } : {}), ...(address.department?.trim() ? { department: address.department.trim() } : {}), country: address.country?.trim() || 'Paraguay', isDefault: index === 0 }))
       if (esDemo) {
-        const customer = { id: crypto.randomUUID(), name: form.name.trim(), document: form.document.trim(), email: form.email.trim(), phone: phones[0] || '', phones, countryCode: form.countryCode || '+595', addresses, acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20) }
+        const customer = { id: crypto.randomUUID(), name: nombre, firstName, secondName, document: form.document.trim(), email: form.email.trim(), phone: phones[0] || '', phones, countryCode: form.countryCode || '+595', addresses, acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20) }
         localStorage.setItem(DEMO_CUSTOMERS_KEY, JSON.stringify([...readDemoCustomers(), customer]))
       } else {
-        const saved = await api.post('/api/customers', { name: form.name.trim(), document: form.document.trim() || undefined, email: form.email.trim() || undefined, phone: phones[0] || undefined, countryCode: form.countryCode || '+595', addresses, notes: customerMetadata(phones), acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20), pricingTier: form.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL', ...(form.priceListId ? { priceListId: form.priceListId } : {}), ...(String(form.creditLimitPyg).trim() ? { creditLimitPyg: Number(String(form.creditLimitPyg).replace(/\D/g, '')) } : {}), ...(String(form.creditDays).trim() ? { creditDays: Number(String(form.creditDays).replace(/\D/g, '')) } : {}) })
+        const saved = await api.post('/api/customers', { name: nombre, firstName, secondName, document: form.document.trim() || undefined, email: form.email.trim() || undefined, phone: phones[0] || undefined, countryCode: form.countryCode || '+595', addresses, notes: customerMetadata(phones), acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20), pricingTier: form.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL', ...(form.priceListId ? { priceListId: form.priceListId } : {}), ...(String(form.creditLimitPyg).trim() ? { creditLimitPyg: Number(String(form.creditLimitPyg).replace(/\D/g, '')) } : {}), ...(String(form.creditDays).trim() ? { creditDays: Number(String(form.creditDays).replace(/\D/g, '')) } : {}) })
         if (!saved?.id) throw new Error('Sin confirmación')
       }
       setForm(emptyCustomer); setSearch(''); setQuery(''); setCrearAbierto(false); data.refresh()
@@ -215,7 +223,9 @@ export default function SellerCustomers() {
   // El módulo de clientes usa solo las plantillas de su contexto; las demo
   // (sin categoría) siguen disponibles tal cual.
   const plantillasClientes = templateData.rows.filter((item) => !item.category || item.category === 'CUSTOMERS')
-  const ordenados = [...rows].sort((a, b) => {
+  // En la demo no hay servidor: el orden se resuelve local. Con API, el orden
+  // ya viene aplicado sobre todas las fichas.
+  const ordenados = !esDemo ? rows : [...rows].sort((a, b) => {
     if (orden === 'nombre') return a.name.localeCompare(b.name)
     if (orden === 'total') return Number(b.stats?.totalSpentPyg || 0) - Number(a.stats?.totalSpentPyg || 0)
     const ultimo = (fila) => fila.stats?.lastOrderAt ? new Date(fila.stats.lastOrderAt).getTime() : fila.createdAt ? new Date(fila.createdAt).getTime() : 0
@@ -284,7 +294,10 @@ export default function SellerCustomers() {
     </Modal>
     <Modal open={crearAbierto} onClose={() => !saving && setCrearAbierto(false)} title="Crear cliente" className="max-w-2xl">
       <form onSubmit={create} className="space-y-4">
-        <label className="block space-y-2"><span>Nombre</span><Input ref={nombreRef} required autoFocus maxLength={120} disabled={saving} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-2"><span>Primer nombre</span><Input ref={nombreRef} required autoFocus maxLength={120} disabled={saving} value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} /></label>
+          <label className="block space-y-2"><span>Segundo nombre <small className="text-mute">(opcional)</small></span><Input maxLength={120} disabled={saving} value={form.secondName} onChange={(event) => setForm({ ...form, secondName: event.target.value })} /></label>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2"><label className="block space-y-2"><span>RUC o CI <small className="text-mute">(opcional)</small></span><RucField id="cliente-documento" disabled={saving} value={form.document} onChange={(document) => setForm((actual) => ({ ...actual, document }))} onAplicar={(datos) => setForm((actual) => ({ ...actual, name: datos.name || actual.name, document: datos.fullRuc || actual.document }))} mostrarExtractor={!esDemo} /></label><label className="block space-y-2"><span>Correo <small className="text-mute">(opcional)</small></span><EmailField maxLength={200} disabled={saving} value={form.email} onChange={value => setForm({ ...form, email: value })} placeholder="cliente@correo.com" /></label></div>
         <div className="grid gap-3 sm:grid-cols-4">
           <label className="block space-y-2"><span>Precio</span><Select value={form.pricingTier} onChange={(event) => setForm({ ...form, pricingTier: event.target.value })}><option value="RETAIL">Minorista</option><option value="WHOLESALE">Mayorista</option></Select></label>
@@ -298,7 +311,7 @@ export default function SellerCustomers() {
           <fieldset className="space-y-1.5"><legend className="text-xs font-bold uppercase tracking-wider text-mute">Marketing (solo si acepta)</legend>{[['acceptsWhatsappMarketing', 'WhatsApp'], ['acceptsSmsMarketing', 'SMS'], ['acceptsEmailMarketing', 'Email']].map(([key, label]) => <label key={key} className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form[key]} onChange={(event) => setForm({ ...form, [key]: event.target.checked })} />{label}</label>)}</fieldset>
           <div className="space-y-3"><label className="block space-y-2"><span>Tipo de cliente</span><Select disabled={saving} value={form.pricingTier} onChange={(event) => setForm({ ...form, pricingTier: event.target.value })}><option value="RETAIL">Cliente final</option><option value="WHOLESALE">Mayorista (precio mayorista en el POS)</option></Select></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form.taxExempt} onChange={(event) => setForm({ ...form, taxExempt: event.target.checked })} />Exento de impuestos</label><label className="block space-y-2"><span>Etiquetas <small className="text-mute">(separadas por coma)</small></span><Input maxLength={200} disabled={saving} value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} placeholder="Ej: mayorista, prioridad" /></label></div>
         </div>
-        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" disabled={saving} onClick={() => setCrearAbierto(false)}>Cancelar</Button><Button disabled={saving || !form.name.trim()}>{saving ? 'Guardando…' : 'Guardar cliente'}</Button></div>
+        <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" disabled={saving} onClick={() => setCrearAbierto(false)}>Cancelar</Button><Button disabled={saving || !form.firstName.trim()}>{saving ? 'Guardando…' : 'Guardar cliente'}</Button></div>
         {message && <p role="status" className="text-ok">{message}</p>}
         {saveError && <p role="alert" className="text-bad">{saveError}</p>}
       </form>
