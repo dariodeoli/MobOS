@@ -72,3 +72,29 @@ export function totalResumen(lineas) {
   if (!Array.isArray(lineas)) return 0
   return lineas.reduce((suma, it) => suma + (Number(it?.subtotal) || 0), 0)
 }
+
+
+// Punto de entrada para la acción masiva «Vender todos» de Inventario (#217):
+// deja el carrito del POS precargado con los productos elegidos (cantidad y
+// seriales opcionales) y el vendedor solo revisa y cobra. Se llama antes de
+// navegar a /pos; el POS lo levanta solo (leerCarritoInicial) y lo borra al
+// guardar la venta. Devuelve false si no hay contexto o no hay items válidos.
+export function prepararVentaDesdeInventario({ empresaId, sucursalId, items = [], customer = null, entrega, montoDelivery, observacion } = {}) {
+  const normalizados = (Array.isArray(items) ? items : [])
+    .filter(Boolean)
+    .map(({ productoId, id, quantity, serials, ...resto }) => ({
+      productoId: productoId || id,
+      quantity: Number.isInteger(quantity) && quantity > 0 ? quantity : 1,
+      ...(Array.isArray(serials) && serials.length ? { serials } : {}),
+      ...resto,
+    }))
+    .filter((item) => item.productoId)
+  if (!empresaId || !normalizados.length) return false
+  return guardarCarrito(empresaId, sucursalId, {
+    items: normalizados,
+    ...(customer ? { customer } : {}),
+    ...(entrega ? { entrega } : {}),
+    ...(montoDelivery ? { montoDelivery } : {}),
+    ...(observacion ? { observacion } : {}),
+  })
+}
