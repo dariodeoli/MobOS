@@ -120,7 +120,7 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
     .first()
   await expect(sale).toBeVisible()
   await expect(sale).toContainText('×1')
-  await expect(sale).toContainText('Cliente E2E')
+  await expect(sale).toContainText('Cliente Checkout')
   await expect(sale.getByText('Pagado', { exact: true })).toBeVisible()
 
   // Clic en la fila: abre la página del pedido por su id interno.
