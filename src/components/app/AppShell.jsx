@@ -9,6 +9,7 @@ import ProductFooter from '@/components/app/ProductFooter'
 import MenuAcciones from '@/components/app/MenuAcciones'
 import PanelNotificaciones from '@/components/app/PanelNotificaciones'
 import Preferencias from '@/components/app/Preferencias'
+import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { usePresenceTracker } from '@/hooks/usePresence'
 import { usePreferencias } from '@/hooks/usePreferencias'
@@ -283,6 +284,17 @@ export default function AppShell({
   onAbrirNotificacion,
 }) {
   const [menuAbierto, setMenuAbierto] = useState(false)
+  const [comoFunciona, setComoFunciona] = useState(false)
+  // La guía de la demo se abre sola la primera vez por pestaña (#201).
+  useEffect(() => {
+    if (!esDemo) return
+    try {
+      if (sessionStorage.getItem('mobos:demo-guia-vista') !== '1') {
+        sessionStorage.setItem('mobos:demo-guia-vista', '1')
+        setComoFunciona(true)
+      }
+    } catch { /* sin storage: no se abre sola */ }
+  }, [esDemo])
   const { usuario: usuarioSesion, sucursales = [], sucursal, cambiarSucursal } = useSesion()
   const usuarioActual = usuario || usuarioSesion
   const [preferencias, cambiarPreferencias] = usePreferencias(usuarioActual?.id)
@@ -355,7 +367,7 @@ export default function AppShell({
         </div>
         <NavGroup nav={nav} active={active} onNavigate={navegar} collapsed={collapsed} />
         {sidebarStats && (
-          <div className={collapsed && 'lg:hidden'}>
+          <div className={cn(collapsed && 'lg:hidden')}>
             <StatsPanel collapsed={statsCerrado} onToggle={alternarStats}>
               {sidebarStats}
             </StatsPanel>
@@ -524,9 +536,17 @@ export default function AppShell({
           </div>
         )}
         {esDemo && (
-          <div role="status" className="flex items-center justify-center gap-2 bg-warn/15 px-4 py-2 text-center text-sm font-medium text-warn">
+          <div role="status" className="flex flex-wrap items-center justify-center gap-2 bg-warn/15 px-4 py-2 text-center text-sm font-medium text-warn">
             <Icon name="alert" className="h-4 w-4" />
-            Modo demo: los datos son ficticios y no se guardan en tu empresa.
+            <span>Modo demo: datos ficticios, no se guardan y se descartan al recargar.</span>
+            <button
+              type="button"
+              data-testid="demo-como-funciona"
+              onClick={() => setComoFunciona(true)}
+              className="rounded-lg border border-warn/40 px-2 py-0.5 text-xs font-semibold transition hover:bg-warn/10"
+            >
+              Cómo funciona
+            </button>
           </div>
         )}
         {loading ? (
@@ -551,6 +571,8 @@ export default function AppShell({
         onOpenMenu={onOpenMenuLabel ? () => setMenuAbierto(true) : null}
         menuLabel={onOpenMenuLabel}
       />
+
+      {esDemo && <ComoFuncionaDemo open={comoFunciona} onClose={() => setComoFunciona(false)} />}
 
       {menuAcciones && (
         <>

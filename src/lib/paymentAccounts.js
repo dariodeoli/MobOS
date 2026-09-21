@@ -1,6 +1,7 @@
 import { api } from './api/client'
 import { isDemoRuntime } from './demoMode'
 import { errorDeMoneda } from './paymentAccountsReglas.js'
+import { leerDemo, guardarDemo } from './demoStorage.js'
 
 const ENDPOINT = '/api/payment-accounts'
 const DEMO_KEY = 'mobos:demo-payment-accounts:v1'
@@ -66,14 +67,14 @@ function validate(data, partial = false) {
 }
 
 function saveDemo(accounts) {
-  try { localStorage.setItem(DEMO_KEY, JSON.stringify(accounts)) }
+  try { guardarDemo(DEMO_KEY, JSON.stringify(accounts)) }
   catch { throw new Error('No se pudieron guardar las cuentas demo en este navegador.') }
   return accounts
 }
 
 function readDemo() {
   let raw
-  try { raw = localStorage.getItem(DEMO_KEY) }
+  try { raw = leerDemo(DEMO_KEY) }
   catch { throw new Error('El almacenamiento local de la demo no está disponible.') }
   if (raw === null) return saveDemo(seed.map(account => ({ ...account })))
   try {

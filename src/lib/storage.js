@@ -13,6 +13,7 @@ import { num } from '@/utils/calculos'
 import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from './demoMode'
+import { guardarDemo } from './demoStorage.js'
 import { MEDIOS_PAGO } from './catalog'
 import { guardarSnapshotCatalogo, leerSnapshotCatalogo } from './offline/snapshot'
 import {
@@ -107,6 +108,9 @@ function vaciarCache() {
 // no sabemos la empresa no sabemos qué espejo leer.
 function bootFromMirror() {
   vaciarCache()
+  // La demo (#201) no levanta nada de localStorage: arranca siempre del seed y
+  // los guardados viven solo en memoria (se descartan al recargar/salir).
+  if (isDemoRuntime) return
   try {
     const m = safeParse(localStorage.getItem(mirrorKey()))
     if (m && typeof m === 'object') Object.assign(cache, m)
@@ -121,7 +125,8 @@ function bootFromMirror() {
 }
 
 function persistMirror() {
-  if (!ctx.empresaId || apiMode()) return
+  // La demo nunca escribe en localStorage: nada persiste entre recargas.
+  if (!ctx.empresaId || apiMode() || isDemoRuntime) return
   try {
     localStorage.setItem(mirrorKey(), JSON.stringify(cache))
   } catch {
@@ -346,11 +351,8 @@ export async function setContexto({ empresaId, sucursalId, userId, rol, fuente =
   ctx.rol = rol || null
   fuenteDatos = fuente === 'api' ? 'api' : 'legacy'
   if (sucursalId) {
-    try {
-      localStorage.setItem(SUC_KEY, sucursalId)
-    } catch {
-      /* noop */
-    }
+    // En demo no se guarda ni la sucursal ficticia (#204).
+    guardarDemo(SUC_KEY, sucursalId)
   }
   if (!ctx.empresaId) {
     vaciarCache()

@@ -46,11 +46,10 @@ function MetaDiaria({ vendor, esDemo, onGuardar }) {
   )
 }
 
-// La pestaña activa llega por URL (/configuracion/equipo, /configuracion/invitaciones).
-export default function Vendedores({ seccion = 'equipo' }) {
+// Equipo: integrantes activos/inactivos, metas, invitaciones e historial.
+export default function Vendedores() {
   const navigate = useNavigate()
   const { esDemo, sesion } = useSesion()
-  const equipoTab = seccion === 'invitaciones' ? 'invitaciones' : 'personas'
   const vendedores = getVendedores()
   const ventas = listVentas()
   const prods = productosById()
@@ -348,7 +347,7 @@ export default function Vendedores({ seccion = 'equipo' }) {
     </div>
 
     <PanelDerecho id="equipo-form" panel={formularioSumar}>
-    {equipoTab === 'personas' && <>
+    <>
     <Card>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -391,12 +390,24 @@ export default function Vendedores({ seccion = 'equipo' }) {
                 : <button type="button" onClick={() => reactivarUsuario(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-ok transition hover:bg-ok/10" aria-label={`Volver a activar a ${v.nombre}`}>Volver a activar</button>}
             </div>
             <div className="mt-1 grid grid-cols-2 items-end gap-2 border-t border-ink-600/60 pt-2 md:grid-cols-4">
-              <label className="col-span-2 block md:col-span-1"><span className="text-[10px] font-bold uppercase text-mute">Meta diaria ₲</span><MetaDiaria vendor={v} esDemo={esDemo} onGuardar={(meta) => actualizarUsuario(v.id, { dailyGoalPyg: meta })} /></label>
+              <label className="col-span-2 block md:col-span-1"><span className="text-[10px] font-bold uppercase text-mute">Meta diaria Gs</span><MetaDiaria vendor={v} esDemo={esDemo} onGuardar={(meta) => actualizarUsuario(v.id, { dailyGoalPyg: meta })} /></label>
               <Mini label="Hoy" valor={t.hoy} /><Mini label="Comisión hoy" valor={com} /><Mini label="Mes" valor={t.mes} />
             </div>
           </div>
         )})}
-        {!integrantesDeTab.length && <EmptyState compact icon="users" title={tabIntegrantes === 'inactivos' ? 'No hay integrantes inactivos.' : 'Todavía no hay integrantes activos.'} />}
+        {!integrantesDeTab.length && (
+          <EmptyState
+            compact
+            icon="users"
+            title={tabIntegrantes === 'inactivos' ? 'No hay integrantes inactivos.' : 'Todavía no hay integrantes activos.'}
+            description={tabIntegrantes === 'inactivos'
+              ? 'Cuando desactives a alguien, va a aparecer acá con su historial intacto.'
+              : 'Sumá a la primera persona del equipo para que pueda vender con su PIN.'}
+            action={tabIntegrantes === 'activos' && !vendedores.length
+              ? <Button type="button" onClick={() => { setConflicto(null); setInvitacion({ name: '', email: '', role: 'VENDEDOR' }); irAlFormulario() }}>+ Invitar persona</Button>
+              : undefined}
+          />
+        )}
       </div>
     </Card>
 
@@ -406,7 +417,7 @@ export default function Vendedores({ seccion = 'equipo' }) {
       <p className="text-sm text-mute">Las reglas de comisión se administran desde Finanzas → Comisiones.</p>
       <Button type="button" variant="outline" className="mt-3" onClick={() => navigate('/finanzas/comisiones')}>Ir a Finanzas → Comisiones</Button>
     </Card>}
-    </>}
+    </>
 
     {!esDemo && <Card>
       <h2 className="font-bold">Invitaciones</h2>

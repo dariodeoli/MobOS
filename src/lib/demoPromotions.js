@@ -1,16 +1,17 @@
+import { leerDemo, guardarDemo } from './demoStorage.js'
 const KEY = 'mobos:demo-promotions:v1'
 export function readDemoPromotions() {
-  const saved = localStorage.getItem(KEY)
+  const saved = leerDemo(KEY)
   if (saved) return JSON.parse(saved)
   return [{ id: 'demo-ten', code: 'DEMO10', name: 'Ejemplo ficticio: 10%', kind: 'PERCENT', value: 10, productId: null, startsAt: '2026-01-01T00:00:00Z', endsAt: '2030-01-01T00:00:00Z', maxUnits: null, usedUnits: 0, isActive: true }]
 }
 export function saveDemoPromotion(data) {
   const rows = readDemoPromotions()
   if (rows.some(row => row.code === data.code)) throw new Error('Código ya existente.')
-  localStorage.setItem(KEY, JSON.stringify([...rows, { ...data, id: crypto.randomUUID(), usedUnits: 0, isActive: true }]))
+  guardarDemo(KEY, JSON.stringify([...rows, { ...data, id: crypto.randomUUID(), usedUnits: 0, isActive: true }]))
 }
 export function toggleDemoPromotion(id, isActive) {
-  localStorage.setItem(KEY, JSON.stringify(readDemoPromotions().map(row => row.id === id ? { ...row, isActive } : row)))
+  guardarDemo(KEY, JSON.stringify(readDemoPromotions().map(row => row.id === id ? { ...row, isActive } : row)))
 }
 export function quoteDemoPromotion(product, quantity, code) {
   const p = readDemoPromotions().find(row => row.code === code.trim().toUpperCase())
@@ -44,5 +45,5 @@ export function validateDemoPromotionItems(items, products, discountPyg = 0) {
 }
 export function recordDemoPromotionUsage(items, products, discountPyg = 0) {
   const usage = validateDemoPromotionItems(items, products, discountPyg)
-  localStorage.setItem(KEY, JSON.stringify(readDemoPromotions().map(p => ({ ...p, usedUnits: p.usedUnits + (usage[p.code] || 0) }))))
+  guardarDemo(KEY, JSON.stringify(readDemoPromotions().map(p => ({ ...p, usedUnits: p.usedUnits + (usage[p.code] || 0) }))))
 }

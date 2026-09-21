@@ -15,6 +15,7 @@ import { ConfirmDialog, Input, Modal, PinInput, Select, Skeleton, Subtabs, useTo
 import { cn } from '@/lib/utils'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import PantallaBloqueada from '@/components/app/PantallaBloqueada'
+import DemoNoDisponible from '@/components/app/DemoNoDisponible'
 import { usePreferencias } from '@/hooks/usePreferencias'
 import { useBloqueoInactividad } from '@/hooks/useBloqueoInactividad'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
@@ -212,10 +213,8 @@ const MIGA_SUBPAGINA = {
 // Pestañas visibles según el modo: créditos y cuotas solo fuera de la demo.
 function tabsDeSubpagina(slug, esDemo) {
   const tabs = SUBPAGINAS[slug]?.tabs || []
-  if (slug === 'configuracion') {
-    // Estado del sistema necesita el API real; en demo queda oculta.
-    return tabs.filter(([id]) => (id === 'sistema' ? !esDemo : true))
-  }
+  // Finanzas oculta créditos/cuotas/comisiones en demo (necesitan el API real);
+  // Estado del sistema se muestra con su aviso de "no disponible" (#201).
   if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas' || id === 'comisiones') ? !esDemo : true))
   return tabs
 }
@@ -301,6 +300,16 @@ const MESES = [
   'diciembre',
 ]
 
+// Marca de pantalla bloqueada: en sessionStorage para que el bloqueo no se
+// pierda al recargar y se descarte al cerrar la pestaña (#204).
+const LOCK_FLAG_KEY = 'mobos:pos-bloqueado'
+function marcarBloqueo(activo) {
+  try {
+    if (activo) sessionStorage.setItem(LOCK_FLAG_KEY, '1')
+    else sessionStorage.removeItem(LOCK_FLAG_KEY)
+  } catch { /* sin storage: el bloqueo sigue en memoria */ }
+}
+
 // Mientras una vista pesada descarga su código, la pantalla no queda vacía.
 function VistaCargando() {
   return (
@@ -357,7 +366,10 @@ export default function PanelVendedor() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('mobos:sidebar-collapsed') === '1',
   )
-  const [locked, setLocked] = useState(false)
+  const [locked, setLocked] = useState(() => {
+    // El bloqueo sobrevive a la recarga (#204): sin esto, F5 lo saltaba.
+    try { return sessionStorage.getItem(LOCK_FLAG_KEY) === '1' } catch { return false }
+  })
   const [lockPin, setLockPin] = useState('')
   const [lockError, setLockError] = useState('')
   const [lockBusy, setLockBusy] = useState(false)
@@ -495,6 +507,7 @@ export default function PanelVendedor() {
     setLockError('')
     setLockBusy(false)
     setLocked(true)
+    marcarBloqueo(true)
   }
 
   // Preferencias del dispositivo: los minutos de bloqueo mandan sobre el
@@ -525,6 +538,7 @@ export default function PanelVendedor() {
         }
         setLocked(false)
         setLockPin('')
+        marcarBloqueo(false)
         try { navigator.vibrate?.(40) } catch { /* sin soporte de vibración */ }
       } catch (err) {
         setLockError(err?.message || 'PIN inválido. Probá de nuevo.')
@@ -543,6 +557,7 @@ export default function PanelVendedor() {
 
   async function confirmarSalir() {
     setSaliendo(true)
+    marcarBloqueo(false)
     try {
       await salir()
     } finally {
@@ -628,6 +643,7 @@ export default function PanelVendedor() {
         setCambiarAbierto(false)
         // Si veníamos de la pantalla bloqueada, cambiar de usuario también la cierra.
         setLocked(false)
+        marcarBloqueo(false)
         toast.success('Sesión cambiada', 'La próxima venta se registrará con este vendedor.')
         if (esDemo && pin === '3001') navigate('/')
       })
@@ -814,17 +830,20 @@ export default function PanelVendedor() {
                 items={tabsConfig}
               />
               {vista === 'equipo' && <Vendedores />}
-              {vista === 'invitaciones' && <Vendedores seccion="invitaciones" />}
               {vista === 'identidad' && <MiIdentidad />}
               {vista === 'roles' && <RolesPermisos />}
               {vista === 'historial' && (esDemo ? <Historial /> : <Auditoria />)}
               {vista === 'negocio' && <Config seccion="negocio" />}
               {vista === 'precios' && <Precios />}
               {vista === 'sucursales' && <Config seccion="sucursales" />}
-              {vista === 'seguridad' && <Config seccion="seguridad" />}
+              {vista === 'seguridad' && (esDemo
+                ? <DemoNoDisponible modulo="Seguridad de la cuenta" motivo="Administra contraseñas, sesiones y acciones sensibles de tu tienda real." />
+                : <Config seccion="seguridad" />)}
               {vista === 'impresoras' && <Impresoras />}
               {vista === 'documentacion' && <Documentacion />}
-              {vista === 'sistema' && <EstadoSistema />}
+              {vista === 'sistema' && (esDemo
+                ? <DemoNoDisponible modulo="Estado del sistema" motivo="Consulta los servicios reales de MobOS (API, base e impresión)." />
+                : <EstadoSistema />)}
             </div>
           )}
           </Suspense>

@@ -2,6 +2,7 @@
 // navegador: la demo muestra casos en distintos estados del pipeline, catálogo
 // y checklists sin llamar al API real.
 import { SEED_DEMO_CLIENTES } from './demoClientes'
+import { leerDemo, guardarDemo } from './demoStorage.js'
 
 const KEY = 'mobos:demo-servicio'
 const haceDias = (dias) => new Date(Date.now() - dias * 86400000).toISOString()
@@ -48,7 +49,7 @@ const SEED = {
 
 export function getDemoServicio() {
   try {
-    const stored = JSON.parse(localStorage.getItem(KEY) || 'null')
+    const stored = JSON.parse(leerDemo(KEY) || 'null')
     if (stored && typeof stored === 'object') return { ...SEED, ...stored }
   } catch { /* datos corruptos: se vuelve al seed */ }
   return SEED
@@ -57,7 +58,7 @@ export function getDemoServicio() {
 export function saveDemoServicio(parcial) {
   const actual = getDemoServicio()
   const siguiente = { ...actual, ...parcial }
-  localStorage.setItem(KEY, JSON.stringify(siguiente))
+  guardarDemo(KEY, JSON.stringify(siguiente))
   return siguiente
 }
 

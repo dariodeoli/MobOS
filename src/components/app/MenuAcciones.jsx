@@ -3,8 +3,8 @@ import Icon from '@/components/shared/Icon'
 import { Modal } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
-// Menú de tres puntos del POS: accesos directos a Configuración, Staff, Caja,
-// Analytics y Customers; bloqueo, cambio de sucursal, cierre de sesión,
+// Menú de tres puntos del POS: accesos directos a Configuración (Equipo), Caja,
+// Análisis y Clientes; bloqueo, cambio de sucursal, cierre de sesión,
 // eliminación de cuenta y preferencias. El cambio de sucursal usa el catálogo
 // de la sesión (el backend ya aplica el alcance por sucursal).
 export default function MenuAcciones({ onNavegar, onBloquear, onSalir, onPreferencias, sucursales = [], sucursal, onCambiarSucursal }) {
@@ -31,10 +31,9 @@ export default function MenuAcciones({ onNavegar, onBloquear, onSalir, onPrefere
 
   const ITEMS = [
     ['Configuración', 'settings', () => onNavegar('equipo'), ''],
-    ['Staff', 'users', () => onNavegar('equipo', { subtab: 'equipo' }), ''],
     ['Caja', 'wallet', () => onNavegar('finanzas', { subtab: 'caja' }), ''],
-    ['Analytics', 'chart', () => onNavegar('analisis', { subtab: 'reportes' }), ''],
-    ['Customers', 'user', () => onNavegar('clientes'), ''],
+    ['Análisis', 'chart', () => onNavegar('analisis', { subtab: 'reportes' }), ''],
+    ['Clientes', 'user', () => onNavegar('clientes'), ''],
     ['Preferencias', 'sliders', onPreferencias, ''],
     ['Bloquear pantalla', 'lock', onBloquear, ''],
     ['Cambiar sucursal', 'store', () => setCambiandoSucursal(true), ''],

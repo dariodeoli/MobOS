@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
+import { isDemoRuntime } from '@/lib/demoMode'
 import { Badge, Button, Card, ConfirmDialog, FormField, Input, Modal, Select, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { CATEGORIAS_PLANTILLA, VARIABLES_POR_CONTEXTO, VALORES_EJEMPLO, renderPlantilla } from '@/lib/whatsappPlantillas'
@@ -11,6 +12,18 @@ const CELDA_PLANTILLAS = 'truncate text-[10px] font-bold uppercase tracking-wide
 
 const NOMBRE_CATEGORIA = Object.fromEntries(CATEGORIAS_PLANTILLA.map((item) => [item.clave, item.nombre]))
 const MAX_CUERPO = 1200
+
+// Plantillas demo (#201): viven en memoria del módulo —nunca en la base ni en
+// localStorage— y se reinician al recargar. Los guardados no salen al API.
+let plantillasDemo = null
+const plantillasDemoIniciales = () => [
+  { id: 'demo-tpl-pedido-listo', name: 'Pedido listo para retirar', body: 'Hola {{cliente}}, tu pedido {{pedido}} está listo para retirar. Total {{total}}. ¡Te esperamos!', category: 'ORDERS', isActive: true, isDefault: true },
+  { id: 'demo-tpl-pedido-seguimiento', name: 'Seguimiento del pedido', body: 'Hola {{cliente}}, podés seguir tu pedido {{pedido}} acá: {{seguimiento}}.', category: 'ORDERS', isActive: true, isDefault: false },
+  { id: 'demo-tpl-cliente-saldo', name: 'Saldo pendiente', body: 'Hola {{cliente}}, te recordamos que tenés un saldo pendiente de {{saldo_pendiente}}.', category: 'CUSTOMERS', isActive: true, isDefault: true },
+  { id: 'demo-tpl-servicio-estado', name: 'Equipo en taller', body: 'Hola {{cliente}}, tu equipo {{equipo}} está en {{estado}}. Te avisamos cuando esté listo.', category: 'SERVICE', isActive: true, isDefault: true },
+  { id: 'demo-tpl-cobranza-cuota', name: 'Cuota próxima', body: 'Hola {{cliente}}, tu cuota de {{pedido}} vence el {{fecha}}. Cualquier duda, escribinos.', category: 'COLLECTIONS', isActive: true, isDefault: true },
+]
+const avisarGuardadoDemo = () => { try { window.dispatchEvent(new CustomEvent('mobos:demo-guardado')) } catch { /* sin window */ } }
 
 const editorVacio = (category) => ({ id: null, name: '', body: '', category, isActive: true, isDefault: false })
 const editorDe = (plantilla) => ({ id: plantilla.id, name: plantilla.name || '', body: plantilla.body || '', category: plantilla.category || 'ORDERS', isActive: plantilla.isActive !== false, isDefault: plantilla.isDefault === true })
@@ -30,6 +43,11 @@ export default function WhatsAppTemplates() {
 
   const cargar = useCallback(async () => {
     setError('')
+    if (isDemoRuntime) {
+      if (!plantillasDemo) plantillasDemo = plantillasDemoIniciales()
+      setItems(plantillasDemo)
+      return
+    }
     try { const rows = await api.get('/api/message-templates'); setItems(Array.isArray(rows) ? rows : []) } catch (cause) { setError(cause?.message || 'No se pudieron cargar las plantillas.'); setItems([]) }
   }, [])
   useEffect(() => { cargar() }, [cargar])
@@ -68,6 +86,19 @@ export default function WhatsAppTemplates() {
     if (!nombre || nombre.length > 120) { setEditorError('El nombre es obligatorio (hasta 120 caracteres).'); return }
     if (!cuerpo || cuerpo.length > MAX_CUERPO) { setEditorError(`El mensaje es obligatorio (hasta ${MAX_CUERPO} caracteres).`); return }
     setBusy(true); setEditorError('')
+    if (isDemoRuntime) {
+      const actual = plantillasDemo || (plantillasDemo = plantillasDemoIniciales())
+      plantillasDemo = editor.id
+        ? actual.map((item) => (item.id === editor.id ? { ...item, name: nombre, body: cuerpo, category: editor.category, isActive: editor.isActive, isDefault: editor.isDefault } : item))
+        : [...actual, { id: `demo-tpl-${Date.now().toString(36)}`, name: nombre, body: cuerpo, category: editor.category, isActive: editor.isActive, isDefault: editor.isDefault }]
+      setItems(plantillasDemo)
+      toast.success(editor.id ? 'Plantilla actualizada.' : 'Plantilla creada.')
+      setCategoria(editor.category)
+      setEditor(null)
+      avisarGuardadoDemo()
+      setBusy(false)
+      return
+    }
     try {
       if (editor.id) await api.patch('/api/message-templates', { id: editor.id, name: nombre, body: cuerpo, category: editor.category, isActive: editor.isActive, isDefault: editor.isDefault })
       else await api.post('/api/message-templates', { name: nombre, body: cuerpo, category: editor.category, isActive: editor.isActive, isDefault: editor.isDefault })
@@ -81,12 +112,33 @@ export default function WhatsAppTemplates() {
   async function duplicar(plantilla) {
     if (busy) return
     setBusy(true); setError('')
+    if (isDemoRuntime) {
+      const actual = plantillasDemo || (plantillasDemo = plantillasDemoIniciales())
+      const original = actual.find((item) => item.id === plantilla.id)
+      if (original) {
+        plantillasDemo = [...actual, { ...original, id: `demo-tpl-${Date.now().toString(36)}`, name: `${original.name} (copia)`, isDefault: false }]
+        setItems(plantillasDemo)
+        toast.success('Plantilla duplicada.')
+        avisarGuardadoDemo()
+      }
+      setBusy(false)
+      return
+    }
     try { await api.post('/api/message-templates', { duplicateOf: plantilla.id }); toast.success('Plantilla duplicada.'); await cargar() } catch (cause) { setError(cause?.message || 'No se pudo duplicar la plantilla.') } finally { setBusy(false) }
   }
 
   async function eliminarPlantilla() {
     if (busy || !eliminar) return
     setBusy(true); setError('')
+    if (isDemoRuntime) {
+      plantillasDemo = (plantillasDemo || []).filter((item) => item.id !== eliminar.id)
+      setItems(plantillasDemo)
+      toast.success('Plantilla eliminada.')
+      avisarGuardadoDemo()
+      setBusy(false)
+      setEliminar(null)
+      return
+    }
     try {
       await api.delete(`/api/message-templates?id=${encodeURIComponent(eliminar.id)}`)
       toast.success('Plantilla eliminada.')

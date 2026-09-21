@@ -64,7 +64,6 @@ test('configuration subpages keep their own child slug in the URL and the title'
   const rutas = {
     '/configuracion': 'Configuración',
     '/configuracion/equipo': 'Equipo',
-    '/configuracion/invitaciones': 'Invitaciones',
     '/configuracion/identidad': 'Mi identidad',
     '/configuracion/roles': 'Roles y permisos',
     '/configuracion/historial': 'Historial',

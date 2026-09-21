@@ -1,3 +1,4 @@
+import { leerDemo, guardarDemo } from './demoStorage.js'
 // Ajustes ficticios de la empresa en modo demo (#194): se guardan solo en este
 // navegador y alimentan la simulación de Finanzas sin tocar la API real. Mismos
 // nombres de campos que el tenant real para que las pantallas no distingan.
@@ -17,7 +18,7 @@ const DEFAULTS = {
 
 function read() {
   try {
-    const guardado = JSON.parse(localStorage.getItem(KEY))
+    const guardado = JSON.parse(leerDemo(KEY))
     return guardado && typeof guardado === 'object' && !Array.isArray(guardado) ? { ...DEFAULTS, ...guardado } : { ...DEFAULTS }
   } catch {
     return { ...DEFAULTS }
@@ -25,7 +26,7 @@ function read() {
 }
 
 function write(next) {
-  try { localStorage.setItem(KEY, JSON.stringify(next)) } catch { /* almacenamiento no disponible */ }
+  try { guardarDemo(KEY, JSON.stringify(next)) } catch { /* almacenamiento no disponible */ }
   return next
 }
 

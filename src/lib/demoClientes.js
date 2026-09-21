@@ -1,3 +1,4 @@
+import { leerDemo, guardarDemo } from './demoStorage.js'
 // Datos ficticios del modo demo para Clientes (#189/#194). Nada de esto sale
 // del navegador: los seeds se muestran siempre y lo que se crea se guarda en
 // localStorage. La ficha, la cronología y el portal se arman con estos datos
@@ -170,7 +171,7 @@ export const SEED_DEMO_CLIENTES = [
 
 export function clientesDemoGuardados() {
   try {
-    const stored = JSON.parse(localStorage.getItem(KEY) || '[]')
+    const stored = JSON.parse(leerDemo(KEY) || '[]')
     return Array.isArray(stored) ? stored : []
   } catch {
     return []
@@ -179,7 +180,7 @@ export function clientesDemoGuardados() {
 
 export function guardarClienteDemo(customer) {
   const lista = [...clientesDemoGuardados(), customer]
-  localStorage.setItem(KEY, JSON.stringify(lista))
+  guardarDemo(KEY, JSON.stringify(lista))
   return customer
 }
 

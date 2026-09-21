@@ -62,7 +62,18 @@ export function SesionProvider({ children }) {
   useEffect(() => {
     let vivo = true
     let intentos = 0
-    if (isDemoRuntime) { if (demoSessionActive()) entrarDemo(); else setEstado('fuera'); return () => { vivo = false } }
+    if (isDemoRuntime) {
+      // /login es el acceso real: la marca de demo de esta pestaña se limpia y
+      // se recarga para re-evaluar el modo (si no, el API real seguiría
+      // bloqueado por la barrera de demo) — #201.
+      if (demoSessionActive() && window.location.pathname === '/login') {
+        clearDemoSession()
+        window.location.reload()
+        return () => { vivo = false }
+      }
+      if (demoSessionActive()) entrarDemo(); else setEstado('fuera')
+      return () => { vivo = false }
+    }
     // Un error de red no debe expulsar al usuario: se reintenta la validación
     // unas veces y solo se cierra la sesión visual ante un 401 real.
     const validar = async () => {

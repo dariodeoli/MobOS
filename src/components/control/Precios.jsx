@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import { resources } from '@/lib/api'
 import { getProductos } from '@/lib/storage'
@@ -177,8 +178,25 @@ export default function Precios() {
     } catch (cause) { setError(cause?.message || 'No se pudieron guardar los escalones.') } finally { setBusy(false) }
   }
 
-  if (esDemo) return <Card><p className="text-sm text-mute">Las listas de precios se configuran con una cuenta real.</p></Card>
-  if (!gestiona) return <Card><p className="text-sm text-mute">Solo administración o gerencia configuran precios.</p></Card>
+  if (esDemo) return (
+    <Card>
+      <EmptyState
+        icon="tag"
+        title="Las listas de precios se configuran con una cuenta real"
+        description="En la demo los productos usan una lista ficticia; podés verla en Productos y en el POS."
+        action={<Link to="/login" className="inline-flex min-h-11 items-center rounded-lg border border-ink-600 px-4 text-sm font-semibold text-fono-light transition hover:border-fono/50">Ingresar con mi cuenta</Link>}
+      />
+    </Card>
+  )
+  if (!gestiona) return (
+    <Card>
+      <EmptyState
+        icon="lock"
+        title="Solo administración o gerencia configuran precios"
+        description="Pedile a una persona con rol de administración que revise las listas y los precios por cantidad."
+      />
+    </Card>
+  )
 
   return <div className="space-y-4">
     <Card className="space-y-3">

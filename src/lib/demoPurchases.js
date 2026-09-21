@@ -1,4 +1,5 @@
 import { getProductos, moverStock } from '@/lib/storage'
+import { leerDemo, guardarDemo } from './demoStorage.js'
 
 const KEY = 'mobos:demo-purchases:v1'
 const seed = [
@@ -7,9 +8,9 @@ const seed = [
 ]
 
 function read() {
-  try { return JSON.parse(localStorage.getItem(KEY)) || seed } catch { return seed }
+  try { return JSON.parse(leerDemo(KEY)) || seed } catch { return seed }
 }
-function write(items) { localStorage.setItem(KEY, JSON.stringify(items)); return items }
+function write(items) { guardarDemo(KEY, JSON.stringify(items)); return items }
 export const DEMO_PURCHASES = seed
 export function loadDemoPurchases() { return read() }
 export function createDemoPurchase(purchase) { return write([purchase, ...read()]) }
