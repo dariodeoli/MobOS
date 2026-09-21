@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.129 — 2026-09-21
+- **Pedidos:** la página pública del pedido pasa a su dirección canónica `clientes.moboss.online/pedidos/<token>`, con redirects que conservan el token (los QR y enlaces viejos siguen abriendo); el QR impreso y los enlaces del comprobante apuntan a la nueva.
+- **Demo completa:** POS, Finanzas, Clientes y Servicio Técnico e Impresión funcionan en modo demo con datos ficticios y sin tocar el API real; cada guardado avisa que es simulado. (#194)
+- **Facturación/IMEI:** llega **IMEIcheck.net en modo mock** (Fase 1): validación del IMEI (15 dígitos + Luhn), estados honestos (pendiente o sin dato nunca dicen "Limpio"), token solo en el backend y consulta con costo confirmado, idempotencia y registro auditable. Sin llamadas reales salvo configuración explícita. (#193)
+- **QA:** scripts y specs reutilizables de verificación del demo público y la página del pedido, con capturas y JSON de resultados. (#196 #198)
+
 ## v1.0.128 — 2026-09-21
 - **Pedidos / POS:** cada método de entrega (envío, retiro en tienda, retiro en otra sucursal, traslado) tiene su propia máquina de estados (un retiro no pasa por "listo para enviar") y el **seguimiento público** muestra el tipo, el encabezado correcto y la línea de progreso con fechas; «Dividir saldo» ahora precarga el monto en el bloque nuevo. (#187 #191)
 - **Demo:** la **demo pública es anónima** y 100 % local con datos ficticios: no consulta el API ni necesita sesión, con banner de datos ficticios y aviso al guardar. (#192)
