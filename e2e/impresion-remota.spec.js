@@ -345,9 +345,11 @@ test.describe('impresión remota: cola con puente falso', () => {
       await fila.getByLabel(`Número secreto de la validación ${trabajo.validation}`).fill(incorrecto)
       await expect(page.getByText('No coincide', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
 
-      // El botón Confirmar sigue como respaldo (mismo aviso al reintentar).
+      // El botón Confirmar sigue como respaldo (sin número avisa qué falta; así
+      // no se confunde con el aviso anterior, que sigue en pantalla).
+      await fila.getByLabel(`Número secreto de la validación ${trabajo.validation}`).fill('')
       await fila.getByRole('button', { name: 'Confirmar' }).click()
-      await expect(page.getByText('No coincide', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText('Falta el número').first()).toBeVisible({ timeout: 10_000 })
 
       // Al escribir el dígito correcto valida solo, sin apretar nada.
       await fila.getByLabel(`Número secreto de la validación ${trabajo.validation}`).fill(trabajo.sufijo)

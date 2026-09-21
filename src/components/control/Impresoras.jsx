@@ -180,6 +180,11 @@ export default function Impresoras() {
   // Temporizadores de la auto-validación en papel (#138): uno por trabajo, se
   // cancelan al corregir el código y se limpian al desmontar la pantalla.
   const timersAuto = useRef(new Map())
+  // Verdad sincrónica de "hay una confirmación en vuelo": el estado de React
+  // llega un render tarde y la validación automática no puede depender de eso
+  // (en CI el clic de respaldo tardaba más que el debounce y el intento se
+  // descartaba en silencio).
+  const confirmandoRef = useRef(false)
   useEffect(() => () => { for (const temporizador of timersAuto.current.values()) clearTimeout(temporizador) }, [])
 
   const consultar = useCallback(async () => {
@@ -389,9 +394,10 @@ export default function Impresoras() {
 
   async function confirmarEnPapel(fila, valorDirecto = null) {
     // Un solo envío por vez: el guard cubre el botón, Enter y la auto-validación.
-    if (confirmandoId) return
+    if (confirmandoRef.current) return
     const sufijo = String(valorDirecto ?? sufijos[fila.jobId] ?? '').trim()
     if (!sufijo) return toast.error('Falta el número', 'Escribí el número secreto que salió impreso después del guion.')
+    confirmandoRef.current = true
     setConfirmandoId(fila.jobId)
     try {
       // Un trabajo del backend (remoto o espejado) se confirma contra el
@@ -403,7 +409,7 @@ export default function Impresoras() {
       await consultar()
     } catch (cause) {
       toast.error('No coincide', cause?.message || 'El número secreto no es el del papel.')
-    } finally { setConfirmandoId('') }
+    } finally { confirmandoRef.current = false; setConfirmandoId('') }
   }
 
   // Auto-validación al completar el código (#138): al escribir el último dígito
@@ -418,10 +424,20 @@ export default function Impresoras() {
     const programado = timersAuto.current.get(fila.jobId)
     if (programado) { clearTimeout(programado); timersAuto.current.delete(fila.jobId) }
     if (!esperado || valor.length !== esperado) return
+    programarAutoValidacion(fila, valor, 0)
+  }
+
+  // Espera a que no haya otra confirmación en vuelo en lugar de descartar el
+  // intento: reintenta cada 250 ms (hasta ~5 s) y recién ahí confirma.
+  function programarAutoValidacion(fila, valor, reintento) {
     timersAuto.current.set(fila.jobId, setTimeout(() => {
       timersAuto.current.delete(fila.jobId)
+      if (confirmandoRef.current) {
+        if (reintento < 20) programarAutoValidacion(fila, valor, reintento + 1)
+        return
+      }
       confirmarEnPapel(fila, valor)
-    }, 350))
+    }, reintento === 0 ? 350 : 250))
   }
 
   function abrirFormulario(impresora = null) {
