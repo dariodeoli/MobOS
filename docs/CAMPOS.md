@@ -32,7 +32,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 | `shared/AttachmentInput` (+ validación de *magic bytes* en backend) | Adjunto JPG/PNG/WebP/PDF de hasta 5 MiB | Comprobantes y fotos de pedidos, unidades y garantías |
 | `shared/AttachmentList` | Lista, descarga y baja (con confirmación) de los adjuntos de un documento, más el alta con `AttachmentInput` | Gastos, compras, pagos a proveedor, caja y transferencias |
 | `shared/ProductCombobox` | Buscar/elegir producto (y crear desde ahí) | POS, compras, combos, cotizaciones y promociones |
-| `shared/BancoCombobox` (+ `shared/BancoLogo`, `lib/bancosLogos.js`) | Banco del catálogo paraguayo con sugerencias ilustradas (logo por banco) y texto libre permitido; el logo sale del registro reutilizable: asset del repo → marca vectorial compartida → monograma con iniciales y color. Nunca deja un cuadro roto | Cuentas de cobro (alta, filas y búsqueda) |
+| `shared/BancoCombobox` (+ `shared/BancoLogo`, `lib/bancosLogos.js`) | Banco del catálogo paraguayo vigente (BCP) con sugerencias ilustradas: al abrir lista todo el catálogo y al escribir filtra al instante; texto libre permitido. El logo sale del registro reutilizable: asset del repo → marca vectorial compartida → monograma con iniciales y color. Nunca deja un cuadro roto | Cuentas de cobro (alta, filas y búsqueda) |
 | `shared/RangoFechas` | Desde/hasta con atajos | Reportes, caja |
 | `shared/SelectorMedioPago` + `shared/MedioPago` | Elegir medio de pago / mostrarlo | POS, pedidos |
 | `shared/NumericKeypad` | Teclado numérico grande | POS/cobros |
