@@ -697,6 +697,10 @@ model Customer {
   tenantId    String
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name        String
+  // Nombres desdoblados (#160): `name` sigue siendo el nombre completo visible
+  // y la búsqueda; estas partes permiten el trato y el saludo.
+  firstName   String?
+  secondName  String?
   phone       String?
   countryCode String   @default("+595")
   email       String?
@@ -723,6 +727,11 @@ model Customer {
   creditLimitPyg Int?
   // Plazo de crédito estándar en días para este cliente.
   creditDays Int?
+  // Seguro del cliente (#160): con el toggle activo, sus ventas usan su
+  // porcentaje o el default de la empresa (FIN #162); impacta el costo real y
+  // el margen. `insuranceRatePct` null = hereda el default de la empresa.
+  insuranceEnabled  Boolean @default(false)
+  insuranceRatePct  Decimal? @db.Decimal(5, 2)
   // Caché del saldo de puntos de fidelización (1 punto = 1 Gs. canjeable);
   // el detalle reconstruible vive en LoyaltyMovement.
   loyaltyPointsPyg Int @default(0)

@@ -2,13 +2,16 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
-import { addressesInput } from './_lib'
+import { addressesInput, leerPorcentajeSeguro } from './_lib'
 
 const clean = (value: unknown, max: number) => typeof value === 'string' ? value.trim().slice(0, max) : ''
 
 // Filtros del listado resueltos en el servidor sobre TODAS las fichas del
 // tenant, no solo la página cargada (mismo patrón que Pedidos).
 const FILTROS_CLIENTES = new Set(['todos', 'mayoristas', 'minoristas', 'deuda', 'credito', 'sincredito', 'conemail'])
+// Órdenes del listado (#160): por defecto, el cliente con pedido más reciente
+// arriba; también por nombre, total gastado o alta más reciente.
+const ORDENES_CLIENTE = new Set(['actividad', 'nombre', 'total', 'recientes'])
 
 // Patrón LIKE literal: % y _ del texto buscado no actúan como comodines.
 const patronLike = (valor: string) => `%${valor.replace(/[\\%_]/g, '\\$&')}%`
@@ -24,6 +27,8 @@ export async function GET(request: Request) {
   const filtro = params.get('filtro') || 'todos'
   if (!FILTROS_CLIENTES.has(filtro)) return error('Filtro inválido.')
   const q = (params.get('q') || '').trim().slice(0, 120)
+  const orden = params.get('orden') || 'actividad'
+  if (!ORDENES_CLIENTE.has(orden)) return error('Orden inválido.')
   const limit = Math.min(500, Math.max(1, Number(params.get('limit')) || 100))
   const cursor = params.get('cursor')
   const condiciones: Prisma.Sql[] = [Prisma.sql`c."tenantId" = ${tenant}`]
@@ -37,12 +42,28 @@ export async function GET(request: Request) {
     LEFT JOIN (SELECT "orderId", SUM("amountPyg") AS paid FROM "Payment" WHERE "tenantId" = ${tenant} AND "status" = 'CONFIRMED' GROUP BY "orderId") p ON p."orderId" = o."id"
     WHERE o."customerId" = c."id" AND o."tenantId" = ${tenant} AND o."status" = 'PENDING' AND o."totalPyg" - COALESCE(p."paid", 0) > 0
   )`)
+  // Agregado por cliente (mismo alcance que las estadísticas: sin cancelados)
+  // para ordenar por actividad y por total gastado sin salir del SQL.
+  const agregado = Prisma.sql`LEFT JOIN (
+    SELECT "customerId", MAX("createdAt") AS "lastOrderAt", SUM("totalPyg")::float8 AS "totalSpent"
+    FROM "Order" WHERE "tenantId" = ${tenant} AND "status" <> 'CANCELLED' AND "customerId" IS NOT NULL
+    GROUP BY "customerId"
+  ) o ON o."customerId" = c."id"`
+  const claveOrden = orden === 'nombre' ? Prisma.sql`lower(c."name")`
+    : orden === 'total' ? Prisma.sql`COALESCE(o."totalSpent", 0)`
+      : orden === 'recientes' ? Prisma.sql`c."createdAt"`
+        : Prisma.sql`COALESCE(o."lastOrderAt", c."createdAt")`
+  const direccion = orden === 'nombre' ? Prisma.sql`ASC` : Prisma.sql`DESC`
+  const comparacion = orden === 'nombre' ? Prisma.sql`>` : Prisma.sql`<`
   if (cursor) {
-    // Cursor por tupla (createdAt, id), igual que Pedidos: páginas consecutivas
-    // no repiten ni saltean fichas creadas en el mismo milisegundo.
-    const cursorRow = await prisma.customer.findFirst({ where: { id: cursor, tenantId: tenant }, select: { createdAt: true } })
-    if (!cursorRow) return json([])
-    condiciones.push(Prisma.sql`(c."createdAt" < ${cursorRow.createdAt} OR (c."createdAt" = ${cursorRow.createdAt} AND c."id" < ${cursor}))`)
+    // Cursor por la clave del orden + id: páginas consecutivas no repiten ni
+    // saltean fichas empatadas en la misma fecha o monto.
+    const cursorRows = await prisma.$queryRaw<Array<{ key: Date | number | string | null }>>(Prisma.sql`
+      SELECT ${claveOrden} AS "key" FROM "Customer" c ${agregado}
+      WHERE c."id" = ${cursor} AND c."tenantId" = ${tenant} LIMIT 1`)
+    if (!cursorRows.length) return json([])
+    const key = cursorRows[0].key
+    condiciones.push(Prisma.sql`(${claveOrden} ${comparacion} ${key} OR (${claveOrden} = ${key} AND c."id" ${comparacion} ${cursor}))`)
   }
   if (q) {
     // Búsqueda instantánea por palabras: cada palabra tipeada tiene que aparecer
@@ -64,8 +85,9 @@ export async function GET(request: Request) {
   const ids = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
     SELECT c."id"
     FROM "Customer" c
+    ${agregado}
     WHERE ${Prisma.join(condiciones, ' AND ')}
-    ORDER BY c."createdAt" DESC, c."id" DESC
+    ORDER BY ${claveOrden} ${direccion}, c."id" ${direccion}
     LIMIT ${limit}
   `)
   if (!ids.length) return json([])
@@ -92,7 +114,17 @@ export async function POST(request: Request) {
     const body = await request.json() as Record<string, unknown>
     if (Array.isArray(body.rows)) return importarClientes(tenant, body.rows, session.user.id)
     const name = clean(body.name, 200)
-    if (!name) return error('El nombre es obligatorio.')
+    // Nombres desdoblados (#160): el nombre completo visible se compone del
+    // primer y segundo nombre; `name` sigue aceptándose para compatibilidad.
+    const firstName = clean(body.firstName, 120) || null
+    const secondName = clean(body.secondName, 120) || null
+    const nombreCompleto = [firstName, secondName].filter(Boolean).join(' ') || name
+    if (!nombreCompleto) return error('El nombre es obligatorio.')
+    const gestionaSeguro = ['ADMIN', 'GERENTE'].includes(session.user.role)
+    const insuranceEnabled = body.insuranceEnabled === true
+    const insuranceRatePct = leerPorcentajeSeguro(body.insuranceRatePct)
+    if (insuranceRatePct === 'invalido') return error('El seguro debe ser un porcentaje entre 0 y 100 (hasta 2 decimales).')
+    if ((insuranceEnabled || insuranceRatePct !== undefined) && !gestionaSeguro) return error('Solo administración o gerencia pueden configurar el seguro.', 403)
     const document = clean(body.document, 100) || null
     const phone = clean(body.phone, 100) || null
     const countryCode = typeof body.countryCode === 'string' && /^\+\d{1,4}$/.test(body.countryCode) ? body.countryCode : '+595'
@@ -108,7 +140,7 @@ export async function POST(request: Request) {
     const creditDays = body.creditDays === undefined || body.creditDays === '' || body.creditDays === null ? undefined : Number(body.creditDays)
     if (creditDays !== undefined && (!Number.isSafeInteger(creditDays) || creditDays < 0 || creditDays > 365)) return error('Plazo de crédito inválido (0 a 365 días).')
     const fields = {
-      name, phone, countryCode, email: clean(body.email, 200) || null, document,
+      name: nombreCompleto, firstName, secondName, phone, countryCode, email: clean(body.email, 200) || null, document,
       // Solo se tocan cuando llegan: una ficha guardada no pierde sus datos de
       // facturación por un guardado que no los incluye.
       ...(body.billingName === undefined ? {} : { billingName: clean(body.billingName, 200) || null }),
@@ -121,6 +153,8 @@ export async function POST(request: Request) {
       taxExempt: body.taxExempt === true,
       tags,
       pricingTier,
+      ...(insuranceRatePct === undefined ? {} : { insuranceRatePct }),
+      ...(body.insuranceEnabled === undefined ? {} : { insuranceEnabled }),
       ...(priceListId === undefined ? {} : { priceListId }),
       ...(creditLimitPyg !== undefined ? { creditLimitPyg } : {}),
       ...(creditDays !== undefined ? { creditDays } : {}),

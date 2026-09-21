@@ -2,7 +2,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
-import { addressesInput } from '../_lib'
+import { addressesInput, leerPorcentajeSeguro } from '../_lib'
 
 type RouteContext = { params: { id: string } }
 
@@ -113,13 +113,39 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (!session) return error('Falta sesión.', 401)
   const id = (params.id || '').trim().slice(0, 128)
   if (!id) return error('Cliente obligatorio.')
-  const existing = await prisma.customer.findFirst({ where: { id, tenantId: session.user.tenantId }, select: { id: true } })
+  const existing = await prisma.customer.findFirst({ where: { id, tenantId: session.user.tenantId }, select: { id: true, firstName: true, secondName: true } })
   if (!existing) return error('Cliente no encontrado.', 404)
   try {
     const body = objectInput(await request.json())
     const gestionaCredito = ['ADMIN', 'GERENTE'].includes(session.user.role)
     const data: Record<string, unknown> = {}
     if (body.name !== undefined) data.name = textInput(body.name, 'Nombre', 200)
+    // Nombres desdoblados (#160): al tocar cualquiera de las partes se
+    // recompone el nombre completo visible.
+    if (body.firstName !== undefined || body.secondName !== undefined) {
+      const parte = (valor: unknown, actual: string | null) => valor === undefined
+        ? actual
+        : (typeof valor === 'string' && valor.trim() ? valor.trim().slice(0, 120) : null)
+      const firstName = parte(body.firstName, existing.firstName)
+      const secondName = parte(body.secondName, existing.secondName)
+      const compuesto = [firstName, secondName].filter(Boolean).join(' ')
+      if (!compuesto && body.name === undefined) throw new InputError('El nombre no puede quedar vacío.')
+      data.firstName = firstName
+      data.secondName = secondName
+      if (compuesto) data.name = compuesto
+    }
+    // Seguro del cliente (#160): el toggle y su porcentaje los maneja
+    // administración/gerencia (afecta costo real y margen).
+    if (body.insuranceEnabled !== undefined || body.insuranceRatePct !== undefined) {
+      if (!gestionaCredito) throw new InputError('Solo administración o gerencia pueden configurar el seguro.', 403)
+      if (body.insuranceEnabled !== undefined) {
+        if (typeof body.insuranceEnabled !== 'boolean') throw new InputError('El seguro debe estar activo o inactivo.')
+        data.insuranceEnabled = body.insuranceEnabled
+      }
+      const rate = leerPorcentajeSeguro(body.insuranceRatePct)
+      if (rate === 'invalido') throw new InputError('El seguro debe ser un porcentaje entre 0 y 100 (hasta 2 decimales).')
+      if (rate !== undefined) data.insuranceRatePct = rate
+    }
     if (body.document !== undefined) data.document = typeof body.document === 'string' && body.document.trim() ? body.document.trim().slice(0, 100) : null
     if (body.phone !== undefined) data.phone = typeof body.phone === 'string' && body.phone.trim() ? body.phone.trim().slice(0, 100) : null
     if (body.countryCode !== undefined) data.countryCode = typeof body.countryCode === 'string' && /^\+\d{1,4}$/.test(body.countryCode) ? body.countryCode : '+595'

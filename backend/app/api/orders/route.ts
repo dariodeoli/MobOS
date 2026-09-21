@@ -4,6 +4,7 @@ import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { InputError, normalizePayment, objectInput, receiveTradeIn, textInput } from '../../../lib/payment-input'
+import { resolveInsuranceRate } from '../../../lib/insurance'
 import { quotePromotion } from '../../../lib/promotions'
 import { canApproveOrderDiscount } from '../../../lib/orders'
 import { consumeAuthorization, usableAuthorization, DEFAULT_BELOW_LIST_PCT } from '../../../lib/authorizations'
@@ -262,11 +263,15 @@ export async function POST(request: Request) {
       let customerId = selectedCustomerId
       let pricingTier = 'RETAIL'
       let priceListId: string | null = null
+      // Seguro del cliente (#160): el toggle y su porcentaje viajan con la
+      // venta para que el costo real incluya el seguro.
+      let customerInsurance: { enabled: boolean; ratePct: number | null } = { enabled: false, ratePct: null }
       if (customerId) {
-        const selectedCustomer = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { id: true, pricingTier: true, priceListId: true } })
+        const selectedCustomer = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { id: true, pricingTier: true, priceListId: true, insuranceEnabled: true, insuranceRatePct: true } })
         if (!selectedCustomer) throw new Error('Cliente no encontrado.')
         pricingTier = selectedCustomer.pricingTier || 'RETAIL'
         priceListId = selectedCustomer.priceListId
+        customerInsurance = { enabled: selectedCustomer.insuranceEnabled === true, ratePct: selectedCustomer.insuranceRatePct === null ? null : Number(selectedCustomer.insuranceRatePct) }
       }
       if (customer) {
         // Serialize inline checkouts for this tenant/name, including when no customer exists yet.
@@ -297,8 +302,12 @@ export async function POST(request: Request) {
       // Si el cliente se resolvió/creó por nombre, el precio del cliente (tipo
       // y lista) se relee por su id final antes de congelar los precios.
       if (customerId && customerId !== selectedCustomerId) {
-        const resuelto = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { pricingTier: true, priceListId: true } })
-        if (resuelto) { pricingTier = resuelto.pricingTier || 'RETAIL'; priceListId = resuelto.priceListId }
+        const resuelto = await tx.customer.findFirst({ where: { id: customerId, tenantId: tenant }, select: { pricingTier: true, priceListId: true, insuranceEnabled: true, insuranceRatePct: true } })
+        if (resuelto) {
+          pricingTier = resuelto.pricingTier || 'RETAIL'
+          priceListId = resuelto.priceListId
+          customerInsurance = { enabled: resuelto.insuranceEnabled === true, ratePct: resuelto.insuranceRatePct === null ? null : Number(resuelto.insuranceRatePct) }
+        }
       }
       const priceList = priceListId
         ? await tx.priceList.findFirst({ where: { id: priceListId, tenantId: tenant, isActive: true }, include: { items: { include: { tiers: { orderBy: { minQty: 'asc' } } } } } })
@@ -383,7 +392,14 @@ export async function POST(request: Request) {
             if (!Number.isSafeInteger(belowListPyg) || !Number.isSafeInteger(belowListBasePyg)) throw new Error('Diferencia bajo lista fuera de rango.')
           }
           const policy = product.category ? await tx.costPolicy.findFirst({ where: { tenantId: tenant, category: product.category, isActive: true }, select: { insuranceRate: true } }) : null
-          const rate = product.insuranceRate === null || product.insuranceRate === undefined ? Number(policy?.insuranceRate ?? 0) : Number(product.insuranceRate)
+          // Precedencia: producto > seguro del cliente > política por categoría
+          // (helper compartido con FIN #162, que define el default de empresa).
+          const rate = resolveInsuranceRate({
+            productRate: product.insuranceRate,
+            customerEnabled: customerInsurance.enabled,
+            customerRate: customerInsurance.ratePct,
+            categoryRate: policy?.insuranceRate,
+          })
           if (!soldWithoutInsurance && rate > 0) {
             insurancePyg = Math.round((price * rate) / 100)
             if (!safeInt(insurancePyg)) throw new InputError('El seguro calculado es inválido.')
