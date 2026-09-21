@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
 import {
   getProductos,
@@ -17,6 +18,7 @@ import { leerCarrito, guardarCarrito, borrarCarrito, lineasParaResumen } from '@
 import { encolarVenta } from '@/lib/offline/ventas'
 import { descartarPreCliente } from '@/lib/preClientes'
 import { normalizarNombre } from '@/utils/nombre'
+import { codigoPedido } from '@/utils/pedido'
 import { esErrorDeRed } from '@/lib/offline/queue'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { allocateCheckout } from '@/utils/checkout'
@@ -230,6 +232,7 @@ export default function FormularioVenta({
   onTradeInConsumed,
 }) {
   const { sesion, esDemo, empresa } = useSesion()
+  const navigate = useNavigate()
   const puedeDescontar = esDemo || ['dueno', 'GERENTE'].includes(sesion?.rol)
   const productos = getProductos().filter(p => p.activo)
   const familias = agruparProductos(productos)
@@ -1504,7 +1507,15 @@ export default function FormularioVenta({
           aria-live="polite"
           className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-ok/30 bg-ok/10 p-4 text-ok"
         >
-          <span>Venta registrada correctamente. Ya podés cargar la siguiente.</span>
+          <span className="grid h-9 w-9 shrink-0 animate-pulse place-items-center rounded-full bg-ok/20">
+            <Icon name="check" className="h-4 w-4" />
+          </span>
+          <span className="min-w-0">
+            <b className="block">
+              {lastOrder?.orderNumber ? `Pedido ${codigoPedido(lastOrder.orderNumber)} creado` : 'Venta registrada'}
+            </b>
+            Venta registrada correctamente. Ya podés cargar la siguiente.
+          </span>
           {lastOrder && (
             <>
               {whatsappTrackingLink(lastOrder) && (
@@ -1519,6 +1530,13 @@ export default function FormularioVenta({
               )}
               <Button type="button" variant="outline" onClick={() => setComprobante(true)}>
                 Imprimir comprobante
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate(`/pedidos/${encodeURIComponent(lastOrder.id)}`)}
+              >
+                Ver pedido
               </Button>
             </>
           )}
