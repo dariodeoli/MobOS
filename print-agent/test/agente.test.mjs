@@ -51,15 +51,39 @@ async function esperar(condicion, { intentos = 40, espera = 150 } = {}) {
 async function arrancarAgente(dir, { impresora, puerto, extra = {} }) {
   writeFileSync(join(dir, 'config.json'), JSON.stringify({ puerto, token: TOKEN, impresora, ancho: 58, copias: 1, reintentos: 3, esperaMs: 500, lan: [impresora], ...extra }))
   const proceso = spawn(process.execPath, [join(RAIZ, 'server.mjs')], { env: { ...process.env, MOBOS_PRINT_DIR: dir }, stdio: ['ignore', 'pipe', 'pipe'] })
+  let salida = ''
+  proceso.stdout.on('data', (parte) => { salida += parte })
   proceso.stderr.on('data', (parte) => process.stderr.write(`[agente] ${parte}`))
-  const listo = await esperar(() => {
+  // El arranque está listo cuando el HTTP responde, no cuando aparece texto en
+  // stdout: leer el buffer era una carrera (en CI el puerto todavía no
+  // escuchaba y el primer fetch del test fallaba). Se espera por condición
+  // contra /health, que sin token responde apenas el servidor escucha.
+  const listo = await esperar(async () => {
+    if (proceso.exitCode !== null) throw new Error(`el agente terminó al arrancar (exit=${proceso.exitCode}):\n${salida.slice(-2000)}`)
     try {
-      const salida = proceso.stdout.read?.()
-      return Boolean(salida)
+      const res = await fetch(`http://127.0.0.1:${puerto}/health`)
+      return res.ok
     } catch { return false }
-  }, { intentos: 40, espera: 100 })
-  assert.ok(listo || proceso.pid, 'el agente arrancó')
+  }, { intentos: 150, espera: 100 })
+  assert.ok(listo, `el agente no respondió /health al arrancar:\n${salida.slice(-2000)}`)
+  // El stdout del agente queda disponible para los mensajes de fallo: sin esto
+  // un flake de CI (cola, reintentos, transporte) no deja rastro.
+  proceso.salida = () => salida
   return proceso
+}
+
+// Diagnóstico de un wait fallido: estado real del trabajo en la cola del
+// agente más su stdout (reintentos, transporte y errores). Sin esto, un flake
+// de CI no deja rastro de por qué la cola no entregó.
+async function pistaDeFallo(proceso, base, cabeceras, jobId) {
+  const estado = jobId
+    ? await fetch(`${base}/jobs/${jobId}`, { headers: cabeceras }).then((r) => r.json()).catch(() => ({}))
+    : {}
+  const cola = await fetch(`${base}/jobs`, { headers: cabeceras }).then((r) => r.json()).catch(() => ({}))
+  const resumen = cola?.pendientes
+    ? `pendientes=${cola.pendientes.length} fallidos=${cola.fallidos.length} inciertos=${cola.inciertos.length}`
+    : 'la cola no respondió'
+  return `job=${estado.estado || '?'} intentos=${estado.intentos ?? '?'} error=${estado.error || 'sin error'} · ${resumen}\n--- stdout del agente ---\n${(proceso?.salida?.() || '(sin salida)').slice(-2000)}`
 }
 
 // Backend remoto mínimo: solo necesita responder claim y config para probar el
@@ -176,8 +200,14 @@ test('el agente imprime por red, encola si la impresora está caída y protege c
   const cabeceras = { 'Content-Type': 'application/json', 'x-mobos-print-token': TOKEN, Origin: 'https://app.moboss.online' }
   const ticket = Buffer.from([0x1b, 0x40, 0x48, 0x6f, 0x6c, 0x61, 0x0a]).toString('base64')
 
-  // Sin impresora todavía: el trabajo queda en la cola.
-  const agente = await arrancarAgente(dir, { impresora: `lan:127.0.0.1:${puertoImpresora}`, puerto: puertoAgente })
+  // Sin impresora todavía: el trabajo queda en la cola. Cada intento cuesta
+  // ~1,3 s (enviarLan reintenta 3×400 ms también con ECONNREFUSED) y la cola
+  // agota `reintentos`: con los 3 intentos por defecto la ventana era ~6 s
+  // (config.mjs clampea esperaMs a >=1000) y en CI el trabajo quedaba
+  // 'fallido' antes de que el test encendiera la impresora (flake: 7374 ms,
+  // "la cola reintentó y llegó a la impresora"). `reintentos` es config del
+  // agente (máx 20) y acá se usa el tope para darle aire al test (~45 s).
+  const agente = await arrancarAgente(dir, { impresora: `lan:127.0.0.1:${puertoImpresora}`, puerto: puertoAgente, extra: { reintentos: 20 } })
   t.after(() => agente.kill('SIGKILL'))
 
   const saludSinToken = await fetch(`${base}/health`).then((r) => r.json())
@@ -203,16 +233,30 @@ test('el agente imprime por red, encola si la impresora está caída y protege c
   // Se enciende la impresora: el reintento de la cola la alcanza.
   const impresora = await impresoraFalsa(puertoImpresora)
   t.after(() => impresora.cerrar())
-  assert.ok(await esperar(() => impresora.recibido.length > 0), 'la cola reintentó y llegó a la impresora')
-  await new Promise((listo) => setTimeout(listo, 3300)) // deja vencer la caché del sondeo
-  const saludEncendida = await fetch(`${base}/health`, { headers: cabeceras }).then((r) => r.json())
-  assert.equal(saludEncendida.impresoraOk, true, 'el agente detecta la impresora encendida')
-  assert.deepEqual([...impresora.recibido[0]], [0x1b, 0x40, 0x48, 0x6f, 0x6c, 0x61, 0x0a])
+  const llego = await esperar(() => impresora.conDatos().length > 0, { intentos: 200, espera: 150 })
+  if (!llego) {
+    assert.fail(`la cola no llegó a la impresora\n${await pistaDeFallo(agente, base, cabeceras, respuesta.jobId)}`)
+  }
+  // El alcance se sondea con caché de 3 s: se espera por condición a que
+  // expire y el próximo /health vea la impresora encendida (sin sleep fijo).
+  let saludEncendida = null
+  assert.ok(await esperar(async () => {
+    saludEncendida = await fetch(`${base}/health`, { headers: cabeceras }).then((r) => r.json())
+    return saludEncendida.impresoraOk === true
+  }, { intentos: 100, espera: 150 }), 'el agente detecta la impresora encendida')
+  assert.deepEqual([...impresora.conDatos()[0]], [0x1b, 0x40, 0x48, 0x6f, 0x6c, 0x61, 0x0a])
 
-  // La cola queda vacía y el trabajo figura impreso.
-  assert.ok(await esperar(() => readFileSync(join(dir, 'cola.json'), 'utf8').includes('[]')))
-  const estado = await fetch(`${base}/jobs/${respuesta.jobId}`, { headers: cabeceras }).then((r) => r.json())
-  assert.equal(estado.estado, 'aceptado')
+  // La cola queda vacía y el trabajo figura impreso: ambas condiciones se
+  // esperan (el estado sale del historial recién cuando el envío terminó).
+  let estado = null
+  assert.ok(await esperar(async () => {
+    estado = await fetch(`${base}/jobs/${respuesta.jobId}`, { headers: cabeceras }).then((r) => r.json())
+    return estado.estado === 'aceptado'
+  }, { intentos: 60, espera: 150 }), `el trabajo quedó en estado ${estado?.estado || '?'} (${estado?.error || 'sin error'})`)
+  const colaVacia = () => {
+    try { return JSON.parse(readFileSync(join(dir, 'cola.json'), 'utf8')).length === 0 } catch { return false }
+  }
+  assert.ok(await esperar(colaVacia, { intentos: 60, espera: 150 }), 'la cola quedó vacía en disco')
 
   // El preflight de red local responde con el header que pide Chrome.
   const preflight = await fetch(`${base}/print`, { method: 'OPTIONS', headers: { Origin: 'https://app.moboss.online', 'Access-Control-Request-Method': 'POST' } })
@@ -390,17 +434,26 @@ test('la cola lista, reintenta fallidos y guarda el usuario que imprimió', asyn
   assert.equal(lista.pendientes[0].data, undefined)
 
   // Tras agotar los reintentos, el trabajo queda fallido y se puede reintentar.
-  assert.ok(await esperar(async () => {
+  // Con la config por defecto (3 intentos, espera clampeada a 1000 ms) cada
+  // ciclo cuesta ~2,3 s: 'fallido' llega a los ~6 s. El presupuesto por defecto
+  // de `esperar` (6 s) quedaba al límite y era otro flake por timing; se espera
+  // por condición con aire y con el estado real en el mensaje.
+  const fallido = await esperar(async () => {
     const estado = await fetch(`${base}/jobs`, { headers: cabeceras }).then((r) => r.json())
     return estado.fallidos.length === 1
-  }), 'el trabajo terminó fallido sin impresora')
+  }, { intentos: 100, espera: 150 })
+  if (!fallido) {
+    assert.fail(`el trabajo no quedó fallido sin impresora\n${await pistaDeFallo(agente, base, cabeceras, respuesta.jobId)}`)
+  }
 
   const encendida = await impresoraFalsa(puertoImpresora)
   t.after(() => encendida.cerrar())
   const reintento = await fetch(`${base}/jobs/retry`, { method: 'POST', headers: cabeceras }).then((r) => r.json())
   assert.equal(reintento.ok, true)
   assert.equal(reintento.reintentados, 1)
-  assert.ok(await esperar(() => encendida.recibido.length > 0), 'el reintento manual llegó a la impresora')
+  // Solo cuentan los bytes impresos: un sondeo de alcance también abre el
+  // socket y dejaría una entrada vacía en `recibido`.
+  assert.ok(await esperar(() => encendida.conDatos().length > 0, { intentos: 60, espera: 150 }), 'el reintento manual llegó a la impresora')
 
   // El historial conserva quién imprimió.
   const historial = await fetch(`${base}/historial`, { headers: cabeceras }).then((r) => r.json())
