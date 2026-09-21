@@ -1,16 +1,16 @@
-// Popup «Invitar persona» (Configuración → Equipo, issue #53): Nombre y
-// Correo deben leerse completos en los dos modos del formulario.
+// Alta de integrante en Configuración → Equipo (issue #53, Lote 5 #165):
+// Nombre y Correo deben leerse completos en los dos modos del formulario, que
+// en escritorio vive en el panel derecho.
 
 import { test, expect } from '@playwright/test'
 
 const ANCHO_MINIMO = 200
 
-async function abrirPopup(page) {
+async function abrirFormulario(page) {
   await page.goto('/configuracion/equipo')
-  await page.getByRole('button', { name: '+ Invitar persona' }).click()
-  const modal = page.getByRole('dialog', { name: 'Invitar persona' })
-  await expect(modal).toBeVisible()
-  return modal
+  const panel = page.locator('#equipo-form')
+  await expect(panel).toBeVisible()
+  return panel
 }
 
 async function ancho(campo) {
@@ -20,9 +20,9 @@ async function ancho(campo) {
 
 test.describe('invitar persona', () => {
   test('modo correo: Nombre y Correo tienen ancho de lectura', async ({ page }) => {
-    const modal = await abrirPopup(page)
-    const nombre = modal.locator('#invite-name')
-    const correo = modal.locator('#invite-email')
+    const panel = await abrirFormulario(page)
+    const nombre = panel.locator('#invite-name')
+    const correo = panel.locator('#invite-email')
     await expect(nombre).toBeVisible()
     await expect(correo).toBeVisible()
 
@@ -31,15 +31,15 @@ test.describe('invitar persona', () => {
     await expect(nombre).toHaveValue('Nombre Apellido Largo E2E')
     await expect(correo).toHaveValue('correo.largo.del.invitado@test.local')
 
-    expect(await ancho(nombre), 'Nombre debe ocupar media fila').toBeGreaterThan(ANCHO_MINIMO)
-    expect(await ancho(correo), 'Correo debe ocupar media fila').toBeGreaterThan(ANCHO_MINIMO)
+    expect(await ancho(nombre), 'Nombre debe ocupar el ancho del panel').toBeGreaterThan(ANCHO_MINIMO)
+    expect(await ancho(correo), 'Correo debe ocupar el ancho del panel').toBeGreaterThan(ANCHO_MINIMO)
   })
 
   test('modo directo: Nombre y Correo respiran y el alta sigue operable', async ({ page }) => {
-    const modal = await abrirPopup(page)
-    await modal.getByRole('button', { name: 'Agregar directamente' }).click()
-    const nombre = modal.locator('#direct-name')
-    const correo = modal.locator('#direct-email')
+    const panel = await abrirFormulario(page)
+    await panel.getByRole('button', { name: 'Agregar directamente' }).click()
+    const nombre = panel.locator('#direct-name')
+    const correo = panel.locator('#direct-email')
     await expect(nombre).toBeVisible()
     await expect(correo).toBeVisible()
 
@@ -48,12 +48,12 @@ test.describe('invitar persona', () => {
     await expect(nombre).toHaveValue('Apellido Nombre E2E')
     await expect(correo).toHaveValue('otro.correo.largo.e2e@test.local')
 
-    expect(await ancho(nombre), 'Nombre debe ocupar media fila').toBeGreaterThan(ANCHO_MINIMO)
-    expect(await ancho(correo), 'Correo debe ocupar media fila').toBeGreaterThan(ANCHO_MINIMO)
+    expect(await ancho(nombre), 'Nombre debe ocupar el ancho del panel').toBeGreaterThan(ANCHO_MINIMO)
+    expect(await ancho(correo), 'Correo debe ocupar el ancho del panel').toBeGreaterThan(ANCHO_MINIMO)
 
-    // Rol, PIN y botón siguen en su fila y operables.
-    await expect(modal.locator('#direct-role')).toBeVisible()
-    await expect(modal.locator('#direct-pin')).toBeVisible()
-    await expect(modal.getByRole('button', { name: 'Agregar', exact: true })).toBeEnabled()
+    // Rol, PIN y botón siguen operables.
+    await expect(panel.locator('#direct-role')).toBeVisible()
+    await expect(panel.locator('#direct-pin')).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Agregar', exact: true })).toBeEnabled()
   })
 })

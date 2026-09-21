@@ -34,11 +34,9 @@ test.describe('invitaciones en Configuración → Equipo', () => {
   test('una invitación vencida se puede volver a invitar desde el listado', async ({ page }) => {
     await page.goto('/configuracion/equipo')
     await fila(page, vencida).getByRole('button', { name: 'Invitar de nuevo' }).click()
-    const modal = page.getByRole('dialog', { name: 'Invitar persona' })
-    await expect(modal).toBeVisible()
-    await expect(modal.locator('#invite-email')).toHaveValue(vencida)
-    await modal.getByRole('button', { name: 'Cerrar' }).click()
-    await expect(modal).toBeHidden()
+    const panel = page.locator('#equipo-form')
+    await expect(panel).toBeVisible()
+    await expect(panel.locator('#invite-email')).toHaveValue(vencida)
   })
 
   test('invitar un correo con invitación activa ofrece reenviar o revocar', async ({ page }) => {
@@ -76,22 +74,21 @@ test.describe('invitaciones en Configuración → Equipo', () => {
     }))
 
     await page.goto('/configuracion/equipo')
-    await page.getByRole('button', { name: '+ Invitar persona' }).click()
-    const modal = page.getByRole('dialog', { name: 'Invitar persona' })
-    await modal.locator('#invite-name').fill('Invitado E2E Conflicto')
-    await modal.locator('#invite-email').fill(conflicto)
-    await modal.getByRole('button', { name: 'Enviar invitación' }).click()
+    const panel = page.locator('#equipo-form')
+    await panel.locator('#invite-name').fill('Invitado E2E Conflicto')
+    await panel.locator('#invite-email').fill(conflicto)
+    await panel.getByRole('button', { name: 'Enviar invitación' }).click()
 
     // El error ya no es un callejón: muestra la invitación y sus salidas.
-    await expect(modal.getByText(`Ya existe una invitación activa para ${conflicto}.`)).toBeVisible()
-    await expect(modal.getByRole('button', { name: 'Reenviar invitación' })).toBeEnabled()
-    await modal.getByRole('button', { name: 'Reenviar invitación' }).click()
+    await expect(panel.getByText(`Ya existe una invitación activa para ${conflicto}.`)).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Reenviar invitación' })).toBeEnabled()
+    await panel.getByRole('button', { name: 'Reenviar invitación' }).click()
     await expect(page.getByText('Invitación reenviada.')).toBeVisible()
 
     // Revocación real sobre la invitación de conflicto (exclusiva de esta spec).
-    await modal.getByRole('button', { name: 'Enviar invitación' }).click()
-    await expect(modal.getByText(`Ya existe una invitación activa para ${conflicto}.`)).toBeVisible()
-    await modal.getByRole('button', { name: 'Revocar invitación' }).click()
+    await panel.getByRole('button', { name: 'Enviar invitación' }).click()
+    await expect(panel.getByText(`Ya existe una invitación activa para ${conflicto}.`)).toBeVisible()
+    await panel.getByRole('button', { name: 'Revocar invitación' }).click()
     await page.getByRole('dialog', { name: '¿Revocar invitación?' }).getByRole('button', { name: 'Revocar invitación' }).click()
     await expect(page.getByText('Invitación revocada.')).toBeVisible()
     await expect(fila(page, conflicto).getByText('Revocada', { exact: true })).toBeVisible()

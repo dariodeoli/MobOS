@@ -134,12 +134,12 @@ test.describe('owner panel', () => {
 
     const name = `Vendedor E2E ${Date.now().toString(36)}`
     const pin = String(1000 + Math.floor(Math.random() * 9000))
-    // El alta vive en el modal de "Invitar persona" (agregar directamente).
-    await page.getByRole('button', { name: '+ Invitar persona' }).click()
-    await page.getByRole('button', { name: 'Agregar directamente' }).click()
-    await page.locator('#direct-name').fill(name)
-    await page.locator('#direct-pin').fill(pin)
-    await page.getByRole('button', { name: 'Agregar', exact: true }).click()
+    // El alta vive en el panel derecho (agregar directamente).
+    const panel = page.locator('#equipo-form')
+    await panel.getByRole('button', { name: 'Agregar directamente' }).click()
+    await panel.locator('#direct-name').fill(name)
+    await panel.locator('#direct-pin').fill(pin)
+    await panel.getByRole('button', { name: 'Agregar', exact: true }).click()
 
     await expect(page.getByText('Integrante agregado correctamente.')).toBeVisible()
     await expect(page.getByLabel(`Nombre de ${name}`)).toBeVisible()

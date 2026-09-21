@@ -4,10 +4,11 @@ import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas, productosById, refrescar } from '@/lib/storage'
 import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
-import { Card, Button, ConfirmDialog, Input, Select, Badge, Label, EmptyState, MoneyInput, Modal, PinInput } from '@/components/ui'
+import { Card, Button, ConfirmDialog, Input, Select, Badge, Label, EmptyState, MoneyInput, Modal, PinInput, FormField } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import EmailField from '@/components/shared/EmailField'
 import Cronologia from '@/components/shared/Cronologia'
+import PanelDerecho from '@/components/shared/PanelDerecho'
 import { ROLE_LABELS } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 
@@ -67,7 +68,6 @@ export default function Vendedores({ seccion = 'equipo' }) {
   const [horario, setHorario] = useState(null)
   const [historialDe, setHistorialDe] = useState(null)
   const [confirmarRevocar, setConfirmarRevocar] = useState(null)
-  const [invitarAbierto, setInvitarAbierto] = useState(false)
   const [modoInvitacion, setModoInvitacion] = useState('correo')
   // Permisos por integrante: el rol define el máximo y acá se recorta.
   const [permisosDe, setPermisosDe] = useState(null)
@@ -260,7 +260,11 @@ export default function Vendedores({ seccion = 'equipo' }) {
   function invitarDeNuevo(invite) {
     setInvitacion({ name: invite.name || '', email: invite.email, role: invite.role || 'VENDEDOR' })
     setModoInvitacion('correo'); setConflicto(null)
-    setInvitarAbierto(true)
+    irAlFormulario()
+  }
+
+  function irAlFormulario() {
+    document.getElementById('equipo-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   }
 
   const nombreById = Object.fromEntries(vendedores.map(v => [v.id, v.nombre]))
@@ -273,13 +277,77 @@ export default function Vendedores({ seccion = 'equipo' }) {
   const fechaCortaInv = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY', { day: '2-digit', month: 'short', year: 'numeric' }) : '—')
   const integrantesDeTab = tabIntegrantes === 'inactivos' ? vendedores.filter(v => !v.activo) : vendedores.filter(v => v.activo)
 
+  // Formulario de alta del equipo: en escritorio vive en el panel derecho;
+  // en móvil queda apilado y el botón de arriba lleva hasta él.
+  const formularioSumar = (
+    <Card className="space-y-3">
+      <div>
+        <h2 className="font-bold">Sumar integrante</h2>
+        <p className="mt-1 text-sm text-mute">Por correo recibe un enlace seguro y elige su PIN; directo queda con un PIN temporal (4 a 6 dígitos).</p>
+      </div>
+      {!esDemo && (
+        <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
+          {[['correo', 'Invitar por correo'], ['directo', 'Agregar directamente']].map(([key, label]) => (
+            <button key={key} type="button" aria-pressed={modoInvitacion === key} onClick={() => setModoInvitacion(key)} className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${modoInvitacion === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>
+          ))}
+        </div>
+      )}
+      {conflicto && (
+        <div role="alert" className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm">
+          <p className="font-semibold">Ya existe una invitación activa para {conflicto.email}.</p>
+          {conflicto.invitation
+            ? <p className="mt-1 text-xs text-mute">{conflicto.invitation.name} · {ROLE_LABELS[conflicto.invitation.role] || conflicto.invitation.role} · Creada {fechaCortaInv(conflicto.invitation.createdAt)} · Expira {fechaCortaInv(conflicto.invitation.expiresAt)}</p>
+            : <p className="mt-1 text-xs text-mute">Actualizá el listado de invitaciones para verla, reenviarla o revocarla.</p>}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {conflicto.invitation && <Button type="button" variant="outline" disabled={busy || (conflicto.invitation.resendAvailableAt && new Date(conflicto.invitation.resendAvailableAt) > new Date())} onClick={() => resend(conflicto.invitation)}>{conflicto.invitation.resendAvailableAt && new Date(conflicto.invitation.resendAvailableAt) > new Date() ? 'Reenvío en espera' : 'Reenviar invitación'}</Button>}
+            {conflicto.invitation && <Button type="button" variant="ghost" disabled={busy} onClick={() => setConfirmarRevocar(conflicto.invitation)}>Revocar invitación</Button>}
+            <Button type="button" variant="ghost" onClick={() => setConflicto(null)}>Cerrar aviso</Button>
+          </div>
+        </div>
+      )}
+      {esDemo || modoInvitacion === 'directo' ? (
+        <form onSubmit={crearDirecto} className="space-y-3">
+          <FormField label="Nombre" htmlFor="direct-name">
+            <Input id="direct-name" value={directo.name} onChange={event => setDirecto({ ...directo, name: event.target.value })} required />
+          </FormField>
+          {!esDemo && <>
+            <FormField label="Correo (opcional)" htmlFor="direct-email">
+              <EmailField id="direct-email" value={directo.email} onChange={value => setDirecto({ ...directo, email: value })} />
+            </FormField>
+            <FormField label="Rol" htmlFor="direct-role">
+              <Select id="direct-role" value={directo.role} onChange={event => setDirecto({ ...directo, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select>
+            </FormField>
+            <FormField label="PIN temporal (4 a 6 dígitos)" htmlFor="direct-pin">
+              <Input id="direct-pin" inputMode="numeric" maxLength={6} value={directo.pin} onChange={event => setDirecto({ ...directo, pin: event.target.value.replace(/\D/g, '').slice(0, 6) })} required />
+            </FormField>
+          </>}
+          <Button type="submit" className="w-full" disabled={busy}>Agregar</Button>
+        </form>
+      ) : (
+        <form onSubmit={invitar} className="space-y-3">
+          <FormField label="Nombre" htmlFor="invite-name">
+            <Input id="invite-name" value={invitacion.name} onChange={event => setInvitacion({ ...invitacion, name: event.target.value })} onBlur={() => !invitacion.name.trim() && setError('Ingresá el nombre del integrante.')} required />
+          </FormField>
+          <FormField label="Correo" htmlFor="invite-email">
+            <EmailField id="invite-email" value={invitacion.email} onChange={value => setInvitacion({ ...invitacion, email: value })} required />
+          </FormField>
+          <FormField label="Rol" htmlFor="invite-role">
+            <Select id="invite-role" value={invitacion.role} onChange={event => setInvitacion({ ...invitacion, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select>
+          </FormField>
+          <Button type="submit" className="w-full" disabled={busy}>Enviar invitación</Button>
+        </form>
+      )}
+    </Card>
+  )
+
   return <div className="space-y-4" data-revision={revision}>
     {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
     {message && <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{message}</p>}
-    <div className="flex flex-wrap items-center justify-end gap-2">
-      <Button onClick={() => { setConflicto(null); setInvitacion({ name: '', email: '', role: 'VENDEDOR' }); setInvitarAbierto(true) }}>+ Invitar persona</Button>
+    <div className="flex flex-wrap items-center justify-end gap-2 lg:hidden">
+      <Button onClick={() => { setConflicto(null); setInvitacion({ name: '', email: '', role: 'VENDEDOR' }); irAlFormulario() }}>+ Invitar persona</Button>
     </div>
 
+    <PanelDerecho id="equipo-form" panel={formularioSumar}>
     {equipoTab === 'personas' && <>
     <Card>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -372,6 +440,7 @@ export default function Vendedores({ seccion = 'equipo' }) {
       )}
     </Card>}
 
+    </PanelDerecho>
     <Modal open={permisosDe !== null} onClose={() => !permisosBusy && setPermisosDe(null)} title={`Permisos${permisosDe?.nombre ? ` · ${permisosDe.nombre}` : ''}`} className="max-w-lg">
       <div className="space-y-3">
         <p className="text-sm text-mute">El rol define el máximo; acá podés recortarlo. Lo que desmarques se rechaza también en el servidor, no solo en la pantalla.</p>
@@ -415,27 +484,6 @@ export default function Vendedores({ seccion = 'equipo' }) {
         ))}
         <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setHorario(null)}>Cancelar</Button><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar horario'}</Button></div>
       </form>
-    </Modal>
-    <Modal open={invitarAbierto} onClose={() => !busy && setInvitarAbierto(false)} title="Invitar persona" className="max-w-2xl">
-      <div className="space-y-3">
-        <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">
-          {[['correo', 'Invitar por correo'], ['directo', 'Agregar directamente']].map(([key, label]) => (
-            <button key={key} type="button" onClick={() => setModoInvitacion(key)} className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${modoInvitacion === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>
-          ))}
-        </div>
-        {conflicto && <div role="alert" className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm">
-          <p className="font-semibold">Ya existe una invitación activa para {conflicto.email}.</p>
-          {conflicto.invitation
-            ? <p className="mt-1 text-xs text-mute">{conflicto.invitation.name} · {ROLE_LABELS[conflicto.invitation.role] || conflicto.invitation.role} · Creada {fechaCortaInv(conflicto.invitation.createdAt)} · Expira {fechaCortaInv(conflicto.invitation.expiresAt)}</p>
-            : <p className="mt-1 text-xs text-mute">Actualizá el listado de invitaciones para verla, reenviarla o revocarla.</p>}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {conflicto.invitation && <Button type="button" variant="outline" disabled={busy || (conflicto.invitation.resendAvailableAt && new Date(conflicto.invitation.resendAvailableAt) > new Date())} onClick={() => resend(conflicto.invitation)}>{conflicto.invitation.resendAvailableAt && new Date(conflicto.invitation.resendAvailableAt) > new Date() ? 'Reenvío en espera' : 'Reenviar invitación'}</Button>}
-            {conflicto.invitation && <Button type="button" variant="ghost" disabled={busy} onClick={() => setConfirmarRevocar(conflicto.invitation)}>Revocar invitación</Button>}
-            <Button type="button" variant="ghost" onClick={() => setConflicto(null)}>Cerrar aviso</Button>
-          </div>
-        </div>}
-        {modoInvitacion === 'correo' ? <>{!esDemo && <Card><h2 className="font-bold">Invitar por correo</h2><p className="mt-1 text-sm text-mute">La persona recibe un enlace seguro y elige su propio PIN. Nunca enviamos credenciales por correo.</p><form onSubmit={invitar} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(13rem,1.3fr)_minmax(13rem,1.5fr)_minmax(8rem,1fr)_auto]"><div><Label htmlFor="invite-name">Nombre</Label><Input id="invite-name" value={invitacion.name} onChange={event => setInvitacion({ ...invitacion, name: event.target.value })} onBlur={() => !invitacion.name.trim() && setError('Ingresá el nombre del integrante.')} required /></div><div><Label htmlFor="invite-email">Correo</Label><EmailField id="invite-email" value={invitacion.email} onChange={value => setInvitacion({ ...invitacion, email: value })} required /></div><div><Label htmlFor="invite-role">Rol</Label><Select id="invite-role" value={invitacion.role} onChange={event => setInvitacion({ ...invitacion, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Enviar invitación</Button></div></form></Card>}</> : <><Card><h2 className="font-bold">Agregar directamente</h2><p className="mt-1 text-sm text-mute">{esDemo ? 'Agregá vendedores al entorno demo.' : 'Opción compatible para alta inmediata con un PIN definido por el administrador.'}</p><form onSubmit={crearDirecto} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(13rem,1.1fr)_minmax(13rem,1.3fr)_minmax(8rem,1fr)_minmax(7rem,0.7fr)_auto]"><div><Label htmlFor="direct-name">Nombre</Label><Input id="direct-name" value={directo.name} onChange={event => setDirecto({ ...directo, name: event.target.value })} required /></div>{!esDemo && <><div><Label htmlFor="direct-email">Correo</Label><EmailField id="direct-email" value={directo.email} onChange={value => setDirecto({ ...directo, email: value })} /></div><div><Label htmlFor="direct-role">Rol</Label><Select id="direct-role" value={directo.role} onChange={event => setDirecto({ ...directo, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div><Label htmlFor="direct-pin">PIN temporal</Label><Input id="direct-pin" inputMode="numeric" maxLength={6} value={directo.pin} onChange={event => setDirecto({ ...directo, pin: event.target.value.replace(/\D/g, '').slice(0, 6) })} required /></div></>}<div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Agregar</Button></div></form></Card></>}
-      </div>
     </Modal>
     <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title={`Historial de ${historialDe?.nombre || 'funcionario'}`}>
       {historialDe && <Cronologia endpoint={`/api/users/${historialDe.id}/history`} active={historialDe !== null} vacio="Sin actividad" descripcionVacio="El alta, los cambios de rol, sucursal o PIN, las comisiones y las ventas de este funcionario aparecerán acá." />}

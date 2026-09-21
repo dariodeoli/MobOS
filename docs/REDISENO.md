@@ -108,6 +108,30 @@ cabecera propia fuera del shell; `.mobos-topbar` en `index.css` no se usa.
   mismas llamadas y mismas rutas; solo presentación.
 
 
+### Lote 5 — Configuración y Equipo (implementado 21-09-2026)
+
+- **Subpáginas con slug, ordenadas por grupo:** `/configuracion/<slug>` queda
+  estable para las 11 pestañas (equipo, identidad, roles, negocio, precios,
+  sucursales, seguridad, historial, impresoras, documentación, sistema) y el
+  orden de la lista sigue a los grupos visibles (Personas, Negocio, Seguridad,
+  Sistema). `/configuracion` entra por Equipo.
+- **Formularios en panel derecho (escritorio):** nuevo objeto compartido
+  `shared/PanelDerecho` (dos columnas desde `lg`, panel fijo con `sticky`; en
+  móvil/tablet el panel se apila debajo). Se aplica en Equipo (alta de
+  integrante por correo o directo), Sucursales (alta/edición), Negocio (datos de
+  la tienda) e Identidad (nombre del vendedor). Los diálogos por fila (PIN,
+  horario, permisos, historial) siguen siendo modales.
+- **Densidad y biblioteca (#147):** se usan los objetos canónicos (`FormField`,
+  `SearchField` en Documentación, `PhoneField`, `CityAutocomplete`,
+  `InstagramField`, `RucField`, `PercentField`, `Toggle`, `Avatar`), se
+  etiquetaron los campos que solo tenían placeholder y se unificó el bloque de
+  límites de autorización (estaba duplicado).
+- **Sin scroll horizontal:** cada subpágina se midió a 360/768/1440
+  (`e2e/configuracion-lote5.spec.js`), con el panel del formulario en la mitad
+  derecha a 1440 y apilado con botón de acceso a 360.
+- **Sin cambios de lógica:** mismos endpoints, validaciones, permisos y datos;
+  solo layout, etiquetas y reutilización de objetos.
+
 ## Criterios de aceptación por lote
 - Sin scroll horizontal en 360px/768px/1440px.
 - Sin acciones importantes fuera del viewport inicial.
