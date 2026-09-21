@@ -195,11 +195,15 @@ export const modeloComprobante = (id) => MODELOS_COMPROBANTE.find(modelo => mode
 export const NIVELES_COMPROBANTE = MODELOS_COMPROBANTE.map(modelo => [modelo.id, modelo.label])
 export const FORMATOS_COMPROBANTE = [['a4', 'A4'], ['thermal-80', '80 mm'], ['thermal-58', '58 mm']]
 // La página del pedido usa A4 o el rollo de 58 mm (con diseño propio).
-export const FORMATOS_PEDIDO = [['a4', 'A4'], ['thermal-58', '58 mm']]
+// #207: la impresora de la tienda es de 80 mm: va primero (predeterminada)
+// sin sacar A4 ni 58 mm para quien los elija.
+export const FORMATOS_PEDIDO = [['thermal-80', '80 mm'], ['a4', 'A4'], ['thermal-58', '58 mm']]
 const PREF_NIVEL = 'mobos:comprobante:nivel'
 const PREF_FORMATO = 'mobos:comprobante:formato'
 export const nivelPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_NIVEL)) || 'completo'
-export const formatoPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_FORMATO)) || 'a4'
+// #207: sin preferencia guardada, el comprobante sale en 80 mm (la
+// impresora de la tienda); la elección manual se respeta.
+export const formatoPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_FORMATO)) || 'thermal-80'
 // Formato térmico configurado (80 mm por defecto: es la impresora habitual).
 export const formatoTermicoPreferido = () => {
   const preferido = formatoPreferido()
