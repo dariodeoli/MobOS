@@ -15,6 +15,14 @@ export function enmascararImei(valor, visibles = 4) {
   return `${'•'.repeat(limpio.length - visibles)}${limpio.slice(-visibles)}`
 }
 
+/** El backend devuelve el IMEI ya enmascarado (`•••••••••••5673`): no se puede
+ * volver a enmascarar (perdería los últimos 4 dígitos, lo único visible). Con
+ * el número crudo (consultas locales) se enmascara acá. */
+const imeiDeConsulta = (valor) => {
+  const texto = String(valor ?? '')
+  return /\d/.test(texto) && !/[•*]/.test(texto) ? enmascararImei(texto) : texto
+}
+
 /** IMEI de 15 dígitos con dígito control (Luhn): el endpoint filtra por IMEI
  * solo cuando es válido, así que la ficha no consulta con seriales comunes. */
 export function imeiValido(valor) {
@@ -62,7 +70,7 @@ export function resumenImei(consulta = {}, { cliente = '' } = {}) {
     .map((campo) => ({ etiqueta: campo.etiqueta || campo.clave, valor: campo.valor == null || campo.valor === '' ? 'Sin dato' : String(campo.valor) }))
   return {
     id: consulta.id || '',
-    imei: enmascararImei(consulta.imei || ''),
+    imei: imeiDeConsulta(consulta.imei),
     etiqueta: consulta.etiqueta || (consulta.status === 'verificado' ? 'Verificado' : 'No verificado'),
     estado: String(consulta.status || ''),
     fecha: consulta.resolvedAt || consulta.requestedAt || null,

@@ -337,6 +337,8 @@ await paso('comprobante de verificación de IMEI (#203)', async ({ captura: shot
   for (const marca of ['Simulada en demo', 'IMEI verificado', 'IMEIcheck.net', 'Comprobante informativo']) {
     if (!texto.includes(marca)) throw new Error(`la verificación de IMEI no muestra «${marca}»`)
   }
+  // El IMEI va enmascarado con los últimos 4 visibles (no solo bolitas).
+  if (!/•{4,}\d{4}/.test(texto)) throw new Error('el IMEI no muestra los últimos 4 dígitos')
   // En demo la impresión no se simula: avisa y no encola nada (se verifica
   // también al final que no haya llamadas al API de impresión).
   await modal.getByRole('button', { name: 'Imprimir comprobante' }).click()
