@@ -168,6 +168,49 @@ export const SEED_DEMO_CLIENTES = [
     },
   },
 ]
+// #213: cartera demo ampliada a 12 clientes ficticios (teléfonos +595, CI/RUC
+// ficticios, direcciones y su historia mínima de pedidos/notas).
+const clienteExtra = (id, nombres, documento, telefono, ciudad, opciones = {}) => ({
+  id,
+  name: nombres,
+  firstName: nombres.split(' ')[0],
+  secondName: nombres.split(' ').slice(1).join(' '),
+  createdAt: haceDias(60 + id.length),
+  document: documento,
+  email: `${id.replace('demo-cliente-', '')}@ejemplo.com`,
+  phone: telefono,
+  countryCode: '+595',
+  billingName: opciones.facturaA || '',
+  billingDocument: opciones.facturaDoc || '',
+  notes: opciones.notas || '',
+  taxExempt: opciones.tier === 'WHOLESALE',
+  tags: opciones.tags || [],
+  pricingTier: opciones.tier || 'RETAIL',
+  creditLimitPyg: opciones.credito || 0,
+  creditDays: opciones.dias ?? null,
+  insuranceEnabled: Boolean(opciones.seguro),
+  insuranceRatePct: opciones.seguro ? 12.5 : null,
+  addresses: [{ id: `${id}-dir`, label: 'Casa', address: `Calle ${nombres.split(' ')[0]} ${100 + id.length}`, city: ciudad, department: 'Central', country: 'Paraguay', isDefault: true }],
+  demoProfile: {
+    orders: opciones.pedidos || [],
+    warranties: [],
+    notes: opciones.notas ? [{ id: `${id}-nota`, content: opciones.notas, createdAt: haceDias(10), user: usuarioDemo('Vendedor demo') }] : [],
+    followUps: [],
+    billingIdentities: [],
+  },
+})
+const pedidoDemo = (id, numero, total, pagado, dias, description) => pedido({ id, numero, total, pagado, dias, items: [{ id: `${id}-i`, description, quantity: 1, serials: [] }] })
+SEED_DEMO_CLIENTES.push(
+  clienteExtra('demo-cliente-maria', 'María González', '3.987.654', '0983111222', 'Asunción', { tags: ['frecuente'], credito: 1500000, dias: 15, seguro: true, notas: 'Cliente frecuente: siempre paga en fecha.', pedidos: [pedidoDemo('demo-p-9', 'MOB-0009', 6850000, 6850000, 5, 'iPhone 15 Pro · 256 GB')] }),
+  clienteExtra('demo-cliente-juan', 'Juan Pereira', '4.556.677', '0981222333', 'San Lorenzo', { pedidos: [pedidoDemo('demo-p-10', 'MOB-0010', 4850000, 2000000, 9, 'iPhone 15 · 128 GB')] }),
+  clienteExtra('demo-cliente-ana', 'Ana Villalba', '5.111.222', '0972555888', 'Fernando de la Mora', { seguro: true, notes: 'Prefiere contacto por WhatsApp.' }),
+  clienteExtra('demo-cliente-ramiro', 'Ramiro Cáceres', '4.222.333', '0985666999', 'Capiatá', { tags: ['reventa'], tier: 'WHOLESALE', credito: 8000000, dias: 30, facturaA: 'Ramiro Import (demo)', facturaDoc: '80098765-4', pedidos: [pedidoDemo('demo-p-11', 'MOB-0011', 12500000, 12500000, 30, 'iPhone 14 Pro · 256 GB × 3')] }),
+  clienteExtra('demo-cliente-estela', 'Estela Ramírez', '3.222.111', '0987999111', 'Asunción', { tags: ['prioridad'], notes: 'Factura a nombre de la empresa del esposo.' }),
+  clienteExtra('demo-cliente-distribuidora-luque', 'Distribuidora Luque S.A. (demo)', '80077777-1', '0982111000', 'Luque', { tier: 'WHOLESALE', credito: 15000000, dias: 30, facturaA: 'Distribuidora Luque S.A. (demo)', facturaDoc: '80077777-1', pedidos: [pedidoDemo('demo-p-12', 'MOB-0012', 9600000, 5000000, 14, 'iPhone 13 · 128 GB × 4')] }),
+  clienteExtra('demo-cliente-fernando', 'Fernando Ortellado', '2.888.999', '0973111444', 'Mariano Roque Alonso', {}),
+  clienteExtra('demo-cliente-gloria', 'Gloria Martínez', '6.123.456', '0981222777', 'Lambaré', { seguro: true, notes: 'Cambió de equipo con trade-in.' }),
+  clienteExtra('demo-cliente-hugo', 'Hugo Benítez', '4.999.888', '0986555222', 'Itauguá', { tags: ['moroso'], credito: 1000000, dias: 7, pedidos: [pedidoDemo('demo-p-13', 'MOB-0013', 2350000, 500000, 40, 'iPhone 12 · 128 GB')] }),
+)
 
 export function clientesDemoGuardados() {
   try {

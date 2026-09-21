@@ -21,6 +21,8 @@ import {
   PRODUCTOS_DEFAULT,
   VENDEDORES_DEFAULT,
   TRADEIN_DEFAULT,
+  IPHONES_DEMO,
+  EQUIPO_DEMO,
 } from './demo/seed'
 
 export {
@@ -568,6 +570,24 @@ export function prepararDatosDemo() {
     }),
   ]
   const productoPorId = new Map()
+  // #213: catálogo de iPhones del demo (12 modelos). Los que ya existen por
+  // nombre o id se reutilizan; los nuevos entran con sucursal y SKU para que la
+  // carga rápida y el inventario serializado funcionen.
+  for (const item of IPHONES_DEMO) {
+    if (seeds.some(actual => actual.id === item.id || actual.nombre === item.nombre)) continue
+    seeds.push({
+      ...prod(item.nombre, 'Celulares'),
+      id: item.id,
+      sku: item.sku,
+      branchId: 'mobos-demo-central',
+      precioVenta: item.precioVenta,
+      precioCosto: item.precioCosto,
+      precioMayorista: Math.round(item.precioVenta * 0.93),
+      comision: Math.round(item.precioVenta * 0.01),
+      stock: 0,
+      atributos: item.atributos,
+    })
+  }
   const productoPorNombre = new Map(
     cache.productos.map(item => [item.nombre.trim().toLowerCase(), item]),
   )
@@ -664,23 +684,69 @@ export function prepararDatosDemo() {
       observacion: 'Pendiente de cobro demo',
     },
   ]
+  // #213: pedidos demo extra con pagos divididos y medios variados. La tabla es
+  // [cliente, productoId, precio, entrega, montoDelivery, pagos, días].
+  const PAGOS_EXTRA = [
+    ['María González', 'demo-iphone-15-pro-max-256-titanio', 7250000, 'Retiro en tienda', 0, [['DINERO', '', 4000000], ['TRANSFERENCIA', 'Banco Itaú', 3250000]], 0],
+    ['Juan Pereira', 'demo-iphone-15-128-azul', 4850000, 'Delivery', 30000, [['DINERO', '', 2000000], ['TARJETA', 'ueno · Tarjeta demo', 2880000]], 1],
+    ['Ana Villalba', 'demo-iphone-14-256-azul', 3950000, 'Retiro en tienda', 0, [['PIX', 'Pix - Comercio demo', 3950000]], 1],
+    ['Ramiro Cáceres', 'demo-iphone-13-pro-max-256-grafito', 4450000, 'Retiro en tienda', 0, [['USDT - Cripto', 'USDT - Comercio demo', 2225000], ['DINERO USD', 'Caja · Dólares', 2225000]], 2],
+    ['Estela Ramírez', 'demo-iphone-15-256-rosa', 5400000, 'Delivery', 30000, [['DINERO', '', 2000000], ['TRANSFERENCIA', 'Banco Continental', 3430000]], 2],
+    ['Distribuidora Luque S.A. (demo)', 'demo-iphone-14-128-medianoche', 3600000, 'Retiro en tienda', 0, [['TRANSFERENCIA', 'Banco Itaú', 3600000]], 3],
+    ['Gloria Martínez', 'demo-iphone-13-128-blanco', 3050000, 'Retiro en tienda', 0, [['CANJE', 'Canje demo', 1850000], ['DINERO', '', 1200000]], 3],
+    ['Fernando Ortellado', 'demo-iphone-15-pro-256-negro', 6750000, 'Delivery', 30000, [['DINERO', '', 3000000], ['POS UENO', 'ueno · Tarjeta demo', 3780000]], 4],
+    ['Hugo Benítez', 'demo-iphone-12-128-verde', 2350000, 'Retiro en tienda', 0, [], 5],
+    ['María González', 'demo-airpods-pro-2-usbc', 1850000, 'Retiro en tienda', 0, [['DINERO', '', 1850000]], 6],
+    ['Juan Pereira', 'demo-cargador-usbc-20w', 220000, 'Retiro en tienda', 0, [['DINERO', '', 100000], ['PIX', 'Pix - Comercio demo', 120000]], 7],
+    ['Ana Villalba', 'demo-funda-magsafe-transparente', 180000, 'Delivery', 20000, [['DINERO USD', 'Caja · Dólares', 200000]], 8],
+  ]
+  const vendedoresDemo = ['demo-user', 'demo-user-vendedor', 'demo-user-vendedora']
+  PAGOS_EXTRA.forEach(([cliente, productoId, precio, entrega, montoDelivery, pagos, dias], indice) => {
+    const lista = pagos.map(([medioPago, cuenta, monto], j) => ({ id: `demo-pago-extra-${indice}-${j}`, medioPago, cuenta, monto, fecha: `${fecha(dias)}T${String(10 + j).padStart(2, '0')}:30:00` }))
+    const totalPagado = lista.reduce((suma, pago) => suma + pago.monto, 0)
+    const total = precio + montoDelivery
+    ventas.push({
+      id: `demo-venta-extra-${indice + 1}`,
+      fecha: fecha(dias),
+      creadoEn: `${fecha(dias)}T10:30:00`,
+      cliente,
+      productoId,
+      productoNombre: (IPHONES_DEMO.find(item => item.id === productoId) || {}).nombre || 'Producto demo',
+      precio,
+      precioCosto: Math.round(precio * 0.78),
+      comision: Math.round(precio * 0.01),
+      vendedorId: vendedoresDemo[indice % vendedoresDemo.length],
+      medioPago: lista[0]?.medioPago || '',
+      pagos: lista,
+      totalPagado,
+      totalPendiente: Math.max(0, total - totalPagado),
+      estadoPago: totalPagado === 0 ? 'Pendiente' : totalPagado >= total ? 'Pagado' : 'Parcial',
+      entrega,
+      montoDelivery,
+      observacion: 'Pedido demo con pagos variados (#213)',
+    })
+  })
   const ventasDemo = ventas
     .map(item => ({ ...item, productoId: productoPorId.get(item.productoId) || item.productoId }))
     .filter(item => !cache.ventas.some(actual => actual.id === item.id))
-  if (version < 2) {
-    cache.productos = [...cache.productos, ...nuevosProductos]
-    cache.vendedores = cache.vendedores.some(item => item.id === 'demo-user')
-      ? cache.vendedores
-      : [
-          ...cache.vendedores,
-          { id: 'demo-user', nombre: 'Usuario demo', activo: true, metaDiaria: 1000000 },
-        ]
-    cache.ventas = [...ventasDemo, ...cache.ventas]
+  if (version < 4) {
+    // Los celulares demo llevan sucursal y SKU: el inventario serializado y la
+    // carga rápida los necesitan (los productos viejos se completan acá).
+    cache.productos = [...cache.productos, ...nuevosProductos].map(item =>
+      item.categoria === 'Celulares'
+        ? { ...item, branchId: item.branchId || 'mobos-demo-central', sku: item.sku || item.id.toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 24) }
+        : item,
+    )
+    // Equipo demo (#213): 6 usuarios con rol, correo y PIN ficticios.
+    const idsEquipo = new Set(EQUIPO_DEMO.map(usuario => usuario.id))
+    cache.vendedores = [...cache.vendedores.filter(usuario => !idsEquipo.has(usuario.id)), ...EQUIPO_DEMO]
+    // Idempotente por id: los pedidos nuevos entran una sola vez.
+    cache.ventas = [...ventasDemo.filter(item => !cache.ventas.some(actual => actual.id === item.id)), ...cache.ventas]
   }
   cache.config = {
     ...cache.config,
     nombreTienda: cache.config.nombreTienda || 'MobOS Tienda Demo',
-    demoSeedVersion: 2,
+    demoSeedVersion: 4,
   }
   persistMirror()
   notify()

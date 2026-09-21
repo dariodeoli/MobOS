@@ -412,6 +412,8 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   const [visibilityError, setVisibilityError] = useState('')
   const apiMode = modoDatosActual() === 'api'
   const { sesion, sucursal, esDemo } = useSesion()
+  // #213: en demo el inventario usa los mismos recursos (store session-only).
+  const inventarioOperativo = apiMode || esDemo
   // Aviso del resultado de una etiqueta: el respaldo con diálogo se abre solo
   // (dentro de las funciones de impresión); acá se informa el resto.
   const avisarImpresion = (resultado, nombre = 'Etiqueta') => {
@@ -433,24 +435,24 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   // La pestaña activa vive en la URL (/inventario/<slug>). Sin slug válido o sin
   // permiso para Alertas, se cae en Unidades.
   const refresh = useCallback(async (search) => {
-    if (!apiMode) return
+    if (!inventarioOperativo) return
     setBusy(true); setError('')
     try {
       const [nextUnits, nextRemoved, nextReservations, nextTransfers, nextLocations, nextBranches] = await Promise.all([resources.inventoryUnits.list(search), resources.inventoryUnits.list(search, 'removed'), resources.inventoryReservations.list(), resources.transfers.list(), resources.stockLocations.list(), resources.inventoryBranches.list()])
       setUnits(nextUnits); setRemovedUnits(nextRemoved); setReservations(nextReservations); setTransfers(nextTransfers); setLocations(nextLocations); setBranches(nextBranches); setProducts(getProductos())
     } catch (cause) { setError(cause?.message || 'No se pudo actualizar el inventario.') } finally { setBusy(false) }
-  }, [apiMode])
+  }, [inventarioOperativo])
   const busquedaDiferida = useBusquedaDiferida(query)
   useEffect(() => { refresh(busquedaDiferida) }, [refresh, busquedaDiferida])
   // Catálogo de proveedores (para sugerir al recibir) y cotización de hoy para
   // precargar el costo en dólares. Los dos son opcionales: si fallan, se sigue a mano.
   useEffect(() => {
-    if (!apiMode) return
+    if (!inventarioOperativo) return
     let activo = true
     suppliersApi.list().then(rows => { if (activo) setProveedores(Array.isArray(rows) ? rows : []) }).catch(() => { if (activo) setProveedores([]) })
-    cotizacionReferencia().then(valor => { if (activo) setCotizacion(valor) })
+    Promise.resolve(cotizacionReferencia()).then(valor => { if (activo) setCotizacion(valor) }).catch(() => {})
     return () => { activo = false }
-  }, [apiMode])
+  }, [inventarioOperativo])
   useEffect(() => { if (qParam) setQuery(qParam) }, [qParam])
   useEffect(() => { if (detalleUnidad) setDetalleUnidad(current => units.find(unit => unit.id === current.id) || current) }, [units]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -892,7 +894,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   }
   async function applyReason(event) { event.preventDefault(); if (!reason.trim() || !reasonAction) return; const { kind, unit } = reasonAction; const lastFour = ultimos4(unit.serial); const motivo = reasonKind ? reasonKind + ': ' + reason.trim() : reason.trim(); if (kind === 'adjust') { const status = unit.status === 'DEFECTIVE' ? 'AVAILABLE' : 'DEFECTIVE'; await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'adjust', status, reason: motivo }), `IMEI ${lastFour} marcado como ${status === 'DEFECTIVE' ? 'en revisión' : 'disponible'}.`) } else if (kind === 'remove') { await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'remove', reason: motivo }), `IMEI ${lastFour} retirado. Podés restaurarlo desde Eliminados.`) } else { await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'restore', reason: reason.trim() }), `IMEI ${lastFour} restaurado a disponible.`) }; if (kind === 'remove' && reasonKind) recordarMotivoBaja(reasonKind); if (kind === 'adjust' && reasonKind && unit.status !== 'DEFECTIVE') recordarMotivoRevision(reasonKind); setReasonAction(null) }
   async function createTransfer(event) { event.preventDefault(); const serials = transfer.serials.split(/[\n,;]+/).map(normalizeScan).filter(Boolean); if (!serials.length) { setError('Indicá al menos un IMEI/serial para trasladar.'); return }; if (!puedeTransferirSinAuth && !transferAuth) { setError('Tu rol necesita autorización de gerencia para transferir entre sucursales. Solicitá la autorización y esperá la aprobación.'); return }; await setAndRefresh(async () => { await resources.transfers.create({ ...transfer, destinationLocationId: transfer.destinationLocationId || null, lines: [{ productId: transfer.productId, quantity: serials.length, serials }], ...(transferAuth && !puedeTransferirSinAuth ? { transferAuthorizationId: transferAuth.id } : {}) }); setTransfer({ sourceBranchId: '', destinationBranchId: '', destinationLocationId: '', productId: '', serials: '', notes: '' }); setTransferAuth(null); setTransferOpen(false) }, 'Transferencia registrada con trazabilidad por IMEI.') }
-  if (!apiMode) return <Card><h2 className="font-bold">Inventario operativo</h2><p className="mt-2 text-sm text-mute">Ingresá con una cuenta real para controlar IMEI, reservas, ubicaciones y transferencias. La demo conserva sus datos aislados.</p></Card>
+  if (!inventarioOperativo) return <Card><h2 className="font-bold">Inventario operativo</h2><p className="mt-2 text-sm text-mute">Ingresá con una cuenta real para controlar IMEI, reservas, ubicaciones y transferencias. La demo conserva sus datos aislados.</p></Card>
   return <div className="space-y-4"><Card className="p-4 md:p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-mute">Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.</p><div className="flex shrink-0 flex-wrap items-center gap-2"><Button onClick={abrirReceive}>+ Recibir unidad</Button><Button variant="outline" onClick={() => setReserveOpen(true)}>Reservar</Button><Button variant="outline" onClick={() => setTransferOpen(true)}>Transferir</Button></div></div><form onSubmit={search} className="mt-4 flex flex-wrap gap-2"><SearchField value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" ariaLabel="Buscar en inventario" className="min-w-0 flex-1" /><Select value={orden} onChange={event => recordarOrden(event.target.value)} className="w-auto" aria-label="Orden del inventario" title="Se recuerda tu último orden"><option value="recientes">Recientes</option><option value="modelo-az">Modelo A→Z</option><option value="modelo-za">Modelo Z→A</option><option value="nuevos">Nuevos primero</option><option value="semis">Seminuevos primero</option><option value="mezclado">Modelos mezclados</option></Select><Button type="button" variant="outline" onClick={() => setScannerOpen(true)}>Escanear</Button><Button type="button" variant="outline" onClick={startCount}>Conteo rápido</Button><ListGridToggle value={vistaUnidades} onChange={(next) => { setVistaUnidades(next); localStorage.setItem('mobos:inventario-vista', next) }} />{disponibles.length > 0 && <Button type="button" variant="outline" onClick={() => printLabels(disponibles).then(avisarImpresion)}>Etiquetas ({disponibles.length})</Button>}<Button type="button" variant="outline" onClick={() => setGondolaOpen(true)}>Etiquetas de góndola</Button>{tab === 'unidades' && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando || busy} onClick={exportarUnidades}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}</form><div className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">{[['unidades', `Inventario (${disponibles.length})`], ...(canViewAlerts ? [['alertas', `Alertas (${(stockAlerts.alerts?.length || 0) + (stockAlerts.outOfStock?.length || 0)})`]] : []), ['reservas', `Reservas (${reservations.length})`], ['traslados', `Traslados (${transfers.length})`], ['vendidos', `Vendidos (${vendidos.length})`], ['transito', `En tránsito (${enTransito.length})`], ['ubicaciones', `Ubicaciones (${locations.length})`], ['compartido', 'Compartido'], ['eliminados', `Eliminados (${removedUnits.length})`], ['conteos', 'Conteos']].map(([key, label]) => <button key={key} onClick={() => cambiarTab(key)} className={`shrink-0 rounded-md px-3 py-2 text-xs font-semibold ${tab === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>)}</div>{notice && <p className="mt-3 rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">{notice}</p>}{error && <p className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
       <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={copiarImeis}>Copiar IMEIs</button>

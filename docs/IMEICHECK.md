@@ -49,7 +49,16 @@ si sus claves difieren del JSON de `/frontend-api`, el mapeo de
 
 Con la Fase 1 deployada y **sin** `IMEICHECK_LIVE=1` en Coolify, el endpoint
 nunca llama al proveedor: responde mocks marcados (`esMock: true`) y la UI los
-muestra con el badge **SIMULADO** y “Sin cobro”. Verificación sugerida:
+muestra con el badge **SIMULADO** y “Sin cobro”.
+
+**Runner automático** (recomendado): `npm run qa:imei:prod`. Necesita una sesión
+real exportada una vez con
+`npx playwright codegen --save-storage=/tmp/mobos-qa.json https://app.moboss.online/login`
+(`MOBOS_QA_STORAGE_STATE=/tmp/mobos-qa.json`; opcional `MOBOS_QA_IMEI=<serial>`
+para elegir la unidad). Recorre la ficha, el precheck y la confirmación, exige
+el badge **SIMULADO** y cero llamadas del navegador a `imeicheck.net`, y deja
+capturas + `reporte.json` en `MOBOS_QA_OUT` (`/tmp/qa-193-imei` por defecto).
+Pasos manuales equivalentes:
 
 1. Inventario → Unidades: abrir (o crear) una unidad cuyo serial sea un IMEI de
    15 dígitos con Luhn válido.

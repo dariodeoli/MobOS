@@ -10,6 +10,11 @@ const DEFAULT = {
   openingPyg: 500000,
   status: 'OPEN',
   notes: 'Caja demo local',
+  // Movimientos de ejemplo (#213): aporte y retiro del turno.
+  movements: [
+    { id: 'demo-mov-1', kind: 'INGRESO', concept: 'Aporte de caja', amountPyg: 300000, createdAt: null, user: 'Dueño demo' },
+    { id: 'demo-mov-2', kind: 'EGRESO', concept: 'Retiro para depósito bancario', amountPyg: 150000, createdAt: null, user: 'Dueño demo' },
+  ],
 }
 
 // Inicio del día local en ISO: una caja abierta se muestra como "Turno de …"
@@ -55,7 +60,7 @@ function envelope(cash) {
             },
           ]
         : [],
-    movements: [],
+    movements: (cash.movements || []).map(movimiento => ({ ...movimiento, createdAt: movimiento.createdAt || cash.openedAt || new Date().toISOString() })),
   }
 }
 
