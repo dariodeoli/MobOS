@@ -4,6 +4,7 @@ import AutorizacionDescuento from './AutorizacionDescuento'
 import AutorizacionBloque from './AutorizacionBloque'
 import EncabezadoBloque from './EncabezadoBloque'
 import { gs } from '@/utils/calculos'
+import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
 
 // Lo que se está vendiendo: lista editable, ajustes de la venta (descuento
 // extra y fecha) y autorizaciones pendientes. Es la única lista de la venta:
@@ -92,6 +93,7 @@ export default function PasoCarrito({
               <Label htmlFor="descuento-extra-gs">Descuento extra (Gs)</Label>
               <MoneyInput
                 id="descuento-extra-gs"
+                max={LIMITE_MONTO_VENTAS}
                 value={descuento}
                 onValueChange={setDescuento}
                 placeholder="0"

@@ -1168,13 +1168,16 @@ export default function FormularioVenta({
     }
   }
 
-  function agregarPago() {
+  // `prefill.monto` llega de «Dividir saldo» (el saldo que falta): en el cobro
+  // legacy se precarga tal cual; con cuentas, el monto lo propone la cuenta al
+  // elegirla (PaymentAccountFields conoce el pendiente).
+  function agregarPago(prefill = {}) {
     if (!cuentas) return
     setPagos(arr => [
       ...arr,
       usaCuentas
-        ? { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '' }
-        : { ...PAGO_VACIO, monto: pendiente > 0 ? String(pendiente) : '' },
+        ? { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '', ...(prefill.monto ? { monto: String(prefill.monto) } : {}) }
+        : { ...PAGO_VACIO, monto: prefill.monto ? String(prefill.monto) : pendiente > 0 ? String(pendiente) : '' },
     ])
   }
 

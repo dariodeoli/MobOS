@@ -6,6 +6,7 @@ import { api } from '@/lib/api/client'
 import { quoteDemoPromotion } from '@/lib/demoPromotions'
 import { gs } from '@/utils/calculos'
 import { serialEnmascarado } from '@/utils/serial'
+import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
 
 // Fila editable de la venta: cantidad, precio de venta, color/variante, IMEI,
 // descuento de línea y cupón en un solo lugar. El total se recalcula en el
@@ -137,6 +138,7 @@ export default function FilaVenta({
             <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-mute">Precio de venta</span>
             <MoneyInput
               aria-label={`Precio de venta de ${item.nombre}`}
+              max={LIMITE_MONTO_VENTAS}
               className="h-9 w-40"
               disabled={guardando}
               value={Number(item.precio) || 0}
@@ -182,6 +184,7 @@ export default function FilaVenta({
             />
             <MoneyInput
               aria-label={`Descuento fijo de ${item.nombre}`}
+              max={LIMITE_MONTO_VENTAS}
               value={item.descuento || ''}
               onValueChange={value => onEditar({ descuento: value === '' ? '' : String(value), descuentoPct: '' })}
               placeholder="Gs 0"

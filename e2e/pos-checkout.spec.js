@@ -74,6 +74,9 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await amountInputs.nth(0).fill('25000')
   await expect(paymentsSection.getByText('Equivalente: Gs 25.000')).toBeVisible()
 
+  // Con un pago parcial aparece «Dividir saldo» con lo que falta.
+  await expect(paymentsSection.getByRole('button', { name: /^Dividir saldo/ })).toBeVisible()
+
   // Second payment account covers the remainder.
   await addPayment.click()
   await expect(accountSelects).toHaveCount(2)

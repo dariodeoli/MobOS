@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { gs } from '@/utils/calculos'
 import { capitalizarPrimera } from '@/utils/texto'
 import { ENTREGA } from '@/lib/catalog'
+import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
 import PaymentAccountFields, { updateAccountPayment } from '../PaymentAccountFields'
 import EncabezadoBloque from './EncabezadoBloque'
 
@@ -134,11 +135,21 @@ export default function PasoCobro({
           <Button
             type="button"
             variant="outline"
-            onClick={onAgregarPago}
+            onClick={() => onAgregarPago()}
             disabled={!cuentas || guardando || guardadoIncompleto}
           >
             + Agregar pago
           </Button>
+          {pagos.length > 0 && pendiente > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onAgregarPago({ monto: pendiente })}
+              disabled={!cuentas || guardando || guardadoIncompleto}
+            >
+              Dividir saldo ({gs(pendiente)})
+            </Button>
+          )}
         </div>
         {!cuentas && !errorCuentas && (
           <p role="status" className="text-sm text-mute">
@@ -176,6 +187,7 @@ export default function PasoCobro({
               <PaymentAccountFields
                 payment={p}
                 accounts={cuentas}
+                pendientePyg={pendiente}
                 onChange={change =>
                   setPagos(a =>
                     a.map((x, j) => (j === i ? updateAccountPayment(x, change, cuentas) : x)),
@@ -211,6 +223,7 @@ export default function PasoCobro({
                   <Label htmlFor="monto-gs">Monto (Gs)</Label>
                   <MoneyInput
                     id="monto-gs"
+                    max={LIMITE_MONTO_VENTAS}
                     value={String(p.monto || '').replace(/\D/g, '')}
                     onValueChange={v =>
                       setPagos(a =>
@@ -292,6 +305,7 @@ export default function PasoCobro({
           </Label>
           <MoneyInput
             id="monto-entrega"
+            max={LIMITE_MONTO_VENTAS}
             value={f.montoDelivery}
             onValueChange={v => setF(s => ({ ...s, montoDelivery: v }))}
             placeholder="0 si retira en tienda"
@@ -324,11 +338,13 @@ export default function PasoCobro({
         >
           {guardando
             ? 'Guardando venta…'
-            : pagoCompleto
-              ? 'Confirmar venta'
-              : sinPago
-                ? (venderACredito ? 'Crear pedido a crédito' : 'Crear pedido sin pago')
-                : 'Crear pedido'}
+            : !valido
+              ? 'Guardar pedido'
+              : pagoCompleto
+                ? 'Confirmar venta'
+                : sinPago
+                  ? (venderACredito ? 'Crear pedido a crédito' : 'Crear pedido sin pago')
+                  : 'Crear pedido'}
           {cantTotal > 1 ? ` · ${cantTotal} productos` : ''}
           {totalGeneral > 0 ? ` · ${gs(totalGeneral)}` : ''}
         </Button>
