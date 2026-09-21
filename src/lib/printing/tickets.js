@@ -663,3 +663,25 @@ export function ticketRecepcionServicio(order, { ancho = 80 } = {}) {
   t.texto('Firma del cliente: ______________________')
   return t.avanza(2).corte()
 }
+
+// Comprobante de verificación de IMEI (#203): la info mínima y honesta para el
+// cliente (estado, fecha y fuente). Nunca costos, respuestas crudas ni datos
+// internos; si la consulta fue simulada (demo) se imprime el aviso.
+export function ticketVerificacionImei(resumen, { ancho = 80 } = {}) {
+  const t = crearTicket({ ancho }).iniciar()
+  const fechaTexto = resumen?.fecha ? new Date(resumen.fecha).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : ''
+  t.centrado(APP_NAME).negrita().centrado('Verificación de IMEI').negrita(false)
+  if (resumen?.simulado) t.centrado('(simulada en demo)')
+  t.linea()
+  t.par('IMEI', resumen?.imei || '—')
+  t.par('Estado', resumen?.etiqueta || 'No verificado')
+  if (resumen?.detalle) t.texto(resumen.detalle)
+  t.linea()
+  t.par('Fecha', fechaTexto || '—')
+  t.par('Fuente', resumen?.fuente || 'IMEIcheck.net')
+  if (resumen?.cliente) t.par('Cliente', resumen.cliente)
+  t.linea()
+  t.texto('Comprobante informativo: no acredita propiedad ni reemplaza la')
+  t.texto('verificación oficial del equipo.')
+  return t.avanza(2).corte()
+}

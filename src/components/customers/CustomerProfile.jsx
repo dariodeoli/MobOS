@@ -13,6 +13,7 @@ import SerialTexto from '@/components/shared/SerialTexto'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import Switch from '@/components/shared/Switch'
+import ImeiVerificacionModal from './ImeiVerificacionModal'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
@@ -115,7 +116,7 @@ const saldoOrden = (order) => Number(order?.pendingPyg ?? order?.balancePyg ?? 0
 const pagadoOrden = (order) => Number(order?.collectedPyg ?? order?.paidPyg ?? 0)
 
 // Grillas de las pestañas: una fila por registro, datos en columnas fijas.
-const GRID_DISPOSITIVOS = 'grid min-w-[54rem] grid-cols-[minmax(8rem,1.2fr)_minmax(7rem,0.9fr)_6rem_6rem_8rem_6rem] items-center gap-x-2'
+const GRID_DISPOSITIVOS = 'grid min-w-[59rem] grid-cols-[minmax(8rem,1.2fr)_minmax(7rem,0.9fr)_6rem_6rem_8rem_11rem] items-center gap-x-2'
 const GRID_GARANTIAS_CLI = 'grid min-w-[46rem] grid-cols-[minmax(9rem,1.5fr)_minmax(7rem,1fr)_6rem_7rem] items-center gap-x-2'
 const GRID_SEGUIMIENTOS = 'grid min-w-[54rem] grid-cols-[7rem_minmax(10rem,1.8fr)_7rem_7rem_6rem_8rem] items-center gap-x-2'
 const GRID_FACTURACION = 'grid min-w-[50rem] grid-cols-[minmax(10rem,1.5fr)_minmax(7rem,1fr)_minmax(8rem,1fr)_7rem_7rem] items-center gap-x-2'
@@ -194,6 +195,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
   // Seguro del cliente (#160) y etiquetas de la ficha.
   const [seguroForm, setSeguroForm] = useState({ enabled: false, pct: '' })
   const [guardandoSeguro, setGuardandoSeguro] = useState(false)
+  // Verificación de IMEI (#203): comprobante del equipo que se abre desde la
+  // pestaña Pedidos (datos de INV #193/#200).
+  const [imeiDe, setImeiDe] = useState(null)
   const [tagsTexto, setTagsTexto] = useState('')
   const [guardandoTags, setGuardandoTags] = useState(false)
 
@@ -227,8 +231,28 @@ export default function CustomerProfile({ customer, open, onClose }) {
     } finally { setGuardandoSeguro(false) }
   }
 
-  async function guardarTags(event) {
-    event.preventDefault()
+  // Adjunta el comprobante de IMEI (#203): comentario interno o nota pública.
+  async function agregarComentarioImei(texto) {
+    if (!customer?.id) return
+    if (esDemo) {
+      const nota = { id: `demo-imei-${Date.now()}`, content: texto, createdAt: new Date().toISOString(), user: { id: 'demo-user', name: 'Equipo demo' } }
+      setProfile((actual) => actual ? { ...actual, notes: [nota, ...(actual.notes || [])] } : actual)
+      setTimeline((actual) => [{ id: nota.id, type: 'note', action: 'Comentario del equipo', createdAt: nota.createdAt, user: nota.user, detail: texto }, ...actual])
+      return
+    }
+    await api.post(`/api/customers/${encodeURIComponent(customer.id)}/notes`, { content: texto })
+    refresh()
+  }
+
+  async function agregarNotaPublicaImei(texto) {
+    if (!customer?.id) return
+    if (esDemo) { setNotaPublica((actual) => [actual, texto].filter(Boolean).join('\n')); return }
+    const actual = String(profile?.customer?.publicNote || notaPublica || '').trim()
+    await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { publicNote: [actual, texto].filter(Boolean).join('\n').slice(0, 2000) })
+    refresh()
+  }
+
+  async function guardarTags(event) {    event.preventDefault()
     if (demoBloqueado() || guardandoTags || !customer?.id) return
     const tags = tagsTexto.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20)
     setGuardandoTags(true)
@@ -1304,7 +1328,10 @@ export default function CustomerProfile({ customer, open, onClose }) {
                         <span className="truncate text-xs text-mute">{fecha(device.date)}</span>
                         <span className="truncate text-xs text-mute">{device.orderNumber ? codigoPedido(device.orderNumber) : '—'}</span>
                         <span className="min-w-0">{vence ? <Badge color={dias === 0 ? 'red' : dias <= 15 ? 'orange' : 'green'} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{dias === 0 ? 'Vencida' : `${dias} días`}</Badge> : <Badge color="slate" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Sin garantía</Badge>}</span>
-                        <span className="flex items-center justify-end">{device.warranty?.publicToken && <a className="whitespace-nowrap rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" href={`${window.location.origin}/garantia/${device.warranty.publicToken}`} target="_blank" rel="noreferrer">Ver garantía</a>}</span>
+                        <span className="flex items-center justify-end gap-1.5">
+                          {device.serial && <button type="button" className="whitespace-nowrap rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light transition hover:bg-fono/10" onClick={() => setImeiDe(device)}>Verificación IMEI</button>}
+                          {device.warranty?.publicToken && <a className="whitespace-nowrap rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" href={`${window.location.origin}/garantia/${device.warranty.publicToken}`} target="_blank" rel="noreferrer">Ver garantía</a>}
+                        </span>
                       </div>
                     )
                   })}
@@ -2167,6 +2194,16 @@ export default function CustomerProfile({ customer, open, onClose }) {
           </div>
         </form>
       </Modal>
+
+      <ImeiVerificacionModal
+        open={Boolean(imeiDe)}
+        onClose={() => setImeiDe(null)}
+        imei={String(imeiDe?.serial || '')}
+        cliente={profile?.customer?.name || customer?.name || ''}
+        esDemo={esDemo}
+        onAgregarComentario={agregarComentarioImei}
+        onAgregarNotaPublica={agregarNotaPublicaImei}
+      />
 
       <Modal
         open={canjeAbierto}

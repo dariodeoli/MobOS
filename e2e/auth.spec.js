@@ -140,7 +140,7 @@ test('demo: la ficha del cliente abre sin sesión y no consulta el API', async (
 test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ page }) => {
   const apiReal = []
   page.on('request', (request) => {
-    if (/\/api\/(customers|message-templates|service-orders|service-items|service-checklists|portal|public\/portal)/.test(request.url())) apiReal.push(request.url())
+    if (/\/api\/(customers|message-templates|service-orders|service-items|service-checklists|portal|public\/portal|imei)/.test(request.url())) apiReal.push(request.url())
   })
 
   await page.goto('/demo')
@@ -174,6 +174,20 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   await expect(interruptorSeguro).toBeChecked()
   await expect(interruptorSeguro).toBeDisabled()
   await expect(ficha.getByLabel('Porcentaje del cliente')).toHaveValue('12,5')
+
+  // Comprobante de verificación de IMEI (#203): en demo se simula y se puede
+  // adjuntar al comentario interno (sin consultar al proveedor).
+  await ficha.getByRole('tab', { name: /^Pedidos/ }).click()
+  await ficha.getByRole('button', { name: 'Verificación IMEI' }).first().click()
+  const imeiModal = page.getByRole('dialog', { name: 'Verificación de IMEI' })
+  await expect(imeiModal.getByText('Simulada en demo')).toBeVisible()
+  await expect(imeiModal.getByText(/IMEI verificado: sin reportes/i)).toBeVisible()
+  await expect(imeiModal.getByText(/Fuente IMEIcheck\.net/)).toBeVisible()
+  await imeiModal.getByRole('button', { name: 'Adjuntar al comentario' }).click()
+  await expect(page.getByText('Agregado al comentario interno.')).toBeVisible()
+  await imeiModal.getByRole('button', { name: 'Cerrar' }).click()
+  await ficha.getByRole('tab', { name: /^Cronología/ }).click()
+  await expect(ficha.getByText(/fuente IMEIcheck\.net/).first()).toBeVisible()
 
   // Portal de ejemplo por token local (sin sesión ni API).
   await ficha.getByRole('button', { name: /Portal del cliente/ }).click()
