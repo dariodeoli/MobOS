@@ -11,6 +11,7 @@ import ComboBuscador from '@/components/shared/ComboBuscador'
 import { marcaDeMedio } from '@/components/shared/MedioPago'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { getAccountHolders, getPrivateCompanies } from '@/lib/accountParties'
+import { monedasExcluidas } from '@/lib/paymentAccountsReglas'
 import { nombreCompleto, nombreSugeridoDeCuenta, opcionesDePartes } from '@/lib/accountNames'
 import { cn } from '@/lib/utils'
 
@@ -264,7 +265,7 @@ function AccountManager() {
           {medio.procesadora && <div className="sm:col-span-3"><Label htmlFor="pa-processor">Procesadora</Label><Select id="pa-processor" value={PROCESADORAS.includes(form.processor) ? form.processor : form.processor ? '__otra' : ''} onChange={event => change('processor', event.target.value === '__otra' ? '' : event.target.value)}><option value="">Elegí la procesadora</option>{PROCESADORAS.map(procesadora => <option key={procesadora} value={procesadora}>{procesadora}</option>)}<option value="__otra">Otra…</option></Select>{!PROCESADORAS.includes(form.processor) && <Input className="mt-2" maxLength={200} value={form.processor} onChange={event => change('processor', event.target.value)} placeholder="Nombre de la procesadora" />}</div>}
           {monedaFija
             ? <div className="sm:col-span-2"><Label>Moneda</Label><p className="flex h-11 items-center rounded-lg border border-ink-500 bg-ink-800 px-3 text-sm text-mute md:h-9">{MONEDAS_FIJAS[monedaFija] || monedaFija}</p></div>
-            : <div className="sm:col-span-2"><Label htmlFor="pa-currency">Moneda</Label><CurrencySelect id="pa-currency" value={form.currency} onChange={event => change('currency', event.target.value)} /></div>}
+            : <div className="sm:col-span-2"><Label htmlFor="pa-currency">Moneda</Label><CurrencySelect id="pa-currency" value={form.currency} excluir={monedasExcluidas(form.kind)} onChange={event => change('currency', event.target.value)} /></div>}
           {medio.personalizada && <div className="sm:col-span-2"><Label htmlFor="pa-currency-label">Moneda personalizada</Label><Input id="pa-currency-label" maxLength={12} value={form.currencyLabel} onChange={event => change('currencyLabel', event.target.value.toUpperCase())} placeholder="ARS, PEN…" /></div>}
           {medio.titular && <div className="sm:col-span-3"><Label htmlFor="pa-holder">Titular {!transferNuevo && '(opcional)'}</Label><ComboBuscador id="pa-holder" value={form.holder} required={transferNuevo} options={opcionesTitulares} onChange={(texto) => setForm(current => conNombre({ ...current, holder: texto, holderId: '', companyId: '' }))} onSelect={elegirTitular} placeholder="Buscá titular, socio o empresa" />{(form.holderId || form.companyId) && <p className="mt-1 text-[11px] text-ok">{form.companyId ? 'Empresa registrada' : 'Titular registrado'} · se completa solo</p>}</div>}
           {medio.documento && <div className="sm:col-span-3"><Label htmlFor="pa-document">Documento (cédula/RUC)</Label><Input id="pa-document" maxLength={200} value={form.document} onChange={event => change('document', event.target.value)} placeholder="Ej. 3.456.789-0" /></div>}

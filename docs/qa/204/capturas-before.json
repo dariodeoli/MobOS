@@ -1,0 +1,41 @@
+{
+  "modo": "before",
+  "capturadoEn": "2026-09-21T19:10:41.734Z",
+  "pasos": {
+    "seguro": {
+      "insurancePctApi": null,
+      "valorCargado": "",
+      "valorTrasRecarga": ""
+    },
+    "transferenciaUsdt": {
+      "altaApi": 201,
+      "monedasOfrecidas": [
+        "PYG",
+        "USD",
+        "BRL",
+        "EUR",
+        "USDT"
+      ]
+    },
+    "reasignacion": {
+      "lotesHuerfanos": [
+        {
+          "id": "cmubm8vpx0039w8jhoeuz2h6j",
+          "pagos": 0,
+          "expectedPyg": 250000,
+          "receivedPyg": 240000,
+          "differencePyg": -10000
+        },
+        {
+          "id": "cmubm7nc90013w8jhm1t6izjt",
+          "pagos": 0,
+          "expectedPyg": 250000,
+          "receivedPyg": 240000,
+          "differencePyg": -10000
+        }
+      ],
+      "pagoProbado": "cmubmbzz6008aw8jhgbtlliht",
+      "reintentoStatus": 409
+    }
+  }
+}

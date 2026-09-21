@@ -210,6 +210,13 @@ export async function POST(request: Request) {
       if (cuentas.size > 1) throw new InputError('Los pagos del lote deben pertenecer a la misma cuenta.')
       const accountId = [...cuentas][0] || null
       if (accountIdInput && accountIdInput !== accountId) throw new InputError('La cuenta del lote no coincide con la de los pagos.')
+      // Un pago ya conciliado en un lote no se reasigna (#204): moverlo dejaba
+      // el lote original sin pagos pero con su diferencia contada.
+      const enLotes = await tx.paymentReconciliation.findMany({
+        where: { tenantId, paymentId: { in: paymentIds }, batchId: { not: null } },
+        select: { paymentId: true },
+      })
+      if (enLotes.length) throw new InputError('Algún pago ya está conciliado en un lote; los lotes no se reasignan.', 409)
 
       const expectedPyg = rows.reduce((total, row) => total + row.amountPyg, 0)
       const receivedPyg = entero(body.receivedPyg, 'receivedPyg', { max: INT_MAX }) ?? expectedPyg

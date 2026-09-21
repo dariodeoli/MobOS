@@ -1,5 +1,6 @@
 import { api } from './api/client'
 import { isDemoRuntime } from './demoMode'
+import { errorDeMoneda } from './paymentAccountsReglas.js'
 
 const ENDPOINT = '/api/payment-accounts'
 const DEMO_KEY = 'mobos:demo-payment-accounts:v1'
@@ -56,9 +57,10 @@ function validate(data, partial = false) {
     if ((!partial || 'bank' in result) && !result.bank) throw new Error('Completá el banco de la transferencia.')
     if (!partial && (!result.holder || !result.accountNumber)) throw new Error('Completá banco, titular y número de cuenta para transferencias.')
   }
-  // Cada medio tiene su moneda (#142): Pix en reales y Cripto/USDT en dólares.
-  if (result.kind === 'PIX' && 'currency' in result && result.currency !== 'BRL') throw new Error('Pix cobra en reales (BRL).')
-  if (result.kind === 'CRYPTO' && 'currency' in result && result.currency !== 'USD') throw new Error('Cripto/USDT cobra en dólares (USD).')
+  // Cada medio tiene su moneda (#142): Pix en reales, Cripto/USDT en dólares y
+  // la transferencia no mezcla USDT (reglas compartidas con el backend, #204).
+  const errorMoneda = errorDeMoneda(result.kind, result.currency)
+  if (errorMoneda) throw new Error(errorMoneda)
   if (partial && !Object.keys(result).length) throw new Error('No hay cambios para guardar.')
   return result
 }

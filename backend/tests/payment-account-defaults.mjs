@@ -89,6 +89,8 @@ assert.equal(usdt.currency, 'USD')
 assert.equal(usdt.reference, 'TRC20 QA')
 checks += 2
 await post({ name: 'USDT mal', kind: 'CRYPTO', currency: 'PYG' }, 400)
+// La transferencia no mezcla USDT: tiene su propio medio (#204).
+await post({ name: 'Transferencia USDT', kind: 'TRANSFER', currency: 'USDT', bank: 'Banco QA', holder: 'Ana QA', accountNumber: 'QA-USDT' }, 400)
 const transfer = await post({ name: 'Transferencia QA #142', kind: 'TRANSFER', currency: 'PYG', bank: 'Banco QA', holder: 'Ana QA', accountNumber: 'QA-1', document: '1234567-8' })
 assert.equal(transfer.document, '1234567-8')
 assert.equal(transfer.processor, null)

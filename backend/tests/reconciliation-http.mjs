@@ -56,19 +56,27 @@ assert.equal(itemVerificado.conciliacion.state, 'VERIFIED')
 assert.equal(itemVerificado.conciliacion.batchId, lote.lote.id)
 assert.ok(verificado.lotes.some((fila) => fila.id === lote.lote.id && fila.pagos === 1))
 
-// Diferencia sin observación: se rechaza antes de tocar nada.
-await req('/api/finance/reconciliation', admin, 'POST', { action: 'batch', paymentIds: [pagoA.id], receivedPyg: 900000 }, 400)
+// Diferencia sin observación: se rechaza antes de tocar nada (pago B nuevo).
+const ordenB = await ordenConPago(transferencia.id, 1000000)
+const pagoB = ordenB.payments[0]
+await req('/api/finance/reconciliation', admin, 'POST', { action: 'batch', paymentIds: [pagoB.id], receivedPyg: 900000 }, 400)
 // Diferencia con observación: se guarda y queda visible en el resumen.
-const conDiferencia = await req('/api/finance/reconciliation', admin, 'POST', { action: 'batch', paymentIds: [pagoA.id], receivedPyg: 900000, note: 'Retención de comisión' }, 201)
+const conDiferencia = await req('/api/finance/reconciliation', admin, 'POST', { action: 'batch', paymentIds: [pagoB.id], receivedPyg: 900000, note: 'Retención de comisión' }, 201)
 assert.equal(conDiferencia.lote.differencePyg, -100000)
 const conDiferenciaLeido = await req(`/api/finance/reconciliation?from=${hoy}&to=${hoy}`, admin)
 assert.ok(conDiferenciaLeido.lotes.some((fila) => fila.id === conDiferencia.lote.id && fila.estado === 'DIFFERENCE'))
-assert.equal(conDiferenciaLeido.items.find((item) => item.id === pagoA.id).conciliacion.note, 'Retención de comisión')
+assert.equal(conDiferenciaLeido.items.find((item) => item.id === pagoB.id).conciliacion.note, 'Retención de comisión')
+
+// Un pago ya conciliado en un lote no se reasigna a otro (#204) y el lote
+// original conserva su pago (no queda huérfano con diferencia).
+await req('/api/finance/reconciliation', admin, 'POST', { action: 'batch', paymentIds: [pagoA.id], receivedPyg: 1000000 }, 409)
+const consistente = await req(`/api/finance/reconciliation?from=${hoy}&to=${hoy}`, admin)
+assert.equal(consistente.lotes.find((fila) => fila.id === lote.lote.id)?.pagos, 1)
+assert.equal(consistente.lotes.filter((fila) => fila.pagos === 0 && fila.differencePyg !== 0).length, 0)
 
 // Un lote no puede mezclar cuentas ni repetir pagos.
-const ordenB = await ordenConPago(transferencia.id, 1000000)
-await req('/api/finance/reconciliation', admin, 'POST', { action: 'batch', paymentIds: [pagoA.id, ordenB.payments[0].id], receivedPyg: 2000000 }, 400)
-await req('/api/finance/reconciliation', admin, 'POST', { action: 'batch', paymentIds: [ordenB.payments[0].id, ordenB.payments[0].id], receivedPyg: 1000000 }, 400)
+await req('/api/finance/reconciliation', admin, 'POST', { action: 'batch', paymentIds: [pagoA.id, pagoB.id], receivedPyg: 2000000 }, 400)
+await req('/api/finance/reconciliation', admin, 'POST', { action: 'batch', paymentIds: [pagoB.id, pagoB.id], receivedPyg: 1000000 }, 400)
 // Pago ajeno/inexistente.
 await req('/api/finance/reconciliation', admin, 'POST', { action: 'batch', paymentIds: ['no-existe'], receivedPyg: 1 }, 404)
 

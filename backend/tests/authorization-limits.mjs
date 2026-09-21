@@ -34,6 +34,18 @@ assert.equal(result.response.status, 400, 'Un límite con decimales debe rechaza
 result = await request('/api/account', 'GET', undefined, adminToken, '')
 assert.equal(result.payload.tenant.expenseLimitPyg, 100000, 'GET /api/account debe devolver el límite de gasto.')
 
+// Seguro de la empresa (#162/#204): el PATCH lo guarda y el GET lo devuelve.
+result = await request('/api/account', 'PATCH', { action: 'updateLimits', insurancePct: 25 }, adminToken, '')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+assert.equal(result.payload.insurancePct, 25, 'El seguro guardado debe volver en el PATCH.')
+result = await request('/api/account', 'GET', undefined, adminToken, '')
+assert.equal(result.payload.tenant.insurancePct, 25, 'GET /api/account debe devolver el seguro de la empresa.')
+result = await request('/api/account', 'PATCH', { action: 'updateLimits', insurancePct: 150 }, adminToken, '')
+assert.equal(result.response.status, 400, 'Un seguro fuera de rango debe rechazarse.')
+// Restaurar para no alterar los márgenes de los tests que siguen.
+result = await request('/api/account', 'PATCH', { action: 'updateLimits', insurancePct: null }, adminToken, '')
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+
 // ── Gasto sobre el límite ───────────────────────────────────────────────────
 // Sin autorización el gasto por encima del límite se rechaza; por debajo no.
 result = await request('/api/finance', 'POST', movimientoGasto(150000), cajeraToken)

@@ -9,10 +9,13 @@ const MONEDAS = [
   ['USDT', 'USDT · Tether'],
 ]
 
-export default function CurrencySelect({ value, onChange, className, ...props }) {
+// `excluir` deja afuera monedas que no corresponden al medio (ej. la
+// transferencia no mezcla USDT: tiene su propio medio, #142/#204).
+export default function CurrencySelect({ value, onChange, className, excluir = [], ...props }) {
+  const monedas = MONEDAS.filter(([code]) => !excluir.includes(code))
   return (
     <Select value={value} onChange={onChange} className={className} {...props}>
-      {MONEDAS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+      {monedas.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
     </Select>
   )
 }
