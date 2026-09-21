@@ -6,7 +6,7 @@
 // (`MOBOS:<serial>`), porque no sale de la app y no necesita navegador.
 //
 // Rutas y payloads:
-//   qrPedido(token)      -> <base>/p/<token>           comprobante y seguimiento
+//   qrPedido(token)      -> <base>/pedidos/<token>     comprobante y seguimiento (#197)
 //   qrUnidad(serial)     -> <base>/u/<serial>          unidad física
 //   qrProducto(sku)      -> <base>/producto/<sku>      etiqueta de precio/góndola
 //   qrPrueba(datos)      -> <base>/prueba?d=&v=&f=&t=  prueba de impresión
@@ -60,7 +60,7 @@ const conRespaldo = (enlace, respaldo) => enlace || respaldo
 
 export function qrPedido(token, base = '') {
   const valor = segmento(token)
-  return valor ? enlaceConBase(base, `/p/${valor}`) : ''
+  return valor ? enlaceConBase(base, `/pedidos/${valor}`) : ''
 }
 
 export function qrUnidad(serial, base = '') {

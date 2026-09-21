@@ -10,11 +10,18 @@ import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
 
+import { publicUrls } from '@/lib/urls'
+
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]))
 
 const publicBase = () =>
   String(import.meta.env.VITE_PUBLIC_TRACKING_URL || '').replace(/\/$/, '') ||
   (typeof window !== 'undefined' ? window.location.origin : '')
+
+// Los enlaces del pedido viven en el portal de clientes (#197): la base propia
+// del entorno manda; si no, la canónica del subdominio.
+const pedidoBase = () =>
+  String(import.meta.env.VITE_PUBLIC_TRACKING_URL || '').replace(/\/$/, '') || publicUrls.clientPortal
 
 // Remito de traslado entre sucursales: lista completa de IMEI para control
 // físico al recibir, con origen, destino, fecha y guía AEX si ya está. Si el
@@ -95,8 +102,8 @@ export async function printPriceLabel(product, { format = 'thermal-58' } = {}) {
 
 export const trackingUrlFor = (order) => {
   // El QR del comprobante abre la página pública del pedido (estado + garantías).
-  const base = publicBase()
-  return order?.publicToken && base ? `${base}/pedido/${encodeURIComponent(order.publicToken)}` : ''
+  const base = pedidoBase()
+  return order?.publicToken && base ? `${base}/pedidos/${encodeURIComponent(order.publicToken)}` : ''
 }
 
 // Enlace privado del nivel de comprobante (rápido | completo | detallado).
@@ -205,8 +212,12 @@ export const recordarPreferencia = (nivel, formato) => {
 // Cada comprobante imprime el QR de su propio nivel: el token autoriza esa
 // vista. Es el token de impresión (impreso=true), que el panel no lista ni
 // revoca al regenerar enlaces: el papel sigue funcionando.
+import { isDemoRuntime } from '@/lib/demoMode'
+
 export async function tokenDeNivel(orderId, level) {
   if (!orderId) return ''
+  // Demo (#194): el comprobante no pide tokens al API real.
+  if (isDemoRuntime) return ''
   try {
     const data = await api.post(`/api/orders/${encodeURIComponent(orderId)}/access-tokens`, { level, impreso: true })
     return data?.token || ''

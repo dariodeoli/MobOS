@@ -1523,6 +1523,11 @@ export default function FormularioVenta({
               {lastOrder?.orderNumber ? `Pedido ${codigoPedido(lastOrder.orderNumber)} creado` : 'Venta registrada'}
             </b>
             Venta registrada correctamente. Ya podés cargar la siguiente.
+            {esDemo && (
+              <span className="mt-1 block text-xs font-semibold text-mute">
+                Modo demo: la venta queda guardada solo en este navegador, no en una tienda real.
+              </span>
+            )}
           </span>
           {lastOrder && (
             <>

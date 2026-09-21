@@ -1,4 +1,5 @@
 import { Input, Label, MoneyInput, Textarea } from '@/components/ui'
+import { isDemoRuntime } from '@/lib/demoMode'
 import CuentaCobroCombobox from './CuentaCobroCombobox'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
@@ -18,6 +19,8 @@ const FOREIGN = (currency) => currency === 'USD' || currency === 'BRL'
 // vez y se reutiliza; si el servicio no responde, la cotización queda manual.
 let cotizacionEnCurso = null
 export function cotizacionReferencial() {
+  // Demo (#194): cotización ficticia fija, sin llamar al API real.
+  if (isDemoRuntime) return Promise.resolve(7300)
   if (!cotizacionEnCurso) {
     cotizacionEnCurso = api
       .get('/api/fx')

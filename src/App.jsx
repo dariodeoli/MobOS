@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import LoadingScreen from '@/components/app/LoadingScreen'
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
+import { publicUrls } from '@/lib/urls'
 import { SesionProvider, useSesion } from '@/lib/sesion'
 import { Button, ToastProvider } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -129,6 +130,20 @@ function AreaProtegida({ owner = false, children }) {
   return owner ? <SoloPropietario>{children}</SoloPropietario> : <Protegida>{children}</Protegida>
 }
 
+// Los enlaces viejos del pedido (/p/<token> y /pedido/<token>) siguen abriendo:
+// se redirigen a la canónica /pedidos/<token> conservando el token (#197). En
+// el host de la app el destino es el portal de clientes para no chocar con la
+// ruta interna /pedidos/:orderId.
+function RedirigirPedidoPublico({ externo = false, mismo = false }) {
+  const { token } = useParams()
+  const { search } = useLocation()
+  const destino = `/pedidos/${encodeURIComponent(token || '')}${search || ''}`
+  if (externo) return <Navigate to={`${publicUrls.clientPortal}${destino}`} replace />
+  if (mismo) return <Navigate to={destino} replace />
+  // Dev, localhost y e2e: la página se abre en el mismo origen (sin canónica).
+  return <PedidoPublico />
+}
+
 function MetadatosPagina({ publicPage = false, clientPortal = false }) {
   const { pathname } = useLocation()
 
@@ -166,6 +181,9 @@ export default function App() {
   const landingPreview = import.meta.env.DEV && window.location.pathname === '/landing-preview'
   const landing = ['moboss.online', 'www.moboss.online'].includes(host) || landingPreview
   const status = typeof window !== 'undefined' && window.location.pathname === '/status'
+  // Solo la app publicada redirige los enlaces viejos al subdominio canónico;
+  // en dev/local se abre la página acá mismo (#197).
+  const canonicoPedido = ['app.moboss.online', 'www.app.moboss.online'].includes(host)
   if (landing) return <><MetadatosPagina publicPage /><Suspense fallback={<PaginaCargando />}>{status ? <Status /> : <Landing />}</Suspense></>
 
   const clientPortalPreview = import.meta.env.DEV && window.location.pathname === '/clientes-preview'
@@ -179,8 +197,9 @@ export default function App() {
             <Route path="/" element={<PortalClientesEntrada />} />
             <Route path="/cuenta/:token" element={<CuentaPublica />} />
             <Route path="/portal/:token" element={<PortalCliente />} />
-            <Route path="/pedido/:token" element={<PedidoPublico />} />
-            <Route path="/p/:token" element={<PedidoPublico />} />
+            <Route path="/pedidos/:token" element={<PedidoPublico />} />
+            <Route path="/pedido/:token" element={<RedirigirPedidoPublico mismo />} />
+            <Route path="/p/:token" element={<RedirigirPedidoPublico mismo />} />
             <Route path="/carrito/:token" element={<CarritoPublico />} />
             <Route path="/garantia/:token" element={<GarantiaPublica />} />
             <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
@@ -203,8 +222,8 @@ export default function App() {
           <Route path="/recuperar-empresa" element={<RecuperarEmpresa />} />
           <Route path="/aceptar-invitacion/:token?" element={<AceptarInvitacion />} />
           <Route path="/verificar-correo/:token?" element={<VerificarCorreo />} />
-          <Route path="/pedido/:token" element={<PedidoPublico />} />
-          <Route path="/p/:token" element={<PedidoPublico />} />
+          <Route path="/pedido/:token" element={<RedirigirPedidoPublico externo={canonicoPedido} />} />
+          <Route path="/p/:token" element={<RedirigirPedidoPublico externo={canonicoPedido} />} />
           <Route path="/carrito/:token" element={<CarritoPublico />} />
           <Route path="/garantia/:token" element={<GarantiaPublica />} />
           <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
