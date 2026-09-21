@@ -138,6 +138,12 @@ patrón de uso de cada familia y un ejemplo corto.
   columnas alineadas, acciones ancladas al pie.
 - **Chip de atributo**: ícono opcional + etiqueta corta (moneda, categoría,
   sin precio).
+- **Sección de detalle plegable (#164)**: `shared/SeccionColapsable` — el
+  encabezado muestra título + resumen del dato útil (cantidad, total, estado) y
+  el detalle arranca **cerrado** (para abrir, no abierto); recuerda su estado
+  durante la sesión (`sessionStorage`) y el contenido queda en el DOM oculto con
+  `hidden`. En las vistas de pedido el orden es **Pedido → Cliente →
+  Cronología**, con lo esencial (estado, total, pendiente) siempre a la vista.
 - **Reglas**: misma altura en cuadrícula; sin cortes de texto; acciones en UNA
   línea como iconos con `title`; sello de verificación (check + foto + nombre +
   fecha/hora) junto al contenido; selección múltiple en lote donde haya listas
@@ -145,7 +151,7 @@ patrón de uso de cada familia y un ejemplo corto.
   sola operación).
 
 > Referencia MobOS: `Badge`, `Dot`, `Stat`, `Card`, `ListGridToggle`,
-> `ComprobantePreview`, `Cronologia`.
+> `SeccionColapsable`, `ComprobantePreview`, `Cronologia`.
 
 ## 4. Estados y avisos — únicos por concepto
 
@@ -179,7 +185,9 @@ patrón de uso de cada familia y un ejemplo corto.
 
 - Identidad **por ID**, nunca por coincidencia de nombre o correo.
 - Un **único objeto Avatar** para mostrar personas, con orden fijo:
-  foto subida → foto de la identidad (Google) → iniciales. Nunca `<img>` a mano.
+  foto subida → foto de la identidad (Google) → iniciales. Nunca `<img>` a mano
+  y **nunca una imagen rota**: si la foto de Google falla, cae a iniciales
+  (#164). Los timelines y las fichas pasan el `picture` cuando lo tienen.
 - La foto externa se pasa **solo para quien corresponde** (nunca la del dueño a un
   tercero) y se sirve con sesión y `referrerPolicy="no-referrer"`.
 - **Formato de subida:** PNG/JPG/WebP hasta **1 MiB**, con validación de MIME y

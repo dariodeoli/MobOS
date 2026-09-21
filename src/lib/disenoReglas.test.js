@@ -149,3 +149,22 @@ test('el logo sigue al tema: fondo oscuro → logo claro y fondo claro → logo 
   const celulares = leer('pages/Celulares.jsx')
   assert.match(celulares, /ThemeLogo[^>]{0,80}variante="dark"/, 'la tarjeta con degradé verde fuerza el logo claro')
 })
+
+test('el pedido: secciones plegables, avatar compartido y densidad (#164)', () => {
+  const colapsable = leer('components/shared/SeccionColapsable.jsx')
+  assert.match(colapsable, /aria-expanded/, 'la sección plegable expone su estado')
+  assert.match(colapsable, /sessionStorage/, 'recuerda el estado durante la sesión')
+  assert.match(colapsable, /hidden=\{!expandida\}/, 'el contenido se oculta sin desmontarse')
+  const publico = leer('pages/PedidoPublico.jsx')
+  assert.match(publico, /SeccionColapsable/, 'la página pública usa la sección plegable')
+  // Orden pedido → cliente → cronología.
+  const orden = ['titulo="Artículos"', 'titulo="Pagos"', 'titulo="Tus datos"', 'titulo="Cronología"'].map((titulo) => publico.indexOf(titulo))
+  assert.ok(orden.every((indice) => indice >= 0), 'la página pública rotula las secciones')
+  assert.ok(orden.every((indice, posicion) => posicion === 0 || indice > orden[posicion - 1]), 'la página pública ordena Pedido → Cliente → Cronología')
+  // El contenedor interno no dibuja su propio avatar y usa el compartido.
+  const detalle = leer('components/ventas/PedidoDetalle.jsx')
+  assert.match(detalle, /import Avatar from '@\/components\/shared\/Avatar'/, 'el detalle usa el Avatar compartido')
+  assert.doesNotMatch(detalle, /function Avatar\(/, 'el detalle no redefine el avatar')
+  assert.match(detalle, /picture=\{event\.user\?\.picture\}/, 'la cronología pasa la foto de Google al Avatar')
+  assert.match(leer('components/shared/Avatar.jsx'), /onError=\{\(\) => setGoogleRota\(true\)\}/, 'la foto de Google cae a iniciales si falla')
+})
