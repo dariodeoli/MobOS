@@ -551,3 +551,31 @@ test('POS: el borrador se comparte con enlace público y checkout', async ({ pag
   await expect(publica.getByText(/sujetos a confirmación/)).toBeVisible()
   await contexto.close()
 })
+
+// #156: analytics del POS (hoy vs ayer, ticket promedio, top productos) y
+// menciones @ en los comentarios internos del pedido.
+test('POS: analytics del día y menciones en comentarios', async ({ page }) => {
+  await page.goto('/pos')
+  await page.getByRole('button', { name: 'Analytics' }).click()
+  const panel = page.getByRole('dialog')
+  await expect(panel.getByText('Ventas de hoy')).toBeVisible({ timeout: 15_000 })
+  await expect(panel.getByText('Ticket promedio')).toBeVisible()
+  await expect(panel.getByText('Items por pedido')).toBeVisible()
+  await expect(panel.getByText('Ubicación', { exact: false })).toHaveCount(0)
+  await expect(panel.getByText('Top productos')).toBeVisible()
+  await panel.getByText('Cerrar', { exact: true }).click()
+
+  // Comentario con mención: se elige del autocompletado y queda resaltada.
+  await page.goto('/pedidos')
+  await page.getByTestId('pedido-fila').first().click()
+  await expect(page.getByText('Artículos preparados')).toBeVisible()
+  const comentario = page.getByLabel('Comentario del pedido')
+  await comentario.fill('Revisar stock @')
+  const sugerencia = page.getByRole('button', { name: /^@/ }).first()
+  await expect(sugerencia).toBeVisible()
+  const nombre = (await sugerencia.innerText()).replace('@', '')
+  await sugerencia.click()
+  await comentario.fill(`Revisar stock @${nombre}`)
+  await page.getByRole('button', { name: 'Comentar' }).click()
+  await expect(page.getByText(`Revisar stock @${nombre}`)).toBeVisible({ timeout: 15_000 })
+})

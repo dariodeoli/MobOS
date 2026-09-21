@@ -40,6 +40,7 @@ import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import { accountPayment } from './PaymentAccountFields'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import ColaOffline from './ColaOffline'
+import AnalyticsPos from './AnalyticsPos'
 import { whatsappTrackingLink } from './PagosPedido'
 import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
@@ -318,6 +319,7 @@ export default function FormularioVenta({
   // Enlace público del borrador recién generado (se muestra una sola vez).
   const [enlacePublico, setEnlacePublico] = useState(null)
   const [avisoEnlace, setAvisoEnlace] = useState('')
+  const [analyticsOpen, setAnalyticsOpen] = useState(false)
   const [descartarPendiente, setDescartarPendiente] = useState(null)
   const [descartando, setDescartando] = useState(false)
   const [avisoSuspension, setAvisoSuspension] = useState('')
@@ -1460,6 +1462,15 @@ export default function FormularioVenta({
             type="button"
             variant="outline"
             className="h-9 px-3 text-xs"
+            onClick={() => setAnalyticsOpen(true)}
+          >
+            <Icon name="chart" className="h-4 w-4" />
+            Analytics
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 px-3 text-xs"
             onClick={abrirSuspendidas}
           >
             <Icon name="clock" className="h-4 w-4" />
@@ -1951,6 +1962,8 @@ export default function FormularioVenta({
           </div>
         </div>
       </Modal>
+
+      <AnalyticsPos open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
 
       {lastOrder && <ComprobantePreview order={lastOrder} open={comprobante} onClose={() => setComprobante(false)} />}
     </Card>
