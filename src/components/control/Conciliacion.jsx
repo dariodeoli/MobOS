@@ -9,7 +9,7 @@ import { gs } from '@/utils/calculos'
 import { formatMoney } from '@/utils/moneda'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango } from '@/components/shared/RangoFechas'
-import { Badge, Button, Card, Input, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Input, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
 import PagosPedido from '@/components/ventas/PagosPedido'
 import { cn } from '@/lib/utils'
 
@@ -33,7 +33,7 @@ const fecha = (valor) => {
 const fechaHora = (valor) => {
   if (!valor) return '—'
   const date = new Date(valor)
-  return Number.isNaN(date.getTime()) ? '—' : `${date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' })} · ${date.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit' })}`
+  return Number.isNaN(date.getTime()) ? '—' : `${date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' })} · ${date.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })}`
 }
 
 const rangoPorDefecto = () => ({ ...PRESETS.find((preset) => preset.id === '30d').calc(), preset: '30d' })
@@ -44,9 +44,9 @@ const CELDA = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute
 
 function Resumen({ resumen }) {
   const tarjetas = [
-    { label: 'Ingresos conciliables', valor: resumen.confirmedPyg, sub: `${resumen.count} pago(s) · ${gs(resumen.pendingPyg)} pendiente de aprobación`, tono: '' },
-    { label: 'Conciliado', valor: resumen.verifiedPyg, sub: `${resumen.verifiedCount} verificado(s)`, tono: 'text-ok' },
-    { label: 'Por conciliar', valor: resumen.unverifiedPyg, sub: `${resumen.pendingCount} sin verificar`, tono: resumen.unverifiedPyg > 0 ? 'text-warn' : '' },
+    { label: 'Ingresos conciliables', valor: resumen.confirmedPyg, sub: `${resumen.count} pago(s) · ${gs(resumen.pendingPyg)} por conciliar`, tono: '' },
+    { label: 'Conciliado', valor: resumen.verifiedPyg, sub: `${resumen.verifiedCount} pago(s) conciliado(s)`, tono: 'text-ok' },
+    { label: 'Por conciliar', valor: resumen.unverifiedPyg, sub: `${resumen.pendingCount} pago(s) por conciliar`, tono: resumen.unverifiedPyg > 0 ? 'text-warn' : '' },
     { label: 'Diferencia de lotes', valor: resumen.differencePyg, sub: `${resumen.lotes} lote(s) en el período`, tono: resumen.differencePyg ? 'text-bad' : '' },
   ]
   return (
@@ -69,7 +69,7 @@ function Grupos({ titulo, filas, activo, onFiltrar }) {
     <Card className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">{titulo}</h3>
-        <button type="button" className="text-xs text-mute transition hover:text-fore" onClick={() => setAbierto((valor) => !valor)}>{abierto ? 'Ocultar' : 'Ver'}</button>
+        <button type="button" aria-expanded={abierto} className="text-xs text-mute transition hover:text-fore" onClick={() => setAbierto((valor) => !valor)}>{abierto ? 'Ocultar' : 'Mostrar'}</button>
       </div>
       {abierto && <div className="overflow-x-auto">
         <div className={cn(GRID_GRUPOS, 'px-3.5 pb-2 pt-1')}>
@@ -91,7 +91,7 @@ function Grupos({ titulo, filas, activo, onFiltrar }) {
               <span className="truncate text-xs tabular-nums text-ok">{gs(fila.verifiedPyg)}</span>
               <span className="truncate text-xs tabular-nums text-warn">{gs(fila.unverifiedPyg)}</span>
               <span className={cn('truncate text-xs tabular-nums', fila.differencePyg ? 'text-bad' : 'text-mute')}>{fila.differencePyg ? gs(fila.differencePyg) : '—'}</span>
-              <span className="truncate text-[11px] text-mute">{fila.pendingCount} por conciliar · {fila.verifiedCount} listos</span>
+              <span className="truncate text-[11px] text-mute">{fila.pendingCount} por conciliar · {fila.verifiedCount} conciliados</span>
             </button>
           ))}
         </div>
@@ -177,6 +177,7 @@ export default function Conciliacion() {
   }
   const activo = (fila) => vista === 'cuenta' ? filtros.accountId === fila.key : vista === 'medio' ? filtros.method === fila.key : filtros.processor === fila.processor
   const hayFiltros = Boolean(filtros.accountId || filtros.method || filtros.processor)
+  const hayRecorte = hayFiltros || Boolean(estado)
 
   async function conciliar() {
     if (!seleccionados.length || conciliando) return
@@ -282,7 +283,7 @@ export default function Conciliacion() {
             </label>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[11px] text-mute">Al conciliar, los pagos quedan verificados (y las cuotas pendientes se confirman) con tu usuario real en la auditoría.</p>
+            <p className="text-[11px] text-mute">Al conciliar, los pagos quedan verificados (y las cuotas pendientes se confirman) y la marca queda registrada en la auditoría con tu usuario.</p>
             <Button type="button" disabled={conciliando || (diferencia !== 0 && !nota.trim())} onClick={conciliar}>{conciliando ? 'Conciliando…' : 'Conciliar lote'}</Button>
           </div>
         </Card>
@@ -302,7 +303,15 @@ export default function Conciliacion() {
           </div>
         </div>
         {loading && <div className="space-y-2" role="status">{[0, 1, 2].map((fila) => <Skeleton key={fila} className="h-10" />)}</div>}
-        {!loading && !filtrados.length && <p className="rounded-lg border border-dashed border-ink-600 px-3 py-6 text-center text-sm text-mute">Sin pagos para los filtros elegidos en el período.</p>}
+        {!loading && !filtrados.length && (
+          <EmptyState
+            compact
+            icon="box"
+            title="Sin pagos para estos filtros"
+            description={hayRecorte ? 'Probá ampliar el período o limpiar los filtros.' : 'En el período elegido no hubo pagos conciliables.'}
+            action={hayRecorte ? <Button type="button" variant="outline" className="h-8 px-3 text-xs" onClick={() => { setFiltros({ accountId: '', method: '', processor: '' }); setEstado('') }}>Limpiar filtros</Button> : null}
+          />
+        )}
         {!loading && filtrados.length > 0 && <div className="overflow-x-auto">
           <div className={cn(GRID_ITEMS, 'px-3.5 pb-2 pt-1')}>
             <span />
@@ -334,7 +343,7 @@ export default function Conciliacion() {
                   <span className="truncate text-xs font-semibold tabular-nums">{gs(item.montoPyg)}</span>
                   <span className="flex flex-wrap items-center gap-1">
                     <Badge color={meta.color} className="w-fit whitespace-nowrap">{meta.label}</Badge>
-                    {item.conciliacion.batchId && <span className="truncate text-[10px] text-mute" title={`Lote ${item.conciliacion.batchId}`}>lote</span>}
+                    {item.conciliacion.batchId && <span className="truncate text-[10px] text-mute" title="Forma parte de un lote conciliado">lote</span>}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={!item.orderId} onClick={() => verPedido(item)}>Ver pedido</Button>
@@ -348,7 +357,7 @@ export default function Conciliacion() {
 
       <Card className="space-y-2">
         <h3 className="text-sm font-semibold">Lotes conciliados</h3>
-        {!lotes.length && <p className="text-sm text-mute">Todavía no hay lotes en el período. Seleccioná los pagos de un depósito y concilialos juntos.</p>}
+        {!lotes.length && <EmptyState compact icon="receipt" title="Todavía no hay lotes en el período" description="Seleccioná los pagos de un depósito y concilialos juntos: el lote aparece acá con su diferencia." />}
         {lotes.map((lote) => (
           <div key={lote.id} data-testid="conciliacion-lote" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2.5">
             <div className="min-w-0">

@@ -25,7 +25,7 @@ import DatosPrivados from '@/components/control/DatosPrivados'
 import { ROLE_LABELS } from '@/lib/roles'
 
 function fmtDate(value) {
-  return value ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—'
+  return value ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false }) : '—'
 }
 
 async function copiarValor(toast, valor, etiqueta) {
@@ -274,10 +274,10 @@ export default function Config({ seccion = 'negocio' } = {}) {
             {demo && <p className="mt-1 rounded-lg border border-fono/30 bg-fono/5 px-3 py-2 text-xs text-fono-light">Demo: los cambios se guardan solo en este navegador y el seguro se aplica al margen que ves en Análisis → Ganancias.</p>}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <FormField label="Gasto sin autorización (Gs.)" htmlFor="limite-gasto">
+            <FormField label="Gasto sin autorización (Gs)" htmlFor="limite-gasto">
               <MoneyInput id="limite-gasto" disabled={busy} value={limiteGasto} onValueChange={setLimiteGasto} placeholder="1.000.000" />
             </FormField>
-            <FormField label="Compra a crédito sin autorización (Gs.)" htmlFor="limite-compra">
+            <FormField label="Compra a crédito sin autorización (Gs)" htmlFor="limite-compra">
               <MoneyInput id="limite-compra" disabled={busy} value={limiteCompra} onValueChange={setLimiteCompra} placeholder="5.000.000" />
             </FormField>
             <FormField label="Bajo lista sin autorización (%)" htmlFor="limite-bajo-lista">

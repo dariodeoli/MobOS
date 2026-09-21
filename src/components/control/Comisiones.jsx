@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { api, API_URL } from '@/lib/api/client'
-import { Button, Card, ConfirmDialog, EmptyState, Input, Badge, Modal, Skeleton, useToast } from '@/components/ui'
+import { Button, Card, ConfirmDialog, EmptyState, IconAction, Input, Badge, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ComboBuscador from '@/components/shared/ComboBuscador'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
@@ -52,7 +52,7 @@ async function htmlLiquidacion(detalle, enlace) {
   </style></head><body>
   <h1>Liquidación de comisiones</h1>
   <p class="muted">${escapeHtml(detalle.sellerName || 'Vendedor')} · Período ${escapeHtml(detalle.periodFrom || '')} al ${escapeHtml(detalle.periodTo || '')}</p>
-  <div class="card">Comisión ${escapeHtml(detalle.commissionPct ?? '—')}% sobre el margen del período · Emitida ${escapeHtml(detalle.createdAt ? new Date(detalle.createdAt).toLocaleString('es-PY') : '')} · ${escapeHtml(estado)}</div>
+  <div class="card">Comisión ${escapeHtml(detalle.commissionPct ?? '—')}% sobre el margen del período · Emitida ${escapeHtml(detalle.createdAt ? new Date(detalle.createdAt).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false }) : '')} · ${escapeHtml(estado)}</div>
   <table><thead><tr><th>Venta</th><th class="num">Base</th><th class="num">Comisión</th></tr></thead><tbody>${filas}</tbody></table>
   <div class="total"><span>Total a pagar</span><span>${escapeHtml(gs(detalle.totalPyg || 0))}</span></div>
   ${enlace ? `${qr ? `<img class="qr" src="${qr}" alt="QR de verificación">` : ''}<p class="small">Verificá este comprobante escaneando el QR o en ${escapeHtml(enlace)}</p>` : ''}
@@ -266,7 +266,7 @@ export default function Comisiones() {
         {reglas === null ? (
           <div className="space-y-2" aria-busy="true"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
         ) : reglas.length === 0 ? (
-          <EmptyState compact icon="tag" title="Sin reglas de comisión." description="Agregá una regla para empezar a calcular comisiones por margen." />
+          <EmptyState compact icon="tag" title="Sin reglas de comisión" description="Agregá una regla para empezar a calcular comisiones por margen." />
         ) : (
           <div className="space-y-2">
             {reglas.map(regla => (
@@ -285,8 +285,8 @@ export default function Comisiones() {
                   ) : (
                     <>
                       <Badge color="green">{formatPercent(regla.percentPyg)}%</Badge>
-                      <button type="button" onClick={() => { setEditandoId(regla.id); setBorrador(formatPercent(regla.percentPyg)) }} className="text-mute hover:text-fore transition" title="Editar porcentaje"><Icon name="edit" className="h-4 w-4" /></button>
-                      <button type="button" onClick={() => setEliminando(regla)} className="text-mute hover:text-bad transition" title="Eliminar regla"><Icon name="trash" className="h-4 w-4" /></button>
+                      <IconAction icon="edit" label="Editar porcentaje" onClick={() => { setEditandoId(regla.id); setBorrador(formatPercent(regla.percentPyg)) }} />
+                      <IconAction icon="trash" label="Eliminar regla" onClick={() => setEliminando(regla)} />
                     </>
                   )}
                 </div>
@@ -319,7 +319,7 @@ export default function Comisiones() {
         {liquidaciones === null ? (
           <div className="space-y-2" aria-busy="true"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
         ) : liquidaciones.length === 0 ? (
-          <EmptyState compact icon="receipt" title="Sin liquidaciones." description="Cerrá el período de un vendedor para emitir su comprobante." />
+          <EmptyState compact icon="receipt" title="Sin liquidaciones" description="Cerrá el período de un vendedor para emitir su comprobante." />
         ) : (
           <div className="space-y-2">
             {liquidaciones.map(item => {
@@ -336,13 +336,13 @@ export default function Comisiones() {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <Badge color={color}>{estado}</Badge>
-                    <button type="button" onClick={() => abrirComprobante(item)} className="text-mute hover:text-fore transition" title="Ver comprobante y QR"><Icon name="receipt" className="h-4 w-4" /></button>
-                    <button type="button" onClick={() => imprimir(item)} disabled={Boolean(imprimiendoId)} className="text-mute hover:text-fore transition disabled:opacity-50" title="Imprimir comprobante"><Icon name="printer" className="h-4 w-4" /></button>
-                    <button type="button" onClick={() => copiarEnlace(item)} className="text-mute hover:text-fore transition" title="Copiar enlace de verificación"><Icon name="copy" className="h-4 w-4" /></button>
+                    <IconAction icon="receipt" label="Ver comprobante y QR" onClick={() => abrirComprobante(item)} />
+                    <IconAction icon="printer" label="Imprimir comprobante" disabled={Boolean(imprimiendoId)} onClick={() => imprimir(item)} />
+                    <IconAction icon="copy" label="Copiar enlace de verificación" onClick={() => copiarEnlace(item)} />
                     {item.status === 'DRAFT' && (
                       <>
-                        <button type="button" onClick={() => cambiarEstado(item, 'pay')} disabled={actualizandoId === item.id} className="text-mute hover:text-ok transition disabled:opacity-50" title="Marcar como pagada"><Icon name="check" className="h-4 w-4" /></button>
-                        <button type="button" onClick={() => setAnulando(item)} disabled={actualizandoId === item.id} className="text-mute hover:text-bad transition disabled:opacity-50" title="Anular liquidación"><Icon name="close" className="h-4 w-4" /></button>
+                        <IconAction icon="check" tone="ok" label="Marcar como pagada" disabled={actualizandoId === item.id} onClick={() => cambiarEstado(item, 'pay')} />
+                        <IconAction icon="close" tone="bad" label="Anular liquidación" disabled={actualizandoId === item.id} onClick={() => setAnulando(item)} />
                       </>
                     )}
                   </div>
@@ -386,7 +386,7 @@ export default function Comisiones() {
             )}
             <p className="break-all rounded-lg border border-ink-600 bg-ink-900 px-3 py-2 text-[11px] text-mute">{enlaceVerificacion(tokenComprobante) || 'El enlace se emite al generar, imprimir o copiar.'}</p>
             {comprobante.verificationTokenIssuedAt && (
-              <p className="text-[11px] text-mute">Enlace emitido {new Date(comprobante.verificationTokenIssuedAt).toLocaleString('es-PY')}.</p>
+              <p className="text-[11px] text-mute">Enlace emitido {new Date(comprobante.verificationTokenIssuedAt).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false })}.</p>
             )}
             <div className="flex flex-wrap justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => copiarEnlace(comprobante)}><Icon name="copy" className="h-4 w-4" />Copiar enlace</Button>

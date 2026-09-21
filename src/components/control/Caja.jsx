@@ -43,8 +43,13 @@ const DENOMINACIONES = [
   { valor: 100, tipo: 'Moneda' },
 ]
 
-const fechaHora = value =>
-  value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY') : '—'
+// Fecha y hora locales en 24 h, sin segundos: mismo formato que las demás
+// pantallas de control (auditoría, inventario, impresión).
+const fechaHora = value => {
+  const fecha = value ? new Date(value) : null
+  if (!fecha || Number.isNaN(fecha.getTime())) return '—'
+  return fecha.toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false })
+}
 
 function desgloseItems(cantidades) {
   return DENOMINACIONES.map(({ valor }) => ({
@@ -582,7 +587,7 @@ export default function Caja() {
           <strong className="text-xl tabular-nums">
             <Money value={expected} />
           </strong>
-          <p className="mt-2 text-xs text-mute">Apertura + efectivo confirmado en Gs</p>
+          <p className="mt-2 text-xs text-mute">Apertura + efectivo confirmado en Gs.</p>
         </Card>
         <Card
           className={
