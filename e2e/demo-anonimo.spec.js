@@ -157,8 +157,9 @@ test('la demo entra sin login, navega con datos ficticios y no toca el API', asy
   await expect(page).toHaveURL(/\/pos$/)
   await cerrarGuia(page)
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
-  // Banner visible de datos ficticios.
+  // Banner visible de datos ficticios y encabezado con la marca (#223).
   await expect(page.getByText(/datos ficticios/)).toBeVisible()
+  await expect(page.getByTestId('shell-tienda')).toHaveText('MobOS')
 
   // Módulos del vendedor con datos locales.
   await page.goto('/clientes')
