@@ -205,8 +205,12 @@ export const recordarPreferencia = (nivel, formato) => {
 // Cada comprobante imprime el QR de su propio nivel: el token autoriza esa
 // vista. Es el token de impresión (impreso=true), que el panel no lista ni
 // revoca al regenerar enlaces: el papel sigue funcionando.
+import { isDemoRuntime } from '@/lib/demoMode'
+
 export async function tokenDeNivel(orderId, level) {
   if (!orderId) return ''
+  // Demo (#194): el comprobante no pide tokens al API real.
+  if (isDemoRuntime) return ''
   try {
     const data = await api.post(`/api/orders/${encodeURIComponent(orderId)}/access-tokens`, { level, impreso: true })
     return data?.token || ''

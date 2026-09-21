@@ -3,6 +3,8 @@ import { Modal, Button, Skeleton } from '@/components/ui'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { tableroPos, comparacion } from '@/lib/posAnalytics'
+import { listVentas } from '@/lib/storage'
+import { isDemoRuntime } from '@/lib/demoMode'
 import { fechaClave } from '@/utils/calculos'
 import { cn } from '@/lib/utils'
 
@@ -76,6 +78,23 @@ export default function AnalyticsPos({ open, onClose }) {
     let vivo = true
     setOrdenes(null)
     setError('')
+    // Demo (#194): las métricas salen de las ventas ficticias del navegador,
+    // nunca del API real.
+    if (isDemoRuntime) {
+      setOrdenes(listVentas().map(venta => ({
+        id: venta.id,
+        orderNumber: venta.id,
+        totalPyg: Number(venta.precio || 0),
+        createdAt: venta.creadoEn || (venta.fecha ? `${venta.fecha}T12:00:00` : new Date().toISOString()),
+        status: venta.estadoPago === 'Pagado' ? 'COMPLETED' : 'PENDING',
+        fulfillmentStatus: venta.entrega === 'Delivery' ? 'IN_TRANSIT' : 'PROCESSING',
+        payments: (venta.pagos || []).map(pago => ({ amountPyg: Number(pago.monto || 0), method: 'CASH', status: 'CONFIRMED', paidAt: pago.fecha })),
+        items: [{ quantity: 1, unitPricePyg: Number(venta.precio || 0), totalPyg: Number(venta.precio || 0) }],
+        seller: { name: venta.vendedorNombre || 'Vendedor demo' },
+        branch: { name: 'Tienda demo' },
+      })))
+      return () => { vivo = false }
+    }
     api.get('/api/orders?filtro=todos&limit=500')
       .then((filas) => { if (vivo) setOrdenes(Array.isArray(filas) ? filas : []) })
       .catch((cause) => { if (vivo) setError(cause?.message || 'No se pudieron cargar las ventas.') })
