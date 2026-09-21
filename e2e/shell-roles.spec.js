@@ -69,7 +69,9 @@ test('el técnico entra a su taller, sin CTA de POS y sin rebotes', async ({ pag
 test('sin contexto local, la identidad de tienda sale del servidor', async ({ page, browser }) => {
   await loginCompany(page)
   await completeSellerPin(page, { pin: SEED.sellers[0].pin })
-  await expect(page.getByTestId('shell-tienda')).toHaveText(SEED.company.name)
+  // El encabezado muestra la marca (#223); la identidad de la empresa vive en
+  // el menú.
+  await expect(page.getByTestId('shell-tienda')).toHaveText('MobOS')
 
   // El slug viejo /ventas sigue redirigiendo al POS.
   await page.goto('/ventas')
@@ -78,12 +80,15 @@ test('sin contexto local, la identidad de tienda sale del servidor', async ({ pa
   // Contexto nuevo solo con cookies (sin el localStorage del login): la
   // identidad tiene que venir de /api/auth/me y no caer en "Mi tienda".
   const cookies = await page.context().cookies()
-  const limpio = await browser.newContext()
+  const limpio = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await limpio.addCookies(cookies)
   const pagina = await limpio.newPage()
   try {
     await pagina.goto('/')
-    await expect(pagina.getByTestId('shell-tienda')).toHaveText(SEED.company.name)
+    await expect(pagina.getByTestId('shell-tienda')).toHaveText('MobOS')
+    await expect(pagina.getByTestId('shell-miga-tienda')).toHaveText('MobOS')
+    await pagina.getByRole('button', { name: 'Menú', exact: true }).click()
+    await expect(pagina.getByRole('dialog').getByRole('heading', { name: SEED.company.name })).toBeVisible()
   } finally {
     await limpio.close()
   }

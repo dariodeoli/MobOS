@@ -299,8 +299,8 @@ export default function AppShell({
   usePresenceTracker()
   const [statsCollapsedInterno, recordarStats] = useUltimoUsado('shell:stats-plegado', false)
   const statsCerrado = onStatsToggle ? Boolean(statsCollapsed) : statsCollapsedInterno
-  // La identidad de la tienda vive en la barra lateral (escritorio) y en el
-  // menú (pantallas chicas): una sola vez por vista.
+  // El encabezado muestra siempre la marca (#223). El nombre de la tienda vive
+  // en el menú (cajón en pantallas chicas) y en Configuración/Negocio.
   const nombreTienda = empresa?.nombre || APP_NAME
   // Contexto de navegación para la cabecera: a qué grupo pertenece la vista.
   const grupoActivo = nav.find(group => group.items.some(([id]) => id === active))?.titulo
@@ -342,7 +342,7 @@ export default function AppShell({
             <>
               <img src="/mobos-icon.svg" alt="" className="h-8 w-8 shrink-0 rounded-lg" />
               <div className="flex min-w-0 flex-1 flex-col leading-tight">
-                <span data-testid="shell-tienda" className="truncate text-[15px] font-bold tracking-tight" title={nombreTienda}>{nombreTienda}</span>
+                <span data-testid="shell-tienda" className="truncate text-[15px] font-bold tracking-tight" title={APP_NAME}>{APP_NAME}</span>
                 <span className="truncate text-[10px] text-mute">Operaciones</span>
               </div>
               {onToggleCollapsed && (
@@ -432,7 +432,7 @@ export default function AppShell({
                 aria-label="Sección actual"
                 className="flex min-w-0 items-center gap-1 overflow-hidden text-[10px] font-bold uppercase tracking-[.16em] text-mute"
               >
-                <span data-testid="shell-miga-tienda" className="max-w-[7rem] shrink-0 truncate lg:hidden" title={nombreTienda}>{nombreTienda}</span>
+                <span data-testid="shell-miga-tienda" className="max-w-[7rem] shrink-0 truncate lg:hidden" title={APP_NAME}>{APP_NAME}</span>
                 <span aria-hidden className="shrink-0 text-mute/50 lg:hidden">/</span>
                 {migas.map((miga, indice) => (
                   <Fragment key={`${miga}-${indice}`}>

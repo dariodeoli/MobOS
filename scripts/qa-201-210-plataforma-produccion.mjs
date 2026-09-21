@@ -88,7 +88,7 @@ async function entrarDemo(page, rol = 'Dueño') {
   await page.waitForTimeout(1200)
   await page.getByRole('button', { name: new RegExp(`Entrar como ${rol}`) }).click()
   await page.waitForURL((destino) => !destino.pathname.startsWith('/demo'), { timeout: 30000 })
-  await page.getByText(/los datos son ficticios/).first().waitFor({ state: 'visible', timeout: 20000 })
+  await page.getByText(/Modo demo: datos ficticios/).first().waitFor({ state: 'visible', timeout: 20000 })
   const cerrar = page.getByRole('button', { name: 'Cerrar' }).last()
   if (await page.getByRole('dialog', { name: 'Cómo funciona la demo' }).count()) await cerrar.click()
 }
@@ -210,6 +210,34 @@ const browser = await chromium.launch()
     return 'ninguna request a /api/ durante todo el recorrido'
   })
 
+  // #223: el encabezado muestra solo la marca (normal y demo); la identidad de
+  // la empresa sigue en el menú.
+  await paso('#223: el encabezado muestra solo MobOS y la empresa vive en el menú', async (c) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto(`${BASE}/resumen`, { waitUntil: 'domcontentloaded' })
+    const marca = page.getByTestId('shell-tienda')
+    await marca.waitFor({ state: 'visible', timeout: 20000 })
+    const texto = (await marca.innerText()).trim()
+    if (texto !== 'MobOS') throw new Error(`shell-tienda muestra «${texto}» (se esperaba MobOS)`)
+    c.push(await shot(page, 'topbar-marca'))
+
+    // Miga móvil: mismo criterio en pantallas chicas.
+    await page.setViewportSize({ width: 390, height: 844 })
+    const miga = page.getByTestId('shell-miga-tienda')
+    await miga.waitFor({ state: 'visible', timeout: 20000 })
+    const textoMiga = (await miga.innerText()).trim()
+    if (textoMiga !== 'MobOS') throw new Error(`la miga móvil muestra «${textoMiga}» (se esperaba MobOS)`)
+    c.push(await shot(page, 'topbar-marca-movil'))
+
+    // La identidad de la empresa sigue disponible en el menú (cajón móvil).
+    await page.getByRole('button', { name: 'Menú', exact: true }).click()
+    const dialogo = page.getByRole('dialog')
+    const titulo = (await dialogo.getByRole('heading').first().innerText()).trim()
+    if (!titulo || titulo === 'MobOS') throw new Error(`el menú no muestra la identidad de la empresa: «${titulo}»`)
+    c.push(await shot(page, 'menu-identidad'))
+    return `«${texto}» en el topbar (escritorio y móvil) y «${titulo}» en el menú`
+  })
+
   await ctx.close()
 }
 
@@ -250,7 +278,10 @@ const browser = await chromium.launch()
 
 // 3) El deploy contiene el código del lote (helpers #209 y bloqueo #210).
 await paso('deploy: el bundle publicado incluye #209 y #210', async () => {
-  const agujas = ['lock-logo-empresa', 'mobos:config:documentacion-modulo', 'mobos:sucursal-activa', 'mobos:shell:nav-plegados', 'mobos:pos:vendedor']
+  // El bundle principal alcanza para probar que el lote viaja: la pantalla de
+  // bloqueo, el namespace canónico y el evento del helper. Las claves de cada
+  // pantalla viven en chunks lazy y se prueban con los pasos funcionales.
+  const agujas = ['lock-logo-empresa', 'mobos:ultimo:', 'mobos:ultimo-usado', 'sucursal-activa']
   const { fuente, ok } = await bundleTiene(agujas)
   if (!ok) throw new Error(`el bundle ${fuente} no expone el lote (#209/#210): ¿deploy viejo?`)
   return `claves y testid presentes en ${fuente}`
