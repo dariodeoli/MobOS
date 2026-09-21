@@ -3,7 +3,6 @@ import { Button, ConfirmDialog, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import {
   FORMATOS_COMPROBANTE,
-  NIVELES_COMPROBANTE,
   NIVELES_MODELO,
   buildOrderReceiptHtml,
   formatoPreferido,
