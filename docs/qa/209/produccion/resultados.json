@@ -1,0 +1,31 @@
+{
+  "base": "https://app.moboss.online",
+  "resultados": [
+    {
+      "nombre": "El bundle de producción incluye el patrón de Finanzas",
+      "ok": true
+    },
+    {
+      "nombre": "El demo entra y Gastos arranca con el tipo por defecto",
+      "ok": true
+    },
+    {
+      "nombre": "En la demo el último usado no escribe localStorage y se descarta al recargar",
+      "ok": true
+    },
+    {
+      "nombre": "Conciliación del demo funciona sin persistir el período",
+      "ok": true
+    },
+    {
+      "nombre": "La demo no consulta los endpoints reales de métricas",
+      "ok": true
+    },
+    {
+      "nombre": "Sin errores de consola propios",
+      "ok": true
+    }
+  ],
+  "erroresConsola": [],
+  "llamadasApi": []
+}
