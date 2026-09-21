@@ -1,0 +1,36 @@
+{
+  "base": "http://localhost:5203",
+  "fecha": "2026-09-21T20:36:28.034Z",
+  "pasos": [
+    {
+      "paso": "entrada demo y venta rapida",
+      "estado": "ok",
+      "detalle": "versión v1.0.130 · total 180000",
+      "captura": "01-entrada demo y venta rapida.jpg"
+    },
+    {
+      "paso": "abrir el dialogo del comprobante",
+      "estado": "ok",
+      "detalle": "iconos: true · nivel elegido: \"Rápido\" · formato elegido: \"80 mm\" · ancho vista previa: 0px · controles viejos: DIV",
+      "captura": "02-abrir el dialogo del comprobante.jpg"
+    },
+    {
+      "paso": "teclado: los iconos se alcanzan y cambian con el teclado",
+      "estado": "ok",
+      "detalle": "con foco + Space → \"A4\" · foco en: radio",
+      "captura": "03-teclado: los iconos se alcanzan y cambian con el teclado.jpg"
+    },
+    {
+      "paso": "memoria del ultimo usado en el dialogo",
+      "estado": "ok",
+      "detalle": "guardado: | · al reabrir: \"\" + \"\"",
+      "captura": "04-memoria del ultimo usado en el dialogo.jpg"
+    },
+    {
+      "paso": "ultimo usado en el POS (#209): usar, recargar y verificar",
+      "estado": "ok",
+      "detalle": "guardado: Delivery|demo-cash-pyg · tras recargar → entrega: \"Delivery\" · cuenta del bloque nuevo: \"Caja demo · Gs\"",
+      "captura": "05-ultimo usado en el POS (#209): usar, recargar y verificar.jpg"
+    }
+  ]
+}

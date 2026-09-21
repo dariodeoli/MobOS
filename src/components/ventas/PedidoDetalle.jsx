@@ -47,7 +47,9 @@ const AUDIT_LABELS = {
 }
 
 function nombreActor(name) {
-  return String(name || '').trim().split(/\s+/).slice(0, 2).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') || 'Sistema'
+  // Solo el primer nombre (#212): «Dario creó el pedido», no el nombre completo.
+  const corto = primerNombre(String(name || '').trim())
+  return corto ? corto.charAt(0).toUpperCase() + corto.slice(1) : 'Sistema'
 }
 // Sin foto, el cliente se muestra con el Avatar compartido (iniciales): no se
 // dibuja un avatar propio ni una imagen rota (#164).
