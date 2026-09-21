@@ -88,6 +88,7 @@ test('tabbed sections keep their own child slug in the URL and the title', () =>
     '/analisis/reportes': 'Reportes',
     '/analisis/asistente': 'Asistente',
     '/finanzas/caja': 'Caja',
+    '/finanzas/conciliacion': 'Conciliación',
     '/finanzas/creditos': 'Créditos',
     '/inventario/unidades': 'Unidades',
     '/inventario/transito': 'En tránsito',

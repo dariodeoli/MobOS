@@ -2,6 +2,7 @@ import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
 import { prisma } from '../../../../../lib/prisma'
 import { findAccessiblePayment, normalizeReconciliationNote, RECONCILIATION_ROLES } from '../../_lib'
+import { confirmReconciledPayment, lockPaymentRow } from '../../../../../lib/reconciliation'
 
 type RouteContext = { params: { paymentId: string } }
 
@@ -42,10 +43,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   }
 
   const reconciliation = await prisma.$transaction(async tx => {
-    const locked = await tx.$queryRaw<Array<{ id: string; orderId: string; status: string; amountPyg: number; method: string; deliveryUserId: string | null; deliverySettlementId: string | null }>>`
-      SELECT "id", "orderId", "status"::text AS "status", "amountPyg", "method"::text AS "method", "deliveryUserId", "deliverySettlementId" FROM "Payment"
-      WHERE "id" = ${payment.id} AND "tenantId" = ${session.user.tenantId} FOR UPDATE`
-    const row = locked[0]
+    const row = await lockPaymentRow(tx, session.user.tenantId, payment.id)
     if (!row) return null
     const result = await tx.paymentReconciliation.upsert({
       where: { paymentId: payment.id },
@@ -57,21 +55,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     // verdad: antes la conciliación era solo un estado paralelo y el cobro
     // pendiente no bajaba nunca de la deuda. El cobro de calle del repartidor
     // queda afuera: su ciclo es la rendición, no esta pantalla.
-    if (row.status === 'PENDING' && !row.deliveryUserId && !row.deliverySettlementId) {
-      const nextStatus = body.state === 'VERIFIED' ? 'CONFIRMED' : 'REJECTED'
-      await tx.payment.update({ where: { id: row.id }, data: { status: nextStatus, ...(nextStatus === 'CONFIRMED' ? { paidAt: new Date() } : {}) } })
-      if (nextStatus === 'CONFIRMED') {
-        const pedidos = await tx.$queryRaw<Array<{ id: string; status: string; totalPyg: number }>>`
-          SELECT "id", "status"::text AS "status", "totalPyg" FROM "Order"
-          WHERE "id" = ${row.orderId} AND "tenantId" = ${session.user.tenantId} FOR UPDATE`
-        const order = pedidos[0]
-        if (order && order.status !== 'CANCELLED') {
-          const paid = await tx.payment.aggregate({ where: { orderId: order.id, tenantId: session.user.tenantId, status: 'CONFIRMED' }, _sum: { amountPyg: true } })
-          if ((paid._sum.amountPyg || 0) >= order.totalPyg) await tx.order.update({ where: { id: order.id }, data: { status: 'COMPLETED' } })
-        }
-      }
-      await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: nextStatus === 'CONFIRMED' ? 'PAYMENT_CONFIRMED' : 'PAYMENT_REJECTED', entity: 'Payment', entityId: row.id, metadata: { orderId: row.orderId, amountPyg: row.amountPyg, method: row.method, note } } })
-    }
+    await confirmReconciledPayment(tx, { tenantId: session.user.tenantId, userId: session.user.id, row, state: body.state as 'VERIFIED' | 'REJECTED', note })
     await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'PAYMENT_RECONCILIATION_UPDATED', entity: 'PaymentReconciliation', entityId: result.id, metadata: { paymentId: payment.id, state: result.state, note } } })
     return result
   })
