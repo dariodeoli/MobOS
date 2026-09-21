@@ -11,6 +11,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.128 — 2026-09-21
+- **Pedidos / POS:** cada método de entrega (envío, retiro en tienda, retiro en otra sucursal, traslado) tiene su propia máquina de estados (un retiro no pasa por "listo para enviar") y el **seguimiento público** muestra el tipo, el encabezado correcto y la línea de progreso con fechas; «Dividir saldo» ahora precarga el monto en el bloque nuevo. (#187 #191)
+- **Demo:** la **demo pública es anónima** y 100 % local con datos ficticios: no consulta el API ni necesita sesión, con banner de datos ficticios y aviso al guardar. (#192)
+- **Impresión:** el enlace de instalación del agente que publica el manifest ahora apunta al backend (donde vive el instalador): el `curl | bash` documentado deja de recibir la página de la app. (#185)
+- **Navegación / Equipo:** la identidad de la tienda se toma del servidor (no cae en "Mi tienda"), el técnico entra a su taller (sin CTA de POS que lo rebote) y el reparto tiene rutas propias: Repartos y Rendiciones. (#179)
+- **Demo (Finanzas):** el seguro de ventas avisa que es modo demo (sin "Falta sesión") y la caja demo muestra su apertura coherente. (#188)
+- **Demo (Clientes):** la ficha del cliente abre con datos demo y `?cliente=` ya no llama al API real; los guardados quedan deshabilitados con aviso. (#189)
+- **QA:** recorridos funcionales en producción de Finanzas (#185), Clientes/públicos (#187) y POS (#187) documentados con capturas en `docs/qa/`.
+
 ## v1.0.127 — 2026-09-21
 - **POS:** el catálogo muestra modelo, capacidad y stock de cada equipo, y el código escaneado pide confirmación antes de entrar a la venta; los montos aceptan hasta los límites de venta, el botón principal suma **Guardar pedido** y **Dividir saldo** propone lo que falta en la moneda de la cuenta. (#175)
 - **Pedidos:** la confirmación muestra el **número de pedido creado** con acceso directo, el detalle permite **cobrar el saldo** con el mismo modal de cobros y editar la **nota interna** en línea; la lista rotula **Hoy / Ayer / Anteayer**. (#175)
