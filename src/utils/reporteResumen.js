@@ -2,7 +2,7 @@
 // pantalla (Resumen.jsx) y el papel (resumen imprimible): una sola fuente para
 // que lo impreso coincida con lo que se ve. `prev` lo calcula el llamador con
 // `rangoAnterior` (el módulo no conoce atajos de fecha de la UI).
-import { cobradoDeVenta, comisionDeVentas, num } from './calculos.js'
+import { cobradoDeVenta, comisionDeVentas, num, ticketPromedio } from './calculos.js'
 
 const enRango = (venta, rango) => venta.fecha >= rango.desde && venta.fecha <= rango.hasta
 
@@ -44,8 +44,8 @@ export function armarResumenDia({ ventas = [], gastos = [], prods = {}, vendedor
   const totalAnt = ant.reduce((suma, venta) => suma + num(venta.precio), 0)
   const comision = comisionDeVentas(act, prods)
   const delivery = act.reduce((suma, venta) => suma + num(venta.montoDelivery), 0)
-  const ticket = act.length ? total / act.length : 0
-  const ticketAnt = ant.length ? totalAnt / ant.length : 0
+  const ticket = ticketPromedio(total, act.length)
+  const ticketAnt = ticketPromedio(totalAnt, ant.length)
   const cobrado = act.reduce((suma, venta) => suma + cobradoDeVenta(venta), 0)
   const pendiente = Math.max(0, total - cobrado)
 

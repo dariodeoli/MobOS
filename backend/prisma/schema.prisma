@@ -75,6 +75,7 @@ model Tenant {
   payments                Payment[]
   paymentProofs           PaymentProof[]
   paymentReconciliations  PaymentReconciliation[]
+  reconciliationBatches   ReconciliationBatch[]
   orderComments           OrderComment[]
   marketingCampaigns      MarketingCampaign[]
   quotes                  Quote[]
@@ -303,6 +304,7 @@ model User {
   uploadedPaymentProofs          PaymentProof[]          @relation("PaymentProofUploader")
   attachmentsCreated             Attachment[]            @relation("AttachmentCreatedBy")
   verifiedPaymentReconciliations PaymentReconciliation[] @relation("PaymentReconciliationVerifier")
+  reconciliationBatchesCreated  ReconciliationBatch[]   @relation("ReconciliationBatchCreatedBy")
 
   sessions         Session[]
   createdTransfers StockTransfer[]
@@ -1506,11 +1508,45 @@ model PaymentReconciliation {
   note         String?
   verifiedById String?
   verifiedBy   User?               @relation("PaymentReconciliationVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  // Lote de conciliación que la incluyó (#144). Null = conciliación individual.
+  batchId      String?
+  batch        ReconciliationBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
   @@index([tenantId, state])
   @@index([verifiedById, updatedAt])
+  @@index([batchId])
+}
+
+// Lote de conciliación (#144): un depósito/transferencia recibido que se
+// compara contra los pagos que debería cubrir. `expectedPyg` es la suma de los
+// pagos incluidos y `receivedPyg` lo informado por el banco/procesadora;
+// `differencePyg` = recibido − esperado. Los pagos del lote quedan enlazados
+// desde PaymentReconciliation.batchId (trazabilidad pago → lote → cuenta).
+model ReconciliationBatch {
+  id              String              @id @default(cuid())
+  tenantId        String
+  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branchId        String?
+  accountId       String?
+  account         PaymentAccount?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  from            DateTime
+  to              DateTime
+  expectedPyg     Int
+  receivedPyg     Int
+  differencePyg   Int
+  state           ReconciliationState @default(VERIFIED)
+  note            String?
+  createdById     String?
+  createdBy       User?               @relation("ReconciliationBatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  reconciliations PaymentReconciliation[]
+
+  @@index([tenantId, createdAt])
+  @@index([accountId, createdAt])
+  @@index([tenantId, branchId, createdAt])
 }
 
 // Saldo a favor del cliente (nota de crédito interna): nace de una devolución
@@ -1771,6 +1807,7 @@ model PaymentAccount {
   payments      Payment[]
   cashMovements CashMovement[]
   purchasePayments PurchasePayment[]
+  reconciliationBatches ReconciliationBatch[]
 
   @@index([tenantId, isActive])
   @@index([holderId])

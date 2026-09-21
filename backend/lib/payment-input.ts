@@ -28,9 +28,14 @@ type NormalizedPayment = {
   tradeIn?: TradeInInput;
 }
 export function accountSnapshot(account: PaymentAccount): Prisma.InputJsonObject {
+  // Foto inmutable para historial y trazabilidad (#144): incluye procesadora,
+  // documento, llave y referencias para poder conciliar por medio/procesadora
+  // aunque la cuenta cambie después.
   return { id: account.id, tenantId: account.tenantId, name: account.name, bank: account.bank, holder: account.holder,
-    accountNumber: account.accountNumber, currency: account.currency, kind: account.kind, isActive: account.isActive,
-    feePercent: account.feePercent.toString(), settlementDays: account.settlementDays }
+    accountNumber: account.accountNumber, document: account.document, processor: account.processor, pixKey: account.pixKey,
+    reference: account.reference, currencyLabel: account.currencyLabel, holderId: account.holderId, companyId: account.companyId,
+    currency: account.currency, kind: account.kind, isActive: account.isActive,
+    feePercent: account.feePercent.toString(), discountPct: account.discountPct.toString(), settlementDays: account.settlementDays }
 }
 
 // On an idempotent replay, use the immutable snapshot: later account edits must not change the original operation.

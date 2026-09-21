@@ -33,6 +33,7 @@ import Historial from '@/components/control/Historial'
 import Auditoria from '@/components/control/Auditoria'
 import Caja from '@/components/control/Caja'
 import PaymentAccounts from '@/components/control/PaymentAccounts'
+import Conciliacion from '@/components/control/Conciliacion'
 import Creditos from '@/components/control/Creditos'
 import Cobranzas from '@/components/control/Cobranzas'
 import Comisiones from '@/components/control/Comisiones'
@@ -156,6 +157,7 @@ const TABS_FINANZAS = [
   ['caja', 'Caja'],
   ['gastos', 'Gastos'],
   ['bancos', 'Bancos y cuentas'],
+  ['conciliacion', 'Conciliación'],
   ['creditos', 'Créditos'],
   ['cuotas', 'Cuotas'],
   ['comisiones', 'Comisiones'],
@@ -260,6 +262,7 @@ const LABELS = {
   caja: 'Caja',
   gastos: 'Gastos',
   bancos: 'Bancos y cuentas',
+  conciliacion: 'Conciliación',
   creditos: 'Créditos',
   cuotas: 'Cuotas',
   publicidad: 'Publicidad',
@@ -767,6 +770,7 @@ export default function PanelVendedor() {
               {vista === 'caja' && <Caja />}
               {vista === 'gastos' && <Gastos />}
               {vista === 'bancos' && <PaymentAccounts />}
+              {vista === 'conciliacion' && <Conciliacion />}
               {vista === 'creditos' && <Creditos />}
               {vista === 'cuotas' && <Cobranzas />}
               {vista === 'comisiones' && <Comisiones />}
