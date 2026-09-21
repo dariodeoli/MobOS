@@ -17,6 +17,7 @@ import RangoFechas, {
 } from '@/components/shared/RangoFechas'
 import ReportePreview from '@/components/shared/ReportePreview'
 import { buildResumenDiaHtml } from '@/components/shared/OrderReceipt'
+import { buildResumenEjecutivoHtml } from '@/components/shared/reporteEjecutivo'
 import { ticketResumenDia } from '@/lib/printing/reportes'
 import { imprimirDocumento } from '@/lib/printing/agent'
 import MedioPago from '@/components/shared/MedioPago'
@@ -544,8 +545,13 @@ export default function Resumen() {
       <ReportePreview
         open={resumenOpen}
         onClose={() => setResumenOpen(false)}
-        titulo="Resumen del día"
-        construir={(format) => buildResumenDiaHtml({ ...d, rango, etiqueta: etiquetaRango(rango), empresa: empresa?.nombre || '' }, { format })}
+        titulo="Resumen ejecutivo"
+        construir={(format) => {
+          // El A4 es el reporte ejecutivo de una hoja; 58/80 mm siguen con el
+          // HTML angosto y la impresión directa con el ticket.
+          const datos = { ...d, rango, etiqueta: etiquetaRango(rango), empresa: empresa?.nombre || '', stockBajo, creditos }
+          return format === 'a4' ? buildResumenEjecutivoHtml(datos) : buildResumenDiaHtml(datos, { format })
+        }}
         directo={({ ancho }) => imprimirDocumento(ticketResumenDia({ ...d, rango, etiqueta: etiquetaRango(rango), empresa: empresa?.nombre || '' }, { ancho }), { tipo: 'resumen-dia' })}
       />
     </div>
