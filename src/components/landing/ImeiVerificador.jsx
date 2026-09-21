@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, Check, RefreshCw, ScanLine, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { Button, Input } from '@/components/ui'
 import { publicUrls } from '@/lib/urls'
+import { fechaDia, fechaHora } from '@/utils/fecha'
 import { FUENTE_DEMO, IMEI_EJEMPLO, consultaImeiEjemplo, enmascararImeiDemo, validarImeiDemo } from '@/lib/imeiDemoLanding'
 
 // Verificador de IMEI de la landing (#202): demo visual, sin llamadas ni
@@ -31,7 +32,7 @@ function imeiAleatorioValido() {
 }
 
 function CampoResultado({ campo, indice }) {
-  const hora = campo.hora ? new Date(campo.hora).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : ''
+  const hora = campo.hora ? fechaHora(campo.hora, '') : ''
   return (
     <div className="mobos-aparece rounded-xl border border-fore/[.08] bg-fore/[.025] p-3" style={{ animationDelay: `${indice * 70}ms` }}>
       <p className="text-[10px] font-bold uppercase tracking-[.14em] text-mute">{campo.etiqueta}</p>
@@ -215,7 +216,7 @@ export default function ImeiVerificador() {
               </div>
               <div className="text-right text-[10px] text-mute">
                 <p className="font-semibold text-fore">{consulta.fuente}</p>
-                <p>{new Date(consulta.fecha).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' })} · costo US$ {consulta.costoUsd.toFixed(2)}</p>
+                <p>{fechaHora(consulta.fecha)} · costo US$ {consulta.costoUsd.toFixed(2)}</p>
               </div>
             </div>
 
@@ -225,7 +226,7 @@ export default function ImeiVerificador() {
 
             {verificado && (
               <p className="mt-3 rounded-xl border border-fore/10 bg-fore/[.02] p-3 text-[11px] leading-5 text-mute">
-                Listo para la nota del cliente: <b className="text-fore">“IMEI verificado: sin reportes al {new Date(consulta.fecha).toLocaleDateString('es-PY')} — fuente {FUENTE_DEMO}”</b>
+                Listo para la nota del cliente: <b className="text-fore">“IMEI verificado: sin reportes al {fechaDia(consulta.fecha)} — fuente {FUENTE_DEMO}”</b>
               </p>
             )}
 
