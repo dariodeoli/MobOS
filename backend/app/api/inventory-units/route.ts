@@ -4,6 +4,7 @@ import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
 import { InventoryUnitStatus, PaymentCurrency, ProductCondition } from '@prisma/client'
 import { INVENTORY_REMOVED, INVENTORY_RESTORED, removedInventoryUnitIds } from '../../../lib/inventory'
+import { normalizarCosto } from '../../../lib/costs'
 import { serialKey } from '../../../lib/validation'
 import { changeStock } from '../../../lib/stock'
 import { consumeAuthorization } from '../../../lib/authorizations'
@@ -29,29 +30,33 @@ function consignarMonto(value: unknown) {
   return monto
 }
 
+// Proveedor por id o por nombre/abreviatura; un nombre nuevo se da de alta en
+// el catálogo para no perder el rastro (mismo criterio que las compras).
+async function resolverProveedor(tx: Prisma.TransactionClient, tenant: string, body: any): Promise<string | null> {
+  const supplierId = body.supplierId === undefined || body.supplierId === '' || body.supplierId === null ? null : text(body.supplierId, 128)
+  if (supplierId && !(await tx.supplier.findFirst({ where: { id: supplierId, tenantId: tenant }, select: { id: true } }))) throw new Error('Proveedor no encontrado.')
+  if (supplierId) return supplierId
+  const nombre = typeof body.supplierName === 'string' ? body.supplierName.trim().slice(0, 160) : ''
+  if (!nombre) return null
+  const existente = await tx.supplier.findFirst({ where: { tenantId: tenant, OR: [{ code: nombre }, { name: nombre }] }, select: { id: true } })
+  return existente?.id ?? (await tx.supplier.create({ data: { tenantId: tenant, name: nombre }, select: { id: true } })).id
+}
+
 function unitData(body: any) {
   const condition = body.condition === undefined ? undefined : Object.values(ProductCondition).includes(body.condition) ? body.condition : null
   if (condition === null) throw new Error('Condición de unidad inválida.')
   const batteryHealth = body.batteryHealth === undefined || body.batteryHealth === '' || body.batteryHealth === null ? undefined : Number(body.batteryHealth)
   if (batteryHealth !== undefined && (!Number.isSafeInteger(batteryHealth) || batteryHealth < 0 || batteryHealth > 100)) throw new Error('La batería debe estar entre 0 y 100%.')
-  const costPyg = body.costPyg === undefined || body.costPyg === '' || body.costPyg === null ? undefined : Number(body.costPyg)
-  if (costPyg !== undefined && (!Number.isSafeInteger(costPyg) || costPyg < 0 || costPyg > 2147483647)) throw new Error('Costo en guaraníes inválido.')
-  const originalCost = body.originalCost === undefined || body.originalCost === '' || body.originalCost === null ? undefined : Number(body.originalCost)
-  if (originalCost !== undefined && (!Number.isFinite(originalCost) || originalCost < 0)) throw new Error('Costo original inválido.')
-  const exchangeRatePyg = body.exchangeRatePyg === undefined || body.exchangeRatePyg === '' || body.exchangeRatePyg === null ? undefined : Number(body.exchangeRatePyg)
-  if (exchangeRatePyg !== undefined && (!Number.isFinite(exchangeRatePyg) || exchangeRatePyg <= 0)) throw new Error('Cotización inválida.')
   const purchasedAt = body.purchasedAt === undefined || body.purchasedAt === '' || body.purchasedAt === null ? undefined : new Date(body.purchasedAt)
   if (purchasedAt && Number.isNaN(purchasedAt.getTime())) throw new Error('Fecha de compra inválida.')
+  // La moneda se valida acá porque `normalizarCosto` cae a PYG si no la conoce.
   const costCurrency = body.costCurrency === undefined ? undefined : Object.values(PaymentCurrency).includes(body.costCurrency) ? body.costCurrency : null
   if (costCurrency === null) throw new Error('Moneda de costo inválida.')
   return {
     ...(condition !== undefined ? { condition } : {}),
     ...(batteryHealth !== undefined ? { batteryHealth } : {}),
-    ...(costPyg !== undefined ? { costPyg } : {}),
-    ...(originalCost !== undefined ? { originalCost } : {}),
-    ...(exchangeRatePyg !== undefined ? { exchangeRatePyg } : {}),
+    // El costo lo valida y normaliza `normalizarCosto` (backend/lib/costs.ts).
     ...(purchasedAt !== undefined ? { purchasedAt } : {}),
-    ...(costCurrency !== undefined ? { costCurrency } : {}),
     ...(body.supplierName !== undefined ? { supplierName: text(body.supplierName, 160) } : {}),
     ...(body.notes !== undefined ? { notes: text(body.notes, 500) } : {}),
     ...(body.consignorName !== undefined ? { consignorName: body.consignorName === null || String(body.consignorName).trim() === "" ? null : text(body.consignorName, 160) } : {}),
@@ -131,16 +136,12 @@ export async function POST(request: Request) {
       if (existing.length) throw new Error(`Ya existen: ${existing.map(item => item.serial).join(', ')}.`)
       if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId, isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
       const data = unitData(body)
-      // Proveedor estructurado: por id o resolviendo la abreviatura/nombre.
-      let supplierId = body.supplierId === undefined || body.supplierId === '' || body.supplierId === null ? null : text(body.supplierId, 128)
-      if (supplierId && !(await tx.supplier.findFirst({ where: { id: supplierId, tenantId: tenant }, select: { id: true } }))) throw new Error('Proveedor no encontrado.')
-      if (!supplierId && typeof body.supplierName === 'string' && body.supplierName.trim()) {
-        const byName = await tx.supplier.findFirst({ where: { tenantId: tenant, OR: [{ code: body.supplierName.trim() }, { name: body.supplierName.trim() }] }, select: { id: true } })
-        supplierId = byName?.id ?? null
-      }
+      // Costo diferido: si no viene, la unidad queda sin costo y se completa después.
+      const costo = normalizarCosto(body)
+      const supplierId = await resolverProveedor(tx, tenant, body)
       const units = []
       for (const serial of serials) {
-        units.push(await tx.inventoryUnit.create({ data: { tenantId: tenant, productId, branchId, locationId, serial, condition: product.condition, supplierId, ...data } }))
+        units.push(await tx.inventoryUnit.create({ data: { tenantId: tenant, productId, branchId, locationId, serial, condition: product.condition, supplierId, ...data, ...costo } }))
         await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_RECEIVED', entity: 'InventoryUnit', entityId: units[units.length - 1].id, metadata: { serial, productId, branchId, locationId } } })
       }
       await changeStock(tx, { tenantId: tenant, productId, delta: units.length })
@@ -192,7 +193,7 @@ export async function PATCH(request: Request) {
   }
   try {
     const updated = await prisma.$transaction(async tx => {
-      const before = await tx.inventoryUnit.findFirst({ where: { id, tenantId: tenant }, select: { id: true, branchId: true, status: true, serial: true, locationId: true, productId: true } })
+      const before = await tx.inventoryUnit.findFirst({ where: { id, tenantId: tenant }, select: { id: true, branchId: true, status: true, serial: true, locationId: true, productId: true, costPyg: true, originalCost: true, costCurrency: true, exchangeRatePyg: true } })
       if (!before || !before.branchId) throw new Error('Unidad no encontrada.')
       if (!canManageBranch(session.user.role, session.user.branchId, before.branchId) && !stockAuthorization) throw new Error('No autorizado para esa sucursal.')
       const removalEvents = await tx.auditLog.findMany({ where: { tenantId: tenant, entity: 'InventoryUnit', entityId: id, action: { in: [INVENTORY_REMOVED, INVENTORY_RESTORED] } }, select: { entityId: true, action: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] })
@@ -237,10 +238,15 @@ export async function PATCH(request: Request) {
       if (action === 'details') {
         if (removed) throw new Error('Restaurá la unidad antes de editarla.')
         const patch = unitData(body)
-        const data = await tx.inventoryUnit.update({ where: { id }, data: patch })
-        // El motivo del cambio queda en la cronología: qué campos se tocaron y
-        // la nota nueva cuando se editó (raya, caja dañada, accesorio faltante).
-        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_DETAILS_UPDATED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, campos: Object.keys(patch), ...(patch.notes ? { notes: String(patch.notes).slice(0, 300) } : {}) } } })
+        // Costo (diferido o editado): se normaliza contra lo que ya tenía la unidad.
+        const tocaCosto = body.costPyg !== undefined || body.originalCost !== undefined || body.costCurrency !== undefined || body.exchangeRatePyg !== undefined
+        const costo = normalizarCosto(body, { costPyg: before.costPyg, originalCost: before.originalCost === null ? null : Number(before.originalCost), costCurrency: before.costCurrency, exchangeRatePyg: before.exchangeRatePyg === null ? null : Number(before.exchangeRatePyg) })
+        // Un proveedor nuevo escrito a mano también se da de alta.
+        const proveedor = body.supplierId !== undefined || typeof body.supplierName === 'string' ? await resolverProveedor(tx, tenant, body) : undefined
+        const data = await tx.inventoryUnit.update({ where: { id }, data: { ...patch, ...costo, ...(proveedor === undefined ? {} : { supplierId: proveedor }) } })
+        // El motivo del cambio queda en la cronología: qué campos se tocaron, la
+        // nota nueva y el costo cuando se cargó o corrigió.
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_DETAILS_UPDATED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, campos: [...Object.keys(patch), ...(tocaCosto ? ['costo'] : []), ...(proveedor === undefined ? [] : ['proveedor'])], ...(patch.notes ? { notes: String(patch.notes).slice(0, 300) } : {}), ...(tocaCosto ? { costo: { costPyg: costo.costPyg, originalCost: costo.originalCost, costCurrency: costo.costCurrency, exchangeRatePyg: costo.exchangeRatePyg } } : {}) } } })
         return data
       }
       if (!adjustmentReason) throw new Error('Indicá un motivo de ajuste de entre 3 y 500 caracteres.')

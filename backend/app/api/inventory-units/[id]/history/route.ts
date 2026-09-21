@@ -75,11 +75,23 @@ function detalleDeEvento(action: string, metadata: unknown, locaciones: Map<stri
       label = 'Restaurado a disponible'
       if (row.reason) partes.push(String(row.reason))
       break
-    case INVENTORY_UNIT_DETAILS_UPDATED:
+    case INVENTORY_UNIT_DETAILS_UPDATED: {
+      const costo = row.costo && typeof row.costo === 'object' && !Array.isArray(row.costo) ? row.costo as Record<string, unknown> : null
+      if (costo) {
+        label = 'Costo del equipo'
+        if ((costo.costPyg === null || costo.costPyg === undefined) && (costo.originalCost === null || costo.originalCost === undefined)) partes.push('se quitó el costo (queda pendiente)')
+        else {
+          if (costo.costCurrency !== 'PYG' && costo.originalCost !== null && costo.originalCost !== undefined) partes.push(`${String(costo.costCurrency || 'PYG')} ${Number(costo.originalCost).toLocaleString('es-PY', { maximumFractionDigits: 2 })}`)
+          if (costo.costPyg !== null && costo.costPyg !== undefined) partes.push(`Gs ${Number(costo.costPyg).toLocaleString('es-PY')}`)
+          if (costo.costCurrency !== 'PYG' && costo.exchangeRatePyg !== null && costo.exchangeRatePyg !== undefined) partes.push(`cotización ${Number(costo.exchangeRatePyg).toLocaleString('es-PY', { maximumFractionDigits: 4 })}`)
+        }
+        break
+      }
       label = 'Nota del dispositivo'
       if (row.notes) partes.push(`"${String(row.notes).slice(0, 220)}"`)
       else if (Array.isArray(row.campos) && row.campos.length) partes.push(`campos: ${row.campos.join(', ')}`)
       break
+    }
     case INVENTORY_TRANSIT_RECEIVED:
       label = 'Recibido en sucursal'
       if (row.locationId) partes.push(nombreUbicacion(row.locationId))
