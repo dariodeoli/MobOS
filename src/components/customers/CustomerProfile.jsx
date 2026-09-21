@@ -375,8 +375,15 @@ export default function CustomerProfile({ customer, open, onClose }) {
     try {
       const data = await api.post(`/api/customers/${encodeURIComponent(customer.id)}/access-token`, { level: nivel, regenerate })
       const token = data?.token || ''
-      if (!token) throw new Error('No se pudo preparar el enlace.')
       setPortalNivel(nivel)
+      if (!token) {
+        // Ya hay un enlace vigente y solo se guarda su hash (#172/#178): no se
+        // puede volver a mostrar; se ofrece regenerarlo (invalida el anterior).
+        setPortal({ token: '', reused: true })
+        setPortalQr('')
+        setPortalMsg('Ya hay un enlace vigente para este nivel. Por seguridad no se vuelve a mostrar: usá Regenerar si lo perdiste.')
+        return
+      }
       setPortal({ token })
       const url = portalUrlFor(token)
       if (url) setPortalQr(await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, width: 220 }))
