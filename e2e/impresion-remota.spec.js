@@ -316,7 +316,10 @@ const tarjetaDe = (page, texto) => page.locator('xpath=//div[contains(@class, "l
 
 test.describe('impresión remota: cola con puente falso', () => {
   test('ADMIN vincula el puente y la prueba remota se confirma con el sufijo del papel', async ({ page }) => {
-    const codigo = await crearPuentePorUi(page, `Puente E2E ${Date.now()}`)
+    // Nombre único por corrida: la validación de 4 dígitos puede repetirse entre
+    // corridas y la fila de la tabla tiene que ser inequívoca.
+    const nombrePuente = `Puente E2E ${Date.now()}`
+    const codigo = await crearPuentePorUi(page, nombrePuente)
     const { token, bridgeId } = await parearPuente({ api: API, code: codigo })
     const puente = crearPuenteFalso({ api: API, token })
     puente.iniciar()
@@ -337,7 +340,8 @@ test.describe('impresión remota: cola con puente falso', () => {
       expect(detalle.datos?.job?.state).toBe('ACEPTADO')
 
       await page.reload()
-      const fila = page.getByRole('row').filter({ hasText: trabajo.validation })
+      // Fila inequívoca: validación + nombre del puente de esta corrida.
+      const fila = page.getByRole('row').filter({ hasText: trabajo.validation }).filter({ hasText: nombrePuente }).first()
       await expect(fila.getByText('aceptado')).toBeVisible({ timeout: 20_000 })
 
       const incorrecto = String((Number(trabajo.sufijo) + 1) % 10)
@@ -365,7 +369,9 @@ test.describe('impresión remota: cola con puente falso', () => {
     const { token, bridgeId } = await parearPuente({ api: API, code: codigo })
     const impresora = await asegurarImpresoraRemota(page, { nombre: NOMBRE_REMOTO, destino: DESTINO_REMOTO, bridgeId })
     const sufijo = '1234'
-    const validacion = String(Date.now()).slice(-4)
+    // Validación única por corrida: la fila de la tabla tiene que ser
+    // inequívoca (las de 4 dígitos se repiten entre corridas).
+    const validacion = `E2E${String(Date.now()).slice(-6)}`
     const encolado = await apiImpresion(page, '/api/print/jobs', {
       method: 'POST',
       body: JSON.stringify({
@@ -459,6 +465,56 @@ test.describe('impresión remota: cola con puente falso', () => {
     }
   })
 
+  test('el comprobante repetido avisa del duplicado y «Reimprimir igual» lo encola', async ({ page }) => {
+    // Sin agente local: el comprobante sale por el puente. No hay puente falso
+    // reclamando, así que el trabajo queda PENDIENTE y actúa el guarda.
+    await page.route('http://127.0.0.1:17890/**', (ruta) => ruta.abort())
+    // Navegar primero: el helper de API sale del origen de la app.
+    await page.goto('/configuracion/impresoras')
+    // Limpieza: pendientes viejos del mismo destino romperían la ventana del
+    // guarda; se cancelan antes de empezar.
+    const previos = await apiImpresion(page, '/api/print/jobs?state=PENDIENTE&limit=100')
+    for (const job of (previos.datos?.jobs || []).filter((item) => item.destination === DESTINO_REMOTO)) {
+      await apiImpresion(page, `/api/print/jobs/${job.id}/cancel`, { method: 'POST', body: JSON.stringify({}) })
+    }
+    const codigo = await crearPuentePorUi(page, `Puente duplicado E2E ${Date.now()}`)
+    const { bridgeId } = await parearPuente({ api: API, code: codigo })
+    const impresora = await asegurarImpresoraRemota(page, { nombre: NOMBRE_REMOTO, destino: DESTINO_REMOTO, bridgeId })
+    const predeterminada = await apiImpresion(page, `/api/print/printers/${impresora.id}`, { method: 'PATCH', body: JSON.stringify({ isDefault: true }) })
+    expect(predeterminada.status).toBe(200)
+    await page.reload()
+
+    await page.goto('/pedidos')
+    await page.getByTestId('pedido-fila').first().click()
+    await expect(page.getByText('Artículos preparados')).toBeVisible()
+
+    // Primer click: encola (queda pendiente).
+    await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
+    await page.getByRole('button', { name: 'Impresión directa' }).click()
+    await expect(page.getByText('Comprobante encolado al puente')).toBeVisible({ timeout: 15_000 })
+
+    // Segundo click del mismo comprobante: avisa y no encola solo.
+    await page.getByRole('button', { name: 'Impresión directa' }).click()
+    const reimprimir = page.getByRole('button', { name: 'Reimprimir igual' })
+    await expect(reimprimir).toBeVisible({ timeout: 10_000 })
+    const pendientesDe = async () => ((await apiImpresion(page, '/api/print/jobs?state=PENDIENTE&limit=100')).datos?.jobs || []).filter((job) => job.destination === DESTINO_REMOTO)
+    // El primer click dejó un pendiente y el segundo NO agregó otro (guardado).
+    expect((await pendientesDe()).length).toBe(1)
+
+    // "Reimprimir igual" es la confirmación explícita: crea un trabajo nuevo.
+    await reimprimir.click()
+    await expect(page.getByText('Comprobante encolado al puente')).toBeVisible({ timeout: 15_000 })
+    await expect.poll(async () => (await pendientesDe()).length, { timeout: 10_000 }).toBe(2)
+
+    // Limpieza: este test encola pendientes a propósito; si quedan, en la
+    // próxima corrida el guarda bloquea al test anterior (mismo documento e
+    // impresora dentro de la ventana).
+    for (const job of await pendientesDe()) {
+      await apiImpresion(page, `/api/print/jobs/${job.id}/cancel`, { method: 'POST', body: JSON.stringify({}) })
+    }
+    await expect.poll(async () => (await pendientesDe()).length, { timeout: 10_000 }).toBe(0)
+  })
+
   test('la cola del monitor cancela un pendiente y el puente no lo recibe', async ({ page }) => {
     const codigo = await crearPuentePorUi(page, `Puente cancelar E2E ${Date.now()}`)
     const { token, bridgeId } = await parearPuente({ api: API, code: codigo })
@@ -503,6 +559,76 @@ test.describe('impresión remota: cola con puente falso', () => {
     expect(claim.ok()).toBeTruthy()
     const claimDatos = await claim.json()
     expect((claimDatos.jobs || []).some((job) => job.id === jobId)).toBe(false)
+  })
+
+  test('el monitor cancela en lote los pendientes seleccionados', async ({ page }) => {
+    const codigo = await crearPuentePorUi(page, `Puente lote E2E ${Date.now()}`)
+    const { bridgeId } = await parearPuente({ api: API, code: codigo })
+    const impresora = await asegurarImpresoraRemota(page, { nombre: NOMBRE_REMOTO, destino: DESTINO_REMOTO, bridgeId })
+    const marca = Date.now()
+    const referencias = [`E2E-LOTE-A-${marca}`, `E2E-LOTE-B-${marca}`]
+    const ids = []
+    for (const reference of referencias) {
+      const encolado = await apiImpresion(page, '/api/print/jobs', {
+        method: 'POST',
+        body: JSON.stringify({ destination: DESTINO_REMOTO, printerId: impresora.id, payload: Buffer.from('TICKET-LOTE').toString('base64'), kind: 'comprobante', reference }),
+      })
+      expect(encolado.status).toBe(201)
+      ids.push(encolado.datos.job.id)
+    }
+
+    await page.goto('/configuracion/sistema')
+    for (const reference of referencias) {
+      const fila = page.getByRole('listitem').filter({ hasText: reference })
+      await expect(fila).toBeVisible({ timeout: 20_000 })
+      await fila.getByRole('checkbox').check()
+    }
+    await page.getByRole('button', { name: /Cancelar seleccionados/ }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar trabajos' }).click()
+    await expect(page.getByText(/trabajos cancelados/i).first()).toBeVisible({ timeout: 10_000 })
+    for (const id of ids) {
+      const detalle = await apiImpresion(page, `/api/print/jobs/${id}`)
+      expect(detalle.datos?.job?.state).toBe('CANCELADO')
+    }
+  })
+
+  test('el puente que reconecta recibe los pendientes y no los cancelados', async ({ page }) => {
+    const codigo = await crearPuentePorUi(page, `Puente reconexión E2E ${Date.now()}`)
+    const { token, bridgeId } = await parearPuente({ api: API, code: codigo })
+    const impresora = await asegurarImpresoraRemota(page, { nombre: NOMBRE_REMOTO, destino: DESTINO_REMOTO, bridgeId })
+    const marca = Date.now()
+    // Puente apagado: quedan dos trabajos pendientes.
+    const encolados = []
+    for (const etiqueta of ['A', 'B']) {
+      const encolado = await apiImpresion(page, '/api/print/jobs', {
+        method: 'POST',
+        body: JSON.stringify({ destination: DESTINO_REMOTO, printerId: impresora.id, payload: Buffer.from(`TICKET-RECON-${etiqueta}`).toString('base64'), kind: 'comprobante', reference: `E2E-RECON-${etiqueta}-${marca}` }),
+      })
+      expect(encolado.status).toBe(201)
+      encolados.push(encolado.datos.job)
+    }
+
+    // Se cancela el primero desde el monitor (el puente sigue apagado).
+    await page.goto('/configuracion/sistema')
+    const fila = page.getByRole('listitem').filter({ hasText: encolados[0].reference })
+    await expect(fila).toBeVisible({ timeout: 20_000 })
+    await fila.getByRole('button', { name: 'Cancelar', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar trabajos' }).click()
+    await expect(page.getByText(/cancelado/i).first()).toBeVisible({ timeout: 10_000 })
+
+    // Reconecta: el claim entrega el pendiente y nunca el cancelado.
+    const recibidos = []
+    for (let intento = 0; intento < 6; intento += 1) {
+      const claim = await page.request.post(`${API}/api/print/bridge/claim`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: {},
+      })
+      const jobs = (await claim.json()).jobs || []
+      if (!jobs.length) break
+      recibidos.push(...jobs.map((job) => job.id))
+    }
+    expect(recibidos).toContain(encolados[1].id)
+    expect(recibidos).not.toContain(encolados[0].id)
   })
 
   test('el puente aparece en línea en la UI después del latido', async ({ page }) => {
