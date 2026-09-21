@@ -7,6 +7,9 @@ import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 import { ensureStoreBranch } from '../../../lib/store-branch'
 
 const MAX_PAYLOAD_BYTES = 200 * 1024
+// TTL del enlace público del borrador (docs/TOKENS.md). Se emite y se valida
+// con el reloj de Postgres.
+const TTL_ENLACE_DIAS = 7
 
 // Ventas suspendidas: carrito en espera por sucursal. Cualquier persona con
 // permiso de venta lo guarda y cualquiera de la sucursal puede retomarlo.
@@ -57,6 +60,8 @@ export async function POST(request: Request) {
 // Enlace público del borrador (#154): genera un token de 64 hex, devuelve el
 // token (una sola vez) y guarda solo su sha256. Regenerar invalida el anterior;
 // un GET sin regenerar no puede devolver el token viejo porque no se guarda.
+// El enlace vence a los 7 días (reloj de Postgres) y se puede revocar sin
+// emitir otro (#172).
 export async function PATCH(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
@@ -68,16 +73,26 @@ export async function PATCH(request: Request) {
     if (!row) return error('Venta suspendida no encontrada.', 404)
     const isManager = canAccessAny(session.user, ['orders:manage']) || ['ADMIN', 'GERENTE'].includes(session.user.role)
     if (row.userId !== session.user.id && !isManager) return error('Solo quien la suspendió o gerencia pueden compartirla.', 403)
+    // Revocar sin emitir otro: el enlace deja de abrir al instante.
+    if (body.revoke === true) {
+      await prisma.$transaction(async tx => {
+        await tx.suspendedSale.update({ where: { id: row.id }, data: { publicTokenHash: null, publicTokenExpiresAt: null } })
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SALE_PUBLIC_LINK_REVOKED', entity: 'SuspendedSale', entityId: row.id, metadata: { branchId: row.branchId } } })
+      })
+      return json({ id: row.id, revoked: true })
+    }
     if (body.regenerate !== true && row.publicTokenHash) {
       return error('El enlace ya se generó y no se puede volver a mostrar. Regeneralo para obtener uno nuevo.', 409, { code: 'link_already_issued', regenerate: true })
     }
     const token = randomBytes(32).toString('hex')
     const publicTokenHash = createHash('sha256').update(token).digest('hex')
-    await prisma.$transaction(async tx => {
-      await tx.suspendedSale.update({ where: { id: row.id }, data: { publicTokenHash, publicTokenIssuedAt: new Date() } })
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SALE_PUBLIC_LINK', entity: 'SuspendedSale', entityId: row.id, metadata: { branchId: row.branchId, regenerated: Boolean(row.publicTokenHash) } } })
+    const expiresAt = await prisma.$transaction(async tx => {
+      await tx.$executeRaw`UPDATE "SuspendedSale" SET "publicTokenHash" = ${publicTokenHash}, "publicTokenIssuedAt" = now(), "publicTokenExpiresAt" = now() + make_interval(days => ${TTL_ENLACE_DIAS}) WHERE "id" = ${row.id} AND "tenantId" = ${tenant}`
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SALE_PUBLIC_LINK', entity: 'SuspendedSale', entityId: row.id, metadata: { branchId: row.branchId, regenerated: Boolean(row.publicTokenHash), expiresInDays: TTL_ENLACE_DIAS } } })
+      const [fila] = await tx.$queryRaw<Array<{ publicTokenExpiresAt: Date | null }>>`SELECT "publicTokenExpiresAt" FROM "SuspendedSale" WHERE "id" = ${row.id}`
+      return fila?.publicTokenExpiresAt ?? null
     })
-    return json({ id: row.id, token })
+    return json({ id: row.id, token, expiresAt })
   } catch (cause) {
     if (cause instanceof InputError) return error(cause.message, cause.status)
     return error(cause instanceof Error ? cause.message : 'No se pudo preparar el enlace.', 400)

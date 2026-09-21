@@ -1948,6 +1948,9 @@ model SuspendedSale {
   // del token de 64 hex (docs/TOKENS.md). Se regenera para invalidar el anterior.
   publicTokenHash   String?   @unique
   publicTokenIssuedAt DateTime?
+  // Vencimiento del enlace público: se emite y se valida con el reloj de
+  // Postgres (docs/TOKENS.md). Null = enlaces emitidos antes de esta regla.
+  publicTokenExpiresAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

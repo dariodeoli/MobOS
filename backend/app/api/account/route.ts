@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { requireSession, AuthRateLimitError, enforceAuthRateLimit } from '../../../lib/auth'
 import { googleStores } from '../../../lib/google-company'
 import { formatOrderNumber, maxOrderSequence } from '../../../lib/order-number'
 import { recoveryDeadline } from '../../../lib/tenant-archive'
@@ -72,6 +72,10 @@ export async function POST(request: Request) {
   const context = await adminSession(request)
   if ('error' in context) return context.error
   try {
+    // #172: la reautenticación habilita las acciones sensibles por 10 minutos.
+    // Para las tiendas con Google se acepta el PIN del dueño, así que el intento
+    // va limitado igual que el login (evita fuerza bruta sobre 4-6 dígitos).
+    await enforceAuthRateLimit(request, 'account-reauth', 8)
     const body = await request.json() as Record<string, unknown>
     const password = input(body.password, 'Contraseña', 1, 72)
     const tenant = await prisma.tenant.findUnique({ where: { id: context.session.user.tenantId }, select: { id: true } })
@@ -82,7 +86,10 @@ export async function POST(request: Request) {
       await tx.auditLog.create({ data: { tenantId: tenant.id, userId: context.session.user.id, action: 'ACCOUNT_REAUTHENTICATED', entity: 'Session', entityId: context.session.sessionId, metadata: {} } })
     })
     return json({ ok: true, validUntil: new Date(now.getTime() + REAUTH_WINDOW_MS) })
-  } catch (cause) { return error(cause instanceof Error ? cause.message : 'No se pudo reautenticar la cuenta.', 400) }
+  } catch (cause) {
+    if (cause instanceof AuthRateLimitError) return json({ message: cause.message }, { status: 429, headers: { 'Retry-After': String(cause.retryAfterSeconds), 'Cache-Control': 'no-store' } })
+    return error(cause instanceof Error ? cause.message : 'No se pudo reautenticar la cuenta.', 400)
+  }
 }
 
 export async function PATCH(request: Request) {

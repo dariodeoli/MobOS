@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto'
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
+import { enforceRateLimit } from '../../../../../lib/rate-limit'
 
 // Vista pública del borrador de carrito (#154): sin autenticación, con el token
 // de 64 hex del enlace. Muestra lo que el cliente necesita para confirmar
 // (productos, precios, descuentos, subtotal, total y condiciones) y nunca datos
 // internos: ni teléfono/documento del cliente, ni notas internas, ni costos.
+// El vencimiento se compara contra el reloj de Postgres (docs/TOKENS.md).
 const money = (value: number) => Math.max(0, Math.round(value))
 
 const descuentoDeLinea = (item: Record<string, unknown>) => {
@@ -17,11 +19,20 @@ const descuentoDeLinea = (item: Record<string, unknown>) => {
   return Math.min(fijo, precio * cantidad)
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ token: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ token: string }> }) {
+  const limited = enforceRateLimit(request, 'suspended-public', 30, 60_000)
+  if (limited) return limited
   const { token } = await context.params
   // El token es aleatorio de 64 hex: cualquier otra cosa no puede existir.
   if (!token || !/^[a-f0-9]{64}$/.test(token)) return error('Carrito no encontrado.', 404)
   const publicTokenHash = createHash('sha256').update(token).digest('hex')
+  const [estado] = await prisma.$queryRaw<Array<{ expira: Date | null; vencido: boolean }>>`
+    SELECT "publicTokenExpiresAt" AS "expira",
+           ("publicTokenExpiresAt" IS NOT NULL AND "publicTokenExpiresAt" <= now()) AS "vencido"
+    FROM "SuspendedSale" WHERE "publicTokenHash" = ${publicTokenHash}
+  `
+  if (!estado) return error('Carrito no encontrado.', 404)
+  if (estado.vencido) return error('Este enlace venció. Pedí uno nuevo a la tienda.', 410)
   const row = await prisma.suspendedSale.findFirst({
     where: { publicTokenHash },
     include: {
@@ -80,6 +91,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     notes: typeof payload.observacion === 'string' && payload.observacion.trim() ? payload.observacion.trim() : null,
     conditions: 'Precios y disponibilidad sujetos a confirmación al cerrar la compra.',
     issuedAt: row.publicTokenIssuedAt,
+    expiresAt: estado.expira,
     checkoutUrl,
   })
 }
