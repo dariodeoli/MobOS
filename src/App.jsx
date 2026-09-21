@@ -9,6 +9,7 @@ import PanelVendedor from '@/pages/PanelVendedor'
 import { applyPageMetadata } from '@/lib/seo'
 import DemoAccess from '@/pages/DemoAccess'
 import PedidoPublico from '@/pages/PedidoPublico'
+import CarritoPublico from '@/pages/CarritoPublico'
 import GarantiaPublica from '@/pages/GarantiaPublica'
 import CotizacionPublica from '@/pages/CotizacionPublica'
 import CuentaPublica from '@/pages/CuentaPublica'
@@ -174,6 +175,7 @@ export default function App() {
             <Route path="/portal/:token" element={<PortalCliente />} />
             <Route path="/pedido/:token" element={<PedidoPublico />} />
             <Route path="/p/:token" element={<PedidoPublico />} />
+            <Route path="/carrito/:token" element={<CarritoPublico />} />
             <Route path="/garantia/:token" element={<GarantiaPublica />} />
             <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
             <Route path="/remito/:token" element={<RemitoPublico />} />
@@ -197,6 +199,7 @@ export default function App() {
           <Route path="/verificar-correo/:token?" element={<VerificarCorreo />} />
           <Route path="/pedido/:token" element={<PedidoPublico />} />
           <Route path="/p/:token" element={<PedidoPublico />} />
+          <Route path="/carrito/:token" element={<CarritoPublico />} />
           <Route path="/garantia/:token" element={<GarantiaPublica />} />
           <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
           <Route path="/cuenta/:token" element={<CuentaPublica />} />

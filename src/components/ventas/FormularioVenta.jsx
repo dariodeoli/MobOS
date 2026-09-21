@@ -40,6 +40,7 @@ import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import { accountPayment } from './PaymentAccountFields'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import ColaOffline from './ColaOffline'
+import AnalyticsPos from './AnalyticsPos'
 import { whatsappTrackingLink } from './PagosPedido'
 import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
@@ -312,6 +313,13 @@ export default function FormularioVenta({
   const [errorSuspender, setErrorSuspender] = useState('')
   const [suspendiendo, setSuspendiendo] = useState(false)
   const [recuperarPendiente, setRecuperarPendiente] = useState(null)
+  // Aviso de disponibilidad al retomar un borrador: productos que ya no tienen
+  // stock para la cantidad pedida, con salida "volver" o "vender igualmente".
+  const [stockPendiente, setStockPendiente] = useState(null)
+  // Enlace público del borrador recién generado (se muestra una sola vez).
+  const [enlacePublico, setEnlacePublico] = useState(null)
+  const [avisoEnlace, setAvisoEnlace] = useState('')
+  const [analyticsOpen, setAnalyticsOpen] = useState(false)
   const [descartarPendiente, setDescartarPendiente] = useState(null)
   const [descartando, setDescartando] = useState(false)
   const [avisoSuspension, setAvisoSuspension] = useState('')
@@ -1281,16 +1289,48 @@ export default function FormularioVenta({
       setSuspendiendo(false)
     }
   }
+  // Productos del borrador que ya no tienen stock para lo pedido.
+  const faltantesDe = (suspendida) => {
+    const filas = Array.isArray(suspendida?.payload?.items) ? suspendida.payload.items : []
+    return filas
+      .map((fila) => {
+        const producto = productos.find((p) => p.id === fila.productoId)
+        if (!producto) return null
+        const pedido = Number(fila.quantity || 1)
+        const stock = Number(producto.stock) || 0
+        return stock < pedido ? { nombre: fila.nombre || producto.nombre, pedido, stock } : null
+      })
+      .filter(Boolean)
+  }
   function pedirRecuperar(suspendida) {
+    // Si cambió la disponibilidad, primero se avisa: volver o vender igual.
+    const faltantes = faltantesDe(suspendida)
+    if (faltantes.length) {
+      setStockPendiente({ suspendida, faltantes })
+      return
+    }
     if (carritoConDatos) {
       setRecuperarPendiente(suspendida)
       return
     }
     recuperarSuspendida(suspendida)
   }
+  // Enlace público del borrador: se genera (o regenera) y se muestra para
+  // copiar, mandar por WhatsApp o por correo. El token solo viaja una vez.
+  async function generarEnlacePublico(suspendida) {
+    try {
+      const data = await api.patch('/api/suspended-sales', { id: suspendida.id, regenerate: true })
+      if (!data?.token) throw new Error('El servidor no devolvió el enlace.')
+      setEnlacePublico({ id: suspendida.id, url: `${window.location.origin}/carrito/${data.token}` })
+      setAvisoEnlace('')
+      setErrorSuspendidas('')
+    } catch (error) {
+      setErrorSuspendidas(error?.message || 'No se pudo generar el enlace público.')
+    }
+  }
   // Carga el payload guardado en el formulario y recién después descarta la
   // suspendida: el backend no la borra sola al recuperarla.
-  async function recuperarSuspendida(suspendida) {
+  async function recuperarSuspendida(suspendida, { venderIgual = false } = {}) {
     setRecuperarPendiente(null)
     const payload = suspendida?.payload
     if (!payload || typeof payload !== 'object') {
@@ -1300,7 +1340,14 @@ export default function FormularioVenta({
       return
     }
     const cliente = clienteGuardado(payload.customer)
-    setItems(itemsGuardados(payload.items))
+    // "Vender igualmente": las líneas sin stock quedan marcadas como sobre
+    // pedido (el IMEI/stock se completa al entregar).
+    const recuperados = itemsGuardados(payload.items).map((item) => {
+      if (!venderIgual) return item
+      const producto = productos.find((p) => p.id === item.productoId)
+      return producto && Number(producto.stock) < Number(item.quantity || 1) ? { ...item, sobrePedido: true } : item
+    })
+    setItems(recuperados)
     setCustomer(cliente)
     setDescuento(
       payload.descuento === undefined || payload.descuento === null
@@ -1411,6 +1458,15 @@ export default function FormularioVenta({
           </span>
           {/* Carrito en espera: suspender la venta actual y retomar otra. Vive
               en el encabezado para no cortar el flujo de la venta. */}
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 px-3 text-xs"
+            onClick={() => setAnalyticsOpen(true)}
+          >
+            <Icon name="chart" className="h-4 w-4" />
+            Analytics
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -1782,6 +1838,14 @@ export default function FormularioVenta({
                     type="button"
                     variant="outline"
                     disabled={descartando}
+                    onClick={() => generarEnlacePublico(suspendida)}
+                  >
+                    Enlace público
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={descartando}
                     onClick={() => pedirRecuperar(suspendida)}
                   >
                     Recuperar
@@ -1801,6 +1865,30 @@ export default function FormularioVenta({
                     </Button>
                   )}
                 </div>
+                {enlacePublico?.id === suspendida.id && (
+                  <div className="w-full space-y-2 rounded-xl border border-fono/30 bg-fono/[.06] p-3">
+                    <p className="text-xs text-mute">Enlace público del carrito (sin sesión). Se muestra una sola vez: copialo o compartilo ahora.</p>
+                    <p className="truncate rounded-lg border border-ink-600 bg-ink-800 px-2 py-1.5 font-mono text-[11px] text-fono-light">{enlacePublico.url}</p>
+                    {avisoEnlace && <p role="status" className="text-xs text-ok">{avisoEnlace}</p>}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button type="button" variant="outline" onClick={() => navigator.clipboard?.writeText(enlacePublico.url).then(() => setAvisoEnlace('Enlace copiado: mandalo al cliente para que confirme.'))}>Copiar</Button>
+                      <a
+                        className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore"
+                        href={`https://wa.me/${String(suspendida.customer?.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Hola${suspendida.customer?.name ? ` ${suspendida.customer.name}` : ''}, te comparto el carrito${suspendida.label ? ` "${suspendida.label}"` : ''}: ${enlacePublico.url}`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Enviar por WhatsApp
+                      </a>
+                      <a
+                        className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore"
+                        href={`mailto:${suspendida.customer?.email || ''}?subject=${encodeURIComponent(`Carrito${suspendida.label ? ` ${suspendida.label}` : ''}`)}&body=${encodeURIComponent(`Te comparto el carrito para que lo confirmes: ${enlacePublico.url}`)}`}
+                      >
+                        Enviar por correo
+                      </a>
+                    </div>
+                  </div>
+                )}
               </article>
             ))}
           </div>
@@ -1824,6 +1912,21 @@ export default function FormularioVenta({
         title="Reemplazar el carrito actual"
         description="Tenés una venta en curso. Si recuperás la venta suspendida, el carrito actual se reemplaza por el guardado."
         confirmLabel="Reemplazar y recuperar"
+      />
+
+      <ConfirmDialog
+        open={Boolean(stockPendiente)}
+        onCancel={() => setStockPendiente(null)}
+        onConfirm={() => {
+          const { suspendida } = stockPendiente
+          setStockPendiente(null)
+          if (carritoConDatos) setRecuperarPendiente(suspendida)
+          else recuperarSuspendida(suspendida, { venderIgual: true })
+        }}
+        title="Cambió la disponibilidad"
+        description={`Estos productos ya no tienen stock para lo pedido: ${(stockPendiente?.faltantes || []).map((f) => `${f.nombre} (pedido ${f.pedido}, hay ${f.stock})`).join(' · ')}. Podés volver atrás o vender igualmente: las líneas quedan como sobre pedido.`}
+        confirmLabel="Vender igualmente"
+        cancelLabel="Volver atrás"
       />
 
       <ConfirmDialog
@@ -1859,6 +1962,8 @@ export default function FormularioVenta({
           </div>
         </div>
       </Modal>
+
+      <AnalyticsPos open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
 
       {lastOrder && <ComprobantePreview order={lastOrder} open={comprobante} onClose={() => setComprobante(false)} />}
     </Card>

@@ -9,11 +9,16 @@ import { internationalPhone, telefonoVisible } from '@/utils/telefono'
 export const SIN_DATOS = () => []
 
 export const ENTREGA_LABELS = {
+  PENDING: 'Pendiente',
   PROCESSING: 'A entregar',
-  IN_TRANSIT: 'En camino',
   READY_TO_SHIP: 'Listo p/ enviar',
+  SHIPPED: 'Enviado',
+  IN_TRANSIT: 'En camino',
   READY_FOR_PICKUP: 'Listo p/ retirar',
+  PICKED_UP: 'Retirado',
+  PARTIAL: 'Entrega parcial',
   DELIVERED: 'Entregado',
+  NOT_DELIVERED: 'No entregado',
 }
 
 export const MEDIO_LABELS = { CASH: 'Efectivo', TRANSFER: 'Transferencia' }
@@ -21,7 +26,8 @@ export const MEDIO_LABELS = { CASH: 'Efectivo', TRANSFER: 'Transferencia' }
 export const RENDICION_LABELS = { PENDING: 'Pendiente', VERIFIED: 'Verificada', REJECTED: 'Rechazada' }
 
 export function entregable(fulfillment) {
-  return fulfillment !== 'DELIVERED'
+  // Retirado y entregado cierran el reparto; el resto sigue activo.
+  return !['DELIVERED', 'PICKED_UP'].includes(fulfillment)
 }
 
 export function deliveryFields(row) {

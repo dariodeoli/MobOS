@@ -10,6 +10,7 @@ import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import { api, API_URL } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
+import { opcionesDeEntrega, tonoEntrega } from './venta/entrega'
 import { accessUrlFor, FORMATOS_PEDIDO, printDeliveryNote } from '@/components/shared/OrderReceipt'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
@@ -20,6 +21,8 @@ import { DEMO_MESSAGE_TEMPLATES } from '@/components/customers/customerMessaging
 import { gs } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 import { codigoPedido } from '@/utils/pedido'
+import { getVendedores } from '@/lib/storage'
+import { consultaDeMencion, insertarMencion, tramosDeMencion } from '@/utils/menciones'
 
 const FULFILLMENT = FULFILLMENT_LABELS
 const PAYMENT_TONE = (status) => status === 'Pagado' ? 'green' : status === 'Parcial' ? 'orange' : status === 'Anulado' ? 'slate' : 'red'
@@ -98,7 +101,7 @@ const NIVELES_ACCESO = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detal
 
 export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onClose, onChanged, pagina = false }) {
   const toast = useToast()
-  const { usuario } = useSesion()
+  const { usuario, vendedores, sesion } = useSesion()
   const [accesos, setAccesos] = useState({})
   const [accesoBusy, setAccesoBusy] = useState(false)
   const [accesoMsg, setAccesoMsg] = useState('')
@@ -109,6 +112,19 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [comentario, setComentario] = useState('')
+  // Menciones internas: "@Nombre" avisa a quien corresponde (el equipo sale de
+  // la lista de usuarios de la tienda).
+  // El equipo sale del contexto de la empresa (lo ven todos los roles) y, si
+  // está hidratado, se completa con los usuarios de la tienda.
+  const nombresEquipo = useMemo(() => {
+    const delContexto = Array.isArray(vendedores) ? vendedores.map((v) => v.nombre || v.name) : []
+    const deLaTienda = getVendedores().map((v) => v.nombre)
+    return [...new Set([...delContexto, ...deLaTienda, sesion?.nombre].filter(Boolean))]
+  }, [vendedores, sesion?.nombre])
+  const consultaMencion = consultaDeMencion(comentario)
+  const sugerenciasMencion = consultaMencion === null
+    ? []
+    : nombresEquipo.filter((nombre) => nombre.toLowerCase().includes(consultaMencion.toLowerCase())).slice(0, 5)
   const [adjunto, setAdjunto] = useState(null)
   const [tagInput, setTagInput] = useState('')
   const [subiendo, setSubiendo] = useState(false)
@@ -357,7 +373,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
             <div className="flex flex-wrap items-center gap-2">
               <Badge color={PAYMENT_TONE(estadoPago)}>{estadoPago}</Badge>
-              <Badge color={order.fulfillmentStatus === 'DELIVERED' ? 'green' : order.fulfillmentStatus === 'READY_TO_SHIP' ? 'blue' : order.fulfillmentStatus === 'READY_FOR_PICKUP' ? 'orange' : 'slate'}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Preparando'}</Badge>
+              <Badge color={tonoEntrega(order.fulfillmentStatus)}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Pendiente'}</Badge>
               {archivado && <Badge color="slate">Archivado</Badge>}
               {order.isSpecialOrder && (
                 <Badge color="orange">
@@ -376,8 +392,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             </p>
             {row.publicToken && !esDemo && <p className="mt-1 truncate font-mono text-[10px] text-mute">Token público: {order.publicToken || row.publicToken}</p>}
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              {!esDemo && <Select aria-label="Estado de entrega" className="max-w-[190px]" value={order.fulfillmentStatus || 'PROCESSING'} disabled={busy} onChange={event => cambiarEntrega(event.target.value)}>{Object.entries(FULFILLMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>}
-              {!esDemo && ['IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
+              {!esDemo && !anulado && <Select aria-label="Estado de entrega" className="max-w-[190px]" value={order.fulfillmentStatus || 'PENDING'} disabled={busy} onChange={event => cambiarEntrega(event.target.value)}>{opcionesDeEntrega(order.deliveryType, order.fulfillmentStatus || 'PENDING').map(value => <option key={value} value={value}>{FULFILLMENT[value] || value}</option>)}</Select>}
+              {!esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
               {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
               {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
               <Button variant="outline" onClick={() => setComprobante(true)}>Imprimir comprobante</Button>
@@ -522,8 +538,23 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             {esDemo && <p className="text-sm text-mute">La cronología con comentarios y fotos está disponible con una cuenta real.</p>}
             {!esDemo && (
               <>
-                <form onSubmit={enviarComentario} className="space-y-2">
-                  <textarea aria-label="Comentario del pedido" rows={2} maxLength={2000} value={comentario} onChange={event => setComentario(event.target.value)} placeholder="Escribí un comentario para el equipo…" className="w-full rounded-xl border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-fore outline-none transition focus:border-fono" />
+                <form onSubmit={enviarComentario} className="mt-3 space-y-2">
+                  <textarea aria-label="Comentario del pedido" rows={2} maxLength={2000} value={comentario} onChange={event => setComentario(event.target.value)} placeholder="Escribí un comentario para el equipo… Usá @ para mencionar" className="w-full rounded-xl border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-fore outline-none transition focus:border-fono" />
+                  {sugerenciasMencion.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] text-mute">Mencionar:</span>
+                      {sugerenciasMencion.map((nombre) => (
+                        <button
+                          key={nombre}
+                          type="button"
+                          onMouseDown={(event) => { event.preventDefault(); setComentario((texto) => insertarMencion(texto, nombre)) }}
+                          className="rounded-full border border-fono/30 bg-fono/10 px-2.5 py-1 text-xs font-semibold text-fono-light transition hover:bg-fono/20"
+                        >
+                          @{nombre}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-ink-500 px-3 py-1.5 text-xs text-mute transition hover:border-fono hover:text-fore">
                       <Icon name="image" className="h-3.5 w-3.5" />{adjunto ? adjunto.name : 'Adjuntar foto o PDF'}
@@ -539,7 +570,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                     <div className="min-w-0 flex-1">
                       <p className="text-xs text-mute" title={event.user?.name || 'Sistema'}><span className="font-semibold text-fore">{primerNombre(event.user?.name) || 'Sistema'}</span> · {relativeDate(event.at)}</p>
                       {event.type === 'comment' && <>
-                        <p className="mt-1 whitespace-pre-wrap text-sm">{event.body}</p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm">{tramosDeMencion(event.body, nombresEquipo).map((tramo, indice) => tramo.mencion ? <span key={indice} className="font-semibold text-fono-light">{tramo.texto}</span> : <span key={indice}>{tramo.texto}</span>)}</p>
                         {(event.photos || []).length > 0 && <div className="mt-2 flex flex-wrap gap-2">{event.photos.map(photo => <PhotoThumb key={photo.id} orderId={order.id} commentId={event.id} photo={photo} />)}</div>}
                       </>}
                       {event.type === 'payment' && <p className="mt-1 text-sm text-mute">{ETIQUETAS_MEDIO_PAGO[event.payment.method] || event.payment.method} · <b className="text-fore"><Money value={Number(event.payment.amountPyg || 0)} /></b> · {PAYMENT_STATUS[event.payment.status] || event.payment.status}{event.payment.accountSnapshot?.name ? ` · ${event.payment.accountSnapshot.name}` : ''}{event.payment.reference ? ` · ${event.payment.reference}` : ''}</p>}

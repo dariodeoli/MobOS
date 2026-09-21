@@ -15,6 +15,7 @@ import SearchField from '@/components/shared/SearchField'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import PedidoDetalle from './PedidoDetalle'
 import Icon from '@/components/shared/Icon'
+import { FULFILLMENT_LABELS as FULFILLMENT } from '@/lib/constants'
 
 export const orderFields = (row) => {
   const pagos = row.payments || row.pagos || []
@@ -55,10 +56,11 @@ export const orderFields = (row) => {
     expectedAt: row.expectedAt || null,
   }
 }
-const FULFILLMENT = { PROCESSING: 'Preparando', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo p/ enviar', READY_FOR_PICKUP: 'Listo p/ retirar', DELIVERED: 'Entregado' }
+// Etiquetas compartidas: incluyen los estados nuevos de entrega (enviado,
+// retirado, parcial, no entregado).
 const ENTREGA = { 'Retiro en tienda': 'Retiro', Delivery: 'Delivery', Encomienda: 'Encomienda' }
 const PAGO_ORDEN = { Pagado: 0, Parcial: 1, 'A crédito': 2, Pendiente: 3 }
-const ESTADO_ORDEN = { PROCESSING: 0, IN_TRANSIT: 1, READY_TO_SHIP: 2, READY_FOR_PICKUP: 3, DELIVERED: 4, CANCELLED: 5 }
+const ESTADO_ORDEN = { PENDING: 0, PROCESSING: 1, READY_TO_SHIP: 2, SHIPPED: 3, IN_TRANSIT: 4, READY_FOR_PICKUP: 5, PARTIAL: 6, NOT_DELIVERED: 7, PICKED_UP: 8, DELIVERED: 9, CANCELLED: 10 }
 const FILTROS = [
   ['activos', 'Activos'], ['nopagados', 'No pagados'], ['pendientes', 'Pendientes'],
   ['parciales', 'Parciales'], ['credito', 'A crédito'], ['archivados', 'Archivados'], ['todos', 'Todos'],
@@ -105,10 +107,10 @@ function BadgePago({ row }) {
 
 function BadgeEstado({ row }) {
   if (estaCancelado(row)) return <span className="w-fit justify-self-start whitespace-nowrap rounded-md border border-bad/30 bg-bad/10 px-1.5 py-0.5 text-[10px] font-bold text-bad">Cancelado</span>
-  const tono = row.fulfillmentStatus === 'DELIVERED' ? 'border-ok/25 bg-ok/10 text-ok'
-    : row.fulfillmentStatus === 'READY_TO_SHIP' ? 'border-sky-400/25 bg-sky-400/10 text-sky-300'
-      : row.fulfillmentStatus === 'READY_FOR_PICKUP' ? 'border-warn/25 bg-warn/10 text-warn'
-        : row.fulfillmentStatus === 'IN_TRANSIT' ? 'border-fono/25 bg-fono/10 text-fono-light'
+  const tono = ['DELIVERED', 'PICKED_UP'].includes(row.fulfillmentStatus) ? 'border-ok/25 bg-ok/10 text-ok'
+    : ['READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT'].includes(row.fulfillmentStatus) ? 'border-sky-400/25 bg-sky-400/10 text-sky-300'
+      : ['READY_FOR_PICKUP', 'PARTIAL'].includes(row.fulfillmentStatus) ? 'border-warn/25 bg-warn/10 text-warn'
+        : row.fulfillmentStatus === 'NOT_DELIVERED' ? 'border-bad/30 bg-bad/10 text-bad'
           : 'border-ink-500 bg-ink-700/40 text-mute'
   return <span className={cn('w-fit justify-self-start whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-bold', tono)}>{FULFILLMENT[row.fulfillmentStatus] || row.fulfillmentStatus || 'Preparando'}</span>
 }

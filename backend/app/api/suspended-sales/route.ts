@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { canAccessAny, requireSession } from '../../../lib/auth'
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
     where: { tenantId: tenant, ...(branchId ? { branchId } : {}) },
     orderBy: { createdAt: 'desc' },
     take: 50,
-    select: { id: true, branchId: true, userId: true, customerId: true, label: true, createdAt: true, payload: true, customer: { select: { id: true, name: true } }, user: { select: { id: true, name: true } } },
+    select: { id: true, branchId: true, userId: true, customerId: true, label: true, createdAt: true, payload: true, customer: { select: { id: true, name: true, phone: true, email: true } }, user: { select: { id: true, name: true } } },
   })
   return json(rows)
 }
@@ -50,6 +51,36 @@ export async function POST(request: Request) {
   } catch (cause) {
     if (cause instanceof InputError) return error(cause.message, cause.status)
     return error(cause instanceof Error ? cause.message : 'No se pudo suspender la venta.', 400)
+  }
+}
+
+// Enlace público del borrador (#154): genera un token de 64 hex, devuelve el
+// token (una sola vez) y guarda solo su sha256. Regenerar invalida el anterior;
+// un GET sin regenerar no puede devolver el token viejo porque no se guarda.
+export async function PATCH(request: Request) {
+  const tenant = await tenantId(request); const session = await requireSession(request)
+  if (!tenant || !session) return error('Falta sesión.', 401)
+  if (!canAccessAny(session.user, ['pos:use', 'orders:manage', 'orders:own', 'orders:branch'])) return error('No autorizado.', 403)
+  try {
+    const body = objectInput(await request.json())
+    const id = textInput(body.id, 'Venta suspendida', 200)
+    const row = await prisma.suspendedSale.findFirst({ where: { id, tenantId: tenant }, select: { id: true, userId: true, branchId: true, publicTokenHash: true } })
+    if (!row) return error('Venta suspendida no encontrada.', 404)
+    const isManager = canAccessAny(session.user, ['orders:manage']) || ['ADMIN', 'GERENTE'].includes(session.user.role)
+    if (row.userId !== session.user.id && !isManager) return error('Solo quien la suspendió o gerencia pueden compartirla.', 403)
+    if (body.regenerate !== true && row.publicTokenHash) {
+      return error('El enlace ya se generó y no se puede volver a mostrar. Regeneralo para obtener uno nuevo.', 409, { code: 'link_already_issued', regenerate: true })
+    }
+    const token = randomBytes(32).toString('hex')
+    const publicTokenHash = createHash('sha256').update(token).digest('hex')
+    await prisma.$transaction(async tx => {
+      await tx.suspendedSale.update({ where: { id: row.id }, data: { publicTokenHash, publicTokenIssuedAt: new Date() } })
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SALE_PUBLIC_LINK', entity: 'SuspendedSale', entityId: row.id, metadata: { branchId: row.branchId, regenerated: Boolean(row.publicTokenHash) } } })
+    })
+    return json({ id: row.id, token })
+  } catch (cause) {
+    if (cause instanceof InputError) return error(cause.message, cause.status)
+    return error(cause instanceof Error ? cause.message : 'No se pudo preparar el enlace.', 400)
   }
 }
 
