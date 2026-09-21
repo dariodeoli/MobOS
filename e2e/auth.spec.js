@@ -111,7 +111,7 @@ test('demo: la ficha del cliente abre sin sesión y no consulta el API', async (
   await expect(fila).toBeVisible()
   await fila.click()
   const ficha = page.getByRole('dialog')
-  await expect(ficha.getByRole('heading', { name: new RegExp(marca) })).toBeVisible()
+  await expect(ficha.getByRole('heading', { name: new RegExp(`Cliente: Ficha ${marca}`) })).toBeVisible()
   await expect(ficha.getByText(/Modo demo/)).toBeVisible()
   // Las acciones de la ficha quedan deshabilitadas en demo.
   await ficha.getByRole('tab', { name: /^Datos/ }).click()

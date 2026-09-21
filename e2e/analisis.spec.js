@@ -33,8 +33,13 @@ test.describe('análisis', () => {
       (respuesta) => respuesta.url().includes('/api/reports') && respuesta.url().includes('groupBy=day') && respuesta.status() === 200,
     )
 
-    await Promise.all([esperarReporteDiario(), page.goto('/analisis/ganancias')])
+    const [respuestaGanancias] = await Promise.all([esperarReporteDiario(), page.goto('/analisis/ganancias')])
     await expect(page.getByRole('heading', { name: 'Cómo se calcula' })).toBeVisible()
+    const totalesGanancias = (await respuestaGanancias.json())?.totals
+    // La vista muestra primero el cálculo local y después el del backend (#171):
+    // se espera a que la cifra de ventas venga del reporte para comparar los
+    // mismos números (sin esto, la lectura puede caer en el cálculo local).
+    await expect(page.getByText(`${totalesGanancias.orders} ventas en el período`)).toBeVisible({ timeout: 15_000 })
     const resultadoGanancias = (await page.getByTestId('ganancia-resultado').textContent())?.trim()
 
     await Promise.all([esperarReporteDiario(), page.goto('/analisis/reportes?rango=hoy')])
