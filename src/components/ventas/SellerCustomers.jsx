@@ -18,6 +18,7 @@ import { descargarCsv } from '@/utils/descargarCsv'
 import { cn } from '@/lib/utils'
 import RucField from '@/components/shared/RucField'
 import { extraerRuc } from '@/utils/ruc'
+import { SEED_DEMO_CLIENTES, clientesDemoGuardados, guardarClienteDemo } from '@/lib/demoClientes'
 
 // Convierte filas del export tipo Shopify en fichas para el endpoint de import.
 function filasParaImportar(texto) {
@@ -70,12 +71,11 @@ export const customerFields = (row) => {
   const phones = Array.from(new Set([phone, ...(row.phones || []), ...metadata.phones].filter(Boolean)))
   const legacyAddress = typeof row.notes === 'string' && row.notes.startsWith('Dirección: ') ? row.notes.slice('Dirección: '.length) : ''
   const addresses = Array.isArray(row.addresses) ? row.addresses : row.address || legacyAddress ? [{ id: 'legacy', label: 'Principal', address: row.address || legacyAddress }] : []
-  return { id: row.id, name: row.name || '', firstName: row.firstName || '', secondName: row.secondName || '', createdAt: row.createdAt || '', document: row.document || '', email: row.email || '', phone, phones, countryCode: row.countryCode || '+595', billingName: row.billingName || '', billingDocument: row.billingDocument || '', notes: typeof row.notes === 'string' ? row.notes : '', address: addresses[0]?.address || '', addresses, externalId: row.externalId || '', acceptsEmailMarketing: row.acceptsEmailMarketing === true, acceptsSmsMarketing: row.acceptsSmsMarketing === true, acceptsWhatsappMarketing: row.acceptsWhatsappMarketing === true, taxExempt: row.taxExempt === true, tags: Array.isArray(row.tags) ? row.tags : [], pricingTier: row.pricingTier || 'RETAIL', creditLimitPyg: row.creditLimitPyg ?? null, creditDays: row.creditDays ?? null }
+  return { id: row.id, name: row.name || '', firstName: row.firstName || '', secondName: row.secondName || '', createdAt: row.createdAt || '', document: row.document || '', email: row.email || '', phone, phones, countryCode: row.countryCode || '+595', billingName: row.billingName || '', billingDocument: row.billingDocument || '', notes: typeof row.notes === 'string' ? row.notes : '', address: addresses[0]?.address || '', addresses, externalId: row.externalId || '', acceptsEmailMarketing: row.acceptsEmailMarketing === true, acceptsSmsMarketing: row.acceptsSmsMarketing === true, acceptsWhatsappMarketing: row.acceptsWhatsappMarketing === true, taxExempt: row.taxExempt === true, tags: Array.isArray(row.tags) ? row.tags : [], pricingTier: row.pricingTier || 'RETAIL', creditLimitPyg: row.creditLimitPyg ?? null, creditDays: row.creditDays ?? null, insuranceEnabled: row.insuranceEnabled === true, insuranceRatePct: row.insuranceRatePct ?? null, demoProfile: row.demoProfile || null }
 }
 export function readDemoCustomers() {
-  const rows = JSON.parse(localStorage.getItem(DEMO_CUSTOMERS_KEY) || '[]')
-  if (!Array.isArray(rows)) throw new Error('Clientes demo inválidos')
-  return rows.map(customerFields)
+  // Seeds ficticios siempre visibles (#194) + lo creado en este navegador.
+  return [...SEED_DEMO_CLIENTES, ...clientesDemoGuardados()].map(customerFields)
 }
 
 export default function SellerCustomers() {
@@ -193,7 +193,7 @@ export default function SellerCustomers() {
       const addresses = form.addresses.filter((address) => address.address.trim()).map((address, index) => ({ label: address.label.trim() || `Dirección ${index + 1}`, address: address.address.trim(), ...(address.city.trim() ? { city: address.city.trim() } : {}), ...(address.department?.trim() ? { department: address.department.trim() } : {}), country: address.country?.trim() || 'Paraguay', isDefault: index === 0 }))
       if (esDemo) {
         const customer = { id: crypto.randomUUID(), name: nombre, firstName, secondName, createdAt: new Date().toISOString(), document: form.document.trim(), email: form.email.trim(), phone: phones[0] || '', phones, countryCode: form.countryCode || '+595', addresses, acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20) }
-        localStorage.setItem(DEMO_CUSTOMERS_KEY, JSON.stringify([...readDemoCustomers(), customer]))
+        guardarClienteDemo(customer)
       } else {
         const saved = await api.post('/api/customers', { name: nombre, firstName, secondName, document: form.document.trim() || undefined, email: form.email.trim() || undefined, phone: phones[0] || undefined, countryCode: form.countryCode || '+595', addresses, notes: customerMetadata(phones), acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20), pricingTier: form.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL', ...(form.priceListId ? { priceListId: form.priceListId } : {}), ...(String(form.creditLimitPyg).trim() ? { creditLimitPyg: Number(String(form.creditLimitPyg).replace(/\D/g, '')) } : {}), ...(String(form.creditDays).trim() ? { creditDays: Number(String(form.creditDays).replace(/\D/g, '')) } : {}) })
         if (!saved?.id) throw new Error('Sin confirmación')

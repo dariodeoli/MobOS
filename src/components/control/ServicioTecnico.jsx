@@ -14,6 +14,8 @@ import { imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { useSesion } from '@/lib/sesion'
 import { buildServiceIntakeHtml, buildServiceReportHtml, ordenParaImpresion } from '@/lib/servicioImpresion'
 import { CHECKLISTS } from '@/lib/servicioChecklist'
+import { getDemoServicio, saveDemoServicio, siguienteNumeroDemo } from '@/lib/demoServicio'
+import { SEED_DEMO_CLIENTES, clientesDemoGuardados } from '@/lib/demoClientes'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { coincideCliente } from '@/utils/cliente'
@@ -61,7 +63,7 @@ const ULTIMA_PLANTILLA_SERVICIO = 'mobos:plantilla:servicio'
 
 export default function ServicioTecnico() {
   const toast = useToast()
-  const { empresa } = useSesion()
+  const { empresa, esDemo } = useSesion()
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -85,39 +87,47 @@ export default function ServicioTecnico() {
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
+    if (esDemo) { setRows(getDemoServicio().rows); setLoading(false); return }
     try {
       const data = await api.get('/api/service-orders')
       setRows(Array.isArray(data) ? data : [])
     } catch (cause) {
       setError(cause?.message || 'No se pudieron cargar las órdenes de servicio.')
     } finally { setLoading(false) }
-  }, [])
+  }, [esDemo])
   useEffect(() => { load() }, [load])
 
   const cargarServicios = useCallback(async () => {
+    if (esDemo) { setServicios(getDemoServicio().servicios); return }
     try {
       const data = await api.get('/api/service-items')
       setServicios(Array.isArray(data) ? data : [])
     } catch { setServicios([]) }
-  }, [])
+  }, [esDemo])
   useEffect(() => { cargarServicios() }, [cargarServicios])
 
   // Checklist configurable por tipo de dispositivo: si la tienda no definió
   // puntos, se usa la lista sugerida del módulo.
   const cargarChecklists = useCallback(async () => {
+    if (esDemo) { setChecklists(getDemoServicio().checklists || {}); return }
     try {
       const data = await api.get('/api/service-checklists')
       const mapa = {}
       for (const item of Array.isArray(data) ? data : []) (mapa[item.deviceType] ||= []).push(item)
       setChecklists(mapa)
     } catch { setChecklists({}) }
-  }, [])
+  }, [esDemo])
   useEffect(() => { cargarChecklists() }, [cargarChecklists])
   const puntosDe = (deviceType) => checklists[deviceType]?.length ? checklists[deviceType].map(item => item.label) : (CHECKLISTS[deviceType] || CHECKLISTS.Otros)
 
   useEffect(() => {
     const query = (form?.customerName || '').trim()
     if (query.length < 2) { setClientes([]); return undefined }
+    if (esDemo) {
+      const demo = [...SEED_DEMO_CLIENTES, ...clientesDemoGuardados()]
+      setClientes(demo.filter((cliente) => coincideCliente(cliente, query)).slice(0, 5))
+      return undefined
+    }
     let active = true
     const timer = setTimeout(async () => {
       try {
@@ -126,7 +136,7 @@ export default function ServicioTecnico() {
       } catch { if (active) setClientes([]) }
     }, 250)
     return () => { active = false; clearTimeout(timer) }
-  }, [form?.customerName])
+  }, [form?.customerName, esDemo])
 
   const conteos = useMemo(() => {
     const base = { activos: 0, ...Object.fromEntries(ESTADOS.map(([id]) => [id, 0])) }
@@ -209,6 +219,27 @@ export default function ServicioTecnico() {
         ...desglose,
         notes: form.notes.trim(),
       }
+      if (esDemo) {
+        // Modo demo (#194): la orden se guarda en el navegador, sin API.
+        const actuales = getDemoServicio().rows
+        const receta = {
+          customerName: form.customerName.trim(), customerId: form.customerId || '', customerPhone: form.customerPhone || '', customerCountryCode: '+595',
+          device: form.device.trim(), deviceType: form.deviceType, serial: form.serial.trim(), serviceName: form.serviceName || undefined,
+          reportedIssue: form.reportedIssue.trim(), diagnosis: form.diagnosis.trim(), technicianName: form.technicianName.trim(), status: form.status,
+          pricePyg: numeroDe(form.pricePyg), costPyg: numeroDe(form.costPyg),
+          partsPyg: desglose.partsPyg ?? 0, laborPyg: desglose.laborPyg ?? 0, otherCostPyg: desglose.otherCostPyg ?? 0,
+          checklist: form.checklist || {}, notes: form.notes.trim(),
+        }
+        const siguientes = editing
+          ? actuales.map((row) => row.id === editing.id ? { ...row, ...receta } : row)
+          : [{ id: `demo-os-${Date.now()}`, serviceNumber: siguienteNumeroDemo(actuales), receivedAt: new Date().toISOString(), ...receta }, ...actuales]
+        saveDemoServicio({ rows: siguientes })
+        toast.success(editing ? 'Orden de prueba actualizada en este navegador.' : 'Orden de prueba guardada en este navegador.')
+        setForm(null); setEditing(null)
+        setBusy(false)
+        await load()
+        return
+      }
       if (editing) await api.patch('/api/service-orders', { id: editing.id, ...payload })
       else await api.post('/api/service-orders', payload)
       toast.success(editing ? 'Orden de servicio actualizada.' : 'Orden de servicio creada.')
@@ -227,6 +258,17 @@ export default function ServicioTecnico() {
     setCatalogoBusy(true)
     try {
       const payload = { name: servicioEdit.name.trim(), deviceType: servicioEdit.deviceType, suggestedPricePyg: numeroDe(servicioEdit.precio) }
+      if (esDemo) {
+        const actuales = getDemoServicio().servicios
+        const siguientes = servicioEdit.id
+          ? actuales.map((item) => item.id === servicioEdit.id ? { ...item, ...payload } : item)
+          : [...actuales, { id: `demo-serv-${Date.now()}`, isActive: true, ...payload }]
+        saveDemoServicio({ servicios: siguientes })
+        setServicios(siguientes)
+        setServicioEdit({ id: '', name: '', deviceType: 'iPhone', precio: '' })
+        toast.success(servicioEdit.id ? 'Servicio de prueba actualizado.' : 'Servicio de prueba agregado.')
+        return
+      }
       if (servicioEdit.id) await api.patch('/api/service-items', { id: servicioEdit.id, ...payload })
       else await api.post('/api/service-items', payload)
       setServicioEdit({ id: '', name: '', deviceType: 'iPhone', precio: '' })
@@ -238,6 +280,13 @@ export default function ServicioTecnico() {
     if (catalogoBusy) return
     setCatalogoBusy(true)
     try {
+      if (esDemo) {
+        const siguientes = getDemoServicio().servicios.filter((row) => row.id !== item.id)
+        saveDemoServicio({ servicios: siguientes })
+        setServicios(siguientes)
+        toast.success('Servicio de prueba quitado.')
+        return
+      }
       await api.patch('/api/service-items', { id: item.id, isActive: false })
       await cargarServicios()
       toast.success('Servicio quitado del catálogo.')
@@ -245,6 +294,17 @@ export default function ServicioTecnico() {
   }
   async function cargarCatalogoSugerido() {
     try {
+      if (esDemo) {
+        const sugeridos = [
+          { id: 'demo-serv-1', name: 'Cambio de batería', deviceType: 'iPhone', suggestedPricePyg: 250000, isActive: true },
+          { id: 'demo-serv-2', name: 'Cambio de pantalla', deviceType: 'iPhone', suggestedPricePyg: 450000, isActive: true },
+          { id: 'demo-serv-3', name: 'Limpieza interna', deviceType: 'Otros', suggestedPricePyg: 80000, isActive: true },
+        ]
+        saveDemoServicio({ servicios: sugeridos })
+        setServicios(sugeridos)
+        toast.success('Catálogo sugerido cargado (demo).')
+        return
+      }
       const data = await api.post('/api/service-items', { defaults: true })
       setServicios(Array.isArray(data) ? data : [])
       toast.success('Catálogo sugerido cargado.')
@@ -264,6 +324,16 @@ export default function ServicioTecnico() {
     if (!label || checklistBusy) return
     setChecklistBusy(true)
     try {
+      if (esDemo) {
+        const tipo = form?.deviceType || 'iPhone'
+        const actuales = getDemoServicio().checklists || {}
+        const lista = [...(actuales[tipo] || []), { id: `demo-check-${Date.now()}`, label, isActive: true }]
+        const siguientes = { ...actuales, [tipo]: lista }
+        saveDemoServicio({ checklists: siguientes })
+        setChecklists(siguientes)
+        setNuevoPunto('')
+        return
+      }
       await api.post('/api/service-checklists', { deviceType: form?.deviceType || 'iPhone', label })
       setNuevoPunto('')
       await cargarChecklists()
@@ -273,6 +343,14 @@ export default function ServicioTecnico() {
     if (checklistBusy) return
     setChecklistBusy(true)
     try {
+      if (esDemo) {
+        const tipo = form?.deviceType || 'iPhone'
+        const actuales = getDemoServicio().checklists || {}
+        const siguientes = { ...actuales, [tipo]: (actuales[tipo] || []).filter((row) => row.id !== item.id) }
+        saveDemoServicio({ checklists: siguientes })
+        setChecklists(siguientes)
+        return
+      }
       await api.patch('/api/service-checklists', { id: item.id, isActive: false })
       await cargarChecklists()
     } catch (cause) { toast.error(cause?.message || 'No se pudo quitar el punto.') } finally { setChecklistBusy(false) }
@@ -282,6 +360,15 @@ export default function ServicioTecnico() {
     setChecklistBusy(true)
     try {
       const labels = CHECKLISTS[form?.deviceType] || CHECKLISTS.Otros
+      if (esDemo) {
+        const tipo = form?.deviceType || 'iPhone'
+        const actuales = getDemoServicio().checklists || {}
+        const siguientes = { ...actuales, [tipo]: labels.map((label, indice) => ({ id: `demo-check-${tipo}-${indice}`, label, isActive: true })) }
+        saveDemoServicio({ checklists: siguientes })
+        setChecklists(siguientes)
+        toast.success('Checklist sugerido cargado (demo).')
+        return
+      }
       await api.post('/api/service-checklists', { deviceType: form?.deviceType || 'iPhone', labels })
       await cargarChecklists()
       toast.success('Checklist sugerido cargado.')
@@ -334,6 +421,12 @@ export default function ServicioTecnico() {
     const siguiente = SIGUIENTE[row.status]
     if (!siguiente) return
     try {
+      if (esDemo) {
+        saveDemoServicio({ rows: getDemoServicio().rows.map((actual) => actual.id === row.id ? { ...actual, status: siguiente } : actual) })
+        toast.success(`${row.device}: ${ESTADO_LABEL[siguiente]}.`)
+        await load()
+        return
+      }
       await api.patch('/api/service-orders', { id: row.id, status: siguiente })
       toast.success(`${row.device}: ${ESTADO_LABEL[siguiente]}.`)
       await load()
