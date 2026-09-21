@@ -11,6 +11,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.132 — 2026-09-21
+- **Impresión:** rediseño integral de los imprimibles (comprobante rápido/completo/detallado en A4 y térmicos 58/80, nota de entrega, remisión, recibo, proforma, reporte y etiquetas) con **espacio real para firmas, aclaración, CI y observaciones**; evidencia por tamaño en `docs/qa/206-imprimibles/`. (#206)
+- **POS / Pedidos:** el comprobante vuelve a ofrecer **80 mm y abre en 80 mm por defecto**; el nivel y el formato se eligen con **íconos** (nivel rápido por defecto) y se recuerda la última combinación; el encabezado y la cronología muestran **foto (o iniciales) y solo el primer nombre**. (#207 #208 #212)
+- **«Último usado» como predeterminado:** cuenta de cobro y tipo de entrega en el POS, Gastos y Conciliación en Finanzas, e impresora/formato por tipo de documento. (#209)
+- **Landing:** rediseño integral con los módulos nuevos, portal, impresión/offline y un **verificador de IMEI simulado** (sin llamadas ni costo, estados honestos). (#202 #203)
+- **Demo:** inventario demo con **iPhones serializados, IMEIs ficticios, equipo, clientes y pedidos de ejemplo**, todo en memoria (session-only). (#213)
+- **Consistencia visual:** biblioteca de objetos compartidos (avisos, tablas, fechas 24 h, portapapeles y descargas) adoptada en las pantallas, con auditoría de duplicación. (#211)
+- **Resumen:** la portada avisa cuando el reporte del servidor llega **truncado**, en vez de mostrar números incompletos como totales. (#171)
+
 ## v1.0.131 — 2026-09-21
 - **Inventario / IMEIcheck:** la ficha de la unidad suma **Consulta de IMEI** (precheck con costo visible → confirmación explícita → resultado con fuente y hora; "No verificado" ante pendiente o fallo, nunca "Limpio"); en demo se **simula** y queda marcado. Se suma la **matriz completa de mocks** y el documento con el procedimiento de la **única consulta Apple Basic** autorizada. (#193 #200)
 - **Herramientas:** harness de **sandbox AEX** para cotizar, generar una guía y consultar seguimiento sin tocar producción. (#3)
