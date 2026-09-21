@@ -58,7 +58,7 @@ export const orderFields = (row) => {
 }
 // Etiquetas compartidas: incluyen los estados nuevos de entrega (enviado,
 // retirado, parcial, no entregado).
-const ENTREGA = { 'Retiro en tienda': 'Retiro', Delivery: 'Delivery', Encomienda: 'Encomienda' }
+const ENTREGA = { 'Retiro en tienda': 'Retiro', 'Retiro en otra sucursal': 'Retiro en otra sucursal', Delivery: 'Delivery', Encomienda: 'Encomienda', 'Envío entre sucursales': 'Envío entre sucursales' }
 const PAGO_ORDEN = { Pagado: 0, Parcial: 1, 'A crédito': 2, Pendiente: 3 }
 const ESTADO_ORDEN = { PENDING: 0, PROCESSING: 1, READY_TO_SHIP: 2, SHIPPED: 3, IN_TRANSIT: 4, READY_FOR_PICKUP: 5, PARTIAL: 6, NOT_DELIVERED: 7, PICKED_UP: 8, DELIVERED: 9, CANCELLED: 10 }
 const FILTROS = [

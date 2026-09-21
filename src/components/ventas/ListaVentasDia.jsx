@@ -126,7 +126,7 @@ export default function ListaVentasDia({
             ? v.estadoPago === 'Pagado'
             : k === 'pendientes'
               ? v.estadoPago !== 'Pagado'
-              : v.entrega === 'Delivery' || v.entrega === 'Encomienda',
+              : v.entrega && v.entrega !== 'Retiro en tienda',
         ).length
 
   return (
@@ -233,7 +233,7 @@ export default function ListaVentasDia({
                     <MedioPago medio={v.medioPago} alto="h-4" />
                     {v.entrega !== 'Retiro en tienda' && (
                       <Badge color="blue">
-                        {v.entrega === 'Delivery' ? 'Delivery' : 'Encomienda'} {gs(v.montoDelivery)}
+                        {v.entrega} {gs(v.montoDelivery)}
                       </Badge>
                     )}
                     {mostrarVendedor && (
