@@ -343,11 +343,11 @@ test.describe('impresión remota: cola con puente falso', () => {
       const incorrecto = String((Number(trabajo.sufijo) + 1) % 10)
       // #138: con el código incorrecto la validación automática avisa claro.
       await fila.getByLabel(`Número secreto de la validación ${trabajo.validation}`).fill(incorrecto)
-      await expect(page.getByText('No coincide', { exact: true })).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText('No coincide', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
 
       // El botón Confirmar sigue como respaldo (mismo aviso al reintentar).
       await fila.getByRole('button', { name: 'Confirmar' }).click()
-      await expect(page.getByText('No coincide', { exact: true })).toBeVisible({ timeout: 10_000 })
+      await expect(page.getByText('No coincide', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
 
       // Al escribir el dígito correcto valida solo, sin apretar nada.
       await fila.getByLabel(`Número secreto de la validación ${trabajo.validation}`).fill(trabajo.sufijo)
