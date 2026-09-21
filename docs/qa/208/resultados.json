@@ -1,6 +1,6 @@
 {
-  "base": "https://app.moboss.online",
-  "fecha": "2026-09-21T20:09:30.814Z",
+  "base": "http://localhost:5203",
+  "fecha": "2026-09-21T20:36:28.034Z",
   "pasos": [
     {
       "paso": "entrada demo y venta rapida",
@@ -11,19 +11,26 @@
     {
       "paso": "abrir el dialogo del comprobante",
       "estado": "ok",
-      "detalle": "iconos: false · nivel elegido: \"\" · formato elegido: \"\" · ancho vista previa: 0px · controles viejos: SELECT",
+      "detalle": "iconos: true · nivel elegido: \"Rápido\" · formato elegido: \"80 mm\" · ancho vista previa: 0px · controles viejos: DIV",
       "captura": "02-abrir el dialogo del comprobante.jpg"
     },
     {
+      "paso": "teclado: los iconos se alcanzan y cambian con el teclado",
+      "estado": "ok",
+      "detalle": "con foco + Space → \"A4\" · foco en: radio",
+      "captura": "03-teclado: los iconos se alcanzan y cambian con el teclado.jpg"
+    },
+    {
       "paso": "memoria del ultimo usado en el dialogo",
-      "estado": "fallo",
-      "detalle": "sin iconos todavía (lote sin desplegar)"
+      "estado": "ok",
+      "detalle": "guardado: | · al reabrir: \"\" + \"\"",
+      "captura": "04-memoria del ultimo usado en el dialogo.jpg"
     },
     {
       "paso": "ultimo usado en el POS (#209): usar, recargar y verificar",
       "estado": "ok",
-      "detalle": "guardado: | · tras recargar → entrega: \"Delivery\" · cuenta del bloque nuevo: \"Caja demo · Gs\"",
-      "captura": "04-ultimo usado en el POS (#209): usar, recargar y verificar.jpg"
+      "detalle": "guardado: Delivery|demo-cash-pyg · tras recargar → entrega: \"Delivery\" · cuenta del bloque nuevo: \"Caja demo · Gs\"",
+      "captura": "05-ultimo usado en el POS (#209): usar, recargar y verificar.jpg"
     }
   ]
 }

@@ -58,6 +58,17 @@ await paso('abrir el dialogo del comprobante', async () => {
   })
   return `iconos: ${hayIconos} · nivel elegido: "${nivelElegido.replace(/\s+/g, ' ')}" · formato elegido: "${formatoElegido.replace(/\s+/g, ' ')}" · ancho vista previa: ${ancho}px · controles viejos: ${selects || 'ninguno'}`
 })
+await paso('teclado: los iconos se alcanzan y cambian con el teclado', async () => {
+  const grupo = page.getByRole('radiogroup', { name: 'Formato de impresión' })
+  if ((await grupo.count()) === 0) throw new Error('sin iconos todavía (lote sin desplegar)')
+  await grupo.getByRole('radio', { name: /Formato A4/ }).focus()
+  await page.keyboard.press('Space')
+  await page.waitForTimeout(800)
+  const elegido = await grupo.getByRole('radio', { checked: true }).innerText().catch(() => '')
+  const activo = await page.evaluate(() => document.activeElement?.getAttribute('role') || document.activeElement?.tagName)
+  return `con foco + Space → "${elegido.replace(/\s+/g, ' ')}" · foco en: ${activo}`
+})
+
 await paso('memoria del ultimo usado en el dialogo', async () => {
   const grupoNivel = page.getByRole('radiogroup', { name: 'Tipo de comprobante' })
   if ((await grupoNivel.count()) === 0) throw new Error('sin iconos todavía (lote sin desplegar)')
