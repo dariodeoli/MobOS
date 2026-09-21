@@ -6,7 +6,7 @@ import { fechaHora } from '@/utils/fecha'
 import { codigoPedido, totalesPedido } from '@/utils/pedido'
 import { varianteDeTema } from '@/lib/tenantLogo'
 import SeccionColapsable from '@/components/shared/SeccionColapsable'
-import { Aviso } from '@/components/ui'
+import { Aviso, CeldaMoneda, FilaDato } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
@@ -133,11 +133,11 @@ export default function PedidoPublico() {
                 ))}
               </div>
               <dl className="mt-4 space-y-1.5 border-t border-ink-600/70 pt-3 text-sm">
-                <div className="flex items-center justify-between"><dt className="text-mute">Total</dt><dd className="font-semibold tabular-nums">{gs(total)}</dd></div>
-                <div className="flex items-center justify-between"><dt className="text-mute">Pagado</dt><dd className="font-semibold tabular-nums text-ok">{gs(pagado)}</dd></div>
-                <div className="flex items-center justify-between"><dt className="text-mute">Pendiente</dt><dd className={`font-semibold tabular-nums ${pendiente > 0 ? 'text-warn' : 'text-ok'}`}>{gs(pendiente)}</dd></div>
-                {Number(order.discountPyg || 0) > 0 && <div className="flex items-center justify-between"><dt className="text-mute">Descuento</dt><dd className="font-semibold tabular-nums text-warn">− {gs(order.discountPyg)}</dd></div>}
-                {Number(order.deliveryPyg || 0) > 0 && <div className="flex items-center justify-between"><dt className="text-mute">Entrega</dt><dd className="font-semibold tabular-nums">{gs(order.deliveryPyg)}</dd></div>}
+                <FilaDato etiqueta="Total" etiquetaComo="dt" valorComo="dd" valor={gs(total)} />
+                <FilaDato etiqueta="Pagado" etiquetaComo="dt" valorComo="dd" valor={gs(pagado)} tono="ok" />
+                <FilaDato etiqueta="Pendiente" etiquetaComo="dt" valorComo="dd" valor={gs(pendiente)} tono={pendiente > 0 ? 'warn' : 'ok'} />
+                {Number(order.discountPyg || 0) > 0 && <FilaDato etiqueta="Descuento" etiquetaComo="dt" valorComo="dd" valor={`− ${gs(order.discountPyg)}`} tono="warn" />}
+                {Number(order.deliveryPyg || 0) > 0 && <FilaDato etiqueta="Entrega" etiquetaComo="dt" valorComo="dd" valor={gs(order.deliveryPyg)} />}
               </dl>
               {aCredito && (
                 <div className="mt-3 rounded-xl border border-bad/40 bg-bad/10 p-3 text-sm text-bad">
@@ -167,7 +167,7 @@ export default function PedidoPublico() {
                     {order.level !== 'rapido' && (
                       <div className="mt-1 flex items-center justify-between gap-3 text-xs text-mute">
                         <span>{item.quantity} × {gs(item.unitPricePyg)}{Number(item.discountPyg || 0) > 0 ? ` · descuento − ${gs(item.discountPyg)}` : ''}</span>
-                        <span className="tabular-nums">{gs(item.totalPyg)}</span>
+                        <CeldaMoneda valor={item.totalPyg} />
                       </div>
                     )}
                   </div>
@@ -194,7 +194,7 @@ export default function PedidoPublico() {
                           {payment.reference ? ` · ${payment.reference}` : ''}
                         </p>
                       </div>
-                      <span className="shrink-0 font-semibold tabular-nums text-ok">{gs(payment.amountPyg)}</span>
+                      <CeldaMoneda valor={payment.amountPyg} tono="ok" />
                     </div>
                   ))}
                 </div>

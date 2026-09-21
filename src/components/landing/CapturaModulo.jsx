@@ -1,4 +1,5 @@
 import { AlertTriangle, Check, Printer, WifiOff } from 'lucide-react'
+import { BarraProgreso } from '@/components/ui'
 
 // «Capturas» de la landing (#202): miniaturas de UI hechas con HTML (no son
 // imágenes) para mostrar cada módulo sin depender de pantallas reales. Todas
@@ -28,15 +29,6 @@ function Chip({ children, tono = 'fono' }) {
     mute: 'border-fore/15 bg-fore/[.04] text-mute',
   }
   return <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[.1em] ${tonos[tono]}`}>{children}</span>
-}
-
-function Barra({ valor, tono = 'fono' }) {
-  const tonos = { fono: 'bg-fono', ok: 'bg-ok', warn: 'bg-warn' }
-  return (
-    <div className="h-1.5 overflow-hidden rounded-full bg-fore/10">
-      <span className={`block h-full rounded-full ${tonos[tono]}`} style={{ width: `${valor}%` }} />
-    </div>
-  )
 }
 
 const CAPTURAS = {
@@ -73,7 +65,7 @@ const CAPTURAS = {
       <Fila><span className="text-mute">Banco · transferencia</span><b className="tabular-nums">Gs 3.150.000</b></Fila>
       <div className="px-2.5 pt-1">
         <div className="flex items-center justify-between text-[10px] text-mute"><span>Conciliación del extracto</span><span>12 de 12</span></div>
-        <div className="mt-1"><Barra valor={100} tono="ok" /></div>
+        <BarraProgreso valor={100} tono="ok" className="mt-1" />
       </div>
       <Fila><span className="text-mute">Comisiones por liquidar</span><span className="font-semibold">2 vendedores</span></Fila>
     </Marco>

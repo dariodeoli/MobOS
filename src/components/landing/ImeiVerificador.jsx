@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, Check, RefreshCw, ScanLine, ShieldAlert, ShieldCheck } from 'lucide-react'
-import { Button, Input } from '@/components/ui'
+import { BarraProgreso, Button, Input } from '@/components/ui'
 import { publicUrls } from '@/lib/urls'
 import { fechaDia, fechaHora } from '@/utils/fecha'
 import { FUENTE_DEMO, IMEI_EJEMPLO, consultaImeiEjemplo, enmascararImeiDemo, validarImeiDemo } from '@/lib/imeiDemoLanding'
@@ -110,9 +110,9 @@ export default function ImeiVerificador() {
           como <b className="text-fore">“No verificado”</b>, nunca un “limpio” inventado.
         </p>
         <ul className="mt-6 space-y-3 text-sm text-mute">
-          <li className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-fono-dark" />Se consulta solo cuando alguien lo confirma: no hay cargos automáticos.</li>
-          <li className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-fono-dark" />El resultado se puede adjuntar a la nota del cliente o al comprobante.</li>
-          <li className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-fono-dark" />En el demo se muestra <b className="text-fore">simulado</b>, con datos ficticios y sin consultar al proveedor.</li>
+          <li className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-fono-dark" /><span>Se consulta solo cuando alguien lo confirma: no hay cargos automáticos.</span></li>
+          <li className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-fono-dark" /><span>El resultado se puede adjuntar a la nota del cliente o al comprobante.</span></li>
+          <li className="flex gap-3"><Check size={16} className="mt-0.5 shrink-0 text-fono-dark" /><span>En el demo se muestra <b className="text-fore">simulado</b>, con datos ficticios y sin consultar al proveedor.</span></li>
         </ul>
         <p className="mt-6 rounded-2xl border border-fore/10 bg-ink p-4 text-xs leading-6 text-mute">
           <b className="text-fore">Honestidad ante todo:</b> la verificación corre en <b className="text-fore">modo mock
@@ -179,12 +179,7 @@ export default function ImeiVerificador() {
               </div>
               <div className="pointer-events-none absolute inset-x-0 top-0 h-16 mobos-escaneo bg-[linear-gradient(180deg,transparent,rgb(var(--c-fono)/.28),transparent)]" />
             </div>
-            <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-fore/10">
-              <span
-                className="block h-full rounded-full bg-fono transition-[width] duration-500 ease-out"
-                style={{ width: `${Math.round((paso / PASOS.length) * 100)}%` }}
-              />
-            </div>
+            <BarraProgreso valor={paso} max={PASOS.length} etiqueta="Progreso de la verificación" className="mt-4" />
             <ol className="mt-4 space-y-2 text-sm">
               {PASOS.map((texto, indice) => {
                 const hecho = paso > indice
