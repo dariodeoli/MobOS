@@ -86,6 +86,7 @@ export default function AceptarInvitacion() {
           )}
           {!/^[a-f0-9]{64}$/i.test(token) && (
             <div className="mt-6">
+              <p className="text-sm text-mute">Pegá el enlace completo que te llegó por correo para sumarte al equipo.</p>
               <PegarEnlaceToken onToken={(nuevo) => { setToken(nuevo); setError('') }} />
             </div>
           )}
