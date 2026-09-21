@@ -65,6 +65,10 @@ export default function Comisiones() {
   const [reglas, setReglas] = useState(null)
   const [usuarios, setUsuarios] = useState([])
   const [nueva, setNueva] = useState({ userId: '', percentPyg: '' })
+  // Texto del buscador de vendedores (#141/#199): el combo es controlado y el
+  // texto tipeado tiene que persistir para que el filtro funcione.
+  const [busquedaVendedor, setBusquedaVendedor] = useState('')
+  const [busquedaLiquidacion, setBusquedaLiquidacion] = useState('')
   const [editandoId, setEditandoId] = useState(null)
   const [borrador, setBorrador] = useState('')
   const [eliminando, setEliminando] = useState(null)
@@ -90,7 +94,6 @@ export default function Comisiones() {
   // Buscador de vendedores (#141): resultados en tiempo real por nombre, correo
   // o rol, con la misma mecánica que el buscador de productos.
   const opcionesVendedores = usuarios.map(usuario => ({ value: usuario.id, label: usuario.name, detail: [usuario.email, usuario.role].filter(Boolean).join(' · ') }))
-  const nombreVendedor = (id) => usuarios.find(usuario => usuario.id === id)?.name || ''
 
   const cargar = useCallback(async () => {
     setError('')
@@ -113,6 +116,7 @@ export default function Comisiones() {
     try {
       await api.post('/api/commission-rules', { userId: nueva.userId, percentPyg: parsePercent(nueva.percentPyg) })
       setNueva({ userId: '', percentPyg: '' })
+      setBusquedaVendedor('')
       toast.success('Regla de comisión creada.')
       await cargar()
     } catch (cause) { setError(cause?.message || 'No se pudo crear la regla.') } finally { setOcupado(false) }
@@ -250,7 +254,7 @@ export default function Comisiones() {
         <form onSubmit={crear} className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-end">
           <div className="flex-1">
             <span className="block text-[10px] font-bold uppercase text-mute mb-1">Vendedor</span>
-            <ComboBuscador id="comision-vendedor" ariaLabel="Vendedor de la regla" value={nombreVendedor(nueva.userId)} options={opcionesVendedores} onChange={() => setNueva({ ...nueva, userId: '' })} onSelect={opcion => setNueva({ ...nueva, userId: opcion.value })} placeholder="Buscá por nombre, correo o rol" required emptyLabel="Sin vendedores con esa búsqueda." />
+            <ComboBuscador id="comision-vendedor" ariaLabel="Vendedor de la regla" value={busquedaVendedor} options={opcionesVendedores} onChange={(texto) => { setBusquedaVendedor(texto); if (nueva.userId) setNueva({ ...nueva, userId: '' }) }} onSelect={opcion => { setBusquedaVendedor(opcion.label); setNueva({ ...nueva, userId: opcion.value }) }} placeholder="Buscá por nombre, correo o rol" required emptyLabel="Sin vendedores con esa búsqueda." />
           </div>
           <div className="sm:w-36">
             <span className="block text-[10px] font-bold uppercase text-mute mb-1">% comisión</span>
@@ -300,7 +304,7 @@ export default function Comisiones() {
         <form onSubmit={cerrarLiquidacion} className="flex flex-col gap-3 mb-4 lg:flex-row lg:items-end">
           <div className="flex-1">
             <span className="block text-[10px] font-bold uppercase text-mute mb-1">Vendedor</span>
-            <ComboBuscador id="liquidacion-vendedor" ariaLabel="Vendedor de la liquidación" value={nombreVendedor(periodo.sellerId)} options={opcionesVendedores} onChange={() => setPeriodo({ ...periodo, sellerId: '' })} onSelect={opcion => setPeriodo({ ...periodo, sellerId: opcion.value })} placeholder="Buscá por nombre, correo o rol" required emptyLabel="Sin vendedores con esa búsqueda." />
+            <ComboBuscador id="liquidacion-vendedor" ariaLabel="Vendedor de la liquidación" value={busquedaLiquidacion} options={opcionesVendedores} onChange={(texto) => { setBusquedaLiquidacion(texto); if (periodo.sellerId) setPeriodo({ ...periodo, sellerId: '' }) }} onSelect={opcion => { setBusquedaLiquidacion(opcion.label); setPeriodo({ ...periodo, sellerId: opcion.value }) }} placeholder="Buscá por nombre, correo o rol" required emptyLabel="Sin vendedores con esa búsqueda." />
           </div>
           <div className="lg:w-40">
             <span className="block text-[10px] font-bold uppercase text-mute mb-1">Desde</span>
