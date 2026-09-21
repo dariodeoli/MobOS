@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount, KIND_LABELS } from '@/lib/paymentAccounts'
-import { Badge, Button, Card, Input, Label, Select, Toggle } from '@/components/ui'
+import { Badge, Button, Card, Input, Label, Select } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
+import Switch from '@/components/shared/Switch'
 import BancoCombobox from '@/components/shared/BancoCombobox'
 import BancoLogo from '@/components/shared/BancoLogo'
 import ComboBuscador from '@/components/shared/ComboBuscador'
@@ -275,7 +276,7 @@ function AccountManager() {
           <legend className="px-1 text-[10px] font-bold uppercase tracking-wider text-mute">Comportamiento del medio</legend>
           <div className="grid gap-x-3 gap-y-2.5 sm:grid-cols-3">
             {camposComportamiento.map(({ field, control, check, label, hint }) => <div key={field}>
-              <span className="flex items-center gap-2 text-sm"><Toggle id={`pa-${field}-toggle`} checked={Boolean(flags[field])} onChange={value => toggleBehavior(field, value)} label={check} /><span>{check}</span></span>
+              <span className="flex items-center gap-2 text-sm"><Switch id={`pa-${field}-toggle`} checked={Boolean(flags[field])} onChange={event => toggleBehavior(field, event.target.checked)} ariaLabel={check} /><span>{check}</span></span>
               {flags[field] && <div className="mt-1.5 max-w-[8rem]">
                 <Label htmlFor={`pa-${field}`}>{label}</Label>
                 {control === 'percent'
@@ -285,7 +286,7 @@ function AccountManager() {
               </div>}
             </div>)}
           </div>
-          <span className="flex items-center gap-2 text-sm"><Toggle id="pa-active" checked={form.isActive} onChange={value => change('isActive', value)} label="Cuenta activa" /><span>Cuenta activa</span></span>
+          <span className="flex items-center gap-2 text-sm"><Switch id="pa-active" checked={form.isActive} onChange={event => change('isActive', event.target.checked)} /><span>Cuenta activa</span></span>
         </fieldset>
         <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => { setForm(null); setMessage(null) }}>Cancelar</Button></div>
       </form>}
