@@ -492,7 +492,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
         ts: Date.now(),
       }))
     } catch { /* la venta sigue disponible sin preselección */ }
-    window.location.assign('/pos/cargar')
+    window.location.assign('/ventas')
   }
   function startCount() { setCountSession({ scanning: true, found: new Map(), unknown: [], duplicates: [], flash: null }); setCountOpen(true) }
   function countScan(raw) {

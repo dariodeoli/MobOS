@@ -10,7 +10,7 @@ import DriverOrders from '@/components/delivery/DriverOrders'
 import DriverSettlements from '@/components/delivery/DriverSettlements'
 
 // Panel de reparto: login propio, solo los pedidos asignados, pre-cobro en la
-// calle y rendición en la tienda. Vive aparte de /pos: el repartidor no ve
+// calle y rendición en la tienda. Vive aparte del panel de venta: el repartidor no ve
 // ventas, cobros de mostrador ni datos de la tienda.
 const DELIVERY_NAV = [
   {
@@ -43,7 +43,7 @@ export default function PanelDelivery() {
   const esRepartidor = esDemo ? false : usuario?.role === 'REPARTIDOR'
 
   useEffect(() => {
-    if (!esRepartidor) navigate('/pos/cargar', { replace: true })
+    if (!esRepartidor) navigate('/ventas', { replace: true })
   }, [esRepartidor, navigate])
 
   async function confirmarSalir() {

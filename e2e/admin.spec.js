@@ -9,7 +9,7 @@ const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
 test.describe('owner panel', () => {
   test('resumen shows the dashboard KPIs', async ({ page }) => {
-    await page.goto('/pos/resumen')
+    await page.goto('/resumen')
     await expect(page.getByRole('heading', { name: 'Resumen general' })).toBeVisible()
     await expect(page.getByText('Facturado', { exact: true })).toBeVisible()
     await expect(page.getByText('Ventas', { exact: true })).toBeVisible()
@@ -30,7 +30,7 @@ test.describe('owner panel', () => {
   // Permanencia: una unidad reservada sigue en Inventario, no desaparece del
   // listado, y desde ahí se puede cerrar la venta.
   test('inventario: la unidad reservada sigue en el listado', async ({ page }) => {
-    await page.goto('/pos/inventario')
+    await page.goto('/inventario')
     await page.evaluate(
       async ({ api, serial }) => {
         await fetch(`${api}/api/inventory-reservations`, {
@@ -166,7 +166,7 @@ test.describe('owner panel', () => {
   // Reservar eligiendo un cliente de la lista deja la reserva ligada a su ficha
   // (teléfono y RUC quedan disponibles en el perfil, sin crear fichas nuevas).
   test('inventario: la reserva con cliente queda ligada a su ficha', async ({ page }) => {
-    await page.goto('/pos/inventario')
+    await page.goto('/inventario')
     const resultado = await page.evaluate(async api => {
       const clientes = await fetch(`${api}/api/customers?q=E2E`, { credentials: 'include' }).then(
         r => r.json(),
@@ -211,7 +211,7 @@ test.describe('owner panel', () => {
   test('códigos comerciales: cotización COT-#0001 y SKU legible sin timestamp', async ({
     page,
   }) => {
-    await page.goto('/pos/inventario')
+    await page.goto('/inventario')
     const resultado = await page.evaluate(async api => {
       const post = async (path, data) => {
         const response = await fetch(`${api}${path}`, {
@@ -262,7 +262,7 @@ test.describe('owner panel', () => {
   test('clientes → teléfono solo dígitos con +595 editable y límite de crédito en Gs', async ({
     page,
   }) => {
-    await page.goto('/pos/clientes')
+    await page.goto('/clientes')
     await page.getByRole('button', { name: '+ Crear cliente' }).click()
 
     // El formulario de venta queda montado y oculto detrás del modal: se acota al modal de alta.
@@ -283,7 +283,7 @@ test.describe('owner panel', () => {
   })
 
   test('servicio técnico → crea la orden y avanza el pipeline', async ({ page }) => {
-    await page.goto('/pos/servicio')
+    await page.goto('/servicio')
     await expect(page.getByRole('heading', { name: 'Servicio Técnico' })).toBeVisible()
 
     const stamp = Date.now().toString(36)
@@ -309,7 +309,7 @@ test.describe('owner panel', () => {
   // La cotización con un cliente existente queda ligada a su ficha, así la
   // conversión en pedido no pierde al cliente.
   test('cotizaciones: el cliente elegido queda ligado a su ficha', async ({ page }) => {
-    await page.goto('/pos/cotizaciones')
+    await page.goto('/cotizaciones')
     const resultado = await page.evaluate(async api => {
       const clientes = await fetch(`${api}/api/customers?q=E2E`, { credentials: 'include' }).then(
         r => r.json(),
@@ -441,7 +441,7 @@ test('configuración → sube el logo de la empresa y lo quita', async ({ page }
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
     'base64',
   )
-  await page.goto('/pos/equipo')
+  await page.goto('/configuracion')
   await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
   await expect(page.getByRole('heading', { name: 'Logo de la empresa' })).toBeVisible()
   await expect(page.getByText('Fondo claro').first()).toBeVisible()
@@ -457,7 +457,7 @@ test('configuración → sube el logo de la empresa y lo quita', async ({ page }
 // Búsqueda de pedidos: se resuelve en el servidor (número, cliente, RUC o
 // vendedor), así encuentra pedidos fuera de la página cargada.
 test('pedidos → la búsqueda llega al servidor y encuentra por número', async ({ page }) => {
-  await page.goto('/pos/pedidos')
+  await page.goto('/pedidos')
   const consulta = page.waitForRequest(
     pedido =>
       pedido.method() === 'GET' &&
@@ -480,7 +480,7 @@ test('configuración → sube mi foto y la quita', async ({ page }) => {
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
     'base64',
   )
-  await page.goto('/pos/equipo')
+  await page.goto('/configuracion')
   await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
   await expect(page.getByText('Mi foto')).toBeVisible()
   await page
@@ -525,7 +525,7 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   )
   expect(alta.status, 'el vendedor tiene que poder crear el cliente').toBe(201)
 
-  await vendedor.goto('/pos/clientes')
+  await vendedor.goto('/clientes')
   await vendedor.getByLabel('Buscar clientes').fill(nombre)
   await vendedor.getByTestId('cliente-fila').filter({ hasText: nombre }).first().click()
   await vendedor
@@ -537,7 +537,7 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   await expect(vendedor.getByText('Solicitud enviada', { exact: false })).toBeVisible()
   await contextoVendedor.close()
 
-  await page.goto('/pos/autorizaciones')
+  await page.goto('/autorizaciones')
   await expect(page.getByRole('heading', { name: 'Autorizaciones comerciales' })).toBeVisible()
   const fila = page.getByTestId('autorizacion-fila').filter({ hasText: nombre }).first()
   await expect(fila).toBeVisible()
@@ -549,11 +549,11 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   await expect(fila.getByText('Aprobada')).toBeVisible()
 
   // La bandeja es una sola: la tarjeta duplicada de Configuración se eliminó.
-  await page.goto('/pos/equipo')
+  await page.goto('/configuracion')
   await page.getByRole('main').getByRole('button', { name: 'Negocio' }).click()
   await expect(page.getByRole('heading', { name: 'Solicitudes del cliente' })).toHaveCount(0)
   // Las plantillas ya no viven dentro de Configuración: tienen vista propia.
-  await page.goto('/pos/plantillas')
+  await page.goto('/plantillas')
   await expect(page.getByRole('heading', { name: 'Plantillas de WhatsApp' })).toBeVisible()
   // Las plantillas de pedidos se listan bajo la categoría Pedidos (el contexto
   // es espejo de la categoría, issue #34): si alguna queda en 'clientes', la
@@ -566,7 +566,7 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
 test('autorizaciones → el dueño resuelve su propia solicitud', async ({ page }) => {
   const nombre = `Autoría E2E ${Date.now()}`
   await page.addInitScript(() => localStorage.setItem('mobos:clientes-vista', 'list'))
-  await page.goto('/pos/clientes')
+  await page.goto('/clientes')
   const alta = await page.evaluate(
     async ({ api, nombre }) => {
       const res = await fetch(`${api}/api/customers`, {
@@ -591,7 +591,7 @@ test('autorizaciones → el dueño resuelve su propia solicitud', async ({ page 
   await page.getByRole('button', { name: 'Enviar solicitud' }).click()
   await expect(page.getByText('Solicitud enviada', { exact: false })).toBeVisible()
 
-  await page.goto('/pos/autorizaciones')
+  await page.goto('/autorizaciones')
   const fila = page.getByTestId('autorizacion-fila').filter({ hasText: nombre }).first()
   await expect(fila).toContainText('Tu solicitud')
   await fila.getByRole('button', { name: 'Aprobar' }).click()
@@ -605,7 +605,7 @@ test('autorizaciones → el dueño resuelve su propia solicitud', async ({ page 
 // en el listado y se limpia por API para no dejar el equipo del seed consignado.
 test('inventario: marca y quita la consignación de un equipo', async ({ page }) => {
   const tercero = `Tercero E2E ${Date.now()}`
-  await page.goto('/pos/inventario')
+  await page.goto('/inventario')
   const fila = () => page.getByTestId('inventario-fila').filter({ hasText: SEED.products.iphone.imei }).first()
   await fila().click()
   const detalle = page.getByRole('dialog', { name: /iPhone/ })

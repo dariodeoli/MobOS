@@ -20,14 +20,21 @@ const exactRoutes = {
 }
 
 const protectedSections = {
-  '/pos/resumen': 'Resumen',
-  '/pos/cargar': 'Punto de venta',
-  '/pos/clientes': 'Clientes',
-  '/pos/pedidos': 'Pedidos',
-  '/pos/productos': 'Productos',
-  '/pos/analisis': 'Análisis',
-  '/pos/finanzas': 'Finanzas',
-  '/pos/equipo': 'Equipo',
+  '/ventas': 'Punto de venta',
+  '/pedidos': 'Pedidos',
+  '/delivery': 'Delivery',
+  '/clientes': 'Clientes',
+  '/productos': 'Productos',
+  '/promociones': 'Promociones',
+  '/precios': 'Precios',
+  '/cotizaciones': 'Cotizaciones',
+  '/plantillas': 'Plantillas de WhatsApp',
+  '/trade-in': 'Trade-In',
+  '/compras': 'Compras',
+  '/servicio': 'Servicio posventa',
+  '/garantias': 'Garantías',
+  '/autorizaciones': 'Autorizaciones',
+  '/resumen': 'Resumen',
   '/configuracion': 'Configuración',
   '/configuracion/equipo': 'Equipo',
   '/configuracion/invitaciones': 'Invitaciones',
@@ -61,9 +68,6 @@ const protectedSections = {
   '/inventario/ubicaciones': 'Ubicaciones',
   '/inventario/compartido': 'Compartido',
   '/inventario/eliminados': 'Eliminados',
-  '/pos/servicio': 'Servicio posventa',
-  '/pos/tradein-admin': 'Gestión de trade-in',
-  '/pos/plantillas': 'Plantillas de WhatsApp',
 }
 
 function normalizePathname(pathname = '/') {
@@ -74,6 +78,9 @@ function normalizePathname(pathname = '/') {
 function resolveRoute(pathname) {
   if (exactRoutes[pathname]) return exactRoutes[pathname]
   if (protectedSections[pathname]) return { label: protectedSections[pathname] }
+  // El detalle de un pedido conserva el título del listado.
+  if (pathname.startsWith('/pedidos/')) return { label: 'Pedidos' }
+  // Compatibilidad: las URLs viejas /pos/* redirigen a los slugs nuevos.
   if (pathname === '/pos' || pathname.startsWith('/pos/')) return { label: 'Operación de tienda' }
   if (pathname === '/control' || pathname.startsWith('/control/')) return { label: 'Administración' }
   // Documentos públicos por token: el título no debe caer en "no encontrada".

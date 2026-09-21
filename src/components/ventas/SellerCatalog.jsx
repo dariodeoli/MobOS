@@ -148,7 +148,7 @@ export default function SellerCatalog() {
   }, [])
   function vender(producto) {
     try { sessionStorage.setItem('mobos:venta-handoff', JSON.stringify({ productId: producto.id, ts: Date.now() })) } catch { /* la venta sigue disponible sin preselección */ }
-    window.location.assign('/pos/cargar')
+    window.location.assign('/ventas')
   }
   const elegidos = () => ordenadas.filter((row) => seleccionados.includes(row.id))
   async function copiarPrecios() {

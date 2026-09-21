@@ -378,7 +378,7 @@ test.describe('impresión remota: cola con puente falso', () => {
       expect(predeterminada.status).toBe(200)
       await page.reload()
 
-      await page.goto('/pos/pedidos')
+      await page.goto('/pedidos')
       await page.getByTestId('pedido-fila').first().click()
       await expect(page.getByText('Artículos preparados')).toBeVisible()
       await page.getByRole('button', { name: 'Imprimir comprobante' }).click()

@@ -14,7 +14,7 @@ const ALTO_ENCABEZADO = 80
 const MARGEN_SUPERIOR_MAX = 140
 
 async function agregarProducto(page) {
-  await page.goto('/pos/cargar')
+  await page.goto('/ventas')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   const producto = page.getByRole('button', { name: new RegExp(SEED.products.cable.name) })

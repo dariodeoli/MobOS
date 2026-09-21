@@ -1,6 +1,6 @@
 // Full POS checkout through the real API as the seeded seller (PIN 2468):
 // search product → add to cart → review → split payment across two payment
-// accounts → save → success banner → sale appears in /pos/pedidos.
+// accounts → save → success banner → sale appears in /pedidos.
 //
 // The checkout uses the account-based payment rows (Cuenta de cobro +
 // Monto original); the legacy method-only fallback only renders when the
@@ -34,7 +34,7 @@ async function orderItems(page, name) {
 test('POS checkout with split payment registers the sale and lists it in pedidos', async ({
   page,
 }) => {
-  await page.goto('/pos/cargar')
+  await page.goto('/ventas')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
   // Step 1: customer + product.
@@ -112,7 +112,7 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
 
   // La venta aparece en el listado del vendedor. La columna Cliente muestra
   // nombre + primer apellido, así que el nombre completo no se ve en la tabla.
-  await page.goto('/pos/pedidos')
+  await page.goto('/pedidos')
   await expect(page.getByRole('heading', { name: 'Mis pedidos' })).toBeVisible()
   const sale = page
     .getByTestId('pedido-fila')
@@ -125,14 +125,14 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
 
   // Clic en la fila: abre la página del pedido por su id interno.
   await sale.click()
-  await expect(page).toHaveURL(new RegExp(`/pos/pedidos/${creada.id}$`))
+  await expect(page).toHaveURL(new RegExp(`/pedidos/${creada.id}$`))
   await expect(page.getByText(codigoPedido(creada.orderNumber)).first()).toBeVisible()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
 })
 
 // Listado de pedidos: buscador global, encabezados ordenables y filtros de cobro.
 test('pedidos: buscador global, orden por columna y filtros', async ({ page }) => {
-  await page.goto('/pos/pedidos')
+  await page.goto('/pedidos')
   const filas = page.getByTestId('pedido-fila')
   await expect(filas.first()).toBeVisible()
 
@@ -170,7 +170,7 @@ test('pedidos: buscador global, orden por columna y filtros', async ({ page }) =
 // interno (UUID), no el código comercial, así que renombrar el código no
 // rompe enlaces ni relaciones.
 test('pedidos: clic en la fila abre el pedido por su id interno', async ({ page }) => {
-  await page.goto('/pos/pedidos')
+  await page.goto('/pedidos')
   const filas = page.getByTestId('pedido-fila')
   await expect(filas.first()).toBeVisible()
 
@@ -188,7 +188,7 @@ test('pedidos: clic en la fila abre el pedido por su id interno', async ({ page 
     .filter({ hasText: codigoPedido(primera.orderNumber) })
     .first()
     .click()
-  await expect(page).toHaveURL(new RegExp(`/pos/pedidos/${primera.id}$`))
+  await expect(page).toHaveURL(new RegExp(`/pedidos/${primera.id}$`))
 
   await expect(page.getByText(codigoPedido(primera.orderNumber)).first()).toBeVisible()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
@@ -199,14 +199,14 @@ test('pedidos: clic en la fila abre el pedido por su id interno', async ({ page 
   await expect(page.getByText('Artículos preparados')).toBeVisible()
 
   await page.getByRole('button', { name: 'Volver a pedidos' }).click()
-  await expect(page).toHaveURL(/\/pos\/pedidos$/)
+  await expect(page).toHaveURL(/\/pedidos$/)
   expect(errores, 'la vista del pedido no debe romper con errores de runtime').toEqual([])
 })
 
 // El país de la dirección se puede vaciar (no vuelve solo) y el resumen
 // lateral muestra el total de la venta y abre el carrito.
 test('POS clears the address country and the summary opens the cart', async ({ page }) => {
-  await page.goto('/pos/cargar')
+  await page.goto('/ventas')
   await page
     .getByLabel('Nombre, teléfono, CI o RUC del cliente')
     .fill(`${SEED.checkoutCustomer} pais ${Date.now().toString(36)}`)
@@ -228,7 +228,7 @@ test('POS clears the address country and the summary opens the cart', async ({ p
 // Sin límite de productos: cada clic suma una fila a la venta y el total
 // se recalcula con los tres productos juntos.
 test('POS keeps every clicked product in the sale list', async ({ page }) => {
-  await page.goto('/pos/cargar')
+  await page.goto('/ventas')
   await page
     .getByLabel('Nombre, teléfono, CI o RUC del cliente')
     .fill(`${SEED.checkoutCustomer} tres ${Date.now().toString(36)}`)
@@ -253,7 +253,7 @@ test('POS finds a customer by billing name, shows the selection and clears it', 
   const stamp = Date.now().toString(36)
   const name = `${SEED.checkoutCustomer} factura ${stamp}`
   const razon = `Empresa E2E ${stamp}`
-  await page.goto('/pos/cargar')
+  await page.goto('/ventas')
   const creado = await page.evaluate(
     async ({ api, name, razon }) => {
       const response = await fetch(`${api}/api/customers`, {
@@ -300,7 +300,7 @@ test('POS manual price below list stores the list price for the receipt', async 
   })
   const page = await context.newPage()
   try {
-    await page.goto('/pos/cargar')
+    await page.goto('/ventas')
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(name)
 
     await page.getByPlaceholder('Buscar producto…').fill('Cable')
@@ -338,7 +338,7 @@ test('POS manual price below list stores the list price for the receipt', async 
 // a gerencia. Con una pendiente previa del mismo producto, el bloque la
 // muestra; sin ella, el botón queda disponible para pedirla.
 test('POS shows the price authorization block for a below-list price', async ({ page }) => {
-  await page.goto('/pos/cargar')
+  await page.goto('/ventas')
   await page
     .getByLabel('Nombre, teléfono, CI o RUC del cliente')
     .fill(`${SEED.checkoutCustomer} autorización ${Date.now().toString(36)}`)
@@ -358,7 +358,7 @@ test('POS shows the price authorization block for a below-list price', async ({ 
 // Con stock disponible, el servidor exige el IMEI exacto: el modal bloquea
 // "vender sin IMEI" y la venta se completa reservando la unidad física.
 test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con stock', async ({ page }) => {
-  await page.goto('/pos/cargar')
+  await page.goto('/ventas')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente serial ${Date.now().toString(36)}`)
   await page.getByPlaceholder('Buscar producto…').fill(SEED.products.iphone.name)

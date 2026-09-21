@@ -8,11 +8,11 @@ const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 test('pedidos: la lista abre sin popups y el detalle se abre y cierra', async ({ page }) => {
   const errores = []
   page.on('pageerror', (error) => errores.push(String(error?.message || error)))
-  await page.goto('/pos/cargar')
+  await page.goto('/ventas')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Mis pedidos' }).click()
-  await expect(page).toHaveURL(/\/pos\/pedidos$/)
+  await expect(page).toHaveURL(/\/pedidos$/)
   await expect(page.getByRole('heading', { name: 'Mis pedidos' })).toBeVisible()
   await expect(page.getByTestId("pedido-fila").first()).toBeVisible()
   await expect(page.getByRole("dialog")).toHaveCount(0)
@@ -30,11 +30,11 @@ test('pedidos: la lista abre sin popups y el detalle se abre y cierra', async ({
 
   // El clic lleva a la página exclusiva del pedido (no a un panel).
   await page.getByTestId('pedido-fila').first().click()
-  await expect(page).toHaveURL(/\/pos\/pedidos\/[a-z0-9-]+$/i)
+  await expect(page).toHaveURL(/\/pedidos\/[a-z0-9-]+$/i)
   await expect(page.getByText('Artículos preparados')).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.getByRole('button', { name: 'Volver a pedidos' }).click()
-  await expect(page).toHaveURL(/\/pos\/pedidos$/)
+  await expect(page).toHaveURL(/\/pedidos$/)
   await expect(page.getByRole('dialog')).toHaveCount(0)
 
   // El ícono de acciones abre la vista rápida en panel sin redirigir.
@@ -51,7 +51,7 @@ test('pedidos: la lista abre sin popups y el detalle se abre y cierra', async ({
 // Enlace directo a un pedido que NO está en la página cargada: el drawer tiene
 // que resolverlo por API (antes quedaba un popup vacío y fijo).
 test('pedidos: enlace directo a un pedido fuera de la página lo resuelve por API', async ({ page }) => {
-  await page.goto('/pos/pedidos')
+  await page.goto('/pedidos')
   const ordenes = await page.evaluate(async (api) => {
     const response = await fetch(`${api}/api/orders`, { credentials: 'include' })
     return response.ok ? await response.json() : []
@@ -61,14 +61,14 @@ test('pedidos: enlace directo a un pedido fuera de la página lo resuelve por AP
 
   // Simula que el pedido no vino en la lista: la página queda vacía.
   await page.route(/\/api\/orders\?/, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
-  await page.goto(`/pos/pedidos/${objetivo.id}`)
+  await page.goto(`/pedidos/${objetivo.id}`)
   await expect(page.getByText(codigoPedido(objetivo.orderNumber)).first()).toBeVisible()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
 })
 
 // Impresión del pedido: sin 58 mm, con 80 mm y A4 centrados y con márgenes.
 test('pedidos: el comprobante ofrece A4 y 80 mm centrados', async ({ page }) => {
-  await page.goto('/pos/pedidos')
+  await page.goto('/pedidos')
   await page.getByTestId('pedido-fila').first().click()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
   await page.getByRole('button', { name: 'Imprimir comprobante' }).click()

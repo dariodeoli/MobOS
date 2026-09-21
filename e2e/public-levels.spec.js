@@ -19,7 +19,7 @@ async function api(page, path, options = {}) {
 }
 
 test('los accesos del pedido respetan el nivel y se pueden regenerar', async ({ page }) => {
-  await page.goto('/pos/pedidos')
+  await page.goto('/pedidos')
   const ordenes = await api(page, '/api/orders')
   const pedido = (ordenes.body || []).find(order => order.customer?.name)
   expect(pedido?.id).toBeTruthy()

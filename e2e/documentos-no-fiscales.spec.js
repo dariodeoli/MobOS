@@ -50,7 +50,7 @@ const textoDelTicket = (capturado) => Buffer.from(String(capturado?.data || ''),
 test('la nota de entrega de un pedido sale por el agente con leyenda no fiscal', async ({ page }) => {
   const capturados = []
   await agenteFalso(page, capturados)
-  await page.goto('/pos/pedidos')
+  await page.goto('/pedidos')
   await page.getByTestId('pedido-fila').first().click()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
   const id = page.url().split('/').pop()
@@ -73,7 +73,7 @@ test('la nota de entrega de un pedido sale por el agente con leyenda no fiscal',
 test('la remisión interna de un traslado sale por el agente con firmas', async ({ page }) => {
   const capturados = []
   await agenteFalso(page, capturados)
-  await page.goto('/pos/resumen')
+  await page.goto('/resumen')
   const marca = Date.now()
   const destino = await apiPagina(page, '/api/branches', { method: 'POST', body: JSON.stringify({ name: `Sucursal remision ${marca}` }) })
   expect(destino.status).toBe(201)
@@ -103,7 +103,7 @@ test('la remisión interna de un traslado sale por el agente con firmas', async 
 test('el recibo interno de un cobro sale por el agente con el monto', async ({ page }) => {
   const capturados = []
   await agenteFalso(page, capturados)
-  await page.goto('/pos/resumen')
+  await page.goto('/resumen')
   const marca = Date.now()
   const cliente = `Cliente recibo ${marca}`
   const pedido = await apiPagina(page, '/api/orders', {
@@ -116,7 +116,7 @@ test('el recibo interno de un cobro sale por el agente con el monto', async ({ p
   })
   expect(pedido.status).toBe(201)
 
-  await page.goto('/pos/resumen')
+  await page.goto('/resumen')
   const fila = page.getByRole('row').filter({ hasText: cliente }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
   await fila.getByLabel('Pagos').click()
@@ -137,7 +137,7 @@ test('el recibo interno de un cobro sale por el agente con el monto', async ({ p
 test('la proforma de una cotización sale por el agente sin validez fiscal', async ({ page }) => {
   const capturados = []
   await agenteFalso(page, capturados)
-  await page.goto('/pos/resumen')
+  await page.goto('/resumen')
   const marca = Date.now()
   const cotizacion = await apiPagina(page, '/api/quotes', {
     method: 'POST',
@@ -145,7 +145,7 @@ test('la proforma de una cotización sale por el agente sin validez fiscal', asy
   })
   expect(cotizacion.status).toBe(201)
 
-  await page.goto('/pos/cotizaciones')
+  await page.goto('/cotizaciones')
   const fila = page.getByTestId('cotizacion-fila').filter({ hasText: cotizacion.datos.number }).first()
   await expect(fila).toBeVisible({ timeout: 20_000 })
   await fila.getByRole('button', { name: 'Enlace/QR' }).click()

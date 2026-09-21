@@ -28,10 +28,10 @@ import { cn } from '@/lib/utils'
 const UMBRAL_STOCK_BAJO = 3
 
 // Quick actions shown next to the period selector. They reuse the same routes
-// PanelVendedor uses from its sidebar (`/pos/<vista>`).
+// PanelVendedor uses from its sidebar (`/<vista>`).
 const ACCIONES = [
-  { label: 'Cargar venta', ruta: '/pos/cargar', icon: 'plus' },
-  { label: 'Nueva compra', ruta: '/pos/compras', icon: 'box' },
+  { label: 'Cargar venta', ruta: '/ventas', icon: 'plus' },
+  { label: 'Nueva compra', ruta: '/compras', icon: 'box' },
   // Finanzas opens on the "Caja" subtab by default in PanelVendedor.
   { label: 'Abrir caja', ruta: '/finanzas/caja', icon: 'wallet' },
 ]
@@ -215,7 +215,7 @@ export default function Resumen() {
           valor={d.act.length}
           tono="blue"
           sub={`${d.pagadas} pagadas · ${d.sinPagar} pendientes`}
-          accion={{ label: 'Ver pedidos', onClick: () => navigate('/pos/pedidos') }}
+          accion={{ label: 'Ver pedidos', onClick: () => navigate('/pedidos') }}
         />
         <Metrica
           label="Ticket promedio"
@@ -269,7 +269,7 @@ export default function Resumen() {
                 </p>
               </div>
             </div>
-            <Button variant="outline" onClick={() => navigate('/pos/finanzas')}>Ver créditos</Button>
+            <Button variant="outline" onClick={() => navigate('/finanzas')}>Ver créditos</Button>
           </div>
         </Card>
       )}

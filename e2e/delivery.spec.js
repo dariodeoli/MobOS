@@ -26,7 +26,7 @@ test.describe('delivery', () => {
     await expect(nav.getByRole('button', { name: 'Cargar venta', exact: true })).toHaveCount(0)
 
     // El panel de venta no es su lugar: la URL vuelve al reparto.
-    await page.goto('/pos/cargar')
+    await page.goto('/ventas')
     await expect(page).toHaveURL(/\/delivery\/repartos$/)
 
     // El pedido asignado trae cliente, dirección y teléfono; y solo ese.
@@ -65,8 +65,8 @@ test.describe('delivery', () => {
     // La tienda entra con su propio acceso y verifica la rendición.
     const contexto = await browser.newContext({ storageState: { cookies: [], origins: [] } })
     const tienda = await contexto.newPage()
-    await entrarConPin(tienda, SEED.admin.pin, /\/pos\/resumen$/)
-    await tienda.goto('/pos/repartos')
+    await entrarConPin(tienda, SEED.admin.pin, /\/resumen$/)
+    await tienda.goto('/delivery')
     await expect(tienda.getByRole('heading', { name: 'Delivery' })).toBeVisible()
     // Pestaña Repartos: el pedido figura asignado al repartidor con lo cobrado.
     await tienda.getByRole('button', { name: 'Asignados', exact: true }).click()

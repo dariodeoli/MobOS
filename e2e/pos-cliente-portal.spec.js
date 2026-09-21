@@ -18,7 +18,7 @@ async function api(page, path, options = {}) {
 }
 
 test('el portal del cliente se abre desde la ficha y muestra el saldo pendiente', async ({ page }) => {
-  await page.goto('/pos/clientes')
+  await page.goto('/clientes')
   const marca = Date.now()
 
   const productos = await api(page, '/api/products')
@@ -42,7 +42,7 @@ test('el portal del cliente se abre desde la ficha y muestra el saldo pendiente'
   expect(pedido.status).toBe(201)
 
   // La ficha abre directo por ?cliente= y ofrece el portal en la cabecera.
-  await page.goto(`/pos/clientes?cliente=${encodeURIComponent(cliente.body.id)}`)
+  await page.goto(`/clientes?cliente=${encodeURIComponent(cliente.body.id)}`)
   const ficha = page.getByRole('dialog')
   await expect(ficha.getByRole('heading', { name: cliente.body.name })).toBeVisible()
   await ficha.getByRole('button', { name: 'Portal del cliente' }).click()

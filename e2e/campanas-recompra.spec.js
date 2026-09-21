@@ -20,7 +20,7 @@ async function api(page, path, options = {}) {
 test('la sección Campañas lista el segmento y marca el contacto en la ficha', async ({ page }) => {
   // Navegar primero: el fetch del helper sale del origen de la app (about:blank
   // no puede llamar a la API).
-  await page.goto('/pos/clientes')
+  await page.goto('/clientes')
   const marca = Date.now()
   const cliente = await api(page, '/api/customers', {
     method: 'POST',
