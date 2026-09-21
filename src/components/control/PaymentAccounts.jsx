@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount } from '@/lib/paymentAccounts'
@@ -6,8 +6,11 @@ import { Badge, Button, Card, Input, Label, Select } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import BancoCombobox from '@/components/shared/BancoCombobox'
 import BancoLogo from '@/components/shared/BancoLogo'
+import ComboBuscador from '@/components/shared/ComboBuscador'
 import { marcaDeMedio } from '@/components/shared/MedioPago'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
+import { getAccountHolders, getPrivateCompanies } from '@/lib/accountParties'
+import { nombreCompleto, opcionesDePartes } from '@/lib/accountNames'
 import { cn } from '@/lib/utils'
 
 // Tabla compacta: una fila por cuenta, con comisión, acreditación y descuento.
@@ -102,6 +105,16 @@ function AccountManager() {
   const [busy, setBusy] = useState(false)
   const lock = useRef(false)
   const [message, setMessage] = useState(null)
+  const [holders, setHolders] = useState([])
+  const [companies, setCompanies] = useState([])
+
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([getAccountHolders(), getPrivateCompanies()])
+      .then(([nextHolders, nextCompanies]) => { if (!cancelled) { setHolders(nextHolders); setCompanies(nextCompanies) } })
+      .catch(() => { /* los buscadores quedan vacíos; el titular se escribe a mano */ })
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -119,7 +132,7 @@ function AccountManager() {
     // Los opcionales vacíos llegan null desde la API: el formulario trabaja
     // siempre con texto (evita inputs sin control y el error de validación).
     const values = { ...EMPTY, ...account }
-    for (const key of ['bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel']) {
+    for (const key of ['bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel', 'holderId', 'companyId']) {
       if (values[key] == null) values[key] = ''
     }
     setEditingId(account?.id ?? null)
@@ -129,6 +142,17 @@ function AccountManager() {
   }
 
   function change(key, value) { setForm(current => ({ ...current, [key]: value })) }
+
+  // Elegir un titular o una empresa registrados completa el nombre y guarda el
+  // vínculo (#143); si el titular todavía no tiene documento, se hereda.
+  function elegirTitular(opcion) {
+    if (!opcion) return
+    if (opcion.tipo === 'holder') {
+      setForm(current => ({ ...current, holder: nombreCompleto(opcion.entidad), holderId: opcion.entidad.id, companyId: '', document: current.document || opcion.entidad.document || '' }))
+      return
+    }
+    setForm(current => ({ ...current, holder: opcion.entidad.legalName, companyId: opcion.entidad.id, holderId: '', document: current.document || opcion.entidad.ruc || '' }))
+  }
 
   // Al cambiar de medio, la moneda fija del medio (Pix/USDT) se aplica sola y
   // los campos que no corresponden quedan vacíos.
@@ -140,6 +164,9 @@ function AccountManager() {
         kind,
         currency: medio.monedaFija || current.currency,
         currencyLabel: medio.monedaFija ? '' : current.currencyLabel,
+        holderId: medio.titular ? current.holderId : '',
+        companyId: medio.titular ? current.companyId : '',
+        holder: medio.titular ? current.holder : '',
         feePercent: medio.comportamiento.includes('fee') ? current.feePercent : 0,
         settlementDays: medio.comportamiento.includes('settlement') ? current.settlementDays : 0,
         discountPct: medio.comportamiento.includes('discount') ? current.discountPct : 0,
@@ -195,6 +222,7 @@ function AccountManager() {
   const monedaFija = medio.monedaFija || ''
   const transferNuevo = form?.kind === 'TRANSFER' && !editingId
   const camposComportamiento = COMPORTAMIENTO.filter(({ field }) => medio.comportamiento.includes(field === 'feePercent' ? 'fee' : field === 'settlementDays' ? 'settlement' : 'discount'))
+  const opcionesTitulares = useMemo(() => opcionesDePartes(holders, companies), [holders, companies])
 
   return (
     <Card className="space-y-4">
@@ -223,7 +251,7 @@ function AccountManager() {
           {medio.personalizada && <div className="sm:col-span-2"><Label htmlFor="pa-currency-label">Moneda personalizada (opcional)</Label><Input id="pa-currency-label" maxLength={12} value={form.currencyLabel} onChange={event => change('currencyLabel', event.target.value.toUpperCase())} placeholder="Ej. ARS, PEN, CLP" /><p className="mt-1 text-[11px] text-mute">Se usa como etiqueta visible; los cálculos siguen la moneda elegida arriba.</p></div>}
           {medio.banco && <div className="sm:col-span-2"><Label htmlFor="pa-bank">Banco {form.kind !== 'TRANSFER' && '(opcional)'}</Label><BancoCombobox id="pa-bank" value={form.bank} onChange={value => change('bank', value)} required={form.kind === 'TRANSFER'} placeholder="Buscá entre los bancos de Paraguay o escribí otro" /></div>}
           {medio.procesadora && <div><Label htmlFor="pa-processor">Procesadora</Label><Select id="pa-processor" value={PROCESADORAS.includes(form.processor) ? form.processor : form.processor ? '__otra' : ''} onChange={event => change('processor', event.target.value === '__otra' ? '' : event.target.value)}><option value="">Elegí la procesadora</option>{PROCESADORAS.map(procesadora => <option key={procesadora} value={procesadora}>{procesadora}</option>)}<option value="__otra">Otra…</option></Select>{!PROCESADORAS.includes(form.processor) && <Input className="mt-2" maxLength={200} value={form.processor} onChange={event => change('processor', event.target.value)} placeholder="Nombre de la procesadora" />}</div>}
-          {medio.titular && <div><Label htmlFor="pa-holder">Titular {!transferNuevo && '(opcional)'}</Label><Input id="pa-holder" required={transferNuevo} maxLength={200} value={form.holder} onChange={event => change('holder', event.target.value)} placeholder="Nombre del titular" /></div>}
+          {medio.titular && <div><Label htmlFor="pa-holder">Titular {!transferNuevo && '(opcional)'}</Label><ComboBuscador id="pa-holder" value={form.holder} required={transferNuevo} options={opcionesTitulares} onChange={(texto) => setForm(current => ({ ...current, holder: texto, holderId: '', companyId: '' }))} onSelect={elegirTitular} placeholder="Buscá titular, socio o empresa" />{(form.holderId || form.companyId) && <p className="mt-1 text-[11px] text-ok">{form.companyId ? 'Empresa registrada' : 'Titular registrado'} · se completa solo</p>}</div>}
           {medio.documento && <div><Label htmlFor="pa-document">Documento (cédula/RUC)</Label><Input id="pa-document" maxLength={200} value={form.document} onChange={event => change('document', event.target.value)} placeholder="Ej. 3.456.789-0" /></div>}
           {medio.cuenta && <div><Label htmlFor="pa-number">Número de cuenta {!transferNuevo && '(opcional)'}</Label><Input id="pa-number" type="text" required={transferNuevo} maxLength={200} value={form.accountNumber} onChange={event => change('accountNumber', event.target.value)} /></div>}
           {medio.pixKey && <div><Label htmlFor="pa-pix-key">Llave Pix</Label><Input id="pa-pix-key" maxLength={200} value={form.pixKey} onChange={event => change('pixKey', event.target.value)} placeholder="CPF/CNPJ, correo, teléfono o aleatoria" /></div>}

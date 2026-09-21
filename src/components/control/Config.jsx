@@ -18,6 +18,7 @@ import RucField from '@/components/shared/RucField'
 import PercentField, { parsePercent } from '@/components/shared/PercentField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import UsoEquipo from '@/components/control/UsoEquipo'
+import DatosPrivados from '@/components/control/DatosPrivados'
 import { ROLE_LABELS } from '@/lib/roles'
 
 function fmtDate(value) {
@@ -286,6 +287,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
           </div>
           {logoError && <p role="alert" className="text-sm text-bad">{logoError}</p>}
         </Card>}
+        {esDueno && <DatosPrivados />}
         <SeccionTiendas account={account} />
         <SeccionInvitaciones />
         <IdentidadCuenta tenant={account?.tenant} reauthValidUntil={account?.reauthValidUntil} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} />

@@ -113,6 +113,8 @@ model Tenant {
   commissionSettlements   CommissionSettlement[]
   deliverySettlements     DeliverySettlement[]
   sifenDocuments          SifenDocument[]
+  privateCompanies        PrivateCompany[]
+  accountHolders          AccountHolder[]
 
   @@index([archivedAt])
 }
@@ -1742,6 +1744,12 @@ model PaymentAccount {
   pixKey        String?
   reference     String?
   currencyLabel String?
+  // Titular registrado (#143) y empresa/persona jurídica dueña de la cuenta.
+  // `holder` sigue guardando el nombre compuesto para historial y búsquedas.
+  holderId      String?
+  holderProfile AccountHolder?     @relation(fields: [holderId], references: [id], onDelete: SetNull)
+  companyId     String?
+  company       PrivateCompany?    @relation(fields: [companyId], references: [id], onDelete: SetNull)
   currency      PaymentCurrency
   kind          PaymentAccountKind
   isActive      Boolean            @default(true)
@@ -1755,6 +1763,47 @@ model PaymentAccount {
   payments      Payment[]
   cashMovements CashMovement[]
   purchasePayments PurchasePayment[]
+
+  @@index([tenantId, isActive])
+  @@index([holderId])
+  @@index([companyId])
+}
+
+// Empresa o persona jurídica con datos privados (#143): nombre legal, RUC y
+// dirección legal. Vive separada del nombre fantasía, la dirección comercial y
+// la información pública de la tienda; se usa como titular de cuentas.
+model PrivateCompany {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  legalName    String
+  ruc          String?
+  legalAddress String?
+  notes        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  paymentAccounts PaymentAccount[]
+
+  @@index([tenantId, isActive])
+}
+
+// Socio/titular de una cuenta de cobro (#143): nombres en orden (1º, 2º y 3º),
+// apellidos (1º y 2º) y cédula/RUC. Se ofrece en transferencia, Pix y USDT.
+model AccountHolder {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  firstName      String
+  middleName     String?
+  otherName      String?
+  lastName       String
+  secondLastName String?
+  document       String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  paymentAccounts PaymentAccount[]
 
   @@index([tenantId, isActive])
 }

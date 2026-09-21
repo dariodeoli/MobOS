@@ -5,7 +5,7 @@ import { error, json } from '../../../lib/http'
 import { accountSnapshot, decimalInput, InputError, objectInput, textInput } from '../../../lib/payment-input'
 
 function accountData(input: Record<string, unknown>, create: boolean) {
-  const data: { name?: string; bank?: string | null; holder?: string | null; accountNumber?: string | null; document?: string | null; processor?: string | null; pixKey?: string | null; reference?: string | null; currencyLabel?: string | null; currency?: PaymentCurrency; kind?: PaymentAccountKind; isActive?: boolean; feePercent?: Prisma.Decimal; discountPct?: Prisma.Decimal; settlementDays?: number } = {}
+  const data: { name?: string; bank?: string | null; holder?: string | null; accountNumber?: string | null; document?: string | null; processor?: string | null; pixKey?: string | null; reference?: string | null; currencyLabel?: string | null; holderId?: string | null; companyId?: string | null; currency?: PaymentCurrency; kind?: PaymentAccountKind; isActive?: boolean; feePercent?: Prisma.Decimal; discountPct?: Prisma.Decimal; settlementDays?: number } = {}
   if (create || input.name !== undefined) data.name = textInput(input.name, 'name', 200)
   for (const field of ['bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel'] as const) {
     if (input[field] !== undefined) data[field] = input[field] === null || input[field] === '' ? null : textInput(input[field], field, field === 'currencyLabel' ? 12 : 200)
@@ -62,6 +62,26 @@ function validateCurrency(kind: PaymentAccountKind | undefined, currency: Paymen
   if (kind === 'CRYPTO' && currency !== 'USD') throw new InputError('Cripto/USDT cobra en dólares (USD).')
 }
 
+// Titular y empresa asociados (#143): solo se aceptan si existen en la empresa.
+async function validarPartes(tx: Prisma.TransactionClient, tenantId: string, data: Record<string, unknown>, body: Record<string, unknown>) {
+  if (body.holderId !== undefined) {
+    if (body.holderId === null || body.holderId === '') data.holderId = null
+    else {
+      const id = textInput(body.holderId, 'holderId', 200)
+      if (!(await tx.accountHolder.findFirst({ where: { id, tenantId }, select: { id: true } }))) throw new InputError('El titular no existe en la empresa.')
+      data.holderId = id
+    }
+  }
+  if (body.companyId !== undefined) {
+    if (body.companyId === null || body.companyId === '') data.companyId = null
+    else {
+      const id = textInput(body.companyId, 'companyId', 200)
+      if (!(await tx.privateCompany.findFirst({ where: { id, tenantId }, select: { id: true } }))) throw new InputError('La empresa no existe.')
+      data.companyId = id
+    }
+  }
+}
+
 // Cuentas predeterminadas (#118): los medios con logo de
 // src/components/shared/MedioPago.jsx, en el orden de la lista canónica
 // MEDIOS_PAGO (src/lib/catalog.js). La marca vive en `bank` —el logo se mapea
@@ -114,6 +134,7 @@ async function write(request: Request, create: boolean) {
     const data = accountData(body, create)
     const tenantId = session.user.tenantId
     const result = await prisma.$transaction(async tx => {
+      await validarPartes(tx, tenantId, data, body)
       if (create) {
         validateTransfer(data, true)
         validateCurrency(data.kind, data.currency)

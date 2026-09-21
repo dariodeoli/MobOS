@@ -4,8 +4,8 @@ import { isDemoRuntime } from './demoMode'
 const ENDPOINT = '/api/payment-accounts'
 const DEMO_KEY = 'mobos:demo-payment-accounts:v1'
 const KINDS = ['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX', 'CRYPTO']
-const CAMPOS_TEXTO = ['name', 'bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel']
-const defaults = { name: '', bank: '', holder: '', accountNumber: '', document: '', processor: '', pixKey: '', reference: '', currencyLabel: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, discountPct: 0, settlementDays: 0 }
+const CAMPOS_TEXTO = ['name', 'bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel', 'holderId', 'companyId']
+const defaults = { name: '', bank: '', holder: '', accountNumber: '', document: '', processor: '', pixKey: '', reference: '', currencyLabel: '', holderId: '', companyId: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, discountPct: 0, settlementDays: 0 }
 const seed = [
   { ...defaults, id: 'demo-cash-pyg', name: 'Caja demo · Gs' },
   { ...defaults, id: 'demo-cash-usd', name: 'Caja demo · USD', currency: 'USD' },
