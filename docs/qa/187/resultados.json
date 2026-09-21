@@ -1,0 +1,197 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "v1.0.127",
+  "fecha": "2026-09-21T17:06:11.863Z",
+  "viewport": {
+    "desktop": "1440x900",
+    "movil": "390x844"
+  },
+  "metodo": "Playwright headless (chromium) sobre la demo pública",
+  "pasos": [
+    {
+      "paso": "entrada a la demo como vendedor",
+      "estado": "ok",
+      "detalle": "versión desplegada: v1.0.127 · perfiles: 2 · menú: VENDER POS Mis pedidos Delivery Clientes HERRAMIENTAS Productos Promociones Precios Trade-In Cotizaciones",
+      "capturas": [
+        "01-acceso-demo.jpg",
+        "02-panel-vendedor.jpg"
+      ],
+      "erroresConsola": [
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()"
+      ],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/presence",
+        "401 https://api.moboss.online/api/users/demo-user/avatar",
+        "401 https://api.moboss.online/api/presence/heartbeat"
+      ]
+    },
+    {
+      "paso": "pos: venta en una sola pantalla (carrito visible sin salir)",
+      "estado": "ok",
+      "detalle": "buscador visible: true (bottom 773/900) · total visible: true (bottom 310/900) · hoy visible: 1",
+      "capturas": [
+        "03-pos-pantalla-unica.jpg"
+      ],
+      "erroresConsola": [
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()"
+      ],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/users/demo-user/avatar",
+        "401 https://api.moboss.online/api/presence/heartbeat",
+        "401 https://api.moboss.online/api/presence"
+      ]
+    },
+    {
+      "paso": "catalogo: buscar y agregar con modelo y capacidad",
+      "estado": "ok",
+      "detalle": "sugerencias: iPhone 15 Pro 256GB Titanio | iPhone 15 Pro 256GB Negro | Retiro en tienda · carrito: TOTAL DE ESTA VENTA Gs 6.850.000 1 producto · 1 unidad TU DÍA 2 ventas · 2 pedidos Facturación Gs 7.030.000",
+      "capturas": [
+        "04-catalogo-resultados.jpg",
+        "05-producto-agregado.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "carrito: segundo producto, cantidad 2 y descuento",
+      "estado": "ok",
+      "detalle": "2 u.: TOTAL DE ESTA VENTA Gs 13.880.000 2 productos · 3 unidades TU DÍA 2 ventas · 2 pedidos Facturación Gs 7.030.00 · con descuento: TOTAL DE ESTA VENTA Gs 13.780.000 2 productos · 3 unidades Descuento − Gs 100.000 TU DÍA 2 ventas · 2 pedidos  · borrado: TOTAL DE ESTA VENTA Gs 13.880.000 2 productos · 3 unidades TU DÍA 2 ventas · 2 pedidos Facturación Gs 7.030.00",
+      "capturas": [
+        "06-carrito-descuento.jpg",
+        "07-carrito-sin-descuento.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "cliente: buscador y alta por nombre nuevo",
+      "estado": "ok",
+      "detalle": "resultados de \"María\": Titanio | Negro | Retiro en tienda | Delivery · clientes demo encontrados: false · botón con cliente: \"Crear pedido sin pago · 3 productos · Gs 13.880.000\"",
+      "capturas": [
+        "08-cliente-nuevo.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "borradores: suspender y listar (aviso honesto de la demo)",
+      "estado": "ok",
+      "detalle": "alta: \"Las ventas suspendidas se guardan en el servidor de tu tienda y necesitan conexión. En la demo no se guardan n\" · listado: mismo aviso de demo",
+      "capturas": [
+        "09-borrador-aviso-demo.jpg",
+        "10-borradores-listado-demo.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "split: parcial con dividir saldo y segundo medio",
+      "estado": "ok",
+      "detalle": "bloques: 2 · «Dividir saldo (Gs 10.880.000)» · saldo precargado:  · botón con parcial: \"Crear pedido · 3 productos · Gs 13.880.000\" → \"Crear pedido · 3 productos · Gs 13.880.000\"",
+      "capturas": [
+        "11-split-parcial.jpg",
+        "12-split-dividido.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "entrega: delivery con costo y retiro sin monto",
+      "estado": "ok",
+      "detalle": "con delivery: TOTAL DE ESTA VENTA Gs 13.910.000 2 productos · 3 unidades Entrega + Gs 30.000 TU DÍA 2 ventas · 2 pedidos Facturación G · monto deshabilitado en retiro: true",
+      "capturas": [
+        "13-entrega-delivery.jpg",
+        "14-entrega-retiro.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "venta: cubrir el saldo, confirmar y vaciar el carrito",
+      "estado": "ok",
+      "detalle": "botón: \"Confirmar venta · 3 productos · Gs 13.910.000\" · confirmación: \"Modo demo: los datos son ficticios y no se guardan en tu empresa.\" · acciones: (ninguna) · carrito tras vender: TOTAL DE ESTA VENTA Gs 0 0 productos · 0 unidades Agregá productos para empezar la venta. TU DÍA 5 ventas · 5 pedidos Facturación ",
+      "capturas": [
+        "15-venta-antes-de-confirmar.jpg",
+        "16-venta-confirmada.jpg"
+      ],
+      "erroresConsola": [
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: the server responded with a status of 401 ()"
+      ],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/print/printers"
+      ]
+    },
+    {
+      "paso": "analytics: métricas del POS y período",
+      "estado": "ok",
+      "detalle": "demo sin API: el modal abre pero responde «Falta sesión.» (no calcula métricas); verificado en su lugar en el encabezado del POS: TU DÍA 5 ventas · 5 pedidos Facturación Gs 20.910.000",
+      "capturas": [
+        "17-analytics-modal.jpg"
+      ],
+      "erroresConsola": [
+        "Failed to load resource: the server responded with a status of 401 ()"
+      ],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/orders?filtro=todos&limit=500"
+      ]
+    },
+    {
+      "paso": "movil 390x844: POS con carrito accesible",
+      "estado": "ok",
+      "detalle": "desborde horizontal: 0px → 0px · buscador: true · total: TOTAL DE ESTA VENTA Gs 150.000 1 producto · 1 unidad TU DÍA 2 ventas · 2 pedidos Facturación Gs 7.030.000",
+      "capturas": [
+        "18-pos-movil.jpg",
+        "19-pos-movil-carrito.jpg"
+      ],
+      "erroresConsola": [
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()"
+      ],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/presence",
+        "401 https://api.moboss.online/api/presence/heartbeat"
+      ]
+    },
+    {
+      "paso": "diagnostico: consola y red",
+      "estado": "ok",
+      "detalle": "errores de consola: 11 · API ≥400: 10 · pedidos fallidos: 1 · top endpoints: 3× https://api.moboss.online/api/presence | 3× https://api.moboss.online/api/presence/heartbeat | 2× https://api.moboss.online/api/users/demo-user/avatar | 1× https://api.moboss.online/api/print/printers | 1× https://api.moboss.online/api/orders · consola: 10× Failed to load resource: the server responded with a status of 401 () | 1× Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "capturas": [],
+      "erroresConsola": [],
+      "fallosRed": []
+    }
+  ],
+  "errores": [
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()"
+  ],
+  "fallosRed": [
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/users/demo-user/avatar",
+    "401 https://api.moboss.online/api/presence/heartbeat",
+    "401 https://api.moboss.online/api/users/demo-user/avatar",
+    "401 https://api.moboss.online/api/presence/heartbeat",
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/print/printers",
+    "401 https://api.moboss.online/api/orders?filtro=todos&limit=500",
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/presence/heartbeat"
+  ],
+  "pedidosFallidos": [
+    "net::ERR_CONNECTION_REFUSED http://127.0.0.1:17890/health"
+  ]
+}
