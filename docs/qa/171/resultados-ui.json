@@ -1,0 +1,104 @@
+{
+  "desde": "2026-09-01",
+  "hasta": "2026-09-21",
+  "totales": {
+    "orders": 163,
+    "units": 163,
+    "grossPyg": 29935000,
+    "discountPyg": 0,
+    "deliveryPyg": 0,
+    "totalPyg": 29935000,
+    "collectedPyg": 28940000,
+    "pendingPyg": 995000,
+    "costPyg": 7510000,
+    "profitPyg": 5785000,
+    "salesWithCostPyg": 13295000,
+    "salesWithoutCostPyg": 16640000,
+    "linesWithoutCost": 78,
+    "marginPct": 43.5,
+    "commissionPyg": 30000,
+    "netProfitPyg": 5755000,
+    "netMarginPct": 43.3,
+    "refundedPyg": 0,
+    "paidOrders": 152,
+    "pendingOrders": 11
+  },
+  "erroresConsola": [
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={co",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={co",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={co",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={co",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={co",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={co",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={co",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ],
+  "resultados": [
+    {
+      "nombre": "Resumen muestra facturado, cobrado y pendiente del servidor",
+      "ok": true
+    },
+    {
+      "nombre": "Resumen muestra ventas, ticket y unidades del período",
+      "ok": true
+    },
+    {
+      "nombre": "Resumen muestra el top de productos con su clase ABC",
+      "ok": true
+    },
+    {
+      "nombre": "Resumen muestra stock valorizado, días de stock y rotación",
+      "ok": true
+    },
+    {
+      "nombre": "Resumen muestra cobros por procesadora y por cuenta",
+      "ok": true
+    },
+    {
+      "nombre": "Resumen muestra la conciliación del período",
+      "ok": true
+    },
+    {
+      "nombre": "Reportes muestra los mismos totales que Resumen",
+      "ok": true
+    },
+    {
+      "nombre": "Reportes muestra el mismo top de productos (curva ABC del servidor)",
+      "ok": true
+    },
+    {
+      "nombre": "Reportes muestra el mismo stock valorizado",
+      "ok": true
+    },
+    {
+      "nombre": "Ganancias y Reportes muestran el mismo resultado del período",
+      "ok": true
+    },
+    {
+      "nombre": "Finanzas → Conciliación repite el resumen de la portada",
+      "ok": true
+    },
+    {
+      "nombre": "Ganadores muestra las cantidades por línea del servidor",
+      "ok": true
+    },
+    {
+      "nombre": "La portada avisa cuando el reporte del servidor viene truncado",
+      "ok": true
+    },
+    {
+      "nombre": "Sin errores de consola propios del recorrido",
+      "ok": true
+    }
+  ]
+}
