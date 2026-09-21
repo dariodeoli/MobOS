@@ -4,7 +4,7 @@ import { isDemoRuntime } from './demoMode'
 const ENDPOINT = '/api/payment-accounts'
 const DEMO_KEY = 'mobos:demo-payment-accounts:v1'
 const KINDS = ['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX']
-const defaults = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, settlementDays: 0 }
+const defaults = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, discountPct: 0, settlementDays: 0 }
 const seed = [
   { ...defaults, id: 'demo-cash-pyg', name: 'Caja demo · Gs' },
   { ...defaults, id: 'demo-cash-usd', name: 'Caja demo · USD', currency: 'USD' },
@@ -29,12 +29,13 @@ function validate(data, partial = false) {
   if ('currency' in result && !['PYG', 'USD', 'BRL', 'EUR', 'USDT'].includes(result.currency)) throw new Error('Elegí una moneda válida.')
   if ('kind' in result && !KINDS.includes(result.kind)) throw new Error('Elegí un medio de pago válido.')
   if ('isActive' in result && typeof result.isActive !== 'boolean') throw new Error('Estado de cuenta inválido.')
-  if ('feePercent' in result) {
-    const fee = result.feePercent
-    if (!['string', 'number'].includes(typeof fee) || String(fee).trim() === '' || !Number.isFinite(Number(fee)) || Number(fee) < 0 || Number(fee) > 100) {
-      throw new Error('La comisión debe estar entre 0 y 100%.')
+  for (const [key, mensaje] of [['feePercent', 'La comisión debe estar entre 0 y 100%.'], ['discountPct', 'El descuento debe estar entre 0 y 100%.']]) {
+    if (!(key in result)) continue
+    const valor = result[key]
+    if (!['string', 'number'].includes(typeof valor) || String(valor).trim() === '' || !Number.isFinite(Number(valor)) || Number(valor) < 0 || Number(valor) > 100) {
+      throw new Error(mensaje)
     }
-    result.feePercent = Number(fee)
+    result[key] = Number(valor)
   }
   if ('settlementDays' in result) {
     const days = Number(result.settlementDays)
