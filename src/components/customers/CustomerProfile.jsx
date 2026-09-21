@@ -12,6 +12,7 @@ import QRCode from 'qrcode'
 import SerialTexto from '@/components/shared/SerialTexto'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
+import Switch from '@/components/shared/Switch'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
@@ -30,7 +31,6 @@ import {
   Select,
   Skeleton,
   Textarea,
-  Toggle,
   useToast,
 } from '@/components/ui'
 
@@ -1470,11 +1470,11 @@ export default function CustomerProfile({ customer, open, onClose }) {
                   <p className="mt-0.5 text-xs text-mute">Con el seguro activo, sus ventas suman el porcentaje al costo real y ajustan el margen. El porcentaje de la empresa lo define Finanzas.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Toggle
+                  <Switch
                     checked={seguroForm.enabled}
                     disabled={!puedeResolver || guardandoSeguro}
                     ariaLabel="Seguro del cliente activo"
-                    onChange={(next) => { setSeguroForm((form) => ({ ...form, enabled: next })); guardarSeguro(next) }}
+                    onChange={(event) => { const next = event.target.checked; setSeguroForm((form) => ({ ...form, enabled: next })); guardarSeguro(next) }}
                   />
                   <span className={cn('text-xs font-semibold', seguroForm.enabled ? 'text-ok' : 'text-mute')}>{seguroForm.enabled ? 'Activo' : 'Inactivo'}</span>
                 </div>
