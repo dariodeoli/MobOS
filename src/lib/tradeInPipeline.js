@@ -138,7 +138,7 @@ export function recordDemoTradeIns(order, payments) {
     sellerId: order.sellerId || order.vendedorId || order.seller?.id || 'demo-user',
     sellerName: order.sellerName || order.seller?.name || order.vendedorNombre || 'Diego López',
     repairCostPyg: 0, status: 'RECEIVED', productId: null, createdAt: at, updatedAt: at,
-    history: [{ at, fromStatus: null, toStatus: 'RECEIVED', notes: 'Recibido como parte de pago demo.', repairCostPyg: 0 }],
+    history: [{ at, fromStatus: null, toStatus: 'RECEIVED', notes: 'Recibido como parte de pago.', repairCostPyg: 0 }],
   }))
   const paymentKeys = new Set(rows.map((row) => `${row.orderId}:${row.paymentId}`))
   for (const row of next) {
