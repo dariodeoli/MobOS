@@ -4,7 +4,7 @@ import { useUrlState } from '@/hooks/useUrlState'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
-import { codigoPedido, fechaCompacta } from '@/utils/pedido'
+import { codigoPedido, fechaLegible } from '@/utils/pedido'
 import { normalizarBusqueda, nombreCortoCliente } from '@/utils/cliente'
 import { Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -74,7 +74,7 @@ const FILTROS = [
 // Anchuras fijas lo más compactas posible (fecha, cantidad, entrega, pago y
 // estado) para que la tabla entre sin scroll en pantallas de ~1024 px; el
 // scroll queda solo como respaldo en anchos muy chicos (< 46rem).
-const GRID = 'grid min-w-[46rem] grid-cols-[4.25rem_5.25rem_minmax(0,1.15fr)_minmax(0,1.6fr)_minmax(0,0.85fr)_2.25rem_3.75rem_3.75rem_4.75rem_6.5rem_1.75rem] items-center gap-x-1.5'
+const GRID = 'grid min-w-[46rem] grid-cols-[4.25rem_6.25rem_minmax(0,1.15fr)_minmax(0,1.6fr)_minmax(0,0.85fr)_2.25rem_3.75rem_3.75rem_4.75rem_6.5rem_1.75rem] items-center gap-x-1.5'
 
 // Vista previa de artículos: hasta dos descripciones completas (con capacidad)
 // en una sola línea compacta y "+N" cuando el pedido trae más productos.
@@ -160,7 +160,7 @@ function FilaPedido({ row, onClick, onAcciones }) {
     >
       <div className={GRID}>
         <span className={cn('truncate font-mono text-xs font-bold text-fono-light', tachado)} title={row.number}>{codigoPedido(row.number)}</span>
-        <span className={cn('truncate text-xs text-mute', tachado)}>{fechaCompacta(row.date)}</span>
+        <span className={cn('truncate text-xs text-mute', tachado)}>{fechaLegible(row.date)}</span>
         <span className="flex min-w-0 items-center gap-1">
           <span className={cn('truncate text-[13px] font-semibold', tachado)} title={row.customer}>{nombreCortoCliente(row.customer)}</span>
           {row.isSpecialOrder && (
