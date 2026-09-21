@@ -11,6 +11,15 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.131 — 2026-09-21
+- **Inventario / IMEIcheck:** la ficha de la unidad suma **Consulta de IMEI** (precheck con costo visible → confirmación explícita → resultado con fuente y hora; "No verificado" ante pendiente o fallo, nunca "Limpio"); en demo se **simula** y queda marcado. Se suma la **matriz completa de mocks** y el documento con el procedimiento de la **única consulta Apple Basic** autorizada. (#193 #200)
+- **Herramientas:** harness de **sandbox AEX** para cotizar, generar una guía y consultar seguimiento sin tocar producción. (#3)
+- **Demo:** todo funciona con datos ficticios y **solo en memoria de la pestaña** (nada se persiste al recargar), con guía visible de cómo funciona y banner; verificación post-deploy del demo en verde para PLT, PRN, FIN y CRM. (#196 #198 #201 #204)
+- **Pedidos / POS:** los métodos de entrega nuevos muestran su nombre y se suma la cobertura e2e de **fulfillment por método**; barrido de accesibilidad y responsive 360/768; bordes de venta en demo (split USD, períodos). (#173 #199 #204 #205)
+- **Finanzas:** el seguro queda persistente en la demo, la transferencia ya no ofrece USDT y los lotes de conciliación no se reasignan; e2e de caja y conciliación; pulido de horas 24 h, vacíos y textos. (#204 #205)
+- **Impresión:** etiquetas de estado unificadas, vacíos con ayuda, QR del comprobante en demo y bordes de cola (incierto/lote); specs estabilizados. (#199 #204 #205)
+- **Clientes / Configuración:** el portal vigente se puede regenerar desde la ficha; ayuda visible al aceptar una invitación; menú de acciones en español sin entrada duplicada; etiquetas y avisos consistentes. (#199 #204 #205)
+
 ## v1.0.130 — 2026-09-21
 - **IMEIcheck (Fase 1):** el adaptador suma el **catálogo live** del proveedor (IDs reales) y el **mapeo de campos para ambos formatos** con el **costo real informado**; sigue todo en modo mock por defecto, sin cargos automáticos ni llamadas pagas sin configuración explícita. (#193 #200)
 - **Clientes:** la ficha del cliente suma el **comprobante de verificación de IMEI** (simulado en demo, con los datos del equipo y la fuente). (#203)
