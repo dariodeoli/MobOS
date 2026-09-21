@@ -1,0 +1,113 @@
+import { useEffect, useRef } from 'react'
+import Avatar from '@/components/shared/Avatar'
+import Icon from '@/components/shared/Icon'
+import { Button, Eyebrow, PinInput } from '@/components/ui'
+
+// Pantalla de bloqueo del POS: identidad de la tienda, la sucursal y la
+// persona; PIN que valida solo al completarlo (sin Enter) y aviso con
+// sacudida + vibración cuando no coincide. El PIN nunca se muestra.
+export default function PantallaBloqueada({
+  abierto,
+  empresa,
+  sucursal,
+  usuario,
+  pinLength = 4,
+  pin,
+  onPinChange,
+  onCambiarUsuario,
+  onSalir,
+  busy = false,
+  error,
+  esDemo = false,
+}) {
+  const cajaRef = useRef(null)
+
+  useEffect(() => {
+    if (!abierto || !error) return
+    const nodo = cajaRef.current
+    nodo?.animate?.(
+      [
+        { transform: 'translateX(0)' },
+        { transform: 'translateX(-7px)' },
+        { transform: 'translateX(7px)' },
+        { transform: 'translateX(-4px)' },
+        { transform: 'translateX(0)' },
+      ],
+      { duration: 280, easing: 'ease-in-out' },
+    )
+    try { navigator.vibrate?.(120) } catch { /* sin soporte de vibración */ }
+  }, [abierto, error])
+
+  if (!abierto) return null
+
+  return (
+    <div className="fixed inset-0 z-[70] grid place-items-center bg-paper p-4">
+      <section
+        ref={cajaRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="lock-title"
+        data-testid="pantalla-bloqueada"
+        className="w-full max-w-sm rounded-3xl border border-fore/10 bg-ink p-6 text-center shadow-2xl"
+      >
+        <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-fono/10 text-fono-light">
+          <Icon name="lock" className="h-5 w-5" />
+        </span>
+        <Eyebrow className="mt-4">Pantalla bloqueada</Eyebrow>
+        <h2 id="lock-title" className="mt-2 text-xl font-bold">{empresa || 'MobOS'}</h2>
+        <p className="mt-1 text-xs text-mute">{sucursal ? `Sucursal ${sucursal}` : 'Todas las sucursales'}</p>
+
+        <div className="mt-4 flex items-center justify-center gap-2.5">
+          <Avatar user={usuario || { name: 'Sesión protegida' }} size="lg" hasAvatar={false} />
+          <div className="text-left">
+            <p className="text-sm font-semibold">{usuario?.name || 'Sesión protegida'}</p>
+            <p className="text-[11px] text-mute">Ingresá tu PIN de {pinLength} dígitos</p>
+          </div>
+        </div>
+
+        {usuario?.id ? (
+          <>
+            <PinInput
+              id="lock-pin"
+              autoFocus
+              disabled={busy}
+              length={pinLength}
+              value={pin}
+              onChange={onPinChange}
+              className="mt-5"
+            />
+            {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
+            <p className="mt-4 text-[11px] text-mute">{busy ? 'Verificando…' : 'Se valida solo al completar el PIN.'}</p>
+            {esDemo && (
+              <p className="mt-2 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-2 text-[11px] text-mute">
+                Demo: PIN vendedor <strong className="text-fore">2001</strong> · dueño <strong className="text-fore">3001</strong>
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="mt-4 text-sm text-mute">
+              No hay un vendedor activo que pueda desbloquear esta pantalla.
+            </p>
+            <Button type="button" className="mt-5 w-full" onClick={() => window.location.reload()}>
+              Recargar la app
+            </Button>
+          </>
+        )}
+
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {onCambiarUsuario && (
+            <Button type="button" variant="outline" onClick={onCambiarUsuario}>
+              Cambiar de usuario
+            </Button>
+          )}
+          {onSalir && (
+            <Button type="button" variant="ghost" onClick={onSalir}>
+              Cerrar sesión
+            </Button>
+          )}
+        </div>
+      </section>
+    </div>
+  )
+}

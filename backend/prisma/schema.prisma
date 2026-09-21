@@ -274,6 +274,8 @@ model User {
   name                String
   email               String?
   pinHash             String
+  // Largo del PIN (4-6). Null en usuarios viejos: se asume 4 para el auto-envío.
+  pinLength           Int?
   role                UserRole        @default(VENDEDOR)
   status              UserStatus      @default(ACTIVE)
   // Subconjunto opcional del rol: restringe, nunca amplía permisos.

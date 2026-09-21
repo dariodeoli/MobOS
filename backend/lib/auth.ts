@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import type { Prisma, PrismaClient } from '@prisma/client'
 import { prisma } from './prisma'
+import { pinValido } from './pin'
 import { COOKIE_COMPANY, COOKIE_SELLER, readCookie, sameOrigin } from './google-oauth'
 
 const MAX_FAILED_ATTEMPTS = 5
@@ -29,6 +30,8 @@ export type AuthUser = {
   name: string
   role: string
   branchId: string | null
+  // Largo del PIN (4-6); null en usuarios viejos (equivale a 4).
+  pinLength: number | null
   permissions: string[]
 }
 
@@ -309,7 +312,7 @@ export async function authenticateCompany(input: LoginInput, request?: Request) 
           ? { OR: [{ branchId }, { branchId: null }] }
           : { OR: [{ branchId: null }, { branch: { isActive: true } }] }),
       },
-      select: { id: true, name: true, branchId: true },
+      select: { id: true, name: true, branchId: true, pinLength: true },
       orderBy: { name: 'asc' },
     })
     const session = await createSession(tx, tenant.id, null, 'COMPANY', deviceId, branchId)
@@ -337,10 +340,10 @@ export async function authenticateSeller(request: Request, input: PinInput) {
   const parent = await companySession(request)
   const sellerId = String(input.sellerId ?? input.userId ?? '')
   const pin = String(input.pin ?? '')
-  if (!parent || !/^\d{4}$/.test(pin)) return null
+  if (!parent || !pinValido(pin)) return null
   const auditMetadata = authRequestMetadata(request)
   type SellerRow = {
-    id: string; tenantId: string; name: string; role: string; branchId: string | null; pinHash: string; status: string; permissions: unknown; accessSchedule: unknown; failedLoginAttempts: number; lockedUntil: Date | null
+    id: string; tenantId: string; name: string; role: string; branchId: string | null; pinHash: string; pinLength: number | null; status: string; permissions: unknown; accessSchedule: unknown; failedLoginAttempts: number; lockedUntil: Date | null
   }
   // El bcrypt es costoso y el $transaction tiene timeout interactivo de 5 s:
   // la búsqueda por PIN (loop sobre los usuarios activos de la empresa) se
@@ -353,7 +356,7 @@ export async function authenticateSeller(request: Request, input: PinInput) {
   let resolvedId: string | null = null
   if (sellerId) {
     const rows = await prisma.$queryRaw<SellerRow[]>`
-      SELECT "id", "tenantId", "name", "role", "branchId", "pinHash", "status", "permissions", "accessSchedule", "failedLoginAttempts", "lockedUntil"
+      SELECT "id", "tenantId", "name", "role", "branchId", "pinHash", "pinLength", "status", "permissions", "accessSchedule", "failedLoginAttempts", "lockedUntil"
       FROM "User"
       WHERE "id" = ${sellerId} AND "tenantId" = ${parent.tenantId} AND "status" = 'ACTIVE'
         AND (${parent.branchId}::text IS NULL OR "branchId" = ${parent.branchId} OR "branchId" IS NULL)
@@ -391,7 +394,7 @@ export async function authenticateSeller(request: Request, input: PinInput) {
   if (!resolvedId) return null
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<SellerRow[]>`
-      SELECT "id", "tenantId", "name", "role", "branchId", "pinHash", "status", "permissions", "accessSchedule", "failedLoginAttempts", "lockedUntil"
+      SELECT "id", "tenantId", "name", "role", "branchId", "pinHash", "pinLength", "status", "permissions", "accessSchedule", "failedLoginAttempts", "lockedUntil"
       FROM "User"
       WHERE "id" = ${resolvedId} AND "tenantId" = ${parent.tenantId} AND "status" = 'ACTIVE'
         AND (${parent.branchId}::text IS NULL OR "branchId" = ${parent.branchId} OR "branchId" IS NULL)
@@ -426,8 +429,8 @@ export async function authenticateSeller(request: Request, input: PinInput) {
   })
 }
 
-function sessionUser(user: { id: string; tenantId: string; name: string; role: string; branchId: string | null; permissions?: unknown }): AuthUser {
-  return { id: user.id, tenantId: user.tenantId, name: user.name, role: user.role, branchId: user.branchId, permissions: effectivePermissions(user.role, user.permissions) }
+function sessionUser(user: { id: string; tenantId: string; name: string; role: string; branchId: string | null; pinLength?: number | null; permissions?: unknown }): AuthUser {
+  return { id: user.id, tenantId: user.tenantId, name: user.name, role: user.role, branchId: user.branchId, pinLength: user.pinLength ?? null, permissions: effectivePermissions(user.role, user.permissions) }
 }
 
 export async function requireSession(request: Request): Promise<SessionContext | null> {

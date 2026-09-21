@@ -4,11 +4,21 @@ import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas, productosById, refrescar } from '@/lib/storage'
 import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
-import { Card, Button, ConfirmDialog, Input, Select, Badge, Label, EmptyState, MoneyInput, Modal } from '@/components/ui'
+import { Card, Button, ConfirmDialog, Input, Select, Badge, Label, EmptyState, MoneyInput, Modal, PinInput } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import EmailField from '@/components/shared/EmailField'
 import Cronologia from '@/components/shared/Cronologia'
 import { ROLE_LABELS } from '@/lib/roles'
+import { cn } from '@/lib/utils'
+
+// PIN aleatorio de 4 a 6 dígitos (crypto): se muestra una sola vez al
+// asignarlo y nunca se guarda en claro.
+function pinAleatorio() {
+  const largo = 4 + Math.floor(Math.random() * 3)
+  const bytes = new Uint32Array(largo)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, valor => String(valor % 10)).join('')
+}
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const INVITE_STATUS = { PENDING: ['Pendiente', 'orange'], ACCEPTED: ['Aceptada', 'green'], EXPIRED: ['Vencida', 'slate'], REVOKED: ['Revocada', 'red'] }
@@ -64,6 +74,16 @@ export default function Vendedores({ seccion = 'equipo' }) {
   const [catalogo, setCatalogo] = useState(null)
   const [permisosSel, setPermisosSel] = useState([])
   const [permisosBusy, setPermisosBusy] = useState(false)
+  // PIN del integrante: se genera al azar o se define a mano (4-6 dígitos).
+  // Nunca se muestra el PIN guardado; el generado se enseña una sola vez.
+  const [pinDe, setPinDe] = useState(null)
+  const [pinModo, setPinModo] = useState('generar')
+  const [pinGenerado, setPinGenerado] = useState('')
+  const [pinNuevo, setPinNuevo] = useState('')
+  const [pinConfirm, setPinConfirm] = useState('')
+  const [pinBusy, setPinBusy] = useState(false)
+  const [pinError, setPinError] = useState('')
+  const [pinCopiado, setPinCopiado] = useState(false)
 
   const cargarInvitaciones = useCallback(async () => {
     if (esDemo) return
@@ -85,7 +105,7 @@ export default function Vendedores({ seccion = 'equipo' }) {
     event.preventDefault(); setError(''); setMessage('')
     const name = directo.name.trim()
     if (!name) return setError('Ingresá el nombre del integrante.')
-    if (!esDemo && !/^\d{4}$/.test(directo.pin)) return setError('Ingresá un PIN de exactamente 4 dígitos.')
+    if (!esDemo && !/^\d{4,6}$/.test(directo.pin)) return setError('Ingresá un PIN de 4 a 6 dígitos.')
     setBusy(true)
     try {
       if (esDemo) addVendedor(name)
@@ -114,6 +134,46 @@ export default function Vendedores({ seccion = 'equipo' }) {
     setError('')
     try { if (esDemo) updateVendedor(id, changes); else await api.patch('/api/users', { id, ...changes }); await refreshTeam(); notifySuccess('Integrante actualizado.') }
     catch (cause) { setError(cause?.message || 'No se pudo actualizar el integrante.') }
+  }
+
+  function abrirPin(v) {
+    setPinDe(v)
+    setPinModo('generar')
+    setPinGenerado('')
+    setPinNuevo('')
+    setPinConfirm('')
+    setPinError('')
+    setPinCopiado(false)
+  }
+
+  async function guardarPin() {
+    const pin = pinModo === 'generar' ? pinGenerado : pinNuevo
+    if (!/^\d{4,6}$/.test(pin)) return setPinError('El PIN debe tener entre 4 y 6 dígitos.')
+    if (pinModo === 'manual' && pin !== pinConfirm) return setPinError('Los PIN no coinciden.')
+    if (!pinDe) return
+    setPinBusy(true)
+    setPinError('')
+    try {
+      if (esDemo) updateVendedor(pinDe.id, { pin })
+      else await api.patch('/api/users', { id: pinDe.id, resetPin: true, pin })
+      setPinDe(null)
+      await refreshTeam()
+      notifySuccess(`PIN asignado a ${pinDe.nombre}. Ya puede entrar con ese PIN.`)
+    } catch (cause) {
+      setPinError(cause?.message || 'No se pudo asignar el PIN.')
+    } finally {
+      setPinBusy(false)
+    }
+  }
+
+  async function copiarPin() {
+    try {
+      await navigator.clipboard.writeText(pinGenerado)
+      setPinCopiado(true)
+      window.setTimeout(() => setPinCopiado(false), 2500)
+    } catch {
+      setPinError('No se pudo copiar; anotá el PIN a mano.')
+    }
   }
 
   async function aplicarCambioRol() {
@@ -256,6 +316,7 @@ export default function Vendedores({ seccion = 'equipo' }) {
             <div className="flex flex-wrap items-center gap-2 border-t border-ink-600/60 pt-2">
               <button type="button" onClick={() => setHistorialDe(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Historial de ${v.nombre}`}>Historial</button>
               <button type="button" onClick={() => abrirHorario(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Horario de ${v.nombre}`}>Horario</button>
+              {!esDemo && <button type="button" onClick={() => abrirPin(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`PIN de ${v.nombre}`} title="Asignar un PIN nuevo (nunca se muestra el actual)">PIN</button>}
               {!esDemo && v.role !== 'ADMIN' && <button type="button" onClick={() => abrirPermisos(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-mute transition hover:bg-ink-700 hover:text-fore" aria-label={`Permisos de ${v.nombre}`} title="Permisos por acción">Permisos</button>}
               {v.activo
                 ? <button type="button" onClick={() => setConfirmarEliminar(v)} className="rounded-lg px-2 py-1 text-xs font-semibold text-bad transition hover:bg-bad/10" aria-label={`Desactivar a ${v.nombre} (conserva el historial)`}>Desactivar</button>
@@ -373,11 +434,73 @@ export default function Vendedores({ seccion = 'equipo' }) {
             <Button type="button" variant="ghost" onClick={() => setConflicto(null)}>Cerrar aviso</Button>
           </div>
         </div>}
-        {modoInvitacion === 'correo' ? <>{!esDemo && <Card><h2 className="font-bold">Invitar por correo</h2><p className="mt-1 text-sm text-mute">La persona recibe un enlace seguro y elige su propio PIN. Nunca enviamos credenciales por correo.</p><form onSubmit={invitar} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(13rem,1.3fr)_minmax(13rem,1.5fr)_minmax(8rem,1fr)_auto]"><div><Label htmlFor="invite-name">Nombre</Label><Input id="invite-name" value={invitacion.name} onChange={event => setInvitacion({ ...invitacion, name: event.target.value })} onBlur={() => !invitacion.name.trim() && setError('Ingresá el nombre del integrante.')} required /></div><div><Label htmlFor="invite-email">Correo</Label><EmailField id="invite-email" value={invitacion.email} onChange={value => setInvitacion({ ...invitacion, email: value })} required /></div><div><Label htmlFor="invite-role">Rol</Label><Select id="invite-role" value={invitacion.role} onChange={event => setInvitacion({ ...invitacion, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Enviar invitación</Button></div></form></Card>}</> : <><Card><h2 className="font-bold">Agregar directamente</h2><p className="mt-1 text-sm text-mute">{esDemo ? 'Agregá vendedores al entorno demo.' : 'Opción compatible para alta inmediata con un PIN definido por el administrador.'}</p><form onSubmit={crearDirecto} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(13rem,1.1fr)_minmax(13rem,1.3fr)_minmax(8rem,1fr)_minmax(7rem,0.7fr)_auto]"><div><Label htmlFor="direct-name">Nombre</Label><Input id="direct-name" value={directo.name} onChange={event => setDirecto({ ...directo, name: event.target.value })} required /></div>{!esDemo && <><div><Label htmlFor="direct-email">Correo</Label><EmailField id="direct-email" value={directo.email} onChange={value => setDirecto({ ...directo, email: value })} /></div><div><Label htmlFor="direct-role">Rol</Label><Select id="direct-role" value={directo.role} onChange={event => setDirecto({ ...directo, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div><Label htmlFor="direct-pin">PIN temporal</Label><Input id="direct-pin" inputMode="numeric" maxLength={4} value={directo.pin} onChange={event => setDirecto({ ...directo, pin: event.target.value.replace(/\D/g, '').slice(0, 4) })} required /></div></>}<div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Agregar</Button></div></form></Card></>}
+        {modoInvitacion === 'correo' ? <>{!esDemo && <Card><h2 className="font-bold">Invitar por correo</h2><p className="mt-1 text-sm text-mute">La persona recibe un enlace seguro y elige su propio PIN. Nunca enviamos credenciales por correo.</p><form onSubmit={invitar} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(13rem,1.3fr)_minmax(13rem,1.5fr)_minmax(8rem,1fr)_auto]"><div><Label htmlFor="invite-name">Nombre</Label><Input id="invite-name" value={invitacion.name} onChange={event => setInvitacion({ ...invitacion, name: event.target.value })} onBlur={() => !invitacion.name.trim() && setError('Ingresá el nombre del integrante.')} required /></div><div><Label htmlFor="invite-email">Correo</Label><EmailField id="invite-email" value={invitacion.email} onChange={value => setInvitacion({ ...invitacion, email: value })} required /></div><div><Label htmlFor="invite-role">Rol</Label><Select id="invite-role" value={invitacion.role} onChange={event => setInvitacion({ ...invitacion, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Enviar invitación</Button></div></form></Card>}</> : <><Card><h2 className="font-bold">Agregar directamente</h2><p className="mt-1 text-sm text-mute">{esDemo ? 'Agregá vendedores al entorno demo.' : 'Opción compatible para alta inmediata con un PIN definido por el administrador.'}</p><form onSubmit={crearDirecto} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(13rem,1.1fr)_minmax(13rem,1.3fr)_minmax(8rem,1fr)_minmax(7rem,0.7fr)_auto]"><div><Label htmlFor="direct-name">Nombre</Label><Input id="direct-name" value={directo.name} onChange={event => setDirecto({ ...directo, name: event.target.value })} required /></div>{!esDemo && <><div><Label htmlFor="direct-email">Correo</Label><EmailField id="direct-email" value={directo.email} onChange={value => setDirecto({ ...directo, email: value })} /></div><div><Label htmlFor="direct-role">Rol</Label><Select id="direct-role" value={directo.role} onChange={event => setDirecto({ ...directo, role: event.target.value })}>{Object.entries(ROLE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</Select></div><div><Label htmlFor="direct-pin">PIN temporal</Label><Input id="direct-pin" inputMode="numeric" maxLength={6} value={directo.pin} onChange={event => setDirecto({ ...directo, pin: event.target.value.replace(/\D/g, '').slice(0, 6) })} required /></div></>}<div className="flex items-end"><Button type="submit" className="w-full" disabled={busy}>Agregar</Button></div></form></Card></>}
       </div>
     </Modal>
     <Modal open={historialDe !== null} onClose={() => setHistorialDe(null)} title={`Historial de ${historialDe?.nombre || 'funcionario'}`}>
       {historialDe && <Cronologia endpoint={`/api/users/${historialDe.id}/history`} active={historialDe !== null} vacio="Sin actividad" descripcionVacio="El alta, los cambios de rol, sucursal o PIN, las comisiones y las ventas de este funcionario aparecerán acá." />}
+    </Modal>
+
+    <Modal open={pinDe !== null} onClose={() => !pinBusy && setPinDe(null)} title={`PIN de ${pinDe?.nombre || 'integrante'}`} className="max-w-md">
+      <div className="space-y-4">
+        <p className="text-sm text-mute">
+          El PIN se guarda cifrado y <b className="text-fore">nunca se puede ver</b>. Asigná uno nuevo para esta persona
+          (4 a 6 dígitos): puede entrar al POS con él. Tus credenciales de administración son la autenticación principal.
+        </p>
+
+        <div className="flex gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1" role="tablist" aria-label="Forma de asignar el PIN">
+          {[['generar', 'Generar aleatorio'], ['manual', 'Definir manual']].map(([clave, etiqueta]) => (
+            <button
+              key={clave}
+              type="button"
+              role="tab"
+              aria-selected={pinModo === clave}
+              onClick={() => { setPinModo(clave); setPinError('') }}
+              className={cn('flex-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition', pinModo === clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
+            >
+              {etiqueta}
+            </button>
+          ))}
+        </div>
+
+        {pinModo === 'generar' ? (
+          pinGenerado ? (
+            <div className="rounded-xl border border-ok/40 bg-ok/10 p-3">
+              <p className="text-xs text-mute">Anotá este PIN ahora: no se vuelve a mostrar.</p>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <span data-testid="pin-generado" className="text-2xl font-bold tracking-[.3em]">{pinGenerado}</span>
+                <Button type="button" variant="outline" onClick={copiarPin}>{pinCopiado ? 'Copiado' : 'Copiar'}</Button>
+              </div>
+            </div>
+          ) : (
+            <Button type="button" variant="outline" onClick={() => setPinGenerado(pinAleatorio())}>Generar PIN</Button>
+          )
+        ) : (
+          <div className="grid gap-3">
+            <div>
+              <Label htmlFor="pin-staff">PIN (4 a 6 dígitos)</Label>
+              <PinInput id="pin-staff" length={6} value={pinNuevo} onChange={next => { setPinNuevo(next); setPinError('') }} className="mt-2" />
+            </div>
+            <div>
+              <Label htmlFor="pin-staff-confirm">Repetir PIN</Label>
+              <PinInput id="pin-staff-confirm" length={6} value={pinConfirm} onChange={next => { setPinConfirm(next); setPinError('') }} className="mt-2" />
+            </div>
+          </div>
+        )}
+
+        {pinError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{pinError}</p>}
+
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" disabled={pinBusy} onClick={() => setPinDe(null)}>Cancelar</Button>
+          <Button
+            type="button"
+            disabled={pinBusy || (pinModo === 'generar' ? !pinGenerado : pinNuevo.length < 4)}
+            onClick={guardarPin}
+          >
+            {pinBusy ? 'Guardando…' : 'Asignar PIN'}
+          </Button>
+        </div>
+      </div>
     </Modal>
 
     <ConfirmDialog open={Boolean(confirmarEliminar)} onCancel={() => setConfirmarEliminar(null)} onConfirm={eliminarUsuario} busy={busy} title={esDemo ? '¿Eliminar vendedor?' : '¿Desactivar integrante?'} description={esDemo ? `Se eliminará a ${confirmarEliminar?.nombre || 'este vendedor'}. Las ventas se conservan.` : `${confirmarEliminar?.nombre || 'Este integrante'} ya no podrá ingresar. Su historial se conserva y podés reactivarlo cuando quieras.`} confirmLabel={esDemo ? 'Eliminar vendedor' : 'Desactivar integrante'} variant="danger" />

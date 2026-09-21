@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { effectivePermissions, normalizeAccessSchedule, requireSession, USER_ROLES } from '../../../lib/auth'
 import { error, json } from '../../../lib/http'
+import { pinValido } from '../../../lib/pin'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
   const name = typeof body?.name === 'string' ? body.name.trim() : ''
   const email = typeof body?.email === 'string' && body.email.trim() ? body.email.trim().toLowerCase() : null
   const pin = typeof body?.pin === 'string' ? body.pin : ''
-  if (!name || name.length > 100 || (email && !emailPattern.test(email)) || !/^\d{4}$/.test(pin) || Object.prototype.hasOwnProperty.call(body || {}, 'pinHash') || !validRole(body?.role ?? 'VENDEDOR')) return error('Nombre, rol válido y PIN de 4 dígitos son obligatorios; pinHash no es aceptado.')
+  if (!name || name.length > 100 || (email && !emailPattern.test(email)) || !pinValido(pin) || Object.prototype.hasOwnProperty.call(body || {}, 'pinHash') || !validRole(body?.role ?? 'VENDEDOR')) return error('Nombre, rol válido y PIN de 4 a 6 dígitos son obligatorios; pinHash no es aceptado.')
   try {
     const tenantId = access.session.user.tenantId
     const [branchId, accessSchedule, pinEnUso] = await Promise.all([ensureBranch(tenantId, body?.branchId), Promise.resolve(normalizeAccessSchedule(body?.accessSchedule)), pinDuplicado(tenantId, pin)])
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
     if (body?.permissions !== undefined && !validPermissions(body.permissions)) return error('Permisos inválidos.')
     const pinHash = await bcrypt.hash(pin, 12)
     const created = await prisma.$transaction(async tx => {
-      const user = await tx.user.create({ data: { tenantId, name, email, pinHash, role: body?.role ?? 'VENDEDOR', branchId, ...(body?.permissions === undefined ? {} : { permissions: body.permissions ?? Prisma.JsonNull }), ...(accessSchedule === null ? {} : { accessSchedule }) }, select: userSelect })
+      const user = await tx.user.create({ data: { tenantId, name, email, pinHash, pinLength: pin.length, role: body?.role ?? 'VENDEDOR', branchId, ...(body?.permissions === undefined ? {} : { permissions: body.permissions ?? Prisma.JsonNull }), ...(accessSchedule === null ? {} : { accessSchedule }) }, select: userSelect })
       await tx.auditLog.create({ data: { tenantId, userId: access.session.user.id, action: 'USER_CREATED', entity: 'User', entityId: user.id, metadata: { after: snapshot(user) } } })
       return user
     })
@@ -110,12 +111,12 @@ export async function PATCH(request: Request) {
     const dailyGoalPyg = body.dailyGoalPyg === undefined ? current.dailyGoalPyg : body.dailyGoalPyg === null ? null : Number.isSafeInteger(Number(body.dailyGoalPyg)) && Number(body.dailyGoalPyg) >= 0 && Number(body.dailyGoalPyg) <= 1000000000000 ? Number(body.dailyGoalPyg) : null
     if (body.dailyGoalPyg !== undefined && body.dailyGoalPyg !== null && dailyGoalPyg === null) return error('Meta diaria inválida: usá un número entero no negativo.')
     const resetPin = body.resetPin === true
-    if (resetPin && (typeof body.pin !== 'string' || !/^\d{4}$/.test(body.pin))) return error('Para restablecer el PIN ingresá exactamente 4 dígitos.')
+    if (resetPin && !pinValido(body.pin)) return error('Para restablecer el PIN ingresá de 4 a 6 dígitos.')
     if (!resetPin && body.pin !== undefined) return error('Confirmá resetPin para cambiar el PIN.', 400)
     if (resetPin && await pinDuplicado(tenantId, body.pin, id)) return error('Ese PIN ya lo usa otro usuario de la empresa. Elegí otro.', 409)
     const changedSensitive = resetPin || current.role !== nextRole || current.status !== nextStatus || current.branchId !== branchId || JSON.stringify(current.permissions) !== JSON.stringify(permissions) || JSON.stringify(current.accessSchedule) !== JSON.stringify(accessSchedule)
     const updated = await prisma.$transaction(async tx => {
-      const user = await tx.user.update({ where: { id }, data: { name, email, role: nextRole, status: nextStatus, branchId, permissions: permissions ?? Prisma.JsonNull, accessSchedule: accessSchedule ?? Prisma.JsonNull, dailyGoalPyg, ...(resetPin ? { pinHash: await bcrypt.hash(body.pin, 12), failedLoginAttempts: 0, lockedUntil: null } : {}) }, select: userSelect })
+      const user = await tx.user.update({ where: { id }, data: { name, email, role: nextRole, status: nextStatus, branchId, permissions: permissions ?? Prisma.JsonNull, accessSchedule: accessSchedule ?? Prisma.JsonNull, dailyGoalPyg, ...(resetPin ? { pinHash: await bcrypt.hash(body.pin, 12), pinLength: String(body.pin).length, failedLoginAttempts: 0, lockedUntil: null } : {}) }, select: userSelect })
       if (changedSensitive) await tx.session.updateMany({ where: { userId: id, revokedAt: null }, data: { revokedAt: new Date() } })
       await tx.auditLog.create({ data: { tenantId, userId: access.session.user.id, action: resetPin ? 'USER_PIN_RESET' : nextStatus !== 'ACTIVE' && current.status === 'ACTIVE' ? 'USER_DEACTIVATED' : 'USER_UPDATED', entity: 'User', entityId: id, metadata: { before: snapshot(current), after: snapshot(user), sessionsRevoked: changedSensitive } } })
       return user

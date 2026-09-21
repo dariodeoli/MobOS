@@ -1,18 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui'
-
-const STORAGE_KEY = 'mobos:theme'
-const THEME_COLOR_LIGHT = '#f6f8fb'
-const THEME_COLOR_DARK = '#090d16'
-
-function isDark() {
-  return document.documentElement.classList.contains('dark')
-}
-
-function applyThemeColor(dark) {
-  const meta = document.querySelector('meta[name="theme-color"]')
-  if (meta) meta.content = dark ? THEME_COLOR_DARK : THEME_COLOR_LIGHT
-}
+import { aplicarTema, temaOscuro } from '@/lib/tema'
 
 function SunIcon() {
   return (
@@ -50,18 +38,15 @@ function MoonIcon() {
 }
 
 export default function ThemeToggle() {
-  const [dark, setDark] = useState(isDark)
+  const [dark, setDark] = useState(temaOscuro)
 
   useEffect(() => {
-    applyThemeColor(dark)
+    aplicarTema(dark)
   }, [dark])
 
   function toggle() {
     const next = !dark
-    document.documentElement.classList.toggle('dark', next)
-    try {
-      localStorage.setItem(STORAGE_KEY, next ? 'dark' : 'light')
-    } catch {}
+    aplicarTema(next)
     setDark(next)
   }
 

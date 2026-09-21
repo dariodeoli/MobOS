@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     // dispositivo, creada después del cierre para que no quede revocada.
     await tx.session.updateMany({ where: { tenantId: reset.tenantId, revokedAt: null }, data: { revokedAt: now } })
     const session = await tx.session.create({ data: { tenantId: tenant.id, userId: null, level: 'COMPANY', deviceId: `reset:${randomBytes(16).toString('hex')}`, tokenHash: hashToken(accessToken), expiresAt } })
-    const sellers = await tx.user.findMany({ where: { tenantId: tenant.id, status: 'ACTIVE', OR: [{ branchId: null }, { branch: { isActive: true } }] }, select: { id: true, name: true, branchId: true }, orderBy: { name: 'asc' } })
+    const sellers = await tx.user.findMany({ where: { tenantId: tenant.id, status: 'ACTIVE', OR: [{ branchId: null }, { branch: { isActive: true } }] }, select: { id: true, name: true, branchId: true, pinLength: true }, orderBy: { name: 'asc' } })
     await tx.auditLog.create({ data: { tenantId: tenant.id, action: 'PASSWORD_RESET_COMPLETED', entity: 'Tenant', entityId: tenant.id, metadata: { ...authRequestMetadata(request), autoSessionId: session.id } } })
     return { tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug }, sellers, onboardingRequired: requiresAdminPinSetup(tenant.settings), expiresAt }
   })

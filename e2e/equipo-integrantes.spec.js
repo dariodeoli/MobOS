@@ -152,4 +152,49 @@ test.describe('ficha del integrante en Equipo', () => {
       { api: API, id: creado.id },
     )
   })
+
+  // #159: PIN de 4 a 6 dígitos, generado al azar o definido a mano; el valor
+  // guardado nunca se muestra y el nuevo PIN sirve para entrar al POS.
+  test('el PIN del integrante se genera, se asigna y sirve para entrar', async ({ page, browser }) => {
+    const nombre = `PIN E2E ${Date.now().toString(36)}`
+    const pinViejo = String(1000 + Math.floor(Math.random() * 9000))
+    await page.goto('/configuracion/equipo')
+    const creado = await crearIntegrante(page, nombre, pinViejo)
+    expect(creado?.id).toBeTruthy()
+    await page.reload()
+
+    const fila = page.getByTestId('integrante-fila').filter({ hasText: nombre }).first()
+    await expect(fila).toBeVisible()
+    await fila.getByRole('button', { name: `PIN de ${nombre}` }).click()
+
+    const dialogo = page.getByRole('dialog', { name: `PIN de ${nombre}` })
+    await expect(dialogo).toBeVisible()
+    await expect(dialogo.getByText(/nunca se puede ver/)).toBeVisible()
+    await dialogo.getByRole('button', { name: 'Generar PIN' }).click()
+    const generado = ((await dialogo.getByTestId('pin-generado').textContent()) || '').trim()
+    expect(generado).toMatch(/^\d{4,6}$/)
+    await dialogo.getByRole('button', { name: 'Asignar PIN' }).click()
+    await expect(page.getByText(new RegExp(`PIN asignado a ${nombre}`))).toBeVisible()
+
+    // El PIN nuevo entra por el endpoint de operador; el viejo ya no sirve.
+    // Se prueba en un contexto aparte para no cambiar la sesión de esta página.
+    const contexto = await browser.newContext({ storageState: new URL('./.auth/admin.json', import.meta.url).pathname })
+    const pinPage = await contexto.newPage()
+    try {
+      await pinPage.goto('/login')
+      const probar = (pin) => pinPage.evaluate(async ({ api, id, pin }) => {
+        const res = await fetch(`${api}/api/auth/pin`, { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sellerId: id, pin }) })
+        return res.status
+      }, { api: API, id: creado.id, pin })
+      expect(await probar(pinViejo)).toBe(401)
+      expect(await probar(generado)).toBe(200)
+    } finally {
+      await contexto.close()
+    }
+
+    // Limpieza: el integrante de prueba queda inactivo.
+    await page.evaluate(async ({ api, id }) => {
+      await fetch(`${api}/api/users`, { method: 'PATCH', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, status: 'INACTIVE' }) })
+    }, { api: API, id: creado.id })
+  })
 })

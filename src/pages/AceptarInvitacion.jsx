@@ -32,13 +32,13 @@ export default function AceptarInvitacion() {
   }, [token])
 
   useEffect(() => {
-    if (pin.length === 4) confirmRef.current?.focus()
+    if (pin.length === 6) confirmRef.current?.focus()
   }, [pin])
 
   const submit = useCallback(async function submit(event) {
     event.preventDefault(); setError(''); setMessage('')
     if (!/^[a-f0-9]{64}$/i.test(token)) return setError('Pegá el enlace completo de tu correo para continuar.')
-    if (!/^\d{4}$/.test(pin)) return setError('Elegí un PIN de exactamente 4 dígitos.')
+    if (!/^\d{4,6}$/.test(pin)) return setError('Elegí un PIN de 4 a 6 dígitos.')
     if (pin !== confirm) return setError('Los PIN no coinciden.')
     setSaving(true)
     try {
@@ -52,10 +52,10 @@ export default function AceptarInvitacion() {
     finally { setSaving(false) }
   }, [token, pin, confirm])
 
-  // Al completar el segundo PIN la invitación se acepta sola.
+  // Al completar el segundo PIN la invitación se acepta sola (4 a 6 dígitos).
   const autoRef = useRef(false)
   useEffect(() => {
-    if (confirm.length === 4 && pin.length === 4 && !saving && !message) {
+    if (confirm.length >= 4 && confirm === pin && pin.length >= 4 && !saving && !message) {
       if (autoRef.current) return
       autoRef.current = true
       const form = document.getElementById('invite-form')
@@ -96,12 +96,12 @@ export default function AceptarInvitacion() {
               </p>
               <form id="invite-form" onSubmit={submit} className="mt-6 space-y-5">
                 <div>
-                  <Label htmlFor="invite-pin">PIN de 4 dígitos</Label>
-                  <PinInput id="invite-pin" autoFocus value={pin} onChange={(next) => { setPin(next); setError('') }} onComplete={() => confirmRef.current?.focus()} />
+                  <Label htmlFor="invite-pin">PIN de 4 a 6 dígitos</Label>
+                  <PinInput id="invite-pin" length={6} autoFocus value={pin} onChange={(next) => { setPin(next); setError('') }} onComplete={() => confirmRef.current?.focus()} />
                 </div>
                 <div>
                   <Label htmlFor="invite-pin-confirm">Repetir PIN</Label>
-                  <PinInput id="invite-pin-confirm" inputRef={confirmRef} ariaLabel="Repetir PIN" value={confirm} onChange={(next) => { setConfirm(next); setError('') }} />
+                  <PinInput id="invite-pin-confirm" length={6} inputRef={confirmRef} ariaLabel="Repetir PIN" value={confirm} onChange={(next) => { setConfirm(next); setError('') }} />
                 </div>
                 {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
                 {message && <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{message}</p>}

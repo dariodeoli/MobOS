@@ -11,9 +11,12 @@ import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
 import GlobalSearch from '@/components/app/GlobalSearch'
-import { Button, ConfirmDialog, Eyebrow, Input, Modal, PinInput, Select, Skeleton, useToast } from '@/components/ui'
+import { ConfirmDialog, Input, Modal, PinInput, Select, Skeleton, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
+import PantallaBloqueada from '@/components/app/PantallaBloqueada'
+import { usePreferencias } from '@/hooks/usePreferencias'
+import { useBloqueoInactividad } from '@/hooks/useBloqueoInactividad'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
 import SellerOrders from '@/components/ventas/SellerOrders'
@@ -51,6 +54,7 @@ const Impresoras = lazy(() => import('@/components/control/Impresoras'))
 const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
 const WhatsAppTemplates = lazy(() => import('@/components/control/WhatsAppTemplates'))
 const Precios = lazy(() => import('@/components/control/Precios'))
+const Documentacion = lazy(() => import('@/components/control/Documentacion'))
 
 // Navegación por flujo de trabajo: primero la operación del día, después el
 // catálogo/stock y al final las herramientas de gestión. Los permisos definen
@@ -182,6 +186,7 @@ const SUBPAGINAS = {
       ['precios', 'Listas de precios'],
       ['sucursales', 'Sucursales'],
       ['impresoras', 'Impresoras'],
+      ['documentacion', 'Documentación'],
       ['sistema', 'Estado del sistema'],
     ],
   },
@@ -217,7 +222,7 @@ const GRUPOS_CONFIG = [
   { id: 'personas', label: 'Personas', icon: 'users', tabs: ['equipo', 'identidad', 'roles'] },
   { id: 'negocio', label: 'Negocio', icon: 'store', tabs: ['negocio', 'precios', 'sucursales'] },
   { id: 'seguridad', label: 'Seguridad', icon: 'lock', tabs: ['seguridad', 'historial'] },
-  { id: 'sistema', label: 'Sistema', icon: 'settings', tabs: ['impresoras', 'sistema'] },
+  { id: 'sistema', label: 'Sistema', icon: 'settings', tabs: ['impresoras', 'documentacion', 'sistema'] },
 ]
 
 const SUBPAGINA_DE_TAB = Object.fromEntries(
@@ -246,6 +251,7 @@ const LABELS = {
   sucursales: 'Sucursales',
   seguridad: 'Seguridad',
   impresoras: 'Impresoras',
+  documentacion: 'Documentación',
   sistema: 'Estado del sistema',
   reportes: 'Reportes',
   ganancias: 'Ganancias',
@@ -335,6 +341,7 @@ export default function PanelVendedor() {
     salir,
     empresa,
     perfilEmpresa,
+    sucursal,
   } = useSesion()
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -496,6 +503,19 @@ export default function PanelVendedor() {
     setLocked(true)
   }
 
+  // Preferencias del dispositivo: los minutos de bloqueo mandan sobre el
+  // temporizador de inactividad (10 por defecto).
+  const [preferencias] = usePreferencias(usuario?.id)
+  const pinLength = esDemo ? 4 : (usuario?.pinLength || 4)
+  const pinLengthCambio = esDemo
+    ? 4
+    : (opcionesVendedor.find(seller => seller.id === sellerId)?.pinLength || 4)
+  useBloqueoInactividad({
+    minutos: preferencias.bloqueoMinutos,
+    activo: !locked && Boolean(sesion?.vendedorId),
+    onBloquear: pedirBloqueo,
+  })
+
   const intentarDesbloqueo = useCallback(
     async pinIntento => {
       if (lockEnCurso.current) return
@@ -511,6 +531,7 @@ export default function PanelVendedor() {
         }
         setLocked(false)
         setLockPin('')
+        try { navigator.vibrate?.(40) } catch { /* sin soporte de vibración */ }
       } catch (err) {
         setLockError(err?.message || 'PIN inválido. Probá de nuevo.')
         setLockPin('')
@@ -523,8 +544,8 @@ export default function PanelVendedor() {
   )
 
   useEffect(() => {
-    if (locked && lockPin.length === 4) intentarDesbloqueo(lockPin)
-  }, [locked, lockPin, intentarDesbloqueo])
+    if (locked && lockPin.length === pinLength) intentarDesbloqueo(lockPin)
+  }, [locked, lockPin, pinLength, intentarDesbloqueo])
 
   async function confirmarSalir() {
     setSaliendo(true)
@@ -595,7 +616,7 @@ export default function PanelVendedor() {
   }, [toast])
 
   useEffect(() => {
-    if (!cambiarAbierto || pin.length !== 4 || !sellerId || cambioEnCurso.current) return
+    if (!cambiarAbierto || pin.length !== pinLengthCambio || !sellerId || cambioEnCurso.current) return
     cambioEnCurso.current = true
     setCambiando(true)
     if (esDemo && !['2001', '3001'].includes(pin)) {
@@ -611,6 +632,8 @@ export default function PanelVendedor() {
     cambio
       .then(() => {
         setCambiarAbierto(false)
+        // Si veníamos de la pantalla bloqueada, cambiar de usuario también la cierra.
+        setLocked(false)
         toast.success('Sesión cambiada', 'La próxima venta se registrará con este vendedor.')
         if (esDemo && pin === '3001') navigate('/')
       })
@@ -622,7 +645,7 @@ export default function PanelVendedor() {
         cambioEnCurso.current = false
         setCambiando(false)
       })
-  }, [pin, sellerId, cambiarAbierto, esDemo, cambiarVendedor, entrarDemo, navigate, toast])
+  }, [pin, sellerId, pinLengthCambio, cambiarAbierto, esDemo, cambiarVendedor, entrarDemo, navigate, toast])
 
   return (
     <>
@@ -645,6 +668,8 @@ export default function PanelVendedor() {
         onSwitchUser={abrirCambio}
         onLogout={() => setSalirAbierto(true)}
         onLockRequest={pedirBloqueo}
+        menuAcciones
+        onAbrirNotificacion={(href) => navigate(href)}
         onSearch={() => setBusquedaAbierta(true)}
         onHelp={() => setAyudaAbierto(true)}
         sidebarStats={
@@ -803,6 +828,7 @@ export default function PanelVendedor() {
               {vista === 'sucursales' && <Config seccion="sucursales" />}
               {vista === 'seguridad' && <Config seccion="seguridad" />}
               {vista === 'impresoras' && <Impresoras />}
+              {vista === 'documentacion' && <Documentacion />}
               {vista === 'sistema' && <EstadoSistema />}
             </div>
           )}
@@ -847,6 +873,7 @@ export default function PanelVendedor() {
             <PinInput
               id="seller-switch-pin"
               autoFocus
+              length={pinLengthCambio}
               value={pin}
               onChange={next => setPin(next)}
               className="mt-2 disabled:opacity-50"
@@ -860,6 +887,7 @@ export default function PanelVendedor() {
             <PinInput
               id="seller-switch-pin"
               autoFocus
+              length={pinLengthCambio}
               value={pin}
               onChange={next => setPin(next)}
               className="mt-2 disabled:opacity-50"
@@ -869,65 +897,24 @@ export default function PanelVendedor() {
         <p className="mt-5 text-xs text-mute">Esc para cerrar · tocar afuera también cierra</p>
       </Modal>
 
-      {locked && (
-        <div className="fixed inset-0 z-[70] grid place-items-center bg-paper p-4">
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="lock-title"
-            className="w-full max-w-sm rounded-3xl border border-fore/10 bg-ink p-6 text-center shadow-2xl"
-          >
-            <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-fono/10 text-fono-light">
-              <Icon name="lock" className="h-5 w-5" />
-            </span>
-            <Eyebrow className="mt-4">Bloqueado</Eyebrow>
-            <h2 id="lock-title" className="mt-2 text-xl font-bold">
-              {sesion?.nombre || 'Sesión protegida'}
-            </h2>
-            {sesion?.vendedorId ? (
-              <>
-                <p className="mt-2 text-sm text-mute">
-                  Ingresá tu PIN de 4 dígitos para volver a la operación.
-                </p>
-                <PinInput
-                  id="lock-pin"
-                  autoFocus
-                  disabled={lockBusy}
-                  value={lockPin}
-                  onChange={next => setLockPin(next)}
-                  className="mt-5"
-                />
-                {lockError && (
-                  <p role="alert" className="mt-3 text-sm text-red-300">
-                    {lockError}
-                  </p>
-                )}
-                <Button
-                  type="button"
-                  className="mt-5 w-full"
-                  disabled={lockBusy || lockPin.length !== 4}
-                  onClick={() => intentarDesbloqueo(lockPin)}
-                >
-                  {lockBusy ? 'Verificando…' : 'Desbloquear'}
-                </Button>
-              </>
-            ) : (
-              <>
-                <p className="mt-2 text-sm text-mute">
-                  Sesión protegida. No hay un vendedor activo que pueda desbloquear.
-                </p>
-                <Button
-                  type="button"
-                  className="mt-5 w-full"
-                  onClick={() => window.location.reload()}
-                >
-                  Recargar la app
-                </Button>
-              </>
-            )}
-          </section>
-        </div>
-      )}
+      <PantallaBloqueada
+        abierto={locked && !cambiarAbierto && !salirAbierto}
+        empresa={empresa?.nombre}
+        sucursal={sucursal?.nombre}
+        usuario={{ id: sesion?.vendedorId, name: sesion?.nombre }}
+        pinLength={pinLength}
+        pin={lockPin}
+        onPinChange={setLockPin}
+        busy={lockBusy}
+        error={lockError}
+        esDemo={esDemo}
+        onCambiarUsuario={() => {
+          setCambiarAbierto(true)
+          setSellerId(sesion?.vendedorId || '')
+          setPin('')
+        }}
+        onSalir={() => setSalirAbierto(true)}
+      />
 
       <Modal
         open={ayudaAbierto}
