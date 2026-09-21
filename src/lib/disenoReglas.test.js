@@ -57,3 +57,24 @@ test('las pantallas no usan diálogos nativos del navegador', () => {
 
   assert.deepEqual(culpables, [])
 })
+
+test('el PIN se enmascara: texto oculto y máscara propia', () => {
+  // #124: el enmascarado dependía de `-webkit-text-security: asterisk`, un
+  // valor inexistente (solo none|circle|disc|square) → el navegador descartaba
+  // la regla y el PIN quedaba a la vista. Ahora el input no dibuja el texto y
+  // PinInput pinta un punto por dígito.
+  const css = leer('index.css')
+  assert.match(css, /\.pin-oculto\s*\{[^}]*color:\s*transparent/, 'el input del PIN debe ocultar el texto')
+  const valores = [...css.matchAll(/-webkit-text-security:\s*([a-z-]+)/g)].map((m) => m[1])
+  for (const valor of valores) {
+    assert.ok(['none', 'circle', 'disc', 'square'].includes(valor), `valor inválido de -webkit-text-security: ${valor}`)
+  }
+})
+
+test('PinInput pinta la máscara de puntos y no muestra los dígitos', () => {
+  const codigo = leer('components/ui/index.jsx')
+  assert.match(codigo, /pin-oculto/, 'el input de PIN debe usar la clase que oculta el texto')
+  const mascara = codigo.slice(codigo.indexOf('export function PinInput'))
+  assert.match(mascara, /aria-hidden="true"[\s\S]{0,400}rounded-full/, 'la máscara debe ser decorativa y de puntos')
+  assert.ok(!/placeholder="••••"/.test(mascara), 'los puntos no pueden depender del placeholder del input')
+})

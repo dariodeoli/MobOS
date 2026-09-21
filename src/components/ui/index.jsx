@@ -64,32 +64,41 @@ export function PasswordInput({ className, ...props }) {
 }
 
 // PIN de 4 dígitos: campo compacto y centrado tipo código, con animación de
-// foco y avance automático al completar. Diseñado para no ocupar el ancho
-// completo del formulario.
+// foco y avance automático al completar. Los dígitos no se dibujan (ver
+// .pin-oculto en index.css): el componente pinta un punto por dígito, sin
+// depender de -webkit-text-security ni de glifos de la fuente.
 export function PinInput({ value, onChange, onComplete, autoFocus = false, disabled = false, inputRef, ariaLabel = 'PIN de 4 dígitos', className, id }) {
+  const largo = String(value || '').length
   return (
-    <input
-      ref={inputRef}
-      id={id}
-      type="text"
-      inputMode="numeric"
-      autoComplete="one-time-code"
-      maxLength={4}
-      value={value}
-      autoFocus={autoFocus}
-      disabled={disabled}
-      onChange={(event) => {
-        const next = event.target.value.replace(/\D/g, '').slice(0, 4)
-        onChange(next)
-        if (next.length === 4) onComplete?.()
-      }}
-      placeholder="••••"
-      aria-label={ariaLabel}
-      className={cn(
-        'pin-oculto mx-auto block h-16 w-44 rounded-2xl border border-ink-500 bg-paper text-center text-3xl font-bold tracking-[.45em] text-fore shadow-card transition-all duration-150 placeholder:text-mute/40 focus:scale-[1.03] focus:border-fono focus:ring-2 focus:ring-fono/30 focus:outline-none',
-        className,
-      )}
-    />
+    <span className={cn('relative mx-auto block h-16 w-44 transition-transform duration-150 focus-within:scale-[1.03]', disabled && 'opacity-50', className)}>
+      <input
+        ref={inputRef}
+        id={id}
+        type="text"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        maxLength={4}
+        value={value}
+        autoFocus={autoFocus}
+        disabled={disabled}
+        onChange={(event) => {
+          const next = event.target.value.replace(/\D/g, '').slice(0, 4)
+          onChange(next)
+          if (next.length === 4) onComplete?.()
+        }}
+        placeholder=""
+        aria-label={ariaLabel}
+        className="pin-oculto h-full w-full rounded-2xl border border-ink-500 bg-paper text-center text-3xl font-bold tracking-[.45em] shadow-card transition-all duration-150 focus:border-fono focus:ring-2 focus:ring-fono/30 focus:outline-none"
+      />
+      <span aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center gap-[.5em]">
+        {[0, 1, 2, 3].map((indice) => (
+          <span
+            key={indice}
+            className={cn('h-2.5 w-2.5 rounded-full transition-colors', indice < largo ? 'bg-fore' : 'bg-mute/25')}
+          />
+        ))}
+      </span>
+    </span>
   )
 }
 
