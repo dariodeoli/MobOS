@@ -21,3 +21,17 @@ export function fechaCompacta(value) {
   const hora = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
   return `${dia} ${MESES_CORTOS[date.getMonth()]} · ${hora}`
 }
+
+// Totales de un pedido en cualquiera de las dos formas que circulan por la app:
+// API (payments con status + totalPyg) y local/demo (totalPagado + total). Lo
+// usan el comprobante impreso y la vista digital del cliente para que el saldo
+// que ve el cliente sea exactamente el que se imprimió.
+export function totalesPedido(order) {
+  const total = Number(order?.totalPyg ?? order?.total ?? 0)
+  const pagos = Array.isArray(order?.payments) ? order.payments : Array.isArray(order?.pagos) ? order.pagos : []
+  const confirmados = pagos.filter(pago => pago?.status === 'CONFIRMED' || pago?.status === undefined)
+  const pagado = confirmados.length
+    ? confirmados.reduce((suma, pago) => suma + Number(pago.amountPyg ?? pago.monto ?? 0), 0)
+    : Number(order?.totalPagado ?? order?.paidPyg ?? 0)
+  return { total, pagado, pendiente: Math.max(0, total - pagado) }
+}

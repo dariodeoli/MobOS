@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { codigoPedido, fechaCompacta } from './pedido.js'
+import { codigoPedido, fechaCompacta, totalesPedido } from './pedido.js'
 
 test('muestra los códigos PREFIX-#NNNN con el guion y padding a 4 dígitos', () => {
   assert.equal(codigoPedido('MOB-#0001'), 'MOB-#0001')
@@ -27,4 +27,22 @@ test('sin fecha válida la celda no rompe la grilla', () => {
   assert.equal(fechaCompacta(''), 'Sin fecha')
   assert.equal(fechaCompacta(null), 'Sin fecha')
   assert.equal(fechaCompacta('no-es-fecha'), 'Sin fecha')
+})
+
+test('totales del pedido: pagos confirmados, saldo y formas API/demo', () => {
+  // Forma API: payments con status y totalPyg.
+  assert.deepEqual(totalesPedido({
+    totalPyg: 100000,
+    payments: [
+      { status: 'CONFIRMED', amountPyg: 40000 },
+      { status: 'PENDING', amountPyg: 10000 },
+      { amountPyg: 10000 },
+    ],
+  }), { total: 100000, pagado: 50000, pendiente: 50000 })
+  // Forma demo/local: totalPagado sin payments.
+  assert.deepEqual(totalesPedido({ total: 30000, totalPagado: 30000 }), { total: 30000, pagado: 30000, pendiente: 0 })
+  // Un pago mayor al total no genera saldo negativo.
+  assert.deepEqual(totalesPedido({ totalPyg: 1000, payments: [{ status: 'CONFIRMED', amountPyg: 1500 }] }), { total: 1000, pagado: 1500, pendiente: 0 })
+  // Pedido ausente.
+  assert.deepEqual(totalesPedido(null), { total: 0, pagado: 0, pendiente: 0 })
 })

@@ -35,6 +35,11 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   const pagosConfirmados = order.payments.filter(pago => pago.status === 'CONFIRMED')
   const pagado = pagosConfirmados.reduce((sum, pago) => sum + Number(pago.amountPyg || 0), 0)
   const pendiente = Math.max(0, order.totalPyg - pagado)
+  // El crédito también viaja en el nivel rápido: la vista digital del cliente
+  // muestra saldo, plazo y vencimiento sin exponer datos internos.
+  const credito = order.creditDays
+    ? { creditDays: order.creditDays, dueAt: order.dueAt, pendientePyg: pendiente }
+    : null
 
   const now = Date.now()
   const warranties = await prisma.warrantyCase.findMany({
@@ -69,6 +74,7 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     totalPyg: order.totalPyg,
     paidPyg: pagado,
     pendingPyg: pendiente,
+    credit: credito,
     payments: pagosConfirmados.map(pago => ({
       method: pago.method,
       methodLabel: PAYMENT_LABELS[pago.method] || pago.method,
@@ -89,10 +95,6 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
   }
 
   if (level === 'rapido') return json(base)
-
-  const credito = order.creditDays
-    ? { creditDays: order.creditDays, dueAt: order.dueAt, pendientePyg: pendiente }
-    : null
 
   const completo = {
     ...base,

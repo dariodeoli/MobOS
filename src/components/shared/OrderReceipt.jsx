@@ -3,6 +3,7 @@ import { printHtml } from '@/utils/printHtml'
 import { APP_NAME } from '@/lib/brand'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { ahorroDeLinea } from '@/utils/precioLista'
+import { totalesPedido } from '@/utils/pedido'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from '@/lib/printing/codigos'
 import QRCode from 'qrcode'
 import JsBarcode from 'jsbarcode'
@@ -174,10 +175,20 @@ const header = (title, when, logo = '') => `<div class="brand">${logo ? `<img cl
 const footer = () => `<footer>Conservá este comprobante para cambios y garantía. Documento generado por ${escapeHtml(APP_NAME)}.</footer>`
 
 // Niveles de comprobante y formatos físicos, independientes entre sí.
-export const NIVELES_COMPROBANTE = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detallado', 'Detallado']]
+// Modelos de comprobante: cada uno suma una capa de información sobre el
+// anterior. Esta tabla es la única fuente de verdad de los modelos (los ids son
+// los mismos que valida el backend): sumar un modelo nuevo es agregar una fila
+// y, si aporta algo distinto, una sección en los constructores de HTML/ticket.
+export const MODELOS_COMPROBANTE = [
+  { id: 'rapido', label: 'Rápido', empresa: 'compacta', clienteContacto: false, pagos: false, credito: false, cronologia: false, redes: false },
+  { id: 'completo', label: 'Completo', empresa: 'completa', clienteContacto: true, pagos: true, credito: true, cronologia: false, redes: true },
+  { id: 'detallado', label: 'Detallado', empresa: 'completa', clienteContacto: true, pagos: true, credito: true, cronologia: true, redes: true },
+]
+export const modeloComprobante = (id) => MODELOS_COMPROBANTE.find(modelo => modelo.id === id) || MODELOS_COMPROBANTE[1]
+export const NIVELES_COMPROBANTE = MODELOS_COMPROBANTE.map(modelo => [modelo.id, modelo.label])
 export const FORMATOS_COMPROBANTE = [['a4', 'A4'], ['thermal-80', '80 mm'], ['thermal-58', '58 mm']]
-// La página del pedido usa A4 u 80 mm; el rollo de 58 mm no se imprime desde acá.
-export const FORMATOS_PEDIDO = [['a4', 'A4'], ['thermal-80', '80 mm']]
+// La página del pedido usa A4 o el rollo de 58 mm (con diseño propio).
+export const FORMATOS_PEDIDO = [['a4', 'A4'], ['thermal-58', '58 mm']]
 const PREF_NIVEL = 'mobos:comprobante:nivel'
 const PREF_FORMATO = 'mobos:comprobante:formato'
 export const nivelPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_NIVEL)) || 'completo'
@@ -210,46 +221,131 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const items = Array.isArray(order.items) ? order.items : []
   const payments = Array.isArray(order.payments) ? order.payments : order.pagos || []
   const pagosConfirmados = payments.filter(payment => payment.status === 'CONFIRMED' || payment.status === undefined)
-  const paid = pagosConfirmados.reduce((sum, payment) => sum + Number(payment.amountPyg ?? payment.monto ?? 0), 0)
+  const { total, pagado: paid, pendiente } = totalesPedido(order)
   const when = order.createdAt || order.creadoEn || order.fecha
   const link = token ? accessUrlFor(token) : trackingUrlFor(order)
   let qr = ''
   try { if (link) qr = await QRCode.toDataURL(link, { errorCorrectionLevel: 'H', margin: 2, width: 320 }) } catch { /* el enlace queda impreso igual */ }
-  const total = Number(order.totalPyg ?? order.total ?? 0)
-  const pendiente = Math.max(0, total - Number(paid || order.totalPagado || 0))
   const itemsCount = items.reduce((suma, item) => suma + Number(item.quantity || 1), 0)
   const empresa = order.tenant?.name || order.empresaNombre || ''
   const sucursal = order.branch || null
   const cliente = order.customer || null
-  const completo = level !== 'rapido'
-  const detallado = level === 'detallado'
+  const modelo = modeloComprobante(level)
+  const completo = modelo.pagos
+  const detallado = modelo.cronologia
+  const textoEvento = (evento) => evento.type === 'created' ? 'Pedido creado' : evento.type === 'payment' ? `Pago ${gs(evento.amountPyg || 0)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}` : `Entrega: ${FULFILLMENT[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`
 
   const documento = order.billingName ? `<div class="card"><div class="label">Factura a</div><div>${escapeHtml(order.billingName)}${order.billingDocument ? ` · RUC ${escapeHtml(order.billingDocument)}` : ''}</div></div>` : ''
   const itemsRows = items.map(item => {
     const { ahorro } = ahorroDeLinea(item)
     return `<tr><td>${escapeHtml(item.description || item.nombre || 'Producto')}${ahorro > 0 ? `<br><span class="muted">descuento − ${escapeHtml(gs(ahorro))}</span>` : ''}</td><td class="num">${escapeHtml(item.quantity || 1)} × ${escapeHtml(gs(item.unitPricePyg ?? item.precio ?? 0))}</td><td class="num">${escapeHtml(gs(item.totalPyg ?? (item.quantity || 1) * (item.unitPricePyg ?? item.precio ?? 0)))}</td></tr>`
   }).join('')
-  const contactoCliente = completo && cliente
+  const contactoCliente = modelo.clienteContacto && cliente
     ? `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente.name || order.cliente || 'Consumidor final')}</strong>${cliente.document ? ` · ${escapeHtml(cliente.document)}` : ''}${cliente.phone ? `<br>${escapeHtml(cliente.countryCode || '')} ${escapeHtml(cliente.phone)}` : ''}${cliente.email ? `<br>${escapeHtml(cliente.email)}` : ''}${(cliente.addresses || []).map(address => `<br>${escapeHtml([address.address, address.city, address.department, address.country].filter(Boolean).join(', '))}`).join('')}</div></div>`
     : `<div class="card"><div class="label">Cliente</div><div><strong>${escapeHtml(cliente?.name || order.cliente || 'Consumidor final')}</strong></div></div>`
   const empresaTenant = order.tenant || null
   const empresaDireccion = [empresaTenant?.address, empresaTenant?.city, empresaTenant?.department].filter(Boolean).join(', ')
-  const empresaCard = completo
-    ? `<div class="card"><div class="label">Empresa</div><div>${escapeHtml(empresa || APP_NAME)}${empresaTenant?.ruc ? ` · RUC ${escapeHtml(empresaTenant.ruc)}` : ''}${empresaDireccion ? `<br>${escapeHtml(empresaDireccion)}` : ''}${empresaTenant?.phone ? `<br>${escapeHtml(empresaTenant.phone)}` : ''}${sucursal?.name || sucursal?.address || sucursal?.city ? `<br>${escapeHtml([sucursal?.name, sucursal?.address, sucursal?.city, sucursal?.department].filter(Boolean).join(' · '))}` : ''}${sucursal?.phone ? `<br>${escapeHtml(sucursal.phone)}` : ''}${order.seller?.name ? `<br>Vendedor: ${escapeHtml(order.seller.name)}` : ''}</div></div>`
-    : ''
-  const pagosRows = pagosConfirmados.length
+  const sucursalTexto = [sucursal?.name, sucursal?.address, sucursal?.city, sucursal?.department].filter(Boolean).join(' · ')
+  const redes = modelo.redes ? [empresaTenant?.email, sucursal?.instagram ? `@${sucursal.instagram}` : ''].filter(Boolean).join(' · ') : ''
+  // El comprobante rápido también identifica a la empresa y la sucursal que
+  // vendió; el completo agrega dirección, RUC, contacto y redes.
+  const empresaCard = modelo.empresa === 'completa'
+    ? `<div class="card"><div class="label">Empresa</div><div>${escapeHtml(empresa || APP_NAME)}${empresaTenant?.ruc ? ` · RUC ${escapeHtml(empresaTenant.ruc)}` : ''}${empresaDireccion ? `<br>${escapeHtml(empresaDireccion)}` : ''}${empresaTenant?.phone ? `<br>${escapeHtml(empresaTenant.phone)}` : ''}${sucursal?.name || sucursal?.address || sucursal?.city ? `<br>${escapeHtml(sucursalTexto)}` : ''}${sucursal?.phone ? `<br>${escapeHtml(sucursal.phone)}` : ''}${order.seller?.name ? `<br>Vendedor: ${escapeHtml(order.seller.name)}` : ''}${redes ? `<br>${escapeHtml(redes)}` : ''}</div></div>`
+    : modelo.empresa === 'compacta'
+      ? `<div class="card"><div class="label">Empresa</div><div>${escapeHtml([empresa || APP_NAME, sucursal?.name].filter(Boolean).join(' · '))}</div></div>`
+      : ''
+  const metodoPago = [...new Set(pagosConfirmados.map(payment => ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago'))].join(' · ')
+  const pagosRows = modelo.pagos && pagosConfirmados.length
     ? `<div class="card"><div class="label">Pagos</div><table class="totals">${pagosConfirmados.map(payment => `<tr><td>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${completo && (payment.reference || payment.cuenta || payment.accountSnapshot?.name) ? ` · ${escapeHtml(payment.reference || payment.cuenta || payment.accountSnapshot.name)}` : ''}${detallado && (payment.paidAt || payment.createdAt) ? `<br><span class="muted">${escapeHtml(new Date(payment.paidAt || payment.createdAt).toLocaleString('es-PY'))}</span>` : ''}</td><td class="num">${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</td></tr>`).join('')}</table></div>`
     : ''
-  const credito = completo && Number(order.creditDays || 0) > 0
+  const credito = modelo.credito && Number(order.creditDays || 0) > 0
     ? `<p><span class="tag">A crédito · ${escapeHtml(String(order.creditDays))} días${order.dueAt ? ` · vence ${escapeHtml(new Date(order.dueAt).toLocaleDateString('es-PY'))}` : ''}</span></p>`
     : ''
-  const cronologia = detallado && Array.isArray(order.timeline) && order.timeline.length
-    ? `<div class="card"><div class="label">Cronología</div><table class="totals">${order.timeline.map(evento => `<tr><td>${escapeHtml(evento.type === 'created' ? 'Pedido creado' : evento.type === 'payment' ? `Pago ${gs(evento.amountPyg || 0)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}` : `Entrega: ${FULFILLMENT[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`)}</td><td class="num">${escapeHtml(new Date(evento.at).toLocaleString('es-PY'))}</td></tr>`).join('')}</table></div>`
+  const cronologia = modelo.cronologia && Array.isArray(order.timeline) && order.timeline.length
+    ? `<div class="card"><div class="label">Cronología</div><table class="totals">${order.timeline.map(evento => `<tr><td>${escapeHtml(textoEvento(evento))}</td><td class="num">${escapeHtml(new Date(evento.at).toLocaleString('es-PY'))}</td></tr>`).join('')}</table></div>`
     : ''
   const entregaNotas = completo && (order.deliveryType || order.deliveryNotes)
     ? `<p class="muted">Entrega: ${escapeHtml(order.deliveryType || '—')}${order.deliveryNotes ? ` · ${escapeHtml(order.deliveryNotes)}` : ''}</p>`
     : ''
   const logo = await getLogoDataUrl()
+
+  // ── Rollo de 58 mm: diseño vertical propio ──────────────────────────────
+  // Una sola columna, productos uno debajo del otro con cantidad × precio,
+  // total destacado, QR escaneable y alto dinámico (`size:58mm auto`). No es el
+  // A4 encogido: la jerarquía y los tamaños están pensados para el papel.
+  if (format === 'thermal-58' || format === 'thermal-55') {
+    const lineas = items.map(item => {
+      const { ahorro } = ahorroDeLinea(item)
+      const cantidad = Number(item.quantity || 1)
+      const unitario = Number(item.unitPricePyg ?? item.precio ?? 0)
+      const lineaTotal = Number(item.totalPyg ?? cantidad * unitario)
+      return `<div class="item"><div class="name">${escapeHtml(item.description || item.nombre || 'Producto')}</div><div class="row"><span>${escapeHtml(String(cantidad))} × ${escapeHtml(gs(unitario))}</span><span>${escapeHtml(gs(lineaTotal))}</span></div>${ahorro > 0 ? `<div class="row muted"><span>descuento</span><span>− ${escapeHtml(gs(ahorro))}</span></div>` : ''}</div>`
+    }).join('')
+    const pagos58 = modelo.pagos && pagosConfirmados.length
+      ? `<div class="sep"></div><div>Pagos</div>${pagosConfirmados.map(payment => `<div class="row"><span>${escapeHtml(ETIQUETAS_MEDIO_PAGO[payment.method] || payment.medioPago || 'Pago')}${payment.reference || payment.accountSnapshot?.name ? ` · ${escapeHtml(payment.reference || payment.accountSnapshot.name)}` : ''}</span><span>${escapeHtml(gs(payment.amountPyg ?? payment.monto ?? 0))}</span></div>`).join('')}`
+      : ''
+    const credito58 = modelo.credito && Number(order.creditDays || 0) > 0
+      ? `<div class="row"><span>A crédito</span><span>${escapeHtml(String(order.creditDays))} días${order.dueAt ? ` · vence ${escapeHtml(new Date(order.dueAt).toLocaleDateString('es-PY'))}` : ''}</span></div>`
+      : ''
+    const cronologia58 = modelo.cronologia && Array.isArray(order.timeline) && order.timeline.length
+      ? `<div class="sep"></div><div>Cronología</div>${order.timeline.map(evento => `<div class="row"><span>${escapeHtml(textoEvento(evento))}</span><span class="muted">${escapeHtml(new Date(evento.at).toLocaleDateString('es-PY'))}</span></div>`).join('')}`
+      : ''
+    return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>
+  @page{size:58mm auto;margin:3mm}
+  *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font:11px/1.4 ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;color:#000;width:52mm;margin:0 auto;padding:0 0 4mm}
+  .center{text-align:center}
+  .muted{color:#333}
+  .row{display:flex;justify-content:space-between;gap:6px}
+  .sep{border-top:1px dashed #000;margin:6px 0}
+  h1{font-size:14px;margin:2px 0;text-align:center}
+  .brand{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;text-align:center;margin-top:2px}
+  .brand img{display:block;height:12mm;max-width:44mm;object-fit:contain;margin:0 auto 3px}
+  .item{margin:5px 0}
+  .item .name{font-weight:700}
+  .total{border-top:2px solid #000;margin-top:5px;padding-top:4px;align-items:baseline}
+  .total span:first-child{font-weight:800}
+  .total span:last-child{font-size:18px;font-weight:800}
+  .qr{display:block;width:34mm;height:34mm;margin:6px auto 3px}
+  .small{font-size:9px;word-break:break-all;text-align:center}
+  .nofiscal{border:2px solid #000;text-align:center;font-weight:800;font-size:10px;padding:4px;margin:6px 0}
+  @media print{body{margin:0}}
+  </style></head><body class="t58">
+    ${logo ? `<div class="brand"><img src="${logo}" alt=""></div>` : ''}
+    <div class="brand">${escapeHtml(empresa || APP_NAME)}</div>
+    ${sucursal?.name ? `<div class="center">${escapeHtml(sucursal.name)}</div>` : ''}
+    <h1>Comprobante de compra</h1>
+    <div class="center">${escapeHtml(order.orderNumber || order.codigo || 'Pedido')}</div>
+    <div class="center muted">${when ? escapeHtml(new Date(when).toLocaleString('es-PY')) : ''}</div>
+    <div class="sep"></div>
+    <div class="row"><span>Cliente</span><span>${escapeHtml(cliente?.name || order.cliente || 'Consumidor final')}</span></div>
+    ${modelo.clienteContacto && cliente?.document ? `<div class="row"><span>Documento</span><span>${escapeHtml(cliente.document)}</span></div>` : ''}
+    ${modelo.clienteContacto && cliente?.phone ? `<div class="row"><span>Teléfono</span><span>${escapeHtml(`${cliente.countryCode || ''} ${cliente.phone}`.trim())}</span></div>` : ''}
+    ${modelo.clienteContacto && cliente?.email ? `<div class="small">${escapeHtml(cliente.email)}</div>` : ''}
+    ${order.billingName ? `<div class="row"><span>Factura a</span><span>${escapeHtml(order.billingName)}${order.billingDocument ? ` · ${escapeHtml(order.billingDocument)}` : ''}</span></div>` : ''}
+    ${modelo.empresa === 'completa' && (empresaTenant?.ruc || empresaDireccion || order.seller?.name || redes) ? `<div class="sep"></div><div class="muted">${[empresaTenant?.ruc ? `RUC ${empresaTenant.ruc}` : '', empresaDireccion, order.seller?.name ? `Vendedor: ${order.seller.name}` : '', sucursal?.phone, redes].filter(Boolean).map(escapeHtml).join('<br>')}</div>` : ''}
+    <div class="sep"></div>
+    ${lineas || '<div class="item">Sin artículos detallados.</div>'}
+    <div class="sep"></div>
+    <div class="row"><span>Subtotal</span><span>${escapeHtml(gs(order.subtotalPyg ?? total))}</span></div>
+    ${Number(order.discountPyg || order.descuento || 0) ? `<div class="row"><span>Descuento</span><span>− ${escapeHtml(gs(order.discountPyg || order.descuento))}</span></div>` : ''}
+    ${Number(order.deliveryPyg || order.montoDelivery || 0) ? `<div class="row"><span>Entrega</span><span>${escapeHtml(gs(order.deliveryPyg || order.montoDelivery))}</span></div>` : ''}
+    <div class="row"><span>Ítems</span><span>${escapeHtml(String(itemsCount))}</span></div>
+    <div class="row"><span>Pagado</span><span>${escapeHtml(gs(paid))}</span></div>
+    ${pendiente > 0 ? `<div class="row"><span>Saldo pendiente</span><span>${escapeHtml(gs(pendiente))}</span></div>` : ''}
+    <div class="row total"><span>TOTAL</span><span>${escapeHtml(gs(total))}</span></div>
+    ${!modelo.pagos && metodoPago ? `<div class="row"><span>Método</span><span>${escapeHtml(metodoPago)}</span></div>` : ''}
+    ${credito58}
+    ${pagos58}
+    ${completo && (order.deliveryType || order.deliveryNotes) ? `<div class="sep"></div><div class="muted">Entrega: ${escapeHtml(order.deliveryType || '—')}${order.deliveryNotes ? ` · ${escapeHtml(order.deliveryNotes)}` : ''}</div>` : ''}
+    ${cronologia58}
+    <div class="sep"></div>
+    <div class="center">${escapeHtml(FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación')}</div>
+    ${link ? `${qr ? `<img class="qr" src="${qr}" alt="QR del comprobante">` : ''}<div class="small">${level === 'rapido' ? 'Seguimiento' : level === 'completo' ? 'Comprobante y seguimiento' : 'Comprobante detallado'}: ${escapeHtml(link)}</div>` : ''}
+    <div class="nofiscal">Documento no fiscal · No válido como factura</div>
+    <div class="small">Conservá este comprobante para cambios y garantía. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</div>
+  </body></html>`
+  }
 
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Comprobante ${escapeHtml(order.orderNumber || order.codigo || '')}</title><style>${styles(format)}</style></head><body>
     ${header('Comprobante de compra', `${order.orderNumber || order.codigo || 'Pedido'} · ${when ? new Date(when).toLocaleString('es-PY') : ''}`, logo)}
@@ -263,8 +359,9 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
       ${Number(order.deliveryPyg || order.montoDelivery || 0) ? `<tr><td>Entrega</td><td class="num">${escapeHtml(gs(order.deliveryPyg || order.montoDelivery))}</td></tr>` : ''}
       <tr><td>Total de ítems</td><td class="num">${escapeHtml(String(itemsCount))}</td></tr>
       <tr><td>Total</td><td class="num">${escapeHtml(gs(total))}</td></tr>
-      <tr><td>Pagado</td><td class="num">${escapeHtml(gs(paid || order.totalPagado || 0))}</td></tr>
+      <tr><td>Pagado</td><td class="num">${escapeHtml(gs(paid))}</td></tr>
       ${pendiente > 0 ? `<tr class="saldo"><td>Saldo pendiente</td><td class="num">${escapeHtml(gs(pendiente))}</td></tr>` : ''}
+      ${!modelo.pagos && metodoPago ? `<tr><td>Método</td><td class="num">${escapeHtml(metodoPago)}</td></tr>` : ''}
     </table>
     ${pagosRows}
     ${credito}

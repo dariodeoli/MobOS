@@ -21,8 +21,8 @@ const orderDetail = Prisma.validator<Prisma.OrderInclude>()({
   payments: true,
   customer: { include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } },
   seller: { select: { id: true, name: true } },
-  tenant: { select: { name: true, address: true, city: true, department: true, phone: true, ruc: true } },
-  branch: { select: { name: true, address: true, city: true, department: true, phone: true } },
+  tenant: { select: { name: true, address: true, city: true, department: true, phone: true, ruc: true, email: true } },
+  branch: { select: { name: true, address: true, city: true, department: true, phone: true, instagram: true } },
 })
 
 const INT_MAX = 2147483647

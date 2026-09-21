@@ -19,8 +19,8 @@ import { ticketComprobante } from '@/lib/printing/tickets'
 
 // Vista previa real del comprobante: nivel (Rápido/Completo/Detallado) y
 // formato físico se eligen acá y la última combinación queda recordada. El
-// listado lo define la pantalla que lo usa (la página del pedido ofrece A4 y
-// 80 mm y descarta el rollo de 58 mm). El formato inicial sigue al ancho de la
+// listado lo define la pantalla que lo usa (la página del pedido ofrece A4 y el
+// rollo de 58 mm con diseño propio). El formato inicial sigue al ancho de la
 // impresora configurada en Impresoras.
 // La vista previa usa el ancho real del papel (mm a 96 dpi) para que lo que se
 // ve coincida con lo que sale impreso, sin franjas blancas a los costados.
