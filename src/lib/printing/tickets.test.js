@@ -350,6 +350,29 @@ test('los documentos firmables reservan firma y observaciones en 58 y 80 mm', ()
   assert.ok(proforma.includes('Aceptación del cliente:'), 'aceptación en la proforma')
 })
 
+// #206: la firma térmica no puede quedar a un renglón de los campos (no entra
+// la mano). Cada rol reserva 3 avances (~12 mm) + la línea ancha antes de la
+// aclaración, en 58 y en 80.
+test('la firma térmica reserva altura real para escribir a mano', () => {
+  for (const ancho of [58, 80]) {
+    const lineas = ticketNotaEntrega(PEDIDO, { ancho }).lineas()
+    const rol = lineas.findIndex((linea) => linea.includes('Recibí conforme:'))
+    assert.ok(rol >= 0, `rol de firma en ${ancho} mm`)
+    assert.equal(lineas[rol + 1], '\n\n\n', `3 avances de firma en ${ancho} mm`)
+    assert.match(lineas[rol + 2], /^\s*-+\n$/, `línea ancha de firma en ${ancho} mm`)
+    assert.match(lineas[rol + 3], /^\s*Aclaración:/, `aclaración después de la línea en ${ancho} mm`)
+  }
+
+  const remision58 = ticketRemision({ lines: [] }, { ancho: 58 }).lineas()
+  const roles = ['Entregué (despacho):', 'Recibí conforme (recepción):']
+  for (const textoRol of roles) {
+    const i = remision58.findIndex((linea) => linea.includes(textoRol))
+    assert.ok(i >= 0, `rol presente: ${textoRol}`)
+    assert.equal(remision58[i + 1], '\n\n\n', `espacio de firma para ${textoRol}`)
+    assert.match(remision58[i + 2], /^\s*-+\n$/, `línea de firma para ${textoRol}`)
+  }
+})
+
 // #203: el comprobante de verificación de IMEI imprime la info mínima y
 // honesta (estado, fecha y fuente), avisa si es simulado y no expone datos
 // internos. La térmica corta el rollo como el resto de los comprobantes.

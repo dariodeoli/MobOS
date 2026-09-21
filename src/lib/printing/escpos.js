@@ -229,3 +229,32 @@ export function crearTicket({ ancho = 80, margen = 2 } = {}) {
   }
   return api
 }
+
+// Bloque de firma de los documentos que se firman en papel (#206): reserva
+// altura real para firmar a mano (3 avances ≈ 12 mm con el interlineado por
+// defecto de la térmica) más la línea ancha, pide aclaración, CI y fecha y deja
+// un área de observaciones. En 58 mm las etiquetas van en líneas cortas: no se
+// escala el documento A4 al rollo. El A4 reserva 18 mm; en el rollo se firma
+// más chico, pero nunca encima de los campos.
+export const AVANCES_FIRMA = 3
+export function bloqueFirma(t, roles = [], { ancho = 80, observaciones = true } = {}) {
+  const corto = Number(ancho) <= 58
+  for (const rol of roles) {
+    t.avanza(1)
+    t.texto(`${rol}:`)
+    t.avanza(AVANCES_FIRMA)
+    t.linea()
+    t.texto(corto ? 'Aclaración: ______________' : 'Aclaración: ______________________________')
+    if (corto) {
+      t.texto('CI: ______________________')
+      t.texto('Fecha: ____/____/_________')
+    } else {
+      t.texto('CI: __________________  Fecha: ___/___/______')
+    }
+  }
+  if (observaciones) {
+    t.avanza(1)
+    t.texto('Observaciones:')
+    t.avanza(2)
+  }
+}

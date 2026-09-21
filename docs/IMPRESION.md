@@ -61,6 +61,11 @@ QR muerto: se omite el código.
   `imprimirDocumentoNoFiscal` (`src/lib/printing/documentos.js`): primero la
   térmica (agente local o puente); el diálogo del navegador es solo el respaldo
   de un fallo claro. Tras encolar o un resultado incierto no se abre el diálogo.
+- **Firmas y aclaraciones (#206):** los documentos que se firman reservan
+  espacio real para escribir a mano. A4: 18 mm sobre la línea de firma y campos
+  de aclaración, CI y fecha debajo. Térmicos (58/80): 3 avances (~12 mm) más la
+  línea ancha, con los campos en líneas cortas; el diseño de 58 mm no es el de
+  80 escalado. El área de observaciones va con aire, nunca al borde.
 - Los tickets ESC/POS viven en `src/lib/printing/tickets.js`; los HTML A4, en
   `src/components/shared/OrderReceipt.jsx` (mismo `styles()` que el comprobante).
 - La **etiqueta AEX** es la excepción al camino térmico: AEX devuelve un PDF ya
@@ -237,6 +242,12 @@ estado se verifica en `/health.usb`.
   largo y botón como respaldo). Además `e2e/etiquetas-gondola.spec.js` (etiquetas)
   y `e2e/qr-unificado.spec.js` (QR con URL, `/prueba` y fichas sin sesión).
 - `npm run test:e2e:smoke` como gate rápido durante el trabajo (~20 s).
+- **Evidencia de imprimibles (#206):** `scripts/qa-206-imprimibles.mjs`
+  renderiza cada documento a PDF por tamaño con su captura
+  (`docs/qa/206-imprimibles/`); `QA_SOLO=doc1,doc2` regenera solo esos.
+  `scripts/qa-206-imprimibles-prod.mjs` repite la verificación contra el demo
+  desplegado (`docs/qa/206-imprimibles-prod/`), mide el bloque de firma en el
+  layout real del rollo y exige las marcas del rediseño en el bundle.
 - `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` si se tocó
   backend de impresión (cubre estados de la cola, cancelación, anti-duplicados y
   el claim del puente).
