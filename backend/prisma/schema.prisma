@@ -119,6 +119,7 @@ model Tenant {
   sifenDocuments          SifenDocument[]
   privateCompanies        PrivateCompany[]
   accountHolders          AccountHolder[]
+  cashAuditMarks          CashAuditMark[]
 
   @@index([archivedAt])
 }
@@ -316,6 +317,7 @@ model User {
   invitationsSent UserInvitation[] @relation("InvitationInviter")
   printBridgesCreated PrintBridge[] @relation("PrintBridgeCreatedBy")
   printJobsRequested  PrintJob[]    @relation("PrintJobRequestedBy")
+  cashAuditMarks      CashAuditMark[] @relation("CashAuditAuditedBy")
   ordersAssigned      Order[]       @relation("OrderDeliveryAssignedTo")
   paymentsCollected   Payment[]     @relation("PaymentCollectedBy")
   deliverySettlementsRendered DeliverySettlement[] @relation("DeliverySettlementRenderedBy")
@@ -2579,4 +2581,30 @@ enum SifenDocumentStatus {
   SENT
   APPROVED
   REJECTED
+}
+
+// Auditoría de efectivo (#161): marca por operación de caja (cobro o
+// movimiento) con estado verificada/pendiente/con diferencia, observación y
+// usuario real que auditó. La operación vive en Payment o CashMovement.
+model CashAuditMark {
+  id            String          @id @default(cuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  operationKind String
+  operationId   String
+  status        CashAuditStatus @default(PENDING)
+  note          String?
+  auditedById   String?
+  auditedBy     User?           @relation("CashAuditAuditedBy", fields: [auditedById], references: [id], onDelete: SetNull)
+  auditedAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([tenantId, operationKind, operationId])
+  @@index([tenantId, status])
+}
+
+enum CashAuditStatus {
+  VERIFIED
+  PENDING
+  DIFFERENCE
 }
