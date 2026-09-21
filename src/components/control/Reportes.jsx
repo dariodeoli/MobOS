@@ -5,6 +5,7 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { useSesion } from '@/lib/sesion'
 import { listVentas, listGastos, listAds, productosById } from '@/lib/storage'
 import { gs, variacion } from '@/utils/calculos'
+import { fechaHora } from '@/utils/fecha'
 import { gananciaDeRango, lineasDeGanancia, serieDeReporte } from '@/utils/ganancias'
 import { reporteMetricas } from '@/lib/metricas'
 import { Badge, Button, Card, DataTable, EmptyState, Select, Stat } from '@/components/ui'
@@ -26,9 +27,6 @@ import {
 } from '@/utils/reportes'
 
 const rangoInicial = () => ({ ...(PRESETS.find((p) => p.id === '30d') || PRESETS[0]).calc(), preset: '30d' })
-
-// «Generado»: fecha y hora legibles, en 24 h y sin segundos.
-const fechaHora = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false }) : '')
 
 export default function Reportes() {
   const [searchParams, setSearchParams] = useSearchParams()

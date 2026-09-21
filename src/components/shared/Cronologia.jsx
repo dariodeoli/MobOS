@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
+import { fechaHora } from '@/utils/fecha'
 import Icon from '@/components/shared/Icon'
 import { Button, EmptyState, Skeleton } from '@/components/ui'
 
@@ -20,8 +21,6 @@ const EVENTOS = {
   attachment: { icon: 'upload', tono: 'bg-ink-700 text-mute' },
   audit: { icon: 'edit', tono: 'bg-ink-700 text-mute' },
 }
-const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
-
 // Lista de eventos de { events: [{ type, action, createdAt, user, detail }] }
 // más reciente primero, con carga bajo demanda: se pide al activarse y al
 // reintentar. Mismo formato que la cronología del cliente.

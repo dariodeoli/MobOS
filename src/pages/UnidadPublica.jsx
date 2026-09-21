@@ -6,6 +6,7 @@ import AccesoRequerido from '@/components/shared/AccesoRequerido'
 import LoadingScreen from '@/components/app/LoadingScreen'
 import { useSesion } from '@/lib/sesion'
 import { resources } from '@/lib/api'
+import { fechaHora } from '@/utils/fecha'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 const CONDICION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
@@ -53,7 +54,7 @@ function FichaUnidad({ unidad, serial, puedeVerInventario }) {
         {unidad.lastVerifiedAt && (
           <p className="mt-4 flex items-center gap-2 text-xs text-mute">
             <Icon name="check" className="h-4 w-4 text-ok" />
-            Última verificación física: {new Date(unidad.lastVerifiedAt).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' })}
+            Última verificación física: {fechaHora(unidad.lastVerifiedAt)}
           </p>
         )}
       </section>

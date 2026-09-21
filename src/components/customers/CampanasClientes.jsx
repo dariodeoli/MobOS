@@ -4,6 +4,7 @@ import Icon from '@/components/shared/Icon'
 import { Badge, Button, Select } from '@/components/ui'
 import { renderPlantilla } from '@/lib/whatsappPlantillas'
 import { whatsappUrl } from '@/components/customers/customerMessaging'
+import { fechaDia } from '@/utils/fecha'
 import { telefonoVisible } from '@/utils/telefono'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
@@ -17,7 +18,7 @@ const SEGMENTOS = [
 ]
 
 const primerNombre = (nombre) => String(nombre || 'cliente').trim().split(/\s+/)[0] || 'cliente'
-const fecha = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY') : '')
+const fecha = (valor) => fechaDia(valor, '')
 
 // Motivo por el que una ficha no se puede contactar ('' = elegible).
 function motivoNoElegible(row) {

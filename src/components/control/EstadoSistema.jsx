@@ -6,6 +6,7 @@ import { api } from '@/lib/api/client'
 import { printingApi } from '@/lib/api/printing'
 import { useSesion } from '@/lib/sesion'
 import { APP_VERSION } from '@/lib/brand'
+import { fechaHora as fmt } from '@/utils/fecha'
 import { configImpresora, estadoAgente } from '@/lib/printing/agent'
 import { colorTrabajo, etiquetaTrabajo } from '@/lib/printing/estadoImpresoras'
 
@@ -31,7 +32,6 @@ const TIPO_TRABAJO = {
   'prueba-corta': 'Prueba de corte',
 }
 const tipoTrabajo = (kind) => TIPO_TRABAJO[kind] || String(kind || '').replace(/-/g, ' ') || 'Impresión'
-const fmt = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 
 const COLOR_TONO = { ok: 'green', bad: 'red', warn: 'orange', slate: 'slate' }
 

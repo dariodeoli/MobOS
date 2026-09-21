@@ -6,6 +6,7 @@ import { construirDemoAuditoriaEfectivo, guardarMarcaDemo, leerMarcasDemo } from
 import { inicializarBorradores } from '@/lib/auditoriaEfectivo'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
+import { fechaCorta, fechaHora } from '@/utils/fecha'
 import { cn } from '@/lib/utils'
 import { Aviso, Badge, Button, Card, EmptyState, Input, Select } from '@/components/ui'
 import { CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
@@ -29,20 +30,6 @@ const haceDias = (dias) => {
   fecha.setDate(fecha.getDate() - dias)
   return diaISO(fecha)
 }
-const fechaHora = (valor) => {
-  if (!valor) return '—'
-  const fecha = new Date(valor)
-  return Number.isNaN(fecha.getTime())
-    ? '—'
-    : `${fecha.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' })} · ${fecha.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })}`
-}
-// Fecha completa para el tooltip de la fila (incluye el año, siempre en 24 h).
-const fechaHoraCompleta = (valor) => {
-  if (!valor) return ''
-  const fecha = new Date(valor)
-  return Number.isNaN(fecha.getTime()) ? '' : fecha.toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false })
-}
-
 export default function AuditoriaEfectivo() {
   const { esDemo, sucursal, sesion } = useSesion()
   const [desde, setDesde] = useState(() => haceDias(7))
@@ -147,7 +134,7 @@ export default function AuditoriaEfectivo() {
             const estado = ESTADOS[operacion.status] || ESTADOS.PENDING
             const pendienteDeGuardar = borrador.status !== operacion.status || (borrador.note || '') !== (operacion.notaAuditoria || '')
             return <div key={clave} data-testid="auditoria-fila" className="grid min-w-[52rem] grid-cols-[6.5rem_minmax(0,1fr)_8rem_7rem_11rem_minmax(0,1.1fr)] items-center gap-x-2 rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2">
-              <span className="truncate text-xs text-mute" title={fechaHoraCompleta(operacion.fecha)}>{fechaHora(operacion.fecha)}</span>
+              <span className="truncate text-xs text-mute" title={fechaHora(operacion.fecha)}>{fechaCorta(operacion.fecha)}</span>
               <span className="min-w-0">
                 <b className="block truncate text-[13px]">{operacion.kind === 'PAYMENT' ? (operacion.pedido || 'Cobro en efectivo') : operacion.nota || 'Movimiento de caja'}</b>
                 <span className="mt-0.5 block truncate text-[11px] text-mute">{[operacion.kind === 'PAYMENT' ? operacion.cliente : operacion.nota, operacion.notaAuditoria, operacion.auditadoPor ? `auditó ${operacion.auditadoPor}` : ''].filter(Boolean).join(' · ') || '—'}</span>

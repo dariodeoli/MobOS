@@ -11,6 +11,7 @@ import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { Aviso, Badge, Button, Card, ConfirmDialog, Dot, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { descargarCsv } from '@/utils/descargarCsv'
+import { fechaHora } from '@/utils/fecha'
 import { resources } from '@/lib/api'
 import { api, apiFetch } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
@@ -77,7 +78,7 @@ const formatCost = unit => {
 // El verificador puede ser un usuario real (foto + nombre) o un código legacy
 // de vendedor sin cuenta (VPE/VPM): en los dos casos la fila muestra su avatar.
 const verifiedLabel = (unit) => {
-  const fecha = unit.lastVerifiedAt ? new Date(unit.lastVerifiedAt).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : ''
+  const fecha = fechaHora(unit.lastVerifiedAt, '')
   const usuario = unit.lastVerifiedBy?.name ? unit.lastVerifiedBy : unit.verifiedByCode ? { name: VERIFIER_NAMES[unit.verifiedByCode] || unit.verifiedByCode } : null
   if (!fecha || !usuario) return null
   return { fecha, quien: usuario.name, usuario }

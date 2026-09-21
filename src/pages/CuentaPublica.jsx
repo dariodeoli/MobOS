@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
+import { fechaDia as fecha, fechaHora } from '@/utils/fecha'
 import { codigoPedido } from '@/utils/pedido'
 import Icon from '@/components/shared/Icon'
 import { PortalCargando, PortalEncabezado, PortalEstado, PortalFallo, PortalPie, PortalSeccion } from '@/components/customerPortal/PortalUI'
@@ -11,8 +12,6 @@ const ORDER_STATUS = { PENDING: 'Pendiente de pago', COMPLETED: 'Pagado', CANCEL
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 const WARRANTY_STATUS = { RECEIVED: 'Recibido', DIAGNOSIS: 'En diagnóstico', READY: 'Listo', DELIVERED: 'Entregado' }
 const LEVELS = { rapido: 'Resumen rápido', completo: 'Resumen completo' }
-const fecha = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString('es-PY') : '—')
-const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false }) : '—')
 const tonoPedido = (status) => (status === 'COMPLETED' ? 'ok' : status === 'CANCELLED' ? 'bad' : 'warn')
 const tonoGarantia = (status) => (status === 'DELIVERED' ? 'neutro' : status === 'READY' ? 'ok' : 'info')
 

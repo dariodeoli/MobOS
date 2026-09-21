@@ -4,6 +4,7 @@ import { useSesion } from '@/lib/sesion'
 import { formatGsInput, parseGsInput } from '@/utils/moneda'
 import { getDemoCash, getDemoCashExpected, openDemoCash, closeDemoCash } from '@/lib/demoCash'
 import { listVentas } from '@/lib/storage'
+import { fechaHora } from '@/utils/fecha'
 import {
   Aviso,
   Badge,
@@ -46,11 +47,6 @@ const DENOMINACIONES = [
 
 // Fecha y hora locales en 24 h, sin segundos: mismo formato que las demás
 // pantallas de control (auditoría, inventario, impresión).
-const fechaHora = value => {
-  const fecha = value ? new Date(value) : null
-  if (!fecha || Number.isNaN(fecha.getTime())) return '—'
-  return fecha.toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false })
-}
 
 function desgloseItems(cantidades) {
   return DENOMINACIONES.map(({ valor }) => ({

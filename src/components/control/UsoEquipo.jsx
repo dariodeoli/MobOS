@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Aviso, Badge, Button, Card, Skeleton } from '@/components/ui'
 import { presenciaApi } from '@/lib/api/presence'
 import { ROLE_LABELS } from '@/lib/roles'
+import { fechaHora as fecha } from '@/utils/fecha'
 
 const MINUTO = 60
 const HORA = 60 * MINUTO
@@ -15,8 +16,6 @@ function tiempoActivo(segundos) {
   if (!horas) return `${minutos} min`
   return `${horas} h${minutos ? ` ${minutos} min` : ''}`
 }
-
-const fecha = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 
 // Uso del equipo (últimos 30 días): solo el dueño. Primero el resumen por
 // persona; al abrir una fila se ven sus últimas sesiones de trabajo.

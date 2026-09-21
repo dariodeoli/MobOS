@@ -3,6 +3,7 @@ import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Modal
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
+import { fechaHora as fmt } from '@/utils/fecha'
 import { printingApi } from '@/lib/api/printing'
 import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob, diagnosticoAgente, enmascararToken, esIdBackend, estadoAgente, historialAgente, impresoraHaciaBackend, importarConfigUnaVez, imprimirTicketRouter, limpiarFallidos, puenteDe, refrescarDesdeBackend, registrarUltimaPrueba, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
@@ -14,7 +15,6 @@ import ImpresionComparativa from './ImpresionComparativa'
 import ImpresionGraficos from './ImpresionGraficos'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
-const fmt = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 // Día y hora con segundos: la telemetría se mide en milisegundos y la columna
 // de actividad tiene que mostrar el segundo exacto, no solo el minuto.
 const fmtDia = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY', { dateStyle: 'short' }) : '—')

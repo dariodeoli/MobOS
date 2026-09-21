@@ -10,6 +10,7 @@ import { getDemoTenant, setDemoInsurancePct, setDemoLimits, setDemoNumeracion } 
 import { promptLogo } from '@/lib/logoPrompt'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { comprimirImagen } from '@/utils/imagen'
+import { fechaHora as fmtDate } from '@/utils/fecha'
 import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, Toggle, useToast } from '@/components/ui'
 import { formatGs } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
@@ -24,10 +25,6 @@ import Avatar from '@/components/shared/Avatar'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import DatosPrivados from '@/components/control/DatosPrivados'
 import { ROLE_LABELS } from '@/lib/roles'
-
-function fmtDate(value) {
-  return value ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false }) : '—'
-}
 
 async function copiarValor(toast, valor, etiqueta) {
   if (!valor) return

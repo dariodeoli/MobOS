@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
+import { fechaDia as fecha, fechaHora } from '@/utils/fecha'
 import { telefonoVisible } from '@/utils/telefono'
 import { codigoPedido } from '@/utils/pedido'
 import { cn } from '@/lib/utils'
@@ -78,8 +79,6 @@ const STATUS_BADGE = (map, value) => {
   const item = map[value]
   return item ? <Badge color={item.color}>{item.label}</Badge> : <Badge>{value || 'Sin estado'}</Badge>
 }
-const fecha = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString('es-PY') : '—')
-const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false }) : '—')
 const antiguedadTexto = (dias) => {
   const total = Number(dias || 0)
   if (!total) return '—'

@@ -3,6 +3,7 @@ import { useUrlState } from '@/hooks/useUrlState'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
+import { fechaHora } from '@/utils/fecha'
 import Icon from '@/components/shared/Icon'
 import {
   Aviso,
@@ -74,10 +75,6 @@ const FILTERS = [
 
 const RESOLVERS = ['ADMIN', 'GERENTE']
 const DISCOUNT_MAX = 100000000
-const fechaHora = value =>
-  value && !Number.isNaN(Date.parse(value))
-    ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' })
-    : '—'
 
 function resumenValor(kind, value) {
   const data = value && typeof value === 'object' ? value : {}

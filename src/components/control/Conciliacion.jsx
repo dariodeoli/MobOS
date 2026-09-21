@@ -8,6 +8,7 @@ import { construirDemoConciliacion, conciliarDemoLote } from '@/lib/demoConcilia
 import { gs } from '@/utils/calculos'
 import { formatMoney } from '@/utils/moneda'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
+import { fechaCorta } from '@/utils/fecha'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango } from '@/components/shared/RangoFechas'
 import { Aviso, Badge, Button, Card, EmptyState, Input, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
 import PagosPedido from '@/components/ventas/PagosPedido'
@@ -32,12 +33,6 @@ const fecha = (valor) => {
   const date = new Date(valor)
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' })
 }
-const fechaHora = (valor) => {
-  if (!valor) return '—'
-  const date = new Date(valor)
-  return Number.isNaN(date.getTime()) ? '—' : `${date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' })} · ${date.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })}`
-}
-
 const rangoPorDefecto = () => ({ ...PRESETS.find((preset) => preset.id === '30d').calc(), preset: '30d' })
 
 const GRID_GRUPOS = 'grid min-w-[46rem] grid-cols-[minmax(0,1.5fr)_5rem_6.5rem_6.5rem_7rem_minmax(0,1fr)] items-center gap-x-2'
@@ -384,7 +379,7 @@ export default function Conciliacion() {
               return (
                 <div key={item.id} data-testid="conciliacion-fila" className={cn(GRID_ITEMS, 'rounded-xl border px-3.5 py-2', marcado ? 'border-fono/50 bg-fono/10' : 'border-ink-600 bg-ink-800/40')}>
                   <input type="checkbox" className="h-4 w-4 accent-fono" checked={marcado} disabled={!seleccionable} aria-label={`Conciliar pago ${item.orderNumber || item.id}`} onChange={() => alternar(item.id)} />
-                  <span className="truncate text-xs text-mute" title={fechaHora(item.fecha)}>{fecha(item.fecha)}</span>
+                  <span className="truncate text-xs text-mute" title={fechaCorta(item.fecha)}>{fecha(item.fecha)}</span>
                   <span className="min-w-0">
                     <b className="block truncate text-[13px]">{item.orderNumber || 'Cobro directo'}</b>
                     <span className="mt-0.5 block truncate text-[11px] text-mute">{[item.cliente, item.vendedor].filter(Boolean).join(' · ') || '—'}</span>
@@ -425,7 +420,7 @@ export default function Conciliacion() {
                 {lote.procesadora && <span className="text-[11px] text-mute">{lote.procesadora}</span>}
                 <Badge color={lote.estado === 'REJECTED' ? 'red' : lote.estado === 'DIFFERENCE' ? 'orange' : 'green'}>{lote.estado === 'REJECTED' ? 'Rechazado' : lote.estado === 'DIFFERENCE' ? 'Con diferencia' : 'Conciliado'}</Badge>
               </div>
-              <p className="mt-0.5 text-[11px] text-mute">{fechaHora(lote.createdAt)} · {lote.pagos} pago(s) · {lote.creadoPor ? `por ${lote.creadoPor}` : ''}{lote.note ? ` · ${lote.note}` : ''}</p>
+              <p className="mt-0.5 text-[11px] text-mute">{fechaCorta(lote.createdAt)} · {lote.pagos} pago(s) · {lote.creadoPor ? `por ${lote.creadoPor}` : ''}{lote.note ? ` · ${lote.note}` : ''}</p>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-right text-xs tabular-nums">
               <span className="text-mute">Esperado <b className="block text-fore">{gs(lote.expectedPyg)}</b></span>

@@ -9,6 +9,7 @@ import Icon from '@/components/shared/Icon'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import SerialField from '@/components/shared/SerialField'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
+import { fechaHora } from '@/utils/fecha'
 import { ticketRecepcionServicio } from '@/lib/printing/tickets'
 import { imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { useSesion } from '@/lib/sesion'
@@ -583,7 +584,7 @@ export default function ServicioTecnico() {
               <div><Label htmlFor="tipo-de-dispositivo">Tipo de dispositivo</Label><Select id="tipo-de-dispositivo" aria-label="Tipo de dispositivo" value={form.deviceType} onChange={event => setForm(current => ({ ...current, deviceType: event.target.value, serviceName: '' }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select></div>
               <div><Label htmlFor="imei-serial">IMEI / serial</Label><SerialField id="imei-serial" aria-label="IMEI o serial" value={form.serial} onChange={value => setForm(current => ({ ...current, serial: value }))} placeholder="Opcional" /></div>
               <div><Label htmlFor="tecnico">Técnico</Label><Input id="tecnico" aria-label="Técnico" value={form.technicianName} onChange={set('technicianName')} placeholder="Responsable del trabajo" autoCapitalize="words" /></div>
-              {editing?.receivedAt && <div><Label>Recibido</Label><p className="mt-2 text-sm text-mute">{new Date(editing.receivedAt).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false })}</p></div>}
+              {editing?.receivedAt && <div><Label>Recibido</Label><p className="mt-2 text-sm text-mute">{fechaHora(editing.receivedAt)}</p></div>}
             </div>
 
             <div className="rounded-xl border border-ink-600 bg-ink-800/30 p-3">

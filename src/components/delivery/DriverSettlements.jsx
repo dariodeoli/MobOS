@@ -3,6 +3,7 @@ import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { Aviso, Badge, Button, Modal, Money, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { fechaHoraCorta } from '@/utils/fecha'
 import { codigoPedido } from '@/utils/pedido'
 import { useSellerData, SellerFeedback } from '@/components/ventas/SellerData'
 import { deliveryFields, settlementFields, MEDIO_LABELS, RENDICION_LABELS, SIN_DATOS } from './datos'
@@ -13,7 +14,7 @@ function ResumenRendicion({ fila }) {
   return (
     <article data-testid="rendicion" className="rounded-2xl border border-fore/10 bg-ink-800/40 p-4">
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-semibold">{new Date(fila.fecha).toLocaleString('es-PY', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+        <span className="text-sm font-semibold">{fechaHoraCorta(fila.fecha)}</span>
         <Badge color={TONO(fila.estado)}>{RENDICION_LABELS[fila.estado] || fila.estado}</Badge>
       </header>
       <div className="mt-3 space-y-1">

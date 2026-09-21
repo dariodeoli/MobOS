@@ -15,6 +15,7 @@ import { coincideCliente } from '@/utils/cliente'
 import { capitalizarPrimera } from '@/utils/texto'
 import { parseDelimited } from '@/utils/csv'
 import { descargarCsv } from '@/utils/descargarCsv'
+import { fechaHora } from '@/utils/fecha'
 import { cn } from '@/lib/utils'
 import RucField from '@/components/shared/RucField'
 import { extraerRuc } from '@/utils/ruc'
@@ -284,7 +285,7 @@ export default function SellerCustomers() {
           <article key={seguimiento.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 p-2.5">
             <div className="min-w-0">
               <b className="text-sm">{seguimiento.customer?.name || 'Cliente'}</b>
-              <p className="mt-0.5 text-xs text-mute">{seguimiento.kind === 'CALL' ? 'Llamada' : seguimiento.kind === 'WHATSAPP' ? 'WhatsApp' : seguimiento.kind === 'VISIT' ? 'Visita' : 'Otro'} · {seguimiento.dueAt ? new Date(seguimiento.dueAt).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : 'Sin fecha'} · {seguimiento.note}</p>
+              <p className="mt-0.5 text-xs text-mute">{seguimiento.kind === 'CALL' ? 'Llamada' : seguimiento.kind === 'WHATSAPP' ? 'WhatsApp' : seguimiento.kind === 'VISIT' ? 'Visita' : 'Otro'} · {seguimiento.dueAt ? fechaHora(seguimiento.dueAt) : 'Sin fecha'} · {seguimiento.note}</p>
             </div>
             {seguimiento.customer?.phone && <a className="grid h-7 w-7 place-items-center rounded-lg border border-ok/30 text-ok transition hover:bg-ok/10 active:scale-95" title={`Abrir WhatsApp con ${seguimiento.customer.name}`} aria-label={`Abrir WhatsApp con ${seguimiento.customer.name}`} href={whatsappUrl(seguimiento.customer.phone, `Hola ${seguimiento.customer.name}, te escribimos de MobOS.`, seguimiento.customer.countryCode)} target="_blank" rel="noopener noreferrer"><Icon name="send" className="h-4 w-4" /></a>}
           </article>

@@ -4,6 +4,7 @@ import { listVentas, ventaDesdeApi } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { agruparCuotas, diasDeAtraso, resumenCuotas } from '@/lib/cobranzas'
 import { telefonoVisible } from '@/utils/telefono'
+import { fechaDia as fecha } from '@/utils/fecha'
 import { Aviso, Badge, Button, Card, EmptyState, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import PagosPedido from '@/components/ventas/PagosPedido'
@@ -14,10 +15,6 @@ import { ROTULO_SECCION } from '@/components/shared/tabla'
 // mora y el recargo configurado. El aviso por WhatsApp respeta la plantilla de
 // cobranzas, se marca una sola vez por cuota (el servidor lo audita) y deja el
 // enlace wa.me listo para enviar.
-const fecha = (value) => {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('es-PY')
-}
 
 export default function Cobranzas() {
   const toast = useToast()
