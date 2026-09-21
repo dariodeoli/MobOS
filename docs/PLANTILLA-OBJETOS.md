@@ -240,6 +240,36 @@ patrón de uso de cada familia y un ejemplo corto.
   pantalla. Solo selecciones, nunca acciones destructivas ni permisos.
 - Montos, fechas y códigos: `nowrap` + `tabular-nums`.
 
+### Último usado como predeterminado (#209)
+
+Donde algo se elige todo el tiempo, el valor que se recuerda **arranca
+seleccionado** en la próxima vez. Es una comodidad, nunca una decisión tomada
+por el sistema.
+
+- **Solo selecciones frecuentes**: formato/nivel de comprobante, cuenta o medio
+  de cobro, tipo de entrega, impresora destino, plantilla de WhatsApp por
+  contexto, motivo de baja/ajuste, sucursal activa, visibilidad de listas.
+- **Nunca** en configuraciones destructivas, permisos, seguridad, importes ni
+  nada que cambie el significado de una acción sin que la persona lo vea.
+- **Siempre cambiable y visible**: el control muestra el valor recordado en su
+  lugar habitual y se puede cambiar en el mismo gesto que se usa siempre; el
+  cambio explícito gana al instante y se vuelve a recordar.
+- **Default sensato por pantalla** cuando no hay nada guardado (nunca un vacío
+  evitable) y **validación al leer**: si la opción guardada ya no existe o no
+  está disponible en ese contexto, se cae al default sensato (el formato
+  térmico configurado manda sobre el formato preferido, etc.).
+- **Almacenamiento**: claves con namespace `mobos:<área>:<dato>`, lectura y
+  escritura protegidas con `try/catch` (sin almacenamiento no rompe), por
+  equipo/navegador, nunca datos sensibles ni sincronización con el servidor.
+- **Un solo helper cuando aterrice #209** (PLT, frontend):
+  `useUltimoUsado(clave, inicial)` + `recordarUltimo(clave, valor)`. Hasta
+  entonces no se duplica: se reutiliza el patrón base real
+  (`nivelPreferido`/`formatoPreferido`/`recordarPreferencia` en
+  `OrderReceipt.jsx`, y `ULTIMO_VENDEDOR` en `FormularioVenta.jsx`). Al
+  aterrizar el helper, esta sección pasa a documentarlo como API única, migran
+  los helpers locales y se normaliza el namespace viejo (`fono:` →
+  `mobos:`).
+
 > Referencia MobOS: `src/lib/api/client.js`, `src/lib/roles.js`,
 > `src/lib/utils.js`, `src/lib/urls.js`, `src/lib/constants.js`,
 > `src/lib/ultimoUsado.js`.
