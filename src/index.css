@@ -184,7 +184,15 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
   [class*="mobos-carga"], [class*="mobos-respira"] { animation: none !important; }
 }
 
-/* PIN: se escribe con teclado numerico pero se muestra enmascarado (asteriscos). */
+/* PIN: el input no dibuja los dígitos (texto transparente) y PinInput pinta un
+   punto por dígito. No depende de -webkit-text-security (cuyo valor inválido
+   dejaba el PIN a la vista, #124) ni de glifos de la fuente; el cursor queda
+   visible y la selección no revela el valor. */
 .pin-oculto {
-  -webkit-text-security: asterisk;
+  color: transparent;
+  caret-color: rgb(var(--c-fore));
+}
+.pin-oculto::selection {
+  background: rgb(var(--c-fono) / 0.25);
+  color: transparent;
 }
