@@ -1,6 +1,7 @@
 // Verificación en producción del diálogo del comprobante (#207 80 mm, #208
 // iconos + último usado, #209 último usado de cuenta/entrega en el POS).
 // Uso: QA_BASE_URL=https://app.moboss.online QA_OUT=docs/qa/208 node scripts/qa-208-comprobante.mjs
+/* global document */
 import { createRequire } from 'node:module'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
