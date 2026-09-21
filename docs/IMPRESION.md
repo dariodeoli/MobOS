@@ -161,8 +161,10 @@ La prueba de corte por hardware todavía no está cerrada. Para hacerla:
 
 - **Multi-puente por sucursal (#95)**: hoy el puente es por empresa; falta
   asignarlo por sucursal para que varias cajas impriman en paralelo.
-- **USB físico directo (#96)**: la implementación real del USB (sin depender de
-  una cola CUPS) sigue pendiente.
+- **USB físico directo (#96)**: la implementación y el empaquetado están
+  (node-usb viaja en el tarball del agente; ver `print-agent/USB-DIRECTO.md`);
+  solo falta la **prueba física con la ZKP8008** en la Mac (conectar por USB,
+  encender `"usb": true` y verificar el ticket y `/health.usb`).
 
 ## 5. Errores frecuentes y qué hacer
 

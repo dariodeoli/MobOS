@@ -107,6 +107,8 @@ if [[ "$CALCULADO" != "$SHA256" ]]; then
 fi
 
 # 5. Allow-list de entradas: nada de rutas absolutas, `..` ni archivos ajenos.
+# Además de los .mjs del agente viajan los módulos vendorizados del USB directo
+# (#96) como node_modules/usb/** y node_modules/node-gyp-build/**.
 PREFIJO="mobos-print-agent-$VERSION/"
 while IFS= read -r entrada; do
   [[ -z "$entrada" ]] && continue
@@ -119,7 +121,8 @@ while IFS= read -r entrada; do
     exit 1
   fi
   resto="${entrada#"$PREFIJO"}"
-  if [[ ! "$resto" =~ ^(server|transportes|cola|config|remoto|usb|pair)\.mjs$ && "$resto" != "package.json" ]]; then
+  if [[ ! "$resto" =~ ^(server|transportes|cola|config|remoto|usb|pair)\.mjs$ && "$resto" != "package.json" \
+        && ! "$resto" =~ ^node_modules/(usb|node-gyp-build)/[A-Za-z0-9._@+/-]+$ ]]; then
     echo "El paquete contiene un archivo no permitido: $entrada" >&2
     exit 1
   fi

@@ -6,7 +6,7 @@
 import { createHash } from 'node:crypto'
 import { gzipSync, gunzipSync } from 'node:zlib'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -26,6 +26,34 @@ export const ARCHIVOS_AGENTE = [
   'pair.mjs',
   'package.json',
 ]
+
+// Módulos vendorizados (print-agent/vendor/LEEME.md) que viajan DENTRO del
+// tarball como node_modules/**: el USB directo (#96) resuelve `import('usb')`
+// en la Mac sin npm ni compilación. Solo estos paquetes entran.
+export const VENDOR = ['usb', 'node-gyp-build']
+
+// Entradas del tarball: los archivos del agente arriba, los módulos
+// vendorizados como node_modules/<paquete>/**. Orden estable para que el
+// tarball sea reproducible en cualquier máquina (gate anti-drift).
+export function entradasAgente() {
+  const entradas = ARCHIVOS_AGENTE.map((nombre) => ({ nombre, contenido: readFileSync(join(AGENTE, nombre)) }))
+  for (const paquete of VENDOR) {
+    const raiz = join(AGENTE, 'vendor', 'node_modules', paquete)
+    if (!existsSync(raiz)) continue
+    for (const archivo of listarArchivos(raiz)) {
+      const relativo = archivo.slice(raiz.length + 1).split(sep).join('/')
+      entradas.push({ nombre: `node_modules/${paquete}/${relativo}`, contenido: readFileSync(archivo) })
+    }
+  }
+  return entradas.sort((a, b) => (a.nombre < b.nombre ? -1 : a.nombre > b.nombre ? 1 : 0))
+}
+
+function listarArchivos(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((item) => {
+    const camino = join(dir, item.name)
+    return item.isDirectory() ? listarArchivos(camino) : item.isFile() ? [camino] : []
+  })
+}
 
 const sha256 = (datos) => createHash('sha256').update(datos).digest('hex')
 
@@ -92,7 +120,7 @@ export function leerVersion() {
 export function construir() {
   const { version, archivo } = leerVersion()
   if (!existsSync(RUTA_INSTALADOR)) throw new Error('Falta print-agent/install.sh.')
-  const fuentes = ARCHIVOS_AGENTE.map((nombre) => ({ nombre, contenido: readFileSync(join(AGENTE, nombre)) }))
+  const fuentes = entradasAgente()
   const tarball = crearTarGz(fuentes, { prefijo: `mobos-print-agent-${version}/` })
   return {
     version,

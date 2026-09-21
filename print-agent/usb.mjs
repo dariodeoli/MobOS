@@ -1,13 +1,15 @@
 // Camino USB directo (#96): detección por VID/PID y escritura de bytes
 // ESC/POS crudos al endpoint de salida de la impresora.
 //
-// La dependencia nativa `node-usb` es OPCIONAL: se importa dinámicamente solo
-// cuando la bandera usb está encendida. Si no está instalada, el agente arranca
-// igual y /diagnostico lo explica; el trabajo sigue por CUPS/LAN.
+// La dependencia nativa `node-usb` VIAJA EN EL TARBALL del agente
+// (print-agent/vendor/ + pack-agent.mjs → node_modules/usb): en la Mac
+// instalada con install.sh no hay que instalar nada. Se importa dinámicamente
+// solo cuando la bandera usb está encendida; si faltara, el agente arranca
+// igual, /diagnostico lo explica y el trabajo sigue por CUPS/LAN.
 //
-// Instalación opcional (en la carpeta del agente):
-//   npm install usb
-// y en ~/.mobos-print/config.json: { "usb": true, "usbVid": "0x0483", "usbPid": "0x5743" }
+// Desarrollo en el repo (sin tarball): `npm install usb` dentro de la carpeta
+// y `usb.mjs` lo resuelve igual; la config se enciende con
+// ~/.mobos-print/config.json: { "usb": true, "usbVid": "0x0483", "usbPid": "0x5743" }
 
 let modulo = null
 let errorCarga = ''
