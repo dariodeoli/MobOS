@@ -15,6 +15,17 @@ test.describe('owner panel', () => {
     await expect(page.getByText('Ventas', { exact: true })).toBeVisible()
   })
 
+  // #171 (fase 2 de #145): la portada ejecutiva muestra los indicadores
+  // unificados del backend de métricas (top productos/ABC, stock valorizado,
+  // cobros por procesadora y conciliación).
+  test('resumen: indicadores unificados de la portada ejecutiva', async ({ page }) => {
+    await page.goto('/resumen')
+    await expect(page.getByRole('heading', { name: 'Top productos' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Stock valorizado' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Cobros por procesadora' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Conciliación' })).toBeVisible()
+  })
+
   // Fixed in the Phase-3 merge (src/lib/api/index.js now imports the client):
   // the inventory units load from the API. The seeded serialized product
   // (iPhone 15 E2E Serial) owns one InventoryUnit, listed with its IMEI.

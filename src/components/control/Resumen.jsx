@@ -6,6 +6,7 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { listVentas, getVendedores, productosById, getProductos, listGastos } from '@/lib/storage'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
+import { metricasEjecutivas } from '@/lib/metricas'
 import { num, gs, variacion } from '@/utils/calculos'
 import { armarResumenDia } from '@/utils/reporteResumen'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
@@ -210,8 +211,146 @@ function Metrica({ label, valor, delta, sub, tono = 'blue' }) {
   )
 }
 
+const TONO_ABC = { A: 'green', B: 'orange', C: 'slate' }
+
+// Top productos con la curva ABC que manda el servidor (#171): la portada y
+// el Análisis comparten la misma clasificación.
+function CardTopProductos({ top, curva }) {
+  const total = curva.A.monto + curva.B.monto + curva.C.monto
+  const concentracionA = total > 0 ? Math.round((curva.A.monto / total) * 100) : 0
+  return (
+    <Card className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-medium">Top productos</h2>
+        <span className="text-xs text-mute">Curva ABC por venta</span>
+      </div>
+      {top.length === 0 ? (
+        <EmptyState compact icon="box" title="Sin ventas en este período" />
+      ) : (
+        <>
+          <div className="space-y-1.5">
+            {top.slice(0, 6).map((producto, indice) => (
+              <div key={producto.id} className="flex items-center gap-2.5">
+                <span className="w-4 text-right text-xs text-mute">{indice + 1}</span>
+                <Badge color={TONO_ABC[producto.clase]} className="w-fit shrink-0 px-1.5 py-0 text-[10px]">{producto.clase}</Badge>
+                <span className="min-w-0 flex-1 truncate text-sm">{producto.nombre}</span>
+                <span className="w-12 shrink-0 text-right text-xs text-mute">{producto.cantidad} u.</span>
+                <span className="w-24 shrink-0 text-right text-sm font-semibold tabular-nums sm:w-28">{gs(producto.monto)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-ink-600 pt-2 text-[11px] text-mute">
+            {['A', 'B', 'C'].map((clase) => (
+              <span key={clase} className="inline-flex items-center gap-1.5">
+                <Badge color={TONO_ABC[clase]} className="px-1.5 py-0 text-[10px]">{clase}</Badge>
+                {curva[clase].productos} prod. · {gs(curva[clase].monto)}
+              </span>
+            ))}
+            <span className="text-mute">A concentra {concentracionA}% de la venta</span>
+          </div>
+        </>
+      )}
+    </Card>
+  )
+}
+
+// Stock valorizado y rotación del servidor (#171): valor a costo (sin inventar
+// costos ausentes), días de stock según la venta diaria del período y faltantes.
+function CardStock({ inventario }) {
+  const celdas = [
+    ['Valor a costo', gs(inventario.valorPyg)],
+    ['Unidades', `${inventario.unidades} u.`],
+    ['Días de stock', inventario.diasDeStock === null ? '—' : `${inventario.diasDeStock} días`],
+    ['Rotación', inventario.rotacionPct === null ? '—' : `${inventario.rotacionPct}%`],
+    ['Faltantes', `${inventario.faltantes.length}`],
+    ['Sin costo', `${inventario.sinCosto}`],
+  ]
+  return (
+    <Card className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-medium">Stock valorizado</h2>
+        <span className="text-xs text-mute">Valor a costo · rotación del período</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {celdas.map(([label, valor]) => (
+          <div key={label} className="rounded-lg border border-ink-600 bg-ink-800/40 px-3 py-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-mute">{label}</div>
+            <div className="mt-0.5 truncate text-sm font-semibold tabular-nums">{valor}</div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-mute">
+        Días de stock = unidades disponibles ÷ venta diaria del período. Los productos sin costo cargado no suman al valor.
+      </p>
+    </Card>
+  )
+}
+
+// Cobros por procesadora o por cuenta: pagos cobrados en el período, no ventas.
+function CardPagos({ titulo, detalle, filas, vacio }) {
+  return (
+    <Card className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-medium">{titulo}</h2>
+        <span className="text-xs text-mute">{detalle}</span>
+      </div>
+      {filas.length === 0 ? (
+        <EmptyState compact icon="wallet" title={vacio} />
+      ) : (
+        <div className="space-y-1.5">
+          {filas.slice(0, 5).map((fila) => (
+            <div key={fila.key} className="flex items-center gap-2.5">
+              <span className="min-w-0 flex-1 truncate text-sm">{fila.label}</span>
+              <span className="shrink-0 text-xs text-mute">{fila.operaciones} pago(s)</span>
+              <span className="w-24 shrink-0 text-right text-sm font-semibold tabular-nums sm:w-28">{gs(fila.monto)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// Conciliación del período en la portada: lo conciliado, lo que falta y las
+// diferencias de los lotes, con acceso al detalle en Finanzas (#144/#171).
+function CardConciliacion({ conciliacion, onIr }) {
+  const conAlerta = conciliacion.diferenciaPyg !== 0 || conciliacion.porConciliarPyg > 0
+  return (
+    <Card className={cn('space-y-3', conAlerta && 'border-warn/30')}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-medium">Conciliación</h2>
+        <button
+          type="button"
+          onClick={() => onIr('/finanzas/conciliacion')}
+          className="flex items-center gap-1 text-xs font-medium text-fono-light transition hover:text-white"
+        >
+          Ver detalle
+          <Icon name="chevron" className="h-3 w-3 rotate-180" />
+        </button>
+      </div>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-mute">Conciliado</span>
+          <span className="font-semibold tabular-nums text-ok">{gs(conciliacion.conciliadoPyg)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-mute">Por conciliar</span>
+          <span className={cn('font-semibold tabular-nums', conciliacion.porConciliarPyg > 0 ? 'text-warn' : 'text-mute')}>{gs(conciliacion.porConciliarPyg)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-ink-600 pt-1.5">
+          <span className="text-mute">Diferencia de lotes</span>
+          <span className={cn('font-semibold tabular-nums', conciliacion.diferenciaPyg !== 0 ? 'text-bad' : 'text-mute')}>{conciliacion.diferenciaPyg ? gs(conciliacion.diferenciaPyg) : '—'}</span>
+        </div>
+      </div>
+      <p className="text-[11px] text-mute">
+        {conciliacion.lotes} lote(s) · {conciliacion.operaciones} operación(es) del período.
+      </p>
+    </Card>
+  )
+}
+
 export default function Resumen() {
-  const { empresa } = useSesion()
+  const { empresa, sucursal } = useSesion()
   const [resumenOpen, setResumenOpen] = useState(false)
   const [pendientesHoy, setPendientesHoy] = useState(null)
   useEffect(() => {
@@ -243,6 +382,7 @@ export default function Resumen() {
   )
   const [filtroLista, setFiltroLista] = useUrlState('filtro', 'todas')
   const [creditos, setCreditos] = useState(null)
+  const [metricas, setMetricas] = useState(null)
   const listaRef = useRef(null)
 
   // Aviso de cobranzas del inicio: vencido y por vencer en los próximos 7 días.
@@ -252,16 +392,46 @@ export default function Resumen() {
     return () => { vigente = false }
   }, [])
 
+  // Métricas unificadas (#171, fase 2 de #145): la portada ejecutiva lee el
+  // mismo backend que Análisis cuando hay sesión real. Si falla (demo, red o
+  // permisos), la pantalla sigue con la caché local sin romperse.
+  useEffect(() => {
+    if (isDemoRuntime) { setMetricas(null); return }
+    let vigente = true
+    metricasEjecutivas({ rango, branchId: sucursal?.id })
+      .then((datos) => { if (vigente) setMetricas(datos) })
+      .catch(() => { if (vigente) setMetricas(null) })
+    return () => { vigente = false }
+  }, [rango, sucursal?.id])
+
   const vendedoresById = useMemo(
     () => Object.fromEntries(vendedores.map(v => [v.id, v.nombre])),
     [vendedores],
   )
 
-  // Mismos números en pantalla y en el papel: el cálculo vive en
-  // `armarResumenDia` y el cierre imprimible lo reusa tal cual.
-  const d = useMemo(
+  // Base local: el cálculo de siempre, que además alimenta la lista de ventas
+  // y el papel. Encima se superponen los importes del backend unificado cuando
+  // están disponibles (sin tope de caché y con la comparación del servidor).
+  const base = useMemo(
     () => armarResumenDia({ ventas, gastos, prods, vendedoresById, rango, prev: rangoAnterior(rango) }),
     [ventas, gastos, prods, rango, vendedoresById],
+  )
+  const d = useMemo(
+    () => (metricas ? {
+      ...base,
+      total: metricas.total,
+      totalAnt: metricas.totalAnterior,
+      cobrado: metricas.cobrado,
+      pendiente: metricas.pendiente,
+      ticket: metricas.ticket,
+      ticketAnt: metricas.ticketAnterior,
+      serie: metricas.serie.length ? metricas.serie : base.serie,
+      ventas: metricas.pedidos,
+      pagadas: metricas.pedidosPagados,
+      sinPagar: metricas.pedidosPendientes,
+      sinCosto: metricas.sinCosto,
+    } : base),
+    [base, metricas],
   )
 
   const maxSerie = Math.max(...d.serie.map(([, v]) => v), 1)
@@ -314,7 +484,7 @@ export default function Resumen() {
       <div className="grid gap-4 sm:grid-cols-3">
         <Metrica
           label="Ventas"
-          valor={d.act.length}
+          valor={d.ventas}
           tono="blue"
           sub={`${d.pagadas} pagadas · ${d.sinPagar} pendientes`}
         />
@@ -425,7 +595,7 @@ export default function Resumen() {
                   <div className="h-1.5 overflow-hidden rounded-full bg-ink-600">
                     <div
                       className="h-full rounded-full bg-blue-line"
-                      style={{ width: `${m.pct}%` }}
+                      style={{ width: `${base.total > 0 ? Math.min(100, (m.monto / base.total) * 100) : 0}%` }}
                     />
                   </div>
                 </div>
@@ -434,6 +604,21 @@ export default function Resumen() {
           )}
         </Card>
       </div>
+
+      {/* ── Indicadores unificados del servidor (#171, fase 2 de #145) ── */}
+      {metricas && (
+        <div className="grid grid-cols-1 gap-4 min-[1200px]:grid-cols-2">
+          <CardTopProductos top={metricas.topProductos} curva={metricas.curva} />
+          <CardStock inventario={metricas.inventario} />
+        </div>
+      )}
+      {metricas && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <CardPagos titulo="Cobros por procesadora" detalle="Pagos del período" filas={metricas.procesadoras} vacio="Sin cobros por procesadora" />
+          <CardPagos titulo="Cuentas con mayor ingreso" detalle="Pagos del período" filas={metricas.cuentas} vacio="Sin cobros por cuenta" />
+          <CardConciliacion conciliacion={metricas.conciliacion} onIr={navigate} />
+        </div>
+      )}
 
       {/* ── Stock bajo ───────────────────────────────────────────── */}
       <Card>
@@ -521,9 +706,9 @@ export default function Resumen() {
               <span className="w-2" />
               <span className="min-w-0 flex-1 truncate sm:w-32 sm:flex-none">Total</span>
               <span className="flex-1" />
-              <span className="w-10 text-right">{d.act.length}</span>
-              <span className="w-24 text-right font-semibold text-fore sm:w-28">{gs(d.total)}</span>
-              <span className="hidden w-28 text-right text-ok sm:block">{gs(d.comision)}</span>
+              <span className="w-10 text-right">{base.act.length}</span>
+              <span className="w-24 text-right font-semibold text-fore sm:w-28">{gs(base.total)}</span>
+              <span className="hidden w-28 text-right text-ok sm:block">{gs(base.comision)}</span>
             </div>
           </div>
         )}

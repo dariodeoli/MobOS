@@ -68,9 +68,9 @@ Semánticas que no hay que mezclar (documentadas para no repetir el error):
 
 | Fase | Alcance | Criterio de cierre |
 | --- | --- | --- |
-| **F1 (esta entrega)** | Plan + helpers `variacion`/`ticketPromedio` + tests de red (`calculos.test.js`, `reconciliation.test.ts`) + metadatos de `/finanzas/cuotas` y `/finanzas/comisiones` + e2e de Análisis | Checks verdes; números locales sin cambios |
-| F2 | Resumen en modo API contra `/api/reports` (ejecutivo); comparación en paralelo antes de retirar la caché del modo API | Diferencias 0 en QA con datos reales; demo/offline intactos |
-| F3 | Ganancias, Ganadores y Asistente contra `/api/reports` (+ agregado de gastos/ads con filtro de fecha) | Un solo backend; `productosGanadores` deja de contar 1 por venta |
+| **F1 (entregada, #145)** | Plan + helpers `variacion`/`ticketPromedio` + tests de red + metadatos + e2e de Análisis | Checks verdes; números locales sin cambios |
+| **F2 (en curso, #171)** | Backend único ampliado (`paymentsBy`, curva ABC, stock valorizado/rotación, pedidos pagados/pendientes) + adaptador `src/lib/metricas.js` + portada ejecutiva con indicadores unificados + resumen liviano de conciliación | Checks + smoke verdes; demo/offline intactos; indicadores visibles en Resumen |
+| F3 | Ganancias, Ganadores y Asistente contra el adaptador (+ agregado de gastos/ads con filtro de fecha) | Un solo backend; `productosGanadores` deja de contar 1 por venta |
 | F4 | Retirar cálculos duplicados y unificar `/api/finance.margin` (hoy lifetime) con reports | Sin consultas duplicadas; tests de equivalencia |
 | F5 (opcional) | Un componente de vista con modo ejecutivo/extendido | Misma UX, un solo árbol de componentes |
 
@@ -97,3 +97,45 @@ permisos ni de URLs.
   modifica.
 - No se unifican `reporteCaja` ni la auditoría de caja: tienen otra semántica
   (sesión de caja, no período comercial).
+
+## 7. Avance de implementación (#171, fase 2)
+
+**Paso 1 — backend único y adaptador.**
+- `/api/reports` amplía su contrato: `groupBy=payments&paymentsBy=account|processor|method`
+  (corte de pagos por cuenta, procesadora o medio), curva ABC calculada en el
+  servidor (`abcClass` y `accumulatedPct` por producto) y bloques de inventario
+  con `stockValuePyg` (stock a costo, sin inventar costos ausentes),
+  `daysOfStock` y `sellThroughPct`. Los totales suman `paidOrders` y
+  `pendingOrders` para la portada ejecutiva.
+- `/api/finance/reconciliation?soloResumen=1` devuelve el resumen de
+  conciliación sin el detalle pago por pago (portada liviana).
+- `src/lib/metricas.js` es el adaptador único: `metricasEjecutivas()`
+  compone día + productos + procesadoras + cuentas + conciliación y
+  `src/lib/metricasNucleo.js` normaliza el contrato (probado aislado).
+- `PeriodoTabs` pasa a `components/shared` (un solo objeto para
+  Ganancias/Ganadores).
+
+**Paso 2 — portada ejecutiva.**
+- `Resumen` lee el adaptador cuando hay sesión real: facturado, cobrado,
+  pendiente, ticket, serie, pedidos y costo pendiente salen del servidor (sin
+  el tope de la caché local); la demo/offline sigue con `armarResumenDia`.
+- Nuevas tarjetas ejecutivas: Top productos con curva ABC, Stock valorizado
+  (valor a costo, días de stock, rotación, faltantes), Cobros por procesadora,
+  Cuentas con mayor ingreso y Conciliación (conciliado, por conciliar y
+  diferencias de lotes con acceso a Finanzas).
+- `Reportes` usa la clase ABC y el stock valorizado del servidor en lugar de
+  recalcularlos.
+
+**Paso 3 — Análisis contra el adaptador.**
+- `Ganadores` deja de contar 1 por venta: pide el top real por línea
+  (`groupBy=product`) con cantidades y montos del servidor, con respaldo local
+  para demo/offline.
+- `Ganancias` calcula ingresos y costo de mercadería con `/api/reports`
+  (`groupBy=day` para el período y el calendario), manteniendo gastos y
+  publicidad de Finanzas; los meses fuera del rango consultado siguen con el
+  cálculo local.
+- `Asistente` queda para F4: es una capa conversacional síncrona y su
+  migración merece su propia unidad.
+
+**Pendiente.** F4 (retiro de cálculos duplicados y unificación de
+`/api/finance.margin`) y el Asistente.
