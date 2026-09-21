@@ -48,6 +48,19 @@ test('desglosa top productos, vendedores, sucursales y medios de pago', () => {
   assert.equal(t.pagos[0].monto, 110000)
 })
 
+test('el período agrupa los desgloses y suma los cobros por cuenta', () => {
+  const ordenes = [
+    orden('2026-09-20', 100000, [{ status: 'CONFIRMED', amountPyg: 100000, method: 'CASH', accountSnapshot: { id: 'a1', name: 'Caja Central' } }], [{ productId: 'p1', description: 'iPhone', quantity: 1, unitPricePyg: 100000, totalPyg: 100000 }]),
+    orden('2026-09-18', 50000, [{ status: 'CONFIRMED', amountPyg: 50000, method: 'TRANSFER', accountSnapshot: { id: 'a2', name: 'Ueno' } }], [{ productId: 'p2', description: 'Funda', quantity: 1, unitPricePyg: 50000, totalPyg: 50000 }]),
+    orden('2026-08-01', 90000, [{ status: 'CONFIRMED', amountPyg: 90000, method: 'CASH' }], []),
+  ]
+  const t = tableroPos(ordenes, { hoy: '2026-09-20', ayer: '2026-09-19', desde: '2026-09-14' })
+  assert.equal(t.hoy.ventas, 100000, 'el encabezado sigue siendo de hoy')
+  assert.equal(t.periodo.pedidos, 2, 'el período suma los últimos 7 días')
+  assert.equal(t.topProductos.length, 2)
+  assert.deepEqual(t.pagosPorCuenta.map((fila) => [fila.etiqueta, fila.monto]), [['Caja Central', 100000], ['Ueno', 50000]])
+})
+
 test('un pedido viejo no entra en el día y los pagos no confirmados no cobran', () => {
   const ordenes = [
     orden('2026-08-01', 90000, [PAGO(90000)], []),

@@ -568,6 +568,9 @@ test('POS: analytics del día y menciones en comentarios', async ({ page }) => {
   await expect(panel.getByText('Items por pedido')).toBeVisible()
   await expect(panel.getByText('Ubicación', { exact: false })).toHaveCount(0)
   await expect(panel.getByText('Top productos')).toBeVisible()
+  // Período de los desgloses y cobros por cuenta.
+  await panel.getByRole('tab', { name: '7 días' }).click()
+  await expect(panel.getByText('Cobros por cuenta')).toBeVisible()
   await panel.getByText('Cerrar', { exact: true }).click()
 
   // Comentario con mención: se elige del autocompletado y queda resaltada.

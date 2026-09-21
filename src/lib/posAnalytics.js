@@ -73,13 +73,14 @@ function topProductos(ordenes, limite = 8) {
   return [...mapa.values()].sort((a, b) => b.ventas - a.ventas).slice(0, limite)
 }
 
-function pagosPorTipo(ordenes) {
+// Agrupa los cobros confirmados por una clave del pago (medio o cuenta).
+function pagosAgrupados(ordenes, claveDe, etiquetaDe) {
   const mapa = new Map()
   for (const orden of ordenes.filter(vivo)) {
     for (const pago of Array.isArray(orden?.payments) ? orden.payments : []) {
       if (!(pago?.status === 'CONFIRMED' || pago?.status === undefined)) continue
-      const clave = pago.method || pago.medioPago || 'Otro'
-      const actual = mapa.get(clave) || { clave, etiqueta: pago.method || pago.medioPago || 'Otro', monto: 0, pagos: 0 }
+      const clave = claveDe(pago)
+      const actual = mapa.get(clave) || { clave, etiqueta: etiquetaDe(pago, clave), monto: 0, pagos: 0 }
       actual.monto += Number(pago.amountPyg ?? pago.monto ?? 0)
       actual.pagos += 1
       mapa.set(clave, actual)
@@ -88,9 +89,28 @@ function pagosPorTipo(ordenes) {
   return [...mapa.values()].sort((a, b) => b.monto - a.monto)
 }
 
+const pagosPorTipo = (ordenes) =>
+  pagosAgrupados(ordenes, (pago) => pago.method || pago.medioPago || 'Otro', (pago) => pago.method || pago.medioPago || 'Otro')
+
+// Cobros por cuenta de cobro (con la cuenta congelada en el pago cuando existe).
+const pagosPorCuenta = (ordenes) =>
+  pagosAgrupados(
+    ordenes,
+    (pago) => pago.accountId || pago.accountSnapshot?.id || pago.accountSnapshot?.name || 'sin-cuenta',
+    (pago) => pago.accountSnapshot?.name || pago.cuenta || 'Sin cuenta',
+  )
+
 // Tablero del POS: hoy vs ayer + desgloses del día de hoy.
-export function tableroPos(ordenes, { hoy = fechaClave(), ayer } = {}) {
+// `desde` acota los desgloses a un período (por defecto, solo hoy); el
+// comparativo del encabezado sigue siendo hoy contra ayer.
+export function tableroPos(ordenes, { hoy = fechaClave(), ayer, desde } = {}) {
   const delDia = (ordenes || []).filter((orden) => diaDe(orden?.createdAt || orden?.fecha || orden?.date) === hoy)
+  const delPeriodo = desde && desde !== hoy
+    ? (ordenes || []).filter((orden) => {
+        const dia = diaDe(orden?.createdAt || orden?.fecha || orden?.date)
+        return dia && dia >= desde && dia <= hoy
+      })
+    : delDia
   const diaAyer = ayer ?? (() => {
     const fecha = new Date(`${hoy}T12:00:00`)
     fecha.setDate(fecha.getDate() - 1)
@@ -100,10 +120,13 @@ export function tableroPos(ordenes, { hoy = fechaClave(), ayer } = {}) {
   return {
     hoy: resumenDelDia(delDia),
     ayer: resumenDelDia(previas),
-    topProductos: topProductos(delDia),
-    porVendedor: agrupar(delDia, (orden) => orden?.seller?.id || orden?.sellerId, (orden, clave) => orden?.seller?.name || clave),
-    porSucursal: agrupar(delDia, (orden) => orden?.branch?.id || orden?.branchId, (orden, clave) => orden?.branch?.name || clave),
-    pagos: pagosPorTipo(delDia),
+    periodo: resumenDelDia(delPeriodo),
+    desde: desde || hoy,
+    topProductos: topProductos(delPeriodo),
+    porVendedor: agrupar(delPeriodo, (orden) => orden?.seller?.id || orden?.sellerId, (orden, clave) => orden?.seller?.name || clave),
+    porSucursal: agrupar(delPeriodo, (orden) => orden?.branch?.id || orden?.branchId, (orden, clave) => orden?.branch?.name || clave),
+    pagos: pagosPorTipo(delPeriodo),
+    pagosPorCuenta: pagosPorCuenta(delPeriodo),
   }
 }
 
