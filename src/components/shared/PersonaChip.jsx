@@ -1,12 +1,13 @@
 import Avatar from '@/components/shared/Avatar'
-import { cn, primerNombre } from '@/lib/utils'
+import { identidadDeUsuario } from '@/lib/identidad'
+import { cn } from '@/lib/utils'
 
 // Identidad de una persona (#211): UN solo objeto para mostrar a alguien en
-// cualquier superficie. Envuelve al Avatar compartido —que resuelve la foto en
-// orden único: foto local por id → foto de Google (picture) → iniciales— y
-// agrega nombre (o solo el primer nombre en contextos compactos), presencia y
-// tooltip. Los call sites no vuelven a pluckear `picture` ni a dibujar la
-// persona por su cuenta.
+// cualquier superficie. Envuelve al Avatar compartido y resuelve nombre y foto
+// con el adaptador compartido `identidadDeUsuario` (#212), que aplica el orden
+// único: foto local por id → foto de Google (picture) → iniciales. Agrega
+// nombre (o solo el primer nombre en contextos compactos), presencia y tooltip:
+// los call sites no vuelven a pluckear `picture` ni a dibujar a la persona.
 
 const ESTADOS = {
   'en-linea': { etiqueta: 'En línea', punto: 'bg-ok' },
@@ -28,17 +29,18 @@ export default function PersonaChip({
   avatarClassName,
   children,
 }) {
-  const persona = typeof user === 'string' ? { name: user } : (user || {})
-  const completo = persona.name || 'Usuario'
-  const visible = nombreCorto ? primerNombre(completo) : completo
+  const fuente = typeof user === 'string' ? { name: user } : (user || {})
+  const identidad = identidadDeUsuario(fuente)
+  const visible = nombreCorto ? identidad.primerNombre : identidad.nombre
   const presencia = ESTADOS[estado] || null
-  const etiqueta = title || [completo, presencia?.etiqueta, persona.scope].filter(Boolean).join(' · ')
+  const etiqueta = title || [identidad.nombre, presencia?.etiqueta, fuente.scope].filter(Boolean).join(' · ')
   return (
     <span data-testid="persona-chip" className={cn('inline-flex min-w-0 items-center gap-2', className)} title={etiqueta}>
       <span className="relative inline-flex shrink-0">
         <Avatar
-          user={persona}
-          picture={picture ?? persona.picture}
+          user={fuente}
+          picture={picture ?? identidad.picture}
+          hasAvatar={identidad.hasAvatar}
           size={size}
           className={avatarClassName}
           title={etiqueta}

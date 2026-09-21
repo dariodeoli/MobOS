@@ -221,8 +221,10 @@ patrón de uso de cada familia y un ejemplo corto.
   y **nunca una imagen rota**: si la foto de Google falla, cae a iniciales
   (#164). Los timelines y las fichas pasan el `picture` cuando lo tienen.
 - **Identidad de persona: `shared/PersonaChip` (#211).** Es el **único objeto
-  para mostrar a alguien**: envuelve al Avatar y resuelve la foto en el orden
-  único (foto local por `id` → foto de Google `picture` → iniciales), con
+  para mostrar a alguien**: envuelve al Avatar y resuelve nombre y foto con el
+  adaptador compartido `identidadDeUsuario` (`src/lib/identidad.js`, #212), que
+  aplica el orden único (foto local por `id` → foto de Google `picture` →
+  iniciales) y normaliza los nombres de campo. Props:
   `size`, `nombreCorto` (solo el **primer nombre** en contextos compactos),
   `estado` de presencia (`en-linea` / `ausente` / `ocupado` / `offline`, punto
   sobre el avatar), `title` y texto adicional como `children` ("está viendo este

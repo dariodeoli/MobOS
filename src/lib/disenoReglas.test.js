@@ -208,8 +208,10 @@ test('la landing: identidad por tema, módulos nuevos y verificador de IMEI hone
 test('la identidad de usuario tiene un solo objeto y la biblioteca suma tres objetos nuevos (#211)', () => {
   const chip = leer('components/shared/PersonaChip.jsx')
   assert.match(chip, /from '@\/components\/shared\/Avatar'/, 'PersonaChip envuelve al Avatar compartido')
-  assert.match(chip, /picture \?\? persona\.picture/, 'la foto resuelve en orden único: local → Google → iniciales')
-  assert.match(chip, /primerNombre\(completo\)/, 'nombreCorto muestra solo el primer nombre')
+  assert.match(chip, /identidadDeUsuario/, 'la identidad sale del adaptador compartido (#212)')
+  assert.match(chip, /identidad\.picture/, 'la foto la resuelve el adaptador (local → Google → iniciales)')
+  assert.match(chip, /identidad\.primerNombre/, 'nombreCorto muestra solo el primer nombre')
+  assert.match(leer('lib/identidad.js'), /picture: primerTexto\(objeto\.picture/, 'el adaptador resuelve la foto local → Google')
   assert.match(chip, /ESTADOS = \{[\s\S]{0,120}'en-linea'/, 'acepta estado de presencia')
   const ui = leer('components/ui/index.jsx')
   for (const objeto of ['export function FilaDato', 'export function CeldaMoneda', 'export function BarraProgreso']) {
