@@ -12,7 +12,7 @@ test.describe('bloqueo de sesión', () => {
 
     await page.getByTestId('menu-acciones').click()
     const menu = page.getByTestId('menu-acciones-lista')
-    for (const item of ['Configuración', 'Staff', 'Caja', 'Analytics', 'Customers', 'Bloquear pantalla', 'Cambiar sucursal', 'Cerrar sesión', 'Eliminar cuenta']) {
+    for (const item of ['Configuración', 'Caja', 'Análisis', 'Clientes', 'Bloquear pantalla', 'Cambiar sucursal', 'Cerrar sesión', 'Eliminar cuenta']) {
       await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible()
     }
     await menu.getByRole('menuitem', { name: 'Bloquear pantalla', exact: true }).click()
