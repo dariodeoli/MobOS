@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { api } from '@/lib/api'
+import { listVentas } from '@/lib/storage'
+import { construirDemoAuditoriaMedios } from '@/lib/demoAuditoria'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { Card, Input } from '@/components/ui'
@@ -18,9 +20,10 @@ export default function AuditoriaMedios() {
   const [checked, setChecked] = useState({})
 
   async function load(next = fecha) {
-    if (esDemo) return
     setBusy(true); setError('')
     try {
+      // En la demo el control se arma con los cobros ficticios del día (#194).
+      if (esDemo) { setData(construirDemoAuditoriaMedios({ ventas: listVentas(), fecha: next })); return }
       const params = new URLSearchParams()
       if (sucursal?.id) params.set('branchId', sucursal.id)
       if (next) params.set('date', next)
@@ -29,7 +32,6 @@ export default function AuditoriaMedios() {
   }
   useEffect(() => { load(fecha) }, [esDemo, sucursal?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (esDemo) return null
   const methods = data?.methods || []
   const total = data?.totals || { amountPyg: 0, count: 0 }
   const verificados = methods.filter(row => checked[row.method]).length
@@ -39,6 +41,7 @@ export default function AuditoriaMedios() {
         <div>
           <h3 className="font-bold">Entradas por medio de pago</h3>
           <p className="mt-1 text-sm text-mute">Contá el físico de cada medio y marcá cuando coincida con el sistema. PIX incluye montos pendientes de pasar a la cuenta de la empresa.</p>
+          {esDemo && <p className="mt-1 text-xs text-fono-light">Demo: cobros ficticios del día; las marcas se guardan en este navegador.</p>}
         </div>
         <form className="flex items-end gap-2" onSubmit={event => { event.preventDefault(); load(fecha) }}>
           <label className="text-xs text-mute">Día<Input type="date" className="mt-1" value={fecha} onChange={event => setFecha(event.target.value)} /></label>

@@ -387,6 +387,7 @@ export default function Resumen() {
 
   // Aviso de cobranzas del inicio: vencido y por vencer en los próximos 7 días.
   useEffect(() => {
+    if (isDemoRuntime) { setCreditos(null); return }
     let vigente = true
     api.get('/api/credits').then(data => { if (vigente) setCreditos(data?.totals || null) }).catch(() => { if (vigente) setCreditos(null) })
     return () => { vigente = false }

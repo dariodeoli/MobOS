@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/lib/api'
+import { listVentas } from '@/lib/storage'
+import { getDemoCash } from '@/lib/demoCash'
+import { construirDemoAuditoriaEfectivo, guardarMarcaDemo, leerMarcasDemo } from '@/lib/demoAuditoria'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { cn } from '@/lib/utils'
@@ -44,9 +47,16 @@ export default function AuditoriaEfectivo() {
   const [borradores, setBorradores] = useState({})
 
   const cargar = useCallback(async () => {
-    if (esDemo) return
     setBusy(true); setError('')
     try {
+      // En la demo la auditoría se arma con los cobros ficticios del rango y la
+      // caja local (#194); las marcas quedan en este navegador.
+      if (esDemo) {
+        const respuesta = construirDemoAuditoriaEfectivo({ ventas: listVentas(), cash: getDemoCash(), desde, hasta, marcas: leerMarcasDemo() })
+        setData(respuesta)
+        setBorradores(Object.fromEntries((respuesta.operaciones || []).map((operacion) => [`${operacion.kind}:${operacion.id}`, { status: operacion.status, note: operacion.notaAuditoria }])))
+        return
+      }
       const params = new URLSearchParams({ from: desde, to: hasta })
       const branch = sucursalId || sucursal?.id
       if (branch) params.set('branchId', branch)
@@ -64,13 +74,21 @@ export default function AuditoriaEfectivo() {
     return () => { activo = false }
   }, [esDemo, sesion?.esPropietario])
 
-  if (esDemo) return null
-
   async function guardar(operacion) {
     const clave = `${operacion.kind}:${operacion.id}`
     const borrador = borradores[clave] || {}
     setBusy(true); setError('')
     try {
+      if (esDemo) {
+        const marca = guardarMarcaDemo(operacion.kind, operacion.id, { status: borrador.status, note: borrador.note || '', auditadoPor: 'Dueño demo', auditedAt: new Date().toISOString() })
+        setData(current => current ? {
+          ...current,
+          operaciones: current.operaciones.map((fila) => fila.kind === operacion.kind && fila.id === operacion.id
+            ? { ...fila, status: marca.status, notaAuditoria: marca.note || '', auditadoPor: marca.auditadoPor, auditadoAt: marca.auditedAt }
+            : fila),
+        } : current)
+        return
+      }
       const marca = await api.post('/api/cash/audit-operations', { operationKind: operacion.kind, operationId: operacion.id, status: borrador.status, note: borrador.note })
       setData(current => current ? {
         ...current,
@@ -90,6 +108,7 @@ export default function AuditoriaEfectivo() {
         <div>
           <h3 className="font-bold">Auditoría de efectivo</h3>
           <p className="mt-1 text-sm text-mute">Compará cada monto físico con su comprobante: marcá verificado, pendiente o con diferencia y dejá la observación.</p>
+          {esDemo && <p className="mt-1 text-xs text-fono-light">Demo: cobros ficticios del rango; las marcas se guardan en este navegador.</p>}
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-xs text-mute">Desde<Input type="date" className="mt-1" value={desde} onChange={(event) => setDesde(event.target.value)} /></label>

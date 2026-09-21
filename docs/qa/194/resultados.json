@@ -1,0 +1,201 @@
+{
+  "base": "http://localhost:5215",
+  "fecha": "2026-09-21T18:12:53.138Z",
+  "resultados": [
+    {
+      "paso": "entrada a la demo",
+      "estado": "ok",
+      "detalle": "demo abierta en http://localhost:5215",
+      "capturas": [
+        "01-panel-demo.jpg"
+      ],
+      "fallosRed": [
+        "401 http://localhost:3115/api/presence",
+        "401 http://localhost:3115/api/users/demo-user/avatar",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/print/printers",
+        "401 http://localhost:3115/api/presence",
+        "401 http://localhost:3115/api/print/printers"
+      ]
+    },
+    {
+      "paso": "cuentas y medios ficticios (efectivo USD, tarjeta con procesadora)",
+      "estado": "ok",
+      "detalle": "cuentas iniciales: 5 · nombre automático: \"Efectivo USD\" / \"Bancard\"",
+      "capturas": [
+        "02-cuentas-demo.jpg",
+        "03-cuenta-efectivo-usd.jpg",
+        "04-cuentas-con-medios.jpg"
+      ],
+      "fallosRed": [
+        "401 http://localhost:3115/api/presence",
+        "401 http://localhost:3115/api/users/demo-user/avatar",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/presence"
+      ]
+    },
+    {
+      "paso": "caja demo: turno, medios y auditoría de efectivo",
+      "estado": "ok",
+      "detalle": "abierta=1 · sin apertura=0 · turno=1 · filas auditoría=2",
+      "capturas": [
+        "05-caja-turno.jpg",
+        "06-caja-auditoria.jpg"
+      ],
+      "fallosRed": [
+        "401 http://localhost:3115/api/presence",
+        "401 http://localhost:3115/api/users/demo-user/avatar",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/presence",
+        "401 http://localhost:3115/api/print/printers",
+        "401 http://localhost:3115/api/print/printers"
+      ]
+    },
+    {
+      "paso": "conciliación demo con lote y diferencia",
+      "estado": "ok",
+      "detalle": "items=3 · lotes=1",
+      "capturas": [
+        "07-conciliacion-grupos.jpg",
+        "08-conciliacion-lote-antes.jpg",
+        "09-conciliacion-lote-despues.jpg"
+      ],
+      "fallosRed": [
+        "401 http://localhost:3115/api/presence",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/users/demo-user/avatar",
+        "401 http://localhost:3115/api/presence"
+      ]
+    },
+    {
+      "paso": "seguro demo y efecto en el margen",
+      "estado": "ok",
+      "detalle": "resultado sin seguro Gs 1.660.000 → con seguro Gs 317.500 (badge: 1)",
+      "capturas": [
+        "10-ganancias-sin-seguro.jpg",
+        "11-seguro-config.jpg",
+        "12-ganancias-con-seguro.jpg"
+      ],
+      "fallosRed": [
+        "401 http://localhost:3115/api/presence",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/users/demo-user/avatar",
+        "401 http://localhost:3115/api/presence",
+        "401 http://localhost:3115/api/presence",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/users/demo-user/avatar",
+        "401 http://localhost:3115/api/presence",
+        "401 http://localhost:3115/api/user-invitations/pending",
+        "401 http://localhost:3115/api/user-invitations/pending",
+        "401 http://localhost:3115/api/presence",
+        "401 http://localhost:3115/api/users/demo-user/avatar",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/presence/heartbeat",
+        "401 http://localhost:3115/api/presence"
+      ]
+    }
+  ],
+  "errores": [
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "fallosRed": [
+    "401 http://localhost:3115/api/presence",
+    "401 http://localhost:3115/api/users/demo-user/avatar",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/print/printers",
+    "401 http://localhost:3115/api/presence",
+    "401 http://localhost:3115/api/print/printers",
+    "401 http://localhost:3115/api/presence",
+    "401 http://localhost:3115/api/users/demo-user/avatar",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/presence",
+    "401 http://localhost:3115/api/presence",
+    "401 http://localhost:3115/api/users/demo-user/avatar",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/presence",
+    "401 http://localhost:3115/api/print/printers",
+    "401 http://localhost:3115/api/print/printers",
+    "401 http://localhost:3115/api/presence",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/users/demo-user/avatar",
+    "401 http://localhost:3115/api/presence",
+    "401 http://localhost:3115/api/presence",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/users/demo-user/avatar",
+    "401 http://localhost:3115/api/presence",
+    "401 http://localhost:3115/api/presence",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/users/demo-user/avatar",
+    "401 http://localhost:3115/api/presence",
+    "401 http://localhost:3115/api/user-invitations/pending",
+    "401 http://localhost:3115/api/user-invitations/pending",
+    "401 http://localhost:3115/api/presence",
+    "401 http://localhost:3115/api/users/demo-user/avatar",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/presence/heartbeat",
+    "401 http://localhost:3115/api/presence"
+  ]
+}

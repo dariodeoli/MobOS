@@ -5,6 +5,7 @@ import PhotoCropper from '@/components/shared/PhotoCropper'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { getLogoDataUrl, olvidarLogo } from '@/lib/tenantLogo'
 import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
+import { getDemoTenant, setDemoInsurancePct, setDemoLimits, setDemoNumeracion } from '@/lib/demoTenant'
 import { promptLogo } from '@/lib/logoPrompt'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { comprimirImagen } from '@/utils/imagen'
@@ -81,8 +82,14 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const load = useCallback(async () => {
     if (!esDueno) return
     setFailure('')
+    // En la demo no se consulta la API real (#194): se usa una empresa ficticia
+    // con los ajustes guardados en este navegador.
+    if (esDemo) {
+      setAccount({ tenant: { name: empresa?.nombre || 'Tienda demo', orderPrefix: 'DEMO', orderNextNumber: 1, ...getDemoTenant() } })
+      return
+    }
     try { setAccount(await api.get('/api/account')) } catch (error) { setFailure(error.message || 'No se pudo cargar la seguridad de la cuenta.') }
-  }, [esDueno])
+  }, [esDueno, esDemo, empresa?.nombre])
   useEffect(() => { load() }, [load])
   useEffect(() => {
     if (!account?.tenant?.logo?.updatedAt) { setLogos({ light: '', dark: '' }); return }
@@ -186,7 +193,13 @@ export default function Config({ seccion = 'negocio' } = {}) {
   // Seguro de ventas de la empresa (#162): % sobre el costo que se suma al
   // costo real de cada venta nueva y afecta el margen.
   async function guardarSeguro() {
-    if (busy || demo) return
+    if (busy) return
+    if (demo) {
+      const pct = setDemoInsurancePct(seguroPct.trim() === '' ? null : Number(seguroPct))
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, insurancePct: pct || null } } : current)
+      setFailure(''); setNotice('Seguro guardado en este navegador (demo).')
+      return
+    }
     setBusy(true); setFailure(''); setNotice('')
     try {
       const data = await api.patch('/api/account', { action: 'updateLimits', insurancePct: seguroPct.trim() === '' ? null : Number(seguroPct) })
@@ -197,6 +210,12 @@ export default function Config({ seccion = 'negocio' } = {}) {
 
   async function guardarNumeracion() {
     if (busy) return
+    if (demo) {
+      const guardado = setDemoNumeracion({ prefix: prefijo, start: Number(inicio) })
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, orderPrefix: guardado.orderPrefix, orderNextNumber: guardado.orderNextNumber } } : current)
+      setFailure(''); setNotice(`Numeración guardada en este navegador (demo): ${guardado.orderPrefix}-#${String(guardado.orderNextNumber).padStart(4, '0')}.`)
+      return
+    }
     setBusy(true); setFailure(''); setNotice('')
     try {
       const data = await api.patch('/api/account', { action: 'orderNumbering', prefix: prefijo, start: Number(inicio) })
@@ -206,7 +225,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   }
 
   async function guardarLimites() {
-    if (busy || demo) return
+    if (busy) return
     const gasto = Number(limiteGasto)
     const compra = Number(limiteCompra)
     const bajoLista = parsePercent(limiteBajoLista)
@@ -216,10 +235,16 @@ export default function Config({ seccion = 'negocio' } = {}) {
     if (!Number.isSafeInteger(fidelizacion) || fidelizacion < 0 || fidelizacion > 100) { setFailure('El porcentaje de fidelización debe ser un entero entre 0 y 100.'); return }
     const mora = limiteMora.trim() === '' ? null : Number(limiteMora.replace(',', '.'))
     if (mora !== null && (!Number.isFinite(mora) || mora < 0 || mora > 100)) { setFailure('El recargo por mora debe ser un porcentaje entre 0 y 100.'); return }
+    const moraBp = mora === null || mora === 0 ? null : Math.round(mora * 100)
+    if (demo) {
+      setDemoLimits({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion, collectionLateFeeBpPerDay: moraBp })
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion, collectionLateFeeBpPerDay: moraBp } } : current)
+      setFailure(''); setNotice('Límites guardados en este navegador (demo).')
+      return
+    }
     setBusy(true); setFailure(''); setNotice('')
     try {
       await api.patch('/api/account', { action: 'updateLimits', expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion, collectionLateFeeBpPerDay: limiteMora.trim() })
-      const moraBp = mora === null || mora === 0 ? null : Math.round(mora * 100)
       setAccount(current => current ? { ...current, tenant: { ...current.tenant, expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion, collectionLateFeeBpPerDay: moraBp } } : current)
       actualizarEmpresa?.({ expenseLimitPyg: gasto, purchaseCreditLimitPyg: compra, belowListPct: bajoLista, loyaltyPct: fidelizacion })
       setNotice('Límites de autorización guardados.')
@@ -246,7 +271,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
           <div>
             <h2 className="font-semibold">Límites de autorización</h2>
             <p className="mt-1 text-sm text-mute">Por encima de estos montos, los roles operativos (cajera, vendedor) necesitan una autorización aprobada de gerencia para registrar un gasto o una compra a crédito. La venta bajo lista hasta el porcentaje indicado no pide autorización; más abajo, sí. El dueño y gerencia no la necesitan. La fidelización acredita al cliente, por cada venta, el porcentaje indicado del total como puntos canjeables por saldo a favor (1 punto = 1 Gs.); 0 la apaga.</p>
-            {demo && <p className="mt-1 rounded-lg border border-warn/30 bg-warn/5 px-3 py-2 text-xs text-warn">En la demo no se guardan los límites ni el seguro: se configuran con tu cuenta real.</p>}
+            {demo && <p className="mt-1 rounded-lg border border-fono/30 bg-fono/5 px-3 py-2 text-xs text-fono-light">Demo: los cambios se guardan solo en este navegador y el seguro se aplica al margen que ves en Análisis → Ganancias.</p>}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField label="Gasto sin autorización (Gs.)" htmlFor="limite-gasto">
@@ -266,15 +291,15 @@ export default function Config({ seccion = 'negocio' } = {}) {
             </FormField>
           </div>
           <div className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600/70 bg-ink-800/30 p-3">
-            <span className="flex items-center gap-2 text-sm"><Toggle id="seguro-toggle" disabled={demo} checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(on) => setSeguroPct(on ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} label="Aplica seguro" /><span>Seguro de ventas</span></span>
+            <span className="flex items-center gap-2 text-sm"><Toggle id="seguro-toggle" checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(on) => setSeguroPct(on ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} label="Aplica seguro" /><span>Seguro de ventas</span></span>
             <FormField label="Porcentaje sobre el costo (%)" htmlFor="seguro-pct" hint="Costo real = costo + seguro. Ej.: costo 100.000 y 25% → 125.000; el margen baja en 25.000.">
-              <PercentField id="seguro-pct" max={100} disabled={busy || demo || seguroPct.trim() === ''} value={seguroPct} onChange={setSeguroPct} placeholder="25" />
+              <PercentField id="seguro-pct" max={100} disabled={busy || seguroPct.trim() === ''} value={seguroPct} onChange={setSeguroPct} placeholder="25" />
             </FormField>
-            <Button type="button" variant="outline" disabled={busy || demo} onClick={guardarSeguro}>Guardar seguro</Button>
+            <Button type="button" variant="outline" disabled={busy} onClick={guardarSeguro}>Guardar seguro</Button>
             <p className="text-xs text-mute">Se aplica a las ventas nuevas; el producto o la categoría pueden tener su propio porcentaje.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" disabled={demo || busy || !limiteGasto || !limiteCompra || limiteBajoLista === '' || limiteFidelizacion === ''} onClick={guardarLimites}>Guardar límites</Button>
+            <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === '' || limiteFidelizacion === ''} onClick={guardarLimites}>Guardar límites</Button>
             <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}% · fidelización {account?.tenant?.loyaltyPct ?? 0}% · mora {account?.tenant?.collectionLateFeeBpPerDay ? `${account.tenant.collectionLateFeeBpPerDay / 100}% diario` : 'sin recargo'}.</p>
           </div>
         </Card>}

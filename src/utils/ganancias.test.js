@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { calcularGanancia, calcularGananciaDia, fechaClave } from './calculos.js'
 import {
+  aplicarSeguro,
   estadoDeGanancia,
   gananciaDeRango,
   gananciaDelDia,
@@ -95,4 +96,20 @@ test('estado: ganancia, pérdida y empate', () => {
   assert.equal(estadoDeGanancia(1), 'ganancia')
   assert.equal(estadoDeGanancia(-1), 'perdida')
   assert.equal(estadoDeGanancia(0), 'empate')
+})
+
+// #194: la demo muestra el seguro aplicado al margen (costo real = costo + %).
+test('aplicarSeguro: costo real y resultado con el ejemplo de la spec', () => {
+  const base = { ingresos: 150000, costoMercaderia: 100000, totalGastos: 0, totalAds: 0, ganancia: 50000, estado: 'ganancia' }
+  const conSeguro = aplicarSeguro(base, 25)
+  assert.equal(conSeguro.costoMercaderia, 125000)
+  assert.equal(conSeguro.ganancia, 25000)
+  assert.equal(conSeguro.estado, 'ganancia')
+  assert.equal(conSeguro.seguroPct, 25)
+  // Sin seguro (0, null o vacío) no se toca el resultado.
+  for (const pct of [0, null, undefined, '']) assert.equal(aplicarSeguro(base, pct), base)
+  // Un seguro grande puede dar pérdida.
+  assert.equal(aplicarSeguro({ ...base, ingresos: 110000 }, 25).estado, 'perdida')
+  // Redondeo a guaraníes enteros.
+  assert.equal(aplicarSeguro({ ...base, costoMercaderia: 33333 }, 10).costoMercaderia, 36666)
 })
