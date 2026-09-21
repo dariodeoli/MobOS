@@ -91,6 +91,12 @@ export default function CarritoPublico() {
               </section>
             )}
 
+            {carrito.expiresAt && new Date(carrito.expiresAt) > new Date() && (
+              <p className="text-center text-xs text-mute">
+                Enlace válido hasta {new Date(carrito.expiresAt).toLocaleDateString('es-PY', { day: '2-digit', month: 'short', year: 'numeric' })}.
+              </p>
+            )}
+
             {carrito.checkoutUrl ? (
               <a
                 href={carrito.checkoutUrl}

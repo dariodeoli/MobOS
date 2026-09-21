@@ -17,6 +17,8 @@ import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared
 import RucField from '@/components/shared/RucField'
 import PercentField, { parsePercent } from '@/components/shared/PercentField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
+import PanelDerecho from '@/components/shared/PanelDerecho'
+import Avatar from '@/components/shared/Avatar'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import DatosPrivados from '@/components/control/DatosPrivados'
 import { ROLE_LABELS } from '@/lib/roles'
@@ -255,6 +257,9 @@ export default function Config({ seccion = 'negocio' } = {}) {
             <FormField label="Fidelización: puntos por venta (%)" hint="Porcentaje del total de cada venta que queda como puntos canjeables (1 punto = 1 Gs.). 0 la apaga." htmlFor="limite-fidelizacion">
               <PercentField id="limite-fidelizacion" max={100} disabled={busy} value={limiteFidelizacion} onChange={setLimiteFidelizacion} placeholder="0" />
             </FormField>
+            <FormField label="Recargo por mora (% diario)" htmlFor="limite-mora" hint="Vacío o 0 = sin recargo; solo se informan los días de atraso en Cobranzas.">
+              <PercentField id="limite-mora" disabled={busy} value={limiteMora} onChange={setLimiteMora} placeholder="0,5" />
+            </FormField>
           </div>
           <div className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600/70 bg-ink-800/30 p-3">
             <span className="flex items-center gap-2 text-sm"><Toggle id="seguro-toggle" checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(on) => setSeguroPct(on ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} label="Aplica seguro" /><span>Seguro de ventas</span></span>
@@ -266,14 +271,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === '' || limiteFidelizacion === ''} onClick={guardarLimites}>Guardar límites</Button>
-            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}% · fidelización {account?.tenant?.loyaltyPct ?? 0}%.</p>
-            <FormField label="Recargo por mora (% diario)" htmlFor="limite-mora" hint="Vacío o 0 = sin recargo; solo se informan los días de atraso en Cobranzas.">
-              <PercentField id="limite-mora" disabled={busy} value={limiteMora} onChange={setLimiteMora} placeholder="0,5" />
-            </FormField>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === ''} onClick={guardarLimites}>Guardar límites</Button>
-            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}% · mora {account?.tenant?.collectionLateFeeBpPerDay ? `${account.tenant.collectionLateFeeBpPerDay / 100}% diario` : 'sin recargo'}.</p>
+            <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}% · fidelización {account?.tenant?.loyaltyPct ?? 0}% · mora {account?.tenant?.collectionLateFeeBpPerDay ? `${account.tenant.collectionLateFeeBpPerDay / 100}% diario` : 'sin recargo'}.</p>
           </div>
         </Card>}
         {esDueno && <Card className="space-y-3">
@@ -369,10 +367,20 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
   const [fotoError, setFotoError] = useState('')
   const [fotoBusy, setFotoBusy] = useState(false)
   const [fotoAConfirmar, setFotoAConfirmar] = useState(null)
-  const [editOpen, setEditOpen] = useState(false)
-  const [form, setForm] = useState(null) // { name, email, password }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const formulario = () => ({
+    name: empresa?.nombre || '',
+    email: empresa?.email || '',
+    password: '',
+    address: tenant?.address || '',
+    city: tenant?.city || '',
+    department: tenant?.department || '',
+    countryCode: parseTelefono(tenant?.phone).countryCode,
+    phone: parseTelefono(tenant?.phone).phone,
+    ruc: tenant?.ruc || '',
+  })
+  const [form, setForm] = useState(formulario)
   const valores = [
     { etiqueta: 'Nombre de la tienda', valor: empresa?.nombre || null },
     { etiqueta: 'Correo de la empresa', valor: empresa?.email || null },
@@ -389,6 +397,13 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
     getAvatarDataUrl(usuario.id).then(data => { if (vigente) setFoto(data) })
     return () => { vigente = false }
   }, [usuario?.id])
+  // Los datos del panel siguen a la ficha (carga inicial y tras guardar) sin
+  // pisar lo que la persona está escribiendo: solo se rellenan cuando cambian
+  // los valores guardados.
+  useEffect(() => {
+    setForm(formulario())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant?.id, tenant?.address, tenant?.city, tenant?.department, tenant?.phone, tenant?.ruc, empresa?.nombre, empresa?.email])
 
   async function subirFoto(file) {
     if (fotoBusy || !usuario?.id) return
@@ -413,21 +428,13 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
     } catch (cause) { setFotoError(cause?.message || 'No se pudo quitar la foto.') } finally { setFotoBusy(false) }
   }
 
-  function abrir() {
-    const telefono = parseTelefono(tenant?.phone)
-    setForm({
-      name: empresa?.nombre || '',
-      email: empresa?.email || '',
-      password: '',
-      address: tenant?.address || '',
-      city: tenant?.city || '',
-      department: tenant?.department || '',
-      countryCode: telefono.countryCode,
-      phone: telefono.phone,
-      ruc: tenant?.ruc || '',
-    })
+  function irAlFormulario() {
+    document.getElementById('cuenta-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }
+
+  function restablecer() {
+    setForm(formulario())
     setError('')
-    setEditOpen(true)
   }
   async function guardar(event) {
     event.preventDefault()
@@ -460,89 +467,100 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
       }
       if (Object.keys(cambios).length) await api.patch('/api/account', { action: 'updateProfile', ...cambios })
       actualizarEmpresa?.(cambios)
-      setEditOpen(false)
+      setForm(formulario())
       toast.success('Datos de la tienda actualizados.')
     } catch (cause) { setError(cause?.message || 'No se pudieron actualizar los datos de la tienda.') } finally { setBusy(false) }
   }
   return (
-    <Card className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <Eyebrow>Identidad de la cuenta</Eyebrow>
-          <p className="mt-1 text-sm text-mute">Los datos que identifican tu tienda ante MobOS.</p>
-        </div>
-        <Button type="button" variant="outline" onClick={abrir}><Icon name="edit" className="h-3.5 w-3.5" />Editar</Button>
-      </div>
-      {usuario?.id && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
-        <div className="flex min-w-0 items-center gap-3">
-          {foto ? <img src={foto} alt="Mi foto" className="h-10 w-10 shrink-0 rounded-full border border-ink-600 object-cover" /> : <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 text-xs font-semibold text-mute">{(usuario?.name || 'Yo').trim().split(/\s+/).slice(0, 2).map(parte => parte[0] || '').join('').toUpperCase()}</span>}
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-mute">Mi foto</p>
-            <p className="mt-0.5 text-sm text-mute">Aparece en la cronología de clientes y pedidos.</p>
+    <PanelDerecho
+      id="cuenta-form"
+      panel={
+        <Card className="space-y-3">
+          <div>
+            <h2 className="font-semibold">Datos de la tienda</h2>
+            <p className="mt-1 text-sm text-mute">Se usan en comprobantes, portal y reportes.</p>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <AttachmentInput onSelect={(file) => setFotoAConfirmar(file)} onError={setFotoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={fotoBusy}>
-            <Button type="button" variant="outline" disabled={fotoBusy}>{foto ? 'Reemplazar foto' : 'Subir foto'}</Button>
-          </AttachmentInput>
-          {foto && <Button type="button" variant="ghost" disabled={fotoBusy} onClick={quitarFoto}>Quitar</Button>}
-        </div>
-      </div>}
-      {fotoError && <p role="alert" className="text-sm text-bad">{fotoError}</p>}
-      {fotoAConfirmar && <PhotoCropper file={fotoAConfirmar} onCancel={() => setFotoAConfirmar(null)} onCropped={async (recortada) => { setFotoAConfirmar(null); await subirFoto(recortada) }} />}
-      <div className="space-y-2">
-        {valores.map(({ etiqueta, valor }) => (
-          <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-mute">{etiqueta}</p>
-              <p className="mt-0.5 truncate text-sm text-fore">{valor || '—'}</p>
+          <form onSubmit={guardar} className="space-y-3">
+            <FormField label="Nombre de la tienda" htmlFor="edit-nombre">
+              <Input id="edit-nombre" disabled={busy} value={form?.name || ''} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Nombre de la tienda" />
+            </FormField>
+            <FormField label="Correo de la empresa" htmlFor="edit-correo">
+              <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => setForm(current => ({ ...current, email: value }))} placeholder="Correo de la empresa" />
+            </FormField>
+            <FormField label="Dirección" htmlFor="edit-direccion">
+              <Input id="edit-direccion" maxLength={400} disabled={busy} value={form?.address || ''} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} placeholder="Dirección del negocio (para el comprobante)" />
+            </FormField>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField label="Ciudad" hint={form?.department ? `Departamento: ${form.department}` : undefined}>
+                <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => setForm(current => ({ ...current, city, department }))} placeholder="Ciudad del negocio" />
+              </FormField>
+              <FormField label="Teléfono">
+                <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => setForm(current => ({ ...current, countryCode }))} onChange={phone => setForm(current => ({ ...current, phone }))} placeholder="Teléfono del negocio" />
+              </FormField>
             </div>
-            <Button type="button" variant="outline" onClick={() => copiarValor(toast, valor, etiqueta)} disabled={!valor}>Copiar</Button>
+            <FormField label="RUC" htmlFor="edit-ruc">
+              <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => setForm(current => ({ ...current, ruc }))} disabled={busy} placeholder="RUC del negocio (opcional)" autoComplete="off" />
+            </FormField>
+            {reauthVigente ? (
+              <p className="text-xs text-ok">Tu contraseña fue verificada hace menos de 10 minutos: no hace falta escribirla de nuevo.</p>
+            ) : (
+              <FormField label="Contraseña de la empresa" htmlFor="edit-password">
+                <PasswordInput id="edit-password" autoComplete="current-password" disabled={busy} value={form?.password || ''} onChange={event => setForm(current => ({ ...current, password: event.target.value }))} placeholder="Para confirmar el cambio" />
+              </FormField>
+            )}
+            {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="ghost" disabled={busy} onClick={restablecer}>Restablecer</Button>
+              <Button type="submit" disabled={busy || !form?.name?.trim() || !form?.email?.trim()}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button>
+            </div>
+          </form>
+        </Card>
+      }
+    >
+      <Card className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <Eyebrow>Identidad de la cuenta</Eyebrow>
+            <p className="mt-1 text-sm text-mute">Los datos que identifican tu tienda ante MobOS.</p>
           </div>
-        ))}
-      </div>
-      <Modal open={editOpen} onClose={() => !busy && setEditOpen(false)} title="Editar datos de la tienda" className="max-w-xl">
-        <form onSubmit={guardar} className="space-y-3">
-          <FormField label="Nombre de la tienda" htmlFor="edit-nombre">
-            <Input id="edit-nombre" autoFocus disabled={busy} value={form?.name || ''} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Nombre de la tienda" />
-          </FormField>
-          <FormField label="Correo de la empresa" htmlFor="edit-correo">
-            <EmailField id="edit-correo" disabled={busy} value={form?.email || ''} onChange={value => setForm(current => ({ ...current, email: value }))} placeholder="Correo de la empresa" />
-          </FormField>
-          <FormField label="Dirección" htmlFor="edit-direccion">
-            <Input id="edit-direccion" maxLength={400} disabled={busy} value={form?.address || ''} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} placeholder="Dirección del negocio (para el comprobante)" />
-          </FormField>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <FormField label="Ciudad">
-              <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => setForm(current => ({ ...current, city, department }))} placeholder="Ciudad del negocio" />
-            </FormField>
-            <FormField label="Teléfono" htmlFor="edit-telefono">
-              <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => setForm(current => ({ ...current, countryCode }))} onChange={phone => setForm(current => ({ ...current, phone }))} placeholder="Teléfono del negocio" />
-            </FormField>
+          <Button type="button" variant="outline" className="lg:hidden" onClick={irAlFormulario}><Icon name="edit" className="h-3.5 w-3.5" />Editar</Button>
+        </div>
+        {usuario?.id && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
+          <div className="flex min-w-0 items-center gap-3">
+            {foto ? <img src={foto} alt="Mi foto" className="h-10 w-10 shrink-0 rounded-full border border-ink-600 object-cover" /> : <span aria-hidden="true" className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-ink-600 bg-ink-700 text-xs font-semibold text-mute">{(usuario?.name || 'Yo').trim().split(/\s+/).slice(0, 2).map(parte => parte[0] || '').join('').toUpperCase()}</span>}
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-mute">Mi foto</p>
+              <p className="mt-0.5 text-sm text-mute">Aparece en la cronología de clientes y pedidos.</p>
+            </div>
           </div>
-          {form?.department && <p className="px-1 text-xs text-fono-light">Departamento: {form.department}</p>}
-          <FormField label="RUC" htmlFor="edit-ruc">
-            <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => setForm(current => ({ ...current, ruc }))} disabled={busy} placeholder="RUC del negocio (opcional)" autoComplete="off" />
-          </FormField>
-          {reauthVigente ? (
-            <p className="text-xs text-ok">Tu contraseña fue verificada hace menos de 10 minutos: no hace falta escribirla de nuevo.</p>
-          ) : (
-            <FormField label="Contraseña de la empresa" htmlFor="edit-password">
-              <PasswordInput id="edit-password" autoComplete="current-password" disabled={busy} value={form?.password || ''} onChange={event => setForm(current => ({ ...current, password: event.target.value }))} placeholder="Para confirmar el cambio" />
-            </FormField>
-          )}
-          {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
-          <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setEditOpen(false)}>Cancelar</Button><Button type="submit" disabled={busy || !form?.name?.trim() || !form?.email?.trim()}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button></div>
-        </form>
-      </Modal>
-    </Card>
+          <div className="flex flex-wrap items-center gap-2">
+            <AttachmentInput onSelect={(file) => setFotoAConfirmar(file)} onError={setFotoError} accept="image/png,image/jpeg,image/webp" maxBytes={1024 * 1024} disabled={fotoBusy}>
+              <Button type="button" variant="outline" disabled={fotoBusy}>{foto ? 'Reemplazar foto' : 'Subir foto'}</Button>
+            </AttachmentInput>
+            {foto && <Button type="button" variant="ghost" disabled={fotoBusy} onClick={quitarFoto}>Quitar</Button>}
+          </div>
+        </div>}
+        {fotoError && <p role="alert" className="text-sm text-bad">{fotoError}</p>}
+        {fotoAConfirmar && <PhotoCropper file={fotoAConfirmar} onCancel={() => setFotoAConfirmar(null)} onCropped={async (recortada) => { setFotoAConfirmar(null); await subirFoto(recortada) }} />}
+        <div className="space-y-2">
+          {valores.map(({ etiqueta, valor }) => (
+            <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wider text-mute">{etiqueta}</p>
+                <p className="mt-0.5 truncate text-sm text-fore">{valor || '—'}</p>
+              </div>
+              <Button type="button" variant="outline" onClick={() => copiarValor(toast, valor, etiqueta)} disabled={!valor}>Copiar</Button>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </PanelDerecho>
   )
 }
 
 export function MiIdentidad() {
   const toast = useToast()
   const { usuario, empresa, perfilEmpresa, actualizarNombreUsuario } = useSesion()
-  const [editandoNombre, setEditandoNombre] = useState(false)
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [guardandoNombre, setGuardandoNombre] = useState(false)
   const nombreActual = perfilEmpresa?.name || usuario?.user_metadata?.nombre || 'Dueño de la tienda'
@@ -550,6 +568,11 @@ export function MiIdentidad() {
     { etiqueta: 'Correo del dueño', valor: empresa?.email || null },
     { etiqueta: 'ID del usuario', valor: usuario?.id || null },
   ]
+  useEffect(() => { setNuevoNombre(nombreActual) }, [nombreActual])
+
+  function irAlFormulario() {
+    document.getElementById('identidad-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }
 
   async function guardarNombre(event) {
     event.preventDefault(); setGuardandoNombre(true)
@@ -558,45 +581,55 @@ export function MiIdentidad() {
       if (nombre.length < 2 || nombre.length > 100) throw new Error('El nombre debe tener entre 2 y 100 caracteres.')
       await api.patch('/api/users', { id: usuario.id, name: nombre })
       actualizarNombreUsuario(nombre)
-      setEditandoNombre(false)
       toast.success('Nombre actualizado', 'Tu nombre ahora aparece en ventas, reportes y comprobantes.')
     } catch (cause) { toast.error(cause?.message || 'No se pudo actualizar el nombre.') } finally { setGuardandoNombre(false) }
   }
 
   return (
-    <Card className="space-y-3">
-      <div>
-        <p className="text-sm text-mute">Tu persona dentro de MobOS: la cuenta dueña de esta tienda.</p>
-      </div>
-      <div className="flex items-start gap-3">
-        {perfilEmpresa?.picture ? <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" /> : <div className="rounded-lg bg-fono/10 p-2 text-fono"><Icon name="user" className="h-5 w-5" /></div>}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-semibold">{nombreActual}</h2>
-            <Button type="button" variant="outline" className="h-7 px-2 text-xs" onClick={() => { setNuevoNombre(nombreActual === 'Dueño de la tienda' ? '' : nombreActual); setEditandoNombre(true) }}>Editar nombre</Button>
+    <PanelDerecho
+      id="identidad-form"
+      panel={
+        <Card className="space-y-3">
+          <div>
+            <h2 className="font-semibold">Tu nombre de vendedor</h2>
+            <p className="mt-1 text-sm text-mute">Se usa en tus ventas, reportes y comprobantes.</p>
           </div>
-          {usuario?.email && <p className="mt-0.5 truncate text-sm text-mute">{usuario.email}</p>}
+          <form onSubmit={guardarNombre} className="space-y-3">
+            <FormField label="Nombre" htmlFor="identidad-nombre">
+              <Input id="identidad-nombre" value={nuevoNombre} onChange={(event) => setNuevoNombre(event.target.value)} placeholder="Tu nombre" minLength={2} maxLength={100} required />
+            </FormField>
+            <Button type="submit" className="w-full" disabled={guardandoNombre || nuevoNombre.trim().length < 2}>{guardandoNombre ? 'Guardando…' : 'Guardar nombre'}</Button>
+          </form>
+        </Card>
+      }
+    >
+      <Card className="space-y-3">
+        <div>
+          <p className="text-sm text-mute">Tu persona dentro de MobOS: la cuenta dueña de esta tienda.</p>
         </div>
-      </div>
-      <Modal open={editandoNombre} onClose={() => !guardandoNombre && setEditandoNombre(false)} title="Tu nombre de vendedor" className="max-w-sm">
-        <form onSubmit={guardarNombre} className="space-y-3">
-          <p className="text-sm text-mute">Este nombre se usa en tus ventas, reportes y comprobantes como vendedor.</p>
-          <Input value={nuevoNombre} onChange={(event) => setNuevoNombre(event.target.value)} placeholder="Tu nombre" minLength={2} maxLength={100} autoFocus required />
-          <Button type="submit" className="w-full" disabled={guardandoNombre}>{guardandoNombre ? 'Guardando…' : 'Guardar nombre'}</Button>
-        </form>
-      </Modal>
-      <div className="space-y-2">
-        {valores.map(({ etiqueta, valor }) => (
-          <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-mute">{etiqueta}</p>
-              <p className="mt-0.5 truncate text-sm text-fore">{valor || '—'}</p>
+        <div className="flex items-start gap-3">
+          <Avatar user={{ id: usuario?.id, name: nombreActual }} picture={perfilEmpresa?.picture} size="lg" />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-semibold">{nombreActual}</h2>
+              <Button type="button" variant="outline" className="h-7 px-2 text-xs lg:hidden" onClick={irAlFormulario}>Editar nombre</Button>
             </div>
-            <Button type="button" variant="outline" onClick={() => copiarValor(toast, valor, etiqueta)} disabled={!valor}>Copiar</Button>
+            {usuario?.email && <p className="mt-0.5 truncate text-sm text-mute">{usuario.email}</p>}
           </div>
-        ))}
-      </div>
-    </Card>
+        </div>
+        <div className="space-y-2">
+          {valores.map(({ etiqueta, valor }) => (
+            <div key={etiqueta} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wider text-mute">{etiqueta}</p>
+                <p className="mt-0.5 truncate text-sm text-fore">{valor || '—'}</p>
+              </div>
+              <Button type="button" variant="outline" onClick={() => copiarValor(toast, valor, etiqueta)} disabled={!valor}>Copiar</Button>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </PanelDerecho>
   )
 }
 
@@ -795,8 +828,8 @@ function SeccionSucursales() {
   const [branches, setBranches] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [formOpen, setFormOpen] = useState(false)
-  const [form, setForm] = useState(null) // { id?, name, address, city, department, phone, instagram }
+  const formVacio = () => ({ id: null, name: '', address: '', city: '', department: '', countryCode: '+595', phone: '', instagram: '' })
+  const [form, setForm] = useState(formVacio)
 
   const cargar = async () => {
     setError('')
@@ -804,14 +837,19 @@ function SeccionSucursales() {
   }
   useEffect(() => { cargar() }, [])
 
+  function irAlFormulario() {
+    document.getElementById('sucursal-form')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }
+
   function abrir(branch) {
     // El teléfono se guarda como string único: al abrir se separa en código de
     // país y número para editarlos con PhoneField.
     const telefono = parseTelefono(branch?.phone)
     setForm(branch
       ? { id: branch.id, name: branch.name, address: branch.address || '', city: branch.city || '', department: branch.department || '', countryCode: telefono.countryCode, phone: telefono.phone, instagram: normalizarInstagram(branch.instagram) }
-      : { id: null, name: '', address: '', city: '', department: '', countryCode: '+595', phone: '', instagram: '' })
-    setFormOpen(true)
+      : formVacio())
+    setError('')
+    if (branch) irAlFormulario()
   }
 
   async function guardar(event) {
@@ -829,7 +867,7 @@ function SeccionSucursales() {
       }
       if (form.id) await api.patch('/api/branches', { id: form.id, ...payload })
       else await api.post('/api/branches', payload)
-      setFormOpen(false)
+      setForm(formVacio())
       toast.success(form.id ? 'Sucursal actualizada.' : 'Sucursal creada.')
       await cargar()
     } catch (cause) { setError(cause?.message || 'No se pudo guardar la sucursal.') } finally { setBusy(false) }
@@ -845,30 +883,66 @@ function SeccionSucursales() {
   }
 
   return (
-    <Card className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-sm text-mute">Cada sucursal conserva su dirección, ciudad y datos de contacto. La ciudad completa el departamento automáticamente.</p>
+    <PanelDerecho
+      id="sucursal-form"
+      panel={
+        <Card className="space-y-3">
+          <div>
+            <h2 className="font-semibold">{form?.id ? 'Editar sucursal' : 'Nueva sucursal'}</h2>
+            <p className="mt-1 text-sm text-mute">La ciudad completa el departamento automáticamente.</p>
+          </div>
+          <form onSubmit={guardar} className="space-y-3">
+            <FormField label="Nombre" htmlFor="sucursal-nombre">
+              <Input id="sucursal-nombre" required maxLength={100} disabled={busy} value={form?.name || ''} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Nombre de la sucursal" />
+            </FormField>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField label="Teléfono (opcional)">
+                <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => setForm(current => ({ ...current, countryCode }))} onChange={phone => setForm(current => ({ ...current, phone }))} placeholder="Teléfono" />
+              </FormField>
+              <FormField label="Instagram (opcional)">
+                <InstagramField disabled={busy} value={form?.instagram || ''} onChange={instagram => setForm(current => ({ ...current, instagram }))} placeholder="Instagram" />
+              </FormField>
+            </div>
+            <FormField label="Ciudad" hint={form?.department ? `Departamento: ${form.department}` : undefined}>
+              <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => setForm(current => ({ ...current, city, department }))} placeholder="Ciudad" />
+            </FormField>
+            <FormField label="Dirección (opcional)" htmlFor="sucursal-direccion">
+              <Input id="sucursal-direccion" maxLength={200} disabled={busy} value={form?.address || ''} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} placeholder="Dirección completa" />
+            </FormField>
+            {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+            <div className="flex flex-wrap justify-end gap-2">
+              {form?.id && <Button type="button" variant="ghost" disabled={busy} onClick={() => abrir(null)}>Cancelar edición</Button>}
+              <Button type="submit" disabled={busy || !form?.name?.trim()}>{busy ? 'Guardando…' : form?.id ? 'Guardar cambios' : 'Crear sucursal'}</Button>
+            </div>
+          </form>
+        </Card>
+      }
+    >
+      <Card className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-mute">Cada sucursal conserva su dirección, ciudad y datos de contacto.</p>
+          <Button type="button" onClick={() => { abrir(null); irAlFormulario() }}>+ Nueva sucursal</Button>
         </div>
-        <Button type="button" onClick={() => abrir(null)}>+ Nueva sucursal</Button>
-      </div>
-      {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
-      {branches === null ? <p className="text-sm text-mute">Cargando sucursales…</p> : branches.length === 0 ? <p className="text-sm text-mute">Todavía no hay sucursales. Creá la primera.</p> : <div className="space-y-2">{branches.map(branch => <article key={branch.id} className="rounded-xl border border-ink-600 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div className="min-w-0"><b className="text-sm">{branch.name}</b><p className="mt-1 text-xs text-mute">{[branch.city, branch.department].filter(Boolean).join(' · ')}{branch.address ? ` · ${branch.address}` : ''}{branch.phone ? ` · ${branch.phone}` : ''}{branch.instagram ? ` · @${branch.instagram}` : ''}</p></div><Badge color={branch.isActive ? 'green' : 'slate'}>{branch.isActive ? 'Activa' : 'Inactiva'}</Badge></div><div className="mt-2 flex gap-3"><button type="button" className="text-xs font-semibold text-fono-light hover:underline" disabled={busy} onClick={() => abrir(branch)}>Editar</button><button type="button" className="text-xs font-semibold text-mute hover:underline" disabled={busy} onClick={() => alternar(branch)}>{branch.isActive ? 'Desactivar' : 'Reactivar'}</button></div></article>)}</div>}
-      <Modal open={formOpen} onClose={() => !busy && setFormOpen(false)} title={form?.id ? 'Editar sucursal' : 'Nueva sucursal'} className="max-w-xl">
-        <form onSubmit={guardar} className="space-y-3">
-          <Input required maxLength={100} autoFocus disabled={busy} value={form?.name || ''} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Nombre de la sucursal" />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => setForm(current => ({ ...current, countryCode }))} onChange={phone => setForm(current => ({ ...current, phone }))} placeholder="Teléfono (opcional)" />
-            <InstagramField disabled={busy} value={form?.instagram || ''} onChange={instagram => setForm(current => ({ ...current, instagram }))} placeholder="Instagram (opcional)" />
+        {branches === null ? <p className="text-sm text-mute">Cargando sucursales…</p> : branches.length === 0 ? <p className="text-sm text-mute">Todavía no hay sucursales. Creá la primera.</p> : (
+          <div className="space-y-2">
+            {branches.map(branch => (
+              <article key={branch.id} className="rounded-xl border border-ink-600 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <b className="text-sm">{branch.name}</b>
+                    <p className="mt-1 text-xs text-mute">{[branch.city, branch.department].filter(Boolean).join(' · ')}{branch.address ? ` · ${branch.address}` : ''}{branch.phone ? ` · ${branch.phone}` : ''}{branch.instagram ? ` · @${branch.instagram}` : ''}</p>
+                  </div>
+                  <Badge color={branch.isActive ? 'green' : 'slate'}>{branch.isActive ? 'Activa' : 'Inactiva'}</Badge>
+                </div>
+                <div className="mt-2 flex gap-3">
+                  <button type="button" className="text-xs font-semibold text-fono-light hover:underline" disabled={busy} onClick={() => abrir(branch)}>Editar</button>
+                  <button type="button" className="text-xs font-semibold text-mute hover:underline" disabled={busy} onClick={() => alternar(branch)}>{branch.isActive ? 'Desactivar' : 'Reactivar'}</button>
+                </div>
+              </article>
+            ))}
           </div>
-          <div className="space-y-1">
-            <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => setForm(current => ({ ...current, city, department }))} placeholder="Ciudad" />
-            {form?.department && <p className="px-1 text-xs text-fono-light">Departamento: {form.department}</p>}
-          </div>
-          <Input maxLength={200} disabled={busy} value={form?.address || ''} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} placeholder="Dirección completa (opcional)" />
-          <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setFormOpen(false)}>Cancelar</Button><Button type="submit" disabled={busy || !form?.name?.trim()}>{busy ? 'Guardando…' : form?.id ? 'Guardar cambios' : 'Crear sucursal'}</Button></div>
-        </form>
-      </Modal>
-    </Card>
+        )}
+      </Card>
+    </PanelDerecho>
   )
 }

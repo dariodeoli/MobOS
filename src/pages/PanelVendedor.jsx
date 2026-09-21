@@ -179,14 +179,16 @@ const SUBPAGINAS = {
   configuracion: {
     vista: 'equipo',
     tabs: [
-      ['seguridad', 'Seguridad'],
+      // Orden por grupo visible: Personas, Negocio, Seguridad, Sistema. El
+      // slug de cada pestaña es estable (/configuracion/<slug>).
       ['equipo', 'Equipo'],
       ['identidad', 'Mi identidad'],
       ['roles', 'Roles y permisos'],
-      ['historial', 'Auditoría'],
       ['negocio', 'Negocio'],
       ['precios', 'Listas de precios'],
       ['sucursales', 'Sucursales'],
+      ['seguridad', 'Seguridad'],
+      ['historial', 'Auditoría'],
       ['impresoras', 'Impresoras'],
       ['documentacion', 'Documentación'],
       ['sistema', 'Estado del sistema'],

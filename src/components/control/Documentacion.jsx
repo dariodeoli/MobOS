@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Badge, Card, EmptyState, Input } from '@/components/ui'
+import { Badge, Card, EmptyState } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import SearchField from '@/components/shared/SearchField'
 
 // Documentación interna: dónde se configura cada cosa y cómo funciona. Cada
 // resultado lleva la ubicación exacta, una explicación breve y un enlace
@@ -191,11 +192,11 @@ export default function Documentacion() {
         </p>
       </div>
 
-      <Input
+      <SearchField
         autoFocus
         value={busqueda}
         onChange={event => setBusqueda(event.target.value)}
-        aria-label="Buscar en la documentación"
+        ariaLabel="Buscar en la documentación"
         placeholder="Buscar: PIN, pagos, caja, entrega, seguro…"
       />
 

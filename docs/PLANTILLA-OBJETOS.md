@@ -184,6 +184,9 @@ patrón de uso de cada familia y un ejemplo corto.
 
 > Referencia MobOS: `Modal`, `ConfirmDialog`, `Drawer` en
 > `src/components/ui/index.jsx` (foco, Esc, scroll lock y retorno de foco).
+> Para formularios de configuración, `shared/PanelDerecho`: dos columnas desde
+> `lg` (contenido a la izquierda, formulario fijo a la derecha con `sticky`) y
+> apilado compacto en móvil (`<PanelDerecho panel={…}>…contenido…</PanelDerecho>`).
 
 ## 6. Identidad, fotos y archivos
 
