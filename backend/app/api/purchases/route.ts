@@ -119,7 +119,7 @@ export async function POST(request: Request) {
           compraAutorizada = { id: authorization!.id, maxTotalPyg }
         }
       }
-      await tx.$executeRaw`INSERT INTO "PurchaseOrder" ("id", "tenantId", "branchId", "supplierName", "supplierId", "createdById", "shippingPyg", "customsPyg", "insurancePyg", "taxesPyg", "otherCostsPyg", "currency", "exchangeRatePyg", "originalSubtotal", "dueAt", "supplierReference", "creditEnabled", "costAllocationMethod") VALUES (${purchaseId}, ${tenant}, ${branchId}, ${supplierName}, ${supplierId}, ${session.user.id}, ${shippingPyg}, ${customsPyg}, ${insurancePyg}, ${taxesPyg}, ${otherCostsPyg}, ${currency}::"PaymentCurrency", ${String(exchangeRatePyg)}::decimal, ${body.originalSubtotal === undefined ? null : String(body.originalSubtotal)}::decimal, ${dueAt}, ${supplierReference}, ${Boolean(body.creditEnabled)}, ${costAllocationMethod}::"PurchaseCostAllocationMethod")`
+      await tx.$executeRaw`INSERT INTO "PurchaseOrder" ("id", "tenantId", "branchId", "supplierName", "supplierId", "createdById", "shippingPyg", "customsPyg", "insurancePyg", "taxesPyg", "otherCostsPyg", "currency", "exchangeRatePyg", "originalSubtotal", "dueAt", "supplierReference", "creditEnabled", "costAllocationMethod", "createdAt") VALUES (${purchaseId}, ${tenant}, ${branchId}, ${supplierName}, ${supplierId}, ${session.user.id}, ${shippingPyg}, ${customsPyg}, ${insurancePyg}, ${taxesPyg}, ${otherCostsPyg}, ${currency}::"PaymentCurrency", ${String(exchangeRatePyg)}::decimal, ${body.originalSubtotal === undefined ? null : String(body.originalSubtotal)}::decimal, ${dueAt}, ${supplierReference}, ${Boolean(body.creditEnabled)}, ${costAllocationMethod}::"PurchaseCostAllocationMethod", CURRENT_TIMESTAMP AT TIME ZONE 'UTC')`
       for (const line of costing) await tx.$executeRaw`INSERT INTO "PurchaseLine" ("id", "purchaseId", "productId", "quantity", "unitCostPyg", "lotReference", "baseTotalPyg", "allocatedShippingPyg", "allocatedCustomsPyg", "allocatedInsurancePyg", "allocatedTaxesPyg", "allocatedOtherCostsPyg", "allocatedExtraCostPyg", "finalTotalCostPyg", "finalUnitCostPyg") VALUES (${line.id}, ${purchaseId}, ${line.productId}, ${line.quantity}, ${line.unitCostPyg}, ${line.lotReference}, ${line.baseTotalPyg}, ${line.allocatedShippingPyg}, ${line.allocatedCustomsPyg}, ${line.allocatedInsurancePyg}, ${line.allocatedTaxesPyg}, ${line.allocatedOtherCostsPyg}, ${line.allocatedExtraCostPyg}, ${line.finalTotalCostPyg}, ${line.finalUnitCostPyg})`
       if (compraAutorizada) {
         await consumeAuthorization(tx, { id: compraAutorizada.id, tenantId: tenant, kinds: ['PURCHASE_CREDIT'], userId: session.user.id, label: 'compra a crédito' })
@@ -237,7 +237,7 @@ export async function PATCH(request: Request) {
         const take = requestedLines ? (requestedById.get(line.id) ?? 0) : remaining
         if (!Number.isSafeInteger(take) || take < 0 || take > remaining) throw new Error('Cantidad a recibir inválida o mayor al saldo pendiente.')
         if (!take) continue
-        const updated = await tx.$executeRaw`UPDATE "Product" SET "stock" = "stock" + ${take}, "updatedAt" = CURRENT_TIMESTAMP WHERE "id" = ${line.productId} AND "tenantId" = ${tenant} AND "isActive" = true AND "stock" + ${take} <= ${INT_MAX}`
+        const updated = await tx.$executeRaw`UPDATE "Product" SET "stock" = "stock" + ${take}, "updatedAt" = CURRENT_TIMESTAMP AT TIME ZONE 'UTC' WHERE "id" = ${line.productId} AND "tenantId" = ${tenant} AND "isActive" = true AND "stock" + ${take} <= ${INT_MAX}`
         if (updated !== 1) throw new Error('Producto inexistente o stock fuera de rango.')
         await tx.$executeRaw`UPDATE "PurchaseLine" SET "receivedQty" = "receivedQty" + ${take} WHERE "id" = ${line.id}`
         receivedNow += take
@@ -246,7 +246,7 @@ export async function PATCH(request: Request) {
       const pendingRows = await tx.$queryRaw<Array<{ pending: bigint }>>`SELECT COUNT(*)::bigint AS pending FROM "PurchaseLine" WHERE "purchaseId" = ${purchase.id} AND "receivedQty" < "quantity"`
       const complete = Number(pendingRows[0]?.pending || 0n) === 0
       const nextStatus = complete ? 'RECEIVED' : 'PARTIAL'
-      await tx.$executeRaw`UPDATE "PurchaseOrder" SET "status" = ${nextStatus}::"PurchaseStatus", "receivedAt" = CASE WHEN ${complete} THEN CURRENT_TIMESTAMP ELSE "receivedAt" END WHERE "id" = ${purchase.id}`
+      await tx.$executeRaw`UPDATE "PurchaseOrder" SET "status" = ${nextStatus}::"PurchaseStatus", "receivedAt" = CASE WHEN ${complete} THEN CURRENT_TIMESTAMP AT TIME ZONE 'UTC' ELSE "receivedAt" END WHERE "id" = ${purchase.id}`
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PURCHASE_RECEIVED', entity: 'PurchaseOrder', entityId: purchase.id, metadata: { branchId: purchase.branchId, lineCount: lines.length, receivedNow, complete, partial: !complete } } })
       return { id: purchase.id, status: nextStatus, receivedNow, complete, receivedAt: complete ? new Date().toISOString() : null }
     })

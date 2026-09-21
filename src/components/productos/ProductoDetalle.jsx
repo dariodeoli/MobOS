@@ -3,6 +3,7 @@ import { Drawer, Badge, Button, Input, Label, Money, MoneyInput, Select, Skeleto
 import Icon from '@/components/shared/Icon'
 import Cronologia from '@/components/shared/Cronologia'
 import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
+import KardexProducto from '@/components/productos/KardexProducto'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { api } from '@/lib/api/client'
 import { num } from '@/utils/calculos'
@@ -30,6 +31,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
   const [busy, setBusy] = useState(false)
   const [editando, setEditando] = useState(false)
   const [cronologiaAbierta, setCronologiaAbierta] = useState(false)
+  const [kardexAbierto, setKardexAbierto] = useState(false)
   const [etiquetasOpen, setEtiquetasOpen] = useState(false)
   const [form, setForm] = useState(() => ({
     categoria: product?.category || 'Otros',
@@ -107,7 +109,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
 
   return (
     <>
-      <Drawer open onClose={onClose} title={nombre(current)} className="w-full sm:max-w-xl">
+      <Drawer open onClose={kardexAbierto ? undefined : onClose} title={nombre(current)} className="w-full sm:max-w-xl">
       <div className="space-y-5">
         <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -131,6 +133,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
           <div className="mt-4 flex flex-wrap gap-2">
             <Button disabled={busy} onClick={() => onSell?.(current)}>Vender</Button>
             <Button variant="outline" disabled={busy} onClick={() => setEtiquetasOpen(true)}>Etiqueta de precio</Button>
+            {!esDemo && <Button variant="outline" disabled={busy} onClick={() => setKardexAbierto(true)} data-testid="kardex-abrir">Kardex</Button>}
             {canManage && !esDemo && <Button variant="outline" disabled={busy} onClick={() => setEditando(value => !value)}>{editando ? 'Cancelar edición' : 'Editar'}</Button>}
             {canManage && !esDemo && <button type="button" disabled={busy} onClick={desactivar} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad">Desactivar</button>}
           </div>
@@ -203,6 +206,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
       </div>
       </Drawer>
       <EtiquetasProductoModal open={etiquetasOpen} onClose={() => setEtiquetasOpen(false)} productos={[current]} seleccionInicial={[current?.id || current?.sku]} />
+      <KardexProducto product={current} open={kardexAbierto} onClose={() => setKardexAbierto(false)} esDemo={esDemo} />
     </>
   )
 }
