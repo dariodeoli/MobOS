@@ -5,6 +5,7 @@
 //
 // Viven en localStorage por empresa: son datos de trabajo del mostrador, no una
 // ficha oficial (la ficha la crea la venta).
+import { almacenamientoDemo } from './demoStorage.js'
 import { normalizarBusqueda } from '../utils/cliente.js'
 import { normalizarNombre } from '../utils/nombre.js'
 
@@ -12,15 +13,7 @@ const PREFIJO = 'mobos:preclientes:v1'
 const DIAS_DEFAULT = 7
 export const MAX_PRECLIENTES = 100
 
-const storage = () => {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) return window.localStorage
-    if (typeof localStorage !== 'undefined') return localStorage
-  } catch {
-    /* almacenamiento bloqueado */
-  }
-  return null
-}
+const storage = () => almacenamientoDemo()
 
 const clave = (empresaId) => (empresaId ? `${PREFIJO}:${empresaId}` : null)
 const normalizarDocumento = (documento) => String(documento || '').replace(/\s+/g, '').trim().toLowerCase()

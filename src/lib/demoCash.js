@@ -1,3 +1,4 @@
+import { leerDemo, guardarDemo } from './demoStorage.js'
 const KEY = 'mobos:demo-cash:v1'
 
 const DEFAULT = {
@@ -29,7 +30,7 @@ function normalizar(cash) {
 
 function read() {
   try {
-    return normalizar(JSON.parse(localStorage.getItem(KEY)) || { ...DEFAULT })
+    return normalizar(JSON.parse(leerDemo(KEY)) || { ...DEFAULT })
   } catch {
     return normalizar({ ...DEFAULT })
   }
@@ -80,7 +81,7 @@ export function openDemoCash(openingPyg = DEFAULT.openingPyg, notes = '') {
     notes,
     status: 'OPEN',
   }
-  localStorage.setItem(KEY, JSON.stringify(next))
+  guardarDemo(KEY, JSON.stringify(next))
   return envelope(next)
 }
 export function closeDemoCash(countedPyg, expectedPyg, notes = '', countedBreakdown = null) {
@@ -96,6 +97,6 @@ export function closeDemoCash(countedPyg, expectedPyg, notes = '', countedBreakd
     status: 'CLOSED',
     notes,
   }
-  localStorage.setItem(KEY, JSON.stringify(next))
+  guardarDemo(KEY, JSON.stringify(next))
   return envelope(next)
 }

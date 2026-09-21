@@ -15,6 +15,7 @@ import {
   ENTREGA,
 } from '@/lib/storage'
 import { leerCarrito, guardarCarrito, borrarCarrito, lineasParaResumen } from '@/lib/posCart'
+import { leerDemo, guardarDemo } from '@/lib/demoStorage.js'
 import { encolarVenta } from '@/lib/offline/ventas'
 import { descartarPreCliente } from '@/lib/preClientes'
 import { normalizarNombre } from '@/utils/nombre'
@@ -24,6 +25,7 @@ import { fechaClave, num, gs } from '@/utils/calculos'
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
 import { validateDemoPromotionItems, recordDemoPromotionUsage } from '@/lib/demoPromotions'
+import { clientesDemoGuardados, guardarClienteDemo } from '@/lib/demoClientes'
 import { resources } from '@/lib/api'
 import { api } from '@/lib/api/client'
 import { agruparProductos } from '@/utils/colores'
@@ -239,7 +241,7 @@ export default function FormularioVenta({
   // Carrito persistido: se restaura una sola vez al montar el formulario.
   const [cartInicial] = useState(() => leerCarritoInicial())
   const [f, setF] = useState(() => ({
-    ...VACIO(sesion?.vendedorId || localStorage.getItem(ULTIMO_VENDEDOR)),
+    ...VACIO(sesion?.vendedorId || leerDemo(ULTIMO_VENDEDOR)),
     ...(cartInicial?.customer?.name ? { cliente: cartInicial.customer.name } : {}),
     ...(ENTREGA.includes(cartInicial?.entrega) ? { entrega: cartInicial.entrega } : {}),
     ...(cartInicial?.montoDelivery ? { montoDelivery: cartInicial.montoDelivery } : {}),
@@ -1050,7 +1052,7 @@ export default function FormularioVenta({
         const validation = await validateDemoTradeIns(payments)
         if (validation === false || validation?.error || validation?.ok === false)
           throw new Error(validation?.error || 'No se pudo validar el canje.')
-        const clientesDemo = JSON.parse(localStorage.getItem('mobos:demo-customers:v1') || '[]')
+        const clientesDemo = clientesDemoGuardados()
         const clienteDemo = customer.id
           ? customer
           : clientesDemo.find(
@@ -1091,10 +1093,7 @@ export default function FormularioVenta({
           ventas.push(venta)
         }
         if (!clientesDemo.some(c => c.id === clienteDemo.id))
-          localStorage.setItem(
-            'mobos:demo-customers:v1',
-            JSON.stringify([...clientesDemo, clienteDemo]),
-          )
+          guardarClienteDemo(clienteDemo)
         const order = {
           ...ventas[0],
           id: ventas[0].id,
@@ -1116,7 +1115,7 @@ export default function FormularioVenta({
         completedOrder = order
       }
 
-      localStorage.setItem(ULTIMO_VENDEDOR, f.vendedorId)
+      guardarDemo(ULTIMO_VENDEDOR, f.vendedorId)
       idempotencyKeyRef.current = null // la próxima venta arranca con clave nueva
       const { empresaId, sucursalId } = contextoActual()
       // La ficha ya existe (o la creó la venta): el borrador del RUC sobra.
@@ -1144,7 +1143,7 @@ export default function FormularioVenta({
             idempotencyKey: idempotencyKeyRef.current,
             resumen: { cliente: f.cliente, total: totalGeneral, items: orderItems.length },
           })
-          localStorage.setItem(ULTIMO_VENDEDOR, f.vendedorId)
+          guardarDemo(ULTIMO_VENDEDOR, f.vendedorId)
           idempotencyKeyRef.current = null
           const { empresaId, sucursalId } = contextoActual()
           borrarCarrito(empresaId, sucursalId)

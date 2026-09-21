@@ -1,6 +1,7 @@
 import { api } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { addProducto, updateProducto, getProductos, contextoActual, modoDatosActual } from '@/lib/storage'
+import { leerDemo, guardarDemo } from './demoStorage.js'
 
 export const TRADE_IN_STATUSES = {
   RECEIVED: 'Recibido', REVIEW: 'En revisión', REPAIR: 'En reparación',
@@ -44,7 +45,7 @@ function assertDemo() {
 
 export function loadDemoTradeIns() {
   assertDemo()
-  const raw = localStorage.getItem(KEY)
+  const raw = leerDemo(KEY)
   if (!raw) return []
   let rows
   try { rows = JSON.parse(raw) } catch { throw new Error('El registro demo está dañado; no se sobrescribió.') }
@@ -55,7 +56,7 @@ export function loadDemoTradeIns() {
 }
 
 function write(rows) {
-  localStorage.setItem(KEY, JSON.stringify(rows))
+  guardarDemo(KEY, JSON.stringify(rows))
   window.dispatchEvent(new Event('mobos:trade-ins-updated'))
 }
 

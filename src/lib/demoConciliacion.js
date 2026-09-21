@@ -1,4 +1,5 @@
 import { paymentMethodLabel } from './constants.js'
+import { leerDemo, guardarDemo } from './demoStorage.js'
 
 // Conciliación ficticia de la demo (#194): arma el mismo contrato que
 // `GET /api/finance/reconciliation` a partir de los cobros de las ventas demo y
@@ -27,7 +28,7 @@ export function metodoDeMedio(medioLegacy) {
 
 function leerEstado() {
   try {
-    const guardado = JSON.parse(localStorage.getItem(KEY))
+    const guardado = JSON.parse(leerDemo(KEY))
     if (guardado && typeof guardado === 'object' && Array.isArray(guardado.lotes) && guardado.conciliados && typeof guardado.conciliados === 'object') {
       return { lotes: guardado.lotes, conciliados: guardado.conciliados }
     }
@@ -36,7 +37,7 @@ function leerEstado() {
 }
 
 function escribirEstado(estado) {
-  try { localStorage.setItem(KEY, JSON.stringify(estado)) } catch { /* almacenamiento no disponible */ }
+  try { guardarDemo(KEY, JSON.stringify(estado)) } catch { /* almacenamiento no disponible */ }
   return estado
 }
 

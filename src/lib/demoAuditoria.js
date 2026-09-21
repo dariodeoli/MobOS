@@ -1,5 +1,6 @@
 import { metodoDeMedio } from './demoConciliacion.js'
 import { getDemoCashExpected } from './demoCash.js'
+import { leerDemo, guardarDemo } from './demoStorage.js'
 
 // Auditoría de caja ficticia de la demo (#194): arma el mismo contrato que
 // `/api/cash/audit` y `/api/cash/audit-operations` con las ventas demo y la
@@ -13,7 +14,7 @@ export function claveDeMarca(operationKind, operationId) {
 
 export function leerMarcasDemo() {
   try {
-    const guardado = JSON.parse(localStorage.getItem(KEY))
+    const guardado = JSON.parse(leerDemo(KEY))
     return guardado && typeof guardado === 'object' && !Array.isArray(guardado) ? guardado : {}
   } catch {
     return {}
@@ -23,7 +24,7 @@ export function leerMarcasDemo() {
 export function guardarMarcaDemo(operationKind, operationId, marca) {
   const marcas = leerMarcasDemo()
   marcas[claveDeMarca(operationKind, operationId)] = marca
-  try { localStorage.setItem(KEY, JSON.stringify(marcas)) } catch { /* almacenamiento no disponible */ }
+  try { guardarDemo(KEY, JSON.stringify(marcas)) } catch { /* almacenamiento no disponible */ }
   return marca
 }
 

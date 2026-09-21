@@ -13,6 +13,7 @@ import { num } from '@/utils/calculos'
 import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from './demoMode'
+import { guardarDemo } from './demoStorage.js'
 import { MEDIOS_PAGO } from './catalog'
 import { guardarSnapshotCatalogo, leerSnapshotCatalogo } from './offline/snapshot'
 import {
@@ -350,11 +351,8 @@ export async function setContexto({ empresaId, sucursalId, userId, rol, fuente =
   ctx.rol = rol || null
   fuenteDatos = fuente === 'api' ? 'api' : 'legacy'
   if (sucursalId) {
-    try {
-      localStorage.setItem(SUC_KEY, sucursalId)
-    } catch {
-      /* noop */
-    }
+    // En demo no se guarda ni la sucursal ficticia (#204).
+    guardarDemo(SUC_KEY, sucursalId)
   }
   if (!ctx.empresaId) {
     vaciarCache()

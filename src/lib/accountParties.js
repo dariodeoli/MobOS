@@ -1,6 +1,7 @@
 import { api } from './api/client'
 import { isDemoRuntime } from './demoMode'
 import { nombreCompleto, textoBuscable } from './accountNames'
+import { leerDemo, guardarDemo } from './demoStorage.js'
 
 export { nombreCompleto, textoBuscable }
 
@@ -59,7 +60,7 @@ function demoStore(clave) {
   return {
     read() {
       try {
-        const raw = localStorage.getItem(clave)
+        const raw = leerDemo(clave)
         if (raw === null) return []
         const rows = JSON.parse(raw)
         if (!Array.isArray(rows)) throw new Error()
@@ -67,7 +68,7 @@ function demoStore(clave) {
       } catch { throw new Error('Los datos privados guardados no son válidos. No se sobrescribieron.') }
     },
     write(rows) {
-      try { localStorage.setItem(clave, JSON.stringify(rows)) }
+      try { guardarDemo(clave, JSON.stringify(rows)) }
       catch { throw new Error('No se pudieron guardar los datos privados en este navegador.') }
       return rows
     },
