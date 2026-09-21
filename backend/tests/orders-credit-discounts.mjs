@@ -561,7 +561,8 @@ assert.ok(conTelefono, 'La garantía automática debe aparecer en el listado de 
 assert.ok(conTelefono.customerPhone, 'La garantía debe traer el teléfono del cliente.')
 
 // Numeración configurable por empresa: con prefijo propio el siguiente pedido
-// sale `TST-#0007` (contador transaccional) y el display lo muestra `TST #0007`.
+// sale `TST-#0007` (contador transaccional) y el display lo muestra igual,
+// con el guion del formato comercial.
 result = await request('/api/account', 'POST', { password: 'company-password-it' })
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 result = await request('/api/account', 'PATCH', { action: 'orderNumbering', prefix: 'TST', start: 7 })
@@ -570,7 +571,7 @@ assert.equal(result.payload.preview, 'TST-#0007')
 result = await request('/api/orders', 'POST', { customerId: customer.id, items: [{ productId: product.id, quantity: 1, unitPricePyg: 800000 }], payments: [{ method: 'CASH', amountPyg: 800000 }] })
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 assert.equal(result.payload.orderNumber, 'TST-#0007', `La empresa con prefijo propio debe seguir su contador, recibido ${result.payload.orderNumber}.`)
-assert.equal(codigoPedido(result.payload.orderNumber), 'TST #0007')
+assert.equal(codigoPedido(result.payload.orderNumber), 'TST-#0007')
 console.log('orders-credit-discounts · check numeración TST-#0007 y display: OK')
 // Se restaura el prefijo por defecto sin retroceder el contador (GREATEST con
 // el máximo histórico): el resto de la suite sigue viendo MOB-#NNNN.
