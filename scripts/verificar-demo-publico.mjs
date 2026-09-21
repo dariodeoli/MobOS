@@ -1,13 +1,18 @@
-// Verificación en PRODUCCIÓN del demo público anónimo (#192).
+// Verificación del demo público anónimo (#192 / #196) — script reutilizable.
 //
-// Recorrido headless contra la demo real: entrada sin login (Vendedor 2001 /
-// Dueño 3001), panel en modo demo sin llamadas al API, banner de datos
+// Recorrido headless contra la demo publicada: entrada sin login (Vendedor 2001
+// / Dueño 3001), panel en modo demo sin llamadas al API real, banner de datos
 // ficticios, navegación anónima que vuelve a /demo y guardado simulado con
 // nota. No usa sesiones ni datos reales: solo la demo pública.
 //
-// Uso: node scripts/qa-192-demo-produccion.mjs
-// Salida: docs/qa/192-demo/*.jpg + resultados.json (incluye la lista de
-// llamadas de red vistas durante el recorrido).
+// Uso:
+//   node scripts/verificar-demo-publico.mjs                      # producción
+//   QA_BASE_URL=http://localhost:5249 node scripts/verificar-demo-publico.mjs
+//   QA_API_HOST=api.moboss.online QA_OUT=docs/qa/196-demo ...    # opcionales
+//
+// Salida: <QA_OUT>/*.jpg + resultados.json (incluye la versión desplegada y la
+// lista de llamadas de red vistas durante el recorrido). Sale 1 si algún paso
+// falla o si la demo tocó el API real.
 import { createRequire } from 'node:module'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -19,12 +24,13 @@ const { chromium } = require('@playwright/test')
 const RAIZ = dirname(dirname(fileURLToPath(import.meta.url)))
 const BASE = process.env.QA_BASE_URL || 'https://app.moboss.online'
 const API_HOST = process.env.QA_API_HOST || 'api.moboss.online'
-const SALIDA = process.env.QA_OUT || join(RAIZ, 'docs/qa/192-demo')
+const SALIDA = process.env.QA_OUT || join(RAIZ, 'docs/qa/196-demo')
 mkdirSync(SALIDA, { recursive: true })
 
 const resultados = []
 const llamadasApi = []
 let contador = 0
+let versionDesplegada = null
 
 async function shot(page, nombre) {
   contador += 1
@@ -66,11 +72,13 @@ const grabarRed = (page, permitidas = []) => page.on('request', (req) => {
     await page.waitForTimeout(1500)
     capturas.push(await shot(page, 'demo-entrada'))
     if (page.url().includes('/login')) throw new Error(`la demo redirigió a ${page.url()}`)
+    const texto = await page.locator('body').innerText()
+    versionDesplegada = (texto.match(/v\d+\.\d+\.\d+/) || [null])[0]
     const vendedor = page.getByRole('button', { name: /Entrar como Vendedor/ })
     const dueno = page.getByRole('button', { name: /Entrar como Dueño/ })
     if (!(await vendedor.count()) || !(await dueno.count())) throw new Error('no aparecen los perfiles Vendedor/Dueño')
     if (!(await page.getByText(/datos ficticios/i).count())) throw new Error('la entrada no avisa que los datos son ficticios')
-    return 'perfiles visibles sin login'
+    return `perfiles visibles sin login${versionDesplegada ? ` · versión ${versionDesplegada}` : ''}`
   })
 
   await paso('panel del vendedor en modo demo', async (capturas) => {
@@ -149,12 +157,15 @@ await browser.close()
 const apiOk = llamadasApi.length === 0
 const resumen = {
   base: BASE,
+  apiVigilada: API_HOST,
+  versionDesplegada,
   fecha: new Date().toISOString(),
   llamadasApi,
   demoNoTocaApi: apiOk,
   resultados,
 }
 writeFileSync(join(SALIDA, 'resultados.json'), JSON.stringify(resumen, null, 2))
-console.log(`\nLlamadas a ${API_HOST}: ${llamadasApi.length} ${apiOk ? '(OK: ninguna)' : '(FALLO)'}`)
+console.log(`\nVersión desplegada: ${versionDesplegada || 'desconocida'}`)
+console.log(`Llamadas a ${API_HOST}: ${llamadasApi.length} ${apiOk ? '(OK: ninguna)' : '(FALLO)'}`)
 console.log(`Fallos: ${resultados.filter(r => r.estado === 'fallo').length}/${resultados.length}`)
 process.exitCode = resultados.some(r => r.estado === 'fallo') || !apiOk ? 1 : 0
