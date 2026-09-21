@@ -1,6 +1,6 @@
 {
   "base": "https://app.moboss.online",
-  "fecha": "2026-09-21T19:59:29.081Z",
+  "fecha": "2026-09-21T20:09:30.814Z",
   "pasos": [
     {
       "paso": "entrada demo y venta rapida",
@@ -20,10 +20,10 @@
       "detalle": "sin iconos todavía (lote sin desplegar)"
     },
     {
-      "paso": "ultimo usado en el POS (#209): entrega y cuenta",
+      "paso": "ultimo usado en el POS (#209): usar, recargar y verificar",
       "estado": "ok",
-      "detalle": "entrega recordada: \"Retiro en tienda\" · cuenta recordada: \"\"",
-      "captura": "04-ultimo usado en el POS (#209): entrega y cuenta.jpg"
+      "detalle": "guardado: | · tras recargar → entrega: \"Delivery\" · cuenta del bloque nuevo: \"Caja demo · Gs\"",
+      "captura": "04-ultimo usado en el POS (#209): usar, recargar y verificar.jpg"
     }
   ]
 }

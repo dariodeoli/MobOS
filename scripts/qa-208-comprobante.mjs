@@ -73,13 +73,26 @@ await paso('memoria del ultimo usado en el dialogo', async () => {
   const formato = await page.getByRole('radiogroup', { name: 'Formato de impresión' }).getByRole('radio', { checked: true }).innerText().catch(() => '')
   return `guardado: ${guardado} · al reabrir: "${nivel.replace(/\s+/g, ' ')}" + "${formato.replace(/\s+/g, ' ')}"`
 })
-await paso('ultimo usado en el POS (#209): entrega y cuenta', async () => {
-  await page.keyboard.press('Escape'); await page.waitForTimeout(600)
+await paso('ultimo usado en el POS (#209): usar, recargar y verificar', async () => {
+  await page.keyboard.press('Escape').catch(() => {}); await page.waitForTimeout(600)
   await page.goto(`${BASE}/pos`, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(2400)
+  // Se usa un método distinto al habitual y una cuenta, y se recarga el POS.
+  await page.locator('#entrega').selectOption('Delivery').catch(() => {})
+  await page.locator('#monto-entrega').fill('30000').catch(() => {})
+  await page.waitForTimeout(500)
+  await page.getByRole('button', { name: /\+ Agregar pago/ }).first().click().catch(() => {})
+  await page.waitForTimeout(900)
+  const combo = page.getByLabel('Cuenta de cobro').first()
+  await combo.click().catch(() => {}); await combo.fill('Caja').catch(() => {}); await page.waitForTimeout(800)
+  await page.getByRole('option').filter({ hasText: /Caja demo · Gs/i }).first().click().catch(() => {})
+  await page.waitForTimeout(1200)
+  const guardado = await page.evaluate(() => [localStorage.getItem('mobos:pos:entrega'), localStorage.getItem('mobos:pos:cuenta')].join('|'))
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(2600)
   const entrega = await page.locator('#entrega').inputValue().catch(() => '(sin selector)')
-  await page.getByRole('button', { name: /\+ Agregar pago/ }).first().click().catch(() => {}); await page.waitForTimeout(900)
-  const cuenta = await page.getByLabel('Cuenta de cobro').first().inputValue().catch(() => '(sin cuenta)')
-  return `entrega recordada: "${entrega}" · cuenta recordada: "${cuenta}"`
+  await page.getByRole('button', { name: /\+ Agregar pago/ }).first().click().catch(() => {})
+  await page.waitForTimeout(900)
+  const cuenta = await page.getByLabel('Cuenta de cobro').first().inputValue().catch(() => '')
+  return `guardado: ${guardado} · tras recargar → entrega: "${entrega}" · cuenta del bloque nuevo: "${cuenta}"`
 })
 writeFileSync(join(OUT, 'resultados.json'), JSON.stringify({ base: BASE, fecha: new Date().toISOString(), pasos }, null, 2))
 await browser.close()
