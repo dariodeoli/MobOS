@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.130 — 2026-09-21
+- **IMEIcheck (Fase 1):** el adaptador suma el **catálogo live** del proveedor (IDs reales) y el **mapeo de campos para ambos formatos** con el **costo real informado**; sigue todo en modo mock por defecto, sin cargos automáticos ni llamadas pagas sin configuración explícita. (#193 #200)
+- **Clientes:** la ficha del cliente suma el **comprobante de verificación de IMEI** (simulado en demo, con los datos del equipo y la fuente). (#203)
+- **Finanzas:** cobertura e2e de **caja y conciliación** y auditoría de efectivo que **no pierde borradores**; corrida post-deploy del demo anónimo documentada. (#196 #199)
+- **POS:** barrido **responsivo 360/768** con capturas y caza de flakes. (#199)
+- **Arreglo:** el **buscador de vendedores de Comisiones** ahora filtra de verdad al escribir (antes solo mostraba los primeros resultados). (#141 #199)
+
 ## v1.0.129 — 2026-09-21
 - **Pedidos:** la página pública del pedido pasa a su dirección canónica `clientes.moboss.online/pedidos/<token>`, con redirects que conservan el token (los QR y enlaces viejos siguen abriendo); el QR impreso y los enlaces del comprobante apuntan a la nueva.
 - **Demo completa:** POS, Finanzas, Clientes y Servicio Técnico e Impresión funcionan en modo demo con datos ficticios y sin tocar el API real; cada guardado avisa que es simulado. (#194)
