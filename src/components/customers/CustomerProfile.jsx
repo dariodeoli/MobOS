@@ -264,6 +264,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [timelineLoading, setTimelineLoading] = useState(false)
   const [timelineError, setTimelineError] = useState('')
   const [timelineRevision, setTimelineRevision] = useState(0)
+  const [timelineNext, setTimelineNext] = useState(null)
+  const [timelineCargandoMas, setTimelineCargandoMas] = useState(false)
   const [authorizations, setAuthorizations] = useState([])
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
@@ -424,15 +426,28 @@ export default function CustomerProfile({ customer, open, onClose }) {
     let active = true
     setTimelineLoading(true)
     setTimelineError('')
+    setTimelineNext(null)
     api
-      .get(`/api/customers/${customer.id}/timeline`)
-      .then((data) => { if (active) { setTimeline(Array.isArray(data?.events) ? data.events : []); setTimelineLoading(false) } })
+      .get(`/api/customers/${customer.id}/timeline?limit=20`)
+      .then((data) => { if (active) { setTimeline(Array.isArray(data?.events) ? data.events : []); setTimelineNext(data?.nextCursor || null); setTimelineLoading(false) } })
       .catch((cause) => {
         if (active) setTimelineError(cause?.message || 'No se pudo cargar la cronología.')
         if (active) setTimelineLoading(false)
       })
     return () => { active = false }
   }, [open, customer?.id, tab, timelineRevision])
+
+  async function cargarMasTimeline() {
+    if (timelineCargandoMas || !timelineNext || !customer?.id) return
+    setTimelineCargandoMas(true)
+    try {
+      const data = await api.get(`/api/customers/${customer.id}/timeline?limit=20&cursor=${encodeURIComponent(timelineNext)}`)
+      setTimeline((actual) => [...actual, ...(Array.isArray(data?.events) ? data.events : [])])
+      setTimelineNext(data?.nextCursor || null)
+    } catch (cause) {
+      toast.error('No se pudo cargar más actividad', cause?.message)
+    } finally { setTimelineCargandoMas(false) }
+  }
 
   // Listas de precios activas: se piden al abrir la pestaña Datos.
   useEffect(() => {
@@ -1376,7 +1391,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
           {tab === 'cronologia' && (
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-mute">Alta, pedidos, pagos confirmados, notas, seguimientos, garantías y auditoría.</p>
+                <p className="text-xs text-mute">Alta, pedidos, entregas, pagos, saldo, comentarios, seguimientos, cambios de datos, solicitudes y autorizaciones comerciales, garantías y facturación.</p>
                 <button type="button" disabled={timelineLoading} onClick={() => setTimelineRevision((value) => value + 1)} className="rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-40">Actualizar</button>
               </div>
               {timelineLoading && (
@@ -1419,6 +1434,13 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     )
                   })}
                 </ol>
+              )}
+              {!timelineLoading && !timelineError && timeline.length > 0 && timelineNext && (
+                <div className="flex justify-center pt-1">
+                  <button type="button" disabled={timelineCargandoMas} onClick={cargarMasTimeline} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">
+                    {timelineCargandoMas ? 'Cargando…' : 'Cargar más'}
+                  </button>
+                </div>
               )}
             </div>
           )}
