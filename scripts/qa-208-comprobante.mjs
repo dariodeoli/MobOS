@@ -18,12 +18,12 @@ let n = 0
 const shot = async (nombre) => { n += 1; const f = `${String(n).padStart(2, '0')}-${nombre}.jpg`; await page.screenshot({ path: join(OUT, f), type: 'jpeg', quality: 72 }); return f }
 const paso = async (nombre, fn) => {
   try { const detalle = await fn(); pasos.push({ paso: nombre, estado: 'ok', detalle: detalle ?? '', captura: await shot(nombre).catch(() => '') }); console.log(`OK    ${nombre} — ${detalle}`) }
-  catch (e) { pasos.push({ paso: nombre, estado: 'fallo', detalle: String(e?.message || e).slice(0, 300) }); console.log(`FALLO ${nombre}: ${e?.message || e}`); await shot(`fallo-${nombre}`).catch(() => '') }
+  catch (e) { pasos.push({ paso: nombre, estado: 'fallo', detalle: String(e?.message || e).slice(0, 600) }); console.log(`FALLO ${nombre}: ${e?.message || e}`); await shot(`fallo-${nombre}`).catch(() => '') }
 }
 await paso('entrada demo y venta rapida', async () => {
   await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1500)
   const version = ((await page.locator('body').innerText()).match(/v\d+\.\d+\.\d+/) || [''])[0]
-  await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
+  await page.getByRole('button', { name: /^(Entrar como )?Vendedor\b/ }).first().click()
   await page.waitForURL((u) => !u.pathname.startsWith('/demo'), { timeout: 30000 }); await page.waitForTimeout(2400)
   await page.goto(`${BASE}/pos`, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(2400)
   await page.locator('input[placeholder="Buscar cliente o escribir un nombre nuevo"]').fill('Comprobante QA')
@@ -32,8 +32,12 @@ await paso('entrada demo y venta rapida', async () => {
   await page.getByRole('option', { name: /Funda MagSafe/i }).first().click(); await page.waitForTimeout(900)
   await page.getByRole('button', { name: /\+ Agregar pago/ }).first().click(); await page.waitForTimeout(900)
   const cuenta = page.getByLabel('Cuenta de cobro').first()
-  await cuenta.click(); await cuenta.fill('Caja'); await page.waitForTimeout(800)
-  await page.getByRole('option').filter({ hasText: /Caja demo · Gs/i }).first().click(); await page.waitForTimeout(800)
+  // Con #209 la cuenta puede venir preseleccionada (última usada): solo se elige si está vacía.
+  const yaTiene = await cuenta.inputValue().catch(() => '')
+  if (!yaTiene) {
+    await cuenta.click(); await cuenta.fill('Caja'); await page.waitForTimeout(800)
+    await page.getByRole('option').filter({ hasText: /Caja demo · Gs/i }).first().click(); await page.waitForTimeout(800)
+  }
   const total = ((await page.locator('[data-testid="resumen-compra"]').innerText()).match(/Gs ([\d.]+)/) || [])[1]?.replace(/\./g, '') || '150000'
   await page.getByLabel('Monto original').first().fill(total); await page.waitForTimeout(900)
   return `versión ${version} · total ${total}`

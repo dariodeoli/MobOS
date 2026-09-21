@@ -13,7 +13,7 @@ const errores = []
 page.on('pageerror', (e) => errores.push(e.message.slice(0, 120)))
 await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' })
 await page.waitForTimeout(1500)
-await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
+await page.getByRole('button', { name: /^(Entrar como )?Vendedor\b/ }).first().click()
 await page.waitForURL((u) => !u.pathname.startsWith('/demo'), { timeout: 30000 })
 await page.waitForTimeout(2400)
 await page.goto(`${BASE}/pos`, { waitUntil: 'domcontentloaded' })

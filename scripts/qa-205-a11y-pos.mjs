@@ -14,7 +14,7 @@ const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' })
 await page.waitForTimeout(1400)
-await page.getByRole('button', { name: /Entrar como Vendedor/ }).click()
+await page.getByRole('button', { name: /^(Entrar como )?Vendedor\b/ }).first().click()
 await page.waitForURL((u) => !u.pathname.startsWith('/demo'), { timeout: 30000 })
 await page.waitForTimeout(2400)
 const auditar = async (etiqueta, ruta) => {

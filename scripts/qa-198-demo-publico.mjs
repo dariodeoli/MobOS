@@ -301,7 +301,7 @@ try {
     const pag = await movil.newPage()
     await pag.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' })
     await pag.waitForTimeout(1200)
-    await pag.getByRole('button', { name: /Entrar como Vendedor/ }).click()
+    await pag.getByRole('button', { name: /^(Entrar como )?Vendedor\b/ }).first().click()
     await pag.waitForURL((url) => !url.pathname.startsWith('/demo'), { timeout: 30000 })
     await pag.waitForTimeout(2400)
     await pag.goto(`${BASE}/pos`, { waitUntil: 'domcontentloaded' })
