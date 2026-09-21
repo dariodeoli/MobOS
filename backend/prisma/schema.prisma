@@ -1202,11 +1202,16 @@ enum OrderStatus {
 }
 
 enum FulfillmentStatus {
+  PENDING
   PROCESSING
-  IN_TRANSIT
   READY_TO_SHIP
+  SHIPPED
+  IN_TRANSIT
   READY_FOR_PICKUP
+  PICKED_UP
+  PARTIAL
   DELIVERED
+  NOT_DELIVERED
 }
 
 model MessageTemplate {

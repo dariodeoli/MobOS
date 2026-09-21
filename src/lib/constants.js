@@ -13,11 +13,17 @@ export const PAYMENT_METHOD_LABELS = {
 export const paymentMethodLabel = (value) => PAYMENT_METHOD_LABELS[value] || value || ''
 
 export const FULFILLMENT_LABELS = {
+  PENDING: 'Pendiente',
   PROCESSING: 'Preparando',
-  IN_TRANSIT: 'En camino',
   READY_TO_SHIP: 'Listo p/ enviar',
+  SHIPPED: 'Enviado',
+  IN_TRANSIT: 'En camino',
   READY_FOR_PICKUP: 'Listo para retirar',
+  PICKED_UP: 'Retirado',
+  PARTIAL: 'Entrega parcial',
   DELIVERED: 'Entregado',
+  NOT_DELIVERED: 'No entregado',
+  CANCELLED: 'Cancelado',
 }
 
 // Alias compatible con los imports previos (ETIQUETAS_MEDIO_PAGO).

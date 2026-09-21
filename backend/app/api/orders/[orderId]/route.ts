@@ -134,8 +134,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
       return json(order)
     }
 
-    const fulfillmentStatus = body.fulfillmentStatus === undefined ? undefined : validateFulfillmentTransition(existing.fulfillmentStatus, body.fulfillmentStatus)
     const deliveryType = body.deliveryType === undefined ? undefined : textInput(body.deliveryType, 'Tipo de entrega', 100)
+    // La transición se valida contra el tipo de entrega del pedido (o el nuevo
+    // si el mismo cambio lo modifica): retiro y reparto tienen estados propios.
+    const fulfillmentStatus = body.fulfillmentStatus === undefined
+      ? undefined
+      : validateFulfillmentTransition(existing.fulfillmentStatus, body.fulfillmentStatus, { deliveryType: deliveryType ?? existing.deliveryType })
     const deliveryNotes = body.deliveryNotes === undefined ? undefined : textInput(body.deliveryNotes, 'Observaciones de entrega', 2000)
     if (fulfillmentStatus === undefined && deliveryType === undefined && deliveryNotes === undefined) throw new InputError('Indicá al menos un cambio de entrega.')
     // Entrega con saldo pendiente: con crédito del cliente queda registrada
@@ -144,7 +148,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ order
     let deliveryAuthorization: { id: string } | null = null
     let creditUpdate: { creditDays?: number; dueAt?: Date } = {}
     let pendingDeliveryPyg = 0
-    if (fulfillmentStatus === 'DELIVERED' && existing.fulfillmentStatus !== 'DELIVERED') {
+    // Entregar (o retirar) con saldo, incluso parcial, sigue la misma regla.
+    if (['DELIVERED', 'PICKED_UP', 'PARTIAL'].includes(String(fulfillmentStatus)) && existing.fulfillmentStatus !== fulfillmentStatus) {
       const pagado = existing.payments.filter(pago => pago.status === 'CONFIRMED').reduce((suma, pago) => suma + Number(pago.amountPyg || 0), 0)
       pendingDeliveryPyg = Math.max(0, existing.totalPyg - pagado)
       if (pendingDeliveryPyg > 0) {

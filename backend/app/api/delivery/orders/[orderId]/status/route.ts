@@ -24,11 +24,11 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
     if (Object.keys(body).some(key => key !== 'fulfillmentStatus')) throw new InputError('Campo no admitido al actualizar el reparto.')
     const existing = await prisma.order.findFirst({
       where: { id: orderId, tenantId: tenant, assignedToId: session.user.id },
-      select: { id: true, status: true, totalPyg: true, creditDays: true, fulfillmentStatus: true, customerId: true, orderNumber: true },
+      select: { id: true, status: true, totalPyg: true, creditDays: true, fulfillmentStatus: true, deliveryType: true, customerId: true, orderNumber: true },
     })
     if (!existing) return error('Pedido no encontrado entre tus repartos.', 404)
     if (existing.status === 'CANCELLED') throw new InputError('Un pedido cancelado no admite cambios.', 409)
-    const fulfillmentStatus = validateFulfillmentTransition(existing.fulfillmentStatus, body.fulfillmentStatus)
+    const fulfillmentStatus = validateFulfillmentTransition(existing.fulfillmentStatus, body.fulfillmentStatus, { deliveryType: existing.deliveryType })
     let creditUpdate: { creditDays?: number; dueAt?: Date } = {}
     let deliveryAuthorization: { id: string } | null = null
     let pendingDeliveryPyg = 0

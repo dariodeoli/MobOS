@@ -9,6 +9,7 @@ import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import { api, API_URL } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
+import { opcionesDeEntrega, tonoEntrega } from './venta/entrega'
 import { accessUrlFor, FORMATOS_PEDIDO, printDeliveryNote } from '@/components/shared/OrderReceipt'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
@@ -349,7 +350,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
             <div className="flex flex-wrap items-center gap-2">
               <Badge color={PAYMENT_TONE(estadoPago)}>{estadoPago}</Badge>
-              <Badge color={order.fulfillmentStatus === 'DELIVERED' ? 'green' : order.fulfillmentStatus === 'READY_TO_SHIP' ? 'blue' : order.fulfillmentStatus === 'READY_FOR_PICKUP' ? 'orange' : 'slate'}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Preparando'}</Badge>
+              <Badge color={tonoEntrega(order.fulfillmentStatus)}>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || 'Pendiente'}</Badge>
               {archivado && <Badge color="slate">Archivado</Badge>}
               {order.isSpecialOrder && (
                 <Badge color="orange">
@@ -368,8 +369,8 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             </p>
             {row.publicToken && !esDemo && <p className="mt-1 truncate font-mono text-[10px] text-mute">Token público: {order.publicToken || row.publicToken}</p>}
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              {!esDemo && <Select aria-label="Estado de entrega" className="max-w-[190px]" value={order.fulfillmentStatus || 'PROCESSING'} disabled={busy} onChange={event => cambiarEntrega(event.target.value)}>{Object.entries(FULFILLMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>}
-              {!esDemo && ['IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
+              {!esDemo && !anulado && <Select aria-label="Estado de entrega" className="max-w-[190px]" value={order.fulfillmentStatus || 'PENDING'} disabled={busy} onChange={event => cambiarEntrega(event.target.value)}>{opcionesDeEntrega(order.deliveryType, order.fulfillmentStatus || 'PENDING').map(value => <option key={value} value={value}>{FULFILLMENT[value] || value}</option>)}</Select>}
+              {!esDemo && ['IN_TRANSIT', 'SHIPPED', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
               {order.customer?.phone && <WhatsAppMenu telefono={order.customer.phone} countryCode={order.customer.countryCode} category="ORDERS" contexto={contextoWhatsApp} onSent={esDemo ? undefined : enviarPlantilla} plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined} disabled={avisando || busy} title={order.customer?.name} />}
               {order.notifiedAt && <span className="rounded-full border border-ok/30 bg-ok/10 px-2.5 py-1 text-[11px] font-semibold text-ok">Avisado {relativeDate(order.notifiedAt)}</span>}
               <Button variant="outline" onClick={() => setComprobante(true)}>Imprimir comprobante</Button>

@@ -42,7 +42,12 @@ const ORDER_STATUS = {
 }
 const FULFILLMENT_STATUS = {
   PROCESSING: { label: 'Preparando', color: 'blue' },
+  PENDING: { label: 'Pendiente', color: 'slate' },
+  SHIPPED: { label: 'Enviado', color: 'blue' },
   IN_TRANSIT: { label: 'En camino', color: 'orange' },
+  PICKED_UP: { label: 'Retirado', color: 'green' },
+  PARTIAL: { label: 'Entrega parcial', color: 'orange' },
+  NOT_DELIVERED: { label: 'No entregado', color: 'red' },
   READY_TO_SHIP: { label: 'Listo p/ enviar', color: 'blue' },
   READY_FOR_PICKUP: { label: 'Listo para retirar', color: 'green' },
   DELIVERED: { label: 'Entregado', color: 'slate' },

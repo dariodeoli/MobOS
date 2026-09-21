@@ -37,8 +37,9 @@ export async function GET(request: Request) {
     if (session.user.role === 'VENDEDOR') where.sellerId = session.user.id
     if (session.user.role !== 'ADMIN' && session.user.role !== 'GERENTE') where.branchId = session.user.branchId
   }
-  if (estado === 'activos') where.fulfillmentStatus = { not: 'DELIVERED' }
-  else if (estado === 'entregados') where.fulfillmentStatus = 'DELIVERED'
+  // Retirado cuenta como entregado: el pedido ya salió del local.
+  if (estado === 'activos') where.fulfillmentStatus = { notIn: ['DELIVERED', 'PICKED_UP'] }
+  else if (estado === 'entregados') where.fulfillmentStatus = { in: ['DELIVERED', 'PICKED_UP'] }
   const rows = await prisma.order.findMany({ where, include: orderInclude, orderBy: { createdAt: 'desc' }, take: limit })
   return json(rows.map(order => ({ ...order, delivery: deliverySummary(order) })))
 }

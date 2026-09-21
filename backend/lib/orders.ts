@@ -1,16 +1,40 @@
 import type { AuthUser } from './auth'
 import { InputError, textInput } from './payment-input'
 
-export const FULFILLMENT_STATES = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED'] as const
+// Estados de entrega del pedido (separados del pago). Los de retiro y los de
+// reparto se distinguen por el tipo de entrega: la transición válida depende
+// del pedido, no del capricho de la UI.
+export const FULFILLMENT_STATES = [
+  'PENDING', 'PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'IN_TRANSIT',
+  'READY_FOR_PICKUP', 'PICKED_UP', 'PARTIAL', 'DELIVERED', 'NOT_DELIVERED',
+] as const
 export type FulfillmentState = typeof FULFILLMENT_STATES[number]
 
+// Siguientes estados posibles desde cada uno (el grafo no cambia por tipo: el
+// tipo acota qué estados puede *usar* el pedido, no a dónde puede ir).
 const nextStates: Record<FulfillmentState, readonly FulfillmentState[]> = {
-  PROCESSING: ['IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED'],
-  IN_TRANSIT: ['READY_TO_SHIP', 'DELIVERED'],
-  READY_TO_SHIP: ['IN_TRANSIT', 'READY_FOR_PICKUP', 'DELIVERED'],
-  READY_FOR_PICKUP: ['DELIVERED'],
+  PENDING: ['PROCESSING', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'SHIPPED', 'IN_TRANSIT', 'PARTIAL', 'DELIVERED', 'NOT_DELIVERED'],
+  PROCESSING: ['READY_TO_SHIP', 'READY_FOR_PICKUP', 'SHIPPED', 'IN_TRANSIT', 'PARTIAL', 'DELIVERED', 'NOT_DELIVERED'],
+  READY_TO_SHIP: ['SHIPPED', 'IN_TRANSIT', 'READY_FOR_PICKUP', 'PARTIAL', 'DELIVERED', 'NOT_DELIVERED'],
+  SHIPPED: ['IN_TRANSIT', 'PARTIAL', 'DELIVERED', 'NOT_DELIVERED'],
+  IN_TRANSIT: ['PARTIAL', 'DELIVERED', 'NOT_DELIVERED'],
+  READY_FOR_PICKUP: ['PICKED_UP', 'PARTIAL', 'DELIVERED', 'NOT_DELIVERED'],
+  PICKED_UP: [],
+  PARTIAL: ['DELIVERED', 'PICKED_UP', 'IN_TRANSIT', 'NOT_DELIVERED'],
   DELIVERED: [],
+  NOT_DELIVERED: ['PROCESSING', 'READY_TO_SHIP', 'SHIPPED', 'READY_FOR_PICKUP', 'IN_TRANSIT'],
 }
+
+// Estados exclusivos de cada tipo: retirar es solo del retiro y enviar/no
+// entregar solo del reparto. Los estados históricos (procesando, listo, en
+// camino, entregado…) siguen valiendo para ambos: hay pedidos que cambiaron de
+// tipo a mitad de camino y la UI ahora ofrece solo los que corresponden.
+const SOLO_RETIRO: readonly FulfillmentState[] = ['PICKED_UP']
+const SOLO_DELIVERY: readonly FulfillmentState[] = ['SHIPPED', 'NOT_DELIVERED']
+
+export const tipoDeEntrega = (deliveryType?: string | null): 'RETIRO' | 'DELIVERY' =>
+  String(deliveryType || '').toLowerCase().includes('retiro') ? 'RETIRO' : 'DELIVERY'
+
 
 function has(user: AuthUser, permission: string) {
   return user.permissions.includes('*') || user.permissions.includes(permission)
@@ -36,10 +60,16 @@ export function canAccessOrder(user: { id: string; role: string; branchId: strin
   return true
 }
 
-export function validateFulfillmentTransition(current: string, requested: unknown) {
+export function validateFulfillmentTransition(current: string, requested: unknown, options: { deliveryType?: string | null } = {}) {
   const next = textInput(requested, 'Estado de entrega', 50) as FulfillmentState
   if (!FULFILLMENT_STATES.includes(next)) throw new InputError('Estado de entrega inválido.')
   if (current === next) throw new InputError('El pedido ya tiene ese estado de entrega.')
+  // Con tipo de entrega conocido se acotan los estados exclusivos del otro tipo.
+  if (options.deliveryType !== undefined) {
+    const tipo = tipoDeEntrega(options.deliveryType)
+    if (tipo === 'RETIRO' && SOLO_DELIVERY.includes(next)) throw new InputError('Ese estado es de una entrega por reparto, no de un retiro.', 409)
+    if (tipo === 'DELIVERY' && SOLO_RETIRO.includes(next)) throw new InputError('Ese estado es de un retiro en tienda, no de un reparto.', 409)
+  }
   if (!FULFILLMENT_STATES.includes(current as FulfillmentState) || !nextStates[current as FulfillmentState].includes(next)) {
     throw new InputError('La transición de entrega no está permitida.', 409)
   }
