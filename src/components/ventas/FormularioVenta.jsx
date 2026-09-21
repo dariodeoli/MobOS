@@ -1676,6 +1676,8 @@ export default function FormularioVenta({
               tieneCupon={tieneCupon}
               f={f}
               setF={setF}
+              cliente={customer?.name || f.cliente}
+              vendedor={sesion?.nombre}
             />
 
             <PasoCobro

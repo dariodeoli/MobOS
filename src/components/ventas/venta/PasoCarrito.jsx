@@ -36,6 +36,8 @@ export default function PasoCarrito({
   tieneCupon,
   f,
   setF,
+  cliente,
+  vendedor,
 }) {
   const unidades = items.reduce((a, it) => a + (it.quantity || 1), 0)
   const descuentoTotal = montoDescuento + items.reduce((suma, it) => {
@@ -53,7 +55,7 @@ export default function PasoCarrito({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-600 bg-ink-700/50 px-3.5 py-2.5">
         <EncabezadoBloque
           titulo="Productos de esta venta"
-          descripcion="Revisá cantidades, precios, IMEI y descuentos."
+          descripcion={[cliente ? `Cliente: ${cliente}` : 'Consumidor final', vendedor, f?.entrega].filter(Boolean).join(' · ')}
           extra={
             <span className="shrink-0 text-xs text-mute">
               {items.length} {items.length === 1 ? 'producto' : 'productos'} · {unidades}{' '}
