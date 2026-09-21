@@ -34,6 +34,22 @@ export async function resumenCola() {
   return colaDeVentas().resumen()
 }
 
+export async function listarCola() {
+  return colaDeVentas().listar()
+}
+
+// Reporte del modo offline (#168): vendido sin conexión, tiempos y conflictos.
+export async function reporteCola() {
+  return colaDeVentas().reporte()
+}
+
+// Limpieza: acota el historial y vence lo que esperó demasiado sin conexión.
+export async function limpiarCola() {
+  const resumen = await colaDeVentas().limpiar()
+  avisar(resumen)
+  return resumen
+}
+
 // Deja la venta en la cola local (con `offline: true` en el payload) y avisa.
 export async function encolarVenta({ payload, idempotencyKey, resumen }) {
   const item = await colaDeVentas().encolar({ payload, idempotencyKey, resumen })
@@ -51,4 +67,9 @@ export async function reintentarVenta(id) {
   const item = await colaDeVentas().reintentar(id)
   avisar(await colaDeVentas().resumen())
   return item
+}
+
+export async function descartarVenta(id) {
+  await colaDeVentas().descartar(id)
+  avisar(await colaDeVentas().resumen())
 }

@@ -572,6 +572,7 @@ test('POS: analytics del día y menciones en comentarios', async ({ page }) => {
   // La cronología (donde vive el comentario) arranca plegada (#164).
   await page.getByRole('button', { name: /Cronología/ }).click()
   const comentario = page.getByLabel('Comentario del pedido')
+  await expect(comentario).toBeVisible()
   await comentario.fill('Revisar stock @')
   const sugerencia = page.getByRole('button', { name: /^@/ }).first()
   await expect(sugerencia).toBeVisible()
@@ -580,4 +581,66 @@ test('POS: analytics del día y menciones en comentarios', async ({ page }) => {
   await comentario.fill(`Revisar stock @${nombre}`)
   await page.getByRole('button', { name: 'Comentar' }).click()
   await expect(page.getByText(`Revisar stock @${nombre}`)).toBeVisible({ timeout: 15_000 })
+})
+
+// #168 (Offline Fase 2): reporte de lo vendido sin conexión, conflicto al
+// sincronizar con acciones para resolverlo (reintentar/descartar) y métricas.
+test('POS offline: reporte, conflicto al sincronizar y descarte', async ({ page, context }) => {
+  const cliente = `Cliente conflicto ${Date.now().toString(36)}`
+  await page.goto('/pos')
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
+  await page.getByPlaceholder('Buscar producto…').fill('Cable')
+  await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+  const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+  await page.getByRole('button', { name: '+ Agregar pago' }).click()
+  await paymentsSection.getByLabel('Cuenta de cobro').click()
+  await page.getByRole('option', { name: /Caja E2E/ }).click()
+  await paymentsSection.getByLabel('Monto original').fill('45000')
+
+  // Venta sin conexión.
+  await context.setOffline(true)
+  await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
+  await expect(page.getByText(/Venta guardada sin conexión/)).toBeVisible({ timeout: 15_000 })
+
+  // Se rompe el payload en la cola (producto inexistente) para forzar un
+  // conflicto real: es lo que pasaría si el producto se borrara antes de sincronizar.
+  await page.evaluate(async () => {
+    const db = await new Promise((resolve, reject) => {
+      const pedido = indexedDB.open('mobos-offline', 1)
+      pedido.onsuccess = () => resolve(pedido.result)
+      pedido.onerror = () => reject(pedido.error)
+    })
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('cola', 'readwrite')
+      const store = tx.objectStore('cola')
+      const todos = store.getAll()
+      todos.onsuccess = () => {
+        for (const item of todos.result) {
+          if (item.estado !== 'pendiente') continue
+          item.payload.items = item.payload.items.map((linea) => ({ ...linea, productId: 'producto-que-ya-no-existe' }))
+          store.put(item)
+        }
+      }
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  })
+
+  // Al volver la conexión, la sincronización falla y queda como conflicto.
+  await context.setOffline(false)
+  await expect(page.getByTestId('cola-offline')).toContainText('conflicto', { timeout: 20_000 })
+
+  // El detalle muestra el reporte y la venta en conflicto.
+  await page.getByRole('button', { name: 'Ver detalle' }).click()
+  const panel = page.getByRole('dialog')
+  await expect(panel.getByText('Vendido sin conexión')).toBeVisible({ timeout: 15_000 })
+  await expect(panel.getByText('Tasa de éxito')).toBeVisible()
+  await expect(panel.getByText('Tiempo de sync')).toBeVisible()
+  await expect(panel.getByText(/^Conflicto ·/).first()).toBeVisible()
+
+  // Descartarla (no se puede recuperar) deja la cola limpia.
+  await panel.getByRole('button', { name: /Descartar la venta de/ }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Descartar', exact: true }).click()
+  await expect(page.getByTestId('cola-offline')).toHaveCount(0, { timeout: 15_000 })
 })

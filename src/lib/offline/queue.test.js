@@ -1,8 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  clasificarConflicto,
   crearColaDeVentas,
   esErrorDeRed,
+  metricasDeCola,
   ESTADO_CONFLICTO,
   ESTADO_ENVIADA,
   ESTADO_PENDIENTE,
@@ -138,4 +140,87 @@ test('esErrorDeRed distingue corte de red de respuesta del servidor', () => {
   assert.equal(esErrorDeRed(Object.assign(new Error('rechazada'), { status: 409 })), false)
   assert.equal(esErrorDeRed(Object.assign(new Error('permiso'), { status: 403 })), false)
   assert.equal(esErrorDeRed(null), false)
+})
+
+test('clasifica el motivo del conflicto para poder resolverlo', () => {
+  assert.equal(clasificarConflicto(new Error('Stock insuficiente: Cable.')).tipo, 'stock')
+  assert.equal(clasificarConflicto(new Error('El precio del cupón cambió o fue alterado.')).tipo, 'precio')
+  assert.equal(clasificarConflicto(Object.assign(new Error('Ya existe una orden con ese identificador.'), { status: 409 })).tipo, 'duplicada')
+  assert.equal(clasificarConflicto(Object.assign(new Error('No autorizado.'), { status: 403 })).tipo, 'permiso')
+  assert.equal(clasificarConflicto(Object.assign(new Error('no se conecta'), { code: 'NETWORK_ERROR' })).tipo, 'red')
+  assert.equal(clasificarConflicto(new Error('cualquier cosa')).tipo, 'otro')
+  assert.match(clasificarConflicto(new Error('Stock insuficiente')).sugerencia, /stock|sobre pedido/i)
+})
+
+test('la cola rechaza más ventas que el límite configurado', async () => {
+  const store = storeEnMemoria()
+  const cola = crearColaDeVentas({ store, enviar: async () => ({}), maxCola: 2 })
+  await cola.encolar(venta(1))
+  await cola.encolar(venta(2))
+  await assert.rejects(() => cola.encolar(venta(3)), /límite 2/)
+  // Al sincronizar, las enviadas no cuentan para el límite.
+  await cola.sincronizar()
+  await cola.encolar(venta(3))
+  const items = await cola.listar()
+  assert.equal(items.filter((item) => item.estado === 'enviada').length, 2)
+})
+
+test('una venta que esperó demasiado pasa a conflicto vencido (no se pierde)', async () => {
+  const store = storeEnMemoria()
+  let reloj = 1000
+  const cola = crearColaDeVentas({ store, enviar: async () => ({ id: 'x' }), ahora: () => reloj, diasExpiracion: 7 })
+  await cola.encolar(venta(1))
+  reloj += 8 * 86400000 // pasan 8 días sin conexión
+  const resumen = await cola.limpiar()
+  assert.equal(resumen.pendientes, 0)
+  assert.equal(resumen.conflictos, 1)
+  const [item] = await cola.listar()
+  assert.equal(item.tipo, 'expirada')
+  assert.match(item.error, /más de 7 día/)
+  // Reintentarla a mano la devuelve a pendiente con vencimiento nuevo.
+  await cola.reintentar(item.id)
+  const [reintentada] = await cola.pendientes()
+  assert.equal(reintentada.tipo, '')
+  assert.ok(reintentada.expiraEn > reloj)
+})
+
+test('el reporte mide lo vendido offline, el tiempo de sync y la tasa de éxito', async () => {
+  const store = storeEnMemoria()
+  let reloj = 0
+  const cola = crearColaDeVentas({
+    store,
+    ahora: () => reloj,
+    enviar: async (item) => {
+      if (item.idempotencyKey === 'pos-offline-2') throw new Error('Stock insuficiente: Cable.')
+      reloj += 5000
+      return { id: 'ok' }
+    },
+  })
+  await cola.encolar(venta(1))
+  await cola.encolar(venta(2))
+  await cola.sincronizar()
+  const reporte = await cola.reporte()
+  assert.equal(reporte.total, 2)
+  assert.equal(reporte.enviadas, 1)
+  assert.equal(reporte.conflictos, 1)
+  assert.equal(reporte.porTipo.stock, 1)
+  assert.equal(reporte.vendidoPyg, 2000, 'lo vendido offline suma aunque no se haya sincronizado')
+  assert.equal(reporte.sincronizadoPyg, 1000)
+  assert.equal(reporte.tiempoPromedioMs, 5000)
+  assert.equal(reporte.tasaExito, 50)
+})
+
+test('las métricas también reportan la espera de lo pendiente', () => {
+  const items = [
+    { estado: 'pendiente', creadoEn: 0, resumen: { total: 100 }, intentos: 2 },
+    { estado: 'pendiente', creadoEn: 1000, resumen: { total: 300 }, intentos: 1 },
+    { estado: 'enviada', creadoEn: 0, sincronizadaEn: 4000, resumen: { total: 500 } },
+  ]
+  const metricas = metricasDeCola(items, { ahora: 5000 })
+  assert.equal(metricas.pendientes, 2)
+  assert.equal(metricas.enColaPyg, 400)
+  assert.equal(metricas.vendidoPyg, 900)
+  assert.equal(metricas.intentos, 3)
+  assert.equal(metricas.esperaPromedioMs, 4500)
+  assert.equal(metricas.tasaExito, 100)
 })
