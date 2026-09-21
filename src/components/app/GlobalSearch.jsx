@@ -251,8 +251,9 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas }) {
         </div>
 
         {!termino && (
-          <p className="rounded-xl border border-fore/10 bg-fore/[.02] px-4 py-3 text-sm text-mute">
-            Escribí al menos {MIN_CARACTERES} caracteres para buscar.
+          <p className="flex items-center gap-2.5 rounded-xl border border-ink-600 bg-ink-700/40 px-4 py-3 text-sm text-mute">
+            <Icon name="search" className="h-4 w-4 shrink-0 text-fono-light" />
+            Escribí al menos {MIN_CARACTERES} caracteres para buscar clientes, pedidos, productos y más.
           </p>
         )}
 
@@ -323,6 +324,14 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas }) {
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {!buscando && termino && total > 0 && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-ink-600 pt-3 text-[11px] text-mute">
+            <span className="flex items-center gap-1.5"><kbd className="rounded border border-ink-500 bg-ink-700 px-1.5 py-0.5 font-semibold">↑</kbd><kbd className="rounded border border-ink-500 bg-ink-700 px-1.5 py-0.5 font-semibold">↓</kbd> Navegar</span>
+            <span className="flex items-center gap-1.5"><kbd className="rounded border border-ink-500 bg-ink-700 px-1.5 py-0.5 font-semibold">Enter</kbd> Abrir</span>
+            <span className="flex items-center gap-1.5"><kbd className="rounded border border-ink-500 bg-ink-700 px-1.5 py-0.5 font-semibold">Esc</kbd> Cerrar</span>
           </div>
         )}
       </div>
