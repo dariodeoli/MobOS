@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.120 — 2026-09-21 (pendiente de deploy)
+- **Otros (Acceso):** un vendedor **sin sucursal asignada ya puede entrar con su PIN** (antes el login lo rechazaba); la sesión queda acotada a toda la empresa y se refuerza con pruebas. (#137)
+- **Finanzas / Inventario / Clientes (Campos):** los últimos campos sueltos de dinero y porcentaje —Caja, límites de Configuración, crédito del cliente y pago al consignador— ahora usan los campos compartidos: separador de miles y coma decimal, sin errores de tipeo. (#136)
+- **Otros (Proceso):** nace esta sección **"Novedades para el dueño"**: cada entrega y cada cierre de issue resume lo hecho en lenguaje de negocio. (#140)
+
 ## v1.0.119 — 2026-09-21
 - **Otros (Resumen):** el panel de inicio ahora muestra primero lo que hay que
   resolver (pendientes) y los accesos rápidos, con una jerarquía más clara.
