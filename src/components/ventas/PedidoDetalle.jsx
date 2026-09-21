@@ -109,6 +109,9 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const [comprobante, setComprobante] = useState(false)
   // Cobrar el saldo pendiente sin salir del detalle (mismo modal que Cobranzas).
   const [cobroAbierto, setCobroAbierto] = useState(false)
+  // Nota del pedido editable desde el detalle (#21).
+  const [notaOpen, setNotaOpen] = useState(false)
+  const [notaTexto, setNotaTexto] = useState('')
   const [detail, setDetail] = useState(null)
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(!esDemo)
@@ -534,7 +537,26 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 {!order.customer?.addresses?.length && <p className="mt-1 text-xs text-mute">Sin dirección cargada.</p>}
               </div>
             </div>
-            {order.notes && <p className="mt-3 rounded-lg bg-ink-700/60 px-3 py-2 text-xs text-mute">Nota: {order.notes}</p>}
+            {order.notes && !notaOpen && <p className="mt-3 rounded-lg bg-ink-700/60 px-3 py-2 text-xs text-mute">Nota: {order.notes}</p>}
+            {!esDemo && (notaOpen ? (
+              <div className="mt-3 space-y-2">
+                <Textarea rows={2} maxLength={2000} value={notaTexto} onChange={(event) => setNotaTexto(event.target.value)} placeholder="Nota interna del pedido" aria-label="Nota del pedido" />
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="ghost" onClick={() => setNotaOpen(false)}>Cancelar</Button>
+                  <Button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => accion(() => api.patch(`/api/orders/${encodeURIComponent(order.id)}`, { notes: notaTexto }), 'Nota guardada.').then(() => setNotaOpen(false))}
+                  >
+                    Guardar nota
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="mt-2 text-xs font-semibold text-fono-light hover:underline" onClick={() => { setNotaTexto(order.notes || ''); setNotaOpen(true) }}>
+                {order.notes ? 'Editar nota' : '＋ Agregar nota'}
+              </button>
+            ))}
           </SeccionColapsable>
 
           {/* Cronología */}
