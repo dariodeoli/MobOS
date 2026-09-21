@@ -32,6 +32,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 | `shared/AttachmentInput` (+ validación de *magic bytes* en backend) | Adjunto JPG/PNG/WebP/PDF de hasta 5 MiB | Comprobantes y fotos de pedidos, unidades y garantías |
 | `shared/AttachmentList` | Lista, descarga y baja (con confirmación) de los adjuntos de un documento, más el alta con `AttachmentInput` | Gastos, compras, pagos a proveedor, caja y transferencias |
 | `shared/ProductCombobox` | Buscar/elegir producto (y crear desde ahí) | POS, compras, combos, cotizaciones y promociones |
+| `shared/BancoCombobox` (+ `shared/BancoLogo`, `lib/bancosLogos.js`) | Banco del catálogo paraguayo con sugerencias ilustradas (logo por banco) y texto libre permitido; el logo sale del registro reutilizable: asset del repo → marca vectorial compartida → monograma con iniciales y color. Nunca deja un cuadro roto | Cuentas de cobro (alta, filas y búsqueda) |
 | `shared/RangoFechas` | Desde/hasta con atajos | Reportes, caja |
 | `shared/SelectorMedioPago` + `shared/MedioPago` | Elegir medio de pago / mostrarlo | POS, pedidos |
 | `shared/NumericKeypad` | Teclado numérico grande | POS/cobros |
@@ -42,7 +43,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 
 ## 3. Patrones reutilizables
 
-- **Autocompletado** (`CityAutocomplete`, `EmailField`): sugerencias por iniciales sobre lo tipeado (ciudades con su departamento, dominios de correo frecuentes), texto libre permitido, teclado correcto y sin interferir con pegado, autocompletado del navegador ni `fill()`. Al elegir una sugerencia se completan los campos derivados.
+- **Autocompletado** (`CityAutocomplete`, `EmailField`, `BancoCombobox`): sugerencias por iniciales sobre lo tipeado (ciudades con su departamento, dominios de correo frecuentes, bancos con su logo), texto libre permitido, teclado correcto y sin interferir con pegado, autocompletado del navegador ni `fill()`. Al elegir una sugerencia se completan los campos derivados.
 - **Extractor** (`RucField`): campo + botón corto o lupa (`Icon` con `title`) que consulta un endpoint del backend. El resultado se muestra aparte y **se aplica solo al confirmar** (“Usar estos datos”); nunca pisa lo cargado. Si el proveedor falla o no hay cuota, el dato se completa a mano (el backend responde `manualEntryAllowed`) y el error se muestra con `role="alert"`.
 - Regla común: un solo objeto por patrón en `components/shared`; prohibido reimplementar la consulta o las sugerencias dentro de una pantalla.
 

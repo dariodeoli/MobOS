@@ -136,6 +136,11 @@ Nunca un `<input>` suelto. Un componente por tipo, en el directorio compartido
   (tombstone, no se restaura sola).
 - Adjuntos: límite de tamaño/tipo, validación de contenido real, acceso
   autenticado, normalización y almacenamiento fuera del HTML público.
+- **Logos de bancos y marcas externas:** un registro reutilizable
+  (`src/lib/bancosLogos.js`) resuelve nombre → asset del repo
+  (`public/bancos/`, sin hotlinks) → marca vectorial compartida →
+  monograma con iniciales y color. Se muestra con el objeto `BancoLogo`;
+  las pantallas no arman rutas de logo por su cuenta.
 
 > Referencia MobOS: `src/components/shared/Avatar.jsx`, `src/lib/userAvatar.js`,
 > `src/lib/tenantLogo.js`, `src/components/shared/PhotoCropper.jsx`,
