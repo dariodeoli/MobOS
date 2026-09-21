@@ -9,52 +9,104 @@ falta, se crea en el módulo compartido y se adopta en TODOS los lugares.
 
 ---
 
-## 1. Campos de formulario — un componente por tipo de dato
+## 1. Campos de formulario — la biblioteca real (un objeto por dato)
 
-Nunca un `<input>` suelto. Un componente por tipo, en el directorio compartido
-(`<components/fields>`), con estilos en un solo archivo.
+Nunca un `<input>` suelto, una variante local ni una máscara casera: se busca el
+objeto canónico acá y se usa tal cual. Inventario **real** de MobOS, con el
+patrón de uso de cada familia y un ejemplo corto.
 
-| Tipo | Objeto | Notas |
-| --- | --- | --- |
-| Teléfono | `PhoneField` | prefijo/fmt local, teclado numérico |
-| Correo | `EmailField` | normaliza a minúsculas, `type=email` |
-| Contraseña / PIN | `PasswordField`, `PinField` | mostrar/ocultar obligatorio |
-| Moneda / importe | `MoneyField` | separador de miles, 0 decimales si la moneda no los usa |
-| Porcentaje | `PercentField` | sufijo, límites |
-| Serial / código | `SerialField` | mayúsculas, sin espacios, IMEI con checksum |
-| Fechas | `DateField`, `DateRange` | zona horaria única |
-| Ubicación | `CityField` / autocompletado | catálogo canónico |
-| Cuenta bancaria / billetera | `BankAccountField` | institución + número |
-| Identidad fiscal | `TaxIdField` | dígito verificador + patrón extractor (consulta al backend; se aplica solo al confirmar y sin proveedor se carga a mano) |
-| Redes / enlaces | `SocialField`, `LinkField` | solo https |
-| Archivo / imagen | `AttachmentInput` | ver sección 6 |
-| Segmentado | `SegmentedField` | opciones excluyentes |
-| Tema | `ThemeToggle` | si la app tiene claro/oscuro |
+### 1.1 Tabla por tipo de dato
 
-**Patrones de campo (reutilizables, uno por patrón)**
-- **Autocompletado**: sugerencias por iniciales sobre lo tipeado, texto libre
-  permitido, teclado correcto, sin interferir con pegado/autofill del navegador;
-  al elegir se completan los campos derivados (ciudad → departamento, correo →
-  dominio).
-- **Extractor**: campo + botón corto o lupa (`Icon` + `title`) que consulta un
-  endpoint del backend; el resultado se muestra aparte y **se aplica solo al
-  confirmar**; nunca pisa lo cargado; si el proveedor falla o no hay cuota, el
-  dato se completa a mano y el error se muestra con `role="alert"`.
-- Prohibido reimplementar la consulta o las sugerencias dentro de una pantalla:
-  el patrón vive una sola vez en el módulo compartido.
+| Tipo | Objeto canónico | Patrón de uso | Ejemplo corto |
+| --- | --- | --- | --- |
+| Texto libre | `ui/Input` + `Label`/`FormField` | label arriba (`htmlFor`), `required` real, `maxLength` por tipo (120/200) | `<FormField label="Nombre" htmlFor="x"><Input id="x" value={v} onChange={…} /></FormField>` |
+| Texto largo | `ui/Textarea` | notas 2000, descripciones 400; `rows` fijo | `<Textarea rows={2} value={nota} onChange={…} />` |
+| **Moneda Gs/USD** | `ui/MoneyInput` + `shared/CurrencySelect` | PYG **sin decimales** (separador de miles), USD/BRL/EUR/USDT **con 2**; el símbolo lo dibuja el campo; entrega el número limpio por `onValueChange`; `currency` manda; `max` = tamaño del monto (ver 1.3) | `<MoneyInput currency={form.currency} value={form.monto} onValueChange={…} /><CurrencySelect value={form.currency} onChange={…} />` |
+| Moneda de solo lectura | `ui/Money` | nunca convertir a mano; no finito → `—` | `<Money value={fila.totalPyg} />` |
+| Porcentaje | `shared/PercentField` (+`parsePercent`/`formatPercent`) | coma decimal, 0–100, hasta 2 decimales; guardar con `parsePercent`, mostrar con `formatPercent` | `<PercentField value={desc} onChange={setDesc} />` |
+| Teléfono | `shared/PhoneField` | código de país editable (default `+595`) + número con espacios; valida `telefonoValido` | `<PhoneField value={form.phone} onChange={…} />` |
+| Correo | `shared/EmailField` | `type=email`, sugiere dominios, no rompe pegado/autofill | `<EmailField value={mail} onChange={…} />` |
+| Serial / IMEI | `shared/SerialField` (+`SerialTexto` lectura) | mayúsculas, sin espacios ni prefijo interno; varios seriales con `normalizeScan` | `<SerialField value={serial} onChange={…} />` |
+| Fechas / horas (24 h) | `ui/Input type="date"` / `type="datetime-local"` + `shared/RangoFechas` | fechas en 24 h según locale; rango con atajos (24 h, 7 d, 30 d) | `<RangoFechas valor={rango} onChange={setRango} />` |
+| PIN | `ui/PinInput` | 4 dígitos, teclado numérico, autoenvía al 4.º; puntos propios (nunca visibles) | `<PinInput value={pin} onChange={setPin} onComplete={…} />` |
+| Contraseña | `ui/PasswordInput` | mostrar/ocultar obligatorio, 8–72 en auth | `<PasswordInput value={pass} onChange={…} />` |
+| Archivo / imagen | `shared/AttachmentInput` (+`AttachmentList`, `PhotoCropper`) | JPG/PNG/WebP/PDF ≤5 MiB validado en cliente y servidor; foto de persona con `Avatar` | `<AttachmentInput onSelect={setAdjunto} />` |
+| Búsqueda instantánea | `shared/SearchField` | lupa + botón limpiar; el debounce vive en la pantalla; conserva `placeholder`/`aria-label`/ref | `<SearchField value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar…" />` |
+| Banco | `shared/BancoCombobox` (+`BancoLogo`) | catálogo BCP completo al abrir, filtra al instante, texto libre, logo por banco | `<BancoCombobox value={bank} onChange={setBank} />` |
+| Producto | `shared/ProductCombobox` | buscar/elegir y crear producto desde el campo | `<ProductCombobox products={prods} onSelect={…} onCreate={…} />` |
+| Ciudad | `shared/CityAutocomplete` | sugiere y completa el departamento | `<CityAutocomplete value={ciudad} onChange={…} />` |
+| RUC / CI | `shared/RucField` (+`utils/ruc.js`) | input + **Extraer RUC**; el resultado se aplica solo al confirmar | `<RucField value={ruc} onChange={…} />` |
+| Instagram / usuario | `shared/InstagramField` | `@` fijo, sin espacios, guarda el usuario pelado | `<InstagramField value={ig} onChange={…} />` |
+| Catálogo cerrado | `ui/Select` | opciones cerradas (estado, rol, moneda, medio); nunca texto libre para catálogos | `<Select value={rol} onChange={…}>{…}</Select>` |
+| **Booleano** | `shared/Switch` | estado de formulario ("activo", "aplica descuento"): interruptor estilo iPhone; guarda `onChange(event.target.checked)` | `<Switch checked={form.activo} onChange={e => set(e.target.checked)} />Activo` |
+| Selección múltiple | `ui/Input type="checkbox"` (`accent-fono`) | listas con varias filas (seleccionar visibles, IMEIs, checklist, destinatarios) | `<input type="checkbox" checked={sel} onChange={…} aria-label={…} />` |
+| Opciones excluyentes (2–5) | `shared/SegmentedField` | barra segmentada con `aria-pressed`; `options` = `[id, etiqueta, icono?, contador?]` | `<SegmentedField value={periodo} onChange={setPeriodo} options={[['dia','Día'],['mes','Mes']]} />` |
+| Subnavegación de sección | `ui/Subtabs` | pestañas anchas de una subpágina (misma fuente para todas) | `<Subtabs value={tab} onChange={irASubtab} items={tabs} />` |
+| Lista/cuadrícula | `shared/ListGridToggle` | solo íconos, `aria-pressed` | `<ListGridToggle value={vista} onChange={…} />` |
+| Tema | `app/ThemeToggle` | claro/oscuro con tokens | `<ThemeToggle />` |
 
-**Reglas transversales de campos**
-- Label arriba; **error o hint, nunca ambos**.
-- `aria-invalid` + `aria-describedby`; el error con `role="alert"`.
-- Límites desde `<FIELD_LIMITS>` y mensajes desde `<INPUT_MESSAGES>`: nada de
-  strings sueltos.
-- Truncar en `onChange`, validar en `blur`, obligatorio con `required` real.
-- Teclado móvil correcto (`inputMode`/`pattern`/`autoComplete`).
-- El backend revalida SIEMPRE; el front solo ayuda.
+### 1.2 Patrón de uso por familia
 
-> Referencia MobOS: `src/components/shared/*Field.jsx` (Email, Phone, Serial,
-> Percent, Instagram), `components/ui` (`Input`, `PasswordInput`, `PinInput`,
-> `MoneyInput`), `docs/CAMPOS.md` + `docs/PLANTILLA-CAMPOS.md`.
+- **Moneda (Gs/USD).** El campo nunca escribe el símbolo dentro del valor: lo
+  dibuja el prefijo del `MoneyInput` y la divisa la define `currency` (+
+  `CurrencySelect` cuando el usuario elige). PYG se guarda **numérico entero**
+  y se escribe con separador de miles; las monedas con centavos se guardan como
+  string decimal limpio (`parseUsdInput`) y se muestran con coma. El pegado de
+  un monto con símbolo o separadores funciona: el campo limpia lo que no sea
+  dígito/coma/punto. Prohibido formatear a mano, convertir monedas en el campo
+  o usar `type="number"`.
+- **Porcentaje.** `PercentField` con coma decimal (0,5 / 12,5), hasta 2
+  decimales; al guardar `parsePercent`, al mostrar `formatPercent`; el `%` va en
+  la etiqueta, nunca dentro del valor.
+- **Búsqueda.** `SearchField` (lupa + limpiar) con filtrado instantáneo: la
+  pantalla decide si filtra en memoria o consulta a la API y con qué debounce;
+  jamás se bloquea el tecleo ni se desarma el pegado/autofill.
+- **Archivo e imagen.** `AttachmentInput` valida tipo y tamaño (y *magic bytes*
+  en el servidor); las fotos de personas van siempre por `Avatar` (foto subida →
+  Google → iniciales, ver `AVATAR.md`); las imágenes se recortan/comprimen antes
+  de subir.
+- **Identidad.** Personas con `Avatar` por `id`; bancos con `BancoCombobox`
+  (logo del registro compartido); la sucursal con `SelectorSucursal`.
+- **Autocompletado.** Sugerencias por iniciales, texto libre permitido, teclado
+  correcto y sin interferir con pegado/autofill; al elegir se completan los
+  campos derivados (ciudad → departamento, banco → logo).
+- **Extractor.** Campo + botón corto o lupa (`Icon` + `title`) que consulta al
+  backend; el resultado se muestra aparte y **se aplica solo al confirmar**;
+  nunca pisa lo cargado; si el proveedor falla, el dato se completa a mano y el
+  error va con `role="alert"`.
+- **Booleanos y opciones.** Un booleano de formulario va con `Switch` (estado
+  activo/inactivo); una selección múltiple con checkbox; 2–5 opciones
+  excluyentes con `SegmentedField`; la subnavegación con `Subtabs`; los
+  catálogos cerrados con `Select`. No se inventan pestañas, toggles ni
+  segmentados locales.
+
+### 1.3 Reglas transversales de campos
+
+- Label arriba; **error o hint, nunca ambos**; `aria-invalid` +
+  `aria-describedby`, error con `role="alert"`.
+- **Tamaños de monto (épica #148, sección 9):** el campo general soporta hasta
+  **10.000.000.000** y las ventas hasta **99.000.000.000**, sin truncar lo que
+  se escribe. `MoneyInput` usa el límite general por defecto; las pantallas de
+  venta pasan `max={LIMITE_MONTO_VENTAS}` (POS #151 y FIN). Al superarlo el
+  campo se marca (`aria-invalid`) y el formulario valida con `excedeMonto`;
+  nunca se recortan dígitos.
+- Teclado móvil correcto (`inputMode`/`pattern`/`autoComplete`); nada de
+  máscaras que rompan pegado, autofill o `fill()` de las pruebas.
+- Solo dígitos: `inputMode="numeric"` + limpieza `\D`; porcentajes con
+  `PercentField`; montos con `MoneyInput`.
+- El backend revalida SIEMPRE; el front solo ayuda. Obligatorio con `required`
+  real y validación al enviar (no solo al perder foco cuando bloquea el guardado).
+- Cada regla nueva se fija con test de aserción de fuente (`src/lib/camposReglas.test.js`,
+  `src/lib/bancosLogos.test.js`): si un campo se reimplementa suelto, el test falla.
+
+> Referencia MobOS: `src/components/ui/index.jsx` (`Input`, `Textarea`, `Select`,
+> `MoneyInput`, `Money`, `PasswordInput`, `PinInput`, `Subtabs`),
+> `src/components/shared/` (`SearchField`, `SegmentedField`, `Switch`,
+> `PercentField`, `PhoneField`, `EmailField`, `SerialField`, `RucField`,
+> `CityAutocomplete`, `ProductCombobox`, `BancoCombobox`, `BancoLogo`,
+> `AttachmentInput`, `RangoFechas`, `ListGridToggle`), `src/utils/moneda.js`
+> (`LIMITE_MONTO_GENERAL`, `LIMITE_MONTO_VENTAS`, `excedeMonto`),
+> `docs/CAMPOS.md` + `docs/PLANTILLA-CAMPOS.md`.
 
 ## 2. Botones y acciones — familias y jerarquía
 
