@@ -5,6 +5,7 @@ import { useSesion } from '@/lib/sesion'
 import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas, productosById, refrescar } from '@/lib/storage'
 import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
 import { Card, Button, ConfirmDialog, Input, Select, Badge, Label, EmptyState, MoneyInput, Modal } from '@/components/ui'
+import Avatar from '@/components/shared/Avatar'
 import EmailField from '@/components/shared/EmailField'
 import Cronologia from '@/components/shared/Cronologia'
 import { ROLE_LABELS } from '@/lib/roles'
@@ -69,6 +70,14 @@ export default function Vendedores({ seccion = 'equipo' }) {
     try { setInvitaciones(await api.get('/api/user-invitations')) } catch (cause) { setError(cause?.message || 'No se pudieron cargar las invitaciones.') }
   }, [esDemo])
   useEffect(() => { cargarInvitaciones() }, [cargarInvitaciones])
+  // Nombre de sucursal para la ficha: la API de usuarios solo trae branchId.
+  const [sucursales, setSucursales] = useState([])
+  useEffect(() => {
+    if (esDemo) return undefined
+    let vivo = true
+    api.get('/api/branches').then(lista => { if (vivo) setSucursales(lista || []) }).catch(() => {})
+    return () => { vivo = false }
+  }, [esDemo])
   function notifySuccess(value) { setError(''); setMessage(value); window.setTimeout(() => setMessage(''), 4500) }
   async function refreshTeam() { if (!esDemo) await refrescar(); setRevision(value => value + 1) }
 
@@ -201,12 +210,6 @@ export default function Vendedores({ seccion = 'equipo' }) {
   const [abiertos, setAbiertos] = useState(() => new Set(meses.slice(0, 1)))
   function toggleMes(mes) { setAbiertos(prev => { const next = new Set(prev); next.has(mes) ? next.delete(mes) : next.add(mes); return next }) }
 
-  const inicialesDe = (nombre) => {
-    const palabras = String(nombre || '').trim().split(/\s+/).filter(Boolean)
-    const primera = palabras[0]?.[0] || ''
-    const ultima = palabras.length > 1 ? (palabras[palabras.length - 1][0] || '') : ''
-    return `${primera}${ultima}`.toUpperCase()
-  }
   const fechaCortaInv = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY', { day: '2-digit', month: 'short', year: 'numeric' }) : '—')
   const integrantesDeTab = tabIntegrantes === 'inactivos' ? vendedores.filter(v => !v.activo) : vendedores.filter(v => v.activo)
 
@@ -236,10 +239,11 @@ export default function Vendedores({ seccion = 'equipo' }) {
             <span className="sr-only">{v.nombre}</span>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2.5">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-fono/15 text-xs font-bold text-fono-light" aria-hidden="true">{inicialesDe(v.nombre)}</span>
+                <Avatar user={{ id: v.id, name: v.nombre, hasAvatar: esDemo ? false : v.hasAvatar }} size="lg" />
                 <div className="min-w-0">
                   <input aria-label={`Nombre de ${v.nombre}`} defaultValue={v.nombre} onBlur={event => { const name = event.target.value.trim(); if (name && name !== v.nombre) actualizarUsuario(v.id, esDemo ? { nombre: name } : { name }) }} className="min-h-7 min-w-0 max-w-[15rem] bg-transparent text-[13px] font-bold outline-none border-b border-transparent focus:border-fono" />
                   {v.email && <p className="truncate text-xs text-mute">{v.email}</p>}
+                  <p className="truncate text-xs text-mute">{v.branchId ? (sucursales.find(s => s.id === v.branchId)?.name || 'Sucursal') : 'Sin sucursal'}</p>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
