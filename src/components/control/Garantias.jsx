@@ -6,7 +6,7 @@ import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, IconAction, Inpu
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import SegmentedField from '@/components/shared/SegmentedField'
-import { useUltimoUsado } from '@/lib/ultimoUsado'
+import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import SerialField from '@/components/shared/SerialField'
 import AttachmentInput from '@/components/shared/AttachmentInput'
