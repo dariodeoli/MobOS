@@ -644,3 +644,21 @@ test('POS offline: reporte, conflicto al sincronizar y descarte', async ({ page,
   await page.getByRole('dialog').getByRole('button', { name: 'Descartar', exact: true }).click()
   await expect(page.getByTestId('cola-offline')).toHaveCount(0, { timeout: 15_000 })
 })
+
+// #175 (§6): el código escaneado se muestra y se agrega recién al confirmar.
+test('POS: el producto escaneado pide confirmación antes de entrar a la venta', async ({ page }) => {
+  await page.goto('/pos')
+  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await page.getByPlaceholder('Buscar producto…').fill(`MOBOS:PROD:${SEED.products.cable.sku}`)
+
+  const dialogo = page.getByRole('dialog')
+  await expect(dialogo.getByText('Producto escaneado')).toBeVisible()
+  await expect(dialogo.getByText(SEED.products.cable.name)).toBeVisible()
+  await dialogo.getByRole('button', { name: 'Cancelar' }).click()
+  await expect(page.getByText('Todavía no agregaste productos.')).toBeVisible()
+
+  await page.getByPlaceholder('Buscar producto…').fill('')
+  await page.getByPlaceholder('Buscar producto…').fill(`MOBOS:PROD:${SEED.products.cable.sku}`)
+  await page.getByRole('dialog').getByRole('button', { name: 'Agregar a la venta' }).click()
+  await expect(page.getByLabel(`Cantidad de ${SEED.products.cable.name}`)).toBeVisible()
+})

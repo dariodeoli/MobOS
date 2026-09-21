@@ -320,6 +320,9 @@ export default function FormularioVenta({
   const [enlacePublico, setEnlacePublico] = useState(null)
   const [avisoEnlace, setAvisoEnlace] = useState('')
   const [analyticsOpen, setAnalyticsOpen] = useState(false)
+  // Producto leído por el escáner: se muestra y se agrega recién al confirmar
+  // (evita sumar al carrito por una lectura accidental).
+  const [escaneado, setEscaneado] = useState(null)
   const [descartarPendiente, setDescartarPendiente] = useState(null)
   const [descartando, setDescartando] = useState(false)
   const [avisoSuspension, setAvisoSuspension] = useState('')
@@ -707,14 +710,15 @@ export default function FormularioVenta({
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, f.cliente])
-  // Escaneo de etiqueta de precio (MOBOS:PROD:<sku>): agrega el producto al
-  // carrito directo, sin buscarlo a mano. El lector USB escribe como teclado.
+  // Escaneo de etiqueta (MOBOS:PROD:<sku>): el lector USB escribe como teclado.
+  // Se muestra el producto y se agrega al confirmar, no de prepo.
   useEffect(() => {
     const match = busquedaProducto.trim().toUpperCase().match(/^MOBOS:PROD:([A-Z0-9-]+)$/)
     if (!match) return
     const producto = productos.find(item => String(item.sku || '').toUpperCase() === match[1])
-    if (producto) { agregarProducto(producto); setBusquedaProducto('') }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setBusquedaProducto('')
+    if (producto) setEscaneado(producto)
+    else setErrorVenta(`El código escaneado no está en el catálogo (${match[1]}).`)
   }, [busquedaProducto, productos])
 
   const familiasVisibles = familias.filter(fam => {
@@ -1964,6 +1968,44 @@ export default function FormularioVenta({
       </Modal>
 
       <AnalyticsPos open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
+
+      {/* Código escaneado: se confirma antes de sumarlo a la venta. */}
+      <Modal open={Boolean(escaneado)} onClose={() => setEscaneado(null)} title="Producto escaneado" className="max-w-md">
+        {escaneado && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              {escaneado.imagen || escaneado.imageUrl ? (
+                <img src={escaneado.imagen || escaneado.imageUrl} alt="" className="h-14 w-14 rounded-lg object-cover" />
+              ) : (
+                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
+                  <Icon name="box" className="h-6 w-6" />
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{escaneado.nombre || escaneado.name}</p>
+                <p className="text-xs text-mute">
+                  {[escaneado.sku, escaneado.model || escaneado.modelo, escaneado.capacity || escaneado.capacidad].filter(Boolean).join(' · ')}
+                </p>
+                <p className="mt-0.5 text-sm">
+                  {gs(Number(escaneado.precioVenta) || 0)} ·{' '}
+                  {num(escaneado.stock) > 0
+                    ? <span className="text-ok">{num(escaneado.stock)} en stock</span>
+                    : <span className="text-bad">Agotado</span>}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="ghost" onClick={() => setEscaneado(null)}>Cancelar</Button>
+              <Button
+                type="button"
+                onClick={() => { agregarProducto(escaneado); setEscaneado(null) }}
+              >
+                Agregar a la venta
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {lastOrder && <ComprobantePreview order={lastOrder} open={comprobante} onClose={() => setComprobante(false)} />}
     </Card>
