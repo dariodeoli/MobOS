@@ -32,7 +32,8 @@ test('la conciliación demo agrupa cobros, cuentas y procesadoras', () => {
   assert.equal(data.resumen.confirmedPyg, 7130000)
   assert.equal(data.resumen.unverifiedPyg, 7130000)
   assert.equal(data.resumen.verifiedCount, 0)
-  assert.equal(data.resumen.lotes, 0)
+  // #213: la demo arranca con un lote conciliado con diferencia (comisión bancaria).
+  assert.equal(data.resumen.lotes, 1)
   assert.equal(data.items[0].orderNumber, 'DEMO-0001')
   assert.equal(data.items[0].metodo, 'Efectivo')
 
@@ -78,14 +79,15 @@ test('conciliar el lote en la demo marca los pagos y guarda la diferencia', () =
   assert.equal(lote.estado, 'DIFFERENCE')
 
   const estado = getDemoConciliacion()
-  assert.equal(estado.lotes.length, 1)
+  assert.equal(estado.lotes.length, 2)
   assert.equal(estado.conciliados['pago-2'], lote.id)
 
   const despues = construirDemoConciliacion({ ventas, cuentas, desde: '2000-01-01', hasta: '2100-01-01' })
   assert.equal(despues.items.find((item) => item.id === 'pago-2').conciliacion.state, 'VERIFIED')
   assert.equal(despues.resumen.verifiedPyg, 50000)
   assert.equal(despues.resumen.unverifiedPyg, 7080000)
-  assert.equal(despues.resumen.differencePyg, -10000)
+  // El resumen suma el lote nuevo (-10.000) y el sembrado de la demo (-50.000).
+  assert.equal(despues.resumen.differencePyg, -60000)
   assert.equal(despues.lotes[0].note, 'Faltó Gs 10.000 del depósito')
   // El pago sin cuenta cae al grupo por medio y ahí queda la diferencia.
   assert.equal(despues.porCuenta.find((fila) => fila.key === 'metodo:CASH').differencePyg, -10000)

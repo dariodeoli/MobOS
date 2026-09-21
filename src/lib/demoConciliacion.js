@@ -33,7 +33,18 @@ function leerEstado() {
       return { lotes: guardado.lotes, conciliados: guardado.conciliados }
     }
   } catch { /* almacenamiento no disponible o corrupto */ }
-  return { lotes: [], conciliados: {} }
+  // #213: un lote ya conciliado con diferencia (comisión bancaria ficticia).
+  const hace = (dias) => new Date(Date.now() - dias * 86400000).toISOString()
+  return {
+    lotes: [{
+      id: 'demo-lote-1', createdAt: hace(2), from: hace(2), to: hace(2),
+      accountId: 'demo-transfer-itau', cuenta: 'Banco Itaú · Comercio demo', procesadora: '',
+      expectedPyg: 3600000, receivedPyg: 3550000, differencePyg: -50000,
+      state: 'VERIFIED', estado: 'DIFFERENCE',
+      note: 'Diferencia demo: comisión bancaria de la transferencia.', creadoPor: 'Dueño demo', pagos: 1,
+    }],
+    conciliados: {},
+  }
 }
 
 function escribirEstado(estado) {

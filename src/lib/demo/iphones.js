@@ -28,3 +28,10 @@ export const EQUIPO_DEMO = [
   { id: 'demo-user-tecnico', nombre: 'Jorge Villalba', rol: 'TECNICO', email: 'jorge@demo.mobos', pin: '2005', metaDiaria: 0, activo: true },
   { id: 'demo-user-vendedora', nombre: 'Sofía Cáceres', rol: 'VENDEDOR', email: 'sofia@demo.mobos', pin: '2006', metaDiaria: 1200000, activo: true },
 ]
+
+// Seriales/IMEIs ficticios del inventario demo (#213): prefijo DEMO y nunca un
+// IMEI real (no pasan Luhn). La lista es explícita para poder auditarla.
+export function serialDemo(n) {
+  return `DEMO${String(n).padStart(4, '0')}0000000000`.slice(0, 16)
+}
+export const IMEIS_DEMO_FICTICIOS = Array.from({ length: 24 }, (_, i) => serialDemo(i + 1))

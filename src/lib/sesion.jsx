@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { isDemoRuntime, demoSessionActive, demoSessionRole, saveDemoSession, clearDemoSession } from './demoMode'
+import { EMPRESA_DEMO, SUCURSALES_DEMO } from './demo/empresa'
 import { clearSession, getCompanyContext, sessionApi, resources } from '@/lib/api'
 import { setActor, setContexto, prepararDatosDemo } from '@/lib/storage'
 import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
@@ -49,6 +50,11 @@ export function SesionProvider({ children }) {
     await setContexto({ empresaId: emp.id, sucursalId: suc?.id || null, userId: user.id, rol: emp.rol, fuente: prepararLegacy ? 'legacy' : 'api' })
     let listaSucursales = suc ? [suc] : []
     let sucursalActiva = suc
+    // Demo (#213): sucursales ficticias visibles y elegibles, sin tocar la API.
+    if ((rawUser.role === 'ADMIN' || rawUser.role === 'GERENTE') && emp.id === 'mobos-demo') {
+      listaSucursales = SUCURSALES_DEMO.map(item => ({ id: item.id, nombre: item.name, direccion: item.address, horario: item.schedule }))
+      sucursalActiva = listaSucursales[0]
+    }
     // Los dueños y gerentes pueden no tener sucursal asignada (cuentas viejas).
     // Se hidrata la lista desde la API y se conserva la elección previa.
     if ((rawUser.role === 'ADMIN' || rawUser.role === 'GERENTE') && emp.id !== 'mobos-demo') {
@@ -69,7 +75,7 @@ export function SesionProvider({ children }) {
     setUsuario(user); setEmpresa(emp); setEmpresas([emp]); setSucursal(sucursalActiva); setSucursales(listaSucursales); setVendedores(getCompanyContext()?.sellers || []); setPerfilEmpresa(perfil !== undefined ? perfil : getCompanyContext()?.profile || null); setEstado('dentro')
   }, [])
   const entrarDemo = useCallback(async (role = demoSessionRole()) => {
-    saveDemoSession(role); await activarSesion({ id: 'demo-user', email: 'demo@example.invalid', name: role === 'ADMIN' ? 'Dueño demo' : 'Vendedor demo', tenantId: 'mobos-demo', role, branchId: 'mobos-demo-central', branchName: 'Tienda demo' }, { prepararLegacy: true }); prepararDatosDemo()
+    saveDemoSession(role); await activarSesion({ id: 'demo-user', email: 'demo@example.invalid', name: role === 'ADMIN' ? 'Dueño demo' : 'Vendedor demo', tenantId: 'mobos-demo', role, branchId: SUCURSALES_DEMO[0].id, branchName: SUCURSALES_DEMO[0].name }, { prepararLegacy: true, tenant: { name: EMPRESA_DEMO.razonSocial, slug: 'mobos-demo', email: EMPRESA_DEMO.email } }); prepararDatosDemo()
   }, [activarSesion])
   useEffect(() => {
     let vivo = true
