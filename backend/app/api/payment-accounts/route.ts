@@ -56,10 +56,11 @@ function validateTransfer(account: { kind?: PaymentAccountKind; bank?: string | 
 }
 
 // Cada medio tiene su moneda (#142): Pix cobra en reales y Cripto/USDT en
-// dólares. El resto (efectivo multinmoneda incluido) elige libremente.
+// dólares. La transferencia no mezcla USDT: la cripto tiene su propio medio.
 function validateCurrency(kind: PaymentAccountKind | undefined, currency: PaymentCurrency | undefined) {
   if (kind === 'PIX' && currency !== 'BRL') throw new InputError('Pix cobra en reales (BRL).')
   if (kind === 'CRYPTO' && currency !== 'USD') throw new InputError('Cripto/USDT cobra en dólares (USD).')
+  if (kind === 'TRANSFER' && currency === 'USDT') throw new InputError('USDT tiene su propio medio: usá una cuenta USDT - Cripto.')
 }
 
 // Titular y empresa asociados (#143): solo se aceptan si existen en la empresa.

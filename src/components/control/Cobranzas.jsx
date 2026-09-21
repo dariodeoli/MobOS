@@ -3,6 +3,7 @@ import { api } from '@/lib/api/client'
 import { listVentas, ventaDesdeApi } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { agruparCuotas, diasDeAtraso, resumenCuotas } from '@/lib/cobranzas'
+import { telefonoVisible } from '@/utils/telefono'
 import { Badge, Button, Card, EmptyState, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import PagosPedido from '@/components/ventas/PagosPedido'
@@ -76,7 +77,7 @@ export default function Cobranzas() {
             {row.recargoPyg > 0 && <> · recargo {gs(row.recargoPyg)}</>}
           </p>
           <p className="mt-0.5 text-[11px] text-mute">
-            {row.phone ? `Tel. +${String(row.countryCode || '+595').replace(/\D/g, '')} ${row.phone}` : 'Sin teléfono cargado'}
+            {row.phone ? `Tel. ${telefonoVisible(row.phone, row.countryCode)}` : 'Sin teléfono cargado'}
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
@@ -109,7 +110,7 @@ export default function Cobranzas() {
         {aviso && <p role="status" className="mt-3 rounded-lg border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{aviso}</p>}
         {error && <p role="alert" className="mt-3 rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
       </Card>
-      {data !== null && rows.length === 0 && <Card><EmptyState compact icon="check" title="Sin cuotas pendientes." description="Los planes de crédito aparecerán acá con su vencimiento y su mora." /></Card>}
+      {data !== null && rows.length === 0 && <Card><EmptyState compact icon="check" title="Sin cuotas pendientes" description="Los planes de crédito aparecerán acá con su vencimiento y su mora." /></Card>}
       {vencidas.length > 0 && <section><h3 className="text-xs font-bold uppercase tracking-wider text-bad">Vencidas ({vencidas.length})</h3><div className="mt-2 space-y-2">{vencidas.map((row) => <Fila key={row.id} row={row} />)}</div></section>}
       {proximas.length > 0 && <section><h3 className="text-xs font-bold uppercase tracking-wider text-mute">Próximas ({proximas.length})</h3><div className="mt-2 space-y-2">{proximas.map((row) => <Fila key={row.id} row={row} />)}</div></section>}
       {detalle && (

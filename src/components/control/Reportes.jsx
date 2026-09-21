@@ -25,6 +25,9 @@ import {
 
 const rangoInicial = () => ({ ...(PRESETS.find((p) => p.id === '30d') || PRESETS[0]).calc(), preset: '30d' })
 
+// «Generado»: fecha y hora legibles, en 24 h y sin segundos.
+const fechaHora = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false }) : '')
+
 export default function Reportes() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [rango, setRango] = useState(() => rangoDeParams(searchParams, rangoInicial))
@@ -286,7 +289,7 @@ export default function Reportes() {
 
           <p className="text-xs text-mute">
             La comisión se calcula sobre el margen de cada venta usando las reglas vigentes; la regla por usuario prevalece
-            sobre la de rol. Generado {datosComisiones.generatedAt ? new Date(datosComisiones.generatedAt).toLocaleString('es-PY') : ''}.
+            sobre la de rol.{datosComisiones.generatedAt ? ` Generado ${fechaHora(datosComisiones.generatedAt)}.` : ''}
           </p>
         </>
       )}
@@ -453,8 +456,7 @@ export default function Reportes() {
             {porLinea
               ? 'Producto y categoría se calculan por línea: el descuento global y los cobros pertenecen a la orden y no se reparten. '
               : 'Día y vendedor se calculan por orden, con cobros y saldo reales. '}
-            El margen real descuenta costos congelados y comisiones conocidas; no estima costos históricos ausentes. Generado{' '}
-            {datos.generatedAt ? new Date(datos.generatedAt).toLocaleString('es-PY') : ''}.
+            El margen real descuenta costos congelados y comisiones conocidas; no estima costos históricos ausentes.{datos.generatedAt ? ` Generado ${fechaHora(datos.generatedAt)}.` : ''}
           </p>
         </>
       )}

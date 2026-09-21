@@ -1,6 +1,6 @@
 {
   "base": "https://app.moboss.online",
-  "fecha": "2026-09-21T18:23:56.421Z",
+  "fecha": "2026-09-21T18:58:51.438Z",
   "resultados": [
     {
       "paso": "entrada anónima a la demo (Dueño)",
@@ -33,34 +33,33 @@
     },
     {
       "paso": "caja: auditoría de medios y de efectivo en demo",
-      "estado": "pendiente",
-      "detalle": "auditoría visible: medios=false · efectivo=false (demo de #194 pendiente de deploy)",
+      "estado": "ok",
+      "detalle": "auditoría visible con 2 operación(es) ficticias",
       "capturas": [
-        "06-caja-auditoria-pendiente.jpg"
+        "06-caja-auditoria.jpg"
       ],
       "api": []
     },
     {
       "paso": "conciliación con datos ficticios",
-      "estado": "pendiente",
-      "detalle": "la demo muestra \"Conciliación no está disponible\" (demo de #194 pendiente de deploy)",
+      "estado": "ok",
+      "detalle": "3 pagos ficticios · lotes=1",
       "capturas": [
-        "07-conciliacion-pendiente.jpg"
+        "07-conciliacion-lote.jpg"
       ],
       "api": []
     },
     {
       "paso": "seguro y efecto en el margen",
-      "estado": "pendiente",
-      "detalle": "el seguro está deshabilitado con nota de demo (simulación de #194 pendiente de deploy)",
+      "estado": "ok",
+      "detalle": "seguro guardado y aplicado al margen",
       "capturas": [
-        "08-seguro-demo.jpg"
+        "08-seguro-guardado.jpg",
+        "09-ganancias-con-seguro.jpg"
       ],
       "api": []
     }
   ],
   "llamadasApi": [],
-  "erroresConsola": [
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED"
-  ]
+  "erroresConsola": []
 }

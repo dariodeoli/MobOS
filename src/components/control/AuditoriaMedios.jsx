@@ -5,7 +5,7 @@ import { listVentas } from '@/lib/storage'
 import { construirDemoAuditoriaMedios } from '@/lib/demoAuditoria'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
-import { Card, Input } from '@/components/ui'
+import { Card, EmptyState, Input, Button } from '@/components/ui'
 
 // Control interno de cierre: cuánto entró por cada medio de pago en la sucursal
 // y el día elegidos, para contrastar contra el conteo físico al auditar.
@@ -45,7 +45,7 @@ export default function AuditoriaMedios() {
         </div>
         <form className="flex items-end gap-2" onSubmit={event => { event.preventDefault(); load(fecha) }}>
           <label className="text-xs text-mute">Día<Input type="date" className="mt-1" value={fecha} onChange={event => setFecha(event.target.value)} /></label>
-          <button type="submit" disabled={busy} className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light disabled:opacity-40">{busy ? 'Cargando…' : 'Cargar'}</button>
+          <Button type="submit" variant="outline" disabled={busy}>{busy ? 'Cargando…' : 'Cargar'}</Button>
         </form>
       </div>
       {error && <p role="alert" className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
@@ -65,7 +65,7 @@ export default function AuditoriaMedios() {
             </div>
           </article>
         ))}
-        {!methods.length && !busy && <p className="text-sm text-mute">Sin cobros confirmados para este día.</p>}
+        {!methods.length && !busy && <EmptyState compact icon="box" title="Sin cobros confirmados para este día" description="Elegí otro día o esperá cobros confirmados para controlar el cierre." />}
         {methods.length > 0 && (
           <p className="rounded-xl bg-fono/10 px-3 py-2 text-right text-sm">
             Total del día: <strong className="tabular-nums">{formatGs(total.amountPyg)}</strong> · verificados {verificados}/{methods.length}

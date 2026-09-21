@@ -155,6 +155,35 @@ test('el logo sigue al tema: fondo oscuro → logo claro y fondo claro → logo 
   assert.match(celulares, /ThemeLogo[^>]{0,80}variante="dark"/, 'la tarjeta con degradé verde fuerza el logo claro')
 })
 
+test('finanzas: horas en 24 h, vacíos y estados con etiquetas (#205)', () => {
+  // El barrido fino de #205 fija estas convenciones en el dominio de finanzas:
+  // horas visibles en 24 h, vacíos con el EmptyState compartido y sin códigos
+  // crudos de estado en pantalla.
+  const FINANZAS = [
+    'components/control/Caja.jsx',
+    'components/control/Conciliacion.jsx',
+    'components/control/AuditoriaEfectivo.jsx',
+    'components/control/AuditoriaMedios.jsx',
+    'components/control/Reportes.jsx',
+    'components/control/Comisiones.jsx',
+    'components/control/Config.jsx',
+  ]
+  for (const ruta of FINANZAS) {
+    const codigo = leer(ruta)
+    for (const match of codigo.matchAll(/(?:toLocaleTimeString|toLocaleString)\('es-PY',\s*\{([^}]*)\}/g)) {
+      assert.match(match[1], /hour12:\s*false/, `${ruta}: la hora visible debe ir en 24 h (${match[0]})`)
+    }
+    assert.ok(!/new Date\([^)]*\)\.toLocaleString\('es-PY'\)/.test(codigo), `${ruta}: fecha y hora sin opciones explícitas`)
+  }
+  for (const ruta of ['components/control/Conciliacion.jsx', 'components/control/PaymentAccounts.jsx', 'components/control/AuditoriaEfectivo.jsx', 'components/control/AuditoriaMedios.jsx']) {
+    assert.match(leer(ruta), /<EmptyState[\s\S]{0,200}title=/, `${ruta}: los vacíos van con el EmptyState compartido`)
+  }
+  const gastos = leer('components/control/Gastos.jsx')
+  assert.match(gastos, /ESTADO_MOVIMIENTO = \{[^}]*CLEARED: 'Pagado'/, 'Gastos traduce el estado del movimiento')
+  assert.ok(!/>\{row\.status/.test(gastos), 'Gastos no pinta el código crudo del estado')
+  assert.ok(!/<button[^>]*>[^<]*<Icon/.test(leer('components/control/Comisiones.jsx')), 'las acciones de ícono de Comisiones van con IconAction (aria-label)')
+})
+
 test('el pedido: secciones plegables, avatar compartido y densidad (#164)', () => {
   const colapsable = leer('components/shared/SeccionColapsable.jsx')
   assert.match(colapsable, /aria-expanded/, 'la sección plegable expone su estado')

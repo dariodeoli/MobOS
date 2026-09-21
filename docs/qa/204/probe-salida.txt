@@ -1,0 +1,41 @@
+sesión admin ok (Administrador)
+OK    cuentas: validaciones de rangos y monedas fijas — rangos y monedas fijas rechazados
+OK    medios: transferencia no mezcla USDT (tiene su propio medio) — 400
+OK    cuentas: PATCH sin cambios responde claro — status=400 {"message":"Faltan cambios."}
+OK    cuentas: inactiva no se puede usar para cobrar — inactiva rechazada (409)
+OK    conciliación: lote con diferencia sin nota se rechaza — 400
+OK    conciliación: lote mixto rechazado — 400
+OK    conciliación: lote con diferencia + nota y distribución por procesadora — diferencia espejada en cuenta y procesadora (-10.000)
+OK    conciliación: re-conciliar un pago ya verificado en otro lote — 409
+OK    conciliación: el lote original conserva su pago — lote propio intacto (1 pago)
+OK    conciliación: lote sobre pago PENDING lo confirma y cierra el pedido — pago confirmado y pedido completado
+OK    conciliación: soloResumen y validaciones de entrada — soloResumen y bordes ok
+OK    caja: doble apertura rechazada — 409
+OK    caja: gasto en efectivo baja el esperado y el cierre calcula la diferencia — esperado 1360000 → 1350000
+OK    seguro: validación y efecto en reportes y finanzas — base=100.000 seguro=25.000 real=125.000 · reporte cost=125.000 profit=25.000
+OK    seguro: vendido sin seguro no aplica — sin seguro ok
+OK    medios: Pix en BRL con llave y snapshot completo — BRL + llave en snapshot
+OK    medios: USDT requiere cotización y canje requiere ficha — ambos rechazos ok
+OK    medios: método tiene que coincidir con la cuenta — 400
+
+=== RESUMEN ===
+OK    cuentas: validaciones de rangos y monedas fijas — rangos y monedas fijas rechazados
+OK    medios: transferencia no mezcla USDT (tiene su propio medio) — 400
+OK    cuentas: PATCH sin cambios responde claro — status=400 {"message":"Faltan cambios."}
+OK    cuentas: inactiva no se puede usar para cobrar — inactiva rechazada (409)
+OK    conciliación: lote con diferencia sin nota se rechaza — 400
+OK    conciliación: lote mixto rechazado — 400
+OK    conciliación: lote con diferencia + nota y distribución por procesadora — diferencia espejada en cuenta y procesadora (-10.000)
+OK    conciliación: re-conciliar un pago ya verificado en otro lote — 409
+OK    conciliación: el lote original conserva su pago — lote propio intacto (1 pago)
+OK    conciliación: lote sobre pago PENDING lo confirma y cierra el pedido — pago confirmado y pedido completado
+OK    conciliación: soloResumen y validaciones de entrada — soloResumen y bordes ok
+OK    caja: doble apertura rechazada — 409
+OK    caja: gasto en efectivo baja el esperado y el cierre calcula la diferencia — esperado 1360000 → 1350000
+OK    seguro: validación y efecto en reportes y finanzas — base=100.000 seguro=25.000 real=125.000 · reporte cost=125.000 profit=25.000
+OK    seguro: vendido sin seguro no aplica — sin seguro ok
+OK    medios: Pix en BRL con llave y snapshot completo — BRL + llave en snapshot
+OK    medios: USDT requiere cotización y canje requiere ficha — ambos rechazos ok
+OK    medios: método tiene que coincidir con la cuenta — 400
+
+18/18 probes OK

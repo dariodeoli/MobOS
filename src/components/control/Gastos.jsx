@@ -15,6 +15,14 @@ import { KIND_LABELS } from '@/lib/paymentAccounts'
 const EMPTY = () => ({ originalAmount: '', description: '', date: fechaClave(), currency: 'PYG', exchangeRatePyg: '1', accountId: '', kind: 'EXPENSE', counterparty: '', reference: '', dueAt: '' })
 const KINDS = { EXPENSE: 'Gasto', CHEQUE: 'Cheque emitido/cobrado', SUPPLIER_ADVANCE: 'Adelanto a proveedor', TRANSFER: 'Transferencia', OWNER_WITHDRAWAL: 'Retiro del dueño', ADJUSTMENT: 'Ajuste' }
 const DEFAULT_EXPENSE_LIMIT_PYG = 1000000
+// Estado del movimiento sin códigos crudos: para un cheque, cobrado/anulado.
+const ESTADO_MOVIMIENTO = { CLEARED: 'Pagado', PENDING: 'Pendiente', VOID: 'Anulado' }
+const estadoVisible = (row) => (row.status === 'CLEARED' && row.kind === 'CHEQUE' ? 'Cobrado' : ESTADO_MOVIMIENTO[row.status] || 'Registrado')
+const montoVisible = (row) => {
+  if (!row.currency || row.currency === 'PYG') return gs(row.originalAmount || row.monto)
+  const numero = Number(row.originalAmount)
+  return `${row.currency} ${Number.isFinite(numero) ? numero.toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : row.originalAmount}`
+}
 
 export default function Gastos() {
   const { esDemo, sucursal, empresa, sesion } = useSesion()
@@ -109,7 +117,7 @@ export default function Gastos() {
       </form>
     </Card>
     <Card className="overflow-hidden p-0"><div className="flex items-center justify-between border-b border-ink-600 p-4"><h3 className="font-bold">Libro financiero</h3><Badge color="red">Gastos: {gs(total)}</Badge></div>
-      {loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados." /> : <div className="space-y-1.5 p-4">{rows.map(row => <div key={row.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-2.5 py-1.5 transition hover:border-bad/40"><span className="min-w-0 flex-1"><b className="block truncate text-[13px]">{row.description || row.motivo}</b><span className="mt-0.5 block truncate text-[11px] text-mute">{KINDS[row.kind] || row.category || 'Gasto'} · {row.currency || 'PYG'} · {row.counterparty || 'Sin contraparte'}{row.currency && row.currency !== 'PYG' ? ` · cotización ${row.exchangeRatePyg} = ${gs(row.amountPyg)}` : ''}</span></span><span className="flex shrink-0 items-center gap-2"><Badge color={row.status === 'CLEARED' ? 'green' : row.status === 'VOID' ? 'slate' : 'yellow'}>{row.status || 'REGISTRADO'}</Badge><b className="text-[13px] font-bold tabular-nums text-bad">{row.currency === 'PYG' ? gs(row.originalAmount || row.monto) : `${row.currency} ${row.originalAmount}`}</b>{row.kind === 'CHEQUE' && row.status === 'PENDING' && !isDemoRuntime && <><IconAction icon="check" tone="ok" label="Marcar cobrado" disabled={busy} onClick={() => updateStatus(row.id, 'clear')} /><IconAction icon="trash" tone="bad" label="Anular" disabled={busy} onClick={() => updateStatus(row.id, 'void')} /></>}</span></div>)}</div>}
+      {loading ? <p className="p-8 text-center text-sm text-mute">Cargando movimientos…</p> : rows.length === 0 ? <EmptyState compact icon="box" title="Sin movimientos registrados" description="Registrá un gasto, un cheque o un adelanto para verlo acá." /> : <div className="space-y-1.5 p-4">{rows.map(row => <div key={row.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-2.5 py-1.5 transition hover:border-bad/40"><span className="min-w-0 flex-1"><b className="block truncate text-[13px]">{row.description || row.motivo}</b><span className="mt-0.5 block truncate text-[11px] text-mute">{KINDS[row.kind] || row.category || 'Gasto'} · {row.currency || 'PYG'} · {row.counterparty || 'Sin contraparte'}{row.currency && row.currency !== 'PYG' ? ` · cotización ${gs(row.exchangeRatePyg)} por ${row.currency} = ${gs(row.amountPyg)}` : ''}</span></span><span className="flex shrink-0 items-center gap-2"><Badge color={row.status === 'CLEARED' ? 'green' : row.status === 'VOID' ? 'slate' : 'yellow'}>{estadoVisible(row)}</Badge><b className="text-[13px] font-bold tabular-nums text-bad">{montoVisible(row)}</b>{row.kind === 'CHEQUE' && row.status === 'PENDING' && !isDemoRuntime && <><IconAction icon="check" tone="ok" label="Marcar cobrado" disabled={busy} onClick={() => updateStatus(row.id, 'clear')} /><IconAction icon="trash" tone="bad" label="Anular" disabled={busy} onClick={() => updateStatus(row.id, 'void')} /></>}</span></div>)}</div>}
     </Card>
   </div>
 }

@@ -58,7 +58,7 @@ export default function Creditos() {
       </Card>
       <Card>
         {busy && !data && <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}
-        {!busy && rows.length === 0 && <EmptyState compact icon="wallet" title="Sin créditos pendientes." description="Las ventas a crédito aparecerán acá con su vencimiento y días de atraso." />}
+        {!busy && rows.length === 0 && <EmptyState compact icon="wallet" title="Sin créditos pendientes" description="Las ventas a crédito aparecerán acá con su vencimiento y días de atraso." />}
         <div className="overflow-x-auto" data-testid="creditos-tabla">
           <div className={cn(GRID_CREDITOS, 'px-3.5 pb-2 pt-1')}>
             <span className={CELDA_CREDITOS}>Cliente</span>
