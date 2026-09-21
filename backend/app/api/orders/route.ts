@@ -132,10 +132,20 @@ export async function GET(request: Request) {
       Prisma.sql`o."tags"::text ILIKE ${textoFold}`,
       Prisma.sql`o."totalPyg"::text ILIKE ${textoFold}`,
       Prisma.sql`EXISTS (SELECT 1 FROM "OrderItem" oi WHERE oi."orderId" = o."id" AND ${textoNormalizado('oi."description"', qFold)})`,
+      // Producto/modelo/variante del catálogo: la descripción del ítem queda
+      // congelada al vender, así que además se busca contra la ficha viva.
+      Prisma.sql`EXISTS (SELECT 1 FROM "OrderItem" oip JOIN "Product" pr ON pr."id" = oip."productId" WHERE oip."orderId" = o."id" AND (${textoNormalizado('pr."name"', qFold)} OR ${textoNormalizado('pr."model"', qFold)} OR ${textoNormalizado('pr."color"', qFold)} OR ${textoNormalizado('pr."capacity"', qFold)}))`,
       Prisma.sql`EXISTS (SELECT 1 FROM "OrderItem" oi2 JOIN "OrderItemSerial" s ON s."orderItemId" = oi2."id" WHERE oi2."orderId" = o."id" AND (${Prisma.join(seriales, ' OR ')}))`,
     ]
     if (qCodigo) coincidencias.push(textoAlfanumerico('o."orderNumber"', qCodigo))
     if (soloDigitos) coincidencias.push(Prisma.sql`o."totalPyg"::text LIKE ${patronLike(qDigitos)}`)
+    // Teléfono y documento con separadores ("0981-123-456"): se comparan solo
+    // los dígitos de ambos lados.
+    if (qDigitos.length >= 4) {
+      coincidencias.push(Prisma.sql`regexp_replace(COALESCE(c."phone", ''), '[^0-9]', '', 'g') LIKE ${patronLike(qDigitos)}`)
+      coincidencias.push(Prisma.sql`regexp_replace(COALESCE(c."document", ''), '[^0-9]', '', 'g') LIKE ${patronLike(qDigitos)}`)
+      coincidencias.push(Prisma.sql`regexp_replace(COALESCE(o."billingDocument", ''), '[^0-9]', '', 'g') LIKE ${patronLike(qDigitos)}`)
+    }
     condiciones.push(Prisma.sql`(${Prisma.join(coincidencias, ' OR ')})`)
   }
   const ids = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
