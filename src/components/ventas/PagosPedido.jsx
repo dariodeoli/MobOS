@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Modal, Input, Select, Button, MoneyInput, Badge } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
-import { api, API_URL } from '@/lib/api'
+import { api, apiFetch } from '@/lib/api'
 import { listVentas, updateVenta, refrescar } from '@/lib/storage'
 import { listDemoProofs, saveDemoProof } from '@/lib/demoProofs'
 import { gs, num } from '@/utils/calculos'
@@ -280,7 +280,7 @@ export default function PagosPedido({ venta, onClose }) {
     try {
       let blob = proof.file
       if (!esDemo) {
-        const response = await fetch(`${API_URL}/api/payments/${encodeURIComponent(paymentId)}/proofs/${encodeURIComponent(proof.id)}`, { credentials: 'include' })
+        const response = await apiFetch(`/api/payments/${encodeURIComponent(paymentId)}/proofs/${encodeURIComponent(proof.id)}`)
         if (!response.ok) throw new Error('No se pudo descargar el comprobante.')
         blob = await response.blob()
       }

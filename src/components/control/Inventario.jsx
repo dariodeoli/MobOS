@@ -12,7 +12,7 @@ import { Card, Button, Input, Badge, Modal, Select, Textarea, EmptyState, Skelet
 import Icon from '@/components/shared/Icon'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { resources } from '@/lib/api'
-import { api, API_URL } from '@/lib/api/client'
+import { api, apiFetch } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { APP_NAME } from '@/lib/brand'
 import { printRemisionReceipt, printReservationReceipt, printTransferReceipt, transferReceiveUrlFor } from '@/components/shared/OrderReceipt'
@@ -805,7 +805,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
     setEtiquetaAex(current => ({ ...current, busy: true, error: '', unconfigured: false }))
     try {
       const query = new URLSearchParams({ guia: actual.guia, formato: actual.formato, ...(actual.partida ? { partida: '1' } : {}) })
-      const response = await fetch(`${API_URL}/api/aex/label?${query}`, { credentials: 'include' })
+      const response = await apiFetch(`/api/aex/label?${query}`)
       const tipo = response.headers.get('content-type') || ''
       if (!response.ok || !tipo.includes('application/pdf')) {
         const data = tipo.includes('application/json') ? await response.json() : null

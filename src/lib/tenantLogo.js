@@ -1,4 +1,4 @@
-import { API_URL } from '@/lib/api/client'
+import { apiFetch } from '@/lib/api/client'
 
 // Logo de la empresa para comprobantes y documentos, por variante ('light' =
 // para modo claro, 'dark' = para modo oscuro). Se pide una sola vez por pestaña
@@ -7,9 +7,8 @@ import { API_URL } from '@/lib/api/client'
 const cache = new Map()
 
 async function cargarLogo(variant) {
-  if (!API_URL) return ''
   try {
-    const response = await fetch(`${API_URL}/api/tenant/logo?variant=${encodeURIComponent(variant)}`, { credentials: 'include', headers: { Accept: 'image/*' } })
+    const response = await apiFetch(`/api/tenant/logo?variant=${encodeURIComponent(variant)}`, { headers: { Accept: 'image/*' } })
     if (!response.ok) return ''
     const blob = await response.blob()
     if (!blob.type.startsWith('image/')) return ''

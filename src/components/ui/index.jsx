@@ -410,7 +410,7 @@ let toastCounter = 0
 const TOAST_ICON = { success: 'check', error: 'alert', info: 'info' }
 const TOAST_TONE = { success: 'text-ok', error: 'text-bad', info: 'text-fono-light' }
 
-export function ToastProvider({ children }) {
+export function ToastProvider({ children, demo = false }) {
   const [toasts, setToasts] = useState([])
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
@@ -420,6 +420,19 @@ export function ToastProvider({ children }) {
     setToasts(current => [...current, { id, variant: TOAST_ICON[variant] ? variant : 'info', title, description }])
     setTimeout(() => dismiss(id), 4000)
   }, [dismiss])
+  // En la demo pública, cada guardado avisa que quedó simulado (#192).
+  useEffect(() => {
+    if (!demo) return undefined
+    let ultimo = 0
+    const aviso = () => {
+      const ahora = Date.now()
+      if (ahora - ultimo < 2500) return
+      ultimo = ahora
+      toast('info', 'Cambio simulado en la demo', 'El dato quedó solo en este navegador: no se guardó en la tienda real.')
+    }
+    window.addEventListener('mobos:demo-guardado', aviso)
+    return () => window.removeEventListener('mobos:demo-guardado', aviso)
+  }, [demo, toast])
   const value = useMemo(() => ({
     success: (title, description) => toast('success', title, description),
     error: (title, description) => toast('error', title, description),
@@ -436,6 +449,11 @@ export function ToastProvider({ children }) {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-fore">{toast.title}</p>
               {toast.description && <p className="mt-0.5 text-xs text-mute">{toast.description}</p>}
+              {demo && (
+                <p className="mt-1 inline-flex rounded border border-fono/40 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fono-light">
+                  Demo · no se guardó en la tienda
+                </p>
+              )}
             </div>
             <button type="button" onClick={() => dismiss(toast.id)} className="rounded-md p-1 text-mute transition hover:bg-ink-600 hover:text-fore" aria-label="Cerrar aviso">×</button>
           </div>

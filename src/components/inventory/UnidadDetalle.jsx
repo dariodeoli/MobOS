@@ -8,7 +8,7 @@ import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
 import { qrUnidad } from '@/lib/printing/qr'
-import { api, API_URL } from '@/lib/api/client'
+import { api, apiFetch } from '@/lib/api/client'
 import { cotizacionReferencia } from '@/lib/fx'
 import { gs } from '@/utils/calculos'
 import { sinCostoUnitario } from '@/utils/inventario'
@@ -37,7 +37,7 @@ function FotoMini({ unitId, commentId, photo }) {
   const [url, setUrl] = useState('')
   useEffect(() => {
     let active = true; let objectUrl = ''
-    fetch(`${API_URL}/api/inventory-units/${encodeURIComponent(unitId)}/comments/${encodeURIComponent(commentId)}/photos/${encodeURIComponent(photo.id)}`, { credentials: 'include' })
+    apiFetch(`/api/inventory-units/${encodeURIComponent(unitId)}/comments/${encodeURIComponent(commentId)}/photos/${encodeURIComponent(photo.id)}`)
       .then(response => { if (!response.ok) throw new Error('sin foto'); return response.blob() })
       .then(blob => { if (!active) return; objectUrl = URL.createObjectURL(blob); setUrl(objectUrl) })
       .catch(() => {})

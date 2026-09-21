@@ -1,4 +1,4 @@
-import { API_URL } from '@/lib/api/client'
+import { apiFetch } from '@/lib/api/client'
 
 // Descarga un CSV de /api/exports/<módulo> con la sesión de cookies. El nombre
 // del archivo lo elige quien llama: entre orígenes distintos el navegador no
@@ -10,7 +10,7 @@ export async function descargarCsv(modulo, filtros = {}, nombreArchivo) {
     params.set(clave, String(valor))
   }
   const consulta = params.toString()
-  const response = await fetch(`${API_URL}/api/exports/${encodeURIComponent(modulo)}${consulta ? `?${consulta}` : ''}`, { credentials: 'include' })
+  const response = await apiFetch(`/api/exports/${encodeURIComponent(modulo)}${consulta ? `?${consulta}` : ''}`)
   if (!response.ok) {
     let mensaje = 'No se pudo exportar el CSV.'
     try {

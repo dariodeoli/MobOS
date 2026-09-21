@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { api } from '@/lib/api/client'
-import { API_URL } from '@/lib/api/client'
+import { api, apiFetch } from '@/lib/api/client'
 import { Badge, Button, EmptyState, Input, Label, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { FECHA_KARDEX, consultaKardex, extremosDelRango } from '@/utils/kardex'
 
 // Descarga el CSV del rango que se está viendo, con la sesión de cookies.
 async function descargarKardexCsv(productId, rango, nombreArchivo) {
-  const response = await fetch(`${API_URL}${consultaKardex(productId, rango, { format: 'csv' })}`, { credentials: 'include' })
+  const response = await apiFetch(consultaKardex(productId, rango, { format: 'csv' }))
   if (!response.ok) {
     let mensaje = 'No se pudo exportar el kardex.'
     try {

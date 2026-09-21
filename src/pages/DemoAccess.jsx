@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight, KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { useSesion } from '@/lib/sesion'
 import { publicUrls } from '@/lib/urls'
@@ -38,7 +38,9 @@ export default function DemoAccess() {
     setBusy(true)
     try {
       await entrarDemo(profile.pin === '3001' ? 'ADMIN' : 'VENDEDOR')
-      navigate('/', { replace: true })
+      // Recarga completa: el modo demo se resuelve al cargar la app (así una
+      // entrada desde un redirect sin sesión también queda en modo demo).
+      window.location.assign('/')
     } catch {
       checking.current = false
       setBusy(false)
@@ -62,14 +64,14 @@ export default function DemoAccess() {
     checking.current = true
     setBusy(true)
     entrarDemo(pin === '3001' ? 'ADMIN' : 'VENDEDOR')
-      .then(() => navigate('/', { replace: true }))
+      .then(() => window.location.assign('/'))
       .catch(() => {
         setError('No pudimos abrir la demo. Intentá nuevamente.')
         setPin('')
         checking.current = false
         setBusy(false)
       })
-  }, [pin, entrarDemo, navigate])
+  }, [pin, entrarDemo])
 
   return (
     <main className="relative min-h-dvh overflow-x-hidden bg-paper px-4 py-4 text-fore md:h-dvh md:overflow-hidden sm:px-5 sm:py-5">
@@ -88,7 +90,7 @@ export default function DemoAccess() {
               <span className="text-fono-dark">Probá el flujo real.</span>
             </h1>
             <p className="mt-5 max-w-sm leading-7 text-mute">
-              Usá los mismos menús de MobOS con datos de prueba aislados. Nada se envía a una tienda real.
+              Usá los mismos menús de MobOS con <b className="text-fore">datos ficticios</b> aislados. Nada se envía a una tienda real.
             </p>
           </div>
 
@@ -151,7 +153,7 @@ export default function DemoAccess() {
 
             <div className="mt-4 flex items-center gap-2 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-2.5 text-xs text-mute">
               <ShieldCheck size={16} className="text-fono-dark" />
-              Sesión local · datos aislados
+              Sesión local · datos ficticios
             </div>
 
             <a
@@ -161,6 +163,12 @@ export default function DemoAccess() {
               Volver a la landing
               <ArrowRight size={15} />
             </a>
+            <p className="mt-3 text-xs text-mute">
+              ¿Ya tenés tu tienda?{' '}
+              <Link to="/login" className="font-semibold text-fono-dark hover:underline">
+                Ingresar con mi cuenta
+              </Link>
+            </p>
           </div>
         </section>
       </div>

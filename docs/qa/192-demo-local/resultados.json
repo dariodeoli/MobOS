@@ -1,0 +1,53 @@
+{
+  "base": "http://localhost:5249",
+  "fecha": "2026-09-21T17:19:37.223Z",
+  "llamadasApi": [],
+  "demoNoTocaApi": true,
+  "resultados": [
+    {
+      "paso": "entrada anónima: /demo abre la entrada de perfiles sin login",
+      "estado": "ok",
+      "detalle": "perfiles visibles sin login",
+      "capturas": [
+        "01-demo-entrada.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "panel del vendedor en modo demo",
+      "estado": "ok",
+      "detalle": "panel abierto en http://localhost:5249/pos",
+      "capturas": [
+        "02-panel-vendedor.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "módulos del vendedor con datos locales",
+      "estado": "ok",
+      "detalle": "clientes y pedidos cargan en demo",
+      "capturas": [
+        "03-modulos-vendedor.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "navegación anónima sin sesión demo vuelve a /demo",
+      "estado": "ok",
+      "detalle": "vuelve a /demo",
+      "capturas": [
+        "04-anonimo-demo.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "dueño: un guardado avisa que quedó simulado",
+      "estado": "ok",
+      "detalle": "aviso de guardado simulado visible",
+      "capturas": [
+        "05-guardado-simulado.jpg"
+      ],
+      "llamadasApi": []
+    }
+  ]
+}

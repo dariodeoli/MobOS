@@ -1,5 +1,6 @@
 import { ApiError } from './errors'
 import { CACHE_GET_MS, cacheDeConsultas } from './requestCache'
+import { isDemoRuntime } from '@/lib/demoMode'
 
 // La variable del Hub tiene prioridad, salvo el host legado: un build con la
 // URL anterior provoca un redirect entre orígenes y el navegador bloquea el
@@ -51,6 +52,12 @@ async function readBody(response) {
 
 /** Cliente fetch aislado. No reemplaza ni conoce la implementación de storage.js. */
 export async function request(path, options = {}) {
+  // Demo pública (#192): el panel funciona con datos locales y ninguna llamada
+  // puede salir al API real. Los componentes que necesitan datos usan el modo
+  // demo de storage.js; acá queda la barrera central.
+  if (isDemoRuntime) {
+    throw new ApiError('Modo demo: la acción quedó simulada en este navegador.', { code: 'DEMO_MODE' })
+  }
   if (!API_URL) {
     throw new ApiError('VITE_API_URL no está configurada.', { code: 'API_NOT_CONFIGURED' })
   }
@@ -121,6 +128,18 @@ export const api = {
   put: (path, body, options) => request(path, { ...options, method: 'PUT', body }),
   patch: (path, body, options) => request(path, { ...options, method: 'PATCH', body }),
   delete: (path, options) => request(path, { ...options, method: 'DELETE' }),
+}
+
+// Descargas autenticadas (CSV, fotos, comprobantes) que no pasan por request():
+// mismo contrato de demo que el resto de la API (#192).
+export async function apiFetch(path, options = {}) {
+  if (isDemoRuntime) {
+    throw new ApiError('Modo demo: la acción quedó simulada en este navegador.', { code: 'DEMO_MODE' })
+  }
+  if (!API_URL) {
+    throw new ApiError('VITE_API_URL no está configurada.', { code: 'API_NOT_CONFIGURED' })
+  }
+  return fetch(`${API_URL}/${String(path).replace(/^\//, '')}`, { credentials: 'include', ...options })
 }
 
 export { API_URL }
