@@ -733,9 +733,9 @@ test.describe('mini CRM de clientes', () => {
     const comentario = `Raya lateral visible solo al equipo ${marca}`
     const nota = await crmApi(page, `/api/customers/${clienteId}/notes`, { method: 'POST', body: JSON.stringify({ content: comentario }) })
     expect(nota.status).toBe(201)
-    // La nota pública se guarda en la ficha, pero el contrato de privacidad del
-    // portal (backend/tests/customer-portal.mjs) prohíbe exponerla.
-    const notaPublica = `Nota publica interna ${marca}`
+    // La nota pública de la tienda viaja al portal (issue #127); la nota
+    // interna del equipo nunca sale de la ficha.
+    const notaPublica = `Nota publica de la tienda ${marca}`
     const guardado = await crmApi(page, `/api/customers/${clienteId}`, { method: 'PATCH', body: JSON.stringify({ publicNote: notaPublica }) })
     expect(guardado.status).toBe(200)
 
@@ -746,15 +746,28 @@ test.describe('mini CRM de clientes', () => {
     await expect(ficha.getByTestId('perfil-notas').getByText(comentario)).toBeVisible()
     await expect(ficha.getByText('Comentario del equipo').first()).toBeVisible()
 
-    // El portal público (nivel completo) no expone la nota interna.
+    // El portal público (nivel completo) lleva la nota pública de la tienda y
+    // jamás la nota interna del equipo.
     const token = await crmApi(page, `/api/customers/${clienteId}/access-token`, { method: 'POST', body: JSON.stringify({ level: 'completo' }) })
     expect(token.status).toBe(200)
     expect(token.body?.token).toBeTruthy()
     const publico = await crmApi(page, `/api/portal/${encodeURIComponent(token.body.token)}`)
     expect(publico.status).toBe(200)
+    expect(publico.body.customer.publicNote).toBe(notaPublica)
     const serializado = JSON.stringify(publico.body)
+    expect(serializado).toContain(notaPublica)
     expect(serializado).not.toContain(comentario)
-    expect(serializado).not.toContain(notaPublica)
-    expect(serializado).not.toContain('publicNote')
+
+    // La vitrina pública (otro portal, mismo token) también la lleva.
+    const vitrina = await crmApi(page, `/api/public/portal/${encodeURIComponent(token.body.token)}`)
+    expect(vitrina.status).toBe(200)
+    expect(vitrina.body.cliente.notaPublica).toBe(notaPublica)
+    expect(JSON.stringify(vitrina.body)).not.toContain(comentario)
+
+    // La UI del portal muestra la nota de la tienda y no la interna.
+    await page.goto(`/cuenta/${encodeURIComponent(token.body.token)}`)
+    await expect(page.getByText('Nota de la tienda')).toBeVisible()
+    await expect(page.getByText(notaPublica)).toBeVisible()
+    await expect(page.getByText(comentario)).toHaveCount(0)
   })
 })

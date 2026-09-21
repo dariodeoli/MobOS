@@ -60,6 +60,12 @@ export default function CuentaPublica() {
 
         {cuenta && (
           <div className="space-y-4">
+            {cuenta.customer?.publicNote && (
+              <section className="rounded-2xl border border-fono/25 bg-fono/5 p-4 text-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-mute">Nota de la tienda</p>
+                <p className="mt-1 whitespace-pre-wrap break-words">{cuenta.customer.publicNote}</p>
+              </section>
+            )}
             {/* Saldo pendiente: lo primero que el cliente necesita ver. */}
             <section className={`rounded-2xl border p-5 text-center ${alDia ? 'border-ok/30 bg-ok/5' : 'border-warn/40 bg-warn/5'}`}>
               <p className="text-xs font-bold uppercase tracking-wider text-mute">Saldo pendiente</p>
