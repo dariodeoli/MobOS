@@ -13,7 +13,7 @@ Regla viva del proyecto: se invoca con **rdi** (skill `.claude/skills/rdi`). Ant
 | `MoneyInput` | Importes | PYG con separador de miles; USD/BRL/EUR/USDT 2 decimales; el símbolo lo dibuja el campo; entrega número limpio por `onValueChange` |
 | `Money` | Importe de solo lectura | PYG `formatGs`, USD `US$ 1,234.5`; valor no numérico → `—` |
 | `PasswordInput` | Contraseña | Toggle ver/ocultar; 8–72 en auth |
-| `PinInput` | PIN | 4 dígitos, teclado numérico, `one-time-code`, autoenvía al 4.º |
+| `PinInput` | PIN | 4 dígitos, teclado numérico, `one-time-code`, autoenvía al 4.º; los dígitos no se dibujan (texto transparente) y el componente pinta un punto por dígito — sin depender de `-webkit-text-security` ni de glifos de la fuente |
 | `IconAction` | Acción como ícono con tooltip | Tonos por acción (`ok`/`warn`/`fono`/`bad`/`mute`), `h-7 w-7`, `active:scale-95`, `disabled:opacity-40` — reemplaza botones de texto en filas |
 | `Button`, `Modal`, `Drawer`, `ConfirmDialog`, `Card`, `Badge`, `Stat`, `DataTable`, `EmptyState`, `ErrorState`, `PageHeader`, `Skeleton`, `Toast/useToast`, `Eyebrow`, `Dot` | Soporte de pantallas | — |
 
