@@ -180,7 +180,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         {/* Encabezado */}
         <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge color={badgeTone[unit.status] || 'slate'}>{statusLabel[unit.status] || unit.status}</Badge>
+            <Badge data-testid="unidad-estado" color={badgeTone[unit.status] || 'slate'}>{statusLabel[unit.status] || unit.status}</Badge>
             <Badge color={unit.condition === 'NEW' ? 'green' : 'orange'}>{conditionLabel[unit.condition] || unit.condition}</Badge>
             {unit.reservationCustomer && <Badge color="orange">Atajado por {unit.reservationCustomer}</Badge>}
           </div>
@@ -286,7 +286,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         )}
 
         {/* Cronología */}
-        <section className="rounded-2xl border border-ink-600 p-4">
+        <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-cronologia">
           <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-mute"><Icon name="clock" className="h-3.5 w-3.5" /> Cronología</h3>
           {!canManage && <p className="mt-2 text-sm text-mute">La cronología con comentarios y fotos está disponible para administración y gerencia.</p>}
           {canManage && (

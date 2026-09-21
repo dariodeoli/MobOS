@@ -84,7 +84,7 @@ test('la verificación rápida registra usuario y fecha en la cronología', asyn
     await fila.click()
     const detalle = page.getByRole('dialog')
     await expect(detalle.getByText(/Verificado por /)).toBeVisible()
-    await expect(detalle.getByText('Verificado físicamente').first()).toBeVisible()
+    await expect(detalle.getByTestId('unidad-cronologia').getByText('Verificado físicamente')).toBeVisible()
   } finally { await limpiar(page, datos) }
 })
 
@@ -116,17 +116,22 @@ test('la reserva desde el detalle usa la ficha existente y deja la cronología',
     const modal = page.getByRole('dialog', { name: 'Reservar unidad' })
     await expect(modal).toBeVisible()
     await modal.getByPlaceholder('Buscar cliente o reservar sin cliente').fill(datos.cliente.name)
+    // Elegir la ficha de la lista y confirmar que quedó seleccionada antes de enviar.
     await modal.getByRole('button', { name: new RegExp(datos.cliente.name) }).first().click()
+    await expect(modal.getByText(/Reserva a nombre de la ficha del cliente/)).toBeVisible()
     await modal.getByLabel('Duración en horas').fill('1')
     await modal.getByRole('button', { name: 'Reservar', exact: true }).click()
     await expect(page.getByText(/Reserva creada por 1 hora/)).toBeVisible({ timeout: 15_000 })
+    await expect(modal).toHaveCount(0)
 
     // La cronología de la unidad muestra la reserva con el cliente de la ficha.
     const filaReservada = await buscarUnidad(page, serial)
     await filaReservada.click()
     const detalle2 = page.getByRole('dialog')
-    await expect(detalle2.getByText('Reservado', { exact: true })).toBeVisible()
-    await expect(detalle2.getByText(new RegExp(datos.cliente.name)).first()).toBeVisible()
+    await expect(detalle2.getByTestId('unidad-estado')).toHaveText('Reservado')
+    const cronologia = detalle2.getByTestId('unidad-cronologia')
+    await expect(cronologia.getByText('Reservado', { exact: true })).toBeVisible()
+    await expect(cronologia.getByText(new RegExp(datos.cliente.name)).first()).toBeVisible()
     await detalle2.getByRole('button', { name: 'Liberar reserva' }).click()
     await expect(page.getByText('Reserva liberada y unidad disponible.')).toBeVisible({ timeout: 15_000 })
   } finally { await limpiar(page, datos) }
