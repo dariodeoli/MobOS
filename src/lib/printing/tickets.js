@@ -5,7 +5,7 @@ import { APP_NAME } from '../brand.js'
 import { ETIQUETAS_MEDIO_PAGO } from '../constants.js'
 import { CHECKLISTS } from '../servicioChecklist.js'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from './codigos.js'
-import { crearTicket } from './escpos.js'
+import { bloqueFirma, crearTicket } from './escpos.js'
 import { baseDeApp, qrProducto, qrPrueba, qrUnidad } from './qr.js'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
@@ -502,9 +502,7 @@ export function ticketNotaEntrega(order, { ancho = 80 } = {}) {
   t.par('Total de unidades', String(unidades))
   t.avanza(1)
   t.texto('Recibí conforme la mercadería detallada.')
-  t.texto('Receptor: ______________________________')
-  t.texto('Documento: _____________________________')
-  t.texto('Firma: _________________________________')
+  bloqueFirma(t, ['Recibí conforme'], { ancho, observaciones: true })
   t.linea()
   t.centrado(LEYENDA_NO_FISCAL)
   return t.avanza(2).corte()
@@ -530,9 +528,7 @@ export function ticketRemision(transfer, { ancho = 80 } = {}) {
   if (transfer.createdBy?.name) t.par('Despachado por', transfer.createdBy.name)
   if (transfer.notes) t.texto(transfer.notes)
   if (transfer.destinationLocation?.name) t.texto(`Destino en depósito: ${transfer.destinationLocation.name}`)
-  t.avanza(1)
-  t.texto('Entrega: _______________________________')
-  t.texto('Recepción: _____________________________')
+  bloqueFirma(t, ['Entregué (despacho)', 'Recibí conforme (recepción)'], { ancho, observaciones: true })
   t.linea()
   t.centrado(LEYENDA_NO_FISCAL)
   return t.avanza(2).corte()
@@ -560,8 +556,7 @@ export function ticketReciboInterno(payment = {}, order = {}, { ancho = 80 } = {
   if (payment.settlesAt) t.par('Acredita', fecha(payment.settlesAt))
   t.doble().par('TOTAL', gs(monto)).doble(false)
   t.avanza(1)
-  t.texto('Firma de quien recibe: __________________')
-  t.texto('Firma de quien entrega: _________________')
+  bloqueFirma(t, ['Entregué / cobré', 'Recibí conforme'], { ancho, observaciones: true })
   t.linea()
   t.centrado(LEYENDA_NO_FISCAL)
   return t.avanza(2).corte()
@@ -594,6 +589,7 @@ export function ticketProforma(quote = {}, { ancho = 80 } = {}) {
   if (descuento) t.par('Descuento', `- ${gs(descuento)}`)
   t.doble().par('TOTAL', gs(quote.totalPyg ?? 0)).doble(false)
   if (quote.notes) { t.linea(); t.texto(quote.notes) }
+  bloqueFirma(t, ['Aceptación del cliente'], { ancho, observaciones: true })
   t.linea()
   t.centrado(LEYENDA_NO_FISCAL)
   return t.avanza(2).corte()

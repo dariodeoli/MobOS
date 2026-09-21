@@ -46,7 +46,18 @@ test('el cierre imprime apertura, cobros por medio, movimientos de la sesión, e
   assert.ok(texto.includes('Gs 780.000'), 'contado')
   assert.ok(texto.includes('DIFERENCIA'))
   assert.ok(texto.includes('Gs -20.000'), 'diferencia')
-  assert.ok(texto.includes('Firma del responsable'), 'espacio de firma')
+  assert.ok(texto.includes('Responsable del arqueo:'), 'firma del arqueo')
+  assert.ok(texto.includes('Control:'), 'firma de control')
+  assert.ok(texto.includes('Aclaración:'), 'aclaración para escribir a mano')
+  assert.ok(texto.includes('Observaciones:'), 'área de observaciones')
+
+  // En 58 mm las etiquetas largas no se cortan (antes: "E Gs 3.700.000").
+  const lineas58 = ticketCierreCaja(cierre, { ancho: 58 }).lineas()
+  const texto58 = lineas58.join('')
+  assert.ok(texto58.includes('ESPERADO'), 'esperado completo en 58 mm')
+  assert.ok(texto58.includes('DIFERENCIA'), 'diferencia completa en 58 mm')
+  assert.ok(texto58.includes('Gs 420.000'), 'total cobrado completo en 58 mm')
+  for (const linea of lineas58) assert.ok(linea.length <= 33, `sin desborde en 58 mm: "${linea}"`)
 })
 
 test('la diferencia se calcula igual que la pantalla aunque no venga explícita', () => {
@@ -106,4 +117,13 @@ test('el resumen del día imprime ventas, ticket promedio, más vendidos, cobrad
   assert.ok(texto.includes('Funda'), 'producto más vendido')
   assert.ok(texto.includes('Cobrado'))
   assert.ok(texto.includes('Pendiente'))
+  assert.ok(texto.includes('Responsable:'), 'firma del responsable')
+  assert.ok(texto.includes('Control:'), 'firma de control')
+  assert.ok(texto.includes('Aclaración:'), 'aclaración para escribir a mano')
+  assert.ok(texto.includes('Observaciones:'), 'área de observaciones')
+
+  // El resumen en 58 mm no pierde el facturado ni la etiqueta FACTURADO.
+  const texto58 = ticketResumenDia({ ...resumen, empresa: 'MobOS', etiqueta: 'Hoy' }, { ancho: 58 }).lineas().join('')
+  assert.ok(texto58.includes('FACTURADO'), 'etiqueta completa en 58 mm')
+  assert.ok(texto58.includes('Gs 1.500.000'), 'facturado en 58 mm')
 })

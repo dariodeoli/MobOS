@@ -19,6 +19,7 @@ import { cargarImpresorasRemotas, configImpresora, confirmarJob, esIdBackend, es
 import { printingApi } from '@/lib/api/printing'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { encolarComprobanteDemo } from '@/lib/printing/demo'
+import { formatoDeTipo, recordarFormatoDeTipo } from '@/lib/printing/preferencias'
 import { ticketComprobante } from '@/lib/printing/tickets'
 
 // Vista previa real del comprobante: nivel (Rápido/Completo/Detallado) y
@@ -33,12 +34,15 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
   const toast = useToast()
   const inicial = (() => {
     const preferido = formatoPreferido()
+    // #209: si no hay preferencia global, vale el último formato usado para
+    // este tipo de documento (comprobante).
+    const delTipo = formatoDeTipo('comprobante') || preferido
     const ancho = (() => { try { return Number(configImpresora()?.ancho) || 0 } catch { return 0 } })()
     const deImpresora = ancho === 80 ? 'thermal-80' : ancho === 58 ? 'thermal-58' : ''
     const disponibles = formatos.map(([id]) => id)
-    if (preferido !== 'a4' && disponibles.includes(preferido)) return preferido
+    if (delTipo !== 'a4' && disponibles.includes(delTipo)) return delTipo
     if (deImpresora && disponibles.includes(deImpresora)) return deImpresora
-    return disponibles.includes(preferido) ? preferido : formatos[0][0]
+    return disponibles.includes(delTipo) ? delTipo : formatos[0][0]
   })()
   const [nivel, setNivel] = useState(nivelPreferido)
   const [formato, setFormato] = useState(inicial)
@@ -108,6 +112,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
   function imprimir() {
     if (!html) return
     recordarPreferencia(nivel, formato)
+    recordarFormatoDeTipo('comprobante', formato)
     printHtml(html)
   }
 

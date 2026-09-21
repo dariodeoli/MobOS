@@ -165,17 +165,44 @@ const styles = (format) => {
   .qr{display:block;width:${qrSize};height:${qrSize};margin:10px auto 6px}
   .small{font-size:10px;word-break:break-all;text-align:center}
   .nofiscal{border:2px solid #0f1720;padding:6px 8px;text-align:center;font-weight:800;letter-spacing:.05em;font-size:${width ? '10px' : '11px'};margin:12px 0}
-  .firmas{display:flex;flex-wrap:wrap;gap:14px 18px;margin:18px 0 4px;font-size:10px}
-  .firma{flex:1 1 40%;border-top:1px solid #0f1720;padding-top:4px}
+  .firmas{display:flex;flex-wrap:wrap;gap:${width ? '12px 0' : '22px 26px'};margin:24px 0 6px;font-size:11px}
+  /* Espacio real para firmar a mano (#206): 18 mm libres arriba de la línea.
+     Los campos de aclaración, CI y fecha quedan debajo, con aire. En el rollo
+     cada firma ocupa la columna completa (rol + campos en líneas cortas). */
+  .firma{flex:1 1 ${width ? '100%' : '44%'};min-width:${width ? '0' : '72mm'};border-top:1px solid #0f1720;padding-top:18mm}
+  .firma .rol{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#66707a;margin-bottom:3mm}
+  .firma .campos{color:#333;padding:2mm 0;border-bottom:1px dotted #9aa4ad}
+  .observaciones{margin:14px 0 8px;border:1px solid #e3e8ec;border-radius:10px;padding:10px 12px}
+  .observaciones .label{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#66707a}
+  .observaciones .linea{border-bottom:1px dotted #9aa4ad;height:11mm}
   footer{margin-top:14px;border-top:1px solid #e3e8ec;padding-top:8px;font-size:10px;color:#66707a;text-align:center}
-  @media print{body{margin:0;color:#000}.muted{color:#222}.card,table,td,th,footer,.brand,.nofiscal,.firma{border-color:#000}.brand b,.tag{color:#000}.tag{border-color:#000}}
+  @media print{body{margin:0;color:#000}.muted{color:#222}.card,table,td,th,footer,.brand,.nofiscal,.firma,.observaciones,.firma .campos,.observaciones .linea{border-color:#000}.brand b,.tag,.firma .rol{color:#000}.tag{border-color:#000}}
 `
 }
 
 // Leyenda de los documentos no fiscales: tiene que verse, no esconderse en el
 // pie. El nombre completo del documento va en el encabezado.
 const avisoNoFiscal = () => '<div class="nofiscal">Documento no fiscal · No válido como factura</div>'
-const firmas = (...titulos) => `<div class="firmas">${titulos.map(titulo => `<div class="firma">${escapeHtml(titulo)}</div>`).join('')}</div>`
+
+// Bloques de firma y observaciones (#206): espacio real para escribir a mano.
+// `bloques` acepta strings (rol) u objetos { rol, nota }; con
+// `{ observaciones: true }` agrega el área de observaciones con líneas.
+// `estrecho` (térmicos): los campos van en líneas cortas, como el bloque
+// ESC/POS, para que no se encimen al ancho del rollo.
+const firmas = (bloques = [], { observaciones = false, lineasObservaciones = 2, estrecho = false } = {}) => {
+  const campos = estrecho
+    ? '<div class="campos">Aclaración: ______________________</div><div class="campos">CI: ______________________</div><div class="campos">Fecha: ____/____/______</div>'
+    : '<div class="campos">Aclaración: ______________________________</div><div class="campos">CI: ____________________  Fecha: ____/____/______</div>'
+  const celdas = bloques.map((bloque) => {
+    const rol = typeof bloque === 'string' ? bloque : bloque?.rol
+    const nota = typeof bloque === 'object' && bloque?.nota ? `<div class="campos">${escapeHtml(bloque.nota)}</div>` : ''
+    return `<div class="firma"><div class="rol">${escapeHtml(rol || 'Firma')}</div>${nota}${campos}</div>`
+  }).join('')
+  const area = observaciones
+    ? `<div class="observaciones"><div class="label">Observaciones</div>${'<div class="linea"></div>'.repeat(Math.max(1, lineasObservaciones))}</div>`
+    : ''
+  return `<div class="firmas">${celdas}</div>${area}`
+}
 
 
 const header = (title, when, logo = '') => `<div class="brand">${logo ? `<img class="logo" src="${logo}" alt="">` : `<b>${escapeHtml(APP_NAME)}</b>`}<span>${escapeHtml(title)}</span></div><h1>${escapeHtml(title)}</h1><p class="muted">${escapeHtml(when)}</p>`
@@ -502,7 +529,7 @@ export async function buildDeliveryNoteHtml(order, { format = 'a4' } = {}) {
     <table class="totals"><tr><td>Total de unidades</td><td class="num">${escapeHtml(String(unidades))}</td></tr></table>
     ${entregaNotas}
     <p class="muted">Recibí conforme la mercadería detallada en este documento.</p>
-    ${firmas('Nombre del receptor', 'Documento', 'Firma', 'Fecha')}
+    ${firmas([{ rol: 'Recibí conforme (firma)' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
     <footer>Documento no fiscal. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
   </body></html>`
 }
@@ -532,7 +559,7 @@ export async function buildRemisionHtml(transfer, { format = 'a4' } = {}) {
     <div class="items">${lineas}</div>
     ${transfer.notes ? `<p class="muted">${escapeHtml(transfer.notes)}</p>` : ''}
     <p class="muted">Controlá el contenido contra esta remisión al recibir.</p>
-    ${firmas('Despachado por (firma)', 'Recibido por (firma)', 'Aclaración', 'Fecha')}
+    ${firmas([{ rol: 'Entregué (despacho)' }, { rol: 'Recibí conforme (recepción)' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
     <footer>Documento no fiscal. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
   </body></html>`
 }
@@ -563,7 +590,7 @@ export async function buildInternalReceiptHtml(payment = {}, order = {}, { forma
       ${payment.settlesAt ? `<tr><td>Acredita</td><td class="num">${escapeHtml(new Date(payment.settlesAt).toLocaleDateString('es-PY'))}</td></tr>` : ''}
       <tr><td>Monto cobrado</td><td class="num">${escapeHtml(gs(monto))}</td></tr>
     </table>
-    ${firmas('Firma de quien recibe', 'Firma de quien entrega')}
+    ${firmas([{ rol: 'Entregué / cobré' }, { rol: 'Recibí conforme' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
     <footer>Documento no fiscal. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
   </body></html>`
 }
@@ -600,6 +627,7 @@ export async function buildProformaHtml(quote, { format = 'a4' } = {}) {
     </table>
     ${quote.notes ? `<p class="muted">${escapeHtml(quote.notes)}</p>` : ''}
     <p class="muted">Presupuesto sin validez fiscal: no reemplaza a la factura.</p>
+    ${firmas([{ rol: 'Aceptación del cliente' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
     <footer>Documento no fiscal. Proforma generada por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>
   </body></html>`
 }
@@ -621,7 +649,7 @@ export async function buildCierreCajaHtml(cierre = {}, { format = 'a4' } = {}) {
   const cerrada = cierre.estado === 'CLOSED'
   const movimientosRows = movimientos.map((movimiento) => `<tr><td>${escapeHtml(movimiento.descripcion || 'Movimiento')}${movimiento.cuenta ? `<br><span class="muted">${escapeHtml(movimiento.cuenta)}</span>` : ''}</td><td class="num">${escapeHtml(hora(movimiento.fecha))}</td><td class="num">${movimiento.direccion === 'OUT' ? '−' : '+'} ${escapeHtml(gs(movimiento.montoPyg))}</td></tr>`).join('')
   const cobrosRows = cobros.map((cobro) => `<tr><td>${escapeHtml(cobro.label || cobro.method || 'Pago')}${cobro.count ? ` <span class="muted">· ${escapeHtml(String(cobro.count))} cobro(s)</span>` : ''}</td><td class="num">${escapeHtml(gs(cobro.montoPyg))}</td></tr>`).join('')
-  const firma = '<div style="display:flex;gap:24px;margin-top:28px"><div style="flex:1;border-top:1px solid #0f1720;padding-top:4px;font-size:10px;text-align:center">Firma del responsable</div><div style="flex:1;border-top:1px solid #0f1720;padding-top:4px;font-size:10px;text-align:center">Firma de control</div></div>'
+  const firma = firmas([{ rol: 'Responsable del arqueo' }, { rol: 'Control' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Cierre de caja</title><style>${styles(format)}</style></head><body>
     ${header('Cierre de caja', `Apertura ${hora(cierre.abiertoEn)}${cerrada ? ` · Cierre ${hora(cierre.cerradoEn)}` : ' · sesión abierta'}`, logo)}
     <div class="card"><div class="label">Sesión</div><div><strong>${escapeHtml(cierre.empresa || APP_NAME)}</strong>${cierre.sucursal ? `<br>${escapeHtml(cierre.sucursal)}` : ''}${cierre.usuario ? `<br>Generado por: ${escapeHtml(cierre.usuario)}` : ''}${cierre.notas ? `<br>Notas: ${escapeHtml(cierre.notas)}` : ''}</div></div>
@@ -672,6 +700,7 @@ export async function buildResumenDiaHtml(resumen = {}, { format = 'a4' } = {}) 
     <table><thead><tr><th>Producto</th><th class="num">Cantidad</th><th class="num">Monto</th></tr></thead><tbody>${topRows || '<tr><td class="muted">Sin ventas en el período.</td><td class="num"></td><td class="num"></td></tr>'}</tbody></table>
     <h2 style="font-size:13px;margin:14px 0 4px">Medios de pago</h2>
     <table><thead><tr><th>Medio</th><th class="num">Monto</th></tr></thead><tbody>${mediosRows || '<tr><td class="muted">Sin datos.</td><td class="num"></td></tr>'}</tbody></table>
+    ${firmas([{ rol: 'Responsable' }, { rol: 'Control' }], { observaciones: true, estrecho: Boolean(thermalWidth(format)) })}
     <footer>Documento de control interno. No es comprobante fiscal. Generado por ${escapeHtml(APP_NAME)}.</footer>
   </body></html>`
 }

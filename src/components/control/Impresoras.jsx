@@ -8,6 +8,7 @@ import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
 import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, colorTrabajo, etiquetaTrabajo, textoVerificacion } from '@/lib/printing/estadoImpresoras'
 import { colaDemo, historialDemo, storeDemo } from '@/lib/printing/demo'
+import { etiquetaTipoImpresion, memoriaDeImpresion, olvidarTipoDeImpresion } from '@/lib/printing/preferencias'
 import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
 import Avatar from '@/components/shared/Avatar'
 import ImpresionComparativa from './ImpresionComparativa'
@@ -176,6 +177,8 @@ export default function Impresoras() {
   const [detalleAbierto, setDetalleAbierto] = useState('')
   const [sufijos, setSufijos] = useState({})
   const [confirmandoId, setConfirmandoId] = useState('')
+  // Memoria de impresión (#209): impresora recordada por tipo de documento.
+  const [memoriaImpresion, setMemoriaImpresion] = useState(() => memoriaDeImpresion())
   // Temporizadores de la auto-validación en papel (#138): uno por trabajo, se
   // cancelan al corregir el código y se limpian al desmontar la pantalla.
   const timersAuto = useRef(new Map())
@@ -197,6 +200,7 @@ export default function Impresoras() {
       setCola(colaDemo())
       setEstado({ disponible: false, version: 'demo', equipo: 'Demo' })
       setSesiones([])
+      setMemoriaImpresion(memoriaDeImpresion())
       setCargando(false)
       return
     }
@@ -230,6 +234,7 @@ export default function Impresoras() {
       const cuenta = await api.get('/api/account')
       setSesiones(cuenta?.sessions || [])
     } catch { setSesiones([]) }
+    setMemoriaImpresion(memoriaDeImpresion())
     setCargando(false)
   }, [esDemo, tenantId])
 
@@ -835,6 +840,27 @@ export default function Impresoras() {
           <Button type="button" onClick={() => abrirFormulario(null)}><Icon name="plus" className="h-3.5 w-3.5" />Agregar impresora</Button>
         </div>
       </div>
+
+      {Object.keys(memoriaImpresion).length > 0 && (
+        <Card className="space-y-3">
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon name="printer" className="h-4 w-4 text-mute" />Impresora por tipo de documento</h3>
+            <p className="mt-1 text-sm text-mute">Se recuerda la última impresora usada en cada tipo (siempre se puede cambiar eligiéndola al imprimir). «Olvidar» vuelve a la predeterminada de la empresa.</p>
+          </div>
+          <ul className="divide-y divide-ink-600/60">
+            {Object.entries(memoriaImpresion).map(([tipo, datos]) => (
+              <li key={tipo} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                <span className="font-medium">{etiquetaTipoImpresion(tipo)}</span>
+                <span className="flex items-center gap-2 text-xs text-mute">
+                  <span className="truncate" title={datos.destino}>{impresoras.find((item) => item.destino === datos.destino)?.nombre || datos.destino}</span>
+                  {datos.ancho ? <span>· {datos.ancho} mm</span> : null}
+                  <Button type="button" variant="ghost" className="h-auto px-1 py-0.5 text-xs text-fono-light" onClick={() => { olvidarTipoDeImpresion(tipo); setMemoriaImpresion(memoriaDeImpresion()) }}>Olvidar</Button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <Card className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">

@@ -1106,6 +1106,9 @@ export default function FormularioVenta({
           totalPyg: totalGeneral,
           payments,
           ventas,
+          // El comprobante imprime `order.items`: sin esto el papel demo salía
+          // sin la lista de artículos (#206).
+          items: orderItems,
           isSpecialOrder: Boolean(f.specialOrder),
           ...(f.expectedAt ? { expectedAt: f.expectedAt } : {}),
         }

@@ -4,11 +4,17 @@
 // de papel, igual que los comprobantes de tickets.js.
 import { gs } from '../../utils/calculos.js'
 import { APP_NAME } from '../brand.js'
-import { crearTicket } from './escpos.js'
+import { bloqueFirma, crearTicket } from './escpos.js'
 
 const fecha = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 const fechaCorta = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY') : '')
 const conSigno = (monto, direccion) => `${direccion === 'OUT' ? '- ' : '+ '}${gs(Math.abs(Number(monto) || 0))}`
+// En 58 mm el doble ancho deja 14 columnas: las etiquetas largas se cortaban
+// ("E Gs 3.700.000"). En el rollo angosto el énfasis va en negrita y el monto
+// sale completo; en 80 se mantiene el doble ancho.
+const parDestacado = (t, etiqueta, monto, ancho) => (Number(ancho) > 58
+  ? t.doble().par(etiqueta, monto).doble(false)
+  : t.negrita().par(etiqueta, monto).negrita(false))
 
 // Cierre de caja: apertura, cobros por medio de pago, movimientos de la
 // sesión, esperado/contado/diferencia y espacio de firma.
@@ -27,13 +33,20 @@ export function ticketCierreCaja(cierre = {}, { ancho = 80 } = {}) {
   t.linea()
 
   t.par('Apertura', gs(cierre.apertura))
-  t.par(`Cobros${cierre.cobrosFecha ? ` ${fechaCorta(cierre.cobrosFecha)}` : ''}`, gs(cierre.totalCobros))
+  const etiquetaCobros = `Cobros${cierre.cobrosFecha ? ` ${fechaCorta(cierre.cobrosFecha)}` : ''}`
+  if (Number(ancho) > 58) {
+    t.par(etiquetaCobros, gs(cierre.totalCobros))
+  } else {
+    // La fecha en la etiqueta no entra al lado del monto: va en su propia línea.
+    t.texto(etiquetaCobros)
+    t.par('  ', gs(cierre.totalCobros))
+  }
   if (cierre.ingresos) t.par('Movimientos (entradas)', gs(cierre.ingresos))
   if (cierre.egresos) t.par('Movimientos (salidas)', `- ${gs(cierre.egresos)}`)
-  t.doble().par('ESPERADO', gs(cierre.esperado)).doble(false)
+  parDestacado(t, 'ESPERADO', gs(cierre.esperado), ancho)
   if (cerrada) {
     t.par('Contado', gs(cierre.contado))
-    t.negrita().doble().par('DIFERENCIA', gs(cierre.diferencia)).doble(false).negrita(false)
+    parDestacado(t, 'DIFERENCIA', gs(cierre.diferencia), ancho)
   } else {
     t.par('Contado', 'se completa al cerrar')
   }
@@ -61,10 +74,9 @@ export function ticketCierreCaja(cierre = {}, { ancho = 80 } = {}) {
     t.texto(`Notas: ${cierre.notas}`)
   }
   t.linea()
-  t.avanza(2)
-  t.texto('Firma del responsable: ______________________')
-  t.avanza(2)
-  t.texto('Firma de control: __________________________')
+  // Firma y aclaración como en el HTML del cierre (#206): mismo bloque que los
+  // documentos no fiscales, con CI, fecha y observaciones.
+  bloqueFirma(t, ['Responsable del arqueo', 'Control'], { ancho, observaciones: true })
   return t.avanza(2).corte()
 }
 
@@ -79,7 +91,7 @@ export function ticketResumenDia(resumen = {}, { ancho = 80 } = {}) {
   t.centrado(resumen.etiqueta || `${fechaCorta(resumen.rango?.desde)} a ${fechaCorta(resumen.rango?.hasta)}`)
   t.linea()
   t.par('Ventas', String(resumen.ventas ?? 0))
-  t.doble().par('FACTURADO', gs(resumen.total)).doble(false)
+  parDestacado(t, 'FACTURADO', gs(resumen.total), ancho)
   t.par('Ticket promedio', gs(resumen.ticket))
   t.par('Cobrado', gs(resumen.cobrado))
   t.par('Pendiente', gs(resumen.pendiente))
@@ -99,6 +111,9 @@ export function ticketResumenDia(resumen = {}, { ancho = 80 } = {}) {
     for (const medio of medios) t.par(medio.medio || '—', gs(medio.monto))
   }
   t.linea()
+  // El resumen A4/HTML firma responsable y control (#206); el ticket directo
+  // imprime el mismo bloque para que el papel no pierda la firma.
+  bloqueFirma(t, ['Responsable', 'Control'], { ancho, observaciones: true })
   t.centrado('Documento de control interno. No es comprobante fiscal.')
   return t.avanza(2).corte()
 }

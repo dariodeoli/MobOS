@@ -178,8 +178,9 @@ test('la nota de entrega lista cantidades, receptor y firma con leyenda no fisca
   assert.ok(texto.includes('iPhone 13 128GB'))
   assert.ok(texto.includes('Funda silicona'))
   assert.ok(texto.includes('Total de unidades'))
-  assert.ok(texto.includes('Receptor'))
-  assert.ok(texto.includes('Firma'))
+  assert.ok(texto.includes('Recibí conforme:'))
+  assert.ok(texto.includes('Aclaración:'))
+  assert.ok(texto.includes('Observaciones:'))
   assert.ok(texto.includes('Documento no fiscal'))
   assert.ok(texto.includes('[CORTE]'))
   assert.ok(ticket.base64().length > 100)
@@ -201,8 +202,10 @@ test('la remisión informa origen, destino, seriales y las dos firmas', () => {
   assert.ok(texto.includes('Guía AEX'))
   assert.ok(texto.includes('A003526979'))
   assert.ok(texto.includes('356789012345678'))
-  assert.ok(texto.includes('Entrega:'))
-  assert.ok(texto.includes('Recepción:'))
+  assert.ok(texto.includes('Entregué (despacho):'))
+  assert.ok(texto.includes('Recibí conforme (recepción):'))
+  assert.ok(texto.includes('Aclaración:'))
+  assert.ok(texto.includes('Observaciones:'))
   assert.ok(texto.includes('Documento no fiscal'))
   assert.ok(texto.includes('[CORTE]'))
 })
@@ -223,8 +226,9 @@ test('el recibo interno detalla el cobro, el medio y las firmas', () => {
   assert.ok(texto.includes('Transferencia'))
   assert.ok(texto.includes('Itaú 000123'))
   assert.ok(texto.includes('Gs 450.000'))
-  assert.ok(texto.includes('Firma de quien recibe'))
-  assert.ok(texto.includes('Firma de quien entrega'))
+  assert.ok(texto.includes('Entregué / cobré:'))
+  assert.ok(texto.includes('Recibí conforme:'))
+  assert.ok(texto.includes('Observaciones:'))
   assert.ok(texto.includes('Documento no fiscal'))
   assert.ok(texto.includes('[CORTE]'))
 })
@@ -319,6 +323,54 @@ test("el lote de etiquetas imprime la cantidad pedida por producto", () => {
   assert.equal(ticket.lineas().filter((linea) => linea.includes("[BARRA]")).length, 3)
   assert.ok(texto.includes("E2E-FUNDA"))
   assert.ok(texto.includes("Gs 80.000"))
+})
+
+// #206: los documentos firmables reservan espacio real de firma (rol +
+// aclaración + CI + fecha + observaciones) y el diseño de 58 mm no es el de
+// 80 escalado: las etiquetas van en líneas cortas.
+test('los documentos firmables reservan firma y observaciones en 58 y 80 mm', () => {
+  const nota80 = ticketNotaEntrega(PEDIDO, { ancho: 80 }).lineas().join('\n')
+  assert.ok(nota80.includes('Recibí conforme:'), 'rol de firma')
+  assert.ok(nota80.includes('Aclaración:'), 'aclaración para escribir')
+  assert.ok(nota80.includes('CI:'), 'CI')
+  assert.ok(/Fecha: ___\/___\/______/.test(nota80), 'fecha para completar')
+  assert.ok(nota80.includes('Observaciones:'), 'área de observaciones')
+
+  const lineas58 = ticketNotaEntrega(PEDIDO, { ancho: 58 }).lineas()
+  const nota58 = lineas58.join('\n')
+  assert.ok(nota58.includes('Fecha: ____/____/_________'), 'en 58 mm la fecha va en su propia línea corta')
+  assert.ok(!nota58.includes('CI: __________________  Fecha:'), 'el diseño de 58 mm no reusa el de 80')
+  for (const linea of lineas58) assert.ok(linea.length <= 33, `sin desborde en 58 mm: "${linea}"`)
+
+  const remision = ticketRemision({ lines: [] }, { ancho: 80 }).lineas().join('\n')
+  assert.ok(remision.includes('Entregué (despacho):') && remision.includes('Recibí conforme (recepción):'), 'dos firmas en la remisión')
+  const recibo = ticketReciboInterno({ amountPyg: 1000, method: 'CASH' }, {}, { ancho: 58 }).lineas().join('\n')
+  assert.ok(recibo.includes('Recibí conforme:') && recibo.includes('Observaciones:'), 'firma y observaciones en el recibo')
+  const proforma = ticketProforma({ number: 'C-9', items: [] }, { ancho: 80 }).lineas().join('\n')
+  assert.ok(proforma.includes('Aceptación del cliente:'), 'aceptación en la proforma')
+})
+
+// #206: la firma térmica no puede quedar a un renglón de los campos (no entra
+// la mano). Cada rol reserva 3 avances (~12 mm) + la línea ancha antes de la
+// aclaración, en 58 y en 80.
+test('la firma térmica reserva altura real para escribir a mano', () => {
+  for (const ancho of [58, 80]) {
+    const lineas = ticketNotaEntrega(PEDIDO, { ancho }).lineas()
+    const rol = lineas.findIndex((linea) => linea.includes('Recibí conforme:'))
+    assert.ok(rol >= 0, `rol de firma en ${ancho} mm`)
+    assert.equal(lineas[rol + 1], '\n\n\n', `3 avances de firma en ${ancho} mm`)
+    assert.match(lineas[rol + 2], /^\s*-+\n$/, `línea ancha de firma en ${ancho} mm`)
+    assert.match(lineas[rol + 3], /^\s*Aclaración:/, `aclaración después de la línea en ${ancho} mm`)
+  }
+
+  const remision58 = ticketRemision({ lines: [] }, { ancho: 58 }).lineas()
+  const roles = ['Entregué (despacho):', 'Recibí conforme (recepción):']
+  for (const textoRol of roles) {
+    const i = remision58.findIndex((linea) => linea.includes(textoRol))
+    assert.ok(i >= 0, `rol presente: ${textoRol}`)
+    assert.equal(remision58[i + 1], '\n\n\n', `espacio de firma para ${textoRol}`)
+    assert.match(remision58[i + 2], /^\s*-+\n$/, `línea de firma para ${textoRol}`)
+  }
 })
 
 // #203: el comprobante de verificación de IMEI imprime la info mínima y
