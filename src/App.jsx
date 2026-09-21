@@ -92,7 +92,7 @@ function InicioPorRol() {
   const { sesion } = useSesion()
   // El dueño entra a la lectura diaria del negocio; quien vende entra directo
   // al flujo de venta. Ambos viven en la misma aplicación y navegación.
-  return <Navigate to={sesion?.esPropietario ? "/resumen" : "/ventas"} replace />
+  return <Navigate to={sesion?.esPropietario ? "/resumen" : "/pos"} replace />
 }
 
 // Conserva enlaces anteriores: /control/<tab> apunta a la URL nueva.
@@ -102,13 +102,20 @@ function ControlRedirect() {
 }
 
 // Conserva enlaces anteriores: toda la operación vive en slugs planos
-// (/ventas, /pedidos, /configuracion/…) y /pos/* redirige una sola vez.
+// (/pos, /pedidos, /configuracion/…) y las URLs viejas redirigen una sola vez.
 function PosRedirect() {
   const { vista, orderId } = useParams()
   const { search, hash } = useLocation()
   const destino = DESTINO_LEGADO[vista || ''] || DESTINO_LEGADO['']
   const detalle = orderId && destino === '/pedidos' ? `/${encodeURIComponent(orderId)}` : ''
   return <Navigate to={`${destino}${detalle}${search}${hash}`} replace />
+}
+
+// El slug viejo /ventas (#116) sigue funcionando: redirige al POS conservando
+// el query y el hash.
+function VentasRedirect() {
+  const { search, hash } = useLocation()
+  return <Navigate to={`/pos${search}${hash}`} replace />
 }
 
 function AreaProtegida({ owner = false, children }) {
@@ -206,7 +213,8 @@ export default function App() {
           {/* Vistas planas del panel: slugs simples y profesionales (#116).
               El pedido individual vive en la URL por su id interno: el código
               comercial (MOB-#0001) es solo para humanos y puede cambiar. */}
-          <Route path="/ventas" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
+          <Route path="/pos" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
+          <Route path="/pos" element={<AreaProtegida><VentasRedirect /></AreaProtegida>} />
           <Route path="/pedidos/:orderId?" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/delivery" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/clientes" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
@@ -229,8 +237,8 @@ export default function App() {
           <Route path="/finanzas/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/inventario/:seccion?" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/control/:tab?" element={<AreaProtegida owner><ControlRedirect /></AreaProtegida>} />
-          {/* Enlaces guardados: /pos/* y /tradein redirigen a su slug nuevo. */}
-          <Route path="/pos/:vista?/:orderId?" element={<AreaProtegida><PosRedirect /></AreaProtegida>} />
+          {/* Enlaces guardados: /pos/<vista> y /tradein redirigen al slug nuevo. */}
+          <Route path="/pos/:vista/:orderId?" element={<AreaProtegida><PosRedirect /></AreaProtegida>} />
           <Route path="/celulares" element={<AreaProtegida owner><Celulares /></AreaProtegida>} />
           <Route path="/comparador" element={<AreaProtegida owner><Comparador /></AreaProtegida>} />
           <Route path="/tradein" element={<Navigate to="/trade-in" replace />} />

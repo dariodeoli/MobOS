@@ -5,7 +5,7 @@
 
 // id de vista del panel (nav) → URL canónica.
 export const RUTA_DE_VISTA = {
-  cargar: '/ventas',
+  cargar: '/pos',
   pedidos: '/pedidos',
   repartos: '/delivery',
   clientes: '/clientes',
@@ -49,8 +49,10 @@ export function vistaDeRuta(slug, { esOwner = false } = {}) {
 // que alguna vez resolvió el panel y las pestañas que llegaban por
 // /control/<tab>. Los valores siempre son destinos canónicos.
 export const DESTINO_LEGADO = {
-  '': '/ventas',
-  cargar: '/ventas',
+  '': '/pos',
+  cargar: '/pos',
+  // El slug de #116 (/ventas) sigue siendo un enlace válido: va al POS.
+  ventas: '/pos',
   pedidos: '/pedidos',
   repartos: '/delivery',
   clientes: '/clientes',

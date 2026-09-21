@@ -23,10 +23,10 @@ test.describe('delivery', () => {
     const nav = page.locator('aside nav')
     await expect(nav.getByRole('button', { name: 'Mis repartos', exact: true })).toBeVisible()
     await expect(nav.getByRole('button', { name: 'Rendiciones', exact: true })).toBeVisible()
-    await expect(nav.getByRole('button', { name: 'Cargar venta', exact: true })).toHaveCount(0)
+    await expect(nav.getByRole('button', { name: 'POS', exact: true })).toHaveCount(0)
 
     // El panel de venta no es su lugar: la URL vuelve al reparto.
-    await page.goto('/ventas')
+    await page.goto('/pos')
     await expect(page).toHaveURL(/\/delivery\/repartos$/)
 
     // El pedido asignado trae cliente, dirección y teléfono; y solo ese.

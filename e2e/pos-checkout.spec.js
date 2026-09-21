@@ -34,7 +34,7 @@ async function orderItems(page, name) {
 test('POS checkout with split payment registers the sale and lists it in pedidos', async ({
   page,
 }) => {
-  await page.goto('/ventas')
+  await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
   // Step 1: customer + product.
@@ -206,7 +206,7 @@ test('pedidos: clic en la fila abre el pedido por su id interno', async ({ page 
 // El país de la dirección se puede vaciar (no vuelve solo) y el resumen
 // lateral muestra el total de la venta y abre el carrito.
 test('POS clears the address country and the summary opens the cart', async ({ page }) => {
-  await page.goto('/ventas')
+  await page.goto('/pos')
   await page
     .getByLabel('Nombre, teléfono, CI o RUC del cliente')
     .fill(`${SEED.checkoutCustomer} pais ${Date.now().toString(36)}`)
@@ -228,7 +228,7 @@ test('POS clears the address country and the summary opens the cart', async ({ p
 // Sin límite de productos: cada clic suma una fila a la venta y el total
 // se recalcula con los tres productos juntos.
 test('POS keeps every clicked product in the sale list', async ({ page }) => {
-  await page.goto('/ventas')
+  await page.goto('/pos')
   await page
     .getByLabel('Nombre, teléfono, CI o RUC del cliente')
     .fill(`${SEED.checkoutCustomer} tres ${Date.now().toString(36)}`)
@@ -253,7 +253,7 @@ test('POS finds a customer by billing name, shows the selection and clears it', 
   const stamp = Date.now().toString(36)
   const name = `${SEED.checkoutCustomer} factura ${stamp}`
   const razon = `Empresa E2E ${stamp}`
-  await page.goto('/ventas')
+  await page.goto('/pos')
   const creado = await page.evaluate(
     async ({ api, name, razon }) => {
       const response = await fetch(`${api}/api/customers`, {
@@ -300,7 +300,7 @@ test('POS manual price below list stores the list price for the receipt', async 
   })
   const page = await context.newPage()
   try {
-    await page.goto('/ventas')
+    await page.goto('/pos')
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(name)
 
     await page.getByPlaceholder('Buscar producto…').fill('Cable')
@@ -338,7 +338,7 @@ test('POS manual price below list stores the list price for the receipt', async 
 // a gerencia. Con una pendiente previa del mismo producto, el bloque la
 // muestra; sin ella, el botón queda disponible para pedirla.
 test('POS shows the price authorization block for a below-list price', async ({ page }) => {
-  await page.goto('/ventas')
+  await page.goto('/pos')
   await page
     .getByLabel('Nombre, teléfono, CI o RUC del cliente')
     .fill(`${SEED.checkoutCustomer} autorización ${Date.now().toString(36)}`)
@@ -359,7 +359,7 @@ test('POS shows the price authorization block for a below-list price', async ({ 
 // venta y cobro conviven sin pasos numerados ni navegación secuencial, con el
 // total en el resumen de la columna y las acciones secundarias fuera del camino.
 test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', async ({ page }) => {
-  await page.goto('/ventas')
+  await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
   for (const bloque of ['Cliente', 'Productos', 'Productos de esta venta', 'Cobro y entrega']) {
@@ -385,7 +385,7 @@ test('POS muestra toda la venta en una sola pantalla, sin pasos numerados', asyn
 // Con stock disponible, el servidor exige el IMEI exacto: el modal bloquea
 // "vender sin IMEI" y la venta se completa reservando la unidad física.
 test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con stock', async ({ page }) => {
-  await page.goto('/ventas')
+  await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente serial ${Date.now().toString(36)}`)
   await page.getByPlaceholder('Buscar producto…').fill(SEED.products.iphone.name)
@@ -413,7 +413,7 @@ test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con 
 // volver la conexión se sincroniza sola, una sola vez (misma Idempotency-Key).
 test('POS: la venta cargada sin conexión se sincroniza al volver (sin duplicar)', async ({ page, context }) => {
   const cliente = `Cliente offline ${Date.now().toString(36)}`
-  await page.goto('/ventas')
+  await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
   await page.getByPlaceholder('Buscar producto…').fill('Cable')

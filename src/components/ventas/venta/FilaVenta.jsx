@@ -27,6 +27,13 @@ export default function FilaVenta({
   const [cuponBusy, setCuponBusy] = useState(false)
   const [cuponError, setCuponError] = useState('')
 
+  // Imagen/modelo/capacidad/stock de la ficha viva del producto (el nombre, el
+  // precio y los seriales vienen congelados en la línea).
+  const imagen = producto?.imageUrl || producto?.imagen || ''
+  const modelo = producto?.model || producto?.modelo || ''
+  const capacidad = producto?.capacity || producto?.capacidad || ''
+  const stock = Number(producto?.stock)
+  const agotado = Number.isFinite(stock) && stock <= 0 && !item.sobrePedido
   const cantidad = Math.max(1, Number(item.quantity) || 1)
   const precio = Number(item.precio) || 0
   const lista = Number(item.precioListaValor ?? producto?.precioVenta) || 0
@@ -67,7 +74,15 @@ export default function FilaVenta({
   }
 
   return (
-    <div className="px-3 py-3">
+    <div className="flex gap-3 px-3 py-3">
+      {imagen ? (
+        <img src={imagen} alt="" loading="lazy" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+      ) : (
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-fono/10 text-fono-light">
+          <Icon name="box" className="h-6 w-6" />
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -144,8 +159,8 @@ export default function FilaVenta({
           <button
             type="button"
             className="grid h-9 w-9 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad"
-            title="Quitar producto"
-            aria-label={`Quitar ${item.nombre}`}
+            title="Eliminar producto"
+            aria-label={`Eliminar ${item.nombre}`}
             disabled={guardando}
             onClick={onQuitar}
           >
@@ -206,6 +221,15 @@ export default function FilaVenta({
           </span>
         )}
         {cuponError && <span role="alert" className="text-bad">{cuponError}</span>}
+      </div>
+      {(modelo || capacidad || Number.isFinite(stock)) && (
+        <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-mute">
+          {(modelo || capacidad) && <span>{[modelo, capacidad].filter(Boolean).join(' · ')}</span>}
+          {Number.isFinite(stock) && (agotado
+            ? <span className="font-semibold text-bad">Agotado</span>
+            : <span>{stock} en stock</span>)}
+        </p>
+      )}
       </div>
     </div>
   )

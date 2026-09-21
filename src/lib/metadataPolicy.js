@@ -20,7 +20,7 @@ const exactRoutes = {
 }
 
 const protectedSections = {
-  '/ventas': 'Punto de venta',
+  '/pos': 'Punto de venta',
   '/pedidos': 'Pedidos',
   '/delivery': 'Delivery',
   '/clientes': 'Clientes',

@@ -8,7 +8,6 @@ import {
   updateProducto,
   addVenta,
   guardarOrdenApi,
-  addVendedor,
   contextoActual,
   MEDIOS_PAGO,
   ESTADOS_PAGO,
@@ -31,7 +30,6 @@ import {
   Input,
   Label,
   Modal,
-  PinInput,
 } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { parsePercent } from '@/components/shared/PercentField'
@@ -205,18 +203,15 @@ function ResumenVenta({ totalGeneral, items, unidades, montoDescuento, montoDeli
       {items.length === 0 && (
         <span className="text-xs text-mute">Agregá productos para empezar la venta.</span>
       )}
-      {dia && (
+      {dia && dia.cant > 0 && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs lg:ml-auto">
           <span className="font-bold uppercase tracking-wider text-mute">Tu día</span>
           <span className="text-mute">
             {dia.cant} {dia.cant === 1 ? 'venta' : 'ventas'} ·{' '}
-            <b className="tabular-nums text-fore">{gs(dia.total)}</b>
+            {dia.cant} {dia.cant === 1 ? 'pedido' : 'pedidos'}
           </span>
           <span className="text-mute">
-            Cobrado <b className="tabular-nums text-ok">{gs(dia.cobrado)}</b>
-          </span>
-          <span className="text-mute">
-            Pendiente <b className="tabular-nums text-bad">{gs(dia.pendiente)}</b>
+            Facturación <b className="tabular-nums text-fore">{gs(dia.total)}</b>
           </span>
         </div>
       )}
@@ -269,11 +264,6 @@ export default function FormularioVenta({
   // Fila de la venta cuyo selector de IMEI está abierto.
   const [imeiPara, setImeiPara] = useState(null)
   const [unidadesDeImei, setUnidadesDeImei] = useState(0)
-  const [nuevoVend, setNuevoVend] = useState(false)
-  const [nombreVend, setNombreVend] = useState('')
-  const [pinVend, setPinVend] = useState('')
-  const [errorVend, setErrorVend] = useState('')
-  const [creandoVend, setCreandoVend] = useState(false)
   const [ok, setOk] = useState(false)
   const [items, setItems] = useState(() =>
     Array.isArray(cartInicial?.items) ? cartInicial.items : [],
@@ -724,38 +714,6 @@ export default function FormularioVenta({
       text.toLocaleLowerCase().includes(query),
     )
   })
-
-  async function crearVendedor() {
-    const nombre = nombreVend.trim()
-    if (!nombre) return
-    setErrorVend('')
-    if (!esDemo && !/^\d{4}$/.test(pinVend)) {
-      setErrorVend('Ingresá un PIN de 4 dígitos para el vendedor.')
-      return
-    }
-    setCreandoVend(true)
-    try {
-      let v
-      if (esDemo) {
-        v = addVendedor(nombre)
-      } else {
-        const created = await resources.users.create({
-          name: nombre,
-          pin: pinVend,
-          role: 'VENDEDOR',
-        })
-        v = { id: created.id, nombre: created.name, activo: created.status === 'ACTIVE' }
-      }
-      setNuevoVend(false)
-      setNombreVend('')
-      setPinVend('')
-      setF(s => ({ ...s, vendedorId: v.id }))
-    } catch (error) {
-      setErrorVend(error?.message || 'No se pudo crear el vendedor.')
-    } finally {
-      setCreandoVend(false)
-    }
-  }
 
   function agregarColor() {
     const c = colorInput.trim()
@@ -1215,6 +1173,14 @@ export default function FormularioVenta({
           minute: '2-digit',
         })
   }
+  // Deja el carrito sin descuentos: el global y los de cada línea (los dos
+  // botones de limpieza del carrito).
+  function borrarDescuentos() {
+    setDescuento('')
+    setItems(arr => arr.map(it =>
+      it.descuento || it.descuentoPct ? { ...it, descuento: '', descuentoPct: '' } : it,
+    ))
+  }
   function limpiarCarrito() {
     const { empresaId, sucursalId } = contextoActual()
     borrarCarrito(empresaId, sucursalId)
@@ -1383,16 +1349,7 @@ export default function FormularioVenta({
       const editable =
         target instanceof HTMLElement &&
         (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
-      if (event.key === 'Escape') {
-        if (nuevoVend) {
-          event.preventDefault()
-          setNuevoVend(false)
-          setErrorVend('')
-          return
-        }
-        return
-      }
-      if (editable) return
+      if (event.key === 'Escape' || editable) return
       if (event.key === 'F2') {
         event.preventDefault()
         busqueda?.focus()
@@ -1564,147 +1521,113 @@ export default function FormularioVenta({
           />
         </div>
 
-        {/* Operación (cliente, productos y lista de la venta) | cobro y entrega. */}
-        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <PasoProductos
-            sesion={sesion}
-            esDemo={esDemo}
-            customer={customer}
-            setCustomer={setCustomer}
-            billingTo={billingTo}
-            setBillingTo={setBillingTo}
-            setF={setF}
-            productos={productos}
-            nuevoProd={nuevoProd}
-            setNuevoProd={setNuevoProd}
-            nombreProd={nombreProd}
-            setNombreProd={setNombreProd}
-            nuevoDetalles={nuevoDetalles}
-            setNuevoDetalles={setNuevoDetalles}
-            colorInput={colorInput}
-            setColorInput={setColorInput}
-            coloresNuevos={coloresNuevos}
-            setColoresNuevos={setColoresNuevos}
-            agregarColor={agregarColor}
-            puedeCrearProducto={puedeCrearProducto}
-            crearProducto={crearProducto}
-            creandoProd={creandoProd}
-            cancelarNuevoProd={cancelarNuevoProd}
-            setBusquedaProducto={setBusquedaProducto}
-            combos={combos}
-            agregarCombo={agregarCombo}
-            noticeCombo={noticeCombo}
-            familiasVisibles={familiasVisibles}
-            agregarProducto={agregarProducto}
-            guardando={guardando}
-            setNuevoVend={setNuevoVend}
-            setErrorVend={setErrorVend}
-            setPinVend={setPinVend}
-          />
+        {/* Operación (cliente + buscador + productos) | carrito y cobro. */}
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
+          <div className="flex min-w-0 flex-col gap-4">
+            <PasoProductos
+              sesion={sesion}
+              esDemo={esDemo}
+              customer={customer}
+              setCustomer={setCustomer}
+              billingTo={billingTo}
+              setBillingTo={setBillingTo}
+              setF={setF}
+              productos={productos}
+              nuevoProd={nuevoProd}
+              setNuevoProd={setNuevoProd}
+              nombreProd={nombreProd}
+              setNombreProd={setNombreProd}
+              nuevoDetalles={nuevoDetalles}
+              setNuevoDetalles={setNuevoDetalles}
+              colorInput={colorInput}
+              setColorInput={setColorInput}
+              coloresNuevos={coloresNuevos}
+              setColoresNuevos={setColoresNuevos}
+              agregarColor={agregarColor}
+              puedeCrearProducto={puedeCrearProducto}
+              crearProducto={crearProducto}
+              creandoProd={creandoProd}
+              cancelarNuevoProd={cancelarNuevoProd}
+              setBusquedaProducto={setBusquedaProducto}
+              combos={combos}
+              agregarCombo={agregarCombo}
+              noticeCombo={noticeCombo}
+              familiasVisibles={familiasVisibles}
+              agregarProducto={agregarProducto}
+              guardando={guardando}
+            />
 
-          <PasoCarrito
-            items={items}
-            productos={productos}
-            familias={familias}
-            esDemo={esDemo}
-            guardando={guardando}
-            puedeDescontar={puedeDescontar}
-            precioDe={precioDe}
-            totalCarrito={totalCarrito}
-            quitarItem={quitarItem}
-            editarItem={editarItem}
-            onImei={setImeiPara}
-            descuento={descuento}
-            setDescuento={setDescuento}
-            montoDescuento={gsNum(descuento)}
-            customer={customer}
-            onAuthDescuento={onAuthDescuento}
-            montoPrecioBajo={excedenteBajoLista}
-            productoBajoId={productoBajoId}
-            onAuthPrecio={setAuthPrecio}
-            tieneCupon={tieneCupon}
-            f={f}
-            setF={setF}
-          />
-
-          {/* Atajos al pie de la operación (en pantallas angostas no se muestran). */}
-          <div className="hidden items-center gap-x-4 gap-y-1.5 text-[11px] text-mute md:flex">
-            <span className="font-semibold uppercase tracking-wider text-mute/60">Atajos</span>
-            <Atajo k="F2" label="Buscar producto" />
-            <Atajo k="Ctrl+S" label="Guardar venta" />
-            <Atajo k="Esc" label="Cerrar ventana" />
-          </div>
-        </div>
-
-        {/* Cobro y entrega: la otra mitad de la pantalla en desktop. */}
-        <div className="flex min-w-0 flex-col gap-4">
-          {/* Pedido especial con seña: solo marca el pedido y su fecha esperada;
-              las reglas de cobro no cambian (la seña es un pago parcial). */}
-          <div className="rounded-2xl border border-warn/30 bg-warn/5 p-3.5">
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="mt-0.5 h-4 w-4 accent-warn"
-                checked={Boolean(f.specialOrder)}
-                onChange={event =>
-                  setF(s => ({
-                    ...s,
-                    specialOrder: event.target.checked,
-                    ...(event.target.checked ? {} : { expectedAt: '' }),
-                  }))
-                }
-              />
-              <span>
-                <b className="text-fore">Pedido especial con seña</b>: el pedido se completa más
-                adelante y la seña es el pago parcial que cargás abajo.
-              </span>
-            </label>
-            {f.specialOrder && (
-              <div className="mt-3 max-w-xs">
-                <Label htmlFor="fecha-esperada">Fecha esperada (opcional)</Label>
-                <Input
-                  id="fecha-esperada"
-                  type="date"
-                  min={fechaClave()}
-                  value={f.expectedAt}
-                  onChange={set('expectedAt')}
-                />
-              </div>
-            )}
+            {/* Atajos al pie de la operación (en pantallas angostas no se muestran). */}
+            <div className="hidden items-center gap-x-4 gap-y-1.5 text-[11px] text-mute md:flex">
+              <span className="font-semibold uppercase tracking-wider text-mute/60">Atajos</span>
+              <Atajo k="F2" label="Buscar producto" />
+              <Atajo k="Ctrl+S" label="Guardar venta" />
+              <Atajo k="Esc" label="Cerrar ventana" />
+            </div>
           </div>
 
-          <PasoCobro
-            customer={customer}
-            venderACredito={venderACredito}
-            setVenderACredito={setVenderACredito}
-            creditoDias={creditoDias}
-            setCreditoDias={setCreditoDias}
-            cuentas={cuentas}
-            usaCuentas={usaCuentas}
-            errorCuentas={errorCuentas}
-            onReintentarCuentas={() => setIntentoCuentas(n => n + 1)}
-            pagos={pagos}
-            setPagos={setPagos}
-            onAgregarPago={agregarPago}
-            guardando={guardando}
-            guardadoIncompleto={guardadoIncompleto}
-            descuentoMedioPct={descuentoMedioPct}
-            descuentoMedioGs={descuentoMedioGs}
-            subtotal={subtotal}
-            puedeDescontar={puedeDescontar}
-            setDescuento={setDescuento}
-            totalGeneral={totalGeneral}
-            totalPagado={totalPagado}
-            pendiente={pendiente}
-            f={f}
-            setF={setF}
-            set={set}
-            valido={valido}
-            cantTotal={cantTotal}
-            ok={ok}
-          />
-        </div>
+          {/* Carrito fijo + cobro y entrega: la venta se lee y se cobra acá. */}
+          <div className="flex min-w-0 flex-col gap-4">
+            <PasoCarrito
+              items={items}
+              productos={productos}
+              familias={familias}
+              esDemo={esDemo}
+              guardando={guardando}
+              puedeDescontar={puedeDescontar}
+              precioDe={precioDe}
+              totalCarrito={totalCarrito}
+              totalGeneral={totalGeneral}
+              montoDelivery={gsNum(f.montoDelivery)}
+              quitarItem={quitarItem}
+              editarItem={editarItem}
+              onImei={setImeiPara}
+              descuento={descuento}
+              setDescuento={setDescuento}
+              montoDescuento={gsNum(descuento)}
+              onBorrarDescuentos={borrarDescuentos}
+              onVaciarCarrito={limpiarCarrito}
+              customer={customer}
+              onAuthDescuento={onAuthDescuento}
+              montoPrecioBajo={excedenteBajoLista}
+              productoBajoId={productoBajoId}
+              onAuthPrecio={setAuthPrecio}
+              tieneCupon={tieneCupon}
+              f={f}
+              setF={setF}
+            />
+
+            <PasoCobro
+              customer={customer}
+              venderACredito={venderACredito}
+              setVenderACredito={setVenderACredito}
+              creditoDias={creditoDias}
+              setCreditoDias={setCreditoDias}
+              cuentas={cuentas}
+              usaCuentas={usaCuentas}
+              errorCuentas={errorCuentas}
+              onReintentarCuentas={() => setIntentoCuentas(n => n + 1)}
+              pagos={pagos}
+              setPagos={setPagos}
+              onAgregarPago={agregarPago}
+              guardando={guardando}
+              guardadoIncompleto={guardadoIncompleto}
+              descuentoMedioPct={descuentoMedioPct}
+              descuentoMedioGs={descuentoMedioGs}
+              subtotal={subtotal}
+              puedeDescontar={puedeDescontar}
+              setDescuento={setDescuento}
+              totalGeneral={totalGeneral}
+              totalPagado={totalPagado}
+              pendiente={pendiente}
+              f={f}
+              setF={setF}
+              set={set}
+              valido={valido}
+              cantTotal={cantTotal}
+              ok={ok}
+            />
+          </div>
         </div>
       </form>
 
@@ -1750,67 +1673,6 @@ export default function FormularioVenta({
             </div>
           )
         })()}
-      </Modal>
-
-      <Modal
-        open={nuevoVend}
-        onClose={
-          creandoVend
-            ? undefined
-            : () => {
-                setNuevoVend(false)
-                setErrorVend('')
-              }
-        }
-        title="Nuevo vendedor"
-        className="max-w-md"
-      >
-        <div className="space-y-3">
-          <div>
-            <Label htmlFor="nombre">Nombre</Label>
-            <Input id="nombre"
-              autoFocus
-              value={nombreVend}
-              onChange={e => setNombreVend(e.target.value)}
-              placeholder="Nombre del vendedor"
-              autoCapitalize="words"
-            />
-          </div>
-          {!esDemo && (
-            <div>
-              <Label htmlFor="pin-vendedor">PIN (4 dígitos)</Label>
-              <PinInput id="pin-vendedor" value={pinVend} onChange={setPinVend} />
-            </div>
-          )}
-          {errorVend && (
-            <p
-              role="alert"
-              className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-bad"
-            >
-              {errorVend}
-            </p>
-          )}
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setNuevoVend(false)
-                setErrorVend('')
-              }}
-              disabled={creandoVend}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={crearVendedor}
-              disabled={creandoVend || !nombreVend.trim()}
-            >
-              {creandoVend ? 'Creando…' : 'Crear vendedor'}
-            </Button>
-          </div>
-        </div>
       </Modal>
       <Modal
         open={suspenderOpen}

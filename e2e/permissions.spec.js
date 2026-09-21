@@ -8,12 +8,12 @@ const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
 test.describe('seller permissions', () => {
   test('owner-only nav items are not visible to a seller', async ({ page }) => {
-    await page.goto('/ventas')
+    await page.goto('/pos')
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
     const sidebarNav = page.locator('aside nav')
     // Seller nav (SELLER_NAV): these are visible.
-    for (const label of ['Cargar venta', 'Clientes', 'Mis pedidos', 'Productos', 'Promociones', 'Trade-In']) {
+    for (const label of ['POS', 'Clientes', 'Mis pedidos', 'Productos', 'Promociones', 'Trade-In']) {
       await expect(sidebarNav.getByRole('button', { name: label, exact: true })).toBeVisible()
     }
     // Owner-only nav (OWNER_NAV): not rendered for sellers.
@@ -25,21 +25,21 @@ test.describe('seller permissions', () => {
   // La auditoría incluye movimientos de equipo y de dinero: un vendedor no
   // puede verla ni por la API.
   test('la auditoría no está disponible para un vendedor', async ({ page }) => {
-    await page.goto('/ventas')
+    await page.goto('/pos')
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
     // La API exige el mismo origen de la app, así que la petición sale con el
     // Origin de la página (como en el navegador).
     const respuesta = await page.request.get(`${API}/api/audit`, { headers: { origin: new URL(page.url()).origin } })
     expect(respuesta.status()).toBe(403)
     await page.goto('/configuracion/historial')
-    await expect(page).toHaveURL(/\/ventas$/)
+    await expect(page).toHaveURL(/\/pos$/)
   })
 
   test('owner-protected route /control/finanzas redirects the seller to the POS', async ({ page }) => {
     // SoloPropietario in App.jsx bounces non-owners to "/", which lands the
-    // seller on /ventas.
+    // seller on /pos.
     await page.goto('/control/finanzas')
-    await expect(page).toHaveURL(/\/ventas$/)
+    await expect(page).toHaveURL(/\/pos$/)
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
   })
 
@@ -58,14 +58,14 @@ test.describe('seller permissions', () => {
   })
 
   // Fixed in the Phase-3 merge: PanelVendedor.jsx now redirects once
-  // (navigate('/ventas', { replace: true })) when the URL points to a
+  // (navigate('/pos', { replace: true })) when the URL points to a
   // vista outside the seller's reach, instead of the old two-effects loop
   // that alternated the header state forever without ever leaving the URL.
-  test('direct owner URL /inventario redirects the seller to /ventas once', async ({ page }) => {
+  test('direct owner URL /inventario redirects the seller to /pos once', async ({ page }) => {
     await page.goto('/inventario')
 
     // Single clean redirect, no loop: the URL leaves the owner view.
-    await expect(page).toHaveURL(/\/ventas$/)
+    await expect(page).toHaveURL(/\/pos$/)
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
     // The owner content is never mounted for a seller.
@@ -75,7 +75,7 @@ test.describe('seller permissions', () => {
   // Los enlaces guardados de la era /pos/* siguen funcionando (#116).
   test('las URLs viejas /pos/* y /tradein redirigen a los slugs nuevos', async ({ page }) => {
     await page.goto('/pos/cargar')
-    await expect(page).toHaveURL(/\/ventas$/)
+    await expect(page).toHaveURL(/\/pos$/)
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
     await page.goto('/pos/pedidos')
@@ -93,6 +93,6 @@ test.describe('seller permissions', () => {
 
     // Vista de dueño: el vendedor vuelve a su lugar, en una sola cadena.
     await page.goto('/pos/inventario')
-    await expect(page).toHaveURL(/\/ventas$/)
+    await expect(page).toHaveURL(/\/pos$/)
   })
 })

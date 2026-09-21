@@ -17,8 +17,8 @@ for (const viewport of viewports) {
   test.describe(`${viewport.name} ${viewport.width}x${viewport.height}`, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } })
 
-    test('/ventas has no horizontal overflow and shows the product search', async ({ page }) => {
-      await page.goto('/ventas')
+    test('/pos has no horizontal overflow and shows the product search', async ({ page }) => {
+      await page.goto('/pos')
       await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
       const search = page.getByPlaceholder('Buscar producto…')
