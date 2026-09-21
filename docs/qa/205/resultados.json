@@ -1,13 +1,11 @@
 {
   "base": "https://app.moboss.online",
-  "fecha": "2026-09-21T19:19:38.177Z",
+  "fecha": "2026-09-21T19:20:24.445Z",
   "pantallas": [
     {
       "pantalla": "POS",
       "botones": 32,
-      "sinNombre": [
-        "<button class=\"inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem\">"
-      ],
+      "sinNombre": [],
       "campos": 12,
       "sinEtiqueta": [],
       "imagenesSinAlt": 0,

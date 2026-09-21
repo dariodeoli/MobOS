@@ -23,7 +23,9 @@ const auditar = async (etiqueta, ruta) => {
     const visible = (el) => el.getClientRects().length > 0
     const botones = [...document.querySelectorAll('button, [role="button"]')].filter(visible)
     const sinNombre = botones.filter((el) => {
-      const texto = (el.innerText || '').trim()
+      // textContent (no innerText): el contenido dentro de <details> cerrados no se
+      // renderiza y daría falsos positivos de botones "sin nombre".
+      const texto = (el.textContent || '').trim()
       const aria = el.getAttribute('aria-label') || el.getAttribute('title')
       const img = el.querySelector('img[alt]')?.getAttribute('alt')
       return !texto && !aria && !img
