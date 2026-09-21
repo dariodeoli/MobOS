@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.126 — 2026-09-21
+- **Configuración y Equipo:** las subpáginas quedaron ordenadas por grupo con enlace estable y los formularios viven en un panel a la derecha en escritorio (apilados en móvil), con más densidad y sin scroll horizontal. (#165)
+- **Seguridad:** el enlace público del borrador ahora vence a los 7 días, se puede revocar, tiene límite de uso y el reingreso con PIN del dueño limita intentos; queda el informe de auditoría con los pendientes de otras superficies. (#172)
+- **Clientes y Garantías:** ambas pantallas migraron a filas compactas con las acciones a la vista y los objetos compartidos, sin scroll horizontal. (#166)
+- **Portal del cliente:** encabezado, secciones y estados unificados, el saldo queda primero, pedidos y comprobantes más legibles y mobile impecable; la nota pública de la tienda aparece cuando existe. (#174)
+- **Compras y Proveedores:** filas compactas y acciones a la vista, alineadas con la biblioteca de objetos. (#167)
+- **POS offline (Fase 2):** los conflictos al sincronizar se clasifican (stock, precio, cliente, duplicada, permiso o vencida) con sugerencia y acciones Reintentar/Descartar; reporte de lo vendido sin conexión, tasa de éxito y tiempos; tope de 200 ventas en cola y vencimiento a los 7 días sin perder datos. (#168)
+
 ## v1.0.125 — 2026-09-21
 - **Finanzas:** nueva pantalla de **Conciliación** por cuenta, medio de pago y procesadora: cobros y lotes de acreditación, diferencias y estado (pendiente, conciliado o con diferencia), con la foto del cobro sobre la cuenta usada al momento de cobrar. (#144)
 - **Resumen:** se unificó **Análisis con Resumen** sin duplicar métricas: ticket promedio y variación se calculan una sola vez y el panel muestra la vista ejecutiva y la extendida. (#145)
