@@ -1067,8 +1067,10 @@ export default function Impresoras() {
                         <span className="block">total <b className="text-fore tabular-nums">{fmtTiempo(fila.totalMs)}</b></span>
                       </td>
                       <td className="px-2 py-2 truncate text-xs text-mute" title={`${fila.puente || '—'}${fila.tokenPista ? ` · token ${fila.tokenPista}` : ''}`}>{fila.puente || '—'}</td>
-                      <td className="px-2 py-2 text-xs font-semibold" title={fila.tipo ? `Tipo: ${fila.tipo}` : undefined}>{fila.validacion || '—'}</td>
+                      <td className="px-2 py-2 text-xs font-semibold" title={fila.tipo ? `Tipo: ${fila.tipo}` : undefined}>
+                        {fila.validacion || '—'}
                         {fila.resultado === 'pendiente' && sinRespuesta(fila) && <p className="mt-0.5 text-[10px] font-semibold text-warn" title="El puente no reportó el resultado; revisá la impresora y reintentá.">sin respuesta del puente</p>}
+                      </td>
                       <td className="px-2 py-2">
                         {(fila.resultado === 'aceptado' || fila.resultado === 'pendiente') && fila.validacion ? (
                           <span className="flex items-center gap-1">

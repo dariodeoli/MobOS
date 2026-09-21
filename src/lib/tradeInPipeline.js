@@ -43,10 +43,34 @@ function assertDemo() {
   }
 }
 
+const haceDias = (dias) => new Date(Date.now() - dias * 86400000).toISOString()
+const SEED_TRADE_INS = [
+  {
+    id: 'demo-trade-in-1', status: 'REVIEW', serial: 'DEMO-TI-0001', device: 'iPhone 12 · 128 GB',
+    customerName: 'Carlos Ramírez', customerId: 'demo-cliente-carlos', condition: 'bueno', batteryHealth: 86,
+    valuePyg: 1850000, acceptedValuePyg: 1850000, repairCostPyg: 0, destination: 'NORMAL',
+    createdAt: haceDias(4), updatedAt: haceDias(2),
+    history: [
+      { at: haceDias(4), fromStatus: null, toStatus: 'RECEIVED', notes: 'Recibido en mostrador (demo).' },
+      { at: haceDias(2), fromStatus: 'RECEIVED', toStatus: 'REVIEW', notes: 'En revisión técnica.' },
+    ],
+  },
+  {
+    id: 'demo-trade-in-2', status: 'READY', serial: 'DEMO-TI-0002', device: 'iPhone 13 · 256 GB',
+    customerName: 'Lucía Fernández', customerId: 'demo-cliente-lucia', condition: 'excelente', batteryHealth: 92,
+    valuePyg: 2600000, acceptedValuePyg: 2500000, repairCostPyg: 120000, destination: 'OFFER',
+    createdAt: haceDias(9), updatedAt: haceDias(1),
+    history: [
+      { at: haceDias(9), fromStatus: null, toStatus: 'RECEIVED', notes: 'Trade-in del pedido MOB-0008 (demo).' },
+      { at: haceDias(5), fromStatus: 'RECEIVED', toStatus: 'REPAIR', notes: 'Cambio de módulo de carga.' },
+      { at: haceDias(1), fromStatus: 'REPAIR', toStatus: 'READY', notes: 'Listo para publicar en oferta.' },
+    ],
+  },
+]
 export function loadDemoTradeIns() {
   assertDemo()
   const raw = leerDemo(KEY)
-  if (!raw) return []
+  if (!raw) { write(SEED_TRADE_INS); return SEED_TRADE_INS }
   let rows
   try { rows = JSON.parse(raw) } catch { throw new Error('El registro demo está dañado; no se sobrescribió.') }
   if (!Array.isArray(rows) || rows.some((row) => !row?.id || !serialKey(row.serial) || !TRADE_IN_TRANSITIONS[row.status])) {

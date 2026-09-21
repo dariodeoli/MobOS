@@ -167,6 +167,64 @@ test('dueño: un guardado en demo avisa que quedó simulado', async ({ page }) =
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
 })
 
+// #213: el inventario demo ya no está bloqueado: muestra el lote de iPhones con
+// IMEIs ficticios, costos y ubicaciones, todo local.
+test('dueño: el inventario demo muestra unidades ficticias sin tocar el API', async ({ page }) => {
+  const llamadas = []
+  page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
+  page.on('pageerror', (error) => console.log(`PAGEERROR ${error.message}`))
+
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
+  await expect(page).toHaveURL(/\/resumen$/)
+  await page.goto('/inventario/unidades')
+  await expect(page.getByText(/Ingresá con una cuenta real/)).toHaveCount(0)
+
+  const filas = page.getByTestId('inventario-fila')
+  await expect(filas.first()).toBeVisible({ timeout: 15_000 })
+  expect(await filas.count()).toBeGreaterThanOrEqual(20)
+  await expect(page.getByText(/DEMO0001/).first()).toBeVisible()
+
+  await filas.first().click()
+  const detalle = page.getByRole('dialog')
+  await expect(detalle.getByText(/Costo del equipo/)).toBeVisible()
+  await expect(detalle.getByText(/Depósito|Piso de venta/).first()).toBeVisible()
+
+  expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
+})
+
+// #213: recorrido de punta a punta de los módulos con datos ficticios. Con
+// MOBOS_213_CAPTURAS=<carpeta> deja capturas de cada pantalla.
+test('dueño: recorrido demo con datos ficticios y capturas opcionales', async ({ page }) => {
+  const salida = process.env.MOBOS_213_CAPTURAS || ''
+  const capturar = async (nombre) => { if (salida) await page.screenshot({ path: `${salida}/${nombre}.png` }) }
+  const llamadas = []
+  page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
+
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
+  await expect(page).toHaveURL(/\/resumen$/)
+  await capturar('00-resumen')
+
+  const pantallas = [
+    ['/inventario/unidades', /Inventario|Stock/i, '01-inventario'],
+    ['/pedidos', /Pedidos/i, '02-pedidos'],
+    ['/clientes', /Clientes/i, '03-clientes'],
+    ['/finanzas/caja', /Caja/i, '04-caja'],
+    ['/finanzas/conciliacion', /Conciliaci/i, '05-conciliacion'],
+    ['/analisis/ganancias', /Ganancias/i, '06-ganancias'],
+    ['/servicio-tecnico', /Servicio|Taller|Órdenes/i, '07-servicio'],
+    ['/configuracion/impresoras', /Impresoras/i, '08-impresoras'],
+  ]
+  for (const [ruta, texto, nombre] of pantallas) {
+    await page.goto(ruta)
+    await expect(page.getByText(texto).first()).toBeVisible({ timeout: 15_000 })
+    await capturar(nombre)
+  }
+
+  expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
+})
+
 test('sin sesión demo, la navegación directa vuelve a /demo', async ({ page }) => {
   await page.goto('/resumen')
   await expect(page).toHaveURL(/\/demo$/)
