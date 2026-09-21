@@ -741,7 +741,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const clienteCredito = profile?.customer?.creditLimitPyg ?? customer?.creditLimitPyg ?? 0
   const clientePlazo = profile?.customer?.creditDays ?? customer?.creditDays ?? 0
   const ultimaCompra = orders.reduce((max, order) => (order.createdAt && (!max || order.createdAt > max) ? order.createdAt : max), null)
-  const totalComprado = orders.reduce((sum, order) => sum + Number(order.totalPyg || 0), 0)
+  // Total gastado como en la lista y la analítica: las ventas canceladas no cuentan.
+  const totalComprado = orders.filter((order) => order.status !== 'CANCELLED').reduce((sum, order) => sum + Number(order.totalPyg || 0), 0)
   const deuda = Number(profile?.debtPyg ?? 0)
   const garantiasActivas = warranties.filter((item) => item.status !== 'DELIVERED').length
   const pendientes = authorizations.filter((row) => row.status === 'PENDING')

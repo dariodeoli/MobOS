@@ -21,6 +21,7 @@ import RucField from '@/components/shared/RucField'
 import { extraerRuc } from '@/utils/ruc'
 import { SEED_DEMO_CLIENTES, clientesDemoGuardados, guardarClienteDemo } from '@/lib/demoClientes'
 import { useUltimoUsado } from '@/hooks/useUltimoUsado'
+import { statsDePedidos } from '@/lib/customerAggregates'
 
 // Convierte filas del export tipo Shopify en fichas para el endpoint de import.
 function filasParaImportar(texto) {
@@ -75,7 +76,10 @@ export const customerFields = (row) => {
   const phones = Array.from(new Set([phone, ...(row.phones || []), ...metadata.phones].filter(Boolean)))
   const legacyAddress = typeof row.notes === 'string' && row.notes.startsWith('Dirección: ') ? row.notes.slice('Dirección: '.length) : ''
   const addresses = Array.isArray(row.addresses) ? row.addresses : row.address || legacyAddress ? [{ id: 'legacy', label: 'Principal', address: row.address || legacyAddress }] : []
-  return { id: row.id, name: row.name || '', firstName: row.firstName || '', secondName: row.secondName || '', createdAt: row.createdAt || '', document: row.document || '', email: row.email || '', phone, phones, countryCode: row.countryCode || '+595', billingName: row.billingName || '', billingDocument: row.billingDocument || '', notes: typeof row.notes === 'string' ? row.notes : '', address: addresses[0]?.address || '', addresses, externalId: row.externalId || '', acceptsEmailMarketing: row.acceptsEmailMarketing === true, acceptsSmsMarketing: row.acceptsSmsMarketing === true, acceptsWhatsappMarketing: row.acceptsWhatsappMarketing === true, taxExempt: row.taxExempt === true, tags: Array.isArray(row.tags) ? row.tags : [], pricingTier: row.pricingTier || 'RETAIL', creditLimitPyg: row.creditLimitPyg ?? null, creditDays: row.creditDays ?? null, insuranceEnabled: row.insuranceEnabled === true, insuranceRatePct: row.insuranceRatePct ?? null, demoProfile: row.demoProfile || null }
+  // Los agregados del listado (total gastado, pedidos, última compra) vienen
+  // del API en la cuenta real y se calculan de los pedidos demo en el demo
+  // (#221): misma lógica, sin atajos.
+  return { id: row.id, name: row.name || '', firstName: row.firstName || '', secondName: row.secondName || '', createdAt: row.createdAt || '', document: row.document || '', email: row.email || '', phone, phones, countryCode: row.countryCode || '+595', billingName: row.billingName || '', billingDocument: row.billingDocument || '', notes: typeof row.notes === 'string' ? row.notes : '', address: addresses[0]?.address || '', addresses, externalId: row.externalId || '', acceptsEmailMarketing: row.acceptsEmailMarketing === true, acceptsSmsMarketing: row.acceptsSmsMarketing === true, acceptsWhatsappMarketing: row.acceptsWhatsappMarketing === true, taxExempt: row.taxExempt === true, tags: Array.isArray(row.tags) ? row.tags : [], pricingTier: row.pricingTier || 'RETAIL', creditLimitPyg: row.creditLimitPyg ?? null, creditDays: row.creditDays ?? null, insuranceEnabled: row.insuranceEnabled === true, insuranceRatePct: row.insuranceRatePct ?? null, wholesale: row.wholesale === true || row.pricingTier === 'WHOLESALE', stats: row.stats || (Array.isArray(row.demoProfile?.orders) ? statsDePedidos(row.demoProfile.orders) : undefined), demoProfile: row.demoProfile || null }
 }
 export function readDemoCustomers() {
   // Seeds ficticios siempre visibles (#194) + lo creado en este navegador.
