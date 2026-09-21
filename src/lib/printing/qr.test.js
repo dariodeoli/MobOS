@@ -5,7 +5,7 @@ import { baseDeApp, leerEtiqueta, leerPrueba, qrGarantia, qrPedido, qrProducto, 
 const BASE = 'https://app.moboss.online'
 
 test('los QR de pedido, unidad, producto y garantía son URLs absolutas de la app', () => {
-  assert.equal(qrPedido('token-vivo', BASE), `${BASE}/p/token-vivo`)
+  assert.equal(qrPedido('token-vivo', BASE), `${BASE}/pedidos/token-vivo`)
   assert.equal(qrUnidad('356789012345678', BASE), `${BASE}/u/356789012345678`)
   assert.equal(qrProducto('IPH-15-128', BASE), `${BASE}/producto/IPH-15-128`)
   assert.equal(qrGarantia('token-garantia', BASE), `${BASE}/garantia/token-garantia`)
@@ -63,6 +63,7 @@ test('leerPrueba recorta valores inesperados que llegan por URL', () => {
 test('leerEtiqueta entiende el QR nuevo y el código viejo', () => {
   assert.deepEqual(leerEtiqueta(`${BASE}/u/356789012345678`), { tipo: 'UNIDAD', valor: '356789012345678' })
   assert.deepEqual(leerEtiqueta(`${BASE}/producto/IPH-15-128`), { tipo: 'PROD', valor: 'IPH-15-128' })
+  assert.deepEqual(leerEtiqueta(`${BASE}/pedidos/token-vivo`), { tipo: 'PEDIDO', valor: 'token-vivo' })
   assert.deepEqual(leerEtiqueta(`${BASE}/p/token-vivo`), { tipo: 'PEDIDO', valor: 'token-vivo' })
   assert.deepEqual(leerEtiqueta(`${BASE}/prueba?d=ZKP&v=4821&f=2026-09-20T12%3A00%3A00.000Z&t=qr`), { tipo: 'PRUEBA', valor: '4821' })
   assert.deepEqual(leerEtiqueta('MOBOS:356789012345678'), { tipo: 'UNIDAD', valor: '356789012345678' })

@@ -124,6 +124,7 @@ export function leerEtiqueta(texto = '') {
       if (partes[0] === 'u' && partes[1]) return { tipo: 'UNIDAD', valor: partes[1] }
       if (partes[0] === 'producto' && partes[1]) return { tipo: 'PROD', valor: partes[1] }
       if (partes[0] === 'p' && partes[1]) return { tipo: 'PEDIDO', valor: partes[1] }
+      if (partes[0] === 'pedidos' && partes[1]) return { tipo: 'PEDIDO', valor: partes[1] }
       if (partes[0] === 'prueba') return { tipo: 'PRUEBA', valor: url.searchParams.get('v') || '' }
     } catch {
       // No es una URL válida: se trata como texto escrito a mano.
