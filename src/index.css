@@ -184,6 +184,25 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
   [class*="mobos-carga"], [class*="mobos-respira"] { animation: none !important; }
 }
 
+/* ── Landing: verificador de IMEI (#202) ──────────────────────────────
+   Línea de escaneo que recorre la ficha del equipo y aparición escalonada de
+   los campos del resultado. Se apagan con prefers-reduced-motion. */
+@keyframes mobos-escaneo {
+  0% { transform: translateY(-8%); opacity: 0; }
+  12% { opacity: .9; }
+  88% { opacity: .9; }
+  100% { transform: translateY(308%); opacity: 0; }
+}
+@keyframes mobos-aparece {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.mobos-aparece { animation: mobos-aparece .45s cubic-bezier(.2,.7,.3,1) both; }
+.mobos-escaneo { animation: mobos-escaneo 1.5s cubic-bezier(.4,0,.6,1) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .mobos-aparece, .mobos-escaneo { animation: none !important; }
+}
+
 /* PIN: el input no dibuja los dígitos (texto transparente) y PinInput pinta un
    punto por dígito. No depende de -webkit-text-security (cuyo valor inválido
    dejaba el PIN a la vista, #124) ni de glifos de la fuente; el cursor queda
