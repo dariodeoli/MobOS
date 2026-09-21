@@ -158,7 +158,11 @@ if (typeof window !== 'undefined') {
   })
 }
 
-// Mutaciones locales del demo (cache + espejo + notify).
+// Mutaciones locales del demo (cache + espejo + notify). Cada guardado avisa
+// a la UI (toast con nota de demo, #192): en la demo nada toca la tienda real.
+function avisarGuardadoDemo() {
+  try { window.dispatchEvent(new CustomEvent('mobos:demo-guardado')) } catch { /* sin window (SSR/tests) */ }
+}
 function entUpsert(collection, obj) {
   if (apiMode())
     throw new Error(`La mutación legacy de ${collection} no está disponible en modo API.`)
@@ -169,6 +173,7 @@ function entUpsert(collection, obj) {
   else cache[collection] = [...arr, obj]
   persistMirror()
   notify()
+  avisarGuardadoDemo()
 }
 function entDelete(collection, id) {
   if (apiMode())
@@ -176,6 +181,7 @@ function entDelete(collection, id) {
   cache[collection] = cache[collection].filter(o => o.id !== id)
   persistMirror()
   notify()
+  avisarGuardadoDemo()
 }
 let apiHydrationVersion = 0
 

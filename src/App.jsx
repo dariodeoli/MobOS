@@ -7,6 +7,7 @@ import Icon from '@/components/shared/Icon'
 import Login from '@/pages/Login'
 import PanelVendedor from '@/pages/PanelVendedor'
 import { applyPageMetadata } from '@/lib/seo'
+import { isDemoRuntime } from '@/lib/demoMode'
 import DemoAccess from '@/pages/DemoAccess'
 import PedidoPublico from '@/pages/PedidoPublico'
 import PanelDelivery from '@/pages/PanelDelivery'
@@ -76,7 +77,9 @@ function SoloFuera() {
 function Protegida({ children }) {
   const { estado } = useSesion()
   if (estado === 'cargando') return <Cargando />
-  if (estado === 'fuera') return <Navigate to="/login" replace />
+  // Sin sesión, el panel es la demo pública (#192): se entra por perfiles en
+  // /demo en lugar de mandar al login. El acceso real vive en /login.
+  if (estado === 'fuera') return <Navigate to="/demo" replace />
   if (estado === 'sinEmpresa') return <SinEmpresa />
   return children
 }
@@ -84,7 +87,7 @@ function Protegida({ children }) {
 function SoloPropietario({ children }) {
   const { estado, sesion } = useSesion()
   if (estado === 'cargando') return <Cargando />
-  if (estado === 'fuera') return <Navigate to="/login" replace />
+  if (estado === 'fuera') return <Navigate to="/demo" replace />
   if (estado === 'sinEmpresa') return <SinEmpresa />
   if (!sesion?.esPropietario) return <Navigate to="/" replace />
   return children
@@ -190,7 +193,7 @@ export default function App() {
   }
   return (
     <SesionProvider>
-      <ToastProvider>
+      <ToastProvider demo={isDemoRuntime}>
         <MetadatosPagina />
         <Suspense fallback={<PaginaCargando />}>
         <Routes>

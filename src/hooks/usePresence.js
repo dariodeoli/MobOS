@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { presenciaApi } from '@/lib/api/presence'
 import { alcanceDeRuta, INTERVALO_LATIDO_MS, estaEnLinea } from '@/lib/presence'
+import { isDemoRuntime } from '@/lib/demoMode'
 
 // Envía el latido de esta pestaña cada 30 s (solo con la app visible) y marca
 // actividad real con puntero/teclado/scroll. El alcance es la sección abierta.
@@ -10,6 +11,8 @@ export function usePresenceTracker() {
   const alcance = useRef(alcanceDeRuta(pathname))
   useEffect(() => { alcance.current = alcanceDeRuta(pathname) }, [pathname])
   useEffect(() => {
+    // La demo pública no tiene presencia real: no late ni consulta (#192).
+    if (isDemoRuntime) return undefined
     let tabId = ''
     try { tabId = crypto.randomUUID() } catch { tabId = `tab-${Date.now()}-${Math.random().toString(16).slice(2)}` }
     let ultimaActividad = -Infinity, enviando = false, detenido = false
@@ -46,6 +49,8 @@ export function usePresenceTracker() {
 export function usePresentes({ intervaloMs = INTERVALO_LATIDO_MS } = {}) {
   const [personas, setPersonas] = useState([])
   useEffect(() => {
+    // La demo pública no comparte presencia con la empresa real (#192).
+    if (isDemoRuntime) { setPersonas([]); return undefined }
     let vivo = true, cargando = false, controller
     const cargar = async () => {
       if (!vivo || cargando || document.visibilityState !== 'visible') return

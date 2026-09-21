@@ -8,7 +8,7 @@ import SeccionColapsable from '@/components/shared/SeccionColapsable'
 import { primerNombre } from '@/lib/utils'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
-import { api, API_URL } from '@/lib/api/client'
+import { api, apiFetch } from '@/lib/api/client'
 import { FULFILLMENT_LABELS } from '@/lib/constants'
 import { opcionesDeEntrega, tonoEntrega } from './venta/entrega'
 import { accessUrlFor, FORMATOS_PEDIDO, printDeliveryNote } from '@/components/shared/OrderReceipt'
@@ -79,7 +79,7 @@ function PhotoThumb({ orderId, commentId, photo }) {
   const [rota, setRota] = useState(false)
   useEffect(() => {
     let active = true; let objectUrl = ''
-    fetch(`${API_URL}/api/orders/${encodeURIComponent(orderId)}/comments/${encodeURIComponent(commentId)}/photos/${encodeURIComponent(photo.id)}`, { credentials: 'include' })
+    apiFetch(`/api/orders/${encodeURIComponent(orderId)}/comments/${encodeURIComponent(commentId)}/photos/${encodeURIComponent(photo.id)}`)
       .then(response => { if (!response.ok) throw new Error('sin foto'); return response.blob() })
       .then(blob => { if (!active) return; objectUrl = URL.createObjectURL(blob); setUrl(objectUrl) })
       .catch(() => {})
@@ -343,7 +343,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   // se pide el binario y se ofrece como archivo local, igual que en pagos.
   async function descargarComprobante(paymentId, proof) {
     try {
-      const response = await fetch(`${API_URL}/api/payments/${encodeURIComponent(paymentId)}/proofs/${encodeURIComponent(proof.id)}`, { credentials: 'include' })
+      const response = await apiFetch(`/api/payments/${encodeURIComponent(paymentId)}/proofs/${encodeURIComponent(proof.id)}`)
       if (!response.ok) throw new Error('No se pudo descargar el comprobante.')
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
