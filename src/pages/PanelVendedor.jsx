@@ -15,6 +15,7 @@ import { ConfirmDialog, Input, Modal, PinInput, Select, Skeleton, Subtabs, useTo
 import { cn } from '@/lib/utils'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import PantallaBloqueada from '@/components/app/PantallaBloqueada'
+import DemoNoDisponible from '@/components/app/DemoNoDisponible'
 import { usePreferencias } from '@/hooks/usePreferencias'
 import { useBloqueoInactividad } from '@/hooks/useBloqueoInactividad'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
@@ -212,10 +213,8 @@ const MIGA_SUBPAGINA = {
 // Pestañas visibles según el modo: créditos y cuotas solo fuera de la demo.
 function tabsDeSubpagina(slug, esDemo) {
   const tabs = SUBPAGINAS[slug]?.tabs || []
-  if (slug === 'configuracion') {
-    // Estado del sistema necesita el API real; en demo queda oculta.
-    return tabs.filter(([id]) => (id === 'sistema' ? !esDemo : true))
-  }
+  // Finanzas oculta créditos/cuotas/comisiones en demo (necesitan el API real);
+  // Estado del sistema se muestra con su aviso de "no disponible" (#201).
   if (slug === 'finanzas') return tabs.filter(([id]) => ((id === 'creditos' || id === 'cuotas' || id === 'comisiones') ? !esDemo : true))
   return tabs
 }
@@ -821,10 +820,14 @@ export default function PanelVendedor() {
               {vista === 'negocio' && <Config seccion="negocio" />}
               {vista === 'precios' && <Precios />}
               {vista === 'sucursales' && <Config seccion="sucursales" />}
-              {vista === 'seguridad' && <Config seccion="seguridad" />}
+              {vista === 'seguridad' && (esDemo
+                ? <DemoNoDisponible modulo="Seguridad de la cuenta" motivo="Administra contraseñas, sesiones y acciones sensibles de tu tienda real." />
+                : <Config seccion="seguridad" />)}
               {vista === 'impresoras' && <Impresoras />}
               {vista === 'documentacion' && <Documentacion />}
-              {vista === 'sistema' && <EstadoSistema />}
+              {vista === 'sistema' && (esDemo
+                ? <DemoNoDisponible modulo="Estado del sistema" motivo="Consulta los servicios reales de MobOS (API, base e impresión)." />
+                : <EstadoSistema />)}
             </div>
           )}
           </Suspense>
