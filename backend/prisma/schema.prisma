@@ -981,7 +981,10 @@ model CustomerPortalToken {
   customerId String
   customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
   level      String    @default("rapido")
-  token      String    @unique @default(cuid())
+  // Solo se guarda el sha256 del token (64 hex); `token` queda para enlaces
+  // legacy mientras dure la rotación (nullable: los nuevos no lo usan).
+  token      String?   @unique @default(cuid())
+  tokenHash  String?   @unique
   createdBy  String?
   revokedAt  DateTime?
   createdAt  DateTime  @default(now())
@@ -2276,7 +2279,10 @@ model WarrantyCase {
   expiresAt       DateTime?
   // Página pública de garantía: el cliente ve modelo, días restantes y
   // cobertura con solo escanear el QR del comprobante.
+  // `publicToken` queda solo para enlaces legacy (rotación pendiente); los
+  // nuevos guardan únicamente `publicTokenHash` (sha256 del token de 64 hex).
   publicToken     String?        @unique
+  publicTokenHash String?        @unique
   warrantyDays    Int?
   coverage        String?
   exclusions      String?

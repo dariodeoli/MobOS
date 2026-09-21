@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
-import { Card, Button, Input, Label, Textarea, Badge, EmptyState, Modal, MoneyInput, Skeleton, useToast, IconAction } from '@/components/ui'
+import { Card, Button, ConfirmDialog, Input, Label, Textarea, Badge, EmptyState, Modal, MoneyInput, Skeleton, useToast, IconAction } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import SegmentedField from '@/components/shared/SegmentedField'
@@ -58,6 +58,10 @@ export default function Garantias() {
   // con el segmentado de la biblioteca.
   const [crearAbierto, setCrearAbierto] = useState(false)
   const [estadoFiltro, setEstadoFiltro] = useState('todos')
+  // Rotación del enlace público (#172/#178): los casos nuevos guardan solo el
+  // hash del token; regenerarlo devuelve un enlace nuevo (el anterior muere).
+  const [confirmarEnlace, setConfirmarEnlace] = useState(null)
+  const [regenerandoId, setRegenerandoId] = useState('')
   const busquedaDiferida = useBusquedaDiferida(q)
   const load = useCallback(async (busqueda = '') => { try { setItems(esDemo ? getDemoWarranties() : await api.get(`/api/warranties?q=${encodeURIComponent(busqueda)}`)) } catch (e) { setError(e.message) } }, [esDemo])
   useEffect(() => { load(busquedaDiferida) }, [load, busquedaDiferida])
@@ -97,8 +101,26 @@ export default function Garantias() {
   const listInput = (value) => value.split('\n').map((item) => item.trim()).filter(Boolean)
   async function create(e) { e.preventDefault(); setSaving(true); setError(''); try { const { partsText, photosText, warrantyDays, repairCostPyg, expiresAt, ...base } = form; const data = { ...base, parts: listInput(partsText), photos: listInput(photosText), branchId: form.branchId || sucursal?.id, ...(expiresAt ? { expiresAt } : {}), ...(String(warrantyDays).trim() ? { warrantyDays: Number(warrantyDays) } : {}), ...(String(repairCostPyg).trim() ? { repairCostPyg: Number(repairCostPyg) } : {}) }; if (esDemo) setItems(saveDemoWarranties([{ ...data, id: `demo-${Date.now()}`, status: 'RECEIVED', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, ...items])); else { const saved = await api.post('/api/warranties', data); setItems([saved, ...items]); if (saved?.publicToken) { const url = qrGarantia(saved.publicToken); navigator.clipboard?.writeText(url).catch(() => {}); toast.success('Garantía creada. El enlace público quedó copiado.') } } setForm(blank); setCrearAbierto(false) } catch (e) { setError(e.message) } finally { setSaving(false) } }
   async function advance(item) { const next = STATES[STATES.findIndex(([s]) => s === item.status) + 1]?.[0]; if (!next || advancingId) return; setAdvancingId(item.id); setError(''); try { if (esDemo) { const nextItems = items.map((x) => x.id === item.id ? { ...x, status: next, updatedAt: new Date().toISOString() } : x); setItems(saveDemoWarranties(nextItems)) } else { const updated = await api.patch('/api/warranties', { id: item.id, status: next }); setItems(items.map((x) => x.id === item.id ? updated : x)) } } catch (e) { setError(e.message) } finally { setAdvancingId(null) } }
-  async function abrirFotos(item) {
-    setFotosDe(item); setFotos([]); setFotosCargando(true); setFotosError('')
+  // Rotación del enlace público: devuelve uno nuevo (el anterior deja de
+  // funcionar) y lo copia para compartirlo.
+  async function regenerarEnlace() {
+    if (!confirmarEnlace || regenerandoId) return
+    const item = confirmarEnlace
+    setRegenerandoId(item.id)
+    setError('')
+    try {
+      const actualizado = await api.patch('/api/warranties', { id: item.id, regeneratePublicToken: true })
+      const url = actualizado?.publicToken ? qrGarantia(actualizado.publicToken) : ''
+      if (url) navigator.clipboard?.writeText(url).catch(() => {})
+      setItems((actuales) => actuales.map((x) => x.id === item.id ? { ...x, ...actualizado, publicToken: undefined, hasPublicLink: true } : x))
+      toast.success(url ? 'Enlace regenerado y copiado. El anterior dejó de funcionar.' : 'Enlace regenerado.')
+      setConfirmarEnlace(null)
+    } catch (cause) {
+      setError(cause?.message || 'No se pudo regenerar el enlace.')
+    } finally { setRegenerandoId('') }
+  }
+
+  async function abrirFotos(item) {    setFotosDe(item); setFotos([]); setFotosCargando(true); setFotosError('')
     try { setFotos(await api.get(`/api/warranties/${item.id}/photos`)) } catch (cause) { setFotosError(cause?.message || 'No se pudieron cargar las fotos.') } finally { setFotosCargando(false) }
   }
   async function subirFoto(file) {
@@ -148,6 +170,7 @@ export default function Garantias() {
             <span className="flex flex-wrap items-center justify-end gap-1">
               {telefonoDelCaso(item) && <WhatsAppMenu telefono={telefonoDelCaso(item)} countryCode={item.customerCountryCode || item.customer?.countryCode || '+595'} category="SERVICE" title={item.customerName} contexto={{ cliente: item.customerName || '', nombre: item.customerName || '', equipo: item.serial || '', servicio: item.description || '', estado: label[item.status] || '', fecha: item.createdAt ? new Date(item.createdAt).toLocaleDateString('es-PY') : '' }} />}
               {item.publicToken && <IconAction icon="external" tone="mute" label="Enlace del caso" onClick={() => { navigator.clipboard?.writeText(qrGarantia(item.publicToken)).catch(() => {}); toast.success('Enlace de garantía del cliente copiado.') }} />}
+              {!item.publicToken && item.hasPublicLink && <IconAction icon="refresh" tone="mute" label={regenerandoId === item.id ? 'Regenerando…' : 'Regenerar enlace'} disabled={regenerandoId !== ''} onClick={() => setConfirmarEnlace(item)} />}
               {!esDemo && <IconAction icon="image" tone="fono" label="Fotos" onClick={() => abrirFotos(item)} />}
               {item.status !== 'DELIVERED' && <IconAction icon="check" tone="ok" label={advancingId === item.id ? 'Actualizando…' : 'Avanzar'} disabled={advancingId !== null} onClick={() => advance(item)} />}
             </span>
@@ -178,5 +201,14 @@ export default function Garantias() {
         )}
       </div>
     </Modal>
+    <ConfirmDialog
+      open={Boolean(confirmarEnlace)}
+      onCancel={() => { if (!regenerandoId) setConfirmarEnlace(null) }}
+      onConfirm={regenerarEnlace}
+      title="Regenerar enlace de la garantía"
+      description="El enlace y el QR anteriores dejarán de funcionar. El nuevo se copia al portapapeles para que lo compartas."
+      confirmLabel="Regenerar enlace"
+      busy={Boolean(regenerandoId)}
+    />
   </div>
 }

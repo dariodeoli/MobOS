@@ -89,6 +89,8 @@ assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const serialGarantia = `IT-PORTAL-SER-${ts}`
 result = await request('/api/warranties', 'POST', { customerId: cliente.id, customerName: cliente.name, serial: serialGarantia, description: 'Equipo con garantía portal', branchId: 'branch-a-it' }, adminToken)
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
+const garantiaPortal = Array.isArray(result.payload) ? result.payload[0] : result.payload
+assert.ok(garantiaPortal.publicToken, 'La garantía debe devolver su token público al crearse.')
 
 // ── Enlace rápido: saldo, vencimientos y pedidos, sin datos internos ───────
 result = await request(`/api/customers/${encodeURIComponent(cliente.id)}/access-token`, 'POST', { level: 'rapido' }, sellerToken)
@@ -99,7 +101,13 @@ assert.equal(result.payload.level, 'rapido')
 
 result = await request(`/api/customers/${encodeURIComponent(cliente.id)}/access-token`, 'POST', { level: 'rapido' }, sellerToken)
 assert.equal(result.response.status, 200)
-assert.equal(result.payload.token, tokenRapido, 'Sin regenerate el token vigente no debe rotar.')
+// Seguridad #172/#178: el token vigente no se vuelve a mostrar (solo se guarda
+// su hash), pero tampoco se rota en silencio: el enlace anterior sigue vivo.
+assert.equal(result.payload.reused, true, 'Sin regenerate debe reutilizarse el enlace vigente.')
+assert.equal(result.payload.token ?? null, null, 'El token vigente no se vuelve a mostrar.')
+assert.equal(result.payload.level, 'rapido')
+const vigenteSigueVivo = await publicRequest(`/api/portal/${encodeURIComponent(tokenRapido)}`)
+assert.equal(vigenteSigueVivo.response.status, 200, 'El enlace vigente debe seguir funcionando.')
 
 result = await publicRequest(`/api/portal/${encodeURIComponent(tokenRapido)}`)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
@@ -188,6 +196,21 @@ if (databaseUrl && pgBin) {
   const psql = (sql) => execFileSync(path.join(pgBin, 'psql'), [databaseUrl, '-At', '-c', sql], { encoding: 'utf8' }).trim()
   assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "action" = 'CUSTOMER_PORTAL_TOKEN_REGENERATED' AND "entityId" = '${cliente.id}' AND "userId" IS NOT NULL`), '1')
   assert.ok(Number(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE "action" = 'CUSTOMER_PORTAL_TOKEN_CREATED' AND "entityId" = '${cliente.id}'`)) >= 2)
+  // Los tokens públicos quedan hasheados en la base (#172/#178): los enlaces
+  // nuevos del portal no guardan el valor en claro.
+  assert.equal(psql(`SELECT COUNT(*) FROM "CustomerPortalToken" WHERE "customerId" = '${cliente.id}' AND "token" IS NOT NULL`), '0', 'El portal nuevo no debe guardar el token en claro.')
+  assert.ok(Number(psql(`SELECT COUNT(*) FROM "CustomerPortalToken" WHERE "customerId" = '${cliente.id}' AND "tokenHash" IS NOT NULL`)) >= 2, 'Cada enlace del portal debe guardar su hash.')
+  assert.equal(psql(`SELECT COUNT(*) FROM "WarrantyCase" WHERE "id" = '${garantiaPortal.id}' AND "publicTokenHash" IS NOT NULL`), '1', 'La garantía debe guardar el hash de su token público.')
 }
+
+// ── Rate limit de la página pública de garantía (#178) ─────────────────────
+// Bucket propio por IP para no interferir con el resto del arnés.
+let garantiaLimitada = false
+for (let intento = 0; intento < 40 && !garantiaLimitada; intento += 1) {
+  const respuesta = await fetch(`${baseUrl}/api/public/warranty/${encodeURIComponent(garantiaPortal.publicToken)}`, { headers: { 'x-forwarded-for': '203.0.113.99' } })
+  if (respuesta.status === 429) garantiaLimitada = true
+  else assert.equal(respuesta.status, 200, `La garantía pública debe responder 200 antes del límite (recibido ${respuesta.status}).`)
+}
+assert.equal(garantiaLimitada, true, 'La página pública de garantía debe limitar la tasa de pedidos (429).')
 
 console.log('customer-portal: 40 checks OK (token rápido con saldo/vencimientos/pedidos, completo con garantías/direcciones/comprobantes, regeneración 404, token inválido, límites por rol y sin campos internos).')
