@@ -9,7 +9,7 @@ const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 test('pedidos: la lista abre sin popups y el detalle se abre y cierra', async ({ page }) => {
   const errores = []
   page.on('pageerror', (error) => errores.push(String(error?.message || error)))
-  await page.goto('/ventas')
+  await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Mis pedidos' }).click()

@@ -7,7 +7,7 @@ test('correo y teléfono del cliente en el POS no rompen la pantalla', async ({ 
   const errores = []
   page.on('pageerror', (error) => errores.push(String(error?.message || error)))
 
-  await page.goto('/ventas')
+  await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
   await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
 

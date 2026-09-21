@@ -59,7 +59,7 @@ const SELLER_NAV = [
   {
     titulo: 'Vender',
     items: [
-      ['cargar', 'Cargar venta', 'receipt'],
+      ['cargar', 'POS', 'receipt'],
       ['pedidos', 'Mis pedidos', 'box'],
       ['repartos', 'Delivery', 'truck'],
       ['clientes', 'Clientes', 'users'],
@@ -81,7 +81,7 @@ const OWNER_NAV = [
   {
     titulo: 'Operación',
     items: [
-      ['cargar', 'Cargar venta', 'receipt'],
+      ['cargar', 'POS', 'receipt'],
       ['pedidos', 'Pedidos', 'box'],
       ['repartos', 'Delivery', 'truck'],
       ['clientes', 'Clientes', 'users'],
@@ -234,7 +234,7 @@ const LABELS = {
   cotizaciones: 'Cotizaciones',
   plantillas: 'Plantillas de WhatsApp',
   cotizador: 'Trade-In',
-  cargar: 'Cargar venta',
+  cargar: 'POS',
   resumen: 'Resumen general',
   analisis: 'Análisis',
   finanzas: 'Finanzas',
@@ -347,7 +347,7 @@ export default function PanelVendedor() {
   const seccionRuta = subpadre && tabsRuta.some(([id]) => id === routeSeccion) ? routeSeccion : null
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
-  // El slug plano de la URL define la vista (/ventas, /pedidos, /trade-in…).
+  // El slug plano de la URL define la vista (/pos, /pedidos, /trade-in…).
   const routeVista = subpadre ? null : vistaDeRuta(slugRuta, { esOwner })
   const [vista, setVista] = useState(seccionRuta || routeVista || (subpadre ? tabsRuta[0][0] : 'cargar'))
   const grupoConfig = GRUPOS_CONFIG.find((grupo) => grupo.tabs.includes(vista)) || GRUPOS_CONFIG[0]
@@ -383,7 +383,7 @@ export default function PanelVendedor() {
     const base = (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id)
     // El catálogo ('productos') se abre desde la solapa Productos de Compras:
     // no tiene ítem propio en el menú del dueño, pero la ruta tiene que ser
-    // válida o el guard la redirige a Cargar venta (importador incluido).
+    // válida o el guard la redirige al POS (importador incluido).
     return esOwner ? [...base, 'productos'] : base
   }, [esOwner, esTecnico])
   // Un slug plano de pestaña (p. ej. /precios, que también es pestaña de
@@ -411,7 +411,7 @@ export default function PanelVendedor() {
     const requerido = subpadre ? SUBPAGINAS[subpadre].vista : vista
     if (!accesibles.includes(requerido)) {
       setVista('cargar')
-      navigate('/ventas', { replace: true })
+      navigate('/pos', { replace: true })
     }
   }, [subpadre, accesibles, vista, navigate])
   // Sincroniza la URL → vista solo para rutas válidas del rol activo.
@@ -454,7 +454,7 @@ export default function PanelVendedor() {
       return
     }
     setVista(id)
-    navigate(`${rutaDeVista(id) || '/ventas'}${sufijo}`)
+    navigate(`${rutaDeVista(id) || '/pos'}${sufijo}`)
   }
 
   // Pestaña de un subpadre: la pestaña activa vive en la URL hija.
@@ -671,14 +671,14 @@ export default function PanelVendedor() {
                 type="button"
                 onClick={() => {
                   setVista('cargar')
-                  navigate('/ventas')
+                  navigate('/pos')
                 }}
                 className="inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono px-3.5 text-[13px] font-semibold text-onbrand transition hover:bg-fono-dark"
-                title="Cargar venta"
-                aria-label="Cargar venta"
+                title="POS"
+                aria-label="POS"
               >
                 <Icon name="plus" className="h-[15px] w-[15px]" />
-                <span className="hidden sm:inline">Cargar venta</span>
+                <span className="hidden sm:inline">POS</span>
               </button>
             )}
           </div>
@@ -732,7 +732,7 @@ export default function PanelVendedor() {
                 onCargarVenta={draft => {
                   setTradeIn({ ...draft, id: crypto.randomUUID(), identidad })
                   setVista('cargar')
-                  navigate('/ventas')
+                  navigate('/pos')
                 }}
               />
             </div>

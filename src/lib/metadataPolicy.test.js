@@ -27,7 +27,7 @@ test('public status metadata remains canonical and indexable', () => {
 })
 
 test('authenticated and authentication routes are canonical to the app and noindex', () => {
-  for (const pathname of ['/login', '/restablecer-contrasena', '/ventas', '/pedidos/0435', '/control/reportes']) {
+  for (const pathname of ['/login', '/restablecer-contrasena', '/pos', '/pedidos/0435', '/control/reportes']) {
     const metadata = resolvePageMetadata({ pathname })
     assert.equal(metadata.canonical, `https://app.moboss.online${pathname}`)
     assert.equal(metadata.robots, 'noindex, nofollow')
@@ -36,7 +36,7 @@ test('authenticated and authentication routes are canonical to the app and noind
 
 test('las vistas nuevas del panel tienen título propio y no se indexan', () => {
   const rutas = {
-    '/ventas': 'Punto de venta',
+    '/pos': 'Punto de venta',
     '/pedidos': 'Pedidos',
     '/delivery': 'Delivery',
     '/clientes': 'Clientes',

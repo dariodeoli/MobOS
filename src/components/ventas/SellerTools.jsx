@@ -77,7 +77,7 @@ export default function SellerTools({ vista, onCargarVenta }) {
         <p className="rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2 text-sm">Valor acordado: <b className="tabular-nums text-fono-light">{valid ? gs(Number(value)) : '—'}</b></p>
       </div>
       <p className="text-xs text-mute">Al continuar, el canje se agrega a los pagos de la venta con estos datos (revisalo en Cobrar). El equipo entra a la pipeline recién al confirmar la venta.</p>
-      <Button disabled={!valid}>Continuar en Cargar venta</Button>
+      <Button disabled={!valid}>Continuar en POS</Button>
     </form>
   </SellerSection>
 }

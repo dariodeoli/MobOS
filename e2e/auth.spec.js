@@ -16,7 +16,7 @@ test.describe('login', () => {
     await expect(page).toHaveURL(/\/login$/)
   })
 
-  test('seller logs in with company credentials + PIN and lands on /ventas', async ({ page }) => {
+  test('seller logs in with company credentials + PIN and lands on /pos', async ({ page }) => {
     await loginCompany(page)
     await completeSellerPin(page, { sellerName: SEED.sellers[0].name, pin: SEED.sellers[0].pin })
 

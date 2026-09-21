@@ -1,4 +1,4 @@
-// El resumen de compra de "Cargar venta" tiene que quedar a la vista mientras
+// El resumen de compra del POS tiene que quedar a la vista mientras
 // se desliza la pantalla: columna lateral fija en desktop/notebook y barra
 // compacta fija bajo el encabezado en pantallas angostas.
 //
@@ -14,7 +14,7 @@ const ALTO_ENCABEZADO = 80
 const MARGEN_SUPERIOR_MAX = 140
 
 async function agregarProducto(page) {
-  await page.goto('/ventas')
+  await page.goto('/pos')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   const producto = page.getByRole('button', { name: new RegExp(SEED.products.cable.name) })

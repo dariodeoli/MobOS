@@ -17,12 +17,16 @@ export default function PasoCarrito({
   puedeDescontar,
   precioDe,
   totalCarrito,
+  totalGeneral,
+  montoDelivery = 0,
   quitarItem,
   editarItem,
   onImei,
   descuento,
   setDescuento,
   montoDescuento,
+  onBorrarDescuentos,
+  onVaciarCarrito,
   customer,
   onAuthDescuento,
   montoPrecioBajo,
@@ -33,13 +37,19 @@ export default function PasoCarrito({
   setF,
 }) {
   const unidades = items.reduce((a, it) => a + (it.quantity || 1), 0)
+  const descuentoTotal = montoDescuento + items.reduce((suma, it) => {
+    const pct = Number(String(it.descuentoPct ?? '').replace('%', '')) || 0
+    const fijo = Number(String(it.descuento ?? '').replace(/\D/g, '')) || 0
+    if (pct > 0) return suma + Math.round((Number(it.precio || 0) * (it.quantity || 1) * pct) / 100)
+    return suma + Math.min(fijo, Number(it.precio || 0) * (it.quantity || 1))
+  }, 0)
 
   return (
     <section
       id="pos-resumen-venta"
       className="scroll-mt-32 overflow-hidden rounded-2xl border border-ink-600 bg-ink-800"
     >
-      <div className="border-b border-ink-600 bg-ink-700/50 px-3.5 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-600 bg-ink-700/50 px-3.5 py-2.5">
         <EncabezadoBloque
           titulo="Productos de esta venta"
           descripcion="Revisá cantidades, precios, IMEI y descuentos."
@@ -50,6 +60,16 @@ export default function PasoCarrito({
             </span>
           }
         />
+        {items.length > 0 && (
+          <button
+            type="button"
+            onClick={onVaciarCarrito}
+            disabled={guardando}
+            className="rounded-lg border border-ink-500 px-2.5 py-1 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad disabled:opacity-50"
+          >
+            Vaciar carrito
+          </button>
+        )}
       </div>
 
       <ListaVenta
@@ -67,13 +87,26 @@ export default function PasoCarrito({
 
       <div className="space-y-3.5 border-t border-ink-600 px-3.5 py-2.5">
         <div>
-          <Label htmlFor="descuento-extra-gs">Descuento extra (Gs)</Label>
-          <MoneyInput
-            id="descuento-extra-gs"
-            value={descuento}
-            onValueChange={setDescuento}
-            placeholder="0"
-          />
+          <div className="flex items-end gap-2">
+            <div className="min-w-0 flex-1">
+              <Label htmlFor="descuento-extra-gs">Descuento extra (Gs)</Label>
+              <MoneyInput
+                id="descuento-extra-gs"
+                value={descuento}
+                onValueChange={setDescuento}
+                placeholder="0"
+              />
+            </div>
+            {(Number(montoDescuento || 0) > 0 || items.some(it => it.descuento || it.descuentoPct)) && (
+              <button
+                type="button"
+                onClick={onBorrarDescuentos}
+                className="rounded-lg border border-ink-500 px-2.5 py-2 text-xs font-semibold text-mute transition hover:border-warn hover:text-warn"
+              >
+                Borrar descuento
+              </button>
+            )}
+          </div>
           {!puedeDescontar && (
             <p className="mt-1 text-xs text-mute">
               El descuento necesita autorización de gerencia: pedila acá y seguí cuando esté
@@ -125,11 +158,29 @@ export default function PasoCarrito({
         )}
       </div>
 
-      <div className="flex items-center justify-between border-t border-ink-600 bg-ink-700 px-3.5 py-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-mute">
-          Subtotal de productos
-        </span>
-        <span className="text-lg font-extrabold tabular-nums text-fore">{gs(totalCarrito)}</span>
+      <div className="border-t border-ink-600 bg-ink-700 px-3.5 py-2.5">
+        <div className="flex items-center justify-between text-xs text-mute">
+          <span>Subtotal</span>
+          <span className="tabular-nums">{gs(totalCarrito)}</span>
+        </div>
+        {descuentoTotal > 0 && (
+          <div className="flex items-center justify-between text-xs text-warn">
+            <span>Descuento</span>
+            <span className="tabular-nums">− {gs(descuentoTotal)}</span>
+          </div>
+        )}
+        {Number(montoDelivery || 0) > 0 && (
+          <div className="flex items-center justify-between text-xs text-mute">
+            <span>Envío</span>
+            <span className="tabular-nums">{gs(montoDelivery)}</span>
+          </div>
+        )}
+        <div className="mt-1 flex items-baseline justify-between border-t border-fono/20 pt-1.5">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-mute">Total</span>
+          <span className="text-2xl font-extrabold tracking-tight tabular-nums text-fore">
+            {gs(totalGeneral ?? totalCarrito)}
+          </span>
+        </div>
       </div>
     </section>
   )

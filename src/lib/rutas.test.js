@@ -3,7 +3,7 @@ import test from 'node:test'
 import { DESTINO_LEGADO, RUTA_DE_VISTA, rutaDeVista, vistaDeRuta } from './rutas.js'
 
 test('cada vista del panel tiene su slug nuevo', () => {
-  assert.equal(rutaDeVista('cargar'), '/ventas')
+  assert.equal(rutaDeVista('cargar'), '/pos')
   assert.equal(rutaDeVista('pedidos'), '/pedidos')
   assert.equal(rutaDeVista('repartos'), '/delivery')
   assert.equal(rutaDeVista('cotizador'), '/trade-in')
@@ -13,7 +13,7 @@ test('cada vista del panel tiene su slug nuevo', () => {
 })
 
 test('el slug nuevo resuelve la vista interna', () => {
-  assert.equal(vistaDeRuta('ventas'), 'cargar')
+  assert.equal(vistaDeRuta('pos'), 'cargar')
   assert.equal(vistaDeRuta('pedidos'), 'pedidos')
   assert.equal(vistaDeRuta('delivery'), 'repartos')
   assert.equal(vistaDeRuta('configuracion'), 'equipo')
@@ -22,15 +22,16 @@ test('el slug nuevo resuelve la vista interna', () => {
   assert.equal(vistaDeRuta('no-existe'), null)
 })
 
-test('las URLs viejas siguen teniendo destino y ninguna queda en /pos', () => {
+test('las URLs viejas siguen teniendo destino canónico (sin volver al namespace /pos/<vista>)', () => {
   for (const id of Object.keys(RUTA_DE_VISTA)) {
-    assert.ok(DESTINO_LEGADO[id], `falta /pos/${id} en el mapa de compatibilidad`)
+    assert.ok(DESTINO_LEGADO[id], `falta ${id} en el mapa de compatibilidad`)
   }
-  assert.equal(DESTINO_LEGADO[''], '/ventas')
-  assert.equal(DESTINO_LEGADO.cargar, '/ventas')
+  assert.equal(DESTINO_LEGADO[''], '/pos')
+  assert.equal(DESTINO_LEGADO.cargar, '/pos')
+  assert.equal(DESTINO_LEGADO.ventas, '/pos')
   assert.equal(DESTINO_LEGADO.tradein, '/trade-in')
   assert.equal(DESTINO_LEGADO.historial, '/configuracion/historial')
   for (const [origen, destino] of Object.entries(DESTINO_LEGADO)) {
-    assert.ok(destino.startsWith('/') && !destino.startsWith('/pos'), `destino inválido para ${origen}: ${destino}`)
+    assert.ok(destino.startsWith('/') && !destino.startsWith('/pos/'), `destino inválido para ${origen}: ${destino}`)
   }
 })

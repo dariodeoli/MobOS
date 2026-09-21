@@ -41,14 +41,10 @@ export default function PasoProductos({
   agregarProducto,
   nombreLista = '',
   guardando,
-  setNuevoVend,
-  setErrorVend,
-  setPinVend,
 }) {
   const { perfilEmpresa } = useSesion()
   const nombreVendedor =
     sesion?.rol === 'dueno' && perfilEmpresa?.name ? perfilEmpresa.name : sesion?.nombre
-  const puedeAgregarVendedor = esDemo || sesion?.rol === 'dueno'
 
   return (
     <>
@@ -62,19 +58,6 @@ export default function PasoProductos({
                 Vendedor: <strong className="text-fore">{nombreVendedor || 'Ingresá con tu PIN'}</strong>
               </span>
               <span className="block text-[11px]">Asignado automáticamente a tu sesión.</span>
-              {puedeAgregarVendedor && (
-                <button
-                  type="button"
-                  className="mt-1 text-xs font-bold text-fono hover:underline"
-                  onClick={() => {
-                    setNuevoVend(true)
-                    setErrorVend('')
-                    setPinVend('')
-                  }}
-                >
-                  ＋ Agregar vendedor
-                </button>
-              )}
             </div>
           }
         />
