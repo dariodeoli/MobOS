@@ -40,15 +40,24 @@ test.describe('finanzas · último usado', () => {
     await page.reload()
     await expect(page.getByLabel('Estado')).toHaveValue('VERIFIED')
 
-    // Filtro de medio: si el período tiene medios, el elegido vuelve aplicado.
+    // Filtro de medio: si el período tiene medios, el elegido vuelve aplicado y
+    // con el aviso de que se recordó. El aviso aparece al restaurar (tras la
+    // recarga), no al elegir.
     const medio = page.getByLabel('Medio')
-    const opciones = await medio.locator('option').evaluateAll((filas) => filas.map((fila) => fila.value).filter(Boolean))
+    let opciones = []
+    try {
+      await expect.poll(async () => (await medio.locator('option').evaluateAll((filas) => filas.map((fila) => fila.value).filter(Boolean))).length, { timeout: 15000 }).toBeGreaterThan(0)
+      opciones = await medio.locator('option').evaluateAll((filas) => filas.map((fila) => fila.value).filter(Boolean))
+    } catch {
+      opciones = [] // el período no tiene medios: no hay nada que recordar
+    }
     if (opciones.length) {
       const elegido = opciones[0]
       await medio.selectOption(elegido)
-      await expect(page.getByText('Filtros de tu última visita')).toBeVisible()
       await page.reload()
+      await expect(page.getByLabel('Estado')).toHaveValue('VERIFIED')
       await expect(medio).toHaveValue(elegido)
+      await expect(page.getByText('Filtros de tu última visita')).toBeVisible()
     }
   })
 })

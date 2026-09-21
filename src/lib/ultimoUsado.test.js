@@ -9,7 +9,7 @@ globalThis.localStorage = {
   setItem: (clave, valor) => store.set(clave, String(valor)),
   removeItem: clave => store.delete(clave),
 }
-globalThis.window = { dispatchEvent: () => {}, addEventListener: () => {}, removeEventListener: () => {} }
+globalThis.window = { location: { pathname: '/' }, dispatchEvent: () => {}, addEventListener: () => {}, removeEventListener: () => {} }
 
 const { EVENTO_ULTIMO_USADO, leerUltimo, recordarUltimo } = await import('./ultimoUsado.js')
 
