@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
-import { Badge, Button, Modal, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { parseDelimited } from '@/utils/csv'
@@ -219,9 +219,9 @@ export default function ImportarProductosCSV({ onImportada }) {
           </div>
 
           {error && (
-            <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-sm text-bad">
+            <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl">
               {error}
-            </p>
+            </Aviso>
           )}
 
           {superaTope && (

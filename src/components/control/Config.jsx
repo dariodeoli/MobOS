@@ -10,7 +10,7 @@ import { getDemoTenant, setDemoInsurancePct, setDemoLimits, setDemoNumeracion } 
 import { promptLogo } from '@/lib/logoPrompt'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { comprimirImagen } from '@/utils/imagen'
-import { Button, Card, Badge, ConfirmDialog, EmptyState, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, Toggle, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, Toggle, useToast } from '@/components/ui'
 import { formatGs } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
@@ -253,7 +253,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   }
   return (
     <div className="space-y-4">
-      {failure && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{failure}</p>}{notice && <p role="status" className="rounded-xl border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{notice}</p>}
+      {failure && <Aviso tono="error" className="p-3 rounded-xl">{failure}</Aviso>}{notice && <Aviso tono="ok" className="p-3 rounded-xl">{notice}</Aviso>}
       {seccion === 'negocio' && <>
       <Card className="space-y-3">
         <div>
@@ -538,7 +538,7 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
                 <PasswordInput id="edit-password" autoComplete="current-password" disabled={busy} value={form?.password || ''} onChange={event => setForm(current => ({ ...current, password: event.target.value }))} placeholder="Para confirmar el cambio" />
               </FormField>
             )}
-            {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+            {error && <Aviso tono="error">{error}</Aviso>}
             <div className="flex flex-wrap justify-end gap-2">
               <Button type="button" variant="ghost" disabled={busy} onClick={restablecer}>Restablecer</Button>
               <Button type="submit" disabled={busy || !form?.name?.trim() || !form?.email?.trim()}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button>
@@ -722,7 +722,7 @@ function SeccionTiendas({ account }) {
         </div>
         <Button type="button" variant="outline" onClick={crearOtra}><Icon name="plus" className="h-3.5 w-3.5" />Crear otra tienda</Button>
       </div>
-      {error && !dialogo && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {error && !dialogo && <Aviso tono="error">{error}</Aviso>}
       {stores.length === 0 ? <p className="text-sm text-mute">Todavía no se pudieron cargar tus tiendas. Recargá la página para volver a intentarlo.</p> : (
         <div className="space-y-2">
           {stores.map((store) => (
@@ -826,7 +826,7 @@ function SeccionInvitaciones() {
         <form onSubmit={aceptar} className="space-y-4">
           <p className="text-sm text-mute">Elegí tu PIN de 4 a 6 dígitos para entrar a esta tienda. Podés usar el mismo que en tu tienda actual.</p>
           <PinInput autoFocus length={6} value={pin} onChange={(next) => { setPin(next); setError('') }} />
-          {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+          {error && <Aviso tono="error">{error}</Aviso>}
           <Button type="submit" className="w-full" disabled={busy || pin.length < 4}>{busy ? 'Aceptando…' : 'Aceptar invitación'}</Button>
         </form>
       </Modal>
@@ -854,7 +854,7 @@ function DialogoDestructivo({ open, title, description, palabra, necesitaClave =
           <Label htmlFor="dialogo-palabra">Escribí {palabra} para confirmar</Label>
           <Input id="dialogo-palabra" autoFocus={!necesitaClave} disabled={busy} value={palabraActual} onChange={(event) => setPalabraActual(event.target.value)} placeholder={palabra} />
         </div>
-        {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+        {error && <Aviso tono="error">{error}</Aviso>}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>Cancelar</Button>
           <Button type="button" variant="danger" onClick={() => onConfirm(necesitaClave ? { password: clave } : {})} disabled={busy || !lista}>{busy ? 'Procesando…' : confirmLabel}</Button>
@@ -970,7 +970,7 @@ function SeccionSucursales() {
             <FormField label="Dirección (opcional)" htmlFor="sucursal-direccion">
               <Input id="sucursal-direccion" maxLength={200} disabled={busy} value={form?.address || ''} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} placeholder="Dirección completa" />
             </FormField>
-            {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+            {error && <Aviso tono="error">{error}</Aviso>}
             <div className="flex flex-wrap justify-end gap-2">
               {form?.id && <Button type="button" variant="ghost" disabled={busy} onClick={() => abrir(null)}>Cancelar edición</Button>}
               <Button type="submit" disabled={busy || !form?.name?.trim()}>{busy ? 'Guardando…' : form?.id ? 'Guardar cambios' : 'Crear sucursal'}</Button>

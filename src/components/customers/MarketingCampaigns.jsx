@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
-import { Badge, Button, Card, EmptyState, Input, Modal, Select, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, Input, Modal, Select, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { gs } from '@/utils/calculos'
 import { telefonoVisible } from '@/utils/telefono'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 const plural = (n, singular, pluralTexto) => `${Number(n) || 0} ${Number(n) === 1 ? singular : pluralTexto}`
 
@@ -129,7 +130,7 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
             <Button type="submit" disabled={cargando}>{cargando ? 'Buscando…' : 'Buscar clientes'}</Button>
           </form>
           <p className="text-xs text-mute">{segmentos.find((item) => item.key === segmento)?.descripcion} Los clientes sin consentimiento de WhatsApp o contactados dentro de la ventana de enfriamiento no se incluyen.</p>
-          {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+          {error && <Aviso tono="error">{error}</Aviso>}
         </Card>
 
         {cargando && !data && <div className="space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
@@ -173,9 +174,9 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
 
         {resultado && (
           <Card className="space-y-2">
-            <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">
+            <Aviso tono="ok">
               Campaña «{resultado.campaign?.name}» registrada: {plural(resultado.recipients?.length || 0, 'mensaje listo', 'mensajes listos')}, {plural(resultado.skipped?.length || 0, 'omitido', 'omitidos')}. Los contactados no vuelven a aparecer en la ventana de enfriamiento.
-            </p>
+            </Aviso>
             {resultado.recipients?.map((row) => (
               <div key={row.customerId} data-testid="marketing-destinatario" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 p-2.5">
                 <span className="min-w-0"><b className="text-sm">{row.name}</b><span className="mt-0.5 block truncate text-xs text-mute">{row.phone ? telefonoVisible(row.phone, row.countryCode) : 'sin teléfono'} · enlace wa.me listo</span></span>
@@ -191,7 +192,7 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
 
         {campanas.length > 0 && (
           <Card className="space-y-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Campañas recientes</h3>
+            <h3 className={ROTULO_SECCION}>Campañas recientes</h3>
             <div className="space-y-1">
               {campanas.map((item) => (
                 <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 px-3 py-2 text-xs">

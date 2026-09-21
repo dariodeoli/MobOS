@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
-import { Badge, Card, EmptyState, Money, Skeleton } from '@/components/ui'
+import { Aviso, Badge, Card, EmptyState, Money, Skeleton } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
 
 // Tabla compacta: una fila por cliente, con el uso del límite en su columna.
 const GRID_CREDITOS = 'grid min-w-[56rem] grid-cols-[minmax(9rem,1.4fr)_5rem_6rem_minmax(7rem,0.9fr)_7rem_7rem_7rem] items-center gap-x-2'
-const CELDA_CREDITOS = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 const fechaCorta = (value) => {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) return '—'
@@ -48,7 +48,7 @@ export default function Creditos() {
           </div>
           <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={load} disabled={busy}>{busy ? 'Cargando…' : 'Actualizar'}</button>
         </div>
-        {error && <p role="alert" className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+        {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
         <div className="mt-4 grid gap-3 sm:grid-cols-4">
           <div className="rounded-xl border border-ink-600 p-3"><p className="text-xs text-mute">Total por cobrar</p><strong className="mt-1 block text-lg tabular-nums"><Money value={totals.outstandingPyg} /></strong></div>
           <div className="rounded-xl border border-bad/25 bg-bad/5 p-3"><p className="text-xs text-mute">En mora</p><strong className="mt-1 block text-lg tabular-nums text-bad"><Money value={totals.overduePyg} /></strong></div>
@@ -61,13 +61,13 @@ export default function Creditos() {
         {!busy && rows.length === 0 && <EmptyState compact icon="wallet" title="Sin créditos pendientes" description="Las ventas a crédito aparecerán acá con su vencimiento y días de atraso." />}
         <div className="overflow-x-auto" data-testid="creditos-tabla">
           <div className={cn(GRID_CREDITOS, 'px-3.5 pb-2 pt-1')}>
-            <span className={CELDA_CREDITOS}>Cliente</span>
-            <span className={CELDA_CREDITOS}>Pedidos</span>
-            <span className={CELDA_CREDITOS}>Vence</span>
-            <span className={CELDA_CREDITOS}>Límite</span>
-            <span className={CELDA_CREDITOS}>Uso</span>
-            <span className={cn(CELDA_CREDITOS, 'text-right')}>Pendiente</span>
-            <span className={cn(CELDA_CREDITOS, 'text-right')}>En mora</span>
+            <span className={CELDA_ENCABEZADO}>Cliente</span>
+            <span className={CELDA_ENCABEZADO}>Pedidos</span>
+            <span className={CELDA_ENCABEZADO}>Vence</span>
+            <span className={CELDA_ENCABEZADO}>Límite</span>
+            <span className={CELDA_ENCABEZADO}>Uso</span>
+            <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Pendiente</span>
+            <span className={cn(CELDA_ENCABEZADO, 'text-right')}>En mora</span>
           </div>
           <div className="space-y-1">
           {rows.map(row => (

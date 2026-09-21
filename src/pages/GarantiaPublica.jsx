@@ -4,6 +4,8 @@ import { codigoPedido } from '@/utils/pedido'
 import Icon from '@/components/shared/Icon'
 import { useParams } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
+import { Aviso } from '@/components/ui'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 const WARRANTY_STATUS = { RECEIVED: 'Recibido', DIAGNOSIS: 'En diagnóstico', READY: 'Listo', DELIVERED: 'Entregado' }
 
@@ -36,13 +38,13 @@ export default function GarantiaPublica() {
           <h1 className="mt-2 text-3xl font-bold tracking-tight">{warranty?.productName || 'Tu equipo'}</h1>
           {warranty?.orderNumber && <p className="mt-1 text-sm text-mute">Compra {codigoPedido(warranty.orderNumber)}</p>}
         </header>
-        {error && <p className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-center text-sm text-bad">{error}</p>}
+        {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
         {warranty && (
           <div className="space-y-4">
             <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-mute">Cobertura</p>
+                  <p className={ROTULO_SECCION}>Cobertura</p>
                   <p className={`mt-1 text-lg font-bold ${days === 0 ? 'text-bad' : days != null && days <= 15 ? 'text-warn' : 'text-ok'}`}>
                     {days == null ? 'Sin vencimiento definido' : days === 0 ? 'Garantía vencida' : `${days} días restantes`}
                   </p>

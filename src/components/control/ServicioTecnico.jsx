@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
-import { Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import BarraLote from '@/components/shared/BarraLote'
 import SearchField from '@/components/shared/SearchField'
 import EsquemaEquipo from '@/components/shared/EsquemaEquipo'
@@ -21,6 +21,7 @@ import { gs } from '@/utils/calculos'
 import { coincideCliente } from '@/utils/cliente'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
+import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
 
 // Pipeline del taller: recepción → diagnóstico → reparación → entrega.
 const ESTADOS = [
@@ -57,7 +58,6 @@ const numeroDe = (valor) => Number(String(valor || '').replace(/\D/g, '')) || 0
 // Tabla compacta: una fila por orden de servicio, encabezados ordenables y el
 // avance de estado en la misma línea.
 const GRID_SERVICIO = 'grid min-w-[65rem] grid-cols-[1.75rem_minmax(8rem,1.3fr)_minmax(6rem,1fr)_minmax(7rem,1.5fr)_5.5rem_5rem_5.5rem_5.5rem_6.5rem_8.5rem] items-center gap-x-2'
-const CELDA = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 // Última plantilla elegida para el taller: se recuerda entre órdenes.
 const ULTIMA_PLANTILLA_SERVICIO = 'mobos:plantilla:servicio'
 
@@ -480,7 +480,7 @@ export default function ServicioTecnico() {
         <Button variant="outline" onClick={load} disabled={loading}>Actualizar</Button>
       </div>
 
-      {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
+      {error && <Aviso tono="error" className="p-3">{error}</Aviso>}
       {loading && <div className="space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
       {!loading && !visibles.length && <EmptyState icon="refresh" title={q ? 'Ninguna orden coincide con la búsqueda.' : 'Todavía no hay órdenes de servicio.'} description={q ? undefined : 'Cargá la primera orden para seguir el taller de punta a punta.'} action={q ? undefined : <Button onClick={() => { setEditing(null); setForm({ ...FORM_VACIO }) }}>+ Nueva orden</Button>} />}
       {!loading && visibles.length > 0 && (
@@ -505,7 +505,7 @@ export default function ServicioTecnico() {
             {encabezado('precio', 'Precio', 'justify-end')}
             {encabezado('utilidad', 'Utilidad', 'justify-end')}
             {encabezado('estado', 'Estado')}
-            <span className={cn(CELDA, 'text-right')}>Acciones</span>
+            <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
           </div>
           <div className="space-y-1">
             {visibles.map(row => {

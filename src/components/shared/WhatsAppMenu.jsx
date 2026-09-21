@@ -5,6 +5,7 @@ import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { whatsappUrl } from '@/components/customers/customerMessaging'
 import { renderPlantilla } from '@/lib/whatsappPlantillas'
+import { ROTULO_DATO } from '@/components/shared/tabla'
 
 // Menú reutilizable de WhatsApp (Clientes, Pedidos, Servicio Técnico y
 // módulos futuros): el botón principal abre el chat con la última plantilla
@@ -164,7 +165,7 @@ export default function WhatsAppMenu({
       </button>
       {abierto && (
         <div className="absolute right-0 top-full z-30 mt-1 w-80 rounded-xl border border-ink-500 bg-paper p-2 text-left shadow-xl" onClick={(event) => event.stopPropagation()} role="dialog" aria-label="Plantillas de WhatsApp">
-          <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-mute">Plantilla de WhatsApp</p>
+          <p className={cn('px-2 py-1', ROTULO_DATO)}>Plantilla de WhatsApp</p>
           {cargando && <p className="px-2 py-1 text-xs text-mute">Cargando plantillas…</p>}
           {!cargando && error && (
             <p role="alert" className="px-2 py-1 text-xs text-bad">{error} <button type="button" className="font-semibold text-fono-light hover:underline" onClick={reintentar}>Reintentar</button></p>

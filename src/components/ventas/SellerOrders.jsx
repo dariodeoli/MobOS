@@ -16,6 +16,7 @@ import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import PedidoDetalle from './PedidoDetalle'
 import Icon from '@/components/shared/Icon'
 import { FULFILLMENT_LABELS as FULFILLMENT } from '@/lib/constants'
+import { ROTULO_DATO } from '@/components/shared/tabla'
 
 export const orderFields = (row) => {
   const pagos = row.payments || row.pagos || []
@@ -347,7 +348,7 @@ export default function SellerOrders() {
           {encabezado('date', 'Fecha')}
           {encabezado('customer', 'Cliente')}
           {encabezado('products', 'Artículos')}
-          <span className="text-[10px] font-bold uppercase tracking-wider text-mute">Serial/IMEI</span>
+          <span className={ROTULO_DATO}>Serial/IMEI</span>
           {encabezado('quantity', 'Cant.')}
           {encabezado('delivery', 'Entrega')}
           {encabezado('payment', 'Pago')}

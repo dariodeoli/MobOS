@@ -9,10 +9,10 @@ import ProductCombobox from '@/components/shared/ProductCombobox'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { cn } from '@/lib/utils'
 import { SellerSection, SellerFeedback, useSellerData } from './SellerData'
+import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
 
 // Tabla compacta: una fila por cupón, con vigencia y estado en su columna.
 const GRID_PROMOS = 'grid min-w-[56rem] grid-cols-[6.5rem_minmax(8rem,1.2fr)_7rem_minmax(8rem,1.2fr)_6.5rem_6.5rem_6.5rem_8rem] items-center gap-x-2'
-const CELDA_PROMOS = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 const fechaCorta = (value) => {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) return '—'
@@ -49,14 +49,14 @@ export default function SellerPromotions() {
     <SellerFeedback {...data} empty={!data.rows.length} />
     {data.rows.length > 0 && <div className="overflow-x-auto" data-testid="promociones-tabla">
       <div className={cn(GRID_PROMOS, 'px-3.5 pb-2 pt-1')}>
-        <span className={CELDA_PROMOS}>Código</span>
-        <span className={CELDA_PROMOS}>Nombre</span>
-        <span className={CELDA_PROMOS}>Descuento</span>
-        <span className={CELDA_PROMOS}>Alcance</span>
-        <span className={CELDA_PROMOS}>Desde</span>
-        <span className={CELDA_PROMOS}>Hasta</span>
-        <span className={CELDA_PROMOS}>Estado</span>
-        <span className={cn(CELDA_PROMOS, 'text-right')}>Acciones</span>
+        <span className={CELDA_ENCABEZADO}>Código</span>
+        <span className={CELDA_ENCABEZADO}>Nombre</span>
+        <span className={CELDA_ENCABEZADO}>Descuento</span>
+        <span className={CELDA_ENCABEZADO}>Alcance</span>
+        <span className={CELDA_ENCABEZADO}>Desde</span>
+        <span className={CELDA_ENCABEZADO}>Hasta</span>
+        <span className={CELDA_ENCABEZADO}>Estado</span>
+        <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
       </div>
       <div className="space-y-1">{data.rows.map(p => {
         const estado = !p.isActive ? 'Inactiva' : Date.now() >= +new Date(p.endsAt) ? 'Vencida' : Date.now() < +new Date(p.startsAt) ? 'Programada' : 'Activa'

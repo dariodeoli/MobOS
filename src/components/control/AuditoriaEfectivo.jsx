@@ -7,8 +7,8 @@ import { inicializarBorradores } from '@/lib/auditoriaEfectivo'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { cn } from '@/lib/utils'
-import { Badge, Button, Card, EmptyState, Input, Select } from '@/components/ui'
-
+import { Aviso, Badge, Button, Card, EmptyState, Input, Select } from '@/components/ui'
+import { CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
 // Auditoría de efectivo (#161): efectivo inicial y recibido por sesión, cada
 // operación (pedido, cliente, fecha/hora, monto, vendedor y nota) con su marca
 // verificada/pendiente/con diferencia y observación, sobre un rango de fechas.
@@ -127,18 +127,18 @@ export default function AuditoriaEfectivo() {
           <Button type="button" variant="outline" disabled={busy} onClick={cargar}>Auditar rango</Button>
         </div>
       </div>
-      {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {error && <Aviso tono="error">{error}</Aviso>}
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-ink-600 p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-mute">Efectivo inicial</p><strong className="mt-1 block tabular-nums">{formatGs(resumen.aperturaPyg || 0)}</strong><p className="mt-0.5 text-[11px] text-mute">{data?.sesiones?.length || 0} sesión(es)</p></div>
-        <div className="rounded-xl border border-ink-600 p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-mute">Efectivo recibido</p><strong className="mt-1 block tabular-nums text-ok">{formatGs(resumen.recibidoPyg || 0)}</strong><p className="mt-0.5 text-[11px] text-mute">{resumen.operaciones || 0} operación(es)</p></div>
-        <div className="rounded-xl border border-ink-600 p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-mute">Esperado en caja</p><strong className="mt-1 block tabular-nums">{formatGs(resumen.esperadoPyg || 0)}</strong><p className="mt-0.5 text-[11px] text-mute">Apertura + efectivo confirmado</p></div>
-        <div className={cn('rounded-xl border p-3', (resumen.diferenciaPyg || 0) === 0 ? 'border-ink-600' : 'border-warn/40 bg-warn/10')}><p className="text-[10px] font-bold uppercase tracking-wider text-mute">Diferencias de cierre</p><strong className={cn('mt-1 block tabular-nums', (resumen.diferenciaPyg || 0) === 0 ? '' : 'text-warn')}>{formatGs(resumen.diferenciaPyg || 0)}</strong><p className="mt-0.5 text-[11px] text-mute">{resumen.verificadas || 0} verificadas · {resumen.pendientes || 0} pendientes · {resumen.conDiferencia || 0} con diferencia</p></div>
+        <div className="rounded-xl border border-ink-600 p-3"><p className={ROTULO_DATO}>Efectivo inicial</p><strong className="mt-1 block tabular-nums">{formatGs(resumen.aperturaPyg || 0)}</strong><p className="mt-0.5 text-[11px] text-mute">{data?.sesiones?.length || 0} sesión(es)</p></div>
+        <div className="rounded-xl border border-ink-600 p-3"><p className={ROTULO_DATO}>Efectivo recibido</p><strong className="mt-1 block tabular-nums text-ok">{formatGs(resumen.recibidoPyg || 0)}</strong><p className="mt-0.5 text-[11px] text-mute">{resumen.operaciones || 0} operación(es)</p></div>
+        <div className="rounded-xl border border-ink-600 p-3"><p className={ROTULO_DATO}>Esperado en caja</p><strong className="mt-1 block tabular-nums">{formatGs(resumen.esperadoPyg || 0)}</strong><p className="mt-0.5 text-[11px] text-mute">Apertura + efectivo confirmado</p></div>
+        <div className={cn('rounded-xl border p-3', (resumen.diferenciaPyg || 0) === 0 ? 'border-ink-600' : 'border-warn/40 bg-warn/10')}><p className={ROTULO_DATO}>Diferencias de cierre</p><strong className={cn('mt-1 block tabular-nums', (resumen.diferenciaPyg || 0) === 0 ? '' : 'text-warn')}>{formatGs(resumen.diferenciaPyg || 0)}</strong><p className="mt-0.5 text-[11px] text-mute">{resumen.verificadas || 0} verificadas · {resumen.pendientes || 0} pendientes · {resumen.conDiferencia || 0} con diferencia</p></div>
       </div>
 
       <div className="overflow-x-auto">
         <div className="grid min-w-[52rem] grid-cols-[6.5rem_minmax(0,1fr)_8rem_7rem_11rem_minmax(0,1.1fr)] items-center gap-x-2 px-3.5 pb-2 pt-1">
-          {['Fecha', 'Operación', 'Vendedor', 'Monto', 'Estado', 'Observación'].map((titulo) => <span key={titulo} className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">{titulo}</span>)}
+          {['Fecha', 'Operación', 'Vendedor', 'Monto', 'Estado', 'Observación'].map((titulo) => <span key={titulo} className={CELDA_ENCABEZADO}>{titulo}</span>)}
         </div>
         <div className="space-y-1">
           {operaciones.map((operacion) => {

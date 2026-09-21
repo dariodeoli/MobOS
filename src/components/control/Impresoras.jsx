@@ -12,6 +12,7 @@ import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
 import Avatar from '@/components/shared/Avatar'
 import ImpresionComparativa from './ImpresionComparativa'
 import ImpresionGraficos from './ImpresionGraficos'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 const fmt = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 // Día y hora con segundos: la telemetría se mide en milisegundos y la columna
@@ -1292,13 +1293,13 @@ export default function Impresoras() {
             <div className="space-y-4">
               {pendientes.length > 0 && (
                 <section>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Pendientes del agente ({pendientes.length})</h4>
+                  <h4 className={ROTULO_SECCION}>Pendientes del agente ({pendientes.length})</h4>
                   <TablaTrabajos trabajos={pendientes} onCancelar={esDemo ? (trabajo) => cancelarDemo([trabajo.id]) : undefined} />
                 </section>
               )}
               {remotosEnCurso.length > 0 && (
                 <section>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-mute">En curso del puente ({remotosEnCurso.length})</h4>
+                  <h4 className={ROTULO_SECCION}>En curso del puente ({remotosEnCurso.length})</h4>
                   <TablaTrabajos trabajos={remotosEnCurso.map(filaColaDesdeJob)} />
                 </section>
               )}
@@ -1462,7 +1463,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
     <Modal open onClose={() => setFormulario(null)} title={f.id ? 'Editar impresora' : 'Agregar impresora'} className="max-w-xl">
       <div className="space-y-5">
         <div>
-          <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Identificación</h4>
+          <h4 className={ROTULO_SECCION}>Identificación</h4>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             <FormField label="Nombre visible" htmlFor="imp-nombre">
               <Input id="imp-nombre" value={f.nombre} onChange={(event) => set({ nombre: event.target.value })} placeholder="Térmica mostrador" />
@@ -1484,7 +1485,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
         </div>
 
         <div>
-          <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Conexión</h4>
+          <h4 className={ROTULO_SECCION}>Conexión</h4>
           <div className="mt-2 flex gap-2">
             {[['cups', 'CUPS local'], ['lan', 'LAN (TCP directo)']].map(([valor, etiqueta]) => (
               <button key={valor} type="button" onClick={() => set({ conexion: valor })} className={`rounded-lg border px-3 py-2 text-sm font-semibold ${f.conexion === valor ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore'}`}>{etiqueta}</button>
@@ -1521,7 +1522,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
         </div>
 
         <div>
-          <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Formato</h4>
+          <h4 className={ROTULO_SECCION}>Formato</h4>
           <div className="mt-2 grid gap-3 sm:grid-cols-3">
             <FormField label="Ancho" htmlFor="imp-ancho">
               <Select id="imp-ancho" value={String(f.ancho)} onChange={(event) => set({ ancho: Number(event.target.value) })}>
@@ -1545,7 +1546,7 @@ function FormularioImpresora({ formulario, setFormulario, estado, bridges = [], 
         </div>
 
         <div>
-          <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Agente</h4>
+          <h4 className={ROTULO_SECCION}>Agente</h4>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             <FormField label="Sucursal" htmlFor="imp-sucursal" hint="Los documentos de esta sucursal prefieren esta impresora. Sin sucursal, sirve a toda la empresa.">
               <Select id="imp-sucursal" value={f.branchId || ''} onChange={(event) => set({ branchId: event.target.value })}>
@@ -1585,7 +1586,7 @@ function GuiaImpresion() {
   return (
     <div className="space-y-5 text-sm">
       <section className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Cómo se imprime</h4>
+        <h4 className={ROTULO_SECCION}>Cómo se imprime</h4>
         <div className="rounded-xl border border-ink-600 p-3">
           <p className="font-semibold text-fore">Modo rápido · esta computadora</p>
           <p className="mt-1 text-mute">Si acá hay un agente instalado y vinculado, la app le manda el ticket por 127.0.0.1 y sale al instante: directo por LAN o por la cola CUPS. Es el modo de la Mac del local.</p>
@@ -1598,7 +1599,7 @@ function GuiaImpresion() {
       </section>
 
       <section className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Instalar el modo rápido en una computadora</h4>
+        <h4 className={ROTULO_SECCION}>Instalar el modo rápido en una computadora</h4>
         <ol className="list-decimal space-y-1 pl-5 text-mute">
           <li>En <b className="text-fore">Gestionar puentes → Código</b>, generá el código de un solo uso (vence en 15 minutos).</li>
           <li>En esa Mac, pegá este comando en la Terminal con el código (reemplazá ABCDE-FGHIJ):</li>
@@ -1612,7 +1613,7 @@ function GuiaImpresion() {
       </section>
 
       <section className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Pasar de un modo a otro</h4>
+        <h4 className={ROTULO_SECCION}>Pasar de un modo a otro</h4>
         <ul className="space-y-1 text-mute">
           <li><b className="text-fore">Rápido</b>: tener el agente instalado y vinculado en esa computadora (arranca solo con la sesión).</li>
           <li><b className="text-fore">Remoto (puente)</b>: no hace falta nada; cualquier PC, tablet o celular lo usa automáticamente.</li>
@@ -1622,7 +1623,7 @@ function GuiaImpresion() {
       </section>
 
       <section className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Cuando algo no imprime</h4>
+        <h4 className={ROTULO_SECCION}>Cuando algo no imprime</h4>
         <ul className="space-y-2 text-mute">
           <li><b className="text-fore">«Sin agente local»</b>: la Mac del local está apagada o el servicio no arrancó. Encendela y esperá un minuto; si sigue, reinstalá el agente con el comando de arriba.</li>
           <li><b className="text-fore">«Sin respuesta» en el panel</b>: revisá <b className="text-fore">Actividad</b>; si el trabajo figura <b className="text-fore">aceptado</b>, ya salió del puente y solo falta confirmar el número impreso en el papel.</li>
@@ -1633,7 +1634,7 @@ function GuiaImpresion() {
       </section>
 
       <section className="space-y-2">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Confirmación y mantenimiento</h4>
+        <h4 className={ROTULO_SECCION}>Confirmación y mantenimiento</h4>
         <ul className="space-y-1 text-mute">
           <li>Cada prueba imprime un <b className="text-fore">número secreto</b>: escribilo en Actividad para confirmar que el papel salió de verdad.</li>
           <li>Los logs del agente quedan en <code className="rounded bg-ink-700 px-1">~/.mobos-print/agente.log</code>.</li>

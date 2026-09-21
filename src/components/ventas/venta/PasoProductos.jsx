@@ -1,4 +1,4 @@
-import { Button, Input, MoneyInput, Select } from '@/components/ui'
+import { Aviso, Button, Input, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import CheckoutCustomer from '../CheckoutCustomer'
@@ -292,12 +292,9 @@ export default function PasoProductos({
                 </div>
               )}
               {noticeCombo && (
-                <p
-                  role="status"
-                  className="col-span-2 mb-2 rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-xs text-ok"
-                >
+                <Aviso tono="ok" compact className="col-span-2 mb-2">
                   {noticeCombo}
-                </p>
+                </Aviso>
               )}
               {familiasVisibles.map(fam => {
                 const p = fam.items[0]

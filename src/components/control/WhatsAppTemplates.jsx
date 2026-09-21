@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { Badge, Button, Card, ConfirmDialog, FormField, Input, Modal, Select, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, FormField, Input, Modal, Select, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { CATEGORIAS_PLANTILLA, VARIABLES_POR_CONTEXTO, VALORES_EJEMPLO, renderPlantilla } from '@/lib/whatsappPlantillas'
 import { cn } from '@/lib/utils'
-
+import { CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
 // Tabla compacta: una fila por plantilla, con el mensaje recortado a una línea.
 const GRID_PLANTILLAS = 'grid min-w-[52rem] grid-cols-[minmax(10rem,1.1fr)_minmax(12rem,2fr)_6.5rem_9rem] items-center gap-x-2'
-const CELDA_PLANTILLAS = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const NOMBRE_CATEGORIA = Object.fromEntries(CATEGORIAS_PLANTILLA.map((item) => [item.clave, item.nombre]))
 const MAX_CUERPO = 1200
@@ -164,14 +163,14 @@ export default function WhatsAppTemplates() {
           )
         })}
       </div>
-      {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {error && <Aviso tono="error">{error}</Aviso>}
       {items === null ? <p className="text-sm text-mute">Cargando plantillas…</p> : deCategoria.length === 0 ? <p className="text-sm text-mute">Todavía no hay plantillas en esta categoría.</p> : (
         <div className="overflow-x-auto" data-testid="plantillas-tabla">
           <div className={cn(GRID_PLANTILLAS, 'px-3.5 pb-2 pt-1')}>
-            <span className={CELDA_PLANTILLAS}>Plantilla</span>
-            <span className={CELDA_PLANTILLAS}>Mensaje</span>
-            <span className={CELDA_PLANTILLAS}>Estado</span>
-            <span className={cn(CELDA_PLANTILLAS, 'text-right')}>Acciones</span>
+            <span className={CELDA_ENCABEZADO}>Plantilla</span>
+            <span className={CELDA_ENCABEZADO}>Mensaje</span>
+            <span className={CELDA_ENCABEZADO}>Estado</span>
+            <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
           </div>
           <div className="space-y-1">
           {deCategoria.map((item) => (
@@ -223,13 +222,13 @@ export default function WhatsAppTemplates() {
               className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 px-3.5 py-2.5 text-base text-fore outline-none transition placeholder:text-mute/60 focus:border-fono focus:ring-1 focus:ring-fono/40 md:text-sm"
             />
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-mute">Variables</span>
+              <span className={ROTULO_DATO}>Variables</span>
               {variables.map((variable) => (
                 <button key={variable.clave} type="button" title={variable.descripcion} disabled={busy} onClick={() => insertarVariable(variable.clave)} className="rounded-full border border-fono/25 bg-fono/10 px-2 py-0.5 font-mono text-[11px] text-fono-light transition hover:bg-fono/20">{`{{${variable.clave}}}`}</button>
               ))}
             </div>
             <div className="mt-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-mute">Vista previa (datos de ejemplo)</p>
+              <p className={ROTULO_DATO}>Vista previa (datos de ejemplo)</p>
               <p className="mt-1.5 w-fit max-w-full whitespace-pre-wrap break-words rounded-2xl rounded-tl-sm border border-ok/25 bg-ok/10 px-3 py-2 text-xs leading-5 text-fore">
                 {renderPlantilla(editor?.body, VALORES_EJEMPLO) || 'Escribí el mensaje para verlo con datos de ejemplo.'}
               </p>
@@ -239,7 +238,7 @@ export default function WhatsAppTemplates() {
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={editor?.isActive !== false} onChange={(event) => setEditor((current) => ({ ...current, isActive: event.target.checked }))} />Activa</label>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={busy} checked={editor?.isDefault === true} onChange={(event) => setEditor((current) => ({ ...current, isDefault: event.target.checked }))} />Predeterminada de {NOMBRE_CATEGORIA[editor?.category] || 'la categoría'}</label>
           </div>
-          {editorError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{editorError}</p>}
+          {editorError && <Aviso tono="error">{editorError}</Aviso>}
           <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" disabled={busy} onClick={() => setEditor(null)}>Cancelar</Button><Button type="submit" disabled={busy || !editor?.name?.trim() || !editor?.body?.trim()}>{busy ? 'Guardando…' : editor?.id ? 'Guardar cambios' : 'Crear plantilla'}</Button></div>
         </form>
       </Modal>

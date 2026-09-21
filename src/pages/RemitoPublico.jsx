@@ -4,6 +4,8 @@ import { API_URL } from '@/lib/api/client'
 import { pesoArchivo } from '@/components/shared/AttachmentList'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import Icon from '@/components/shared/Icon'
+import { Aviso } from '@/components/ui'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 // Remito público de traslado: el destino abre el QR impreso, controla los
 // IMEI/seriales, saca la foto del remito y confirma la recepción sin sesión.
@@ -80,15 +82,15 @@ export default function RemitoPublico() {
           {remito?.createdAt && <p className="mt-1 text-sm text-mute">Enviado el {new Date(remito.createdAt).toLocaleString('es-PY')}</p>}
         </header>
 
-        {error && <p className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-center text-sm text-bad">{error}</p>}
-        {notice && <p role="status" className="rounded-xl border border-ok/30 bg-ok/10 px-4 py-3 text-center text-sm text-ok">{notice}</p>}
+        {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
+        {notice && <Aviso tono="ok" className="px-4 py-3 text-sm rounded-xl text-center">{notice}</Aviso>}
 
         {remito && (
           <div className="mt-4 space-y-4">
             <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-mute">Estado</p>
+                  <p className={ROTULO_SECCION}>Estado</p>
                   <p className={`mt-1 font-bold ${recibido ? 'text-ok' : 'text-warn'}`}>{recibido ? 'Recibido' : 'En camino'}</p>
                 </div>
                 {recibido && (

@@ -1,5 +1,7 @@
 import { useId, useState } from 'react'
 import Icon from '@/components/shared/Icon'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 // Sección de detalle plegable (#164): arranca cerrada para que primero se lea lo
 // esencial y recuerda su estado durante la sesión (sessionStorage por `id`, así
@@ -35,7 +37,7 @@ export default function SeccionColapsable({ id, titulo, resumen, icono, abierta 
       >
         {icono ? <Icon name={icono} className="h-4 w-4 shrink-0 text-mute" /> : null}
         <span className="min-w-0 flex-1">
-          <span className="block text-xs font-bold uppercase tracking-wider text-mute">{titulo}</span>
+          <span className={cn('block', ROTULO_SECCION)}>{titulo}</span>
           {resumen ? <span className="mt-0.5 block truncate text-sm">{resumen}</span> : null}
         </span>
         <Icon name="chevron" className={`h-4 w-4 shrink-0 text-mute transition-transform ${expandida ? 'rotate-180' : ''}`} />

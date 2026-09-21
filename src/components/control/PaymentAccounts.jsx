@@ -14,10 +14,9 @@ import { getAccountHolders, getPrivateCompanies } from '@/lib/accountParties'
 import { monedasExcluidas } from '@/lib/paymentAccountsReglas'
 import { nombreCompleto, nombreSugeridoDeCuenta, opcionesDePartes } from '@/lib/accountNames'
 import { cn } from '@/lib/utils'
-
+import { CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
 // Tabla compacta: una fila por cuenta, con comisión, acreditación y descuento.
 const GRID_CUENTAS = 'grid min-w-[54rem] grid-cols-[minmax(0,1.3fr)_7rem_5rem_6.5rem_6.5rem_6.5rem_minmax(0,1fr)_9rem] items-center gap-x-2'
-const CELDA_CUENTAS = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const EMPTY = { name: '', bank: '', holder: '', accountNumber: '', document: '', processor: '', pixKey: '', reference: '', currencyLabel: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, discountPct: 0, settlementDays: 0 }
 
@@ -274,7 +273,7 @@ function AccountManager() {
           {medio.referencia && <div className="sm:col-span-3"><Label htmlFor="pa-reference">{form.kind === 'CRYPTO' ? 'Referencia de la billetera' : form.kind === 'TRADE_IN' ? 'Valor de canje' : 'Referencia'}</Label><Input id="pa-reference" maxLength={200} value={form.reference} onChange={event => change('reference', event.target.value)} placeholder={form.kind === 'CRYPTO' ? 'Ej. TRC20 · TQn9…' : form.kind === 'TRADE_IN' ? 'Ej. equipo recibido, valor acordado' : 'Referencia'} /></div>}
         </fieldset>
         <fieldset disabled={busy} className="space-y-2 rounded-lg border border-ink-600/70 bg-ink-800/30 p-3">
-          <legend className="px-1 text-[10px] font-bold uppercase tracking-wider text-mute">Comportamiento del medio</legend>
+          <legend className={cn('px-1', ROTULO_DATO)}>Comportamiento del medio</legend>
           <div className="grid gap-x-3 gap-y-2.5 sm:grid-cols-3">
             {camposComportamiento.map(({ field, control, check, label, hint }) => <div key={field}>
               <span className="flex items-center gap-2 text-sm"><Switch id={`pa-${field}-toggle`} checked={Boolean(flags[field])} onChange={event => toggleBehavior(field, event.target.checked)} ariaLabel={check} /><span>{check}</span></span>
@@ -293,14 +292,14 @@ function AccountManager() {
       </form>}
       {!loading && !loadError && <div className="overflow-x-auto" data-testid="cuentas-tabla">
         <div className={cn(GRID_CUENTAS, 'px-3.5 pb-2 pt-1')}>
-          <span className={CELDA_CUENTAS}>Cuenta</span>
-          <span className={CELDA_CUENTAS}>Tipo</span>
-          <span className={CELDA_CUENTAS}>Moneda</span>
-          <span className={CELDA_CUENTAS}>Comisión</span>
-          <span className={CELDA_CUENTAS}>Acredita</span>
-          <span className={CELDA_CUENTAS}>Descuento</span>
-          <span className={CELDA_CUENTAS}>Datos</span>
-          <span className={cn(CELDA_CUENTAS, 'text-right')}>Acciones</span>
+          <span className={CELDA_ENCABEZADO}>Cuenta</span>
+          <span className={CELDA_ENCABEZADO}>Tipo</span>
+          <span className={CELDA_ENCABEZADO}>Moneda</span>
+          <span className={CELDA_ENCABEZADO}>Comisión</span>
+          <span className={CELDA_ENCABEZADO}>Acredita</span>
+          <span className={CELDA_ENCABEZADO}>Descuento</span>
+          <span className={CELDA_ENCABEZADO}>Datos</span>
+          <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
         </div>
         <div className="space-y-1">
         {accounts.map(account => {

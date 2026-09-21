@@ -4,13 +4,13 @@ import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { fechaClave, num, gs } from '@/utils/calculos'
-import { Card, Button, Input, Label, Select, Badge, MoneyInput, EmptyState } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, Input, Label, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
+import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
 
 // Tablas compactas: una fila por mes y por inversión.
 const GRID_ADS = 'grid min-w-[40rem] grid-cols-[minmax(10rem,1.4fr)_6rem_8rem_8rem_4rem] items-center gap-x-2'
-const CELDA_ADS = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const PLATAFORMAS = ['Meta Ads', 'Instagram', 'Facebook', 'Google Ads', 'TikTok', 'Otro']
 
@@ -96,7 +96,7 @@ export default function Ads() {
           Cargá manualmente cuánto invertís en ads. Se descuenta en el tablero de ganancias para
           saber tu resultado real.
         </p>
-        {error && <p role="alert" className="mb-3 rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
+        {error && <Aviso tono="error" className="p-3 mb-3">{error}</Aviso>}
         {!demo && cargando && <p className="mb-3 text-sm text-mute">Cargando inversiones…</p>}
         {!demo && <p className="mb-3 text-xs text-mute">Las inversiones se registran como gastos en Finanzas y se descuentan de la ganancia.</p>}
         <form onSubmit={guardar} className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -139,10 +139,10 @@ export default function Ads() {
           </div>
           <div className="overflow-x-auto p-4" data-testid="ads-meses-tabla">
             <div className={cn(GRID_ADS, 'px-3.5 pb-2 pt-1')}>
-              <span className={CELDA_ADS}>Mes</span>
-              <span className={CELDA_ADS}>Inversiones</span>
-              <span className={CELDA_ADS}>Promedio</span>
-              <span className={cn(CELDA_ADS, 'text-right')}>Total</span>
+              <span className={CELDA_ENCABEZADO}>Mes</span>
+              <span className={CELDA_ENCABEZADO}>Inversiones</span>
+              <span className={CELDA_ENCABEZADO}>Promedio</span>
+              <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Total</span>
               <span />
             </div>
             <div className="space-y-1">
@@ -170,11 +170,11 @@ export default function Ads() {
         ) : (
           <div className="overflow-x-auto p-4" data-testid="ads-tabla">
             <div className={cn(GRID_ADS, 'px-3.5 pb-2 pt-1')}>
-              <span className={CELDA_ADS}>Plataforma</span>
-              <span className={CELDA_ADS}>Fecha</span>
-              <span className={CELDA_ADS}>Monto</span>
-              <span className={CELDA_ADS}>Mes</span>
-              <span className={cn(CELDA_ADS, 'text-right')}>Acciones</span>
+              <span className={CELDA_ENCABEZADO}>Plataforma</span>
+              <span className={CELDA_ENCABEZADO}>Fecha</span>
+              <span className={CELDA_ENCABEZADO}>Monto</span>
+              <span className={CELDA_ENCABEZADO}>Mes</span>
+              <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
             </div>
             <div className="space-y-1">
               {ads.map((a) => (

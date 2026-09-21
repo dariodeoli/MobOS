@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PresenciaPedido from './PresenciaPedido'
-import { Drawer, Badge, Button, Input, Money, Select, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Drawer, Input, Modal, Money, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import Avatar from '@/components/shared/Avatar'
 import SeccionColapsable from '@/components/shared/SeccionColapsable'
-import { primerNombre } from '@/lib/utils'
+import { cn, primerNombre } from '@/lib/utils'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import { api, apiFetch } from '@/lib/api/client'
@@ -24,6 +24,7 @@ import { codigoPedido } from '@/utils/pedido'
 import { getVendedores, ventaDesdeApi } from '@/lib/storage'
 import PagosPedido from './PagosPedido'
 import { consultaDeMencion, insertarMencion, tramosDeMencion } from '@/utils/menciones'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 const FULFILLMENT = FULFILLMENT_LABELS
 const PAYMENT_TONE = (status) => status === 'Pagado' ? 'green' : status === 'Parcial' ? 'orange' : status === 'Anulado' ? 'slate' : 'red'
@@ -374,7 +375,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const cuerpo = (
     <>
       {loading && <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-24 w-full" /></div>}
-      {error && <p role="alert" className="mb-4 rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {error && <Aviso tono="error" className="mb-4 rounded-xl">{error}</Aviso>}
       {!loading && (
         <div className="space-y-3">
           {/* Estado y cabecera */}
@@ -416,7 +417,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           {!esDemo && (
             <section className="rounded-2xl border border-ink-600 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-mute"><Icon name="eye" className="h-3.5 w-3.5" /> Acceso del cliente</h3>
+                <h3 className={cn('flex items-center gap-2', ROTULO_SECCION)}><Icon name="eye" className="h-3.5 w-3.5" /> Acceso del cliente</h3>
                 <button type="button" disabled={accesoBusy} onClick={regenerarAccesoQr} className="rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-warn hover:text-warn disabled:opacity-60">Regenerar acceso QR</button>
               </div>
               <p className="mt-1 text-xs text-mute">Cada nivel tiene su propio enlace privado. Regenerar uno invalida el anterior; «Regenerar acceso QR» invalida además los QR ya impresos y los enlaces compartidos.</p>
@@ -643,7 +644,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               bloqueado={anularBusy}
             />
           )}
-          {anularError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-2.5 py-2 text-xs text-bad">{anularError}</p>}
+          {anularError && <Aviso tono="error" compact>{anularError}</Aviso>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setAnularOpen(false)} disabled={anularBusy}>Cancelar</Button>
             <Button type="button" onClick={confirmarAnular} disabled={anularBusy || anularMotivo.trim().length < 3}>
@@ -671,7 +672,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             onSelect={setEntregaAuth}
             bloqueado={entregaBusy}
           />
-          {entregaError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-2.5 py-2 text-xs text-bad">{entregaError}</p>}
+          {entregaError && <Aviso tono="error" compact>{entregaError}</Aviso>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setEntregaOpen(false)} disabled={entregaBusy}>Cancelar</Button>
             <Button type="button" onClick={confirmarEntregaConSaldo} disabled={entregaBusy || entregaMotivo.trim().length < 3}>

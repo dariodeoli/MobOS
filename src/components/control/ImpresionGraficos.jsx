@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Badge, Button, Card, EmptyState, Select, Skeleton } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, Select, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { printingApi } from '@/lib/api/printing'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 // Panel de gráficos de impresión: SVG propio (sin librerías) para trabajos por
 // hora y latencia promedio por impresora, más contadores y tasa de éxito. Los
@@ -154,7 +155,7 @@ export default function ImpresionGraficos({ impresoras = [] }) {
         </div>
       </div>
 
-      {error && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
+      {error && <Aviso tono="error" className="p-3 rounded-xl">{error}</Aviso>}
 
       {cargando && !datos ? (
         <div className="space-y-2"><Skeleton className="h-24 w-full" /><Skeleton className="h-40 w-full" /></div>
@@ -193,7 +194,7 @@ export default function ImpresionGraficos({ impresoras = [] }) {
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="space-y-1">
               <div className="flex items-center justify-between gap-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Trabajos por hora</h4>
+                <h4 className={ROTULO_SECCION}>Trabajos por hora</h4>
                 <Badge color="blue">{RANGOS[rango].etiqueta}</Badge>
               </div>
               {serie.length && serie.some((bucket) => bucket.trabajos > 0) ? (
@@ -203,7 +204,7 @@ export default function ImpresionGraficos({ impresoras = [] }) {
               )}
             </section>
             <section className="space-y-1">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Latencia promedio por impresora</h4>
+              <h4 className={ROTULO_SECCION}>Latencia promedio por impresora</h4>
               {latencias.length ? <BarrasPorImpresora filas={latencias} /> : (
                 <EmptyState compact icon="pulse" title="Sin latencias medidas." description="Los trabajos en cola no tienen tiempos todavía." />
               )}

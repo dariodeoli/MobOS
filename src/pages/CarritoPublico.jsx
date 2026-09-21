@@ -3,6 +3,9 @@ import { useParams } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
+import { Aviso } from '@/components/ui'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 // Carrito público de un borrador (#154): sin sesión, con el enlace privado que
 // comparte el vendedor. Muestra lo mismo que el comprobante digital (productos,
@@ -49,12 +52,12 @@ export default function CarritoPublico() {
           {carrito?.label && <p className="mt-1 text-xs text-mute">{carrito.label}</p>}
         </header>
 
-        {error && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-center text-sm text-bad">{error}</p>}
+        {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
 
         {carrito && (
           <div className="space-y-4">
             <section className="overflow-hidden rounded-2xl border border-ink-600 bg-ink-900">
-              <h2 className="border-b border-ink-600 px-5 py-3 text-xs font-bold uppercase tracking-wider text-mute">Productos</h2>
+              <h2 className={cn('border-b border-ink-600 px-5 py-3', ROTULO_SECCION)}>Productos</h2>
               <div className="divide-y divide-ink-600">
                 {carrito.items.map((item, index) => (
                   <div key={index} className="flex items-start justify-between gap-3 px-5 py-3 text-sm">
@@ -79,7 +82,7 @@ export default function CarritoPublico() {
               {carrito.discountPyg > 0 && <div className="mt-1 flex items-center justify-between text-warn"><span>Descuento</span><span className="tabular-nums">− {gs(carrito.discountPyg)}</span></div>}
               {carrito.deliveryPyg > 0 && <div className="mt-1 flex items-center justify-between text-mute"><span>{TIPO_ENTREGA[carrito.deliveryType] || 'Entrega'}</span><span className="tabular-nums">{gs(carrito.deliveryPyg)}</span></div>}
               <div className="mt-2 flex items-baseline justify-between border-t border-ink-600 pt-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-mute">Total</span>
+                <span className={ROTULO_SECCION}>Total</span>
                 <span className="text-2xl font-extrabold tracking-tight tabular-nums">{gs(carrito.totalPyg)}</span>
               </div>
             </section>

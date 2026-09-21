@@ -9,12 +9,12 @@ import { gs } from '@/utils/calculos'
 import { formatMoney } from '@/utils/moneda'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango } from '@/components/shared/RangoFechas'
-import { Badge, Button, Card, EmptyState, Input, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, Input, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
 import PagosPedido from '@/components/ventas/PagosPedido'
 import { leerUltimo, recordarUltimo, useUltimoUsado } from '@/lib/ultimoUsado'
 import { CLAVES_FIN, filtrosConciliacionValidos, rangoDePreset } from '@/lib/finUltimoUsado'
 import { cn } from '@/lib/utils'
-
+import { CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
 // Conciliación y trazabilidad (#144): ingresos por cuenta, medio y
 // procesadora; conciliación en lote de depósitos/transferencias recibidas
 // (esperado vs recibido + diferencia) y detalle pago por pago con acceso al
@@ -42,7 +42,6 @@ const rangoPorDefecto = () => ({ ...PRESETS.find((preset) => preset.id === '30d'
 
 const GRID_GRUPOS = 'grid min-w-[46rem] grid-cols-[minmax(0,1.5fr)_5rem_6.5rem_6.5rem_7rem_minmax(0,1fr)] items-center gap-x-2'
 const GRID_ITEMS = 'grid min-w-[64rem] grid-cols-[1.5rem_5.5rem_minmax(0,1.3fr)_minmax(0,1.2fr)_7rem_minmax(0,0.9fr)_7rem_6.5rem_5rem] items-center gap-x-2'
-const CELDA = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 function Resumen({ resumen }) {
   const tarjetas = [
@@ -55,7 +54,7 @@ function Resumen({ resumen }) {
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
       {tarjetas.map((tarjeta) => (
         <div key={tarjeta.label} className={cn('rounded-xl border border-ink-600 p-3', tarjeta.tono === 'text-warn' && 'border-warn/40 bg-warn/5')}>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-mute">{tarjeta.label}</p>
+          <p className={ROTULO_DATO}>{tarjeta.label}</p>
           <strong className={cn('mt-1 block tabular-nums', tarjeta.tono)}>{gs(tarjeta.valor || 0)}</strong>
           <p className="mt-0.5 text-[11px] text-mute">{tarjeta.sub}</p>
         </div>
@@ -75,7 +74,7 @@ function Grupos({ titulo, filas, activo, onFiltrar }) {
       </div>
       {abierto && <div className="overflow-x-auto">
         <div className={cn(GRID_GRUPOS, 'px-3.5 pb-2 pt-1')}>
-          {['Cuenta / procesadora', 'Pagos', 'Conciliado', 'Por conciliar', 'Diferencia', 'Detalle'].map((columna) => <span key={columna} className={CELDA}>{columna}</span>)}
+          {['Cuenta / procesadora', 'Pagos', 'Conciliado', 'Por conciliar', 'Diferencia', 'Detalle'].map((columna) => <span key={columna} className={CELDA_ENCABEZADO}>{columna}</span>)}
         </div>
         <div className="space-y-1">
           {filas.map((fila) => (
@@ -308,7 +307,7 @@ export default function Conciliacion() {
           </label>
         </div>
         <Resumen resumen={data?.resumen || {}} />
-        {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+        {error && <Aviso tono="error">{error}</Aviso>}
       </Card>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -375,7 +374,7 @@ export default function Conciliacion() {
         {!loading && filtrados.length > 0 && <div className="overflow-x-auto">
           <div className={cn(GRID_ITEMS, 'px-3.5 pb-2 pt-1')}>
             <span />
-            {['Fecha', 'Pedido / cliente', 'Cuenta / titular', 'Procesadora', 'Referencia', 'Monto', 'Estado', 'Acciones'].map((columna) => <span key={columna} className={CELDA}>{columna}</span>)}
+            {['Fecha', 'Pedido / cliente', 'Cuenta / titular', 'Procesadora', 'Referencia', 'Monto', 'Estado', 'Acciones'].map((columna) => <span key={columna} className={CELDA_ENCABEZADO}>{columna}</span>)}
           </div>
           <div className="space-y-1">
             {filtrados.map((item) => {

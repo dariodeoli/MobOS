@@ -5,6 +5,8 @@ import { gs } from '@/utils/calculos'
 import { codigoPedido, totalesPedido } from '@/utils/pedido'
 import { varianteDeTema } from '@/lib/tenantLogo'
 import SeccionColapsable from '@/components/shared/SeccionColapsable'
+import { Aviso } from '@/components/ui'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 const ORDER_STATUS = { PENDING: 'Pendiente de pago', COMPLETED: 'Pagado', CANCELLED: 'Cancelado' }
@@ -63,7 +65,7 @@ export default function PedidoPublico() {
     <main className="min-h-screen bg-ink-950 px-3 py-6 text-fore sm:px-4 sm:py-10">
       <style>{`@media print{body,main{background:#fff!important}main,main *{color:#000!important}section{background:#fff!important;border-color:#cbd5e1!important}section>div[hidden]{display:block!important}button[aria-expanded] svg{display:none!important}}`}</style>
       <div className="mx-auto max-w-xl space-y-3">
-        {error && <p className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-center text-sm text-bad">{error}</p>}
+        {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
         {order && (
           <>
             {/* Encabezado: tienda, código y estado de un vistazo. */}
@@ -118,7 +120,7 @@ export default function PedidoPublico() {
             {/* Pedido: estado de la entrega y totales. Lo esencial, siempre visible. */}
             <section className="rounded-2xl border border-ink-600 bg-ink-900 p-4">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-mute">Estado del pedido</h2>
+                <h2 className={ROTULO_SECCION}>Estado del pedido</h2>
                 <span className="text-[11px] text-mute">{ORDER_STATUS[order.status] || order.status} · actualizado {fechaHora(order.updatedAt)}</span>
               </div>
               <div className="mt-3 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${pasosSeguimiento.length}, minmax(0, 1fr))` }}>

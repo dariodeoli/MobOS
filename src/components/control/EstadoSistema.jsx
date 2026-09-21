@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Badge, Button, Card, ConfirmDialog, Dot, Select, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, Dot, Select, Skeleton, useToast } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
@@ -302,14 +302,14 @@ export default function EstadoSistema() {
             {(sincronizacion.trabajos.fallidos > 0 || sincronizacion.emails.fallidos > 0 || sincronizacion.reservas.vencidasSinLiberar > 0) && (
               <div className="space-y-2">
                 {sincronizacion.trabajos.fallidos > 0 && (
-                  <p className="rounded-xl border border-bad/30 bg-bad/10 p-3 text-sm text-mute">
+                  <Aviso tono="error" className="p-3 rounded-xl text-mute">
                     Hay <b className="text-fore">{sincronizacion.trabajos.fallidos}</b> trabajo(s) de impresión fallidos: revisalos en <b className="text-fore">Impresoras</b>.
-                  </p>
+                  </Aviso>
                 )}
                 {sincronizacion.emails.fallidos > 0 && (
-                  <p className="rounded-xl border border-bad/30 bg-bad/10 p-3 text-sm text-mute">
+                  <Aviso tono="error" className="p-3 rounded-xl text-mute">
                     Hay <b className="text-fore">{sincronizacion.emails.fallidos}</b> correo(s) que no salieron: revisá la configuración del correo.
-                  </p>
+                  </Aviso>
                 )}
                 {sincronizacion.reservas.vencidasSinLiberar > 0 && (
                   <p className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">

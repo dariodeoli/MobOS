@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { Badge, Button, Modal, Money, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Modal, Money, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { codigoPedido } from '@/utils/pedido'
 import { useSellerData, SellerFeedback } from '@/components/ventas/SellerData'
@@ -104,7 +104,7 @@ export default function DriverSettlements() {
             <label htmlFor="rendicion-nota" className="block text-sm font-semibold">Observación (opcional)</label>
             <Textarea id="rendicion-nota" className="mt-2" rows={2} maxLength={500} value={nota} onChange={event => setNota(event.target.value)} placeholder="Ej.: dos transferencias quedaron acreditadas al mediodía" />
           </div>
-          {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+          {error && <Aviso tono="error">{error}</Aviso>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" disabled={enviando} onClick={() => setAbierto(false)}>Cancelar</Button>
             <Button type="button" disabled={enviando} onClick={rendir} data-testid="rendir-confirmar">{enviando ? 'Registrando…' : 'Rendir'}</Button>

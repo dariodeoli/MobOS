@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { api, API_URL } from '@/lib/api/client'
-import { Button, Card, ConfirmDialog, EmptyState, IconAction, Input, Badge, Modal, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, IconAction, Input, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ComboBuscador from '@/components/shared/ComboBuscador'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
@@ -262,7 +262,7 @@ export default function Comisiones() {
           </div>
           <Button type="submit" disabled={ocupado}>{ocupado ? 'Guardando…' : 'Agregar regla'}</Button>
         </form>
-        {error && <p role="alert" className="mb-4 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+        {error && <Aviso tono="error" className="mb-4">{error}</Aviso>}
         {reglas === null ? (
           <div className="space-y-2" aria-busy="true"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
         ) : reglas.length === 0 ? (

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Badge, Button, Card, Skeleton } from '@/components/ui'
+import { Aviso, Badge, Button, Card, Skeleton } from '@/components/ui'
 import { presenciaApi } from '@/lib/api/presence'
 import { ROLE_LABELS } from '@/lib/roles'
 
@@ -66,7 +66,7 @@ export default function UsoEquipo() {
         </div>
         <Button variant="outline" onClick={cargar} disabled={cargando}>{cargando ? 'Actualizando…' : 'Actualizar'}</Button>
       </div>
-      {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {error && <Aviso tono="error">{error}</Aviso>}
       {cargando && !people.length && <div className="space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
       {!cargando && !error && !people.length && <p className="text-sm text-mute">Todavía no hay actividad registrada en el período.</p>}
       <div className="space-y-2">

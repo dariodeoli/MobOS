@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
-import { Badge, Button, ConfirmDialog, Modal, Select, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, ConfirmDialog, Modal, Select, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
+import { ROTULO_DATO } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 import { gs } from '@/utils/calculos'
 import {
   ACEPTA_IMPORTACION,
@@ -210,7 +212,7 @@ export default function ImportarProductos({ onImportada }) {
           {descartadas > 0 && <p className="text-xs text-mute">{descartadas} filas vacías se omiten.</p>}
 
           {error && (
-            <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-sm text-bad">{error}</p>
+            <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl">{error}</Aviso>
           )}
 
           {(leyendo || previsualizando) && (
@@ -236,7 +238,7 @@ export default function ImportarProductos({ onImportada }) {
 
               <div className="overflow-x-auto rounded-xl border border-ink-600" data-testid="importar-previa">
                 <div className="max-h-72 overflow-y-auto">
-                  <div className={GRID_PREVIA + ' sticky top-0 z-10 border-b border-ink-600 bg-ink-800 px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-mute'}>
+                  <div className={cn(GRID_PREVIA + ' sticky top-0 z-10 border-b border-ink-600 bg-ink-800 px-3.5 py-2', ROTULO_DATO)}>
                     <span>Fila</span><span>SKU</span><span>Producto</span><span className="text-right">Precio</span><span className="text-right">Stock</span><span>Condición</span><span>Acción</span><span>Detalle</span>
                   </div>
                   {filasVisibles.map(fila => {

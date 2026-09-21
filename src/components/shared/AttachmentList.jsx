@@ -4,6 +4,8 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { Badge, Button, ConfirmDialog, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 // Visor y carga de adjuntos genéricos de un documento dueño (entity+entityId).
 // Reutiliza las reglas de AttachmentInput (JPG/PNG/WebP/PDF ≤5 MiB) y el
@@ -75,7 +77,7 @@ export default function AttachmentList({ entity, entityId, puedeSubir = false, t
   return (
     <section className={className}>
       <header className="flex items-center justify-between gap-2">
-        <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-mute"><Icon name="image" className="h-4 w-4" />{titulo}</h4>
+        <h4 className={cn('flex items-center gap-2', ROTULO_SECCION)}><Icon name="image" className="h-4 w-4" />{titulo}</h4>
         {items.length > 0 && <Badge color="slate">{items.length}</Badge>}
       </header>
       {loading ? <Skeleton className="mt-2 h-10 w-full" /> : items.length === 0 ? (

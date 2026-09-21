@@ -31,6 +31,7 @@ import { resources } from '@/lib/api'
 import { api } from '@/lib/api/client'
 import { agruparProductos } from '@/utils/colores'
 import {
+  Aviso,
   Button,
   Card,
   ConfirmDialog,
@@ -1625,12 +1626,9 @@ export default function FormularioVenta({
         className="flex flex-col gap-4"
       >
         {errorVenta && (
-          <p
-            role="alert"
-            className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-2.5 text-sm text-bad"
-          >
+          <Aviso tono="error" className="px-3.5 py-2.5 text-sm rounded-xl">
             {errorVenta}
-          </p>
+          </Aviso>
         )}
 
         {/* Resumen fijo: cruza las dos columnas en desktop y queda al pie en
@@ -1828,9 +1826,9 @@ export default function FormularioVenta({
             />
           </div>
           {errorSuspender && (
-            <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">
+            <Aviso tono="error" className="rounded-xl">
               {errorSuspender}
-            </p>
+            </Aviso>
           )}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
@@ -1865,9 +1863,9 @@ export default function FormularioVenta({
             </p>
           )}
           {errorSuspendidas && (
-            <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">
+            <Aviso tono="error" className="rounded-xl">
               {errorSuspendidas}
-            </p>
+            </Aviso>
           )}
           {!cargandoSuspendidas && !suspendidas.length && !errorSuspendidas && (
             <p className="rounded-xl border border-ink-600 px-3 py-4 text-sm text-mute">

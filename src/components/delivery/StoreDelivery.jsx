@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { Badge, Button, ConfirmDialog, Input, Modal, Money, Select, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, ConfirmDialog, Input, Modal, Money, Select, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { codigoPedido } from '@/utils/pedido'
@@ -79,7 +79,7 @@ function Asignaciones() {
           Todavía no hay repartidores. Creá un integrante con el rol Repartidor en Configuración → Equipo.
         </p>
       )}
-      {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {error && <Aviso tono="error">{error}</Aviso>}
       <SellerFeedback {...data} empty={!data.rows.length} />
       <div className="space-y-3">
         {data.rows.map(row => (

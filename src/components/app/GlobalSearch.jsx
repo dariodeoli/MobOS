@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
-import { Badge, EmptyState, Input, Modal, Skeleton } from '@/components/ui'
+import { Aviso, Badge, EmptyState, Input, Modal, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { gs } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
@@ -267,9 +267,9 @@ export default function GlobalSearch({ open, onClose, onNavigate, vistas }) {
         )}
 
         {!buscando && termino && sinConexion && (
-          <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-sm text-bad">
+          <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl">
             No se pudo consultar el catálogo. Revisá tu conexión y reintentá.
-          </p>
+          </Aviso>
         )}
 
         {!buscando && termino && !sinConexion && total === 0 && (

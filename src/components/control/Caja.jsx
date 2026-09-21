@@ -5,6 +5,7 @@ import { formatGsInput, parseGsInput } from '@/utils/moneda'
 import { getDemoCash, getDemoCashExpected, openDemoCash, closeDemoCash } from '@/lib/demoCash'
 import { listVentas } from '@/lib/storage'
 import {
+  Aviso,
   Badge,
   Button,
   Card,
@@ -565,9 +566,9 @@ export default function Caja() {
         Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados.
       </p>
       {error && (
-        <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">
+        <Aviso tono="error" className="p-3">
           {error}
-        </p>
+        </Aviso>
       )}
       <div className="grid gap-4 md:grid-cols-3">
         <Card className={abierta ? 'border-ok/25 bg-gradient-to-br from-ok/10 to-transparent' : ''}>
@@ -784,12 +785,9 @@ export default function Caja() {
                 {extractoAnalizando ? 'Analizando…' : 'Analizar extracto'}
               </Button>
               {extractoError && (
-                <p
-                  role="alert"
-                  className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad"
-                >
+                <Aviso tono="error">
                   {extractoError}
-                </p>
+                </Aviso>
               )}
               {extractoAviso && (
                 <p className="rounded-lg bg-fono/10 px-3 py-2 text-sm text-mute">{extractoAviso}</p>

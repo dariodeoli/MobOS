@@ -19,6 +19,7 @@ import { configImpresora } from '@/lib/printing/agent'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { ticketReciboInterno } from '@/lib/printing/tickets'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 // Enlace de WhatsApp para compartir el seguimiento público del pedido. Usa la
 // plantilla predeterminada de Pedidos cuando existe (con {seguimiento}) y si no
@@ -397,7 +398,7 @@ export default function PagosPedido({ venta, onClose }) {
       <label className="block text-xs text-mute">Cuenta / referencia<Input value={reference} onChange={e => setReference(e.target.value)} maxLength={200} placeholder="Banco, cuenta o referencia de operación" /></label>
       <Button disabled={busy || needsRefresh} type="submit">{busy ? 'Guardando…' : cuotaPago ? 'Cobrar cuota' : 'Registrar pago'}</Button>
     </form>}
-    <div className="space-y-3"><h3 className="text-xs font-bold uppercase tracking-wider text-mute">Cronología de pagos y comprobantes</h3>
+    <div className="space-y-3"><h3 className={ROTULO_SECCION}>Cronología de pagos y comprobantes</h3>
       {!payments.length && <p className="text-sm text-mute">Todavía no hay pagos registrados.</p>}
       {payments.map(p => {
         const conciliacion = reconciliations[p.id]?.state || p.reconciliationState

@@ -4,6 +4,7 @@ import QRCode from 'qrcode'
 import { API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
+import { Aviso } from '@/components/ui'
 
 const ABIERTAS = ['DRAFT', 'SENT']
 const ESTADO = { DRAFT: 'Pendiente de confirmar', SENT: 'Pendiente de confirmar', ACCEPTED: 'Aceptada', REJECTED: 'Rechazada', CONVERTED: 'Convertida en pedido', EXPIRED: 'Vencida', CANCELLED: 'Cancelada' }
@@ -74,7 +75,7 @@ export default function CotizacionPublica() {
           {quote?.validUntil && <p className="mt-2 text-[11px] uppercase tracking-wider text-mute">Válida hasta {new Date(quote.validUntil).toLocaleDateString('es-PY')}</p>}
         </header>
 
-        {error && <p className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-center text-sm text-bad">{error}</p>}
+        {error && <Aviso tono="error" className="px-4 py-3 text-sm rounded-xl text-center">{error}</Aviso>}
 
         {quote && (
           <div className="space-y-4">

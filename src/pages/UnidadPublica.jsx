@@ -6,6 +6,7 @@ import AccesoRequerido from '@/components/shared/AccesoRequerido'
 import LoadingScreen from '@/components/app/LoadingScreen'
 import { useSesion } from '@/lib/sesion'
 import { resources } from '@/lib/api'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 const CONDICION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 const ESTADO = {
@@ -31,7 +32,7 @@ function FichaUnidad({ unidad, serial, puedeVerInventario }) {
       <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-wider text-mute">Unidad</p>
+            <p className={ROTULO_SECCION}>Unidad</p>
             <h1 className="mt-1 truncate text-2xl font-bold tracking-tight">{producto.name || 'Producto'}</h1>
           </div>
           <Badge color={estado.color}>{estado.label}</Badge>

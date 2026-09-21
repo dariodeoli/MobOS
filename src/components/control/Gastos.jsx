@@ -6,7 +6,7 @@ import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { listGastos, addGasto } from '@/lib/storage'
 import { fechaClave, gs } from '@/utils/calculos'
 import { parseGsInput } from '@/utils/moneda'
-import { Card, Button, Input, Label, Select, Badge, EmptyState, MoneyInput, IconAction } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, IconAction, Input, Label, MoneyInput, Select } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import ComboBuscador from '@/components/shared/ComboBuscador'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
@@ -116,7 +116,7 @@ export default function Gastos() {
       <h2 className="font-bold">Registrar salida, cheque o adelanto</h2>
       <p className="mt-1 text-sm text-mute">La cotización queda congelada al guardar. Los cheques quedan pendientes hasta cobrarse o anularse.</p>
       {hayRecordado && <p className="mt-1 text-xs text-mute">Tipo, moneda y cuenta arrancan con tu última elección; podés cambiarlos.</p>}
-      {message && <p role="alert" className="mt-3 rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{message}</p>}
+      {message && <Aviso tono="error" className="p-3 mt-3">{message}</Aviso>}
       <form onSubmit={save} className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         <div><Label htmlFor="monto-gasto">Monto {form.currency === 'PYG' ? '(Gs)' : `(${form.currency})`}</Label><MoneyInput id="monto-gasto" required currency={form.currency} value={form.originalAmount} onValueChange={value => set('originalAmount', value)} placeholder={form.currency === 'PYG' ? '250.000' : '0,00'} /></div>
         <div><Label htmlFor="moneda-gasto">Moneda</Label><CurrencySelect id="moneda-gasto" title="Se recuerda tu última elección" value={form.currency} onChange={event => { const valor = event.target.value; setForm(current => ({ ...current, currency: valor, accountId: '', originalAmount: '', exchangeRatePyg: valor === 'PYG' ? '1' : current.exchangeRatePyg })); recordarUltimo(CLAVES_FIN.gastoMoneda, valor) }} /></div>

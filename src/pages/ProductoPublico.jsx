@@ -6,6 +6,7 @@ import AccesoRequerido from '@/components/shared/AccesoRequerido'
 import LoadingScreen from '@/components/app/LoadingScreen'
 import { useSesion } from '@/lib/sesion'
 import { resources } from '@/lib/api'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 const CONDICION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 
@@ -23,7 +24,7 @@ function FichaProducto({ producto }) {
       <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-wider text-mute">Producto</p>
+            <p className={ROTULO_SECCION}>Producto</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight">{producto.name}</h1>
           </div>
           <Badge color={stock > 0 ? 'green' : 'red'}>{stock > 0 ? `${stock} en stock` : 'Sin stock'}</Badge>
