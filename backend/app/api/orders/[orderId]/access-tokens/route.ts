@@ -39,6 +39,9 @@ export async function GET(request: Request, context: { params: Promise<{ orderId
 // Devuelve el acceso del nivel pedido (lo crea si falta). Con regenerate=true
 // revoca el token vigente y genera uno nuevo: el anterior deja de funcionar.
 // Con impreso=true devuelve el token del QR impreso, que el panel no regenera.
+// Con revokeAll=true (acción «Regenerar acceso QR») revoca TODOS los accesos
+// vigentes del pedido —impresos y compartidos— y emite uno nuevo: los códigos
+// anteriores dejan de abrir la vista.
 export async function POST(request: Request, context: { params: Promise<{ orderId: string }> }) {
   const { orderId } = await context.params
   const acceso = await pedidoAccesible(request, orderId)
@@ -49,16 +52,22 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
     if (!ACCESS_LEVELS.includes(level as (typeof ACCESS_LEVELS)[number])) throw new InputError('Nivel de comprobante inválido.')
     const regenerate = body.regenerate === true
     const impreso = body.impreso === true
+    const revokeAll = body.revokeAll === true
 
     const vigente = await prisma.orderAccessToken.findFirst({
       where: { orderId: acceso.order.id, level, impreso, revokedAt: null },
       select: { id: true, token: true },
       orderBy: { createdAt: 'desc' },
     })
-    if (vigente && !regenerate) return json({ level, token: vigente.token, impreso, regenerated: false })
+    if (vigente && !regenerate && !revokeAll) return json({ level, token: vigente.token, impreso, regenerated: false })
 
     const creado = await prisma.$transaction(async tx => {
-      if (vigente) {
+      if (revokeAll) {
+        await tx.orderAccessToken.updateMany({
+          where: { orderId: acceso.order.id, revokedAt: null },
+          data: { revokedAt: new Date() },
+        })
+      } else if (vigente) {
         await tx.orderAccessToken.update({ where: { id: vigente.id }, data: { revokedAt: new Date() } })
       }
       return tx.orderAccessToken.create({
@@ -73,7 +82,7 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
         select: { level: true, token: true, createdAt: true },
       })
     })
-    return json({ ...creado, impreso, regenerated: Boolean(vigente) })
+    return json({ ...creado, impreso, regenerated: Boolean(vigente) || revokeAll, revoked: revokeAll })
   } catch (cause) {
     return error(cause instanceof Error ? cause.message : 'No se pudo preparar el acceso.', 400)
   }

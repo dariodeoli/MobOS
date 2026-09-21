@@ -89,4 +89,26 @@ test('los accesos del pedido respetan el nivel y se pueden regenerar', async ({ 
   await page.goto(`/p/${rotado.body.token}`)
   await expect(page.getByText('Comprobante rápido')).toBeVisible()
   await expect(page.getByText('Pendiente', { exact: true })).toBeVisible()
+
+  // El nivel rápido también informa el crédito (saldo, plazo y vencimiento) en
+  // la vista digital: el campo viaja en el payload base.
+  expect(publicoRapido.body).toHaveProperty('credit')
+
+  // «Regenerar acceso QR»: invalida TODOS los accesos vigentes del pedido —los
+  // QR impresos y los enlaces compartidos— y emite uno nuevo.
+  const qrNuevo = await api(page, `/api/orders/${pedido.id}/access-tokens`, {
+    method: 'POST', body: JSON.stringify({ level: 'rapido', impreso: true, regenerate: true, revokeAll: true }),
+  })
+  expect(qrNuevo.status).toBe(200)
+  expect(qrNuevo.body.revoked).toBe(true)
+  expect(qrNuevo.body.token).not.toBe(impreso.body.token)
+  const qrAnterior = await api(page, `/api/orders/public/${impreso.body.token}`)
+  expect(qrAnterior.status).toBe(404)
+  const enlaceAnterior = await api(page, `/api/orders/public/${rotado.body.token}`)
+  expect(enlaceAnterior.status).toBe(404)
+  const qrVigente = await api(page, `/api/orders/public/${qrNuevo.body.token}`)
+  expect(qrVigente.status).toBe(200)
+  expect(qrVigente.body.level).toBe('rapido')
+  const listadoTrasRegenerar = await api(page, `/api/orders/${pedido.id}/access-tokens`)
+  expect((listadoTrasRegenerar.body.tokens || []).length).toBe(0)
 })

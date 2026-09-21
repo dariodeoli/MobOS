@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PresenciaPedido from './PresenciaPedido'
 import { Drawer, Badge, Button, Input, Money, Select, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -154,6 +154,15 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   const estadoPago = anulado ? 'Anulado' : (paid >= total && total > 0 ? 'Pagado' : (Number(order.creditDays || 0) > 0 && pendiente > 0 ? 'A crédito' : paid > 0 ? 'Parcial' : 'Pendiente'))
   const tags = Array.isArray(order.tags) ? order.tags : []
   const archivado = Boolean(order.archivedAt)
+  // Cronología para el comprobante detallado: el mismo timeline que se ve en la
+  // página, en el formato que espera el comprobante (creación, pagos y cambios
+  // de entrega). Así el papel no depende de un segundo viaje al backend.
+  const timelineComprobante = useMemo(() => events.map(evento => {
+    if (evento.type === 'created') return { type: 'created', at: evento.at }
+    if (evento.type === 'payment') return { type: 'payment', at: evento.at, amountPyg: Number(evento.payment?.amountPyg || 0), methodLabel: ETIQUETAS_MEDIO_PAGO[evento.payment?.method] || evento.payment?.method, account: evento.payment?.accountSnapshot?.name || null }
+    if (evento.type === 'audit' && evento.action === 'ORDER_FULFILLMENT_UPDATED') return { type: 'fulfillment', at: evento.at, metadata: evento.metadata }
+    return null
+  }).filter(Boolean), [events])
   const contextoWhatsApp = {
     cliente: order.customer?.name || 'cliente',
     nombre: order.customer?.name || 'cliente',
@@ -204,6 +213,20 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       setAccesoMsg(regenerate ? 'Enlace regenerado: el anterior ya no funciona.' : 'Enlace listo para compartir.')
     } catch (cause) {
       setAccesoMsg(cause?.message || 'No se pudo preparar el enlace.')
+    } finally { setAccesoBusy(false) }
+  }
+  // «Regenerar acceso QR»: invalida todos los códigos y enlaces vigentes del
+  // pedido y emite uno nuevo para el QR del comprobante. Sirve cuando un papel
+  // con QR se perdió o se filtró: lo impreso antes deja de abrir la vista.
+  async function regenerarAccesoQr() {
+    if (esDemo || !order?.id) return
+    setAccesoBusy(true); setAccesoMsg('')
+    try {
+      await api.post(`/api/orders/${encodeURIComponent(order.id)}/access-tokens`, { level: 'rapido', impreso: true, regenerate: true, revokeAll: true })
+      setAccesos({})
+      setAccesoMsg('Acceso QR regenerado: los códigos y enlaces anteriores ya no funcionan. Imprimí el comprobante de nuevo para entregar el vigente.')
+    } catch (cause) {
+      setAccesoMsg(cause?.message || 'No se pudo regenerar el acceso QR.')
     } finally { setAccesoBusy(false) }
   }
   function copiarAcceso(token, nivel = '') {
@@ -341,7 +364,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             <p className="mt-3 text-xs text-mute">
               {order.seller?.name ? `${order.seller.name} · ` : ''}{order.branch?.name || 'Sucursal'}{order.date || order.createdAt ? ` · ${relativeDate(order.createdAt || order.date)}` : ''}
             </p>
-            {row.publicToken && !esDemo && <p className="mt-1 truncate font-mono text-[10px] text-mute">Token público: {row.publicToken}</p>}
+            {row.publicToken && !esDemo && <p className="mt-1 truncate font-mono text-[10px] text-mute">Token público: {order.publicToken || row.publicToken}</p>}
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {!esDemo && <Select aria-label="Estado de entrega" className="max-w-[190px]" value={order.fulfillmentStatus || 'PROCESSING'} disabled={busy} onChange={event => cambiarEntrega(event.target.value)}>{Object.entries(FULFILLMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select>}
               {!esDemo && ['IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP'].includes(order.fulfillmentStatus) && <Button variant={order.notifiedAt ? 'outline' : 'primary'} disabled={avisando} onClick={avisarPorWhatsApp}>{avisando ? 'Preparando…' : order.notifiedAt ? 'Avisar de nuevo' : 'Avisar por WhatsApp'}</Button>}
@@ -357,8 +380,11 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           {/* Acceso del cliente: un enlace privado por nivel de información */}
           {!esDemo && (
             <section className="rounded-2xl border border-ink-600 p-4">
-              <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-mute"><Icon name="eye" className="h-3.5 w-3.5" /> Acceso del cliente</h3>
-              <p className="mt-1 text-xs text-mute">Cada nivel tiene su propio enlace privado. Regenerarlo invalida el anterior.</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-mute"><Icon name="eye" className="h-3.5 w-3.5" /> Acceso del cliente</h3>
+                <button type="button" disabled={accesoBusy} onClick={regenerarAccesoQr} className="rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-warn hover:text-warn disabled:opacity-60">Regenerar acceso QR</button>
+              </div>
+              <p className="mt-1 text-xs text-mute">Cada nivel tiene su propio enlace privado. Regenerar uno invalida el anterior; «Regenerar acceso QR» invalida además los QR ya impresos y los enlaces compartidos.</p>
               <div className="mt-3 space-y-2">
                 {NIVELES_ACCESO.map(([level, label]) => {
                   const token = accesos[level]
@@ -431,7 +457,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               {Number(order.deliveryPyg || 0) > 0 && <p className="flex justify-between"><span className="text-mute">Envío</span><span className="tabular-nums"><Money value={order.deliveryPyg} /></span></p>}
               <p className="flex justify-between border-t border-ink-600 pt-1.5 font-bold"><span>Total</span><span className="tabular-nums"><Money value={total} /></span></p>
               <p className="flex justify-between text-ok"><span>Pagado</span><span className="tabular-nums"><Money value={paid} /></span></p>
-              {pendiente > 0 && <p className="flex justify-between text-warn"><span>{order.dueAt ? `Pendiente · vence ${new Date(order.dueAt).toLocaleDateString('es-PY')}` : 'Pendiente'}</span><span className="tabular-nums"><Money value={pendiente} /></span></p>}
+              {pendiente > 0 && <p className="flex justify-between text-warn"><span>{['Pendiente', Number(order.creditDays || 0) > 0 ? `plazo ${order.creditDays} días` : '', order.dueAt ? `vence ${new Date(order.dueAt).toLocaleDateString('es-PY')}` : ''].filter(Boolean).join(' · ')}</span><span className="tabular-nums"><Money value={pendiente} /></span></p>}
             </div>
             {payments.length > 0 && <div className="mt-3 space-y-2 border-t border-ink-600 pt-3">
               {payments.map(pago => <div key={pago.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -518,7 +544,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
           </section>
         </div>
       )}
-      <ComprobantePreview order={order} open={comprobante} onClose={() => setComprobante(false)}  formatos={FORMATOS_PEDIDO} />
+      <ComprobantePreview order={{ ...order, timeline: timelineComprobante }} open={comprobante} onClose={() => setComprobante(false)}  formatos={FORMATOS_PEDIDO} />
       <Modal open={anularOpen} onClose={() => { if (!anularBusy) setAnularOpen(false) }} title="Anular pedido" className="max-w-lg">
         <div className="space-y-3">
           <p className="text-sm text-mute">
