@@ -1,0 +1,11 @@
+{
+  "base": "https://app.moboss.online",
+  "issue": 162,
+  "resultados": [
+    {
+      "issue": 162,
+      "nombre": "el seguro de la empresa se configura y se ve en el margen",
+      "ok": true
+    }
+  ]
+}
