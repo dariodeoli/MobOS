@@ -33,6 +33,33 @@ const MOTIVO_TEXTO = Object.freeze({
   impresora_apagada: 'La impresora rechazó la conexión',
 })
 
+// Estados de un trabajo de impresión: una sola etiqueta honesta para la cola,
+// la actividad y el monitor (#205). Acepta el estado del backend (mayúsculas)
+// o el de la actividad (minúsculas). `aceptado` NO es "impreso": el transporte
+// aceptó el envío y falta confirmar el papel.
+export const ETIQUETA_TRABAJO = Object.freeze({
+  pendiente: 'Pendiente',
+  reclamado: 'En el puente',
+  aceptado: 'Aceptado (falta confirmar)',
+  incierto: 'Incierto',
+  fallido: 'Fallido',
+  confirmado: 'Confirmado en papel',
+  cancelado: 'Cancelado',
+  impreso: 'Impreso',
+})
+const TONO_TRABAJO = Object.freeze({
+  pendiente: 'orange',
+  reclamado: 'blue',
+  aceptado: 'blue',
+  incierto: 'orange',
+  fallido: 'red',
+  confirmado: 'green',
+  cancelado: 'slate',
+  impreso: 'green',
+})
+export const etiquetaTrabajo = (estado) => ETIQUETA_TRABAJO[String(estado || '').toLowerCase()] || String(estado || '—')
+export const colorTrabajo = (estado) => TONO_TRABAJO[String(estado || '').toLowerCase()] || 'slate'
+
 // Traduce el resultado de `diagnosticoAgente(destino)` al estado binario.
 // Una cola CUPS no tiene TCP: se considera lista cuando el sistema confirma su
 // URI real; si la cola no existe, es un error de configuración.

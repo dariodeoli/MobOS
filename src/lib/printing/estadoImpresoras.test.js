@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { ESTADO_IMPRESORA, agregarEstado, estadoDeDiagnostico, motivoDeDiagnostico, textoVerificacion } from './estadoImpresoras.js'
+import { ESTADO_IMPRESORA, agregarEstado, colorTrabajo, estadoDeDiagnostico, etiquetaTrabajo, motivoDeDiagnostico, textoVerificacion } from './estadoImpresoras.js'
 
 const impresora = (id, cambios = {}) => ({ id, nombre: `Impresora ${id}`, destino: `lan:10.0.0.${id.length}:9100`, activa: true, ...cambios })
 const registro = (estado, cambios = {}) => ({ estado, fecha: 1_000, motivo: '', ...cambios })
@@ -76,4 +76,25 @@ test('textoVerificacion informa segundos, motivo o falta de datos', () => {
   assert.equal(textoVerificacion(registro(ESTADO_IMPRESORA.VERIFICANDO)), 'Verificando…')
   assert.equal(textoVerificacion(registro(ESTADO_IMPRESORA.SIN_VERIFICAR)), 'Sin verificar')
   assert.equal(textoVerificacion(null), 'Sin verificar')
+})
+
+// #205: la etiqueta del trabajo es la misma en la cola, la actividad y el
+// monitor, sin códigos crudos, y `aceptado` no se muestra como "impreso".
+test('etiquetaTrabajo unifica los estados (backend en mayúsculas o actividad)', () => {
+  assert.equal(etiquetaTrabajo('PENDIENTE'), 'Pendiente')
+  assert.equal(etiquetaTrabajo('pendiente'), 'Pendiente')
+  assert.equal(etiquetaTrabajo('ACEPTADO'), 'Aceptado (falta confirmar)')
+  assert.equal(etiquetaTrabajo('RECLAMADO'), 'En el puente')
+  assert.equal(etiquetaTrabajo('INCIERTO'), 'Incierto')
+  assert.equal(etiquetaTrabajo('FALLIDO'), 'Fallido')
+  assert.equal(etiquetaTrabajo('CONFIRMADO'), 'Confirmado en papel')
+  assert.equal(etiquetaTrabajo('CANCELADO'), 'Cancelado')
+  assert.equal(etiquetaTrabajo('IMPRESO'), 'Impreso')
+  assert.equal(etiquetaTrabajo('desconocido'), 'desconocido')
+  assert.equal(etiquetaTrabajo(null), '—')
+  assert.equal(colorTrabajo('PENDIENTE'), 'orange')
+  assert.equal(colorTrabajo('ACEPTADO'), 'blue')
+  assert.equal(colorTrabajo('CONFIRMADO'), 'green')
+  assert.equal(colorTrabajo('CANCELADO'), 'slate')
+  assert.equal(colorTrabajo(''), 'slate')
 })

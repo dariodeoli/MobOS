@@ -7,6 +7,7 @@ import { printingApi } from '@/lib/api/printing'
 import { useSesion } from '@/lib/sesion'
 import { APP_VERSION } from '@/lib/brand'
 import { configImpresora, estadoAgente } from '@/lib/printing/agent'
+import { colorTrabajo, etiquetaTrabajo } from '@/lib/printing/estadoImpresoras'
 
 // Estado del sistema: la misma lista de chequeos que se corre antes de entregar
 // una versión, dentro de la app, para ver de un vistazo qué configuración falta.
@@ -30,16 +31,6 @@ const TIPO_TRABAJO = {
   'prueba-corta': 'Prueba de corte',
 }
 const tipoTrabajo = (kind) => TIPO_TRABAJO[kind] || String(kind || '').replace(/-/g, ' ') || 'Impresión'
-const ESTADO_TRABAJO = {
-  PENDIENTE: ['Pendiente', 'orange'],
-  RECLAMADO: ['En el puente', 'blue'],
-  ACEPTADO: ['Impreso, sin confirmar', 'green'],
-  INCIERTO: ['Incierto', 'orange'],
-  FALLIDO: ['Fallido', 'red'],
-  CONFIRMADO: ['Confirmado en papel', 'green'],
-  CANCELADO: ['Cancelado', 'slate'],
-}
-
 const fmt = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 
 const COLOR_TONO = { ok: 'green', bad: 'red', warn: 'orange', slate: 'slate' }
@@ -404,7 +395,7 @@ export default function EstadoSistema() {
                     <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
                       <span className="truncate">{tipoTrabajo(trabajo.kind)}</span>
                       {trabajo.reference && <span className="text-xs font-normal text-mute">{trabajo.reference}</span>}
-                      <Badge color={ESTADO_TRABAJO[trabajo.state]?.[1] || 'slate'}>{ESTADO_TRABAJO[trabajo.state]?.[0] || trabajo.state}</Badge>
+                      <Badge color={colorTrabajo(trabajo.state)}>{etiquetaTrabajo(trabajo.state)}</Badge>
                     </p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-mute">
                       <span className="inline-flex items-center gap-1.5">
@@ -445,7 +436,7 @@ export default function EstadoSistema() {
                 <li key={trabajo.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 py-1.5 text-xs">
                   <span className="truncate font-medium" title={trabajo.error || ''}>{tipoTrabajo(trabajo.kind)}{trabajo.reference ? ` · ${trabajo.reference}` : ''}</span>
                   <span className="flex items-center gap-2 text-mute">
-                    <Badge color={ESTADO_TRABAJO[trabajo.state]?.[1] || 'slate'}>{ESTADO_TRABAJO[trabajo.state]?.[0] || trabajo.state}</Badge>
+                    <Badge color={colorTrabajo(trabajo.state)}>{etiquetaTrabajo(trabajo.state)}</Badge>
                     <span>{trabajo.printerName || trabajo.destination || 'sin impresora'}</span>
                     <span>· {fmt(trabajo.enqueuedAt || trabajo.createdAt)}</span>
                   </span>

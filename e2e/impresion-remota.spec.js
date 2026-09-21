@@ -357,7 +357,8 @@ test.describe('impresión remota: cola con puente falso', () => {
 
       // Al escribir el dígito correcto valida solo, sin apretar nada.
       await fila.getByLabel(`Número secreto de la validación ${trabajo.validation}`).fill(trabajo.sufijo)
-      await expect(page.getByText('Confirmado en papel')).toBeVisible({ timeout: 10_000 })
+      // El aviso del toast (no el badge de la tabla, que ahora dice lo mismo).
+      await expect(page.getByRole('status').getByText('Confirmado en papel').first()).toBeVisible({ timeout: 10_000 })
       await expect(fila.getByText('✓ en papel')).toBeVisible({ timeout: 20_000 })
     } finally {
       puente.detener()
