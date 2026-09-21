@@ -27,19 +27,33 @@ guardado y ningún valor recordado pisa una elección explícita.
 
 ## Verificación
 
-`scripts/qa-209-finanzas-ultimo-usado.mjs` (Playwright con sesión real) — 5/5:
+`scripts/qa-209-finanzas-ultimo-usado.mjs` (Playwright con sesión real) — 6/6:
 
 1. Gastos: elegir Cheque + USD → recargar → vuelven; aparece el aviso.
 2. Gastos: cambiar a Gasto + PYG → recargar → el cambio explícito manda.
 3. Conciliación: elegir 7 días + Estado «Conciliados» → recargar → vuelven.
 4. Conciliación: elegir un medio → recargar → vuelve y se muestra el aviso.
 5. Conciliación: «Limpiar filtros» → recargar → no queda nada recordado.
+6. **Demo**: elegir un tipo en Gastos no escribe `localStorage` y al recargar
+   vuelve el default (la preferencia vive en memoria de la pestaña).
 
-Capturas: `gastos-ultimo-usado.jpg`, `conciliacion-ultimo-usado.jpg` ·
-Resultados: `resultados.json`.
+Capturas: `gastos-ultimo-usado.jpg`, `conciliacion-ultimo-usado.jpg`,
+`demo-sin-persistencia.jpg` · Resultados: `resultados.json`.
 
-E2E del patrón: `e2e/finanzas-ultimo-usado.spec.js` (2/2) y la regresión de
-finanzas + análisis + demo (13/13) más el smoke de entrega (7/7).
+E2E del patrón: `e2e/finanzas-ultimo-usado.spec.js` (2/2), más la regresión
+`demo-anonimo` + `inventario-unidades` + finanzas/análisis/demo (**30/30**) y el
+smoke de entrega (7/7).
+
+### Hallazgo corregido en la pasada final: la demo escribía `localStorage`
+
+El helper integrado de #209 (`src/lib/ultimoUsado.js`) leía/escribía
+`localStorage` directo, así que en la demo cualquier selección recordada dejaba
+claves `mobos:ultimo:*` — contra la regla de #204 (`e2e/demo-anonimo.spec.js`
+solo admite la allow-list de preferencias) y contra la documentación del patrón.
+**Fix:** el helper usa `demoStorage` (memoria por pestaña en demo, `localStorage`
+fuera), con test propio (`src/lib/ultimoUsadoDemo.test.js`). Es un archivo
+compartido: el cambio beneficia a todos los dominios que aplicaron #209 y está
+alineado con la auditoría del demo.
 
 ## Estado en producción
 

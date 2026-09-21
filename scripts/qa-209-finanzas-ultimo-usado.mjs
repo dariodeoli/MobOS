@@ -114,6 +114,25 @@ await ver('Conciliación: «Limpiar filtros» olvida lo recordado', async () => 
   await expect(page.getByText('Filtros de tu última visita')).toHaveCount(0)
 })
 
+await ver('Demo: el último usado no toca localStorage y se descarta al recargar', async () => {
+  // Las verificaciones reales anteriores ya dejaron claves `mobos:ultimo:*`:
+  // se limpian para medir solo lo que hace la demo.
+  await page.goto(`${WEB}/resumen`)
+  await page.evaluate(() => Object.keys(localStorage).filter((clave) => clave.startsWith('mobos:ultimo:')).forEach((clave) => localStorage.removeItem(clave)))
+  await page.goto(`${WEB}/demo`)
+  await page.getByRole('button', { name: /Entrar como Dueño/i }).click()
+  await page.waitForLoadState('networkidle')
+  await page.goto(`${WEB}/finanzas/gastos`)
+  await expect(page.getByRole('heading', { name: 'Registrar salida, cheque o adelanto' })).toBeVisible()
+  await page.locator('#tipo').selectOption('CHEQUE')
+  const claves = await page.evaluate(() => Object.keys(localStorage).filter((clave) => clave.startsWith('mobos:ultimo:')))
+  expect(claves, `la demo escribió: ${claves.join(', ')}`).toEqual([])
+  await page.reload()
+  // La demo guarda en memoria de la pestaña: al recargar vuelve el default.
+  await expect(page.locator('#tipo')).toHaveValue('EXPENSE')
+  await page.screenshot({ path: join(SALIDA, 'demo-sin-persistencia.jpg'), type: 'jpeg', quality: 72 })
+})
+
 writeFileSync(join(SALIDA, 'resultados.json'), JSON.stringify({ web: WEB, resultados }, null, 2))
 await browser.close()
 const fallos = resultados.filter((fila) => !fila.ok)

@@ -20,6 +20,10 @@
     {
       "nombre": "Conciliación: «Limpiar filtros» olvida lo recordado",
       "ok": true
+    },
+    {
+      "nombre": "Demo: el último usado no toca localStorage y se descarta al recargar",
+      "ok": true
     }
   ]
 }

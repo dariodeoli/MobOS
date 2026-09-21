@@ -90,9 +90,10 @@ dominio del shell (MOS-DSN/MOS-PLT), se reporta.
 
 ## Re-ejecución y estado del lote (2026-09-21, tarde)
 
-- Sondas re-corridas tras los cambios de #209 (período `fin:rango` compartido y
-  API integrada de `@/lib/ultimoUsado`): **55/55** (servidor vs SQL) · **14/14**
-  (UI) · **6/6** (producción) · **5/5** (#209).
+- Sondas re-corridas tras los cambios de #209 (período `fin:rango` compartido,
+  API integrada de `@/lib/ultimoUsado` y fix de demo sin `localStorage`):
+  **55/55** (servidor vs SQL) · **14/14** (UI) · **6/6** (producción) · **6/6**
+  (#209) · e2e 30/30 + smoke 7/7.
 - `origin/main` avanzó a `3546121` (notas de v1.0.131; el helper de #209 ya está
   integrado en main y este slot lo adoptó sin definir uno propio). El lote de
   este slot —el aviso de truncado y el #209 de Finanzas— **todavía no está
