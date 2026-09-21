@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.135 — 2026-09-21
+- **Servicio y Garantías:** un solo módulo con pestañas (Todo/Servicio/Garantías) y etiqueta de tipo por registro; una **garantía puede convertirse en orden de servicio** conservando el historial y se ve en qué orden entró. (#224)
+- **Identidad de usuario:** un único objeto (`PersonaChip`) resuelve la foto (subida → Google → iniciales) y el primer nombre, adoptado en presencia, pantalla de bloqueo y pedidos; se suman objetos compartidos de biblioteca (celdas, montos, teléfono/WhatsApp y estados de pedido). (#211)
+- **Impresión:** etiquetas de unidad con **QR, IMEI legible y bloques separados**, verificadas en producción con su evidencia por tamaño. (#220)
+- **Base de datos:** migración aditiva e idempotente que vincula la orden de servicio con la garantía de origen.
+- **QA:** verificaciones post-deploy documentadas de Finanzas (#144 #161 #162 #171 #209), del topbar (#223) y de la demo/POS (acceso anónimo y venta).
+
 ## v1.0.134 — 2026-09-21
 - **Envíos AEX:** contrato de envíos alineado a la documentación del proveedor (respuestas en array/objeto, destinatario y direcciones) y **confirmación bloqueada** hasta contar con datos reales de remitente y destinatario: se puede **cotizar**, no confirmar envíos con identidades de ejemplo. (#3)
 - **POS / Pedidos:** desde Inventario se puede **vender todos** los equipos seleccionados con el carrito precargado (#217); la cronología y los pagos del pedido muestran **foto y primer nombre** de quien actuó (#219).
