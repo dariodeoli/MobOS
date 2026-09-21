@@ -205,6 +205,24 @@ test('la landing: identidad por tema, módulos nuevos y verificador de IMEI hone
   assert.doesNotMatch(demo, /'Limpio'/, 'la demo no inventa un "Limpio"')
 })
 
+test('el patrón «último usado como predeterminado» está documentado con su base real (#209)', () => {
+  const doc = leer('../docs/PLANTILLA-OBJETOS.md')
+  assert.match(doc, /Último usado como predeterminado \(#209\)/, 'el patrón vive en la biblioteca')
+  for (const regla of ['Solo selecciones frecuentes', 'Siempre cambiable y visible', 'Default sensato por pantalla', 'nunca datos sensibles']) {
+    assert.ok(doc.includes(regla), `la regla documentada dice: ${regla}`)
+  }
+  // El helper compartido (#209) queda documentado por nombre: pendiente en PLT
+  // y, cuando aterrice, API única de la sección.
+  for (const api of ['useUltimoUsado(clave, inicial)', 'recordarUltimo(clave, valor)']) {
+    assert.ok(doc.includes(api) || doc.includes(api.replace('(clave, inicial)', '').replace('(clave, valor)', '')), `la biblioteca nombra ${api}`)
+  }
+  // La base real que se reutiliza hasta entonces sigue existiendo.
+  const recibo = leer('components/shared/OrderReceipt.jsx')
+  assert.match(recibo, /export const nivelPreferido/, 'la base del comprobante sigue disponible')
+  assert.match(recibo, /export const recordarPreferencia/, 'la base del comprobante sigue disponible')
+  assert.match(leer('components/ventas/FormularioVenta.jsx'), /ULTIMO_VENDEDOR/, 'el último vendedor se sigue recordando')
+})
+
 test('el pedido: secciones plegables, avatar compartido y densidad (#164)', () => {
   const colapsable = leer('components/shared/SeccionColapsable.jsx')
   assert.match(colapsable, /aria-expanded/, 'la sección plegable expone su estado')
