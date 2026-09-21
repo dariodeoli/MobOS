@@ -82,11 +82,14 @@ footer de versión, temas claro/oscuro por tokens CSS (`--c-*`).
   solo presentación y estructura visual. Reglas fijadas por aserción de fuente
   en `src/lib/disenoReglas.test.js`.
 
-Pendientes detectados para lotes siguientes (fuera del Lote 1): `PanelDelivery`
-no está ruteado y su cuerpo repite la identidad de tienda/persona; en
-`PanelVendedor` la paleta “Ir a…” no tiene disparador y duplica la búsqueda
-global; `Celulares`, `Comparador` y `TradeIn` (internas del dueño) conservan
-cabecera propia fuera del shell; `.mobos-topbar` en `index.css` no se usa.
+Pendientes detectados para lotes siguientes (fuera del Lote 1): `PanelVendedor`
+tiene la paleta “Ir a…” sin disparador y que duplica la búsqueda global;
+`Celulares`, `Comparador` y `TradeIn` (internas del dueño) conservan cabecera
+propia fuera del shell; `.mobos-topbar` en `index.css` no se usa.
+
+> **Resuelto en #179:** `PanelDelivery` ya está ruteado (`/delivery/repartos` y
+> `/delivery/rendiciones`), su cuerpo no repite identidad y el repartidor cae en
+> su panel (no en el POS).
 
 ### Lote 2 — Resumen (implementado 21-09-2026)
 

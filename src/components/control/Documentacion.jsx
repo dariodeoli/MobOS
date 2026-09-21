@@ -11,22 +11,22 @@ const AYUDA = [
   {
     modulo: 'POS', titulo: 'Cargar una venta', ubicacion: 'POS → /ventas',
     explicacion: 'Elegí el cliente, buscá productos por nombre, modelo o IMEI, ajustá cantidades y cobrá. El vendedor se asigna solo según quién está operando.',
-    ruta: '/ventas',
+    ruta: '/pos',
   },
   {
     modulo: 'POS', titulo: 'Pagos divididos', ubicacion: 'POS → /ventas · bloque de cobros',
     explicacion: 'Agregá un pago por cada medio o cuenta, dividí el importe y mirá el saldo restante. Con pago completo el botón es Confirmar venta; con saldo, Crear pedido.',
-    ruta: '/ventas',
+    ruta: '/pos',
   },
   {
     modulo: 'POS', titulo: 'Bloqueo de pantalla y PIN', ubicacion: 'Barra superior → menú de tres puntos',
     explicacion: 'La pantalla se bloquea sola por inactividad (10 minutos por defecto) o con Bloquear pantalla. Se desbloquea con el PIN personal, que valida solo al completarlo.',
-    ruta: '/ventas',
+    ruta: '/pos',
   },
   {
     modulo: 'POS', titulo: 'Preferencias y notificaciones', ubicacion: 'Barra superior → menú de tres puntos → Preferencias',
     explicacion: 'Cambiá el tema claro/oscuro, los minutos de bloqueo y si querés ver el aviso de novedades. El panel de notificaciones junta pedidos, aprobaciones, comentarios y menciones.',
-    ruta: '/ventas',
+    ruta: '/pos',
   },
   {
     modulo: 'Pedidos', titulo: 'Buscar y abrir un pedido', ubicacion: 'Pedidos → /pedidos',
