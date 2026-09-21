@@ -11,6 +11,17 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.124 — 2026-09-21
+- **Finanzas:** la **caja** se audita por rango: efectivo inicial y recibido por sesión, cada cobro o movimiento con pedido, cliente y vendedor, y el estado **verificado / pendiente / con diferencia** con su observación, quién auditó y un resumen de diferencias y pendientes. (#161)
+- **Finanzas:** el **seguro de ventas de la empresa** (% sobre el costo) se configura en Configuración → Negocio y entra en la prioridad del seguro; el **costo real** (costo + seguro) ya baja el margen en Resumen, Análisis, comisiones y reportes. (#162)
+- **Finanzas:** **cuentas de cobro** más densas y con **nombre automático**, buscadores de titulares/empresas en tiempo real y **medios de pago configurables**: efectivo multi-moneda, transferencia, tarjeta con procesadoras, Pix, USDT y canje. (#141 #142)
+- **Finanzas:** **empresas/personas jurídicas y titulares privados** con buscador por nombre, cédula o RUC; los datos legales quedan separados de la información pública de la tienda. (#143)
+- **Resumen:** **reporte ejecutivo A4 de una hoja** con KPIs y variación, cobros por medio de pago, rentabilidad y alertas, legible también en blanco y negro. (#146)
+- **Diseño:** **biblioteca de objetos compartidos** (búsquedas, interruptores y segmentados) aplicada en las pantallas prioritarias, con los límites de monto unificados. (#147)
+- **Pedidos:** el **seguimiento del cliente** y el **contenedor del pedido** se reordenaron con secciones plegables, avatar en la cronología y más densidad; el **logo ahora sigue al tema** (fondo oscuro → logo claro). (#163 #164)
+- **Impresión:** la **confirmación del papel** ya no se pierde si hay otra confirmación en vuelo; la validación automática reintenta en lugar de descartarse. (#138)
+- **Facturación (SIFEN):** quedan los **fundamentos de la facturación electrónica** (Fase 1, sin certificado); la emisión real llega en la Fase 2 y por ahora todo sigue como documento no fiscal. (#130)
+
 ## v1.0.123 — 2026-09-21
 - **POS / Equipo:** **bloqueo de sesión con PIN** por inactividad (la caja queda protegida si te alejás), menú de tres puntos, preferencias y **notificaciones**. (#158)
 - **Equipo:** los **PIN del staff ahora aceptan de 4 a 6 dígitos** y se suma la **documentación interna con buscador**. (#159)
