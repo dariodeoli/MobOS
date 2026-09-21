@@ -5,6 +5,8 @@ import Icon from '@/components/shared/Icon'
 import { gs } from '@/utils/calculos'
 import { telefonoVisible } from '@/utils/telefono'
 
+const plural = (n, singular, pluralTexto) => `${Number(n) || 0} ${Number(n) === 1 ? singular : pluralTexto}`
+
 // Campañas de recompra: segmento → selección → plantilla → enlaces wa.me.
 // El envío lo hace una persona (no hay credenciales de WhatsApp), así que acá
 // se registra la campaña y se generan los enlaces. Los clientes contactados
@@ -99,7 +101,7 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
         customerIds: seleccion,
       })
       setResultado(payload)
-      toast.success(`Campaña registrada: ${payload?.recipients?.length || 0} mensaje(s) listos.`)
+      toast.success(`Campaña registrada: ${plural(payload?.recipients?.length || 0, 'mensaje listo', 'mensajes listos')}.`)
       await cargarCampanas()
       onContacted?.()
     } catch (cause) { setError(cause?.message || 'No se pudo registrar la campaña.') } finally { setEnviando(false) }
@@ -135,8 +137,8 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
         {data && rows.length > 0 && (
           <div className="space-y-2" data-testid="marketing-clientes">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-mute">
-              <span>{rows.length} cliente(s) en el segmento · <b className="text-fore">{elegibles.length}</b> elegible(s) para WhatsApp</span>
-              <span>{seleccion.length} seleccionado(s)</span>
+              <span>{plural(rows.length, 'cliente', 'clientes')} en el segmento · <b className="text-fore">{elegibles.length}</b> {plural(elegibles.length, 'elegible', 'elegibles')} para WhatsApp</span>
+              <span>{plural(seleccion.length, 'seleccionado', 'seleccionados')}</span>
             </div>
             {rows.map((row) => (
               <label key={row.id} data-testid="marketing-cliente" className="flex flex-wrap items-center gap-3 rounded-xl border border-ink-600 p-2.5">
@@ -147,7 +149,7 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
                     {!row.eligible && <Badge color="slate">{MOTIVOS[row.reason] || 'No elegible'}</Badge>}
                     {row.marketingContactedAt && <Badge color="blue">Contactado {fecha(row.marketingContactedAt)}</Badge>}
                   </span>
-                  <span className="mt-0.5 block text-xs text-mute">{row.orderCount} compra(s) · última {row.lastOrderAt ? fecha(row.lastOrderAt) : 'sin compras'} · {row.phone ? telefonoVisible(row.phone, row.countryCode) : 'sin teléfono'} · {gs(row.totalSpentPyg)}{row.outstandingPyg > 0 ? ` · saldo ${gs(row.outstandingPyg)}` : ''}</span>
+                  <span className="mt-0.5 block text-xs text-mute">{plural(row.orderCount, 'compra', 'compras')} · última {row.lastOrderAt ? fecha(row.lastOrderAt) : 'sin compras'} · {row.phone ? telefonoVisible(row.phone, row.countryCode) : 'sin teléfono'} · {gs(row.totalSpentPyg)}{row.outstandingPyg > 0 ? ` · saldo ${gs(row.outstandingPyg)}` : ''}</span>
                 </span>
               </label>
             ))}
@@ -172,7 +174,7 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
         {resultado && (
           <Card className="space-y-2">
             <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">
-              Campaña «{resultado.campaign?.name}» registrada: {resultado.recipients?.length || 0} mensaje(s) listos, {resultado.skipped?.length || 0} omitido(s). Los contactados no vuelven a aparecer en la ventana de enfriamiento.
+              Campaña «{resultado.campaign?.name}» registrada: {plural(resultado.recipients?.length || 0, 'mensaje listo', 'mensajes listos')}, {plural(resultado.skipped?.length || 0, 'omitido', 'omitidos')}. Los contactados no vuelven a aparecer en la ventana de enfriamiento.
             </p>
             {resultado.recipients?.map((row) => (
               <div key={row.customerId} data-testid="marketing-destinatario" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 p-2.5">
@@ -194,7 +196,7 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
               {campanas.map((item) => (
                 <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 px-3 py-2 text-xs">
                   <span className="truncate"><b className="text-sm">{item.name}</b> · {fecha(item.createdAt)} · {item.createdBy?.name || 'Sistema'}</span>
-                  <span className="text-mute">{item.recipientCount} enviado(s) · {item.skippedCount} omitido(s)</span>
+                  <span className="text-mute">{plural(item.recipientCount, 'enviado', 'enviados')} · {plural(item.skippedCount, 'omitido', 'omitidos')}</span>
                 </div>
               ))}
             </div>

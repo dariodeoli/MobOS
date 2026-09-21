@@ -46,7 +46,7 @@ const fechaTexto = (valor) => {
 }
 const fechaHoraTexto = (valor) => {
   const fecha = valor ? new Date(valor) : null
-  return fecha && !Number.isNaN(fecha.getTime()) ? fecha.toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : ''
+  return fecha && !Number.isNaN(fecha.getTime()) ? fecha.toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false }) : ''
 }
 const nombreTipo = (pricingTier) => (pricingTier === 'WHOLESALE' ? 'Mayorista' : 'Cliente final')
 const saldoOrden = (order) => Number(order?.pendingPyg ?? order?.balancePyg ?? 0)
@@ -90,7 +90,7 @@ export function seccionesInforme({ customer = {}, orders = [], warranties = [], 
     },
     {
       titulo: 'Datos de facturación',
-      filas: [['Razón social', 'RUC', 'Uso'], ...identidades.map((item) => [item.name || '', item.document || '', item.uses === '' || item.uses === undefined ? '' : `${item.uses} pedido(s)`])],
+      filas: [['Razón social', 'RUC', 'Uso'], ...identidades.map((item) => [item.name || '', item.document || '', item.uses === '' || item.uses === undefined ? '' : `${item.uses} ${Number(item.uses) === 1 ? 'pedido' : 'pedidos'}`])],
     },
     {
       titulo: 'Direcciones',

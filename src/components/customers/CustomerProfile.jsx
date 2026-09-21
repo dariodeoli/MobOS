@@ -77,7 +77,7 @@ const STATUS_BADGE = (map, value) => {
   return item ? <Badge color={item.color}>{item.label}</Badge> : <Badge>{value || 'Sin estado'}</Badge>
 }
 const fecha = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString('es-PY') : '—')
-const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
+const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false }) : '—')
 const antiguedadTexto = (dias) => {
   const total = Number(dias || 0)
   if (!total) return '—'
@@ -1578,7 +1578,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
                   <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Tipo</p>
-                  <p className="mt-1 text-sm font-semibold">{mayorista ? 'Mayorista' : 'Final'}</p>
+                  <p className="mt-1 text-sm font-semibold">{mayorista ? 'Mayorista' : 'Cliente final'}</p>
                 </div>
                 <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
                   <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Crédito habilitado</p>

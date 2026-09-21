@@ -35,7 +35,7 @@ const fechaTexto = (valor) => {
 }
 const fechaHoraTexto = (valor) => {
   const fecha = valor ? new Date(valor) : null
-  return fecha && !Number.isNaN(fecha.getTime()) ? fecha.toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : ''
+  return fecha && !Number.isNaN(fecha.getTime()) ? fecha.toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false }) : ''
 }
 
 /** Frase mínima y honesta según lo verificado (nunca "limpio" por defecto). */

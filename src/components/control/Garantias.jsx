@@ -159,7 +159,7 @@ export default function Garantias() {
         {visible.map((item) => {
           const vence = vencimientoGarantia(item)
           const serial = String(item.serial || '')
-          const detalle = [item.diagnosis ? `Diagnóstico: ${item.diagnosis}` : '', item.resolution ? `Resolución: ${item.resolution}` : '', item.repairCostPyg ? `Costo: ${gs(item.repairCostPyg)}` : '', item.responsibleName ? `Resp: ${item.responsibleName}` : '', item.parts?.length ? `Repuestos: ${item.parts.join(', ')}` : '', item.photos?.length ? `${item.photos.length} foto(s)` : ''].filter(Boolean).join(' · ')
+          const detalle = [item.diagnosis ? `Diagnóstico: ${item.diagnosis}` : '', item.resolution ? `Resolución: ${item.resolution}` : '', item.repairCostPyg ? `Costo: ${gs(item.repairCostPyg)}` : '', item.responsibleName ? `Resp: ${item.responsibleName}` : '', item.parts?.length ? `Repuestos: ${item.parts.join(', ')}` : '', item.photos?.length ? `${item.photos.length} ${item.photos.length === 1 ? 'foto' : 'fotos'}` : ''].filter(Boolean).join(' · ')
           return <div key={item.id} data-testid="garantia-fila" className={cn(GRID_GARANTIAS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
             <span className="truncate text-sm font-semibold" title={item.customerName}>{item.customerName || 'Sin cliente'}</span>
             <SerialTexto serial={serial} className="truncate text-[11px] text-fono-light" />
