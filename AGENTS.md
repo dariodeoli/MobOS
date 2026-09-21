@@ -13,6 +13,7 @@ Reglas organizadas por rol. **Worktrees = agentes. Orquestador coordina; Integra
 - Tokens, enlaces y sesiones: seguí `docs/TOKENS.md` (64 hex, solo `sha256` en la base, reloj de Postgres, un solo uso atómico); los enlaces de correo siempre con enlace de respaldo visible.
 - Fotos de personas: usá siempre el `Avatar` compartido (foto subida → foto de Google → iniciales) y seguí `docs/AVATAR.md`; listados y grillas, `docs/TABLAS.md`. Inventario de objetos reutilizables: `docs/PLANTILLA-OBJETOS.md`.
 - **Pedidos de Dario:** cada pedido vive como issue de GitHub (backlog canónico) — la abre el orquestador y el slot la cita con commits al entregar. Nada se trabaja "de memoria".
+- **Novedades para el dueño:** todo handover y todo cierre de issue incluye un bloque `Novedades para el dueño` (2-5 bullets en lenguaje de producto, sin jerga técnica). El registro acumulativo vive en `docs/NOVEDADES.md` y el integrador lo actualiza en cada integración con la versión publicada.
 - **Migraciones:** aditivas, idempotentes y re-ejecutables (`IF NOT EXISTS` cuando otra migración pudo crear el objeto antes). Los seeds no dependen de "si el dato no existe, salir": guards por conteo + `ON CONFLICT`.
 
 ---
@@ -30,7 +31,7 @@ Reglas organizadas por rol. **Worktrees = agentes. Orquestador coordina; Integra
 
 1. **Solo tu rama.** Trabajás únicamente en tu worktree y en tu rama asignada. Pusheás a `origin/<tu-rama>`. **Nunca** mergeás ni pusheás a `main` (el hook `pre-push` lo bloquea y la branch protection exige CI).
 2. **Rebase antes de empezar y antes de entregar:** `git fetch origin && git rebase origin/main`. Si después del rebase el diff neto contra `origin/main` queda vacío, la rama quedó superseded: se descarta y se avisa. Trabajar sobre main viejo **revierte features al mergear** — es la causa número uno de trabajo de reparación.
-3. **Handover obligatorio:** al terminar, pusheás tu rama y avisás con: rama, `git log --oneline origin/main..HEAD`, qué hace cada commit, rutas tocadas y resultado de verificaciones.
+3. **Handover obligatorio:** al terminar, pusheás tu rama y avisás con: rama, `git log --oneline origin/main..HEAD`, qué hace cada commit, rutas tocadas, resultado de verificaciones y un bloque **Novedades para el dueño** (2-5 bullets en lenguaje de producto, ver `docs/NOVEDADES.md`).
 4. **Checks de entrega obligatorios antes de pushear** (si alguno falla, la rama no se entrega):
    1. `npm run lint` con 0 errores.
    2. `npm run build` exit 0 y `npm --prefix backend run build` exit 0 **con `backend/.next/BUILD_ID` creado** (el build falla en voz alta aunque imprima "Compiled successfully").
@@ -64,7 +65,7 @@ Reglas organizadas por rol. **Worktrees = agentes. Orquestador coordina; Integra
    3. Por integración: `npm run lint` · builds FE/BE (con `BUILD_ID`) · `npm test` + `test:unit` · `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` · `npm run test:e2e:smoke`.
    4. Con todo integrado: **suite completa** `npm run test:e2e` (gate de release).
    5. Push a main con `MOBOS_INTEGRATOR=1`.
-   6. Release + deploy: `MOBOS_INTEGRATOR=1 npm run release:publish` (bump de patch + push + webhook de Coolify).
+   6. Release + deploy: actualizá `docs/NOVEDADES.md` con la sección `## vX — fecha` (novedades en lenguaje de producto, por módulo) y recién después `MOBOS_INTEGRATOR=1 npm run release:publish` (bump de patch + push + webhook de Coolify).
    7. Verificar producción: `npm run release:smoke` (esperar el deploy con reintentos).
 5. **Conflictos de merge → PARÁS y consultás con Dario; nunca resolvés en silencio.** Si una rama quedó superseded por main: resolver del lado de main y verificar diff neto vacío; si hay trabajo real en conflicto, se para y se avisa.
 6. **Velocidad (implementado):**
@@ -72,7 +73,7 @@ Reglas organizadas por rol. **Worktrees = agentes. Orquestador coordina; Integra
    - Reset por snapshot de la base e2e (`/tmp/mobos-e2e-snapshot-*.dump`, automático en `global-setup`; se invalida solo si cambian las migraciones).
    - Aislamiento por worktree con `MOBOS_E2E_*` (también para tus corridas si usás worktrees).
 7. **Sincronizar checkouts locales de `main` (ff-only)** después del push.
-8. **Issues:** cerrás issues solo después de verificar por contenido contra `origin/main` (citando el commit que lo implementa).
+8. **Issues:** cerrás issues solo después de verificar por contenido contra `origin/main` (citando el commit que lo implementa) e incluís en el cierre el bloque **Novedades para el dueño** (2-5 bullets, ver `docs/NOVEDADES.md`).
 9. **Refs rotas:** backup a /tmp antes de tocar y reportás todo.
 
 ---

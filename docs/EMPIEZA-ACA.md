@@ -23,7 +23,7 @@ están enlazados al final de cada sección.
 - **Docs**: `AGENTS.md` (reglas), `docs/CAMPOS.md` (campos), `docs/PLANTILLA-CAMPOS.md`,
   `docs/PLANTILLA-AGENTS.md`, `docs/PLANTILLA-OBJETOS.md`, `docs/TABLAS.md`,
   `docs/TOKENS.md`, `docs/IMPRESION.md`, `docs/AVATAR.md`, `docs/BACKUP.md`,
-  `docs/REDISENO.md`.
+  `docs/REDISENO.md`, `docs/NOVEDADES.md` (novedades por versión para el dueño).
 
 ## 2. Reglas de trabajo (resumen; el detalle está en `AGENTS.md`)
 
