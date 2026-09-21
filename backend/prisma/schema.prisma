@@ -1058,6 +1058,9 @@ model Order {
   archivedAt        DateTime?
   // Última vez que se avisó al cliente por WhatsApp sobre este pedido.
   notifiedAt        DateTime?
+  // Venta cargada sin conexión (POS offline) y sincronizada después: el stock
+  // pudo quedar laxo, así que queda marcada para revisión.
+  offlineSyncedAt   DateTime?
   totalPyg          Int
   // Comprobante congelado al emitir la venta: lo que se imprimió o mostró no
   // cambia aunque después se edite el producto, el cliente o la empresa.

@@ -508,6 +508,8 @@ echo "Combos: la línea del pedido recuerda el combo (validación por empresa)..
 node "$BACKEND_ROOT/tests/order-combos.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 echo "Fidelización: la venta acredita puntos (ACCRUAL) y con 0 no acredita..."
 node "$BACKEND_ROOT/tests/order-loyalty.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
+echo "POS offline: venta sincronizada con stock laxo, marca e idempotencia..."
+node "$BACKEND_ROOT/tests/order-offline.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 out="$(response_file)"; COMPANY_TOKEN_C="$(auth_cookie POST /api/auth/login 200 '{"email":"company-c-it@example.invalid","password":"company-password-it","deviceId":"device-c-it"}' "$out" '' mobos_company_session)"
 out="$(response_file)"; ADMIN_TOKEN_C="$(auth_cookie POST /api/auth/pin 200 '{"sellerId":"user-c-admin-it","pin":"2468"}' "$out" "$COMPANY_TOKEN_C" mobos_seller_session)"
 node "$BACKEND_ROOT/tests/store-branch.mjs" "$BASE_URL" "$ADMIN_TOKEN_C"

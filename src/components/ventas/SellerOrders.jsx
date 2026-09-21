@@ -49,6 +49,7 @@ export const orderFields = (row) => {
     notes: row.notes || row.observacion || '',
     subtotalPyg: row.subtotalPyg, discountPyg: row.discountPyg, deliveryPyg: row.deliveryPyg,
     tags: Array.isArray(row.tags) ? row.tags : [], archivedAt: row.archivedAt || null,
+    offlineSyncedAt: row.offlineSyncedAt || null,
     isSpecialOrder: row.isSpecialOrder === true || row.specialOrder === true,
     expectedAt: row.expectedAt || null,
   }
@@ -152,6 +153,14 @@ function FilaPedido({ row, onClick, onAcciones }) {
               title={row.expectedAt && !Number.isNaN(Date.parse(row.expectedAt)) ? `Pedido especial · esperado ${new Date(row.expectedAt).toLocaleDateString('es-PY')}` : 'Pedido especial'}
             >
               Especial
+            </span>
+          )}
+          {row.offlineSyncedAt && (
+            <span
+              className="shrink-0 rounded border border-warn/30 bg-warn/10 px-1 py-px text-[9px] font-bold uppercase tracking-wide text-warn"
+              title={`Venta cargada sin conexión el ${new Date(row.offlineSyncedAt).toLocaleString('es-PY')}: revisá el stock`}
+            >
+              Offline
             </span>
           )}
         </span>
