@@ -6,11 +6,13 @@ import { cn } from '@/lib/utils'
 import { whatsappUrl } from '@/components/customers/customerMessaging'
 import { renderPlantilla } from '@/lib/whatsappPlantillas'
 
-// Menú reutilizable de envío por WhatsApp: un botón con ícono send abre el
-// popover de plantillas de la categoría pedida. Al elegir una, arma el mensaje
-// con renderPlantilla y abre wa.me. Si `onSent` existe se lo llama antes de
-// abrir: puede devolver el enlace definitivo (por ejemplo, armado en el API) y
-// así marcar el envío en el servidor.
+// Menú reutilizable de WhatsApp (Clientes, Pedidos, Servicio Técnico y
+// módulos futuros): el botón principal abre el chat con la última plantilla
+// usada (o la predeterminada) sin enviar nada por sí solo; el botón chico de
+// al lado abre el popover para elegir plantilla, editar el mensaje y
+// previsualizarlo antes de abrir el chat. Si `onSent` existe se lo llama antes
+// de abrir y puede devolver el enlace definitivo (por ejemplo, armado en el
+// API) para marcar el envío en el servidor.
 export default function WhatsAppMenu({
   telefono,
   countryCode = '+595',
@@ -31,6 +33,7 @@ export default function WhatsAppMenu({
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [elegidaId, setElegidaId] = useState(() => (storageKey ? localStorage.getItem(storageKey) : '') || '')
+  const [mensajeEditado, setMensajeEditado] = useState('')
   const caja = useRef(null)
 
   useEffect(() => {
@@ -63,26 +66,35 @@ export default function WhatsAppMenu({
   const valores = {
     empresa: empresa?.nombre || '',
     sucursal: sucursal?.nombre || '',
+    usuario: sesion?.nombre || '',
     vendedor: sesion?.nombre || '',
     ...contexto,
   }
+
+  // La vista previa editable arranca con la plantilla elegida y se descarta al
+  // cerrar: nunca se guarda el borrador sobre la plantilla.
+  useEffect(() => {
+    if (!abierto) return
+    setMensajeEditado(elegida ? renderPlantilla(elegida.body, valores) : '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abierto, elegida?.id])
 
   function reintentar() {
     setCargado(false)
     setError('')
   }
 
-  async function enviar(plantilla) {
+  async function abrirChat(plantilla, mensaje) {
     if (!plantilla || enviando) return
     setElegidaId(plantilla.id)
     if (storageKey) localStorage.setItem(storageKey, plantilla.id)
     setAbierto(false)
     setEnviando(true)
-    const mensaje = renderPlantilla(plantilla.body, valores)
+    const texto = typeof mensaje === 'string' && mensaje.trim() ? mensaje : renderPlantilla(plantilla.body, valores)
     try {
-      let url = whatsappUrl(telefono, mensaje, countryCode)
+      let url = whatsappUrl(telefono, texto, countryCode)
       if (onSent) {
-        const resultado = await onSent({ template: plantilla, message: mensaje, url })
+        const resultado = await onSent({ template: plantilla, message: texto, url })
         if (typeof resultado === 'string' && resultado) url = resultado
       }
       if (url) window.open(url, '_blank', 'noopener,noreferrer')
@@ -92,23 +104,57 @@ export default function WhatsAppMenu({
     } finally { setEnviando(false) }
   }
 
+  // Botón principal: usa la última plantilla preparada. Si todavía no se
+  // cargaron las plantillas, las pide y recién ahí abre el chat.
+  async function abrirDirecto() {
+    if (disabled || enviando) return
+    if (cargado) {
+      if (elegida) abrirChat(elegida)
+      else setAbierto(true)
+      return
+    }
+    setCargando(true); setError('')
+    try {
+      const rows = await api.get(`/api/message-templates?category=${encodeURIComponent(category)}`)
+      const activasRemotas = (Array.isArray(rows) ? rows : []).filter((item) => item.isActive !== false && (!item.category || item.category === category))
+      setLista(Array.isArray(rows) ? rows : [])
+      setCargado(true)
+      const principal = activasRemotas.find((item) => item.id === elegidaId) || activasRemotas.find((item) => item.isDefault) || activasRemotas[0] || null
+      if (principal) await abrirChat(principal)
+      else setAbierto(true)
+    } catch (cause) {
+      setError(cause?.message || 'No se pudieron cargar las plantillas.')
+      setAbierto(true)
+    } finally { setCargando(false) }
+  }
+
   if (!telefono) return null
 
   return (
-    <span ref={caja} className={cn('relative inline-flex', className)}>
+    <span ref={caja} className={cn('relative inline-flex items-center', className)}>
       <button
         type="button"
         disabled={disabled || enviando}
         aria-label={title ? `Enviar WhatsApp a ${title}` : 'Enviar WhatsApp'}
-        aria-expanded={abierto}
-        title={disabled ? 'No disponible' : 'Enviar por WhatsApp'}
-        onClick={(event) => { event.stopPropagation(); setAbierto((current) => !current) }}
+        title={disabled ? 'No disponible' : 'Abrir WhatsApp con la última plantilla'}
+        onClick={(event) => { event.stopPropagation(); abrirDirecto() }}
         className={cn('grid h-8 w-8 place-items-center rounded-lg transition', disabled || enviando ? 'cursor-not-allowed text-mute' : 'text-ok hover:bg-ok/10')}
       >
         <Icon name="send" className="h-4 w-4" />
       </button>
+      <button
+        type="button"
+        disabled={disabled || enviando}
+        aria-label={title ? `Elegir plantilla de WhatsApp para ${title}` : 'Elegir plantilla de WhatsApp'}
+        aria-expanded={abierto}
+        title="Elegir plantilla, editar y previsualizar"
+        onClick={(event) => { event.stopPropagation(); setAbierto((current) => !current) }}
+        className={cn('grid h-5 w-4 place-items-center rounded transition', disabled || enviando ? 'cursor-not-allowed text-mute' : 'text-mute hover:text-ok')}
+      >
+        <Icon name="chevron" className="h-3 w-3" />
+      </button>
       {abierto && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-72 rounded-xl border border-ink-500 bg-paper p-2 text-left shadow-xl" onClick={(event) => event.stopPropagation()}>
+        <div className="absolute right-0 top-full z-30 mt-1 w-80 rounded-xl border border-ink-500 bg-paper p-2 text-left shadow-xl" onClick={(event) => event.stopPropagation()} role="dialog" aria-label="Plantillas de WhatsApp">
           <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-mute">Plantilla de WhatsApp</p>
           {cargando && <p className="px-2 py-1 text-xs text-mute">Cargando plantillas…</p>}
           {!cargando && error && (
@@ -116,13 +162,13 @@ export default function WhatsAppMenu({
           )}
           {!cargando && !error && !activas.length && <p className="px-2 py-1 text-xs text-mute">No hay plantillas activas en esta categoría.</p>}
           {activas.length > 0 && (
-            <div className="max-h-56 overflow-y-auto">
+            <div className="max-h-40 overflow-y-auto">
               {activas.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   disabled={enviando}
-                  onClick={() => enviar(item)}
+                  onClick={() => { setElegidaId(item.id); if (storageKey) localStorage.setItem(storageKey, item.id); setMensajeEditado(renderPlantilla(item.body, valores)) }}
                   className={cn('flex w-full items-center gap-1.5 truncate rounded-lg px-2 py-1.5 text-left text-xs transition hover:bg-ink-700', item.id === elegida?.id ? 'text-fono-light' : 'text-fore')}
                 >
                   {item.isDefault && <Icon name="check" className="h-3 w-3" />}
@@ -131,7 +177,34 @@ export default function WhatsAppMenu({
               ))}
             </div>
           )}
-          {elegida && !error && <p className="mt-1 rounded-lg bg-ink-800/60 px-2 py-1.5 text-[11px] leading-4 text-mute">{renderPlantilla(elegida.body, valores)}</p>}
+          {elegida && !error && (
+            <div className="mt-1.5 space-y-1.5 border-t border-ink-600 pt-1.5">
+              <textarea
+                aria-label="Mensaje de WhatsApp"
+                rows={5}
+                value={mensajeEditado}
+                onChange={(event) => setMensajeEditado(event.target.value)}
+                className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 px-2.5 py-2 text-xs leading-5 text-fore outline-none transition placeholder:text-mute/60 focus:border-fono focus:ring-1 focus:ring-fono/40"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  className="text-[11px] font-semibold text-mute transition hover:text-fore"
+                  onClick={() => setMensajeEditado(renderPlantilla(elegida.body, valores))}
+                >
+                  Restaurar mensaje
+                </button>
+                <button
+                  type="button"
+                  disabled={enviando || !mensajeEditado.trim()}
+                  onClick={() => abrirChat(elegida, mensajeEditado)}
+                  className="rounded-lg bg-ok px-3 py-1.5 text-xs font-semibold text-black transition hover:brightness-110 disabled:opacity-50"
+                >
+                  {enviando ? 'Abriendo…' : 'Abrir WhatsApp'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </span>

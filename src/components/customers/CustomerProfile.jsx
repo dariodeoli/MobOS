@@ -11,7 +11,7 @@ import { PERIODOS_INFORME, rangoPeriodo, seccionesInforme, informeCsv, nombreArc
 import QRCode from 'qrcode'
 import SerialTexto from '@/components/shared/SerialTexto'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
-import { whatsappUrl } from './customerMessaging'
+import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
 import ActorAvatar from './ActorAvatar'
@@ -976,15 +976,22 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 </Button>
               )}
               {phone && (
-                <a
-                  className="inline-flex items-center gap-2 rounded-lg bg-ok px-4 py-2 text-sm font-semibold text-black transition hover:brightness-110"
-                  href={whatsappUrl(phone, `Hola ${profile.customer?.name || customer?.name || ''}, te escribimos de MobOS.`, customer?.countryCode)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Icon name="send" className="h-4 w-4" />
-                  Enviar WhatsApp
-                </a>
+                <span className="inline-flex items-center gap-1 rounded-lg border border-ok/30 bg-ok/5 px-1.5 py-0.5">
+                  <WhatsAppMenu
+                    telefono={phone}
+                    countryCode={profile.customer?.countryCode || customer?.countryCode}
+                    category="CUSTOMERS"
+                    storageKey="mobos:clientes:plantilla-wa"
+                    title={profile.customer?.name || customer?.name}
+                    contexto={{
+                      cliente: profile.customer?.name || customer?.name || '',
+                      nombre: profile.customer?.name || customer?.name || '',
+                      saldo_pendiente: deuda > 0 ? formatGs(deuda) : '',
+                      producto: dispositivos[0]?.model || '',
+                      ultima_compra: ultimaCompra ? fecha(ultimaCompra) : '',
+                    }}
+                  />
+                </span>
               )}
             </span>
           </header>

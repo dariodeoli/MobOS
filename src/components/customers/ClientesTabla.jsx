@@ -14,7 +14,7 @@ import { useToast } from '@/components/ui'
 // acciones compactas (perfil al hacer clic, WhatsApp con plantilla). Entra sin
 // scroll horizontal en desktop: todo trunca y el espacio se reparte con
 // prioridad Cliente → Total gastado → Teléfono → Tipo → resto.
-const GRID = 'grid min-w-[58rem] grid-cols-[1.5rem_minmax(0,1.7fr)_minmax(0,0.75fr)_minmax(0,0.95fr)_2.5rem_minmax(0,0.7fr)_minmax(0,0.75fr)_minmax(0,0.4fr)_minmax(0,1.2fr)_2.5rem_2.5rem] items-center gap-x-2'
+const GRID = 'grid min-w-[58rem] grid-cols-[1.5rem_minmax(0,1.7fr)_minmax(0,0.75fr)_minmax(0,0.95fr)_2.5rem_minmax(0,0.7fr)_minmax(0,0.75fr)_minmax(0,0.4fr)_minmax(0,1.2fr)_2.5rem_4.5rem] items-center gap-x-2'
 const ULTIMA_PLANTILLA = 'mobos:clientes:plantilla-wa'
 
 const ciudadDe = (row) => row.addresses?.find(address => address.city)?.city || ''
