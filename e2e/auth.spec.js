@@ -85,3 +85,52 @@ test('el portal de clientes puede llamar al API por CORS', async ({ request }) =
   const ajeno = await request.get(`${API}/api/health`, { headers: { Origin: 'https://otro.example' } })
   expect(ajeno.headers()['access-control-allow-origin']).toBeUndefined()
 })
+
+// Demo (#187/#189): el clic en la fila abre la ficha con los datos del
+// navegador y ?cliente= resuelve contra la demo, sin pegarle al API real.
+test('demo: la ficha del cliente abre sin sesión y no consulta el API', async ({ page }) => {
+  const apiClientes = []
+  page.on('request', (request) => { if (/\/api\/customers\/|\/api\/message-templates/.test(request.url())) apiClientes.push(request.url()) })
+
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Dueño/ }).first().click()
+  await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
+  await page.locator('aside nav, nav').first().getByRole('button', { name: 'Clientes', exact: true }).click()
+  await expect(page.getByRole('button', { name: '+ Crear cliente' })).toBeVisible()
+
+  const marca = `DEMOQA${Date.now().toString(36).toUpperCase()}`
+  await page.getByRole('button', { name: '+ Crear cliente' }).click()
+  await page.getByLabel('Primer nombre', { exact: true }).fill('Ficha')
+  await page.getByLabel(/Segundo nombre/).fill(marca)
+  const modalAlta = page.locator('form').filter({ hasText: 'Límite de crédito (Gs)' })
+  await modalAlta.getByPlaceholder('981 123 456').fill('0981222333')
+  await page.getByRole('button', { name: 'Guardar cliente' }).click()
+  await page.getByLabel('Buscar clientes').fill(marca)
+
+  const fila = page.getByTestId('cliente-fila').filter({ hasText: marca }).first()
+  await expect(fila).toBeVisible()
+  await fila.click()
+  const ficha = page.getByRole('dialog')
+  await expect(ficha.getByRole('heading', { name: new RegExp(marca) })).toBeVisible()
+  await expect(ficha.getByText(/Modo demo/)).toBeVisible()
+  // Las acciones de la ficha quedan deshabilitadas en demo.
+  await ficha.getByRole('tab', { name: /^Datos/ }).click()
+  await expect(ficha.getByRole('button', { name: 'Guardar notas' })).toBeDisabled()
+  await expect(ficha.getByRole('switch', { name: 'Seguro del cliente activo' })).toBeDisabled()
+  // El menú de WhatsApp usa las plantillas demo (sin ir al API).
+  await ficha.getByRole('button', { name: new RegExp(`Elegir plantilla de WhatsApp para`) }).click()
+  await expect(page.getByRole('dialog', { name: 'Plantillas de WhatsApp' }).getByText('Pedido listo para retirar')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('Escape')
+
+  // ?cliente=<id demo> abre la misma ficha (resuelto contra el navegador).
+  const idDemo = await page.evaluate(() => {
+    const filas = JSON.parse(localStorage.getItem('mobos:demo-customers:v1') || '[]')
+    return (filas.find((row) => String(row.name || '').includes('DEMOQA')) || {}).id || ''
+  })
+  expect(idDemo).toBeTruthy()
+  await page.goto(`/clientes?cliente=${encodeURIComponent(idDemo)}`)
+  await expect(page.getByRole('dialog').getByText(/Modo demo/)).toBeVisible()
+
+  expect(apiClientes, `la demo no debe consultar el API real: ${apiClientes.join(', ')}`).toEqual([])
+})

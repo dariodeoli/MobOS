@@ -70,7 +70,7 @@ export const customerFields = (row) => {
   const phones = Array.from(new Set([phone, ...(row.phones || []), ...metadata.phones].filter(Boolean)))
   const legacyAddress = typeof row.notes === 'string' && row.notes.startsWith('Dirección: ') ? row.notes.slice('Dirección: '.length) : ''
   const addresses = Array.isArray(row.addresses) ? row.addresses : row.address || legacyAddress ? [{ id: 'legacy', label: 'Principal', address: row.address || legacyAddress }] : []
-  return { id: row.id, name: row.name || '', document: row.document || '', email: row.email || '', phone, phones, countryCode: row.countryCode || '+595', billingName: row.billingName || '', billingDocument: row.billingDocument || '', notes: typeof row.notes === 'string' ? row.notes : '', address: addresses[0]?.address || '', addresses, externalId: row.externalId || '', acceptsEmailMarketing: row.acceptsEmailMarketing === true, acceptsSmsMarketing: row.acceptsSmsMarketing === true, acceptsWhatsappMarketing: row.acceptsWhatsappMarketing === true, taxExempt: row.taxExempt === true, tags: Array.isArray(row.tags) ? row.tags : [], pricingTier: row.pricingTier || 'RETAIL', creditLimitPyg: row.creditLimitPyg ?? null, creditDays: row.creditDays ?? null }
+  return { id: row.id, name: row.name || '', firstName: row.firstName || '', secondName: row.secondName || '', createdAt: row.createdAt || '', document: row.document || '', email: row.email || '', phone, phones, countryCode: row.countryCode || '+595', billingName: row.billingName || '', billingDocument: row.billingDocument || '', notes: typeof row.notes === 'string' ? row.notes : '', address: addresses[0]?.address || '', addresses, externalId: row.externalId || '', acceptsEmailMarketing: row.acceptsEmailMarketing === true, acceptsSmsMarketing: row.acceptsSmsMarketing === true, acceptsWhatsappMarketing: row.acceptsWhatsappMarketing === true, taxExempt: row.taxExempt === true, tags: Array.isArray(row.tags) ? row.tags : [], pricingTier: row.pricingTier || 'RETAIL', creditLimitPyg: row.creditLimitPyg ?? null, creditDays: row.creditDays ?? null }
 }
 export function readDemoCustomers() {
   const rows = JSON.parse(localStorage.getItem(DEMO_CUSTOMERS_KEY) || '[]')
@@ -114,7 +114,14 @@ export default function SellerCustomers() {
   const nombreRef = useRef(null)
   useEffect(() => { setSearch(busquedaDiferida.trim()) }, [busquedaDiferida])
   useEffect(() => { if (qParam) setQuery(qParam) }, [qParam])
-  useEffect(() => { if (clienteParam) setProfileCustomer({ id: clienteParam }) }, [clienteParam])
+  // En demo, ?cliente= se resuelve contra las fichas del navegador (#189); con
+  // sesión real se abre por id y el perfil lo trae del API.
+  useEffect(() => {
+    if (!clienteParam) return
+    if (!esDemo) { setProfileCustomer({ id: clienteParam }); return }
+    const encontrado = readDemoCustomers().find((row) => row.id === clienteParam)
+    if (encontrado) setProfileCustomer(encontrado)
+  }, [clienteParam, esDemo])
   // Búsqueda y filtros van al servidor (cubren todas las fichas del tenant, no
   // solo la página cargada); el hook pagina con cursor para "Cargar más".
   const path = useMemo(() => {
@@ -185,7 +192,7 @@ export default function SellerCustomers() {
       if (phones.some((phone) => !telefonoValido(phone, form.countryCode || '+595'))) throw new Error(MENSAJE_TELEFONO)
       const addresses = form.addresses.filter((address) => address.address.trim()).map((address, index) => ({ label: address.label.trim() || `Dirección ${index + 1}`, address: address.address.trim(), ...(address.city.trim() ? { city: address.city.trim() } : {}), ...(address.department?.trim() ? { department: address.department.trim() } : {}), country: address.country?.trim() || 'Paraguay', isDefault: index === 0 }))
       if (esDemo) {
-        const customer = { id: crypto.randomUUID(), name: nombre, firstName, secondName, document: form.document.trim(), email: form.email.trim(), phone: phones[0] || '', phones, countryCode: form.countryCode || '+595', addresses, acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20) }
+        const customer = { id: crypto.randomUUID(), name: nombre, firstName, secondName, createdAt: new Date().toISOString(), document: form.document.trim(), email: form.email.trim(), phone: phones[0] || '', phones, countryCode: form.countryCode || '+595', addresses, acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20) }
         localStorage.setItem(DEMO_CUSTOMERS_KEY, JSON.stringify([...readDemoCustomers(), customer]))
       } else {
         const saved = await api.post('/api/customers', { name: nombre, firstName, secondName, document: form.document.trim() || undefined, email: form.email.trim() || undefined, phone: phones[0] || undefined, countryCode: form.countryCode || '+595', addresses, notes: customerMetadata(phones), acceptsEmailMarketing: form.acceptsEmailMarketing, acceptsSmsMarketing: form.acceptsSmsMarketing, acceptsWhatsappMarketing: form.acceptsWhatsappMarketing, taxExempt: form.taxExempt, tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20), pricingTier: form.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL', ...(form.priceListId ? { priceListId: form.priceListId } : {}), ...(String(form.creditLimitPyg).trim() ? { creditLimitPyg: Number(String(form.creditLimitPyg).replace(/\D/g, '')) } : {}), ...(String(form.creditDays).trim() ? { creditDays: Number(String(form.creditDays).replace(/\D/g, '')) } : {}) })
@@ -283,8 +290,8 @@ export default function SellerCustomers() {
         ))}</div>
       </section>
     )}
-    {!data.loading && !data.error && vista === 'grid' && <ul className="grid gap-3 sm:grid-cols-2">{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={plantillasClientes} onViewProfile={esDemo ? undefined : setProfileCustomer} />)}</ul>}
-    {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={esDemo ? undefined : setProfileCustomer} />}
+    {!data.loading && !data.error && vista === 'grid' && <ul className="grid gap-3 sm:grid-cols-2">{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={plantillasClientes} onViewProfile={setProfileCustomer} />)}</ul>}
+    {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={setProfileCustomer} />}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
     <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={cerrarPerfil} />
     {!templateData.loading && templateData.error && <p className="rounded-xl border border-amber-400/30 bg-amber-300/10 p-3 text-sm text-warn">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</p>}
