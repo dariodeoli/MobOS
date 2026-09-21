@@ -3,6 +3,7 @@ import { error, json, tenantId } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
 import { serialKey } from '../../../../lib/validation'
 import { changeStock } from '../../../../lib/stock'
+import { INVENTORY_PHYSICALLY_VERIFIED } from '../../../../lib/inventory'
 
 const branchAllowed = (role: string, assigned: string | null, branchId: string | null) => !['VENDEDOR', 'CAJERA'].includes(role) || assigned === branchId
 const text = (value: unknown, max = 128) => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= max ? value.trim() : null
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
   const now = new Date()
   try {
     const result = await prisma.$transaction(async tx => {
-      const units = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, serial: { in: serials }, status: { not: 'SOLD' } }, select: { id: true, serial: true, branchId: true, status: true, productId: true } })
+      const units = await tx.inventoryUnit.findMany({ where: { tenantId: tenant, serial: { in: serials }, status: { not: 'SOLD' } }, select: { id: true, serial: true, branchId: true, status: true, productId: true, locationId: true } })
       if (units.length !== serials.length) throw new Error('Uno o más equipos no existen, ya fueron vendidos o no se pueden verificar.')
       if (units.some(unit => !branchAllowed(session.user.role, session.user.branchId, unit.branchId))) throw new Error('No autorizado para verificar equipos de otra sucursal.')
       let received = 0
@@ -56,7 +57,26 @@ export async function POST(request: Request) {
           await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'STOCK_TRANSFER_RECEIVED', entity: 'StockTransfer', entityId: transfer.id, metadata: { serials: delTraslado } } })
         }
       }
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_PHYSICALLY_VERIFIED', entity: 'InventoryUnit', metadata: { serials: units.map(unit => unit.serial), verifiedAt: now.toISOString(), receivedInTransit: received, locationId } } })
+      // Un evento por unidad: la cronología de cada equipo muestra quién la
+      // verificó físicamente, cuándo y dónde quedó.
+      await tx.auditLog.createMany({
+        data: units.map(unit => {
+          const llegoEnTransito = unit.status === 'IN_TRANSIT'
+          return {
+            tenantId: tenant,
+            userId: session.user.id,
+            action: INVENTORY_PHYSICALLY_VERIFIED,
+            entity: 'InventoryUnit',
+            entityId: unit.id,
+            metadata: {
+              serial: unit.serial,
+              verifiedAt: now.toISOString(),
+              locationId: llegoEnTransito ? locationId : unit.locationId ?? null,
+              ...(llegoEnTransito ? { receivedInTransit: true } : {}),
+            },
+          }
+        }),
+      })
       return { verified: units.length, receivedInTransit: received, verifiedAt: now.toISOString(), serials: units.map(unit => unit.serial) }
     })
     return json(result)

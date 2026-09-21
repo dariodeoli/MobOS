@@ -5,6 +5,7 @@ import { canAccessAny, requireSession } from '../../../lib/auth'
 import { ensureStoreBranch } from '../../../lib/store-branch'
 import { skuUnico } from '../../../lib/sku'
 import { serialKey } from '../../../lib/validation'
+import { INVENTORY_UNIT_RECEIVED, liberarReservasVencidas } from '../../../lib/inventory'
 
 // Variante estructurada: texto libre acotado; vacío se guarda como null.
 const variantField = (value: unknown, max: number) => typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null
@@ -31,7 +32,7 @@ const unitDetails = (body: any, fallback: { condition: string; costPyg?: number 
 export async function GET(request: Request) {
   const tenant = await tenantId(request); if (!tenant) return error('Falta sesión.', 401)
   const session = await requireSession(request); if (!session) return error('Sesión inválida.', 401)
-  await prisma.inventoryUnit.updateMany({ where: { tenantId: tenant, status: 'RESERVED', reservedUntil: { lte: new Date() } }, data: { status: 'AVAILABLE', reservedUntil: null, reservationCustomer: null, reservedById: null } })
+  await prisma.$transaction(tx => liberarReservasVencidas(tx, tenant))
   const p = new URL(request.url).searchParams; const q = p.get('q') || ''
   const branchFilter = ['VENDEDOR', 'CAJERA'].includes(session.user.role) ? { OR: [{ branchId: session.user.branchId }, { branchId: null }] } : undefined
   const searchFilter = q ? { OR: [{ name: { contains: q, mode: 'insensitive' as const } }, { model: { contains: q, mode: 'insensitive' as const } }, { color: { contains: q, mode: 'insensitive' as const } }, { capacity: { contains: q, mode: 'insensitive' as const } }, { sku: { contains: q, mode: 'insensitive' as const } }, { imei: { contains: q } }] } : undefined
@@ -82,7 +83,11 @@ export async function POST(request: Request) {
       if (serial && await tx.inventoryUnit.findFirst({ where: { tenantId: tenant, serial }, select: { id: true } })) throw new Error('Ese IMEI/serial ya existe.')
       if (locationId && !(await tx.stockLocation.findFirst({ where: { id: locationId, tenantId: tenant, branchId: branchId ?? '', isActive: true }, select: { id: true } }))) throw new Error('Ubicación no encontrada para esa sucursal.')
       const product = await tx.product.create({ data: { tenantId: tenant, sku: await skuUnico(tx, tenant, branchId, b.sku.trim()), name: b.name.trim(), category: b.category, model: variantField(b.model, 80), color: variantField(b.color, 60), capacity: variantField(b.capacity, 20), imei: serial || null, condition: b.condition || 'NEW', pricePyg: price, ...(wholesalePricePyg !== null ? { wholesalePricePyg } : {}), priceUsd, warrantyDays, warrantyCoverage, warrantyExclusions, costPyg: cost, insuranceRate, stock, branchId, ...(reorderPoint !== undefined ? { reorderPoint } : {}) } })
-      if (serial) await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId, locationId, serial, ...unitDetails(b, { condition: product.condition, costPyg: cost }) } })
+      if (serial) {
+        const unit = await tx.inventoryUnit.create({ data: { tenantId: tenant, productId: product.id, branchId, locationId, serial, ...unitDetails(b, { condition: product.condition, costPyg: cost }) } })
+        // La unidad serializada deja su alta en la cronología desde el primer día.
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: INVENTORY_UNIT_RECEIVED, entity: 'InventoryUnit', entityId: unit.id, metadata: { serial, productId: product.id, branchId, locationId, origin: 'alta-producto' } } })
+      }
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'PRODUCT_CREATED', entity: 'Product', entityId: product.id, metadata: { name: product.name, sku: product.sku, pricePyg: product.pricePyg, costPyg: product.costPyg, stock: product.stock } } })
       return product
     })

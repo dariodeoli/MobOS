@@ -1,6 +1,6 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
-import { requireSession } from '../../../lib/auth'
+import { canAccessAny, requireSession } from '../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../lib/payment-input'
 
 const DEVICE_TYPES = ['iPhone', 'MacBook', 'AirPods', 'iPad', 'Apple Watch', 'Otros']
@@ -28,13 +28,19 @@ const SUGERIDOS: Array<[string, string, number]> = [
 export async function GET(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
-  const items = await prisma.serviceItem.findMany({ where: { tenantId: tenant, isActive: true }, orderBy: [{ deviceType: 'asc' }, { name: 'asc' }] })
+  if (!canAccessAny(session.user, ['service:manage'])) return error('No autorizado.', 403)
+  const q = (new URL(request.url).searchParams.get('q') || '').trim().slice(0, 80)
+  const items = await prisma.serviceItem.findMany({
+    where: { tenantId: tenant, isActive: true, ...(q ? { name: { contains: q, mode: 'insensitive' as const } } : {}) },
+    orderBy: [{ deviceType: 'asc' }, { name: 'asc' }],
+  })
   return json(items)
 }
 
 export async function POST(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  if (!canAccessAny(session.user, ['service:manage'])) return error('No autorizado.', 403)
   try {
     const body = objectInput(await request.json())
     if (body.defaults === true) {
@@ -67,6 +73,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const tenant = await tenantId(request); const session = await requireSession(request)
   if (!tenant || !session) return error('Falta sesión.', 401)
+  if (!canAccessAny(session.user, ['service:manage'])) return error('No autorizado.', 403)
   try {
     const body = objectInput(await request.json())
     const id = textInput(body.id, 'id', 200)

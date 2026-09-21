@@ -236,8 +236,11 @@ export async function PATCH(request: Request) {
       // no mueve stock ni estado, así que no pide motivo de ajuste.
       if (action === 'details') {
         if (removed) throw new Error('Restaurá la unidad antes de editarla.')
-        const data = await tx.inventoryUnit.update({ where: { id }, data: unitData(body) })
-        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_DETAILS_UPDATED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial } } })
+        const patch = unitData(body)
+        const data = await tx.inventoryUnit.update({ where: { id }, data: patch })
+        // El motivo del cambio queda en la cronología: qué campos se tocaron y
+        // la nota nueva cuando se editó (raya, caja dañada, accesorio faltante).
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'INVENTORY_UNIT_DETAILS_UPDATED', entity: 'InventoryUnit', entityId: id, metadata: { serial: before.serial, campos: Object.keys(patch), ...(patch.notes ? { notes: String(patch.notes).slice(0, 300) } : {}) } } })
         return data
       }
       if (!adjustmentReason) throw new Error('Indicá un motivo de ajuste de entre 3 y 500 caracteres.')

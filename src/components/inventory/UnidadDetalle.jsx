@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Drawer, Badge, Button, Input, Select, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
+import Avatar from '@/components/shared/Avatar'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
@@ -17,10 +18,6 @@ const money = (value, currency) => {
   const amount = Number(value)
   if (!Number.isFinite(amount) || amount <= 0) return '—'
   return currency === 'USD' ? `US$ ${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : `Gs. ${Math.round(amount).toLocaleString('es-PY')}`
-}
-function iniciales(name = '') { return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part.charAt(0).toUpperCase()).join('') || '?' }
-function Avatar({ name, picture, size = 'sm' }) {
-  return <span className={`grid shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-fono to-fono-dark font-bold text-onbrand ${size === 'sm' ? 'h-7 w-7 text-[10px]' : 'h-9 w-9 text-xs'}`}>{picture ? <img src={picture} referrerPolicy="no-referrer" alt="" className="h-full w-full object-cover" /> : iniciales(name)}</span>
 }
 function relativeDate(value) {
   if (!value) return '—'
@@ -49,7 +46,7 @@ function FotoMini({ unitId, commentId, photo }) {
 
 // Detalle premium de una unidad de inventario: ficha completa, acciones y
 // cronología con comentarios y fotos (misma experiencia que los pedidos).
-export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, locations = [], onClose, onChanged, onSell, onReserve, onVerify, onArrive, onLabel, onRelease, onAdjust, onRemove, onMove }) {
+export default function UnidadDetalle({ unit, busy, canManage, locations = [], onClose, onChanged, onSell, onReserve, onVerify, onArrive, onLabel, onRelease, onAdjust, onRemove, onMove }) {
   const toast = useToast()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -125,7 +122,7 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
   }
 
   const verifier = unit.lastVerifiedBy?.name || (unit.verifiedByCode === 'VPE' ? 'Edgar' : unit.verifiedByCode === 'VPM' ? 'Matheo' : unit.verifiedByCode) || ''
-  const verifierName = verifier === 'Administrador' && perfilEmpresa?.name ? perfilEmpresa.name : verifier
+  const verificador = verifier ? (unit.lastVerifiedBy?.id ? unit.lastVerifiedBy : { name: verifier }) : null
   // Antigüedad del stock: desde el ingreso de la unidad.
   const ingreso = unit.createdAt ? new Date(unit.createdAt) : null
   const diasEnStock = ingreso ? Math.max(0, Math.floor((Date.now() - ingreso.getTime()) / 86400000)) : null
@@ -192,8 +189,8 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
             <button type="button" className="rounded-md p-1 text-mute transition hover:bg-fore/5 hover:text-fore" title="Copiar IMEI/serial" aria-label="Copiar IMEI/serial" onClick={() => { navigator.clipboard?.writeText(unit.serial).catch(() => {}); toast.success('IMEI copiado.') }}><Icon name="copy" className="h-3.5 w-3.5" /></button>
           </div>
           <p className="mt-1 text-xs text-mute">{unit.branch?.name || 'Sucursal'}{unit.location?.name ? ` · ${unit.location.name}` : ''}{unit.product?.sku ? ` · ${unit.product.sku}` : ''}</p>
-          {verifierName && unit.lastVerifiedAt && (
-            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-mute" title={verifierName ? `Verificó ${verifierName}` : undefined}><Avatar name={verifierName} picture={perfilEmpresa?.picture} size="sm" /><span>VP · {relativeDate(unit.lastVerifiedAt)}{unit.verificationCount > 1 ? ` · ${unit.verificationCount} veces` : ''}</span></p>
+          {verificador && unit.lastVerifiedAt && (
+            <p className="mt-2 flex items-center gap-1.5 text-[11px] text-mute" title={`Verificó ${verificador.name}`}><Avatar user={verificador} size="sm" /><span>Verificado por {verificador.name} · {relativeDate(unit.lastVerifiedAt)}{unit.verificationCount > 1 ? ` · ${unit.verificationCount} veces` : ''}</span></p>
           )}
           {!unit.lastVerifiedAt && <p className="mt-2 text-[11px] text-mute">Sin verificación física registrada.</p>}
         </section>
@@ -308,10 +305,10 @@ export default function UnidadDetalle({ unit, perfilEmpresa, busy, canManage, lo
               {loading && <div className="mt-4 space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
               {!loading && <div className="mt-4 space-y-4">
                 {events.map((event, index) => <article key={event.id || index} className="flex gap-3">
-                  <span title={event.user?.name || 'Sistema'}><Avatar name={event.user?.name || 'Sistema'} /></span>
+                  <span title={event.user?.name || 'Sistema'}><Avatar user={event.user || { name: 'Sistema' }} /></span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-mute"><span className="font-semibold text-fore">{relativeDate(event.createdAt)}</span><span className="ml-2 rounded border border-ink-500 px-1.5 py-0.5 text-[10px]">{EVENT_LABEL[event.type] || event.type}</span></p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-fore/90">{event.detail}</p>
+                    <p className="text-xs text-mute"><span className="font-semibold text-fore">{relativeDate(event.createdAt)}</span><span className="ml-2 rounded border border-ink-500 px-1.5 py-0.5 text-[10px]">{event.label || EVENT_LABEL[event.type] || event.type}</span></p>
+                    {event.detail ? <p className="mt-1 whitespace-pre-wrap text-sm text-fore/90">{event.detail}</p> : null}
                     {(event.photos || []).length > 0 && <div className="mt-2 flex flex-wrap gap-2">{event.photos.map(photo => <FotoMini key={photo.id} unitId={unit.id} commentId={event.id} photo={photo} />)}</div>}
                   </div>
                 </article>)}
