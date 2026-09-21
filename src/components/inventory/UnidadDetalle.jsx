@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Drawer, Badge, Button, Input, Select, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
+import { Drawer, Badge, Button, Input, MoneyInput, Select, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import Avatar from '@/components/shared/Avatar'
@@ -219,7 +219,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
               <div className="mt-2 grid gap-2 sm:grid-cols-3">
                 <Input aria-label="Consignador" maxLength={160} value={consignador} onChange={event => setConsignador(event.target.value)} placeholder="Nombre de quien lo dejó" className="min-h-9" autoCapitalize="words" />
                 <Input aria-label="Teléfono del consignador" maxLength={40} value={consignadorTel} onChange={event => setConsignadorTel(event.target.value)} placeholder="Teléfono" className="min-h-9" autoCapitalize="none" />
-                <Input aria-label="Monto a pagar al consignador" inputMode="numeric" value={consignadorMonto} onChange={event => setConsignadorMonto(event.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="A pagar (Gs)" className="min-h-9" />
+                <MoneyInput aria-label="Monto a pagar al consignador" value={consignadorMonto} onValueChange={value => setConsignadorMonto(value === '' ? '' : String(value))} placeholder="A pagar (Gs)" className="min-h-9" />
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs text-mute">{unit.consignorName ? `En consignación de ${unit.consignorName}${unit.consignorPyg ? ` · a pagar ${money(unit.consignorPyg, 'PYG')}` : ''}` : 'Sin consignación'}</span>

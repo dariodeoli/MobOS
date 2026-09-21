@@ -1678,7 +1678,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 <Input inputMode="numeric" value={solicitudDias} onChange={event => setSolicitudDias(event.target.value.replace(/\D/g, '').slice(0, 3))} autoCapitalize="none" />
               </FormField>
               <FormField label="Límite (Gs)" hint="Monto máximo a deber">
-                <Input inputMode="numeric" value={solicitudLimite} onChange={event => setSolicitudLimite(event.target.value.replace(/\D/g, '').slice(0, 10))} autoCapitalize="none" />
+                <MoneyInput value={solicitudLimite} onValueChange={value => setSolicitudLimite(value === '' ? '' : String(value))} placeholder="1.000.000" />
               </FormField>
             </div>
           )}
