@@ -18,6 +18,7 @@ import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
 import ActorAvatar from './ActorAvatar'
 import { DEMO_MESSAGE_TEMPLATES } from './customerMessaging'
+import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline } from '@/lib/demoClientes'
 import {
   Badge,
   Button,
@@ -378,7 +379,17 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
   // Portal del cliente: prepara (o regenera) el enlace del nivel elegido y su QR.
   async function prepararPortal(nivel = portalNivel, regenerate = false) {
-    if (esDemo || !customer?.id || portalBusy) return
+    if (!customer?.id || portalBusy) return
+    // Portal demo (#194): el token `demo-…` se resuelve en el navegador.
+    if (esDemo) {
+      const token = `demo-${customer.id}-${nivel}`
+      setPortalNivel(nivel)
+      setPortal({ token })
+      setPortalMsg('Enlace de demostración: se resuelve en este navegador, sin datos reales.')
+      const url = portalUrlFor(token)
+      setPortalQr(url ? await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, width: 220 }) : '')
+      return
+    }
     setPortalBusy(true); setPortalError(''); setPortalMsg('')
     try {
       const data = await api.post(`/api/customers/${encodeURIComponent(customer.id)}/access-token`, { level: nivel, regenerate })
@@ -539,16 +550,11 @@ export default function CustomerProfile({ customer, open, onClose }) {
     // Modo demo (#189): la ficha se arma con los datos del navegador; no hay
     // pedidos, deuda, cronología ni portal y nada de esto pega al API real.
     if (esDemo) {
-      setProfile({
-        customer: { ...customer, createdAt: customer.createdAt || new Date().toISOString() },
-        orders: [],
-        warranties: [],
-        notes: [],
-        followUps: [],
-        billingIdentities: [],
-        debtPyg: 0,
-        demo: true,
-      })
+      const demoPerfil = buildDemoProfile(customer)
+      setProfile(demoPerfil)
+      setIdentities(demoPerfil.billingIdentities)
+      setTimeline(buildDemoTimeline(customer))
+      setAnalitica(buildDemoAnalytics(customer))
       setLoading(false)
       return () => { active = false }
     }
@@ -660,9 +666,10 @@ export default function CustomerProfile({ customer, open, onClose }) {
     } finally { setCanjeBusy(false) }
   }
 
-  // Cronología del cliente: se pide al abrir su pestaña y al reintentar.
+  // Cronología del cliente: se pide al abrir su pestaña y al reintentar. En
+  // demo ya viene cargada con datos ficticios (#194): no se consulta el API.
   useEffect(() => {
-    if (!open || !customer?.id || tab !== 'cronologia') return undefined
+    if (!open || !customer?.id || tab !== 'cronologia' || esDemo) return undefined
     let active = true
     setTimelineLoading(true)
     setTimelineError('')
@@ -675,7 +682,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
         if (active) setTimelineLoading(false)
       })
     return () => { active = false }
-  }, [open, customer?.id, tab, timelineRevision])
+  }, [open, customer?.id, tab, timelineRevision, esDemo])
 
   async function cargarMasTimeline() {
     if (timelineCargandoMas || !timelineNext || !customer?.id) return
@@ -1055,12 +1062,10 @@ export default function CustomerProfile({ customer, open, onClose }) {
               </div>
             </div>
             <span className="flex flex-wrap items-center gap-2">
-              {!esDemo && (
-                <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={abrirPortal}>
-                  <Icon name="external" className="h-4 w-4" />
-                  Portal del cliente
-                </Button>
-              )}
+              <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={abrirPortal}>
+                <Icon name="external" className="h-4 w-4" />
+                Portal del cliente{esDemo ? ' (demo)' : ''}
+              </Button>
               {phone && (
                 <span className="inline-flex items-center gap-1 rounded-lg border border-ok/30 bg-ok/5 px-1.5 py-0.5">
                   <WhatsAppMenu

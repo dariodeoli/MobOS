@@ -5,6 +5,7 @@ import { gs } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
 import Icon from '@/components/shared/Icon'
 import { PortalCargando, PortalEncabezado, PortalEstado, PortalFallo, PortalPie, PortalSeccion } from '@/components/customerPortal/PortalUI'
+import { demoVitrinaPayload, esTokenDemo } from '@/lib/demoClientes'
 
 const ESTADO_PEDIDO = { PENDING: 'Pendiente de pago', COMPLETED: 'Pagado', CANCELLED: 'Cancelado' }
 const ESTADO_ENTREGA = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
@@ -27,6 +28,13 @@ export default function PortalCliente() {
   useEffect(() => {
     let active = true
     setError(''); setPortal(null); setLogoOk(true)
+    // Vitrina demo (#194): el token `demo-…` se arma en el navegador.
+    if (esTokenDemo(token)) {
+      const payload = demoVitrinaPayload(token)
+      if (payload) setPortal(payload)
+      else setError('Este enlace no es válido o venció.')
+      return () => { active = false }
+    }
     fetch(`${API_URL}/api/public/portal/${encodeURIComponent(token || '')}`)
       .then(async response => {
         const payload = await response.json().catch(() => null)

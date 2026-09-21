@@ -5,6 +5,7 @@ import { gs } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
 import Icon from '@/components/shared/Icon'
 import { PortalCargando, PortalEncabezado, PortalEstado, PortalFallo, PortalPie, PortalSeccion } from '@/components/customerPortal/PortalUI'
+import { demoCuentaPayload, esTokenDemo } from '@/lib/demoClientes'
 
 const ORDER_STATUS = { PENDING: 'Pendiente de pago', COMPLETED: 'Pagado', CANCELLED: 'Cancelado' }
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
@@ -27,6 +28,14 @@ export default function CuentaPublica() {
   useEffect(() => {
     let active = true
     setError(''); setCuenta(null); setLogoOk(true)
+    // Portal demo (#194): el token `demo-…` se arma en el navegador con datos
+    // ficticios, sin llamar al API.
+    if (esTokenDemo(token)) {
+      const payload = demoCuentaPayload(token)
+      if (payload) setCuenta(payload)
+      else setError('Cuenta no encontrada.')
+      return () => { active = false }
+    }
     fetch(`${API_URL}/api/portal/${encodeURIComponent(token || '')}`)
       .then(async response => {
         const payload = await response.json().catch(() => null)

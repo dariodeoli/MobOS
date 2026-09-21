@@ -134,3 +134,63 @@ test('demo: la ficha del cliente abre sin sesión y no consulta el API', async (
 
   expect(apiClientes, `la demo no debe consultar el API real: ${apiClientes.join(', ')}`).toEqual([])
 })
+
+// Demo completo del CRM (#194): datos ficticios visibles (deuda, cronología,
+// seguro), portal por token local y Servicio Técnico, sin llamar al API real.
+test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ page }) => {
+  const apiReal = []
+  page.on('request', (request) => {
+    if (/\/api\/(customers|message-templates|service-orders|service-items|service-checklists|portal|public\/portal)/.test(request.url())) apiReal.push(request.url())
+  })
+
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Dueño/ }).first().click()
+  await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
+  await page.locator('aside nav, nav').first().getByRole('button', { name: 'Clientes', exact: true }).click()
+
+  await page.getByLabel('Buscar clientes').fill('Lucía')
+  const fila = page.getByTestId('cliente-fila').filter({ hasText: 'Lucía Fernández' }).first()
+  await expect(fila).toBeVisible()
+  await fila.click()
+  const ficha = page.getByRole('dialog')
+  await expect(ficha.getByText(/Modo demo/)).toBeVisible()
+
+  // Resumen con deuda y últimas órdenes del seed.
+  await expect(ficha.getByText('Saldo pendiente: Gs 1.500.000')).toBeVisible()
+  await expect(ficha.getByText('Gs 1.500.000').first()).toBeVisible()
+  await expect(ficha.getByText('Últimas órdenes')).toBeVisible()
+  await expect(ficha.getByText('MOB-#0008').first()).toBeVisible()
+  // El seguro del seed se ve en los datos clave del Resumen.
+  await expect(ficha.getByTestId('perfil-datos-clave').getByText(/Activo · 12,5%/)).toBeVisible()
+
+  // Cronología con eventos ficticios.
+  await ficha.getByRole('tab', { name: /^Cronología/ }).click()
+  await expect(ficha.getByText('Pedido creado').first()).toBeVisible()
+  await expect(ficha.getByText('Comentario del equipo').first()).toBeVisible()
+
+  // El control del seguro queda activo (12,5%) y deshabilitado en demo.
+  await ficha.getByRole('tab', { name: /^Datos/ }).click()
+  const interruptorSeguro = ficha.getByRole('switch', { name: 'Seguro del cliente activo' })
+  await expect(interruptorSeguro).toBeChecked()
+  await expect(interruptorSeguro).toBeDisabled()
+  await expect(ficha.getByLabel('Porcentaje del cliente')).toHaveValue('12,5')
+
+  // Portal de ejemplo por token local (sin sesión ni API).
+  await ficha.getByRole('button', { name: /Portal del cliente/ }).click()
+  await expect(page.getByAltText('QR del portal del cliente')).toBeVisible()
+  const enlace = await page.locator('p.break-all').textContent()
+  expect(enlace).toMatch(/\/cuenta\/demo-demo-cliente-lucia-rapido$/)
+  await page.goto(enlace)
+  await expect(page.getByRole('heading', { name: 'Tienda demo' })).toBeVisible()
+  await expect(page.getByText('Gs 1.500.000').first()).toBeVisible()
+  await page.goto(enlace.replace('/cuenta/', '/portal/'))
+  await expect(page.getByRole('heading', { name: 'Tienda demo' })).toBeVisible()
+  await expect(page.getByText('MOB-#0008').first()).toBeVisible()
+
+  // Servicio Técnico demo con casos en el pipeline.
+  await page.goto('/servicio')
+  await expect(page.getByText('OS-#0001')).toBeVisible()
+  await expect(page.getByText('OS-#0002')).toBeVisible()
+
+  expect(apiReal, `la demo no debe llamar al API real: ${apiReal.join(', ')}`).toEqual([])
+})
