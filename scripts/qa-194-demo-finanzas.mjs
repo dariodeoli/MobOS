@@ -4,7 +4,6 @@
 // Salida: docs/qa/194/*.jpg + docs/qa/194/resultados.json
 //
 // Solo navega la demo pública/local (datos aislados en el navegador).
-/* global window, document */
 import { createRequire } from 'node:module'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
