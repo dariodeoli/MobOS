@@ -4,6 +4,7 @@ import { useSesion } from '@/lib/sesion'
 import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import { useReloj } from '@/hooks/useReloj'
+import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { listVentas } from '@/lib/storage'
 import { sessionApi } from '@/lib/api'
 import { ventasDelDia, fechaClave, num, gs } from '@/utils/calculos'
@@ -363,9 +364,8 @@ export default function PanelVendedor() {
   const [sellerId, setSellerId] = useState('')
   const [pin, setPin] = useState('')
   const [cambiando, setCambiando] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    () => localStorage.getItem('mobos:sidebar-collapsed') === '1',
-  )
+  // Menú lateral plegado: último usado como predeterminado (#209).
+  const [sidebarCollapsed, recordarSidebar] = useUltimoUsado('shell:menu-plegado', false)
   const [locked, setLocked] = useState(() => {
     // El bloqueo sobrevive a la recarga (#204): sin esto, F5 lo saltaba.
     try { return sessionStorage.getItem(LOCK_FLAG_KEY) === '1' } catch { return false }
@@ -477,11 +477,7 @@ export default function PanelVendedor() {
   }
 
   function toggleSidebar() {
-    setSidebarCollapsed(current => {
-      const next = !current
-      localStorage.setItem('mobos:sidebar-collapsed', next ? '1' : '0')
-      return next
-    })
+    recordarSidebar(current => !current)
   }
 
   const hoy = fechaClave()
@@ -915,7 +911,8 @@ export default function PanelVendedor() {
         abierto={locked && !cambiarAbierto && !salirAbierto}
         empresa={empresa?.nombre}
         sucursal={sucursal?.nombre}
-        usuario={{ id: sesion?.vendedorId, name: sesion?.nombre }}
+        usuario={{ id: usuario?.id, name: usuario?.user_metadata?.nombre || sesion?.nombre, hasAvatar: usuario?.hasAvatar }}
+        picture={esOwner ? perfilEmpresa?.picture : undefined}
         pinLength={pinLength}
         pin={lockPin}
         onPinChange={setLockPin}

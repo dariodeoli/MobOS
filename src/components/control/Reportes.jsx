@@ -15,7 +15,7 @@ import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango, etiquetaRango } fro
 import CalendarioGanancias, { LineaValor } from '@/components/shared/CalendarioGanancias'
 import { formatPercent } from '@/components/shared/PercentField'
 import { descargarCsv } from '@/utils/descargarCsv'
-import { useUltimoUsado } from '@/lib/ultimoUsado'
+import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { CLAVES_FIN, rangoDePreset } from '@/lib/finUltimoUsado'
 import {
   GRUPOS,

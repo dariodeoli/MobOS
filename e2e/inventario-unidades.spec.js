@@ -267,7 +267,10 @@ test('el motivo de baja recuerda el último usado', async ({ page }) => {
     const baja2 = page.getByRole('dialog', { name: 'Dar de baja' })
     await expect(baja2.getByLabel('Motivo')).toHaveValue('Daño')
     await expect(baja2.getByText('Recordamos tu último motivo')).toBeVisible()
-    const guardado = await page.evaluate(() => localStorage.getItem('mobos:ultimo:inventario:motivo-baja'))
+    const guardado = await page.evaluate(() => {
+      const crudo = localStorage.getItem('mobos:inventario:motivo-baja')
+      try { return JSON.parse(crudo) } catch { return crudo }
+    })
     expect(guardado).toBe('Daño')
   } finally { await limpiar(page, datos) }
 })

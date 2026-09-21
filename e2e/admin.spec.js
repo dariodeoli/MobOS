@@ -1107,3 +1107,23 @@ test('IMEI: comprobante adjunto al cliente y visible en su portal', async ({ pag
   await expect(page.getByText(/IMEI verificado: sin reportes/)).toBeVisible()
   await page.screenshot({ path: '/tmp/qa203-portal.png' })
 })
+
+test('recuerda el menú plegado y los grupos del shell (#209)', async ({ page }) => {
+  await page.goto('/pos')
+  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+
+  // Cerrar el grupo Operación y plegar el menú: son «último usado».
+  await page.getByTitle('Ocultar Operación').click()
+  await expect(page.getByTitle('Mostrar Operación')).toBeVisible()
+  await page.getByRole('button', { name: 'Colapsar menú' }).click()
+  await expect(page.getByRole('button', { name: 'Expandir menú' })).toBeVisible()
+
+  // Sobreviven a la recarga; el valor sigue siendo cambiable en un clic.
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Expandir menú' })).toBeVisible()
+  await page.getByRole('button', { name: 'Expandir menú' }).click()
+  await expect(page.getByRole('button', { name: 'Colapsar menú' })).toBeVisible()
+  await expect(page.getByTitle('Mostrar Operación')).toBeVisible()
+  await page.getByTitle('Mostrar Operación').click()
+  await expect(page.getByTitle('Ocultar Operación')).toBeVisible()
+})

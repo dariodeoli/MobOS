@@ -12,26 +12,20 @@ import Preferencias from '@/components/app/Preferencias'
 import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { usePresenceTracker } from '@/hooks/usePresence'
+import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { usePreferencias } from '@/hooks/usePreferencias'
 import { useNotificaciones } from '@/hooks/useNotificaciones'
 import { useSesion } from '@/lib/sesion'
 import { APP_NAME } from '@/lib/brand'
 
-const NAV_GROUPS_KEY = 'mobos:nav-groups'
-
-function readClosedGroups() {
-  try { return JSON.parse(localStorage.getItem(NAV_GROUPS_KEY) || '{}') } catch { return {} }
-}
+const NAV_GROUPS_DEFAULT = {}
 
 function NavGroup({ nav, active, onNavigate, collapsed = false, scrollable = true }) {
-  const [closedGroups, setClosedGroups] = useState(readClosedGroups)
+  // Grupos del menú plegados: último usado como predeterminado (#209).
+  const [closedGroups, recordarClosedGroups] = useUltimoUsado('shell:nav-plegados', NAV_GROUPS_DEFAULT)
 
   function toggleGroup(titulo) {
-    setClosedGroups((prev) => {
-      const next = { ...prev, [titulo]: !prev[titulo] }
-      localStorage.setItem(NAV_GROUPS_KEY, JSON.stringify(next))
-      return next
-    })
+    recordarClosedGroups((prev) => ({ ...prev, [titulo]: !prev[titulo] }))
   }
 
   return (
@@ -303,7 +297,7 @@ export default function AppShell({
   const [notificacionesAbiertas, setNotificacionesAbiertas] = useState(false)
   const enLinea = useOnlineStatus()
   usePresenceTracker()
-  const [statsCollapsedInterno, setStatsCollapsedInterno] = useState(() => localStorage.getItem('mobos:stats-collapsed') === '1')
+  const [statsCollapsedInterno, recordarStats] = useUltimoUsado('shell:stats-plegado', false)
   const statsCerrado = onStatsToggle ? Boolean(statsCollapsed) : statsCollapsedInterno
   // La identidad de la tienda vive en la barra lateral (escritorio) y en el
   // menú (pantallas chicas): una sola vez por vista.
@@ -317,8 +311,7 @@ export default function AppShell({
   function alternarStats() {
     const next = !statsCerrado
     if (onStatsToggle) { onStatsToggle(next); return }
-    setStatsCollapsedInterno(next)
-    localStorage.setItem('mobos:stats-collapsed', next ? '1' : '0')
+    recordarStats(next)
   }
 
   function navegar(id, opciones) {

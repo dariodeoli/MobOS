@@ -18,7 +18,7 @@ import RangoFechas, {
   rangoPorDefecto,
   etiquetaRango,
 } from '@/components/shared/RangoFechas'
-import { useUltimoUsado } from '@/lib/ultimoUsado'
+import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { CLAVES_FIN, rangoDePreset } from '@/lib/finUltimoUsado'
 import ReportePreview from '@/components/shared/ReportePreview'
 import { buildResumenDiaHtml } from '@/components/shared/OrderReceipt'

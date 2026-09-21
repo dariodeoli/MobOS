@@ -2,13 +2,23 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { isDemoRuntime, demoSessionActive, demoSessionRole, saveDemoSession, clearDemoSession } from './demoMode'
 import { clearSession, getCompanyContext, sessionApi, resources } from '@/lib/api'
 import { setActor, setContexto, prepararDatosDemo } from '@/lib/storage'
+import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { usarTenantImpresoras, usarSucursalImpresoras } from '@/lib/printing/agent'
 
 const SesionContext = createContext(null)
 
-function sucursalKey(empresaId) { return `mobos:sucursal-activa:${empresaId}` }
-function leerSucursalActiva(empresaId) { try { return localStorage.getItem(sucursalKey(empresaId)) } catch { return null } }
-function guardarSucursalActiva(empresaId, sucursalId) { try { localStorage.setItem(sucursalKey(empresaId), sucursalId) } catch { /* sin persistencia, la sesión sigue válida */ } }
+// Sucursal activa: último usado como predeterminado (#209), por empresa y
+// navegador. Al leer se valida contra las sucursales disponibles: si la
+// guardada ya no existe (o la sesión está acotada a otra), se usa el default.
+function leerSucursalActiva(empresaId, sucursales = []) {
+  return leerUltimo(`sucursal-activa:${empresaId}`, {
+    porDefecto: null,
+    valido: (sucursalId) => sucursales.some((sucursal) => sucursal.id === sucursalId),
+  })
+}
+function guardarSucursalActiva(empresaId, sucursalId) {
+  if (empresaId && sucursalId) recordarUltimo(`sucursal-activa:${empresaId}`, sucursalId)
+}
 
 function adaptarUsuario(user) {
   return { ...user, id: user?.id, email: user?.email || null, user_metadata: { nombre: user?.name || user?.user_metadata?.nombre || user?.email || '' } }
@@ -46,8 +56,10 @@ export function SesionProvider({ children }) {
         const branches = await resources.inventoryBranches.list()
         if (Array.isArray(branches) && branches.length) {
           listaSucursales = branches
-          const guardada = leerSucursalActiva(emp.id)
-          sucursalActiva = branches.find((b) => b.id === rawUser.branchId) || branches.find((b) => b.id === guardada) || (branches.length === 1 ? branches[0] : null)
+          // Sucursal activa: gana la última usada (si sigue disponible), luego
+          // la del usuario y por último la única (#209).
+          const guardada = leerSucursalActiva(emp.id, branches)
+          sucursalActiva = branches.find((b) => b.id === guardada) || branches.find((b) => b.id === rawUser.branchId) || (branches.length === 1 ? branches[0] : null)
           if (sucursalActiva) guardarSucursalActiva(emp.id, sucursalActiva.id)
         }
       } catch {
