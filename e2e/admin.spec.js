@@ -20,7 +20,9 @@ test.describe('owner panel', () => {
   // (iPhone 15 E2E Serial) owns one InventoryUnit, listed with its IMEI.
   test('inventario lists the seeded serialized unit with its IMEI', async ({ page }) => {
     await page.goto('/inventario/unidades')
-    await expect(page.getByRole('heading', { name: 'Inventario operativo' })).toBeVisible()
+    // El título de la página lo pone el panel (un solo h1); Inventario aporta el subtítulo.
+    await expect(page.getByRole('heading', { name: 'Unidades', level: 1 })).toBeVisible()
+    await expect(page.getByText('Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.')).toBeVisible()
     await expect(page.getByRole('button', { name: /^Inventario \(/ })).toBeVisible()
     // La tabla compacta alinea el serial por columna (últimos 4 destacados).
     await expect(page.getByText('Verificación')).toBeVisible()
