@@ -56,6 +56,38 @@ footer de versión, temas claro/oscuro por tokens CSS (`--c-*`).
 6. **Resto de pantallas** (Clientes, Compras, Garantías, Finanzas, Reportes):
    migración por lotes de a dos, usando los componentes centrales.
 
+### Lote 1 — Shell y topbar (implementado 20-09-2026)
+
+- **Una sola identidad de tienda:** nombre de la tienda en la barra lateral
+  (escritorio) y en el encabezado del menú (pantallas chicas); la rama/sucursal
+  sigue en el selector del topbar. Se quitó el nombre del producto duplicado en
+  la cabecera.
+- **Una sola identidad de persona:** el pie de la barra/menú muestra a la
+  persona de la sesión con el objeto `Avatar` (foto subida → foto de Google →
+  iniciales); la foto de Google se pasa solo cuando quien opera es el dueño.
+- **Topbar con miga de sección:** `Subpágina / Pestaña` (p. ej. Inventario /
+  Unidades, Configuración / Equipo) y un único `h1` con la vista activa. En las
+  subpáginas el título es la pestaña, no el nombre del padre.
+- **Acciones importantes a la vista:** la acción primaria de cada vista
+  (Cargar venta / Rendir) queda en el topbar; en escritorio se suma un botón de
+  búsqueda global (Ctrl+K). En pantallas chicas las acciones secundarias (buscar,
+  tema, atajos, salir) encabezan el menú, que ya es el patrón móvil del shell.
+- **Densidad por breakpoint:** el topbar no desborda porque prioriza: sucursal y
+  acción primaria siempre; búsqueda y presencia desde `lg`; fecha desde `xl`.
+  Cada pantalla del lote se midió a 360/768/1024/1440.
+- **Estados de la búsqueda global:** pista de mínimo de caracteres y aviso de
+  sin conexión con el mismo formato; “Sin resultados” con `EmptyState` y atajos
+  de teclado visibles al pie.
+- **Sin cambios de lógica:** permisos, datos, navegación y atajos intactos;
+  solo presentación y estructura visual. Reglas fijadas por aserción de fuente
+  en `src/lib/disenoReglas.test.js`.
+
+Pendientes detectados para lotes siguientes (fuera del Lote 1): `PanelDelivery`
+no está ruteado y su cuerpo repite la identidad de tienda/persona; en
+`PanelVendedor` la paleta “Ir a…” no tiene disparador y duplica la búsqueda
+global; `Celulares`, `Comparador` y `TradeIn` (internas del dueño) conservan
+cabecera propia fuera del shell; `.mobos-topbar` en `index.css` no se usa.
+
 ## Criterios de aceptación por lote
 - Sin scroll horizontal en 360px/768px/1440px.
 - Sin acciones importantes fuera del viewport inicial.
