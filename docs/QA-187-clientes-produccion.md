@@ -39,7 +39,7 @@ Recorrido funcional headless (Playwright, Chromium) contra
 
 ## Hallazgos y observaciones (sin bugs de producto)
 
-- **Demo:** el clic en la fila **no abre la ficha** del cliente y `/clientes?cliente=<id>` intenta el API real y muestra “No se pudo abrir el perfil”. Es una limitación del modo demo (la ficha, la deuda, la cronología y el seguro solo existen con sesión real). Oportunidad: sembrar fichas demo y habilitar el perfil en demo para mostrar el mini CRM.
+- **Demo (resuelto en #189):** el clic en la fila ya abre la ficha con los datos del navegador y `?cliente=<id>` se resuelve contra la demo; la ficha avisa “Modo demo” y las acciones quedan deshabilitadas (nada pega al API real).
 - **Demo:** quedan llamadas 401 a `api.moboss.online` (presence, créditos, impresoras) porque la demo no tiene sesión; no bloquean el recorrido. Ruido conocido de otros dominios.
 - **Agente de impresión:** el navegador intenta `http://127.0.0.1:17890/health` (puerto del agente local); sin agente instalado falla y es el comportamiento esperado.
 - **#178 (rate limit + hash en públicos):** no está desplegado en v1.0.126 (la rama `slot/clientes` lo trae). Por eso la sonda de 35 pedidos a `public/warranty` no mostró 429; se re-verifica tras integrar/deployar.

@@ -17,6 +17,7 @@ import PercentField, { formatPercent, parsePercent } from '@/components/shared/P
 import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
 import ActorAvatar from './ActorAvatar'
+import { DEMO_MESSAGE_TEMPLATES } from './customerMessaging'
 import {
   Badge,
   Button,
@@ -163,6 +164,13 @@ function Senales({ titulo, items, primario, secundario }) {
 export default function CustomerProfile({ customer, open, onClose }) {
   const toast = useToast()
   const { usuario, esDemo } = useSesion()
+  // Modo demo (#189): nada de la ficha se guarda contra el API real. Los
+  // controles quedan deshabilitados y, si algo igual llega, se avisa y no se envía.
+  const demoBloqueado = () => {
+    if (!esDemo) return false
+    toast.info('Modo demo', 'Esta acción no está disponible en la demo.')
+    return true
+  }
   const [revision, setRevision] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -199,7 +207,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
   // El seguro afecta costo real y margen: lo configuran administración/gerencia.
   async function guardarSeguro(enabled = seguroForm.enabled) {
-    if (guardandoSeguro || !customer?.id) return
+    if (demoBloqueado() || guardandoSeguro || !customer?.id) return
     const pct = parsePercent(seguroForm.pct)
     if (enabled && seguroForm.pct.trim() && (pct === null || pct < 0 || pct > 100)) {
       toast.error('Porcentaje inválido', 'El seguro debe estar entre 0 y 100 (hasta 2 decimales).')
@@ -220,7 +228,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
   async function guardarTags(event) {
     event.preventDefault()
-    if (guardandoTags || !customer?.id) return
+    if (demoBloqueado() || guardandoTags || !customer?.id) return
     const tags = tagsTexto.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20)
     setGuardandoTags(true)
     try {
@@ -252,7 +260,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
   async function guardarDireccion(event) {
     event.preventDefault()
-    if (!direccionForm || direccionBusy || !customer?.id) return
+    if (demoBloqueado() || !direccionForm || direccionBusy || !customer?.id) return
     const address = direccionForm.address.trim()
     if (!address) { toast.error('Dirección obligatoria', 'Ingresá el detalle de la dirección.'); return }
     const actuales = direcciones.map((item) => ({ label: item.label, address: item.address, city: item.city, department: item.department, country: item.country, isDefault: item.isDefault }))
@@ -271,7 +279,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   }
 
   async function removeDireccion() {
-    if (!pendingDelete || pendingDelete.type !== 'address' || deleteBusy || !customer?.id) return
+    if (demoBloqueado() || !pendingDelete || pendingDelete.type !== 'address' || deleteBusy || !customer?.id) return
     setDeleteBusy(true)
     try {
       const lista = direcciones
@@ -299,7 +307,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
   async function guardarComercial(event) {
     event.preventDefault()
-    if (guardandoComercial || !customer?.id) return
+    if (demoBloqueado() || guardandoComercial || !customer?.id) return
     const body = { pricingTier: comercialForm.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL' }
     if (comercialForm.creditHabilitado) {
       const limite = Number(String(comercialForm.creditLimitPyg).replace(/\D/g, ''))
@@ -329,7 +337,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   }, [profile?.customer?.notes, profile?.customer?.publicNote, customer?.notes, customer?.publicNote])
 
   async function pedirCambio() {
-    if (!solicitud || solicitudBusy || !customer?.id) return
+    if (demoBloqueado() || !solicitud || solicitudBusy || !customer?.id) return
     setSolicitudBusy(true)
     try {
       await api.post('/api/authorizations', {
@@ -345,7 +353,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   }
 
   async function guardarNotas() {
-    if (guardandoNotas || !customer?.id) return
+    if (demoBloqueado() || guardandoNotas || !customer?.id) return
     setGuardandoNotas(true)
     try {
       await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { notes: notaInterna.trim(), publicNote: notaPublica.trim() })
@@ -355,7 +363,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
   // Lista de precios de la ficha: vacía vuelve al precio por tipo de cliente.
   async function cambiarListaPrecios(value) {
-    if (guardandoLista || !customer?.id) return
+    if (demoBloqueado() || guardandoLista || !customer?.id) return
     setGuardandoLista(true)
     try {
       await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { priceListId: value || null })
@@ -528,6 +536,22 @@ export default function CustomerProfile({ customer, open, onClose }) {
     setNewNote('')
     setEditingNote(null)
     setFollowForm({ kind: 'CALL', dueAt: '', note: '' })
+    // Modo demo (#189): la ficha se arma con los datos del navegador; no hay
+    // pedidos, deuda, cronología ni portal y nada de esto pega al API real.
+    if (esDemo) {
+      setProfile({
+        customer: { ...customer, createdAt: customer.createdAt || new Date().toISOString() },
+        orders: [],
+        warranties: [],
+        notes: [],
+        followUps: [],
+        billingIdentities: [],
+        debtPyg: 0,
+        demo: true,
+      })
+      setLoading(false)
+      return () => { active = false }
+    }
     api
       .get(`/api/customers/${customer.id}`)
       .then((data) => { if (active) { setProfile(data); setLoading(false) } })
@@ -536,7 +560,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [open, customer?.id, revision])
+  }, [open, customer?.id, customer, esDemo, revision])
 
   // Cada apertura (u otro cliente) arranca en el resumen.
   useEffect(() => {
@@ -601,7 +625,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   }, [open, customer?.id, esDemo])
 
   async function asignarLista(priceListId) {
-    if (!customer?.id || asignandoLista) return
+    if (demoBloqueado() || !customer?.id || asignandoLista) return
     setAsignandoLista(true)
     try {
       await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { priceListId: priceListId || null })
@@ -619,7 +643,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   // de la transacción; acá solo se valida antes de enviar.
   async function canjearPuntos(event) {
     event.preventDefault()
-    if (canjeBusy || !customer?.id) return
+    if (demoBloqueado() || canjeBusy || !customer?.id) return
     const pointsPyg = Number(canjePuntos)
     if (!Number.isSafeInteger(pointsPyg) || pointsPyg <= 0) { toast.error('Puntos inválidos', 'Ingresá una cantidad entera de puntos.'); return }
     if (pointsPyg > puntos) { toast.error('Saldo insuficiente', `El cliente tiene ${formatGs(puntos)} en puntos.`); return }
@@ -721,7 +745,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   async function saveNote(event) {
     event.preventDefault()
     const content = newNote.trim()
-    if (!content || noteBusy) return
+    if (demoBloqueado() || !content || noteBusy) return
     setNoteBusy(true)
     try {
       if (editingNote) {
@@ -742,7 +766,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   }
 
   async function removeNote() {
-    if (!pendingDelete || deleteBusy) return
+    if (demoBloqueado() || !pendingDelete || deleteBusy) return
     setDeleteBusy(true)
     try {
       await api.delete(`/api/customers/${customer.id}/notes`, { id: pendingDelete.id })
@@ -759,7 +783,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   async function saveFollowUp(event) {
     event.preventDefault()
     const note = followForm.note.trim()
-    if (!note || followBusy) return
+    if (demoBloqueado() || !note || followBusy) return
     setFollowBusy(true)
     try {
       await api.post(`/api/customers/${customer.id}/follow-ups`, { kind: followForm.kind, note, dueAt: followForm.dueAt || undefined })
@@ -774,7 +798,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   }
 
   async function markDone(item) {
-    if (item.doneAt || followDoneId) return
+    if (demoBloqueado() || item.doneAt || followDoneId) return
     setFollowDoneId(item.id)
     try {
       await api.patch(`/api/customers/${customer.id}/follow-ups`, { id: item.id, doneAt: new Date().toISOString() })
@@ -788,7 +812,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   }
 
   async function removeFollowUp() {
-    if (!pendingDelete || deleteBusy) return
+    if (demoBloqueado() || !pendingDelete || deleteBusy) return
     setDeleteBusy(true)
     try {
       await api.delete(`/api/customers/${customer.id}/follow-ups`, { id: pendingDelete.id })
@@ -813,7 +837,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
   async function enviarSolicitud(event) {
     event.preventDefault()
-    if (!requestKind || requestBusy) return
+    if (demoBloqueado() || !requestKind || requestBusy) return
     const requestedValue = {}
     if (requestKind === 'CREDIT') {
       const limit = Number(requestForm.creditLimitPyg)
@@ -860,7 +884,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   }
 
   async function confirmarResolver() {
-    if (!resolveTarget || resolveBusy) return
+    if (demoBloqueado() || !resolveTarget || resolveBusy) return
     if (resolveAction === 'reject' && !resolveForm.resolvedNote.trim()) {
       toast.error('Motivo obligatorio', 'Contale al vendedor por qué se rechaza.')
       return
@@ -920,7 +944,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
   async function guardarIdentidad(event) {
     event.preventDefault()
-    if (!identityForm || identityBusy) return
+    if (demoBloqueado() || !identityForm || identityBusy) return
     const name = identityForm.name.trim()
     const document = identityForm.document.trim()
     if (!name || !document) {
@@ -946,7 +970,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   }
 
   async function usarComoActual(identity) {
-    if (identityBusy) return
+    if (demoBloqueado() || identityBusy) return
     setIdentityBusy(true)
     try {
       await api.patch(`/api/customers/${customer.id}/billing-identities`, { id: identity.id, useAsCurrent: true })
@@ -960,7 +984,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   }
 
   async function removeBillingIdentity() {
-    if (!pendingDelete || deleteBusy) return
+    if (demoBloqueado() || !pendingDelete || deleteBusy) return
     setDeleteBusy(true)
     try {
       await api.delete(`/api/customers/${customer.id}/billing-identities?id=${encodeURIComponent(pendingDelete.id)}`)
@@ -998,6 +1022,11 @@ export default function CustomerProfile({ customer, open, onClose }) {
       )}
       {!loading && !error && profile && (
         <div className="space-y-5">
+          {esDemo && (
+            <p role="status" className="rounded-xl border border-warn/30 bg-warn/5 px-3 py-2 text-xs text-warn">
+              Modo demo: esta ficha usa los datos cargados en tu navegador. No hay pedidos, pagos, deuda, cronología ni portal, y las acciones están deshabilitadas.
+            </p>
+          )}
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <h3 className="truncate text-lg font-bold">{profile.customer?.name || customer?.name}</h3>
@@ -1040,6 +1069,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     category="CUSTOMERS"
                     storageKey="mobos:clientes:plantilla-wa"
                     title={profile.customer?.name || customer?.name}
+                    plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined}
                     contexto={{
                       cliente: profile.customer?.name || customer?.name || '',
                       nombre: profile.customer?.name || customer?.name || '',
@@ -1160,19 +1190,19 @@ export default function CustomerProfile({ customer, open, onClose }) {
               </div>
               <span className="flex flex-wrap gap-2">
                 {!mayorista && !hayPendiente('WHOLESALE') && (
-                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('WHOLESALE')}>
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={esDemo} onClick={() => setSolicitud('WHOLESALE')}>
                     <Icon name="tag" className="h-4 w-4" />
                     Solicitar mayorista
                   </Button>
                 )}
                 {!creditoHabilitado && !hayPendiente('CREDIT') && (
-                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => abrirSolicitud('CREDIT')}>
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={esDemo} onClick={() => abrirSolicitud('CREDIT')}>
                     <Icon name="wallet" className="h-4 w-4" />
                     Solicitar crédito
                   </Button>
                 )}
                 {creditoHabilitado && !hayPendiente('CREDIT_DAYS') && (
-                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => abrirSolicitud('CREDIT_DAYS')}>
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={esDemo} onClick={() => abrirSolicitud('CREDIT_DAYS')}>
                     <Icon name="clock" className="h-4 w-4" />
                     Solicitar días
                   </Button>
@@ -1311,14 +1341,14 @@ export default function CustomerProfile({ customer, open, onClose }) {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-warn/30 bg-warn/5 p-3">
                 <Label>Nota interna <span className="text-mute">(solo equipo, nunca visible al cliente)</span></Label>
-                <Textarea rows={3} aria-label="Nota interna" value={notaInterna} onChange={event => setNotaInterna(event.target.value)} placeholder="Raya lateral, trato especial, observaciones…" autoCapitalize="sentences" />
+                <Textarea rows={3} aria-label="Nota interna" value={notaInterna} disabled={esDemo} onChange={event => setNotaInterna(event.target.value)} placeholder="Raya lateral, trato especial, observaciones…" autoCapitalize="sentences" />
               </div>
               <div className="rounded-xl border border-ok/30 bg-ok/5 p-3">
                 <Label>Nota pública <span className="text-mute">(visible al cliente)</span></Label>
                 <Textarea rows={3} aria-label="Nota pública" value={notaPublica} onChange={event => setNotaPublica(event.target.value)} placeholder="Información que puede ir en comprobantes o mensajes" autoCapitalize="sentences" />
               </div>
               <div className="sm:col-span-2 flex justify-end">
-                <Button type="button" variant="outline" disabled={guardandoNotas} onClick={guardarNotas}>{guardandoNotas ? 'Guardando…' : 'Guardar notas'}</Button>
+                <Button type="button" variant="outline" disabled={esDemo || guardandoNotas} onClick={guardarNotas}>{guardandoNotas ? 'Guardando…' : 'Guardar notas'}</Button>
               </div>
             </div>
           )}
@@ -1331,7 +1361,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                   <Textarea id="profile-note" rows={3} maxLength={2000} placeholder="Observación interna del equipo sobre este cliente…" value={newNote} onChange={(event) => setNewNote(event.target.value)} />
                 </FormField>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button type="submit" disabled={noteBusy || !newNote.trim()}>{noteBusy ? 'Guardando…' : editingNote ? 'Guardar cambios' : 'Agregar comentario'}</Button>
+                  <Button type="submit" disabled={esDemo || noteBusy || !newNote.trim()}>{noteBusy ? 'Guardando…' : editingNote ? 'Guardar cambios' : 'Agregar comentario'}</Button>
                   {editingNote && <Button type="button" variant="ghost" onClick={() => { setEditingNote(null); setNewNote('') }}>Cancelar</Button>}
                 </div>
               </form>
@@ -1345,8 +1375,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
                       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                         <p className="flex items-center gap-1.5 text-xs text-mute" title={item.user?.name || 'Equipo'}><ActorAvatar user={item.user} hasAvatar={item.user?.hasAvatar === true} size="sm" /> <span>{item.user?.name || 'Equipo'}</span> · {fechaHora(item.createdAt)}</p>
                         <div className="flex gap-2">
-                          <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => { setEditingNote(item); setNewNote(item.content) }}>Editar</button>
-                          <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'note', id: item.id })}>Eliminar</button>
+                          <button type="button" disabled={esDemo} className="text-xs font-semibold text-fono-light disabled:opacity-40" onClick={() => { setEditingNote(item); setNewNote(item.content) }}>Editar</button>
+                          <button type="button" disabled={esDemo} className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => setPendingDelete({ type: 'note', id: item.id })}>Eliminar</button>
                         </div>
                       </div>
                     </li>
@@ -1428,7 +1458,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 <FormField label="Detalle" htmlFor="profile-follow-note">
                   <Input id="profile-follow-note" maxLength={2000} placeholder="Motivo y qué acordaste…" value={followForm.note} onChange={(event) => setFollowForm({ ...followForm, note: event.target.value })} />
                 </FormField>
-                <div className="sm:col-span-3"><Button type="submit" disabled={followBusy || !followForm.note.trim()}>{followBusy ? 'Guardando…' : 'Agendar seguimiento'}</Button></div>
+                <div className="sm:col-span-3"><Button type="submit" disabled={esDemo || followBusy || !followForm.note.trim()}>{followBusy ? 'Guardando…' : 'Agendar seguimiento'}</Button></div>
               </form>
               {!followUps.length ? (
                 <EmptyState compact icon="calendar" title="Sin seguimientos" description="Agendá llamadas, WhatsApp o visitas para no perderle el rastro." />
@@ -1456,8 +1486,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
                         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                           <p className="text-xs text-mute" title={item.user?.name || 'Equipo'}><ActorAvatar user={item.user} hasAvatar={item.user?.hasAvatar === true} size="sm" /> <span>{primerNombre(item.user?.name) || 'Equipo'}</span> · {fechaHora(item.createdAt)}</p>
                           <div className="flex gap-2">
-                            {!item.doneAt && <button type="button" disabled={followDoneId === item.id} className="text-xs font-semibold text-ok disabled:opacity-40" onClick={() => markDone(item)}>{followDoneId === item.id ? 'Guardando…' : 'Marcar hecho'}</button>}
-                            <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'followUp', id: item.id })}>Eliminar</button>
+                            {!item.doneAt && <button type="button" disabled={esDemo || followDoneId === item.id} className="text-xs font-semibold text-ok disabled:opacity-40" onClick={() => markDone(item)}>{followDoneId === item.id ? 'Guardando…' : 'Marcar hecho'}</button>}
+                            <button type="button" disabled={esDemo} className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => setPendingDelete({ type: 'followUp', id: item.id })}>Eliminar</button>
                           </div>
                         </div>
                       </li>
@@ -1479,7 +1509,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 <div className="flex items-center gap-3">
                   <Switch
                     checked={seguroForm.enabled}
-                    disabled={!puedeResolver || guardandoSeguro}
+                    disabled={esDemo || !puedeResolver || guardandoSeguro}
                     ariaLabel="Seguro del cliente activo"
                     onChange={(event) => { const next = event.target.checked; setSeguroForm((form) => ({ ...form, enabled: next })); guardarSeguro(next) }}
                   />
@@ -1490,19 +1520,19 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 <div className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
                   <div className="w-44">
                     <FormField label="Porcentaje del cliente" htmlFor="perfil-seguro-pct" hint="Vacío = usa el de la empresa.">
-                      <PercentField id="perfil-seguro-pct" value={seguroForm.pct} disabled={!puedeResolver || guardandoSeguro} onChange={(value) => setSeguroForm((form) => ({ ...form, pct: value }))} />
+                      <PercentField id="perfil-seguro-pct" value={seguroForm.pct} disabled={esDemo || !puedeResolver || guardandoSeguro} onChange={(value) => setSeguroForm((form) => ({ ...form, pct: value }))} />
                     </FormField>
                   </div>
-                  {puedeResolver && <Button type="button" variant="outline" disabled={guardandoSeguro} onClick={() => guardarSeguro(true)}>{guardandoSeguro ? 'Guardando…' : 'Guardar porcentaje'}</Button>}
+                  {puedeResolver && <Button type="button" variant="outline" disabled={esDemo || guardandoSeguro} onClick={() => guardarSeguro(true)}>{guardandoSeguro ? 'Guardando…' : 'Guardar porcentaje'}</Button>}
                 </div>
               )}
               <form onSubmit={guardarTags} className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
                 <div className="min-w-[16rem] flex-1">
                   <FormField label="Etiquetas" htmlFor="perfil-tags" hint="Separadas por coma (hasta 20).">
-                    <Input id="perfil-tags" maxLength={200} value={tagsTexto} onChange={(event) => setTagsTexto(event.target.value)} placeholder="mayorista, prioridad" />
+                    <Input id="perfil-tags" maxLength={200} disabled={esDemo} value={tagsTexto} onChange={(event) => setTagsTexto(event.target.value)} placeholder="mayorista, prioridad" />
                   </FormField>
                 </div>
-                <Button type="submit" variant="outline" disabled={guardandoTags}>{guardandoTags ? 'Guardando…' : 'Guardar etiquetas'}</Button>
+                <Button type="submit" variant="outline" disabled={esDemo || guardandoTags}>{guardandoTags ? 'Guardando…' : 'Guardar etiquetas'}</Button>
               </form>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold">Configuración comercial</p>
@@ -1583,8 +1613,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
                           {row.resolvedNote && <p className="mt-1 text-xs text-mute">Respuesta: {row.resolvedNote}</p>}
                           {puedeResolver && row.status === 'PENDING' && !propia && (
                             <div className="mt-2 flex gap-2">
-                              <button type="button" className="text-xs font-semibold text-ok" onClick={() => abrirResolver(row, 'approve')}>Aprobar</button>
-                              <button type="button" className="text-xs font-semibold text-bad" onClick={() => abrirResolver(row, 'reject')}>Rechazar</button>
+                              <button type="button" disabled={esDemo} className="text-xs font-semibold text-ok disabled:opacity-40" onClick={() => abrirResolver(row, 'approve')}>Aprobar</button>
+                              <button type="button" disabled={esDemo} className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => abrirResolver(row, 'reject')}>Rechazar</button>
                             </div>
                           )}
                         </li>
@@ -1609,7 +1639,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                       <p className="mt-1 text-2xl font-semibold text-fore">{formatGs(puntos)}</p>
                       <p className="mt-1 text-xs text-mute">{loyaltyPct > 0 ? `Se acredita el ${loyaltyPct}% del total de cada venta (1 punto = 1 Gs.).` : 'La fidelización está apagada: activala en Configuración → Negocio.'}</p>
                     </div>
-                    <Button type="button" disabled={!puedeCanjearPuntos || puntos <= 0} onClick={abrirCanje}>Canjear como saldo a favor</Button>
+                    <Button type="button" disabled={esDemo || !puedeCanjearPuntos || puntos <= 0} onClick={abrirCanje}>Canjear como saldo a favor</Button>
                   </div>
                   {loyaltyLoading && <div className="space-y-2" aria-busy="true"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}
                   {!loyaltyLoading && loyaltyError && (
@@ -1646,7 +1676,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold">Direcciones</p>
-                <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => abrirDireccion(null)}>
+                <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={esDemo} onClick={() => abrirDireccion(null)}>
                   <Icon name="plus" className="h-3.5 w-3.5" />
                   Agregar dirección
                 </Button>
@@ -1670,8 +1700,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
                         </p>
                       </div>
                       <div className="flex shrink-0 gap-2">
-                        <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => abrirDireccion(address, index)}>Editar</button>
-                        <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'address', index })}>Eliminar</button>
+                        <button type="button" disabled={esDemo} className="text-xs font-semibold text-fono-light disabled:opacity-40" onClick={() => abrirDireccion(address, index)}>Editar</button>
+                        <button type="button" disabled={esDemo} className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => setPendingDelete({ type: 'address', index })}>Eliminar</button>
                       </div>
                     </li>
                   ))}
@@ -1728,9 +1758,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
                         <span className="truncate text-xs text-mute" title={uso ? `Utilizado en ${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : 'Todavía sin uso'}>{uso ? `${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : '—'}</span>
                         <span className="min-w-0">{actual ? <Badge color="green" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Actual</Badge> : <span className="text-xs text-mute">—</span>}</span>
                         <span className="flex items-center justify-end gap-2">
-                          {!actual && <button type="button" disabled={identityBusy} className="whitespace-nowrap text-xs font-semibold text-ok disabled:opacity-40" onClick={() => usarComoActual(identity)}>Usar</button>}
-                          <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => abrirIdentidad(identity)}>Editar</button>
-                          <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'billing', id: identity.id })}>Eliminar</button>
+                          {!actual && <button type="button" disabled={esDemo || identityBusy} className="whitespace-nowrap text-xs font-semibold text-ok disabled:opacity-40" onClick={() => usarComoActual(identity)}>Usar</button>}
+                          <button type="button" disabled={esDemo} className="text-xs font-semibold text-fono-light disabled:opacity-40" onClick={() => abrirIdentidad(identity)}>Editar</button>
+                          <button type="button" disabled={esDemo} className="text-xs font-semibold text-bad disabled:opacity-40" onClick={() => setPendingDelete({ type: 'billing', id: identity.id })}>Eliminar</button>
                         </span>
                       </div>
                     )
@@ -2081,7 +2111,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </label>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" disabled={direccionBusy} onClick={() => setDireccionForm(null)}>Cancelar</Button>
-              <Button type="submit" disabled={direccionBusy || !direccionForm.address.trim()}>{direccionBusy ? 'Guardando…' : 'Guardar dirección'}</Button>
+              <Button type="submit" disabled={esDemo || direccionBusy || !direccionForm.address.trim()}>{direccionBusy ? 'Guardando…' : 'Guardar dirección'}</Button>
             </div>
           </form>
         )}
@@ -2128,7 +2158,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
           <p className="text-xs text-mute">El cambio queda registrado en la cronología del cliente.</p>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" disabled={guardandoComercial} onClick={() => setComercialAbierto(false)}>Cancelar</Button>
-            <Button type="submit" disabled={guardandoComercial}>{guardandoComercial ? 'Guardando…' : 'Guardar configuración'}</Button>
+            <Button type="submit" disabled={esDemo || guardandoComercial}>{guardandoComercial ? 'Guardando…' : 'Guardar configuración'}</Button>
           </div>
         </form>
       </Modal>
