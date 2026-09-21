@@ -87,3 +87,19 @@ dominio del shell (MOS-DSN/MOS-PLT), se reporta.
 
 `lint` 0 errores · `npm test` 395/395 · build FE ✓ · build BE con `BUILD_ID` ✓ ·
 `test:unit` 71/71 · `test:e2e:smoke` 7/7 · sondas 55/55 + 14/14 + 6/6.
+
+## Re-ejecución y estado del lote (2026-09-21, tarde)
+
+- Sondas re-corridas tras los cambios de #209 (período `fin:rango` compartido y
+  API integrada de `@/lib/ultimoUsado`): **55/55** (servidor vs SQL) · **14/14**
+  (UI) · **6/6** (producción) · **5/5** (#209).
+- `origin/main` avanzó a `3546121` (notas de v1.0.131; el helper de #209 ya está
+  integrado en main y este slot lo adoptó sin definir uno propio). El lote de
+  este slot —el aviso de truncado y el #209 de Finanzas— **todavía no está
+  integrado**; la versión desplegada sigue siendo **v1.0.130** (mismo bundle
+  `index-BaixACwo.js`), así que la sonda de producción documenta lo desplegado:
+  vistas unificadas presentes, endpoints con sesión y demo sin llamadas reales.
+  El aviso de truncado se verifica localmente forzando `truncated`.
+- Cuando el integrador despliegue, se repite
+  `node scripts/qa-171-resumen-analisis-produccion.mjs` (solo lectura) y se
+  espera que el bundle incluya también el aviso nuevo.

@@ -1,0 +1,25 @@
+{
+  "web": "http://localhost:5215",
+  "resultados": [
+    {
+      "nombre": "Gastos: el tipo y la moneda vuelven tras recargar",
+      "ok": true
+    },
+    {
+      "nombre": "Gastos: el cambio explícito pisa lo recordado",
+      "ok": true
+    },
+    {
+      "nombre": "Conciliación: el período y el estado vuelven tras recargar",
+      "ok": true
+    },
+    {
+      "nombre": "Conciliación: el filtro de medio vuelve y se avisa que es recordado",
+      "ok": true
+    },
+    {
+      "nombre": "Conciliación: «Limpiar filtros» olvida lo recordado",
+      "ok": true
+    }
+  ]
+}
