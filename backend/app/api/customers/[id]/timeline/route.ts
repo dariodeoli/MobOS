@@ -70,6 +70,7 @@ type TimelineEvent = {
   id: string
   type: string
   action: string
+  label?: string
   createdAt: Date
   user: { id: string; name: string } | null
   detail: string
@@ -89,7 +90,9 @@ export async function GET(request: Request, { params }: RouteContext) {
   if (!id) return error('Cliente obligatorio.')
   const searchParams = new URL(request.url).searchParams
   const limitSolicitado = Number(searchParams.get('limit'))
-  const limit = Math.min(100, Math.max(1, Number.isFinite(limitSolicitado) && limitSolicitado > 0 ? Math.floor(limitSolicitado) : 20))
+  // Sin `limit` explícito se conserva el contrato previo (hasta 300 eventos);
+  // la ficha pide 20 y pagina con cursor.
+  const limit = Number.isFinite(limitSolicitado) && limitSolicitado > 0 ? Math.min(100, Math.floor(limitSolicitado)) : 300
   const cursor = searchParams.get('cursor') || ''
 
   const customer = await prisma.customer.findFirst({
@@ -230,12 +233,16 @@ export async function GET(request: Request, { params }: RouteContext) {
     ...audits.map(audit => {
       const metadata = audit.metadata as Record<string, unknown> | null
       const campos = Array.isArray(metadata?.fields) ? metadata.fields as string[] : []
+      // `action` conserva la acción cruda de auditoría (contrato del arnés de
+      // integración); `label` es el texto legible que muestra la ficha.
+      const label = audit.action === 'CUSTOMER_UPDATED' && campos.includes('pricingTier')
+        ? 'Tipo de cliente actualizado'
+        : ACCION_AUDITORIA[audit.action]
       return {
         id: `audit-${audit.id}`,
         type: 'audit',
-        action: audit.action === 'CUSTOMER_UPDATED' && campos.includes('pricingTier')
-          ? 'Tipo de cliente actualizado'
-          : ACCION_AUDITORIA[audit.action] || audit.action,
+        action: audit.action,
+        ...(label ? { label } : {}),
         createdAt: audit.createdAt,
         user: audit.user,
         detail: detalleMetadata(audit.action, audit.metadata),
