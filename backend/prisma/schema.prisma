@@ -482,6 +482,11 @@ model Product {
   @@index([tenantId, imei])
   // Búsqueda difusa por nombre (pg_trgm, GIN): ILIKE '%texto%' sin escanear.
   @@index([name(ops: raw("gin_trgm_ops"))], map: "Product_name_trgm_idx", type: Gin)
+  @@index([sku(ops: raw("gin_trgm_ops"))], map: "Product_sku_trgm_idx", type: Gin)
+  @@index([model(ops: raw("gin_trgm_ops"))], map: "Product_model_trgm_idx", type: Gin)
+  @@index([capacity(ops: raw("gin_trgm_ops"))], map: "Product_capacity_trgm_idx", type: Gin)
+  @@index([color(ops: raw("gin_trgm_ops"))], map: "Product_color_trgm_idx", type: Gin)
+  @@index([imei(ops: raw("gin_trgm_ops"))], map: "Product_imei_trgm_idx", type: Gin)
 }
 
 enum InventoryUnitStatus {
@@ -589,6 +594,7 @@ model InventoryUnit {
 
   @@unique([tenantId, serial])
   @@index([tenantId, productId, status])
+  @@index([serial(ops: raw("gin_trgm_ops"))], map: "InventoryUnit_serial_trgm_idx", type: Gin)
   @@index([tenantId, branchId, status])
   @@index([tenantId, status, reservedUntil])
   @@index([tenantId, branchId, locationId, status])
@@ -1113,6 +1119,7 @@ model Order {
   @@unique([tenantId, orderNumber])
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, status])
+  @@index([tenantId, createdAt])
   @@index([tenantId, archivedAt])
   @@index([branchId])
   // Búsqueda difusa por número de pedido (pg_trgm, GIN): ILIKE '%texto%'.
@@ -1338,6 +1345,7 @@ model OrderItem {
 
   @@index([orderId])
   @@index([comboId])
+  @@index([productId], map: "OrderItem_productId_idx")
 }
 
 // Espejo indexado de OrderItem.serials: permite responder "¿qué venta tiene
