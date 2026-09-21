@@ -1,0 +1,340 @@
+{
+  "base": "https://app.moboss.online",
+  "fecha": "2026-09-21T16:40:49.336Z",
+  "resultados": [
+    {
+      "paso": "entrada a la demo",
+      "estado": "ok",
+      "detalle": "demo abierta como dueño · menú Finanzas visible: true",
+      "capturas": [
+        "01-acceso-demo.jpg",
+        "02-panel-demo.jpg"
+      ],
+      "erroresConsola": [
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()"
+      ],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/users/demo-user/avatar",
+        "401 https://api.moboss.online/api/presence",
+        "401 https://api.moboss.online/api/print/printers",
+        "401 https://api.moboss.online/api/credits",
+        "401 https://api.moboss.online/api/presence/heartbeat"
+      ]
+    },
+    {
+      "paso": "bancos: estado inicial",
+      "estado": "ok",
+      "detalle": "5 cuentas demo: Caja demo · Gs | Caja demo · USD | Transferencia ficticia | Tarjeta demo | Canje demo",
+      "capturas": [
+        "03-bancos-inicial.jpg"
+      ],
+      "erroresConsola": [
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()"
+      ],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/presence",
+        "401 https://api.moboss.online/api/users/demo-user/avatar",
+        "401 https://api.moboss.online/api/presence/heartbeat"
+      ]
+    },
+    {
+      "paso": "efectivo: campos contextuales y nombre automático (Gs/USD/otra)",
+      "estado": "ok",
+      "detalle": "campos visibles: {\"banco\":0,\"titular\":0,\"documento\":0,\"numeroCuenta\":0,\"comision\":0,\"acreditacion\":0,\"moneda\":1,\"monedaPersonalizada\":1} · nombres sugeridos: \"Efectivo Gs\" / \"Efectivo USD\" / \"Efectivo ARS\"",
+      "capturas": [
+        "04-efectivo-gs-contextual.jpg",
+        "05-efectivo-multimoneda.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "efectivo: guardar la cuenta",
+      "estado": "ok",
+      "detalle": "cuentas ahora: Caja demo · Gs | Caja demo · USD | Transferencia ficticia | Tarjeta demo | Canje demo | Efectivo Gs",
+      "capturas": [
+        "06-efectivo-guardado.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "transferencia: banco, titular, documento, cuenta y nombre automático",
+      "estado": "ok",
+      "detalle": "campos: {\"banco\":1,\"titular\":1,\"documento\":1,\"numeroCuenta\":1,\"comision\":1,\"acreditacion\":1} · nombre: \"Banco Itaú Paraguay\" → \"Banco Itaú Paraguay - Darío Deoli\" → \"Banco Itaú Paraguay - Darío Deoli - Cuenta 1234\"",
+      "capturas": [
+        "07-transferencia-contextual.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "transferencia: guardar",
+      "estado": "ok",
+      "detalle": "fila con titular visible: 1",
+      "capturas": [
+        "08-transferencia-guardada.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "tarjeta: procesadoras, comisión y acreditación",
+      "estado": "ok",
+      "detalle": "procesadoras: Elegí la procesadora/Bancard/Dinelco/UPay/Pix/Otra… · elegida Bancard · comisión 3% · acredita 2 días · nombre \"Bancard\"",
+      "capturas": [
+        "09-tarjeta-contextual.jpg",
+        "10-tarjeta-guardada.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "Pix: moneda fija BRL y llave",
+      "estado": "ok",
+      "detalle": "selector de moneda: 0 (0 = fija) · etiqueta BRL visible: 1 · llave Pix: 1 · nombre \"Pix - Darío Deoli\"",
+      "capturas": [
+        "11-pix-contextual.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "USDT - Cripto: moneda fija USD y referencia",
+      "estado": "ok",
+      "detalle": "selector de moneda: 0 (0 = fija) · referencia: 1 · nombre \"USDT - Darío Deoli\"",
+      "capturas": [
+        "12-usdt-contextual.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "canje: referencia/valor y guardado",
+      "estado": "ok",
+      "detalle": "nombre \"Canje\" · filas finales: 11",
+      "capturas": [
+        "13-canje-contextual.jpg",
+        "14-bancos-final.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "bancos: tabla completa y edición de una cuenta",
+      "estado": "ok",
+      "detalle": "precargado: {\"procesadora\":\"Bancard\",\"comision\":\"3\",\"acreditacion\":\"2\"} · nombre manual conservado: true",
+      "capturas": [
+        "15-bancos-tabla-completa.jpg",
+        "16-bancos-edicion.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "bancos en móvil (390px) sin desborde",
+      "estado": "ok",
+      "detalle": "desborde horizontal: 0px",
+      "capturas": [
+        "17-bancos-mobile.jpg"
+      ],
+      "erroresConsola": [
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()"
+      ],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/users/demo-user/avatar",
+        "401 https://api.moboss.online/api/presence",
+        "401 https://api.moboss.online/api/presence/heartbeat"
+      ]
+    },
+    {
+      "paso": "conciliación en la demo",
+      "estado": "ok",
+      "detalle": "texto visible: Caja · Gastos · Bancos y cuentas · Conciliación · Publicidad · Conciliación no está disponible en la demo. · Con datos reales vas a ver ingresos por cuenta, medio y procesadora, y conciliar los depósitos recibidos.",
+      "capturas": [
+        "18-conciliacion.jpg"
+      ],
+      "erroresConsola": [
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()"
+      ],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/users/demo-user/avatar",
+        "401 https://api.moboss.online/api/presence/heartbeat",
+        "401 https://api.moboss.online/api/presence"
+      ]
+    },
+    {
+      "paso": "caja: turno, arqueo y auditoría en la demo",
+      "estado": "ok",
+      "detalle": "botón de apertura: 0 · sección Auditoría de efectivo: 0 · Auditoría de medios: 0",
+      "capturas": [
+        "19-caja.jpg",
+        "20-caja-auditoria.jpg"
+      ],
+      "erroresConsola": [
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()"
+      ],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/presence",
+        "401 https://api.moboss.online/api/users/demo-user/avatar",
+        "401 https://api.moboss.online/api/print/printers",
+        "401 https://api.moboss.online/api/presence/heartbeat"
+      ]
+    },
+    {
+      "paso": "seguro de ventas en Configuración (demo)",
+      "estado": "ok",
+      "detalle": "sección visible: 1 · toggle: 1 · % propuesto: \"25\" · ayuda de fórmula: 1 · guardar en demo → Modo demo: los datos son ficticios y no se guardan en tu empresa. | Falta sesión.",
+      "capturas": [
+        "21-seguro-config.jpg",
+        "22-seguro-porcentaje.jpg",
+        "23-seguro-guardar-demo.jpg"
+      ],
+      "erroresConsola": [
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()"
+      ],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/users/demo-user/avatar",
+        "401 https://api.moboss.online/api/presence/heartbeat",
+        "401 https://api.moboss.online/api/presence",
+        "401 https://api.moboss.online/api/user-invitations/pending",
+        "401 https://api.moboss.online/api/account",
+        "401 https://api.moboss.online/api/account"
+      ]
+    },
+    {
+      "paso": "resumen y ganancias en la demo",
+      "estado": "ok",
+      "detalle": "Resumen con Facturado: 1 · Ganancias con desglose: 1 · resultado mostrado: ",
+      "capturas": [
+        "24-resumen-demo.jpg",
+        "25-ganancias-demo.jpg"
+      ],
+      "erroresConsola": [
+        "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()",
+        "Failed to load resource: the server responded with a status of 401 ()"
+      ],
+      "fallosRed": [
+        "401 https://api.moboss.online/api/presence",
+        "401 https://api.moboss.online/api/credits",
+        "401 https://api.moboss.online/api/users/demo-user/avatar",
+        "401 https://api.moboss.online/api/print/printers",
+        "401 https://api.moboss.online/api/presence/heartbeat",
+        "401 https://api.moboss.online/api/users/demo-user/avatar",
+        "401 https://api.moboss.online/api/presence",
+        "401 https://api.moboss.online/api/presence/heartbeat",
+        "401 https://api.moboss.online/api/presence",
+        "401 https://api.moboss.online/api/presence/heartbeat"
+      ]
+    }
+  ],
+  "errores": [
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()",
+    "Failed to load resource: the server responded with a status of 401 ()"
+  ],
+  "fallosRed": [
+    "401 https://api.moboss.online/api/users/demo-user/avatar",
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/print/printers",
+    "401 https://api.moboss.online/api/credits",
+    "401 https://api.moboss.online/api/presence/heartbeat",
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/users/demo-user/avatar",
+    "401 https://api.moboss.online/api/presence/heartbeat",
+    "401 https://api.moboss.online/api/users/demo-user/avatar",
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/presence/heartbeat",
+    "401 https://api.moboss.online/api/users/demo-user/avatar",
+    "401 https://api.moboss.online/api/presence/heartbeat",
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/users/demo-user/avatar",
+    "401 https://api.moboss.online/api/print/printers",
+    "401 https://api.moboss.online/api/presence/heartbeat",
+    "401 https://api.moboss.online/api/users/demo-user/avatar",
+    "401 https://api.moboss.online/api/presence/heartbeat",
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/user-invitations/pending",
+    "401 https://api.moboss.online/api/account",
+    "401 https://api.moboss.online/api/account",
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/credits",
+    "401 https://api.moboss.online/api/users/demo-user/avatar",
+    "401 https://api.moboss.online/api/print/printers",
+    "401 https://api.moboss.online/api/presence/heartbeat",
+    "401 https://api.moboss.online/api/users/demo-user/avatar",
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/presence/heartbeat",
+    "401 https://api.moboss.online/api/presence",
+    "401 https://api.moboss.online/api/presence/heartbeat"
+  ],
+  "pedidosFallidos": [
+    "net::ERR_CONNECTION_REFUSED http://127.0.0.1:17890/health",
+    "net::ERR_CONNECTION_REFUSED http://127.0.0.1:17890/health",
+    "net::ERR_CONNECTION_REFUSED http://127.0.0.1:17890/health"
+  ]
+}
