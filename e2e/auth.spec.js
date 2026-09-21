@@ -166,13 +166,20 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   await page.getByLabel('Buscar clientes').fill('Lucía')
   const fila = page.getByTestId('cliente-fila').filter({ hasText: 'Lucía Fernández' }).first()
   await expect(fila).toBeVisible()
+  // Agregados del listado calculados desde los pedidos demo (#221), como la
+  // cuenta real: total gastado, teléfono con código de país.
+  await expect(fila).toContainText('Gs 7.750.000')
+  await expect(fila).toContainText('+595 981 123 456')
   await fila.click()
   const ficha = page.getByRole('dialog')
   await expect(ficha.getByText(/Modo demo/)).toBeVisible()
+  await page.screenshot({ path: '/tmp/qa221-lista-demo.png' })
 
   // Resumen con deuda y últimas órdenes del seed.
   await expect(ficha.getByText('Saldo pendiente: Gs 1.500.000')).toBeVisible()
   await expect(ficha.getByText('Gs 1.500.000').first()).toBeVisible()
+  await expect(ficha.getByText('Total gastado')).toBeVisible()
+  await expect(ficha.getByText('Gs 7.750.000').first()).toBeVisible()
   await expect(ficha.getByText('Últimas órdenes')).toBeVisible()
   await expect(ficha.getByText('MOB-#0008').first()).toBeVisible()
   // El seguro del seed se ve en los datos clave del Resumen.
@@ -182,6 +189,14 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   await ficha.getByRole('tab', { name: /^Cronología/ }).click()
   await expect(ficha.getByText('Pedido creado').first()).toBeVisible()
   await expect(ficha.getByText('Comentario del equipo').first()).toBeVisible()
+
+  // Estadísticas calculadas de verdad desde los pedidos demo (#221).
+  await ficha.getByRole('tab', { name: /^Estadísticas/ }).click()
+  await expect(ficha.getByText('Gs 1.550.000')).toBeVisible()
+  await expect(ficha.getByText('iPhone 15 · 128 GB').first()).toBeVisible()
+  await expect(ficha.getByText(/Cada 172 días/)).toBeVisible()
+  await expect(ficha.getByText('Gasto por mes')).toBeVisible()
+  await page.screenshot({ path: '/tmp/qa221-estadisticas-demo.png' })
 
   // El control del seguro queda activo (12,5%) y deshabilitado en demo.
   await ficha.getByRole('tab', { name: /^Datos/ }).click()

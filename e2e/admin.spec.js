@@ -705,6 +705,12 @@ test.describe('mini CRM de clientes', () => {
     })
     expect(pedido.status).toBe(201)
 
+    // El listado muestra los agregados reales del cliente (#221): total gastado
+    // y la venta cancelada no cuenta (misma lógica que la lista y la analítica).
+    await page.getByLabel('Buscar clientes').fill(nombre)
+    const filaReal = page.getByTestId('cliente-fila').filter({ hasText: nombre }).first()
+    await expect(filaReal).toContainText('Gs 90.000')
+
     await page.goto(`/clientes?cliente=${encodeURIComponent(clienteId)}`)
     const ficha = page.getByRole('dialog')
     await expect(ficha.getByRole('heading', { name: nombre })).toBeVisible()

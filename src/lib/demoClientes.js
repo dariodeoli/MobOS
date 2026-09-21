@@ -1,4 +1,5 @@
 import { leerDemo, guardarDemo } from './demoStorage.js'
+import { analiticaDePedidos } from './customerAggregates.js'
 // Datos ficticios del modo demo para Clientes (#189/#194). Nada de esto sale
 // del navegador: los seeds se muestran siempre y lo que se crea se guarda en
 // localStorage. La ficha, la cronología y el portal se arman con estos datos
@@ -20,35 +21,7 @@ const EVENTOS = (customer) => [
   { id: 'demo-e8', type: 'audit', action: 'Tipo de cliente actualizado', label: 'Tipo de cliente actualizado', createdAt: haceDias(2), user: usuarioDemo('Administración demo'), detail: 'Campos: Tipo de cliente' },
 ]
 
-const ANALITICA = (orders) => {
-  const totalPyg = orders.reduce((suma, order) => suma + order.totalPyg, 0)
-  const count = orders.length
-  return {
-    ordersCount: count,
-    totalPyg,
-    avgTicketPyg: count ? Math.round(totalPyg / count) : 0,
-    firstPurchaseAt: orders[count - 1]?.createdAt || null,
-    lastPurchaseAt: orders[0]?.createdAt || null,
-    purchasesPerMonth: 1.5,
-    spendPerMonthPyg: 950000,
-    frequencyDays: 24,
-    customerSince: haceDias(120),
-    antiguedadDias: 120,
-    byMonth: [
-      { month: '2026-08', label: 'ago 2026', count: 2, totalPyg: 4800000 },
-      { month: '2026-09', label: 'sep 2026', count: 1, totalPyg: 3000000 },
-    ],
-    topProducts: [
-      { description: 'iPhone 15 · 128 GB', quantity: 2, totalPyg: 6000000 },
-      { description: 'Cargador USB-C', quantity: 3, totalPyg: 240000 },
-    ],
-    topModels: [{ model: 'iPhone 15', quantity: 2, totalPyg: 6000000 }],
-    topCategories: [{ category: 'Celulares', quantity: 2, totalPyg: 6000000 }],
-    topMonths: [{ month: '2026-08', label: 'ago 2026', count: 2, totalPyg: 4800000 }],
-    topWeekdays: [{ day: 'Lunes', count: 2, totalPyg: 4800000 }],
-    statement: orders.map((order) => ({ orderNumber: order.orderNumber, createdAt: order.createdAt, totalPyg: order.totalPyg, status: order.status })),
-  }
-}
+const ANALITICA_VACIA = { ordersCount: 0, totalPyg: 0, avgTicketPyg: 0, purchasesPerMonth: 0, spendPerMonthPyg: 0, frequencyDays: null, antiguedadDias: 0, byMonth: [], topProducts: [], topModels: [], topCategories: [], topMonths: [], topWeekdays: [], statement: [] }
 
 const pedido = ({ id, numero, total, pagado, estado = 'COMPLETED', dias, items = [] }) => ({
   id,
@@ -70,7 +43,7 @@ export const SEED_DEMO_CLIENTES = [
     name: 'Lucía Fernández',
     firstName: 'Lucía',
     secondName: 'Fernández',
-    createdAt: haceDias(120),
+    createdAt: haceDias(760),
     document: '3.456.789',
     email: 'lucia@ejemplo.com',
     phone: '0981123456',
@@ -88,9 +61,12 @@ export const SEED_DEMO_CLIENTES = [
     addresses: [{ id: 'demo-dir-1', label: 'Casa', address: 'Av. Mcal. López 1234', city: 'Asunción', department: 'Capital', country: 'Paraguay', isDefault: true }],
     demoProfile: {
       orders: [
-        pedido({ id: 'demo-p-8', numero: 'MOB-0008', total: 3000000, pagado: 1500000, estado: 'PENDING', dias: 12, items: [{ id: 'demo-i-8', description: 'iPhone 15 · 128 GB', quantity: 1, serials: ['356789012345678'] }] }),
-        pedido({ id: 'demo-p-5', numero: 'MOB-0005', total: 1800000, pagado: 1800000, dias: 45, items: [{ id: 'demo-i-5', description: 'Apple Watch SE', quantity: 1, serials: [] }] }),
-        pedido({ id: 'demo-p-2', numero: 'MOB-0002', total: 900000, pagado: 900000, dias: 95, items: [{ id: 'demo-i-2', description: 'AirPods 3', quantity: 1, serials: [] }] }),
+        pedido({ id: 'demo-p-8', numero: 'MOB-0008', total: 3000000, pagado: 1500000, estado: 'PENDING', dias: 12, items: [{ id: 'demo-i-8', description: 'iPhone 15 · 128 GB', quantity: 1, model: 'iPhone 15', category: 'Celulares', serials: ['356789012345678'] }] }),
+        pedido({ id: 'demo-p-5', numero: 'MOB-0005', total: 1800000, pagado: 1800000, dias: 45, items: [{ id: 'demo-i-5', description: 'Apple Watch SE', quantity: 1, model: 'Apple Watch SE', category: 'Apple Watch', serials: [] }] }),
+        pedido({ id: 'demo-p-2', numero: 'MOB-0002', total: 900000, pagado: 900000, dias: 95, items: [{ id: 'demo-i-2', description: 'AirPods 3', quantity: 1, model: 'AirPods 3', category: 'Accesorios', serials: [] }] }),
+        pedido({ id: 'demo-p-31', numero: 'MOB-0031', total: 2400000, pagado: 2400000, estado: 'CANCELLED', dias: 200, items: [{ id: 'demo-i-31', description: 'iPhone 14 · 128 GB', quantity: 1, model: 'iPhone 14', category: 'Celulares', serials: [] }] }),
+        pedido({ id: 'demo-p-12', numero: 'MOB-0012', total: 1200000, pagado: 1200000, dias: 400, items: [{ id: 'demo-i-12', description: 'iPad 10 · 64 GB', quantity: 1, model: 'iPad 10', category: 'Celulares', serials: [] }] }),
+        pedido({ id: 'demo-p-3', numero: 'MOB-0003', total: 850000, pagado: 850000, dias: 700, items: [{ id: 'demo-i-3', description: 'Cargador USB-C y funda', quantity: 2, model: 'Cargador USB-C', category: 'Accesorios', serials: [] }] }),
       ],
       warranties: [],
       notes: [
@@ -111,7 +87,7 @@ export const SEED_DEMO_CLIENTES = [
     name: 'Distribuidora del Este S.A.',
     firstName: 'Distribuidora',
     secondName: 'del Este S.A.',
-    createdAt: haceDias(300),
+    createdAt: haceDias(320),
     document: '80045678-9',
     email: 'compras@distribuidoraeste.ejemplo',
     phone: '0982555111',
@@ -129,8 +105,9 @@ export const SEED_DEMO_CLIENTES = [
     addresses: [{ id: 'demo-dir-2', label: 'Depósito', address: 'Km 12 Ruta 2', city: 'Ciudad del Este', department: 'Alto Paraná', country: 'Paraguay', isDefault: true }],
     demoProfile: {
       orders: [
-        pedido({ id: 'demo-p-7', numero: 'MOB-0007', total: 12500000, pagado: 12500000, dias: 20, items: [{ id: 'demo-i-7', description: 'iPhone 14 · 128 GB', quantity: 5, serials: [] }] }),
-        pedido({ id: 'demo-p-3', numero: 'MOB-0003', total: 8000000, pagado: 8000000, dias: 70, items: [{ id: 'demo-i-3', description: 'iPad 10', quantity: 4, serials: [] }] }),
+        pedido({ id: 'demo-p-7', numero: 'MOB-0007', total: 12500000, pagado: 12500000, dias: 20, items: [{ id: 'demo-i-7', description: 'iPhone 14 · 128 GB', quantity: 5, model: 'iPhone 14', category: 'Celulares', serials: [] }] }),
+        pedido({ id: 'demo-p-3', numero: 'MOB-0003', total: 8000000, pagado: 8000000, dias: 70, items: [{ id: 'demo-i-3', description: 'iPad 10', quantity: 4, model: 'iPad 10', category: 'Celulares', serials: [] }] }),
+        pedido({ id: 'demo-p-19', numero: 'MOB-0019', total: 5500000, pagado: 5500000, dias: 250, items: [{ id: 'demo-i-19', description: 'MacBook Air M2', quantity: 1, model: 'MacBook Air M2', category: 'Mac', serials: [] }] }),
       ],
       warranties: [],
       notes: [{ id: 'demo-n-3', content: 'Compra por volumen: coordinar entrega en depósito.', createdAt: haceDias(18), user: usuarioDemo('Administración demo') }],
@@ -160,7 +137,10 @@ export const SEED_DEMO_CLIENTES = [
     insuranceRatePct: null,
     addresses: [{ id: 'demo-dir-3', label: 'Casa', address: 'Calle Palma 456', city: 'Luque', department: 'Central', country: 'Paraguay', isDefault: true }],
     demoProfile: {
-      orders: [pedido({ id: 'demo-p-1', numero: 'MOB-0001', total: 450000, pagado: 450000, dias: 35, items: [{ id: 'demo-i-1', description: 'Cargador USB-C', quantity: 1, serials: [] }] })],
+      orders: [
+        pedido({ id: 'demo-p-1', numero: 'MOB-0001', total: 450000, pagado: 450000, dias: 35, items: [{ id: 'demo-i-1', description: 'Cargador USB-C', quantity: 1, model: 'Cargador USB-C', category: 'Accesorios', serials: [] }] }),
+        pedido({ id: 'demo-p-4', numero: 'MOB-0004', total: 320000, pagado: 320000, dias: 8, items: [{ id: 'demo-i-4', description: 'Funda + vidrio templado', quantity: 2, model: 'Funda', category: 'Accesorios', serials: [] }] }),
+      ],
       warranties: [],
       notes: [],
       followUps: [],
@@ -251,10 +231,8 @@ export function buildDemoTimeline(customer = {}) {
 
 export function buildDemoAnalytics(customer = {}) {
   const orders = customer.demoProfile?.orders || []
-  if (!orders.length) {
-    return { ordersCount: 0, totalPyg: 0, avgTicketPyg: 0, purchasesPerMonth: 0, spendPerMonthPyg: 0, frequencyDays: null, antiguedadDias: 0, byMonth: [], topProducts: [], topModels: [], topCategories: [], topMonths: [], topWeekdays: [], statement: [] }
-  }
-  return ANALITICA(orders)
+  if (!orders.length) return ANALITICA_VACIA
+  return analiticaDePedidos(orders, { customerSince: customer.createdAt })
 }
 
 // Portal demo: el token `demo-<cliente>-<nivel>` se resuelve en el navegador,
