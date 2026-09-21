@@ -79,6 +79,10 @@ patrón de uso de cada familia y un ejemplo corto.
   excluyentes con `SegmentedField`; la subnavegación con `Subtabs`; los
   catálogos cerrados con `Select`. No se inventan pestañas, toggles ni
   segmentados locales.
+  - **Pendiente de consolidación (reportado en #164):** `ui/Toggle` (#160) es
+    una variante de botón del mismo concepto. El objeto canónico es
+    `shared/Switch` (checkbox real: etiqueta asociada, teclado y formulario);
+    al migrar las pantallas de #160 se elimina `Toggle`.
 
 ### 1.3 Reglas transversales de campos
 
