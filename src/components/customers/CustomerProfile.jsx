@@ -97,6 +97,7 @@ const GRID_DISPOSITIVOS = 'grid min-w-[54rem] grid-cols-[minmax(8rem,1.2fr)_minm
 const GRID_GARANTIAS_CLI = 'grid min-w-[46rem] grid-cols-[minmax(9rem,1.5fr)_minmax(7rem,1fr)_6rem_7rem] items-center gap-x-2'
 const GRID_SEGUIMIENTOS = 'grid min-w-[54rem] grid-cols-[7rem_minmax(10rem,1.8fr)_7rem_7rem_6rem_8rem] items-center gap-x-2'
 const GRID_FACTURACION = 'grid min-w-[50rem] grid-cols-[minmax(10rem,1.5fr)_minmax(7rem,1fr)_minmax(8rem,1fr)_7rem_7rem] items-center gap-x-2'
+const GRID_DEUDA = 'grid min-w-[34rem] grid-cols-[7rem_6rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-x-2'
 const CELDA_CLI = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const TABS = [
@@ -912,16 +913,30 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
           {deuda > 0 && (
             <div className="rounded-xl border border-warn/30 bg-warn/5 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Deuda por pedido</p>
-              <ul className="mt-2 space-y-1">
-                {ordenesConSaldo.map((order) => (
-                  <li key={order.id} className="flex items-center justify-between gap-3 text-sm">
-                    <span className="min-w-0 truncate font-medium">{codigoPedido(order.orderNumber) || 'Pedido'}</span>
-                    <span className="shrink-0 tabular-nums text-warn">{formatGs(saldoOrden(order))}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-xs text-mute">Total pendiente: <b className="text-fore">{formatGs(deuda)}</b></p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-warn">Saldo pendiente: {formatGs(deuda)}</p>
+                <Badge color="red">{ordenesConSaldo.length} {ordenesConSaldo.length === 1 ? 'pedido' : 'pedidos'}</Badge>
+              </div>
+              <div className="mt-2 overflow-x-auto" data-testid="perfil-deuda">
+                <div className={cn(GRID_DEUDA, 'px-1 pb-1 pt-1')}>
+                  <span className={CELDA_CLI}>Pedido</span>
+                  <span className={CELDA_CLI}>Fecha</span>
+                  <span className={cn(CELDA_CLI, 'text-right')}>Total</span>
+                  <span className={cn(CELDA_CLI, 'text-right')}>Pagado</span>
+                  <span className={cn(CELDA_CLI, 'text-right')}>Saldo</span>
+                </div>
+                <div className="space-y-0.5">
+                  {ordenesConSaldo.map((order) => (
+                    <div key={order.id} data-testid="perfil-deuda-fila" className={cn(GRID_DEUDA, 'rounded-lg px-1 py-1.5 text-sm')}>
+                      <span className="truncate font-medium" title={codigoPedido(order.orderNumber) || undefined}>{codigoPedido(order.orderNumber) || 'Pedido'}</span>
+                      <span className="truncate text-xs text-mute">{fecha(order.createdAt)}</span>
+                      <span className="truncate text-right tabular-nums text-mute">{formatGs(order.totalPyg)}</span>
+                      <span className="truncate text-right tabular-nums text-ok">{formatGs(pagadoOrden(order))}</span>
+                      <span className="truncate text-right font-semibold tabular-nums text-warn">{formatGs(saldoOrden(order))}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
