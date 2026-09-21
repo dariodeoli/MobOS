@@ -96,7 +96,7 @@ export default function Cobranzas() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="font-bold">Cobranzas por WhatsApp</h2>
-            <p className="mt-1 text-sm text-mute">Recordá las cuotas vencidas y próximas con la plantilla de <b className="text-fore">Cobranzas</b>. Cada cuota se avisa una sola vez por WhatsApp y queda en la cronología del cliente y del pedido. La plantilla se edita en <a className="text-fono-light underline" href="/pos/plantillas">Plantillas de WhatsApp</a>.</p>
+            <p className="mt-1 text-sm text-mute">Recordá las cuotas vencidas y próximas con la plantilla de <b className="text-fore">Cobranzas</b>. Cada cuota se avisa una sola vez por WhatsApp y queda en la cronología del cliente y del pedido. La plantilla se edita en <a className="text-fono-light underline" href="/plantillas">Plantillas de WhatsApp</a>.</p>
             <p className="mt-1 text-xs text-mute">{moraPct > 0 ? `Recargo por mora configurado: ${moraPct}% por día (tope 20%).` : 'Sin recargo por mora configurado: solo se informan los días de atraso.'}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

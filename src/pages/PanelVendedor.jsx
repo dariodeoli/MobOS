@@ -13,6 +13,7 @@ import AppShell from '@/components/app/AppShell'
 import GlobalSearch from '@/components/app/GlobalSearch'
 import { Button, ConfirmDialog, Eyebrow, Input, Modal, PinInput, Select, Skeleton, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
 import SellerOrders from '@/components/ventas/SellerOrders'
@@ -332,14 +333,17 @@ export default function PanelVendedor() {
   } = useSesion()
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const { vista: routeVista, seccion: routeSeccion } = useParams()
-  // Las subpáginas con pestañas viven en /<padre>/<slug>: el padre es el primer
-  // tramo de la URL y el slug hijo define la pestaña activa.
-  const subpadre = SUBPAGINAS[pathname.split('/')[1]] ? pathname.split('/')[1] : null
+  const { seccion: routeSeccion } = useParams()
+  // Las subpáginas con pestañas viven en /<padre>/<hijo>: el primer tramo de la
+  // URL es el padre y el slug hijo define la pestaña activa.
+  const slugRuta = pathname.split('/')[1] || ''
+  const subpadre = SUBPAGINAS[slugRuta] ? slugRuta : null
   const tabsRuta = useMemo(() => (subpadre ? tabsDeSubpagina(subpadre, esDemo) : []), [subpadre, esDemo])
   const seccionRuta = subpadre && tabsRuta.some(([id]) => id === routeSeccion) ? routeSeccion : null
   const esOwner = Boolean(sesion?.esPropietario || usuario?.role === 'ADMIN')
   const esTecnico = !esOwner && (usuario?.role === 'TECNICO' || sesion?.rol === 'TECNICO')
+  // El slug plano de la URL define la vista (/ventas, /pedidos, /trade-in…).
+  const routeVista = subpadre ? null : vistaDeRuta(slugRuta, { esOwner })
   const [vista, setVista] = useState(seccionRuta || routeVista || (subpadre ? tabsRuta[0][0] : 'cargar'))
   const grupoConfig = GRUPOS_CONFIG.find((grupo) => grupo.tabs.includes(vista)) || GRUPOS_CONFIG[0]
   const tabsConfig = tabsRuta.filter(([id]) => grupoConfig.tabs.includes(id))
@@ -370,7 +374,8 @@ export default function PanelVendedor() {
     () => (esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV).flatMap(group => group.items).map(([id]) => id),
     [esOwner, esTecnico],
   )
-  // /pos/analisis y los slugs planos viejos (/pos/negocio…) se canonizan a /<padre>/<hijo>.
+  // Un slug plano de pestaña (p. ej. /precios, que también es pestaña de
+  // Configuración) se canoniza a /<padre>/<hijo> cuando el rol la tiene.
   useEffect(() => {
     if (subpadre) return
     const destino = SUBPAGINA_DE_VISTA[routeVista] || SUBPAGINA_DE_TAB[routeVista]
@@ -387,14 +392,14 @@ export default function PanelVendedor() {
     if (subpadre && !seccionRuta) navigate(`/${subpadre}/${tabsRuta[0][0]}`, { replace: true })
   }, [subpadre, seccionRuta, tabsRuta, navigate])
   // Si la URL apunta a una vista fuera del alcance del rol (ej. un vendedor en
-  // /pos/inventario), se redirige a "cargar" de una sola vez. Sin el navigate
+  // /inventario), se redirige a "cargar" de una sola vez. Sin el navigate
   // acá, los dos efectos se pisan en bucle: uno fuerza 'cargar' y el otro
   // vuelve a leer 'inventario' de la URL.
   useEffect(() => {
     const requerido = subpadre ? SUBPAGINAS[subpadre].vista : vista
     if (!accesibles.includes(requerido)) {
       setVista('cargar')
-      navigate('/pos/cargar', { replace: true })
+      navigate('/ventas', { replace: true })
     }
   }, [subpadre, accesibles, vista, navigate])
   // Sincroniza la URL → vista solo para rutas válidas del rol activo.
@@ -433,11 +438,11 @@ export default function PanelVendedor() {
     }
     if (id === 'pedidos' && opciones.orderId) {
       setVista('pedidos')
-      navigate(`/pos/pedidos/${encodeURIComponent(opciones.orderId)}`)
+      navigate(`/pedidos/${encodeURIComponent(opciones.orderId)}`)
       return
     }
     setVista(id)
-    navigate(`/pos/${id}${sufijo}`)
+    navigate(`${rutaDeVista(id) || '/ventas'}${sufijo}`)
   }
 
   // Pestaña de un subpadre: la pestaña activa vive en la URL hija.
@@ -649,7 +654,7 @@ export default function PanelVendedor() {
               <button
                 onClick={() => {
                   setVista('cargar')
-                  navigate('/pos/cargar')
+                  navigate('/ventas')
                 }}
                 className="inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono px-3.5 text-[13px] font-semibold text-onbrand transition hover:bg-fono-dark"
               >
@@ -716,7 +721,7 @@ export default function PanelVendedor() {
                 onCargarVenta={draft => {
                   setTradeIn({ ...draft, id: crypto.randomUUID(), identidad })
                   setVista('cargar')
-                  navigate('/pos/cargar')
+                  navigate('/ventas')
                 }}
               />
             </div>

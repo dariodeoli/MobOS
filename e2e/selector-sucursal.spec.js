@@ -25,7 +25,7 @@ test.describe('selector de sucursal', () => {
     await page.route('**/api/inventory-branches', async (route) => {
       await route.fulfill({ json: [{ id: 'e2e-branch-unica', name: 'Sucursal Única E2E', city: 'Asunción' }] })
     })
-    await page.goto('/pos/cargar')
+    await page.goto('/ventas')
 
     const info = page.getByTestId('sucursal-info')
     await expect(info).toBeVisible()
@@ -37,7 +37,7 @@ test.describe('selector de sucursal', () => {
   })
 
   test('con varias sucursales el menú abre y cambia la activa', async ({ page }) => {
-    await page.goto('/pos/cargar')
+    await page.goto('/ventas')
     const nombre = `Sucursal selector ${Date.now()}`
     const creada = await api(page, '/api/branches', { method: 'POST', body: JSON.stringify({ name: nombre }) })
     expect(creada.status).toBe(201)

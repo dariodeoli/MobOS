@@ -41,7 +41,7 @@ function FichaProducto({ producto }) {
       </section>
       <div className="text-center">
         <Link
-          to={`/pos/productos?q=${encodeURIComponent(producto.sku || producto.id || '')}`}
+          to={`/productos?q=${encodeURIComponent(producto.sku || producto.id || '')}`}
           className="inline-flex h-11 items-center justify-center rounded-lg bg-fono px-5 text-sm font-semibold text-onbrand transition hover:bg-fono-light"
         >
           Ver en el catálogo

@@ -19,7 +19,7 @@ async function api(page, path, options = {}) {
 }
 
 test('la cotización pública se acepta una sola vez y el enlace se regenera', async ({ page }) => {
-  await page.goto('/pos/resumen')
+  await page.goto('/resumen')
   const marca = Date.now()
   const creada = await api(page, '/api/quotes', {
     method: 'POST',
@@ -39,7 +39,7 @@ test('la cotización pública se acepta una sola vez y el enlace se regenera', a
   expect(doble.status).toBe(409)
 
   // El modal interno muestra el QR y regenerar invalida el enlace anterior.
-  await page.goto('/pos/cotizaciones')
+  await page.goto('/cotizaciones')
   const fila = page.getByTestId('cotizacion-fila').filter({ hasText: creada.body.number }).first()
   await fila.getByRole('button', { name: 'Enlace/QR' }).click()
   await expect(page.getByAltText('QR de la cotización')).toBeVisible()
@@ -51,7 +51,7 @@ test('la cotización pública se acepta una sola vez y el enlace se regenera', a
 })
 
 test('el remito público confirma la recepción y suma el stock de destino', async ({ page }) => {
-  await page.goto('/pos/resumen')
+  await page.goto('/resumen')
   const marca = Date.now()
   const destino = await api(page, '/api/branches', { method: 'POST', body: JSON.stringify({ name: `Sucursal remito ${marca}` }) })
   expect(destino.status).toBe(201)

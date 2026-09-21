@@ -20,8 +20,8 @@ export async function completeSellerPin(page, { pin = SEED.sellers[0].pin } = {}
   // pressSequentially: el PinInput controlado transforma y auto-envía en el
   // 4.º dígito; fill() pelea contra esos re-renders y queda colgado.
   await page.locator('#seller-pin').pressSequentially(pin)
-  // The form auto-submits on the 4th digit; the seller lands on /pos/cargar.
-  await expect(page).toHaveURL(/\/pos\/cargar$/)
+  // The form auto-submits on the 4th digit; the seller lands on /ventas.
+  await expect(page).toHaveURL(/\/ventas$/)
 }
 
 // Full login as a seller through the UI.

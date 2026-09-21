@@ -75,7 +75,7 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   expect(cliente?.id).toBeTruthy()
   // La lista de clientes en vista de tabla expone las filas con testid.
   await page.addInitScript(() => localStorage.setItem('mobos:clientes-vista', 'list'))
-  await page.goto('/pos/clientes')
+  await page.goto('/clientes')
   await page.getByLabel('Buscar clientes').fill(nombreCliente)
   await page.getByTestId('cliente-fila').filter({ hasText: nombreCliente }).first().click()
   const listaSelect = page.getByLabel('Lista de precios')
@@ -85,7 +85,7 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   await page.keyboard.press('Escape')
 
   // ── Venta con escalón: 3 unidades al precio del escalón ─────────────────
-  await page.goto('/pos/cargar')
+  await page.goto('/ventas')
   await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
   await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(nombreCliente)
   await page.getByPlaceholder('Buscar producto…').fill(nombreProducto)

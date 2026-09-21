@@ -280,7 +280,7 @@ export default function SellerOrders() {
     let activo = true
     api.get(`/api/orders/${encodeURIComponent(orderId)}`)
       .then((row) => { if (activo) setPedidoDirecto(orderFields(row)) })
-      .catch(() => { if (activo) { setPedidoDirecto(null); navigate('/pos/pedidos', { replace: true }) } })
+      .catch(() => { if (activo) { setPedidoDirecto(null); navigate('/pedidos', { replace: true }) } })
     return () => { activo = false }
   }, [orderId, seleccion, navigate])
   const recargarDirecto = async () => {
@@ -289,8 +289,8 @@ export default function SellerOrders() {
   }
   const [pedidoPanel, setPedidoPanel] = useState(null)
   const detalleAbierto = seleccion || pedidoDirecto
-  const abrirPedido = (row) => navigate(`/pos/pedidos/${encodeURIComponent(row.id)}`)
-  const cerrarPedido = () => navigate('/pos/pedidos')
+  const abrirPedido = (row) => navigate(`/pedidos/${encodeURIComponent(row.id)}`)
+  const cerrarPedido = () => navigate('/pedidos')
 
   const ordenarPor = (key) => setOrden((current) => current.key === key ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'date' || key === 'total' || key === 'quantity' ? 'desc' : 'asc' })
   const encabezado = (key, label, extra = '') => (

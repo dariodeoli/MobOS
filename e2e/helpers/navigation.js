@@ -1,7 +1,7 @@
-// Navigation helpers for the /pos panel.
+// Navigation helpers for the panel.
 
-// Opens a POS view by URL. Returns after the panel shell has rendered.
-export async function gotoVista(page, vista) {
-  await page.goto(`/pos/${vista}`)
+// Opens a panel view by URL slug. Returns after the panel shell has rendered.
+export async function gotoVista(page, slug) {
+  await page.goto(`/${slug}`)
   await page.waitForLoadState('domcontentloaded')
 }

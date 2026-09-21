@@ -20,7 +20,7 @@ async function api(page, path, options = {}) {
 
 test.describe('cobranzas por WhatsApp', () => {
   test('recordar una cuota vencida desde la pantalla, con mora y auditoría', async ({ page }) => {
-    await page.goto('/pos/cargar')
+    await page.goto('/ventas')
     const marca = Date.now()
     const telefono = `981${String(marca).slice(-6)}`
 

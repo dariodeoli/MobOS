@@ -16,8 +16,8 @@ for (const viewport of viewports) {
   test.describe(`${viewport.name} ${viewport.width}x${viewport.height}`, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } })
 
-    test('/pos/cargar has no horizontal overflow and shows the product search', async ({ page }) => {
-      await page.goto('/pos/cargar')
+    test('/ventas has no horizontal overflow and shows the product search', async ({ page }) => {
+      await page.goto('/ventas')
       await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
       const search = page.getByPlaceholder('Buscar producto…')
@@ -25,8 +25,8 @@ for (const viewport of viewports) {
       await expectNoHorizontalOverflow(page)
     })
 
-    test('/pos/pedidos has no horizontal overflow', async ({ page }) => {
-      await page.goto('/pos/pedidos')
+    test('/pedidos has no horizontal overflow', async ({ page }) => {
+      await page.goto('/pedidos')
       await expect(page.getByRole('heading', { name: 'Mis pedidos' })).toBeVisible()
 
       await expectNoHorizontalOverflow(page)

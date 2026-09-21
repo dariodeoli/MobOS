@@ -67,7 +67,7 @@ test('POS: un cliente con lista ve el precio de lista y su escalón por cantidad
     expect(creado.listId).toBeTruthy()
     expect(creado.customerId).toBeTruthy()
 
-    await page.goto('/pos/cargar')
+    await page.goto('/ventas')
     await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(nombreCliente)
     await page.getByRole('button', { name: new RegExp(nombreCliente) }).click()
     await expect(page.getByText('Cliente seleccionado')).toBeVisible()

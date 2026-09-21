@@ -58,7 +58,7 @@ function FichaUnidad({ unidad, serial, puedeVerInventario }) {
       </section>
       <div className="text-center">
         <Link
-          to={puedeVerInventario ? `/inventario/unidades?q=${encodeURIComponent(serial)}` : '/pos/cargar'}
+          to={puedeVerInventario ? `/inventario/unidades?q=${encodeURIComponent(serial)}` : '/ventas'}
           className="inline-flex h-11 items-center justify-center rounded-lg bg-fono px-5 text-sm font-semibold text-onbrand transition hover:bg-fono-light"
         >
           {puedeVerInventario ? 'Ver en el inventario' : 'Ir a la app'}

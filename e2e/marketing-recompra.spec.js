@@ -19,7 +19,7 @@ async function api(page, path, options = {}) {
 
 test.describe('campañas de recompra', () => {
   test('segmentar, enviar y no repetir al cliente ya contactado', async ({ page }) => {
-    await page.goto('/pos/clientes')
+    await page.goto('/clientes')
     const marca = Date.now()
     const base = String(marca).slice(-4)
 
@@ -46,7 +46,7 @@ test.describe('campañas de recompra', () => {
       expect(pedido.status).toBe(201)
     }
 
-    await page.goto('/pos/clientes')
+    await page.goto('/clientes')
     await expect(page.getByRole('heading', { name: 'Clientes' })).toBeVisible()
     await page.getByRole('button', { name: 'Campañas' }).click()
     const panel = page.getByTestId('marketing-panel')
