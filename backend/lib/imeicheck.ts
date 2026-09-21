@@ -14,6 +14,9 @@
 // (`GET /services`): acá viven solo las claves de flujo y el precio de
 // referencia, nunca un ID inventado.
 
+// Contrato público (el que consumimos): POST /v1/checks. El JSON de la orden
+// pagada vino de /frontend-api/checks y sirve para contrastar campos; el mapeo
+// de abajo contempla las claves de ambos formatos por si difieren.
 const BASE_URL = 'https://api.imeicheck.net/v1'
 const TIMEOUT_MS = 8000
 
@@ -67,7 +70,7 @@ export function enmascararImei(imei: string, visibles = 4): string {
 /** Traduce el estado del proveedor a nuestro contrato; lo no verificado no es "Limpio". */
 export function estadoDeConsulta(status: unknown): EstadoConsulta {
   const valor = String(status ?? '').toLowerCase()
-  if (['done', 'completed', 'success', 'finished'].includes(valor)) return 'verificado'
+  if (['done', 'completed', 'success', 'successful', 'finished'].includes(valor)) return 'verificado'
   if (['partial', 'incomplete'].includes(valor)) return 'parcial'
   if (['pending', 'processing', 'queued'].includes(valor)) return 'pendiente'
   return 'fallido'
@@ -90,12 +93,12 @@ export function normalizarRespuesta(payload: unknown, { fuente = PROVEEDOR, hora
   const blacklist = tomar('blacklistStatus', 'blacklist', 'isBlacklisted')
   agregar('blacklist', 'Blacklist actual', blacklist === null ? null : blacklist === true || /black|reported|blocked/i.test(String(blacklist)) ? 'Reportado' : 'Sin reportes actuales')
   agregar('blacklistHistorial', 'Historial Blacklist Pro', tomar('blacklistHistory', 'reportedHistory', 'history'))
-  agregar('findMy', 'Find My / iCloud', tomar('findMyStatus', 'iCloudLock', 'icloud', 'findMy') ?? (raiz.service?.toLowerCase?.().includes('apple') ? undefined : null))
+  agregar('findMy', 'Find My / iCloud', tomar('findMyStatus', 'fmiOn', 'iCloudLock', 'icloud', 'findMy') ?? (raiz.service?.toLowerCase?.().includes('apple') ? undefined : null))
   agregar('simLock', 'SIM lock', tomar('simLock', 'simLockStatus', 'carrierLock'))
   agregar('mdm', 'MDM', tomar('mdmStatus', 'mdm'))
   agregar('garantia', 'Garantía', tomar('warrantyStatus', 'warranty', 'estimatedPurchaseDate'), false)
   // El US Block es un estado del operador estadounidense: no se convierte en estado mundial.
-  const usBlock = tomar('usBlockStatus', 'usBlock')
+  const usBlock = tomar('usBlockStatus', 'usaBlockStatus', 'usBlock')
   if (usBlock !== null) campos.push({ clave: 'usBlock', etiqueta: 'Bloqueo operador EE.UU. (no es estado mundial)', valor: texto(usBlock), fuente, hora })
   return campos
 }
@@ -149,7 +152,9 @@ export async function consultarImei(input: { imei: unknown; servicio: keyof type
       return { estado, etiqueta: NO_VERIFICADO, campos: normalizarRespuesta(payload), crudo: payload, costoUsd: 0, esMock: false, error: mensaje }
     }
     const estado = estadoDeConsulta((payload as any)?.status)
-    return { estado, etiqueta: etiquetaEstado(estado), campos: normalizarRespuesta(payload), crudo: payload, costoUsd: estado === 'fallido' ? 0 : servicio.precioUsd, esMock: false, error: (payload as any)?.error ? redactar(String((payload as any).error)) : undefined }
+    const montoProvisto = Number((payload as any)?.amount)
+    const costo = estado === 'fallido' ? 0 : Number.isFinite(montoProvisto) && montoProvisto > 0 ? montoProvisto : servicio.precioUsd
+    return { estado, etiqueta: etiquetaEstado(estado), campos: normalizarRespuesta(payload), crudo: payload, costoUsd: costo, esMock: false, error: (payload as any)?.error ? redactar(String((payload as any).error)) : undefined }
   } catch (causa) {
     const mensaje = causa instanceof Error && causa.name === 'TimeoutError' ? 'El proveedor no respondió a tiempo (timeout).' : redactar(causa instanceof Error ? causa.message : 'Error de red.')
     return { estado: 'fallido', etiqueta: NO_VERIFICADO, campos: normalizarRespuesta({}), crudo: null, costoUsd: 0, esMock: false, error: mensaje }
