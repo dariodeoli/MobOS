@@ -11,15 +11,22 @@ están enlazados al final de cada sección.
 
 - **MobOS**: sistema de ventas, stock, caja, clientes y posventa para tiendas de
   celulares. Front en React + Vite, API en Next.js + Prisma/PostgreSQL.
-- **Rutas visibles**: `app.moboss.online` (panel), `moboss.online` (landing),
-  `api.moboss.online` (API), `/status` (estado), `/clientes` (entrada del portal
-  de clientes), y las páginas públicas por token: `/pedido/:token`,
-  `/cuenta/:token`, `/garantia/:token`, `/cotizacion/:token`, `/remito/:token`.
+- **Rutas visibles**: `app.moboss.online` (panel), `clientes.moboss.online`
+  (portal: `/cuenta/:token`, `/portal/:token`, `/pedidos/:token`),
+  `moboss.online` (landing), `api.moboss.online` (API), **`/demo`** (demo pública
+  anónima), `/status` (estado) y las páginas públicas por token:
+  `/pedidos/:token` (canónica; `/pedido/:token` y `/p/:token` redirigen),
+  `/carrito/:token` (borrador compartido), `/garantia/:token`,
+  `/cotizacion/:token`, `/remito/:token`, `/u/:serial`.
+- **Módulos nuevos**: POS (`/pos`, una pantalla con split y entrega separada),
+  caja y finanzas (`/finanzas/*`), demo pública (`/demo`, sin API real), IMEI
+  (`/api/imei`, fase 1 con mocks) y el registro `docs/NOVEDADES.md` para el
+  dueño. Detalle y estado: `docs/ARRANQUE.md`.
 - **Comandos**: `npm run dev` · `npm test` · `npm run lint` · `npm run build` ·
   `npm run test:e2e:smoke` · `npm run test:e2e` · `npm run db:check` ·
   `npm --prefix backend run test:unit` · `npm --prefix backend run build` ·
   `npm --prefix backend run prisma:validate` · `npm run pack:agent` ·
-  `npm run release:prepare|publish|smoke`.
+  `npm run release:prepare|publish|smoke` · `node scripts/verificar-demo-publico.mjs`.
 - **Docs**: `AGENTS.md` (reglas), `docs/CAMPOS.md` (campos), `docs/PLANTILLA-CAMPOS.md`,
   `docs/PLANTILLA-AGENTS.md`, `docs/PLANTILLA-OBJETOS.md`, `docs/TABLAS.md`,
   `docs/TOKENS.md`, `docs/IMPRESION.md`, `docs/AVATAR.md`, `docs/BACKUP.md`,
@@ -142,23 +149,37 @@ backend revalida; los campos sensibles llegan en `null` a quien no puede verlos.
   atado a la fila); solo los roles definidos los ven.
 - Personas: identidad por ID, avatar compartido (`Avatar`/`ActorAvatar`), fotos
   comprimidas y recortadas antes de subir.
+- **Seguridad restante** (auditoría `docs/AUDITORIA-172.md`):
+  - **Cerrado**: enlace público del borrador con TTL/reloj de Postgres, 410 al
+    vencer, revocación auditada y límite de uso; reautenticación de cuenta con
+    tope de intentos; cupo diario de `/api/errors`; demo pública sin llamadas al
+    API real; CORS con allow-list explícita (incluye `clientes.moboss.online`).
+  - **Pendiente (dominios CRM/POS/FIN)**: tokens públicos legacy guardados en
+    claro (plan de hash + rotación); rate limit en `public/orders`,
+    `public/warranty` y `public/commission-settlements`; `Order.publicToken`
+    legacy sin vencimiento; QR impreso sin TTL (documentar en
+    `docs/IMPRESION.md`).
 
 ## 8. Pendientes al día de hoy
 
-Los pendientes viven como **issues de GitHub** (backlog canónico). Al momento de
-escribir esto, lo abierto relevante es:
+Los pendientes viven como **issues de GitHub** (backlog canónico). Al día de esta
+actualización, lo abierto relevante es:
 
-- **#66** La página de pedido del cliente: el código ya está en `main` (se abre
-  como página propia); falta **deploy** para que producción lo tome.
-- **#58** (fix en `MOS-06`) El control de sucursal ahora siempre abre; esperando integración.
-- **#38/#37/#36/#27/#21/#14/#13/#12/#11/#9** entregados; el integrador cierra tras verificar.
-- **Portal de clientes**: el flujo está completo (token por nivel, `/cuenta/:token`,
-  generación desde la ficha, `/clientes` como entrada). Falta **subdominio**
-  (`clientes.moboss.online` → rewrite a `/clientes`) y **deploy**.
-- Nuevos pedidos de otras sesiones: impresión remota (#35), consignación (#33),
-  perfil de empresa (#32), reservas vencidas (#31), QR de inventario (#30),
-  tests de consistencia (#29), precios por lista (#28), invitaciones (#54),
-  equipo (#55), comisiones (#56), nav (#57), auditoría (#59).
+- **#148** Épica POS completo (spec de Dario) y **#169** Lote 6-C (Finanzas y
+  Reportes): rediseño por lotes en curso.
+- **Trackers de QA**: **#185/#187** recorridos en producción por módulos,
+  **#198** verificación post-deploy del demo público, **#199** ola de
+  endurecimiento (e2e estable, accesibilidad, docs y cierres por dominio).
+- **Demo**: **#190/#194/#195** datos de demo al día por dominio (INV) y
+  **#196** verificación técnica (script `scripts/verificar-demo-publico.mjs`).
+- **IMEI**: **#193** IMEIcheck (fase 1 con mocks ya en `main`; fase 2 con
+  proveedor real y sin cargos automáticos).
+- **Infra/proyectos**: **#87** volumen `MOBOS_STORAGE_DIR` + scheduler en
+  Coolify, **#74** subdominio del portal con rewrite, **#85** SIFEN
+  (facturación electrónica), **#17** impresión launchd/CUPS, **#3** AEX.
+- Cierres por dominio: los issues entregados se cierran **solo tras verificar
+  por contenido contra `origin/main`** (citando el commit), como fija
+  `AGENTS.md`.
 
 ## 9. Arrancar en una computadora nueva
 
