@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Drawer, Eyebrow, Skeleton } from '@/components/ui'
+import { Drawer, Skeleton } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import Avatar from '@/components/shared/Avatar'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import PresencePill from '@/components/app/PresencePill'
 import ProductFooter from '@/components/app/ProductFooter'
@@ -127,7 +128,44 @@ function BottomNav({ items, active, onNavigate, onOpenMenu, menuLabel }) {
   )
 }
 
-function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitchUser, onLockRequest, collapsed, perfilEmpresa }) {
+// Acciones secundarias del shell (buscar, tema, atajos, salir). En pantallas
+// chicas viven en el menú —arriba, a mano— para que el topbar no se sature ni
+// desborde; en escritorio siguen en la barra superior.
+function DrawerActions({ onSearch, onHelp, onLogout, onClose, className }) {
+  const fila = 'flex min-h-11 w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[12.5px] leading-snug text-mute transition hover:bg-ink-700 hover:text-fore'
+  if (!onSearch && !onHelp && !onLogout) return null
+  return (
+    <div data-testid="shell-drawer-acciones" className={cn('flex flex-col gap-0.5 p-2.5 pb-safe', className)}>
+      <span className="px-2.5 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-fono-light/75">Acciones</span>
+      {onSearch && (
+        <button type="button" className={fila} onClick={() => { onClose(); onSearch() }}>
+          <Icon name="search" className="h-[15px] w-[15px] shrink-0" />
+          <span className="min-w-0 flex-1 truncate">Buscar en toda la tienda</span>
+          <kbd className="shrink-0 rounded border border-ink-500 bg-ink-700 px-1.5 py-0.5 text-[10px] font-semibold text-mute">Ctrl K</kbd>
+        </button>
+      )}
+      <div className={cn(fila, 'hover:bg-transparent')}>
+        <Icon name="eye" className="h-[15px] w-[15px] shrink-0" />
+        <span className="min-w-0 flex-1 truncate">Tema claro / oscuro</span>
+        <ThemeToggle />
+      </div>
+      {onHelp && (
+        <button type="button" className={fila} onClick={() => { onClose(); onHelp() }}>
+          <Icon name="info" className="h-[15px] w-[15px] shrink-0" />
+          <span className="min-w-0 flex-1 truncate">Atajos de teclado</span>
+        </button>
+      )}
+      {onLogout && (
+        <button type="button" className={fila} onClick={() => { onClose(); onLogout() }}>
+          <Icon name="logout" className="h-[15px] w-[15px] shrink-0" />
+          <span className="min-w-0 flex-1 truncate">Cerrar sesión</span>
+        </button>
+      )}
+    </div>
+  )
+}
+
+function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitchUser, onLockRequest, collapsed, perfilEmpresa, usuario }) {
   const clicsRef = useRef([])
   const clicsTimer = useRef(null)
   useEffect(() => () => clearTimeout(clicsTimer.current), [])
@@ -149,7 +187,10 @@ function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitch
     }, 300)
   }
 
-  const nombreUsuario = perfilEmpresa?.name || sesionNombre || 'Usuario'
+  // La persona de la barra es la de la sesión; el perfil de empresa (identidad
+  // del dueño) solo aporta su foto de Google cuando quien opera es el dueño.
+  const nombreUsuario = sesionNombre || perfilEmpresa?.name || 'Usuario'
+  const fotoGoogle = esOwner ? perfilEmpresa?.picture : undefined
 
   return (
     <div className={cn('border-t border-fore/10 p-2.5 pb-safe', collapsed && 'lg:p-2')}>
@@ -162,15 +203,9 @@ function SidebarFooter({ sesionNombre, esOwner, roleLabel = 'Vendedor', onSwitch
             collapsed && 'lg:flex-none',
           )}
           title={nombreUsuario}
-          aria-label="Cambiar de vendedor"
+          aria-label={`Cambiar de vendedor (${nombreUsuario})`}
         >
-          <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-fono text-sm font-bold text-onbrand">
-            {perfilEmpresa?.picture ? (
-              <img src={perfilEmpresa.picture} referrerPolicy="no-referrer" alt="" className="h-8 w-8 rounded-full object-cover" />
-            ) : (
-              nombreUsuario.charAt(0).toUpperCase()
-            )}
-          </span>
+          <Avatar user={{ id: usuario?.id, name: nombreUsuario }} picture={fotoGoogle} size="lg" title={nombreUsuario} />
           <span className={cn('flex min-w-0 flex-1 flex-col gap-0.5', collapsed && 'lg:hidden')}>
             <strong className="truncate text-[13px] font-medium leading-snug text-fore">{nombreUsuario}</strong>
             <small className="truncate text-[10px] uppercase leading-snug tracking-wider text-mute">
@@ -226,9 +261,13 @@ export default function AppShell({
   esDemo = false,
   sesionNombre,
   esOwner = false,
+  usuario,
   onSwitchUser,
   onLogout,
   onLockRequest,
+  onSearch,
+  onHelp,
+  breadcrumb,
   sidebarStats,
   onStatsToggle,
   statsCollapsed,
@@ -240,8 +279,14 @@ export default function AppShell({
   usePresenceTracker()
   const [statsCollapsedInterno, setStatsCollapsedInterno] = useState(() => localStorage.getItem('mobos:stats-collapsed') === '1')
   const statsCerrado = onStatsToggle ? Boolean(statsCollapsed) : statsCollapsedInterno
+  // La identidad de la tienda vive en la barra lateral (escritorio) y en el
+  // menú (pantallas chicas): una sola vez por vista.
+  const nombreTienda = empresa?.nombre || APP_NAME
   // Contexto de navegación para la cabecera: a qué grupo pertenece la vista.
   const grupoActivo = nav.find(group => group.items.some(([id]) => id === active))?.titulo
+  // Migas de la cabecera: el camino hasta la sección actual. La pantalla que se
+  // está viendo va como título (h1), no repetida en la miga.
+  const migas = (Array.isArray(breadcrumb) && breadcrumb.length ? breadcrumb : [grupoActivo]).filter(Boolean)
 
   function alternarStats() {
     const next = !statsCerrado
@@ -258,6 +303,7 @@ export default function AppShell({
   return (
     <div className="flex min-h-dvh flex-col bg-paper text-sm text-fore lg:flex-row">
       <aside
+        data-testid="shell-lateral"
         className={cn(
           'hidden w-[204px] shrink-0 flex-col border-r border-fore/10 bg-ink-800 transition-[width] duration-200 lg:sticky lg:top-0 lg:flex lg:h-dvh',
           collapsed && 'lg:w-[60px]',
@@ -277,8 +323,8 @@ export default function AppShell({
             <>
               <img src="/mobos-icon.svg" alt="" className="h-8 w-8 shrink-0 rounded-lg" />
               <div className="flex min-w-0 flex-1 flex-col leading-tight">
-                <span className="truncate text-[15px] font-bold tracking-tight">{APP_NAME}</span>
-                <span className="truncate text-[10px] text-mute">{esDemo ? 'Tienda de demostración' : 'Centro de operaciones'}</span>
+                <span data-testid="shell-tienda" className="truncate text-[15px] font-bold tracking-tight" title={nombreTienda}>{nombreTienda}</span>
+                <span className="truncate text-[10px] text-mute">Operaciones</span>
               </div>
               {onToggleCollapsed && (
                 <button
@@ -309,15 +355,25 @@ export default function AppShell({
           onLockRequest={onLockRequest}
           collapsed={collapsed}
           perfilEmpresa={perfilEmpresa}
+          usuario={usuario}
         />
       </aside>
 
       <Drawer
         open={menuAbierto}
         onClose={() => setMenuAbierto(false)}
-        title={empresa?.nombre || APP_NAME}
+        title={nombreTienda}
         side="left"
       >
+        <div className="-mx-4 -mt-2 sm:-mx-5">
+          <DrawerActions
+            onSearch={onSearch}
+            onHelp={onHelp}
+            onLogout={onLogout}
+            onClose={() => setMenuAbierto(false)}
+            className="border-b border-fore/10"
+          />
+        </div>
         <NavGroup nav={nav} active={active} onNavigate={navegar} collapsed={false} scrollable={false} />
         {sidebarStats && (
           <div className="-mx-4 mt-4 border-t border-fono/20 sm:-mx-5">
@@ -326,7 +382,7 @@ export default function AppShell({
             </StatsPanel>
           </div>
         )}
-        <div className="-mx-4 -mb-4 mt-4 sm:-mx-5 sm:-mb-5">
+        <div className="-mx-4 -mb-4 sm:-mx-5 sm:-mb-5">
           <SidebarFooter
             sesionNombre={sesionNombre}
             esOwner={esOwner}
@@ -335,40 +391,81 @@ export default function AppShell({
             onLockRequest={onLockRequest}
             collapsed={false}
             perfilEmpresa={perfilEmpresa}
+            usuario={usuario}
           />
         </div>
       </Drawer>
 
       <div className="flex min-w-0 flex-1 flex-col pb-[72px] lg:pb-0">
-        <header className="sticky top-0 z-20 flex h-20 items-center justify-between gap-4 border-b border-fore/10 bg-paper/85 px-4 pt-safe backdrop-blur md:px-8">
-          <div className="flex min-w-0 items-center gap-2">
+        <header className="sticky top-0 z-20 flex h-20 items-center justify-between gap-3 border-b border-fore/10 bg-paper/85 px-4 pt-safe backdrop-blur md:px-8">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <button
               onClick={() => setMenuAbierto(true)}
-              className="-ml-1 rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-fore lg:hidden"
+              className="-ml-1 shrink-0 rounded-lg p-2 text-mute transition hover:bg-ink-700 hover:text-fore lg:hidden"
               title="Menú"
               aria-label="Menú"
             >
               <Icon name="menu" className="h-5 w-5" />
             </button>
-            <div className="hidden sm:block">
-              <Eyebrow>{grupoActivo ? `${grupoActivo} · ${APP_NAME}` : APP_NAME}</Eyebrow>
-              <h1 className="mt-1 block truncate text-lg font-semibold tracking-tight">{title}</h1>
-              {subtitle && <span className="mt-0.5 block truncate text-xs text-mute">{subtitle}</span>}
+            <div className="flex min-w-0 flex-col justify-center">
+              <nav
+                data-testid="shell-breadcrumb"
+                aria-label="Sección actual"
+                className="flex min-w-0 items-center gap-1 overflow-hidden text-[10px] font-bold uppercase tracking-[.16em] text-mute"
+              >
+                <span data-testid="shell-miga-tienda" className="max-w-[7rem] shrink-0 truncate lg:hidden" title={nombreTienda}>{nombreTienda}</span>
+                <span aria-hidden className="shrink-0 text-mute/50 lg:hidden">/</span>
+                {migas.map((miga, indice) => (
+                  <Fragment key={`${miga}-${indice}`}>
+                    {indice > 0 && <span aria-hidden className="shrink-0 text-mute/50">/</span>}
+                    <span className="min-w-0 truncate" title={miga}>{miga}</span>
+                  </Fragment>
+                ))}
+              </nav>
+              <h1 className="truncate text-base font-semibold tracking-tight sm:text-lg" title={title}>{title}</h1>
+              {subtitle && <span className="truncate text-xs text-mute">{subtitle}</span>}
             </div>
-            <h1 className="min-w-0 truncate text-base font-semibold tracking-tight sm:hidden">{title}</h1>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            {/* Tema junto al nombre de la tienda (primer acción del header). */}
-            <ThemeToggle />
-            <PresencePill />
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+            {onSearch && (
+              <button
+                type="button"
+                data-testid="shell-buscar"
+                onClick={onSearch}
+                className="hidden h-9 items-center gap-2 rounded-lg border border-ink-500 bg-ink-800 px-2.5 text-mute transition hover:border-fono/50 hover:text-fore lg:inline-flex"
+                title="Buscar en toda la tienda (Ctrl+K)"
+                aria-label="Buscar en toda la tienda"
+                aria-keyshortcuts="Control+K Meta+K"
+              >
+                <Icon name="search" className="h-4 w-4" />
+                <span className="hidden text-[12.5px] 2xl:inline">Buscar…</span>
+                <kbd className="hidden rounded border border-ink-500 bg-ink-700 px-1.5 py-0.5 text-[10px] font-semibold 2xl:inline">Ctrl K</kbd>
+              </button>
+            )}
+            <PresencePill className="hidden lg:flex" />
             {headerActions}
-            {/* Cerrar sesión: primero de la derecha. */}
+            {/* Tema y acciones secundarias: en el menú lateral con pantallas
+                chicas, en la barra desde sm. */}
+            <span className="hidden sm:contents">
+              <ThemeToggle />
+            </span>
+            {onHelp && (
+              <button
+                type="button"
+                onClick={onHelp}
+                className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore sm:grid"
+                title="Atajos de teclado"
+                aria-label="Atajos de teclado"
+              >
+                ?
+              </button>
+            )}
             {onLogout && (
               <button
                 type="button"
                 onClick={onLogout}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
+                className="hidden h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore sm:grid"
                 title="Cerrar sesión"
                 aria-label="Cerrar sesión"
               >
@@ -391,10 +488,12 @@ export default function AppShell({
           </div>
         )}
         {loading ? (
-          <main className="flex-1 p-4 md:p-8">
-            <div className="space-y-3">
-              <Skeleton className="h-8 w-1/3" />
+          <main className="flex-1 p-4 md:p-8" aria-busy="true">
+            <div className="space-y-4">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-8 w-56" />
               <Skeleton className="h-40 w-full" />
+              <Skeleton className="h-24 w-full" />
             </div>
           </main>
         ) : (

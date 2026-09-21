@@ -1,18 +1,20 @@
 import { usePresentes } from '@/hooks/usePresence'
 import { useSesion } from '@/lib/sesion'
 import { etiquetaPresencia } from '@/lib/presence'
+import { cn } from '@/lib/utils'
 import Avatar from '@/components/shared/Avatar'
 
 // Píldora del topbar: hasta 4 personas en línea con foto o iniciales y punto
 // verde sobre quien tuvo actividad. Sin nadie en línea no ocupa espacio.
-export default function PresencePill() {
+// `className` permite que el shell decida en qué breakpoints se muestra.
+export default function PresencePill({ className }) {
   const personas = usePresentes()
   const { perfilEmpresa } = useSesion()
   const visibles = personas.slice(0, 4)
   if (!personas.length) return null
   const etiqueta = etiquetaPresencia(personas)
   return (
-    <div className="hidden items-center sm:flex" role="group" aria-label="Personas en línea">
+    <div className={cn('items-center', className ?? 'hidden sm:flex')} role="group" aria-label="Personas en línea">
       <div className="flex items-center gap-2 rounded-full border border-fore/10 bg-ink-700/60 px-2.5 py-1" title={etiqueta} aria-label={etiqueta}>
         <span className="flex -space-x-2">
           {visibles.map((persona) => (
@@ -22,7 +24,7 @@ export default function PresencePill() {
             </span>
           ))}
         </span>
-        <span className="text-xs font-semibold text-mute">{personas.length} en línea</span>
+        <span className="whitespace-nowrap text-xs font-semibold text-mute">{personas.length} en línea</span>
       </div>
     </div>
   )

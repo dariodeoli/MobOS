@@ -156,7 +156,6 @@ const TABS_FINANZAS = [
   ['cuotas', 'Cuotas'],
   ['comisiones', 'Comisiones'],
   ['publicidad', 'Publicidad'],
-  ['comisiones', 'Comisiones'],
 ]
 const TABS_INVENTARIO = [
   ['unidades', 'Unidades'],
@@ -194,6 +193,13 @@ const SUBPAGINAS = {
 const SUBPAGINA_DE_VISTA = Object.fromEntries(
   Object.entries(SUBPAGINAS).map(([slug, cfg]) => [cfg.vista, slug]),
 )
+// Migas del topbar: la subpágina es el camino; la pestaña activa va como título.
+const MIGA_SUBPAGINA = {
+  inventario: 'Inventario',
+  analisis: 'Análisis',
+  finanzas: 'Finanzas',
+  configuracion: 'Configuración',
+}
 // Pestañas visibles según el modo: créditos y cuotas solo fuera de la demo.
 function tabsDeSubpagina(slug, esDemo) {
   const tabs = SUBPAGINAS[slug]?.tabs || []
@@ -237,7 +243,6 @@ const LABELS = {
   roles: 'Roles y permisos',
   historial: 'Auditoría',
   negocio: 'Negocio',
-  precios: 'Listas de precios',
   sucursales: 'Sucursales',
   seguridad: 'Seguridad',
   impresoras: 'Impresoras',
@@ -347,6 +352,10 @@ export default function PanelVendedor() {
   const [vista, setVista] = useState(seccionRuta || routeVista || (subpadre ? tabsRuta[0][0] : 'cargar'))
   const grupoConfig = GRUPOS_CONFIG.find((grupo) => grupo.tabs.includes(vista)) || GRUPOS_CONFIG[0]
   const tabsConfig = tabsRuta.filter(([id]) => grupoConfig.tabs.includes(id))
+  // En las subpáginas el título es la pestaña activa (la sección va en la miga).
+  const tituloVista = subpadre
+    ? (tabsRuta.find(([id]) => id === vista) || [null, LABELS[vista] || MIGA_SUBPAGINA[subpadre]])[1]
+    : LABELS[vista]
   const [tradeIn, setTradeIn] = useState(null)
   const identidad = `${usuario?.tenantId}:${usuario?.branchId}:${sesion?.vendedorId}:${usuario?.role}:${esDemo}`
   const [cambiarAbierto, setCambiarAbierto] = useState(false)
@@ -615,7 +624,8 @@ export default function PanelVendedor() {
   return (
     <>
       <AppShell
-        title={LABELS[vista]}
+        title={tituloVista}
+        breadcrumb={subpadre ? [MIGA_SUBPAGINA[subpadre]] : undefined}
         nav={esOwner ? OWNER_NAV : esTecnico ? TECNICO_NAV : SELLER_NAV}
         bottomNav={esOwner ? OWNER_BOTTOM : esTecnico ? [] : SELLER_BOTTOM}
         onOpenMenuLabel="Menú"
@@ -627,10 +637,13 @@ export default function PanelVendedor() {
         esDemo={esDemo}
         sesionNombre={sesion?.nombre}
         esOwner={esOwner}
+        usuario={usuario}
         perfilEmpresa={perfilEmpresa}
         onSwitchUser={abrirCambio}
         onLogout={() => setSalirAbierto(true)}
         onLockRequest={pedirBloqueo}
+        onSearch={() => setBusquedaAbierta(true)}
+        onHelp={() => setAyudaAbierto(true)}
         sidebarStats={
           esOwner && (
             <>
@@ -644,32 +657,27 @@ export default function PanelVendedor() {
           )
         }
         headerActions={
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2.5">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
             <SelectorSucursal className="max-sm:max-w-[7.5rem]" />
-            <div className="hidden h-[34px] items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[12.5px] text-mute md:flex">
+            <div className="hidden h-[34px] items-center gap-2 rounded-[9px] border border-fono/30 bg-ink-800 px-3 text-[12.5px] text-mute xl:flex">
               <Icon name="calendar" className="h-[15px] w-[15px]" />
               <span className="whitespace-nowrap">{fechaLarga}</span>
             </div>
             {vista !== 'cargar' && (
               <button
+                type="button"
                 onClick={() => {
                   setVista('cargar')
                   navigate('/ventas')
                 }}
                 className="inline-flex h-[34px] shrink-0 items-center gap-2 rounded-[9px] bg-fono px-3.5 text-[13px] font-semibold text-onbrand transition hover:bg-fono-dark"
+                title="Cargar venta"
+                aria-label="Cargar venta"
               >
                 <Icon name="plus" className="h-[15px] w-[15px]" />
                 <span className="hidden sm:inline">Cargar venta</span>
               </button>
             )}
-            <button
-              onClick={() => setAyudaAbierto(true)}
-              className="rounded-lg px-2.5 py-2 text-sm font-semibold text-mute transition hover:bg-ink-700 hover:text-fore"
-              title="Atajos de teclado"
-              aria-label="Atajos de teclado"
-            >
-              ?
-            </button>
           </div>
         }
       >
