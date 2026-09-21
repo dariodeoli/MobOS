@@ -300,6 +300,16 @@ const MESES = [
   'diciembre',
 ]
 
+// Marca de pantalla bloqueada: en sessionStorage para que el bloqueo no se
+// pierda al recargar y se descarte al cerrar la pestaña (#204).
+const LOCK_FLAG_KEY = 'mobos:pos-bloqueado'
+function marcarBloqueo(activo) {
+  try {
+    if (activo) sessionStorage.setItem(LOCK_FLAG_KEY, '1')
+    else sessionStorage.removeItem(LOCK_FLAG_KEY)
+  } catch { /* sin storage: el bloqueo sigue en memoria */ }
+}
+
 // Mientras una vista pesada descarga su código, la pantalla no queda vacía.
 function VistaCargando() {
   return (
@@ -356,7 +366,10 @@ export default function PanelVendedor() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('mobos:sidebar-collapsed') === '1',
   )
-  const [locked, setLocked] = useState(false)
+  const [locked, setLocked] = useState(() => {
+    // El bloqueo sobrevive a la recarga (#204): sin esto, F5 lo saltaba.
+    try { return sessionStorage.getItem(LOCK_FLAG_KEY) === '1' } catch { return false }
+  })
   const [lockPin, setLockPin] = useState('')
   const [lockError, setLockError] = useState('')
   const [lockBusy, setLockBusy] = useState(false)
@@ -494,6 +507,7 @@ export default function PanelVendedor() {
     setLockError('')
     setLockBusy(false)
     setLocked(true)
+    marcarBloqueo(true)
   }
 
   // Preferencias del dispositivo: los minutos de bloqueo mandan sobre el
@@ -524,6 +538,7 @@ export default function PanelVendedor() {
         }
         setLocked(false)
         setLockPin('')
+        marcarBloqueo(false)
         try { navigator.vibrate?.(40) } catch { /* sin soporte de vibración */ }
       } catch (err) {
         setLockError(err?.message || 'PIN inválido. Probá de nuevo.')
@@ -542,6 +557,7 @@ export default function PanelVendedor() {
 
   async function confirmarSalir() {
     setSaliendo(true)
+    marcarBloqueo(false)
     try {
       await salir()
     } finally {
@@ -627,6 +643,7 @@ export default function PanelVendedor() {
         setCambiarAbierto(false)
         // Si veníamos de la pantalla bloqueada, cambiar de usuario también la cierra.
         setLocked(false)
+        marcarBloqueo(false)
         toast.success('Sesión cambiada', 'La próxima venta se registrará con este vendedor.')
         if (esDemo && pin === '3001') navigate('/')
       })
