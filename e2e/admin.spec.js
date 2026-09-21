@@ -528,10 +528,6 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   await vendedor.goto('/clientes')
   await vendedor.getByLabel('Buscar clientes').fill(nombre)
   await vendedor.getByTestId('cliente-fila').filter({ hasText: nombre }).first().click()
-  await vendedor
-    .getByRole('tab', { name: /^Comercial/ })
-    .first()
-    .click()
   await vendedor.getByRole('button', { name: 'Solicitar mayorista' }).click()
   await vendedor.getByRole('button', { name: 'Enviar solicitud' }).click()
   await expect(vendedor.getByText('Solicitud enviada', { exact: false })).toBeVisible()
@@ -583,10 +579,6 @@ test('autorizaciones → el dueño resuelve su propia solicitud', async ({ page 
 
   await page.getByLabel('Buscar clientes').fill(nombre)
   await page.getByTestId('cliente-fila').filter({ hasText: nombre }).first().click()
-  await page
-    .getByRole('tab', { name: /^Comercial/ })
-    .first()
-    .click()
   await page.getByRole('button', { name: 'Solicitar mayorista' }).click()
   await page.getByRole('button', { name: 'Enviar solicitud' }).click()
   await expect(page.getByText('Solicitud enviada', { exact: false })).toBeVisible()
@@ -632,4 +624,137 @@ test('inventario: marca y quita la consignación de un equipo', async ({ page })
   }, { api: API, serial: SEED.products.iphone.imei })
   await page.reload()
   await expect(page.getByText('Consignado')).toHaveCount(0)
+})
+
+// Mini CRM de clientes (#121): tabla compacta con búsqueda instantánea,
+// perfil en cinco pestañas (Resumen, Pedidos, Cronología, Estadísticas y
+// Datos), deuda desglosada, analítica, comentarios internos que nunca salen
+// al portal público y datos de facturación/direcciones editables.
+async function crmApi(page, path, options = {}) {
+  return page.evaluate(async ({ api, path, options }) => {
+    const response = await fetch(`${api}${path}`, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      ...options,
+    })
+    const body = await response.json().catch(() => null)
+    return { status: response.status, body }
+  }, { api: API, path, options })
+}
+
+test.describe('mini CRM de clientes', () => {
+  test('tabla compacta: búsqueda instantánea sin Enter y sin scroll horizontal', async ({ page }) => {
+    const marca = Date.now()
+    const nombre = `CRM Tabla ${marca}`
+    await page.goto('/clientes')
+    const alta = await crmApi(page, '/api/customers', {
+      method: 'POST',
+      body: JSON.stringify({ name: nombre, phone: `981${String(marca).slice(-6)}`, countryCode: '+595', email: `crm${marca}@correo.com`, tags: ['mini-crm'] }),
+    })
+    expect(alta.status).toBe(201)
+
+    await page.addInitScript(() => localStorage.setItem('mobos:clientes-vista', 'list'))
+    await page.goto('/clientes')
+    // Sin Enter: la búsqueda se dispara al tipear (diferida).
+    await page.getByLabel('Buscar clientes').fill(nombre)
+    const fila = page.getByTestId('cliente-fila').filter({ hasText: nombre }).first()
+    await expect(fila).toBeVisible()
+    // Teléfono siempre con código de país.
+    await expect(fila).toContainText('+595 981')
+    // Dos acciones de WhatsApp: envío directo y elección de plantilla.
+    await expect(fila.getByRole('button', { name: new RegExp(`Enviar WhatsApp a ${nombre}`) })).toBeVisible()
+    await expect(fila.getByRole('button', { name: new RegExp(`Elegir plantilla de WhatsApp para ${nombre}`) })).toBeVisible()
+
+    const { scrollWidth, clientWidth } = await page.getByTestId('clientes-tabla').evaluate((nodo) => ({ scrollWidth: nodo.scrollWidth, clientWidth: nodo.clientWidth }))
+    expect(scrollWidth, 'la tabla de clientes debe entrar sin scroll horizontal').toBeLessThanOrEqual(clientWidth + 1)
+  })
+
+  test('ficha: pestañas, cliente desde, deuda por pedido y analítica', async ({ page }) => {
+    const marca = Date.now()
+    const nombre = `CRM Ficha ${marca}`
+    await page.goto('/clientes')
+    const alta = await crmApi(page, '/api/customers', { method: 'POST', body: JSON.stringify({ name: nombre, phone: `982${String(marca).slice(-6)}`, countryCode: '+595' }) })
+    expect(alta.status).toBe(201)
+    const clienteId = alta.body.id
+
+    const productos = await crmApi(page, '/api/products')
+    const cable = (productos.body || []).find((row) => row.sku === SEED.products.cable.sku)
+    expect(cable?.id, 'el producto sembrado E2E-CABLE debe existir').toBeTruthy()
+    const numeroPedido = `E2E-CRM-${marca}`
+    const pedido = await crmApi(page, '/api/orders', {
+      method: 'POST',
+      body: JSON.stringify({
+        orderNumber: numeroPedido,
+        customerId: clienteId,
+        items: [{ productId: cable.id, description: cable.name, quantity: 2, unitPricePyg: cable.pricePyg }],
+        payment: { method: 'CASH', amountPyg: 30000 },
+      }),
+    })
+    expect(pedido.status).toBe(201)
+
+    await page.goto(`/clientes?cliente=${encodeURIComponent(clienteId)}`)
+    const ficha = page.getByRole('dialog')
+    await expect(ficha.getByRole('heading', { name: nombre })).toBeVisible()
+
+    // Resumen: cliente desde con fecha/hora y usuario que lo creó.
+    await expect(ficha.getByText(/Cliente desde .* · Creado por/)).toBeVisible()
+    // Deuda desglosada por pedido: el saldo vive en su fila.
+    const deuda = ficha.getByTestId('perfil-deuda-fila').filter({ hasText: numeroPedido })
+    await expect(deuda).toBeVisible()
+    await expect(deuda).toContainText('Gs 60.000')
+
+    // Las cinco pestañas del perfil.
+    for (const pestana of ['Resumen', 'Pedidos', 'Cronología', 'Estadísticas', 'Datos']) {
+      await expect(ficha.getByRole('tab', { name: new RegExp(`^${pestana}`) })).toBeVisible()
+    }
+
+    await ficha.getByRole('tab', { name: /^Pedidos/ }).click()
+    await expect(ficha.getByText(numeroPedido).first()).toBeVisible()
+
+    await ficha.getByRole('tab', { name: /^Estadísticas/ }).click()
+    await expect(ficha.getByText('Frecuencia')).toBeVisible()
+    await expect(ficha.getByText('Antigüedad')).toBeVisible()
+    await expect(ficha.getByText('Gasto por mes')).toBeVisible()
+
+    await ficha.getByRole('tab', { name: /^Datos/ }).click()
+    await expect(ficha.getByText('Configuración comercial')).toBeVisible()
+    await expect(ficha.getByRole('button', { name: 'Editar configuración' })).toBeVisible()
+    await expect(ficha.getByText('Datos de facturación')).toBeVisible()
+    await expect(ficha.getByRole('paragraph').filter({ hasText: /^Direcciones$/ })).toBeVisible()
+  })
+
+  test('cronología con comentarios internos que no salen al portal público', async ({ page }) => {
+    const marca = Date.now()
+    const nombre = `CRM Crono ${marca}`
+    await page.goto('/clientes')
+    const alta = await crmApi(page, '/api/customers', { method: 'POST', body: JSON.stringify({ name: nombre }) })
+    expect(alta.status).toBe(201)
+    const clienteId = alta.body.id
+    const comentario = `Raya lateral visible solo al equipo ${marca}`
+    const nota = await crmApi(page, `/api/customers/${clienteId}/notes`, { method: 'POST', body: JSON.stringify({ content: comentario }) })
+    expect(nota.status).toBe(201)
+    // La nota pública se guarda en la ficha, pero el contrato de privacidad del
+    // portal (backend/tests/customer-portal.mjs) prohíbe exponerla.
+    const notaPublica = `Nota publica interna ${marca}`
+    const guardado = await crmApi(page, `/api/customers/${clienteId}`, { method: 'PATCH', body: JSON.stringify({ publicNote: notaPublica }) })
+    expect(guardado.status).toBe(200)
+
+    await page.goto(`/clientes?cliente=${encodeURIComponent(clienteId)}`)
+    const ficha = page.getByRole('dialog')
+    await ficha.getByRole('tab', { name: /^Cronología/ }).click()
+    await expect(ficha.getByText('Comentarios internos')).toBeVisible()
+    await expect(ficha.getByTestId('perfil-notas').getByText(comentario)).toBeVisible()
+    await expect(ficha.getByText('Comentario del equipo').first()).toBeVisible()
+
+    // El portal público (nivel completo) no expone la nota interna.
+    const token = await crmApi(page, `/api/customers/${clienteId}/access-token`, { method: 'POST', body: JSON.stringify({ level: 'completo' }) })
+    expect(token.status).toBe(200)
+    expect(token.body?.token).toBeTruthy()
+    const publico = await crmApi(page, `/api/portal/${encodeURIComponent(token.body.token)}`)
+    expect(publico.status).toBe(200)
+    const serializado = JSON.stringify(publico.body)
+    expect(serializado).not.toContain(comentario)
+    expect(serializado).not.toContain(notaPublica)
+    expect(serializado).not.toContain('publicNote')
+  })
 })

@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
 import { requireSession } from '../../../lib/auth'
+import { addressesInput } from './_lib'
 
 const clean = (value: unknown, max: number) => typeof value === 'string' ? value.trim().slice(0, max) : ''
 
@@ -11,26 +12,6 @@ const FILTROS_CLIENTES = new Set(['todos', 'mayoristas', 'minoristas', 'deuda', 
 
 // Patrón LIKE literal: % y _ del texto buscado no actúan como comodines.
 const patronLike = (valor: string) => `%${valor.replace(/[\\%_]/g, '\\$&')}%`
-
-function addressesInput(value: unknown) {
-  if (value === undefined) return undefined
-  if (!Array.isArray(value) || value.length > 10) throw new Error('Podés guardar hasta 10 direcciones.')
-  const addresses = value.map((row, index) => {
-    const item = row && typeof row === 'object' ? row as Record<string, unknown> : {}
-    const address = clean(item.address, 400)
-    if (!address) throw new Error('Cada dirección debe incluir su detalle.')
-    return {
-      label: clean(item.label, 80) || `Dirección ${index + 1}`,
-      address,
-      city: clean(item.city, 100) || null,
-      department: clean(item.department, 100) || null,
-      country: clean(item.country, 100) || 'Paraguay',
-      notes: clean(item.notes, 400) || null,
-      isDefault: item.isDefault === true,
-    }
-  })
-  return addresses.map((address, index) => ({ ...address, isDefault: address.isDefault || (index === 0 && !addresses.some(item => item.isDefault)) }))
-}
 
 function esMayorista(customer: { pricingTier?: string | null }) {
   return customer.pricingTier === 'WHOLESALE'
@@ -64,21 +45,21 @@ export async function GET(request: Request) {
     condiciones.push(Prisma.sql`(c."createdAt" < ${cursorRow.createdAt} OR (c."createdAt" = ${cursorRow.createdAt} AND c."id" < ${cursor}))`)
   }
   if (q) {
-    // Búsqueda flexible: nombre, teléfono, CI/RUC, correo, datos de facturación,
-    // ciudad de las direcciones, etiquetas y también pedidos facturados a otro
-    // titular (razón social/RUC), para llegar al cliente desde la factura.
-    const texto = patronLike(q)
-    condiciones.push(Prisma.sql`(
-      c."name" ILIKE ${texto}
-      OR c."phone" ILIKE ${texto}
-      OR c."document" ILIKE ${texto}
-      OR c."email" ILIKE ${texto}
-      OR c."billingName" ILIKE ${texto}
-      OR c."billingDocument" ILIKE ${texto}
-      OR c."tags"::text ILIKE ${texto}
-      OR EXISTS (SELECT 1 FROM "CustomerAddress" a WHERE a."customerId" = c."id" AND (a."city" ILIKE ${texto} OR a."address" ILIKE ${texto}))
-      OR EXISTS (SELECT 1 FROM "Order" o WHERE o."customerId" = c."id" AND o."tenantId" = ${tenant} AND (o."billingName" ILIKE ${texto} OR o."billingDocument" ILIKE ${texto}))
-    )`)
+    // Búsqueda instantánea por palabras: cada palabra tipeada tiene que aparecer
+    // en alguno de los campos (así "perez juan" encuentra a "Juan Pérez").
+    // Cubre nombre, teléfono, CI/RUC, correo, datos de facturación vigentes e
+    // históricos, ciudad/dirección, etiquetas, notas internas y nota pública.
+    const tokens = q.split(/\s+/).filter(Boolean).slice(0, 6)
+    const campos = Prisma.sql`concat_ws(' ', c."name", c."phone", c."document", c."email", c."billingName", c."billingDocument", c."notes", c."publicNote", array_to_string(c."tags", ' '))`
+    condiciones.push(Prisma.sql`(${Prisma.join(tokens.map((token) => {
+      const patron = patronLike(token)
+      return Prisma.sql`(
+        ${campos} ILIKE ${patron}
+        OR EXISTS (SELECT 1 FROM "CustomerAddress" a WHERE a."customerId" = c."id" AND (a."city" ILIKE ${patron} OR a."address" ILIKE ${patron}))
+        OR EXISTS (SELECT 1 FROM "CustomerBillingIdentity" b WHERE b."customerId" = c."id" AND (b."name" ILIKE ${patron} OR b."document" ILIKE ${patron}))
+        OR EXISTS (SELECT 1 FROM "Order" o WHERE o."customerId" = c."id" AND o."tenantId" = ${tenant} AND (o."billingName" ILIKE ${patron} OR o."billingDocument" ILIKE ${patron}))
+      )`
+    }), ' AND ')})`)
   }
   const ids = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
     SELECT c."id"

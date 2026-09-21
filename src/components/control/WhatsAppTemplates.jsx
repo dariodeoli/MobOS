@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { Badge, Button, Card, ConfirmDialog, FormField, Input, Modal, Select, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
-import { CATEGORIAS_PLANTILLA, VARIABLES_POR_CONTEXTO } from '@/lib/whatsappPlantillas'
+import { CATEGORIAS_PLANTILLA, VARIABLES_POR_CONTEXTO, VALORES_EJEMPLO, renderPlantilla } from '@/lib/whatsappPlantillas'
 import { cn } from '@/lib/utils'
 
 // Tabla compacta: una fila por plantilla, con el mensaje recortado a una línea.
@@ -175,6 +175,12 @@ export default function WhatsAppTemplates() {
               {variables.map((variable) => (
                 <button key={variable.clave} type="button" title={variable.descripcion} disabled={busy} onClick={() => insertarVariable(variable.clave)} className="rounded-full border border-fono/25 bg-fono/10 px-2 py-0.5 font-mono text-[11px] text-fono-light transition hover:bg-fono/20">{`{{${variable.clave}}}`}</button>
               ))}
+            </div>
+            <div className="mt-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-mute">Vista previa (datos de ejemplo)</p>
+              <p className="mt-1.5 w-fit max-w-full whitespace-pre-wrap break-words rounded-2xl rounded-tl-sm border border-ok/25 bg-ok/10 px-3 py-2 text-xs leading-5 text-fore">
+                {renderPlantilla(editor?.body, VALORES_EJEMPLO) || 'Escribí el mensaje para verlo con datos de ejemplo.'}
+              </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-4">

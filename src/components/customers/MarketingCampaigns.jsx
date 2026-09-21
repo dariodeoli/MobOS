@@ -3,6 +3,7 @@ import { api } from '@/lib/api/client'
 import { Badge, Button, Card, EmptyState, Input, Modal, Select, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { gs } from '@/utils/calculos'
+import { telefonoVisible } from '@/utils/telefono'
 
 // Campañas de recompra: segmento → selección → plantilla → enlaces wa.me.
 // El envío lo hace una persona (no hay credenciales de WhatsApp), así que acá
@@ -146,7 +147,7 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
                     {!row.eligible && <Badge color="slate">{MOTIVOS[row.reason] || 'No elegible'}</Badge>}
                     {row.marketingContactedAt && <Badge color="blue">Contactado {fecha(row.marketingContactedAt)}</Badge>}
                   </span>
-                  <span className="mt-0.5 block text-xs text-mute">{row.orderCount} compra(s) · última {row.lastOrderAt ? fecha(row.lastOrderAt) : 'sin compras'} · {row.phone || 'sin teléfono'} · {gs(row.totalSpentPyg)}{row.outstandingPyg > 0 ? ` · saldo ${gs(row.outstandingPyg)}` : ''}</span>
+                  <span className="mt-0.5 block text-xs text-mute">{row.orderCount} compra(s) · última {row.lastOrderAt ? fecha(row.lastOrderAt) : 'sin compras'} · {row.phone ? telefonoVisible(row.phone, row.countryCode) : 'sin teléfono'} · {gs(row.totalSpentPyg)}{row.outstandingPyg > 0 ? ` · saldo ${gs(row.outstandingPyg)}` : ''}</span>
                 </span>
               </label>
             ))}
@@ -175,7 +176,7 @@ export default function MarketingCampaigns({ open, onClose, onContacted }) {
             </p>
             {resultado.recipients?.map((row) => (
               <div key={row.customerId} data-testid="marketing-destinatario" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-600 p-2.5">
-                <span className="min-w-0"><b className="text-sm">{row.name}</b><span className="mt-0.5 block truncate text-xs text-mute">{row.phone} · enlace wa.me listo</span></span>
+                <span className="min-w-0"><b className="text-sm">{row.name}</b><span className="mt-0.5 block truncate text-xs text-mute">{row.phone ? telefonoVisible(row.phone, row.countryCode) : 'sin teléfono'} · enlace wa.me listo</span></span>
                 <span className="flex gap-2">
                   <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold" onClick={async () => { try { await navigator.clipboard.writeText(row.whatsappUrl); toast.success('Enlace copiado.') } catch { toast.error('No se pudo copiar el enlace.') } }}><Icon name="copy" className="mr-1 inline h-3 w-3" />Copiar enlace</button>
                   <a className="rounded-lg bg-ok px-3 py-1.5 text-xs font-semibold text-black" href={row.whatsappUrl} target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>

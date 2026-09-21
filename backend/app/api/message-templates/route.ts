@@ -21,11 +21,15 @@ const CONTEXT_TO_CATEGORY: Record<string, Category> = { pedidos: 'ORDERS', clien
 // borradas.
 const DEFAULTS: Record<Category, Array<[string, string, string]>> = {
   ORDERS: [
+    ['recibido', 'Pedido recibido', '¡Hola {{cliente}}! 🧾 Recibimos tu pedido {{pedido}} por {{total}}. Te avisamos apenas avance. ¡Gracias por tu compra!'],
     ['ready_for_pickup', 'Pedido listo para retirar', '¡Hola {{cliente}}! 👋 Tu pedido {{pedido}} ya está listo para retirar en {{sucursal}}. Te esperamos. ¡Gracias por tu compra! — {{empresa}}'],
     ['ready_to_ship', 'Pedido listo para enviar', '¡Hola {{cliente}}! 📦 Tu pedido {{pedido}} ya está preparado y sale para envío. Te paso el seguimiento apenas esté en camino.'],
     ['arrived_from_depot', 'Pedido llegó a sucursal', '¡Hola {{cliente}}! 🚚 Tu pedido {{pedido}} ya llegó a {{sucursal}}. Lo estamos revisando y te avisamos cuando puedas retirarlo.'],
+    ['en_camino', 'Pedido en camino', '¡Hola {{cliente}}! 🚚 Tu pedido {{pedido}} salió y está en camino. En breve lo recibís.'],
     ['reservation', 'Reserva confirmada', '¡Hola {{cliente}}! ⏳ Te reservamos el pedido {{pedido}} hasta {{reservation_until}}. Si necesitás más tiempo, avisanos y lo extendemos.'],
     ['saldo_pendiente', 'Saldo pendiente del pedido', '¡Hola {{cliente}}! 👋 Te recordamos que el pedido {{pedido}} tiene un saldo pendiente de {{saldo_pendiente}}. Podés pasar por {{sucursal}} o coordinar el pago por acá. ¡Gracias!'],
+    ['pago_pendiente', 'Pago pendiente', '¡Hola {{cliente}}! 👋 Tu pedido {{pedido}} tiene un pago pendiente de {{saldo_pendiente}}. Podés pasar por {{sucursal}} o coordinarlo por acá.'],
+    ['entregado', 'Pedido entregado', '¡Hola {{cliente}}! ✅ Tu pedido {{pedido}} quedó entregado. Gracias por elegirnos.'],
     ['envio_seguimiento', 'Seguimiento de envío', '¡Hola {{cliente}}! 📍 Tu pedido {{pedido}} ya está en camino. Podés seguirlo acá: {{seguimiento}}'],
   ],
   CUSTOMERS: [
@@ -40,6 +44,7 @@ const DEFAULTS: Record<Category, Array<[string, string, string]>> = {
     ['equipo_recibido', 'Equipo recibido', '¡Hola {{cliente}}! 🛠️ Recibimos tu {{equipo}} en {{sucursal}}. Ya empieza la revisión y te avisamos con el diagnóstico.'],
     ['diagnostico_listo', 'Diagnóstico listo', '¡Hola {{cliente}}! 🔍 Ya tenemos el diagnóstico de tu {{equipo}}: {{estado}}. Te escribimos para coordinar los próximos pasos.'],
     ['esperando_repuesto', 'Esperando repuesto', '¡Hola {{cliente}}! ⏳ Tu {{equipo}} está esperando un repuesto. Apenas llegue te avisamos para continuar con la reparación.'],
+    ['reparado', 'Equipo reparado', '¡Hola {{cliente}}! ✅ Tu {{equipo}} ya está reparado. Podés retirarlo en {{sucursal}} con el comprobante.'],
     ['reparacion_lista', 'Reparación lista', '¡Hola {{cliente}}! ✅ Tu {{equipo}} ya está listo para retirar en {{sucursal}}. Te esperamos con el comprobante.'],
     ['presupuesto', 'Presupuesto del servicio', '¡Hola {{cliente}}! 🧾 El presupuesto de tu {{equipo}} es {{total}}. Si lo aprobás, arrancamos con la reparación.'],
   ],

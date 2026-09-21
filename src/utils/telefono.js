@@ -29,6 +29,18 @@ export function codigoPais(value) {
   return digits ? `+${digits}` : ''
 }
 
+// Teléfono visible en toda la plataforma: SIEMPRE con código de país.
+// Paraguay se agrupa 3-3-3 (9 dígitos); el resto se muestra tal cual.
+export function telefonoVisible(phone, countryCode = '+595') {
+  const code = String(countryCode || '+595').replace(/\D/g, '') || '595'
+  let digits = String(phone || '').replace(/\D/g, '')
+  if (digits.startsWith(code)) digits = digits.slice(code.length)
+  if (digits.startsWith('0')) digits = digits.slice(1)
+  if (!digits) return ''
+  const local = digits.length === 9 ? `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}` : digits
+  return `+${code} ${local}`
+}
+
 export function telefonoValido(value, countryCode = '+595') {
   const digits = String(value || '').replace(/\D/g, '')
   if (!digits) return false

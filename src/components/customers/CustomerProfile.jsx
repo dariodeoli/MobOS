@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
+import { telefonoVisible } from '@/utils/telefono'
 import { codigoPedido } from '@/utils/pedido'
 import { cn } from '@/lib/utils'
 import { primerNombre } from '@/lib/utils'
 import { portalUrlFor, portalVitrinaUrlFor } from '@/lib/customerPortal'
+import { PERIODOS_INFORME, rangoPeriodo, seccionesInforme, informeCsv, nombreArchivoInforme } from '@/lib/customerReport'
 import QRCode from 'qrcode'
 import SerialTexto from '@/components/shared/SerialTexto'
-import { whatsappUrl } from './customerMessaging'
+import CityAutocomplete from '@/components/shared/CityAutocomplete'
+import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
 import ActorAvatar from './ActorAvatar'
@@ -65,6 +68,17 @@ const STATUS_BADGE = (map, value) => {
 }
 const fecha = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString('es-PY') : '—')
 const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
+const antiguedadTexto = (dias) => {
+  const total = Number(dias || 0)
+  if (!total) return '—'
+  if (total < 30) return `${total} ${total === 1 ? 'día' : 'días'}`
+  const meses = Math.floor(total / 30)
+  if (meses < 12) return `${meses} ${meses === 1 ? 'mes' : 'meses'}`
+  const anios = Math.floor(meses / 12)
+  const resto = meses % 12
+  return `${anios} ${anios === 1 ? 'año' : 'años'}${resto ? ` y ${resto} ${resto === 1 ? 'mes' : 'meses'}` : ''}`
+}
+const frecuenciaTexto = (dias) => (dias === null || dias === undefined ? '—' : dias <= 1 ? 'Todos los días' : `Cada ${dias} días`)
 
 const AUTH_KINDS = {
   WHOLESALE: 'Mayorista',
@@ -94,22 +108,17 @@ const pagadoOrden = (order) => Number(order?.collectedPyg ?? order?.paidPyg ?? 0
 // Grillas de las pestañas: una fila por registro, datos en columnas fijas.
 const GRID_DISPOSITIVOS = 'grid min-w-[54rem] grid-cols-[minmax(8rem,1.2fr)_minmax(7rem,0.9fr)_6rem_6rem_8rem_6rem] items-center gap-x-2'
 const GRID_GARANTIAS_CLI = 'grid min-w-[46rem] grid-cols-[minmax(9rem,1.5fr)_minmax(7rem,1fr)_6rem_7rem] items-center gap-x-2'
-const GRID_NOTAS_CLI = 'grid min-w-[46rem] grid-cols-[minmax(12rem,2fr)_7rem_6rem_8rem] items-center gap-x-2'
 const GRID_SEGUIMIENTOS = 'grid min-w-[54rem] grid-cols-[7rem_minmax(10rem,1.8fr)_7rem_7rem_6rem_8rem] items-center gap-x-2'
-const GRID_FACTURACION = 'grid min-w-[46rem] grid-cols-[minmax(10rem,1.5fr)_minmax(7rem,1fr)_7rem_7rem] items-center gap-x-2'
+const GRID_FACTURACION = 'grid min-w-[50rem] grid-cols-[minmax(10rem,1.5fr)_minmax(7rem,1fr)_minmax(8rem,1fr)_7rem_7rem] items-center gap-x-2'
+const GRID_DEUDA = 'grid min-w-[34rem] grid-cols-[7rem_6rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-x-2'
 const CELDA_CLI = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const TABS = [
-  { key: 'compras', label: 'Compras' },
-  { key: 'dispositivos', label: 'Dispositivos' },
-  { key: 'garantias', label: 'Garantías' },
-  { key: 'notas', label: 'Notas' },
-  { key: 'seguimientos', label: 'Seguimientos' },
-  { key: 'comercial', label: 'Comercial' },
-  { key: 'puntos', label: 'Puntos' },
-  { key: 'facturacion', label: 'Facturación' },
-  { key: 'estadisticas', label: 'Estadísticas' },
+  { key: 'resumen', label: 'Resumen' },
+  { key: 'pedidos', label: 'Pedidos' },
   { key: 'cronologia', label: 'Cronología' },
+  { key: 'estadisticas', label: 'Estadísticas' },
+  { key: 'datos', label: 'Datos' },
 ]
 
 // Un icono y un tono por tipo de evento de la cronología del cliente.
@@ -125,6 +134,25 @@ const EVENTOS = {
 const conCodigos = (texto) => String(texto || '').replace(/MOB-(\d+)/g, 'MOB #$1')
 
 // Texto legible por tipo de evento de la cronología del cliente.
+// Lista compacta de señales (productos, modelos, meses, días) para la
+// pestaña Estadísticas: pocos gráficos, mucha señal.
+function Senales({ titulo, items, primario, secundario }) {
+  if (!items?.length) return null
+  return (
+    <div className="rounded-xl border border-ink-600 p-3">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-mute">{titulo}</p>
+      <ul className="mt-1 space-y-0.5 text-xs">
+        {items.map((item, index) => (
+          <li key={`${titulo}-${index}`} className="flex flex-wrap justify-between gap-2">
+            <span className="min-w-0 truncate">{primario(item)}</span>
+            <span className="text-mute">{secundario(item)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export default function CustomerProfile({ customer, open, onClose }) {
   const toast = useToast()
   const { usuario, esDemo } = useSesion()
@@ -132,7 +160,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [profile, setProfile] = useState(null)
-  const [tab, setTab] = useState('compras')
+  const [tab, setTab] = useState('resumen')
   const [analitica, setAnalitica] = useState(null)
   const [cargandoAnalitica, setCargandoAnalitica] = useState(false)
   const [solicitud, setSolicitud] = useState(null)
@@ -142,9 +170,102 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [notaInterna, setNotaInterna] = useState('')
   const [notaPublica, setNotaPublica] = useState('')
   const [guardandoNotas, setGuardandoNotas] = useState(false)
+  // Informe descargable: período elegido y rango personalizado.
+  const [periodoInforme, setPeriodoInforme] = useState('todo')
+  const [desdeInforme, setDesdeInforme] = useState('')
+  const [hastaInforme, setHastaInforme] = useState('')
+  const [generandoInforme, setGenerandoInforme] = useState(false)
   // Listas de precios disponibles para asignar a la ficha.
   const [listasPrecios, setListasPrecios] = useState([])
   const [asignandoLista, setAsignandoLista] = useState(false)
+  // Edición directa de la configuración comercial (solo administración/gerencia).
+  const [comercialAbierto, setComercialAbierto] = useState(false)
+  const [comercialForm, setComercialForm] = useState({ pricingTier: 'RETAIL', creditHabilitado: false, creditDays: '', creditLimitPyg: '' })
+  const [guardandoComercial, setGuardandoComercial] = useState(false)
+  // Direcciones de la ficha (alta, edición y baja reemplazando el conjunto).
+  const [direccionForm, setDireccionForm] = useState(null)
+  const [direccionBusy, setDireccionBusy] = useState(false)
+
+  const direcciones = profile?.customer?.addresses || []
+
+  function abrirDireccion(address, index = -1) {
+    setDireccionForm(address
+      ? { index, label: address.label || '', address: address.address || '', city: address.city || '', department: address.department || '', country: address.country || 'Paraguay', isDefault: address.isDefault === true }
+      : { index: -1, label: '', address: '', city: '', department: '', country: 'Paraguay', isDefault: direcciones.length === 0 })
+  }
+
+  async function guardarDireccion(event) {
+    event.preventDefault()
+    if (!direccionForm || direccionBusy || !customer?.id) return
+    const address = direccionForm.address.trim()
+    if (!address) { toast.error('Dirección obligatoria', 'Ingresá el detalle de la dirección.'); return }
+    const actuales = direcciones.map((item) => ({ label: item.label, address: item.address, city: item.city, department: item.department, country: item.country, isDefault: item.isDefault }))
+    const nueva = { label: direccionForm.label.trim() || `Dirección ${actuales.length + 1}`, address, city: direccionForm.city.trim(), department: direccionForm.department.trim(), country: direccionForm.country.trim() || 'Paraguay', isDefault: direccionForm.isDefault }
+    const lista = direccionForm.index >= 0 ? actuales.map((item, index) => (index === direccionForm.index ? nueva : item)) : [...actuales, nueva]
+    const conPredeterminada = lista.map((item, index) => ({ ...item, isDefault: item.isDefault || (index === 0 && !lista.some((otra) => otra.isDefault)) }))
+    setDireccionBusy(true)
+    try {
+      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { addresses: conPredeterminada })
+      toast.success('Direcciones guardadas.')
+      setDireccionForm(null)
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudo guardar la dirección', cause?.message)
+    } finally { setDireccionBusy(false) }
+  }
+
+  async function removeDireccion() {
+    if (!pendingDelete || pendingDelete.type !== 'address' || deleteBusy || !customer?.id) return
+    setDeleteBusy(true)
+    try {
+      const lista = direcciones
+        .filter((_, index) => index !== pendingDelete.index)
+        .map((item, index) => ({ label: item.label, address: item.address, city: item.city, department: item.department, country: item.country, isDefault: index === 0 ? true : item.isDefault }))
+      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { addresses: lista })
+      toast.success('Dirección eliminada.')
+      setPendingDelete(null)
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudo eliminar la dirección', cause?.message)
+    } finally { setDeleteBusy(false) }
+  }
+
+  function abrirComercial() {
+    const ficha = profile?.customer || customer || {}
+    setComercialForm({
+      pricingTier: ficha.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL',
+      creditHabilitado: Number(ficha.creditLimitPyg || 0) > 0,
+      creditDays: ficha.creditDays ?? '',
+      creditLimitPyg: Number(ficha.creditLimitPyg || 0) > 0 ? ficha.creditLimitPyg : '',
+    })
+    setComercialAbierto(true)
+  }
+
+  async function guardarComercial(event) {
+    event.preventDefault()
+    if (guardandoComercial || !customer?.id) return
+    const body = { pricingTier: comercialForm.pricingTier === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL' }
+    if (comercialForm.creditHabilitado) {
+      const limite = Number(String(comercialForm.creditLimitPyg).replace(/\D/g, ''))
+      if (!Number.isSafeInteger(limite) || limite <= 0) { toast.error('Límite inválido', 'Para habilitar el crédito ingresá un límite mayor a cero.'); return }
+      const dias = comercialForm.creditDays === '' ? null : Number(comercialForm.creditDays)
+      if (dias !== null && (!Number.isSafeInteger(dias) || dias < 0 || dias > 365)) { toast.error('Días inválidos', 'Los días de crédito deben estar entre 0 y 365.'); return }
+      body.creditLimitPyg = limite
+      body.creditDays = dias
+    } else {
+      body.creditLimitPyg = null
+      body.creditDays = null
+    }
+    setGuardandoComercial(true)
+    try {
+      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, body)
+      toast.success('Configuración comercial guardada.')
+      setComercialAbierto(false)
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudo guardar la configuración', cause?.message)
+    } finally { setGuardandoComercial(false) }
+  }
 
   useEffect(() => {
     setNotaInterna(profile?.customer?.notes || customer?.notes || '')
@@ -232,27 +353,55 @@ export default function CustomerProfile({ customer, open, onClose }) {
     setCargandoAnalitica(true)
     api.get(`/api/customers/${encodeURIComponent(customer.id)}/analytics`)
       .then(data => { if (vigente) setAnalitica(data) })
-      .catch(() => { if (vigente) setAnalitica({ ordersCount: 0, totalPyg: 0, avgTicketPyg: 0, byMonth: [], topProducts: [], statement: [] }) })
+      .catch(() => { if (vigente) setAnalitica({ ordersCount: 0, totalPyg: 0, avgTicketPyg: 0, purchasesPerMonth: 0, spendPerMonthPyg: 0, frequencyDays: null, antiguedadDias: 0, byMonth: [], topProducts: [], topModels: [], topCategories: [], topMonths: [], topWeekdays: [], statement: [] }) })
       .finally(() => { if (vigente) setCargandoAnalitica(false) })
     return () => { vigente = false }
   }, [tab, analitica, esDemo, customer?.id])
 
-  function descargarInforme() {
-    if (!analitica) return
-    const filas = [
-      ['Pedido', 'Fecha', 'Estado', 'Total (Gs)'],
-      ...analitica.statement.map(item => [item.orderNumber, new Date(item.createdAt).toLocaleDateString('es-PY'), item.status, item.totalPyg]),
-      [],
-      ['Compras', analitica.ordersCount],
-      ['Total (Gs)', analitica.totalPyg],
-      ['Ticket promedio (Gs)', analitica.avgTicketPyg],
-    ]
-    const csv = filas.map(fila => fila.map(celda => `"${String(celda ?? '').replace(/"/g, '""')}"`).join(';')).join('\n')
-    const enlace = document.createElement('a')
-    enlace.href = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
-    enlace.download = `cliente-${(customer?.name || 'informe').replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 40)}.csv`
-    enlace.click()
-    URL.revokeObjectURL(enlace.href)
+  // Informe descargable: reúne todas las secciones del cliente en un CSV con el
+  // período elegido. La cronología se pide completa (páginas de 100) para que
+  // el informe no dependa de lo que ya está en pantalla.
+  async function descargarInforme() {
+    if (generandoInforme || !customer?.id) return
+    setGenerandoInforme(true)
+    try {
+      let eventos = timeline
+      if (!esDemo) {
+        eventos = []
+        let cursor = ''
+        for (let pagina = 0; pagina < 5; pagina += 1) {
+          const consulta = `/api/customers/${encodeURIComponent(customer.id)}/timeline?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`
+          const data = await api.get(consulta)
+          eventos = [...eventos, ...(Array.isArray(data?.events) ? data.events : [])]
+          cursor = data?.nextCursor || ''
+          if (!cursor) break
+        }
+      }
+      const ficha = profile?.customer || {}
+      const telefono = ficha.phone || customer?.phone || ''
+      const secciones = seccionesInforme({
+        customer: {
+          ...ficha,
+          telefonoVisible: telefono ? telefonoVisible(telefono, ficha.countryCode || customer?.countryCode) : '',
+          ciudad: (ficha.addresses || []).find((address) => address.city)?.city || '',
+          createdByName: ficha.createdBy?.name || '',
+        },
+        orders,
+        warranties,
+        timeline: eventos,
+        analytics: analitica,
+        billingIdentities: profile?.billingIdentities || [],
+        rango: rangoPeriodo(periodoInforme, { desde: desdeInforme, hasta: hastaInforme }),
+      })
+      const enlace = document.createElement('a')
+      enlace.href = URL.createObjectURL(new Blob([`\ufeff${informeCsv(secciones)}`], { type: 'text/csv;charset=utf-8' }))
+      enlace.download = nombreArchivoInforme(customer?.name || 'cliente', periodoInforme)
+      enlace.click()
+      URL.revokeObjectURL(enlace.href)
+      toast.success('Informe descargado.')
+    } catch (cause) {
+      toast.error('No se pudo generar el informe', cause?.message)
+    } finally { setGenerandoInforme(false) }
   }
 
 
@@ -268,6 +417,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [timelineLoading, setTimelineLoading] = useState(false)
   const [timelineError, setTimelineError] = useState('')
   const [timelineRevision, setTimelineRevision] = useState(0)
+  const [timelineNext, setTimelineNext] = useState(null)
+  const [timelineCargandoMas, setTimelineCargandoMas] = useState(false)
   const [authorizations, setAuthorizations] = useState([])
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
@@ -324,9 +475,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
     return () => { active = false }
   }, [open, customer?.id, revision])
 
-  // Cada apertura (u otro cliente) arranca en la pestaña de compras.
+  // Cada apertura (u otro cliente) arranca en el resumen.
   useEffect(() => {
-    if (open) setTab('compras')
+    if (open) setTab('resumen')
   }, [open, customer?.id, setTab])
 
   // Solicitudes comerciales del cliente (mayorista, crédito, plazo).
@@ -345,9 +496,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
     return () => { active = false }
   }, [open, customer?.id, revision, esDemo])
 
-  // Identidades de facturación: se piden al abrir su pestaña.
+  // Identidades de facturación: se piden al abrir la pestaña Datos.
   useEffect(() => {
-    if (!open || !customer?.id || tab !== 'facturacion' || esDemo) return undefined
+    if (!open || !customer?.id || tab !== 'datos' || esDemo) return undefined
     let active = true
     setIdentitiesLoading(true)
     setIdentitiesError('')
@@ -361,9 +512,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
     return () => { active = false }
   }, [open, customer?.id, tab, revision, esDemo])
 
-  // Fidelización: se pide al abrir su pestaña y al canjear o reintentar.
+  // Fidelización: se pide al abrir la pestaña Datos y al canjear o reintentar.
   useEffect(() => {
-    if (!open || !customer?.id || tab !== 'puntos' || esDemo) return undefined
+    if (!open || !customer?.id || tab !== 'datos' || esDemo) return undefined
     let active = true
     setLoyaltyLoading(true)
     setLoyaltyError('')
@@ -428,9 +579,10 @@ export default function CustomerProfile({ customer, open, onClose }) {
     let active = true
     setTimelineLoading(true)
     setTimelineError('')
+    setTimelineNext(null)
     api
-      .get(`/api/customers/${customer.id}/timeline`)
-      .then((data) => { if (active) { setTimeline(Array.isArray(data?.events) ? data.events : []); setTimelineLoading(false) } })
+      .get(`/api/customers/${customer.id}/timeline?limit=20`)
+      .then((data) => { if (active) { setTimeline(Array.isArray(data?.events) ? data.events : []); setTimelineNext(data?.nextCursor || null); setTimelineLoading(false) } })
       .catch((cause) => {
         if (active) setTimelineError(cause?.message || 'No se pudo cargar la cronología.')
         if (active) setTimelineLoading(false)
@@ -438,9 +590,21 @@ export default function CustomerProfile({ customer, open, onClose }) {
     return () => { active = false }
   }, [open, customer?.id, tab, timelineRevision])
 
-  // Listas de precios activas: se piden al abrir la pestaña comercial.
+  async function cargarMasTimeline() {
+    if (timelineCargandoMas || !timelineNext || !customer?.id) return
+    setTimelineCargandoMas(true)
+    try {
+      const data = await api.get(`/api/customers/${customer.id}/timeline?limit=20&cursor=${encodeURIComponent(timelineNext)}`)
+      setTimeline((actual) => [...actual, ...(Array.isArray(data?.events) ? data.events : [])])
+      setTimelineNext(data?.nextCursor || null)
+    } catch (cause) {
+      toast.error('No se pudo cargar más actividad', cause?.message)
+    } finally { setTimelineCargandoMas(false) }
+  }
+
+  // Listas de precios activas: se piden al abrir la pestaña Datos.
   useEffect(() => {
-    if (!open || tab !== 'comercial' || esDemo) return undefined
+    if (!open || tab !== 'datos' || esDemo) return undefined
     let active = true
     api
       .get('/api/price-lists')
@@ -460,9 +624,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const puedeAsignarLista = ['ADMIN', 'GERENTE'].includes(usuario?.role)
   const clienteCredito = profile?.customer?.creditLimitPyg ?? customer?.creditLimitPyg ?? 0
   const clientePlazo = profile?.customer?.creditDays ?? customer?.creditDays ?? 0
-  const identidades = profile?.billingIdentities || []
   const ultimaCompra = orders.reduce((max, order) => (order.createdAt && (!max || order.createdAt > max) ? order.createdAt : max), null)
-  const clienteDesde = profile?.customer?.createdAt || customer?.createdAt || null
   const totalComprado = orders.reduce((sum, order) => sum + Number(order.totalPyg || 0), 0)
   const deuda = Number(profile?.debtPyg ?? 0)
   const garantiasActivas = warranties.filter((item) => item.status !== 'DELIVERED').length
@@ -481,7 +643,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const puedeCanjearPuntos = Boolean(usuario && (usuario.permissions?.includes('*') || ['ADMIN', 'GERENTE'].includes(usuario.role) || usuario.permissions?.includes('orders:manage') || usuario.permissions?.includes('payments:manage')))
 
   const dispositivos = orders.flatMap(order => (order.items || []).flatMap(item => (item.serials || []).map(serial => ({ serial, model: item.description, date: order.createdAt, orderNumber: order.orderNumber, warranty: warranties.find(warranty => warranty.serial === serial) || null }))))
-  const tabCounts = { compras: orders.length, dispositivos: dispositivos.length, garantias: warranties.length, notas: notes.length, seguimientos: followUps.length, cronologia: timeline.length }
+  const ordenesActivas = orders.filter((order) => order.status === 'PENDING' || order.status === 'REGISTERED').length
+  const ciudadCliente = (profile?.customer?.addresses || []).find((address) => address.city)?.city || profile?.customer?.addresses?.[0]?.city || ''
+  const tabCounts = { pedidos: orders.length, cronologia: timeline.length, datos: notes.length + followUps.length }
 
   async function saveNote(event) {
     event.preventDefault()
@@ -564,20 +728,6 @@ export default function CustomerProfile({ customer, open, onClose }) {
       toast.error('No se pudo eliminar el seguimiento', cause?.message)
     } finally {
       setDeleteBusy(false)
-    }
-  }
-
-  async function solicitarMayorista() {
-    if (requestBusy) return
-    setRequestBusy(true)
-    try {
-      await api.post('/api/authorizations', { customerId: customer.id, kind: 'WHOLESALE' })
-      toast.success('Solicitud enviada', 'Administración la revisará y resolverá.')
-      refresh()
-    } catch (cause) {
-      toast.error('No se pudo enviar la solicitud', cause?.message)
-    } finally {
-      setRequestBusy(false)
     }
   }
 
@@ -782,11 +932,12 @@ export default function CustomerProfile({ customer, open, onClose }) {
               <h3 className="truncate text-lg font-bold">{profile.customer?.name || customer?.name}</h3>
               <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-mute">
                 {documentValue && <span>{documentValue}</span>}
-                {phone && <span>{phone}</span>}
+                {(phone || profile?.customer?.phone) && <span className="tabular-nums">{telefonoVisible(phone, profile?.customer?.countryCode || customer?.countryCode)}</span>}
                 {profile.customer?.email && <span className="truncate">{profile.customer.email}</span>}
+                {ciudadCliente && <span className="truncate">{ciudadCliente}</span>}
               </p>
               <p className="mt-1 text-xs text-mute">
-                Cliente desde {fecha(profile.customer?.createdAt)} · Creado por {profile.customer?.createdBy?.name || 'Sistema'}
+                Cliente desde {profile.customer?.createdAt ? fechaHora(profile.customer.createdAt) : '—'} · Creado por {profile.customer?.createdBy?.name || 'Sistema'}
               </p>
               {(profile.customer?.billingName || profile.customer?.billingDocument) && (
                 <p className="mt-1 text-xs text-mute">
@@ -795,6 +946,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 </p>
               )}
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <Badge color={mayorista ? 'orange' : 'slate'}>{mayorista ? 'Mayorista' : 'Cliente final'}</Badge>
                 {profile.customer?.taxExempt && <Badge color="blue">Exento de impuestos</Badge>}
                 {profile.customer?.acceptsWhatsappMarketing && <Badge color="green">WhatsApp marketing</Badge>}
                 {profile.customer?.acceptsSmsMarketing && <Badge color="green">SMS marketing</Badge>}
@@ -810,61 +962,86 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 </Button>
               )}
               {phone && (
-                <a
-                  className="inline-flex items-center gap-2 rounded-lg bg-ok px-4 py-2 text-sm font-semibold text-black transition hover:brightness-110"
-                  href={whatsappUrl(phone, `Hola ${profile.customer?.name || customer?.name || ''}, te escribimos de MobOS.`, customer?.countryCode)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Icon name="send" className="h-4 w-4" />
-                  Enviar WhatsApp
-                </a>
+                <span className="inline-flex items-center gap-1 rounded-lg border border-ok/30 bg-ok/5 px-1.5 py-0.5">
+                  <WhatsAppMenu
+                    telefono={phone}
+                    countryCode={profile.customer?.countryCode || customer?.countryCode}
+                    category="CUSTOMERS"
+                    storageKey="mobos:clientes:plantilla-wa"
+                    title={profile.customer?.name || customer?.name}
+                    contexto={{
+                      cliente: profile.customer?.name || customer?.name || '',
+                      nombre: profile.customer?.name || customer?.name || '',
+                      saldo_pendiente: deuda > 0 ? formatGs(deuda) : '',
+                      producto: dispositivos[0]?.model || '',
+                      ultima_compra: ultimaCompra ? fecha(ultimaCompra) : '',
+                    }}
+                  />
+                </span>
               )}
             </span>
           </header>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {tab === 'resumen' && (
+          <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Total comprado</p>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Total gastado</p>
               <p className="mt-1 text-lg font-semibold text-fore">{formatGs(totalComprado)}</p>
             </div>
-            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+            <div className={cn('rounded-xl border p-3', deuda > 0 ? 'border-warn/40 bg-warn/5' : 'border-ink-600 bg-ink-800')}>
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Saldo pendiente</p>
               <div className="mt-1 flex items-center gap-2">
-                <p className="text-lg font-semibold text-fore">{formatGs(deuda)}</p>
+                <p className={cn('text-lg font-semibold', deuda > 0 ? 'text-warn' : 'text-fore')}>{formatGs(deuda)}</p>
                 <Badge color={deuda > 0 ? 'red' : 'green'}>{deuda > 0 ? 'Deuda' : 'Al día'}</Badge>
               </div>
             </div>
-            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Órdenes</p>
-              <p className="mt-1 text-lg font-semibold text-fore">{orders.length}</p>
+            <div className={cn('rounded-xl border p-3', ordenesActivas > 0 ? 'border-fono/40 bg-fono/5' : 'border-ink-600 bg-ink-800')}>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Órdenes activas</p>
+              <p className="mt-1 text-lg font-semibold text-fore">{ordenesActivas}</p>
             </div>
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Garantías activas</p>
-              <p className="mt-1 text-lg font-semibold text-fore">{garantiasActivas}</p>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Pedidos</p>
+              <p className="mt-1 text-lg font-semibold text-fore">{orders.length}</p>
             </div>
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Última compra</p>
               <p className="mt-1 text-sm font-semibold text-fore">{ultimaCompra ? fecha(ultimaCompra) : 'Sin compras'}</p>
             </div>
-            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Cliente desde</p>
-              <p className="mt-1 text-sm font-semibold text-fore">{clienteDesde ? fecha(clienteDesde) : '—'}</p>
-            </div>
+            {warranties.length > 0 && (
+              <div className={cn('rounded-xl border p-3', garantiasActivas > 0 ? 'border-fono/40 bg-fono/5' : 'border-ink-600 bg-ink-800')}>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Garantías activas</p>
+                <p className="mt-1 text-lg font-semibold text-fore">{garantiasActivas}</p>
+              </div>
+            )}
           </div>
 
           {deuda > 0 && (
             <div className="rounded-xl border border-warn/30 bg-warn/5 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Deuda por pedido</p>
-              <ul className="mt-2 space-y-1">
-                {ordenesConSaldo.map((order) => (
-                  <li key={order.id} className="flex items-center justify-between gap-3 text-sm">
-                    <span className="min-w-0 truncate font-medium">{codigoPedido(order.orderNumber) || 'Pedido'}</span>
-                    <span className="shrink-0 tabular-nums text-warn">{formatGs(saldoOrden(order))}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-xs text-mute">Total pendiente: <b className="text-fore">{formatGs(deuda)}</b></p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-warn">Saldo pendiente: {formatGs(deuda)}</p>
+                <Badge color="red">{ordenesConSaldo.length} {ordenesConSaldo.length === 1 ? 'pedido' : 'pedidos'}</Badge>
+              </div>
+              <div className="mt-2 overflow-x-auto" data-testid="perfil-deuda">
+                <div className={cn(GRID_DEUDA, 'px-1 pb-1 pt-1')}>
+                  <span className={CELDA_CLI}>Pedido</span>
+                  <span className={CELDA_CLI}>Fecha</span>
+                  <span className={cn(CELDA_CLI, 'text-right')}>Total</span>
+                  <span className={cn(CELDA_CLI, 'text-right')}>Pagado</span>
+                  <span className={cn(CELDA_CLI, 'text-right')}>Saldo</span>
+                </div>
+                <div className="space-y-0.5">
+                  {ordenesConSaldo.map((order) => (
+                    <div key={order.id} data-testid="perfil-deuda-fila" className={cn(GRID_DEUDA, 'rounded-lg px-1 py-1.5 text-sm')}>
+                      <span className="truncate font-medium" title={codigoPedido(order.orderNumber) || undefined}>{codigoPedido(order.orderNumber) || 'Pedido'}</span>
+                      <span className="truncate text-xs text-mute">{fecha(order.createdAt)}</span>
+                      <span className="truncate text-right tabular-nums text-mute">{formatGs(order.totalPyg)}</span>
+                      <span className="truncate text-right tabular-nums text-ok">{formatGs(pagadoOrden(order))}</span>
+                      <span className="truncate text-right font-semibold tabular-nums text-warn">{formatGs(saldoOrden(order))}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -879,8 +1056,24 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 </p>
               </div>
               <span className="flex flex-wrap gap-2">
-                {!mayorista && <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('WHOLESALE')}>Solicitar mayorista</Button>}
-                {!(Number(clienteCredito || 0) > 0) && <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('CREDIT')}>Solicitar crédito</Button>}
+                {!mayorista && !hayPendiente('WHOLESALE') && (
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('WHOLESALE')}>
+                    <Icon name="tag" className="h-4 w-4" />
+                    Solicitar mayorista
+                  </Button>
+                )}
+                {!creditoHabilitado && !hayPendiente('CREDIT') && (
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => abrirSolicitud('CREDIT')}>
+                    <Icon name="wallet" className="h-4 w-4" />
+                    Solicitar crédito
+                  </Button>
+                )}
+                {creditoHabilitado && !hayPendiente('CREDIT_DAYS') && (
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => abrirSolicitud('CREDIT_DAYS')}>
+                    <Icon name="clock" className="h-4 w-4" />
+                    Solicitar días
+                  </Button>
+                )}
               </span>
               {puedeAsignarLista && <div className="w-full border-t border-ink-600 pt-2">
                 <label className="block text-xs text-mute" htmlFor="cliente-lista-precios">Lista de precios</label>
@@ -892,19 +1085,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
               </div>}
             </div>
           )}
-
-          {!esDemo && identidades.length > 0 && (
-            <div className="rounded-xl border border-ink-600 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Titulares de factura usados</p>
-              <ul className="mt-1 space-y-0.5 text-xs">
-                {identidades.map(item => (
-                  <li key={item.id} className="flex flex-wrap justify-between gap-2">
-                    <span className="min-w-0 truncate">{item.name}{item.document ? ` · ${item.document}` : ''}</span>
-                    <span className="text-mute">{item.uses} {item.uses === 1 ? 'venta' : 'ventas'}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          </>
           )}
 
           <div className="flex gap-2 overflow-x-auto" role="tablist">
@@ -923,8 +1104,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
             ))}
           </div>
 
-          {tab === 'compras' && (
+          {tab === 'pedidos' && (
             <>
+              <p className="text-sm font-semibold">Pedidos</p>
               {!orders.length ? (
                 <EmptyState compact icon="receipt" title="Sin compras registradas" description="Las órdenes de esta sucursal aparecerán acá." />
               ) : (
@@ -957,8 +1139,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </>
           )}
 
-          {tab === 'dispositivos' && (
+          {tab === 'pedidos' && (
             <>
+              <p className="text-sm font-semibold">Equipos con IMEI/serial</p>
               {!dispositivos.length ? (
                 <EmptyState compact icon="phone" title="Sin dispositivos registrados" description="Los equipos con IMEI/serial comprados por este cliente aparecen acá." />
               ) : (
@@ -993,8 +1176,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </>
           )}
 
-          {tab === 'garantias' && (
+          {tab === 'pedidos' && (
             <>
+              <p className="text-sm font-semibold">Garantías</p>
               {!warranties.length ? (
                 <EmptyState compact icon="package" title="Sin garantías" description="No hay casos de garantía asociados a este cliente." />
               ) : (
@@ -1020,10 +1204,10 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </>
           )}
 
-          {tab === 'notas' && (
+          {tab === 'datos' && (
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-warn/30 bg-warn/5 p-3">
-                <Label>Nota interna <span className="text-mute">(solo equipo)</span></Label>
+                <Label>Nota interna <span className="text-mute">(solo equipo, nunca visible al cliente)</span></Label>
                 <Textarea rows={3} aria-label="Nota interna" value={notaInterna} onChange={event => setNotaInterna(event.target.value)} placeholder="Raya lateral, trato especial, observaciones…" autoCapitalize="sentences" />
               </div>
               <div className="rounded-xl border border-ok/30 bg-ok/5 p-3">
@@ -1036,33 +1220,27 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </div>
           )}
 
-          {tab === 'notas' && (
+          {tab === 'cronologia' && (
             <div className="space-y-4">
+              <p className="text-sm font-semibold">Comentarios internos <span className="font-normal text-mute">(nunca visibles al cliente)</span></p>
               <form onSubmit={saveNote} className="space-y-3">
-                <FormField label={editingNote ? 'Editar nota' : 'Nueva nota'} htmlFor="profile-note">
-                  <Textarea id="profile-note" rows={3} maxLength={2000} placeholder="Nota interna del equipo sobre este cliente…" value={newNote} onChange={(event) => setNewNote(event.target.value)} />
+                <FormField label={editingNote ? 'Editar comentario' : 'Nuevo comentario'} htmlFor="profile-note">
+                  <Textarea id="profile-note" rows={3} maxLength={2000} placeholder="Observación interna del equipo sobre este cliente…" value={newNote} onChange={(event) => setNewNote(event.target.value)} />
                 </FormField>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button type="submit" disabled={noteBusy || !newNote.trim()}>{noteBusy ? 'Guardando…' : editingNote ? 'Guardar cambios' : 'Agregar nota'}</Button>
+                  <Button type="submit" disabled={noteBusy || !newNote.trim()}>{noteBusy ? 'Guardando…' : editingNote ? 'Guardar cambios' : 'Agregar comentario'}</Button>
                   {editingNote && <Button type="button" variant="ghost" onClick={() => { setEditingNote(null); setNewNote('') }}>Cancelar</Button>}
                 </div>
               </form>
               {!notes.length ? (
-                <EmptyState compact icon="edit" title="Sin notas" description="Guardá observaciones internas sobre este cliente." />
+                <EmptyState compact icon="edit" title="Sin comentarios" description="Guardá observaciones internas sobre este cliente (solo las ve el equipo)." />
               ) : (
-                <div className="overflow-x-auto" data-testid="perfil-notas">
-                  <div className={cn(GRID_NOTAS_CLI, 'px-3.5 pb-2 pt-1')}>
-                    <span className={CELDA_CLI}>Nota</span>
-                    <span className={CELDA_CLI}>Autor</span>
-                    <span className={CELDA_CLI}>Fecha</span>
-                    <span className={cn(CELDA_CLI, 'text-right')}>Acciones</span>
-                  </div>
-                  <div className="space-y-1">
+                <ul className="space-y-2" data-testid="perfil-notas">
                   {notes.map((item) => (
                     <li key={item.id} className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
                       <p className="whitespace-pre-wrap break-words">{item.content}</p>
                       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-xs text-mute" title={item.user?.name || 'Equipo'}><ActorAvatar user={item.user} hasAvatar={item.user?.hasAvatar === true} size="sm" /> <span>{primerNombre(item.user?.name) || 'Equipo'}</span> · {fechaHora(item.createdAt)}</p>
+                        <p className="flex items-center gap-1.5 text-xs text-mute" title={item.user?.name || 'Equipo'}><ActorAvatar user={item.user} hasAvatar={item.user?.hasAvatar === true} size="sm" /> <span>{item.user?.name || 'Equipo'}</span> · {fechaHora(item.createdAt)}</p>
                         <div className="flex gap-2">
                           <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => { setEditingNote(item); setNewNote(item.content) }}>Editar</button>
                           <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'note', id: item.id })}>Eliminar</button>
@@ -1070,8 +1248,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                       </div>
                     </li>
                   ))}
-                  </div>
-                </div>
+                </ul>
               )}
             </div>
           )}
@@ -1082,42 +1259,60 @@ export default function CustomerProfile({ customer, open, onClose }) {
               {cargandoAnalitica && <Skeleton className="h-24 w-full" />}
               {!cargandoAnalitica && analitica && (
                 <>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                     <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Compras</p><p className="mt-1 text-lg font-bold">{analitica.ordersCount}</p></div>
-                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Total comprado</p><p className="mt-1 text-lg font-bold">{formatGs(analitica.totalPyg)}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Total gastado</p><p className="mt-1 text-lg font-bold">{formatGs(analitica.totalPyg)}</p></div>
                     <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Ticket promedio</p><p className="mt-1 text-lg font-bold">{formatGs(analitica.avgTicketPyg)}</p></div>
                     <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Compras por mes</p><p className="mt-1 text-lg font-bold">{analitica.purchasesPerMonth || 0}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Gasto por mes</p><p className="mt-1 text-lg font-bold">{formatGs(analitica.spendPerMonthPyg || 0)}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Frecuencia</p><p className="mt-1 text-lg font-bold">{frecuenciaTexto(analitica.frequencyDays)}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Primera compra</p><p className="mt-1 text-sm font-bold">{analitica.firstPurchaseAt ? fecha(analitica.firstPurchaseAt) : 'Sin compras'}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Última compra</p><p className="mt-1 text-sm font-bold">{analitica.lastPurchaseAt ? fecha(analitica.lastPurchaseAt) : 'Sin compras'}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Antigüedad</p><p className="mt-1 text-sm font-bold">{antiguedadTexto(analitica.antiguedadDias)}</p></div>
                   </div>
-                  {analitica.topProducts.length > 0 && (
-                    <div className="rounded-xl border border-ink-600 p-3">
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Productos que más compra</p>
-                      <ul className="mt-1 space-y-0.5 text-xs">
-                        {analitica.topProducts.map(item => (
-                          <li key={item.description} className="flex flex-wrap justify-between gap-2"><span className="min-w-0 truncate">{item.description}</span><span className="text-mute">{item.quantity} u. · {formatGs(item.totalPyg)}</span></li>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Senales titulo="Productos que más compra" items={analitica.topProducts} primario={(item) => item.description} secundario={(item) => `${item.quantity} u. · ${formatGs(item.totalPyg)}`} />
+                    <Senales titulo="Modelos favoritos" items={analitica.topModels} primario={(item) => item.model} secundario={(item) => `${item.quantity} u. · ${formatGs(item.totalPyg)}`} />
+                    <Senales titulo="Categorías favoritas" items={analitica.topCategories} primario={(item) => item.category} secundario={(item) => `${item.quantity} u. · ${formatGs(item.totalPyg)}`} />
+                    <Senales titulo="Meses de mayor actividad" items={analitica.topMonths} primario={(item) => item.label || item.month} secundario={(item) => `${item.count} ${item.count === 1 ? 'compra' : 'compras'} · ${formatGs(item.totalPyg)}`} />
+                    <Senales titulo="Días de mayor actividad" items={analitica.topWeekdays} primario={(item) => item.day} secundario={(item) => `${item.count} ${item.count === 1 ? 'compra' : 'compras'}`} />
+                    <Senales titulo="Últimos meses" items={analitica.byMonth} primario={(item) => item.label || item.month} secundario={(item) => `${item.count} ${item.count === 1 ? 'compra' : 'compras'} · ${formatGs(item.totalPyg)}`} />
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 p-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-paper p-1">
+                        {PERIODOS_INFORME.map((item) => (
+                          <button
+                            key={item.clave}
+                            type="button"
+                            aria-pressed={periodoInforme === item.clave}
+                            onClick={() => setPeriodoInforme(item.clave)}
+                            className={cn('rounded-lg px-2.5 py-1 text-xs font-semibold transition', periodoInforme === item.clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
+                          >
+                            {item.nombre}
+                          </button>
                         ))}
-                      </ul>
+                      </div>
+                      {periodoInforme === 'custom' && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Input type="date" aria-label="Desde" className="h-9 w-auto" value={desdeInforme} onChange={(event) => setDesdeInforme(event.target.value)} />
+                          <Input type="date" aria-label="Hasta" className="h-9 w-auto" value={hastaInforme} onChange={(event) => setHastaInforme(event.target.value)} />
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {analitica.byMonth.length > 0 && (
-                    <div className="rounded-xl border border-ink-600 p-3">
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Últimos meses</p>
-                      <ul className="mt-1 space-y-0.5 text-xs">
-                        {analitica.byMonth.map(item => (
-                          <li key={item.month} className="flex flex-wrap justify-between gap-2"><span>{item.month}</span><span className="text-mute">{item.count} {item.count === 1 ? 'compra' : 'compras'} · {formatGs(item.totalPyg)}</span></li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  <div className="flex justify-end">
-                    <Button type="button" variant="outline" onClick={descargarInforme} disabled={!analitica.statement.length}>Descargar informe (CSV)</Button>
+                    <Button type="button" variant="outline" onClick={descargarInforme} disabled={generandoInforme || !analitica.statement.length}>
+                      <Icon name="download" className="h-4 w-4" />
+                      {generandoInforme ? 'Generando…' : 'Descargar informe (CSV)'}
+                    </Button>
                   </div>
                 </>
               )}
             </div>
           )}
 
-          {tab === 'seguimientos' && (
+          {tab === 'cronologia' && (
             <div className="space-y-4">
+              <p className="text-sm font-semibold">Seguimientos</p>
               <form onSubmit={saveFollowUp} className="grid gap-3 sm:grid-cols-[10rem_12rem_1fr]">
                 <FormField label="Tipo" htmlFor="profile-follow-kind">
                   <Select id="profile-follow-kind" value={followForm.kind} onChange={(event) => setFollowForm({ ...followForm, kind: event.target.value })}>
@@ -1171,8 +1366,17 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </div>
           )}
 
-          {tab === 'comercial' && (
+          {tab === 'datos' && (
             <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">Configuración comercial</p>
+                {puedeResolver && (
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={abrirComercial}>
+                    <Icon name="edit" className="h-3.5 w-3.5" />
+                    Editar configuración
+                  </Button>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
                   <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Tipo</p>
@@ -1213,27 +1417,6 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 {nombreListaPrecios && <Badge color="blue">{nombreListaPrecios}</Badge>}
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {!mayorista && !hayPendiente('WHOLESALE') && (
-                  <Button type="button" onClick={solicitarMayorista} disabled={requestBusy}>
-                    <Icon name="tag" className="h-4 w-4" />
-                    {requestBusy ? 'Enviando…' : 'Solicitar ser mayorista'}
-                  </Button>
-                )}
-                {!creditoHabilitado && !hayPendiente('CREDIT') && (
-                  <Button type="button" variant="outline" onClick={() => abrirSolicitud('CREDIT')}>
-                    <Icon name="wallet" className="h-4 w-4" />
-                    Solicitar habilitación de crédito
-                  </Button>
-                )}
-                {creditoHabilitado && !hayPendiente('CREDIT_DAYS') && (
-                  <Button type="button" variant="outline" onClick={() => abrirSolicitud('CREDIT_DAYS')}>
-                    <Icon name="clock" className="h-4 w-4" />
-                    Solicitar días de crédito
-                  </Button>
-                )}
-              </div>
-
               <div>
                 <p className="text-sm font-semibold">Solicitudes</p>
                 {authLoading && <div className="mt-2 space-y-2" aria-busy="true"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
@@ -1252,12 +1435,14 @@ export default function CustomerProfile({ customer, open, onClose }) {
                             <Badge color="blue">{AUTH_KINDS[row.kind] || row.kind}</Badge>
                             <Badge color={estado.color}>{estado.label}</Badge>
                           </div>
-                          <p className="mt-1 text-xs text-mute">
-                            Pedido: {resumenValor(row.kind, row.requestedValue)}
-                            {row.status === 'APPROVED' && <> · Autorizado: {resumenValor(row.kind, row.resolvedValue || row.requestedValue)}</>}
-                            {row.status === 'REJECTED' && ' · Rechazada'}
-                          </p>
+                          <p className="mt-1 text-xs text-mute">Pedido: {resumenValor(row.kind, row.requestedValue)}</p>
                           <p className="mt-1 text-xs text-mute">Pidió {row.requestedBy?.name || 'Sistema'} · {fechaHora(row.createdAt)}</p>
+                          {row.status !== 'PENDING' && (
+                            <p className="mt-1 text-xs text-mute">
+                              {row.status === 'APPROVED' ? 'Aprobó' : 'Rechazó'} {row.resolvedBy?.name || 'Sistema'} · {fechaHora(row.resolvedAt)}
+                              {row.status === 'APPROVED' && <> · Autorizado: {resumenValor(row.kind, row.resolvedValue || row.requestedValue)}</>}
+                            </p>
+                          )}
                           {row.note && <p className="mt-1 text-xs text-mute">Nota: {row.note}</p>}
                           {row.resolvedNote && <p className="mt-1 text-xs text-mute">Respuesta: {row.resolvedNote}</p>}
                           {puedeResolver && row.status === 'PENDING' && !propia && (
@@ -1275,8 +1460,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </div>
           )}
 
-          {tab === 'puntos' && (
+          {tab === 'datos' && (
             <div className="space-y-4">
+              <p className="text-sm font-semibold">Puntos de fidelización</p>
               {esDemo ? (
                 <p className="text-sm text-mute">La fidelización se calcula con las ventas reales de la tienda.</p>
               ) : (
@@ -1320,8 +1506,47 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </div>
           )}
 
-          {tab === 'facturacion' && (
+          {tab === 'datos' && (
             <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">Direcciones</p>
+                <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => abrirDireccion(null)}>
+                  <Icon name="plus" className="h-3.5 w-3.5" />
+                  Agregar dirección
+                </Button>
+              </div>
+              {!direcciones.length ? (
+                <EmptyState compact icon="store" title="Sin direcciones" description="Agregá las direcciones de entrega o facturación de este cliente." />
+              ) : (
+                <ul className="space-y-2" data-testid="perfil-direcciones">
+                  {direcciones.map((address, index) => (
+                    <li key={`${address.id || address.label || 'direccion'}-${index}`} className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="flex flex-wrap items-center gap-2 font-semibold">
+                          <span className="truncate">{address.label || `Dirección ${index + 1}`}</span>
+                          {address.isDefault && <Badge color="blue" className="w-fit whitespace-nowrap px-1.5 py-0 text-[10px]">Predeterminada</Badge>}
+                        </p>
+                        <p className="mt-0.5 break-words text-mute">
+                          {address.address}
+                          {address.city ? ` · ${address.city}` : ''}
+                          {address.department ? ` · ${address.department}` : ''}
+                          {address.country && address.country !== 'Paraguay' ? ` · ${address.country}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => abrirDireccion(address, index)}>Editar</button>
+                        <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'address', index })}>Eliminar</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {tab === 'datos' && (
+            <div className="space-y-4">
+              <p className="text-sm font-semibold">Datos de facturación</p>
               <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -1352,16 +1577,19 @@ export default function CustomerProfile({ customer, open, onClose }) {
                   <div className={cn(GRID_FACTURACION, 'px-3.5 pb-2 pt-1')}>
                     <span className={CELDA_CLI}>Razón social</span>
                     <span className={CELDA_CLI}>RUC</span>
+                    <span className={CELDA_CLI}>Uso</span>
                     <span className={CELDA_CLI}>Estado</span>
                     <span className={cn(CELDA_CLI, 'text-right')}>Acciones</span>
                   </div>
                   <div className="space-y-1">
                   {identities.map((identity) => {
                     const actual = Boolean(profile.customer?.billingDocument) && identity.document === profile.customer.billingDocument
+                    const uso = Number(identity.uses || 0)
                     return (
                       <div key={identity.id} data-testid="perfil-facturacion-fila" className={cn(GRID_FACTURACION, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
                         <span className="truncate text-[13px] font-semibold" title={identity.name || undefined}>{identity.name || 'Sin razón social'}</span>
                         <span className="truncate text-xs tabular-nums text-mute">{identity.document || '—'}</span>
+                        <span className="truncate text-xs text-mute" title={uso ? `Utilizado en ${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : 'Todavía sin uso'}>{uso ? `${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : '—'}</span>
                         <span className="min-w-0">{actual ? <Badge color="green" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Actual</Badge> : <span className="text-xs text-mute">—</span>}</span>
                         <span className="flex items-center justify-end gap-2">
                           {!actual && <button type="button" disabled={identityBusy} className="whitespace-nowrap text-xs font-semibold text-ok disabled:opacity-40" onClick={() => usarComoActual(identity)}>Usar</button>}
@@ -1380,7 +1608,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
           {tab === 'cronologia' && (
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-mute">Alta, pedidos, pagos confirmados, notas, seguimientos, garantías y auditoría.</p>
+                <p className="text-xs text-mute">Alta, pedidos, entregas, pagos, saldo, comentarios, seguimientos, cambios de datos, solicitudes y autorizaciones comerciales, garantías y facturación.</p>
                 <button type="button" disabled={timelineLoading} onClick={() => setTimelineRevision((value) => value + 1)} className="rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-40">Actualizar</button>
               </div>
               {timelineLoading && (
@@ -1413,7 +1641,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                            <p className="text-sm font-semibold">{event.action}</p>
+                            <p className="text-sm font-semibold">{event.label || event.action}</p>
                             <p className="text-[11px] text-mute">{fechaHora(event.createdAt)}</p>
                           </div>
                           {event.detail && <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-mute">{conCodigos(event.detail)}</p>}
@@ -1423,6 +1651,13 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     )
                   })}
                 </ol>
+              )}
+              {!timelineLoading && !timelineError && timeline.length > 0 && timelineNext && (
+                <div className="flex justify-center pt-1">
+                  <button type="button" disabled={timelineCargandoMas} onClick={cargarMasTimeline} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">
+                    {timelineCargandoMas ? 'Cargando…' : 'Cargar más'}
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -1458,9 +1693,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
         open={pendingDelete?.type === 'note'}
         onCancel={() => setPendingDelete(null)}
         onConfirm={removeNote}
-        title="Eliminar nota"
-        description="Esta nota se eliminará de forma permanente. No se puede deshacer."
-        confirmLabel="Eliminar nota"
+        title="Eliminar comentario"
+        description="Este comentario se eliminará de forma permanente. No se puede deshacer."
+        confirmLabel="Eliminar comentario"
         variant="danger"
         busy={deleteBusy}
       />
@@ -1676,6 +1911,90 @@ export default function CustomerProfile({ customer, open, onClose }) {
             <Button type="button" variant="outline" disabled={portalBusy || !portal?.token} onClick={() => setConfirmarRegenerar(true)}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(direccionForm)}
+        onClose={() => { if (!direccionBusy) setDireccionForm(null) }}
+        title={direccionForm?.index >= 0 ? 'Editar dirección' : 'Agregar dirección'}
+        className="max-w-lg"
+      >
+        {direccionForm && (
+          <form onSubmit={guardarDireccion} className="space-y-4">
+            <FormField label="Etiqueta" htmlFor="direccion-etiqueta" hint="Casa, oficina, depósito…">
+              <Input id="direccion-etiqueta" maxLength={80} disabled={direccionBusy} value={direccionForm.label} onChange={(event) => setDireccionForm((form) => ({ ...form, label: event.target.value }))} />
+            </FormField>
+            <FormField label="Dirección" htmlFor="direccion-detalle">
+              <Input id="direccion-detalle" maxLength={400} disabled={direccionBusy} autoCapitalize="sentences" value={direccionForm.address} onChange={(event) => setDireccionForm((form) => ({ ...form, address: event.target.value }))} placeholder="Calle, número y referencia" />
+            </FormField>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <span className="block text-[11px] font-medium uppercase tracking-wider text-mute">Ciudad</span>
+                <div className="mt-1.5">
+                  <CityAutocomplete esDemo={esDemo} disabled={direccionBusy} value={direccionForm.city} onSelect={(city, department) => setDireccionForm((form) => ({ ...form, city, department }))} />
+                </div>
+                {direccionForm.department && <p className="mt-1 text-xs text-fono-light">Departamento: {direccionForm.department}</p>}
+              </div>
+              <FormField label="País" htmlFor="direccion-pais">
+                <Input id="direccion-pais" maxLength={100} disabled={direccionBusy} value={direccionForm.country} onChange={(event) => setDireccionForm((form) => ({ ...form, country: event.target.value }))} />
+              </FormField>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" disabled={direccionBusy} checked={direccionForm.isDefault} onChange={(event) => setDireccionForm((form) => ({ ...form, isDefault: event.target.checked }))} />
+              Predeterminada
+            </label>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" disabled={direccionBusy} onClick={() => setDireccionForm(null)}>Cancelar</Button>
+              <Button type="submit" disabled={direccionBusy || !direccionForm.address.trim()}>{direccionBusy ? 'Guardando…' : 'Guardar dirección'}</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        open={pendingDelete?.type === 'address'}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={removeDireccion}
+        title="Eliminar dirección"
+        description="Se quitará de la ficha del cliente. Las ventas ya registradas no cambian."
+        confirmLabel="Eliminar dirección"
+        variant="danger"
+        busy={deleteBusy}
+      />
+
+      <Modal
+        open={comercialAbierto}
+        onClose={() => { if (!guardandoComercial) setComercialAbierto(false) }}
+        title="Configuración comercial"
+        className="max-w-lg"
+      >
+        <form onSubmit={guardarComercial} className="space-y-4">
+          <FormField label="Tipo de cliente" htmlFor="comercial-tipo">
+            <Select id="comercial-tipo" disabled={guardandoComercial} value={comercialForm.pricingTier} onChange={(event) => setComercialForm((form) => ({ ...form, pricingTier: event.target.value }))}>
+              <option value="RETAIL">Cliente final</option>
+              <option value="WHOLESALE">Mayorista</option>
+            </Select>
+          </FormField>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" disabled={guardandoComercial} checked={comercialForm.creditHabilitado} onChange={(event) => setComercialForm((form) => ({ ...form, creditHabilitado: event.target.checked }))} />
+            Habilitar venta a crédito
+          </label>
+          {comercialForm.creditHabilitado && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField label="Límite de crédito (Gs.)" htmlFor="comercial-limite">
+                <MoneyInput id="comercial-limite" disabled={guardandoComercial} value={comercialForm.creditLimitPyg} onValueChange={(value) => setComercialForm((form) => ({ ...form, creditLimitPyg: value }))} placeholder="1.000.000" />
+              </FormField>
+              <FormField label="Días de crédito autorizados" htmlFor="comercial-dias" hint="0 = a la vista; vacío = sin plazo definido.">
+                <Input id="comercial-dias" type="number" min={0} max={365} disabled={guardandoComercial} value={comercialForm.creditDays} onChange={(event) => setComercialForm((form) => ({ ...form, creditDays: event.target.value }))} placeholder="30" />
+              </FormField>
+            </div>
+          )}
+          <p className="text-xs text-mute">El cambio queda registrado en la cronología del cliente.</p>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" disabled={guardandoComercial} onClick={() => setComercialAbierto(false)}>Cancelar</Button>
+            <Button type="submit" disabled={guardandoComercial}>{guardandoComercial ? 'Guardando…' : 'Guardar configuración'}</Button>
+          </div>
+        </form>
       </Modal>
 
       <Modal
