@@ -23,7 +23,7 @@ import Icon from '@/components/shared/Icon'
 import ActorAvatar from './ActorAvatar'
 import { DEMO_MESSAGE_TEMPLATES } from './customerMessaging'
 import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline } from '@/lib/demoClientes'
-import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_MONTO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 import {
   Aviso,
   Badge,
@@ -36,6 +36,7 @@ import {
   Label,
   Modal,
   MoneyInput,
+  CeldaMoneda,
   Select,
   Skeleton,
   Textarea,
@@ -1196,9 +1197,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     <div key={order.id} data-testid="perfil-deuda-fila" className={cn(GRID_DEUDA, 'rounded-lg px-1 py-1.5 text-sm')}>
                       <span className="truncate font-medium" title={codigoPedido(order.orderNumber) || undefined}>{codigoPedido(order.orderNumber) || 'Pedido'}</span>
                       <span className={CELDA_DATO}>{fecha(order.createdAt)}</span>
-                      <span className={cn('truncate text-mute', CELDA_MONTO)}>{formatGs(order.totalPyg)}</span>
-                      <span className={cn('truncate text-ok', CELDA_MONTO)}>{formatGs(pagadoOrden(order))}</span>
-                      <span className="truncate text-right font-semibold tabular-nums text-warn">{formatGs(saldoOrden(order))}</span>
+                      <CeldaMoneda valor={order.totalPyg} tono="mute" className="truncate" />
+                      <CeldaMoneda valor={pagadoOrden(order)} tono="ok" className="truncate" />
+                      <CeldaMoneda valor={saldoOrden(order)} tono="warn" className="truncate" />
                     </div>
                   ))}
                 </div>

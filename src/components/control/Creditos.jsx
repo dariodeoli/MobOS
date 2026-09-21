@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
-import { Aviso, Badge, Card, EmptyState, Money, Skeleton } from '@/components/ui'
+import { Aviso, Badge, BarraProgreso, Card, EmptyState, Money, Skeleton } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 // Tabla compacta: una fila por cliente, con el uso del límite en su columna.
@@ -77,7 +77,7 @@ export default function Creditos() {
               <span className="truncate text-xs tabular-nums text-mute">{row.creditLimitPyg ? <Money value={row.creditLimitPyg} /> : 'sin límite'}</span>
               <span className="min-w-0">
                 <span className="block truncate text-xs tabular-nums text-mute">{row.limitUsagePct !== null ? `${row.limitUsagePct}%` : '—'}{row.creditDays ? ` · ${row.creditDays} d` : ''}</span>
-                {row.creditLimitPyg ? <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-ink-700"><span className={cn('block h-full rounded-full', row.limitUsagePct >= 80 ? 'bg-warn' : 'bg-ok')} style={{ width: `${row.limitUsagePct}%` }} /></span> : null}
+                {row.creditLimitPyg ? <BarraProgreso valor={row.limitUsagePct} tono={row.limitUsagePct >= 80 ? 'warn' : 'ok'} etiqueta="Uso del cupo de crédito" className="mt-1 bg-ink-700" /> : null}
               </span>
               <span className="truncate text-right text-[13px] font-semibold tabular-nums text-fore"><Money value={row.outstandingPyg} /></span>
               <span className={cn('truncate text-right text-xs font-semibold tabular-nums', row.overduePyg > 0 ? 'text-bad' : 'text-mute')}>{row.overduePyg > 0 ? <><Money value={row.overduePyg} /><span className="ml-1 font-normal text-mute" title={`${row.maxOverdueDays} día(s) de mora`}>({row.maxOverdueDays}d)</span></> : '—'}</span>

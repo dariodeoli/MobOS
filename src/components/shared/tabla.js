@@ -6,8 +6,9 @@
 // - CELDA_ENCABEZADO: encabezado de una grilla de tabla, en una línea.
 // - ROTULO_SECCION: título de sección dentro de un panel o listado (h3/h4).
 // - CELDA_DATO: dato secundario de una grilla o listado (truncado).
-// - CELDA_MONTO: monto o cantidad: alineado a la derecha y con dígitos
-//   tabulares para que las columnas coincidan.
+// - CELDA_NUMERO: número o cantidad alineado a la derecha con dígitos
+//   tabulares. Para dinero va el objeto `ui/CeldaMoneda` (que renderiza
+//   `Money`), no esta clase.
 
 export const ROTULO_DATO = 'text-[10px] font-bold uppercase tracking-wider text-mute'
 
@@ -17,4 +18,4 @@ export const ROTULO_SECCION = 'text-xs font-bold uppercase tracking-wider text-m
 
 export const CELDA_DATO = 'truncate text-xs text-mute'
 
-export const CELDA_MONTO = 'text-right tabular-nums'
+export const CELDA_NUMERO = 'text-right tabular-nums'

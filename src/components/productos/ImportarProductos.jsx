@@ -1,12 +1,11 @@
 import { useMemo, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
-import { Aviso, Badge, Button, ConfirmDialog, Modal, Select, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, CeldaMoneda, ConfirmDialog, Modal, Select, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
-import { CELDA_DATO, CELDA_MONTO, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_NUMERO, ROTULO_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
-import { gs } from '@/utils/calculos'
 import {
   ACEPTA_IMPORTACION,
   COLUMNAS_IMPORTACION,
@@ -248,8 +247,8 @@ export default function ImportarProductos({ onImportada }) {
                         <span className="tabular-nums text-mute">{fila.line}</span>
                         <span className="truncate font-mono text-[11px]" title={fila.data.sku}>{fila.data.sku || '—'}</span>
                         <span className="truncate font-medium" title={fila.data.name || undefined}>{fila.data.name || '—'}</span>
-                        <span className={cn('truncate', CELDA_MONTO)}>{fila.data.pricePyg === null ? '—' : gs(fila.data.pricePyg)}</span>
-                        <span className={cn('truncate', CELDA_MONTO)}>{fila.data.stock === null ? '—' : fila.data.stock}</span>
+                        {fila.data.pricePyg === null ? <span className={cn('truncate', CELDA_NUMERO)}>—</span> : <CeldaMoneda valor={fila.data.pricePyg} className="truncate" />}
+                        <span className={cn('truncate', CELDA_NUMERO)}>{fila.data.stock === null ? '—' : fila.data.stock}</span>
                         <span className="truncate">{fila.data.condition === null ? '—' : fila.data.condition === 'USED' ? 'Seminuevo' : fila.data.condition === 'REFURBISHED' ? 'Reacondicionado' : 'Nuevo'}</span>
                         <span>
                           {fila.status === 'error'

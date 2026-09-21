@@ -9,7 +9,7 @@ import { fechaHora } from '@/utils/fecha'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { gananciaDeRango, lineasDeGanancia, serieDeReporte } from '@/utils/ganancias'
 import { reporteMetricas } from '@/lib/metricas'
-import { Badge, Button, Card, DataTable, EmptyState, Select, Stat } from '@/components/ui'
+import { Badge, Button, Card, CeldaMoneda, DataTable, EmptyState, Select, Stat } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango, etiquetaRango } from '@/components/shared/RangoFechas'
 import CalendarioGanancias, { LineaValor } from '@/components/shared/CalendarioGanancias'
@@ -26,7 +26,7 @@ import {
   nombreArchivoCsv,
   rangoValido,
 } from '@/utils/reportes'
-import { CELDA_MONTO } from '@/components/shared/tabla'
+import { CELDA_NUMERO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 
 const rangoInicial = () => ({ ...(PRESETS.find((p) => p.id === '30d') || PRESETS[0]).calc(), preset: '30d' })
@@ -407,11 +407,11 @@ export default function Reportes() {
                   return filas.map(({ g, pct, clase, dias }) => (
                     <tr key={g.key} className="border-b border-ink-700/60 last:border-0">
                       <td className="px-4 py-2.5 font-medium text-fore">{g.label}</td>
-                      <td className={cn('px-4 py-2.5 text-mute', CELDA_MONTO)}>{gs(g.grossPyg)}</td>
-                      <td className={cn('px-4 py-2.5 text-mute', CELDA_MONTO)}>{pct.toFixed(1)}%</td>
+                      <td className="px-4 py-2.5"><CeldaMoneda valor={g.grossPyg} tono="mute" className="w-full" /></td>
+                      <td className={cn('px-4 py-2.5 text-mute', CELDA_NUMERO)}>{pct.toFixed(1)}%</td>
                       <td className="px-4 py-2.5"><Badge color={clase === 'A' ? 'green' : clase === 'B' ? 'orange' : 'slate'}>{clase}</Badge></td>
-                      <td className={cn('px-4 py-2.5 text-mute', CELDA_MONTO)}>{g.availableUnits ?? 0}</td>
-                      <td className={cn('px-4 py-2.5 text-mute', CELDA_MONTO)}>{dias === null ? '—' : `${dias} días`}</td>
+                      <td className={cn('px-4 py-2.5 text-mute', CELDA_NUMERO)}>{g.availableUnits ?? 0}</td>
+                      <td className={cn('px-4 py-2.5 text-mute', CELDA_NUMERO)}>{dias === null ? '—' : `${dias} días`}</td>
                     </tr>
                   ))
                 })()}</tbody>

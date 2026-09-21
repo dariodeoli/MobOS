@@ -162,17 +162,27 @@ test('escapeHtml se define una sola vez (plantillas de impresión)', () => {
   }
 })
 
-test('las celdas de dato y de monto salen de shared/tabla', () => {
+test('las celdas de dato y de número salen de shared/tabla', () => {
   const culpables = archivosFuente()
     .filter(({ ruta, contenido }) => !ruta.endsWith('components/shared/tabla.js') && (contenido.includes('className="truncate text-xs text-mute"') || contenido.includes('className="truncate text-xs text-mute ') || contenido.includes('className="text-right tabular-nums"')))
     .map(({ ruta }) => ruta)
   assert.deepEqual(culpables, [])
   const tabla = readFileSync(join(RAIZ, 'components/shared/tabla.js'), 'utf8')
-  for (const nombre of ['CELDA_DATO', 'CELDA_MONTO']) {
+  for (const nombre of ['CELDA_DATO', 'CELDA_NUMERO']) {
     assert.match(tabla, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
   }
   for (const ruta of ['components/customers/ClientesTabla.jsx', 'components/control/Reportes.jsx']) {
-    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /CELDA_(DATO|MONTO)/, `${ruta}: la celda va con el objeto compartido`)
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /CELDA_(DATO|NUMERO)|CeldaMoneda/, `${ruta}: la celda va con el objeto compartido`)
+  }
+  // El dinero va con `CeldaMoneda` (el objeto de DSN), no con una clase.
+  for (const ruta of ['components/customers/CustomerProfile.jsx', 'components/control/Reportes.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<CeldaMoneda\b/, `${ruta}: el monto va con CeldaMoneda`)
+  }
+})
+
+test('las barras de avance usan BarraProgreso', () => {
+  for (const ruta of ['components/ventas/PagosPedido.jsx', 'components/control/Creditos.jsx', 'pages/GarantiaPublica.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<BarraProgreso\b/, `${ruta}: el avance va con BarraProgreso`)
   }
 })
 

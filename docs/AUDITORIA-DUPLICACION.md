@@ -54,7 +54,7 @@ un `Gs.` de impresión (PRN) y los `<textarea>` de DSN.
 
 | Objeto | Dónde vive | Antes (evidencia) | Después |
 | --- | --- | --- | --- |
-| `CELDA_DATO` y `CELDA_MONTO` | `src/components/shared/tabla.js` | `truncate text-xs text-mute` copiada **73 veces en 32 archivos** y `text-right tabular-nums` en 12 | **118 usos** por los objetos (con `cn(objeto, extras)` cuando la celda agrega color o `truncate`); cero literales sueltos |
+| `CELDA_DATO` y `CELDA_NUMERO` (antes `CELDA_MONTO`) | `src/components/shared/tabla.js` | `truncate text-xs text-mute` copiada **73 veces en 32 archivos** y `text-right tabular-nums` en 12 | **118 usos** por los objetos (con `cn(objeto, extras)` cuando la celda agrega color o `truncate`); cero literales sueltos |
 | `whatsappUrl` | `src/utils/telefono.js` | El enlace `wa.me` se armaba en **4 lugares** (uno en `customerMessaging`, dos inline en POS y uno en la página de garantía); el de POS no agregaba el código de país | Un solo armador con número internacional y mensaje escapado; adoptado en 7 archivos (CustomerCommunicationCard, Campañas, SellerCustomers, WhatsAppMenu, PagosPedido, FormularioVenta y Garantía pública) |
 | `src/lib/estadosPedido.js` | nuevo | Los mismos tres mapas de estado y dos `tono*` estaban en **4 páginas públicas** (PortalCliente, CuentaPublica, PedidoPublico y Garantía pública) con nombres distintos, más copias en `OrderReceipt` | Los estados de pedido/entrega/garantía del cliente y su tono salen de un módulo; las 4 páginas y el comprobante lo importan |
 
@@ -72,6 +72,25 @@ Duplicación pendiente medida: **6 usos** sin cambios (PRN + DSN), pero el
 tablero quedó sin los avisos y las cargas duplicadas. Los patrones que quedan
 para revisar están listados en el script (`bg-warn/5`, notas neutras con borde
 warn y la celda de identidad de 13 px que espera a DSN).
+
+### Lote 6 — reconciliación con los objetos de DSN (#211) (21-09)
+
+- **Rebase sobre la integración pendiente**: los conflictos contra el trabajo de
+  DSN (#211: `PersonaChip`, `FilaDato`, `CeldaMoneda`, `BarraProgreso` y sus
+  adopciones) se resolvieron conservando ambos lados en `PedidoPublico`,
+  la landing (`CapturaModulo`, `ImeiVerificador`) y la biblioteca de objetos.
+- **`CELDA_MONTO` → `CELDA_NUMERO`**: mi clase se llamaba como el objeto de DSN
+  y podía confundirse. Ahora la clase es solo para números y cantidades
+  (8 celdas) y el **dinero** usa `ui/CeldaMoneda` (5 celdas migradas en
+  CustomerProfile, ImportarProductos y Reportes).
+- **`CELDA_DATO` en `PersonaChip`**: el componente de DSN ahora usa la clase de
+  dato secundario en vez de copiarla.
+- **Tests**: la regla de celdas exige `CeldaMoneda` para montos; el contador
+  separa "mapas de estado con etiquetas propias" (variantes, no copias).
+- **`BarraProgreso` (3 adopciones)**: las barras de avance de `PagosPedido`,
+  `Creditos` y la garantía pública pasan al objeto de DSN (con su track original
+  vía `className`); quedan 5 barras que son gráficos o usan otro color, listadas
+  en el contador.
 
 ### Identidad (#211) — sin duplicar
 

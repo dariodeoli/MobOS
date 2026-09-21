@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, apiFetch } from '@/lib/api/client'
 import { Aviso, Badge, Button, EmptyState, Input, Label, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
-import { CELDA_MONTO, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_NUMERO, ROTULO_DATO } from '@/components/shared/tabla'
 import { descargarArchivo } from '@/utils/descargarArchivo'
 import { cn } from '@/lib/utils'
 import { FECHA_KARDEX, consultaKardex, extremosDelRango } from '@/utils/kardex'
@@ -147,8 +147,8 @@ export default function KardexProducto({ product, open, onClose, esDemo = false 
                     {data.sinDocumentar ? `Incluye ${numero(Math.abs(data.sinDocumentar))} sin documento` : 'Inicio del historial'}
                   </span>
                   <span className="text-mute">—</span>
-                  <span className={CELDA_MONTO}>{data.saldoInicial > 0 ? numero(data.saldoInicial) : ''}</span>
-                  <span className={CELDA_MONTO}>{data.saldoInicial < 0 ? numero(-data.saldoInicial) : ''}</span>
+                  <span className={CELDA_NUMERO}>{data.saldoInicial > 0 ? numero(data.saldoInicial) : ''}</span>
+                  <span className={CELDA_NUMERO}>{data.saldoInicial < 0 ? numero(-data.saldoInicial) : ''}</span>
                   <span className="text-right font-semibold tabular-nums">{numero(data.saldoInicial)}</span>
                 </div>
                 {filas.length === 0 && (
@@ -164,8 +164,8 @@ export default function KardexProducto({ product, open, onClose, esDemo = false 
                         {movimiento.estimated ? '≈ ' : ''}{movimiento.label}{movimiento.detail ? ` · ${movimiento.detail}` : ''}
                       </span>
                       <span className="truncate text-mute" title={movimiento.user || undefined}>{movimiento.user || '—'}</span>
-                      <span className={cn('text-ok', CELDA_MONTO)}>{movimiento.delta > 0 ? numero(movimiento.delta) : ''}</span>
-                      <span className={cn('text-bad', CELDA_MONTO)}>{movimiento.delta < 0 ? numero(-movimiento.delta) : ''}</span>
+                      <span className={cn('text-ok', CELDA_NUMERO)}>{movimiento.delta > 0 ? numero(movimiento.delta) : ''}</span>
+                      <span className={cn('text-bad', CELDA_NUMERO)}>{movimiento.delta < 0 ? numero(-movimiento.delta) : ''}</span>
                       <span className="text-right font-semibold tabular-nums">{numero(movimiento.saldo)}</span>
                     </div>
                   )

@@ -5,7 +5,7 @@ import { codigoPedido } from '@/utils/pedido'
 import Icon from '@/components/shared/Icon'
 import { useParams } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
-import { Aviso } from '@/components/ui'
+import { Aviso, BarraProgreso } from '@/components/ui'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 function bulletList(text) {
@@ -50,7 +50,7 @@ export default function GarantiaPublica() {
                 </div>
                 {pct !== null && (
                   <div className="w-28">
-                    <div className="h-2 overflow-hidden rounded-full bg-ink-700"><div className={`h-full rounded-full ${days === 0 ? 'bg-bad' : days <= 15 ? 'bg-warn' : 'bg-ok'}`} style={{ width: `${pct}%` }} /></div>
+                    <BarraProgreso valor={pct} tono={days === 0 ? 'bad' : days <= 15 ? 'warn' : 'ok'} etiqueta="Cobertura de la garantía" className="h-2 bg-ink-700" />
                     <p className="mt-1 text-right text-[10px] text-mute">{pct}% del período</p>
                   </div>
                 )}
