@@ -913,3 +913,69 @@ test('clientes → el vendedor ve la ficha pero no configura el seguro', async (
   await expect(sidebarNav.getByRole('button', { name: 'Garantías y servicio', exact: true })).toHaveCount(0)
   await contexto.close()
 })
+
+// Pulido del portal del cliente (#174): QA a 360/768/1440 con token real, nota
+// pública visible, pedidos legibles y comprobante a un toque; la vitrina
+// (/portal/:token) usa el mismo token y también entra sin scroll horizontal.
+test('portal del cliente → QA 360/768/1440 con nota pública, pedidos y comprobante', async ({ page }) => {
+  const marca = Date.now()
+  const nombre = `Portal QA ${marca}`
+  const nota = `Nota de la tienda ${marca}`
+  await page.goto('/clientes')
+  const alta = await crmApi(page, '/api/customers', { method: 'POST', body: JSON.stringify({ name: nombre, creditLimitPyg: 500000, creditDays: 15 }) })
+  expect(alta.status).toBe(201)
+  const clienteId = alta.body.id
+  const notaGuardada = await crmApi(page, `/api/customers/${clienteId}`, { method: 'PATCH', body: JSON.stringify({ publicNote: nota }) })
+  expect(notaGuardada.status).toBe(200)
+  // Se re-lee la nota guardada (el alta no la recibe: se edita en la ficha).
+  const ficha = await crmApi(page, `/api/customers/${clienteId}`)
+  expect(ficha.body?.customer?.publicNote).toBe(nota)
+
+  const productos = await crmApi(page, '/api/products')
+  const cable = (productos.body || []).find((row) => row.sku === SEED.products.cable.sku)
+  expect(cable?.id).toBeTruthy()
+  const numeroPedido = `E2E-PORTALQA-${marca}`
+  const pedido = await crmApi(page, '/api/orders', {
+    method: 'POST',
+    body: JSON.stringify({ orderNumber: numeroPedido, customerId: clienteId, creditDays: 15, items: [{ productId: cable.id, description: cable.name, quantity: 2, unitPricePyg: cable.pricePyg }], payment: { method: 'CASH', amountPyg: 30000 } }),
+  })
+  expect(pedido.status).toBe(201)
+  const garantia = await crmApi(page, '/api/warranties', { method: 'POST', body: JSON.stringify({ customerId: clienteId, customerName: nombre, serial: `PQA-${marca}`, description: 'Equipo portal QA' }) })
+  expect([200, 201]).toContain(garantia.status)
+
+  const token = await crmApi(page, `/api/customers/${clienteId}/access-token`, { method: 'POST', body: JSON.stringify({ level: 'completo' }) })
+  expect(token.status).toBe(200)
+  const t = encodeURIComponent(token.body.token)
+  const sinScrollHorizontal = async () => {
+    const { scrollWidth, clientWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }))
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1)
+  }
+
+  for (const width of [360, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(`/cuenta/${t}`)
+    await expect(page.getByText('Saldo pendiente')).toBeVisible()
+    await expect(page.getByText('Al día')).toHaveCount(0)
+    await expect(page.getByText(nota)).toBeVisible()
+    await expect(page.getByText(numeroPedido).first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Vencimientos' })).toBeVisible()
+    await expect(page.getByText('Equipo portal QA')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Ver comprobante' }).first()).toBeVisible()
+    await sinScrollHorizontal()
+  }
+
+  // En mobile el comprobante es un objetivo táctil cómodo.
+  await page.setViewportSize({ width: 360, height: 900 })
+  await page.goto(`/cuenta/${t}`)
+  const enlace = page.getByRole('link', { name: 'Ver comprobante' }).first()
+  const caja = await enlace.boundingBox()
+  expect(caja.height, 'el enlace del comprobante debe ser táctil en mobile').toBeGreaterThanOrEqual(36)
+
+  // La vitrina (/portal) con el mismo token: nota pública y pedidos, sin scroll.
+  await page.goto(`/portal/${t}`)
+  await expect(page.getByRole('heading', { name: 'Nota de la tienda' })).toBeVisible()
+  await expect(page.getByText(nota)).toBeVisible()
+  await expect(page.getByText(numeroPedido).first()).toBeVisible()
+  await expect(page.getByText('Equipo portal QA')).toBeVisible()
+  await sinScrollHorizontal()
+})
