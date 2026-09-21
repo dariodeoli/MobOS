@@ -17,6 +17,7 @@ import {
 import { leerCarrito, guardarCarrito, borrarCarrito, lineasParaResumen } from '@/lib/posCart'
 import { leerDemo, guardarDemo } from '@/lib/demoStorage.js'
 import { encolarVenta } from '@/lib/offline/ventas'
+import { preferenciaPos, recordarPos } from '@/lib/preferenciasPos'
 import { descartarPreCliente } from '@/lib/preClientes'
 import { normalizarNombre } from '@/utils/nombre'
 import { codigoPedido } from '@/utils/pedido'
@@ -1186,10 +1187,26 @@ export default function FormularioVenta({
       usaCuentas
         // Con cuentas, el monto se edita en `originalAmount` (moneda de la
         // cuenta): «Dividir saldo» precarga ahí el saldo que falta (#187).
-        ? { ...PAGO_VACIO, accountId: '', originalAmount: prefill.monto ? String(prefill.monto) : '', exchangeRatePyg: '' }
+        // Última cuenta usada como predeterminada (#209).
+        ? { ...PAGO_VACIO, accountId: (cuentas || []).find(c => c.id === preferenciaPos('cuenta') && c.isActive)?.id || '', originalAmount: prefill.monto ? String(prefill.monto) : '', exchangeRatePyg: '' }
         : { ...PAGO_VACIO, monto: prefill.monto ? String(prefill.monto) : pendiente > 0 ? String(pendiente) : '' },
     ])
   }
+
+  // Último usado como predeterminado en la venta (#209): la cuenta de cobro y
+  // el tipo de entrega se recuerdan solos; un borrador retomado manda.
+  useEffect(() => {
+    if (cartInicial) return
+    const ultima = preferenciaPos('entrega')
+    if (ultima) setF(actual => (actual.entrega === ultima ? actual : { ...actual, entrega: ultima }))
+  }, [cartInicial])
+  useEffect(() => {
+    if (f.entrega) recordarPos('entrega', f.entrega)
+  }, [f.entrega])
+  useEffect(() => {
+    const ultima = [...pagos].reverse().find(pago => pago.accountId)?.accountId
+    if (ultima) recordarPos('cuenta', ultima)
+  }, [pagos])
 
   // ── Ventas suspendidas ──────────────────────────────────────────────
   const carritoConDatos = Boolean(
