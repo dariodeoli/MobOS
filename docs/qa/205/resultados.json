@@ -1,0 +1,42 @@
+{
+  "base": "https://app.moboss.online",
+  "fecha": "2026-09-21T19:19:38.177Z",
+  "pantallas": [
+    {
+      "pantalla": "POS",
+      "botones": 32,
+      "sinNombre": [
+        "<button class=\"inline-flex items-center justify-center gap-2 rounded-lg px-4 font-sem\">"
+      ],
+      "campos": 12,
+      "sinEtiqueta": [],
+      "imagenesSinAlt": 0,
+      "vacios": [
+        "Todavía no agregaste productos. Buscá uno arriba y hacé clic para sumarlo."
+      ]
+    },
+    {
+      "pantalla": "Pedidos",
+      "botones": 43,
+      "sinNombre": [],
+      "campos": 1,
+      "sinEtiqueta": [],
+      "imagenesSinAlt": 0,
+      "vacios": []
+    },
+    {
+      "pantalla": "Delivery",
+      "botones": 26,
+      "sinNombre": [],
+      "campos": 0,
+      "sinEtiqueta": [],
+      "imagenesSinAlt": 0,
+      "vacios": [
+        "Sin asignar\nAsignados\nTodos\nActualizar\nNo hay resultados.",
+        "Sin asignar\nAsignados\nTodos\nActualizar",
+        "Sin asignar\nAsignados\nTodos",
+        "No hay resultados."
+      ]
+    }
+  ]
+}
