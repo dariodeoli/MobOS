@@ -2686,3 +2686,30 @@ enum CashAuditStatus {
   PENDING
   DIFFERENCE
 }
+
+// Registro de cada consulta de IMEI (#193): proveedor, servicio, estado, costo
+// real, fecha, id externo, respuesta original (protegida) y campos normalizados.
+model ImeiCheckQuery {
+  id          String    @id @default(cuid())
+  tenantId    String
+  branchId    String?
+  userId      String?
+  imei        String
+  imeiMasked  String
+  provider    String    @default("imeicheck.net")
+  serviceKey  String
+  serviceId   String?
+  serviceName String
+  status      String
+  costUsd     Decimal   @default(0) @db.Decimal(10, 2)
+  externalId  String?
+  responseRaw Json?
+  normalized  Json      @default("[]")
+  requestId   String?   @unique
+  error       String?
+  requestedAt DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  @@index([tenantId, imei, requestedAt])
+  @@index([tenantId, requestedAt])
+}
