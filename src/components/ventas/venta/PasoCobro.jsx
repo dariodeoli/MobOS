@@ -9,8 +9,8 @@ import { ENTREGA } from '@/lib/catalog'
 import PaymentAccountFields, { updateAccountPayment } from '../PaymentAccountFields'
 import EncabezadoBloque from './EncabezadoBloque'
 
-// Bloque 4 del flujo: cómo se paga y cómo se entrega. Cierra con el botón que
-// guarda la venta, que queda pegado al pie del panel para no perderse al
+// Cómo se paga y cómo se entrega, en la misma pantalla que el resto de la
+// venta. Cierra con el botón que guarda, pegado al pie para no perderse al
 // completar los pagos.
 export default function PasoCobro({
   customer,
@@ -45,7 +45,6 @@ export default function PasoCobro({
   return (
     <section className="space-y-4 rounded-2xl border border-ink-600 bg-ink-800 p-4">
       <EncabezadoBloque
-        numero="4"
         titulo="Cobro y entrega"
         descripcion="Dividí el cobro entre cuentas, elegí la entrega y guardá la venta."
       />

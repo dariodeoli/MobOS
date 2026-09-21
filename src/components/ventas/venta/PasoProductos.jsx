@@ -6,7 +6,7 @@ import { gs, num } from '@/utils/calculos'
 import { useSesion } from '@/lib/sesion'
 import EncabezadoBloque from './EncabezadoBloque'
 
-// Bloques 1 y 2 del flujo: para quién es la venta y qué se vende. El cliente
+// La venta en una sola pantalla: para quién es y qué se vende. El cliente
 // primero (define la lista de precios) y después el catálogo, que agrega al
 // carrito con un clic.
 export default function PasoProductos({
@@ -54,7 +54,6 @@ export default function PasoProductos({
     <>
       <section className="rounded-2xl border border-ink-600 bg-ink-800 p-4">
         <EncabezadoBloque
-          numero="1"
           titulo="Cliente"
           descripcion="Buscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar."
           extra={
@@ -94,7 +93,6 @@ export default function PasoProductos({
 
       <section className="rounded-2xl border border-fono/20 bg-fono/[.04] p-4">
         <EncabezadoBloque
-          numero="2"
           titulo="Productos"
           descripcion="Buscá por nombre, modelo o variante y hacé clic para sumarlo a la venta."
           extra={<span className="shrink-0 text-xs font-medium text-fono-light">{productos.length} disponibles</span>}

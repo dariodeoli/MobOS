@@ -5,9 +5,9 @@ import AutorizacionBloque from './AutorizacionBloque'
 import EncabezadoBloque from './EncabezadoBloque'
 import { gs } from '@/utils/calculos'
 
-// Bloque 3 del flujo: lo que se está vendiendo. Lista editable, ajustes de la
-// venta (descuento extra y fecha) y autorizaciones pendientes. Es la única
-// lista de la venta: el total final vive en el resumen fijo de la columna.
+// Lo que se está vendiendo: lista editable, ajustes de la venta (descuento
+// extra y fecha) y autorizaciones pendientes. Es la única lista de la venta:
+// el total final vive en el resumen fijo de la columna.
 export default function PasoCarrito({
   items,
   productos,
@@ -41,7 +41,6 @@ export default function PasoCarrito({
     >
       <div className="border-b border-ink-600 bg-ink-700/50 px-4 py-3">
         <EncabezadoBloque
-          numero="3"
           titulo="Productos de esta venta"
           descripcion="Revisá cantidades, precios, IMEI y descuentos."
           extra={
