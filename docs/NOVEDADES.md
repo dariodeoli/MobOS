@@ -11,6 +11,11 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.133 — 2026-09-21
+- **«Último usado» en todo el sistema:** un único helper documentado (namespace `mobos:<área>:<dato>`, con migración del formato anterior) recuerda la última selección en POS (cuenta y entrega), Finanzas (Gastos y Conciliación), Clientes (filtros y plantilla de WhatsApp), Garantías, Inventario (motivos y depósitos), menú/grupos del shell, Auditoría e Historial; siempre visible y cambiable, y en el demo vive solo en la pestaña. (#209)
+- **Pantalla de bloqueo:** muestra la foto real del usuario (o iniciales) y los logos de MobOS y de la tienda según el tema. (#210)
+- **Actualizaciones:** cuando hay una versión nueva desplegada, la app avisa y permite recargar de forma controlada, sin quedar en una versión vieja por caché y sin romper el modo offline del POS. (#214)
+
 ## v1.0.132 — 2026-09-21
 - **Impresión:** rediseño integral de los imprimibles (comprobante rápido/completo/detallado en A4 y térmicos 58/80, nota de entrega, remisión, recibo, proforma, reporte y etiquetas) con **espacio real para firmas, aclaración, CI y observaciones**; evidencia por tamaño en `docs/qa/206-imprimibles/`. (#206)
 - **POS / Pedidos:** el comprobante vuelve a ofrecer **80 mm y abre en 80 mm por defecto**; el nivel y el formato se eligen con **íconos** (nivel rápido por defecto) y se recuerda la última combinación; el encabezado y la cronología muestran **foto (o iniciales) y solo el primer nombre**. (#207 #208 #212)
