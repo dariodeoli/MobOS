@@ -29,8 +29,10 @@ Para desarrollo en el repo también sirve `npm install usb` dentro de
 `print-agent/`: `usb.mjs` resuelve el módulo instalado igual que el vendorizado.
 
 **Pendiente**: la prueba física con la ZKP8008 (conectar por USB, encender
-`"usb": true` y verificar el ticket y `/health.usb` en la Mac). Ver la tabla de
-resolución del transporte acá abajo y `docs/IMPRESION.md`.
+`"usb": true` y verificar el ticket y `/health.usb` en la Mac). El paso a paso,
+qué mirar ante cada error y qué registrar está en
+`docs/IMPRESION-PRUEBA-FISICA.md` (§3). También aplica la tabla de resolución
+del transporte de acá abajo y `docs/IMPRESION.md`.
 
 ## Resolución del transporte
 
