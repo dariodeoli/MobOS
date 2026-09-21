@@ -245,3 +245,60 @@ test('el costo se puede dejar pendiente y completar desde el detalle', async ({ 
     expect(guardado).toBe(1500000)
   } finally { await limpiarSeriales(page, [serial]) }
 })
+
+// #209: el motivo de baja arranca con el último usado y la pantalla lo avisa.
+test('el motivo de baja recuerda el último usado', async ({ page }) => {
+  const datos = await preparar(page, marca())
+  try {
+    await (await buscarUnidad(page, datos.unidades[0].serial)).click()
+    const detalle = page.getByRole('dialog')
+    await detalle.getByRole('button', { name: 'Dar de baja' }).click()
+    const baja = page.getByRole('dialog', { name: 'Dar de baja' })
+    await baja.getByLabel('Motivo').selectOption('Daño')
+    await baja.getByPlaceholder('Indicá el motivo').fill('Pantalla rota (QA #209)')
+    await baja.getByRole('button', { name: 'Dar de baja' }).click()
+    await expect(page.getByText(/retirado/)).toBeVisible({ timeout: 15_000 })
+
+    // Segunda baja, tras recargar: el motivo viene recordado y se avisa.
+    await page.reload()
+    await (await buscarUnidad(page, datos.unidades[1].serial)).click()
+    const detalle2 = page.getByRole('dialog')
+    await detalle2.getByRole('button', { name: 'Dar de baja' }).click()
+    const baja2 = page.getByRole('dialog', { name: 'Dar de baja' })
+    await expect(baja2.getByLabel('Motivo')).toHaveValue('Daño')
+    await expect(baja2.getByText('Recordamos tu último motivo')).toBeVisible()
+    const guardado = await page.evaluate(() => localStorage.getItem('mobos:ultimo:inventario:motivo-baja'))
+    expect(guardado).toBe('Daño')
+  } finally { await limpiar(page, datos) }
+})
+
+// #209: la carga rápida arranca con la última sucursal y depósito usados.
+test('la carga rápida recuerda la última sucursal y depósito', async ({ page }) => {
+  const clave = marca()
+  const serial = `ZZMEM${clave}`
+  const { productId } = await crearProducto(page, clave)
+  const ubicacion = await page.evaluate(async ({ api, branchId, clave }) => {
+    const respuesta = await fetch(`${api}/api/stock-locations`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branchId, name: `Depósito memoria ${clave}` }) })
+    const datos = await respuesta.json().catch(() => null)
+    if (!respuesta.ok) throw new Error(datos?.message || `stock-locations: ${respuesta.status}`)
+    return datos
+  }, { api: API, branchId: SEED.branchId, clave })
+  try {
+    await page.goto('/inventario/unidades')
+    await page.getByRole('button', { name: '+ Recibir unidad' }).click()
+    const alta = page.getByRole('dialog', { name: 'Carga rápida de unidad' })
+    await alta.getByLabel('Modelo', { exact: true }).selectOption(productId)
+    await alta.getByLabel('IMEI o serial', { exact: true }).fill(serial)
+    await alta.getByLabel('Ubicación', { exact: true }).selectOption(ubicacion.id)
+    await alta.getByRole('button', { name: 'Guardar unidad' }).click()
+    await expect(page.getByText(/1 unidad recibida/)).toBeVisible({ timeout: 15_000 })
+
+    // Al reabrir (incluso tras recargar) quedan recordadas y se avisa.
+    await page.reload()
+    await page.getByRole('button', { name: '+ Recibir unidad' }).click()
+    const siguiente = page.getByRole('dialog', { name: 'Carga rápida de unidad' })
+    await expect(siguiente.getByLabel('Sucursal', { exact: true })).toHaveValue(SEED.branchId)
+    await expect(siguiente.getByLabel('Ubicación', { exact: true })).toHaveValue(ubicacion.id)
+    await expect(siguiente.getByText('Recordamos tu última sucursal y depósito')).toBeVisible()
+  } finally { await limpiarSeriales(page, [serial]) }
+})
