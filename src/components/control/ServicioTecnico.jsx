@@ -33,6 +33,16 @@ const ESTADOS = [
 const ESTADO_LABEL = Object.fromEntries(ESTADOS.map(([id, label]) => [id, label]))
 const ESTADO_TONE = Object.fromEntries(ESTADOS.map(([id, , tone]) => [id, tone]))
 const SIGUIENTE = { RECIBIDO: 'DIAGNOSTICO', DIAGNOSTICO: 'CON_TECNICO', CON_TECNICO: 'ESPERANDO_REPUESTO', ESPERANDO_REPUESTO: 'REPARADO', REPARADO: 'LISTO', LISTO: 'ENTREGADO' }
+// Plantilla sugerida del menú central por estado del pipeline (#134): al abrir
+// WhatsApp desde la fila, el mensaje ya sale con el contexto del taller.
+const PLANTILLA_POR_ESTADO = {
+  RECIBIDO: 'equipo_recibido',
+  DIAGNOSTICO: 'diagnostico_listo',
+  CON_TECNICO: 'diagnostico_listo',
+  ESPERANDO_REPUESTO: 'esperando_repuesto',
+  REPARADO: 'reparado',
+  LISTO: 'reparacion_lista',
+}
 const FORM_VACIO = { customerName: '', customerId: '', deviceType: 'iPhone', serviceName: '', device: '', serial: '', reportedIssue: '', diagnosis: '', technicianName: '', status: 'RECIBIDO', pricePyg: '', costPyg: '', partsPyg: '', laborPyg: '', otherCostPyg: '', notes: '', checklist: {}, unlockCode: '', unlockPattern: [] }
 const DEVICE_TYPES = ['iPhone', 'MacBook', 'AirPods', 'iPad', 'Apple Watch', 'Otros']
 const fecha = (value) => value ? new Date(value).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '') : '—'
@@ -429,11 +439,16 @@ export default function ServicioTecnico() {
                       category="SERVICE"
                       storageKey={ULTIMA_PLANTILLA_SERVICIO}
                       title={row.customerName}
+                      preferKey={PLANTILLA_POR_ESTADO[row.status] || ''}
                       contexto={{
                         cliente: row.customerName || '',
                         nombre: (row.customerName || '').split(' ')[0] || '',
                         equipo: row.device || '',
+                        producto: row.deviceType || row.device || '',
+                        servicio: row.serviceName || row.reportedIssue || row.diagnosis || '',
                         estado: ESTADO_LABEL[row.status] || row.status || '',
+                        total: Number(row.pricePyg || 0) > 0 ? gs(row.pricePyg) : '',
+                        fecha: row.receivedAt ? new Date(row.receivedAt).toLocaleDateString('es-PY') : '',
                       }}
                     />
                   )}

@@ -23,6 +23,7 @@ export default function WhatsAppMenu({
   plantillas,
   storageKey,
   title,
+  preferKey = '',
   className,
 }) {
   const { sesion, empresa, sucursal } = useSesion()
@@ -62,7 +63,15 @@ export default function WhatsAppMenu({
   }, [abierto])
 
   const activas = lista.filter((item) => item.isActive !== false && (!item.category || item.category === category))
-  const elegida = activas.find((item) => item.id === elegidaId) || activas.find((item) => item.isDefault) || activas[0] || null
+  // Orden de preferencia: la última usada, la sugerida para el contexto actual
+  // (p. ej. la plantilla del estado de una orden de servicio), la
+  // predeterminada de la categoría y, si no hay nada, la primera activa.
+  const principalDe = (candidatas) => candidatas.find((item) => item.id === elegidaId)
+    || candidatas.find((item) => preferKey && item.key === preferKey)
+    || candidatas.find((item) => item.isDefault)
+    || candidatas[0]
+    || null
+  const elegida = principalDe(activas)
   const valores = {
     empresa: empresa?.nombre || '',
     sucursal: sucursal?.nombre || '',
@@ -119,7 +128,7 @@ export default function WhatsAppMenu({
       const activasRemotas = (Array.isArray(rows) ? rows : []).filter((item) => item.isActive !== false && (!item.category || item.category === category))
       setLista(Array.isArray(rows) ? rows : [])
       setCargado(true)
-      const principal = activasRemotas.find((item) => item.id === elegidaId) || activasRemotas.find((item) => item.isDefault) || activasRemotas[0] || null
+      const principal = principalDe(activasRemotas)
       if (principal) await abrirChat(principal)
       else setAbierto(true)
     } catch (cause) {
@@ -173,6 +182,7 @@ export default function WhatsAppMenu({
                 >
                   {item.isDefault && <Icon name="check" className="h-3 w-3" />}
                   <span className="truncate">{item.name}</span>
+                  {!item.isDefault && preferKey && item.key === preferKey && <span className="ml-auto shrink-0 text-[9px] font-bold uppercase tracking-wide text-fono-light">Sugerida</span>}
                 </button>
               ))}
             </div>
