@@ -5,6 +5,7 @@ import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
 import QRCode from 'qrcode'
 import { getProductos, modoDatosActual } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
+import { formatUsd } from '@/utils/moneda'
 import { montoTexto } from '@/utils/moneda'
 import BarraLote from '@/components/shared/BarraLote'
 import Switch from '@/components/shared/Switch'
@@ -192,7 +193,7 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
   const costoTexto = sinCostoUnitario(unit)
     ? null
     : enUsd !== null && Number.isFinite(enUsd)
-      ? `US$ ${enUsd.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+      ? formatUsd(enUsd)
       : costoGs !== null ? gs(costoGs) : '—'
   const vencida = unit.warrantyUntil ? new Date(unit.warrantyUntil).getTime() < Date.now() : null
   const acciones = [
