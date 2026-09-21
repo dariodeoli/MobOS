@@ -8,7 +8,6 @@ import {
   Badge,
   Button,
   Card,
-  Eyebrow,
   Input,
   Label,
   Modal,
@@ -556,13 +555,9 @@ export default function Caja() {
     )
   return (
     <div className="space-y-6">
-      <div>
-        <Eyebrow>Finanzas</Eyebrow>
-        <h2 className="mt-2 text-2xl font-bold tracking-tight">Caja y control financiero</h2>
-        <p className="mt-1 text-sm text-mute">
-          Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados.
-        </p>
-      </div>
+      <p className="text-sm text-mute">
+        Apertura física en Gs., saldos, pendientes, cheques y margen con costos congelados.
+      </p>
       {error && (
         <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">
           {error}
