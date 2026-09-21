@@ -3,6 +3,8 @@
 // directa vuelve a /demo (no a /login).
 
 import { test, expect } from '@playwright/test'
+import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
 import { loginCompany, completeSellerPin } from './helpers/login.js'
 
 const API_PORT = process.env.MOBOS_E2E_API_PORT || '3001'
@@ -12,6 +14,36 @@ const esLlamadaApi = (url) => url.includes(`localhost:${API_PORT}`) || url.inclu
 async function cerrarGuia(page) {
   const cerrar = page.getByRole('button', { name: 'Cerrar' }).last()
   if (await page.getByRole('dialog', { name: 'Cómo funciona la demo' }).count()) await cerrar.click()
+}
+
+// Conteo real de filas del harness (#204): la demo no debe tocar la base.
+function databaseUrl() {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL
+  try {
+    const linea = readFileSync('backend/.env', 'utf8').split('\n').find((item) => item.startsWith('DATABASE_URL='))
+    return linea ? linea.slice('DATABASE_URL='.length).trim().replace(/^["']|["']$/g, '') : ''
+  } catch {
+    return ''
+  }
+}
+
+async function contarFilas() {
+  const url = databaseUrl()
+  if (!url) return null
+  const require = createRequire(new URL('../backend/package.json', import.meta.url))
+  const { Client } = require('pg')
+  const cliente = new Client({ connectionString: url })
+  await cliente.connect()
+  try {
+    const tablas = ['User', 'Order', 'Customer', 'SuspendedSale', 'WarrantyCase', 'MessageTemplate']
+    const filas = await Promise.all(tablas.map(async (tabla) => {
+      const { rows } = await cliente.query(`SELECT count(*)::int AS n FROM "${tabla}"`)
+      return [tabla, rows[0].n]
+    }))
+    return Object.fromEntries(filas)
+  } finally {
+    await cliente.end()
+  }
 }
 
 // Recorre módulos en demo y devuelve problemas visibles + llamadas al API +
@@ -205,6 +237,61 @@ test('un guardado en demo no se persiste y al recargar vuelve el estado inicial'
   await expect(page.getByTestId('integrante-fila')).toHaveCount(antes)
 
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
+})
+
+test('la demo no deja datos en el navegador ni toca la base', async ({ page }) => {
+  test.setTimeout(120_000)
+  const antes = await contarFilas()
+  test.skip(!antes, 'Requiere la base del harness (backend/.env con DATABASE_URL).')
+  const llamadas = []
+  page.on('request', (req) => { if (esLlamadaApi(req.url())) llamadas.push(req.url()) })
+
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
+  await expect(page).toHaveURL(/\/resumen$/)
+  await cerrarGuia(page)
+  const marca = Date.now().toString(36)
+
+  // Tres guardados reales de la demo: integrante, plantilla y garantía.
+  await page.goto('/configuracion/equipo')
+  await page.locator('#direct-name').fill(`Demo auditoría ${marca}`)
+  await page.getByRole('button', { name: 'Agregar', exact: true }).click()
+  await expect(page.getByText('Integrante agregado correctamente.')).toBeVisible()
+
+  await page.goto('/plantillas')
+  await page.getByRole('button', { name: /Nueva plantilla/ }).click()
+  await page.locator('#plantilla-nombre').fill(`Demo plantilla ${marca}`)
+  await page.getByLabel('Mensaje de la plantilla').fill('Hola {{cliente}}, plantilla ficticia de auditoría.')
+  await page.getByRole('button', { name: 'Crear plantilla' }).click()
+  await expect(page.getByText('Plantilla creada.')).toBeVisible()
+
+  await page.goto('/garantias')
+  await page.getByRole('button', { name: 'Nuevo caso' }).click()
+  await page.getByPlaceholder('Nombre del cliente').fill(`Cliente auditado ${marca}`)
+  await page.getByPlaceholder('Serial o IMEI').fill(`DEMO-${marca}`)
+  await page.getByPlaceholder('Falla reportada, revisión solicitada…').fill('Caso ficticio de auditoría de persistencia.')
+  await page.getByRole('button', { name: 'Registrar caso' }).click()
+  await expect(page.getByText(`Cliente auditado ${marca}`)).toBeVisible()
+
+  // Nada de la demo quedó en el navegador: ni datos ficticios ni IndexedDB.
+  const claves = await page.evaluate(() => ({ local: Object.keys(localStorage), sesion: Object.keys(sessionStorage) }))
+  const deDemo = claves.local.filter((clave) => clave.startsWith('mobos:demo') || clave.startsWith('fono:'))
+  expect(deDemo, `claves de demo persistidas: ${deDemo.join(', ')}`).toEqual([])
+  // Solo se admiten preferencias de UI del dispositivo, nunca datos de la tienda.
+  const PREFIJOS = ['mobos:theme', 'mobos:nav-groups', 'mobos:stats-collapsed', 'mobos:sidebar-collapsed', 'mobos:productos-vista', 'mobos:clientes-vista', 'mobos:inventario-vista', 'mobos:ubicaciones-vista', 'mobos:preferencias', 'mobos:notificaciones-vistas', 'mobos:impresora', 'mobos:device-id', 'mobos:sucursal-activa']
+  const inesperadas = claves.local.filter((clave) => !PREFIJOS.some((prefijo) => clave.startsWith(prefijo)))
+  expect(inesperadas, `la demo dejó claves inesperadas: ${inesperadas.join(', ')}`).toEqual([])
+  const bases = await page.evaluate(async () => (indexedDB.databases ? (await indexedDB.databases()).map((base) => base.name) : []))
+  expect(bases, 'la demo no debe abrir IndexedDB para comprobantes').not.toContain('mobos-demo-proofs')
+
+  // La base real no cambió y la demo no emitió ninguna request.
+  const despues = await contarFilas()
+  expect(despues).toEqual(antes)
+  expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
+
+  // Al recargar, lo guardado se descarta y vuelve el seed.
+  await page.goto('/configuracion/equipo')
+  await expect(page.getByTestId('integrante-fila').filter({ hasText: `Demo auditoría ${marca}` })).toHaveCount(0)
 })
 
 test('la marca de demo no se filtra al login real de la misma pestaña', async ({ page }) => {
