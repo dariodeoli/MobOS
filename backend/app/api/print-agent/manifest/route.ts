@@ -5,8 +5,14 @@ import { error, json } from '../../../../lib/http'
 // Manifest público del instalador del agente: lo genera el packer dentro de
 // public/print-agent. Sin artefacto publicado responde 503 para que la UI
 // ofrezca la instalación desde el repo.
+//
+// El instalador lo sirve ESTE backend (`public/print-agent/install.sh`), así
+// que la URL publicada sale del propio origen del API. `MOBOS_APP_URL` es la
+// app: ahí el path no existe (nginx devuelve la SPA) y el `curl | bash` muere
+// con HTML — bug encontrado en producción (#185). `MOBOS_PRINT_INSTALL_BASE`
+// permite fijar otro origen (proxy/CDN) cuando haga falta.
 function baseDeInstalacion(request: Request) {
-  const configurada = process.env.MOBOS_APP_URL?.trim().replace(/\/+$/, '')
+  const configurada = process.env.MOBOS_PRINT_INSTALL_BASE?.trim().replace(/\/+$/, '')
   return configurada || new URL(request.url).origin
 }
 

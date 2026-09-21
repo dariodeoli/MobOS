@@ -499,6 +499,17 @@ if (manifest.status === 503) {
   assert.equal(manifest.status, 200, 'el manifest responde 200 cuando el artefacto existe')
   const cuerpo = await manifest.json()
   assert.ok(cuerpo.version && cuerpo.file && /^[a-f0-9]{64}$/i.test(cuerpo.sha256) && cuerpo.size > 0 && cuerpo.installUrl, 'el manifest publica versión, archivo, checksum, tamaño e installUrl')
+  // #185: el installUrl tiene que apuntar al instalador REAL. En producción
+  // apuntaba a la app, que devuelve la SPA (HTML) y el `curl | bash` moría.
+  const urlInstalador = new URL(cuerpo.installUrl)
+  assert.equal(urlInstalador.pathname, '/print-agent/install.sh', 'installUrl apunta al instalador que sirve el backend')
+  assert.notEqual(urlInstalador.host, 'app.moboss.online', 'installUrl NO sale de la app (ahí el path devuelve la SPA)')
+  // Se descarga por el host del arnés (el manifest puede publicar `localhost`).
+  const instaladorPublicado = await fetch(`${baseUrl}${urlInstalador.pathname}`)
+  assert.equal(instaladorPublicado.status, 200, 'el installUrl publicado responde 200')
+  const guion = await instaladorPublicado.text()
+  assert.ok(guion.startsWith('#!/usr/bin/env bash'), 'el installUrl devuelve el instalador, no la SPA')
+  assert.ok(guion.includes('node_modules/(usb|node-gyp-build)'), 'el instalador publicado trae la allow-list de los módulos vendorizados (#96)')
 }
 
 // 7m. Rotación del token: el token viejo deja de autenticar y el nuevo sí.
