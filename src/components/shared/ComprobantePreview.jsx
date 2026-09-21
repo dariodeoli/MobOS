@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, ConfirmDialog, Modal, Select, useToast } from '@/components/ui'
+import { Button, ConfirmDialog, Modal, useToast } from '@/components/ui'
+import Icon from '@/components/shared/Icon'
 import {
   FORMATOS_COMPROBANTE,
   NIVELES_COMPROBANTE,
+  NIVELES_MODELO,
   buildOrderReceiptHtml,
   formatoPreferido,
   nivelPreferido,
@@ -179,15 +181,43 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
         <div className="flex flex-wrap items-end gap-3">
           <label className="block space-y-1 text-xs text-mute">
             <span>Comprobante</span>
-            <Select aria-label="Tipo de comprobante" className="w-40" value={nivel} onChange={event => setNivel(event.target.value)}>
-              {NIVELES_COMPROBANTE.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-            </Select>
+            <div role="radiogroup" aria-label="Tipo de comprobante" className="flex items-center gap-1">
+              {NIVELES_MODELO.map(({ id, label, icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={nivel === id}
+                  aria-label={`Comprobante ${label}`}
+                  title={label}
+                  onClick={() => setNivel(id)}
+                  className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fono/50 ${nivel === id ? 'border-fono/50 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore'}`}
+                >
+                  <Icon name={icon} className="h-4 w-4" />
+                  <span className="hidden sm:inline">{label}</span>
+                </button>
+              ))}
+            </div>
           </label>
           <label className="block space-y-1 text-xs text-mute">
             <span>Formato</span>
-            <Select aria-label="Formato de impresión" className="w-32" value={formato} onChange={event => setFormato(event.target.value)}>
-              {formatos.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-            </Select>
+            <div role="radiogroup" aria-label="Formato de impresión" className="flex items-center gap-1">
+              {formatos.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={formato === id}
+                  aria-label={`Formato ${label}`}
+                  title={label}
+                  onClick={() => setFormato(id)}
+                  className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fono/50 ${formato === id ? 'border-fono/50 bg-fono/10 text-fono-light' : 'border-ink-500 text-mute hover:border-fono hover:text-fore'}`}
+                >
+                  <Icon name="receipt" className="h-4 w-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
           </label>
           <span className="flex flex-1 flex-wrap items-center justify-end gap-2">
             <Button type="button" variant="outline" onClick={imprimir} disabled={!html || cargando}>Descargar PDF</Button>

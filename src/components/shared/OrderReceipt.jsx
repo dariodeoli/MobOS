@@ -187,19 +187,27 @@ const footer = () => `<footer>Conservá este comprobante para cambios y garantí
 // los mismos que valida el backend): sumar un modelo nuevo es agregar una fila
 // y, si aporta algo distinto, una sección en los constructores de HTML/ticket.
 export const MODELOS_COMPROBANTE = [
-  { id: 'rapido', label: 'Rápido', empresa: 'compacta', clienteContacto: false, pagos: false, credito: false, cronologia: false, redes: false },
-  { id: 'completo', label: 'Completo', empresa: 'completa', clienteContacto: true, pagos: true, credito: true, cronologia: false, redes: true },
-  { id: 'detallado', label: 'Detallado', empresa: 'completa', clienteContacto: true, pagos: true, credito: true, cronologia: true, redes: true },
+  { id: 'rapido', label: 'Rápido', icon: 'receipt', empresa: 'compacta', clienteContacto: false, pagos: false, credito: false, cronologia: false, redes: false },
+  { id: 'completo', label: 'Completo', icon: 'eye', empresa: 'completa', clienteContacto: true, pagos: true, credito: true, cronologia: false, redes: true },
+  { id: 'detallado', label: 'Detallado', icon: 'clock', empresa: 'completa', clienteContacto: true, pagos: true, credito: true, cronologia: true, redes: true },
 ]
 export const modeloComprobante = (id) => MODELOS_COMPROBANTE.find(modelo => modelo.id === id) || MODELOS_COMPROBANTE[1]
 export const NIVELES_COMPROBANTE = MODELOS_COMPROBANTE.map(modelo => [modelo.id, modelo.label])
+// Niveles con su icono: una sola definición para todo el sistema (#208).
+export const NIVELES_MODELO = MODELOS_COMPROBANTE.map(({ id, label, icon }) => ({ id, label, icon }))
 export const FORMATOS_COMPROBANTE = [['a4', 'A4'], ['thermal-80', '80 mm'], ['thermal-58', '58 mm']]
 // La página del pedido usa A4 o el rollo de 58 mm (con diseño propio).
-export const FORMATOS_PEDIDO = [['a4', 'A4'], ['thermal-58', '58 mm']]
+// #207: la impresora de la tienda es de 80 mm: va primero (predeterminada)
+// sin sacar A4 ni 58 mm para quien los elija.
+export const FORMATOS_PEDIDO = [['thermal-80', '80 mm'], ['a4', 'A4'], ['thermal-58', '58 mm']]
 const PREF_NIVEL = 'mobos:comprobante:nivel'
 const PREF_FORMATO = 'mobos:comprobante:formato'
-export const nivelPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_NIVEL)) || 'completo'
-export const formatoPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_FORMATO)) || 'a4'
+// #208: sin preferencia guardada, el comprobante sale en «Rápido»; la última
+// combinación usada al imprimir queda recordada.
+export const nivelPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_NIVEL)) || 'rapido'
+// #207: sin preferencia guardada, el comprobante sale en 80 mm (la
+// impresora de la tienda); la elección manual se respeta.
+export const formatoPreferido = () => (typeof localStorage !== 'undefined' && localStorage.getItem(PREF_FORMATO)) || 'thermal-80'
 // Formato térmico configurado (80 mm por defecto: es la impresora habitual).
 export const formatoTermicoPreferido = () => {
   const preferido = formatoPreferido()
