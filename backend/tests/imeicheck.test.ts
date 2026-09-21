@@ -62,7 +62,7 @@ for (const servicio of Object.values(SERVICIOS)) assert.ok(!IDS_SANDBOX.includes
   assert.equal(parcial.etiqueta, 'Parcial')
   assert.equal(parcial.costoUsd, 0.06, 'una respuesta parcial sí se cobra')
   
-  for (const escenario of ['pendiente', 'timeout', 'sin-saldo'] as const) {
+  for (const escenario of ['pendiente', 'timeout', 'sin-saldo', 'no-autorizado'] as const) {
     const resultado = await consultarImei({ imei: '490154203237518', servicio: 'APPLE_BASIC', escenario })
     assert.notEqual(resultado.estado, 'verificado', escenario)
     assert.equal(resultado.etiqueta, NO_VERIFICADO, escenario)
@@ -81,12 +81,8 @@ for (const servicio of Object.values(SERVICIOS)) assert.ok(!IDS_SANDBOX.includes
   const conToken = await consultarImei({ imei: '490154203237518', servicio: 'APPLE_BASIC', escenario: 'ok' })
   assert.equal(conToken.esMock, true, 'sin el flag live nunca se llama al proveedor')
   
-  // Live sin serviceId real: error explícito, sin red y sin cobro.
-  process.env.IMEICHECK_LIVE = '1'
-  const sinCatalogo = await consultarImei({ imei: '490154203237518', servicio: 'APPLE_BASIC' })
-  assert.equal(sinCatalogo.estado, 'fallido')
-  assert.match(String(sinCatalogo.error), /serviceId Live/)
-  assert.equal(sinCatalogo.costoUsd, 0)
+  // El modo vivo NO se ejercita acá: llamaría de verdad al proveedor. Queda
+  // cubierto por el procedimiento manual autorizado de docs/IMEICHECK.md.
   delete process.env.IMEICHECK_LIVE
   delete process.env.IMEICHECK_TOKEN
   

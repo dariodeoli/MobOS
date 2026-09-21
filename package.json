@@ -13,6 +13,7 @@
     "test": "node --test \"src/**/*.test.js\" \"print-agent/**/*.test.mjs\"",
     "pack:agent": "node scripts/pack-agent.mjs",
     "pack:agent:check": "node scripts/pack-agent.mjs --check",
+    "aex:sandbox": "node scripts/aex-sandbox-prueba.mjs",
     "format": "prettier --write \"src/**/*.{js,jsx,css}\" \"scripts/**/*.mjs\"",
     "release:prepare": "node scripts/release.mjs",
     "release:smoke": "node scripts/smoke.mjs",

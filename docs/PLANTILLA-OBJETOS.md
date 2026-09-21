@@ -234,12 +234,18 @@ patrón de uso de cada familia y un ejemplo corto.
 - Navegación filtrada por rol desde una matriz central.
 - Feedback de mutaciones y **submit single-flight** compartidos.
 - Helpers canónicos de formato: dinero, fechas, etiquetas de estado, entradas.
+- **“Último usado” como predeterminado** (`useUltimoUsado`/`recordarUltimo` en
+  `src/lib/ultimoUsado.js`): selecciones frecuentes (motivos, sucursal/depósito,
+  filtros/orden) arrancan con lo último elegido; siempre cambiable y avisado en
+  pantalla. Solo selecciones, nunca acciones destructivas ni permisos.
 - Montos, fechas y códigos: `nowrap` + `tabular-nums`.
 
 > Referencia MobOS: `src/lib/api/client.js`, `src/lib/roles.js`,
-> `src/lib/utils.js`, `src/lib/urls.js`, `src/lib/constants.js`.
+> `src/lib/utils.js`, `src/lib/urls.js`, `src/lib/constants.js`,
+> `src/lib/ultimoUsado.js`.
 > Implementado: timeout por pedido, caché corta solo-GET e invalidación
-> (`src/lib/api/client.js`, `requestCache.test.js`).
+> (`src/lib/api/client.js`, `requestCache.test.js`); “último usado” en
+> Inventario (`ultimoUsado.test.js` + e2e `inventario-unidades.spec.js`).
 
 ## 8. Tokens y estilo — un solo sistema visual
 

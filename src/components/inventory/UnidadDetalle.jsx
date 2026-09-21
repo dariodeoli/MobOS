@@ -9,6 +9,7 @@ import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
 import { qrUnidad } from '@/lib/printing/qr'
 import { api, apiFetch } from '@/lib/api/client'
+import { useSesion } from '@/lib/sesion'
 import { cotizacionReferencia } from '@/lib/fx'
 import { gs } from '@/utils/calculos'
 import { sinCostoUnitario } from '@/utils/inventario'
@@ -52,6 +53,7 @@ function FotoMini({ unitId, commentId, photo }) {
 // cronología con comentarios y fotos (misma experiencia que los pedidos).
 export default function UnidadDetalle({ unit, busy, canManage, locations = [], onClose, onChanged, onSell, onReserve, onVerify, onArrive, onLabel, onRelease, onAdjust, onRemove, onMove }) {
   const toast = useToast()
+  const { esDemo } = useSesion()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -80,6 +82,13 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   const costoInicial = () => ({ currency: unit.costCurrency || 'PYG', monto: unit.originalCost !== null && unit.originalCost !== undefined ? String(unit.originalCost) : unit.costPyg !== null && unit.costPyg !== undefined ? String(unit.costPyg) : '', rate: unit.exchangeRatePyg !== null && unit.exchangeRatePyg !== undefined ? String(unit.exchangeRatePyg) : '' })
   const [costo, setCosto] = useState(costoInicial)
   const [guardandoCosto, setGuardandoCosto] = useState(false)
+  // Consulta de IMEI (#193/#200): precheck con costo visible, confirmación
+  // explícita y resultado auditado. En demo solo SIMULA (sin llamadas).
+  const [imeiFase, setImeiFase] = useState(null)
+  const [imeiDatos, setImeiDatos] = useState(null)
+  const [imeiError, setImeiError] = useState('')
+  const [imeiBusy, setImeiBusy] = useState(false)
+  const imeiRequestId = useRef(null)
   useEffect(() => { setCosto(costoInicial()) }, [unit.costPyg, unit.originalCost, unit.costCurrency, unit.exchangeRatePyg]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = useCallback(async () => {
@@ -141,6 +150,47 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
       toast.success(monto ? 'Costo guardado.' : 'Costo quitado: queda pendiente.')
       await load(); onChanged?.()
     } catch (cause) { toast.error(cause?.message || 'No se pudo guardar el costo.') } finally { setGuardandoCosto(false) }
+  }
+
+  // Precheck: valida el IMEI y muestra servicio, campos y COSTO antes de ejecutar.
+  async function imeiPrecheck() {
+    if (imeiBusy) return
+    setImeiBusy(true); setImeiError(''); setImeiDatos(null); setImeiFase(null)
+    imeiRequestId.current = null
+    try {
+      if (esDemo) {
+        // #200: en demo solo se simula; no hay llamada alguna.
+        setImeiFase('precheck')
+        setImeiDatos({ simulado: true, imei: unit.serial, servicio: { nombre: 'Apple Basic', campos: ['blacklist actual', 'Find My/iCloud', 'garantía'], precioUsd: 0.06 }, costoEstimadoUsd: 0, requiereConfirmacion: true })
+        return
+      }
+      setImeiDatos(await api.post('/api/imei', { action: 'precheck', imei: unit.serial, servicio: 'APPLE_BASIC' }))
+      setImeiFase('precheck')
+    } catch (cause) {
+      setImeiError(cause?.status === 403 ? 'Función paga: pedile a administración que habilite la consulta de IMEI.' : (cause?.message || 'No se pudo preparar la consulta.'))
+    } finally { setImeiBusy(false) }
+  }
+
+  // Confirmación explícita: un requestId por intento evita dobles cobros.
+  async function imeiConfirmar() {
+    if (imeiBusy) return
+    if (!imeiRequestId.current) imeiRequestId.current = globalThis.crypto?.randomUUID?.() || `imei-${unit.id}-${Date.now()}`
+    setImeiBusy(true); setImeiError('')
+    try {
+      if (esDemo) {
+        setImeiFase('resultado')
+        setImeiDatos({ simulado: true, etiqueta: 'Verificado (SIMULADO)', status: 'verificado', costUsd: 0, campos: [
+          { clave: 'blacklist', etiqueta: 'Blacklist actual', valor: 'Sin reportes actuales', fuente: 'demo', hora: new Date().toISOString() },
+          { clave: 'findMy', etiqueta: 'Find My / iCloud', valor: 'Off', fuente: 'demo', hora: new Date().toISOString() },
+          { clave: 'garantia', etiqueta: 'Garantía', valor: 'Vencida', fuente: 'demo', hora: null },
+        ] })
+        return
+      }
+      setImeiDatos(await api.post('/api/imei', { action: 'checks', imei: unit.serial, servicio: 'APPLE_BASIC', confirm: true, requestId: imeiRequestId.current }))
+      setImeiFase('resultado')
+    } catch (cause) {
+      setImeiError(cause?.message || 'No se pudo consultar el IMEI.')
+    } finally { setImeiBusy(false) }
   }
 
   // Equipo de un tercero: la tienda lo vende y le paga el monto acordado.
@@ -284,6 +334,42 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             <span className="text-xs text-mute">{sinCostoUnitario(unit) ? 'Todavía sin costo.' : `Actual: ${money(unit.originalCost, unit.costCurrency)}${unit.costPyg !== null && unit.costPyg !== undefined ? ` · ${money(unit.costPyg, 'PYG')}` : ''}`}</span>
             <Button type="button" variant="outline" disabled={guardandoCosto} onClick={guardarCosto} data-testid="unidad-costo-guardar">{guardandoCosto ? 'Guardando…' : 'Guardar costo'}</Button>
           </div>
+        </section>
+
+        {/* Consulta de IMEI (#193/#200): costo antes, confirmación explícita y fuente/hora */}
+        <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-imei">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Consulta de IMEI</h3>
+            {esDemo ? <Badge color="blue">Demo: simulado</Badge> : <Badge color="slate">Función paga</Badge>}
+          </div>
+          <p className="mt-1 text-xs text-mute">Estado del equipo en IMEIcheck (blacklist, Find My/iCloud, SIM lock, MDM, garantía). Se muestra el costo antes de confirmar y cada consulta queda auditada. Si no se puede verificar, se muestra como «No verificado», nunca «Limpio».</p>
+          {!imeiFase && !imeiBusy && <Button type="button" variant="outline" className="mt-2" onClick={imeiPrecheck} data-testid="imei-precheck">Consultar IMEI (ver costo)</Button>}
+          {imeiBusy && <p className="mt-2 text-xs text-mute" role="status">Consultando…</p>}
+          {imeiError && <p role="alert" className="mt-2 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{imeiError}</p>}
+          {imeiFase === 'precheck' && imeiDatos && (
+            <div className="mt-2 rounded-xl border border-ink-600 bg-ink-800/40 p-3 text-sm">
+              <p className="font-semibold text-fore">{imeiDatos.servicio?.nombre || 'Apple Basic'} · {imeiDatos.simulado ? 'simulado (US$ 0,00)' : `US$ ${Number(imeiDatos.costoEstimadoUsd || 0).toFixed(2)}`}</p>
+              <p className="mt-1 text-xs text-mute">Campos: {(imeiDatos.servicio?.campos || []).join(' · ')}</p>
+              {imeiDatos.advertencia && <p className="mt-1 text-xs text-warn">{imeiDatos.advertencia}</p>}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Button type="button" disabled={imeiBusy} onClick={imeiConfirmar} data-testid="imei-confirmar">{imeiDatos.simulado ? 'Confirmar consulta simulada' : `Confirmar consulta (US$ ${Number(imeiDatos.costoEstimadoUsd || 0).toFixed(2)})`}</Button>
+                <Button type="button" variant="ghost" disabled={imeiBusy} onClick={() => { setImeiFase(null); setImeiDatos(null) }}>Cancelar</Button>
+              </div>
+            </div>
+          )}
+          {imeiFase === 'resultado' && imeiDatos && (
+            <div className="mt-2 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge color={imeiDatos.status === 'verificado' ? 'green' : imeiDatos.status === 'parcial' ? 'orange' : 'slate'}>{imeiDatos.etiqueta || (imeiDatos.status === 'verificado' ? 'Verificado' : 'No verificado')}</Badge>
+                {(imeiDatos.simulado || imeiDatos.esMock) ? <Badge color="blue">SIMULADO</Badge> : <span className="text-xs text-mute">Costo US$ {Number(imeiDatos.costUsd || 0).toFixed(2)} · {imeiDatos.serviceName || 'Apple Basic'}</span>}
+                {(imeiDatos.simulado || imeiDatos.esMock) && <span className="text-xs text-mute">Sin cobro: respuesta simulada de la fase 1</span>}
+              </div>
+              {(imeiDatos.campos || imeiDatos.normalized || []).map(campo => (
+                <p key={campo.clave} className="text-xs"><span className="font-semibold text-fore">{campo.etiqueta}:</span> <span className={campo.valor ? 'text-fore/90' : 'text-mute'}>{campo.valor || 'No verificado'}</span> <span className="text-mute">· {campo.fuente}{campo.hora ? ` · ${new Date(campo.hora).toLocaleString('es-PY')}` : ''}</span></p>
+              ))}
+              <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => { setImeiFase(null); setImeiDatos(null) }}>Cerrar</Button>
+            </div>
+          )}
         </section>
 
         {/* Códigos de esta unidad */}
