@@ -19,7 +19,7 @@ Baja = higiene/abuso de recursos.
 | 4 | **Media** | Portal/páginas públicas | Tres endpoints públicos sin `enforceRateLimit`: `public/orders/[token]`, `public/warranty/[token]`, `public/commission-settlements/[token]`. Portal, quotes y transfers sí lo tienen (30/min). Sin límite son superficie de scraping y fuerza bruta distribuida. | **Reportado** — CRM/POS/FIN |
 | 5 | **Baja** | Páginas públicas | `Order.publicToken` legacy (QR viejo, nivel `rapido`) no vence ni se revoca por separado; se mantiene por compatibilidad de comprobantes impresos. El acceso vigente (`OrderAccessToken`) sí es revocable por nivel. | **Reportado** — CRM |
 | 6 | **Baja** | Tokens impresos | `OrderAccessToken.impreso=true` no vence (por diseño: el papel no puede expirar) y solo se invalida con `revokeAll` (“Regenerar acceso QR”). Falta documentar el procedimiento en `docs/IMPRESION.md`. | **Reportado** — POS/DSN |
-| 7 | **Baja** | API pública interna | `POST /api/errors` (sin sesión) escribe filas de hasta ~10 KB con 30 req/min por IP: vector de spam de almacenamiento. Mitigado por el límite; opcional: cupo diario por IP. | **Reportado** — PLT (mejora opcional) |
+| 7 | **Baja** | API pública interna | `POST /api/errors` (sin sesión) escribe filas de hasta ~10 KB: vector de spam de almacenamiento. | **Corregido** — cupo diario por IP (300) además del minuto (30) |
 | 8 | Info | POS | `POST /api/orders` fuerza `sellerId = session.user.id`, firma `createdById/userId` en cada pago y audita `ORDER_*` con el actor real; `cash` exige `cash:manage`/`payments:manage` y audita con el actor; `payments` y `orders/[orderId]` usan `canAccessAny`/`canAccessOrder`; `normalizePayment` valida cuenta del tenant, moneda, cotización y rangos. | Sin hallazgos |
 | 9 | Info | Auth/PIN | `/api/auth/pin` limita 20 intentos/15 min por IP, bloquea 5 fallos y audita (`SELLER_PIN_*`); el PIN exige sesión de empresa. `pinLength` viaja al panel solo para el auto-envío (#158), no revela el PIN. | Sin hallazgos |
 | 10 | Info | Middleware | CORS con allow-list explícita (sin comodines), `Cache-Control: no-store` y headers de seguridad en todas las respuestas de `/api/*`; el salto interno regenera `x-mobos-pass`/cookies y no es forjable desde afuera. | Sin hallazgos |
@@ -38,6 +38,12 @@ Baja = higiene/abuso de recursos.
      `SALE_PUBLIC_LINK_REVOKED`); regenerar sigue invalidando el anterior.
 2. **Reautenticación de cuenta** (`backend/app/api/account/route.ts`):
    `enforceAuthRateLimit('account-reauth', 8)` → 429 con `Retry-After`.
+3. **Cupo diario del reporte de errores** (`backend/app/api/errors/route.ts`):
+   además de la ráfaga por minuto (30), `enforceRateLimit('errors-daily', 300,
+   24 h)`; el cupo se evalúa antes del minuto, así todo intento cuenta para el
+   día. Los topes se ajustan por entorno (`MOBOS_ERRORS_MINUTE_MAX` /
+   `MOBOS_ERRORS_DAILY_MAX`) para las pruebas. Test:
+   `backend/tests/errors-quota.test.ts`.
 
 ## Evidencia reproducible
 
@@ -55,5 +61,4 @@ Baja = higiene/abuso de recursos.
   (`SuspendedSale.publicTokenHash` + `docs/TOKENS.md`).
 - **POS/DSN (#6):** documentar en `docs/IMPRESION.md` que el QR impreso no vence
   y cómo reimprimirlo.
-- **POS (#5) y PLT opcional (#7):** evaluación de expiración del token legacy y
-  cupo diario del endpoint de errores.
+- **POS (#5):** evaluación de expiración del token legacy del pedido.

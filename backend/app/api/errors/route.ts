@@ -9,6 +9,15 @@ const MAX_MESSAGE = 2000
 const MAX_URL = 500
 const MAX_STACK = 8000
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/
+// Red de contención contra spam sostenido (#172/#178): el minuto frena ráfagas
+// y el día pone el cupo. Ajustables por entorno para las pruebas.
+const ERRORES_POR_MINUTO = limitePositivo(process.env.MOBOS_ERRORS_MINUTE_MAX, 30)
+const ERRORES_POR_DIA = limitePositivo(process.env.MOBOS_ERRORS_DAILY_MAX, 300)
+
+function limitePositivo(valor: unknown, defecto: number) {
+  const numero = Number(valor)
+  return Number.isFinite(numero) && numero > 0 ? numero : defecto
+}
 
 function bounded(value: unknown, limit: number) {
   return typeof value === 'string' && value.trim() ? value.trim().slice(0, limit) : null
@@ -23,7 +32,9 @@ function reportRequestId(request: Request) {
 // Nunca filtra el contenido del error y siempre responde { ok: true } para no
 // acoplar el reporte al estado del servidor.
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, 'errors', 30, 60_000)
+  const cupoDiario = enforceRateLimit(request, 'errors-daily', ERRORES_POR_DIA, 24 * 60 * 60 * 1000)
+  if (cupoDiario) return cupoDiario
+  const limited = enforceRateLimit(request, 'errors', ERRORES_POR_MINUTO, 60_000)
   if (limited) return limited
   const requestId = reportRequestId(request)
   const userAgent = typeof request.headers.get('user-agent') === 'string' ? request.headers.get('user-agent')!.slice(0, 240) : null
