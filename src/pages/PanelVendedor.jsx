@@ -911,7 +911,8 @@ export default function PanelVendedor() {
         abierto={locked && !cambiarAbierto && !salirAbierto}
         empresa={empresa?.nombre}
         sucursal={sucursal?.nombre}
-        usuario={{ id: sesion?.vendedorId, name: sesion?.nombre }}
+        usuario={{ id: usuario?.id, name: usuario?.user_metadata?.nombre || sesion?.nombre, hasAvatar: usuario?.hasAvatar }}
+        picture={esOwner ? perfilEmpresa?.picture : undefined}
         pinLength={pinLength}
         pin={lockPin}
         onPinChange={setLockPin}

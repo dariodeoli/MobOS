@@ -1,16 +1,21 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Avatar from '@/components/shared/Avatar'
 import Icon from '@/components/shared/Icon'
+import ThemeLogo from '@/components/app/ThemeLogo'
 import { Button, Eyebrow, PinInput } from '@/components/ui'
+import { getLogoDataUrl, varianteDeTema } from '@/lib/tenantLogo'
 
 // Pantalla de bloqueo del POS: identidad de la tienda, la sucursal y la
 // persona; PIN que valida solo al completarlo (sin Enter) y aviso con
 // sacudida + vibración cuando no coincide. El PIN nunca se muestra.
+// Muestra la foto real del usuario y los logos (MobOS + tienda) con la
+// variante del fondo, igual que la pantalla de carga (#210).
 export default function PantallaBloqueada({
   abierto,
   empresa,
   sucursal,
   usuario,
+  picture,
   pinLength = 4,
   pin,
   onPinChange,
@@ -21,6 +26,17 @@ export default function PantallaBloqueada({
   esDemo = false,
 }) {
   const cajaRef = useRef(null)
+  const [logoEmpresa, setLogoEmpresa] = useState('')
+
+  // Logo de la tienda con la variante del tema (#163): la tarjeta sigue al
+  // fondo claro/oscuro, así que se pide la variante activa al abrir. En la demo
+  // el pedido queda bloqueado por la barrera y no rompe (queda vacío).
+  useEffect(() => {
+    if (!abierto) return undefined
+    let vigente = true
+    getLogoDataUrl(varianteDeTema()).then((url) => { if (vigente) setLogoEmpresa(url || '') })
+    return () => { vigente = false }
+  }, [abierto])
 
   useEffect(() => {
     if (!abierto || !error) return
@@ -50,15 +66,27 @@ export default function PantallaBloqueada({
         data-testid="pantalla-bloqueada"
         className="w-full max-w-sm rounded-3xl border border-fore/10 bg-ink p-6 text-center shadow-2xl"
       >
-        <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-fono/10 text-fono-light">
+        <ThemeLogo className="mx-auto h-7 w-auto" />
+
+        <span className="mx-auto mt-4 grid h-12 w-12 place-items-center rounded-2xl bg-fono/10 text-fono-light">
           <Icon name="lock" className="h-5 w-5" />
         </span>
         <Eyebrow className="mt-4">Pantalla bloqueada</Eyebrow>
-        <h2 id="lock-title" className="mt-2 text-xl font-bold">{empresa || 'MobOS'}</h2>
+        <h2 id="lock-title" className="mt-2 flex items-center justify-center gap-2 text-xl font-bold">
+          {logoEmpresa && (
+            <img
+              src={logoEmpresa}
+              alt={empresa ? `Logo de ${empresa}` : 'Logo de la tienda'}
+              data-testid="lock-logo-empresa"
+              className="h-6 w-auto max-w-[7rem] shrink-0 object-contain"
+            />
+          )}
+          <span className="truncate">{empresa || 'MobOS'}</span>
+        </h2>
         <p className="mt-1 text-xs text-mute">{sucursal ? `Sucursal ${sucursal}` : 'Todas las sucursales'}</p>
 
         <div className="mt-4 flex items-center justify-center gap-2.5">
-          <Avatar user={usuario || { name: 'Sesión protegida' }} size="lg" hasAvatar={false} />
+          <Avatar user={usuario || { name: 'Sesión protegida' }} picture={picture} size="xl" title={usuario?.name} />
           <div className="text-left">
             <p className="text-sm font-semibold">{usuario?.name || 'Sesión protegida'}</p>
             <p className="text-[11px] text-mute">Ingresá tu PIN de {pinLength} dígitos</p>
