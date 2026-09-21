@@ -314,6 +314,16 @@ async function ensureSeedOrder(ctx, companyToken, sellerId, adminToken) {
   const existing = rows.find((o) => o.orderNumber === SEED.seedOrderNumber && o.customer?.name)
   let orderNumber = SEED.seedOrderNumber
   let token = existing?.publicToken
+  // Desde #178 el token de seguimiento no se guarda en claro: un pedido
+  // sembrado por el código nuevo no lo devuelve en la lista. Se pide un enlace
+  // de nivel rápido (mismo nivel que el token legacy) para no crear otro pedido.
+  if (!token && existing?.id) {
+    const acceso = await ctx.post(`/api/orders/${existing.id}/access-tokens`, {
+      headers: bearer(adminToken),
+      data: { level: 'rapido', impreso: false },
+    })
+    if (acceso.ok()) token = (await acceso.json()).token
+  }
   if (!token) {
     // orderNumber is unique per tenant; supersede an older seed order
     // (e.g. one created before the harness sent a customer) with a fresh one.

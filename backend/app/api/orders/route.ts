@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { error, json, tenantId } from '../../../lib/http'
@@ -176,6 +176,10 @@ export async function POST(request: Request) {
   const limited = enforceRateLimit(request, 'orders', 120, 60_000)
   if (limited) return limited
   const idempotencyKey = request.headers.get('Idempotency-Key') || null
+  // Enlace de seguimiento del pedido: aleatorio de 64 hex. Nace como enlace de
+  // nivel rápido del pedido (listable, revocable y rotable desde el panel) y la
+  // creación lo devuelve para imprimirlo o compartirlo al entregar (#178).
+  const publicToken = randomBytes(32).toString('hex')
   if (idempotencyKey && !/^[a-zA-Z0-9_-]{16,100}$/.test(idempotencyKey)) return error('Identificador de operación inválido.')
   try {
   // Reintento de la misma operación: se devuelve la orden ya creada sin
@@ -526,6 +530,9 @@ export async function POST(request: Request) {
       const orderNumber = typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : await nextOrderNumber(tx, tenant)
 
       const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), ...(offlineSale ? { offlineSyncedAt: new Date() } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      // El enlace de seguimiento se emite como token de nivel rápido del pedido:
+      // el panel puede volver a copiarlo y «Regenerar acceso QR» lo rota (#178).
+      await tx.orderAccessToken.create({ data: { orderId: order.id, tenantId: tenant, level: 'rapido', token: publicToken, createdBy: session.user.id } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREATED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, totalPyg: total, items: normalized.length, ...(customerId ? { customerId } : {}), ...(offlineSale ? { offline: true } : {}) } } })
       // POS offline: la venta llegó de la cola local. Queda el rastro de lo que
       // se relajó (stock faltante y equipos sin IMEI) para que se revise.
@@ -614,7 +621,9 @@ export async function POST(request: Request) {
         if (intento >= 2 || idempotencyKey || !esCodigoDuplicado(e)) throw e
       }
     }
-    return json(result, { status: 201 })
+    // El enlace de seguimiento viaja en la respuesta de creación (y queda como
+    // enlace de nivel rápido del pedido, listable y rotable desde el panel).
+    return json({ ...result, publicToken }, { status: 201 })
   } catch (e) {
     // Dos reintentos concurrentes con la misma clave: el segundo choca con el
     // índice único; se devuelve entonces la orden que ganó la carrera.
