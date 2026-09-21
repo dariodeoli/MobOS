@@ -56,6 +56,13 @@ self.addEventListener('activate', (event) => {
   )
 })
 
+// Actualización controlada (#214): la app pide activar el SW nuevo cuando la
+// persona acepta recargar (skipWaiting). El install ya lo hace solo, así que
+// esto es la vía explícita para el aviso «Hay una versión nueva».
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
+})
+
 const esApiCacheable = (url) => API_CACHEABLES.some((patron) => patron.test(url.pathname + url.search))
 
 async function guardarRespuestaApi(request, response) {

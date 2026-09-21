@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react'
 import LoadingScreen from '@/components/app/LoadingScreen'
+import AvisoVersion from '@/components/app/AvisoVersion'
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { publicUrls } from '@/lib/urls'
 import { SesionProvider, useSesion } from '@/lib/sesion'
@@ -214,6 +215,7 @@ export default function App() {
     <SesionProvider>
       <ToastProvider demo={isDemoRuntime}>
         <MetadatosPagina />
+        <AvisoVersion />
         <Suspense fallback={<PaginaCargando />}>
         <Routes>
           <Route path="/demo" element={<DemoAccess />} />
