@@ -1,6 +1,6 @@
 {
   "base": "https://app.moboss.online",
-  "fecha": "2026-09-21T18:22:42.569Z",
+  "fecha": "2026-09-21T18:55:41.136Z",
   "resultados": [
     {
       "paso": "entrada a la demo como dueño",
@@ -9,289 +9,105 @@
       "capturas": [
         "01-panel-demo.jpg"
       ],
-      "llamadasApi": [
-        "GET /api/users/demo-user/avatar",
-        "GET /api/presence",
-        "POST /api/presence/heartbeat",
-        "GET /api/print/printers",
-        "GET /api/credits"
-      ]
+      "llamadasApi": []
     },
     {
       "paso": "Impresoras en demo: banner de ficticios y dos impresoras",
-      "estado": "fallo",
-      "detalle": "faltan datos demo (banner=false mostrador=false deposito=false)",
+      "estado": "ok",
+      "detalle": "banner de ficticios + 2 impresoras demo visibles",
       "capturas": [
-        "02-impresoras-demo.jpg",
-        "03-fallo-Impresoras en demo: banner de ficticios y dos impresoras.jpg"
+        "02-impresoras-demo.jpg"
       ],
-      "llamadasApi": [
-        "GET /api/users/demo-user/avatar",
-        "GET /api/presence",
-        "POST /api/presence/heartbeat",
-        "GET /api/print/printers",
-        "GET /api/print/jobs?limit=60",
-        "GET /api/account"
-      ]
+      "llamadasApi": []
     },
     {
       "paso": "actividad demo con estados honestos",
-      "estado": "fallo",
-      "detalle": "estados visibles: pendiente, fallido",
+      "estado": "ok",
+      "detalle": "estados=pendiente/aceptado/incierto/fallido/cancelado · inputs de validación=3",
       "capturas": [
-        "04-actividad-demo.jpg",
-        "05-fallo-actividad demo con estados honestos.jpg"
+        "03-actividad-demo.jpg"
       ],
-      "llamadasApi": [
-        "GET /api/print/printers",
-        "GET /api/print/jobs?limit=60",
-        "GET /api/account",
-        "GET /api/presence",
-        "POST /api/presence/heartbeat"
-      ]
+      "llamadasApi": []
     },
     {
       "paso": "auto-validación demo: 1 dígito valida solo",
-      "estado": "fallo",
-      "detalle": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('row').filter({ hasText: 'DEMO-01' }).getByLabel(/Número secreto de la validación DEMO-01/)\u001b[22m\n",
+      "estado": "ok",
+      "detalle": "escribir el dígito ficticio confirmó sin apretar Confirmar",
       "capturas": [
-        "06-fallo-auto-validación demo: 1 dígito valida solo.jpg"
+        "04-validacion-un-digito.jpg"
       ],
-      "llamadasApi": [
-        "GET /api/print/printers",
-        "GET /api/print/jobs?limit=60",
-        "GET /api/account",
-        "GET /api/presence",
-        "POST /api/presence/heartbeat",
-        "GET /api/print/printers",
-        "GET /api/print/jobs?limit=60",
-        "GET /api/account"
-      ]
+      "llamadasApi": []
     },
     {
       "paso": "auto-validación demo: 4 dígitos y aviso de no coincide",
-      "estado": "fallo",
-      "detalle": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('row').filter({ hasText: 'DEMO-02' }).getByLabel(/Número secreto de la validación DEMO-02/)\u001b[22m\n",
+      "estado": "ok",
+      "detalle": "avisó con el número incorrecto y confirmó al completar el largo",
       "capturas": [
-        "07-fallo-auto-validación demo: 4 dígitos y aviso de no coincide.jpg"
+        "05-validacion-no-coincide.jpg",
+        "06-validacion-cuatro-digitos.jpg"
       ],
-      "llamadasApi": [
-        "GET /api/print/printers",
-        "GET /api/print/jobs?limit=60",
-        "GET /api/account",
-        "GET /api/presence",
-        "POST /api/presence/heartbeat"
-      ]
+      "llamadasApi": []
     },
     {
       "paso": "cola demo: pendientes y fallidos con reintento simulado",
-      "estado": "fallo",
-      "detalle": "la cola demo no muestra las secciones esperadas (Cola de impresión × La cola está vacía. Actualizar)",
+      "estado": "ok",
+      "detalle": "cola con pendientes/fallidos y reintento simulado avisado",
       "capturas": [
-        "08-cola-modal.jpg",
-        "09-fallo-cola demo: pendientes y fallidos con reintento simulado.jpg"
+        "07-cola-modal.jpg",
+        "08-cola-reintento-simulado.jpg"
       ],
       "llamadasApi": []
     },
     {
       "paso": "prueba de impresión demo simulada",
-      "estado": "fallo",
-      "detalle": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Imprimir prueba' }).first()\u001b[22m\n",
+      "estado": "ok",
+      "detalle": "la prueba avisa que es simulada y no envía nada",
       "capturas": [
-        "10-fallo-prueba de impresión demo simulada.jpg"
+        "09-prueba-simulada.jpg"
       ],
-      "llamadasApi": [
-        "GET /api/print/printers",
-        "GET /api/print/jobs?limit=60",
-        "GET /api/account",
-        "GET /api/presence",
-        "POST /api/presence/heartbeat",
-        "GET /api/print/printers",
-        "GET /api/print/jobs?limit=60",
-        "GET /api/account"
-      ]
+      "llamadasApi": []
+    },
+    {
+      "paso": "cancelación demo: individual y en lote desde la cola",
+      "estado": "ok",
+      "detalle": "cancelación individual y en lote con aviso de demo",
+      "capturas": [
+        "10-cola-antes-de-cancelar.jpg",
+        "11-cola-cancelacion-individual.jpg",
+        "12-cola-cancelacion-lote.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "anti-duplicados demo: aviso de duplicado y «Reimprimir igual»",
+      "estado": "ok",
+      "detalle": "el segundo click avisó del duplicado y «Reimprimir igual» sumó una copia ficticia",
+      "capturas": [
+        "13-duplicado-primer-encolado.jpg",
+        "14-duplicado-aviso.jpg",
+        "15-duplicado-reimprimir.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "QR impreso que no vence y reimpresión",
+      "estado": "no-aplicable",
+      "detalle": "no se puede ejercitar en el demo anónimo: los tokens del QR salen del backend y el demo no tiene sesión; en el demo el acceso del cliente no se genera. Se verifica en el e2e de QR y en producción escaneando un comprobante real.",
+      "capturas": [],
+      "llamadasApi": []
     }
   ],
-  "llamadasAlApi": [
-    "GET /api/users/demo-user/avatar",
-    "GET /api/presence",
-    "POST /api/presence/heartbeat",
-    "GET /api/print/printers",
-    "GET /api/credits",
-    "GET /api/users/demo-user/avatar",
-    "GET /api/presence",
-    "POST /api/presence/heartbeat",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60",
-    "GET /api/account",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60",
-    "GET /api/account",
-    "GET /api/presence",
-    "POST /api/presence/heartbeat",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60",
-    "GET /api/account",
-    "GET /api/presence",
-    "POST /api/presence/heartbeat",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60",
-    "GET /api/account",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60",
-    "GET /api/account",
-    "GET /api/presence",
-    "POST /api/presence/heartbeat",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60",
-    "GET /api/account",
-    "GET /api/presence",
-    "POST /api/presence/heartbeat",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60",
-    "GET /api/account"
-  ],
-  "llamadasDeImpresion": [
-    "GET /api/print/printers",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60",
-    "GET /api/print/printers",
-    "GET /api/print/jobs?limit=60"
-  ],
-  "llamadasDeOtrosModulos": [
-    "GET /api/users/demo-user/avatar",
-    "GET /api/presence",
-    "POST /api/presence/heartbeat",
-    "GET /api/credits",
-    "GET /api/users/demo-user/avatar",
-    "GET /api/presence",
-    "POST /api/presence/heartbeat",
-    "GET /api/account",
-    "GET /api/account",
-    "GET /api/presence",
-    "POST /api/presence/heartbeat",
-    "GET /api/account",
-    "GET /api/presence",
-    "POST /api/presence/heartbeat",
-    "GET /api/account",
-    "GET /api/account",
-    "GET /api/presence",
-    "POST /api/presence/heartbeat",
-    "GET /api/account",
-    "GET /api/presence",
-    "POST /api/presence/heartbeat",
-    "GET /api/account"
-  ],
-  "erroresConsola": [
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()"
-  ],
-  "erroresDeRed": [
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: the server responded with a status of 401 ()",
-    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
-    "Failed to load resource: the server responded with a status of 401 ()"
-  ],
+  "llamadasAlApi": [],
+  "llamadasDeImpresion": [],
+  "llamadasDeOtrosModulos": [],
+  "erroresConsola": [],
+  "erroresDeRed": [],
   "erroresOtros": [],
   "veredicto": {
-    "pasosOk": 1,
-    "pasosTotal": 7,
-    "llamadasDeImpresion": 15,
-    "llamadasDeOtrosModulos": 22,
-    "erroresDeRed": 45
+    "pasosOk": 9,
+    "pasosTotal": 10,
+    "llamadasDeImpresion": 0,
+    "llamadasDeOtrosModulos": 0,
+    "erroresDeRed": 0
   }
 }
