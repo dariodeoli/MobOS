@@ -1,0 +1,162 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "v1.0.129",
+  "fecha": "2026-09-21T19:00:27.767Z",
+  "viewport": {
+    "desktop": "1440x900",
+    "movil": "390x844"
+  },
+  "metodo": "Playwright headless (chromium) sobre la demo pública",
+  "pasos": [
+    {
+      "paso": "entrada a la demo como vendedor",
+      "estado": "ok",
+      "detalle": "versión desplegada: v1.0.129 · perfiles: 2 · menú: VENDER POS Mis pedidos Delivery Clientes HERRAMIENTAS Productos Promociones Precios Trade-In Cotizaciones",
+      "capturas": [
+        "01-acceso-demo.jpg",
+        "02-panel-vendedor.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "pos: venta en una sola pantalla (carrito visible sin salir)",
+      "estado": "ok",
+      "detalle": "buscador visible: true (bottom 773/900) · total visible: true (bottom 310/900) · hoy visible: 1",
+      "capturas": [
+        "03-pos-pantalla-unica.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "catalogo: buscar y agregar con modelo y capacidad",
+      "estado": "ok",
+      "detalle": "sugerencias: iPhone 15 Pro 256GB Titanio | iPhone 15 Pro 256GB Negro | Retiro en tienda · carrito: TOTAL DE ESTA VENTA Gs 6.850.000 1 producto · 1 unidad TU DÍA 2 ventas · 2 pedidos Facturación Gs 7.030.000",
+      "capturas": [
+        "04-catalogo-resultados.jpg",
+        "05-producto-agregado.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "carrito: segundo producto, cantidad 2 y descuento",
+      "estado": "ok",
+      "detalle": "2 u.: TOTAL DE ESTA VENTA Gs 13.880.000 2 productos · 3 unidades TU DÍA 2 ventas · 2 pedidos Facturación Gs 7.030.00 · con descuento: TOTAL DE ESTA VENTA Gs 13.780.000 2 productos · 3 unidades Descuento − Gs 100.000 TU DÍA 2 ventas · 2 pedidos  · borrado: TOTAL DE ESTA VENTA Gs 13.880.000 2 productos · 3 unidades TU DÍA 2 ventas · 2 pedidos Facturación Gs 7.030.00",
+      "capturas": [
+        "06-carrito-descuento.jpg",
+        "07-carrito-sin-descuento.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "cliente: buscador y alta por nombre nuevo",
+      "estado": "ok",
+      "detalle": "resultados de \"María\": Titanio | Negro | Retiro en tienda | Delivery · clientes demo encontrados: false · botón con cliente: \"Crear pedido sin pago · 3 productos · Gs 13.880.000\"",
+      "capturas": [
+        "08-cliente-nuevo.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "borradores: suspender y listar (aviso honesto de la demo)",
+      "estado": "ok",
+      "detalle": "alta: \"Las ventas suspendidas se guardan en el servidor de tu tienda y necesitan conexión. En la demo no se guardan n\" · listado: mismo aviso de demo",
+      "capturas": [
+        "09-borrador-aviso-demo.jpg",
+        "10-borradores-listado-demo.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "split: parcial con dividir saldo y segundo medio",
+      "estado": "ok",
+      "detalle": "bloques: 2 · «Dividir saldo (Gs 10.880.000)» · saldo precargado: 10.880.000 · botón con parcial: \"Crear pedido · 3 productos · Gs 13.880.000\" → \"Confirmar venta · 3 productos · Gs 13.880.000\"",
+      "capturas": [
+        "11-split-parcial.jpg",
+        "12-split-dividido.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "entrega: delivery con costo y retiro sin monto",
+      "estado": "ok",
+      "detalle": "con delivery: TOTAL DE ESTA VENTA Gs 13.910.000 2 productos · 3 unidades Entrega + Gs 30.000 TU DÍA 2 ventas · 2 pedidos Facturación G · monto deshabilitado en retiro: true",
+      "capturas": [
+        "13-entrega-delivery.jpg",
+        "14-entrega-retiro.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "venta: cubrir el saldo, confirmar y vaciar el carrito",
+      "estado": "ok",
+      "detalle": "botón: \"Confirmar venta · 3 productos · Gs 13.910.000\" · confirmación: \"Modo demo: los datos son ficticios y no se guardan en tu empresa.\" · acciones: (ninguna) · carrito tras vender: TOTAL DE ESTA VENTA Gs 0 0 productos · 0 unidades Agregá productos para empezar la venta. TU DÍA 5 ventas · 5 pedidos Facturación ",
+      "capturas": [
+        "15-venta-antes-de-confirmar.jpg",
+        "16-venta-confirmada.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "analytics: métricas del POS y período",
+      "estado": "ok",
+      "detalle": "métricas completas · período 7 días: false · «Cobros por cuenta»: false",
+      "capturas": [
+        "17-analytics-modal.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "movil 390x844: POS con carrito accesible",
+      "estado": "ok",
+      "detalle": "desborde horizontal: 0px → 0px · buscador: true · total: TOTAL DE ESTA VENTA Gs 150.000 1 producto · 1 unidad TU DÍA 2 ventas · 2 pedidos Facturación Gs 7.030.000",
+      "capturas": [
+        "18-pos-movil.jpg",
+        "19-pos-movil-carrito.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "entrega: metodos nuevos del seguimiento (#191)",
+      "estado": "ok",
+      "detalle": "opciones del selector: Retiro en tienda · Delivery · Envío por encomienda · Retiro en tienda · Retiro en tienda · métodos nuevos: false",
+      "capturas": [
+        "20-entrega-metodos.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "publica: /pedidos/<token> canonica y redirects (#197)",
+      "estado": "ok",
+      "detalle": "portal https://clientes.moboss.online · /p/ → https://clientes.moboss.online/pedidos/token-de-prueba-qa198 · /pedido/ → https://clientes.moboss.online/pedidos/token-de-prueba-qa198 · /pedidos/ muestra: \"Seguimiento no encontrado.\"",
+      "capturas": [
+        "21-publica-redirect-p.jpg",
+        "22-publica-pedidos-token.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "diagnostico: consola y red",
+      "estado": "ok",
+      "detalle": "errores de consola: 0 · API ≥400: 0 · pedidos fallidos: 0 · top endpoints:  · consola: ",
+      "capturas": [],
+      "erroresConsola": [],
+      "fallosRed": []
+    }
+  ],
+  "errores": [],
+  "fallosRed": [],
+  "pedidosFallidos": []
+}
