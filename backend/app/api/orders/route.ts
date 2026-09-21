@@ -187,6 +187,13 @@ export async function POST(request: Request) {
   try { payload = await request.json() } catch { throw new InputError('JSON inválido.') }
   const body = objectInput(payload); const items = Array.isArray(body.items) ? body.items : []; const payments = Array.isArray(body.payments) ? body.payments : (body.payment ? [body.payment] : [])
   if (['coupon', 'couponCode', 'couponCodes', 'discountCode', 'promoCode'].some(key => key in body)) throw new InputError('Enviá couponCode dentro de cada línea de items.')
+  // Venta cargada sin conexión (POS offline-first): el stock local puede estar
+  // viejo. Con esta marca se permite la venta, se descuenta solo lo disponible y
+  // el pedido queda señalado para revisión. El modo online no la envía.
+  if (body.offline !== undefined && typeof body.offline !== 'boolean') throw new InputError('offline debe ser verdadero o falso.')
+  const offlineSale = body.offline === true
+  let stockFaltante = 0
+  let sinImeiOffline = 0
   if (body.customerId !== undefined && body.customer !== undefined) throw new InputError('Enviá customerId o customer, no ambos.')
   const selectedCustomerId = body.customerId === undefined ? undefined : textInput(body.customerId, 'customerId', 200)
   let customer: { name: string; phone?: string; countryCode?: string; email?: string; document?: string; addresses: ReturnType<typeof inlineAddresses> } | undefined
@@ -393,7 +400,10 @@ export async function POST(request: Request) {
               // Venta sobre pedido: sin stock disponible, el cliente reserva y
               // el IMEI se completa al entregar.
               const available = await tx.inventoryUnit.count({ where: { tenantId: tenant, productId: product.id, status: 'AVAILABLE' } })
-              if (available > 0) throw new InputError('Seleccioná el IMEI/serial exacto de cada equipo antes de vender.')
+              if (available > 0 && !offlineSale) throw new InputError('Seleccioná el IMEI/serial exacto de cada equipo antes de vender.')
+              // Venta offline sin IMEI: queda como sobre pedido (el IMEI se
+              // asigna al entregar) y se cuenta para la revisión.
+              if (available > 0 && offlineSale) sinImeiOffline += quantity - serials.length
               serialsPending = quantity - serials.length
             }
           }
@@ -409,7 +419,18 @@ export async function POST(request: Request) {
           // Solo los equipos realmente entregados descuentan stock; el tramo
           // "sobre pedido" no tiene existencia física que descontar.
           const decrementBy = quantity - serialsPending
-          if (decrementBy > 0) await changeStock(tx, { tenantId: tenant, productId: product.id, delta: -decrementBy, branchId, includeBranchless: true, message: 'Stock insuficiente o producto fuera de la sucursal.' })
+          if (decrementBy > 0) {
+            if (offlineSale) {
+              // Stock laxo: se descuenta solo lo disponible (el contador nunca
+              // queda negativo) y la diferencia se registra para revisión.
+              const disponible = Math.max(0, Number(product.stock || 0))
+              const aDescontar = Math.min(disponible, decrementBy)
+              if (aDescontar > 0) await changeStock(tx, { tenantId: tenant, productId: product.id, delta: -aDescontar, branchId, includeBranchless: true, message: 'Stock insuficiente o producto fuera de la sucursal.' })
+              stockFaltante += decrementBy - aDescontar
+            } else {
+              await changeStock(tx, { tenantId: tenant, productId: product.id, delta: -decrementBy, branchId, includeBranchless: true, message: 'Stock insuficiente o producto fuera de la sucursal.' })
+            }
+          }
         }
         const discountPyg = item.discountPyg === undefined || item.discountPyg === '' || item.discountPyg === null ? 0 : Number(item.discountPyg)
         const discountPct = item.discountPct === undefined || item.discountPct === '' || item.discountPct === null ? undefined : Number(item.discountPct)
@@ -473,8 +494,13 @@ export async function POST(request: Request) {
       // transaccional del tenant; un número explícito del cliente manda.
       const orderNumber = typeof body.orderNumber === 'string' && body.orderNumber ? textInput(body.orderNumber, 'Número de orden', 100) : await nextOrderNumber(tx, tenant)
 
-      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
-      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREATED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, totalPyg: total, items: normalized.length, ...(customerId ? { customerId } : {}) } } })
+      const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), ...(offlineSale ? { offlineSyncedAt: new Date() } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
+      await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREATED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, totalPyg: total, items: normalized.length, ...(customerId ? { customerId } : {}), ...(offlineSale ? { offline: true } : {}) } } })
+      // POS offline: la venta llegó de la cola local. Queda el rastro de lo que
+      // se relajó (stock faltante y equipos sin IMEI) para que se revise.
+      if (offlineSale) {
+        await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_OFFLINE_SYNCED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, stockFaltante, sinImei: sinImeiOffline, totalPyg: total } } })
+      }
       // Fidelización: acredita puntos por la venta (1 punto = 1 Gs.) dentro de
       // la misma transacción. Con loyaltyPct en 0 no se toca nada.
       if (loyaltyPct > 0 && order.customerId && total > 0) {

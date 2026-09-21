@@ -37,6 +37,7 @@ const AUDIT_LABELS = {
   ORDER_UNARCHIVED: () => 'Pedido desarchivado',
   INVENTORY_UNITS_SOLD: (meta) => `Equipos vendidos: ${(meta?.serials || []).join(', ')}`,
   ORDER_NOTIFIED_WHATSAPP: () => 'Aviso enviado al cliente por WhatsApp',
+  ORDER_OFFLINE_SYNCED: (meta) => `Venta sincronizada sin conexión${Number(meta?.stockFaltante || 0) > 0 ? ` · faltó stock de ${meta.stockFaltante} unidad(es)` : ''}${Number(meta?.sinImei || 0) > 0 ? ` · ${meta.sinImei} equipo(s) sin IMEI` : ''}`,
   ORDER_COMMENTED: () => 'Comentario agregado',
 }
 
@@ -359,6 +360,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 </Badge>
               )}
               {order.assignedTo?.name && <Badge color="blue">Reparto: {order.assignedTo.name}</Badge>}
+              {order.offlineSyncedAt && <Badge color="orange">Sincronizada sin conexión · revisar stock</Badge>}
               {order.billingName && <Badge color="blue">Factura: {order.billingName}</Badge>}
             </div>
             <p className="mt-3 text-xs text-mute">
