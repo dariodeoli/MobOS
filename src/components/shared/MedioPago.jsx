@@ -159,32 +159,46 @@ function Dinero() {
 
 // ── Registro ────────────────────────────────────────────────────────
 // Se compara normalizado (sin acentos ni mayúsculas) para tolerar variantes.
-const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+const norm = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+
+// Marcas exportadas: las reutiliza el logo de bancos (#119) sin duplicar SVG.
+export const MARCAS_MEDIO_PAGO = {
+  ueno: Ueno,
+  upay: Upay,
+  pik: Pik,
+  dinelco: Dinelco,
+  continental: Continental,
+  familiar: Familiar,
+  dinero: Dinero,
+}
 
 const MARCAS = [
-  { test: (m) => m.includes('pos') || m.includes('upay') || m.includes('u pay'), Logo: Upay },
-  { test: (m) => m.includes('ueno'), Logo: Ueno },
-  { test: (m) => m.includes('pik') || m.includes('itau'), Logo: Pik },
-  { test: (m) => m.includes('dinelco'), Logo: Dinelco },
-  { test: (m) => m.includes('continental'), Logo: Continental },
-  { test: (m) => m.includes('familiar'), Logo: Familiar },
-  {
-    test: (m) => m.includes('dinero') || m.includes('efectivo') || m.includes('cash'),
-    Logo: Dinero,
-  },
+  { clave: 'upay', test: (m) => m.includes('pos') || m.includes('upay') || m.includes('u pay') },
+  { clave: 'ueno', test: (m) => m.includes('ueno') },
+  { clave: 'pik', test: (m) => m.includes('pik') || m.includes('itau') },
+  { clave: 'dinelco', test: (m) => m.includes('dinelco') },
+  { clave: 'continental', test: (m) => m.includes('continental') },
+  { clave: 'familiar', test: (m) => m.includes('familiar') },
+  { clave: 'dinero', test: (m) => m.includes('dinero') || m.includes('efectivo') || m.includes('cash') },
 ]
+
+// Clave de marca de un medio de pago, o null si no se reconoce.
+export function marcaDeMedio(medio) {
+  const m = norm(medio)
+  if (!m) return null
+  return MARCAS.find((x) => x.test(m))?.clave || null
+}
 
 /**
  * Muestra el logo del medio de pago. Si no se reconoce la marca, cae a un
  * texto simple para no romper la fila.
  */
 export default function MedioPago({ medio, className, alto = 'h-5' }) {
-  const m = norm(medio)
-  const marca = MARCAS.find((x) => x.test(m))
-  if (!marca) {
+  const clave = marcaDeMedio(medio)
+  if (!clave) {
     return <span className={cn('text-sm text-mute', className)}>{medio || '—'}</span>
   }
-  const { Logo } = marca
+  const Logo = MARCAS_MEDIO_PAGO[clave]
   return (
     <span className={cn('inline-flex items-center', alto, className)} title={medio}>
       <Logo />
