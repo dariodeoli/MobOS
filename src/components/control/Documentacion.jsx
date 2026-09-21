@@ -49,9 +49,84 @@ const AYUDA = [
     ruta: '/clientes',
   },
   {
-    modulo: 'Clientes', titulo: 'Seguro del equipo', ubicacion: 'Productos → ficha del producto → Seguro',
-    explicacion: 'El porcentaje de seguro se carga en la ficha del producto y suma al costo real para calcular el margen. En el POS se ve reflejado en la ganancia.',
+    modulo: 'Clientes', titulo: 'Seguro del cliente (interruptor y %)', ubicacion: 'Clientes → ficha → Datos → Seguro del cliente',
+    explicacion: 'Activalo con el interruptor y cargá el porcentaje del cliente; si lo dejás vacío usa el % de la empresa (Finanzas). El seguro se suma al costo real de la venta y ajusta el margen. Lo configura administración o gerencia.',
+    ruta: '/clientes',
+  },
+  {
+    modulo: 'Clientes', titulo: 'Etiquetas del cliente', ubicacion: 'Clientes → ficha → Datos → Etiquetas',
+    explicacion: 'Separadas por coma (mayorista, prioridad…); agrupan fichas y el buscador las encuentra junto con nombre, teléfono, RUC, correo, ciudad, direcciones y notas.',
+    ruta: '/clientes',
+  },
+  {
+    modulo: 'Clientes', titulo: 'Nota interna y nota pública', ubicacion: 'Clientes → ficha → Datos',
+    explicacion: 'La nota interna es solo del equipo: nunca se muestra al cliente. La nota pública se comparte en el portal del cliente (enlace por QR y vitrina) como “Nota de la tienda”.',
+    ruta: '/clientes',
+  },
+  {
+    modulo: 'Clientes', titulo: 'Crédito y autorizaciones del cliente', ubicacion: 'Clientes → ficha → Datos → Configuración comercial · Autorizaciones → /autorizaciones',
+    explicacion: 'Tipo (final/mayorista), crédito, días y límite los cambia administración o gerencia. Un vendedor sin permiso deja la solicitud: gerencia la aprueba, la rechaza o autoriza menos (por ejemplo 7 de 10 días) y todo queda en la cronología.',
+    ruta: '/clientes',
+  },
+  {
+    modulo: 'Clientes', titulo: 'Cronología del cliente', ubicacion: 'Clientes → ficha → Cronología',
+    explicacion: 'Pedidos, pagos, entregas, saldo, cambios de datos, solicitudes de crédito, garantías y comentarios, con foto, usuario y fecha/hora. Carga los últimos 20 eventos y Cargar más suma el resto.',
+    ruta: '/clientes',
+  },
+  {
+    modulo: 'Clientes', titulo: 'Informe del cliente', ubicacion: 'Clientes → ficha → Estadísticas → Descargar informe',
+    explicacion: 'CSV con datos, facturación, direcciones, pedidos, compras mensuales, deudas y garantías. Se elige el período: todo, este año, últimos 12 meses o personalizado.',
+    ruta: '/clientes',
+  },
+  {
+    modulo: 'Inventario', titulo: 'Seguro por producto', ubicacion: 'Productos → ficha del producto → Seguro',
+    explicacion: 'Porcentaje de seguro del producto que suma al costo real. Si el cliente tiene su seguro activo, su porcentaje (o el de la empresa) gana sobre la política general.',
     ruta: '/productos',
+  },
+  {
+    modulo: 'Garantías', titulo: 'Registrar un caso de garantía', ubicacion: 'Garantías → /garantias → botón Nuevo caso',
+    explicacion: 'Cliente, serial, descripción y sucursal; opcional: días de garantía (calcula el vencimiento), cobertura, exclusiones, repuestos y fotos del estado del equipo.',
+    ruta: '/garantias',
+  },
+  {
+    modulo: 'Garantías', titulo: 'Estados y avance de la garantía', ubicacion: 'Garantías → columna Estado',
+    explicacion: 'Recibido → En diagnóstico → Listo → Entregado. El tilde de la fila avanza al siguiente estado y cada cambio queda en la cronología del cliente.',
+    ruta: '/garantias',
+  },
+  {
+    modulo: 'Garantías', titulo: 'Enlace público y QR del caso', ubicacion: 'Garantías → fila → icono del enlace (· Regenerar enlace)',
+    explicacion: 'Muestra al cliente modelo, días restantes, cobertura y exclusiones, sin datos internos. El enlace se copia al crear el caso; si se filtró, Regenerar enlace emite uno nuevo y el anterior deja de funcionar.',
+    ruta: '/garantias',
+  },
+  {
+    modulo: 'Garantías', titulo: 'Garantías en el portal del cliente', ubicacion: 'Clientes → ficha → Portal del cliente (nivel completo)',
+    explicacion: 'El enlace de nivel completo lista las garantías activas del cliente con estado, serial y vencimiento, sin costos ni notas internas.',
+    ruta: '/clientes',
+  },
+  {
+    modulo: 'Servicio Técnico', titulo: 'Pipeline del taller', ubicacion: 'Servicio Técnico → /servicio → columna Estado',
+    explicacion: 'Recibido → Diagnóstico → Con técnico → Esperando repuesto → Reparado → Listo para retirar → Entregado. El botón de la fila avanza al siguiente estado.',
+    ruta: '/servicio',
+  },
+  {
+    modulo: 'Servicio Técnico', titulo: 'Checklists de recepción', ubicacion: 'Servicio Técnico → Nueva orden → Configurar',
+    explicacion: 'Puntos que se revisan al recibir (por ejemplo Face ID o batería), configurables por tipo de dispositivo; la orden guarda lo marcado.',
+    ruta: '/servicio',
+  },
+  {
+    modulo: 'Servicio Técnico', titulo: 'Costos y utilidad de la orden', ubicacion: 'Servicio Técnico → Nueva orden → Repuesto, Mano de obra y Otros',
+    explicacion: 'El costo del trabajo se desglosa y la utilidad se calcula contra el precio cobrado; la fila la muestra en verde o rojo.',
+    ruta: '/servicio',
+  },
+  {
+    modulo: 'Servicio Técnico', titulo: 'WhatsApp por estado de la orden', ubicacion: 'Servicio Técnico → fila → icono de WhatsApp (el botón chico elige la plantilla)',
+    explicacion: 'El menú central sugiere la plantilla del estado (Equipo recibido, Diagnóstico, Esperando repuesto, Reparado, Listo para retirar) con los datos de la orden; se previsualiza y edita antes de abrir el chat.',
+    ruta: '/servicio',
+  },
+  {
+    modulo: 'Servicio Técnico', titulo: 'Impresión de recepción y reporte', ubicacion: 'Servicio Técnico → fila → iconos de impresión',
+    explicacion: 'Recepción en A4 y 80 mm, reporte técnico y envío a la ticketera de la sucursal.',
+    ruta: '/servicio',
   },
   {
     modulo: 'Equipo', titulo: 'Staff, roles y PIN', ubicacion: 'Configuración → Equipo → /configuracion/equipo',
@@ -135,7 +210,7 @@ const AYUDA = [
   },
   {
     modulo: 'Operación', titulo: 'WhatsApp y plantillas', ubicacion: 'Plantillas → /plantillas',
-    explicacion: 'Mensajes con variables para cobranzas, campañas y avisos. Se editan en Plantillas y se envían desde la ficha del cliente o del pedido.',
+    explicacion: 'Mensajes con variables por contexto (Clientes, Pedidos, Servicio Técnico, Cobranzas). Se editan en Plantillas y se envían con el menú central desde la ficha del cliente, del pedido o de la orden de servicio.',
     ruta: '/plantillas',
   },
   {
@@ -147,11 +222,6 @@ const AYUDA = [
     modulo: 'Operación', titulo: 'Cotizaciones y Trade-In', ubicacion: 'Cotizaciones → /cotizaciones · Trade-In → /trade-in',
     explicacion: 'Armá una cotización y compartila por enlace; valuá equipos usados y seguí la pipeline de Trade-In hasta su venta o reparación.',
     ruta: '/cotizaciones',
-  },
-  {
-    modulo: 'Operación', titulo: 'Servicio técnico y garantías', ubicacion: 'Servicio Técnico → /servicio · Garantías → /garantias',
-    explicacion: 'Órdenes de taller con estados, costos y checklists; garantías con fotos y seguimiento por cliente.',
-    ruta: '/servicio',
   },
   {
     modulo: 'Operación', titulo: 'Compras y proveedores', ubicacion: 'Compras → /compras',

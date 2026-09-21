@@ -26,3 +26,32 @@ test('la documentación filtra por módulo y avisa cuando no hay resultados', as
   await page.getByLabel('Buscar en la documentación').fill('xyz-no-existe')
   await expect(page.getByText('Sin resultados.')).toBeVisible()
 })
+
+// Secciones del CRM (#182): Clientes, Garantías y Servicio Técnico con
+// ubicación exacta y enlace directo que funciona.
+test('la documentación cubre clientes, garantías y servicio técnico', async ({ page }) => {
+  await page.goto('/configuracion/documentacion')
+
+  // Seguro del cliente: ubicación exacta y enlace a la lista de clientes.
+  await page.getByLabel('Buscar en la documentación').fill('seguro del cliente')
+  await expect(page.getByRole('heading', { name: 'Seguro del cliente (interruptor y %)' })).toBeVisible()
+  await expect(page.getByText('Clientes → ficha → Datos → Seguro del cliente')).toBeVisible()
+  await page.getByRole('button', { name: 'Ir a Seguro del cliente (interruptor y %)' }).click()
+  await expect(page).toHaveURL(/\/clientes$/)
+
+  // Garantías: el módulo filtra sus entradas y el enlace abre Garantías.
+  await page.goto('/configuracion/documentacion')
+  const pantalla = page.getByTestId('documentacion')
+  await pantalla.getByRole('button', { name: 'Garantías', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Enlace público y QR del caso' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Estados y avance de la garantía' })).toBeVisible()
+  await page.getByRole('button', { name: 'Ir a Enlace público y QR del caso' }).click()
+  await expect(page).toHaveURL(/\/garantias$/)
+
+  // Servicio Técnico: WhatsApp por estado y enlace al taller.
+  await page.goto('/configuracion/documentacion')
+  await page.getByLabel('Buscar en la documentación').fill('whatsapp por estado')
+  await expect(page.getByRole('heading', { name: 'WhatsApp por estado de la orden' })).toBeVisible()
+  await page.getByRole('button', { name: 'Ir a WhatsApp por estado de la orden' }).click()
+  await expect(page).toHaveURL(/\/servicio$/)
+})
