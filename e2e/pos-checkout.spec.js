@@ -355,6 +355,36 @@ test('POS shows the price authorization block for a below-list price', async ({ 
   await expect(page.getByText('Pendiente').first()).toBeVisible()
 })
 
+// El flujo de la carga de venta se lee de corrido: cliente → productos →
+// productos de esta venta → cobro, y las acciones secundarias (suspender /
+// ventas suspendidas) quedan en el encabezado, fuera del camino de la venta.
+test('POS ordena los pasos de la venta y deja el total fijo en la columna', async ({ page }) => {
+  await page.goto('/pos/cargar')
+  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+
+  const posiciones = []
+  for (const paso of ['Cliente', 'Productos', 'Productos de esta venta', 'Cobro y entrega']) {
+    const heading = page.getByRole('heading', { name: paso, exact: true })
+    await expect(heading).toBeVisible()
+    posiciones.push(
+      await heading.evaluate(el => el.getBoundingClientRect().top + window.scrollY),
+    )
+  }
+  expect(posiciones, 'los pasos se leen en orden').toEqual([...posiciones].sort((a, b) => a - b))
+
+  // El total vive en el resumen de la columna, visible desde el arranque.
+  await expect(page.getByText('Total de esta venta')).toBeVisible()
+
+  // Las acciones secundarias están arriba del paso 1 (en el encabezado).
+  const suspender = page.getByRole('button', { name: 'Ventas suspendidas' })
+  const cliente = page.getByRole('heading', { name: 'Cliente', exact: true })
+  const ySuspender = await suspender.evaluate(
+    el => el.getBoundingClientRect().top + window.scrollY,
+  )
+  const yCliente = await cliente.evaluate(el => el.getBoundingClientRect().top + window.scrollY)
+  expect(ySuspender, 'lo secundario no corta el flujo de la venta').toBeLessThan(yCliente)
+})
+
 // Con stock disponible, el servidor exige el IMEI exacto: el modal bloquea
 // "vender sin IMEI" y la venta se completa reservando la unidad física.
 test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con stock', async ({ page }) => {

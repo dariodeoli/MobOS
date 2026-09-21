@@ -57,3 +57,24 @@ export function borrarCarrito(empresaId, sucursalId) {
     /* noop */
   }
 }
+
+// Líneas del carrito listas para mostrar: el nombre lleva la cantidad y cada
+// línea expone su subtotal (precio unitario × cantidad). El total del resumen
+// sale de sumar `subtotal`, nunca de multiplicar otra vez en la vista.
+export function lineasParaResumen(items) {
+  if (!Array.isArray(items)) return []
+  return items.map(it => {
+    const cantidad = Number(it?.quantity) > 0 ? Number(it.quantity) : 1
+    return {
+      ...it,
+      quantity: cantidad,
+      nombre: cantidad > 1 ? `${it?.nombre || ''} ×${cantidad}` : it?.nombre || '',
+      subtotal: (Number(it?.precio) || 0) * cantidad,
+    }
+  })
+}
+
+export function totalResumen(lineas) {
+  if (!Array.isArray(lineas)) return 0
+  return lineas.reduce((suma, it) => suma + (Number(it?.subtotal) || 0), 0)
+}

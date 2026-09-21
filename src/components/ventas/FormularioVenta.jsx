@@ -14,7 +14,7 @@ import {
   ESTADOS_PAGO,
   ENTREGA,
 } from '@/lib/storage'
-import { leerCarrito, guardarCarrito, borrarCarrito } from '@/lib/posCart'
+import { leerCarrito, guardarCarrito, borrarCarrito, lineasParaResumen } from '@/lib/posCart'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
@@ -171,9 +171,81 @@ function itemsGuardados(valor) {
     }))
 }
 
+// Cierre del panel de la venta: cómo viene el día del vendedor. Es contexto
+// para decidir la próxima venta, no parte del cobro, así que va después del
+// botón de guardar.
+function ResumenDia({ dia }) {
+  if (!dia) return null
+  return (
+    <section className="overflow-hidden rounded-2xl border border-ink-600 bg-ink-800">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-600 bg-ink-700/50 px-4 py-2.5">
+        <span className="text-xs font-bold uppercase tracking-wider text-mute">Tu día</span>
+        <span className="text-xs text-mute">
+          {dia.cant} {dia.cant === 1 ? 'venta' : 'ventas'} · {gs(dia.total)}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 divide-x divide-ink-600">
+        <div className="min-w-0 p-3">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-mute">Cobrado</div>
+          <div className="mt-0.5 truncate text-base font-semibold tracking-tight text-ok tabular-nums">
+            {gs(dia.cobrado)}
+          </div>
+          <div className="mt-0.5 text-[11px] text-mute">
+            {dia.pagadas} {dia.pagadas === 1 ? 'pagada' : 'pagadas'}
+          </div>
+        </div>
+        <div className="min-w-0 p-3">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-mute">Pendiente</div>
+          <div className="mt-0.5 truncate text-base font-semibold tracking-tight text-bad tabular-nums">
+            {gs(dia.pendiente)}
+          </div>
+          <div className="mt-0.5 text-[11px] text-mute">
+            {dia.pendientes} {dia.pendientes === 1 ? 'pendiente' : 'pendientes'}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// Resumen siempre a la vista de la venta en curso: es el ancla del vendedor
+// mientras arma el carrito y cobra. No repite la lista (esa vive en el paso 3).
+function ResumenVenta({ totalGeneral, items, unidades, montoDescuento, montoDelivery }) {
+  return (
+    <section
+      data-testid="resumen-compra"
+      className="rounded-2xl border border-fono/30 bg-ink-800 p-4"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-mute">
+          Total de esta venta
+        </span>
+        <Icon name="cart" className="h-4 w-4 text-fono-light" />
+      </div>
+      <div className="mt-1 text-2xl font-extrabold tracking-tight tabular-nums text-fore">
+        {gs(totalGeneral)}
+      </div>
+      <p className="mt-1 text-xs text-mute">
+        {items.length} {items.length === 1 ? 'producto' : 'productos'} · {unidades}{' '}
+        {unidades === 1 ? 'unidad' : 'unidades'}
+      </p>
+      {items.length === 0 && (
+        <p className="mt-2 text-xs text-mute">Agregá productos para empezar la venta.</p>
+      )}
+      {montoDescuento > 0 && (
+        <p className="mt-0.5 text-xs text-warn">Descuento − {gs(montoDescuento)}</p>
+      )}
+      {montoDelivery > 0 && (
+        <p className="mt-0.5 text-xs text-mute">Entrega + {gs(montoDelivery)}</p>
+      )}
+    </section>
+  )
+}
+
 export default function FormularioVenta({
   onGuardado,
   onCarrito,
+  resumenDia,
   tradeInDraft,
   onTradeInConsumed,
 }) {
@@ -634,19 +706,20 @@ export default function FormularioVenta({
     totalPagado <= totalGeneral &&
     gsNum(descuento) <= subtotal
 
-  // Informa al contenedor lo que lleva esta compra, para pintarlo en el lateral.
+  // Informa al contenedor lo que lleva esta compra, para pintarlo en la barra
+  // compacta de pantallas angostas. Cada línea viaja con su subtotal ya
+  // calculado (precio unitario × cantidad) para no volver a multiplicar.
   useEffect(() => {
     if (!onCarrito) return
-    const paraLateral = items.map(it => ({
-      ...it,
-      nombre: (it.quantity || 1) > 1 ? `${it.nombre} ×${it.quantity}` : it.nombre,
-      precio: it.precio * (it.quantity || 1),
-    }))
     onCarrito({
-      items: paraLateral,
+      items: lineasParaResumen(items),
       quitar: quitarItem,
       puedeRevisar: items.length > 0,
-      irARevisar: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+      irARevisar: () =>
+        document.getElementById('pos-resumen-venta')?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        }),
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, f.cliente])
@@ -1315,7 +1388,7 @@ export default function FormularioVenta({
 
   return (
     <Card>
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-ink-600 pb-4">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-ink-600 pb-4">
         <div className="flex items-center gap-2">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-fono/10 text-fono-light">
             <Icon name="receipt" className="h-5 w-5" />
@@ -1323,13 +1396,38 @@ export default function FormularioVenta({
           <div>
             <h2 className="text-lg font-bold tracking-tight">Nueva venta</h2>
             <p className="mt-0.5 text-xs text-mute">
-              El vendedor se asigna desde tu sesión. Agregá el cliente y los productos.
+              Cliente, productos y cobro en una sola página.
             </p>
           </div>
         </div>
-        <span className="rounded-full border border-fono/20 bg-fono/5 px-3 py-1 text-xs font-semibold text-fono-light">
-          Hoy: {fechaClave().split('-').reverse().join('/')}
-        </span>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <span className="rounded-full border border-fono/20 bg-fono/5 px-3 py-1 text-xs font-semibold text-fono-light">
+            Hoy: {fechaClave().split('-').reverse().join('/')}
+          </span>
+          {/* Carrito en espera: suspender la venta actual y retomar otra. Vive
+              en el encabezado para no cortar el flujo de la venta. */}
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 px-3 text-xs"
+            onClick={abrirSuspendidas}
+          >
+            <Icon name="clock" className="h-4 w-4" />
+            Ventas suspendidas
+          </Button>
+          {items.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 px-3 text-xs"
+              onClick={abrirSuspender}
+              disabled={guardando}
+            >
+              <Icon name="save" className="h-4 w-4" />
+              Suspender venta
+            </Button>
+          )}
+        </div>
       </div>
 
       {ok && (
@@ -1388,112 +1486,84 @@ export default function FormularioVenta({
           if (!(target instanceof HTMLElement)) return
           if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.tagName === 'SELECT' || target.tagName === 'A') return
         }}
-        className="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-[minmax(0,1fr)_minmax(340px,400px)]"
+        className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] xl:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]"
       >
         {errorVenta && (
           <p
             role="alert"
-            className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-bad md:col-span-2"
+            className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-bad lg:col-span-2"
           >
             {errorVenta}
           </p>
         )}
-        {/* Carrito en espera: suspender la venta actual y retomar otra. */}
-        <div className="flex flex-wrap items-center justify-end gap-2 md:col-span-2">
-          <Button type="button" variant="outline" onClick={abrirSuspendidas}>
-            <Icon name="clock" className="h-4 w-4" />
-            Ventas suspendidas
-          </Button>
-          {items.length > 0 && (
-            <Button type="button" variant="outline" onClick={abrirSuspender} disabled={guardando}>
-              <Icon name="save" className="h-4 w-4" />
-              Suspender venta
-            </Button>
-          )}
-        </div>
-        <div className="hidden items-center gap-x-4 gap-y-1.5 text-[11px] text-mute md:col-span-2 md:flex">
-          <span className="font-semibold uppercase tracking-wider text-mute/60">Atajos</span>
-          <Atajo k="F2" label="Buscar producto" />
-          <Atajo k="Ctrl+S" label="Guardar venta" />
-          <Atajo k="Esc" label="Cerrar ventana" />
-        </div>
-        <PasoProductos
-          visible
-          sesion={sesion}
-          esDemo={esDemo}
-          customer={customer}
-          setCustomer={setCustomer}
-          billingTo={billingTo}
-          setBillingTo={setBillingTo}
-          setF={setF}
-          productos={productos}
-          nuevoProd={nuevoProd}
-          setNuevoProd={setNuevoProd}
-          nombreProd={nombreProd}
-          setNombreProd={setNombreProd}
-          nuevoDetalles={nuevoDetalles}
-          setNuevoDetalles={setNuevoDetalles}
-          colorInput={colorInput}
-          setColorInput={setColorInput}
-          coloresNuevos={coloresNuevos}
-          setColoresNuevos={setColoresNuevos}
-          agregarColor={agregarColor}
-          puedeCrearProducto={puedeCrearProducto}
-          crearProducto={crearProducto}
-          creandoProd={creandoProd}
-          cancelarNuevoProd={cancelarNuevoProd}
-          busquedaProducto={busquedaProducto}
-          setBusquedaProducto={setBusquedaProducto}
-          combos={combos}
-          agregarCombo={agregarCombo}
-          noticeCombo={noticeCombo}
-          familiasVisibles={familiasVisibles}
-          agregarProducto={agregarProducto}
-          familias={familias}
-          items={items}
-          totalCarrito={totalCarrito}
-          quitarItem={quitarItem}
-          editarItem={editarItem}
-          onImei={setImeiPara}
-          puedeDescontar={puedeDescontar}
-          precioDe={precioDe}
-          guardando={guardando}
-          setNuevoVend={setNuevoVend}
-          setErrorVend={setErrorVend}
-          setPinVend={setPinVend}
-        />
 
-        {/* Columna derecha: resumen, descuentos y cobro en la misma página. */}
-        <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
-        <PasoCarrito
-          visible
-          items={items}
-          productos={productos}
-          familias={familias}
-          esDemo={esDemo}
-          guardando={guardando}
-          puedeDescontar={puedeDescontar}
-          precioDe={precioDe}
-          totalCarrito={totalCarrito}
-          quitarItem={quitarItem}
-          editarItem={editarItem}
-          onImei={setImeiPara}
-          descuento={descuento}
-          setDescuento={setDescuento}
-          montoDescuento={gsNum(descuento)}
-          customer={customer}
-          onAuthDescuento={onAuthDescuento}
-          montoPrecioBajo={excedenteBajoLista}
-          productoBajoId={productoBajoId}
-          onAuthPrecio={setAuthPrecio}
-          tieneCupon={tieneCupon}
-          f={f}
-          setF={setF}
-        />
+        {/* ── Columna principal: el flujo completo (cliente, productos,
+            carrito y cobro) en orden de lectura ─────────────────────────── */}
+        <div className="flex min-w-0 flex-col gap-5">
+          <PasoProductos
+            sesion={sesion}
+            esDemo={esDemo}
+            customer={customer}
+            setCustomer={setCustomer}
+            billingTo={billingTo}
+            setBillingTo={setBillingTo}
+            setF={setF}
+            productos={productos}
+            nuevoProd={nuevoProd}
+            setNuevoProd={setNuevoProd}
+            nombreProd={nombreProd}
+            setNombreProd={setNombreProd}
+            nuevoDetalles={nuevoDetalles}
+            setNuevoDetalles={setNuevoDetalles}
+            colorInput={colorInput}
+            setColorInput={setColorInput}
+            coloresNuevos={coloresNuevos}
+            setColoresNuevos={setColoresNuevos}
+            agregarColor={agregarColor}
+            puedeCrearProducto={puedeCrearProducto}
+            crearProducto={crearProducto}
+            creandoProd={creandoProd}
+            cancelarNuevoProd={cancelarNuevoProd}
+            setBusquedaProducto={setBusquedaProducto}
+            combos={combos}
+            agregarCombo={agregarCombo}
+            noticeCombo={noticeCombo}
+            familiasVisibles={familiasVisibles}
+            agregarProducto={agregarProducto}
+            guardando={guardando}
+            setNuevoVend={setNuevoVend}
+            setErrorVend={setErrorVend}
+            setPinVend={setPinVend}
+          />
 
-        {/* Pedido especial con seña: solo marca el pedido y su fecha esperada;
-            las reglas de cobro no cambian (la seña es un pago parcial). */}
-        <div className="rounded-2xl border border-warn/30 bg-warn/5 p-4">
+          <PasoCarrito
+            items={items}
+            productos={productos}
+            familias={familias}
+            esDemo={esDemo}
+            guardando={guardando}
+            puedeDescontar={puedeDescontar}
+            precioDe={precioDe}
+            totalCarrito={totalCarrito}
+            quitarItem={quitarItem}
+            editarItem={editarItem}
+            onImei={setImeiPara}
+            descuento={descuento}
+            setDescuento={setDescuento}
+            montoDescuento={gsNum(descuento)}
+            customer={customer}
+            onAuthDescuento={onAuthDescuento}
+            montoPrecioBajo={excedenteBajoLista}
+            productoBajoId={productoBajoId}
+            onAuthPrecio={setAuthPrecio}
+            tieneCupon={tieneCupon}
+            f={f}
+            setF={setF}
+          />
+
+          {/* Pedido especial con seña: solo marca el pedido y su fecha esperada;
+              las reglas de cobro no cambian (la seña es un pago parcial). */}
+          <div className="rounded-2xl border border-warn/30 bg-warn/5 p-4">
             <label className="flex items-start gap-2 text-sm">
               <input
                 type="checkbox"
@@ -1526,38 +1596,68 @@ export default function FormularioVenta({
             )}
           </div>
 
-        <PasoCobro
-          visible
-          customer={customer}
-          venderACredito={venderACredito}
-          setVenderACredito={setVenderACredito}
-          creditoDias={creditoDias}
-          setCreditoDias={setCreditoDias}
-          cuentas={cuentas}
-          usaCuentas={usaCuentas}
-          errorCuentas={errorCuentas}
-          onReintentarCuentas={() => setIntentoCuentas(n => n + 1)}
-          pagos={pagos}
-          setPagos={setPagos}
-          onAgregarPago={agregarPago}
-          guardando={guardando}
-          guardadoIncompleto={guardadoIncompleto}
-          descuentoMedioPct={descuentoMedioPct}
-          descuentoMedioGs={descuentoMedioGs}
-          subtotal={subtotal}
-          puedeDescontar={puedeDescontar}
-          setDescuento={setDescuento}
-          totalGeneral={totalGeneral}
-          totalPagado={totalPagado}
-          pendiente={pendiente}
-          f={f}
-          setF={setF}
-          set={set}
-          valido={valido}
-          cantTotal={cantTotal}
-          ok={ok}
-        />
-        </aside>
+          <PasoCobro
+            customer={customer}
+            venderACredito={venderACredito}
+            setVenderACredito={setVenderACredito}
+            creditoDias={creditoDias}
+            setCreditoDias={setCreditoDias}
+            cuentas={cuentas}
+            usaCuentas={usaCuentas}
+            errorCuentas={errorCuentas}
+            onReintentarCuentas={() => setIntentoCuentas(n => n + 1)}
+            pagos={pagos}
+            setPagos={setPagos}
+            onAgregarPago={agregarPago}
+            guardando={guardando}
+            guardadoIncompleto={guardadoIncompleto}
+            descuentoMedioPct={descuentoMedioPct}
+            descuentoMedioGs={descuentoMedioGs}
+            subtotal={subtotal}
+            puedeDescontar={puedeDescontar}
+            setDescuento={setDescuento}
+            totalGeneral={totalGeneral}
+            totalPagado={totalPagado}
+            pendiente={pendiente}
+            f={f}
+            setF={setF}
+            set={set}
+            valido={valido}
+            cantTotal={cantTotal}
+            ok={ok}
+          />
+
+          {/* Atajos y ayuda al pie del flujo, sin cortar los pasos. */}
+          <div className="hidden items-center gap-x-4 gap-y-1.5 text-[11px] text-mute md:flex">
+            <span className="font-semibold uppercase tracking-wider text-mute/60">Atajos</span>
+            <Atajo k="F2" label="Buscar producto" />
+            <Atajo k="Ctrl+S" label="Guardar venta" />
+            <Atajo k="Esc" label="Cerrar ventana" />
+          </div>
+
+          <p className="flex gap-2.5 rounded-[14px] border border-fono/25 bg-fono/[.07] p-4 text-xs leading-relaxed text-mute">
+            <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0 text-fono-light" />
+            <span>
+              Cargá el cliente y agregá los productos: el total y la lista se arman solos. Antes
+              de guardar, revisá el carrito para cobrar todo junto.
+            </span>
+          </p>
+        </div>
+
+        {/* ── Resumen fijo: el total de la venta y el día del vendedor ────── */}
+        <div
+          data-testid="resumen-columna"
+          className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24"
+        >
+          <ResumenVenta
+            totalGeneral={totalGeneral}
+            items={items}
+            unidades={cantTotal}
+            montoDescuento={gsNum(descuento)}
+            montoDelivery={gsNum(f.montoDelivery)}
+          />
+          <ResumenDia dia={resumenDia} />
+        </div>
       </form>
 
       <Modal
