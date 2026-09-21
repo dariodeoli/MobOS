@@ -97,7 +97,7 @@ const GRID_DISPOSITIVOS = 'grid min-w-[54rem] grid-cols-[minmax(8rem,1.2fr)_minm
 const GRID_GARANTIAS_CLI = 'grid min-w-[46rem] grid-cols-[minmax(9rem,1.5fr)_minmax(7rem,1fr)_6rem_7rem] items-center gap-x-2'
 const GRID_NOTAS_CLI = 'grid min-w-[46rem] grid-cols-[minmax(12rem,2fr)_7rem_6rem_8rem] items-center gap-x-2'
 const GRID_SEGUIMIENTOS = 'grid min-w-[54rem] grid-cols-[7rem_minmax(10rem,1.8fr)_7rem_7rem_6rem_8rem] items-center gap-x-2'
-const GRID_FACTURACION = 'grid min-w-[46rem] grid-cols-[minmax(10rem,1.5fr)_minmax(7rem,1fr)_7rem_7rem] items-center gap-x-2'
+const GRID_FACTURACION = 'grid min-w-[50rem] grid-cols-[minmax(10rem,1.5fr)_minmax(7rem,1fr)_minmax(8rem,1fr)_7rem_7rem] items-center gap-x-2'
 const CELDA_CLI = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const TABS = [
@@ -1345,16 +1345,19 @@ export default function CustomerProfile({ customer, open, onClose }) {
                   <div className={cn(GRID_FACTURACION, 'px-3.5 pb-2 pt-1')}>
                     <span className={CELDA_CLI}>Razón social</span>
                     <span className={CELDA_CLI}>RUC</span>
+                    <span className={CELDA_CLI}>Uso</span>
                     <span className={CELDA_CLI}>Estado</span>
                     <span className={cn(CELDA_CLI, 'text-right')}>Acciones</span>
                   </div>
                   <div className="space-y-1">
                   {identities.map((identity) => {
                     const actual = Boolean(profile.customer?.billingDocument) && identity.document === profile.customer.billingDocument
+                    const uso = Number(identity.uses || 0)
                     return (
                       <div key={identity.id} data-testid="perfil-facturacion-fila" className={cn(GRID_FACTURACION, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
                         <span className="truncate text-[13px] font-semibold" title={identity.name || undefined}>{identity.name || 'Sin razón social'}</span>
                         <span className="truncate text-xs tabular-nums text-mute">{identity.document || '—'}</span>
+                        <span className="truncate text-xs text-mute" title={uso ? `Utilizado en ${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : 'Todavía sin uso'}>{uso ? `${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : '—'}</span>
                         <span className="min-w-0">{actual ? <Badge color="green" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Actual</Badge> : <span className="text-xs text-mute">—</span>}</span>
                         <span className="flex items-center justify-end gap-2">
                           {!actual && <button type="button" disabled={identityBusy} className="whitespace-nowrap text-xs font-semibold text-ok disabled:opacity-40" onClick={() => usarComoActual(identity)}>Usar</button>}

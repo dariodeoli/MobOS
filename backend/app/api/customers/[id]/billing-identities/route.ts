@@ -22,7 +22,7 @@ export async function GET(request: Request, { params }: RouteContext) {
   const customerId = (params.id || '').trim().slice(0, 128)
   const customer = await findCustomer(tenant, customerId)
   if (!customer) return error('Cliente no encontrado.', 404)
-  let identities = await prisma.customerBillingIdentity.findMany({ where: { tenantId: tenant, customerId }, orderBy: { createdAt: 'asc' } })
+  let identities = await prisma.customerBillingIdentity.findMany({ where: { tenantId: tenant, customerId }, orderBy: [{ uses: 'desc' }, { lastUsedAt: 'desc' }] })
   const billingName = (customer.billingName || '').trim()
   const billingDocument = (customer.billingDocument || '').trim()
   if (billingName && billingDocument && !identities.some(row => row.document === billingDocument)) {
