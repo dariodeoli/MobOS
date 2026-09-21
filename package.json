@@ -14,6 +14,7 @@
     "pack:agent": "node scripts/pack-agent.mjs",
     "pack:agent:check": "node scripts/pack-agent.mjs --check",
     "aex:sandbox": "node scripts/aex-sandbox-prueba.mjs",
+    "qa:imei:prod": "node scripts/qa-193-imei-produccion.mjs",
     "format": "prettier --write \"src/**/*.{js,jsx,css}\" \"scripts/**/*.mjs\"",
     "release:prepare": "node scripts/release.mjs",
     "release:smoke": "node scripts/smoke.mjs",
