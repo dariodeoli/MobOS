@@ -280,6 +280,28 @@ estado se verifica en `/health.usb`.
   revisá el ancho configurado (módulo 1 sale ilegible) y que el papel no haya
   salido corrido.
 
+### Etiquetas de unidades de stock (#220)
+
+- **Contenido** (una definición en `src/lib/printing/etiquetaUnidad.js`, usada
+  por el ticket ESC/POS y por el HTML/PDF): **modelo** (con capacidad y color
+  cuando no vienen en el nombre), **identificador** corto (últimos 4 del
+  serial), **IMEI/serial completo legible**, **código QR** (URL `/u/<serial>`),
+  **código de barras** sobre `MOBOS:<serial>` y el código de unidad como texto.
+  Cada pieza va en su bloque, separada por líneas/bordes: no se pegan QR y
+  barras.
+- **Impresión**: desde la ficha de la unidad («Etiqueta»), desde la selección
+  múltiple de Inventario («Imprimir etiquetas») o la barra de lote. Sale
+  **directo** por el agente o el puente, sin diálogo; el HTML
+  (`buildUnitLabelsHtml`) es el respaldo ante un fallo claro y la fuente del
+  PDF. El ancho sale de `configImpresora().ancho` (58 u 80 mm).
+- **Reimpresión al llegar a otra sucursal**: la recepción en tránsito
+  (Inventario → En tránsito → «Recibir en sucursal») trae «Reimprimir etiqueta»
+  para que el destino imprima el papel sin depender de la sucursal de origen.
+- Evidencia: `scripts/qa-220-etiquetas.mjs` genera los PDFs por tamaño con
+  captura y valida el contenido (`docs/qa/220-etiquetas/`); el e2e
+  `etiquetas-unidad.spec.js` cubre individual, seleccionadas y reimpresión por
+  el camino directo.
+
 ## 8. Telemetría y comparativa de impresoras
 
 ### Qué mide cada tiempo

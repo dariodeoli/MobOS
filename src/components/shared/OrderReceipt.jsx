@@ -5,6 +5,7 @@ import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { ahorroDeLinea } from '@/utils/precioLista'
 import { totalesPedido } from '@/utils/pedido'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from '@/lib/printing/codigos'
+import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from '@/lib/printing/etiquetaUnidad'
 import QRCode from 'qrcode'
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
@@ -98,6 +99,44 @@ export async function buildProductLabelsHtml(items = [], { format = 'thermal-58'
 // código de barras (una sola copia).
 export async function printPriceLabel(product, { format = 'thermal-58' } = {}) {
   return printHtml(await buildProductLabelsHtml([{ product, cantidad: 1 }], { format }))
+}
+
+// Etiquetas de unidades de stock (#220): modelo, identificador, IMEI/serial
+// completo legible, código QR y código de barras en bloques separados, con el
+// ancho real del rollo (58 u 80 mm). `ancho` es el de la impresora configurada;
+// cada etiqueta corta su propia página. Es el respaldo del diálogo y la fuente
+// del PDF cuando no hay agente ni puente.
+export async function buildUnitLabelsHtml(units = [], { ancho = 58, base = '' } = {}) {
+  const lista = Array.isArray(units) ? units : []
+  const anchoMm = Number(ancho) === 80 ? 80 : 58
+  const etiquetas = []
+  for (const unit of lista) {
+    const datos = datosEtiquetaUnidad(unit, { base: base || publicBase() })
+    const contexto = contextoEtiquetaUnidad(datos)
+    let qr = ''
+    try {
+      if (datos.enlace) qr = await QRCode.toDataURL(datos.enlace, { errorCorrectionLevel: 'M', margin: 0, width: anchoMm === 80 ? 220 : 180 })
+    } catch { /* sin QR queda el código de barras y el código de unidad como texto */ }
+    let barras = ''
+    if (datos.codigo) {
+      try {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+        JsBarcode(svg, datos.codigo, { format: 'CODE128', displayValue: false, width: 1.6, height: 38, margin: 0 })
+        barras = svg.outerHTML
+      } catch { /* sin barras queda el código de unidad como texto */ }
+    }
+    etiquetas.push(`<section class="etiqueta">
+      <div class="marca"><span>${escapeHtml(APP_NAME)} · ETIQUETA</span><span>STOCK</span></div>
+      <div class="bloque modelo"><div class="rotulo">Modelo</div><div class="modelo">${escapeHtml(datos.modelo)}</div>${contexto ? `<div class="contexto">${escapeHtml(contexto)}</div>` : ''}</div>
+      <div class="bloque"><div class="rotulo">Identificador</div><div class="identificador">${escapeHtml(datos.identificador)}</div></div>
+      <div class="bloque"><div class="rotulo">IMEI / Serial</div><div class="serial">${escapeHtml(datos.serial || '—')}</div></div>
+      <div class="bloque codigo"><div class="rotulo">Código QR</div>${qr ? `<img class="qr" src="${qr}" alt="QR de la unidad">` : '<div class="sin-codigo">QR no disponible</div>'}</div>
+      <div class="bloque codigo"><div class="rotulo">Código de unidad</div>${barras ? `<div class="barras">${barras}</div>` : ''}<div class="valor">${escapeHtml(datos.codigo || '—')}</div></div>
+      <div class="pie">Escaneá el QR para abrir la unidad o usá el código de barras en el local.</div>
+    </section>`)
+  }
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de unidades (${lista.length})</title><style>@page{size:${anchoMm}mm auto;margin:2mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0 auto;max-width:${anchoMm - 4}mm;font:10px/1.35 ui-sans-serif,system-ui,sans-serif;color:#0f1720}.etiqueta{page-break-after:always}.etiqueta:last-child{page-break-after:auto}.marca{display:flex;justify-content:space-between;gap:2mm;font-size:7px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1mm;margin-bottom:1.5mm}.bloque{border:1px solid #cfd6db;border-radius:2mm;padding:1.6mm 2mm;margin-top:1.6mm;text-align:center}.rotulo{font-size:6.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#66707a}.modelo{font-size:12.5px;font-weight:800;line-height:1.2;margin-top:.6mm;text-align:left}.contexto{font-size:7.5px;color:#66707a;margin-top:.8mm;text-align:left}.identificador{font-size:26px;font-weight:900;letter-spacing:3px;font-variant-numeric:tabular-nums;line-height:1.1;margin-top:.4mm}.serial{font-size:${anchoMm === 80 ? 15 : 14}px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin-top:.6mm;white-space:nowrap}.qr{width:${anchoMm === 80 ? 30 : 26}mm;height:${anchoMm === 80 ? 30 : 26}mm;margin:1mm auto .4mm;display:block}.barras{margin-top:.8mm}.barras svg{width:100%;height:auto;max-height:14mm}.valor{font-size:7.5px;font-family:Menlo,Consolas,monospace;word-break:break-all;color:#333;margin-top:.6mm}.sin-codigo{font-size:8px;color:#66707a;padding:2mm 0}.pie{margin-top:5mm;font-size:6.5px;color:#66707a;text-align:center}@media print{.etiqueta{margin:0}}</style></head><body>${etiquetas.join('')}</body></html>`
+  return html
 }
 
 export const trackingUrlFor = (order) => {
