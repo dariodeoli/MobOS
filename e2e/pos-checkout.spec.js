@@ -74,13 +74,14 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   await amountInputs.nth(1).fill('20000')
   await expect(paymentsSection.getByText('Equivalente: Gs 20.000')).toBeVisible()
 
-  // Totals must balance before saving.
+  // Totals must balance before saving: el botón principal cambia de estado.
   const pendiente = paymentsSection.getByText('Pendiente').first()
   await expect(pendiente.locator('strong')).toHaveText('Gs 0')
+  await expect(page.getByRole('button', { name: /^Confirmar venta/ })).toBeVisible()
 
   // Delivery notes are optional: the backend accepts an omitted empty note
   // (fixed in the Phase-3 merge), so no observation is required here.
-  await page.getByRole('button', { name: /^Guardar venta/ }).click()
+  await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
 
   // Success banner with print actions.
   const banner = page
@@ -321,7 +322,7 @@ test('POS manual price below list stores the list price for the receipt', async 
     await paymentsSection.getByLabel('Monto original').fill('40000')
     await expect(paymentsSection.getByText('Equivalente: Gs 40.000')).toBeVisible()
 
-    await page.getByRole('button', { name: /^Guardar venta/ }).click()
+    await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
     await expect(
       page.getByRole('status').filter({ hasText: 'Venta registrada correctamente.' }),
     ).toBeVisible()
@@ -405,7 +406,7 @@ test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con 
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   await paymentsSection.getByLabel('Cuenta de cobro').nth(0).selectOption({ label: 'Caja E2E · PYG · CASH' })
   await paymentsSection.getByLabel('Monto original').nth(0).fill(String(SEED.products.iphone.pricePyg))
-  await page.getByRole('button', { name: /^Guardar venta/ }).click()
+  await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
   await expect(page.getByText('Venta registrada correctamente. Ya podés cargar la siguiente.')).toBeVisible({ timeout: 15_000 })
 })
 
@@ -453,7 +454,7 @@ test('POS: el correo corregido de un cliente se guarda en la ficha al vender', a
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   await paymentsSection.getByLabel('Cuenta de cobro').selectOption({ label: 'Caja E2E · PYG · CASH' })
   await paymentsSection.getByLabel('Monto original').fill('45000')
-  await page.getByRole('button', { name: /^Guardar venta/ }).click()
+  await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
   await expect(page.getByText('Venta registrada correctamente. Ya podés cargar la siguiente.')).toBeVisible({ timeout: 15_000 })
 
   // La ficha quedó con el correo cargado (se consulta por la API).
@@ -475,15 +476,19 @@ test('POS: la venta cargada sin conexión se sincroniza al volver (sin duplicar)
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
 
+  // Estado del botón principal: sin pago pide crear el pedido; al completar el
+  // cobro pasa a confirmar la venta.
+  await expect(page.getByRole('button', { name: /^Crear pedido sin pago/ })).toBeVisible()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   await paymentsSection.getByLabel('Cuenta de cobro').selectOption({ label: 'Caja E2E · PYG · CASH' })
   await paymentsSection.getByLabel('Monto original').fill('45000')
+  await expect(page.getByRole('button', { name: /^Confirmar venta/ })).toBeVisible()
 
   // Sin conexión: la venta no llega al servidor pero no se pierde.
   await context.setOffline(true)
   await expect(page.getByTestId('cola-offline')).toHaveCount(0)
-  await page.getByRole('button', { name: /^Guardar venta/ }).click()
+  await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
   await expect(page.getByText(/Venta guardada sin conexión/)).toBeVisible({ timeout: 15_000 })
   const cola = page.getByTestId('cola-offline')
   await expect(cola).toContainText('1 venta sin sincronizar')

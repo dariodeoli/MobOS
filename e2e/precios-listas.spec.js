@@ -98,7 +98,7 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
   await paymentsSection.getByLabel('Cuenta de cobro').selectOption({ label: 'Caja E2E · PYG · CASH' })
   await paymentsSection.getByLabel('Monto original').fill('210000')
   await expect(paymentsSection.getByText('Pendiente').first().locator('strong')).toHaveText('Gs 0')
-  await page.getByRole('button', { name: /^Guardar venta/ }).click()
+  await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
   await expect(page.getByText('Venta registrada correctamente. Ya podés cargar la siguiente.')).toBeVisible()
 
   // La línea quedó con el precio del escalón y su origen congelado (el escalón
