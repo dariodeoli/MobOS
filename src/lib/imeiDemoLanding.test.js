@@ -8,6 +8,7 @@ import {
   notaImeiEjemplo,
   validarImeiDemo,
 } from './imeiDemoLanding.js'
+import { enmascararImei, imeiValido } from './imeiComprobante.js'
 
 test('el IMEI de ejemplo de la landing es válido (15 dígitos + Luhn)', () => {
   assert.equal(IMEI_EJEMPLO.length, 15)
@@ -44,8 +45,10 @@ test('la consulta de ejemplo nunca miente: sin verificar no dice "Limpio"', () =
   assert.match(fallido.error, /Luhn/)
 })
 
-test('el IMEI se muestra enmascarado y la nota cita fuente y fecha', () => {
+test('el IMEI usa la máscara canónica (#203) y la nota cita fuente y fecha', () => {
+  assert.equal(enmascararImeiDemo(IMEI_EJEMPLO), enmascararImei(IMEI_EJEMPLO))
   assert.equal(enmascararImeiDemo(IMEI_EJEMPLO), '•••••••••••3809')
+  assert.equal(imeiValido(IMEI_EJEMPLO), true, 'el ejemplo valida con la regla canónica')
   const consulta = consultaImeiEjemplo(IMEI_EJEMPLO, { ahora: new Date('2026-09-21T12:00:00Z') })
   assert.equal(consulta.imeiMasked, '•••••••••••3809')
   const nota = notaImeiEjemplo(consulta)

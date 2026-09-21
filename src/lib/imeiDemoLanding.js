@@ -7,34 +7,27 @@
 // main, la sección puede importarlo directamente: la landing solo agrega dos
 // campos más (dispositivo y MDM) con la misma forma.
 
-export const FUENTE_DEMO = 'IMEIcheck.net (simulado)'
+import { FUENTE_IMEI, enmascararImei, imeiValido } from './imeiComprobante.js'
+
+export const FUENTE_DEMO = `${FUENTE_IMEI} (simulado)`
 export const NO_VERIFICADO = 'No verificado'
 export const IMEI_EJEMPLO = '356938035643809'
 
-/** IMEI de 15 dígitos con checksum Luhn (mismo criterio que el backend). */
+/** Valida con el mismo criterio que el backend (15 dígitos + Luhn) y agrega
+ * el mensaje que necesita la UI; la regla vive una sola vez en `imeiComprobante`. */
 export function validarImeiDemo(valor) {
   const imei = String(valor ?? '').replace(/\D/g, '')
   if (!imei) return { ok: false, error: 'Falta el IMEI.' }
   if (imei.length !== 15) return { ok: false, error: 'El IMEI debe tener 15 dígitos.' }
-  let suma = 0
-  for (let i = 0; i < 15; i += 1) {
-    let digito = Number(imei[14 - i])
-    if (i % 2 === 1) {
-      digito *= 2
-      if (digito > 9) digito -= 9
-    }
-    suma += digito
-  }
-  if (suma % 10 !== 0) return { ok: false, error: 'El IMEI no pasa la verificación de dígito control (Luhn).' }
+  if (!imeiValido(imei)) return { ok: false, error: 'El IMEI no pasa la verificación de dígito control (Luhn).' }
   return { ok: true, imei }
 }
 
-/** El IMEI completo nunca se muestra en claro. */
-export function enmascararImeiDemo(imei, visibles = 4) {
-  const limpio = String(imei ?? '')
-  if (limpio.length <= visibles) return '•'.repeat(limpio.length)
-  return `${'•'.repeat(limpio.length - visibles)}${limpio.slice(-visibles)}`
-}
+/** Máscara canónica de la app (#203): el IMEI completo nunca se muestra. */
+export { enmascararImei }
+
+/** Alias histórico de este módulo. */
+export const enmascararImeiDemo = enmascararImei
 
 const CAMPOS_EJEMPLO = [
   ['dispositivo', 'Dispositivo', 'iPhone 15 · 128 GB · Negro'],
