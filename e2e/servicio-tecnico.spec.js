@@ -69,3 +69,67 @@ test('el checklist se configura por tipo de dispositivo', async ({ page }) => {
   await expect(config).toHaveCount(0)
   await expect(modal.getByText(punto)).toBeVisible({ timeout: 15_000 })
 })
+
+// WhatsApp central (#134): el menú reutilizable sugiere la plantilla del estado
+// del pipeline con las variables del taller ya resueltas.
+test('el WhatsApp de la orden usa la plantilla del estado con sus variables', async ({ page }) => {
+  const marca = Date.now().toString(36).toUpperCase()
+  const cliente = `Cliente WA ${marca}`
+  await page.goto('/servicio')
+  const datos = await page.evaluate(async ({ api, cliente, marca }) => {
+    const clienteCreado = await fetch(`${api}/api/customers`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: cliente, phone: '0981222333', countryCode: '+595' }),
+    }).then((respuesta) => respuesta.json())
+    const orden = await fetch(`${api}/api/service-orders`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customerId: clienteCreado.id, customerName: cliente, device: `iPhone 13 ${marca}`, serial: `WA-${marca}`, serviceName: 'Cambio de batería', reportedIssue: 'No enciende', pricePyg: 250000 }),
+    }).then((respuesta) => respuesta.json())
+    return { ordenId: orden.id }
+  }, { api: API, cliente, marca })
+  expect(datos.ordenId, 'la orden de servicio debe crearse').toBeTruthy()
+  await page.reload()
+
+  const fila = () => page.getByTestId('servicio-fila').filter({ hasText: marca }).first()
+  await expect(fila()).toBeVisible()
+  const abrirMenu = () => fila().getByRole('button', { name: new RegExp(`Elegir plantilla de WhatsApp para ${cliente}`) }).click()
+
+  // Recibido: la sugerida es "Equipo recibido" y el mensaje trae el equipo real.
+  await abrirMenu()
+  const menu = page.getByRole('dialog', { name: 'Plantillas de WhatsApp' })
+  await expect(menu.getByText('Sugerida')).toBeVisible()
+  await expect(menu.getByLabel('Mensaje de WhatsApp')).toHaveValue(new RegExp(`Recibimos tu iPhone 13 ${marca}`))
+  await page.keyboard.press('Escape')
+
+  // Diagnóstico: la sugerencia cambia con el estado de la orden.
+  await page.evaluate(async ({ api, ordenId }) => {
+    await fetch(`${api}/api/service-orders`, {
+      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: ordenId, status: 'DIAGNOSTICO', diagnosis: 'Batería agotada' }),
+    })
+  }, { api: API, ordenId: datos.ordenId })
+  await page.reload()
+  await abrirMenu()
+  await expect(menu.getByLabel('Mensaje de WhatsApp')).toHaveValue(/diagnóstico de tu iPhone 13/i)
+  await page.keyboard.press('Escape')
+
+  // Listo para retirar: la plantilla de retiro también viaja con el equipo.
+  await page.evaluate(async ({ api, ordenId }) => {
+    await fetch(`${api}/api/service-orders`, {
+      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: ordenId, status: 'LISTO' }),
+    })
+  }, { api: API, ordenId: datos.ordenId })
+  await page.reload()
+  await abrirMenu()
+  await expect(menu.getByLabel('Mensaje de WhatsApp')).toHaveValue(/listo para retirar/i)
+  await page.keyboard.press('Escape')
+
+  // Limpieza determinista: la orden de prueba queda cancelada.
+  await page.evaluate(async ({ api, ordenId }) => {
+    await fetch(`${api}/api/service-orders`, {
+      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: ordenId, status: 'CANCELADO' }),
+    })
+  }, { api: API, ordenId: datos.ordenId })
+})
