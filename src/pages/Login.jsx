@@ -6,6 +6,7 @@ import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
 import { publicUrls, rutaInterna } from '@/lib/urls'
 import { sessionApi, getCompanyContext } from '@/lib/api/session'
+import { deviceId } from '@/lib/deviceId'
 import AuthLayout from '@/components/auth/AuthLayout'
 import GoogleButton, { OAuthDivider } from '@/components/auth/GoogleButton'
 import ThemeLogo from '@/components/app/ThemeLogo'
@@ -180,9 +181,8 @@ export default function Login() {
       try {
         if (googleReady) showCompany(await sessionApi.completeGoogle({ action: 'create', companyName: f.nombreEmpresa }))
         else {
-          const deviceId = localStorage.getItem('mobos:device-id') || crypto.randomUUID()
-          localStorage.setItem('mobos:device-id', deviceId)
-          showCompany(await sessionApi.registerCompany({ companyName: f.nombreEmpresa, email: f.correo.trim(), password: f.clave, deviceId }))
+          const dispositivo = deviceId()
+          showCompany(await sessionApi.registerCompany({ companyName: f.nombreEmpresa, email: f.correo.trim(), password: f.clave, deviceId: dispositivo }))
         }
       }
       catch (err) { setError(err.message || 'No se pudo crear la tienda.') }
@@ -209,9 +209,8 @@ export default function Login() {
     setCargando(true)
     try {
       if (modo === 'entrar') {
-        const deviceId = localStorage.getItem('mobos:device-id') || crypto.randomUUID()
-        localStorage.setItem('mobos:device-id', deviceId)
-        const r = await entrarEmpresa({ email: f.correo.trim(), password: f.clave, deviceId })
+        const dispositivo = deviceId()
+        const r = await entrarEmpresa({ email: f.correo.trim(), password: f.clave, deviceId: dispositivo })
         const lista = Array.isArray(r.sellers) ? r.sellers : []
         setNombreEmpresa(r.tenant?.name || r.tenant?.nombre || '')
         setVendedores(lista)

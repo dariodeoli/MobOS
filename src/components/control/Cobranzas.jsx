@@ -3,6 +3,7 @@ import { api } from '@/lib/api/client'
 import { listVentas, ventaDesdeApi } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { agruparCuotas, diasDeAtraso, resumenCuotas } from '@/lib/cobranzas'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { telefonoVisible } from '@/utils/telefono'
 import { fechaDia as fecha } from '@/utils/fecha'
 import { Aviso, Badge, Button, Card, EmptyState, Modal, useToast } from '@/components/ui'
@@ -116,7 +117,7 @@ export default function Cobranzas() {
           <div className="space-y-3">
             <p className="whitespace-pre-wrap rounded-xl border border-ink-600 bg-ink-800/50 p-3 text-sm">{detalle.message}</p>
             <p className="break-all text-xs text-mute">{detalle.whatsappUrl || 'El cliente no tiene teléfono cargado: no hay enlace.'}</p>
-            {detalle.whatsappUrl && <button type="button" className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold" onClick={async () => { try { await navigator.clipboard.writeText(detalle.whatsappUrl); toast.success('Enlace copiado.') } catch { toast.error('No se pudo copiar el enlace.') } }}><Icon name="copy" className="mr-1 inline h-3 w-3" />Copiar enlace</button>}
+            {detalle.whatsappUrl && <button type="button" className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold" onClick={async () => { if (await copiarAlPortapapeles(detalle.whatsappUrl)) toast.success('Enlace copiado.'); else toast.error('No se pudo copiar el enlace.') }}><Icon name="copy" className="mr-1 inline h-3 w-3" />Copiar enlace</button>}
             <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setDetalle(null)}>Cerrar</Button><Button type="button" disabled={!detalle.whatsappUrl || Boolean(enviando)} onClick={() => { const row = detalle; setDetalle(null); recordar(row) }}>Abrir WhatsApp</Button></div>
           </div>
         </Modal>

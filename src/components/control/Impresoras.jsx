@@ -4,6 +4,7 @@ import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
 import { fechaHora as fmt } from '@/utils/fecha'
+import { descargarArchivo, descargarCsvCliente } from '@/utils/descargarArchivo'
 import { printingApi } from '@/lib/api/printing'
 import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob, diagnosticoAgente, enmascararToken, esIdBackend, estadoAgente, historialAgente, impresoraHaciaBackend, importarConfigUnaVez, imprimirTicketRouter, limpiarFallidos, puenteDe, refrescarDesdeBackend, registrarUltimaPrueba, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
@@ -404,11 +405,7 @@ export default function Impresoras() {
       filas.push([fmtDia(fila.fecha), fmtHora(fila.fecha), fila.usuario, fila.cliente, fila.impresoraNombre || fila.impresora, fila.transporte || '', fila.enColaMs ?? '', fila.totalMs ?? '', fila.puente, fila.validacion, fila.sufijo, fila.resultado, fila.bytes, fila.ref])
     }
     const csv = filas.map((columnas) => columnas.map((valor) => `"${String(valor ?? '').replaceAll('"', '""')}"`).join(';')).join('\n')
-    const enlace = document.createElement('a')
-    enlace.href = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
-    enlace.download = `mobos-impresion-${new Date().toISOString().slice(0, 10)}.csv`
-    enlace.click()
-    URL.revokeObjectURL(enlace.href)
+    descargarCsvCliente(`mobos-impresion-${new Date().toISOString().slice(0, 10)}.csv`, csv)
   }
 
   async function confirmarEnPapel(fila, valorDirecto = null) {
@@ -803,12 +800,7 @@ export default function Impresoras() {
       cola: { pendientes: estado?.cola?.pendientes ?? 0, fallidos: estado?.cola?.fallidos ?? 0 },
       diagnostico,
     }
-    const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' })
-    const enlace = document.createElement('a')
-    enlace.href = URL.createObjectURL(blob)
-    enlace.download = `mobos-diagnostico-impresion-${new Date().toISOString().slice(0, 10)}.json`
-    enlace.click()
-    URL.revokeObjectURL(enlace.href)
+    descargarArchivo(`mobos-diagnostico-impresion-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(datos, null, 2), { tipo: 'application/json' })
   }
 
   const sesionActiva = (s) => Date.now() - new Date(s.lastSeenAt || 0).getTime() < 15 * 60 * 1000

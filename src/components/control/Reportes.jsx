@@ -6,6 +6,7 @@ import { useSesion } from '@/lib/sesion'
 import { listVentas, listGastos, listAds, productosById } from '@/lib/storage'
 import { gs, variacion } from '@/utils/calculos'
 import { fechaHora } from '@/utils/fecha'
+import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { gananciaDeRango, lineasDeGanancia, serieDeReporte } from '@/utils/ganancias'
 import { reporteMetricas } from '@/lib/metricas'
 import { Badge, Button, Card, DataTable, EmptyState, Select, Stat } from '@/components/ui'
@@ -155,15 +156,7 @@ export default function Reportes() {
     const { encabezados, filas } = filasReporte(datos, grupo)
     const csv = filasCsv(encabezados, filas)
     // BOM para que Excel respete los acentos.
-    const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const enlace = document.createElement('a')
-    enlace.href = url
-    enlace.download = nombreArchivoCsv({ desde: datos.from, hasta: datos.to, groupBy: grupo })
-    document.body.appendChild(enlace)
-    enlace.click()
-    enlace.remove()
-    URL.revokeObjectURL(url)
+    descargarCsvCliente(nombreArchivoCsv({ desde: datos.from, hasta: datos.to, groupBy: grupo }), csv)
   }
 
   if (isDemoRuntime) {

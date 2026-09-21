@@ -48,6 +48,7 @@ function filasParaImportar(texto) {
 }
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
+import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
 import CustomerCommunicationCard from '@/components/customers/CustomerCommunicationCard'
 import ClientesTabla from '@/components/customers/ClientesTabla'
 import CustomerProfile from '@/components/customers/CustomerProfile'
@@ -107,7 +108,7 @@ export default function SellerCustomers() {
   const [importResultado, setImportResultado] = useState(null)
   const [importError, setImportError] = useState('')
   const [seguimientos, setSeguimientos] = useState([])
-  const [vista, setVista] = useState(() => localStorage.getItem('mobos:clientes-vista') || 'list')
+  const [vista, cambiarVista] = useVistaListaGrid('clientes')
   const [orden, setOrden] = useState('recientes')
   const [resumen, setResumen] = useState(null)
   const [filtro, setFiltro] = useState('todos')
@@ -270,7 +271,7 @@ export default function SellerCustomers() {
         <option value="nombre">Nombre</option>
         <option value="total">Total gastado</option>
       </Select>
-      <ListGridToggle value={vista} onChange={(next) => { setVista(next); localStorage.setItem('mobos:clientes-vista', next) }} />
+      <ListGridToggle value={vista} onChange={cambiarVista} />
       <Button type="button" onClick={abrirCrear}>+ Crear cliente</Button>
       {!esDemo && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando} onClick={exportar}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}
       {!esDemo && <Button type="button" variant="outline" onClick={() => { setImportAbierto(true); setImportError(''); setImportResultado(null) }}>Importar</Button>}

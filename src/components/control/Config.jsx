@@ -9,6 +9,7 @@ import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
 import { getDemoTenant, setDemoInsurancePct, setDemoLimits, setDemoNumeracion } from '@/lib/demoTenant'
 import { promptLogo } from '@/lib/logoPrompt'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
+import { deviceId } from '@/lib/deviceId'
 import { comprimirImagen } from '@/utils/imagen'
 import { fechaHora as fmtDate } from '@/utils/fecha'
 import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, Toggle, useToast } from '@/components/ui'
@@ -25,24 +26,12 @@ import Avatar from '@/components/shared/Avatar'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import DatosPrivados from '@/components/control/DatosPrivados'
 import { ROLE_LABELS } from '@/lib/roles'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
+import { descargarArchivo } from '@/utils/descargarArchivo'
 
 async function copiarValor(toast, valor, etiqueta) {
   if (!valor) return
-  let copiado = false
-  try {
-    await navigator.clipboard.writeText(valor)
-    copiado = true
-  } catch {
-    const campo = document.createElement('textarea')
-    campo.value = valor
-    campo.setAttribute('readonly', '')
-    campo.style.position = 'fixed'
-    campo.style.opacity = '0'
-    document.body.appendChild(campo)
-    campo.select()
-    try { copiado = document.execCommand('copy') } catch { copiado = false }
-    document.body.removeChild(campo)
-  }
+  const copiado = await copiarAlPortapapeles(valor)
   if (copiado) toast.success('Copiado', `${etiqueta} quedó en el portapapeles.`)
   else toast.error('No se pudo copiar', 'Seleccioná el valor y copialo manualmente.')
 }
@@ -112,10 +101,9 @@ export default function Config({ seccion = 'negocio' } = {}) {
   }
 
   async function copiarPrompt() {
-    try {
-      await navigator.clipboard.writeText(promptLogo(account?.tenant?.name || 'mi empresa'))
+    if (await copiarAlPortapapeles(promptLogo(account?.tenant?.name || 'mi empresa'))) {
       toast.success('Prompt copiado', 'Pegalo en tu ChatGPT para generar las dos versiones del logo.')
-    } catch { toast.error('No se pudo copiar el prompt') }
+    } else { toast.error('No se pudo copiar el prompt') }
   }
 
   async function quitarLogo(variant = 'light') {
@@ -144,10 +132,8 @@ export default function Config({ seccion = 'negocio' } = {}) {
     setBusy(true); setFailure(''); setNotice('')
     try {
       const data = await api.get('/api/account/export')
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-      const href = URL.createObjectURL(blob); const link = document.createElement('a')
-      link.href = href; link.download = `mobos-${account?.tenant?.slug || 'datos'}-${new Date().toISOString().slice(0, 10)}.json`; link.click()
-      setTimeout(() => URL.revokeObjectURL(href), 1000); setNotice('Exportación descargada. No contiene claves, PIN, tokens ni archivos adjuntos.')
+      descargarArchivo(`mobos-${account?.tenant?.slug || 'datos'}-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2), { tipo: 'application/json' })
+      setNotice('Exportación descargada. No contiene claves, PIN, tokens ni archivos adjuntos.')
     } catch (error) { setFailure(error.message || 'No se pudo exportar.') } finally { setBusy(false) }
   }
   async function cerrarCuenta({ password }) {
@@ -789,9 +775,8 @@ function SeccionInvitaciones() {
     if (!elegida) return
     setBusy(true)
     try {
-      const deviceId = localStorage.getItem('mobos:device-id') || crypto.randomUUID()
-      localStorage.setItem('mobos:device-id', deviceId)
-      await api.post('/api/user-invitations/accept-by-id', { id: elegida.id, pin, deviceId })
+      const dispositivo = deviceId()
+      await api.post('/api/user-invitations/accept-by-id', { id: elegida.id, pin, deviceId: dispositivo })
       toast.success('Invitación aceptada', `Ya sos parte de ${elegida.companyName}. Entrá a esa tienda con su correo y tu PIN.`)
       setPendientes((lista) => lista.filter((inv) => inv.id !== elegida.id))
       setElegida(null); setPin('')

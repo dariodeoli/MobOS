@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Modal, Input, Select, Button, MoneyInput, Badge } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
+import { descargarArchivo } from '@/utils/descargarArchivo'
 import { api, apiFetch } from '@/lib/api'
 import { listVentas, updateVenta, refrescar } from '@/lib/storage'
 import { listDemoProofs, saveDemoProof } from '@/lib/demoProofs'
@@ -285,9 +287,7 @@ export default function PagosPedido({ venta, onClose }) {
         if (!response.ok) throw new Error('No se pudo descargar el comprobante.')
         blob = await response.blob()
       }
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a'); link.href = url; link.download = proof.name || proof.fileName || 'comprobante'; link.click()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      descargarArchivo(proof.name || proof.fileName || 'comprobante', blob)
     } catch (e) { setError(e.message) }
   }
 
@@ -317,7 +317,7 @@ export default function PagosPedido({ venta, onClose }) {
         ) : (
           <span className="text-xs text-mute">El cliente no tiene teléfono: compartí el enlace a mano.</span>
         )}
-        <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={() => { navigator.clipboard?.writeText(trackingUrlFor(order)).catch(() => {}) }}>Copiar enlace</button>
+        <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={() => { copiarAlPortapapeles(trackingUrlFor(order)) }}>Copiar enlace</button>
         {!esDemo && order.customer?.email && <button type="button" disabled={emailBusy} className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light disabled:opacity-40" onClick={enviarComprobante}>{emailBusy ? 'Encolando…' : 'Enviar comprobante por email'}</button>}
         <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={() => printOrderReceipt(order, { format: 'a4' })}>Imprimir comprobante</button>
         <span className="w-full text-xs text-mute sm:w-auto">El enlace muestra solo estado y comprobante; sin teléfonos, direcciones ni pagos.</span>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import { Aviso } from '@/components/ui'
@@ -34,11 +35,10 @@ export default function CarritoPublico() {
   }, [token])
 
   async function copiarEnlace() {
-    try {
-      await navigator.clipboard.writeText(window.location.href)
+    if (await copiarAlPortapapeles(window.location.href)) {
       setCopiado(true)
       setTimeout(() => setCopiado(false), 2000)
-    } catch { /* sin portapapeles */ }
+    }
   }
 
   return (

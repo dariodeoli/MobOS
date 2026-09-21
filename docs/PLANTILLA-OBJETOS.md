@@ -258,11 +258,26 @@ patrón de uso de cada familia y un ejemplo corto.
   “Invalid Date”. Las pantallas no llaman a `toLocaleString` para fechas ni
   definen helpers locales (`fmt`, `fecha`, `fechaHora`); la impresión conserva
   el suyo hasta unificar el formato.
+- **Portapapeles:** `copiarAlPortapapeles(texto)`
+  (`src/utils/portapapeles.js`): Clipboard API con respaldo (`execCommand`),
+  devuelve true/false para que la pantalla elija el aviso. Prohibido llamar a
+  `navigator.clipboard` por pantalla.
+- **Descargas:** `descargarArchivo(nombre, contenido, { tipo, bom })` y el atajo
+  `descargarCsvCliente(nombre, csv)` (`src/utils/descargarArchivo.js`): un solo
+  Blob + enlace + revocación; nunca armar el `<a download>` a mano.
+- **Vista lista/cuadrícula:** `useVistaListaGrid(clave, inicial)`
+  (`src/hooks/useVistaListaGrid.js`): recuerda la vista de cada listado en
+  `mobos:<clave>-vista` y se conecta directo al `ListGridToggle`.
+- **Identificador de dispositivo:** `deviceId()` (`src/lib/deviceId.js`): un
+  solo id estable por navegador (registro de empresa, entrada y aceptar
+  invitaciones lo usan); no leer ni escribir `mobos:device-id` por pantalla.
 - Montos, fechas y códigos: `nowrap` + `tabular-nums`.
 
 > Referencia MobOS: `src/lib/api/client.js`, `src/lib/roles.js`,
 > `src/lib/utils.js`, `src/lib/urls.js`, `src/lib/constants.js`,
-> `src/lib/ultimoUsado.js`, `src/utils/fecha.js`.
+> `src/lib/ultimoUsado.js`, `src/lib/deviceId.js`, `src/utils/fecha.js`,
+> `src/utils/portapapeles.js`, `src/utils/descargarArchivo.js`,
+> `src/hooks/useVistaListaGrid.js`.
 > Implementado: timeout por pedido, caché corta solo-GET e invalidación
 > (`src/lib/api/client.js`, `requestCache.test.js`); “último usado” en
 > Inventario (`ultimoUsado.test.js` + e2e `inventario-unidades.spec.js`).

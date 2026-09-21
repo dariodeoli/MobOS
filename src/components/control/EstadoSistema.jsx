@@ -3,6 +3,7 @@ import { Aviso, Badge, Button, Card, ConfirmDialog, Dot, Select, Skeleton, useTo
 import Avatar from '@/components/shared/Avatar'
 import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { printingApi } from '@/lib/api/printing'
 import { useSesion } from '@/lib/sesion'
 import { APP_VERSION } from '@/lib/brand'
@@ -167,10 +168,9 @@ export default function EstadoSistema() {
       '',
       ...chequeos.map((chequeo) => `[${TEXTO[chequeo.estado]}] ${chequeo.label}: ${chequeo.detalle}`),
     ]
-    try {
-      await navigator.clipboard.writeText(lineas.join('\n'))
+    if (await copiarAlPortapapeles(lineas.join('\n'))) {
       toast.success('Informe copiado', 'Pegalo en el reporte o en el chat de soporte.')
-    } catch {
+    } else {
       toast.error('No se pudo copiar el informe')
     }
   }

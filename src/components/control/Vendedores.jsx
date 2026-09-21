@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api/client'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { useSesion } from '@/lib/sesion'
 import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas, productosById, refrescar } from '@/lib/storage'
 import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
@@ -166,11 +167,10 @@ export default function Vendedores() {
   }
 
   async function copiarPin() {
-    try {
-      await navigator.clipboard.writeText(pinGenerado)
+    if (await copiarAlPortapapeles(pinGenerado)) {
       setPinCopiado(true)
       window.setTimeout(() => setPinCopiado(false), 2500)
-    } catch {
+    } else {
       setPinError('No se pudo copiar; anotá el PIN a mano.')
     }
   }

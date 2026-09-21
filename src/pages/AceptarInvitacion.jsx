@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { consumeActionToken } from '@/lib/actionToken'
+import { deviceId } from '@/lib/deviceId'
 import { Aviso, Badge, Button, Card, Label, PinInput } from '@/components/ui'
 import ProductFooter from '@/components/app/ProductFooter'
 import PegarEnlaceToken from '@/components/shared/PegarEnlaceToken'
@@ -42,9 +43,8 @@ export default function AceptarInvitacion() {
     if (pin !== confirm) return setError('Los PIN no coinciden.')
     setSaving(true)
     try {
-      const deviceId = localStorage.getItem('mobos:device-id') || crypto.randomUUID()
-      localStorage.setItem('mobos:device-id', deviceId)
-      const result = await api.post('/api/user-invitations/accept', { token, pin, deviceId })
+      const dispositivo = deviceId()
+      const result = await api.post('/api/user-invitations/accept', { token, pin, deviceId: dispositivo })
       setMessage(result.message); setPin(''); setConfirm('')
       window.location.assign('/')
     }

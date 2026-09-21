@@ -3,6 +3,7 @@ import { api, apiFetch } from '@/lib/api/client'
 import { Badge, Button, EmptyState, Input, Label, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { ROTULO_DATO } from '@/components/shared/tabla'
+import { descargarArchivo } from '@/utils/descargarArchivo'
 import { cn } from '@/lib/utils'
 import { FECHA_KARDEX, consultaKardex, extremosDelRango } from '@/utils/kardex'
 
@@ -18,14 +19,7 @@ async function descargarKardexCsv(productId, rango, nombreArchivo) {
     throw new Error(mensaje)
   }
   const blob = await response.blob()
-  const url = URL.createObjectURL(blob)
-  const enlace = document.createElement('a')
-  enlace.href = url
-  enlace.download = nombreArchivo
-  document.body.appendChild(enlace)
-  enlace.click()
-  enlace.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  descargarArchivo(nombreArchivo, blob)
 }
 
 // Kardex por producto (#106): historial de movimientos con saldo corrido. El

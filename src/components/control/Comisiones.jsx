@@ -7,6 +7,7 @@ import ComboBuscador from '@/components/shared/ComboBuscador'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { gs } from '@/utils/calculos'
 import { fechaHora } from '@/utils/fecha'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { printHtml } from '@/utils/printHtml'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { configImpresora } from '@/lib/printing/agent'
@@ -208,9 +209,8 @@ export default function Comisiones() {
     const token = tokens[liquidacion.id] || await generarEnlace(liquidacion)
     const enlace = enlaceVerificacion(token)
     if (!enlace) { setError('No se pudo armar el enlace de verificación.'); return }
-    navigator.clipboard?.writeText(enlace)
-      .then(() => toast.success('Enlace copiado', 'El QR del comprobante verifica la liquidación sin sesión.'))
-      .catch(() => setError(enlace))
+    if (await copiarAlPortapapeles(enlace)) toast.success('Enlace copiado', 'El QR del comprobante verifica la liquidación sin sesión.')
+    else setError(enlace)
   }
 
   // Primero la térmica (agente o puente); solo si el fallo fue claro cae al

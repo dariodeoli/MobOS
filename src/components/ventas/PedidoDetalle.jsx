@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PresenciaPedido from './PresenciaPedido'
 import { Aviso, Badge, Button, Drawer, Input, Modal, Money, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
+import { descargarArchivo } from '@/utils/descargarArchivo'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import Avatar from '@/components/shared/Avatar'
@@ -266,9 +268,10 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
   function copiarAcceso(token, nivel = '') {
     const url = accessUrlFor(token)
     if (!url) { setAccesoMsg('No se pudo armar el enlace.'); return }
-    navigator.clipboard?.writeText(url)
-      .then(() => toast.success('Enlace copiado', nivel ? `Acceso ${nivel.toLowerCase()} listo para compartir.` : 'Listo para compartir.'))
-      .catch(() => setAccesoMsg(url))
+    copiarAlPortapapeles(url).then((ok) => {
+      if (ok) toast.success('Enlace copiado', nivel ? `Acceso ${nivel.toLowerCase()} listo para compartir.` : 'Listo para compartir.')
+      else setAccesoMsg(url)
+    })
   }
   // Nota de entrega: primero la térmica (agente o puente) y solo si el fallo
   // fue claro cae al diálogo con el A4, igual que el comprobante.
@@ -349,12 +352,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       const response = await apiFetch(`/api/payments/${encodeURIComponent(paymentId)}/proofs/${encodeURIComponent(proof.id)}`)
       if (!response.ok) throw new Error('No se pudo descargar el comprobante.')
       const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = proof.fileName || 'comprobante'
-      link.click()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      descargarArchivo(proof.fileName || 'comprobante', blob)
     } catch (cause) { setError(cause?.message || 'No se pudo descargar el comprobante.') }
   }
   async function enviarComentario(event) {

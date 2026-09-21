@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { gs } from '@/utils/calculos'
+import { descargarCsvCliente } from '@/utils/descargarArchivo'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { normalizarBusqueda } from '@/utils/cliente'
 import { telefonoVisible } from '@/utils/telefono'
 import { readCustomerMetadata } from './customerMessaging'
@@ -53,22 +55,15 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
 
   async function copiarTelefonos() {
     const numeros = elegidas().map((row) => telefonoDe(row)).filter(Boolean)
-    try {
-      await navigator.clipboard.writeText(numeros.join('\n'))
-      toast.success(`${numeros.length} ${numeros.length === 1 ? 'teléfono copiado' : 'teléfonos copiados'}.`)
-    } catch { toast.error('No se pudieron copiar los teléfonos.') }
+    if (await copiarAlPortapapeles(numeros.join('\n'))) toast.success(`${numeros.length} ${numeros.length === 1 ? 'teléfono copiado' : 'teléfonos copiados'}.`)
+    else toast.error('No se pudieron copiar los teléfonos.')
   }
 
   function exportarSeleccionados() {
     const lista = elegidas()
     const filasCsv = [['Nombre', 'Teléfono', 'Correo', 'RUC', 'Ciudad', 'Pedidos', 'Total gastado'], ...lista.map((row) => [row.name || '', telefonoDe(row), row.email || '', row.document || '', ciudadDe(row), String(row.stats?.orders || 0), String(row.stats?.totalSpentPyg || 0)])]
     const csv = filasCsv.map((fila) => fila.map((celda) => `"${String(celda).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
-    const enlace = document.createElement('a')
-    enlace.href = url
-    enlace.download = 'mobos-clientes-seleccionados.csv'
-    enlace.click()
-    URL.revokeObjectURL(url)
+    descargarCsvCliente('mobos-clientes-seleccionados.csv', csv)
     toast.success(`${lista.length} ${lista.length === 1 ? 'cliente exportado' : 'clientes exportados'}.`)
   }
 

@@ -74,3 +74,53 @@ test('las fechas de pantalla salen de utils/fecha (sin duplicar el formato)', ()
     assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), patron, `${ruta}: falta el helper compartido`)
   }
 })
+
+test('el portapapeles sale del objeto compartido', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('utils/portapapeles.js') && contenido.includes('navigator.clipboard'))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  const helper = readFileSync(join(RAIZ, 'utils/portapapeles.js'), 'utf8')
+  assert.match(helper, /export async function copiarAlPortapapeles/, 'falta copiarAlPortapapeles')
+  assert.match(helper, /execCommand\('copy'\)/, 'el helper conserva el respaldo sin Clipboard API')
+  // Las pantallas migradas lo importan en vez de copiar el bloque try/catch.
+  for (const ruta of ['components/control/Config.jsx', 'components/control/Inventario.jsx', 'components/ventas/SellerQuotes.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /import \{ copiarAlPortapapeles \} from '@\/utils\/portapapeles'/, `${ruta}: falta el objeto de portapapeles`)
+  }
+})
+
+test('las descargas del navegador salen de utils/descargarArchivo', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('utils/descargarArchivo.js') && contenido.includes('createObjectURL(new Blob('))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  const helper = readFileSync(join(RAIZ, 'utils/descargarArchivo.js'), 'utf8')
+  assert.match(helper, /export function descargarArchivo/, 'falta descargarArchivo')
+  assert.match(helper, /export function descargarCsvCliente/, 'falta el atajo de CSV')
+  for (const ruta of ['components/customers/ClientesTabla.jsx', 'components/control/Reportes.jsx', 'utils/descargarCsv.js']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /descargar(Archivo|CsvCliente)\(/, `${ruta}: la descarga va con el objeto compartido`)
+  }
+})
+
+test('la vista lista/cuadrícula se recuerda con el hook compartido', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('hooks/useVistaListaGrid.js') && /localStorage\.(getItem|setItem)\('mobos:[a-z-]*-vista'/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  const hook = readFileSync(join(RAIZ, 'hooks/useVistaListaGrid.js'), 'utf8')
+  assert.match(hook, /export function useVistaListaGrid/, 'falta useVistaListaGrid')
+  assert.match(hook, /mobos:\$\{clave\}-vista/, 'la clave persistida no cambia de forma')
+  for (const ruta of ['components/control/Inventario.jsx', 'components/ventas/SellerCatalog.jsx', 'components/ventas/SellerCustomers.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /useVistaListaGrid\(/, `${ruta}: la vista va con el hook`)
+  }
+})
+
+test('el id de dispositivo se genera una sola vez en lib/deviceId', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('lib/deviceId.js') && contenido.includes('mobos:device-id'))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  for (const ruta of ['pages/Login.jsx', 'pages/AceptarInvitacion.jsx', 'components/control/Config.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /import \{ deviceId \} from '@\/lib\/deviceId'/, `${ruta}: falta deviceId`)
+  }
+})

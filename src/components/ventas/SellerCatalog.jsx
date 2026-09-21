@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
+import { descargarCsvCliente } from '@/utils/descargarArchivo'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { getProductos } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { Badge, Button, Select } from '@/components/ui'
@@ -8,6 +10,7 @@ import SearchField from '@/components/shared/SearchField'
 import { cn } from '@/lib/utils'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
+import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
 import ProductoDetalle from '@/components/productos/ProductoDetalle'
 import ListGridToggle from '@/components/shared/ListGridToggle'
 import ComboManager from '@/components/productos/ComboManager'
@@ -90,7 +93,7 @@ export default function SellerCatalog() {
   const [condicion, setCondicion] = useState('todas')
   const [soloStock, setSoloStock] = useState(false)
   const [orden, setOrden] = useState({ key: 'recientes', dir: 'asc' })
-  const [vista, setVista] = useState(() => localStorage.getItem('mobos:productos-vista') || 'list')
+  const [vista, cambiarVista] = useVistaListaGrid('productos')
   const [seleccion, setSeleccion] = useState(null)
   const [combosOpen, setCombosOpen] = useState(false)
   const [etiquetasOpen, setEtiquetasOpen] = useState(false)
@@ -154,18 +157,13 @@ export default function SellerCatalog() {
   const elegidos = () => ordenadas.filter((row) => seleccionados.includes(row.id))
   async function copiarPrecios() {
     const texto = elegidos().map((row) => `${row.name} · ${precio(row) > 0 ? gs(precio(row)) : 'sin precio'} · stock ${Number(row.stock || 0)}`).join('\n')
-    try { await navigator.clipboard.writeText(texto); toast.success(`${elegidos().length} producto(s) copiados.`) } catch { toast.error('No se pudo copiar la lista.') }
+    if (await copiarAlPortapapeles(texto)) toast.success(`${elegidos().length} producto(s) copiados.`); else toast.error('No se pudo copiar la lista.')
   }
   function exportarSeleccionados() {
     const lista = elegidos()
     const filasCsv = [['Nombre', 'SKU', 'Categoría', 'Condición', 'Precio', 'Mayorista', 'USD', 'Stock'], ...lista.map((row) => [row.name || '', row.sku || '', row.category || '', CONDITION[row.condition] || 'Nuevo', String(precio(row)), String(mayorista(row)), String(usd(row)), String(Number(row.stock || 0))])]
     const csv = filasCsv.map((fila) => fila.map((celda) => `"${String(celda).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
-    const enlace = document.createElement('a')
-    enlace.href = url
-    enlace.download = 'mobos-productos-seleccionados.csv'
-    enlace.click()
-    URL.revokeObjectURL(url)
+    descargarCsvCliente('mobos-productos-seleccionados.csv', csv)
     toast.success(`${lista.length} producto(s) exportados.`)
   }
 
@@ -186,7 +184,7 @@ export default function SellerCatalog() {
       <Select aria-label="Filtrar por categoría" className="w-auto" value={categoria} onChange={(event) => setCategoria(event.target.value)}><option value="todas">Todas las categorías</option>{categorias.map(item => <option key={item} value={item}>{item}</option>)}</Select>
       <Select aria-label="Filtrar por condición" className="w-auto" value={condicion} onChange={(event) => setCondicion(event.target.value)}><option value="todas">Nueva y seminueva</option><option value="NEW">Nuevos</option><option value="USED">Seminuevos</option><option value="REFURBISHED">Reacondicionados</option></Select>
       <button type="button" onClick={() => setSoloStock(value => !value)} className={cn('rounded-lg border px-3 py-2 text-xs font-semibold transition', soloStock ? 'border-ok/40 bg-ok/10 text-ok' : 'border-ink-500 text-mute hover:border-fono hover:text-fore')}>Con stock</button>
-      <ListGridToggle value={vista} onChange={(next) => { setVista(next); localStorage.setItem('mobos:productos-vista', next) }} />
+      <ListGridToggle value={vista} onChange={cambiarVista} />
       <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
       {canManage && !esDemo && <button type="button" onClick={() => setCombosOpen(true)} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Combos</button>}
       {esOwner && !esDemo && <ImportarProductos onImportada={data.refresh} />}

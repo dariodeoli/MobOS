@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
+import { descargarCsvCliente } from '@/utils/descargarArchivo'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { fechaDia as fecha, fechaHora } from '@/utils/fecha'
@@ -450,7 +452,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   function copiarPortal() {
     const url = portalUrlFor(portal?.token)
     if (!url) return
-    navigator.clipboard?.writeText(url).then(() => setPortalMsg('Enlace copiado.')).catch(() => setPortalMsg(url))
+    copiarAlPortapapeles(url).then((ok) => setPortalMsg(ok ? 'Enlace copiado.' : url))
   }
 
   useEffect(() => {
@@ -499,11 +501,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
         billingIdentities: profile?.billingIdentities || [],
         rango: rangoPeriodo(periodoInforme, { desde: desdeInforme, hasta: hastaInforme }),
       })
-      const enlace = document.createElement('a')
-      enlace.href = URL.createObjectURL(new Blob([`\ufeff${informeCsv(secciones)}`], { type: 'text/csv;charset=utf-8' }))
-      enlace.download = nombreArchivoInforme(customer?.name || 'cliente', periodoInforme)
-      enlace.click()
-      URL.revokeObjectURL(enlace.href)
+      descargarCsvCliente(nombreArchivoInforme(customer?.name || 'cliente', periodoInforme), informeCsv(secciones))
       toast.success('Informe descargado.')
     } catch (cause) {
       toast.error('No se pudo generar el informe', cause?.message)

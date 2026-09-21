@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
@@ -165,7 +166,7 @@ export default function SellerQuotes() {
   async function copiarEnlace() {
     const url = quoteUrlFor(enlace?.publicToken)
     if (!url) return
-    try { await navigator.clipboard.writeText(url); setNotice('Enlace copiado al portapapeles.') } catch { setEnlaceError('No se pudo copiar el enlace.') }
+    if (await copiarAlPortapapeles(url)) setNotice('Enlace copiado al portapapeles.'); else setEnlaceError('No se pudo copiar el enlace.')
   }
   async function imprimirEnlace() {
     if (!enlace) return
