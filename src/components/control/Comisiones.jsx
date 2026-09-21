@@ -28,9 +28,9 @@ const inicioDeMes = () => { const fecha = new Date(); return `${fecha.getFullYea
 const enlaceVerificacion = (token) => token && API_URL ? `${API_URL}/api/public/commission-settlements/${encodeURIComponent(token)}` : ''
 
 // Respaldo A4 del comprobante cuando la térmica no está disponible: mismo
-// contenido que el ticket, con el QR para verificar la liquidación.
-async function htmlLiquidacion(detalle) {
-  const enlace = enlaceVerificacion(detalle.verificationToken)
+// contenido que el ticket, con el QR para verificar la liquidación. El enlace
+// se recibe ya emitido (el token crudo no vive en la base).
+async function htmlLiquidacion(detalle, enlace) {
   let qr = ''
   try { if (enlace) qr = await QRCode.toDataURL(enlace, { errorCorrectionLevel: 'M', margin: 1, width: 220 }) } catch { /* el enlace queda impreso igual */ }
   const estado = ESTADO_LIQUIDACION[detalle.status]?.[0] || detalle.status || ''
@@ -80,6 +80,12 @@ export default function Comisiones() {
   const [qr, setQr] = useState('')
   const [qrError, setQrError] = useState('')
   const [imprimiendoId, setImprimiendoId] = useState(null)
+  // Token crudo de verificación solo en memoria: la API lo revela una vez al
+  // emitir/rotar (en la base queda su sha256). Sin token en memoria, el panel
+  // pide uno nuevo —y el QR anterior deja de funcionar— antes de imprimir o
+  // copiar el enlace (#172/#178).
+  const [tokens, setTokens] = useState({})
+  const [generandoId, setGenerandoId] = useState(null)
 
   // Buscador de vendedores (#141): resultados en tiempo real por nombre, correo
   // o rol, con la misma mecánica que el buscador de productos.
@@ -138,14 +144,34 @@ export default function Comisiones() {
 
   // ---- Liquidaciones ---------------------------------------------------------
 
-  function abrirComprobante(liquidacion) {
-    setComprobante(liquidacion)
+  function pintarQr(token) {
     setQr(''); setQrError('')
-    const enlace = enlaceVerificacion(liquidacion.verificationToken)
-    if (!enlace) { setQrError('No se pudo armar el enlace de verificación.'); return }
+    const enlace = enlaceVerificacion(token)
+    if (!enlace) return
     QRCode.toDataURL(enlace, { errorCorrectionLevel: 'M', margin: 1, width: 320 })
       .then(setQr)
       .catch(() => setQrError('No se pudo generar el QR; el enlace queda visible para compartir.'))
+  }
+
+  function abrirComprobante(liquidacion, tokenDirecto) {
+    setComprobante(liquidacion)
+    pintarQr(tokenDirecto || tokens[liquidacion.id])
+  }
+
+  // Rotación explícita: la API emite un token nuevo (solo guarda su hash) y el
+  // QR anterior deja de validar. Devuelve el token crudo para usarlo al vuelo.
+  async function generarEnlace(liquidacion) {
+    setGenerandoId(liquidacion.id); setError('')
+    try {
+      const conToken = await api.patch(`/api/commission-settlements/${encodeURIComponent(liquidacion.id)}`, { action: 'rotate' })
+      setTokens(actual => ({ ...actual, [liquidacion.id]: conToken.verificationToken }))
+      setLiquidaciones(actual => (actual || []).map(item => item.id === conToken.id ? { ...item, ...conToken } : item))
+      setComprobante(actual => actual?.id === conToken.id ? { ...actual, ...conToken } : actual)
+      toast.success('Enlace de verificación emitido', 'El QR anterior dejó de funcionar.')
+      pintarQr(conToken.verificationToken)
+      return conToken.verificationToken || ''
+    } catch (cause) { setError(cause?.message || 'No se pudo emitir el enlace del comprobante.'); return '' }
+    finally { setGenerandoId(null) }
   }
 
   async function cerrarLiquidacion(event) {
@@ -154,10 +180,11 @@ export default function Comisiones() {
     setCerrando(true); setError('')
     try {
       const creada = await api.post('/api/commission-settlements', { sellerId: periodo.sellerId, from: periodo.from, to: periodo.to })
+      if (creada.verificationToken) setTokens(actual => ({ ...actual, [creada.id]: creada.verificationToken }))
       setLiquidaciones(actual => [creada, ...(actual || [])])
       setPeriodo(actual => ({ ...actual, sellerId: '' }))
       toast.success('Liquidación cerrada', `${creada.sellerName || 'Vendedor'}: ${gs(creada.totalPyg || 0)} en comisiones.`)
-      abrirComprobante(creada)
+      abrirComprobante(creada, creada.verificationToken)
     } catch (cause) { setError(cause?.message || 'No se pudo cerrar la liquidación.') } finally { setCerrando(false) }
   }
 
@@ -172,8 +199,9 @@ export default function Comisiones() {
     } catch (cause) { setError(cause?.message || 'No se pudo actualizar la liquidación.') } finally { setActualizandoId(null) }
   }
 
-  function copiarEnlace(liquidacion) {
-    const enlace = enlaceVerificacion(liquidacion.verificationToken)
+  async function copiarEnlace(liquidacion) {
+    const token = tokens[liquidacion.id] || await generarEnlace(liquidacion)
+    const enlace = enlaceVerificacion(token)
     if (!enlace) { setError('No se pudo armar el enlace de verificación.'); return }
     navigator.clipboard?.writeText(enlace)
       .then(() => toast.success('Enlace copiado', 'El QR del comprobante verifica la liquidación sin sesión.'))
@@ -187,11 +215,14 @@ export default function Comisiones() {
     setImprimiendoId(liquidacion.id); setError('')
     try {
       const detalle = Array.isArray(liquidacion.lines) ? liquidacion : await api.get(`/api/commission-settlements/${encodeURIComponent(liquidacion.id)}`)
-      const enlace = enlaceVerificacion(detalle.verificationToken)
+      // Sin token en memoria hay que emitir uno nuevo (rota el anterior): el
+      // comprobante impreso siempre sale con un QR válido.
+      const token = tokens[liquidacion.id] || await generarEnlace(liquidacion)
+      const enlace = enlaceVerificacion(token)
       const { ancho } = configImpresora()
       const resultado = await imprimirDocumentoNoFiscal(ticketLiquidacionComision(detalle, { ancho, link: enlace }), {
         tipo: 'liquidacion-comision',
-        respaldo: async () => printHtml(await htmlLiquidacion(detalle)),
+        respaldo: async () => printHtml(await htmlLiquidacion(detalle, enlace)),
       })
       if (resultado.ok) {
         toast.success(
@@ -205,6 +236,9 @@ export default function Comisiones() {
     } catch (cause) { toast.error('No se pudo imprimir el comprobante', cause?.message || 'Revisá la impresora.') }
     finally { setImprimiendoId(null) }
   }
+
+  // Token crudo del comprobante abierto (solo en memoria).
+  const tokenComprobante = comprobante ? (tokens[comprobante.id] || comprobante.verificationToken || '') : ''
 
   return (
     <div className="space-y-4">
@@ -332,15 +366,29 @@ export default function Comisiones() {
                 <Badge color={(ESTADO_LIQUIDACION[comprobante.status] || ['', 'slate'])[1]}>{(ESTADO_LIQUIDACION[comprobante.status] || [comprobante.status, ''])[0]}</Badge>
               </div>
             </div>
-            {qr
-              ? <img src={qr} alt="QR de verificación" className="mx-auto h-44 w-44 rounded-xl bg-white p-2" />
-              : <p className="py-6 text-center text-sm text-mute">{qrError || 'Generando QR…'}</p>}
-            <p className="break-all rounded-lg border border-ink-600 bg-ink-900 px-3 py-2 text-[11px] text-mute">{enlaceVerificacion(comprobante.verificationToken) || '—'}</p>
+            {tokenComprobante ? (
+              qr
+                ? <img src={qr} alt="QR de verificación" className="mx-auto h-44 w-44 rounded-xl bg-white p-2" />
+                : <p className="py-6 text-center text-sm text-mute">{qrError || 'Generando QR…'}</p>
+            ) : (
+              <div className="space-y-3 rounded-xl border border-ink-600 bg-ink-800/40 p-3 text-center">
+                <p className="text-sm text-mute">
+                  El enlace se revela una sola vez y en la base solo queda su huella. Emití uno nuevo para imprimir o compartir: el QR anterior dejará de funcionar.
+                </p>
+                <Button type="button" disabled={generandoId === comprobante.id} onClick={() => generarEnlace(comprobante)}>
+                  {generandoId === comprobante.id ? 'Emitiendo…' : 'Generar enlace de verificación'}
+                </Button>
+              </div>
+            )}
+            <p className="break-all rounded-lg border border-ink-600 bg-ink-900 px-3 py-2 text-[11px] text-mute">{enlaceVerificacion(tokenComprobante) || 'El enlace se emite al generar, imprimir o copiar.'}</p>
+            {comprobante.verificationTokenIssuedAt && (
+              <p className="text-[11px] text-mute">Enlace emitido {new Date(comprobante.verificationTokenIssuedAt).toLocaleString('es-PY')}.</p>
+            )}
             <div className="flex flex-wrap justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => copiarEnlace(comprobante)}><Icon name="copy" className="h-4 w-4" />Copiar enlace</Button>
               <Button type="button" disabled={imprimiendoId === comprobante.id} onClick={() => imprimir(comprobante)}><Icon name="printer" className="h-4 w-4" />{imprimiendoId === comprobante.id ? 'Imprimiendo…' : 'Imprimir comprobante'}</Button>
             </div>
-            <p className="text-xs text-mute">Al escanear el QR se verifica el comprobante sin sesión: vendedor, período, total, estado y fecha de emisión. No expone ventas ni clientes.</p>
+            <p className="text-xs text-mute">Al escanear el QR se verifica el comprobante sin sesión: vendedor, período, total, estado y fecha de emisión. No expone ventas ni clientes. Emitir un enlace nuevo invalida el QR anterior.</p>
           </div>
         )}
       </Modal>

@@ -696,4 +696,7 @@ echo "Consistencia financiera: la base del arnés da verde y los casos sembrados
   echo "El chequeo de consistencia no volvió a dar verde tras la limpieza del autotest." >&2
   exit 1
 }
+echo "Seguridad pública: token de liquidaciones hasheado, rotación y límite de uso..."
+PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/commission-settlement-public.mjs"
+
 echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia y logout."

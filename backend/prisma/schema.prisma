@@ -927,7 +927,13 @@ model CommissionSettlement {
   // no coincide exactamente con el total del reporte.
   linesJson         Json     @default("[]")
   status            String   @default("DRAFT")
-  verificationToken String   @unique @default(cuid())
+  // Token de verificación del comprobante. Desde #172/#178 solo se persiste su
+  // sha256 (`verificationTokenHash`); el crudo se revela una vez al emitir. La
+  // columna legacy `verificationToken` queda nullable y se vacía en la
+  // migración: los QR ya impresos siguen validando por hash.
+  verificationToken         String?  @unique
+  verificationTokenHash     String?  @unique
+  verificationTokenIssuedAt DateTime?
   notes             String?
   createdById       String
   createdBy         User     @relation("CommissionSettlementCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
