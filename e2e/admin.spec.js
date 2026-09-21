@@ -528,10 +528,6 @@ test('solicitudes → pedir mayorista desde la ficha y aprobarla en Autorizacion
   await vendedor.goto('/clientes')
   await vendedor.getByLabel('Buscar clientes').fill(nombre)
   await vendedor.getByTestId('cliente-fila').filter({ hasText: nombre }).first().click()
-  await vendedor
-    .getByRole('tab', { name: /^Comercial/ })
-    .first()
-    .click()
   await vendedor.getByRole('button', { name: 'Solicitar mayorista' }).click()
   await vendedor.getByRole('button', { name: 'Enviar solicitud' }).click()
   await expect(vendedor.getByText('Solicitud enviada', { exact: false })).toBeVisible()
@@ -583,10 +579,6 @@ test('autorizaciones → el dueño resuelve su propia solicitud', async ({ page 
 
   await page.getByLabel('Buscar clientes').fill(nombre)
   await page.getByTestId('cliente-fila').filter({ hasText: nombre }).first().click()
-  await page
-    .getByRole('tab', { name: /^Comercial/ })
-    .first()
-    .click()
   await page.getByRole('button', { name: 'Solicitar mayorista' }).click()
   await page.getByRole('button', { name: 'Enviar solicitud' }).click()
   await expect(page.getByText('Solicitud enviada', { exact: false })).toBeVisible()

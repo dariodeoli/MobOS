@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
+import { telefonoVisible } from '@/utils/telefono'
 import { codigoPedido } from '@/utils/pedido'
 import { cn } from '@/lib/utils'
 import { primerNombre } from '@/lib/utils'
@@ -100,16 +101,11 @@ const GRID_FACTURACION = 'grid min-w-[46rem] grid-cols-[minmax(10rem,1.5fr)_minm
 const CELDA_CLI = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const TABS = [
-  { key: 'compras', label: 'Compras' },
-  { key: 'dispositivos', label: 'Dispositivos' },
-  { key: 'garantias', label: 'Garantías' },
-  { key: 'notas', label: 'Notas' },
-  { key: 'seguimientos', label: 'Seguimientos' },
-  { key: 'comercial', label: 'Comercial' },
-  { key: 'puntos', label: 'Puntos' },
-  { key: 'facturacion', label: 'Facturación' },
-  { key: 'estadisticas', label: 'Estadísticas' },
+  { key: 'resumen', label: 'Resumen' },
+  { key: 'pedidos', label: 'Pedidos' },
   { key: 'cronologia', label: 'Cronología' },
+  { key: 'estadisticas', label: 'Estadísticas' },
+  { key: 'datos', label: 'Datos' },
 ]
 
 // Un icono y un tono por tipo de evento de la cronología del cliente.
@@ -132,7 +128,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [profile, setProfile] = useState(null)
-  const [tab, setTab] = useState('compras')
+  const [tab, setTab] = useState('resumen')
   const [analitica, setAnalitica] = useState(null)
   const [cargandoAnalitica, setCargandoAnalitica] = useState(false)
   const [solicitud, setSolicitud] = useState(null)
@@ -324,9 +320,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
     return () => { active = false }
   }, [open, customer?.id, revision])
 
-  // Cada apertura (u otro cliente) arranca en la pestaña de compras.
+  // Cada apertura (u otro cliente) arranca en el resumen.
   useEffect(() => {
-    if (open) setTab('compras')
+    if (open) setTab('resumen')
   }, [open, customer?.id, setTab])
 
   // Solicitudes comerciales del cliente (mayorista, crédito, plazo).
@@ -345,9 +341,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
     return () => { active = false }
   }, [open, customer?.id, revision, esDemo])
 
-  // Identidades de facturación: se piden al abrir su pestaña.
+  // Identidades de facturación: se piden al abrir la pestaña Datos.
   useEffect(() => {
-    if (!open || !customer?.id || tab !== 'facturacion' || esDemo) return undefined
+    if (!open || !customer?.id || tab !== 'datos' || esDemo) return undefined
     let active = true
     setIdentitiesLoading(true)
     setIdentitiesError('')
@@ -361,9 +357,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
     return () => { active = false }
   }, [open, customer?.id, tab, revision, esDemo])
 
-  // Fidelización: se pide al abrir su pestaña y al canjear o reintentar.
+  // Fidelización: se pide al abrir la pestaña Datos y al canjear o reintentar.
   useEffect(() => {
-    if (!open || !customer?.id || tab !== 'puntos' || esDemo) return undefined
+    if (!open || !customer?.id || tab !== 'datos' || esDemo) return undefined
     let active = true
     setLoyaltyLoading(true)
     setLoyaltyError('')
@@ -438,9 +434,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
     return () => { active = false }
   }, [open, customer?.id, tab, timelineRevision])
 
-  // Listas de precios activas: se piden al abrir la pestaña comercial.
+  // Listas de precios activas: se piden al abrir la pestaña Datos.
   useEffect(() => {
-    if (!open || tab !== 'comercial' || esDemo) return undefined
+    if (!open || tab !== 'datos' || esDemo) return undefined
     let active = true
     api
       .get('/api/price-lists')
@@ -460,9 +456,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const puedeAsignarLista = ['ADMIN', 'GERENTE'].includes(usuario?.role)
   const clienteCredito = profile?.customer?.creditLimitPyg ?? customer?.creditLimitPyg ?? 0
   const clientePlazo = profile?.customer?.creditDays ?? customer?.creditDays ?? 0
-  const identidades = profile?.billingIdentities || []
   const ultimaCompra = orders.reduce((max, order) => (order.createdAt && (!max || order.createdAt > max) ? order.createdAt : max), null)
-  const clienteDesde = profile?.customer?.createdAt || customer?.createdAt || null
   const totalComprado = orders.reduce((sum, order) => sum + Number(order.totalPyg || 0), 0)
   const deuda = Number(profile?.debtPyg ?? 0)
   const garantiasActivas = warranties.filter((item) => item.status !== 'DELIVERED').length
@@ -481,7 +475,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const puedeCanjearPuntos = Boolean(usuario && (usuario.permissions?.includes('*') || ['ADMIN', 'GERENTE'].includes(usuario.role) || usuario.permissions?.includes('orders:manage') || usuario.permissions?.includes('payments:manage')))
 
   const dispositivos = orders.flatMap(order => (order.items || []).flatMap(item => (item.serials || []).map(serial => ({ serial, model: item.description, date: order.createdAt, orderNumber: order.orderNumber, warranty: warranties.find(warranty => warranty.serial === serial) || null }))))
-  const tabCounts = { compras: orders.length, dispositivos: dispositivos.length, garantias: warranties.length, notas: notes.length, seguimientos: followUps.length, cronologia: timeline.length }
+  const ordenesActivas = orders.filter((order) => order.status === 'PENDING' || order.status === 'REGISTERED').length
+  const ciudadCliente = (profile?.customer?.addresses || []).find((address) => address.city)?.city || profile?.customer?.addresses?.[0]?.city || ''
+  const tabCounts = { pedidos: orders.length, cronologia: timeline.length, datos: notes.length + followUps.length }
 
   async function saveNote(event) {
     event.preventDefault()
@@ -782,11 +778,12 @@ export default function CustomerProfile({ customer, open, onClose }) {
               <h3 className="truncate text-lg font-bold">{profile.customer?.name || customer?.name}</h3>
               <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-mute">
                 {documentValue && <span>{documentValue}</span>}
-                {phone && <span>{phone}</span>}
+                {(phone || profile?.customer?.phone) && <span className="tabular-nums">{telefonoVisible(phone, profile?.customer?.countryCode || customer?.countryCode)}</span>}
                 {profile.customer?.email && <span className="truncate">{profile.customer.email}</span>}
+                {ciudadCliente && <span className="truncate">{ciudadCliente}</span>}
               </p>
               <p className="mt-1 text-xs text-mute">
-                Cliente desde {fecha(profile.customer?.createdAt)} · Creado por {profile.customer?.createdBy?.name || 'Sistema'}
+                Cliente desde {profile.customer?.createdAt ? fechaHora(profile.customer.createdAt) : '—'} · Creado por {profile.customer?.createdBy?.name || 'Sistema'}
               </p>
               {(profile.customer?.billingName || profile.customer?.billingDocument) && (
                 <p className="mt-1 text-xs text-mute">
@@ -795,6 +792,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 </p>
               )}
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <Badge color={mayorista ? 'orange' : 'slate'}>{mayorista ? 'Mayorista' : 'Cliente final'}</Badge>
                 {profile.customer?.taxExempt && <Badge color="blue">Exento de impuestos</Badge>}
                 {profile.customer?.acceptsWhatsappMarketing && <Badge color="green">WhatsApp marketing</Badge>}
                 {profile.customer?.acceptsSmsMarketing && <Badge color="green">SMS marketing</Badge>}
@@ -823,34 +821,38 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </span>
           </header>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {tab === 'resumen' && (
+          <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Total comprado</p>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Total gastado</p>
               <p className="mt-1 text-lg font-semibold text-fore">{formatGs(totalComprado)}</p>
             </div>
-            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+            <div className={cn('rounded-xl border p-3', deuda > 0 ? 'border-warn/40 bg-warn/5' : 'border-ink-600 bg-ink-800')}>
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Saldo pendiente</p>
               <div className="mt-1 flex items-center gap-2">
-                <p className="text-lg font-semibold text-fore">{formatGs(deuda)}</p>
+                <p className={cn('text-lg font-semibold', deuda > 0 ? 'text-warn' : 'text-fore')}>{formatGs(deuda)}</p>
                 <Badge color={deuda > 0 ? 'red' : 'green'}>{deuda > 0 ? 'Deuda' : 'Al día'}</Badge>
               </div>
             </div>
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Órdenes</p>
-              <p className="mt-1 text-lg font-semibold text-fore">{orders.length}</p>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Órdenes activas</p>
+              <p className="mt-1 text-lg font-semibold text-fore">{ordenesActivas}</p>
             </div>
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Garantías activas</p>
-              <p className="mt-1 text-lg font-semibold text-fore">{garantiasActivas}</p>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Pedidos</p>
+              <p className="mt-1 text-lg font-semibold text-fore">{orders.length}</p>
             </div>
             <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Última compra</p>
               <p className="mt-1 text-sm font-semibold text-fore">{ultimaCompra ? fecha(ultimaCompra) : 'Sin compras'}</p>
             </div>
-            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Cliente desde</p>
-              <p className="mt-1 text-sm font-semibold text-fore">{clienteDesde ? fecha(clienteDesde) : '—'}</p>
-            </div>
+            {warranties.length > 0 && (
+              <div className={cn('rounded-xl border p-3', garantiasActivas > 0 ? 'border-fono/40 bg-fono/5' : 'border-ink-600 bg-ink-800')}>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Garantías activas</p>
+                <p className="mt-1 text-lg font-semibold text-fore">{garantiasActivas}</p>
+              </div>
+            )}
           </div>
 
           {deuda > 0 && (
@@ -879,8 +881,24 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 </p>
               </div>
               <span className="flex flex-wrap gap-2">
-                {!mayorista && <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('WHOLESALE')}>Solicitar mayorista</Button>}
-                {!(Number(clienteCredito || 0) > 0) && <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('CREDIT')}>Solicitar crédito</Button>}
+                {!mayorista && !hayPendiente('WHOLESALE') && (
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={solicitarMayorista} disabled={requestBusy}>
+                    <Icon name="tag" className="h-4 w-4" />
+                    {requestBusy ? 'Enviando…' : 'Solicitar mayorista'}
+                  </Button>
+                )}
+                {!creditoHabilitado && !hayPendiente('CREDIT') && (
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => abrirSolicitud('CREDIT')}>
+                    <Icon name="wallet" className="h-4 w-4" />
+                    Solicitar crédito
+                  </Button>
+                )}
+                {creditoHabilitado && !hayPendiente('CREDIT_DAYS') && (
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => abrirSolicitud('CREDIT_DAYS')}>
+                    <Icon name="clock" className="h-4 w-4" />
+                    Solicitar días
+                  </Button>
+                )}
               </span>
               {puedeAsignarLista && <div className="w-full border-t border-ink-600 pt-2">
                 <label className="block text-xs text-mute" htmlFor="cliente-lista-precios">Lista de precios</label>
@@ -892,19 +910,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
               </div>}
             </div>
           )}
-
-          {!esDemo && identidades.length > 0 && (
-            <div className="rounded-xl border border-ink-600 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Titulares de factura usados</p>
-              <ul className="mt-1 space-y-0.5 text-xs">
-                {identidades.map(item => (
-                  <li key={item.id} className="flex flex-wrap justify-between gap-2">
-                    <span className="min-w-0 truncate">{item.name}{item.document ? ` · ${item.document}` : ''}</span>
-                    <span className="text-mute">{item.uses} {item.uses === 1 ? 'venta' : 'ventas'}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          </>
           )}
 
           <div className="flex gap-2 overflow-x-auto" role="tablist">
@@ -923,8 +929,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
             ))}
           </div>
 
-          {tab === 'compras' && (
+          {tab === 'pedidos' && (
             <>
+              <p className="text-sm font-semibold">Pedidos</p>
               {!orders.length ? (
                 <EmptyState compact icon="receipt" title="Sin compras registradas" description="Las órdenes de esta sucursal aparecerán acá." />
               ) : (
@@ -957,8 +964,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </>
           )}
 
-          {tab === 'dispositivos' && (
+          {tab === 'pedidos' && (
             <>
+              <p className="text-sm font-semibold">Equipos con IMEI/serial</p>
               {!dispositivos.length ? (
                 <EmptyState compact icon="phone" title="Sin dispositivos registrados" description="Los equipos con IMEI/serial comprados por este cliente aparecen acá." />
               ) : (
@@ -993,8 +1001,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </>
           )}
 
-          {tab === 'garantias' && (
+          {tab === 'pedidos' && (
             <>
+              <p className="text-sm font-semibold">Garantías</p>
               {!warranties.length ? (
                 <EmptyState compact icon="package" title="Sin garantías" description="No hay casos de garantía asociados a este cliente." />
               ) : (
@@ -1020,10 +1029,10 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </>
           )}
 
-          {tab === 'notas' && (
+          {tab === 'datos' && (
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-warn/30 bg-warn/5 p-3">
-                <Label>Nota interna <span className="text-mute">(solo equipo)</span></Label>
+                <Label>Nota interna <span className="text-mute">(solo equipo, nunca visible al cliente)</span></Label>
                 <Textarea rows={3} aria-label="Nota interna" value={notaInterna} onChange={event => setNotaInterna(event.target.value)} placeholder="Raya lateral, trato especial, observaciones…" autoCapitalize="sentences" />
               </div>
               <div className="rounded-xl border border-ok/30 bg-ok/5 p-3">
@@ -1036,8 +1045,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </div>
           )}
 
-          {tab === 'notas' && (
+          {tab === 'cronologia' && (
             <div className="space-y-4">
+              <p className="text-sm font-semibold">Comentarios del equipo</p>
               <form onSubmit={saveNote} className="space-y-3">
                 <FormField label={editingNote ? 'Editar nota' : 'Nueva nota'} htmlFor="profile-note">
                   <Textarea id="profile-note" rows={3} maxLength={2000} placeholder="Nota interna del equipo sobre este cliente…" value={newNote} onChange={(event) => setNewNote(event.target.value)} />
@@ -1116,8 +1126,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </div>
           )}
 
-          {tab === 'seguimientos' && (
+          {tab === 'cronologia' && (
             <div className="space-y-4">
+              <p className="text-sm font-semibold">Seguimientos</p>
               <form onSubmit={saveFollowUp} className="grid gap-3 sm:grid-cols-[10rem_12rem_1fr]">
                 <FormField label="Tipo" htmlFor="profile-follow-kind">
                   <Select id="profile-follow-kind" value={followForm.kind} onChange={(event) => setFollowForm({ ...followForm, kind: event.target.value })}>
@@ -1171,8 +1182,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </div>
           )}
 
-          {tab === 'comercial' && (
+          {tab === 'datos' && (
             <div className="space-y-4">
+              <p className="text-sm font-semibold">Configuración comercial</p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
                   <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Tipo</p>
@@ -1211,27 +1223,6 @@ export default function CustomerProfile({ customer, open, onClose }) {
                   </FormField>
                 </div>
                 {nombreListaPrecios && <Badge color="blue">{nombreListaPrecios}</Badge>}
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {!mayorista && !hayPendiente('WHOLESALE') && (
-                  <Button type="button" onClick={solicitarMayorista} disabled={requestBusy}>
-                    <Icon name="tag" className="h-4 w-4" />
-                    {requestBusy ? 'Enviando…' : 'Solicitar ser mayorista'}
-                  </Button>
-                )}
-                {!creditoHabilitado && !hayPendiente('CREDIT') && (
-                  <Button type="button" variant="outline" onClick={() => abrirSolicitud('CREDIT')}>
-                    <Icon name="wallet" className="h-4 w-4" />
-                    Solicitar habilitación de crédito
-                  </Button>
-                )}
-                {creditoHabilitado && !hayPendiente('CREDIT_DAYS') && (
-                  <Button type="button" variant="outline" onClick={() => abrirSolicitud('CREDIT_DAYS')}>
-                    <Icon name="clock" className="h-4 w-4" />
-                    Solicitar días de crédito
-                  </Button>
-                )}
               </div>
 
               <div>
@@ -1275,8 +1266,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </div>
           )}
 
-          {tab === 'puntos' && (
+          {tab === 'datos' && (
             <div className="space-y-4">
+              <p className="text-sm font-semibold">Puntos de fidelización</p>
               {esDemo ? (
                 <p className="text-sm text-mute">La fidelización se calcula con las ventas reales de la tienda.</p>
               ) : (
@@ -1320,8 +1312,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
             </div>
           )}
 
-          {tab === 'facturacion' && (
+          {tab === 'datos' && (
             <div className="space-y-4">
+              <p className="text-sm font-semibold">Datos de facturación</p>
               <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
