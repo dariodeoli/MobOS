@@ -1,6 +1,7 @@
 import { gs } from '@/utils/calculos'
 import { printHtml, escapeHtml } from '@/utils/printHtml'
 import { APP_NAME } from '@/lib/brand'
+import { ESTADO_ENTREGA } from '@/lib/estadosPedido'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { ahorroDeLinea } from '@/utils/precioLista'
 import { totalesPedido } from '@/utils/pedido'
@@ -161,7 +162,6 @@ export const transferReceiveUrlFor = (token) => {
   return token && base ? `${base}/remito/${encodeURIComponent(token)}` : ''
 }
 
-const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 
 const THERMAL_WIDTHS = { 'thermal-80': 80, 'thermal-58': 58, 'thermal-55': 55, thermal: 58 }
 const thermalWidth = (format) => THERMAL_WIDTHS[format] || 0
@@ -317,7 +317,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const modelo = modeloComprobante(level)
   const completo = modelo.pagos
   const detallado = modelo.cronologia
-  const textoEvento = (evento) => evento.type === 'created' ? 'Pedido creado' : evento.type === 'payment' ? `Pago ${gs(evento.amountPyg || 0)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}` : `Entrega: ${FULFILLMENT[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`
+  const textoEvento = (evento) => evento.type === 'created' ? 'Pedido creado' : evento.type === 'payment' ? `Pago ${gs(evento.amountPyg || 0)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}` : `Entrega: ${ESTADO_ENTREGA[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`
 
   const documento = order.billingName ? `<div class="card"><div class="label">Factura a</div><div>${escapeHtml(order.billingName)}${order.billingDocument ? ` · RUC ${escapeHtml(order.billingDocument)}` : ''}</div></div>` : ''
   const itemsRows = items.map(item => {
@@ -424,7 +424,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
     ${completo && (order.deliveryType || order.deliveryNotes) ? `<div class="sep"></div><div class="muted">Entrega: ${escapeHtml(order.deliveryType || '—')}${order.deliveryNotes ? ` · ${escapeHtml(order.deliveryNotes)}` : ''}</div>` : ''}
     ${cronologia58}
     <div class="sep"></div>
-    <div class="center">${escapeHtml(FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación')}</div>
+    <div class="center">${escapeHtml(ESTADO_ENTREGA[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación')}</div>
     ${link ? `${qr ? `<img class="qr" src="${qr}" alt="QR del comprobante">` : ''}<div class="small">${level === 'rapido' ? 'Seguimiento' : level === 'completo' ? 'Comprobante y seguimiento' : 'Comprobante detallado'}: ${escapeHtml(link)}</div>` : ''}
     <div class="nofiscal">Documento no fiscal · No válido como factura</div>
     <div class="small">Conservá este comprobante para cambios y garantía. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</div>
@@ -450,7 +450,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
     ${pagosRows}
     ${credito}
     ${entregaNotas}
-    <p><span class="tag">${escapeHtml(FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación')}</span></p>
+    <p><span class="tag">${escapeHtml(ESTADO_ENTREGA[order.fulfillmentStatus] || order.fulfillmentStatus || order.deliveryType || order.entrega || 'En preparación')}</span></p>
     ${cronologia}
     ${link ? `${qr ? `<img class="qr" src="${qr}" alt="QR del comprobante">` : ''}<p class="small">${level === 'rapido' ? 'Seguimiento' : level === 'completo' ? 'Comprobante y seguimiento' : 'Comprobante detallado'}: ${escapeHtml(link)}</p>` : ''}
     <footer>Documento no fiscal. Conservá este comprobante para cambios y garantía. Generado por ${escapeHtml(APP_NAME)}${empresa ? ` para ${escapeHtml(empresa)}` : ''}.</footer>

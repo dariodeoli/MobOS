@@ -7,11 +7,8 @@ import { codigoPedido, totalesPedido } from '@/utils/pedido'
 import { varianteDeTema } from '@/lib/tenantLogo'
 import SeccionColapsable from '@/components/shared/SeccionColapsable'
 import { Aviso, CeldaMoneda, FilaDato } from '@/components/ui'
-import { ROTULO_SECCION } from '@/components/shared/tabla'
-
-const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
-const ORDER_STATUS = { PENDING: 'Pendiente de pago', COMPLETED: 'Pagado', CANCELLED: 'Cancelado' }
-const WARRANTY_STATUS = { RECEIVED: 'Recibido', DIAGNOSIS: 'En diagnóstico', READY: 'Listo', DELIVERED: 'Entregado' }
+import { CELDA_DATO, ROTULO_SECCION } from '@/components/shared/tabla'
+import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO } from '@/lib/estadosPedido'
 const LEVELS = { rapido: 'Comprobante rápido', completo: 'Comprobante completo', detallado: 'Comprobante detallado' }
 const PASOS = ['PROCESSING', 'IN_TRANSIT', 'READY_TO_SHIP', 'READY_FOR_PICKUP', 'DELIVERED']
 
@@ -35,7 +32,7 @@ export default function PedidoPublico() {
   const aCredito = Boolean(order?.credit)
   const entregadoConSaldo = ['DELIVERED', 'PICKED_UP'].includes(order?.fulfillmentStatus) && pendiente > 0
   const tracking = order?.tracking
-  const etiquetaSeguimiento = tracking?.estadoLabel || FULFILLMENT[order?.fulfillmentStatus] || order?.fulfillmentStatus
+  const etiquetaSeguimiento = tracking?.estadoLabel || ESTADO_ENTREGA[order?.fulfillmentStatus] || order?.fulfillmentStatus
   const encabezadoSeguimiento = tracking?.encabezado || 'Seguimiento de pedido'
   const etiquetaEntrega = entregadoConSaldo
     ? `${etiquetaSeguimiento} · ${aCredito ? 'a crédito' : 'pagado parcialmente'}`
@@ -52,7 +49,7 @@ export default function PedidoPublico() {
   // fecha; sin ese dato se cae al listado histórico genérico.
   const pasosSeguimiento = tracking?.pasos?.length
     ? tracking.pasos
-    : PASOS.map((step, index) => ({ key: step, label: FULFILLMENT[step], hecho: index <= pasoActual, actual: order?.fulfillmentStatus === step, at: null }))
+    : PASOS.map((step, index) => ({ key: step, label: ESTADO_ENTREGA[step], hecho: index <= pasoActual, actual: order?.fulfillmentStatus === step, at: null }))
   const items = order?.items || []
   const pagos = order?.payments || []
   const movimientos = order?.level === 'detallado' ? (order.timeline || []) : []
@@ -91,7 +88,7 @@ export default function PedidoPublico() {
                 <div className="min-w-0 flex-1">
                   {order.company?.name && <p className="truncate text-sm font-bold">{order.company.name}</p>}
                   {order.branch && (
-                    <p className="truncate text-xs text-mute">
+                    <p className={CELDA_DATO}>
                       {order.branch.name}
                       {[order.branch.address, order.branch.city, order.branch.department].filter(Boolean).length ? ` · ${[order.branch.address, order.branch.city, order.branch.department].filter(Boolean).join(', ')}` : ''}
                       {order.branch.phone ? ` · ${order.branch.phone}` : ''}
@@ -121,7 +118,7 @@ export default function PedidoPublico() {
             <section className="rounded-2xl border border-ink-600 bg-ink-900 p-4">
               <div className="flex items-center justify-between gap-3">
                 <h2 className={ROTULO_SECCION}>Estado del pedido</h2>
-                <span className="text-[11px] text-mute">{ORDER_STATUS[order.status] || order.status} · actualizado {fechaHora(order.updatedAt)}</span>
+                <span className="text-[11px] text-mute">{ESTADO_PEDIDO[order.status] || order.status} · actualizado {fechaHora(order.updatedAt)}</span>
               </div>
               <div className="mt-3 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${pasosSeguimiento.length}, minmax(0, 1fr))` }}>
                 {pasosSeguimiento.map(paso => (
@@ -238,7 +235,7 @@ export default function PedidoPublico() {
                         <p className="mt-0.5">
                           {evento.type === 'created' && 'Pedido creado'}
                           {evento.type === 'payment' && `Pago recibido: ${gs(evento.amountPyg)}${evento.methodLabel ? ` · ${evento.methodLabel}` : ''}${evento.account ? ` · ${evento.account}` : ''}`}
-                          {evento.type === 'fulfillment' && `Entrega: ${FULFILLMENT[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`}
+                          {evento.type === 'fulfillment' && `Entrega: ${ESTADO_ENTREGA[evento.metadata?.current] || evento.metadata?.current || 'actualizada'}`}
                         </p>
                       </div>
                     </li>
@@ -259,7 +256,7 @@ export default function PedidoPublico() {
                     <Link key={warranty.token} to={`/garantia/${warranty.token}`} className="flex items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2.5 transition hover:border-fono">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{warranty.productName}</p>
-                        <p className="mt-0.5 text-xs text-mute">{WARRANTY_STATUS[warranty.status] || warranty.status}{warranty.daysRemaining != null ? ` · ${warranty.daysRemaining} días restantes` : ''}</p>
+                        <p className="mt-0.5 text-xs text-mute">{ESTADO_GARANTIA[warranty.status] || warranty.status}{warranty.daysRemaining != null ? ` · ${warranty.daysRemaining} días restantes` : ''}</p>
                       </div>
                       <span className="shrink-0 text-sm font-bold text-fono-light">Ver garantía →</span>
                     </Link>

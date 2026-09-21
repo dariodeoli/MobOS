@@ -7,8 +7,7 @@ import { fechaClave, num, gs } from '@/utils/calculos'
 import { Aviso, Badge, Button, Card, EmptyState, Input, Label, MoneyInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
-import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
-
+import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 // Tablas compactas: una fila por mes y por inversión.
 const GRID_ADS = 'grid min-w-[40rem] grid-cols-[minmax(10rem,1.4fr)_6rem_8rem_8rem_4rem] items-center gap-x-2'
 
@@ -180,9 +179,9 @@ export default function Ads() {
               {ads.map((a) => (
                 <div key={a.id} data-testid="ad-fila" className={cn(GRID_ADS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2')}>
                   <span className="truncate text-[13px] font-semibold">{a.plataforma}</span>
-                  <span className="truncate text-xs text-mute">{a.fecha}</span>
+                  <span className={CELDA_DATO}>{a.fecha}</span>
                   <span className="truncate text-xs font-bold tabular-nums text-warn">{gs(a.monto)}</span>
-                  <span className="truncate text-xs text-mute capitalize">{a.fecha ? mesLabel(String(a.fecha).slice(0, 7)) : '—'}</span>
+                  <span className={cn('capitalize', CELDA_DATO)}>{a.fecha ? mesLabel(String(a.fecha).slice(0, 7)) : '—'}</span>
                   <span className="flex items-center justify-end">{demo && <button onClick={() => borrar(a.id)} className="p-1 text-mute transition hover:text-bad" title="Eliminar" aria-label={`Eliminar inversión de ${a.plataforma}`}><Icon name="trash" className="h-4 w-4" /></button>}</span>
                 </div>
               ))}

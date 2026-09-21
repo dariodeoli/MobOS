@@ -7,13 +7,8 @@ import { codigoPedido } from '@/utils/pedido'
 import Icon from '@/components/shared/Icon'
 import { PortalCargando, PortalEncabezado, PortalEstado, PortalFallo, PortalPie, PortalSeccion } from '@/components/customerPortal/PortalUI'
 import { demoCuentaPayload, esTokenDemo } from '@/lib/demoClientes'
-
-const ORDER_STATUS = { PENDING: 'Pendiente de pago', COMPLETED: 'Pagado', CANCELLED: 'Cancelado' }
-const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
-const WARRANTY_STATUS = { RECEIVED: 'Recibido', DIAGNOSIS: 'En diagnóstico', READY: 'Listo', DELIVERED: 'Entregado' }
-const LEVELS = { rapido: 'Resumen rápido', completo: 'Resumen completo' }
-const tonoPedido = (status) => (status === 'COMPLETED' ? 'ok' : status === 'CANCELLED' ? 'bad' : 'warn')
-const tonoGarantia = (status) => (status === 'DELIVERED' ? 'neutro' : status === 'READY' ? 'ok' : 'info')
+import { NIVELES_PORTAL } from '@/lib/customerPortal'
+import { ESTADO_ENTREGA, ESTADO_GARANTIA, ESTADO_PEDIDO, tonoGarantia, tonoPedido } from '@/lib/estadosPedido'
 
 // Resumen de cuenta público del cliente: saldo, vencimientos, pedidos y —según
 // el nivel del enlace— garantías activas, direcciones y comprobantes. No
@@ -60,7 +55,7 @@ export default function CuentaPublica() {
           logoAlt={cuenta?.company?.name ? `Logo de ${cuenta.company.name}` : 'Logo'}
           onLogoError={() => setLogoOk(false)}
         />
-        {cuenta?.level && <p className="-mt-2 text-center text-[11px] uppercase tracking-wider text-mute sm:-mt-3">{LEVELS[cuenta.level] || cuenta.level}</p>}
+        {cuenta?.level && <p className="-mt-2 text-center text-[11px] uppercase tracking-wider text-mute sm:-mt-3">{NIVELES_PORTAL[cuenta.level] || cuenta.level}</p>}
 
         {error && <PortalFallo mensaje={error} />}
         {!cuenta && !error && <PortalCargando />}
@@ -124,8 +119,8 @@ export default function CuentaPublica() {
                           <p className="shrink-0 text-right font-bold tabular-nums">{gs(order.totalPyg)}</p>
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                          <PortalEstado tono={tonoPedido(order.status)}>{ORDER_STATUS[order.status] || order.status}</PortalEstado>
-                          {FULFILLMENT[order.fulfillmentStatus] && <PortalEstado tono="neutro">{FULFILLMENT[order.fulfillmentStatus]}</PortalEstado>}
+                          <PortalEstado tono={tonoPedido(order.status)}>{ESTADO_PEDIDO[order.status] || order.status}</PortalEstado>
+                          {ESTADO_ENTREGA[order.fulfillmentStatus] && <PortalEstado tono="neutro">{ESTADO_ENTREGA[order.fulfillmentStatus]}</PortalEstado>}
                           {pendiente > 0 && <PortalEstado tono="warn">Pendiente {gs(pendiente)}</PortalEstado>}
                         </div>
                         {pendiente > 0 && order.dueAt && <p className="mt-1.5 text-xs text-mute">Vence el {fecha(order.dueAt)}</p>}
@@ -155,7 +150,7 @@ export default function CuentaPublica() {
                       <div key={`${warranty.serial}-${index}`} className="rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
                         <div className="flex items-center justify-between gap-3">
                           <span className="min-w-0 truncate">{warranty.description || 'Equipo'}</span>
-                          <PortalEstado tono={tonoGarantia(warranty.status)}>{WARRANTY_STATUS[warranty.status] || warranty.status}</PortalEstado>
+                          <PortalEstado tono={tonoGarantia(warranty.status)}>{ESTADO_GARANTIA[warranty.status] || warranty.status}</PortalEstado>
                         </div>
                         <p className="mt-1 font-mono text-[11px] text-mute">{warranty.serial}</p>
                         <p className="mt-0.5 text-xs text-mute">

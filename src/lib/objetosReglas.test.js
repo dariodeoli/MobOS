@@ -161,3 +161,41 @@ test('escapeHtml se define una sola vez (plantillas de impresión)', () => {
     assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /import \{ printHtml, escapeHtml \} from '@\/utils\/printHtml'/, `${ruta}: escapeHtml va del módulo compartido`)
   }
 })
+
+test('las celdas de dato y de monto salen de shared/tabla', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/shared/tabla.js') && (contenido.includes('className="truncate text-xs text-mute"') || contenido.includes('className="truncate text-xs text-mute ') || contenido.includes('className="text-right tabular-nums"')))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  const tabla = readFileSync(join(RAIZ, 'components/shared/tabla.js'), 'utf8')
+  for (const nombre of ['CELDA_DATO', 'CELDA_MONTO']) {
+    assert.match(tabla, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
+  }
+  for (const ruta of ['components/customers/ClientesTabla.jsx', 'components/control/Reportes.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /CELDA_(DATO|MONTO)/, `${ruta}: la celda va con el objeto compartido`)
+  }
+})
+
+test('el enlace de WhatsApp se arma una sola vez en utils/telefono', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('utils/telefono.js') && contenido.includes('https://wa.me/'))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  assert.match(readFileSync(join(RAIZ, 'utils/telefono.js'), 'utf8'), /export function whatsappUrl\(/, 'falta whatsappUrl')
+  for (const ruta of ['components/ventas/PagosPedido.jsx', 'components/ventas/FormularioVenta.jsx', 'pages/GarantiaPublica.jsx', 'components/customers/CampanasClientes.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /whatsappUrl/, `${ruta}: el enlace va con whatsappUrl`)
+  }
+})
+
+test('los estados de pedido del cliente se definen una sola vez', () => {
+  const pagina = (ruta) => readFileSync(join(RAIZ, ruta), 'utf8')
+  for (const ruta of ['pages/PortalCliente.jsx', 'pages/CuentaPublica.jsx', 'pages/PedidoPublico.jsx', 'pages/GarantiaPublica.jsx']) {
+    const codigo = pagina(ruta)
+    assert.doesNotMatch(codigo, /const (ESTADO_PEDIDO|ORDER_STATUS|FULFILLMENT|WARRANTY_STATUS) = \{/, `${ruta}: los estados salen de lib/estadosPedido`)
+    assert.match(codigo, /from '@\/lib\/estadosPedido'/, `${ruta}: falta el módulo compartido`)
+  }
+  const estados = readFileSync(join(RAIZ, 'lib/estadosPedido.js'), 'utf8')
+  for (const nombre of ['ESTADO_PEDIDO', 'ESTADO_ENTREGA', 'ESTADO_GARANTIA', 'tonoPedido', 'tonoGarantia']) {
+    assert.match(estados, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
+  }
+})

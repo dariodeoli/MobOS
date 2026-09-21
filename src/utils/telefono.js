@@ -17,6 +17,13 @@ export function internationalPhone(value, countryCode = '+595') {
   return `${code}${digits}`
 }
 
+// Enlace de WhatsApp: número en formato internacional y mensaje escapado.
+// Sin teléfono no hay enlace (''). Es el único lugar donde se arma el `wa.me`.
+export function whatsappUrl(phone, message = '', countryCode = '+595') {
+  const numero = internationalPhone(phone, countryCode)
+  return numero ? `https://wa.me/${numero}?text=${encodeURIComponent(String(message ?? ''))}` : ''
+}
+
 // Entrada de los campos de teléfono: sin letras, espacios ni separadores.
 export function soloDigitos(value, max = 0) {
   const digits = String(value ?? '').replace(/\D/g, '')

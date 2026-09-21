@@ -3,8 +3,8 @@ import { Badge, IconAction, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { gs } from '@/utils/calculos'
-import { telefonoVisible } from '@/utils/telefono'
-import { renderMessage, whatsappUrl } from './customerMessaging'
+import { telefonoVisible, whatsappUrl } from '@/utils/telefono'
+import { renderMessage } from './customerMessaging'
 
 export default function CustomerCommunicationCard({ customer, templates, onViewProfile }) {
   const [templateId, setTemplateId] = useState(templates[0]?.id || '')

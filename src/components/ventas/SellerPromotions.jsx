@@ -9,8 +9,7 @@ import ProductCombobox from '@/components/shared/ProductCombobox'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { cn } from '@/lib/utils'
 import { SellerSection, SellerFeedback, useSellerData } from './SellerData'
-import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
-
+import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 // Tabla compacta: una fila por cupón, con vigencia y estado en su columna.
 const GRID_PROMOS = 'grid min-w-[56rem] grid-cols-[6.5rem_minmax(8rem,1.2fr)_7rem_minmax(8rem,1.2fr)_6.5rem_6.5rem_6.5rem_8rem] items-center gap-x-2'
 const fechaCorta = (value) => {
@@ -66,9 +65,9 @@ export default function SellerPromotions() {
           <span className="truncate font-mono text-[11px] font-bold text-fono-light" title={p.code}>{p.code}</span>
           <span className="truncate text-[13px] font-semibold" title={p.name}>{p.name}</span>
           <span className="truncate text-xs tabular-nums text-mute">{p.kind === 'PERCENT' ? `${formatPercent(p.value)}%` : gs(p.value)}</span>
-          <span className="truncate text-xs text-mute" title={alcance}>{alcance}</span>
-          <span className="truncate text-xs text-mute">{fechaCorta(p.startsAt)}</span>
-          <span className="truncate text-xs text-mute">{fechaCorta(p.endsAt)}</span>
+          <span className={CELDA_DATO} title={alcance}>{alcance}</span>
+          <span className={CELDA_DATO}>{fechaCorta(p.startsAt)}</span>
+          <span className={CELDA_DATO}>{fechaCorta(p.endsAt)}</span>
           <span className="min-w-0"><Badge color={tono} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]" title={p.maxUnits === null ? 'Sin límite de unidades' : `${Math.max(0, p.maxUnits - p.usedUnits)} disponibles de ${p.maxUnits}`}>{estado}</Badge></span>
           <span className="flex items-center justify-end">{admin && <Button type="button" variant="outline" className="h-8 whitespace-nowrap px-2 text-xs" disabled={busy} onClick={() => mutate(() => esDemo ? toggleDemoPromotion(p.id, !p.isActive) : api.patch('/api/promotions', { id: p.id, isActive: !p.isActive }))}>{p.isActive ? 'Desactivar' : 'Activar'}</Button>}</span>
         </div>

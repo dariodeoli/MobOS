@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import BarraLote from '@/components/shared/BarraLote'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { IconAction, useToast } from '@/components/ui'
-import { CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
 // Tabla de clientes alineada: una fila por persona, encabezados ordenables y
 // acciones compactas (perfil al hacer clic, WhatsApp con plantilla). Entra sin
 // scroll horizontal en desktop: todo trunca y el espacio se reparte con
@@ -110,14 +110,14 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
               <span className={cn('inline-block w-fit max-w-full truncate rounded-md border px-1.5 py-0.5 text-[10px] font-bold', row.wholesale ? 'border-warn/30 bg-warn/10 text-warn' : 'border-ink-500 bg-ink-700/40 text-mute')}>
                 {row.wholesale ? 'Mayorista' : 'Cliente final'}
               </span>
-              <span className="truncate text-xs text-mute tabular-nums" title={telefono || undefined}>{telefonoMostrado || '—'}</span>
+              <span className={cn('tabular-nums', CELDA_DATO)} title={telefono || undefined}>{telefonoMostrado || '—'}</span>
               <span className="flex justify-center">
                 {row.email
                   ? <Icon name="check" role="img" title="Con correo" aria-label="Con correo" aria-hidden={false} className="h-4 w-4 text-ok" />
                   : <Icon name="close" role="img" title="Sin correo" aria-label="Sin correo" aria-hidden={false} className="h-3.5 w-3.5 text-mute" />}
               </span>
-              <span className="truncate text-xs text-mute tabular-nums">{row.document || '—'}</span>
-              <span className="truncate text-xs text-mute">{ciudadDe(row) || '—'}</span>
+              <span className={cn('tabular-nums', CELDA_DATO)}>{row.document || '—'}</span>
+              <span className={CELDA_DATO}>{ciudadDe(row) || '—'}</span>
               <span className="truncate text-center text-xs font-semibold tabular-nums">{row.stats?.orders || 0}</span>
               <span className="truncate text-right text-sm font-bold tabular-nums text-fore">{gs(row.stats?.totalSpentPyg || 0)}</span>
               <span className="flex justify-center">

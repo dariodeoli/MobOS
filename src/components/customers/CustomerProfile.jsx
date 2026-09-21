@@ -23,7 +23,7 @@ import Icon from '@/components/shared/Icon'
 import ActorAvatar from './ActorAvatar'
 import { DEMO_MESSAGE_TEMPLATES } from './customerMessaging'
 import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline } from '@/lib/demoClientes'
-import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_MONTO } from '@/components/shared/tabla'
 import {
   Aviso,
   Badge,
@@ -1195,9 +1195,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
                   {ordenesConSaldo.map((order) => (
                     <div key={order.id} data-testid="perfil-deuda-fila" className={cn(GRID_DEUDA, 'rounded-lg px-1 py-1.5 text-sm')}>
                       <span className="truncate font-medium" title={codigoPedido(order.orderNumber) || undefined}>{codigoPedido(order.orderNumber) || 'Pedido'}</span>
-                      <span className="truncate text-xs text-mute">{fecha(order.createdAt)}</span>
-                      <span className="truncate text-right tabular-nums text-mute">{formatGs(order.totalPyg)}</span>
-                      <span className="truncate text-right tabular-nums text-ok">{formatGs(pagadoOrden(order))}</span>
+                      <span className={CELDA_DATO}>{fecha(order.createdAt)}</span>
+                      <span className={cn('truncate text-mute', CELDA_MONTO)}>{formatGs(order.totalPyg)}</span>
+                      <span className={cn('truncate text-ok', CELDA_MONTO)}>{formatGs(pagadoOrden(order))}</span>
                       <span className="truncate text-right font-semibold tabular-nums text-warn">{formatGs(saldoOrden(order))}</span>
                     </div>
                   ))}
@@ -1324,8 +1324,8 @@ export default function CustomerProfile({ customer, open, onClose }) {
                       <div key={`${device.serial}-${device.orderNumber}`} data-testid="perfil-dispositivo-fila" className={cn(GRID_DISPOSITIVOS, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
                         <span className="truncate text-[13px] font-semibold" title={device.model || undefined}>{device.model || 'Equipo'}</span>
                         <span className="min-w-0 truncate font-mono text-[11px] text-mute" title={serial}><SerialTexto serial={serial} /></span>
-                        <span className="truncate text-xs text-mute">{fecha(device.date)}</span>
-                        <span className="truncate text-xs text-mute">{device.orderNumber ? codigoPedido(device.orderNumber) : '—'}</span>
+                        <span className={CELDA_DATO}>{fecha(device.date)}</span>
+                        <span className={CELDA_DATO}>{device.orderNumber ? codigoPedido(device.orderNumber) : '—'}</span>
                         <span className="min-w-0">{vence ? <Badge color={dias === 0 ? 'red' : dias <= 15 ? 'orange' : 'green'} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{dias === 0 ? 'Vencida' : `${dias} días`}</Badge> : <Badge color="slate" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Sin garantía</Badge>}</span>
                         <span className="flex items-center justify-end gap-1.5">
                           {device.serial && <button type="button" className="whitespace-nowrap rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light transition hover:bg-fono/10" onClick={() => setImeiDe(device)}>Verificación IMEI</button>}
@@ -1358,7 +1358,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     <div key={item.id} data-testid="perfil-garantia-fila" className={cn(GRID_GARANTIAS_CLI, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
                       <span className="truncate text-[13px] font-semibold" title={item.description || undefined}>{item.description || 'Garantía'}</span>
                       <span className="min-w-0"><SerialTexto serial={item.serial} className="truncate text-[11px] text-mute" /></span>
-                      <span className="truncate text-xs text-mute">{fecha(item.createdAt)}</span>
+                      <span className={CELDA_DATO}>{fecha(item.createdAt)}</span>
                       <span className="min-w-0">{STATUS_BADGE(WARRANTY_STATUS, item.status)}</span>
                     </div>
                   ))}
@@ -1687,7 +1687,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                           <li key={movimiento.id} data-testid="perfil-punto-movimiento" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2 text-sm">
                             <span className="flex min-w-0 items-center gap-2">
                               <Badge color={tipo.color}>{tipo.label}</Badge>
-                              <span className="min-w-0 truncate text-xs text-mute">{movimiento.note || (movimiento.order?.orderNumber ? codigoPedido(movimiento.order.orderNumber) : '—')}</span>
+                              <span className={cn('min-w-0', CELDA_DATO)}>{movimiento.note || (movimiento.order?.orderNumber ? codigoPedido(movimiento.order.orderNumber) : '—')}</span>
                             </span>
                             <span className="flex items-center gap-3">
                               <span className="text-xs text-mute">{fechaHora(movimiento.createdAt)}</span>
@@ -1786,7 +1786,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                       <div key={identity.id} data-testid="perfil-facturacion-fila" className={cn(GRID_FACTURACION, 'rounded-xl border border-ink-600 bg-ink-800 px-3.5 py-2')}>
                         <span className="truncate text-[13px] font-semibold" title={identity.name || undefined}>{identity.name || 'Sin razón social'}</span>
                         <span className="truncate text-xs tabular-nums text-mute">{identity.document || '—'}</span>
-                        <span className="truncate text-xs text-mute" title={uso ? `Utilizado en ${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : 'Todavía sin uso'}>{uso ? `${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : '—'}</span>
+                        <span className={CELDA_DATO} title={uso ? `Utilizado en ${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : 'Todavía sin uso'}>{uso ? `${uso} ${uso === 1 ? 'pedido' : 'pedidos'}` : '—'}</span>
                         <span className="min-w-0">{actual ? <Badge color="green" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Actual</Badge> : <span className="text-xs text-mute">—</span>}</span>
                         <span className="flex items-center justify-end gap-2">
                           {!actual && <button type="button" disabled={esDemo || identityBusy} className="whitespace-nowrap text-xs font-semibold text-ok disabled:opacity-40" onClick={() => usarComoActual(identity)}>Usar</button>}

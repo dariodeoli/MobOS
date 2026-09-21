@@ -28,6 +28,8 @@ import DatosPrivados from '@/components/control/DatosPrivados'
 import { ROLE_LABELS } from '@/lib/roles'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { descargarArchivo } from '@/utils/descargarArchivo'
+import { CELDA_DATO } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 async function copiarValor(toast, valor, etiqueta) {
   if (!valor) return
@@ -715,7 +717,7 @@ function SeccionTiendas({ account }) {
                   <b className="truncate text-sm">{store.name}</b>
                   {store.current && <Badge color="green">Actual</Badge>}
                 </div>
-                <p className="mt-1 truncate text-xs text-mute">ID: {store.id}</p>
+                <p className={cn('mt-1', CELDA_DATO)}>ID: {store.id}</p>
               </div>
               <Button type="button" variant="outline" onClick={() => copiarValor(toast, store.id, 'ID de la tienda')} disabled={!store.id}>Copiar ID</Button>
             </div>

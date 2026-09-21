@@ -12,6 +12,7 @@ import Cronologia from '@/components/shared/Cronologia'
 import PanelDerecho from '@/components/shared/PanelDerecho'
 import { ROLE_LABELS } from '@/lib/roles'
 import { cn } from '@/lib/utils'
+import { CELDA_DATO } from '@/components/shared/tabla'
 
 // PIN aleatorio de 4 a 6 dígitos (crypto): se muestra una sola vez al
 // asignarlo y nunca se guarda en claro.
@@ -369,8 +370,8 @@ export default function Vendedores() {
                 <Avatar user={{ id: v.id, name: v.nombre, hasAvatar: esDemo ? false : v.hasAvatar }} size="lg" />
                 <div className="min-w-0">
                   <input aria-label={`Nombre de ${v.nombre}`} defaultValue={v.nombre} onBlur={event => { const name = event.target.value.trim(); if (name && name !== v.nombre) actualizarUsuario(v.id, esDemo ? { nombre: name } : { name }) }} className="min-h-7 min-w-0 max-w-[15rem] bg-transparent text-[13px] font-bold outline-none border-b border-transparent focus:border-fono" />
-                  {v.email && <p className="truncate text-xs text-mute">{v.email}</p>}
-                  <p className="truncate text-xs text-mute">{v.branchId ? (sucursales.find(s => s.id === v.branchId)?.name || 'Sucursal') : 'Sin sucursal'}</p>
+                  {v.email && <p className={CELDA_DATO}>{v.email}</p>}
+                  <p className={CELDA_DATO}>{v.branchId ? (sucursales.find(s => s.id === v.branchId)?.name || 'Sucursal') : 'Sin sucursal'}</p>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -432,7 +433,7 @@ export default function Vendedores() {
                 <Badge color={color}>{label}</Badge>
                 <Badge>{ROLE_LABELS[invite.role] || invite.role}</Badge>
               </div>
-              <p className="mt-1 truncate text-xs text-mute">{invite.email}</p>
+              <p className={cn('mt-1', CELDA_DATO)}>{invite.email}</p>
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-mute">
                 {invite.inviterName && <span>Invitó {invite.inviterName}</span>}
                 <span>Creada {fechaCortaInv(invite.createdAt)}</span>

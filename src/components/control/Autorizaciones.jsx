@@ -21,8 +21,7 @@ import {
   useToast,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import { CELDA_ENCABEZADO, ROTULO_SECCION } from '@/components/shared/tabla'
-
+import { CELDA_DATO, CELDA_ENCABEZADO, ROTULO_SECCION } from '@/components/shared/tabla'
 // Tabla compacta: una fila por solicitud y las acciones de aprobación en la
 // misma línea. El detalle (autorizado, quién resolvió, notas) va en el title.
 const GRID_AUTORIZACIONES =
@@ -406,18 +405,18 @@ export default function Autorizaciones() {
                     )}
                   </span>
                   <span
-                    className="truncate text-xs text-mute"
+                    className={CELDA_DATO}
                     title={autorizado ? `Autorizado: ${autorizado}` : undefined}
                   >
                     {pedido}
                   </span>
                   <span
-                    className="truncate text-xs text-mute"
+                    className={CELDA_DATO}
                     title={`Pidió ${row.requestedBy?.name || 'Sistema'}`}
                   >
                     {row.requestedBy?.name || 'Sistema'}
                   </span>
-                  <span className="truncate text-xs text-mute">{fechaHora(row.createdAt)}</span>
+                  <span className={CELDA_DATO}>{fechaHora(row.createdAt)}</span>
                   <span className="flex items-center gap-1">
                     <Badge
                       color={estado.color}

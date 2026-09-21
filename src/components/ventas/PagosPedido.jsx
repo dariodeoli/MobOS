@@ -14,7 +14,7 @@ import NumericKeypad from '@/components/shared/NumericKeypad'
 import SerialField from '@/components/shared/SerialField'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import { trackingUrlFor } from '@/components/shared/OrderReceipt'
-import { internationalPhone } from '@/utils/telefono'
+import { whatsappUrl } from '@/utils/telefono'
 import { renderMessage } from '@/components/customers/customerMessaging'
 import { printInternalReceipt, printOrderReceipt } from '@/components/shared/OrderReceipt'
 import { configImpresora } from '@/lib/printing/agent'
@@ -29,8 +29,6 @@ import { ROTULO_SECCION } from '@/components/shared/tabla'
 export function whatsappTrackingLink(order, extra = '', template = null) {
   const tracking = trackingUrlFor(order)
   if (!tracking) return ''
-  const number = internationalPhone(order?.customer?.phone || order?.clienteTelefono, order?.customer?.countryCode)
-  if (!number) return ''
   const name = order?.customer?.name || order?.cliente || ''
   const mensajePlantilla = template?.body
     ? renderMessage(template, {
@@ -40,7 +38,7 @@ export function whatsappTrackingLink(order, extra = '', template = null) {
       })
     : ''
   const message = mensajePlantilla || `Hola${name ? ` ${name}` : ''}, podés seguir tu pedido ${order?.codigo || order?.orderNumber || ''} acá: ${tracking}${extra ? `\n${extra}` : ''}`
-  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`
+  return whatsappUrl(order?.customer?.phone || order?.clienteTelefono, message, order?.customer?.countryCode)
 }
 
 const METODOS_PAGO = ['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'PIX', 'STORE_CREDIT']

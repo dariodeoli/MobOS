@@ -15,8 +15,8 @@ import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
 import Avatar from '@/components/shared/Avatar'
 import ImpresionComparativa from './ImpresionComparativa'
 import ImpresionGraficos from './ImpresionGraficos'
-import { ROTULO_SECCION } from '@/components/shared/tabla'
-
+import { CELDA_DATO, ROTULO_SECCION } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 // Día y hora con segundos: la telemetría se mide en milisegundos y la columna
 // de actividad tiene que mostrar el segundo exacto, no solo el minuto.
 const fmtDia = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY', { dateStyle: 'short' }) : '—')
@@ -871,7 +871,7 @@ export default function Impresoras() {
             <div className="rounded-xl border border-ink-600 p-3">
               <p className="text-xs uppercase tracking-wider text-mute">Computadora puente</p>
               <p className="mt-1 flex items-center gap-2 text-sm font-semibold"><span className={`h-2 w-2 rounded-full ${estado?.disponible ? 'bg-ok' : 'bg-bad'}`} />{estado?.disponible ? 'Encendida' : 'Apagada o sin agente'}</p>
-              <p className="mt-1 truncate text-xs text-mute" title={puentePrincipal.url || puentePrincipal.nombre}>
+              <p className={cn('mt-1', CELDA_DATO)} title={puentePrincipal.url || puentePrincipal.nombre}>
                 {puentePrincipal.nombre} · {puentePrincipal.backend
                   ? (puentePrincipal.online ? 'en línea' : `último contacto ${hace(puentePrincipal.lastSeenAt)}`)
                   : puentePrincipal.url.includes('127.0.0.1') || puentePrincipal.url.includes('localhost') ? 'solo esta computadora' : puentePrincipal.url}
@@ -953,7 +953,7 @@ export default function Impresoras() {
                     {sucursal.alerta ? 'Sin puente activo' : sucursal.puentes.length ? (sucursal.online ? 'Puente en línea' : 'Puente sin conexión') : 'Sin puente'}
                   </Badge>
                 </p>
-                <p className="mt-1 truncate text-xs text-mute" title={sucursal.puentes.map((puente) => puente.nombre).join(', ')}>{sucursal.puentes.length ? `Puente: ${sucursal.puentes.map((puente) => puente.nombre).join(', ')}` : 'Puente: el de la empresa (respaldo)'}</p>
+                <p className={cn('mt-1', CELDA_DATO)} title={sucursal.puentes.map((puente) => puente.nombre).join(', ')}>{sucursal.puentes.length ? `Puente: ${sucursal.puentes.map((puente) => puente.nombre).join(', ')}` : 'Puente: el de la empresa (respaldo)'}</p>
                 <p className="mt-0.5 text-xs text-mute">{sucursal.impresoras.length ? `Impresoras: ${sucursal.impresoras.length}` : 'Sin impresoras propias'}{sucursal.hasSales ? ' · con ventas' : ''}</p>
               </div>
             ))}
@@ -980,7 +980,7 @@ export default function Impresoras() {
                       {impresora.predeterminada && impresora.activa && <Badge color="blue">Predeterminada</Badge>}
                       {!impresora.activa && <Badge>Desactivada</Badge>}
                     </p>
-                    <p className="mt-0.5 truncate text-xs text-mute" title={impresora.destino}>{impresora.marca && impresora.modelo ? `${impresora.marca} ${impresora.modelo} · ` : ''}{impresora.destino || 'Sin destino'}</p>
+                    <p className={cn('mt-0.5', CELDA_DATO)} title={impresora.destino}>{impresora.marca && impresora.modelo ? `${impresora.marca} ${impresora.modelo} · ` : ''}{impresora.destino || 'Sin destino'}</p>
                   </div>
                   <Badge color={chip.color} title={verificacion}>{chip.label}</Badge>
                 </div>
@@ -1079,13 +1079,13 @@ export default function Impresoras() {
                         <span className="block tabular-nums text-fore" title={`Creado ${fechaConSegundos(fila.fecha)}`}>{fmtHora(fila.fecha)}</span>
                       </td>
                       <td className="px-2 py-2 text-xs">{fila.usuario || '—'}</td>
-                      <td className="px-2 py-2 truncate text-xs text-mute" title={`${fila.impresoraNombre || fila.impresora}${fila.ancho ? ` · ${fila.ancho} mm` : ''}`}>{fila.impresora}</td>
+                      <td className={cn('px-2 py-2', CELDA_DATO)} title={`${fila.impresoraNombre || fila.impresora}${fila.ancho ? ` · ${fila.ancho} mm` : ''}`}>{fila.impresora}</td>
                       <td className="px-2 py-2 text-xs text-mute" title={fila.transporte ? `Reportado por el agente: ${fila.transporte}` : 'Sin reporte del agente: se muestra el modo configurado'}>{etiquetaTransporte(fila)}</td>
                       <td className="px-2 py-2 text-[11px] text-mute">
                         <span className="block">en cola <b className="text-fore tabular-nums">{fmtTiempo(fila.enColaMs)}</b></span>
                         <span className="block">total <b className="text-fore tabular-nums">{fmtTiempo(fila.totalMs)}</b></span>
                       </td>
-                      <td className="px-2 py-2 truncate text-xs text-mute" title={`${fila.puente || '—'}${fila.tokenPista ? ` · token ${fila.tokenPista}` : ''}`}>{fila.puente || '—'}</td>
+                      <td className={cn('px-2 py-2', CELDA_DATO)} title={`${fila.puente || '—'}${fila.tokenPista ? ` · token ${fila.tokenPista}` : ''}`}>{fila.puente || '—'}</td>
                       <td className="px-2 py-2 text-xs font-semibold" title={fila.tipo ? `Tipo: ${fila.tipo}` : undefined}>
                         {fila.validacion || '—'}
                         {fila.resultado === 'pendiente' && sinRespuesta(fila) && <p className="mt-0.5 text-[10px] font-semibold text-warn" title="El puente no reportó el resultado; revisá la impresora y reintentá.">sin respuesta del puente</p>}
@@ -1176,7 +1176,7 @@ export default function Impresoras() {
                   <Avatar user={activa.user} picture={activa.user?.name === perfilEmpresa?.name || (!activa.user && String(activa.deviceId || '').startsWith('google:')) ? perfilEmpresa?.picture : undefined} size="md" />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">{activa.user?.name || 'Acceso de empresa'}</p>
-                    <p className="mt-0.5 truncate text-xs text-mute">{activa.user?.role || activa.level} · {activa.deviceId || 'Dispositivo no identificado'}</p>
+                    <p className={cn('mt-0.5', CELDA_DATO)}>{activa.user?.role || activa.level} · {activa.deviceId || 'Dispositivo no identificado'}</p>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -1233,7 +1233,7 @@ export default function Impresoras() {
                       {puente.predeterminado && <Badge color="blue">Predeterminado</Badge>}
                       <Badge color={puente.online ? 'green' : 'slate'}>{puente.online ? `en línea${puente.version ? ` · v${puente.version}` : ''}` : `sin conexión · ${hace(puente.lastSeenAt)}`}</Badge>
                     </p>
-                    <p className="mt-0.5 truncate text-xs text-mute">{puente.plataforma ? `${puente.plataforma} · ` : ''}reclama trabajos por HTTPS (conexión saliente)</p>
+                    <p className={cn('mt-0.5', CELDA_DATO)}>{puente.plataforma ? `${puente.plataforma} · ` : ''}reclama trabajos por HTTPS (conexión saliente)</p>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
                     <label className="flex items-center gap-1.5 text-xs text-mute">
@@ -1690,7 +1690,7 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-ink-600 p-3">
           <Badge color={chip.color} title={verificacion || undefined}>{chip.label}</Badge>
-          <p className="min-w-0 flex-1 truncate text-xs text-mute" title={`${impresora.destino || 'Sin destino'} · ${impresora.ancho} mm`}>{impresora.destino || 'Sin destino'} · {impresora.ancho} mm</p>
+          <p className={cn('min-w-0 flex-1', CELDA_DATO)} title={`${impresora.destino || 'Sin destino'} · ${impresora.ancho} mm`}>{impresora.destino || 'Sin destino'} · {impresora.ancho} mm</p>
         </div>
         <FormField label="Tipo de prueba" htmlFor="prueba-tipo">
           <Select id="prueba-tipo" value={tipo} onChange={(event) => setTipo(event.target.value)}>

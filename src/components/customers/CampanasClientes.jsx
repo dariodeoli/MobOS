@@ -3,12 +3,11 @@ import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
 import { Badge, Button, EmptyState, Select } from '@/components/ui'
 import { renderPlantilla } from '@/lib/whatsappPlantillas'
-import { whatsappUrl } from '@/components/customers/customerMessaging'
+import { telefonoVisible, whatsappUrl } from '@/utils/telefono'
 import { fechaDia } from '@/utils/fecha'
 import { montoGs } from '@/utils/moneda'
-import { telefonoVisible } from '@/utils/telefono'
-import { ROTULO_SECCION } from '@/components/shared/tabla'
-
+import { CELDA_DATO, ROTULO_SECCION } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 // Campañas de recompra (#82): segmentos calculados por el backend, selección
 // de destinatarios, vista previa de la plantilla de WhatsApp (categoría
 // CUSTOMERS) y envío de a uno con marca de contacto en la ficha.
@@ -149,7 +148,7 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
             <input type="checkbox" aria-label={`Seleccionar a ${row.name}`} className="h-4 w-4" checked={seleccion.has(row.id)} disabled={Boolean(motivo)} onChange={() => alternar(row.id)} />
             <div className="min-w-0 flex-1">
               <b className="block truncate text-sm">{row.name}</b>
-              <p className="mt-0.5 truncate text-xs text-mute">{row.phone ? telefonoVisible(row.phone, row.countryCode) : 'Sin teléfono'} · Última compra: {fecha(row.lastOrderAt) || 'sin pedidos'} · Total: {montoGs(row.totalSpentPyg || 0)}{row.pendingPyg ? ` · Saldo: ${montoGs(row.pendingPyg)}` : ''}</p>
+              <p className={cn('mt-0.5', CELDA_DATO)}>{row.phone ? telefonoVisible(row.phone, row.countryCode) : 'Sin teléfono'} · Última compra: {fecha(row.lastOrderAt) || 'sin pedidos'} · Total: {montoGs(row.totalSpentPyg || 0)}{row.pendingPyg ? ` · Saldo: ${montoGs(row.pendingPyg)}` : ''}</p>
             </div>
             {motivo && <Badge color={row.marketingContactedAt ? 'slate' : 'orange'}>{motivo}</Badge>}
             <Button type="button" variant="outline" className="h-8 px-2.5 text-xs" disabled={Boolean(motivo) || !plantilla} onClick={() => enviar(row)} title={motivo || `Abrir WhatsApp con ${row.name}`}><Icon name="send" className="h-3.5 w-3.5" />WhatsApp</Button>

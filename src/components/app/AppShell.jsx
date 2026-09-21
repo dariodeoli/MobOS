@@ -17,6 +17,7 @@ import { usePreferencias } from '@/hooks/usePreferencias'
 import { useNotificaciones } from '@/hooks/useNotificaciones'
 import { useSesion } from '@/lib/sesion'
 import { APP_NAME } from '@/lib/brand'
+import { CELDA_DATO } from '@/components/shared/tabla'
 
 const NAV_GROUPS_DEFAULT = {}
 
@@ -442,7 +443,7 @@ export default function AppShell({
                 ))}
               </nav>
               <h1 className="truncate text-base font-semibold tracking-tight sm:text-lg" title={title}>{title}</h1>
-              {subtitle && <span className="truncate text-xs text-mute">{subtitle}</span>}
+              {subtitle && <span className={CELDA_DATO}>{subtitle}</span>}
             </div>
           </div>
 

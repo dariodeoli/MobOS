@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import { codigoPedido } from '@/utils/pedido'
-import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 import {
   TRADE_IN_STATUSES, TRADE_IN_DESTINATIONS, TRADE_IN_TRANSITIONS,
   loadDemoTradeIns, updateDemoTradeIn, tradeInsApi, tradeInValuePyg, normalizeTradeInHistory,
@@ -51,13 +51,13 @@ function FilaDevice({ item, abierto, onClick }) {
         <b className="block truncate text-[13px] font-semibold" title={item.model}>{item.model || 'Equipo'}</b>
         <span className="mt-0.5 block truncate font-mono text-[10px] text-mute" title={item.serial}>{item.serial || 'Sin serial'}</span>
       </span>
-      <span className="truncate text-xs text-mute" title={item.customerName || item.order?.customer?.name || undefined}>{item.customerName || item.order?.customer?.name || 'Sin cliente'}</span>
+      <span className={CELDA_DATO} title={item.customerName || item.order?.customer?.name || undefined}>{item.customerName || item.order?.customer?.name || 'Sin cliente'}</span>
       <span className="min-w-0"><Badge color={item.status === 'STOCK' ? 'green' : item.status === 'SOLD_EXTERNAL' ? 'slate' : item.status === 'REPAIR' ? 'orange' : 'blue'} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{TRADE_IN_STATUSES[item.status] || item.status}</Badge></span>
       <span className="truncate text-xs tabular-nums text-mute">{gs(tradeInValuePyg(item))}</span>
       <span className="truncate text-xs tabular-nums text-mute">{item.repairCostPyg ? gs(item.repairCostPyg) : '—'}</span>
       <span className="truncate text-xs tabular-nums text-mute">{gs(invertido)}</span>
       <span className="truncate text-xs tabular-nums text-fore">{publicado != null ? gs(publicado) : '—'}</span>
-      <span className="truncate text-xs text-mute" title={item.createdAt ? new Date(item.createdAt).toLocaleString('es-PY') : undefined}>{fechaTradeIn(item.createdAt)}</span>
+      <span className={CELDA_DATO} title={item.createdAt ? new Date(item.createdAt).toLocaleString('es-PY') : undefined}>{fechaTradeIn(item.createdAt)}</span>
       <span className="flex justify-end"><Icon name="chevron" className={cn('h-3.5 w-3.5 shrink-0 text-mute transition', abierto ? 'rotate-180' : '-rotate-90')} /></span>
     </div>
   )
@@ -276,11 +276,11 @@ function Valuaciones({ esDemo }) {
       </div>
       <div className="space-y-1">{visibles.map(row => <div key={row.id} data-testid="valoracion-fila" className={cn(GRID_VALORACIONES, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
         <span className="min-w-0 truncate text-[13px] font-semibold" title={row.model}>{row.model}</span>
-        <span className="truncate text-xs text-mute">{row.storage || '—'}</span>
+        <span className={CELDA_DATO}>{row.storage || '—'}</span>
         <span><Badge color={row.condition === 'NEW' ? 'green' : row.condition === 'USED' ? 'orange' : 'slate'} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{CONDICIONES_VALUACION[row.condition] || row.condition}</Badge></span>
         <span className="truncate text-right text-xs tabular-nums text-fore">{gs(row.baseValuePyg)}</span>
         <span className="truncate text-right text-xs tabular-nums text-mute">{row.maxValuePyg != null ? gs(row.maxValuePyg) : '—'}</span>
-        <span className="truncate text-xs text-mute">{row.isActive ? 'Activo' : 'Inactivo'}</span>
+        <span className={CELDA_DATO}>{row.isActive ? 'Activo' : 'Inactivo'}</span>
         <span className="flex items-center justify-end gap-1.5">
           <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`Editar ${row.model}`} onClick={() => openForm(row)}>Editar</Button>
           <Button type="button" variant="ghost" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`${row.isActive ? 'Desactivar' : 'Activar'} ${row.model}`} onClick={() => alternar(row)}>{row.isActive ? 'Desactivar' : 'Activar'}</Button>

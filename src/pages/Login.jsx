@@ -10,6 +10,8 @@ import { deviceId } from '@/lib/deviceId'
 import AuthLayout from '@/components/auth/AuthLayout'
 import GoogleButton, { OAuthDivider } from '@/components/auth/GoogleButton'
 import ThemeLogo from '@/components/app/ThemeLogo'
+import { CELDA_DATO } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 export default function Login() {
   const { entrarEmpresa, entrarVendedor } = useSesion()
@@ -266,7 +268,7 @@ export default function Login() {
                 <button key={t.id} type="button" onClick={() => elegirTienda(t.id)} disabled={cargando} className="flex w-full items-center justify-between gap-3 rounded-xl border border-ink-500 bg-paper px-4 py-3 text-left transition hover:border-fono hover:bg-fono/5 disabled:cursor-not-allowed disabled:opacity-30">
                   <span className="min-w-0">
                     <strong className="block truncate text-sm text-fore">{t.name}</strong>
-                    <span className="block truncate text-xs text-mute">{t.slug}</span>
+                    <span className={cn('block', CELDA_DATO)}>{t.slug}</span>
                   </span>
                   <Icon name="chevron" className="h-4 w-4 shrink-0 -rotate-90 text-mute" />
                 </button>
