@@ -1107,3 +1107,21 @@ test('IMEI: comprobante adjunto al cliente y visible en su portal', async ({ pag
   await expect(page.getByText(/IMEI verificado: sin reportes/)).toBeVisible()
   await page.screenshot({ path: '/tmp/qa203-portal.png' })
 })
+
+// Patrón #209: el último filtro usado queda como predeterminado al volver.
+test('filtros: el ultimo usado queda como predeterminado', async ({ page }) => {
+  await page.goto('/clientes')
+  const filtrosClientes = page.getByRole('group', { name: 'Filtrar clientes' })
+  await filtrosClientes.getByRole('button', { name: 'Mayoristas' }).click()
+  await page.reload()
+  await expect(page.getByRole('group', { name: 'Filtrar clientes' }).getByRole('button', { name: 'Mayoristas' })).toHaveAttribute('aria-pressed', 'true')
+
+  await page.goto('/garantias')
+  await page.getByRole('button', { name: 'Recibido', exact: true }).click()
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Recibido', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  // Siempre cambiable: elegir otro y volver lo recuerda.
+  await page.getByRole('button', { name: 'Todos', exact: true }).click()
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Todos', exact: true })).toHaveAttribute('aria-pressed', 'true')
+})

@@ -5,6 +5,7 @@ import { Card, Button, ConfirmDialog, Input, Label, Textarea, Badge, EmptyState,
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import SegmentedField from '@/components/shared/SegmentedField'
+import { useUltimoUsado } from '@/lib/ultimoUsado'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import SerialField from '@/components/shared/SerialField'
 import AttachmentInput from '@/components/shared/AttachmentInput'
@@ -57,7 +58,7 @@ export default function Garantias() {
   // Rediseño Lote 6-A (#166): el alta vive en un modal y el estado se filtra
   // con el segmentado de la biblioteca.
   const [crearAbierto, setCrearAbierto] = useState(false)
-  const [estadoFiltro, setEstadoFiltro] = useState('todos')
+  const [estadoFiltro, setEstadoFiltro] = useUltimoUsado('garantias:estado', 'todos')
   // Rotación del enlace público (#172/#178): los casos nuevos guardan solo el
   // hash del token; regenerarlo devuelve un enlace nuevo (el anterior muere).
   const [confirmarEnlace, setConfirmarEnlace] = useState(null)
