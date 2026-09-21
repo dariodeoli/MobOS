@@ -1,10 +1,18 @@
 import { api } from './client'
+import { isDemoRuntime } from '@/lib/demoMode'
 
 // Cliente de impresión: puentes, impresoras y trabajos de la empresa. Usa la
 // sesión normal (cookies HttpOnly); el token del puente nunca pasa por acá.
 // Las lecturas evitan la caché corta del cliente donde el backend manda
 // (configuración y cola se refrescan a mano).
 export const printingApi = {
+  // En demo no hay sesión: el listado se responde vacío sin tocar la red
+  // (#194). La pantalla de Impresoras usa sus datos ficticios y los flujos que
+  // no están disponibles avisan antes de llegar acá.
+  trabajos: ({ state, limit, before } = {}) => {
+    if (isDemoRuntime) return Promise.resolve({ jobs: [], remoteEnabled: true })
+    return consultarTrabajos({ state, limit, before })
+  },
   puentes: () => api.get('/api/print/bridges', { cacheMs: 0 }),
   crearPuente: (name, branchId = null) => api.post('/api/print/bridges', { name, ...(branchId ? { branchId } : {}) }),
   actualizarPuente: (id, datos) => api.patch(`/api/print/bridges/${encodeURIComponent(id)}`, datos),
@@ -16,14 +24,6 @@ export const printingApi = {
   eliminarImpresora: (id) => api.delete(`/api/print/printers/${encodeURIComponent(id)}`),
   importar: (config, { force = false } = {}) => api.post('/api/print/printers/import', { ...config, ...(force ? { force: true } : {}) }),
   encolar: (job) => api.post('/api/print/jobs', job),
-  trabajos: ({ state, limit, before } = {}) => {
-    const params = new URLSearchParams()
-    if (state) params.set('state', state)
-    if (limit) params.set('limit', String(limit))
-    if (before) params.set('before', before)
-    const query = params.toString()
-    return api.get(`/api/print/jobs${query ? `?${query}` : ''}`, { cacheMs: 0 })
-  },
   confirmar: (id, suffix) => api.post(`/api/print/jobs/${encodeURIComponent(id)}/confirm`, { suffix }),
   // Cancelación (#128): solo trabajos PENDIENTES; el backend responde 409 si el
   // puente ya los reclamó. En lote, por selección de ids y/o impresora/tipo.
@@ -44,4 +44,13 @@ export const printingApi = {
     const query = params.toString()
     return api.get(`/api/print/metrics${query ? `?${query}` : ''}`, { cacheMs: 0 })
   },
+}
+
+function consultarTrabajos({ state, limit, before } = {}) {
+  const params = new URLSearchParams()
+  if (state) params.set('state', state)
+  if (limit) params.set('limit', String(limit))
+  if (before) params.set('before', before)
+  const query = params.toString()
+  return api.get(`/api/print/jobs${query ? `?${query}` : ''}`, { cacheMs: 0 })
 }
