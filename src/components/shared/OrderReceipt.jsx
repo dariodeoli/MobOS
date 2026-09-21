@@ -1,5 +1,5 @@
 import { gs } from '@/utils/calculos'
-import { printHtml } from '@/utils/printHtml'
+import { printHtml, escapeHtml } from '@/utils/printHtml'
 import { APP_NAME } from '@/lib/brand'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
 import { ahorroDeLinea } from '@/utils/precioLista'
@@ -12,8 +12,6 @@ import { api } from '@/lib/api/client'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
 
 import { publicUrls } from '@/lib/urls'
-
-const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]))
 
 const publicBase = () =>
   String(import.meta.env.VITE_PUBLIC_TRACKING_URL || '').replace(/\/$/, '') ||

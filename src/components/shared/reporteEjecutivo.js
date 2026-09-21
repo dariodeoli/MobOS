@@ -1,10 +1,8 @@
 import { gs } from '@/utils/calculos'
 import { fechaHora } from '@/utils/fecha'
-import { printHtml } from '@/utils/printHtml'
+import { printHtml, escapeHtml } from '@/utils/printHtml'
 import { APP_NAME } from '@/lib/brand'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
-
-const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]))
 
 const fechaCorta = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY') : '')
 const variacion = (hoy, antes) => (antes > 0 ? ((hoy - antes) / antes) * 100 : null)

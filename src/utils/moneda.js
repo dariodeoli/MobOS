@@ -75,3 +75,29 @@ export function formatUsd(value) {
 export function formatMoney(value, currency = 'PYG') {
   return currency === 'USD' ? formatUsd(value) : formatGs(value)
 }
+
+// ── Montos de pantalla (el formato que ya usan ui/Money y las listas) ────────
+// "Gs 12.500" y "US$ 1,234.56": es la presentación dominante del repo (la de
+// `Money`, `gs()` y `formatGs`). Los montos se escriben con estos helpers y no
+// con `toLocaleString` a mano; el vacío es explícito ('—' por defecto) para no
+// mostrar 0 cuando falta el dato. No convierten moneda.
+export function montoGs(value, vacio = '—') {
+  const amount = numeroDe(value)
+  return amount === null ? vacio : formatGs(amount)
+}
+
+export function montoUsd(value, vacio = '—') {
+  const amount = numeroDe(value)
+  return amount === null ? vacio : `US$ ${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+}
+
+export function montoTexto(value, currency = 'PYG', vacio = '—') {
+  return currency === 'USD' ? montoUsd(value, vacio) : montoGs(value, vacio)
+}
+
+// null / undefined / '' no son 0: son dato ausente.
+function numeroDe(value) {
+  if (value === null || value === undefined || value === '') return null
+  const amount = Number(value)
+  return Number.isFinite(amount) ? amount : null
+}

@@ -152,7 +152,7 @@ export default function KardexProducto({ product, open, onClose, esDemo = false 
                   <span className="text-right font-semibold tabular-nums">{numero(data.saldoInicial)}</span>
                 </div>
                 {filas.length === 0 && (
-                  <p className="px-3.5 py-6 text-center text-sm text-mute">Sin movimientos en el rango elegido.</p>
+                  <EmptyState compact icon="box" title="Sin movimientos en el rango elegido." />
                 )}
                 {filas.map((movimiento) => {
                   const tipo = TIPOS[movimiento.kind] || TIPOS.AJUSTE

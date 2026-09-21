@@ -1,6 +1,19 @@
 // Imprime HTML abriendo un iframe oculto en la misma página, sin ventanas
 // emergentes: evita popups bloqueados (ventana about:blank vacía).
 
+// Escapa el texto que se interpola en las plantillas HTML de impresión y
+// reportes (comprobantes, informes, tickets). Una sola definición para todo el
+// front: si una plantilla la reescribe, el test de objetos falla.
+export function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;',
+  }[character]))
+}
+
 export function printHtml(html) {
   const frame = document.createElement('iframe')
   frame.setAttribute('aria-hidden', 'true')

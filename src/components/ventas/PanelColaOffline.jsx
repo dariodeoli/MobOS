@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Modal, Button, ConfirmDialog, Badge } from '@/components/ui'
+import { Modal, Button, ConfirmDialog, Badge, EmptyState } from '@/components/ui'
 import { useColaOffline } from '@/hooks/useColaOffline'
 import { ETIQUETA_CONFLICTO } from '@/lib/offline/queue'
 import { descartarVenta, reintentarVenta } from '@/lib/offline/ventas'
@@ -123,7 +123,7 @@ export default function PanelColaOffline({ open, onClose }) {
                 </div>
               </div>
             ))}
-            {!items.length && <p className="px-3.5 py-6 text-center text-sm text-mute">No hay ventas sin conexión.</p>}
+            {!items.length && <EmptyState compact icon="box" title="No hay ventas sin conexión." />}
           </div>
         </div>
 

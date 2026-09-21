@@ -36,6 +36,7 @@ import {
   Button,
   Card,
   ConfirmDialog,
+  EmptyState,
   Input,
   Label,
   Modal,
@@ -1874,9 +1875,7 @@ export default function FormularioVenta({
             </Aviso>
           )}
           {!cargandoSuspendidas && !suspendidas.length && !errorSuspendidas && (
-            <p className="rounded-xl border border-ink-600 px-3 py-4 text-sm text-mute">
-              No hay ventas suspendidas en esta sucursal.
-            </p>
+            <EmptyState compact icon="cart" title="No hay ventas suspendidas en esta sucursal." />
           )}
           <div className="space-y-2">
             {suspendidas.map(suspendida => (

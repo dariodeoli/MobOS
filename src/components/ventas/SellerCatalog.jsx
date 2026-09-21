@@ -4,6 +4,7 @@ import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { getProductos } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
+import { montoUsd } from '@/utils/moneda'
 import { Badge, Button, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
@@ -32,7 +33,7 @@ const usd = (row) => Number(row?.priceUsd ?? 0)
 // Tabla compacta del catálogo: una fila por producto, encabezados ordenables y
 // el precio/stock siempre en la misma columna.
 const GRID_CATALOGO = 'grid min-w-[61rem] grid-cols-[1.5rem_minmax(9rem,1.6fr)_7rem_6.5rem_8rem_6.5rem_5.5rem_7rem_4.5rem] items-center gap-x-2'
-const usdTexto = (row) => usd(row) > 0 ? `US$ ${usd(row).toLocaleString('en-US', { maximumFractionDigits: 2 })}` : '—'
+const usdTexto = (row) => usd(row) > 0 ? montoUsd(usd(row)) : '—'
 
 function FilaProducto({ row, onClick, seleccionado = false, onAlternar }) {
   const stock = Number(row.stock ?? 0)

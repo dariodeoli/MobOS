@@ -8,7 +8,7 @@ import PercentField, { formatPercent, parsePercent } from '@/components/shared/P
 import { gs } from '@/utils/calculos'
 import { fechaHora } from '@/utils/fecha'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
-import { printHtml } from '@/utils/printHtml'
+import { printHtml, escapeHtml } from '@/utils/printHtml'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { configImpresora } from '@/lib/printing/agent'
 import { ticketLiquidacionComision } from '@/lib/printing/tickets'
@@ -19,8 +19,6 @@ import { ticketLiquidacionComision } from '@/lib/printing/tickets'
 // usuario prevalece sobre la de rol. Cerrar una liquidación congela el detalle
 // del período y emite un comprobante verificable por QR.
 const ESTADO_LIQUIDACION = { DRAFT: ['Borrador', 'orange'], PAID: ['Pagada', 'green'], CANCELLED: ['Anulada', 'slate'] }
-
-const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]))
 
 const diaLocal = (fecha) => `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`
 const hoy = () => diaLocal(new Date())
