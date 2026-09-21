@@ -81,6 +81,12 @@ test('normalizarMetricas: contrato estable de la portada ejecutiva', () => {
   assert.deepEqual(metricas.conciliacion, { operaciones: 7, conciliadoPyg: 300000, porConciliarPyg: 200000, diferenciaPyg: -15000, lotes: 2 })
 })
 
+test('normalizarMetricas: avisa cuando el reporte viene truncado (#171)', () => {
+  assert.equal(normalizarMetricas({ dia: { truncated: true, totals: {} } }).truncado, true)
+  assert.equal(normalizarMetricas({ productos: { truncated: true, totals: {} } }).truncado, true)
+  assert.equal(normalizarMetricas({ dia: { truncated: false, totals: {} }, productos: { truncated: false } }).truncado, false)
+})
+
 test('normalizarMetricas: sin datos devuelve ceros y nunca lanza', () => {
   const metricas = normalizarMetricas()
   assert.equal(metricas.total, 0)

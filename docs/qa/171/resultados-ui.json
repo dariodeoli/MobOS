@@ -1,0 +1,97 @@
+{
+  "desde": "2026-09-01",
+  "hasta": "2026-09-21",
+  "totales": {
+    "orders": 184,
+    "units": 186,
+    "grossPyg": 32230000,
+    "discountPyg": 0,
+    "deliveryPyg": 0,
+    "totalPyg": 32230000,
+    "collectedPyg": 31025000,
+    "pendingPyg": 1205000,
+    "costPyg": 7815000,
+    "profitPyg": 6155000,
+    "salesWithCostPyg": 13970000,
+    "salesWithoutCostPyg": 18260000,
+    "linesWithoutCost": 86,
+    "marginPct": 44.1,
+    "commissionPyg": 30000,
+    "netProfitPyg": 6125000,
+    "netMarginPct": 43.8,
+    "refundedPyg": 0,
+    "paidOrders": 169,
+    "pendingOrders": 15
+  },
+  "erroresConsola": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ],
+  "resultados": [
+    {
+      "nombre": "Resumen muestra facturado, cobrado y pendiente del servidor",
+      "ok": true
+    },
+    {
+      "nombre": "Resumen muestra ventas, ticket y unidades del período",
+      "ok": true
+    },
+    {
+      "nombre": "Resumen muestra el top de productos con su clase ABC",
+      "ok": true
+    },
+    {
+      "nombre": "Resumen muestra stock valorizado, días de stock y rotación",
+      "ok": true
+    },
+    {
+      "nombre": "Resumen muestra cobros por procesadora y por cuenta",
+      "ok": true
+    },
+    {
+      "nombre": "Resumen muestra la conciliación del período",
+      "ok": true
+    },
+    {
+      "nombre": "Reportes muestra los mismos totales que Resumen",
+      "ok": true
+    },
+    {
+      "nombre": "Reportes muestra el mismo top de productos (curva ABC del servidor)",
+      "ok": true
+    },
+    {
+      "nombre": "Reportes muestra el mismo stock valorizado",
+      "ok": true
+    },
+    {
+      "nombre": "Ganancias y Reportes muestran el mismo resultado del período",
+      "ok": true
+    },
+    {
+      "nombre": "Finanzas → Conciliación repite el resumen de la portada",
+      "ok": true
+    },
+    {
+      "nombre": "Ganadores muestra las cantidades por línea del servidor",
+      "ok": true
+    },
+    {
+      "nombre": "La portada avisa cuando el reporte del servidor viene truncado",
+      "ok": true
+    },
+    {
+      "nombre": "Sin errores de consola propios del recorrido",
+      "ok": true
+    }
+  ]
+}

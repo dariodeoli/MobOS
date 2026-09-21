@@ -11,6 +11,8 @@ import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango } from '@/components/shared/RangoFechas'
 import { Badge, Button, Card, EmptyState, Input, MoneyInput, Select, Skeleton, useToast } from '@/components/ui'
 import PagosPedido from '@/components/ventas/PagosPedido'
+import { leerUltimo, recordarUltimo, useUltimoUsado } from '@/lib/ultimoUsado'
+import { CLAVES_FIN, filtrosConciliacionValidos, rangoDePreset } from '@/lib/finUltimoUsado'
 import { cn } from '@/lib/utils'
 
 // Conciliación y trazabilidad (#144): ingresos por cuenta, medio y
@@ -104,13 +106,24 @@ export default function Conciliacion() {
   const { esDemo } = useSesion()
   const toast = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [rango, setRango] = useState(() => rangoDeParams(searchParams, rangoPorDefecto))
+  // #209: el período arranca con el último preset usado en Finanzas/Análisis.
+  const [presetRecordado, recordarPreset] = useUltimoUsado(CLAVES_FIN.rango, '30d')
+  const [rango, setRango] = useState(() => rangoDeParams(searchParams, () => rangoDePreset(PRESETS, presetRecordado, rangoPorDefecto)))
   const cambiarRango = useCallback((next) => {
     setRango(next)
+    if (next?.preset) recordarPreset(next.preset)
     setSearchParams((actuales) => paramsDeRango(next, actuales), { replace: true })
-  }, [setSearchParams])
-  const [filtros, setFiltros] = useState({ accountId: '', method: '', processor: '' })
-  const [estado, setEstado] = useState('')
+  }, [setSearchParams, recordarPreset])
+  // #209: filtros y estado arrancan con lo último usado; se validan contra las
+  // facetas del período apenas llega la primera carga.
+  const [filtros, setFiltros] = useState(() => ({
+    accountId: leerUltimo(CLAVES_FIN.conciliacionCuenta),
+    method: leerUltimo(CLAVES_FIN.conciliacionMedio),
+    processor: leerUltimo(CLAVES_FIN.conciliacionProcesadora),
+  }))
+  const [estado, setEstado] = useState(() => leerUltimo(CLAVES_FIN.conciliacionEstado))
+  const [recordados, setRecordados] = useState(() => Boolean(leerUltimo(CLAVES_FIN.conciliacionCuenta) || leerUltimo(CLAVES_FIN.conciliacionMedio) || leerUltimo(CLAVES_FIN.conciliacionProcesadora) || leerUltimo(CLAVES_FIN.conciliacionEstado)))
+  const [filtrosValidados, setFiltrosValidados] = useState(false)
   const [vista, setVista] = useState('cuenta')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -146,6 +159,23 @@ export default function Conciliacion() {
   useEffect(() => { cargar() }, [cargar])
   // La selección y el formulario del lote no sobreviven a un cambio de filtro.
   useEffect(() => { setSeleccion([]); setRecibido(''); setNota('') }, [filtros.accountId, filtros.method, filtros.processor, rango.desde, rango.hasta])
+  // #209: si un filtro recordado ya no existe en el período, se suelta y se
+  // olvida para no arrastrarlo; el default de la pantalla es «todas».
+  useEffect(() => {
+    if (!data || filtrosValidados) return
+    setFiltrosValidados(true)
+    const { filtros: limpios, estado: estadoLimpio } = filtrosConciliacionValidos(filtros, estado, data)
+    if (limpios.accountId !== filtros.accountId || limpios.method !== filtros.method || limpios.processor !== filtros.processor) {
+      setFiltros(limpios)
+      if (!limpios.accountId) recordarUltimo(CLAVES_FIN.conciliacionCuenta, '')
+      if (!limpios.method) recordarUltimo(CLAVES_FIN.conciliacionMedio, '')
+      if (!limpios.processor) recordarUltimo(CLAVES_FIN.conciliacionProcesadora, '')
+    }
+    if (estadoLimpio !== estado) {
+      setEstado(estadoLimpio)
+      if (!estadoLimpio) recordarUltimo(CLAVES_FIN.conciliacionEstado, '')
+    }
+  }, [data, filtrosValidados, filtros, estado])
 
   const items = useMemo(() => data?.items || [], [data])
   const lotes = useMemo(() => data?.lotes || [], [data])
@@ -171,9 +201,38 @@ export default function Conciliacion() {
     setRecibido(String(pendientes.reduce((suma, item) => suma + item.montoPyg, 0)))
   }
   function filtrarPor(fila) {
-    if (vista === 'cuenta') setFiltros({ accountId: fila.key.startsWith('metodo:') ? '' : fila.key, method: fila.key.startsWith('metodo:') ? fila.method : '', processor: '' })
-    else if (vista === 'medio') setFiltros({ accountId: '', method: fila.key, processor: '' })
-    else setFiltros({ accountId: '', method: '', processor: fila.processor })
+    if (vista === 'cuenta' && !fila.key.startsWith('metodo:')) {
+      setFiltros({ accountId: fila.key, method: '', processor: '' })
+      recordarUltimo(CLAVES_FIN.conciliacionCuenta, fila.key)
+    } else if (vista === 'cuenta' || vista === 'medio') {
+      const metodo = vista === 'medio' ? fila.key : fila.method
+      setFiltros({ accountId: '', method: metodo, processor: '' })
+      recordarUltimo(CLAVES_FIN.conciliacionMedio, metodo)
+    } else {
+      setFiltros({ accountId: '', method: '', processor: fila.processor })
+      recordarUltimo(CLAVES_FIN.conciliacionProcesadora, fila.processor)
+    }
+    setRecordados(false)
+  }
+  // #209: cada cambio explícito se recuerda y deja de mostrarse como «recordado».
+  function cambiarFiltro(campo, valor) {
+    setFiltros((actual) => ({ ...actual, [campo]: valor }))
+    setRecordados(false)
+    recordarUltimo(campo === 'accountId' ? CLAVES_FIN.conciliacionCuenta : campo === 'method' ? CLAVES_FIN.conciliacionMedio : CLAVES_FIN.conciliacionProcesadora, valor)
+  }
+  function cambiarEstado(valor) {
+    setEstado(valor)
+    setRecordados(false)
+    recordarUltimo(CLAVES_FIN.conciliacionEstado, valor)
+  }
+  function limpiarFiltros() {
+    setFiltros({ accountId: '', method: '', processor: '' })
+    setEstado('')
+    setRecordados(false)
+    recordarUltimo(CLAVES_FIN.conciliacionCuenta, '')
+    recordarUltimo(CLAVES_FIN.conciliacionMedio, '')
+    recordarUltimo(CLAVES_FIN.conciliacionProcesadora, '')
+    recordarUltimo(CLAVES_FIN.conciliacionEstado, '')
   }
   const activo = (fila) => vista === 'cuenta' ? filtros.accountId === fila.key : vista === 'medio' ? filtros.method === fila.key : filtros.processor === fila.processor
   const hayFiltros = Boolean(filtros.accountId || filtros.method || filtros.processor)
@@ -230,19 +289,19 @@ export default function Conciliacion() {
         </div>
         <div className="grid gap-2 sm:grid-cols-3">
           <label className="text-xs text-mute">Cuenta
-            <Select className="mt-1" value={filtros.accountId} onChange={(event) => setFiltros((actual) => ({ ...actual, accountId: event.target.value }))}>
+            <Select className="mt-1" title="Se recuerda tu último filtro" value={filtros.accountId} onChange={(event) => cambiarFiltro('accountId', event.target.value)}>
               <option value="">Todas</option>
               {(data?.porCuenta || []).filter((fila) => !fila.key.startsWith('metodo:')).map((fila) => <option key={fila.key} value={fila.key}>{fila.label}</option>)}
             </Select>
           </label>
           <label className="text-xs text-mute">Medio
-            <Select className="mt-1" value={filtros.method} onChange={(event) => setFiltros((actual) => ({ ...actual, method: event.target.value }))}>
+            <Select className="mt-1" title="Se recuerda tu último filtro" value={filtros.method} onChange={(event) => cambiarFiltro('method', event.target.value)}>
               <option value="">Todos</option>
               {(data?.porMedio || []).map((fila) => <option key={fila.key} value={fila.key}>{medioDe(fila.key)}</option>)}
             </Select>
           </label>
           <label className="text-xs text-mute">Procesadora
-            <Select className="mt-1" value={filtros.processor} onChange={(event) => setFiltros((actual) => ({ ...actual, processor: event.target.value }))}>
+            <Select className="mt-1" title="Se recuerda tu último filtro" value={filtros.processor} onChange={(event) => cambiarFiltro('processor', event.target.value)}>
               <option value="">Todas</option>
               {(data?.porProcesadora || []).map((fila) => <option key={fila.key} value={fila.key}>{fila.label}</option>)}
             </Select>
@@ -256,7 +315,8 @@ export default function Conciliacion() {
         {[['cuenta', 'Por cuenta'], ['medio', 'Por medio'], ['procesadora', 'Por procesadora']].map(([id, label]) => (
           <button key={id} type="button" onClick={() => setVista(id)} className={cn('rounded-lg border px-3 py-1.5 text-xs font-semibold transition', vista === id ? 'border-fono/50 bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore')}>{label}</button>
         ))}
-        {hayFiltros && <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setFiltros({ accountId: '', method: '', processor: '' })}>Limpiar filtros</Button>}
+        {recordados && hayRecorte && <span className="text-[11px] text-mute">Filtros de tu última visita</span>}
+        {hayFiltros && <Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={limpiarFiltros}>Limpiar filtros</Button>}
         {data?.truncado && <Badge color="orange">Mostrando los primeros 1.000 pagos</Badge>}
       </div>
 
@@ -293,7 +353,7 @@ export default function Conciliacion() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">Pagos del período</h3>
           <div className="flex flex-wrap items-center gap-2">
-            <Select className="h-8 w-44 text-xs" value={estado} onChange={(event) => setEstado(event.target.value)}>
+            <Select className="h-8 w-44 text-xs" aria-label="Estado" title="Se recuerda tu último filtro" value={estado} onChange={(event) => cambiarEstado(event.target.value)}>
               <option value="">Todos los estados</option>
               <option value="PENDING">Por conciliar</option>
               <option value="VERIFIED">Conciliados</option>
@@ -309,7 +369,7 @@ export default function Conciliacion() {
             icon="box"
             title="Sin pagos para estos filtros"
             description={hayRecorte ? 'Probá ampliar el período o limpiar los filtros.' : 'En el período elegido no hubo pagos conciliables.'}
-            action={hayRecorte ? <Button type="button" variant="outline" className="h-8 px-3 text-xs" onClick={() => { setFiltros({ accountId: '', method: '', processor: '' }); setEstado('') }}>Limpiar filtros</Button> : null}
+            action={hayRecorte ? <Button type="button" variant="outline" className="h-8 px-3 text-xs" onClick={limpiarFiltros}>Limpiar filtros</Button> : null}
           />
         )}
         {!loading && filtrados.length > 0 && <div className="overflow-x-auto">

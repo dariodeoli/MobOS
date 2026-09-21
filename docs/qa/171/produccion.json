@@ -1,0 +1,31 @@
+{
+  "base": "https://app.moboss.online",
+  "resultados": [
+    {
+      "nombre": "El bundle de producción incluye los indicadores unificados",
+      "ok": true
+    },
+    {
+      "nombre": "Los endpoints de métricas exigen sesión en producción",
+      "ok": true
+    },
+    {
+      "nombre": "El demo entra por /demo y abre Resumen",
+      "ok": true
+    },
+    {
+      "nombre": "El demo navega Análisis → Reportes y Ganancias",
+      "ok": true
+    },
+    {
+      "nombre": "El demo no consulta los endpoints reales de métricas",
+      "ok": true
+    },
+    {
+      "nombre": "El demo navega sin errores de consola propios",
+      "ok": true
+    }
+  ],
+  "erroresConsola": [],
+  "llamadasApi": []
+}

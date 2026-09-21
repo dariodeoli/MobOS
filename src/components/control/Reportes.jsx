@@ -13,6 +13,8 @@ import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango, etiquetaRango } fro
 import CalendarioGanancias, { LineaValor } from '@/components/shared/CalendarioGanancias'
 import { formatPercent } from '@/components/shared/PercentField'
 import { descargarCsv } from '@/utils/descargarCsv'
+import { useUltimoUsado } from '@/lib/ultimoUsado'
+import { CLAVES_FIN, rangoDePreset } from '@/lib/finUltimoUsado'
 import {
   GRUPOS,
   columnasReporte,
@@ -30,13 +32,16 @@ const fechaHora = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { 
 
 export default function Reportes() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [rango, setRango] = useState(() => rangoDeParams(searchParams, rangoInicial))
+  // #209: el período arranca con el último preset usado en Finanzas/Análisis.
+  const [presetRecordado, recordarPreset] = useUltimoUsado(CLAVES_FIN.rango, '30d')
+  const [rango, setRango] = useState(() => rangoDeParams(searchParams, () => rangoDePreset(PRESETS, presetRecordado, rangoInicial)))
   const cambiarRango = useCallback(
     next => {
       setRango(next)
+      if (next?.preset) recordarPreset(next.preset)
       setSearchParams(actuales => paramsDeRango(next, actuales), { replace: true })
     },
-    [setSearchParams],
+    [setSearchParams, recordarPreset],
   )
   const [grupo, setGrupo] = useUrlState('grupo', 'product')
   const [tipo, setTipo] = useUrlState('tipo', 'ventas')
