@@ -4,6 +4,7 @@ import { API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
 import Icon from '@/components/shared/Icon'
+import { PortalCargando, PortalEncabezado, PortalEstado, PortalFallo, PortalPie, PortalSeccion } from '@/components/customerPortal/PortalUI'
 
 const ORDER_STATUS = { PENDING: 'Pendiente de pago', COMPLETED: 'Pagado', CANCELLED: 'Cancelado' }
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
@@ -11,6 +12,8 @@ const WARRANTY_STATUS = { RECEIVED: 'Recibido', DIAGNOSIS: 'En diagnóstico', RE
 const LEVELS = { rapido: 'Resumen rápido', completo: 'Resumen completo' }
 const fecha = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString('es-PY') : '—')
 const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
+const tonoPedido = (status) => (status === 'COMPLETED' ? 'ok' : status === 'CANCELLED' ? 'bad' : 'warn')
+const tonoGarantia = (status) => (status === 'DELIVERED' ? 'neutro' : status === 'READY' ? 'ok' : 'info')
 
 // Resumen de cuenta público del cliente: saldo, vencimientos, pedidos y —según
 // el nivel del enlace— garantías activas, direcciones y comprobantes. No
@@ -39,49 +42,48 @@ export default function CuentaPublica() {
   const logoUrl = `${API_URL}/api/portal/${encodeURIComponent(token || '')}/logo`
 
   return (
-    <main className="min-h-screen bg-ink-950 px-4 py-10 text-fore">
-      <div className="mx-auto max-w-xl">
-        <header className="mb-8 text-center">
-          {cuenta?.company?.logo && logoOk && (
-            <img src={logoUrl} alt={cuenta.company?.name || 'Logo'} onError={() => setLogoOk(false)} className="mx-auto mb-4 h-14 w-auto max-w-[180px] object-contain" />
-          )}
-          <p className="text-xs font-bold uppercase tracking-[.2em] text-fono-light">Mi cuenta</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">{cuenta?.company?.name || 'Estado de cuenta'}</h1>
-          {cuenta?.customer?.name && <p className="mt-1 text-sm text-mute">Hola, {cuenta.customer.name}</p>}
-          {cuenta?.level && <p className="mt-2 text-[11px] uppercase tracking-wider text-mute">{LEVELS[cuenta.level] || cuenta.level}</p>}
-        </header>
+    <main className="min-h-dvh bg-ink-950 px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-fore sm:py-12">
+      <div className="mx-auto max-w-xl space-y-3 sm:space-y-4">
+        <PortalEncabezado
+          eyebrow="Mi cuenta"
+          titulo={cuenta?.company?.name || 'Estado de cuenta'}
+          saludo={cuenta?.customer?.name ? `Hola, ${cuenta.customer.name}` : ''}
+          logoUrl={cuenta?.company?.logo && logoOk ? logoUrl : ''}
+          logoAlt={cuenta?.company?.name ? `Logo de ${cuenta.company.name}` : 'Logo'}
+          onLogoError={() => setLogoOk(false)}
+        />
+        {cuenta?.level && <p className="-mt-2 text-center text-[11px] uppercase tracking-wider text-mute sm:-mt-3">{LEVELS[cuenta.level] || cuenta.level}</p>}
 
-        {error && (
-          <div className="rounded-2xl border border-bad/30 bg-bad/10 px-4 py-8 text-center">
-            <Icon name="alert" className="mx-auto h-6 w-6 text-bad" />
-            <p className="mt-3 text-sm text-bad">{error}</p>
-          </div>
-        )}
+        {error && <PortalFallo mensaje={error} />}
+        {!cuenta && !error && <PortalCargando />}
 
         {cuenta && (
-          <div className="space-y-4">
-            {cuenta.customer?.publicNote && (
-              <section className="rounded-2xl border border-fono/25 bg-fono/5 p-4 text-sm">
-                <p className="text-xs font-bold uppercase tracking-wider text-mute">Nota de la tienda</p>
-                <p className="mt-1 whitespace-pre-wrap break-words">{cuenta.customer.publicNote}</p>
-              </section>
-            )}
+          <div className="space-y-3 sm:space-y-4">
             {/* Saldo pendiente: lo primero que el cliente necesita ver. */}
-            <section className={`rounded-2xl border p-5 text-center ${alDia ? 'border-ok/30 bg-ok/5' : 'border-warn/40 bg-warn/5'}`}>
-              <p className="text-xs font-bold uppercase tracking-wider text-mute">Saldo pendiente</p>
+            <section className={`rounded-2xl border p-4 text-center sm:p-5 ${alDia ? 'border-ok/30 bg-ok/5' : 'border-warn/40 bg-warn/5'}`}>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Saldo pendiente</p>
               {alDia ? (
                 <>
-                  <p className="mt-2 text-3xl font-bold tracking-tight text-ok">Al día</p>
+                  <p className="mt-1.5 text-3xl font-bold tracking-tight text-ok">Al día</p>
                   <p className="mt-1 text-xs text-mute">No tenés pagos pendientes.</p>
                 </>
               ) : (
-                <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight text-warn">{gs(saldo)}</p>
+                <>
+                  <p className="mt-1.5 text-3xl font-bold tabular-nums tracking-tight text-warn">{gs(saldo)}</p>
+                  {cuenta.dueDates?.length > 0 && <p className="mt-1 text-xs text-mute">Incluye los vencimientos de abajo.</p>}
+                </>
               )}
             </section>
 
+            {/* Nota pública de la tienda (#127): visible solo cuando existe. */}
+            {cuenta.customer?.publicNote && (
+              <PortalSeccion titulo="Nota de la tienda" icono="megaphone" className="border-fono/25 bg-fono/5">
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm">{cuenta.customer.publicNote}</p>
+              </PortalSeccion>
+            )}
+
             {cuenta.dueDates?.length > 0 && (
-              <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
-                <h2 className="font-semibold">Vencimientos</h2>
+              <PortalSeccion titulo="Vencimientos" icono="clock">
                 <div className="mt-3 space-y-2">
                   {cuenta.dueDates.map((vencimiento, index) => {
                     const vencido = Date.parse(vencimiento.dueAt) < Date.now()
@@ -96,49 +98,56 @@ export default function CuentaPublica() {
                     )
                   })}
                 </div>
-              </section>
+              </PortalSeccion>
             )}
 
-            <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
-              <h2 className="font-semibold">Últimos pedidos</h2>
+            <PortalSeccion titulo="Últimos pedidos" icono="receipt">
               {cuenta.orders?.length ? (
                 <div className="mt-3 space-y-2">
-                  {cuenta.orders.map((order, index) => (
-                    <article key={`${order.orderNumber}-${index}`} className="rounded-xl bg-ink-800/60 px-3 py-3 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="min-w-0 truncate font-semibold">{codigoPedido(order.orderNumber) || 'Pedido'}</span>
-                        <span className="shrink-0 font-bold tabular-nums">{gs(order.totalPyg)}</span>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-mute">
-                        <span>{fecha(order.createdAt)}</span>
-                        <span className={`rounded-md border px-1.5 py-0.5 font-semibold ${order.status === 'COMPLETED' ? 'border-ok/30 bg-ok/10 text-ok' : order.status === 'CANCELLED' ? 'border-bad/30 bg-bad/10 text-bad' : 'border-warn/30 bg-warn/10 text-warn'}`}>{ORDER_STATUS[order.status] || order.status}</span>
-                        <span>{FULFILLMENT[order.fulfillmentStatus] || order.fulfillmentStatus}</span>
-                        {Number(order.pendingPyg || 0) > 0 && <span className="font-semibold text-warn">Pendiente {gs(order.pendingPyg)}</span>}
-                      </div>
-                      {order.receiptToken && (
-                        <Link to={`/pedido/${encodeURIComponent(order.receiptToken)}`} className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-fono-light transition hover:underline">
-                          <Icon name="receipt" className="h-3.5 w-3.5" />
-                          Ver comprobante
-                        </Link>
-                      )}
-                    </article>
-                  ))}
+                  {cuenta.orders.map((order, index) => {
+                    const pendiente = Number(order.pendingPyg || 0)
+                    return (
+                      <article key={`${order.orderNumber}-${index}`} className="rounded-xl bg-ink-800/60 px-3 py-3 text-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">{codigoPedido(order.orderNumber) || 'Pedido'}</p>
+                            <p className="mt-0.5 text-xs text-mute">{fecha(order.createdAt)}</p>
+                          </div>
+                          <p className="shrink-0 text-right font-bold tabular-nums">{gs(order.totalPyg)}</p>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <PortalEstado tono={tonoPedido(order.status)}>{ORDER_STATUS[order.status] || order.status}</PortalEstado>
+                          {FULFILLMENT[order.fulfillmentStatus] && <PortalEstado tono="neutro">{FULFILLMENT[order.fulfillmentStatus]}</PortalEstado>}
+                          {pendiente > 0 && <PortalEstado tono="warn">Pendiente {gs(pendiente)}</PortalEstado>}
+                        </div>
+                        {pendiente > 0 && order.dueAt && <p className="mt-1.5 text-xs text-mute">Vence el {fecha(order.dueAt)}</p>}
+                        {order.receiptToken && (
+                          <Link
+                            to={`/pedido/${encodeURIComponent(order.receiptToken)}`}
+                            className="mt-2.5 inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-fono/40 px-3 py-2 text-xs font-bold text-fono-light transition hover:bg-fono/10 sm:w-auto sm:min-h-9 sm:justify-start sm:border-0 sm:px-0"
+                          >
+                            <Icon name="receipt" className="h-4 w-4" />
+                            Ver comprobante
+                          </Link>
+                        )}
+                      </article>
+                    )
+                  })}
                 </div>
               ) : (
                 <p className="mt-3 text-sm text-mute">Todavía no tenés pedidos registrados.</p>
               )}
-            </section>
+            </PortalSeccion>
 
             {cuenta.level === 'completo' && (
-              <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5">
-                <h2 className="font-semibold">Garantías activas</h2>
+              <PortalSeccion titulo="Garantías activas" icono="shield">
                 {cuenta.warranties?.length ? (
                   <div className="mt-3 space-y-2">
                     {cuenta.warranties.map((warranty, index) => (
                       <div key={`${warranty.serial}-${index}`} className="rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
                         <div className="flex items-center justify-between gap-3">
                           <span className="min-w-0 truncate">{warranty.description || 'Equipo'}</span>
-                          <span className="shrink-0 rounded-md border border-fono/25 bg-fono/10 px-1.5 py-0.5 text-[11px] font-semibold text-fono-light">{WARRANTY_STATUS[warranty.status] || warranty.status}</span>
+                          <PortalEstado tono={tonoGarantia(warranty.status)}>{WARRANTY_STATUS[warranty.status] || warranty.status}</PortalEstado>
                         </div>
                         <p className="mt-1 font-mono text-[11px] text-mute">{warranty.serial}</p>
                         <p className="mt-0.5 text-xs text-mute">
@@ -150,14 +159,13 @@ export default function CuentaPublica() {
                 ) : (
                   <p className="mt-3 text-sm text-mute">No tenés garantías activas.</p>
                 )}
-              </section>
+              </PortalSeccion>
             )}
 
             {cuenta.level === 'completo' && (
-              <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5 text-sm">
-                <h2 className="font-semibold">Direcciones</h2>
+              <PortalSeccion titulo="Direcciones" icono="store">
                 {cuenta.addresses?.length ? (
-                  <div className="mt-3 space-y-2 text-mute">
+                  <div className="mt-3 space-y-2 text-sm text-mute">
                     {cuenta.addresses.map((address, index) => (
                       <p key={`${address.label}-${index}`}>
                         <b className="text-fore">{address.label || 'Dirección'}</b>
@@ -168,18 +176,12 @@ export default function CuentaPublica() {
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-3 text-mute">Sin direcciones registradas.</p>
+                  <p className="mt-3 text-sm text-mute">Sin direcciones registradas.</p>
                 )}
-              </section>
+              </PortalSeccion>
             )}
 
-            {cuenta.orders?.some(order => order.dueAt && Number(order.pendingPyg || 0) > 0) && (
-              <p className="text-center text-[11px] text-mute">Actualizado {fechaHora(new Date())}</p>
-            )}
-
-            <p className="pt-2 text-center text-[11px] text-mute">
-              Documento no fiscal · Generado por MobOS para {cuenta.company?.name || 'la tienda'}
-            </p>
+            <PortalPie tienda={cuenta.company?.name} actualizado={fechaHora(new Date())} />
           </div>
         )}
       </div>
