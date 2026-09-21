@@ -3,6 +3,7 @@ import { api } from '@/lib/api'
 import { listVentas } from '@/lib/storage'
 import { getDemoCash } from '@/lib/demoCash'
 import { construirDemoAuditoriaEfectivo, guardarMarcaDemo, leerMarcasDemo } from '@/lib/demoAuditoria'
+import { inicializarBorradores } from '@/lib/auditoriaEfectivo'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { cn } from '@/lib/utils'
@@ -21,6 +22,7 @@ const ESTADOS = {
 const diaISO = (fecha) => {
   try { return fecha.toLocaleDateString('sv') } catch { return '' }
 }
+
 const hoy = () => diaISO(new Date())
 const haceDias = (dias) => {
   const fecha = new Date()
@@ -54,7 +56,7 @@ export default function AuditoriaEfectivo() {
       if (esDemo) {
         const respuesta = construirDemoAuditoriaEfectivo({ ventas: listVentas(), cash: getDemoCash(), desde, hasta, marcas: leerMarcasDemo() })
         setData(respuesta)
-        setBorradores(Object.fromEntries((respuesta.operaciones || []).map((operacion) => [`${operacion.kind}:${operacion.id}`, { status: operacion.status, note: operacion.notaAuditoria }])))
+        setBorradores((actuales) => inicializarBorradores(respuesta.operaciones, actuales))
         return
       }
       const params = new URLSearchParams({ from: desde, to: hasta })
@@ -62,7 +64,9 @@ export default function AuditoriaEfectivo() {
       if (branch) params.set('branchId', branch)
       const respuesta = await api.get(`/api/cash/audit-operations?${params}`)
       setData(respuesta)
-      setBorradores(Object.fromEntries((respuesta.operaciones || []).map((operacion) => [`${operacion.kind}:${operacion.id}`, { status: operacion.status, note: operacion.notaAuditoria }])))
+      // Un refresco no pisa lo que la persona ya escribió (#199): los
+      // borradores existentes se conservan y solo se agregan los nuevos.
+      setBorradores((actuales) => inicializarBorradores(respuesta.operaciones, actuales))
     } catch (cause) { setError(cause?.message || 'No se pudo cargar la auditoría de efectivo.') } finally { setBusy(false) }
   }, [desde, hasta, sucursalId, sucursal?.id, esDemo])
 

@@ -1,0 +1,66 @@
+{
+  "base": "https://app.moboss.online",
+  "fecha": "2026-09-21T18:23:56.421Z",
+  "resultados": [
+    {
+      "paso": "entrada anónima a la demo (Dueño)",
+      "estado": "ok",
+      "detalle": "demo anónima abierta con banner de datos ficticios",
+      "capturas": [
+        "01-demo-acceso.jpg",
+        "02-panel-demo.jpg"
+      ],
+      "api": []
+    },
+    {
+      "paso": "cuentas y medios (efectivo multi-moneda, transferencia, tarjeta, Pix, USDT, canje)",
+      "estado": "ok",
+      "detalle": "iniciales=5 → finales=11 · nombres: Efectivo USD | Banco Itaú Paraguay - Titular Demo - Cuenta 1234 | Bancard | Pix - Titular Demo | USDT - Titular Demo | Canje · Pix BRL fija=true · USDT USD fija=true",
+      "capturas": [
+        "03-cuentas-medios.jpg"
+      ],
+      "api": []
+    },
+    {
+      "paso": "caja: turno abierto y arqueo",
+      "estado": "ok",
+      "detalle": "estado abierto · turno visible=true",
+      "capturas": [
+        "04-caja.jpg",
+        "05-caja-cierre.jpg"
+      ],
+      "api": []
+    },
+    {
+      "paso": "caja: auditoría de medios y de efectivo en demo",
+      "estado": "pendiente",
+      "detalle": "auditoría visible: medios=false · efectivo=false (demo de #194 pendiente de deploy)",
+      "capturas": [
+        "06-caja-auditoria-pendiente.jpg"
+      ],
+      "api": []
+    },
+    {
+      "paso": "conciliación con datos ficticios",
+      "estado": "pendiente",
+      "detalle": "la demo muestra \"Conciliación no está disponible\" (demo de #194 pendiente de deploy)",
+      "capturas": [
+        "07-conciliacion-pendiente.jpg"
+      ],
+      "api": []
+    },
+    {
+      "paso": "seguro y efecto en el margen",
+      "estado": "pendiente",
+      "detalle": "el seguro está deshabilitado con nota de demo (simulación de #194 pendiente de deploy)",
+      "capturas": [
+        "08-seguro-demo.jpg"
+      ],
+      "api": []
+    }
+  ],
+  "llamadasApi": [],
+  "erroresConsola": [
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ]
+}
