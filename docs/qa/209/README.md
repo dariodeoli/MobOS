@@ -57,9 +57,9 @@ alineado con la auditoría del demo.
 
 ## Estado en producción
 
-El lote todavía **no está integrado** en `main` (`3546121`, notas de v1.0.131)
-ni desplegado (producción sigue en v1.0.130): el patrón es de frontend, así que
-su verificación es la local de este documento. Cuando el integrador despliegue,
-se repite la sonda (y la de #171) contra el demo público; la de #171 ya
-documenta el estado desplegado (`docs/qa/171/produccion.json`, 6/6 con las
-vistas unificadas).
+`main` está en v1.0.131 y la sonda de producción de #171 confirma que la
+unificación está desplegada; el **#209 de Finanzas todavía no está integrado**
+(la sonda informa que el marcador `fin:gastos-tipo` no aparece en el bundle).
+La verificación de este patrón es la local de este documento más el e2e; cuando
+el integrador despliegue, se repite `scripts/qa-209-finanzas-ultimo-usado.mjs`
+(solo lectura) contra el build publicado.

@@ -61,6 +61,11 @@ await ver('El bundle de producción incluye los indicadores unificados', async (
   for (const texto of ['Stock valorizado', 'Curva ABC por venta', 'Cuentas con mayor ingreso', 'Diferencia de lotes', 'Curva ABC y antigüedad']) {
     expect(contenido.includes(texto), `el bundle (${chunks} chunks) no contiene «${texto}»`).toBe(true)
   }
+  // Lote pendiente de este slot (avisos de portada + #209 FIN): se detecta con
+  // una clave propia (`fin:gastos-tipo`), porque el texto del aviso de portada
+  // es el mismo que ya usa Reportes y no se distingue en el bundle minificado.
+  const lotePendiente = contenido.includes('fin:gastos-tipo')
+  console.log(`INFO  lote de este slot (#209 FIN + aviso de portada) en el bundle desplegado: ${lotePendiente ? 'sí' : 'no (pendiente de integrar)'}`)
 })
 
 // ── 2) Los endpoints de métricas no responden sin sesión ────────────────────
