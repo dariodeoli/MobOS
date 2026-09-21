@@ -14,6 +14,7 @@ import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from './demoMode'
 import { MEDIOS_PAGO } from './catalog'
+import { guardarSnapshotCatalogo, leerSnapshotCatalogo } from './offline/snapshot'
 import {
   prod,
   PRODUCTOS_DEFAULT,
@@ -183,12 +184,21 @@ async function hydrateApi() {
   const version = apiHydrationVersion
   const identity = `${ctx.empresaId}:${ctx.userId}:${ctx.rol}:${ctx.sucursalId}`
   const puedeVerFinanzas = ['dueno', 'GERENTE', 'CAJERA'].includes(ctx.rol)
-  const [products, orders, users, finance] = await Promise.all([
-    api.get('/api/products'),
-    api.get('/api/orders?filtro=todos'),
-    ctx.rol === 'dueno' ? api.get('/api/users') : Promise.resolve([]),
-    puedeVerFinanzas ? api.get('/api/finance').catch(() => null) : Promise.resolve(null),
-  ])
+  let products; let orders; let users; let finance
+  try {
+    ;[products, orders, users, finance] = await Promise.all([
+      api.get('/api/products'),
+      api.get('/api/orders?filtro=todos'),
+      ctx.rol === 'dueno' ? api.get('/api/users') : Promise.resolve([]),
+      puedeVerFinanzas ? api.get('/api/finance').catch(() => null) : Promise.resolve(null),
+    ])
+  } catch (error) {
+    // Sin conexión al arrancar (POS offline-first): se hidrata con la última
+    // foto local del catálogo y los pedidos. Sin foto, el error sigue su curso.
+    const foto = await leerSnapshotCatalogo(ctx.empresaId)
+    if (!foto) throw error
+    ;({ products, orders, users, finance } = foto)
+  }
   if (
     !apiMode() ||
     version !== apiHydrationVersion ||
@@ -208,6 +218,8 @@ async function hydrateApi() {
   cache.auditoria = []
   cache.config = { nombreTienda: getCompanyName() }
   notify()
+  // Foto para el próximo arranque sin conexión (no bloquea la UI).
+  guardarSnapshotCatalogo(ctx.empresaId, { products, orders, users, finance })
 }
 
 // El costo del producto vive en la API como `costPyg`. Sin este mapeo la

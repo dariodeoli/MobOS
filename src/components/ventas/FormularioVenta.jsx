@@ -15,6 +15,8 @@ import {
   ENTREGA,
 } from '@/lib/storage'
 import { leerCarrito, guardarCarrito, borrarCarrito, lineasParaResumen } from '@/lib/posCart'
+import { encolarVenta } from '@/lib/offline/ventas'
+import { esErrorDeRed } from '@/lib/offline/queue'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
@@ -37,6 +39,7 @@ import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { validateDemoTradeIns, recordDemoTradeIns } from '@/lib/tradeInPipeline'
 import { accountPayment } from './PaymentAccountFields'
 import ComprobantePreview from '@/components/shared/ComprobantePreview'
+import ColaOffline from './ColaOffline'
 import { whatsappTrackingLink } from './PagosPedido'
 import { telefonoValido, MENSAJE_TELEFONO } from '@/utils/telefono'
 import SerialUnitPicker from '@/components/inventory/SerialUnitPicker'
@@ -320,6 +323,8 @@ export default function FormularioVenta({
   const [descartarPendiente, setDescartarPendiente] = useState(null)
   const [descartando, setDescartando] = useState(false)
   const [avisoSuspension, setAvisoSuspension] = useState('')
+  // Aviso de la última venta que quedó en la cola local por falta de conexión.
+  const [avisoOffline, setAvisoOffline] = useState('')
   const [avisoDemoSuspendidas, setAvisoDemoSuspendidas] = useState(false)
 
   useEffect(() => {
@@ -846,11 +851,15 @@ export default function FormularioVenta({
     )
     setErrorVenta('')
     if (!idempotencyKeyRef.current) idempotencyKeyRef.current = `pos-${crypto.randomUUID()}`
+    // Trabajando sin conexión: los chequeos que dependen de la red (cuentas de
+    // cobro, stock real, IMEI) se relajan; la venta se encola con `offline:
+    // true` y el backend la recibe con stock laxo, marcada para revisión.
+    const sinRed = typeof navigator !== 'undefined' && navigator.onLine === false
     let lineas
     let payments
     try {
       const sinImei = lista.filter(it => it.requiereSerie && !it.serials?.length && !it.sobrePedido)
-      if (sinImei.length)
+      if (sinImei.length && !sinRed)
         throw new Error(
           `Elegí el IMEI de ${sinImei.map(it => it.nombre).join(', ')} o marcalo como sobre pedido.`,
         )
@@ -889,8 +898,12 @@ export default function FormularioVenta({
       if (venderACredito && Number(customer.creditLimitPyg || 0) <= 0)
         throw new Error('El cliente no tiene límite de crédito habilitado. Configuralo en Clientes.')
       if (esDemo) validateDemoPromotionItems(orderItems, productos, gsNum(descuento))
-      if (!cuentas || errorCuentas)
+      if (!sinRed && (!cuentas || errorCuentas))
         throw new Error(errorCuentas || 'Esperá a que terminen de cargar las cuentas.')
+      // Sin conexión no se pueden armar filas con cuenta de cobro (necesitan la
+      // lista de cuentas): se avisa en vez de encolar algo que va a fallar.
+      if (sinRed && !cuentas && pagos.some(p => p.accountId))
+        throw new Error('Sin conexión no se pueden usar las cuentas de cobro ya cargadas. Recargá el cobro o esperá la conexión.')
       if (!usaCuentas && pagos.some(p => !String(p.monto).trim() || gsNum(p.monto) <= 0))
         throw new Error('Ingresá un monto positivo en cada pago o quitá la fila vacía.')
       // Forma legacy (sin cuentas de cobro): solo método, monto en ₲ y estado.
@@ -934,7 +947,10 @@ export default function FormularioVenta({
         )
       for (const [id, cantidad] of cantidades) {
         const producto = productos.find(p => p.id === id)
-        if (!producto || num(producto.stock) < cantidad)
+        if (!producto) throw new Error(`Stock insuficiente: producto.`)
+        // Sin conexión el stock local puede estar viejo: se permite la venta
+        // (stock laxo) y el backend la marca para revisión.
+        if (!sinRed && num(producto.stock) < cantidad)
           throw new Error(`Stock insuficiente: ${producto?.nombre || 'producto'}.`)
       }
       lineas = allocateCheckout(
@@ -964,10 +980,12 @@ export default function FormularioVenta({
     guardadoEnCurso.current = true
     let ventaPersistida = false
     let completedOrder = null
+    // Payload de la venta tal como viajaría a la API: si la conexión se corta,
+    // se encola este mismo objeto (con `offline: true`) sin perder nada.
+    let payloadParaCola = null
     try {
       if (!esDemo) {
-        const order = await guardarOrdenApi(
-          {
+        const orderPayload = {
             ...(customer.id
               ? { customerId: customer.id }
               : {
@@ -1024,9 +1042,11 @@ export default function FormularioVenta({
             ...(f.specialOrder
               ? { specialOrder: true, ...(f.expectedAt ? { expectedAt: f.expectedAt } : {}) }
               : {}),
-          },
-          { idempotencyKey: idempotencyKeyRef.current },
-        )
+        }
+        // Sin conexión no hay sin conexión que valga: la venta viaja con
+        // `offline` para que el backend relaje el stock y la marque a revisar.
+        payloadParaCola = orderPayload
+        const order = await guardarOrdenApi(orderPayload, { idempotencyKey: idempotencyKeyRef.current })
         if (!order?.id || order.error || order.ok === false)
           throw new Error(order?.error || 'No se recibió confirmación de la orden.')
         ventaPersistida = true
@@ -1117,6 +1137,37 @@ export default function FormularioVenta({
       setTimeout(() => setOk(false), 2500)
       onGuardado?.()
     } catch (error) {
+      // Sin conexión (o se cortó justo al enviar): la venta no se pierde. Queda
+      // en la cola local con la misma Idempotency-Key y se reintenta al
+      // reconectar; el backend la recibe con `offline` y la marca para revisión.
+      if (!esDemo && payloadParaCola && esErrorDeRed(error)) {
+        try {
+          const item = await encolarVenta({
+            payload: { ...payloadParaCola, offline: true },
+            idempotencyKey: idempotencyKeyRef.current,
+            resumen: { cliente: f.cliente, total: totalGeneral, items: orderItems.length },
+          })
+          localStorage.setItem(ULTIMO_VENDEDOR, f.vendedorId)
+          idempotencyKeyRef.current = null
+          const { empresaId, sucursalId } = contextoActual()
+          borrarCarrito(empresaId, sucursalId)
+          setCustomer({ ...CLIENTE_VACIO })
+          setItems([])
+          setDescuento('')
+          setAuthDescuento(null)
+          setPagos([])
+          setF(VACIO(f.vendedorId))
+          setBusquedaProducto('')
+          setAvisoOffline(
+            `Venta guardada sin conexión${item?.resumen?.cliente ? ` (${item.resumen.cliente})` : ''}. Se sincroniza sola al volver la conexión.`,
+          )
+          setErrorVenta('')
+          onGuardado?.()
+          return
+        } catch {
+          /* si tampoco se puede encolar, sigue el error normal de abajo */
+        }
+      }
       if (ventaPersistida) setGuardadoIncompleto(true)
       setErrorVenta(
         ventaPersistida
@@ -1452,6 +1503,27 @@ export default function FormularioVenta({
           </button>
         </div>
       )}
+      {avisoOffline && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-warn/40 bg-warn/10 p-4 text-sm text-warn"
+        >
+          <span>{avisoOffline}</span>
+          <button
+            type="button"
+            onClick={() => setAvisoOffline('')}
+            className="rounded-md p-1 text-mute transition hover:bg-ink-700 hover:text-fore"
+            aria-label="Cerrar aviso"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {/* Cola local de ventas sin sincronizar (offline-first). */}
+      <div className="mb-4 empty:hidden">
+        <ColaOffline />
+      </div>
       {pagos.some(p => p.tradeIn) && (
         <p role="status" className="mb-4 rounded-xl border border-fono/30 bg-fono/10 p-3 text-sm">
           Canje preparado como parte de pago. Revisá sus datos y el saldo pendiente en Cobrar.

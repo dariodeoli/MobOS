@@ -408,3 +408,44 @@ test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con 
   await page.getByRole('button', { name: /^Guardar venta/ }).click()
   await expect(page.getByText('Venta registrada correctamente. Ya podés cargar la siguiente.')).toBeVisible({ timeout: 15_000 })
 })
+
+// Offline-first (Fase 1): sin conexión la venta queda en la cola local y al
+// volver la conexión se sincroniza sola, una sola vez (misma Idempotency-Key).
+test('POS: la venta cargada sin conexión se sincroniza al volver (sin duplicar)', async ({ page, context }) => {
+  const cliente = `Cliente offline ${Date.now().toString(36)}`
+  await page.goto('/ventas')
+  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
+  await page.getByPlaceholder('Buscar producto…').fill('Cable')
+  await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+
+  const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+  await page.getByRole('button', { name: '+ Agregar pago' }).click()
+  await paymentsSection.getByLabel('Cuenta de cobro').selectOption({ label: 'Caja E2E · PYG · CASH' })
+  await paymentsSection.getByLabel('Monto original').fill('45000')
+
+  // Sin conexión: la venta no llega al servidor pero no se pierde.
+  await context.setOffline(true)
+  await expect(page.getByTestId('cola-offline')).toHaveCount(0)
+  await page.getByRole('button', { name: /^Guardar venta/ }).click()
+  await expect(page.getByText(/Venta guardada sin conexión/)).toBeVisible({ timeout: 15_000 })
+  const cola = page.getByTestId('cola-offline')
+  await expect(cola).toContainText('1 venta sin sincronizar')
+  await expect(cola.getByRole('button', { name: 'Sin conexión' })).toBeDisabled()
+
+  // Vuelve la conexión: el indicador se vacía solo al sincronizar.
+  await context.setOffline(false)
+  await expect(page.getByTestId('cola-offline')).toHaveCount(0, { timeout: 20_000 })
+
+  // La venta quedó registrada una única vez y marcada como sincronizada offline.
+  await expect
+    .poll(async () => page.evaluate(async ({ api, cliente }) => {
+      const response = await fetch(`${api}/api/orders`, { credentials: 'include' })
+      if (!response.ok) return null
+      const rows = await response.json()
+      return rows
+        .filter((row) => row.customer?.name === cliente)
+        .map((row) => ({ offline: Boolean(row.offlineSyncedAt) }))
+    }, { api: API, cliente }), { timeout: 15_000 })
+    .toEqual([{ offline: true }])
+})
