@@ -11,10 +11,14 @@ export const KIND_LABELS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 
 const CAMPOS_TEXTO = ['name', 'bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel', 'holderId', 'companyId']
 const defaults = { name: '', bank: '', holder: '', accountNumber: '', document: '', processor: '', pixKey: '', reference: '', currencyLabel: '', holderId: '', companyId: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, discountPct: 0, settlementDays: 0 }
 const seed = [
-  { ...defaults, id: 'demo-cash-pyg', name: 'Caja demo · Gs' },
-  { ...defaults, id: 'demo-cash-usd', name: 'Caja demo · USD', currency: 'USD' },
-  { ...defaults, id: 'demo-transfer', name: 'Transferencia ficticia', kind: 'TRANSFER', bank: 'Banco ficticio demo', holder: 'Comercio ficticio demo', accountNumber: 'DEMO-0001' },
-  { ...defaults, id: 'demo-card', name: 'Tarjeta demo', kind: 'CARD' },
+  { ...defaults, id: 'demo-cash-pyg', name: 'Caja · Guaraníes', reference: 'Caja chica mostrador' },
+  { ...defaults, id: 'demo-cash-usd', name: 'Caja · Dólares', currency: 'USD', reference: 'Caja chica dólares' },
+  { ...defaults, id: 'demo-transfer-itau', name: 'Banco Itaú · Comercio demo', kind: 'TRANSFER', bank: 'Itaú', holder: 'Comercio demo', accountNumber: 'DEMO-0001' },
+  { ...defaults, id: 'demo-transfer-continental', name: 'Banco Continental · Comercio demo', kind: 'TRANSFER', bank: 'Continental', holder: 'Comercio demo', accountNumber: 'DEMO-0002' },
+  { ...defaults, id: 'demo-card-ueno', name: 'ueno · Tarjeta demo', kind: 'CARD', bank: 'ueno', processor: 'UPay', holder: 'Comercio demo' },
+  { ...defaults, id: 'demo-card-dinelco', name: 'Dinelco · Tarjeta demo', kind: 'CARD', processor: 'Dinelco', holder: 'Comercio demo' },
+  { ...defaults, id: 'demo-pix', name: 'Pix - Comercio demo', kind: 'PIX', currency: 'BRL', pixKey: 'pix@demo.mobos', holder: 'Comercio demo' },
+  { ...defaults, id: 'demo-crypto', name: 'USDT - Comercio demo', kind: 'CRYPTO', currency: 'USD', reference: 'Tron TRC20 (demo)', holder: 'Comercio demo' },
   { ...defaults, id: 'demo-trade-in', name: 'Canje demo', kind: 'TRADE_IN' },
 ]
 

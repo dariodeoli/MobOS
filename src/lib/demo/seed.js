@@ -207,3 +207,5 @@ export const TRADEIN_DEFAULT = {
     },
   ],
 }
+
+export { IPHONES_DEMO, EQUIPO_DEMO } from './iphones'
