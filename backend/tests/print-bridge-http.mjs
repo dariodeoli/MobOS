@@ -622,4 +622,25 @@ assert.equal(psql(`SELECT state FROM "PrintJob" WHERE id = '${jobLote1.id}';`), 
 const claimFinal = await agente('/api/print/bridge/claim', { token: tokenJobsB, body: {} })
 assert.ok(!(claimFinal.payload.jobs || []).some(item => [jobCancelado.id, jobLote1.id, jobLote2.id].includes(item.id)), 'el claim queda sin trabajos cancelados')
 
+// 10e. INCIERTO: el puente no sabe si salió (reinicio en medio). El trabajo
+// queda cerrado y honesto, con su evento propio, y NO se reentrega solo.
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: destinoCancel, printerId: impresoraCancel.id, payload: 'QUJDRA==', kind: 'comprobante', reference: 'IT-INCIERTO-1' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const jobIncierto = resultado.payload.job
+let reclamadoIncierto = null
+for (let intento = 0; intento < 6 && !reclamadoIncierto; intento += 1) {
+  const claim = await agente('/api/print/bridge/claim', { token: tokenJobsB, body: {} })
+  reclamadoIncierto = (claim.payload.jobs || []).find(item => item.id === jobIncierto.id) || null
+}
+assert.ok(reclamadoIncierto, 'el puente reclama el trabajo para reportar el resultado')
+resultado = await agente(`/api/print/bridge/jobs/${jobIncierto.id}/result`, { token: tokenJobsB, body: { leaseId: reclamadoIncierto.leaseId, state: 'INCIERTO', error: 'El puente se reinició durante la impresión.' } })
+assert.equal(resultado.status, 200, JSON.stringify(resultado.payload))
+assert.equal(resultado.payload.state, 'INCIERTO', 'el trabajo queda incierto (estado honesto)')
+assert.equal(psql(`SELECT "payload" IS NULL FROM "PrintJob" WHERE "id" = '${jobIncierto.id}';`), 't', 'el ticket se borra al cerrar incierto')
+assert.equal(psql(`SELECT "metadata"->>'error' FROM "AuditLog" WHERE action = 'PRINT_JOB_INCIERTO' AND "entityId" = '${jobIncierto.id}';`), 'El puente se reinició durante la impresión.', 'el incierto queda auditado con el motivo real')
+const claimTrasIncierto = await agente('/api/print/bridge/claim', { token: tokenJobsB, body: {} })
+assert.ok(!(claimTrasIncierto.payload.jobs || []).some(item => item.id === jobIncierto.id), 'un incierto no se reentrega solo (podría duplicar el ticket)')
+resultado = await request(`/api/print/jobs/${jobIncierto.id}/cancel`, { method: 'POST' })
+assert.equal(resultado.status, 409, 'un incierto tampoco se cancela: se revisa en papel')
+
 console.log('print-bridge-http: puentes, impresoras, import idempotente, trabajos con lease y confirmación, cancelación, anti-duplicados, tope y manifest OK.')
