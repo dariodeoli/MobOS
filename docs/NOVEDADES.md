@@ -11,6 +11,13 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.125 — 2026-09-21
+- **Finanzas:** nueva pantalla de **Conciliación** por cuenta, medio de pago y procesadora: cobros y lotes de acreditación, diferencias y estado (pendiente, conciliado o con diferencia), con la foto del cobro sobre la cuenta usada al momento de cobrar. (#144)
+- **Resumen:** se unificó **Análisis con Resumen** sin duplicar métricas: ticket promedio y variación se calculan una sola vez y el panel muestra la vista ejecutiva y la extendida. (#145)
+- **Pedidos:** la **entrega queda separada del pago**, con estados propios según el tipo: retiro (pendiente → preparando → listo para retirar → retirado) y reparto (enviado, en camino, no entregado, parcial); la app ofrece solo los pasos válidos y la cronología registra cada cambio. (#152)
+- **POS:** los **borradores se comparten con un enlace público del carrito** sin cuenta (copiar, WhatsApp o correo) y el cliente ve el detalle con el botón de checkout que abre el WhatsApp de la tienda; al retomar un borrador, el POS avisa si cambió el stock y permite vender igualmente o volver atrás. (#154)
+- **POS:** nuevo **tablero de Analytics del día** (ventas contra ayer, ticket promedio, ítems por pedido, top productos, ventas por vendedor y sucursal, cobros por medio) y **menciones @** en los comentarios internos de los pedidos. (#156)
+
 ## v1.0.124 — 2026-09-21
 - **Finanzas:** la **caja** se audita por rango: efectivo inicial y recibido por sesión, cada cobro o movimiento con pedido, cliente y vendedor, y el estado **verificado / pendiente / con diferencia** con su observación, quién auditó y un resumen de diferencias y pendientes. (#161)
 - **Finanzas:** el **seguro de ventas de la empresa** (% sobre el costo) se configura en Configuración → Negocio y entra en la prioridad del seguro; el **costo real** (costo + seguro) ya baja el margen en Resumen, Análisis, comisiones y reportes. (#162)
