@@ -1,4 +1,4 @@
-import { internationalPhone } from '@/utils/telefono'
+import { internationalPhone, telefonoVisible } from '@/utils/telefono'
 
 // Proyección del pedido de reparto: el mismo shape para el panel del
 // repartidor y para la vista de la tienda. Separa lo confirmado de lo
@@ -35,7 +35,7 @@ export function deliveryFields(row) {
     date: row.createdAt,
     cliente: cliente.name || 'Sin cliente',
     telefono: internationalPhone(cliente.phone, cliente.countryCode),
-    telefonoVisible: cliente.phone || '',
+    telefonoVisible: telefonoVisible(cliente.phone, cliente.countryCode),
     direccion: direccion ? [direccion.address, direccion.city, direccion.department].filter(Boolean).join(', ') : '',
     direccionEtiqueta: direccion?.label || '',
     direccionNotas: direccion?.notes || '',
