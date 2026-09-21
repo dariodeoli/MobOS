@@ -20,7 +20,7 @@ async function req(path, method = 'GET', body, expected = 200) {
 }
 
 // ── Titulares ─────────────────────────────────────────────────────────
-const holder = await req('/api/account-holders', 'POST', { firstName: 'Ana', middleName: 'María', lastName: 'Pérez', secondLastName: 'Gómez', document: '1234567-8' })
+const holder = await req('/api/account-holders', 'POST', { firstName: 'Ana', middleName: 'María', lastName: 'Pérez', secondLastName: 'Gómez', document: '1234567-8' }, 201)
 assert.equal(holder.firstName, 'Ana')
 assert.equal(holder.isActive, true)
 checks += 2
@@ -35,7 +35,7 @@ checks += 2
 await req('/api/account-holders', 'PATCH', { id: holder.id, isActive: true })
 
 // ── Empresas privadas ─────────────────────────────────────────────────
-const company = await req('/api/private-companies', 'POST', { legalName: 'Comercial QA S.A.', ruc: '80069563-1', legalAddress: 'Av. QA 123' })
+const company = await req('/api/private-companies', 'POST', { legalName: 'Comercial QA S.A.', ruc: '80069563-1', legalAddress: 'Av. QA 123' }, 201)
 assert.equal(company.legalName, 'Comercial QA S.A.')
 checks++
 await req('/api/private-companies', 'POST', { ruc: '80000000-0' }, 400)
@@ -47,7 +47,7 @@ checks++
 const account = await req('/api/payment-accounts', 'POST', {
   name: 'Cuenta con titular QA', kind: 'TRANSFER', currency: 'PYG', bank: 'Banco QA',
   holder: 'Ana María Pérez Gómez', accountNumber: 'QA-2', holderId: holder.id, companyId: company.id,
-})
+}, 201)
 assert.equal(account.holderId, holder.id)
 assert.equal(account.companyId, company.id)
 checks += 2
