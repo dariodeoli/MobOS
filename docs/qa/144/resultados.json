@@ -1,0 +1,21 @@
+{
+  "base": "https://app.moboss.online",
+  "issue": 144,
+  "resultados": [
+    {
+      "issue": 144,
+      "nombre": "la portada muestra ingresos por cuenta, medio y procesadora",
+      "ok": true
+    },
+    {
+      "issue": 144,
+      "nombre": "la conciliación en lote queda con su estado y la trazabilidad abre el pedido",
+      "ok": true
+    },
+    {
+      "issue": 144,
+      "nombre": "sin errores de consola propios en el recorrido",
+      "ok": true
+    }
+  ]
+}

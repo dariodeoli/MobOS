@@ -1,0 +1,16 @@
+{
+  "base": "https://app.moboss.online",
+  "issue": 161,
+  "resultados": [
+    {
+      "issue": 161,
+      "nombre": "la caja muestra el turno, los medios y la auditoría de efectivo",
+      "ok": true
+    },
+    {
+      "issue": 161,
+      "nombre": "una marca con diferencia pide observación y queda registrada",
+      "ok": true
+    }
+  ]
+}
