@@ -10,7 +10,7 @@ process.env.MOBOS_ERRORS_DAILY_MAX = '5'
 
 const { POST } = require('../app/api/errors/route.ts')
 
-const reportar = (ip) => POST(new Request('https://api.example.test/api/errors', {
+const reportar = (ip: string) => POST(new Request('https://api.example.test/api/errors', {
   method: 'POST',
   headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
   body: JSON.stringify({ message: 'prueba de cupo', kind: 'unhandled' }),
