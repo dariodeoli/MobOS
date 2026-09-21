@@ -238,11 +238,15 @@ export default function Resumen() {
             <div className="flex min-w-0 items-start gap-2.5">
               <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-warn">
-                  Costo pendiente: {d.sinCosto.lineas} {d.sinCosto.lineas === 1 ? 'línea' : 'líneas'} por {gs(d.sinCosto.monto)}
-                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-warn">
+                    Costo pendiente: {d.sinCosto.lineas} {d.sinCosto.lineas === 1 ? 'línea' : 'líneas'} por {gs(d.sinCosto.monto)}
+                    {d.total > 0 ? ` (${Math.round((d.sinCosto.monto / d.total) * 100)}% del período)` : ''}
+                  </p>
+                  <Badge color="orange">Margen real incompleto</Badge>
+                </div>
                 <p className="mt-1 text-xs text-mute">
-                  Mientras haya ventas sin costo cargado, el margen real y las comisiones pueden quedar incompletos. Cargá el costo del producto o de la línea.
+                  Mientras haya ventas sin costo cargado, el margen real y las comisiones no son definitivos: cargá el costo del producto o de la línea.
                 </p>
               </div>
             </div>
