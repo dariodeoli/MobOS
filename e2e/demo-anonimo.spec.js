@@ -46,6 +46,35 @@ async function contarFilas() {
   }
 }
 
+// Foto de todo lo que el navegador puede guardar ente recargas (#201): la demo
+// no debe agregar nada (ni claves, ni cookies, ni cachés, ni bases IndexedDB).
+async function instantaneaNavegador(page) {
+  return page.evaluate(async () => {
+    const idb = indexedDB.databases ? (await indexedDB.databases()).map((base) => base.name).sort() : []
+    const clavesCache = typeof caches !== 'undefined' ? (await caches.keys()).sort() : []
+    const cachesContenido = {}
+    for (const clave of clavesCache) {
+      const cache = await caches.open(clave)
+      cachesContenido[clave] = (await cache.keys()).map((pedido) => new URL(pedido.url).pathname).sort()
+    }
+    return {
+      local: Object.keys(localStorage).sort(),
+      sesion: Object.keys(sessionStorage).sort(),
+      cookie: document.cookie,
+      idb,
+      caches: cachesContenido,
+    }
+  })
+}
+
+// Texto del resumen ya pintado: sirve para comparar el estado demo antes y
+// después de una recarga.
+async function textoResumen(page) {
+  await expect(page.getByText('FACTURADO')).toBeVisible()
+  await page.waitForTimeout(300)
+  return (await page.locator('main').innerText()).replace(/\s+/g, ' ')
+}
+
 // Recorre módulos en demo y devuelve problemas visibles + llamadas al API +
 // errores de consola, para que el test afirme que todo el panel es navegable.
 async function recorrerModulos(page, modulos) {
@@ -239,8 +268,8 @@ test('un guardado en demo no se persiste y al recargar vuelve el estado inicial'
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
 })
 
-test('la demo no deja datos en el navegador ni toca la base', async ({ page }) => {
-  test.setTimeout(120_000)
+test('la demo no persiste nada: guardados, recarga, salida y base intacta', async ({ page }) => {
+  test.setTimeout(180_000)
   const antes = await contarFilas()
   test.skip(!antes, 'Requiere la base del harness (backend/.env con DATABASE_URL).')
   const llamadas = []
@@ -251,47 +280,91 @@ test('la demo no deja datos en el navegador ni toca la base', async ({ page }) =
   await expect(page).toHaveURL(/\/resumen$/)
   await cerrarGuia(page)
   const marca = Date.now().toString(36)
+  const inicial = await instantaneaNavegador(page)
+  const resumenInicial = await textoResumen(page)
 
-  // Tres guardados reales de la demo: integrante, plantilla y garantía.
+  // Cinco guardados reales de la demo: integrante, plantilla, garantía, cupón
+  // y una venta completa del POS.
   await page.goto('/configuracion/equipo')
-  await page.locator('#direct-name').fill(`Demo auditoría ${marca}`)
+  await page.locator('#direct-name').fill(`Cierre 201 ${marca}`)
   await page.getByRole('button', { name: 'Agregar', exact: true }).click()
   await expect(page.getByText('Integrante agregado correctamente.')).toBeVisible()
 
   await page.goto('/plantillas')
   await page.getByRole('button', { name: /Nueva plantilla/ }).click()
-  await page.locator('#plantilla-nombre').fill(`Demo plantilla ${marca}`)
-  await page.getByLabel('Mensaje de la plantilla').fill('Hola {{cliente}}, plantilla ficticia de auditoría.')
+  await page.locator('#plantilla-nombre').fill(`Cierre 201 ${marca}`)
+  await page.getByLabel('Mensaje de la plantilla').fill('Hola {{cliente}}, plantilla ficticia de cierre.')
   await page.getByRole('button', { name: 'Crear plantilla' }).click()
   await expect(page.getByText('Plantilla creada.')).toBeVisible()
 
   await page.goto('/garantias')
   await page.getByRole('button', { name: 'Nuevo caso' }).click()
-  await page.getByPlaceholder('Nombre del cliente').fill(`Cliente auditado ${marca}`)
-  await page.getByPlaceholder('Serial o IMEI').fill(`DEMO-${marca}`)
-  await page.getByPlaceholder('Falla reportada, revisión solicitada…').fill('Caso ficticio de auditoría de persistencia.')
+  await page.getByPlaceholder('Nombre del cliente').fill(`Cliente cierre ${marca}`)
+  await page.getByPlaceholder('Serial o IMEI').fill(`DEMO-C201-${marca}`)
+  await page.getByPlaceholder('Falla reportada, revisión solicitada…').fill('Caso ficticio de cierre.')
   await page.getByRole('button', { name: 'Registrar caso' }).click()
-  await expect(page.getByText(`Cliente auditado ${marca}`)).toBeVisible()
+  await expect(page.getByText(`Cliente cierre ${marca}`).first()).toBeVisible()
 
-  // Nada de la demo quedó en el navegador: ni datos ficticios ni IndexedDB.
-  const claves = await page.evaluate(() => ({ local: Object.keys(localStorage), sesion: Object.keys(sessionStorage) }))
-  const deDemo = claves.local.filter((clave) => clave.startsWith('mobos:demo') || clave.startsWith('fono:'))
-  expect(deDemo, `claves de demo persistidas: ${deDemo.join(', ')}`).toEqual([])
-  // Solo se admiten preferencias de UI del dispositivo, nunca datos de la tienda.
-  const PREFIJOS = ['mobos:theme', 'mobos:nav-groups', 'mobos:stats-collapsed', 'mobos:sidebar-collapsed', 'mobos:productos-vista', 'mobos:clientes-vista', 'mobos:inventario-vista', 'mobos:ubicaciones-vista', 'mobos:preferencias', 'mobos:notificaciones-vistas', 'mobos:impresora', 'mobos:device-id', 'mobos:sucursal-activa']
-  const inesperadas = claves.local.filter((clave) => !PREFIJOS.some((prefijo) => clave.startsWith(prefijo)))
-  expect(inesperadas, `la demo dejó claves inesperadas: ${inesperadas.join(', ')}`).toEqual([])
-  const bases = await page.evaluate(async () => (indexedDB.databases ? (await indexedDB.databases()).map((base) => base.name) : []))
-  expect(bases, 'la demo no debe abrir IndexedDB para comprobantes').not.toContain('mobos-demo-proofs')
+  const codigo = `C${marca.toUpperCase().slice(-6)}`
+  await page.goto('/promociones')
+  const formCupon = page.locator('form').filter({ hasText: 'Crear cupón' })
+  await formCupon.getByLabel('Código').fill(codigo)
+  await formCupon.getByLabel('Nombre').fill(`Cupón cierre ${marca}`)
+  await formCupon.getByLabel('Inicio (hora local)').fill('2026-09-21T00:00')
+  await formCupon.getByLabel('Fin (hora local)').fill('2030-01-01T00:00')
+  await formCupon.getByRole('button', { name: 'Crear cupón' }).click()
+  await expect(page.getByText(codigo).first()).toBeVisible()
+
+  await page.goto('/pos')
+  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente cierre POS ${marca}`)
+  await page.getByPlaceholder('Buscar producto…').fill('iPhone')
+  await page.getByRole('button', { name: /iPhone/ }).first().click()
+  await page.getByRole('button', { name: '+ Agregar pago' }).click()
+  const pagos = page.locator('div.space-y-3').filter({ hasText: 'Pagos de esta venta' })
+  await pagos.getByLabel('Cuenta de cobro').first().click()
+  await page.getByRole('option', { name: /Caja demo · Gs/ }).first().click()
+  const dividir = pagos.getByRole('button', { name: /^Dividir saldo/ })
+  if (await dividir.count()) await dividir.click()
+  await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
+  await expect(page.getByText(/Venta registrada correctamente/)).toBeVisible()
+
+  // Nada nuevo en el navegador: localStorage, sessionStorage, cookies, cachés
+  // ni IndexedDB (incluida la cola offline real, que la demo no debe tocar).
+  const trasGuardados = await instantaneaNavegador(page)
+  const nuevas = (previas, actuales) => actuales.filter((clave) => !previas.includes(clave))
+  expect(nuevas(inicial.local, trasGuardados.local), 'localStorage').toEqual([])
+  expect(nuevas(inicial.sesion, trasGuardados.sesion), 'sessionStorage').toEqual([])
+  expect(nuevas(inicial.idb, trasGuardados.idb), 'IndexedDB').toEqual([])
+  expect(trasGuardados.caches, 'Cache Storage').toEqual(inicial.caches)
+  expect(trasGuardados.cookie, 'cookies').toBe(inicial.cookie)
 
   // La base real no cambió y la demo no emitió ninguna request.
-  const despues = await contarFilas()
-  expect(despues).toEqual(antes)
+  expect(await contarFilas()).toEqual(antes)
   expect(llamadas, `llamadas al API dentro de la demo: ${llamadas.join(', ')}`).toEqual([])
 
-  // Al recargar, lo guardado se descarta y vuelve el seed.
+  // Al recargar vuelve el seed: mismos KPIs y los guardados desaparecen.
+  await page.goto('/resumen')
+  expect(await textoResumen(page)).toBe(resumenInicial)
   await page.goto('/configuracion/equipo')
-  await expect(page.getByTestId('integrante-fila').filter({ hasText: `Demo auditoría ${marca}` })).toHaveCount(0)
+  await expect(page.getByTestId('integrante-fila').filter({ hasText: `Cierre 201 ${marca}` })).toHaveCount(0)
+  await page.goto('/plantillas')
+  await expect(page.getByText(`Cierre 201 ${marca}`)).toHaveCount(0)
+  await page.goto('/garantias')
+  await expect(page.getByText(`Cliente cierre ${marca}`)).toHaveCount(0)
+  await page.goto('/promociones')
+  await expect(page.getByText(codigo)).toHaveCount(0)
+  await page.goto('/pos')
+  await expect(page.locator('#pos-resumen-venta').getByText('0 productos')).toBeVisible()
+
+  // Salir limpia la marca de demo de la pestaña.
+  await page.getByTestId('menu-acciones').click()
+  await page.getByRole('menuitem', { name: 'Cerrar sesión', exact: true }).click()
+  await page.getByRole('button', { name: 'Salir', exact: true }).click()
+  await expect(page).toHaveURL(/\/login$/)
+  const trasSalir = await instantaneaNavegador(page)
+  expect(trasSalir.sesion.filter((clave) => clave.startsWith('mobos:demo-session')), 'marca de demo').toEqual([])
+  expect(nuevas(inicial.local, trasSalir.local), 'localStorage tras salir').toEqual([])
 })
 
 test('la marca de demo no se filtra al login real de la misma pestaña', async ({ page }) => {
