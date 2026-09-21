@@ -2,6 +2,7 @@ import { createContext, forwardRef, useCallback, useContext, useEffect, useId, u
 import { cn } from '@/lib/utils'
 import { formatGs, formatGsInput, parseGsInput, formatUsdInput, parseUsdInput, excedeMonto, LIMITE_MONTO_GENERAL } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
+import Switch from '@/components/shared/Switch'
 
 // ── Button ──────────────────────────────────────────────────────────
 const VARIANTS = {
@@ -599,29 +600,12 @@ export function Stat({ label, valor, delta, sub, destacado = false, className })
   )
 }
 
-// Toggle estilo iPhone (interruptor on/off): activo en verde, inactivo blanco
-// con borde. Objeto de la biblioteca para booleanos que se leen de un vistazo
-// (seguro del cliente #160, avisos, permisos simples). Accesible como switch.
-export function Toggle({ checked = false, onChange, disabled = false, label = '', ariaLabel, className, id }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      id={id}
-      aria-checked={checked}
-      aria-label={ariaLabel || label || undefined}
-      disabled={disabled}
-      onClick={() => onChange?.(!checked)}
-      className={cn(
-        'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fono',
-        checked ? 'border-ok bg-ok' : 'border-ink-500 bg-white',
-        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
-        className,
-      )}
-    >
-      <span aria-hidden className={cn('pointer-events-none inline-block h-5 w-5 rounded-full shadow transition', checked ? 'translate-x-[22px] bg-white' : 'translate-x-0.5 bg-mute')} />
-    </button>
-  )
+// Toggle: alias de compatibilidad del interruptor canónico (shared/Switch,
+// #147). Mantiene la firma histórica `onChange(next)` para las pantallas que
+// todavía lo usan (Config); las nuevas usan Switch directo. Una sola
+// implementación visual, sin duplicar el objeto.
+export function Toggle({ checked = false, onChange, ...props }) {
+  return <Switch checked={checked} onChange={(event) => onChange?.(event.target.checked)} {...props} />
 }
 
 // ── Subtabs ─────────────────────────────────────────────────────────
