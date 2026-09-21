@@ -412,8 +412,8 @@ test('el último usado es el default y se puede cambiar (#209)', async ({ page }
   const irADocumentacion = async () => {
     await page.getByRole('button', { name: 'Configuración', exact: true }).click()
     await page.locator('main').getByRole('button', { name: 'Sistema', exact: true }).click()
-    await page.locator('main').getByRole('button', { name: 'Documentación', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Documentación' })).toBeVisible()
+    await page.locator('main').getByRole('tab', { name: 'Documentación', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Documentación', exact: true })).toBeVisible()
   }
 
   await irADocumentacion()
@@ -430,6 +430,6 @@ test('el último usado es el default y se puede cambiar (#209)', async ({ page }
 
   // En la demo, recargar descarta lo recordado y vuelve el default sensato.
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Documentación' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Documentación', exact: true })).toBeVisible()
   await expect(page.locator('main').getByRole('button', { name: 'Todo', exact: true })).toHaveAttribute('aria-pressed', 'true')
 })

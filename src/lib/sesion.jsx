@@ -56,8 +56,10 @@ export function SesionProvider({ children }) {
         const branches = await resources.inventoryBranches.list()
         if (Array.isArray(branches) && branches.length) {
           listaSucursales = branches
+          // Sucursal activa: gana la última usada (si sigue disponible), luego
+          // la del usuario y por último la única (#209).
           const guardada = leerSucursalActiva(emp.id, branches)
-          sucursalActiva = branches.find((b) => b.id === rawUser.branchId) || branches.find((b) => b.id === guardada) || (branches.length === 1 ? branches[0] : null)
+          sucursalActiva = branches.find((b) => b.id === guardada) || branches.find((b) => b.id === rawUser.branchId) || (branches.length === 1 ? branches[0] : null)
           if (sucursalActiva) guardarSucursalActiva(emp.id, sucursalActiva.id)
         }
       } catch {

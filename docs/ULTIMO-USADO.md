@@ -82,7 +82,8 @@ recordarUltimo(`sucursal-activa:${empresaId}`, sucursal.id)
 | Resumen plegado (`AppShell`) | `mobos:shell:stats-plegado` | desplegado | por navegador |
 | Grupos del menú (`AppShell`) | `mobos:shell:nav-plegados` | todos abiertos | objeto `{ grupo: true }` |
 | Documentación → módulo (`Documentacion`) | `mobos:config:documentacion-modulo` | `Todo` | valida contra los módulos reales |
-| Auditoría → filtro (`Historial`) | `mobos:config:historial-filtro` | `todas` | la URL (`?filtro=`) sigue mandando |
+| Auditoría → área y fecha (`Auditoria`) | `mobos:config:auditoria-area`, `mobos:config:auditoria-rango` | `Todo` / cualquier fecha | valida contra las opciones reales |
+| Auditoría demo → filtro (`Historial`) | `mobos:config:historial-filtro` | `todas` | la URL (`?filtro=`) sigue mandando |
 | POS → vendedor (`FormularioVenta`, `TradeIn`) | `mobos:pos:vendedor` | el de la sesión | migra `fono:ultimoVendedor` |
 
 ## Pendiente (otros dominios)

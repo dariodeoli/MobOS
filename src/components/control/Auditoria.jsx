@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { api } from '@/lib/api'
 import { Badge, Card, EmptyState, Select, Skeleton } from '@/components/ui'
 import SearchField from '@/components/shared/SearchField'
@@ -276,9 +277,14 @@ export default function Auditoria() {
   const [hayMas, setHayMas] = useState(false)
   const [cargandoMas, setCargandoMas] = useState(false)
   const [exportando, setExportando] = useState(false)
-  const [entidad, setEntidad] = useState('')
+  // Área y fecha son selecciones frecuentes: la última usada es el default (#209).
+  const [entidad, recordarEntidad] = useUltimoUsado('config:auditoria-area', '', {
+    valido: (valor) => ENTIDADES.some(([clave]) => clave === valor),
+  })
   const [query, setQuery] = useState('')
-  const [rango, setRango] = useState('')
+  const [rango, recordarRango] = useUltimoUsado('config:auditoria-rango', '', {
+    valido: (valor) => RANGOS.some(([clave]) => clave === valor),
+  })
   const [actor, setActor] = useState('')
   const [actores, setActores] = useState([])
   const [abiertos, setAbiertos] = useState(() => new Set())
@@ -345,10 +351,10 @@ export default function Auditoria() {
         <span className="text-xs text-mute">{total}{hayMas ? '+' : ''} movimientos</span>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Select aria-label="Filtrar por área" className="w-auto" value={entidad} onChange={(event) => setEntidad(event.target.value)}>
+        <Select aria-label="Filtrar por área" className="w-auto" value={entidad} onChange={(event) => recordarEntidad(event.target.value)}>
           {ENTIDADES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </Select>
-        <Select aria-label="Filtrar por fecha" className="w-auto" value={rango} onChange={(event) => setRango(event.target.value)}>
+        <Select aria-label="Filtrar por fecha" className="w-auto" value={rango} onChange={(event) => recordarRango(event.target.value)}>
           {RANGOS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </Select>
         <Select aria-label="Filtrar por actor" className="w-auto" value={actor} onChange={(event) => setActor(event.target.value)}>
