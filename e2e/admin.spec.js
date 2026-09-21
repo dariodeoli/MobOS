@@ -1127,3 +1127,21 @@ test('recuerda el menú plegado y los grupos del shell (#209)', async ({ page })
   await page.getByTitle('Mostrar Operación').click()
   await expect(page.getByTitle('Ocultar Operación')).toBeVisible()
 })
+
+// Patrón #209: el último filtro usado queda como predeterminado al volver.
+test('filtros: el ultimo usado queda como predeterminado', async ({ page }) => {
+  await page.goto('/clientes')
+  const filtrosClientes = page.getByRole('group', { name: 'Filtrar clientes' })
+  await filtrosClientes.getByRole('button', { name: 'Mayoristas' }).click()
+  await page.reload()
+  await expect(page.getByRole('group', { name: 'Filtrar clientes' }).getByRole('button', { name: 'Mayoristas' })).toHaveAttribute('aria-pressed', 'true')
+
+  await page.goto('/garantias')
+  await page.getByRole('button', { name: 'Recibido', exact: true }).click()
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Recibido', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  // Siempre cambiable: elegir otro y volver lo recuerda.
+  await page.getByRole('button', { name: 'Todos', exact: true }).click()
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Todos', exact: true })).toHaveAttribute('aria-pressed', 'true')
+})

@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import RucField from '@/components/shared/RucField'
 import { extraerRuc } from '@/utils/ruc'
 import { SEED_DEMO_CLIENTES, clientesDemoGuardados, guardarClienteDemo } from '@/lib/demoClientes'
+import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 
 // Convierte filas del export tipo Shopify en fichas para el endpoint de import.
 function filasParaImportar(texto) {
@@ -109,9 +110,9 @@ export default function SellerCustomers() {
   const [importError, setImportError] = useState('')
   const [seguimientos, setSeguimientos] = useState([])
   const [vista, cambiarVista] = useVistaListaGrid('clientes')
-  const [orden, setOrden] = useState('recientes')
+  const [orden, setOrden] = useUltimoUsado('clientes:orden', 'recientes')
   const [resumen, setResumen] = useState(null)
-  const [filtro, setFiltro] = useState('todos')
+  const [filtro, setFiltro] = useUltimoUsado('clientes:filtro', 'todos')
   const [exportando, setExportando] = useState(false)
   const [exportError, setExportError] = useState('')
   const nombreRef = useRef(null)

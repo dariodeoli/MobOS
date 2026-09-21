@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { whatsappUrl } from '@/components/customers/customerMessaging'
 import { renderPlantilla } from '@/lib/whatsappPlantillas'
 import { ROTULO_DATO } from '@/components/shared/tabla'
+import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 
 // Menú reutilizable de WhatsApp (Clientes, Pedidos, Servicio Técnico y
 // módulos futuros): el botón principal abre el chat con la última plantilla
@@ -34,7 +35,7 @@ export default function WhatsAppMenu({
   const [lista, setLista] = useState(() => Array.isArray(plantillas) ? plantillas : [])
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
-  const [elegidaId, setElegidaId] = useState(() => (storageKey ? localStorage.getItem(storageKey) : '') || '')
+  const [elegidaId, setElegidaId] = useState(() => leerUltimo(`wa:plantilla:${category}`, '') || (storageKey ? localStorage.getItem(storageKey) : '') || '')
   const [mensajeEditado, setMensajeEditado] = useState('')
   const caja = useRef(null)
 
@@ -97,7 +98,7 @@ export default function WhatsAppMenu({
   async function abrirChat(plantilla, mensaje) {
     if (!plantilla || enviando) return
     setElegidaId(plantilla.id)
-    if (storageKey) localStorage.setItem(storageKey, plantilla.id)
+    recordarUltimo(`wa:plantilla:${category}`, plantilla.id)
     setAbierto(false)
     setEnviando(true)
     const texto = typeof mensaje === 'string' && mensaje.trim() ? mensaje : renderPlantilla(plantilla.body, valores)
@@ -178,12 +179,13 @@ export default function WhatsAppMenu({
                   key={item.id}
                   type="button"
                   disabled={enviando}
-                  onClick={() => { setElegidaId(item.id); if (storageKey) localStorage.setItem(storageKey, item.id); setMensajeEditado(renderPlantilla(item.body, valores)) }}
+                  onClick={() => { setElegidaId(item.id); recordarUltimo(`wa:plantilla:${category}`, item.id); setMensajeEditado(renderPlantilla(item.body, valores)) }}
                   className={cn('flex w-full items-center gap-1.5 truncate rounded-lg px-2 py-1.5 text-left text-xs transition hover:bg-ink-700', item.id === elegida?.id ? 'text-fono-light' : 'text-fore')}
                 >
                   {item.isDefault && <Icon name="check" className="h-3 w-3" />}
                   <span className="truncate">{item.name}</span>
-                  {!item.isDefault && preferKey && item.key === preferKey && <span className="ml-auto shrink-0 text-[9px] font-bold uppercase tracking-wide text-fono-light">Sugerida</span>}
+                  {item.id === elegidaId && <span className="ml-auto shrink-0 text-[9px] font-bold uppercase tracking-wide text-mute">Última usada</span>}
+                  {!item.isDefault && preferKey && item.key === preferKey && <span className={cn('shrink-0 text-[9px] font-bold uppercase tracking-wide text-fono-light', item.id === elegidaId ? '' : 'ml-auto')}>Sugerida</span>}
                 </button>
               ))}
             </div>
