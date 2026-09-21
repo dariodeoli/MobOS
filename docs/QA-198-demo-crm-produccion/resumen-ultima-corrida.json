@@ -1,6 +1,17 @@
 {
   "demo": {
-    "seedVisible": false,
+    "seedVisible": true,
+    "bannerDemo": true,
+    "deuda": true,
+    "ultimasOrdenes": true,
+    "cronologia": true,
+    "seguro": true,
+    "seguroPct": "12,5",
+    "whatsapp": true,
+    "portalCuenta": true,
+    "portalVitrina": true,
+    "clienteParam": true,
+    "servicio": true,
     "apiReal": []
   },
   "publicos": {
@@ -19,8 +30,6 @@
     "vitrina": 404,
     "garantia": 404
   },
-  "pendienteDeploy": true,
-  "hallazgos": [
-    "El demo completo (#194) todavía no está deployado: la lista de Clientes en producción está vacía y no muestra los seeds ficticios."
-  ]
+  "pendienteDeploy": false,
+  "hallazgos": []
 }
