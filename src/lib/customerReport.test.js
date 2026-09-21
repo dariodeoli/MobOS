@@ -76,7 +76,7 @@ test('seccionesInforme filtra por período y calcula totales, deudas y cronolog�
   assert.equal(cronologia[1][2], 'Vera')
 
   const facturacion = titulo('facturación').filas
-  assert.equal(facturacion[1][2], '3 pedido(s)')
+  assert.equal(facturacion[1][2], '3 pedidos')
 })
 
 test('informeCsv escapa comillas y separa secciones; el nombre de archivo va limpio', () => {

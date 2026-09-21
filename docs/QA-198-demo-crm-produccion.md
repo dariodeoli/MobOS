@@ -1,9 +1,8 @@
 # QA #198 — Demo público de Clientes/Servicio en producción
 
-Estado a la fecha de esta corrida: **pendiente de deploy**. Producción todavía
-no tiene el demo completo del CRM (#194): su lista de Clientes aparece vacía y
-no muestra los seeds ficticios. La verificación queda **preparada y es
-re-ejecutable** en cuanto el integrador deploye.
+**Estado: ✅ verificado post-deploy (v1.0.129).** Corrida headless del
+`2026-09-21` contra `app.moboss.online/demo` y `clientes.moboss.online`:
+salida **0**, sin hallazgos.
 
 ## Spec reutilizable
 
@@ -12,36 +11,36 @@ node e2e/prod/187-clientes.mjs          # capturas en QA198_SHOTS (por defecto /
 ```
 
 - Entra a la demo (perfil Dueño o acceso anónimo, lo que esté deployado) y
-  verifica: ficha con **deuda Gs 1.500.000**, últimas órdenes, **cronología**
-  (“Pedido creado”), **seguro activo 12,5%** (interruptor tomado y
-  deshabilitado), **WhatsApp con plantilla demo**, **portal por token demo**
-  (`/cuenta` y `/portal`), **`?cliente=`** abriendo la ficha y **Servicio
-  Técnico** con OS-#0001/OS-#0002.
-- Afirma que **no haya pedidos al API real** (`/api/customers`,
-  `/api/message-templates`, `/api/service-*`, `/api/portal`,
-  `/api/public/portal`) durante el recorrido.
+  verifica la ficha con datos ficticios, WhatsApp, portal por token demo,
+  `?cliente=` y Servicio Técnico, sin llamadas al API real.
 - Verifica los públicos con token inválido (mensaje genérico + 404 de la API).
-- **Salida:** `0` = todo verificado; `3` = demo completo todavía sin deployar
-  (con el detalle en `resumen.json`).
+- **Salida:** `0` = todo verificado; `3` = demo completo todavía sin deployar.
 - Entornos alternativos: `QA_APP`, `QA_PORTAL`, `QA_API`, `QA198_SHOTS`.
 
-## Verificado en esta corrida (antes del deploy)
+## Resultado de la corrida (v1.0.129)
 
 | Punto | Resultado | Captura |
 |---|---|---|
-| Demo entra (perfil Dueño) | OK | `01-demo-entrada.png` |
-| Lista de Clientes demo | **sin seeds** (pendiente de deploy) | `02-clientes-demo.png` |
-| Público `/cuenta` token inválido | mensaje genérico, sin datos | `11-publico-cuenta.png` |
-| Público `/portal` token inválido | mensaje genérico, sin datos | `11-publico-vitrina.png` |
-| Público `/garantia` token inválido | mensaje genérico, sin datos | `11-publico-garantia.png` |
-| API con token inválido | `portal` 404 · `vitrina` 404 · `garantia` 404 | — |
+| Seeds ficticios visibles (Lucía con deuda, mayorista, final) | ✅ | — |
+| Aviso “Modo demo” en la ficha | ✅ | — |
+| **Deuda:** `Saldo pendiente: Gs 1.500.000` y últimas órdenes (MOB-#0008) | ✅ | `03-ficha-deuda.png` |
+| **Cronología** con eventos (“Pedido creado”, comentario del equipo) | ✅ | `04-ficha-cronologia.png` |
+| **Seguro** activo con **12,5%** (interruptor tomado y deshabilitado) | ✅ | `05-ficha-seguro.png` |
+| **WhatsApp** con plantilla demo (“Pedido listo para retirar”) | ✅ | `06-whatsapp-plantilla.png` |
+| **Portal por token demo** · `/cuenta` con saldo y pedidos | ✅ | `07-portal-cuenta.png` |
+| **Portal por token demo** · vitrina con pedidos | ✅ | `08-portal-vitrina.png` |
+| **`?cliente=`** abre la ficha demo | ✅ | `09-cliente-param.png` |
+| **Servicio Técnico** con OS-#0001/OS-#0002 | ✅ | `10-servicio-demo.png` |
+| **Cero llamadas al API real** durante el recorrido | ✅ (`apiReal: []`) | — |
+| Públicos con token inválido (cuenta, vitrina, garantía) | ✅ genérico + API 404 | `11-publico-*.png` |
 
-`resumen.json` de la corrida: `demo.seedVisible = false`, `pendienteDeploy = true`.
+`resumen.json` de la corrida: `pendienteDeploy = false`, `hallazgos = []`.
 
-## Pasos para completar (post-deploy)
+## Hallazgos
 
-1. Esperar la integración de `slot/clientes` (incluye #194) y su deploy.
-2. Correr `node e2e/prod/187-clientes.mjs` (sin sesión).
-3. Con salida `0`, adjuntar `resumen.json` y las capturas `03…10` de la carpeta.
-4. Si algo falla, los pasos exactos quedan en el JSON y en las capturas por
-   paso (ficha, cronología, seguro, WhatsApp, portal, servicio).
+Ninguno del dominio CRM. Observaciones ya conocidas fuera del alcance:
+
+- En demo quedan 401 de otros dominios (presence, créditos, impresoras,
+  avatar): ruido conocido, no bloquea.
+- El agente de impresión local (`127.0.0.1:17890`) no responde en headless: es
+  el comportamiento esperado (sin agente instalado).

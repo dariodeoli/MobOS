@@ -1004,3 +1004,106 @@ test('portal del cliente → QA 360/768/1440 con nota pública, pedidos y compro
   expect(publica.status).toBe(200)
   expect(publica.serial).toBe(`PQA-${marca}`)
 })
+
+
+// Regresión #204: con un enlace del portal vigente (solo hash), la ficha avisa
+// que no se vuelve a mostrar y deja regenerarlo (antes el botón quedaba
+// deshabilitado sin salida).
+test('portal: el enlace vigente avisa y se puede regenerar', async ({ page }) => {
+  await page.goto('/clientes')
+  const marca = Date.now()
+  const cliente = await crmApi(page, '/api/customers', { method: 'POST', body: JSON.stringify({ name: `Portal Regen ${marca}` }) })
+  expect(cliente.status).toBe(201)
+
+  await page.goto(`/clientes?cliente=${encodeURIComponent(cliente.body.id)}`)
+  const ficha = page.getByRole('dialog')
+  await ficha.getByRole('button', { name: 'Portal del cliente' }).click()
+  await expect(page.getByAltText('QR del portal del cliente')).toBeVisible()
+  const primerEnlace = await page.locator('p.break-all').textContent()
+  expect(primerEnlace).toContain('/cuenta/')
+  await page.getByRole('dialog', { name: 'Portal del cliente' }).getByRole('button', { name: 'Cerrar' }).click()
+
+  // Reabrir: el enlace no se vuelve a mostrar, pero Regenerar está disponible.
+  await ficha.getByRole('button', { name: 'Portal del cliente' }).click()
+  await expect(page.getByText(/Ya hay un enlace vigente/)).toBeVisible()
+  const regenerar = ficha.getByRole('button', { name: 'Regenerar' })
+  await expect(regenerar).toBeEnabled()
+  await regenerar.click()
+  await ficha.getByRole('button', { name: 'Regenerar', exact: true }).last().click()
+  await expect(page.getByAltText('QR del portal del cliente')).toBeVisible({ timeout: 15000 })
+  const segundoEnlace = await page.locator('p.break-all').textContent()
+  expect(segundoEnlace).toContain('/cuenta/')
+  expect(segundoEnlace).not.toBe(primerEnlace)
+  await page.screenshot({ path: '/tmp/qa204-portal-regenerar.png' })
+})
+
+// Cierre #203: el comprobante de verificación de IMEI se adjunta al cliente
+// (comentario interno y nota pública), viaja al portal sin datos internos y en
+// demo se simula con su aviso.
+test('IMEI: comprobante adjunto al cliente y visible en su portal', async ({ page }) => {
+  await page.goto('/clientes')
+  const marca = Date.now()
+  const imeiValidoE2e = (() => {
+    const base = String(marca).padStart(14, '7').slice(0, 14)
+    const luhn = (cadena) => { let s = 0; for (let i = 0; i < 15; i += 1) { let d = Number(cadena[14 - i]); if (i % 2 === 1) { d *= 2; if (d > 9) d -= 9 } s += d } return s % 10 === 0 }
+    for (let c = 0; c <= 9; c += 1) if (luhn(base + c)) return base + c
+    return base + '0'
+  })()
+  const cliente = await crmApi(page, '/api/customers', { method: 'POST', body: JSON.stringify({ name: `IMEI Portal ${marca}` }) })
+  expect(cliente.status).toBe(201)
+  const producto = await crmApi(page, '/api/products', { method: 'POST', body: JSON.stringify({ sku: `E2E-IMEI-${marca}`, name: 'Equipo IMEI e2e', category: 'Celulares', pricePyg: 1000000, costPyg: 700000, stock: 0, branchId: SEED.branchId }) })
+  expect(producto.status, JSON.stringify(producto.body)).toBe(201)
+  const unidad = await crmApi(page, '/api/inventory-units', { method: 'POST', body: JSON.stringify({ productId: producto.body.id, branchId: SEED.branchId, serial: imeiValidoE2e }) })
+  expect(unidad.status, JSON.stringify(unidad.body)).toBe(201)
+  const pedido = await crmApi(page, '/api/orders', { method: 'POST', body: JSON.stringify({ orderNumber: `E2E-IMEI-${marca}`, customerId: cliente.body.id, items: [{ productId: producto.body.id, description: 'Equipo IMEI e2e', quantity: 1, unitPricePyg: 1000000, inventoryUnitSerials: [imeiValidoE2e] }], payment: { method: 'CASH', amountPyg: 1000000 } }) })
+  expect(pedido.status, JSON.stringify(pedido.body)).toBe(201)
+  // Verificación del IMEI (adaptador en modo mock: no consulta pagas).
+  const check = await crmApi(page, '/api/imei', { method: 'POST', body: JSON.stringify({ action: 'checks', imei: imeiValidoE2e, servicio: 'APPLE_BASIC', confirm: true, requestId: `e2e-imei-${marca}` }) })
+  expect([200, 201]).toContain(check.status)
+
+  // Ficha → equipo → Verificación IMEI → adjuntar a comentario y nota pública.
+  await page.goto(`/clientes?cliente=${encodeURIComponent(cliente.body.id)}`)
+  const ficha = page.getByRole('dialog')
+  await ficha.getByRole('tab', { name: /^Pedidos/ }).click()
+  await ficha.getByRole('button', { name: 'Verificación IMEI' }).first().click()
+  const modal = page.getByRole('dialog', { name: 'Verificación de IMEI' })
+  await expect(modal.getByText(/IMEI verificado: sin reportes/)).toBeVisible()
+  await expect(modal.getByText(/Fuente IMEIcheck\.net/)).toBeVisible()
+  await expect(modal.getByText('Simulada en demo')).toHaveCount(0)
+  await page.screenshot({ path: '/tmp/qa203-modal-real.png' })
+  await modal.getByRole('button', { name: 'Adjuntar al comentario' }).click()
+  await expect(page.getByText('Agregado al comentario interno.')).toBeVisible()
+  await modal.getByRole('button', { name: 'Agregar a la nota pública' }).click()
+  await expect(page.getByText('Agregado a la nota pública.')).toBeVisible()
+  await modal.getByRole('button', { name: 'Cerrar' }).click()
+  await page.screenshot({ path: '/tmp/qa203-ficha.png' })
+
+  // Comentario interno con marca propia: nunca debe viajar al portal.
+  const interno = `IMEI-INTERNO-${marca}`
+  const nota = await crmApi(page, `/api/customers/${cliente.body.id}/notes`, { method: 'POST', body: JSON.stringify({ content: interno }) })
+  expect(nota.status).toBe(201)
+
+  // Portal nivel completo: el comprobante (nota pública) viaja; el interno no.
+  const completo = await crmApi(page, `/api/customers/${cliente.body.id}/access-token`, { method: 'POST', body: JSON.stringify({ level: 'completo' }) })
+  const publicoCompleto = await crmApi(page, `/api/portal/${encodeURIComponent(completo.body.token)}`)
+  const serializado = JSON.stringify(publicoCompleto.body)
+  expect(serializado).toContain('IMEI verificado')
+  expect(serializado).toContain('IMEIcheck.net')
+  expect(serializado).not.toContain(interno)
+  expect(serializado).not.toContain('700000')
+  expect(publicoCompleto.body.addresses).toBeDefined()
+
+  // Nivel rápido: la nota pública viaja (regla #127) y el resto no.
+  const rapido = await crmApi(page, `/api/customers/${cliente.body.id}/access-token`, { method: 'POST', body: JSON.stringify({ level: 'rapido' }) })
+  const publicoRapido = await crmApi(page, `/api/portal/${encodeURIComponent(rapido.body.token)}`)
+  const serializadoRapido = JSON.stringify(publicoRapido.body)
+  expect(serializadoRapido).toContain('IMEI verificado')
+  expect(serializadoRapido).not.toContain(interno)
+  expect(publicoRapido.body.addresses).toBeUndefined()
+
+  // La página pública lo muestra tal cual (compartible).
+  await page.goto(`/cuenta/${encodeURIComponent(completo.body.token)}`)
+  await expect(page.getByText('Nota de la tienda')).toBeVisible()
+  await expect(page.getByText(/IMEI verificado: sin reportes/)).toBeVisible()
+  await page.screenshot({ path: '/tmp/qa203-portal.png' })
+})

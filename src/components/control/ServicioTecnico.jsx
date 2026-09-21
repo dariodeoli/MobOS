@@ -414,7 +414,7 @@ export default function ServicioTecnico() {
     if (!filas.length) { toast.error('Ninguna de las seleccionadas tiene un estado siguiente.'); return }
     for (const row of filas) await avanzar(row)
     setSeleccionados([])
-    toast.success(`${filas.length} orden(es) avanzadas.`)
+    toast.success(`${filas.length} ${filas.length === 1 ? 'orden avanzada' : 'órdenes avanzadas'}.`)
   }
 
   async function avanzar(row) {
@@ -482,7 +482,7 @@ export default function ServicioTecnico() {
 
       {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
       {loading && <div className="space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
-      {!loading && !visibles.length && <EmptyState icon="refresh" title={q ? 'Ninguna orden coincide con la búsqueda.' : 'Todavía no hay órdenes de servicio.'} />}
+      {!loading && !visibles.length && <EmptyState icon="refresh" title={q ? 'Ninguna orden coincide con la búsqueda.' : 'Todavía no hay órdenes de servicio.'} description={q ? undefined : 'Cargá la primera orden para seguir el taller de punta a punta.'} action={q ? undefined : <Button onClick={() => { setEditing(null); setForm({ ...FORM_VACIO }) }}>+ Nueva orden</Button>} />}
       {!loading && visibles.length > 0 && (
         <div className="grid grid-cols-3 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800/60 text-center sm:divide-x">
           <div className="p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Facturado</p><p className="mt-1 text-lg font-semibold tabular-nums">{gs(totales.facturado)}</p></div>
@@ -583,7 +583,7 @@ export default function ServicioTecnico() {
               <div><Label htmlFor="tipo-de-dispositivo">Tipo de dispositivo</Label><Select id="tipo-de-dispositivo" aria-label="Tipo de dispositivo" value={form.deviceType} onChange={event => setForm(current => ({ ...current, deviceType: event.target.value, serviceName: '' }))}>{DEVICE_TYPES.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}</Select></div>
               <div><Label htmlFor="imei-serial">IMEI / serial</Label><SerialField id="imei-serial" aria-label="IMEI o serial" value={form.serial} onChange={value => setForm(current => ({ ...current, serial: value }))} placeholder="Opcional" /></div>
               <div><Label htmlFor="tecnico">Técnico</Label><Input id="tecnico" aria-label="Técnico" value={form.technicianName} onChange={set('technicianName')} placeholder="Responsable del trabajo" autoCapitalize="words" /></div>
-              {editing?.receivedAt && <div><Label>Recibido</Label><p className="mt-2 text-sm text-mute">{new Date(editing.receivedAt).toLocaleString('es-PY')}</p></div>}
+              {editing?.receivedAt && <div><Label>Recibido</Label><p className="mt-2 text-sm text-mute">{new Date(editing.receivedAt).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false })}</p></div>}
             </div>
 
             <div className="rounded-xl border border-ink-600 bg-ink-800/30 p-3">

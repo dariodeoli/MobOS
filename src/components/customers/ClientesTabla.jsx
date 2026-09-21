@@ -55,7 +55,7 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
     const numeros = elegidas().map((row) => telefonoDe(row)).filter(Boolean)
     try {
       await navigator.clipboard.writeText(numeros.join('\n'))
-      toast.success(`${numeros.length} teléfono(s) copiados.`)
+      toast.success(`${numeros.length} ${numeros.length === 1 ? 'teléfono copiado' : 'teléfonos copiados'}.`)
     } catch { toast.error('No se pudieron copiar los teléfonos.') }
   }
 
@@ -69,7 +69,7 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
     enlace.download = 'mobos-clientes-seleccionados.csv'
     enlace.click()
     URL.revokeObjectURL(url)
-    toast.success(`${lista.length} cliente(s) exportados.`)
+    toast.success(`${lista.length} ${lista.length === 1 ? 'cliente exportado' : 'clientes exportados'}.`)
   }
 
   return (

@@ -53,8 +53,8 @@ import CustomerProfile from '@/components/customers/CustomerProfile'
 import CampanasClientes from '@/components/customers/CampanasClientes'
 import { customerMetadata, DEMO_MESSAGE_TEMPLATES, readCustomerMetadata, whatsappUrl } from '@/components/customers/customerMessaging'
 
-export const DEMO_CUSTOMERS_KEY = 'mobos:demo-customers:v1'
 const emptyCustomer = { firstName: '', secondName: '', document: '', email: '', phones: [''], addresses: [{ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay' }], acceptsEmailMarketing: false, acceptsSmsMarketing: false, acceptsWhatsappMarketing: false, taxExempt: false, tags: '', pricingTier: 'RETAIL', priceListId: '', creditLimitPyg: '', creditDays: '' }
+
 const FILTROS_CLIENTES = [['todos', 'Todos'], ['mayoristas', 'Mayoristas'], ['deuda', 'Con deuda'], ['credito', 'Con crédito']]
 // Filtro local para la demo (sin API): espejo acotado del filtro del servidor.
 const coincideFiltroCliente = (row, filtro) => {
