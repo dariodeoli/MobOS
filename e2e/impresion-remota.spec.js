@@ -341,17 +341,76 @@ test.describe('impresión remota: cola con puente falso', () => {
       await expect(fila.getByText('aceptado')).toBeVisible({ timeout: 20_000 })
 
       const incorrecto = String((Number(trabajo.sufijo) + 1) % 10)
+      // #138: con el código incorrecto la validación automática avisa claro.
       await fila.getByLabel(`Número secreto de la validación ${trabajo.validation}`).fill(incorrecto)
+      await expect(page.getByText('No coincide', { exact: true })).toBeVisible({ timeout: 10_000 })
+
+      // El botón Confirmar sigue como respaldo (mismo aviso al reintentar).
       await fila.getByRole('button', { name: 'Confirmar' }).click()
       await expect(page.getByText('No coincide', { exact: true })).toBeVisible({ timeout: 10_000 })
 
+      // Al escribir el dígito correcto valida solo, sin apretar nada.
       await fila.getByLabel(`Número secreto de la validación ${trabajo.validation}`).fill(trabajo.sufijo)
-      await fila.getByRole('button', { name: 'Confirmar' }).click()
       await expect(page.getByText('Confirmado en papel')).toBeVisible({ timeout: 10_000 })
       await expect(fila.getByText('✓ en papel')).toBeVisible({ timeout: 20_000 })
     } finally {
       puente.detener()
     }
+  })
+
+  test('un sufijo de varios dígitos se valida solo al completar el largo (#138)', async ({ page }) => {
+    const codigo = await crearPuentePorUi(page, `Puente sufijo largo E2E ${Date.now()}`)
+    const { token, bridgeId } = await parearPuente({ api: API, code: codigo })
+    const impresora = await asegurarImpresoraRemota(page, { nombre: NOMBRE_REMOTO, destino: DESTINO_REMOTO, bridgeId })
+    const sufijo = '1234'
+    const validacion = String(Date.now()).slice(-4)
+    const encolado = await apiImpresion(page, '/api/print/jobs', {
+      method: 'POST',
+      body: JSON.stringify({
+        destination: DESTINO_REMOTO,
+        printerId: impresora.id,
+        payload: Buffer.from('TICKET-SUFIJO-LARGO').toString('base64'),
+        kind: 'comprobante',
+        reference: `E2E-SUFIJO-${Date.now()}`,
+        validation: validacion,
+        suffix: sufijo,
+      }),
+    })
+    expect(encolado.status).toBe(201)
+    const jobId = encolado.datos.job.id
+    // El listado publica el LARGO del sufijo, nunca el valor (#138).
+    expect(encolado.datos.job.suffixLength).toBe(4)
+    expect(JSON.stringify(encolado.datos.job)).not.toContain(sufijo)
+    // El puente reclama y reporta ACEPTADO: el trabajo queda confirmable.
+    const claim = await page.request.post(`${API}/api/print/bridge/claim`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {},
+    })
+    const reclamado = (await claim.json()).jobs?.find((job) => job.id === jobId)
+    expect(reclamado).toBeTruthy()
+    const reporte = await page.request.post(`${API}/api/print/bridge/jobs/${jobId}/result`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { leaseId: reclamado.leaseId, state: 'ACEPTADO', transport: 'directo' },
+    })
+    expect(reporte.ok()).toBeTruthy()
+
+    await page.goto('/configuracion/impresoras')
+    const fila = page.getByRole('row').filter({ hasText: validacion })
+    await expect(fila).toBeVisible({ timeout: 20_000 })
+    const entrada = fila.getByLabel(`Número secreto de la validación ${validacion}`)
+    // Con el código incompleto no confirma: se espera más que el debounce.
+    await entrada.fill(sufijo.slice(0, 3))
+    await page.waitForTimeout(700)
+    const sinConfirmar = await apiImpresion(page, `/api/print/jobs/${jobId}`)
+    expect(sinConfirmar.datos?.job?.state).toBe('ACEPTADO')
+    await expect(entrada).toHaveValue(sufijo.slice(0, 3))
+    // Al completar el cuarto dígito valida solo y la fila pasa a confirmada
+    // (el input desaparece con el código limpio).
+    await entrada.fill(sufijo)
+    await expect(fila.getByText('✓ en papel')).toBeVisible({ timeout: 10_000 })
+    await expect(entrada).toHaveCount(0)
+    const confirmado = await apiImpresion(page, `/api/print/jobs/${jobId}`)
+    expect(confirmado.datos?.job?.state).toBe('CONFIRMADO')
   })
 
   test('sin agente local, el comprobante de un pedido se encola al puente', async ({ page }) => {
@@ -396,6 +455,52 @@ test.describe('impresión remota: cola con puente falso', () => {
     } finally {
       puente.detener()
     }
+  })
+
+  test('la cola del monitor cancela un pendiente y el puente no lo recibe', async ({ page }) => {
+    const codigo = await crearPuentePorUi(page, `Puente cancelar E2E ${Date.now()}`)
+    const { token, bridgeId } = await parearPuente({ api: API, code: codigo })
+    const impresora = await asegurarImpresoraRemota(page, { nombre: NOMBRE_REMOTO, destino: DESTINO_REMOTO, bridgeId })
+    const referencia = `E2E-CANCELA-${Date.now()}`
+    // El puente está apagado: nadie reclama el trabajo que se encola.
+    const encolado = await apiImpresion(page, '/api/print/jobs', {
+      method: 'POST',
+      body: JSON.stringify({
+        destination: DESTINO_REMOTO,
+        printerId: impresora.id,
+        payload: Buffer.from('TICKET-CANCELA').toString('base64'),
+        kind: 'comprobante',
+        reference: referencia,
+        requestedByName: 'Cancelación E2E',
+      }),
+    })
+    expect(encolado.status).toBe(201)
+    const jobId = encolado.datos.job.id
+    expect(encolado.datos.job.state).toBe('PENDIENTE')
+
+    // El monitor lo lista con tipo, referencia, usuario e impresora.
+    await page.goto('/configuracion/sistema')
+    const fila = page.getByRole('listitem').filter({ hasText: referencia })
+    await expect(fila).toBeVisible({ timeout: 20_000 })
+    await expect(fila.getByText('Comprobante', { exact: true })).toBeVisible()
+    await expect(fila.getByText('Cancelación E2E')).toBeVisible()
+    await expect(fila.getByText('Pendiente', { exact: true })).toBeVisible()
+
+    // Cancelar pide confirmación y deja el trabajo cancelado en la API.
+    await fila.getByRole('button', { name: 'Cancelar', exact: true }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar trabajos' }).click()
+    await expect(page.getByText(/trabajos? cancelado/i).first()).toBeVisible({ timeout: 10_000 })
+    const detalle = await apiImpresion(page, `/api/print/jobs/${jobId}`)
+    expect(detalle.datos?.job?.state).toBe('CANCELADO')
+
+    // Al reconectar, el puente no recibe el trabajo cancelado.
+    const claim = await page.request.post(`${API}/api/print/bridge/claim`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {},
+    })
+    expect(claim.ok()).toBeTruthy()
+    const claimDatos = await claim.json()
+    expect((claimDatos.jobs || []).some((job) => job.id === jobId)).toBe(false)
   })
 
   test('el puente aparece en línea en la UI después del latido', async ({ page }) => {

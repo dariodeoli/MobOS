@@ -17,11 +17,20 @@ disponible o falla, el trabajo sigue por CUPS/LAN sin intervención.
 interfaz de clase *printer* (clase 7). Con VID/PID configurados solo se usa esa
 impresora; si no aparece, el trabajo cae al respaldo.
 
-La dependencia nativa es **opcional**: `npm install usb` dentro de la carpeta del
-agente. Sin `node-usb` el agente arranca igual, `/diagnostico` informa el motivo y
-todo sigue por CUPS/LAN. El instalador (`install.sh`) y la allow-list del tarball
-no cambian de forma: `usb.mjs` viaja en el paquete y no agrega dependencias
-obligatorias.
+La dependencia nativa **viaja dentro del tarball**: `print-agent/vendor/` guarda
+`usb` (node-usb 2.15.0, con el prebuild N-API universal `darwin-x64+arm64`) y
+`node-gyp-build`, y `pack-agent.mjs` los empaqueta como `node_modules/**`. En la
+Mac instalada con `install.sh` **no hay que instalar ni compilar nada**: el
+instalador acepta esas rutas en su allow-list y las extrae con el resto. Sin la
+bandera `usb` el módulo ni se carga; si faltara, el agente arranca igual,
+`/diagnostico` informa el motivo y todo sigue por CUPS/LAN.
+
+Para desarrollo en el repo también sirve `npm install usb` dentro de
+`print-agent/`: `usb.mjs` resuelve el módulo instalado igual que el vendorizado.
+
+**Pendiente**: la prueba física con la ZKP8008 (conectar por USB, encender
+`"usb": true` y verificar el ticket y `/health.usb` en la Mac). Ver la tabla de
+resolución del transporte acá abajo y `docs/IMPRESION.md`.
 
 ## Resolución del transporte
 

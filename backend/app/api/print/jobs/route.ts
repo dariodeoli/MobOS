@@ -10,6 +10,7 @@ import {
   ESTADOS_TRABAJO,
   MAX_ABIERTOS_POR_EMPRESA,
   MAX_SUFIJO,
+  buscarDuplicadoAbierto,
   hashSufijo,
   shapePublico,
   textoOpcional,
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
   let creado: PrintJob | null = null
   let idempotencyKey = ''
   let sourceJobId = ''
+  let forzado = false
   try {
     const camino = (String(tomar('path', 'camino') ?? 'REMOTO').trim().toUpperCase() || 'REMOTO') as PrintJobPath
     if (camino !== 'REMOTO' && camino !== 'LOCAL') throw new InputError('El camino debe ser REMOTO o LOCAL.')
@@ -43,6 +45,12 @@ export async function POST(request: Request) {
     const kind = textoOpcional(tomar('kind', 'tipo'), 40) || 'ticket'
     idempotencyKey = textoOpcional(entrada.idempotencyKey ?? request.headers.get('idempotency-key'), 120)
     sourceJobId = textoOpcional(entrada.sourceJobId, 120)
+    // "Reimprimir igual" (#128): reimpresión explícita del mismo documento. Se
+    // saltea la clave de idempotencia (que es permanente) y el guarda de
+    // duplicados; el alta queda auditada como reimpresión.
+    forzado = entrada.force === true || entrada.reimprimir === true || entrada.forzar === true
+    if (forzado) idempotencyKey = ''
+    const reference = textoOpcional(tomar('reference', 'ref'), 64)
     const sufijo = textoOpcional(tomar('suffix', 'sufijo'), MAX_SUFIJO + 1)
     if (sufijo.length > MAX_SUFIJO) throw new InputError(`El sufijo admite hasta ${MAX_SUFIJO} caracteres.`)
 
@@ -96,6 +104,23 @@ export async function POST(request: Request) {
       if (existente) return json({ job: shapePublico(existente) })
     }
 
+    // Guarda anti-duplicados (#128): un click repetido sobre el mismo documento
+    // con el puente caído dejaba N copias en cola. Si hay un trabajo ABIERTO
+    // idéntico (documento + tipo + impresora) de los últimos 60 s se bloquea con
+    // un mensaje claro; la app ofrece "Reimprimir igual" (force) y decide la
+    // persona, no el sistema. Ver docs/IMPRESION.md §11.
+    if (camino === 'REMOTO' && !forzado) {
+      const duplicado = await buscarDuplicadoAbierto(prisma, tenantId, { kind, printerId, destination, reference, idempotencyKey })
+      if (duplicado) {
+        const donde = duplicado.printerName || duplicado.destination
+        return json({
+          message: `Ya hay una impresión pendiente${duplicado.reference ? ` de ${duplicado.reference}` : ''} para ${donde || 'esa impresora'}. Si querés otra copia, confirmá "Reimprimir igual".`,
+          duplicate: true,
+          job: shapePublico(duplicado),
+        }, { status: 409 })
+      }
+    }
+
     if (camino === 'REMOTO') {
       const abiertos = await prisma.printJob.count({ where: { tenantId, state: { in: [...ESTADOS_ABIERTOS] } } })
       if (abiertos >= MAX_ABIERTOS_POR_EMPRESA) throw new InputError(`La empresa ya tiene ${MAX_ABIERTOS_POR_EMPRESA} trabajos en cola.`, 429)
@@ -119,7 +144,9 @@ export async function POST(request: Request) {
           payloadBytes: payload ? Buffer.from(payload, 'base64').length : 0,
           validation: textoOpcional(tomar('validation', 'validacion'), 12),
           suffixHash: sufijo ? hashSufijo(sufijo) : '',
-          reference: textoOpcional(tomar('reference', 'ref'), 64),
+          // Solo el largo: el valor del sufijo nunca se guarda (#138).
+          suffixLength: sufijo ? sufijo.length : 0,
+          reference,
           requestedByUserId: session.user.id,
           requestedByName: textoOpcional(tomar('requestedByName', 'usuario'), 80) || session.user.name.slice(0, 80),
           deviceName: textoOpcional(tomar('deviceName', 'equipo'), 80),
@@ -148,6 +175,7 @@ export async function POST(request: Request) {
             bridgeOrigin: bridgeOrigen,
             ...(branchIdPedida ? { branchId: branchIdPedida } : {}),
             bytes: job.payloadBytes,
+            ...(forzado ? { reimpresion: true } : {}),
           },
         },
       })

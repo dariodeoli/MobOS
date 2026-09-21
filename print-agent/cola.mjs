@@ -62,6 +62,9 @@ export function crearCola({ ruta, rutaHistorial, enviar, esperaMs = 15000, reint
       // Datos de testeo: permiten auditar en la app qué configuración imprimió.
       validacion: trabajo.validacion || '',
       sufijo: trabajo.sufijo || '',
+      // Largo del sufijo impreso: el panel lo usa para validar solo al
+      // completar el código (#138). El valor sigue viviendo solo acá.
+      sufijoLargo: String(trabajo.sufijo || '').length,
       puente: trabajo.puente || '',
       tokenPista: trabajo.tokenPista || '',
       modo: trabajo.modo || '',
@@ -356,6 +359,9 @@ function publico(trabajo) {
     tipo: trabajo.tipo || '',
     validacion: trabajo.validacion || '',
     sufijo: trabajo.sufijo || '',
+    // Largo del sufijo impreso (#138): el panel valida solo al completar el
+    // código sin conocer el valor.
+    sufijoLargo: String(trabajo.sufijo || '').length,
     puente: trabajo.puente || '',
     tokenPista: trabajo.tokenPista || '',
     modo: trabajo.modo || '',

@@ -1,5 +1,10 @@
 # Dependencias
 node_modules
+# Excepción: los módulos vendorizados del agente de impresión viajan DENTRO del
+# tarball (print-agent/vendor/LEEME.md) y tienen que estar en el repo para que
+# el artefacto sea reproducible desde un checkout limpio (#96).
+!print-agent/vendor/node_modules/
+!print-agent/vendor/node_modules/**
 
 # Build
 dist

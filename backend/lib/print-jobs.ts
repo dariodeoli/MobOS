@@ -3,7 +3,7 @@
 // purga acotada y claim atómico con lease. Lo comparten las rutas de sesión y
 // las del agente.
 import { randomBytes, timingSafeEqual } from 'node:crypto'
-import type { PrismaClient, PrintJob, PrintJobState } from '@prisma/client'
+import type { PrismaClient, PrintJob, PrintJobPath, PrintJobState } from '@prisma/client'
 import { hashToken } from './auth'
 import { InputError } from './payment-input'
 
@@ -19,9 +19,13 @@ export const LEASE_MS = 120_000
 export const LEASE_MAX_MS = 5 * LEASE_MS
 export const MAX_SUFIJO = 8
 
-export const ESTADOS_TRABAJO = ['PENDIENTE', 'RECLAMADO', 'ACEPTADO', 'INCIERTO', 'FALLIDO', 'CONFIRMADO'] as const
+export const ESTADOS_TRABAJO = ['PENDIENTE', 'RECLAMADO', 'ACEPTADO', 'INCIERTO', 'FALLIDO', 'CONFIRMADO', 'CANCELADO'] as const
 export const ESTADOS_ABIERTOS = ['PENDIENTE', 'RECLAMADO'] as const
 export const ESTADOS_RESULTADO = ['ACEPTADO', 'INCIERTO', 'FALLIDO'] as const
+// Ventana del guarda anti-duplicados: dos encolados idénticos (documento +
+// tipo + impresora) dentro de este lapso se consideran el mismo click repetido.
+// La decisión está documentada en docs/IMPRESION.md §11.
+export const VENTANA_DUPLICADO_MS = 60_000
 
 export type ResultadoAgente = (typeof ESTADOS_RESULTADO)[number]
 export type EstadoRequeue = 'PENDIENTE' | 'FALLIDO'
@@ -109,7 +113,9 @@ export function shapePublico(job: PrintJob) {
     printerId: job.printerId,
     destination: job.destination,
     validation: job.validation,
+    suffixLength: job.suffixLength,
     reference: job.reference,
+    requestedByUserId: job.requestedByUserId,
     requestedByName: job.requestedByName,
     deviceName: job.deviceName,
     bridgeName: job.bridgeName,
@@ -162,7 +168,7 @@ export function shapeAgente(job: PrintJob) {
 /**
  * Purga oportunista de metadatos terminales con más de 180 días. Lote acotado
  * (≤200) e idempotente: se apoya en `ctid` porque Prisma no expone LIMIT en
- * deleteMany.
+ * `deleteMany`. Los cancelados son terminales: no se retienen para siempre.
  */
 export async function purgarMetadatos(db: Pick<PrismaClient, '$executeRaw'>, tenantId: string, ahora: Date = new Date()): Promise<number> {
   const limite = new Date(ahora.getTime() - RETENCION_METADATOS_DIAS * 24 * 60 * 60 * 1000)
@@ -170,11 +176,159 @@ export async function purgarMetadatos(db: Pick<PrismaClient, '$executeRaw'>, ten
     DELETE FROM "PrintJob" WHERE ctid IN (
       SELECT ctid FROM "PrintJob"
       WHERE "tenantId" = ${tenantId}
-        AND state IN ('ACEPTADO', 'INCIERTO', 'FALLIDO', 'CONFIRMADO')
+        AND state IN ('ACEPTADO', 'INCIERTO', 'FALLIDO', 'CONFIRMADO', 'CANCELADO')
         AND "createdAt" < ${limite}
       LIMIT ${PURGA_LOTE_MAX}
     )
   `
+}
+
+/**
+ * Guarda anti-duplicados del encolado (#128): busca un trabajo ABIERTO
+ * (PENDIENTE/RECLAMADO) del mismo documento/pedido (`reference` o
+ * `idempotencyKey`), mismo tipo y misma impresora dentro de la ventana corta.
+ * Devuelve null cuando no hay clave o el trabajo previo ya es terminal: un
+ * reintento legítimo después de imprimir no se bloquea.
+ */
+export async function buscarDuplicadoAbierto(
+  db: Pick<PrismaClient, 'printJob'>,
+  tenantId: string,
+  {
+    kind,
+    printerId = null,
+    destination = '',
+    reference = '',
+    idempotencyKey = '',
+    ahora = new Date(),
+    ventanaMs = VENTANA_DUPLICADO_MS,
+  }: {
+    kind: string
+    printerId?: string | null
+    destination?: string
+    reference?: string
+    idempotencyKey?: string
+    ahora?: Date
+    ventanaMs?: number
+  },
+): Promise<PrintJob | null> {
+  const clave = String(reference || '').trim() || String(idempotencyKey || '').trim()
+  if (!clave) return null
+  return db.printJob.findFirst({
+    where: {
+      tenantId,
+      state: { in: [...ESTADOS_ABIERTOS] },
+      kind,
+      createdAt: { gte: new Date(ahora.getTime() - ventanaMs) },
+      // La misma impresora: por id cuando el trabajo la trae; si no, por destino.
+      ...(printerId ? { printerId } : { destination }),
+      OR: [{ reference: clave }, { idempotencyKey: clave }],
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+}
+
+export type FiltrosCancelacion = {
+  ids?: string[]
+  printerId?: string
+  kind?: string
+}
+
+export type TrabajoCancelado = {
+  id: string
+  kind: string
+  path: PrintJobPath
+  destination: string
+  printerId: string | null
+  printerName: string | null
+  bridgeId: string | null
+  bridgeName: string
+  reference: string
+  attempts: number
+  requestedByName: string
+}
+
+/**
+ * Cancela trabajos PENDIENTES (nunca RECLAMADO/ACEPTADO: el puente ya los
+ * pudo haber impreso) y escribe la auditoría en la misma transacción, con el
+ * actor real. Cada trabajo se actualiza condicionado por estado, así que un
+ * claim concurrente gana y ese trabajo no se cancela ni se audita como tal.
+ * Devuelve los trabajos que quedaron CANCELADOS.
+ */
+export async function cancelarTrabajos(
+  db: PrismaClient,
+  tenantId: string,
+  filtros: FiltrosCancelacion,
+  auditoria: { userId?: string | null; via: 'individual' | 'lote'; ahora?: Date },
+): Promise<TrabajoCancelado[]> {
+  const ids = (filtros.ids || []).map((id) => String(id).trim()).filter(Boolean).slice(0, MAX_ABIERTOS_POR_EMPRESA)
+  const printerId = String(filtros.printerId || '').trim()
+  const kind = String(filtros.kind || '').trim()
+  if (!ids.length && !printerId && !kind) return []
+
+  const candidatos = await db.printJob.findMany({
+    where: {
+      tenantId,
+      state: 'PENDIENTE',
+      ...(ids.length ? { id: { in: ids } } : {}),
+      ...(printerId ? { printerId } : {}),
+      ...(kind ? { kind } : {}),
+    },
+    orderBy: { createdAt: 'asc' },
+    take: MAX_ABIERTOS_POR_EMPRESA,
+    select: {
+      id: true,
+      kind: true,
+      path: true,
+      destination: true,
+      printerId: true,
+      printerName: true,
+      bridgeId: true,
+      bridgeName: true,
+      reference: true,
+      attempts: true,
+      requestedByName: true,
+    },
+  })
+  if (!candidatos.length) return []
+
+  const ahora = auditoria.ahora ?? new Date()
+  const cancelados: TrabajoCancelado[] = []
+  await db.$transaction(async tx => {
+    for (const candidato of candidatos) {
+      const cambio = await tx.printJob.updateMany({
+        where: { id: candidato.id, tenantId, state: 'PENDIENTE' },
+        // El payload se borra: cancelar es terminal y no se retiene el ticket.
+        data: { state: 'CANCELADO', payload: null, leaseId: null, leaseExpiresAt: null },
+      })
+      if (!cambio.count) continue
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId: auditoria.userId ?? null,
+          action: 'PRINT_JOB_CANCELLED',
+          entity: 'PrintJob',
+          entityId: candidato.id,
+          metadata: {
+            jobId: candidato.id,
+            kind: candidato.kind,
+            path: candidato.path,
+            destination: candidato.destination,
+            ...(candidato.printerId ? { printerId: candidato.printerId } : {}),
+            ...(candidato.printerName ? { printerName: candidato.printerName } : {}),
+            ...(candidato.bridgeId ? { bridgeId: candidato.bridgeId } : {}),
+            ...(candidato.bridgeName ? { bridgeName: candidato.bridgeName } : {}),
+            ...(candidato.reference ? { reference: candidato.reference } : {}),
+            attempts: candidato.attempts,
+            via: auditoria.via,
+            ...(printerId && !ids.length ? { filtroPrinterId: printerId } : {}),
+            ...(kind && !ids.length ? { filtroKind: kind } : {}),
+          },
+        },
+      })
+      cancelados.push(candidato)
+    }
+  })
+  return cancelados
 }
 
 /**

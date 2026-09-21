@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button, ConfirmDialog, Modal, Select, useToast } from '@/components/ui'
 import {
   FORMATOS_COMPROBANTE,
@@ -14,7 +14,8 @@ import {
 import { printHtml } from '@/utils/printHtml'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
 import { logoRasterDesdeDataUrl } from '@/lib/printing/logoRaster'
-import { cargarImpresorasRemotas, configImpresora, confirmarJob, estadoAgente, imprimirConDestino, imprimirDocumento, impresoraPredeterminada } from '@/lib/printing/agent'
+import { cargarImpresorasRemotas, configImpresora, confirmarJob, esIdBackend, estadoAgente, imprimirConDestino, imprimirDocumento, impresoraPredeterminada } from '@/lib/printing/agent'
+import { printingApi } from '@/lib/api/printing'
 import { ticketComprobante } from '@/lib/printing/tickets'
 
 // Vista previa real del comprobante: nivel (Rápido/Completo/Detallado) y
@@ -50,15 +51,44 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
   const [confirmando, setConfirmando] = useState(false)
   const [jobEncColado, setJobEncColado] = useState(null)
   const [preguntaDialogo, setPreguntaDialogo] = useState(false)
+  // Cola del puente (backend): pendientes para la impresora de destino y la
+  // confirmación explícita de reimpresión cuando el guarda anti-duplicados
+  // bloquea un click repetido (#128).
+  const [destino, setDestino] = useState(() => impresoraPredeterminada())
+  const [pendientesRemotos, setPendientesRemotos] = useState(0)
+  const [preguntaDuplicado, setPreguntaDuplicado] = useState(null)
+
+  const cargarPendientes = useCallback(async (impresora = destino) => {
+    try {
+      const datos = await printingApi.trabajos({ state: 'PENDIENTE', limit: 100 })
+      const esDeLaImpresora = (trabajo) => {
+        if (!impresora?.destino) return true
+        if (esIdBackend(impresora.id)) return trabajo.printerId === impresora.id
+        return trabajo.destination === impresora.destino
+      }
+      setPendientesRemotos((datos?.jobs || []).filter(esDeLaImpresora).length)
+    } catch {
+      setPendientesRemotos(0)
+    }
+  }, [destino])
 
   useEffect(() => {
     let activo = true
     estadoAgente().then((info) => { if (activo) { setAgente(Boolean(info.disponible)); setEstado(info) } })
     cargarImpresorasRemotas().then((store) => {
-      if (activo) setHayImpresora(Boolean(imprimirConDestino(store).predeterminada?.destino))
+      if (!activo) return
+      const elegida = imprimirConDestino(store).predeterminada || null
+      setDestino(elegida)
+      setHayImpresora(Boolean(elegida?.destino))
     })
     return () => { activo = false }
   }, [])
+
+  useEffect(() => {
+    if (!open) return undefined
+    cargarPendientes()
+    return undefined
+  }, [open, cargarPendientes])
 
   useEffect(() => {
     if (!open || !order) return undefined
@@ -101,20 +131,26 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
     }
   }
 
-  async function imprimirDirecto() {
+  async function imprimirDirecto(reimprimir = false) {
     if (enviando) return
     setEnviando(true)
     const { ancho } = configImpresora()
     // Logo de la empresa en el encabezado térmico: variante oscura (papel
     // blanco) convertida a mapa de bits 1-bit para GS v 0.
     const logo = await logoRasterDesdeDataUrl(await getLogoDataUrl('light'), { anchoMax: ancho === 80 ? 512 : 320 })
-    const resultado = await imprimirDocumento(ticketComprobante(order, { nivel, ancho, link, logo }), { tipo: 'comprobante' })
+    // El pedido identifica el trabajo en la cola y alimenta el guarda
+    // anti-duplicados (#128): un click repetido se bloquea y, si la persona
+    // confirma, sale como reimpresión explícita.
+    const referencia = String(order?.orderNumber || order?.codigo || order?.id || '')
+    const resultado = await imprimirDocumento(ticketComprobante(order, { nivel, ancho, link, logo }), { tipo: 'comprobante', ref: referencia, reimprimir })
     setEnviando(false)
+    if (resultado.duplicado) { setPreguntaDuplicado({ mensaje: resultado.error }); return }
     if (!resultado.ok) { toast.error('No se pudo imprimir', resultado.error || 'Revisá la impresora.'); return }
     if (resultado.encolado) {
       // La cola local se confirma con «Ya salió el papel»; la del puente se
       // confirma desde Configuración → Impresoras (ahí está el número secreto).
       setJobEncColado(resultado.remoto ? null : (resultado.jobId || null))
+      cargarPendientes()
       toast.success(
         resultado.remoto ? 'Comprobante encolado al puente' : 'Comprobante encolado',
         resultado.remoto ? 'Lo imprime el puente cuando lo reclame.' : 'La impresora no respondió; el agente reintenta solo.',
@@ -143,7 +179,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
           </label>
           <span className="flex flex-1 flex-wrap items-center justify-end gap-2">
             <Button type="button" variant="outline" onClick={imprimir} disabled={!html || cargando}>Descargar PDF</Button>
-            {(agente || hayImpresora) && <Button type="button" variant="outline" onClick={imprimirDirecto} disabled={cargando || enviando}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>}
+            {(agente || hayImpresora) && <Button type="button" variant="outline" onClick={() => imprimirDirecto()} disabled={cargando || enviando}>{enviando ? 'Enviando…' : 'Impresión directa'}</Button>}
             <Button type="button" onClick={imprimirConDialogo} disabled={!html || cargando}>{cargando ? 'Preparando…' : 'Imprimir con diálogo'}</Button>
           </span>
         </div>
@@ -162,6 +198,11 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
             El puente tiene {estado.cola.fallidos} trabajo(s) fallido(s). Revisá la impresora en Configuración → Impresoras.
           </p>
         )}
+        {pendientesRemotos > 0 && (
+          <p role="status" className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">
+            La cola del puente tiene {pendientesRemotos} trabajo(s) pendiente(s) para {destino?.nombre || 'la impresora configurada'}. Si esta impresión ya se mandó, revisá y cancelá en Configuración → Estado del sistema antes de mandar otra.
+          </p>
+        )}
         <p className="text-[11px] text-mute">
           Cada nivel imprime su propio QR privado. Para PDF, elegí «Guardar como PDF» en el diálogo de impresión.
         </p>
@@ -172,6 +213,17 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
           confirmLabel="Imprimir igual"
           onCancel={() => setPreguntaDialogo(false)}
           onConfirm={() => { setPreguntaDialogo(false); imprimir() }}
+        />
+        {/* Guarda anti-duplicados (#128): el backend bloqueó un encolado
+            idéntico reciente y acá se ofrece la reimpresión explícita. */}
+        <ConfirmDialog
+          open={Boolean(preguntaDuplicado)}
+          title="Ya hay una impresión pendiente"
+          description={`${preguntaDuplicado?.mensaje || 'Este comprobante ya está en la cola del puente.'} Confirmá solo si querés una copia más: son trabajos distintos y los dos van a salir cuando el puente reconecte.`}
+          confirmLabel="Reimprimir igual"
+          busy={enviando}
+          onCancel={() => setPreguntaDuplicado(null)}
+          onConfirm={() => { setPreguntaDuplicado(null); imprimirDirecto(true) }}
         />
         <iframe
           title="Vista previa del comprobante"

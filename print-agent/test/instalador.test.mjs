@@ -11,17 +11,15 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ARCHIVOS_AGENTE, crearTarGz } from '../../scripts/pack-agent.mjs'
+import { crearTarGz, entradasAgente } from '../../scripts/pack-agent.mjs'
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const INSTALADOR = join(RAIZ, 'print-agent', 'install.sh')
-const AGENTE = join(RAIZ, 'print-agent')
 const VERSION = '1.6.0'
 const sha256 = (datos) => createHash('sha256').update(datos).digest('hex')
 
 function tarballDelAgente(entradasExtra = []) {
-  const fuentes = ARCHIVOS_AGENTE.map((nombre) => ({ nombre, contenido: readFileSync(join(AGENTE, nombre)) }))
-  return crearTarGz([...fuentes, ...entradasExtra], { prefijo: `mobos-print-agent-${VERSION}/` })
+  return crearTarGz([...entradasAgente(), ...entradasExtra], { prefijo: `mobos-print-agent-${VERSION}/` })
 }
 
 function manifestDe(tarball, cambios = {}) {
@@ -91,8 +89,10 @@ async function correrInstalador({ manifest, tarball, code = '', configPrevio = n
   const rutaConfig = join(configDir, 'config.json')
   const config = existsSync(rutaConfig) ? JSON.parse(readFileSync(rutaConfig, 'utf8')) : null
   const instalado = existsSync(join(destino, 'server.mjs'))
+  // El módulo USB nativo viaja en el tarball (#96): se comprueba antes de limpiar.
+  const usbInstalado = existsSync(join(destino, 'node_modules', 'usb', 'prebuilds', 'darwin-x64+arm64', 'node.napi.node'))
   rmSync(base, { recursive: true, force: true })
-  return { ...resultado, instalado, config, peticiones: backend.peticiones }
+  return { ...resultado, instalado, config, peticiones: backend.peticiones, usbInstalado }
 }
 
 test('el instalador rechaza un nombre de artefacto distinto al fijo', async () => {
@@ -151,4 +151,16 @@ test('el destino usb: legacy sobrevive a la vinculación', async () => {
   assert.equal(resultado.config?.copias, 2, 'la configuración existente se conserva')
   assert.equal(resultado.config?.bridgeToken, 'token-de-prueba', 'el token del puente queda guardado')
   assert.ok(resultado.peticiones.some((peticion) => peticion.url === '/api/print/bridge/pair'), 'canjea el código')
+  assert.equal(resultado.usbInstalado, true, 'el binding USB nativo queda instalado (#96)')
+})
+
+test('un tarball con node_modules ajeno se rechaza antes de extraer', async () => {
+  const conAjeno = crearTarGz(
+    [...entradasAgente(), { nombre: 'node_modules/otro/index.js', contenido: 'console.log(1)' }],
+    { prefijo: `mobos-print-agent-${VERSION}/` },
+  )
+  const resultado = await correrInstalador({ manifest: manifestDe(conAjeno), tarball: conAjeno })
+  assert.notEqual(resultado.codigo, 0, 'debe rechazar el módulo ajeno')
+  assert.match(resultado.salida, /no permitido/i)
+  assert.equal(resultado.instalado, false, 'no extrae nada')
 })

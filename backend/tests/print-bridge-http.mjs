@@ -234,6 +234,7 @@ resultado = await request('/api/print/jobs', { method: 'POST', body: { destinati
 assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
 const job = resultado.payload.job
 assert.ok(job?.id && job.state === 'PENDIENTE' && job.path === 'REMOTO', 'el encolado remoto queda pendiente')
+assert.equal(job.suffixLength, 1, 'el encolado informa el LARGO del sufijo para la validación automática (#138)')
 assert.equal(job.printerId, impresoraJobs.id, 'el trabajo recuerda su impresora')
 assert.ok(!/"payload":|"suffixHash":|"leaseId":/.test(JSON.stringify(resultado.payload)), 'el encolado nunca devuelve bytes, sufijo ni lease')
 resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: 'lan:10.0.0.11:9100', payload: 'QUJDRA==', idempotencyKey: 'it-job-key-1' } })
@@ -533,4 +534,92 @@ const resumen = createHash('sha256').update(bytes).digest('hex')
 assert.equal(resumen, publico.sha256, 'el checksum del tarball servido coincide con el manifest')
 assert.equal(bytes.length, publico.size, 'el tamaño del tarball servido coincide con el manifest')
 
-console.log('print-bridge-http: puentes, impresoras, import idempotente, trabajos con lease y confirmación, tope y manifest OK.')
+// 10. Cancelación de pendientes y guarda anti-duplicados (#128): la cola del
+// panel cancela lo que no salió, el claim lo saltea y la auditoría guarda el
+// actor real. La reimpresión explícita (force) es la única vía para repetir.
+// Se reutiliza el puente B (activo): el de 7b quedó revocado más arriba y el
+// pairing tiene rate limit agotado a propósito por secciones anteriores.
+resultado = await request('/api/print/printers', { method: 'POST', body: { name: 'Impresora cancelación', destination: 'lan:10.0.0.15:9100', bridgeId: puenteJobsB.id, width: 58, isActive: true } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const impresoraCancel = resultado.payload
+const destinoCancel = 'lan:10.0.0.15:9100'
+
+// 10a. Un pendiente con el puente apagado se cancela, se audita con el actor
+// real y el claim lo saltea al reconectar.
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: destinoCancel, printerId: impresoraCancel.id, payload: 'QUJDRA==', kind: 'comprobante', reference: 'IT-CANCELA-1', requestedByName: 'Cancelación IT' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const jobCancelado = resultado.payload.job
+assert.equal(jobCancelado.state, 'PENDIENTE', 'el trabajo nace pendiente')
+resultado = await request(`/api/print/jobs/${jobCancelado.id}/cancel`, { method: 'POST', token: sellerToken })
+assert.equal(resultado.status, 403, 'un vendedor no cancela trabajos de impresión')
+resultado = await request(`/api/print/jobs/${jobCancelado.id}`, { token: null })
+assert.equal(resultado.status, 401, 'cancelar exige sesión')
+resultado = await request(`/api/print/jobs/${jobCancelado.id}/cancel`, { method: 'POST' })
+assert.equal(resultado.status, 200, JSON.stringify(resultado.payload))
+assert.equal(resultado.payload.job.state, 'CANCELADO', 'el trabajo queda cancelado')
+assert.equal(psql(`SELECT "payload" IS NULL FROM "PrintJob" WHERE "id" = '${jobCancelado.id}';`), 't', 'el ticket del cancelado se borra')
+assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE action = 'PRINT_JOB_CANCELLED' AND "entityId" = '${jobCancelado.id}';`), '1', 'la cancelación se audita una sola vez')
+assert.equal(psql(`SELECT "metadata"->>'via' FROM "AuditLog" WHERE action = 'PRINT_JOB_CANCELLED' AND "entityId" = '${jobCancelado.id}';`), 'individual', 'la cancelación individual queda marcada')
+assert.equal(
+  psql(`SELECT "userId" FROM "AuditLog" WHERE action = 'PRINT_JOB_CANCELLED' AND "entityId" = '${jobCancelado.id}';`),
+  psql(`SELECT "userId" FROM "AuditLog" WHERE action = 'PRINT_JOB_ENQUEUED' AND "entityId" = '${jobCancelado.id}';`),
+  'el actor real de la cancelación es quien la ejecutó',
+)
+resultado = await request(`/api/print/jobs/${jobCancelado.id}/cancel`, { method: 'POST' })
+assert.equal(resultado.status, 409, 'cancelar dos veces el mismo trabajo da 409')
+const claimTrasCancelar = await agente('/api/print/bridge/claim', { token: tokenJobsB, body: {} })
+assert.equal(claimTrasCancelar.status, 200, 'el claim responde con el token del puente')
+assert.ok(!(claimTrasCancelar.payload.jobs || []).some(item => item.id === jobCancelado.id), 'un trabajo cancelado no se reclama al reconectar')
+assert.equal(psql(`SELECT state FROM "PrintJob" WHERE id = '${jobCancelado.id}';`), 'CANCELADO', 'el claim no revive el trabajo cancelado')
+
+// 10b. Guarda anti-duplicados: mismo documento + tipo + impresora dentro de la
+// ventana se bloquea y devuelve el pendiente; "Reimprimir igual" (force) crea
+// un trabajo nuevo y la auditoría lo marca como reimpresión.
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: destinoCancel, printerId: impresoraCancel.id, payload: 'QUJDRA==', kind: 'etiqueta', reference: 'IT-DUP-1' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const jobDup = resultado.payload.job
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: destinoCancel, printerId: impresoraCancel.id, payload: 'QUJDRA==', kind: 'etiqueta', reference: 'IT-DUP-1' } })
+assert.equal(resultado.status, 409, 'el click repetido sobre el mismo documento se bloquea')
+assert.equal(resultado.payload.duplicate, true, 'la respuesta marca el duplicado')
+assert.equal(resultado.payload.job.id, jobDup.id, 'la respuesta trae el trabajo pendiente existente')
+assert.ok(!/"payload":/.test(JSON.stringify(resultado.payload)), 'la respuesta del duplicado tampoco expone el ticket')
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: destinoCancel, printerId: impresoraCancel.id, payload: 'QUJDRA==', kind: 'comprobante', reference: 'IT-DUP-1' } })
+assert.equal(resultado.status, 201, 'otro tipo del mismo documento no es duplicado')
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: destinoCancel, printerId: impresoraCancel.id, payload: 'QUJDRA==', kind: 'etiqueta', reference: 'IT-DUP-1', force: true } })
+assert.equal(resultado.status, 201, 'la reimpresión explícita crea un trabajo nuevo')
+const jobReimpreso = resultado.payload.job
+assert.notEqual(jobReimpreso.id, jobDup.id, 'la reimpresión es un trabajo distinto del pendiente')
+assert.equal(psql(`SELECT "metadata"->>'reimpresion' FROM "AuditLog" WHERE action = 'PRINT_JOB_ENQUEUED' AND "entityId" = '${jobReimpreso.id}';`), 'true', 'la reimpresión queda auditada')
+
+// 10c. Lo que ya salió de la cola no se cancela: RECLAMADO y ACEPTADO dan 409.
+psql(`UPDATE "PrintJob" SET state = 'RECLAMADO', "leaseId" = 'lease-it', "leaseExpiresAt" = CURRENT_TIMESTAMP + interval '2 minutes' WHERE id = '${jobDup.id}';`)
+resultado = await request(`/api/print/jobs/${jobDup.id}/cancel`, { method: 'POST' })
+assert.equal(resultado.status, 409, 'un trabajo reclamado por el puente no se cancela')
+psql(`UPDATE "PrintJob" SET state = 'ACEPTADO', "leaseId" = NULL, "leaseExpiresAt" = NULL WHERE id = '${jobDup.id}';`)
+resultado = await request(`/api/print/jobs/${jobDup.id}/cancel`, { method: 'POST' })
+assert.equal(resultado.status, 409, 'un trabajo aceptado no se cancela')
+assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE action = 'PRINT_JOB_CANCELLED' AND "entityId" = '${jobDup.id}';`), '0', 'un intento rechazado no deja evento de cancelación')
+
+// 10d. Cancelación en lote por impresora: cancela todos los pendientes,
+// audita cada trabajo con via=lote y no toca lo que ya salió.
+resultado = await request('/api/print/jobs/cancel', { method: 'POST', body: {} })
+assert.equal(resultado.status, 400, 'el lote sin filtros se rechaza')
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: destinoCancel, printerId: impresoraCancel.id, payload: 'QUJDRA==', kind: 'nota-entrega', reference: 'IT-LOTE-1' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const jobLote1 = resultado.payload.job
+resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: destinoCancel, printerId: impresoraCancel.id, payload: 'QUJDRA==', kind: 'nota-entrega', reference: 'IT-LOTE-2' } })
+assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
+const jobLote2 = resultado.payload.job
+resultado = await request('/api/print/jobs/cancel', { method: 'POST', token: sellerToken, body: { printerId: impresoraCancel.id } })
+assert.equal(resultado.status, 403, 'un vendedor tampoco cancela en lote')
+resultado = await request('/api/print/jobs/cancel', { method: 'POST', body: { printerId: impresoraCancel.id } })
+assert.equal(resultado.status, 200, JSON.stringify(resultado.payload))
+assert.ok(resultado.payload.total >= 3, `el lote cancela los pendientes de la impresora (${resultado.payload.total})`)
+assert.equal(psql(`SELECT COUNT(*) FROM "PrintJob" WHERE "tenantId" = 'tenant-a-it' AND "printerId" = '${impresoraCancel.id}' AND state = 'PENDIENTE';`), '0', 'no queda ningún pendiente de esa impresora')
+assert.equal(psql(`SELECT "metadata"->>'via' FROM "AuditLog" WHERE action = 'PRINT_JOB_CANCELLED' AND "entityId" = '${jobLote1.id}';`), 'lote', 'el lote audita cada trabajo con via=lote')
+assert.equal(psql(`SELECT COUNT(*) FROM "AuditLog" WHERE action = 'PRINT_JOB_CANCELLED' AND "entityId" IN ('${jobLote1.id}', '${jobLote2.id}');`), '2', 'cada trabajo del lote tiene su evento')
+assert.equal(psql(`SELECT state FROM "PrintJob" WHERE id = '${jobLote1.id}';`), 'CANCELADO', 'el trabajo del lote queda cancelado')
+const claimFinal = await agente('/api/print/bridge/claim', { token: tokenJobsB, body: {} })
+assert.ok(!(claimFinal.payload.jobs || []).some(item => [jobCancelado.id, jobLote1.id, jobLote2.id].includes(item.id)), 'el claim queda sin trabajos cancelados')
+
+console.log('print-bridge-http: puentes, impresoras, import idempotente, trabajos con lease y confirmación, cancelación, anti-duplicados, tope y manifest OK.')

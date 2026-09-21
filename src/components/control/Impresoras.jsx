@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Modal, Select, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
@@ -110,8 +110,21 @@ const filaDesdeJob = (job) => ({
   intentos: job.attempts || 0,
   ancho: job.width || 0,
   error: job.error || '',
+  suffixLength: Number(job.suffixLength) || 0,
   remoto: true,
 })
+
+// Largo máximo del sufijo de confirmación (espejo de MAX_SUFIJO del backend).
+const LARGO_SUFIJO_MAX = 8
+
+// Largo del sufijo que hay que escribir para validar en papel (#138). El panel
+// lo conoce sin saber el valor: el backend manda `suffixLength` y el agente
+// local `sufijoLargo`. 0 = desconocido (trabajo viejo): sin auto-validación,
+// queda el botón Confirmar.
+const largoDelSufijo = (fila) => {
+  const largo = Number(fila?.suffixLength ?? fila?.sufijoLargo ?? 0)
+  return Number.isInteger(largo) && largo > 0 ? Math.min(largo, LARGO_SUFIJO_MAX) : 0
+}
 
 const filaColaDesdeJob = (job) => ({
   id: job.id,
@@ -164,6 +177,10 @@ export default function Impresoras() {
   const [detalleAbierto, setDetalleAbierto] = useState('')
   const [sufijos, setSufijos] = useState({})
   const [confirmandoId, setConfirmandoId] = useState('')
+  // Temporizadores de la auto-validación en papel (#138): uno por trabajo, se
+  // cancelan al corregir el código y se limpian al desmontar la pantalla.
+  const timersAuto = useRef(new Map())
+  useEffect(() => () => { for (const temporizador of timersAuto.current.values()) clearTimeout(temporizador) }, [])
 
   const consultar = useCallback(async () => {
     setCargando(true)
@@ -345,7 +362,7 @@ export default function Impresoras() {
     return [...porId.values()].sort((izquierda, derecha) => new Date(derecha.fecha || 0).getTime() - new Date(izquierda.fecha || 0).getTime())
   }, [remotos, historial])
 
-  const historialFiltrado = historialCombinado.filter((fila) => {
+  const historialFiltrado = useMemo(() => historialCombinado.filter((fila) => {
     if (filtroActividad && fila.impresora !== filtroActividad) return false
     if (filtroTipo === 'prueba' && !String(fila.tipo || '').startsWith('prueba') && !fila.validacion) return false
     if (filtroTipo === 'venta' && fila.validacion) return false
@@ -355,7 +372,7 @@ export default function Impresoras() {
       if (!Number.isFinite(visto) || Date.now() - visto > dias * 24 * 60 * 60 * 1000) return false
     }
     return true
-  })
+  }), [historialCombinado, filtroActividad, filtroTipo, filtroRango])
 
   function exportarActividad() {
     const filas = [['Fecha', 'Hora', 'Usuario', 'Equipo', 'Impresora', 'Transporte', 'En cola (ms)', 'Total (ms)', 'Puente', 'Validación', 'Sufijo', 'Resultado', 'Bytes', 'Trabajo']]
@@ -370,8 +387,10 @@ export default function Impresoras() {
     URL.revokeObjectURL(enlace.href)
   }
 
-  async function confirmarEnPapel(fila) {
-    const sufijo = String(sufijos[fila.jobId] ?? '').trim()
+  async function confirmarEnPapel(fila, valorDirecto = null) {
+    // Un solo envío por vez: el guard cubre el botón, Enter y la auto-validación.
+    if (confirmandoId) return
+    const sufijo = String(valorDirecto ?? sufijos[fila.jobId] ?? '').trim()
     if (!sufijo) return toast.error('Falta el número', 'Escribí el número secreto que salió impreso después del guion.')
     setConfirmandoId(fila.jobId)
     try {
@@ -385,6 +404,24 @@ export default function Impresoras() {
     } catch (cause) {
       toast.error('No coincide', cause?.message || 'El número secreto no es el del papel.')
     } finally { setConfirmandoId('') }
+  }
+
+  // Auto-validación al completar el código (#138): al escribir el último dígito
+  // esperado se confirma solo, con un debounce corto para poder corregir. La
+  // prueba (1 dígito) dispara apenas se escribe; un sufijo más largo, al llegar
+  // a su largo (el panel lo conoce sin saber el valor). El botón Confirmar y
+  // Enter siguen como respaldo.
+  function escribirSufijo(fila, texto) {
+    const esperado = largoDelSufijo(fila)
+    const valor = String(texto || '').replace(/\D/g, '').slice(0, esperado || LARGO_SUFIJO_MAX)
+    setSufijos((actual) => ({ ...actual, [fila.jobId]: valor }))
+    const programado = timersAuto.current.get(fila.jobId)
+    if (programado) { clearTimeout(programado); timersAuto.current.delete(fila.jobId) }
+    if (!esperado || valor.length !== esperado) return
+    timersAuto.current.set(fila.jobId, setTimeout(() => {
+      timersAuto.current.delete(fila.jobId)
+      confirmarEnPapel(fila, valor)
+    }, 350))
   }
 
   function abrirFormulario(impresora = null) {
@@ -927,6 +964,7 @@ export default function Impresoras() {
                 {historialFiltrado.map((fila, indice) => {
                   const clave = fila.jobId || `${fila.fecha}-${indice}`
                   const abierto = detalleAbierto === clave
+                  const largoSufijo = largoDelSufijo(fila)
                   return [
                     <tr key={`fila-${clave}`} className="border-b border-ink-600/50">
                       <td className="px-2 py-2 text-xs text-mute">
@@ -946,7 +984,7 @@ export default function Impresoras() {
                       <td className="px-2 py-2">
                         {(fila.resultado === 'aceptado' || fila.resultado === 'pendiente') && fila.validacion ? (
                           <span className="flex items-center gap-1">
-                            <input value={sufijos[fila.jobId] || ''} onChange={(event) => setSufijos((actual) => ({ ...actual, [fila.jobId]: event.target.value.replace(/\D/g, '').slice(0, 2) }))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); confirmarEnPapel(fila) } }} inputMode="numeric" maxLength={2} placeholder="número" aria-label={`Número secreto de la validación ${fila.validacion}`} className="w-16 rounded-lg border border-ink-600 bg-ink-800 px-2 py-1 text-center text-xs" />
+                            <input value={sufijos[fila.jobId] || ''} onChange={(event) => escribirSufijo(fila, event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); confirmarEnPapel(fila) } }} inputMode="numeric" maxLength={largoSufijo || LARGO_SUFIJO_MAX} placeholder={largoSufijo ? `${largoSufijo} díg.` : 'número'} title={largoSufijo ? `El papel trae ${largoSufijo} dígito(s): se valida solo al completarlo.` : 'Escribí el número del papel y confirmá.'} aria-label={`Número secreto de la validación ${fila.validacion}`} className="w-16 rounded-lg border border-ink-600 bg-ink-800 px-2 py-1 text-center text-xs" />
                             <button type="button" onClick={() => confirmarEnPapel(fila)} disabled={confirmandoId === fila.jobId} className="rounded-lg border border-ok/40 px-2 py-1 text-[10px] font-bold text-ok transition hover:bg-ok/10 disabled:opacity-50">{confirmandoId === fila.jobId ? '…' : 'Confirmar'}</button>
                           </span>
                         ) : fila.resultado === 'confirmado' ? (

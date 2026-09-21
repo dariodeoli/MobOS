@@ -117,6 +117,7 @@ const ACCIONES = {
   PRINT_JOB_INCIERTO: ['Trabajo incierto', 'orange'],
   PRINT_JOB_FAILED: ['Trabajo fallido', 'red'],
   PRINT_JOB_REQUEUED: ['Trabajo reingresó a la cola', 'orange'],
+  PRINT_JOB_CANCELLED: ['Trabajo cancelado', 'slate'],
   PRINT_JOB_CONFIRMED: ['Trabajo confirmado', 'green'],
   PRINT_JOB_CONFIRM_FAILED: ['Confirmación fallida', 'red'],
   PRINT_BRIDGE_CREATED: ['Puente creado', 'blue'],
