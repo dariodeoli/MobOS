@@ -5,6 +5,7 @@
 // Los seriales son claramente de prueba (prefijo DEMO, nunca un IMEI real) y los
 // costos vienen en USD (con cotización) o en Gs, como en la app real.
 import { IPHONES_DEMO } from './demo/iphones.js'
+import { guardarDemo, leerDemo } from './demoStorage.js'
 
 const KEY = 'mobos:demo-inventory:v1'
 export const DEMO_BRANCH = 'mobos-demo-central'
@@ -111,16 +112,16 @@ function seed() {
 
 function read() {
   try {
-    const stored = JSON.parse(sessionStorage.getItem(KEY))
+    const stored = JSON.parse(leerDemo(KEY))
     if (stored && Array.isArray(stored.units) && stored.units.length) return stored
-  } catch { /* sessionStorage no disponible: se usa el seed */ }
+  } catch { /* dato dañado: se usa el seed */ }
   const fresh = seed()
   write(fresh)
   return fresh
 }
 
 function write(state) {
-  try { sessionStorage.setItem(KEY, JSON.stringify(state)) } catch { /* demo sin persistencia */ }
+  guardarDemo(KEY, JSON.stringify(state))
   return state
 }
 

@@ -3,13 +3,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
+// Fuera de la demo, demoStorage delega en localStorage: acá se simula con
+// memoria para que las mutaciones sobrevivan dentro del archivo de tests.
 const store = new Map()
-globalThis.sessionStorage = {
+globalThis.localStorage = {
   getItem: clave => (store.has(clave) ? store.get(clave) : null),
   setItem: (clave, valor) => store.set(clave, String(valor)),
   removeItem: clave => store.delete(clave),
 }
-globalThis.localStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} }
 
 const demo = await import('./demoInventory.js')
 
