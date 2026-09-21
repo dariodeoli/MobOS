@@ -106,3 +106,27 @@ test('el resumen tolera carrito vacío, nulo y cantidades inválidas', () => {
   assert.equal(lineas[0].subtotal, 1000)
   assert.equal(totalResumen(lineas), 1000)
 })
+
+test('prepararVentaDesdeInventario deja el carrito listo para el POS (#217)', async () => {
+  globalThis.localStorage = mockStorage()
+  const { prepararVentaDesdeInventario, leerCarrito } = await import('./posCart.js')
+  const ok = prepararVentaDesdeInventario({
+    empresaId: 'emp-a',
+    sucursalId: 'suc-1',
+    items: [
+      { id: 'prod-1', quantity: 2, serials: ['IMEI1', 'IMEI2'] },
+      { productoId: 'prod-2' },
+      { productoId: '' },
+      null,
+    ],
+    customer: { name: 'Cliente Inventario' },
+    entrega: 'Retiro en tienda',
+  })
+  assert.equal(ok, true)
+  const carrito = leerCarrito('emp-a', 'suc-1')
+  assert.equal(carrito.items.length, 2)
+  assert.deepEqual(carrito.items[0], { productoId: 'prod-1', quantity: 2, serials: ['IMEI1', 'IMEI2'] })
+  assert.deepEqual(carrito.items[1], { productoId: 'prod-2', quantity: 1 })
+  assert.equal(carrito.customer.name, 'Cliente Inventario')
+  assert.equal(prepararVentaDesdeInventario({ empresaId: 'emp-a', items: [] }), false)
+})
