@@ -108,8 +108,8 @@ export const trackingUrlFor = (order) => {
 
 // Enlace privado del nivel de comprobante (rápido | completo | detallado).
 export const accessUrlFor = (token) => {
-  const base = publicBase()
-  return token && base ? `${base}/p/${encodeURIComponent(token)}` : ''
+  const base = pedidoBase()
+  return token && base ? `${base}/pedidos/${encodeURIComponent(token)}` : ''
 }
 
 // Enlace público de la cotización: el cliente acepta o rechaza desde el QR.
