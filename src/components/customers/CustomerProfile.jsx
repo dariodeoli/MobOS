@@ -66,6 +66,17 @@ const STATUS_BADGE = (map, value) => {
 }
 const fecha = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString('es-PY') : '—')
 const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
+const antiguedadTexto = (dias) => {
+  const total = Number(dias || 0)
+  if (!total) return '—'
+  if (total < 30) return `${total} ${total === 1 ? 'día' : 'días'}`
+  const meses = Math.floor(total / 30)
+  if (meses < 12) return `${meses} ${meses === 1 ? 'mes' : 'meses'}`
+  const anios = Math.floor(meses / 12)
+  const resto = meses % 12
+  return `${anios} ${anios === 1 ? 'año' : 'años'}${resto ? ` y ${resto} ${resto === 1 ? 'mes' : 'meses'}` : ''}`
+}
+const frecuenciaTexto = (dias) => (dias === null || dias === undefined ? '—' : dias <= 1 ? 'Todos los días' : `Cada ${dias} días`)
 
 const AUTH_KINDS = {
   WHOLESALE: 'Mayorista',
@@ -121,6 +132,25 @@ const EVENTOS = {
 const conCodigos = (texto) => String(texto || '').replace(/MOB-(\d+)/g, 'MOB #$1')
 
 // Texto legible por tipo de evento de la cronología del cliente.
+// Lista compacta de señales (productos, modelos, meses, días) para la
+// pestaña Estadísticas: pocos gráficos, mucha señal.
+function Senales({ titulo, items, primario, secundario }) {
+  if (!items?.length) return null
+  return (
+    <div className="rounded-xl border border-ink-600 p-3">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-mute">{titulo}</p>
+      <ul className="mt-1 space-y-0.5 text-xs">
+        {items.map((item, index) => (
+          <li key={`${titulo}-${index}`} className="flex flex-wrap justify-between gap-2">
+            <span className="min-w-0 truncate">{primario(item)}</span>
+            <span className="text-mute">{secundario(item)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export default function CustomerProfile({ customer, open, onClose }) {
   const toast = useToast()
   const { usuario, esDemo } = useSesion()
@@ -269,7 +299,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
     setCargandoAnalitica(true)
     api.get(`/api/customers/${encodeURIComponent(customer.id)}/analytics`)
       .then(data => { if (vigente) setAnalitica(data) })
-      .catch(() => { if (vigente) setAnalitica({ ordersCount: 0, totalPyg: 0, avgTicketPyg: 0, byMonth: [], topProducts: [], statement: [] }) })
+      .catch(() => { if (vigente) setAnalitica({ ordersCount: 0, totalPyg: 0, avgTicketPyg: 0, purchasesPerMonth: 0, spendPerMonthPyg: 0, frequencyDays: null, antiguedadDias: 0, byMonth: [], topProducts: [], topModels: [], topCategories: [], topMonths: [], topWeekdays: [], statement: [] }) })
       .finally(() => { if (vigente) setCargandoAnalitica(false) })
     return () => { vigente = false }
   }, [tab, analitica, esDemo, customer?.id])
@@ -1154,32 +1184,25 @@ export default function CustomerProfile({ customer, open, onClose }) {
               {cargandoAnalitica && <Skeleton className="h-24 w-full" />}
               {!cargandoAnalitica && analitica && (
                 <>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                     <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Compras</p><p className="mt-1 text-lg font-bold">{analitica.ordersCount}</p></div>
-                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Total comprado</p><p className="mt-1 text-lg font-bold">{formatGs(analitica.totalPyg)}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Total gastado</p><p className="mt-1 text-lg font-bold">{formatGs(analitica.totalPyg)}</p></div>
                     <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Ticket promedio</p><p className="mt-1 text-lg font-bold">{formatGs(analitica.avgTicketPyg)}</p></div>
                     <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Compras por mes</p><p className="mt-1 text-lg font-bold">{analitica.purchasesPerMonth || 0}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Gasto por mes</p><p className="mt-1 text-lg font-bold">{formatGs(analitica.spendPerMonthPyg || 0)}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Frecuencia</p><p className="mt-1 text-lg font-bold">{frecuenciaTexto(analitica.frequencyDays)}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Primera compra</p><p className="mt-1 text-sm font-bold">{analitica.firstPurchaseAt ? fecha(analitica.firstPurchaseAt) : 'Sin compras'}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Última compra</p><p className="mt-1 text-sm font-bold">{analitica.lastPurchaseAt ? fecha(analitica.lastPurchaseAt) : 'Sin compras'}</p></div>
+                    <div className="rounded-xl border border-ink-600 p-3"><p className="text-[11px] uppercase tracking-wider text-mute">Antigüedad</p><p className="mt-1 text-sm font-bold">{antiguedadTexto(analitica.antiguedadDias)}</p></div>
                   </div>
-                  {analitica.topProducts.length > 0 && (
-                    <div className="rounded-xl border border-ink-600 p-3">
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Productos que más compra</p>
-                      <ul className="mt-1 space-y-0.5 text-xs">
-                        {analitica.topProducts.map(item => (
-                          <li key={item.description} className="flex flex-wrap justify-between gap-2"><span className="min-w-0 truncate">{item.description}</span><span className="text-mute">{item.quantity} u. · {formatGs(item.totalPyg)}</span></li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {analitica.byMonth.length > 0 && (
-                    <div className="rounded-xl border border-ink-600 p-3">
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Últimos meses</p>
-                      <ul className="mt-1 space-y-0.5 text-xs">
-                        {analitica.byMonth.map(item => (
-                          <li key={item.month} className="flex flex-wrap justify-between gap-2"><span>{item.month}</span><span className="text-mute">{item.count} {item.count === 1 ? 'compra' : 'compras'} · {formatGs(item.totalPyg)}</span></li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Senales titulo="Productos que más compra" items={analitica.topProducts} primario={(item) => item.description} secundario={(item) => `${item.quantity} u. · ${formatGs(item.totalPyg)}`} />
+                    <Senales titulo="Modelos favoritos" items={analitica.topModels} primario={(item) => item.model} secundario={(item) => `${item.quantity} u. · ${formatGs(item.totalPyg)}`} />
+                    <Senales titulo="Categorías favoritas" items={analitica.topCategories} primario={(item) => item.category} secundario={(item) => `${item.quantity} u. · ${formatGs(item.totalPyg)}`} />
+                    <Senales titulo="Meses de mayor actividad" items={analitica.topMonths} primario={(item) => item.label || item.month} secundario={(item) => `${item.count} ${item.count === 1 ? 'compra' : 'compras'} · ${formatGs(item.totalPyg)}`} />
+                    <Senales titulo="Días de mayor actividad" items={analitica.topWeekdays} primario={(item) => item.day} secundario={(item) => `${item.count} ${item.count === 1 ? 'compra' : 'compras'}`} />
+                    <Senales titulo="Últimos meses" items={analitica.byMonth} primario={(item) => item.label || item.month} secundario={(item) => `${item.count} ${item.count === 1 ? 'compra' : 'compras'} · ${formatGs(item.totalPyg)}`} />
+                  </div>
                   <div className="flex justify-end">
                     <Button type="button" variant="outline" onClick={descargarInforme} disabled={!analitica.statement.length}>Descargar informe (CSV)</Button>
                   </div>
