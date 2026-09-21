@@ -1,6 +1,6 @@
 {
-  "base": "http://127.0.0.1:5273",
-  "fecha": "2026-09-21T19:42:16.600Z",
+  "base": "http://127.0.0.1:5279",
+  "fecha": "2026-09-21T20:32:12.682Z",
   "resultados": [
     {
       "documento": "comprobante-rapido-a4",
@@ -50,72 +50,602 @@
     {
       "documento": "nota-entrega-a4",
       "formato": "A4",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Recibí conforme (firma)",
+            "espacioMm": 18.3,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: ____________________  Fecha: ____/____/______"
+            ]
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 11
+          }
+        ]
+      }
     },
     {
       "documento": "remision-a4",
       "formato": "A4",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Entregué (despacho)",
+            "espacioMm": 18.3,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: ____________________  Fecha: ____/____/______"
+            ]
+          },
+          {
+            "rol": "Recibí conforme (recepción)",
+            "espacioMm": 18.3,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: ____________________  Fecha: ____/____/______"
+            ]
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 11
+          }
+        ]
+      }
     },
     {
       "documento": "recibo-interno-a4",
       "formato": "A4",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Entregué / cobré",
+            "espacioMm": 18.3,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: ____________________  Fecha: ____/____/______"
+            ]
+          },
+          {
+            "rol": "Recibí conforme",
+            "espacioMm": 18.3,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: ____________________  Fecha: ____/____/______"
+            ]
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 11
+          }
+        ]
+      }
     },
     {
       "documento": "proforma-a4",
       "formato": "A4",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Aceptación del cliente",
+            "espacioMm": 18.3,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: ____________________  Fecha: ____/____/______"
+            ]
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 11
+          }
+        ]
+      }
     },
     {
       "documento": "nota-entrega-termico-58",
       "formato": "térmico 58 mm",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Recibí conforme",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________",
+              "CI: ______________________",
+              "Fecha: ____/____/_________"
+            ],
+            "aclaracion": true
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 0
+          }
+        ],
+        "termico": true
+      }
     },
     {
       "documento": "remision-termico-58",
       "formato": "térmico 58 mm",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Entregué",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________",
+              "CI: ______________________",
+              "Fecha: ____/____/_________"
+            ],
+            "aclaracion": true
+          },
+          {
+            "rol": "Recibí conforme",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________",
+              "CI: ______________________",
+              "Fecha: ____/____/_________"
+            ],
+            "aclaracion": true
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 0
+          }
+        ],
+        "termico": true
+      }
     },
     {
       "documento": "recibo-interno-termico-58",
       "formato": "térmico 58 mm",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Entregué / cobré",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________",
+              "CI: ______________________",
+              "Fecha: ____/____/_________"
+            ],
+            "aclaracion": true
+          },
+          {
+            "rol": "Recibí conforme",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________",
+              "CI: ______________________",
+              "Fecha: ____/____/_________"
+            ],
+            "aclaracion": true
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 0
+          }
+        ],
+        "termico": true
+      }
     },
     {
       "documento": "proforma-termico-58",
       "formato": "térmico 58 mm",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Aceptación del cliente",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________",
+              "CI: ______________________",
+              "Fecha: ____/____/_________"
+            ],
+            "aclaracion": true
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 0
+          }
+        ],
+        "termico": true
+      }
     },
     {
       "documento": "nota-entrega-termico-80",
       "formato": "térmico 80 mm",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Recibí conforme",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: __________________ Fecha: ___/___/______",
+              ""
+            ],
+            "aclaracion": true
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 0
+          }
+        ],
+        "termico": true
+      }
     },
     {
       "documento": "remision-termico-80",
       "formato": "térmico 80 mm",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Entregué",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: __________________ Fecha: ___/___/______",
+              ""
+            ],
+            "aclaracion": true
+          },
+          {
+            "rol": "Recibí conforme",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: __________________ Fecha: ___/___/______",
+              ""
+            ],
+            "aclaracion": true
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 0
+          }
+        ],
+        "termico": true
+      }
     },
     {
       "documento": "recibo-interno-termico-80",
       "formato": "térmico 80 mm",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Entregué / cobré",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: __________________ Fecha: ___/___/______",
+              ""
+            ],
+            "aclaracion": true
+          },
+          {
+            "rol": "Recibí conforme",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: __________________ Fecha: ___/___/______",
+              ""
+            ],
+            "aclaracion": true
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 0
+          }
+        ],
+        "termico": true
+      }
     },
     {
       "documento": "proforma-termico-80",
       "formato": "térmico 80 mm",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Aceptación del cliente",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: __________________ Fecha: ___/___/______",
+              ""
+            ],
+            "aclaracion": true
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 0
+          }
+        ],
+        "termico": true
+      }
     },
     {
       "documento": "cierre-caja-a4",
       "formato": "A4",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Responsable del arqueo",
+            "espacioMm": 18.3,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: ____________________  Fecha: ____/____/______"
+            ]
+          },
+          {
+            "rol": "Control",
+            "espacioMm": 18.3,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: ____________________  Fecha: ____/____/______"
+            ]
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 11
+          }
+        ]
+      }
     },
     {
       "documento": "resumen-dia-a4",
       "formato": "A4",
-      "estado": "ok"
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Responsable",
+            "espacioMm": 18.3,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: ____________________  Fecha: ____/____/______"
+            ]
+          },
+          {
+            "rol": "Control",
+            "espacioMm": 18.3,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: ____________________  Fecha: ____/____/______"
+            ]
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 11
+          }
+        ]
+      }
+    },
+    {
+      "documento": "cierre-caja-termico-58",
+      "formato": "térmico 58 mm",
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Responsable del arqueo",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________",
+              "CI: ______________________",
+              "Fecha: ____/____/_________"
+            ],
+            "aclaracion": true
+          },
+          {
+            "rol": "Control",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________",
+              "CI: ______________________",
+              "Fecha: ____/____/_________"
+            ],
+            "aclaracion": true
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 0
+          }
+        ],
+        "termico": true
+      }
+    },
+    {
+      "documento": "resumen-dia-termico-58",
+      "formato": "térmico 58 mm",
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Responsable",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________",
+              "CI: ______________________",
+              "Fecha: ____/____/_________"
+            ],
+            "aclaracion": true
+          },
+          {
+            "rol": "Control",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________",
+              "CI: ______________________",
+              "Fecha: ____/____/_________"
+            ],
+            "aclaracion": true
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 0
+          }
+        ],
+        "termico": true
+      }
+    },
+    {
+      "documento": "cierre-caja-termico-80",
+      "formato": "térmico 80 mm",
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Responsable del arqueo",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: __________________ Fecha: ___/___/______",
+              ""
+            ],
+            "aclaracion": true
+          },
+          {
+            "rol": "Control",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: __________________ Fecha: ___/___/______",
+              ""
+            ],
+            "aclaracion": true
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 0
+          }
+        ],
+        "termico": true
+      }
+    },
+    {
+      "documento": "resumen-dia-termico-80",
+      "formato": "térmico 80 mm",
+      "estado": "ok",
+      "firmas": {
+        "firmas": [
+          {
+            "rol": "Responsable",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: __________________ Fecha: ___/___/______",
+              ""
+            ],
+            "aclaracion": true
+          },
+          {
+            "rol": "Control",
+            "avancesMm": 12.7,
+            "lineaAncha": true,
+            "campos": [
+              "Aclaración: ______________________________",
+              "CI: __________________ Fecha: ___/___/______",
+              ""
+            ],
+            "aclaracion": true
+          }
+        ],
+        "observaciones": [
+          {
+            "label": "Observaciones",
+            "lineas": 2,
+            "altoLineaMm": 0
+          }
+        ],
+        "termico": true
+      }
     },
     {
       "documento": "etiqueta-producto-58",
@@ -140,6 +670,11 @@
     {
       "documento": "imei-termico-80",
       "formato": "térmico 80 mm",
+      "estado": "ok"
+    },
+    {
+      "documento": "imei-a4",
+      "formato": "A4",
       "estado": "ok"
     }
   ]
