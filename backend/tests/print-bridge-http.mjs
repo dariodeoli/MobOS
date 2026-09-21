@@ -234,6 +234,7 @@ resultado = await request('/api/print/jobs', { method: 'POST', body: { destinati
 assert.equal(resultado.status, 201, JSON.stringify(resultado.payload))
 const job = resultado.payload.job
 assert.ok(job?.id && job.state === 'PENDIENTE' && job.path === 'REMOTO', 'el encolado remoto queda pendiente')
+assert.equal(job.suffixLength, 1, 'el encolado informa el LARGO del sufijo para la validación automática (#138)')
 assert.equal(job.printerId, impresoraJobs.id, 'el trabajo recuerda su impresora')
 assert.ok(!/"payload":|"suffixHash":|"leaseId":/.test(JSON.stringify(resultado.payload)), 'el encolado nunca devuelve bytes, sufijo ni lease')
 resultado = await request('/api/print/jobs', { method: 'POST', body: { destination: 'lan:10.0.0.11:9100', payload: 'QUJDRA==', idempotencyKey: 'it-job-key-1' } })

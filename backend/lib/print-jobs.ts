@@ -113,6 +113,7 @@ export function shapePublico(job: PrintJob) {
     printerId: job.printerId,
     destination: job.destination,
     validation: job.validation,
+    suffixLength: job.suffixLength,
     reference: job.reference,
     requestedByUserId: job.requestedByUserId,
     requestedByName: job.requestedByName,

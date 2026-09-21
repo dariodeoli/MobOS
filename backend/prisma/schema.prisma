@@ -2405,6 +2405,10 @@ model PrintJob {
   payloadBytes      Int           @default(0)
   validation        String        @default("")
   suffixHash        String        @default("")
+  // Largo del sufijo impreso (1..8). El valor NUNCA se guarda: solo el hash.
+  // El panel lo usa para validar automáticamente al completar el código (#138).
+  // 0 = desconocido (trabajos anteriores a la columna).
+  suffixLength      Int           @default(0)
   reference         String        @default("")
   requestedByUserId String?
   requestedBy       User?         @relation("PrintJobRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)

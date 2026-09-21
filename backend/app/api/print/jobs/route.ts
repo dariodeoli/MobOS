@@ -144,6 +144,8 @@ export async function POST(request: Request) {
           payloadBytes: payload ? Buffer.from(payload, 'base64').length : 0,
           validation: textoOpcional(tomar('validation', 'validacion'), 12),
           suffixHash: sufijo ? hashSufijo(sufijo) : '',
+          // Solo el largo: el valor del sufijo nunca se guarda (#138).
+          suffixLength: sufijo ? sufijo.length : 0,
           reference,
           requestedByUserId: session.user.id,
           requestedByName: textoOpcional(tomar('requestedByName', 'usuario'), 80) || session.user.name.slice(0, 80),

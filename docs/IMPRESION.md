@@ -98,6 +98,13 @@ QR muerto: se omite el código.
   ticket cuando el reintento llegue).
 - El trabajo remoto se confirma desde Configuración → Impresoras (ahí está el
   número secreto del puente).
+- **Validación en papel (#138)**: el panel conoce el **largo** del sufijo (el
+  valor nunca sale del servidor ni se expone en el listado) y valida **solo**
+  al completar el código: la prueba (1 dígito) apenas se escribe y un sufijo
+  mayor al llegar a su largo, con un debounce corto para poder corregir. El
+  botón **Confirmar** y **Enter** quedan como respaldo; si el número no
+  coincide, el aviso es claro y se puede reintentar. Un trabajo sin largo
+  conocido (anterior a la columna `suffixLength`) sigue con el botón.
 
 ## 4. Registro y auditoría de impresión
 

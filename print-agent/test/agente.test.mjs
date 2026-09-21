@@ -372,6 +372,7 @@ test('el agente imprime al toque cuando la impresora está disponible', async (t
   // Datos de testeo: quedan registrados para auditar la corrida.
   assert.equal(historial.historial[0].validacion, '7318')
   assert.equal(historial.historial[0].sufijo, '4')
+  assert.equal(historial.historial[0].sufijoLargo, 1, 'el historial informa el largo del sufijo para la validación automática (#138)')
   assert.equal(historial.historial[0].puente, 'Mac mostrador')
   assert.equal(historial.historial[0].tokenPista, '1f75…5a8c')
   assert.equal(historial.historial[0].modo, 'usb')

@@ -197,6 +197,7 @@ async function main() {
     destination: 'lan:10.0.0.5:9100',
     validation: '1234',
     reference: 'TEST-1',
+    suffixLength: 1,
     requestedByUserId: 'user-1',
     requestedByName: 'Admin',
     deviceName: 'Mac',
@@ -221,10 +222,12 @@ async function main() {
   const publicoJob = shapePublico(jobInterno)
   assert.deepEqual(
     Object.keys(publicoJob).sort(),
-    ['acceptedAt', 'attempts', 'bridgeId', 'bridgeName', 'claimedAt', 'confirmedAt', 'copies', 'createdAt', 'destination', 'deviceName', 'durationMs', 'enqueuedAt', 'error', 'id', 'kind', 'mode', 'path', 'payloadBytes', 'printerId', 'printerName', 'queueMs', 'reference', 'requestedByName', 'requestedByUserId', 'state', 'tokenHint', 'transport', 'validation', 'width'],
+    ['acceptedAt', 'attempts', 'bridgeId', 'bridgeName', 'claimedAt', 'confirmedAt', 'copies', 'createdAt', 'destination', 'deviceName', 'durationMs', 'enqueuedAt', 'error', 'id', 'kind', 'mode', 'path', 'payloadBytes', 'printerId', 'printerName', 'queueMs', 'reference', 'requestedByName', 'requestedByUserId', 'state', 'suffixLength', 'tokenHint', 'transport', 'validation', 'width'],
     'el shape público es una lista blanca exacta',
   )
   assert.equal(publicoJob.requestedByUserId, 'user-1', 'el id del usuario que mandó el trabajo alimenta el avatar de la cola')
+  assert.equal('suffixHash' in publicoJob, false, 'el shape público nunca expone el hash del sufijo')
+  assert.equal(publicoJob.suffixLength, 1, 'el shape público expone el LARGO del sufijo, no su valor (#138)')
   assert.equal('payload' in publicoJob, false, 'el shape público nunca expone bytes ESC/POS')
   assert.equal('suffixHash' in publicoJob, false, 'el shape público nunca expone el hash del sufijo')
   assert.equal('leaseId' in publicoJob, false, 'el shape público nunca expone el lease')
