@@ -6,8 +6,14 @@ import Avatar from '@/components/shared/Avatar'
 import ThemeToggle from '@/components/app/ThemeToggle'
 import PresencePill from '@/components/app/PresencePill'
 import ProductFooter from '@/components/app/ProductFooter'
+import MenuAcciones from '@/components/app/MenuAcciones'
+import PanelNotificaciones from '@/components/app/PanelNotificaciones'
+import Preferencias from '@/components/app/Preferencias'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { usePresenceTracker } from '@/hooks/usePresence'
+import { usePreferencias } from '@/hooks/usePreferencias'
+import { useNotificaciones } from '@/hooks/useNotificaciones'
+import { useSesion } from '@/lib/sesion'
 import { APP_NAME } from '@/lib/brand'
 
 const NAV_GROUPS_KEY = 'mobos:nav-groups'
@@ -273,8 +279,16 @@ export default function AppShell({
   statsCollapsed,
   perfilEmpresa,
   roleLabel,
+  menuAcciones = false,
+  onAbrirNotificacion,
 }) {
   const [menuAbierto, setMenuAbierto] = useState(false)
+  const { usuario: usuarioSesion, sucursales = [], sucursal, cambiarSucursal } = useSesion()
+  const usuarioActual = usuario || usuarioSesion
+  const [preferencias, cambiarPreferencias] = usePreferencias(usuarioActual?.id)
+  const notificaciones = useNotificaciones(usuarioActual?.id, { activo: menuAcciones && !esDemo })
+  const [preferenciasAbiertas, setPreferenciasAbiertas] = useState(false)
+  const [notificacionesAbiertas, setNotificacionesAbiertas] = useState(false)
   const enLinea = useOnlineStatus()
   usePresenceTracker()
   const [statsCollapsedInterno, setStatsCollapsedInterno] = useState(() => localStorage.getItem('mobos:stats-collapsed') === '1')
@@ -295,8 +309,8 @@ export default function AppShell({
     localStorage.setItem('mobos:stats-collapsed', next ? '1' : '0')
   }
 
-  function navegar(id) {
-    onNavigate(id)
+  function navegar(id, opciones) {
+    onNavigate(id, opciones)
     setMenuAbierto(false)
   }
 
@@ -445,6 +459,34 @@ export default function AppShell({
             )}
             <PresencePill className="hidden lg:flex" />
             {headerActions}
+            {menuAcciones && (
+              <>
+                <button
+                  type="button"
+                  data-testid="notificaciones-aviso"
+                  onClick={() => { setNotificacionesAbiertas(true); notificaciones.marcarVistas() }}
+                  className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
+                  title="Notificaciones"
+                  aria-label={notificaciones.nuevas.length > 0 ? `Notificaciones (${notificaciones.nuevas.length} sin ver)` : 'Notificaciones'}
+                >
+                  <Icon name="bell" className="h-[18px] w-[18px]" />
+                  {preferencias.notificaciones && notificaciones.nuevas.length > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-bad px-1 text-[9px] font-bold text-white">
+                      {notificaciones.nuevas.length > 9 ? '9+' : notificaciones.nuevas.length}
+                    </span>
+                  )}
+                </button>
+                <MenuAcciones
+                  onNavegar={(id, opciones) => navegar(id, opciones)}
+                  onBloquear={onLockRequest}
+                  onSalir={onLogout}
+                  onPreferencias={() => setPreferenciasAbiertas(true)}
+                  sucursales={sucursales}
+                  sucursal={sucursal}
+                  onCambiarSucursal={cambiarSucursal}
+                />
+              </>
+            )}
             {/* Tema y acciones secundarias: en el menú lateral con pantallas
                 chicas, en la barra desde sm. */}
             <span className="hidden sm:contents">
@@ -509,6 +551,31 @@ export default function AppShell({
         onOpenMenu={onOpenMenuLabel ? () => setMenuAbierto(true) : null}
         menuLabel={onOpenMenuLabel}
       />
+
+      {menuAcciones && (
+        <>
+          <Preferencias
+            open={preferenciasAbiertas}
+            onClose={() => setPreferenciasAbiertas(false)}
+            preferencias={preferencias}
+            onCambiar={cambiarPreferencias}
+          />
+          <PanelNotificaciones
+            open={notificacionesAbiertas}
+            onClose={() => setNotificacionesAbiertas(false)}
+            items={notificaciones.items}
+            cargando={notificaciones.cargando}
+            error={notificaciones.error}
+            onRecargar={notificaciones.cargar}
+            activas={preferencias.notificaciones}
+            onAbrir={(href) => {
+              setNotificacionesAbiertas(false)
+              if (onAbrirNotificacion) onAbrirNotificacion(href)
+              else window.location.assign(href)
+            }}
+          />
+        </>
+      )}
     </div>
   )
 }

@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     // Revoke the previous Google company session when switching companies.
     const previous = readCookie(request, COOKIE_COMPANY)
     if (previous) await prisma.session.updateMany({ where: { tokenHash: hashToken(previous), level: 'COMPANY' }, data: { revokedAt: new Date() } })
-    const sellers = await prisma.user.findMany({ where: { tenantId: result.tenant.id, status: 'ACTIVE', OR: [{ branchId: null }, { branch: { isActive: true } }] }, select: { id: true, name: true, branchId: true }, orderBy: { name: 'asc' } })
+    const sellers = await prisma.user.findMany({ where: { tenantId: result.tenant.id, status: 'ACTIVE', OR: [{ branchId: null }, { branch: { isActive: true } }] }, select: { id: true, name: true, branchId: true, pinLength: true }, orderBy: { name: 'asc' } })
     await prisma.auditLog.create({ data: { tenantId: result.tenant.id, action: body?.action === 'create' ? 'GOOGLE_COMPANY_CREATED_OR_SIGNED_IN' : 'GOOGLE_COMPANY_SIGNED_IN', entity: 'Session', metadata: { provider: 'google', ...authRequestMetadata(request) } } })
     await sendWelcomeOnce(result.tenant.id).catch(() => logEmailOutcome('welcome', 'delivery-failed'))
     const response = NextResponse.json({ tenant: result.tenant, sellers, onboardingRequired: result.onboardingRequired, scope: 'device:company', cookieSession: true, profile: { name: identity.name || null, picture: identity.picture || null }, stores: result.stores }, { headers: { 'Cache-Control': 'no-store' } })

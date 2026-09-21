@@ -80,7 +80,10 @@ export const sessionApi = {
   },
   completeOnboarding: (details) => api.post('/api/auth/onboarding', details),
   loginSeller: async (credentials) => {
-    if (!getCompanyContext()?.cookieSession) throw new Error('Primero hay que autenticar la empresa.')
+    // La autenticación principal (empresa/Google) la exige el servidor: el PIN
+    // solo abre la sesión de operador si la cookie de empresa sigue viva y es
+    // del mismo origen. El cliente no la cachea en localStorage porque una
+    // recarga restaura solo la cookie.
     const session = await api.post('/api/auth/pin', credentials)
     if (!session?.user) throw new Error('El servidor no devolvió una sesión válida.')
     clearLegacyTokens()
@@ -100,11 +103,8 @@ export const sessionApi = {
     if (failed) throw failed.reason
     return { ok: true }
   },
-  switchSeller: async ({ sellerId, pin }) => {
-    if (!getCompanyContext()?.cookieSession) throw new Error('Primero hay que autenticar la empresa.')
-    const session = await api.post('/api/auth/switch', { sellerId, pin })
-    if (!session?.user) throw new Error('El servidor no devolvió una sesión válida.')
-    clearLegacyTokens()
-    return session
-  },
+  // Cambiar de operador sin volver a autenticar la empresa: mismo endpoint que
+  // el PIN de acceso (el servidor valida PIN + empresa y lo audita). Antes
+  // apuntaba a /api/auth/switch, que no existe (#158 lo destrabó).
+  switchSeller: ({ sellerId, pin }) => sessionApi.loginSeller({ sellerId, pin }),
 }
