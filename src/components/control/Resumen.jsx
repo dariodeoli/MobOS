@@ -31,21 +31,166 @@ const UMBRAL_STOCK_BAJO = 3
 // PanelVendedor uses from its sidebar (`/<vista>`).
 const ACCIONES = [
   { label: 'Cargar venta', ruta: '/ventas', icon: 'plus' },
-  { label: 'Nueva compra', ruta: '/compras', icon: 'box' },
+  { label: 'Nueva compra', ruta: '/compras', icon: 'store' },
   // Finanzas opens on the "Caja" subtab by default in PanelVendedor.
   { label: 'Abrir caja', ruta: '/finanzas/caja', icon: 'wallet' },
+  { label: 'Ver pedidos', ruta: '/pedidos', icon: 'box' },
 ]
 
-// Métrica al estilo del tablero: rótulo, número grande, indicador de tendencia
-// y una línea de contexto abajo. Van en fila separadas por divisores.
-function Metrica({ label, valor, delta, sub, tono = 'blue', accion }) {
+// Pendientes de hoy: lo accionable del día, en una franja compacta arriba de
+// todo. Con todo al día se muestra el estado en verde en lugar de esconderse.
+const PENDIENTES_HOY = [
+  { clave: 'reservas', texto: 'Reservas por vencer (24 h)', ruta: '/inventario/reservas', tono: 'warn' },
+  { clave: 'garantias', texto: 'Garantías vencidas sin entregar', ruta: '/garantias', tono: 'bad' },
+  { clave: 'cuotas', texto: 'Cuotas vencidas por cobrar', ruta: '/finanzas/cuotas', tono: 'bad' },
+]
+
+function PendientesDeHoy({ pendientes, onIr }) {
+  // Mientras carga no ocupa lugar; si no hay nada, se muestra el estado al día.
+  if (!pendientes) return null
+  const items = PENDIENTES_HOY.filter((item) => Number(pendientes[item.clave]) > 0)
+  if (!items.length) {
+    return (
+      <Card className="flex items-center gap-2.5 border-ok/25 bg-ok/5">
+        <Icon name="check" className="h-4 w-4 shrink-0 text-ok" />
+        <p className="text-sm text-mute">
+          <strong className="font-semibold text-ok">Al día.</strong> No hay pendientes para hoy.
+        </p>
+      </Card>
+    )
+  }
+  return (
+    <Card className="border-warn/30 bg-warn/5 p-4">
+      <div className="flex items-center gap-2">
+        <Icon name="alert" className="h-4 w-4 shrink-0 text-warn" />
+        <h2 className="text-sm font-semibold text-warn">Pendientes de hoy</h2>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {items.map((item) => (
+          <button
+            key={item.clave}
+            type="button"
+            onClick={() => onIr(item.ruta)}
+            className="group flex min-w-0 items-center gap-2.5 rounded-xl border border-ink-600 bg-ink-800/70 px-3.5 py-2.5 text-left transition hover:border-fono/50"
+          >
+            <span
+              className={cn(
+                'text-xl font-bold tabular-nums',
+                item.tono === 'bad' ? 'text-bad' : 'text-warn',
+              )}
+            >
+              {pendientes[item.clave]}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-xs text-mute">{item.texto}</span>
+            <Icon
+              name="chevron"
+              className="h-3.5 w-3.5 shrink-0 rotate-180 text-mute transition group-hover:text-fore"
+            />
+          </button>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+// Facturado del período: la métrica principal, con la estética del total de
+// venta de /pos/cargar. Adentro vive el cobrado vs pendiente (mismos datos y
+// misma acción que la tarjeta anterior).
+function CardFacturado({ total, totalAnt, cobrado, pendiente, pagadas, sinPagar, pctCobrado, etiqueta, onPendientes }) {
+  const delta = variacion(total, totalAnt)
+  const sube = typeof delta === 'number' && delta >= 0
+  return (
+    <div className="overflow-hidden rounded-[14px] border border-fono/40 bg-gradient-to-br from-fono-dark via-fono to-fono p-[18px]">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[.08em] text-onbrand/75">
+          Facturado
+        </span>
+        <span className="flex items-center gap-2">
+          {typeof delta === 'number' && (
+            <span className="rounded-full bg-onbrand/15 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-onbrand">
+              {sube ? '↑' : '↓'} {Math.abs(delta).toFixed(1)}%
+            </span>
+          )}
+          <Icon name="chart" className="h-4 w-4 text-onbrand/80" />
+        </span>
+      </div>
+      <div className="mt-1.5 text-[30px] font-semibold leading-none tracking-tight tabular-nums text-onbrand">
+        {gs(total)}
+      </div>
+      <div className="mt-2 text-[11.5px] text-onbrand/75">
+        {etiqueta} · período anterior {gs(totalAnt)}
+      </div>
+
+      <div className="mt-4 rounded-xl bg-onbrand/10 p-3.5">
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-wider text-onbrand/70">Cobrado</div>
+            <div className="text-xl font-semibold tabular-nums text-onbrand">{gs(cobrado)}</div>
+            <div className="text-[11px] text-onbrand/70">
+              {pagadas} {pagadas === 1 ? 'pagada' : 'pagadas'}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onPendientes}
+            disabled={sinPagar === 0}
+            title={sinPagar === 0 ? 'No hay ventas pendientes' : 'Ver los pendientes en el detalle'}
+            className="rounded-lg text-right transition disabled:cursor-default disabled:opacity-70"
+          >
+            <div className="flex items-center justify-end gap-1 text-[11px] font-medium uppercase tracking-wider text-onbrand/70">
+              Pendiente
+              <Icon name="chevron" className="h-3 w-3 rotate-180" />
+            </div>
+            <div className="text-xl font-semibold tabular-nums text-onbrand">{gs(pendiente)}</div>
+            <div className="text-[11px] text-onbrand/70">
+              {sinPagar} {sinPagar === 1 ? 'pendiente' : 'pendientes'}
+            </div>
+          </button>
+        </div>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-onbrand/20">
+          <div className="h-full rounded-full bg-onbrand" style={{ width: `${pctCobrado}%` }} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Accesos rápidos del resumen: las acciones que el dueño usa a diario.
+function AccesosRapidos({ onIr, onImprimir }) {
+  return (
+    <Card className="flex h-full flex-col gap-3 p-4">
+      <h2 className="text-sm font-semibold">Accesos rápidos</h2>
+      <div className="grid flex-1 grid-cols-2 gap-2 lg:grid-cols-1">
+        {ACCIONES.map((accion) => (
+          <button
+            key={accion.label}
+            type="button"
+            onClick={() => onIr(accion.ruta)}
+            className="flex min-w-0 items-center gap-2.5 rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2.5 text-left text-sm font-medium text-fore transition hover:border-fono/50"
+          >
+            <Icon name={accion.icon} className="h-4 w-4 shrink-0 text-fono-light" />
+            <span className="min-w-0 flex-1 truncate">{accion.label}</span>
+          </button>
+        ))}
+      </div>
+      <Button variant="outline" className="h-9 px-3 text-xs font-medium" onClick={onImprimir}>
+        <Icon name="printer" className="h-4 w-4" />
+        Imprimir resumen
+      </Button>
+    </Card>
+  )
+}
+
+// Métrica secundaria: mismo lenguaje que las tarjetas, un escalón abajo del
+// facturado (que vive en el hero).
+function Metrica({ label, valor, delta, sub, tono = 'blue' }) {
   const sube = typeof delta === 'number' && delta >= 0
   const barra = { blue: 'bg-fono', green: 'bg-ok', red: 'bg-bad' }[tono]
   return (
-    <div className="border-b border-ink-600 p-5 last:border-b-0 lg:border-b-0">
-      <div className="text-sm text-mute">{label}</div>
-      <div className="mt-1.5 flex items-center gap-2.5">
-        <span className="text-2xl font-semibold tracking-tight">{valor}</span>
+    <Card className="p-4">
+      <div className="text-[11px] font-medium uppercase tracking-wider text-mute">{label}</div>
+      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+        <span className="text-2xl font-semibold tracking-tight tabular-nums">{valor}</span>
         {typeof delta === 'number' ? (
           <span
             className={cn(
@@ -60,18 +205,7 @@ function Metrica({ label, valor, delta, sub, tono = 'blue', accion }) {
         )}
       </div>
       {sub && <div className="mt-1.5 text-xs text-mute">{sub}</div>}
-      {accion && (
-        <Button
-          type="button"
-          variant="ghost"
-          className="mt-2 h-auto px-2 py-1 text-xs font-medium"
-          onClick={accion.onClick}
-        >
-          {accion.label}
-          <Icon name="chevron" className="h-3 w-3 rotate-180" />
-        </Button>
-      )}
-    </div>
+    </Card>
   )
 }
 
@@ -142,7 +276,6 @@ export default function Resumen() {
     .slice(0, 8)
 
   const pctCobrado = d.total > 0 ? (d.cobrado / d.total) * 100 : 0
-  const pctPendiente = Math.max(0, 100 - pctCobrado)
 
   // Applies the "Pendientes" filter on the sales list and brings it into view.
   function irAPendientes() {
@@ -150,72 +283,41 @@ export default function Resumen() {
     setTimeout(() => listaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
   }
 
-  const pendientes = pendientesHoy && (pendientesHoy.reservas > 0 || pendientesHoy.garantias > 0 || pendientesHoy.cuotas > 0)
   return (
     <div className="space-y-5">
-      {pendientes && (
-        <Card className="border-warn/30 bg-warn/5">
-          <h2 className="font-semibold text-warn">Pendientes de hoy</h2>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            {pendientesHoy.reservas > 0 && <div className="rounded-xl border border-ink-600 p-3"><p className="text-xl font-bold tabular-nums text-warn">{pendientesHoy.reservas}</p><p className="text-xs text-mute">Reservas por vencer (próximas 24 h)</p></div>}
-            {pendientesHoy.garantias > 0 && <div className="rounded-xl border border-ink-600 p-3"><p className="text-xl font-bold tabular-nums text-bad">{pendientesHoy.garantias}</p><p className="text-xs text-mute">Garantías vencidas sin entregar</p></div>}
-            {pendientesHoy.cuotas > 0 && <div className="rounded-xl border border-ink-600 p-3"><p className="text-xl font-bold tabular-nums text-bad">{pendientesHoy.cuotas}</p><p className="text-xs text-mute">Cuotas vencidas por cobrar</p></div>}
-          </div>
-        </Card>
-      )}
+      <PendientesDeHoy pendientes={pendientesHoy} onIr={navigate} />
+
       {/* ── Encabezado + período ─────────────────────────────────── */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-mute">
-            Acá ves el movimiento de la tienda en el período elegido.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {ACCIONES.map(a => (
-            <Button
-              key={a.label}
-              variant="outline"
-              className="h-9 px-3 text-xs font-medium"
-              onClick={() => navigate(a.ruta)}
-            >
-              <Icon name={a.icon} className="h-4 w-4" />
-              {a.label}
-            </Button>
-          ))}
-          <Button
-            variant="outline"
-            className="h-9 px-3 text-xs font-medium"
-            onClick={irAPendientes}
-          >
-            <Icon name="receipt" className="h-4 w-4" />
-            Cobrar pendientes
-          </Button>
-          <Button
-            variant="outline"
-            className="h-9 px-3 text-xs font-medium"
-            onClick={() => setResumenOpen(true)}
-          >
-            <Icon name="printer" className="h-4 w-4" />
-            Imprimir resumen
-          </Button>
-          <RangoFechas valor={rango} onChange={cambiarRango} />
-        </div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <p className="min-w-0 text-sm text-mute">
+          Acá ves el movimiento de la tienda en el período elegido.
+        </p>
+        <RangoFechas valor={rango} onChange={cambiarRango} />
       </div>
 
-      {/* ── Métricas (fila con divisores) ────────────────────────── */}
-      <div className="grid grid-cols-2 divide-ink-600 rounded-xl border border-ink-600 bg-ink-800 lg:grid-cols-4 lg:divide-x">
-        <Metrica
-          label="Facturado"
-          valor={gs(d.total)}
-          delta={variacion(d.total, d.totalAnt)}
-          sub={`Período anterior ${gs(d.totalAnt)}`}
+      {/* ── Facturado (hero) + accesos rápidos ───────────────────── */}
+      <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
+        <CardFacturado
+          total={d.total}
+          totalAnt={d.totalAnt}
+          cobrado={d.cobrado}
+          pendiente={d.pendiente}
+          pagadas={d.pagadas}
+          sinPagar={d.sinPagar}
+          pctCobrado={pctCobrado}
+          etiqueta={etiquetaRango(rango)}
+          onPendientes={irAPendientes}
         />
+        <AccesosRapidos onIr={navigate} onImprimir={() => setResumenOpen(true)} />
+      </div>
+
+      {/* ── Métricas del período ─────────────────────────────────── */}
+      <div className="grid gap-4 sm:grid-cols-3">
         <Metrica
           label="Ventas"
           valor={d.act.length}
           tono="blue"
           sub={`${d.pagadas} pagadas · ${d.sinPagar} pendientes`}
-          accion={{ label: 'Ver pedidos', onClick: () => navigate('/pedidos') }}
         />
         <Metrica
           label="Ticket promedio"
@@ -277,55 +379,6 @@ export default function Resumen() {
           </div>
         </Card>
       )}
-
-      {/* ── Cobrado vs pendiente ─────────────────────────────────── */}
-      <Card>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-medium">Cobrado vs pendiente</h2>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Badge color="green">{d.pagadas} pagadas</Badge>
-            <Badge color="red">{d.sinPagar} pendientes</Badge>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-x-10 gap-y-3">
-          <div className="flex items-center gap-2.5">
-            <Dot color="green" />
-            <div>
-              <div className="text-xs text-mute">Cobrado</div>
-              <div className="text-xl font-semibold tracking-tight text-ok tabular-nums">
-                {gs(d.cobrado)}
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={irAPendientes}
-            disabled={d.sinPagar === 0}
-            title={d.sinPagar === 0 ? 'No hay ventas pendientes' : 'Ver pendientes en el detalle'}
-            className="group flex items-center gap-2.5 rounded-lg text-left transition disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Dot color="red" />
-            <div>
-              <div className="flex items-center gap-1 text-xs text-mute">
-                Pendiente
-                <Icon
-                  name="chevron"
-                  className="h-3 w-3 rotate-180 transition group-hover:translate-x-0.5"
-                />
-              </div>
-              <div className="text-xl font-semibold tracking-tight text-bad tabular-nums">
-                {gs(d.pendiente)}
-              </div>
-            </div>
-          </button>
-        </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-ink-600">
-          <div className="flex h-full">
-            <div className="bg-ok" style={{ width: `${pctCobrado}%` }} />
-            <div className="bg-bad" style={{ width: `${pctPendiente}%` }} />
-          </div>
-        </div>
-      </Card>
 
       <div className="grid grid-cols-1 gap-4 min-[1200px]:grid-cols-3">
         {/* ── Evolución diaria ───────────────────────────────────── */}

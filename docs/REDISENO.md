@@ -88,6 +88,26 @@ no está ruteado y su cuerpo repite la identidad de tienda/persona; en
 global; `Celulares`, `Comparador` y `TradeIn` (internas del dueño) conservan
 cabecera propia fuera del shell; `.mobos-topbar` en `index.css` no se usa.
 
+### Lote 2 — Resumen (implementado 21-09-2026)
+
+- **Jerarquía de métricas:** el facturado del período es el número principal, en
+  la tarjeta verde con la estética del total de venta de `/pos/cargar`, con la
+  variación contra el período anterior; adentro vive el cobrado vs pendiente con
+  su barra y el acceso a los pendientes del detalle.
+- **Métricas secundarias** (Ventas, Ticket promedio, Comisiones) en una fila de
+  tarjetas, un escalón abajo del facturado.
+- **Pendientes de hoy** arriba de todo y en formato accionable: cada pendiente
+  lleva a su pantalla (reservas, garantías, cuotas); con todo al día se muestra
+  el estado en verde en lugar de desaparecer.
+- **Accesos rápidos** en tarjeta propia junto al facturado (Cargar venta, Nueva
+  compra, Abrir caja, Ver pedidos); el período queda al lado del encabezado y
+  “Imprimir resumen” vive en esa tarjeta.
+- Se retira la tarjeta “Cobrado vs pendiente” duplicada (su contenido pasó al
+  hero) y el enlace suelto “Ver pedidos”.
+- Sin cambios de lógica, permisos ni datos: mismos cálculos (`armarResumenDia`),
+  mismas llamadas y mismas rutas; solo presentación.
+
+
 ## Criterios de aceptación por lote
 - Sin scroll horizontal en 360px/768px/1440px.
 - Sin acciones importantes fuera del viewport inicial.
