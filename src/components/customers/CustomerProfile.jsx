@@ -731,20 +731,6 @@ export default function CustomerProfile({ customer, open, onClose }) {
     }
   }
 
-  async function solicitarMayorista() {
-    if (requestBusy) return
-    setRequestBusy(true)
-    try {
-      await api.post('/api/authorizations', { customerId: customer.id, kind: 'WHOLESALE' })
-      toast.success('Solicitud enviada', 'Administración la revisará y resolverá.')
-      refresh()
-    } catch (cause) {
-      toast.error('No se pudo enviar la solicitud', cause?.message)
-    } finally {
-      setRequestBusy(false)
-    }
-  }
-
   function abrirSolicitud(kind) {
     setRequestForm({
       creditLimitPyg: kind === 'CREDIT' ? (profile?.customer?.creditLimitPyg ?? '') : '',
@@ -1010,7 +996,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 <Badge color={deuda > 0 ? 'red' : 'green'}>{deuda > 0 ? 'Deuda' : 'Al día'}</Badge>
               </div>
             </div>
-            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+            <div className={cn('rounded-xl border p-3', ordenesActivas > 0 ? 'border-fono/40 bg-fono/5' : 'border-ink-600 bg-ink-800')}>
               <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Órdenes activas</p>
               <p className="mt-1 text-lg font-semibold text-fore">{ordenesActivas}</p>
             </div>
@@ -1071,9 +1057,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
               </div>
               <span className="flex flex-wrap gap-2">
                 {!mayorista && !hayPendiente('WHOLESALE') && (
-                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={solicitarMayorista} disabled={requestBusy}>
+                  <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => setSolicitud('WHOLESALE')}>
                     <Icon name="tag" className="h-4 w-4" />
-                    {requestBusy ? 'Enviando…' : 'Solicitar mayorista'}
+                    Solicitar mayorista
                   </Button>
                 )}
                 {!creditoHabilitado && !hayPendiente('CREDIT') && (
