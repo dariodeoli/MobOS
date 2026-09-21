@@ -1,0 +1,26 @@
+{
+  "demo": {
+    "seedVisible": false,
+    "apiReal": []
+  },
+  "publicos": {
+    "cuenta": {
+      "generico": true
+    },
+    "vitrina": {
+      "generico": true
+    },
+    "garantia": {
+      "generico": true
+    }
+  },
+  "api": {
+    "portal": 404,
+    "vitrina": 404,
+    "garantia": 404
+  },
+  "pendienteDeploy": true,
+  "hallazgos": [
+    "El demo completo (#194) todavía no está deployado: la lista de Clientes en producción está vacía y no muestra los seeds ficticios."
+  ]
+}
