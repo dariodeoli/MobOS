@@ -171,72 +171,51 @@ function itemsGuardados(valor) {
     }))
 }
 
-// Cierre del panel de la venta: cómo viene el día del vendedor. Es contexto
-// para decidir la próxima venta, no parte del cobro, así que va después del
-// botón de guardar.
-function ResumenDia({ dia }) {
-  if (!dia) return null
-  return (
-    <section className="overflow-hidden rounded-2xl border border-ink-600 bg-ink-800">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-600 bg-ink-700/50 px-4 py-2.5">
-        <span className="text-xs font-bold uppercase tracking-wider text-mute">Tu día</span>
-        <span className="text-xs text-mute">
-          {dia.cant} {dia.cant === 1 ? 'venta' : 'ventas'} · {gs(dia.total)}
-        </span>
-      </div>
-      <div className="grid grid-cols-2 divide-x divide-ink-600">
-        <div className="min-w-0 p-3">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-mute">Cobrado</div>
-          <div className="mt-0.5 truncate text-base font-semibold tracking-tight text-ok tabular-nums">
-            {gs(dia.cobrado)}
-          </div>
-          <div className="mt-0.5 text-[11px] text-mute">
-            {dia.pagadas} {dia.pagadas === 1 ? 'pagada' : 'pagadas'}
-          </div>
-        </div>
-        <div className="min-w-0 p-3">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-mute">Pendiente</div>
-          <div className="mt-0.5 truncate text-base font-semibold tracking-tight text-bad tabular-nums">
-            {gs(dia.pendiente)}
-          </div>
-          <div className="mt-0.5 text-[11px] text-mute">
-            {dia.pendientes} {dia.pendientes === 1 ? 'pendiente' : 'pendientes'}
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// Resumen siempre a la vista de la venta en curso: es el ancla del vendedor
-// mientras arma el carrito y cobra. No repite la lista (esa vive en el paso 3).
-function ResumenVenta({ totalGeneral, items, unidades, montoDescuento, montoDelivery }) {
+// Resumen fijo de la venta: total, cantidades, ajustes y el día del vendedor en
+// una tira compacta que cruza las dos columnas en desktop. En pantallas
+// angostas queda al pie (después del cobro) y la barra superior sigue siendo el
+// acceso rápido al carrito.
+function ResumenVenta({ totalGeneral, items, unidades, montoDescuento, montoDelivery, dia }) {
   return (
     <section
       data-testid="resumen-compra"
-      className="rounded-2xl border border-fono/30 bg-ink-800 p-4"
+      className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-fono/30 bg-ink-800 px-4 py-3 shadow-lg shadow-black/10"
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-[11px] font-bold uppercase tracking-wider text-mute">
           Total de esta venta
         </span>
-        <Icon name="cart" className="h-4 w-4 text-fono-light" />
+        <span className="text-2xl font-extrabold tracking-tight tabular-nums text-fore">
+          {gs(totalGeneral)}
+        </span>
+        <span className="text-xs text-mute">
+          {items.length} {items.length === 1 ? 'producto' : 'productos'} · {unidades}{' '}
+          {unidades === 1 ? 'unidad' : 'unidades'}
+        </span>
       </div>
-      <div className="mt-1 text-2xl font-extrabold tracking-tight tabular-nums text-fore">
-        {gs(totalGeneral)}
-      </div>
-      <p className="mt-1 text-xs text-mute">
-        {items.length} {items.length === 1 ? 'producto' : 'productos'} · {unidades}{' '}
-        {unidades === 1 ? 'unidad' : 'unidades'}
-      </p>
-      {items.length === 0 && (
-        <p className="mt-2 text-xs text-mute">Agregá productos para empezar la venta.</p>
-      )}
       {montoDescuento > 0 && (
-        <p className="mt-0.5 text-xs text-warn">Descuento − {gs(montoDescuento)}</p>
+        <span className="text-xs font-semibold text-warn">Descuento − {gs(montoDescuento)}</span>
       )}
       {montoDelivery > 0 && (
-        <p className="mt-0.5 text-xs text-mute">Entrega + {gs(montoDelivery)}</p>
+        <span className="text-xs text-mute">Entrega + {gs(montoDelivery)}</span>
+      )}
+      {items.length === 0 && (
+        <span className="text-xs text-mute">Agregá productos para empezar la venta.</span>
+      )}
+      {dia && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs lg:ml-auto">
+          <span className="font-bold uppercase tracking-wider text-mute">Tu día</span>
+          <span className="text-mute">
+            {dia.cant} {dia.cant === 1 ? 'venta' : 'ventas'} ·{' '}
+            <b className="tabular-nums text-fore">{gs(dia.total)}</b>
+          </span>
+          <span className="text-mute">
+            Cobrado <b className="tabular-nums text-ok">{gs(dia.cobrado)}</b>
+          </span>
+          <span className="text-mute">
+            Pendiente <b className="tabular-nums text-bad">{gs(dia.pendiente)}</b>
+          </span>
+        </div>
       )}
     </section>
   )
@@ -1387,7 +1366,7 @@ export default function FormularioVenta({
   })
 
   return (
-    <Card>
+    <Card className="p-4 md:p-5">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 border-b border-ink-600 pb-4">
         <div className="flex items-center gap-2">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-fono/10 text-fono-light">
@@ -1486,20 +1465,36 @@ export default function FormularioVenta({
           if (!(target instanceof HTMLElement)) return
           if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.tagName === 'SELECT' || target.tagName === 'A') return
         }}
-        className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] xl:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]"
+        className="flex flex-col gap-4"
       >
         {errorVenta && (
           <p
             role="alert"
-            className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-3 text-sm text-bad lg:col-span-2"
+            className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-2.5 text-sm text-bad"
           >
             {errorVenta}
           </p>
         )}
 
-        {/* ── Columna principal: el flujo completo (cliente, productos,
-            carrito y cobro) en orden de lectura ─────────────────────────── */}
-        <div className="flex min-w-0 flex-col gap-5">
+        {/* Resumen fijo: cruza las dos columnas en desktop y queda al pie en
+            pantallas angostas (ahí la barra superior es el acceso rápido). */}
+        <div
+          data-testid="resumen-columna"
+          className="order-last z-10 lg:order-first lg:sticky lg:top-24"
+        >
+          <ResumenVenta
+            totalGeneral={totalGeneral}
+            items={items}
+            unidades={cantTotal}
+            montoDescuento={gsNum(descuento)}
+            montoDelivery={gsNum(f.montoDelivery)}
+            dia={resumenDia}
+          />
+        </div>
+
+        {/* Operación (cliente, productos y lista de la venta) | cobro y entrega. */}
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
+        <div className="flex min-w-0 flex-col gap-4">
           <PasoProductos
             sesion={sesion}
             esDemo={esDemo}
@@ -1561,9 +1556,20 @@ export default function FormularioVenta({
             setF={setF}
           />
 
+          {/* Atajos al pie de la operación (en pantallas angostas no se muestran). */}
+          <div className="hidden items-center gap-x-4 gap-y-1.5 text-[11px] text-mute md:flex">
+            <span className="font-semibold uppercase tracking-wider text-mute/60">Atajos</span>
+            <Atajo k="F2" label="Buscar producto" />
+            <Atajo k="Ctrl+S" label="Guardar venta" />
+            <Atajo k="Esc" label="Cerrar ventana" />
+          </div>
+        </div>
+
+        {/* Cobro y entrega: la otra mitad de la pantalla en desktop. */}
+        <div className="flex min-w-0 flex-col gap-4">
           {/* Pedido especial con seña: solo marca el pedido y su fecha esperada;
               las reglas de cobro no cambian (la seña es un pago parcial). */}
-          <div className="rounded-2xl border border-warn/30 bg-warn/5 p-4">
+          <div className="rounded-2xl border border-warn/30 bg-warn/5 p-3.5">
             <label className="flex items-start gap-2 text-sm">
               <input
                 type="checkbox"
@@ -1626,37 +1632,7 @@ export default function FormularioVenta({
             cantTotal={cantTotal}
             ok={ok}
           />
-
-          {/* Atajos y ayuda al pie del flujo, sin cortar los pasos. */}
-          <div className="hidden items-center gap-x-4 gap-y-1.5 text-[11px] text-mute md:flex">
-            <span className="font-semibold uppercase tracking-wider text-mute/60">Atajos</span>
-            <Atajo k="F2" label="Buscar producto" />
-            <Atajo k="Ctrl+S" label="Guardar venta" />
-            <Atajo k="Esc" label="Cerrar ventana" />
-          </div>
-
-          <p className="flex gap-2.5 rounded-[14px] border border-fono/25 bg-fono/[.07] p-4 text-xs leading-relaxed text-mute">
-            <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0 text-fono-light" />
-            <span>
-              Cargá el cliente y agregá los productos: el total y la lista se arman solos. Antes
-              de guardar, revisá el carrito para cobrar todo junto.
-            </span>
-          </p>
         </div>
-
-        {/* ── Resumen fijo: el total de la venta y el día del vendedor ────── */}
-        <div
-          data-testid="resumen-columna"
-          className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24"
-        >
-          <ResumenVenta
-            totalGeneral={totalGeneral}
-            items={items}
-            unidades={cantTotal}
-            montoDescuento={gsNum(descuento)}
-            montoDelivery={gsNum(f.montoDelivery)}
-          />
-          <ResumenDia dia={resumenDia} />
         </div>
       </form>
 

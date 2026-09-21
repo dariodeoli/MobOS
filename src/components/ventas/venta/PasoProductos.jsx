@@ -52,7 +52,7 @@ export default function PasoProductos({
 
   return (
     <>
-      <section className="rounded-2xl border border-ink-600 bg-ink-800 p-4">
+      <section className="rounded-2xl border border-ink-600 bg-ink-800 p-3.5">
         <EncabezadoBloque
           titulo="Cliente"
           descripcion="Buscá la ficha por nombre, teléfono, CI o RUC; si no existe, se crea al confirmar."
@@ -91,7 +91,7 @@ export default function PasoProductos({
         />
       </section>
 
-      <section className="rounded-2xl border border-fono/20 bg-fono/[.04] p-4">
+      <section className="rounded-2xl border border-fono/20 bg-fono/[.04] p-3.5">
         <EncabezadoBloque
           titulo="Productos"
           descripcion="Buscá por nombre, modelo o variante y hacé clic para sumarlo a la venta."

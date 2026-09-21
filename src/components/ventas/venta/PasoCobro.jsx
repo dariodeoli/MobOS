@@ -43,7 +43,7 @@ export default function PasoCobro({
   ok,
 }) {
   return (
-    <section className="space-y-4 rounded-2xl border border-ink-600 bg-ink-800 p-4">
+    <section className="space-y-3.5 rounded-2xl border border-ink-600 bg-ink-800 p-3.5">
       <EncabezadoBloque
         titulo="Cobro y entrega"
         descripcion="Dividí el cobro entre cuentas, elegí la entrega y guardá la venta."
@@ -102,7 +102,7 @@ export default function PasoCobro({
       )}
 
       {/* Pagos parciales y combinados */}
-      <div className="space-y-3 rounded-2xl border border-fono/30 bg-gradient-to-br from-fono/[.08] to-transparent p-4">
+      <div className="space-y-3 rounded-2xl border border-fono/30 bg-gradient-to-br from-fono/[.08] to-transparent p-3.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-mute">
