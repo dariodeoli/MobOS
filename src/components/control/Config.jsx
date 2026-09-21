@@ -51,9 +51,12 @@ async function copiarValor(toast, valor, etiqueta) {
 
 
 export default function Config({ seccion = 'negocio' } = {}) {
-  const { sesion, empresa, sucursal, perfilEmpresa, actualizarEmpresa } = useSesion()
+  const { sesion, empresa, sucursal, perfilEmpresa, actualizarEmpresa, esDemo } = useSesion()
   const toast = useToast()
   const esDueno = sesion?.esPropietario
+  // En la demo no hay sesión real: los ajustes que van contra la API se
+  // deshabilitan con una nota en lugar de fallar con "Falta sesión" (#188).
+  const demo = Boolean(esDemo)
   const [account, setAccount] = useState(null)
   const [logos, setLogos] = useState({ light: '', dark: '' })
   const [logoError, setLogoError] = useState('')
@@ -183,7 +186,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   // Seguro de ventas de la empresa (#162): % sobre el costo que se suma al
   // costo real de cada venta nueva y afecta el margen.
   async function guardarSeguro() {
-    if (busy) return
+    if (busy || demo) return
     setBusy(true); setFailure(''); setNotice('')
     try {
       const data = await api.patch('/api/account', { action: 'updateLimits', insurancePct: seguroPct.trim() === '' ? null : Number(seguroPct) })
@@ -203,7 +206,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   }
 
   async function guardarLimites() {
-    if (busy) return
+    if (busy || demo) return
     const gasto = Number(limiteGasto)
     const compra = Number(limiteCompra)
     const bajoLista = parsePercent(limiteBajoLista)
@@ -243,6 +246,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
           <div>
             <h2 className="font-semibold">Límites de autorización</h2>
             <p className="mt-1 text-sm text-mute">Por encima de estos montos, los roles operativos (cajera, vendedor) necesitan una autorización aprobada de gerencia para registrar un gasto o una compra a crédito. La venta bajo lista hasta el porcentaje indicado no pide autorización; más abajo, sí. El dueño y gerencia no la necesitan. La fidelización acredita al cliente, por cada venta, el porcentaje indicado del total como puntos canjeables por saldo a favor (1 punto = 1 Gs.); 0 la apaga.</p>
+            {demo && <p className="mt-1 rounded-lg border border-warn/30 bg-warn/5 px-3 py-2 text-xs text-warn">En la demo no se guardan los límites ni el seguro: se configuran con tu cuenta real.</p>}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField label="Gasto sin autorización (Gs.)" htmlFor="limite-gasto">
@@ -262,15 +266,15 @@ export default function Config({ seccion = 'negocio' } = {}) {
             </FormField>
           </div>
           <div className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600/70 bg-ink-800/30 p-3">
-            <span className="flex items-center gap-2 text-sm"><Toggle id="seguro-toggle" checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(on) => setSeguroPct(on ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} label="Aplica seguro" /><span>Seguro de ventas</span></span>
+            <span className="flex items-center gap-2 text-sm"><Toggle id="seguro-toggle" disabled={demo} checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(on) => setSeguroPct(on ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} label="Aplica seguro" /><span>Seguro de ventas</span></span>
             <FormField label="Porcentaje sobre el costo (%)" htmlFor="seguro-pct" hint="Costo real = costo + seguro. Ej.: costo 100.000 y 25% → 125.000; el margen baja en 25.000.">
-              <PercentField id="seguro-pct" max={100} disabled={busy || seguroPct.trim() === ''} value={seguroPct} onChange={setSeguroPct} placeholder="25" />
+              <PercentField id="seguro-pct" max={100} disabled={busy || demo || seguroPct.trim() === ''} value={seguroPct} onChange={setSeguroPct} placeholder="25" />
             </FormField>
-            <Button type="button" variant="outline" disabled={busy} onClick={guardarSeguro}>Guardar seguro</Button>
+            <Button type="button" variant="outline" disabled={busy || demo} onClick={guardarSeguro}>Guardar seguro</Button>
             <p className="text-xs text-mute">Se aplica a las ventas nuevas; el producto o la categoría pueden tener su propio porcentaje.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === '' || limiteFidelizacion === ''} onClick={guardarLimites}>Guardar límites</Button>
+            <Button type="button" disabled={demo || busy || !limiteGasto || !limiteCompra || limiteBajoLista === '' || limiteFidelizacion === ''} onClick={guardarLimites}>Guardar límites</Button>
             <p className="text-xs text-mute">Actual: gasto {formatGs(account?.tenant?.expenseLimitPyg ?? 1000000)} · compra a crédito {formatGs(account?.tenant?.purchaseCreditLimitPyg ?? 5000000)} · bajo lista {account?.tenant?.belowListPct ?? 10}% · fidelización {account?.tenant?.loyaltyPct ?? 0}% · mora {account?.tenant?.collectionLateFeeBpPerDay ? `${account.tenant.collectionLateFeeBpPerDay / 100}% diario` : 'sin recargo'}.</p>
           </div>
         </Card>}

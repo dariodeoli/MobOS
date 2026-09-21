@@ -34,7 +34,9 @@
 
 ## Hallazgos
 
-### 1. (Funcional · demo) El seguro de ventas se puede configurar, pero guardar falla con "Falta sesión"
+### 1. (Funcional · demo) El seguro de ventas se puede configurar, pero guardar falla con "Falta sesión" — **Corregido en #188**
+
+- **Fix:** en demo el toggle, el porcentaje y "Guardar seguro" quedan deshabilitados con la nota "En la demo no se guardan los límites ni el seguro: se configuran con tu cuenta real." (mismo criterio para "Guardar límites"). Prueba: `e2e/demo-finanzas.spec.js`.
 
 - **Pasos:** `/demo` → Dueño → Configuración → Negocio → activar *Seguro de
   ventas* (propone 25%) → **Guardar seguro**.
@@ -45,7 +47,7 @@
   local, sin invitar a una acción que siempre falla.
 - **Severidad:** baja (solo demo). **Capturas:** `21`, `22`, `23`.
 
-### 2. (Visual · demo) La caja demo arranca "Abierta" pero dice "Sin apertura"
+### 2. (Visual · demo) La caja demo arranca "Abierta" pero dice "Sin apertura" — **Corregido en #188**
 
 - **Pasos:** `/demo` → Dueño → Finanzas → Caja.
 - **Observado:** Estado **Abierta** con la leyenda **Sin apertura**; el saldo
@@ -55,6 +57,10 @@
   `openedAt` es nulo.
 - **Esperado:** coherencia entre estado, leyenda y saldo (por ejemplo,
   `openedAt` con la fecha de la demo).
+- **Fix (#188):** `src/lib/demoCash.js` normaliza la apertura (inicio del día)
+  al leer una caja `OPEN` sin `openedAt` —también los datos ya guardados en el
+  navegador— sin inventarla para cajas cerradas; los tests de
+  `demoCash.test.js` fijan la coherencia y el esperado con la apertura.
 - **Severidad:** baja (solo demo). **Captura:** `19`.
 
 ### 3. (Cobertura · funcional) Conciliación no se puede recorrer en la demo
