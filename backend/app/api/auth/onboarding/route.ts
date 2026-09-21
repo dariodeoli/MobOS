@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '../../../../lib/prisma'
 import { authRequestMetadata, requireCompanySession } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
+import { pinValido } from '../../../../lib/pin'
 
 function pendingOnboarding(settings: unknown) {
   return !!settings && typeof settings === 'object' && !Array.isArray(settings)
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
   if (!company) return error('Sesión de empresa inválida o expirada.', 401)
   const body = await request.json().catch(() => null)
   const pin = typeof body?.pin === 'string' ? body.pin : ''
-  if (!/^\d{4}$/.test(pin)) return error('Elegí un PIN de exactamente 4 dígitos.', 400)
+  if (!pinValido(pin)) return error('Elegí un PIN de 4 a 6 dígitos.', 400)
 
   const result = await prisma.$transaction(async tx => {
     const tenant = await tx.tenant.findUnique({ where: { id: company.tenantId }, select: { id: true, settings: true } })
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
     const admin = await tx.user.findFirst({ where: { tenantId: tenant.id, role: 'ADMIN', status: 'ACTIVE' }, orderBy: { createdAt: 'asc' }, select: { id: true } })
     if (!admin) throw new Error('ADMIN_MISSING')
     const settings = tenant.settings as Record<string, any>
-    const updated = await tx.user.update({ where: { id: admin.id }, data: { pinHash: await bcrypt.hash(pin, 12), failedLoginAttempts: 0, lockedUntil: null }, select: { id: true, name: true, branchId: true } })
+    const updated = await tx.user.update({ where: { id: admin.id }, data: { pinHash: await bcrypt.hash(pin, 12), pinLength: pin.length, failedLoginAttempts: 0, lockedUntil: null }, select: { id: true, name: true, branchId: true, pinLength: true } })
     await tx.tenant.update({ where: { id: tenant.id }, data: { settings: { ...settings, onboarding: { ...(settings.onboarding || {}), adminPinPending: false, completedAt: new Date().toISOString() } } } })
     await tx.auditLog.create({ data: { tenantId: tenant.id, userId: admin.id, action: 'ONBOARDING_ADMIN_PIN_CONFIGURED', entity: 'Tenant', entityId: tenant.id, metadata: authRequestMetadata(request) } })
     return updated

@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import { Prisma } from '@prisma/client'
 import { authRequestMetadata, effectivePermissions, requireSession } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
+import { pinValido } from '../../../../lib/pin'
 import { prisma } from '../../../../lib/prisma'
 
 // Aceptación autenticada por id de invitación (sin token crudo). El usuario
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   const id = typeof body?.id === 'string' ? body.id.trim() : ''
   const pin = typeof body?.pin === 'string' ? body.pin : ''
   const deviceId = typeof body?.deviceId === 'string' ? body.deviceId.trim() : ''
-  if (!id || !/^\d{4}$/.test(pin)) return error(INVALID_MESSAGE, 400)
+  if (!id || !pinValido(pin)) return error(INVALID_MESSAGE, 400)
   if (deviceId && deviceId.length > 200) return error(INVALID_MESSAGE, 400)
   const email = (await prisma.user.findUnique({ where: { id: session.user.id }, select: { email: true } }))?.email?.trim().toLowerCase() ?? ''
   if (!email) return error(INVALID_MESSAGE, 410)
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
       if (!consumed.count) throw new Error('INVITATION_UNAVAILABLE')
       await tx.emailOutbox.updateMany({ where: { aggregateType: 'UserInvitation', aggregateId: invitation.id, sentAt: null }, data: { cancelledAt: now, lockedAt: null, recipient: '', payload: '' } })
       if (invitation.branchId && !await tx.branch.findFirst({ where: { id: invitation.branchId, tenantId: invitation.tenantId, isActive: true }, select: { id: true } })) throw new Error('INVITATION_UNAVAILABLE')
-      const user = await tx.user.create({ data: { tenantId: invitation.tenantId, email: invitation.email, name: invitation.name, role: invitation.role, branchId: invitation.branchId, permissions: invitation.permissions ?? undefined, pinHash } })
+      const user = await tx.user.create({ data: { tenantId: invitation.tenantId, email: invitation.email, name: invitation.name, role: invitation.role, branchId: invitation.branchId, permissions: invitation.permissions ?? undefined, pinHash, pinLength: pin.length } })
       await tx.auditLog.create({ data: { tenantId: invitation.tenantId, userId: user.id, action: 'USER_INVITATION_ACCEPTED', entity: 'UserInvitation', entityId: invitation.id, metadata: { ...authRequestMetadata(request) } } })
       return user
     })

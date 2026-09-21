@@ -690,7 +690,7 @@ function SeccionInvitaciones() {
 
   async function aceptar(event) {
     event.preventDefault(); setError('')
-    if (!/^\d{4}$/.test(pin)) return setError('Elegí un PIN de exactamente 4 dígitos.')
+    if (!/^\d{4,6}$/.test(pin)) return setError('Elegí un PIN de 4 a 6 dígitos.')
     if (!elegida) return
     setBusy(true)
     try {
@@ -726,10 +726,10 @@ function SeccionInvitaciones() {
       </div>
       <Modal open={elegida !== null} onClose={() => !busy && setElegida(null)} title={`Unite a ${elegida?.companyName || 'la tienda'}`} className="max-w-sm">
         <form onSubmit={aceptar} className="space-y-4">
-          <p className="text-sm text-mute">Elegí tu PIN de 4 dígitos para entrar a esta tienda. Podés usar el mismo que en tu tienda actual.</p>
-          <PinInput autoFocus value={pin} onChange={(next) => { setPin(next); setError('') }} />
+          <p className="text-sm text-mute">Elegí tu PIN de 4 a 6 dígitos para entrar a esta tienda. Podés usar el mismo que en tu tienda actual.</p>
+          <PinInput autoFocus length={6} value={pin} onChange={(next) => { setPin(next); setError('') }} />
           {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
-          <Button type="submit" className="w-full" disabled={busy || pin.length !== 4}>{busy ? 'Aceptando…' : 'Aceptar invitación'}</Button>
+          <Button type="submit" className="w-full" disabled={busy || pin.length < 4}>{busy ? 'Aceptando…' : 'Aceptar invitación'}</Button>
         </form>
       </Modal>
     </Card>

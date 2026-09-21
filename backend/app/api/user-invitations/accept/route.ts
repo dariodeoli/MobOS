@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { authRequestMetadata, createInvitedSellerSession, hashToken } from '../../../../lib/auth'
 import { error, json } from '../../../../lib/http'
+import { pinValido } from '../../../../lib/pin'
 import { COOKIE_SELLER, sessionCookieOptions } from '../../../../lib/google-oauth'
 import { prisma } from '../../../../lib/prisma'
 
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
   const token = typeof body?.token === 'string' ? body.token : ''
   const pin = typeof body?.pin === 'string' ? body.pin : ''
   const deviceId = typeof body?.deviceId === 'string' ? body.deviceId.trim() : ''
-  if (!/^[a-f0-9]{64}$/i.test(token) || !/^\d{4}$/.test(pin) || !deviceId || deviceId.length > 200) return safeInvalid()
+  if (!/^[a-f0-9]{64}$/i.test(token) || !pinValido(pin) || !deviceId || deviceId.length > 200) return safeInvalid()
   const invitation = await prisma.userInvitation.findUnique({ where: { tokenHash: hashToken(`USER_INVITATION:${token}`) } })
   const now = new Date()
   if (!invitation || invitation.consumedAt || invitation.revokedAt || invitation.expiresAt <= now) return safeInvalid()
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
       if (!consumed.count) throw new Error('INVITATION_UNAVAILABLE')
       await tx.emailOutbox.updateMany({ where: { aggregateType: 'UserInvitation', aggregateId: invitation.id, sentAt: null }, data: { cancelledAt: now, lockedAt: null, recipient: '', payload: '' } })
       if (invitation.branchId && !await tx.branch.findFirst({ where: { id: invitation.branchId, tenantId: invitation.tenantId, isActive: true }, select: { id: true } })) throw new Error('INVITATION_UNAVAILABLE')
-      const created = await tx.user.create({ data: { tenantId: invitation.tenantId, email: invitation.email, name: invitation.name, role: invitation.role, branchId: invitation.branchId, permissions: invitation.permissions ?? undefined, pinHash } })
+      const created = await tx.user.create({ data: { tenantId: invitation.tenantId, email: invitation.email, name: invitation.name, role: invitation.role, branchId: invitation.branchId, permissions: invitation.permissions ?? undefined, pinHash, pinLength: pin.length } })
       const session = await createInvitedSellerSession(tx, created, deviceId)
       await tx.auditLog.create({ data: { tenantId: invitation.tenantId, userId: created.id, action: 'USER_INVITATION_ACCEPTED', entity: 'UserInvitation', entityId: invitation.id, metadata: { sessionId: session.sessionId, ...authRequestMetadata(request) } } })
       return { created, session }

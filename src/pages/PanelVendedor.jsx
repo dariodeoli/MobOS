@@ -54,6 +54,7 @@ const Impresoras = lazy(() => import('@/components/control/Impresoras'))
 const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
 const WhatsAppTemplates = lazy(() => import('@/components/control/WhatsAppTemplates'))
 const Precios = lazy(() => import('@/components/control/Precios'))
+const Documentacion = lazy(() => import('@/components/control/Documentacion'))
 
 // Navegación por flujo de trabajo: primero la operación del día, después el
 // catálogo/stock y al final las herramientas de gestión. Los permisos definen
@@ -185,6 +186,7 @@ const SUBPAGINAS = {
       ['precios', 'Listas de precios'],
       ['sucursales', 'Sucursales'],
       ['impresoras', 'Impresoras'],
+      ['documentacion', 'Documentación'],
       ['sistema', 'Estado del sistema'],
     ],
   },
@@ -220,7 +222,7 @@ const GRUPOS_CONFIG = [
   { id: 'personas', label: 'Personas', icon: 'users', tabs: ['equipo', 'identidad', 'roles'] },
   { id: 'negocio', label: 'Negocio', icon: 'store', tabs: ['negocio', 'precios', 'sucursales'] },
   { id: 'seguridad', label: 'Seguridad', icon: 'lock', tabs: ['seguridad', 'historial'] },
-  { id: 'sistema', label: 'Sistema', icon: 'settings', tabs: ['impresoras', 'sistema'] },
+  { id: 'sistema', label: 'Sistema', icon: 'settings', tabs: ['impresoras', 'documentacion', 'sistema'] },
 ]
 
 const SUBPAGINA_DE_TAB = Object.fromEntries(
@@ -249,6 +251,7 @@ const LABELS = {
   sucursales: 'Sucursales',
   seguridad: 'Seguridad',
   impresoras: 'Impresoras',
+  documentacion: 'Documentación',
   sistema: 'Estado del sistema',
   reportes: 'Reportes',
   ganancias: 'Ganancias',
@@ -825,6 +828,7 @@ export default function PanelVendedor() {
               {vista === 'sucursales' && <Config seccion="sucursales" />}
               {vista === 'seguridad' && <Config seccion="seguridad" />}
               {vista === 'impresoras' && <Impresoras />}
+              {vista === 'documentacion' && <Documentacion />}
               {vista === 'sistema' && <EstadoSistema />}
             </div>
           )}
