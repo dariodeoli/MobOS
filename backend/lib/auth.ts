@@ -293,7 +293,25 @@ export async function authenticateCompany(input: LoginInput, request?: Request) 
       return null
     }
     await tx.tenant.update({ where: { id: tenant.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
-    const sellers = await tx.user.findMany({ where: { tenantId: tenant.id, status: 'ACTIVE', ...(branchId ? { branchId } : {}), OR: [{ branchId: null }, { branch: { isActive: true } }] }, select: { id: true, name: true, branchId: true }, orderBy: { name: 'asc' } })
+    // Alcance de sucursal de la sesión de empresa (#137): si el cliente pide
+    // una sucursal, tiene que existir y estar activa en la tienda (fail
+    // closed). La lista de PIN de esa sesión incluye a esa sucursal y al
+    // equipo sin sucursal (dueño/técnico); el resto queda fuera.
+    if (branchId) {
+      const sucursal = await tx.branch.findFirst({ where: { id: branchId, tenantId: tenant.id, isActive: true }, select: { id: true } })
+      if (!sucursal) return null
+    }
+    const sellers = await tx.user.findMany({
+      where: {
+        tenantId: tenant.id,
+        status: 'ACTIVE',
+        ...(branchId
+          ? { OR: [{ branchId }, { branchId: null }] }
+          : { OR: [{ branchId: null }, { branch: { isActive: true } }] }),
+      },
+      select: { id: true, name: true, branchId: true },
+      orderBy: { name: 'asc' },
+    })
     const session = await createSession(tx, tenant.id, null, 'COMPANY', deviceId, branchId)
     await tx.auditLog.create({ data: { tenantId: tenant.id, action: 'COMPANY_SIGNED_IN', entity: 'Session', entityId: session.sessionId, metadata: { branchId, ...auditMetadata } } })
     return { ...session, tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug }, sellers, onboardingRequired: requiresAdminPinSetup(tenant.settings), scope: 'device:company' as const }
@@ -328,23 +346,32 @@ export async function authenticateSeller(request: Request, input: PinInput) {
   // la búsqueda por PIN (loop sobre los usuarios activos de la empresa) se
   // resuelve FUERA de la transacción, y la transacción solo cubre la
   // mutación final releyendo al usuario con FOR UPDATE.
+  // Regla de sucursal del PIN (#137): la sesión de empresa puede estar
+  // acotada a una sucursal; en ese caso entran los usuarios de esa sucursal y
+  // los usuarios SIN sucursal (equipo global). Los de otra sucursal quedan
+  // afuera. Las sucursales inactivas siguen bloqueadas.
   let resolvedId: string | null = null
   if (sellerId) {
     const rows = await prisma.$queryRaw<SellerRow[]>`
       SELECT "id", "tenantId", "name", "role", "branchId", "pinHash", "status", "permissions", "accessSchedule", "failedLoginAttempts", "lockedUntil"
       FROM "User"
       WHERE "id" = ${sellerId} AND "tenantId" = ${parent.tenantId} AND "status" = 'ACTIVE'
-        AND (${parent.branchId}::text IS NULL OR "branchId" = ${parent.branchId})
+        AND (${parent.branchId}::text IS NULL OR "branchId" = ${parent.branchId} OR "branchId" IS NULL)
         AND ("branchId" IS NULL OR EXISTS (SELECT 1 FROM "Branch" b WHERE b."id" = "User"."branchId" AND b."isActive" = true))
     `
     resolvedId = rows[0]?.id ?? null
   } else {
     // El PIN identifica al vendedor: se prueba contra los usuarios activos
-    // de la empresa. Los PINs son únicos por empresa, y ante cualquier
-    // duplicado el acceso se rechaza hasta que el administrador asigne
-    // PINs distintos: nunca se entra con un PIN ambiguo.
+    // de la empresa (o de la sucursal de la sesión más el equipo sin
+    // sucursal). Los PINs son únicos por empresa, y ante cualquier duplicado
+    // el acceso se rechaza hasta que el administrador asigne PINs distintos:
+    // nunca se entra con un PIN ambiguo.
     const candidates = await prisma.user.findMany({
-      where: { tenantId: parent.tenantId, status: 'ACTIVE', ...(parent.branchId ? { branchId: parent.branchId } : {}) },
+      where: {
+        tenantId: parent.tenantId,
+        status: 'ACTIVE',
+        ...(parent.branchId ? { OR: [{ branchId: parent.branchId }, { branchId: null }] } : {}),
+      },
       select: { id: true, pinHash: true },
     })
     const matches: string[] = []
@@ -367,7 +394,7 @@ export async function authenticateSeller(request: Request, input: PinInput) {
       SELECT "id", "tenantId", "name", "role", "branchId", "pinHash", "status", "permissions", "accessSchedule", "failedLoginAttempts", "lockedUntil"
       FROM "User"
       WHERE "id" = ${resolvedId} AND "tenantId" = ${parent.tenantId} AND "status" = 'ACTIVE'
-        AND (${parent.branchId}::text IS NULL OR "branchId" = ${parent.branchId})
+        AND (${parent.branchId}::text IS NULL OR "branchId" = ${parent.branchId} OR "branchId" IS NULL)
         AND ("branchId" IS NULL OR EXISTS (SELECT 1 FROM "Branch" b WHERE b."id" = "User"."branchId" AND b."isActive" = true))
       FOR UPDATE
     `
