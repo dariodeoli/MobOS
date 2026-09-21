@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { formatGs, formatGsInput, formatUsd, formatUsdInput, parseGsInput, parseUsdInput, excedeMonto, LIMITE_MONTO_VENTAS } from './moneda.js'
+import { formatGs, formatGsInput, formatUsd, formatUsdInput, parseGsInput, parseUsdInput, excedeMonto, LIMITE_MONTO_VENTAS, montoGs, montoUsd, montoTexto } from './moneda.js'
 import { gs, gsInput } from './calculos.js'
 
 test('formatea guaraníes con separadores locales', () => {
@@ -47,4 +47,19 @@ test('la entrada de moneda respeta el contrato de cada divisa', () => {
   assert.equal(formatUsdInput(''), '')
   assert.equal(parseUsdInput(''), '')
   assert.equal(parseUsdInput('no es un monto'), '')
+})
+
+test('los montos de pantalla usan la presentación dominante y no inventan datos', () => {
+  // Mismo texto que ui/Money: PYG sin decimales y USD con separador en-US
+  // (hasta 2 decimales: 1234.5 se muestra "1,234.5", igual que hoy).
+  assert.equal(montoGs(1201032), 'Gs 1.201.032')
+  assert.equal(montoUsd(1234.56), 'US$ 1,234.56')
+  assert.equal(montoUsd(1234.5), 'US$ 1,234.5')
+  assert.equal(montoTexto('1234.5', 'USD'), 'US$ 1,234.5')
+  assert.equal(montoTexto(1201032), 'Gs 1.201.032')
+  // Un valor ausente o inválido no se muestra como 0.
+  assert.equal(montoGs(undefined), '—')
+  assert.equal(montoUsd('nada'), '—')
+  assert.equal(montoTexto(null), '—')
+  assert.equal(montoGs(null, ''), '')
 })

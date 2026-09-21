@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
-import { Badge, Button, Select } from '@/components/ui'
+import { Badge, Button, EmptyState, Select } from '@/components/ui'
 import { renderPlantilla } from '@/lib/whatsappPlantillas'
 import { whatsappUrl } from '@/components/customers/customerMessaging'
 import { fechaDia } from '@/utils/fecha'
+import { montoGs } from '@/utils/moneda'
 import { telefonoVisible } from '@/utils/telefono'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
@@ -64,7 +65,7 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
     sucursal: sucursal?.nombre || 'la tienda',
     branch_name: sucursal?.nombre || 'la tienda',
     vendedor: vendedor || '',
-    saldo_pendiente: row?.pendingPyg ? `Gs ${Number(row.pendingPyg).toLocaleString('es-PY')}` : '',
+    saldo_pendiente: row?.pendingPyg ? montoGs(row.pendingPyg) : '',
     ultima_compra: fecha(row?.lastOrderAt),
   }), [empresa, sucursal, vendedor])
 
@@ -139,7 +140,7 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
         </div>
       </div>
 
-      {!clientes.length && <p role="status" className="rounded-xl border border-ink-600 p-6 text-center text-sm text-mute">No hay clientes en este segmento.</p>}
+      {!clientes.length && <EmptyState compact icon="users" title="No hay clientes en este segmento." />}
 
       {clientes.length > 0 && <ul className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">
         {clientes.map((row) => {
@@ -148,7 +149,7 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
             <input type="checkbox" aria-label={`Seleccionar a ${row.name}`} className="h-4 w-4" checked={seleccion.has(row.id)} disabled={Boolean(motivo)} onChange={() => alternar(row.id)} />
             <div className="min-w-0 flex-1">
               <b className="block truncate text-sm">{row.name}</b>
-              <p className="mt-0.5 truncate text-xs text-mute">{row.phone ? telefonoVisible(row.phone, row.countryCode) : 'Sin teléfono'} · Última compra: {fecha(row.lastOrderAt) || 'sin pedidos'} · Total: Gs {Number(row.totalSpentPyg || 0).toLocaleString('es-PY')}{row.pendingPyg ? ` · Saldo: Gs ${Number(row.pendingPyg).toLocaleString('es-PY')}` : ''}</p>
+              <p className="mt-0.5 truncate text-xs text-mute">{row.phone ? telefonoVisible(row.phone, row.countryCode) : 'Sin teléfono'} · Última compra: {fecha(row.lastOrderAt) || 'sin pedidos'} · Total: {montoGs(row.totalSpentPyg || 0)}{row.pendingPyg ? ` · Saldo: ${montoGs(row.pendingPyg)}` : ''}</p>
             </div>
             {motivo && <Badge color={row.marketingContactedAt ? 'slate' : 'orange'}>{motivo}</Badge>}
             <Button type="button" variant="outline" className="h-8 px-2.5 text-xs" disabled={Boolean(motivo) || !plantilla} onClick={() => enviar(row)} title={motivo || `Abrir WhatsApp con ${row.name}`}><Icon name="send" className="h-3.5 w-3.5" />WhatsApp</Button>

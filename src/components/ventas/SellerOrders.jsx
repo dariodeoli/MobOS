@@ -6,7 +6,7 @@ import { listVentas, productosById } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { codigoPedido, fechaLegible } from '@/utils/pedido'
 import { normalizarBusqueda, nombreCortoCliente } from '@/utils/cliente'
-import { Button } from '@/components/ui'
+import { Button, EmptyState } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { ultimos4 } from '@/utils/serial'
@@ -327,10 +327,11 @@ export default function SellerOrders() {
     // Demo o pedido que no está en la lista local: no hay backend que lo
     // resuelva, así que se avisa con salida en vez de quedar en blanco.
     return <SellerSection title="Pedido" description="Ese pedido no está disponible en esta vista.">
-      <div role="status" className="rounded-2xl border border-ink-600 bg-ink-800/30 p-8 text-center text-mute">
-        <p className="text-sm">No encontramos el pedido en esta vista.</p>
-        <Button className="mt-3" variant="outline" onClick={cerrarPedido}>Volver a pedidos</Button>
-      </div>
+      <EmptyState
+        icon="box"
+        title="No encontramos el pedido en esta vista."
+        action={<Button variant="outline" onClick={cerrarPedido}>Volver a pedidos</Button>}
+      />
     </SellerSection>
   }
 

@@ -124,3 +124,40 @@ test('el id de dispositivo se genera una sola vez en lib/deviceId', () => {
     assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /import \{ deviceId \} from '@\/lib\/deviceId'/, `${ruta}: falta deviceId`)
   }
 })
+
+test('los montos de pantalla salen de utils/moneda', () => {
+  // `ui/Money` es el objeto canónico: PYG sin decimales y USD en-US. Nadie más
+  // arma el texto con toLocaleString.
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('utils/moneda.js') && !ruta.endsWith('components/ui/index.jsx') && /US\$ \$\{[^}]*toLocaleString\('en-US'/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  const moneda = readFileSync(join(RAIZ, 'utils/moneda.js'), 'utf8')
+  for (const nombre of ['montoGs', 'montoUsd', 'montoTexto']) {
+    assert.match(moneda, new RegExp(`export function ${nombre}\\(`), `falta ${nombre}`)
+  }
+  for (const ruta of ['components/control/Inventario.jsx', 'components/inventory/UnidadDetalle.jsx', 'components/ventas/SellerCatalog.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /monto(Texto|Usd|Gs)\(/, `${ruta}: el monto va con el helper compartido`)
+  }
+})
+
+test('los vacíos van con EmptyState, no con una caja propia', () => {
+  const culpables = archivosFuente()
+    .filter(({ contenido }) => /text-center text-sm text-mute">(?:No hay|Sin )/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  for (const ruta of ['components/ventas/SellerData.jsx', 'components/ventas/SellerOrders.jsx', 'components/productos/KardexProducto.jsx', 'components/ventas/PanelColaOffline.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<EmptyState\b/, `${ruta}: el vacío va con EmptyState`)
+  }
+})
+
+test('escapeHtml se define una sola vez (plantillas de impresión)', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('utils/printHtml.js') && /(function|const) escapeHtml/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  assert.match(readFileSync(join(RAIZ, 'utils/printHtml.js'), 'utf8'), /export function escapeHtml\(/, 'falta escapeHtml compartido')
+  for (const ruta of ['components/shared/OrderReceipt.jsx', 'components/shared/reporteEjecutivo.js', 'components/control/Comisiones.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /import \{ printHtml, escapeHtml \} from '@\/utils\/printHtml'/, `${ruta}: escapeHtml va del módulo compartido`)
+  }
+})

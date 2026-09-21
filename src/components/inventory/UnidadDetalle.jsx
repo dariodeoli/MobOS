@@ -13,6 +13,7 @@ import { api, apiFetch } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { cotizacionReferencia } from '@/lib/fx'
 import { gs } from '@/utils/calculos'
+import { montoTexto } from '@/utils/moneda'
 import { sinCostoUnitario } from '@/utils/inventario'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
@@ -25,7 +26,7 @@ const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comen
 const money = (value, currency) => {
   const amount = Number(value)
   if (!Number.isFinite(amount) || amount <= 0) return '—'
-  return currency === 'USD' ? `US$ ${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : `Gs. ${Math.round(amount).toLocaleString('es-PY')}`
+  return montoTexto(amount, currency)
 }
 function relativeDate(value) {
   if (!value) return '—'

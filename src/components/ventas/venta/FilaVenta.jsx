@@ -6,7 +6,7 @@ import { api } from '@/lib/api/client'
 import { quoteDemoPromotion } from '@/lib/demoPromotions'
 import { gs } from '@/utils/calculos'
 import { serialEnmascarado } from '@/utils/serial'
-import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
+import { LIMITE_MONTO_VENTAS, montoUsd } from '@/utils/moneda'
 import { ROTULO_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 
@@ -94,7 +94,7 @@ export default function FilaVenta({
             {item.precioOrigen === 'LIST' && <Badge color="blue">{item.precioLista ? `Lista ${item.precioLista}` : 'Precio de lista'}</Badge>}
             {item.precioOrigen === 'TIER' && <Badge color="green">{item.precioMinQty}+ unidades</Badge>}
             {item.precioOrigen === 'WHOLESALE' && <Badge color="orange">Mayorista</Badge>}
-            {item.precioOrigen === 'USD' && <Badge color="slate">{`Precio en US$ ${Number(item.precioUsd || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}`}</Badge>}
+            {item.precioOrigen === 'USD' && <Badge color="slate">{`Precio en ${montoUsd(item.precioUsd)}`}</Badge>}
             {item.serials?.length > 0 && (
               <Badge color="blue">IMEI {serialEnmascarado(item.serials[0])}</Badge>
             )}

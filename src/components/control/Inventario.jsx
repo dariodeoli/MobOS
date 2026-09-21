@@ -6,6 +6,7 @@ import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
 import { getProductos, modoDatosActual } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
+import { montoTexto } from '@/utils/moneda'
 import BarraLote from '@/components/shared/BarraLote'
 import Switch from '@/components/shared/Switch'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
@@ -76,7 +77,7 @@ const locationSample = (units, locationId) => {
 const formatCost = unit => {
   const amount = Number(unit.originalCost)
   if (!Number.isFinite(amount) || amount <= 0) return ''
-  return unit.costCurrency === 'USD' ? `US$ ${amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : `Gs. ${Math.round(amount).toLocaleString('es-PY')}`
+  return montoTexto(amount, unit.costCurrency)
 }
 // El verificador puede ser un usuario real (foto + nombre) o un código legacy
 // de vendedor sin cuenta (VPE/VPM): en los dos casos la fila muestra su avatar.

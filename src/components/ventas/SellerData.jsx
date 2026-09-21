@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
-import { Button } from '@/components/ui'
+import { Button, EmptyState } from '@/components/ui'
 
 // Callers project explicit public fields before retaining API data in state.
 // Carga paginada opcional: con `limit` pide la primera página y expone
@@ -66,6 +66,6 @@ export function SellerSection({ title, description, children }) {
 export function SellerFeedback({ loading, error, empty, refresh }) {
   if (loading) return <div role="status" className="space-y-2 py-4" aria-busy="true"><span className="block h-14 animate-pulse rounded-xl bg-ink-700" /><span className="block h-14 animate-pulse rounded-xl bg-ink-700" /><span className="block h-14 animate-pulse rounded-xl bg-ink-700" /></div>
   if (error) return <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-sm text-bad"><p>{error}</p><Button variant="outline" onClick={refresh}>Reintentar</Button></div>
-  if (empty) return <div role="status" className="rounded-2xl border border-fore/10 bg-ink-800/30 p-8 text-center text-mute">No hay resultados.</div>
+  if (empty) return <EmptyState icon="box" title="No hay resultados." />
   return null
 }
