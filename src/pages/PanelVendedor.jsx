@@ -395,15 +395,21 @@ export default function PanelVendedor() {
   useEffect(() => {
     if (subpadre && !seccionRuta) navigate(`/${subpadre}/${tabsRuta[0][0]}`, { replace: true })
   }, [subpadre, seccionRuta, tabsRuta, navigate])
-  // Si la URL apunta a una vista fuera del alcance del rol (ej. un vendedor en
-  // /inventario), se redirige a "cargar" de una sola vez. Sin el navigate
-  // acá, los dos efectos se pisan en bucle: uno fuerza 'cargar' y el otro
-  // vuelve a leer 'inventario' de la URL.
+  // El repartidor tiene su propio panel (/delivery/repartos): el panel de venta
+  // no es su lugar y el backend tampoco lo autoriza a vender.
+  useEffect(() => {
+    if (!esDemo && usuario?.role === 'REPARTIDOR') navigate('/delivery/repartos', { replace: true })
+  }, [esDemo, usuario?.role, navigate])
+  // Si la URL apunta a una vista fuera del alcance del rol (ej. un técnico en
+  // el POS o un vendedor en /inventario), se redirige a su primera vista
+  // accesible de una sola vez. Sin el navigate acá, los dos efectos se pisan en
+  // bucle: uno fuerza la vista y el otro vuelve a leer la URL.
   useEffect(() => {
     const requerido = subpadre ? SUBPAGINAS[subpadre].vista : vista
     if (!accesibles.includes(requerido)) {
-      setVista('cargar')
-      navigate('/pos', { replace: true })
+      const primera = accesibles[0] || 'cargar'
+      setVista(primera)
+      navigate(rutaDeVista(primera) || '/pos', { replace: true })
     }
   }, [subpadre, accesibles, vista, navigate])
   // Sincroniza la URL → vista solo para rutas válidas del rol activo.
@@ -423,9 +429,12 @@ export default function PanelVendedor() {
   // `opciones` permite que la búsqueda global abra el destino con el filtro
   // aplicado (q), la ficha del cliente o el detalle del pedido.
   function ir(id, opciones = {}) {
-    const sellerIds = SELLER_NAV.flatMap(group => group.items).map(([key]) => key)
-    if (!esOwner && !sellerIds.includes(id)) {
-      setVista('cargar')
+    // Fuera del alcance del rol se va a la primera vista que sí puede abrir,
+    // no siempre a "cargar" (un técnico no vende: su lugar es el taller).
+    if (!esOwner && !accesibles.includes(id)) {
+      const primera = accesibles[0] || 'cargar'
+      setVista(primera)
+      navigate(rutaDeVista(primera) || '/pos', { replace: true })
       return
     }
     const consulta = []
@@ -676,7 +685,7 @@ export default function PanelVendedor() {
               <Icon name="calendar" className="h-[15px] w-[15px]" />
               <span className="whitespace-nowrap">{fechaLarga}</span>
             </div>
-            {vista !== 'cargar' && (
+            {vista !== 'cargar' && accesibles.includes('cargar') && (
               <button
                 type="button"
                 onClick={() => {

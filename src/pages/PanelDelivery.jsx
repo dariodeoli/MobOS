@@ -5,7 +5,7 @@ import { useLive } from '@/hooks/useLive'
 import { useAutoRefrescar } from '@/hooks/useAutoRefrescar'
 import AppShell from '@/components/app/AppShell'
 import Icon from '@/components/shared/Icon'
-import { ConfirmDialog, Eyebrow } from '@/components/ui'
+import { ConfirmDialog } from '@/components/ui'
 import DriverOrders from '@/components/delivery/DriverOrders'
 import DriverSettlements from '@/components/delivery/DriverSettlements'
 
@@ -81,10 +81,8 @@ export default function PanelDelivery() {
         <main className="flex-1 bg-gradient-to-b from-paper to-paper p-4 md:p-8">
           <div className="mx-auto max-w-6xl space-y-5">
             <div>
-              <Eyebrow>{empresa?.nombre || 'Mi tienda'}</Eyebrow>
-              <h2 className="mt-1 text-xl font-semibold tracking-tight">
-                {sesion?.nombre ? `Hola, ${sesion.nombre}` : 'Reparto del día'}
-              </h2>
+              {/* La identidad de tienda y persona vive en el shell (Lote 1). */}
+              <h2 className="text-xl font-semibold tracking-tight">Reparto del día</h2>
               <p className="mt-1 text-sm text-mute">
                 Solo ves los pedidos que te asigna la tienda. Cargá el cobro en la calle y rendilo al volver.
               </p>

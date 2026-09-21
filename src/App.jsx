@@ -9,6 +9,7 @@ import PanelVendedor from '@/pages/PanelVendedor'
 import { applyPageMetadata } from '@/lib/seo'
 import DemoAccess from '@/pages/DemoAccess'
 import PedidoPublico from '@/pages/PedidoPublico'
+import PanelDelivery from '@/pages/PanelDelivery'
 import CarritoPublico from '@/pages/CarritoPublico'
 import GarantiaPublica from '@/pages/GarantiaPublica'
 import CotizacionPublica from '@/pages/CotizacionPublica'
@@ -92,7 +93,9 @@ function SoloPropietario({ children }) {
 function InicioPorRol() {
   const { sesion } = useSesion()
   // El dueño entra a la lectura diaria del negocio; quien vende entra directo
-  // al flujo de venta. Ambos viven en la misma aplicación y navegación.
+  // al POS; el técnico a su taller y el repartidor a su reparto.
+  if (sesion?.rol === 'TECNICO') return <Navigate to="/servicio" replace />
+  if (sesion?.rol === 'REPARTIDOR') return <Navigate to="/delivery/repartos" replace />
   return <Navigate to={sesion?.esPropietario ? "/resumen" : "/pos"} replace />
 }
 
@@ -217,9 +220,13 @@ export default function App() {
               El pedido individual vive en la URL por su id interno: el código
               comercial (MOB-#0001) es solo para humanos y puede cambiar. */}
           <Route path="/pos" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
-          <Route path="/pos" element={<AreaProtegida><VentasRedirect /></AreaProtegida>} />
+          {/* El slug viejo /ventas (#116) redirige al POS. */}
+          <Route path="/ventas" element={<AreaProtegida><VentasRedirect /></AreaProtegida>} />
           <Route path="/pedidos/:orderId?" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/delivery" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
+          {/* Panel del repartidor: pedidos asignados y rendiciones (#179). */}
+          <Route path="/delivery/repartos" element={<AreaProtegida><PanelDelivery /></AreaProtegida>} />
+          <Route path="/delivery/rendiciones" element={<AreaProtegida><PanelDelivery /></AreaProtegida>} />
           <Route path="/clientes" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/productos" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
           <Route path="/promociones" element={<AreaProtegida><PanelVendedor /></AreaProtegida>} />
