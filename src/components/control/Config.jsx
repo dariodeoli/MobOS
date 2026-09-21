@@ -15,7 +15,7 @@ import EmailField from '@/components/shared/EmailField'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import PhoneField, { parseTelefono, componerTelefono } from '@/components/shared/PhoneField'
 import RucField from '@/components/shared/RucField'
-import PercentField from '@/components/shared/PercentField'
+import PercentField, { parsePercent } from '@/components/shared/PercentField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import { ROLE_LABELS } from '@/lib/roles'
@@ -189,8 +189,8 @@ export default function Config({ seccion = 'negocio' } = {}) {
     if (busy) return
     const gasto = Number(limiteGasto)
     const compra = Number(limiteCompra)
-    const bajoLista = Number(limiteBajoLista)
-    const fidelizacion = Number(limiteFidelizacion)
+    const bajoLista = parsePercent(limiteBajoLista)
+    const fidelizacion = parsePercent(limiteFidelizacion)
     if (!Number.isSafeInteger(gasto) || gasto < 0 || !Number.isSafeInteger(compra) || compra < 0) { setFailure('Los límites deben ser enteros no negativos.'); return }
     if (!Number.isSafeInteger(bajoLista) || bajoLista < 0 || bajoLista > 100) { setFailure('El porcentaje bajo lista debe ser un entero entre 0 y 100.'); return }
     if (!Number.isSafeInteger(fidelizacion) || fidelizacion < 0 || fidelizacion > 100) { setFailure('El porcentaje de fidelización debe ser un entero entre 0 y 100.'); return }
@@ -234,10 +234,10 @@ export default function Config({ seccion = 'negocio' } = {}) {
               <MoneyInput id="limite-compra" disabled={busy} value={limiteCompra} onValueChange={setLimiteCompra} placeholder="5.000.000" />
             </FormField>
             <FormField label="Bajo lista sin autorización (%)" htmlFor="limite-bajo-lista">
-              <Input id="limite-bajo-lista" inputMode="numeric" maxLength={3} disabled={busy} value={limiteBajoLista} onChange={event => setLimiteBajoLista(event.target.value.replace(/\D/g, ''))} placeholder="10" />
+              <PercentField id="limite-bajo-lista" max={100} disabled={busy} value={limiteBajoLista} onChange={setLimiteBajoLista} placeholder="10" />
             </FormField>
             <FormField label="Fidelización: puntos por venta (%)" hint="Porcentaje del total de cada venta que queda como puntos canjeables (1 punto = 1 Gs.). 0 la apaga." htmlFor="limite-fidelizacion">
-              <Input id="limite-fidelizacion" inputMode="numeric" maxLength={3} disabled={busy} value={limiteFidelizacion} onChange={event => setLimiteFidelizacion(event.target.value.replace(/\D/g, ''))} placeholder="0" />
+              <PercentField id="limite-fidelizacion" max={100} disabled={busy} value={limiteFidelizacion} onChange={setLimiteFidelizacion} placeholder="0" />
             </FormField>
           </div>
           <div className="flex flex-wrap items-center gap-3">

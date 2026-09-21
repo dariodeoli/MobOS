@@ -678,12 +678,11 @@ export default function Caja() {
                 <Label htmlFor="counted">
                   Total contado (Gs){hayArqueo ? ' · calculado del arqueo' : ''}
                 </Label>
-                <Input
+                <MoneyInput
                   id="counted"
-                  inputMode="numeric"
-                  value={hayArqueo ? formatGsInput(contado) : formatGsInput(counted)}
+                  value={hayArqueo ? contado : counted}
                   readOnly={hayArqueo}
-                  onChange={e => setCounted(formatGsInput(e.target.value))}
+                  onValueChange={value => setCounted(value === '' ? '' : formatGsInput(value))}
                   placeholder="0"
                   className="tabular-nums read-only:opacity-60"
                 />
@@ -978,14 +977,13 @@ export default function Caja() {
             <Label htmlFor="counted-ajeno">
               Total contado (Gs){hayArqueoAjeno ? ' · calculado del arqueo' : ''}
             </Label>
-            <Input
+            <MoneyInput
               id="counted-ajeno"
-              inputMode="numeric"
               value={
-                hayArqueoAjeno ? formatGsInput(contadoAjenoTotal) : formatGsInput(contadoAjeno)
+                hayArqueoAjeno ? contadoAjenoTotal : contadoAjeno
               }
               readOnly={hayArqueoAjeno}
-              onChange={e => setContadoAjeno(formatGsInput(e.target.value))}
+              onValueChange={value => setContadoAjeno(value === '' ? '' : formatGsInput(value))}
               placeholder="0"
               className="tabular-nums read-only:opacity-60"
             />
