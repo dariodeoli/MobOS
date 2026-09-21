@@ -43,15 +43,59 @@ function accountData(input: Record<string, unknown>, create: boolean) {
   return data
 }
 
-function validateTransfer(account: { kind?: PaymentAccountKind; bank?: string | null; holder?: string | null; accountNumber?: string | null }) {
+function validateTransfer(account: { kind?: PaymentAccountKind; bank?: string | null; holder?: string | null; accountNumber?: string | null }, requireDetails: boolean) {
   if (account.kind !== 'TRANSFER') return
-  for (const field of ['bank', 'holder', 'accountNumber'] as const) textInput(account[field], field, 200)
+  // El banco identifica la transferencia. Titular y número se exigen al crear
+  // (alta completa), no al editar: las cuentas predeterminadas (#118) llegan
+  // como esqueleto y el usuario las nombra y completa después; desactivarlas o
+  // renombrarlas no puede quedar bloqueado por datos que todavía no cargó.
+  textInput(account.bank, 'bank', 200)
+  if (!requireDetails) return
+  textInput(account.holder, 'holder', 200)
+  textInput(account.accountNumber, 'accountNumber', 200)
+}
+
+// Cuentas predeterminadas (#118): los medios con logo de
+// src/components/shared/MedioPago.jsx, en el orden de la lista canónica
+// MEDIOS_PAGO (src/lib/catalog.js). La marca vive en `bank` —el logo se mapea
+// por banco— y `name` repite la marca como default previsible porque el modelo
+// exige nombre no vacío: el usuario lo reemplaza por el suyo desde la pantalla.
+// Nacen como esqueleto (sin titular ni número): el usuario completa esos datos
+// cuando los tenga y la validación de transferencias no bloquea el renombre.
+// El tipo es el uso esperado de cada medio y queda editable: bancos y billeteras
+// acreditan por transferencia, los adquirentes de tarjeta por tarjeta y el
+// billete es efectivo.
+const DEFAULT_ACCOUNTS: Array<{ brand: string; kind: PaymentAccountKind }> = [
+  { brand: 'UENO BANK', kind: 'TRANSFER' },
+  { brand: 'POS UENO', kind: 'CARD' },
+  { brand: 'PIK ITAÚ', kind: 'TRANSFER' },
+  { brand: 'DINELCO', kind: 'CARD' },
+  { brand: 'DINERO', kind: 'CASH' },
+  { brand: 'CONTINENTAL', kind: 'TRANSFER' },
+  { brand: 'FAMILIAR', kind: 'TRANSFER' },
+]
+
+// Siembra perezosa: la empresa que todavía no tiene ninguna cuenta recibe las
+// predeterminadas una sola vez. Idempotente: el lock por empresa y el conteo
+// bajo lock evitan duplicados por marca ante lecturas simultáneas.
+async function seedDefaultAccounts(tenantId: string) {
+  if (await prisma.paymentAccount.count({ where: { tenantId } }) > 0) return
+  await prisma.$transaction(async tx => {
+    await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Tenant" WHERE "id" = ${tenantId} FOR UPDATE`
+    if (await tx.paymentAccount.count({ where: { tenantId } }) > 0) return
+    for (const { brand, kind } of DEFAULT_ACCOUNTS) {
+      const account = await tx.paymentAccount.create({ data: { tenantId, name: brand, bank: brand, currency: 'PYG', kind, isActive: true } })
+      await tx.auditLog.create({ data: { tenantId, userId: null, action: 'PAYMENT_ACCOUNT_CREATED', entity: 'PaymentAccount', entityId: account.id, metadata: { after: accountSnapshot(account), seeded: true } } })
+    }
+  })
 }
 
 export async function GET(request: Request) {
   const session = await requireSession(request)
   if (!session) return error('Falta sesión.', 401)
-  return json(await prisma.paymentAccount.findMany({ where: { tenantId: session.user.tenantId, ...(session.user.role === 'ADMIN' ? {} : { isActive: true }) }, orderBy: { name: 'asc' } }))
+  const tenantId = session.user.tenantId
+  await seedDefaultAccounts(tenantId)
+  return json(await prisma.paymentAccount.findMany({ where: { tenantId, ...(session.user.role === 'ADMIN' ? {} : { isActive: true }) }, orderBy: { name: 'asc' } }))
 }
 
 async function write(request: Request, create: boolean) {
@@ -64,7 +108,7 @@ async function write(request: Request, create: boolean) {
     const tenantId = session.user.tenantId
     const result = await prisma.$transaction(async tx => {
       if (create) {
-        validateTransfer(data)
+        validateTransfer(data, true)
         const account = await tx.paymentAccount.create({ data: { ...data, tenantId, name: data.name!, currency: data.currency!, kind: data.kind! } })
         await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'PAYMENT_ACCOUNT_CREATED', entity: 'PaymentAccount', entityId: account.id, metadata: { after: accountSnapshot(account) } } })
         return account
@@ -74,7 +118,7 @@ async function write(request: Request, create: boolean) {
       const before = await tx.paymentAccount.findFirst({ where: { id, tenantId } })
       if (!before) throw new InputError('Cuenta no encontrada.', 404)
       if (!Object.keys(data).length) throw new InputError('Faltan cambios.')
-      validateTransfer({ ...before, ...data })
+      validateTransfer({ ...before, ...data }, false)
       const account = await tx.paymentAccount.update({ where: { id }, data })
       await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'PAYMENT_ACCOUNT_UPDATED', entity: 'PaymentAccount', entityId: id, metadata: { before: accountSnapshot(before), after: accountSnapshot(account) } } })
       return account

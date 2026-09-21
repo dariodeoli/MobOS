@@ -20,6 +20,9 @@ function validate(data, partial = false) {
     if (!Object.hasOwn(data, key)) continue
     const value = data[key]
     if (['name', 'bank', 'holder', 'accountNumber'].includes(key)) {
+      // La API devuelve null en los opcionales vacíos: se normaliza a '' (el
+      // servidor lo vuelve a guardar como null). El nombre no admite vacío.
+      if (value === null && key !== 'name') { result[key] = ''; continue }
       if (typeof value !== 'string') throw new Error('Los datos de la cuenta deben ser texto.')
       result[key] = value.trim()
       if (result[key].length > 200) throw new Error('Cada campo admite hasta 200 caracteres.')
@@ -42,8 +45,12 @@ function validate(data, partial = false) {
     if (!Number.isSafeInteger(days) || days < 0 || days > 90) throw new Error('Los días en acreditarse deben estar entre 0 y 90.')
     result.settlementDays = days
   }
-  if (result.kind === 'TRANSFER' && (!partial || ['bank', 'holder', 'accountNumber'].every(key => key in result))) {
-    if (!result.bank || !result.holder || !result.accountNumber) throw new Error('Completá banco, titular y número de cuenta para transferencias.')
+  if (result.kind === 'TRANSFER') {
+    // El banco identifica la transferencia. Titular y número se exigen al
+    // crear; al editar alcanza el banco para poder renombrar o desactivar una
+    // cuenta predeterminada (#118) todavía incompleta.
+    if ((!partial || 'bank' in result) && !result.bank) throw new Error('Completá el banco de la transferencia.')
+    if (!partial && (!result.holder || !result.accountNumber)) throw new Error('Completá banco, titular y número de cuenta para transferencias.')
   }
   if (partial && !Object.keys(result).length) throw new Error('No hay cambios para guardar.')
   return result
