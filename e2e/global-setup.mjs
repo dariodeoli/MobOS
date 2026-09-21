@@ -258,6 +258,41 @@ async function ensureProducts(ctx, adminToken) {
   }
 }
 
+// Inventario de QA visual (#122): deja unidades de prueba en "Depósito 2" y
+// "Piso de venta" para revisar la tabla compacta con contenido real. Es
+// idempotente y no toca los datos que usan las specs.
+const QA_INVENTARIO = [
+  { sku: 'ZZ-QA-DEP2', name: 'iPhone 14 Pro QA Depósito', location: 'Depósito 2', prefix: 'ZZQA-DEP2', battery: 91 },
+  { sku: 'ZZ-QA-PISO', name: 'iPhone 13 QA Piso de venta', location: 'Piso de venta', prefix: 'ZZQA-PISO', battery: 84 },
+]
+
+async function ensureQaInventory(ctx, adminToken) {
+  for (const def of QA_INVENTARIO) {
+    const locRes = await ctx.get('/api/stock-locations', { headers: bearer(adminToken) })
+    if (!locRes.ok()) return
+    let location = (await locRes.json()).find((row) => row.name === def.location && row.branchId === SEED.branchId)
+    if (!location) {
+      const created = await ctx.post('/api/stock-locations', { headers: bearer(adminToken), data: { branchId: SEED.branchId, name: def.location } })
+      if (!created.ok()) return
+      location = await created.json()
+    }
+    const prodRes = await ctx.get(`/api/products?q=${encodeURIComponent(def.sku)}`, { headers: bearer(adminToken) })
+    let producto = prodRes.ok() ? (await prodRes.json()).find((row) => row.sku === def.sku) : null
+    if (!producto) {
+      const created = await ctx.post('/api/products', { headers: bearer(adminToken), data: { sku: def.sku, name: def.name, category: 'Celulares', condition: 'NEW', pricePyg: 4200000, costPyg: 3200000, stock: 0, branchId: SEED.branchId } })
+      if (!created.ok()) continue
+      producto = await created.json()
+    }
+    const unitsRes = await ctx.get(`/api/inventory-units?q=${encodeURIComponent(def.sku)}`, { headers: bearer(adminToken) })
+    const units = unitsRes.ok() ? await unitsRes.json() : []
+    for (let i = 1; i <= 3; i += 1) {
+      const serial = `${def.prefix}-${i}`
+      if (units.some((unit) => unit.serial === serial)) continue
+      await ctx.post('/api/inventory-units', { headers: bearer(adminToken), data: { productId: producto.id, branchId: SEED.branchId, locationId: location.id, serial, condition: i === 3 ? 'USED' : 'NEW', batteryHealth: Math.max(60, def.battery - i * 2) } })
+    }
+  }
+}
+
 async function ensurePaymentAccounts(ctx, adminToken) {
   const res = await ctx.get('/api/payment-accounts', { headers: bearer(adminToken) })
   if (!res.ok()) throw new Error(`payment accounts list failed: HTTP ${res.status()}`)
@@ -397,6 +432,7 @@ async function refreshStorageStates(ctx) {
   // Reponer stock serializado y reafirmar precios también en el camino de
   // refresh: cada corrida vende unidades y la base persistente se agota.
   await ensureProducts(ctx, adminToken)
+  await ensureQaInventory(ctx, adminToken)
   await ensurePaymentAccounts(ctx, adminToken)
   const sellerToken = await ensureSeedOrder(ctx, company.token, seller.id, adminToken)
   await ensureRepartidor(ctx, adminToken)

@@ -77,7 +77,24 @@ const verifiedLabel = (unit) => {
 }
 
 const LOCATION_TONES = ['#22d3ee', '#a78bfa', '#fbbf24', '#34d399', '#f472b6', '#60a5fa']
-const locationTone = (id = '') => LOCATION_TONES[[...String(id)].reduce((sum, char) => sum + char.charCodeAt(0), 0) % LOCATION_TONES.length]
+// Colores estables por nombre para las ubicaciones típicas del local; el resto
+// cae en un tono derivado del id. Así "Piso de venta" siempre se ve verde y
+// "Depósito 1/2" azules en cualquier pantalla.
+const LOCATION_TONES_NOMBRE = [
+  [/piso de venta|sal[oó]n|mostrador/i, '#34d399'],
+  [/dep[oó]sito\s*1/i, '#60a5fa'],
+  [/dep[oó]sito\s*2/i, '#a78bfa'],
+  [/dep[oó]sito/i, '#38bdf8'],
+  [/recepci[oó]n/i, '#fbbf24'],
+  [/taller|servicio/i, '#f472b6'],
+]
+const locationTone = (location) => {
+  const nombre = typeof location === 'string' ? location : location?.name || ''
+  const porNombre = LOCATION_TONES_NOMBRE.find(([patron]) => patron.test(nombre))
+  if (porNombre) return porNombre[1]
+  const id = typeof location === 'string' ? location : location?.id || ''
+  return LOCATION_TONES[[...String(id)].reduce((sum, char) => sum + char.charCodeAt(0), 0) % LOCATION_TONES.length]
+}
 const fechaVerificacion = (value) => {
   if (!value) return ''
   const date = new Date(value)
@@ -126,13 +143,24 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, busy, seleccionado = fals
   const v = verifiedLabel(unit)
   const estado = estadoInventario(unit)
   const serial = String(unit.serial || '')
+  // Antigüedad: solo se marca cuando el stock ya lleva tiempo parado.
+  const diasStock = unit.createdAt ? Math.floor((Date.now() - new Date(unit.createdAt).getTime()) / 86400000) : null
+  const ingreso = unit.createdAt ? new Date(unit.createdAt).toLocaleDateString('es-PY') : null
   return <div role="button" tabIndex={0} data-testid="inventario-fila" onClick={onClick} onKeyDown={event => { if (event.key === 'Enter') onClick() }} className={`${UNIDADES_GRID} cursor-pointer rounded-lg border border-ink-600 px-3 py-2 transition hover:border-fono/40 ${rowTone(unit)}`}>
     {onAlternar
       ? <span className="flex items-center" onClick={(event) => event.stopPropagation()}><input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar ${nombreProducto(unit.product || {})} ${serial}`} checked={seleccionado} onChange={() => onAlternar()} /></span>
       : <span />}
     <span className="flex min-w-0 items-center gap-2">
       <b className="truncate text-[13px] leading-snug" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {})}</b>
-      <span className="shrink-0 rounded border border-ink-500 px-1.5 py-0.5 text-[10px] text-mute">{conditionLabel[unit.condition] || unit.condition}</span>
+      {/* Condición por color: verde nuevo, ámbar seminuevo, gris reacondicionado. */}
+      <span
+        className={`h-2 w-2 shrink-0 rounded-full ${unit.condition === 'NEW' ? 'bg-ok' : unit.condition === 'USED' ? 'bg-warn' : 'bg-mute'}`}
+        title={conditionLabel[unit.condition] || unit.condition}
+        aria-label={`Condición: ${conditionLabel[unit.condition] || unit.condition}`}
+      />
+      {diasStock != null && diasStock >= 30 && (
+        <span className={`shrink-0 rounded border px-1 text-[10px] font-semibold tabular-nums ${diasStock >= 90 ? 'border-bad/30 text-bad' : 'border-warn/30 text-warn'}`} title={`Ingresó a stock el ${ingreso} · ${diasStock} días`}>{diasStock} d</span>
+      )}
     </span>
     <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-mute">
       {v ? <Avatar user={v.usuario} size="xs" /> : <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink-700 text-[8px] font-bold text-fore">—</span>}
@@ -140,7 +168,7 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, busy, seleccionado = fals
     </span>
     <SerialTexto serial={serial} className="truncate text-[11px] text-mute" />
     <span className="flex min-w-0 items-center gap-1.5 text-xs text-mute">
-      {unit.location?.name ? <><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: locationTone(unit.location.id) }} /><span className="truncate">{unit.location.name}</span></> : '—'}
+      {unit.location?.name ? <><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: locationTone(unit.location) }} /><span className="truncate">{unit.location.name}</span></> : '—'}
     </span>
     <span className="text-xs text-mute tabular-nums">{unit.batteryHealth ? `🔋 ${unit.batteryHealth}%` : '—'}</span>
     <span className="truncate text-xs text-mute" title={unit.supplierName || undefined}>{unit.supplierName || '—'}</span>
