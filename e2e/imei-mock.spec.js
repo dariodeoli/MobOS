@@ -58,3 +58,48 @@ test.fixme('sin confirmación explícita no se ejecuta y con requestId no se cob
   // El listado va enmascarado y sin la respuesta cruda para roles sin permiso (acá admin sí la ve).
   expect(propias[0].imei).not.toContain(IMEI)
 })
+
+// UI mínima (#193/#200): en la ficha de la unidad el costo se ve ANTES de
+// confirmar, la confirmación es explícita y el resultado muestra fuente y hora.
+// Corre contra los mocks de la fase 1: sin llamadas pagas.
+test('la ficha de la unidad muestra el costo, pide confirmación y deja el resultado auditado', async ({ page }) => {
+  await page.goto('/inventario/unidades')
+  // IMEI válido (Luhn) único por corrida: base aleatoria + dígito de control.
+  const base = `35${String(Date.now()).slice(-11)}${Math.floor(Math.random() * 10)}`.slice(0, 14)
+  let suma = 0
+  for (let i = 0; i < 14; i += 1) { let digito = Number(base[13 - i]); if (i % 2 === 0) { digito *= 2; if (digito > 9) digito -= 9 } suma += digito }
+  const imei = base + String((10 - (suma % 10)) % 10)
+  const marca = `UI${Date.now().toString(36)}`.toUpperCase()
+  const creado = await page.evaluate(async ({ api, branchId, imei, marca }) => {
+    const pedir = async (ruta, body) => {
+      const respuesta = await fetch(`${api}/api/${ruta}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const datos = await respuesta.json().catch(() => null)
+      if (!respuesta.ok) throw new Error(`${ruta}: ${datos?.message || respuesta.status}`)
+      return datos
+    }
+    const producto = await pedir('products', { sku: `ZZ-IMEI-${marca}`, name: `iPhone IMEI ${marca}`, category: 'Celulares', pricePyg: 3000000, costPyg: 2200000, stock: 0, branchId })
+    const unidad = await pedir('inventory-units', { productId: producto.id, branchId, serial: imei })
+    return { productId: producto.id, unidadId: unidad.id }
+  }, { api: API, branchId: SEED.branchId, imei, marca })
+  try {
+    const campo = page.getByPlaceholder('Escanear IMEI, SKU o buscar modelo')
+    await campo.fill(imei)
+    await campo.press('Enter')
+    await page.getByTestId('inventario-fila').filter({ hasText: imei }).first().click()
+    const bloque = page.getByTestId('unidad-imei')
+    await expect(bloque).toBeVisible()
+    await bloque.getByTestId('imei-precheck').click()
+    await expect(bloque).toContainText('Apple Basic')
+    await expect(bloque.getByTestId('imei-confirmar')).toContainText('US$ 0.06')
+    await bloque.getByTestId('imei-confirmar').click()
+    // Resultado con estado explícito, fuente del proveedor y campos normalizados.
+    await expect(bloque).toContainText('Verificado')
+    await expect(bloque).toContainText('imeicheck.net')
+    await expect(bloque).toContainText('Blacklist actual')
+  } finally {
+    await page.evaluate(async ({ api, creado }) => {
+      await fetch(`${api}/api/inventory-units`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: creado.unidadId, action: 'remove', reason: 'Limpieza del spec de IMEI UI' }) }).catch(() => {})
+      await fetch(`${api}/api/products?id=${encodeURIComponent(creado.productId)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+    }, { api: API, creado })
+  }
+})
