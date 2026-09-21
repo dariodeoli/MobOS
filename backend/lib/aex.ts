@@ -15,8 +15,18 @@ const TOKEN_TTL_MS = 9 * 60 * 1000 // el token dura 10 minutos; se renueva antes
 
 let cachedToken: { token: string; until: number } | null = null
 
+// Transporte HTTP del adaptador. En producción es `fetch`; los tests pueden
+// inyectar uno propio (sin tocar `globalThis.fetch`, que otros tests reemplazan).
+type AexTransporte = (url: string, init: RequestInit) => Promise<{ ok: boolean; status: number; json: () => Promise<any> }>
+let transporte: AexTransporte = (url, init) => fetch(url, init)
+
+/** Solo para tests: inyecta el transporte HTTP (null restaura el global). */
+export function aexTransporteDePrueba(fn: AexTransporte | null) {
+  transporte = fn || ((url, init) => fetch(url, init))
+}
+
 async function post(path: string, body: Record<string, unknown>, timeoutMs = 12000) {
-  const response = await fetch(`${aexApi()}${path}`, {
+  const response = await transporte(`${aexApi()}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -43,25 +53,48 @@ const norm = (value: string) => (value || '').normalize('NFD').replace(/[\u0300-
 
 export type AexTrackingEvent = { fecha: string; estado: string; tipoEvento: string; observacion: string }
 
+export type AexTrackingResultado =
+  | { ok: true; eventos: AexTrackingEvent[]; codigo: string; mensaje: string }
+  | { ok: false; etapa: string; codigo: string; mensaje: string }
+
+// Seguimiento por número de guía o por `codigo_operacion` (doc v1.5.4: es
+// obligatorio uno de los dos; si van ambos, manda el número de guía). Devuelve
+// la etapa y el código/mensaje de AEX para poder diagnosticar sin adivinar.
+export async function aexTrackingDetallado(input: { guia?: string; codigoOperacion?: string } = {}): Promise<AexTrackingResultado> {
+  const numero = String(input.guia || '').trim()
+  const operacion = String(input.codigoOperacion || '').trim()
+  if (!numero && !operacion) return { ok: false, etapa: 'consulta', codigo: 'parametros', mensaje: 'Indicá numero_guia o codigo_operacion.' }
+  if (!publicKey() || !privateKey()) return { ok: false, etapa: 'configuracion', codigo: 'sin-claves', mensaje: 'Faltan MOBOS_AEX_PUBLIC_KEY / MOBOS_AEX_PRIVATE_KEY.' }
+  try {
+    const token = await autorizar()
+    const respuesta = await post('/envios/tracking', {
+      clave_publica: publicKey(), codigo_autorizacion: token,
+      ...(numero ? { numero_guia: numero } : { codigo_operacion: operacion }),
+    })
+    const errorTracking = fallaDe(respuesta)
+    if (errorTracking) return { ok: false, etapa: 'consulta', codigo: errorTracking.codigo, mensaje: errorTracking.mensaje }
+    const rows = filasDe(respuesta).filter((fila) => fila && (fila.fecha || fila.estado || fila.codigo_estado))
+    return {
+      ok: true,
+      codigo: '0',
+      mensaje: '',
+      eventos: rows.map((evento: any) => ({
+        fecha: String(evento?.fecha || ''),
+        estado: String(evento?.estado || ''),
+        tipoEvento: String(evento?.tipo_evento || ''),
+        observacion: String(evento?.observacion || ''),
+      })),
+    }
+  } catch (causa) {
+    return { ok: false, etapa: 'consulta', codigo: 'red', mensaje: causa instanceof Error ? causa.message : 'Error de red consultando el tracking.' }
+  }
+}
+
 // Seguimiento de una guía. Sin credenciales devuelve null: el llamador muestra
 // el enlace web de seguimiento. Los eventos vienen ordenados por fecha.
 export async function aexTracking(guia: string): Promise<AexTrackingEvent[] | null> {
-  if (!publicKey() || !privateKey()) return null
-  const numero = (guia || '').trim()
-  if (!numero) return null
-  try {
-    const token = await autorizar()
-    const respuesta = await post('/envios/tracking', { clave_publica: publicKey(), codigo_autorizacion: token, numero_guia: numero })
-    const rows = Array.isArray(respuesta?.datos) ? respuesta.datos : []
-    return rows.map((evento: any) => ({
-      fecha: String(evento?.fecha || ''),
-      estado: String(evento?.estado || ''),
-      tipoEvento: String(evento?.tipo_evento || ''),
-      observacion: String(evento?.observacion || ''),
-    }))
-  } catch {
-    return null
-  }
+  const resultado = await aexTrackingDetallado({ guia })
+  return resultado.ok ? resultado.eventos : null
 }
 
 export function aexWebTrackingUrl(guia: string) {
@@ -117,40 +150,165 @@ export async function aexQuote(origen: string, destino: string, pesoKg: number):
 }
 
 export type AexShipResult = { guide: string; costPyg: number; serviceName: string }
+export type AexFalla = { etapa: string; codigo: string; mensaje: string }
 
-// Confirma el servicio más barato y devuelve la guía. `codigoOperacion` permite
-// rastrear el traslado en el tracking de AEX.
-export async function aexShip(origen: string, destino: string, pesoKg: number, codigoOperacion: string, direccionOrigen: string, direccionDestino: string): Promise<AexShipResult | null> {
-  const cotizaciones = await aexQuote(origen, destino, pesoKg)
-  if (!cotizaciones || !cotizaciones.length) return null
-  const elegida = cotizaciones.sort((a, b) => a.costPyg - b.costPyg)[0]
-  const ciudades = await ciudadesConCobertura()
-  if (!ciudades) return null
-  const codigoOrigen = codigoDeCiudad(ciudades, origen)
-  const codigoDestino = codigoDeCiudad(ciudades, destino)
-  if (!codigoOrigen || !codigoDestino) return null
+let ultimaFalla: AexFalla | null = null
+
+/** Última falla del flujo de envíos: etapa + código/mensaje textual de AEX. */
+export function aexUltimaFalla() {
+  return ultimaFalla
+}
+
+// La doc v1.5.4 indica JSON Array en los endpoints de envíos: la respuesta puede
+// ser un arreglo, un objeto o venir dentro de `datos`. Se normaliza a filas.
+function filasDe(respuesta: unknown): Record<string, any>[] {
+  const raiz = (respuesta || {}) as Record<string, any>
+  const datos = raiz.datos !== undefined ? raiz.datos : raiz
+  if (Array.isArray(datos)) return datos as Record<string, any>[]
+  if (datos && typeof datos === 'object') return [datos as Record<string, any>]
+  return []
+}
+
+// Código/mensaje de AEX cuando la operación no fue exitosa (0 = sin error).
+function fallaDe(respuesta: unknown): { codigo: string; mensaje: string } | null {
+  const fila = filasDe(respuesta)[0] || {}
+  const codigo = String(fila.codigo ?? '').trim()
+  if (!codigo || codigo === '0') return null
+  return { codigo, mensaje: String(fila.mensaje || 'Operación rechazada por AEX.') }
+}
+
+export type AexParte = { codigo?: string; tipoDocumento?: string; numeroDocumento: string; nombre: string; apellido?: string; email: string; telefono: number; personeria?: string }
+export type AexDireccion = { codigo: string; callePrincipal: string; numeroCasa?: number; calleTransversal1: string; calleTransversal2?: string; codigoCiudad?: string; telefono?: number; referencias?: string }
+
+// Campos de remitente/destinatario según la doc: documento, nombre, email y al
+// menos un teléfono. `personeria` distingue persona física (F) o jurídica (J).
+function parteAex(parte: AexParte) {
+  return {
+    ...(parte.codigo ? { codigo: parte.codigo } : {}),
+    tipo_documento: parte.tipoDocumento || 'CI',
+    numero_documento: parte.numeroDocumento,
+    nombre: parte.nombre,
+    ...(parte.apellido ? { apellido: parte.apellido } : {}),
+    email: parte.email,
+    personeria: parte.personeria || 'F',
+    telefonos: [{ numero: Number(parte.telefono) || 0, denominacion: 'Principal' }],
+  }
+}
+
+// Campos de recogida/entrega según la doc: calle principal y transversal son
+// obligatorias, la ciudad va por código (el de `origen`/`destino`).
+function direccionAex(direccion: AexDireccion) {
+  return {
+    codigo: direccion.codigo,
+    calle_principal: direccion.callePrincipal,
+    ...(direccion.numeroCasa ? { numero_casa: Number(direccion.numeroCasa) } : {}),
+    calle_transversal_1: direccion.calleTransversal1,
+    ...(direccion.calleTransversal2 ? { calle_transversal_2: direccion.calleTransversal2 } : {}),
+    codigo_ciudad: direccion.codigoCiudad || '',
+    ...(direccion.telefono ? { telefono: Number(direccion.telefono) } : {}),
+    ...(direccion.referencias ? { referencias: direccion.referencias } : {}),
+  }
+}
+
+export type AexEnvioResultado =
+  | { ok: true; etapa: 'confirmar_servicio'; guia: string; idSolicitud: number; costoPyg: number; servicio: string; codigo: string; mensaje: string }
+  | { ok: false; etapa: string; codigo: string; mensaje: string }
+
+// Flujo completo según la doc v1.5.4: solicitar_servicio devuelve un ARRAY de
+// ofertas (id_solicitud + condiciones) y confirmar_servicio exige remitente,
+// pickup, destinatario y entrega. Cada paso reporta su etapa y el código/mensaje
+// de AEX, sin inventar guías.
+export async function aexSolicitarYConfirmar(input: {
+  origen: string
+  destino: string
+  pesoKg: number
+  codigoOperacion: string
+  remitente: AexParte
+  destinatario: AexParte
+  pickup: AexDireccion
+  entrega: AexDireccion
+  descripcion?: string
+}): Promise<AexEnvioResultado> {
+  const fallar = (etapa: string, codigo: string, mensaje: string): AexEnvioResultado => {
+    ultimaFalla = { etapa, codigo, mensaje }
+    return { ok: false, etapa, codigo, mensaje }
+  }
+  ultimaFalla = null
+  if (!publicKey() || !privateKey()) return fallar('configuracion', 'sin-claves', 'Faltan MOBOS_AEX_PUBLIC_KEY / MOBOS_AEX_PRIVATE_KEY.')
+  let token = ''
   try {
-    const token = await autorizar()
-    const solicitud = await post('/envios/solicitar_servicio', {
+    token = await autorizar()
+  } catch (causa) {
+    return fallar('autorizacion', 'auth', causa instanceof Error ? causa.message : 'No se pudo autorizar contra AEX.')
+  }
+  const ciudades = await ciudadesConCobertura()
+  if (!ciudades) return fallar('ciudades', 'ciudades', 'AEX no devolvió ciudades de cobertura.')
+  const codigoOrigen = codigoDeCiudad(ciudades, input.origen)
+  const codigoDestino = codigoDeCiudad(ciudades, input.destino)
+  if (!codigoOrigen || !codigoDestino) return fallar('ciudades', 'ciudad', `No se encontró "${!codigoOrigen ? input.origen : input.destino}" en las ciudades de AEX.`)
+
+  let idSolicitud = 0
+  let condiciones: { id: number; nombre: string; costo: number; horas: number | null }[] = []
+  try {
+    const respuesta = await post('/envios/solicitar_servicio', {
       clave_publica: publicKey(), codigo_autorizacion: token,
-      origen: codigoOrigen, destino: codigoDestino, codigo_operacion: codigoOperacion,
+      origen: codigoOrigen, destino: codigoDestino, codigo_operacion: input.codigoOperacion,
       codigo_tipo_carga: 'P',
-      paquetes: [{ descripcion: 'Mercadería', peso: pesoKg, largo: 30, alto: 20, ancho: 20, cantidad: 1, valor: 0 }],
+      paquetes: [{ descripcion: input.descripcion || 'Mercadería', peso: input.pesoKg, largo: 30, alto: 20, ancho: 20, cantidad: 1, valor: 0 }],
     })
-    const datos = (solicitud?.datos && typeof solicitud.datos === 'object' ? solicitud.datos : solicitud) as Record<string, unknown>
-    const idSolicitud = Number(datos?.id_solicitud || 0)
-    if (!idSolicitud) return null
-    const confirmacion = await post('/envios/confirmar_servicio', {
+    const error = fallaDe(respuesta)
+    if (error) return fallar('solicitar_servicio', error.codigo, error.mensaje)
+    const fila = filasDe(respuesta)[0] || {}
+    idSolicitud = Number(fila.id_solicitud || fila.id || 0)
+    if (!idSolicitud) return fallar('solicitar_servicio', 'sin-id', 'AEX no devolvió id_solicitud para la oferta.')
+    condiciones = (Array.isArray(fila.condiciones) ? fila.condiciones : [])
+      .map((condicion: any) => ({
+        id: Number(condicion?.id_tipo_servicio || 0),
+        nombre: String(condicion?.tipo_servicio || 'Servicio'),
+        costo: Number(condicion?.costo_flete || 0),
+        horas: Number(condicion?.tiempo_entrega) > 0 ? Number(condicion.tiempo_entrega) : null,
+      }))
+      .filter((condicion: { id: number }) => condicion.id)
+      .sort((a: { costo: number }, b: { costo: number }) => a.costo - b.costo)
+  } catch (causa) {
+    return fallar('solicitar_servicio', 'red', causa instanceof Error ? causa.message : 'Error de red solicitando el servicio.')
+  }
+  const elegida = condiciones[0]
+  const idServicio = elegida?.id || Number(process.env.MOBOS_AEX_SERVICE_ID || 0)
+  if (!idServicio) return fallar('solicitar_servicio', 'sin-servicio', 'La oferta de AEX no incluyó condiciones de servicio.')
+
+  try {
+    const respuesta = await post('/envios/confirmar_servicio', {
       clave_publica: publicKey(), codigo_autorizacion: token,
-      id_solicitud: idSolicitud, id_tipo_servicio: elegida.serviceId,
-      pickup: { direccion: direccionOrigen || 'AEX Casa Matriz', ciudad: codigoOrigen, referencias: origen },
-      entrega: { direccion: direccionDestino || 'Sucursal destino', ciudad: codigoDestino, referencias: destino },
+      id_solicitud: idSolicitud, id_tipo_servicio: idServicio,
+      remitente: parteAex(input.remitente),
+      pickup: direccionAex({ ...input.pickup, codigoCiudad: codigoOrigen }),
+      destinatario: parteAex(input.destinatario),
+      entrega: direccionAex({ ...input.entrega, codigoCiudad: codigoDestino }),
     })
-    const confirmado = (confirmacion?.datos && typeof confirmacion.datos === 'object' ? confirmacion.datos : confirmacion) as Record<string, unknown>
-    const guia = String(confirmado?.numero_guia || confirmado?.guia || '').trim()
-    if (!guia) return null
-    return { guide: guia, costPyg: elegida.costPyg, serviceName: elegida.serviceName }
-  } catch { return null }
+    const error = fallaDe(respuesta)
+    if (error) return fallar('confirmar_servicio', error.codigo, error.mensaje)
+    const filas = filasDe(respuesta)
+    const fila = filas.find((item) => String(item?.numero_guia || item?.guia || '').trim()) || filas[0] || {}
+    const guia = String(fila.numero_guia || fila.guia || '').trim()
+    if (!guia) return fallar('confirmar_servicio', 'sin-guia', 'AEX confirmó pero no devolvió numero_guia.')
+    return { ok: true, etapa: 'confirmar_servicio', guia, idSolicitud, costoPyg: elegida?.costo || 0, servicio: elegida?.nombre || 'Servicio', codigo: String(fila.codigo || '0'), mensaje: String(fila.mensaje || '') }
+  } catch (causa) {
+    return fallar('confirmar_servicio', 'red', causa instanceof Error ? causa.message : 'Error de red confirmando el servicio.')
+  }
+}
+
+// Compatibilidad: confirma el servicio más barato y devuelve la guía (o null).
+// `codigoOperacion` permite rastrear el traslado por tracking.
+export async function aexShip(origen: string, destino: string, pesoKg: number, codigoOperacion: string, direccionOrigen: string, direccionDestino: string): Promise<AexShipResult | null> {
+  const resultado = await aexSolicitarYConfirmar({
+    origen, destino, pesoKg, codigoOperacion,
+    remitente: { tipoDocumento: 'RUC', numeroDocumento: '80012345-0', nombre: 'Comercio demo', email: 'comercio@demo.mobos', telefono: 21000000 },
+    destinatario: { tipoDocumento: 'CI', numeroDocumento: '1234567', nombre: 'Cliente demo', email: 'cliente@demo.mobos', telefono: 981000000 },
+    pickup: { codigo: 'DEMO-ORIGEN', callePrincipal: direccionOrigen || 'Av. Ficticia 1234', calleTransversal1: 'Calle Falsa', referencias: origen },
+    entrega: { codigo: 'DEMO-DESTINO', callePrincipal: direccionDestino || 'Av. del Demo 789', calleTransversal1: 'Calle Ejemplo', referencias: destino },
+  })
+  return resultado.ok ? { guide: resultado.guia, costPyg: resultado.costoPyg, serviceName: resultado.servicio } : null
 }
 
 // ── Impresión de la guía/etiqueta ──────────────────────────────────────────

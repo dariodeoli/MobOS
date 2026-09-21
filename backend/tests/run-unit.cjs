@@ -40,3 +40,6 @@ require('./sifen-client.test.ts')
 require('./finance-insurance.test.ts')
 require('./reconciliation.test.ts')
 require('./public-token.test.ts')
+// Al final: este test comparte proceso con aex-label, que borra claves para
+// probar el camino sin configuración.
+require('./aex-ship.test.ts')
