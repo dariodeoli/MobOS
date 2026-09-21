@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import {
   getProductos,
   productosById,
@@ -31,6 +32,7 @@ import { resources } from '@/lib/api'
 import { api } from '@/lib/api/client'
 import { agruparProductos } from '@/utils/colores'
 import {
+  Aviso,
   Button,
   Card,
   ConfirmDialog,
@@ -1628,12 +1630,9 @@ export default function FormularioVenta({
         className="flex flex-col gap-4"
       >
         {errorVenta && (
-          <p
-            role="alert"
-            className="rounded-xl border border-bad/30 bg-bad/10 px-3.5 py-2.5 text-sm text-bad"
-          >
+          <Aviso tono="error" className="px-3.5 py-2.5 text-sm rounded-xl">
             {errorVenta}
-          </p>
+          </Aviso>
         )}
 
         {/* Resumen fijo: cruza las dos columnas en desktop y queda al pie en
@@ -1831,9 +1830,9 @@ export default function FormularioVenta({
             />
           </div>
           {errorSuspender && (
-            <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">
+            <Aviso tono="error" className="rounded-xl">
               {errorSuspender}
-            </p>
+            </Aviso>
           )}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
@@ -1868,9 +1867,9 @@ export default function FormularioVenta({
             </p>
           )}
           {errorSuspendidas && (
-            <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">
+            <Aviso tono="error" className="rounded-xl">
               {errorSuspendidas}
-            </p>
+            </Aviso>
           )}
           {!cargandoSuspendidas && !suspendidas.length && !errorSuspendidas && (
             <p className="rounded-xl border border-ink-600 px-3 py-4 text-sm text-mute">
@@ -1930,7 +1929,7 @@ export default function FormularioVenta({
                     <p className="truncate rounded-lg border border-ink-600 bg-ink-800 px-2 py-1.5 font-mono text-[11px] text-fono-light">{enlacePublico.url}</p>
                     {avisoEnlace && <p role="status" className="text-xs text-ok">{avisoEnlace}</p>}
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button type="button" variant="outline" onClick={() => navigator.clipboard?.writeText(enlacePublico.url).then(() => setAvisoEnlace('Enlace copiado: mandalo al cliente para que confirme.'))}>Copiar</Button>
+                      <Button type="button" variant="outline" onClick={() => copiarAlPortapapeles(enlacePublico.url).then((ok) => setAvisoEnlace(ok ? 'Enlace copiado: mandalo al cliente para que confirme.' : 'No se pudo copiar el enlace.'))}>Copiar</Button>
                       <a
                         className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore"
                         href={`https://wa.me/${String(suspendida.customer?.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Hola${suspendida.customer?.name ? ` ${suspendida.customer.name}` : ''}, te comparto el carrito${suspendida.label ? ` "${suspendida.label}"` : ''}: ${enlacePublico.url}`)}`}

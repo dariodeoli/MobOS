@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
-import { Badge, Card, EmptyState, Select, Skeleton } from '@/components/ui'
+import { Aviso, Badge, Card, EmptyState, Select, Skeleton } from '@/components/ui'
 import SearchField from '@/components/shared/SearchField'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { cn } from '@/lib/utils'
+import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
 
 // Pantalla real de auditoría: el registro que escribe el backend en cada
 // operación. Antes solo existía en la demo; en producción no había dónde verlo.
@@ -210,7 +211,6 @@ function desdeDelRango(rango) {
 }
 
 const GRID_AUDITORIA = 'grid min-w-[52rem] grid-cols-[minmax(9rem,1.1fr)_minmax(7rem,0.9fr)_minmax(6rem,0.7fr)_minmax(10rem,1.8fr)_8rem] items-center gap-x-2'
-const CELDA_AUD = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 function fechaHora(value) {
   const date = new Date(value)
@@ -361,17 +361,17 @@ export default function Auditoria() {
       </div>
     </Card>
 
-    {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+    {error && <Aviso tono="error">{error}</Aviso>}
     {loading && <div className="space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>}
     {!loading && !error && !rows.length && <Card><EmptyState compact icon="clock" title="Sin movimientos para ese filtro." description="Probá con otra área, otro rango de fechas o quitá la búsqueda." /></Card>}
     {!loading && !error && rows.length > 0 && <Card className="p-4">
       <div className="overflow-x-auto" data-testid="auditoria-tabla">
         <div className={cn(GRID_AUDITORIA, 'px-3.5 pb-2 pt-1')}>
-          <span className={CELDA_AUD}>Acción</span>
-          <span className={CELDA_AUD}>Actor</span>
-          <span className={CELDA_AUD}>Área</span>
-          <span className={CELDA_AUD}>Detalle</span>
-          <span className={cn(CELDA_AUD, 'text-right')}>Fecha</span>
+          <span className={CELDA_ENCABEZADO}>Acción</span>
+          <span className={CELDA_ENCABEZADO}>Actor</span>
+          <span className={CELDA_ENCABEZADO}>Área</span>
+          <span className={CELDA_ENCABEZADO}>Detalle</span>
+          <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Fecha</span>
         </div>
         <div className="space-y-1">
           {rows.map((row) => {

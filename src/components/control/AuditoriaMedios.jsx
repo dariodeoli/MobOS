@@ -5,7 +5,7 @@ import { listVentas } from '@/lib/storage'
 import { construirDemoAuditoriaMedios } from '@/lib/demoAuditoria'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
-import { Card, EmptyState, Input, Button } from '@/components/ui'
+import { Aviso, Button, Card, EmptyState, Input } from '@/components/ui'
 
 // Control interno de cierre: cuánto entró por cada medio de pago en la sucursal
 // y el día elegidos, para contrastar contra el conteo físico al auditar.
@@ -48,7 +48,7 @@ export default function AuditoriaMedios() {
           <Button type="submit" variant="outline" disabled={busy}>{busy ? 'Cargando…' : 'Cargar'}</Button>
         </form>
       </div>
-      {error && <p role="alert" className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
       <div className="mt-4 space-y-2">
         {methods.map(row => (
           <article key={row.method} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 p-3">

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Input, Label } from '@/components/ui'
+import { Aviso, Button, Input, Label } from '@/components/ui'
 import { extractTokenFromUrl } from '@/lib/actionToken'
 
 // Cuando la URL no trae el token (relays de correo, redirecciones que lo
@@ -28,7 +28,7 @@ export default function PegarEnlaceToken({ onToken }) {
           className="mt-1.5"
         />
       </div>
-      {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {error && <Aviso tono="error">{error}</Aviso>}
       <Button type="submit" disabled={!enlace.trim()}>Usar este enlace</Button>
     </form>
   )

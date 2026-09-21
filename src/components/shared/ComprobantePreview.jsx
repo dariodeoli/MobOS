@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, ConfirmDialog, Modal, useToast } from '@/components/ui'
+import { Aviso, Button, ConfirmDialog, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import {
   FORMATOS_COMPROBANTE,
@@ -240,9 +240,9 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
           </p>
         )}
         {agente && Number(estado?.cola?.fallidos || 0) > 0 && !jobEncColado && (
-          <p role="status" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-xs text-bad">
+          <Aviso tono="error" compact role="status">
             El puente tiene {estado.cola.fallidos} trabajo(s) fallido(s). Revisá la impresora en Configuración → Impresoras.
-          </p>
+          </Aviso>
         )}
         {pendientesRemotos > 0 && (
           <p role="status" className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">

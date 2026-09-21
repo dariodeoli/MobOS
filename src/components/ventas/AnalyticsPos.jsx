@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Modal, Button, Skeleton } from '@/components/ui'
+import { Aviso, Button, Modal, Skeleton } from '@/components/ui'
 import { api } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { tableroPos, comparacion } from '@/lib/posAnalytics'
@@ -109,7 +109,7 @@ export default function AnalyticsPos({ open, onClose }) {
 
   return (
     <Modal open={open} onClose={onClose} title="Analytics del POS" className="max-w-3xl">
-      {error && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {error && <Aviso tono="error" className="rounded-xl">{error}</Aviso>}
       {!tablero && !error && <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-40 w-full" /></div>}
       {tablero && (
         <div className="space-y-4">

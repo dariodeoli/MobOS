@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { api, API_URL } from '@/lib/api/client'
-import { Button, Card, ConfirmDialog, EmptyState, IconAction, Input, Badge, Modal, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, IconAction, Input, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ComboBuscador from '@/components/shared/ComboBuscador'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { gs } from '@/utils/calculos'
+import { fechaHora } from '@/utils/fecha'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { printHtml } from '@/utils/printHtml'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { configImpresora } from '@/lib/printing/agent'
@@ -52,7 +54,7 @@ async function htmlLiquidacion(detalle, enlace) {
   </style></head><body>
   <h1>Liquidación de comisiones</h1>
   <p class="muted">${escapeHtml(detalle.sellerName || 'Vendedor')} · Período ${escapeHtml(detalle.periodFrom || '')} al ${escapeHtml(detalle.periodTo || '')}</p>
-  <div class="card">Comisión ${escapeHtml(detalle.commissionPct ?? '—')}% sobre el margen del período · Emitida ${escapeHtml(detalle.createdAt ? new Date(detalle.createdAt).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false }) : '')} · ${escapeHtml(estado)}</div>
+  <div class="card">Comisión ${escapeHtml(detalle.commissionPct ?? '—')}% sobre el margen del período · Emitida ${escapeHtml(fechaHora(detalle.createdAt, ''))} · ${escapeHtml(estado)}</div>
   <table><thead><tr><th>Venta</th><th class="num">Base</th><th class="num">Comisión</th></tr></thead><tbody>${filas}</tbody></table>
   <div class="total"><span>Total a pagar</span><span>${escapeHtml(gs(detalle.totalPyg || 0))}</span></div>
   ${enlace ? `${qr ? `<img class="qr" src="${qr}" alt="QR de verificación">` : ''}<p class="small">Verificá este comprobante escaneando el QR o en ${escapeHtml(enlace)}</p>` : ''}
@@ -207,9 +209,8 @@ export default function Comisiones() {
     const token = tokens[liquidacion.id] || await generarEnlace(liquidacion)
     const enlace = enlaceVerificacion(token)
     if (!enlace) { setError('No se pudo armar el enlace de verificación.'); return }
-    navigator.clipboard?.writeText(enlace)
-      .then(() => toast.success('Enlace copiado', 'El QR del comprobante verifica la liquidación sin sesión.'))
-      .catch(() => setError(enlace))
+    if (await copiarAlPortapapeles(enlace)) toast.success('Enlace copiado', 'El QR del comprobante verifica la liquidación sin sesión.')
+    else setError(enlace)
   }
 
   // Primero la térmica (agente o puente); solo si el fallo fue claro cae al
@@ -262,7 +263,7 @@ export default function Comisiones() {
           </div>
           <Button type="submit" disabled={ocupado}>{ocupado ? 'Guardando…' : 'Agregar regla'}</Button>
         </form>
-        {error && <p role="alert" className="mb-4 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+        {error && <Aviso tono="error" className="mb-4">{error}</Aviso>}
         {reglas === null ? (
           <div className="space-y-2" aria-busy="true"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
         ) : reglas.length === 0 ? (
@@ -386,7 +387,7 @@ export default function Comisiones() {
             )}
             <p className="break-all rounded-lg border border-ink-600 bg-ink-900 px-3 py-2 text-[11px] text-mute">{enlaceVerificacion(tokenComprobante) || 'El enlace se emite al generar, imprimir o copiar.'}</p>
             {comprobante.verificationTokenIssuedAt && (
-              <p className="text-[11px] text-mute">Enlace emitido {new Date(comprobante.verificationTokenIssuedAt).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false })}.</p>
+              <p className="text-[11px] text-mute">Enlace emitido {fechaHora(comprobante.verificationTokenIssuedAt)}.</p>
             )}
             <div className="flex flex-wrap justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => copiarEnlace(comprobante)}><Icon name="copy" className="h-4 w-4" />Copiar enlace</Button>

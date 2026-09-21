@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Badge, Button, Card, EmptyState } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { printingApi } from '@/lib/api/printing'
 import { esIdBackend } from '@/lib/printing/agent'
@@ -167,7 +167,7 @@ export default function ImpresionComparativa({ impresoras = [], onAgregar, onGes
             </p>
           )}
 
-          {error && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
+          {error && <Aviso tono="error" className="p-3 rounded-xl">{error}</Aviso>}
 
           {corrida && (
             <div className="space-y-2">

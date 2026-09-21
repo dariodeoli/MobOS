@@ -506,6 +506,27 @@ export function ErrorState({ title = 'Algo salió mal', description, onRetry }) 
   )
 }
 
+// ── Aviso (banner inline) ───────────────────────────────────────────
+// Mensaje de resultado pegado al flujo: error o confirmación. Es el único
+// objeto para avisos inline (docs/PLANTILLA-OBJETOS.md §4); no se copia el
+// borde y el fondo de color por pantalla. `error` anuncia con role="alert" y
+// el resto con role="status"; el espaciado extra se ajusta con className.
+const AVISOS = {
+  error: 'border-bad/30 bg-bad/10 text-bad',
+  ok: 'border-ok/30 bg-ok/10 text-ok',
+}
+export function Aviso({ tono = 'error', compact = false, className, children, ...props }) {
+  return (
+    <p
+      role={tono === 'error' ? 'alert' : 'status'}
+      className={cn('rounded-lg border', compact ? 'px-2.5 py-2 text-xs' : 'px-3 py-2 text-sm', AVISOS[tono], className)}
+      {...props}
+    >
+      {children}
+    </p>
+  )
+}
+
 // ── PageHeader ──────────────────────────────────────────────────────
 export function PageHeader({ title, subtitle, actions, backTo, eyebrow }) {
   return (

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Modal, Input, Select, Button, MoneyInput, Badge } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
+import { descargarArchivo } from '@/utils/descargarArchivo'
 import { api, apiFetch } from '@/lib/api'
 import { listVentas, updateVenta, refrescar } from '@/lib/storage'
 import { listDemoProofs, saveDemoProof } from '@/lib/demoProofs'
@@ -19,6 +21,7 @@ import { configImpresora } from '@/lib/printing/agent'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
 import { ticketReciboInterno } from '@/lib/printing/tickets'
 import { ETIQUETAS_MEDIO_PAGO } from '@/lib/constants'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 // Enlace de WhatsApp para compartir el seguimiento público del pedido. Usa la
 // plantilla predeterminada de Pedidos cuando existe (con {seguimiento}) y si no
@@ -284,9 +287,7 @@ export default function PagosPedido({ venta, onClose }) {
         if (!response.ok) throw new Error('No se pudo descargar el comprobante.')
         blob = await response.blob()
       }
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a'); link.href = url; link.download = proof.name || proof.fileName || 'comprobante'; link.click()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      descargarArchivo(proof.name || proof.fileName || 'comprobante', blob)
     } catch (e) { setError(e.message) }
   }
 
@@ -316,7 +317,7 @@ export default function PagosPedido({ venta, onClose }) {
         ) : (
           <span className="text-xs text-mute">El cliente no tiene teléfono: compartí el enlace a mano.</span>
         )}
-        <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={() => { navigator.clipboard?.writeText(trackingUrlFor(order)).catch(() => {}) }}>Copiar enlace</button>
+        <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={() => { copiarAlPortapapeles(trackingUrlFor(order)) }}>Copiar enlace</button>
         {!esDemo && order.customer?.email && <button type="button" disabled={emailBusy} className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light disabled:opacity-40" onClick={enviarComprobante}>{emailBusy ? 'Encolando…' : 'Enviar comprobante por email'}</button>}
         <button type="button" className="rounded-lg border border-fono/40 px-3 py-2 text-xs font-semibold text-fono-light" onClick={() => printOrderReceipt(order, { format: 'a4' })}>Imprimir comprobante</button>
         <span className="w-full text-xs text-mute sm:w-auto">El enlace muestra solo estado y comprobante; sin teléfonos, direcciones ni pagos.</span>
@@ -397,7 +398,7 @@ export default function PagosPedido({ venta, onClose }) {
       <label className="block text-xs text-mute">Cuenta / referencia<Input value={reference} onChange={e => setReference(e.target.value)} maxLength={200} placeholder="Banco, cuenta o referencia de operación" /></label>
       <Button disabled={busy || needsRefresh} type="submit">{busy ? 'Guardando…' : cuotaPago ? 'Cobrar cuota' : 'Registrar pago'}</Button>
     </form>}
-    <div className="space-y-3"><h3 className="text-xs font-bold uppercase tracking-wider text-mute">Cronología de pagos y comprobantes</h3>
+    <div className="space-y-3"><h3 className={ROTULO_SECCION}>Cronología de pagos y comprobantes</h3>
       {!payments.length && <p className="text-sm text-mute">Todavía no hay pagos registrados.</p>}
       {payments.map(p => {
         const conciliacion = reconciliations[p.id]?.state || p.reconciliationState

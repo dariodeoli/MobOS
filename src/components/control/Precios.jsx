@@ -4,7 +4,7 @@ import { useSesion } from '@/lib/sesion'
 import { resources } from '@/lib/api'
 import { getProductos } from '@/lib/storage'
 import { num } from '@/utils/calculos'
-import { Badge, Button, Card, EmptyState, IconAction, Input, Label, Modal, MoneyInput, Select, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, IconAction, Input, Label, Modal, MoneyInput, Select, useToast } from '@/components/ui'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import Switch from '@/components/shared/Switch'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
@@ -207,7 +207,7 @@ export default function Precios() {
         </div>
         <Button type="button" onClick={() => abrirLista()} disabled={busy}>+ Nueva lista</Button>
       </div>
-      {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {error && <Aviso tono="error">{error}</Aviso>}
       {cargando ? <p className="text-sm text-mute">Cargando listas…</p> : !listas.length ? <EmptyState compact icon="store" title="Todavía no hay listas de precios." /> : <div className="space-y-2">
         {listas.map(lista => <div key={lista.id} data-testid="lista-precio-fila" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800/40 p-3">
           <div className="min-w-0">

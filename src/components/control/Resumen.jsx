@@ -29,6 +29,7 @@ import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
 import { Card, Badge, Dot, EmptyState, Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { ROTULO_DATO } from '@/components/shared/tabla'
 
 // Products at or below this stock count are flagged in the low-stock widget.
 const UMBRAL_STOCK_BAJO = 3
@@ -278,7 +279,7 @@ function CardStock({ inventario }) {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {celdas.map(([label, valor]) => (
           <div key={label} className="rounded-lg border border-ink-600 bg-ink-800/40 px-3 py-2">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-mute">{label}</div>
+            <div className={ROTULO_DATO}>{label}</div>
             <div className="mt-0.5 truncate text-sm font-semibold tabular-nums">{valor}</div>
           </div>
         ))}

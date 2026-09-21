@@ -1,5 +1,5 @@
 import Icon from '@/components/shared/Icon'
-import { Button, EmptyState, Modal, Skeleton } from '@/components/ui'
+import { Aviso, Button, EmptyState, Modal, Skeleton } from '@/components/ui'
 
 const ICONO = {
   ENTREGA: 'truck',
@@ -45,7 +45,7 @@ export default function PanelNotificaciones({ open, onClose, items, cargando, er
           </div>
         )}
 
-        {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
+        {error && <Aviso tono="error" className="p-3">{error}</Aviso>}
 
         {!cargando && !error && items.length === 0 && (
           <EmptyState compact icon="bell" title="Sin novedades por ahora." description="Cuando haya pedidos, aprobaciones o comentarios para vos, aparecen acá." />

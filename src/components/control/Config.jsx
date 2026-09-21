@@ -9,8 +9,10 @@ import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
 import { getDemoTenant, setDemoInsurancePct, setDemoLimits, setDemoNumeracion } from '@/lib/demoTenant'
 import { promptLogo } from '@/lib/logoPrompt'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
+import { deviceId } from '@/lib/deviceId'
 import { comprimirImagen } from '@/utils/imagen'
-import { Button, Card, Badge, ConfirmDialog, EmptyState, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, Toggle, useToast } from '@/components/ui'
+import { fechaHora as fmtDate } from '@/utils/fecha'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, Toggle, useToast } from '@/components/ui'
 import { formatGs } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
@@ -24,28 +26,12 @@ import Avatar from '@/components/shared/Avatar'
 import UsoEquipo from '@/components/control/UsoEquipo'
 import DatosPrivados from '@/components/control/DatosPrivados'
 import { ROLE_LABELS } from '@/lib/roles'
-
-function fmtDate(value) {
-  return value ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false }) : '—'
-}
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
+import { descargarArchivo } from '@/utils/descargarArchivo'
 
 async function copiarValor(toast, valor, etiqueta) {
   if (!valor) return
-  let copiado = false
-  try {
-    await navigator.clipboard.writeText(valor)
-    copiado = true
-  } catch {
-    const campo = document.createElement('textarea')
-    campo.value = valor
-    campo.setAttribute('readonly', '')
-    campo.style.position = 'fixed'
-    campo.style.opacity = '0'
-    document.body.appendChild(campo)
-    campo.select()
-    try { copiado = document.execCommand('copy') } catch { copiado = false }
-    document.body.removeChild(campo)
-  }
+  const copiado = await copiarAlPortapapeles(valor)
   if (copiado) toast.success('Copiado', `${etiqueta} quedó en el portapapeles.`)
   else toast.error('No se pudo copiar', 'Seleccioná el valor y copialo manualmente.')
 }
@@ -115,10 +101,9 @@ export default function Config({ seccion = 'negocio' } = {}) {
   }
 
   async function copiarPrompt() {
-    try {
-      await navigator.clipboard.writeText(promptLogo(account?.tenant?.name || 'mi empresa'))
+    if (await copiarAlPortapapeles(promptLogo(account?.tenant?.name || 'mi empresa'))) {
       toast.success('Prompt copiado', 'Pegalo en tu ChatGPT para generar las dos versiones del logo.')
-    } catch { toast.error('No se pudo copiar el prompt') }
+    } else { toast.error('No se pudo copiar el prompt') }
   }
 
   async function quitarLogo(variant = 'light') {
@@ -147,10 +132,8 @@ export default function Config({ seccion = 'negocio' } = {}) {
     setBusy(true); setFailure(''); setNotice('')
     try {
       const data = await api.get('/api/account/export')
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-      const href = URL.createObjectURL(blob); const link = document.createElement('a')
-      link.href = href; link.download = `mobos-${account?.tenant?.slug || 'datos'}-${new Date().toISOString().slice(0, 10)}.json`; link.click()
-      setTimeout(() => URL.revokeObjectURL(href), 1000); setNotice('Exportación descargada. No contiene claves, PIN, tokens ni archivos adjuntos.')
+      descargarArchivo(`mobos-${account?.tenant?.slug || 'datos'}-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2), { tipo: 'application/json' })
+      setNotice('Exportación descargada. No contiene claves, PIN, tokens ni archivos adjuntos.')
     } catch (error) { setFailure(error.message || 'No se pudo exportar.') } finally { setBusy(false) }
   }
   async function cerrarCuenta({ password }) {
@@ -253,7 +236,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   }
   return (
     <div className="space-y-4">
-      {failure && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{failure}</p>}{notice && <p role="status" className="rounded-xl border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{notice}</p>}
+      {failure && <Aviso tono="error" className="p-3 rounded-xl">{failure}</Aviso>}{notice && <Aviso tono="ok" className="p-3 rounded-xl">{notice}</Aviso>}
       {seccion === 'negocio' && <>
       <Card className="space-y-3">
         <div>
@@ -538,7 +521,7 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
                 <PasswordInput id="edit-password" autoComplete="current-password" disabled={busy} value={form?.password || ''} onChange={event => setForm(current => ({ ...current, password: event.target.value }))} placeholder="Para confirmar el cambio" />
               </FormField>
             )}
-            {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+            {error && <Aviso tono="error">{error}</Aviso>}
             <div className="flex flex-wrap justify-end gap-2">
               <Button type="button" variant="ghost" disabled={busy} onClick={restablecer}>Restablecer</Button>
               <Button type="submit" disabled={busy || !form?.name?.trim() || !form?.email?.trim()}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button>
@@ -722,7 +705,7 @@ function SeccionTiendas({ account }) {
         </div>
         <Button type="button" variant="outline" onClick={crearOtra}><Icon name="plus" className="h-3.5 w-3.5" />Crear otra tienda</Button>
       </div>
-      {error && !dialogo && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {error && !dialogo && <Aviso tono="error">{error}</Aviso>}
       {stores.length === 0 ? <p className="text-sm text-mute">Todavía no se pudieron cargar tus tiendas. Recargá la página para volver a intentarlo.</p> : (
         <div className="space-y-2">
           {stores.map((store) => (
@@ -792,9 +775,8 @@ function SeccionInvitaciones() {
     if (!elegida) return
     setBusy(true)
     try {
-      const deviceId = localStorage.getItem('mobos:device-id') || crypto.randomUUID()
-      localStorage.setItem('mobos:device-id', deviceId)
-      await api.post('/api/user-invitations/accept-by-id', { id: elegida.id, pin, deviceId })
+      const dispositivo = deviceId()
+      await api.post('/api/user-invitations/accept-by-id', { id: elegida.id, pin, deviceId: dispositivo })
       toast.success('Invitación aceptada', `Ya sos parte de ${elegida.companyName}. Entrá a esa tienda con su correo y tu PIN.`)
       setPendientes((lista) => lista.filter((inv) => inv.id !== elegida.id))
       setElegida(null); setPin('')
@@ -826,7 +808,7 @@ function SeccionInvitaciones() {
         <form onSubmit={aceptar} className="space-y-4">
           <p className="text-sm text-mute">Elegí tu PIN de 4 a 6 dígitos para entrar a esta tienda. Podés usar el mismo que en tu tienda actual.</p>
           <PinInput autoFocus length={6} value={pin} onChange={(next) => { setPin(next); setError('') }} />
-          {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+          {error && <Aviso tono="error">{error}</Aviso>}
           <Button type="submit" className="w-full" disabled={busy || pin.length < 4}>{busy ? 'Aceptando…' : 'Aceptar invitación'}</Button>
         </form>
       </Modal>
@@ -854,7 +836,7 @@ function DialogoDestructivo({ open, title, description, palabra, necesitaClave =
           <Label htmlFor="dialogo-palabra">Escribí {palabra} para confirmar</Label>
           <Input id="dialogo-palabra" autoFocus={!necesitaClave} disabled={busy} value={palabraActual} onChange={(event) => setPalabraActual(event.target.value)} placeholder={palabra} />
         </div>
-        {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+        {error && <Aviso tono="error">{error}</Aviso>}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>Cancelar</Button>
           <Button type="button" variant="danger" onClick={() => onConfirm(necesitaClave ? { password: clave } : {})} disabled={busy || !lista}>{busy ? 'Procesando…' : confirmLabel}</Button>
@@ -970,7 +952,7 @@ function SeccionSucursales() {
             <FormField label="Dirección (opcional)" htmlFor="sucursal-direccion">
               <Input id="sucursal-direccion" maxLength={200} disabled={busy} value={form?.address || ''} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} placeholder="Dirección completa" />
             </FormField>
-            {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+            {error && <Aviso tono="error">{error}</Aviso>}
             <div className="flex flex-wrap justify-end gap-2">
               {form?.id && <Button type="button" variant="ghost" disabled={busy} onClick={() => abrir(null)}>Cancelar edición</Button>}
               <Button type="submit" disabled={busy || !form?.name?.trim()}>{busy ? 'Guardando…' : form?.id ? 'Guardar cambios' : 'Crear sucursal'}</Button>

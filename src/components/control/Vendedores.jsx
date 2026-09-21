@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api/client'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { useSesion } from '@/lib/sesion'
 import { getVendedores, addVendedor, updateVendedor, deleteVendedor, listVentas, productosById, refrescar } from '@/lib/storage'
 import { totalesVendedor, ventasDelDia, comisionDeVentas, fechaClave, num, gs } from '@/utils/calculos'
-import { Card, Button, ConfirmDialog, Input, Select, Badge, Label, EmptyState, MoneyInput, Modal, PinInput, FormField } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Label, Modal, MoneyInput, PinInput, Select } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import EmailField from '@/components/shared/EmailField'
 import Cronologia from '@/components/shared/Cronologia'
@@ -166,11 +167,10 @@ export default function Vendedores() {
   }
 
   async function copiarPin() {
-    try {
-      await navigator.clipboard.writeText(pinGenerado)
+    if (await copiarAlPortapapeles(pinGenerado)) {
       setPinCopiado(true)
       window.setTimeout(() => setPinCopiado(false), 2500)
-    } catch {
+    } else {
       setPinError('No se pudo copiar; anotá el PIN a mano.')
     }
   }
@@ -340,8 +340,8 @@ export default function Vendedores() {
   )
 
   return <div className="space-y-4" data-revision={revision}>
-    {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
-    {message && <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{message}</p>}
+    {error && <Aviso tono="error" className="p-3">{error}</Aviso>}
+    {message && <Aviso tono="ok" className="p-3">{message}</Aviso>}
     <div className="flex flex-wrap items-center justify-end gap-2 lg:hidden">
       <Button onClick={() => { setConflicto(null); setInvitacion({ name: '', email: '', role: 'VENDEDOR' }); irAlFormulario() }}>+ Invitar persona</Button>
     </div>
@@ -547,7 +547,7 @@ export default function Vendedores() {
           </div>
         )}
 
-        {pinError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{pinError}</p>}
+        {pinError && <Aviso tono="error" className="p-3">{pinError}</Aviso>}
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" disabled={pinBusy} onClick={() => setPinDe(null)}>Cancelar</Button>

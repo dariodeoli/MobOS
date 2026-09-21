@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { consumeActionToken } from '@/lib/actionToken'
-import { Badge, Button, Card, Label, PinInput } from '@/components/ui'
+import { deviceId } from '@/lib/deviceId'
+import { Aviso, Badge, Button, Card, Label, PinInput } from '@/components/ui'
 import ProductFooter from '@/components/app/ProductFooter'
 import PegarEnlaceToken from '@/components/shared/PegarEnlaceToken'
 
@@ -42,9 +43,8 @@ export default function AceptarInvitacion() {
     if (pin !== confirm) return setError('Los PIN no coinciden.')
     setSaving(true)
     try {
-      const deviceId = localStorage.getItem('mobos:device-id') || crypto.randomUUID()
-      localStorage.setItem('mobos:device-id', deviceId)
-      const result = await api.post('/api/user-invitations/accept', { token, pin, deviceId })
+      const dispositivo = deviceId()
+      const result = await api.post('/api/user-invitations/accept', { token, pin, deviceId: dispositivo })
       setMessage(result.message); setPin(''); setConfirm('')
       window.location.assign('/')
     }
@@ -104,8 +104,8 @@ export default function AceptarInvitacion() {
                   <Label htmlFor="invite-pin-confirm">Repetir PIN</Label>
                   <PinInput id="invite-pin-confirm" length={6} inputRef={confirmRef} ariaLabel="Repetir PIN" value={confirm} onChange={(next) => { setConfirm(next); setError('') }} />
                 </div>
-                {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
-                {message && <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{message}</p>}
+                {error && <Aviso tono="error" className="p-3">{error}</Aviso>}
+                {message && <Aviso tono="ok" className="p-3">{message}</Aviso>}
                 <Button type="submit" className="w-full" disabled={saving || Boolean(message)}>
                   {saving ? 'Aceptando…' : 'Aceptar invitación'}
                 </Button>

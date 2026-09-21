@@ -153,20 +153,33 @@ patrón de uso de cada familia y un ejemplo corto.
   fecha/hora) junto al contenido; selección múltiple en lote donde haya listas
   (contador “N seleccionados”, seleccionar visibles, limpiar, resolver en una
   sola operación).
+- **Encabezados y rótulos de tabla (#147):** las clases de la grilla se escriben
+  una sola vez en `src/components/shared/tabla.js`:
+  `ROTULO_DATO` (etiqueta de dato, 10 px), `CELDA_ENCABEZADO` (encabezado de
+  grilla en una línea, `truncate` + `ROTULO_DATO`) y `ROTULO_SECCION` (título
+  de sección, 12 px). Lo que agrega layout va con `cn(…, objeto)`; prohibido
+  copiar las clases o crear alias locales (`CELDA_INV`, `celda`, …).
 
 > Referencia MobOS: `Badge`, `Dot`, `Stat`, `Card`, `ListGridToggle`,
-> `SeccionColapsable`, `ComprobantePreview`, `Cronologia`.
+> `SeccionColapsable`, `ComprobantePreview`, `Cronologia`,
+> `src/components/shared/tabla.js` (`ROTULO_DATO`, `CELDA_ENCABEZADO`,
+> `ROTULO_SECCION`).
 
 ## 4. Estados y avisos — únicos por concepto
 
 - Estados de **vacío / carga / error** compartidos; un solo objeto por concepto.
+- **Aviso inline:** el mensaje de resultado pegado al flujo (error de un
+  formulario, confirmación de un guardado) va con `Aviso` (`ui/index.jsx`):
+  `tono="error"` (role `alert`, borde/fondo rojo) u `tono="ok"` (role `status`);
+  `compact` para el tamaño chico y `className` solo para espaciado o radio.
+  Prohibido copiar el `<p>` con `border-bad/30 bg-bad/10` por pantalla.
 - Avisos de modo (**test/demo/producción**) visibles y en un solo lugar.
 - Banners y avisos inline compartidos; prohibido repetir el mismo aviso por
   pantalla ni duplicar estados.
 - Los avisos destacados al dueño son solo: bloqueos, plazos con fecha, plata o
   riesgos propios (máximo tres).
 
-> Referencia MobOS: `EmptyState`, `ErrorState`, `Skeleton` en
+> Referencia MobOS: `EmptyState`, `ErrorState`, `Skeleton`, `Aviso` en
 > `src/components/ui/index.jsx`; modo demo en `src/lib/demoMode.js`.
 
 ## 5. Diálogos, acciones y overlays
@@ -238,6 +251,26 @@ patrón de uso de cada familia y un ejemplo corto.
   `src/lib/ultimoUsado.js`): selecciones frecuentes (motivos, sucursal/depósito,
   filtros/orden) arrancan con lo último elegido; siempre cambiable y avisado en
   pantalla. Solo selecciones, nunca acciones destructivas ni permisos.
+- **Fechas y horas de pantalla:** un solo módulo, `src/utils/fecha.js`
+  (`fechaHora`, `fechaDia`, `fechaHoraCorta`, `fechaCorta`, `fechaValida`).
+  La hora va **siempre en 24 h** (`hour12: false`). Cada helper recibe el texto
+  de vacío (`'—'` por defecto; los comprobantes pasan `''`) y nunca imprime
+  “Invalid Date”. Las pantallas no llaman a `toLocaleString` para fechas ni
+  definen helpers locales (`fmt`, `fecha`, `fechaHora`); la impresión conserva
+  el suyo hasta unificar el formato.
+- **Portapapeles:** `copiarAlPortapapeles(texto)`
+  (`src/utils/portapapeles.js`): Clipboard API con respaldo (`execCommand`),
+  devuelve true/false para que la pantalla elija el aviso. Prohibido llamar a
+  `navigator.clipboard` por pantalla.
+- **Descargas:** `descargarArchivo(nombre, contenido, { tipo, bom })` y el atajo
+  `descargarCsvCliente(nombre, csv)` (`src/utils/descargarArchivo.js`): un solo
+  Blob + enlace + revocación; nunca armar el `<a download>` a mano.
+- **Vista lista/cuadrícula:** `useVistaListaGrid(clave, inicial)`
+  (`src/hooks/useVistaListaGrid.js`): recuerda la vista de cada listado en
+  `mobos:<clave>-vista` y se conecta directo al `ListGridToggle`.
+- **Identificador de dispositivo:** `deviceId()` (`src/lib/deviceId.js`): un
+  solo id estable por navegador (registro de empresa, entrada y aceptar
+  invitaciones lo usan); no leer ni escribir `mobos:device-id` por pantalla.
 - Montos, fechas y códigos: `nowrap` + `tabular-nums`.
 
 ### Último usado como predeterminado (#209)
@@ -272,10 +305,14 @@ por el sistema.
 
 > Referencia MobOS: `src/lib/api/client.js`, `src/lib/roles.js`,
 > `src/lib/utils.js`, `src/lib/urls.js`, `src/lib/constants.js`,
-> `src/lib/ultimoUsado.js`.
+> `src/lib/ultimoUsado.js`, `src/lib/deviceId.js`, `src/utils/fecha.js`,
+> `src/utils/portapapeles.js`, `src/utils/descargarArchivo.js`,
+> `src/hooks/useVistaListaGrid.js`.
 > Implementado: timeout por pedido, caché corta solo-GET e invalidación
 > (`src/lib/api/client.js`, `requestCache.test.js`); “último usado” en
 > Inventario (`ultimoUsado.test.js` + e2e `inventario-unidades.spec.js`).
+> Auditoría de duplicación del front y backlog priorizado:
+> `docs/AUDITORIA-DUPLICACION.md` (objetos aplicados y pendientes por slot).
 
 ## 8. Tokens y estilo — un solo sistema visual
 

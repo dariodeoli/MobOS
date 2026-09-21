@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { Badge, Button, Input, Modal, Money, MoneyInput, Select, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Input, Modal, Money, MoneyInput, Select, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { codigoPedido } from '@/utils/pedido'
@@ -167,7 +167,7 @@ export default function DriverOrders() {
                 <Input id="delivery-referencia" className="mt-2 w-full" value={referencia} onChange={event => setReferencia(event.target.value)} placeholder="N.º de operación o banco" maxLength={200} />
               </div>
             )}
-            {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+            {error && <Aviso tono="error">{error}</Aviso>}
             <p className="rounded-xl border border-warn/25 bg-warn/10 px-3 py-2 text-xs text-warn">
               El cobro queda pendiente hasta que la tienda verifique tu rendición.
             </p>

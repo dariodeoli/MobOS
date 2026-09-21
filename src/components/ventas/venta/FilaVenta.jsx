@@ -7,6 +7,8 @@ import { quoteDemoPromotion } from '@/lib/demoPromotions'
 import { gs } from '@/utils/calculos'
 import { serialEnmascarado } from '@/utils/serial'
 import { LIMITE_MONTO_VENTAS } from '@/utils/moneda'
+import { ROTULO_DATO } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 // Fila editable de la venta: cantidad, precio de venta, color/variante, IMEI,
 // descuento de línea y cupón en un solo lugar. El total se recalcula en el
@@ -108,7 +110,7 @@ export default function FilaVenta({
         <div className="flex flex-wrap items-end gap-2">
           {variantes.length > 1 && (
             <label className="block">
-              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-mute">Color</span>
+              <span className={cn('mb-1 block', ROTULO_DATO)}>Color</span>
               <Select
                 aria-label={`Color de ${item.nombre}`}
                 className="h-9 w-40"
@@ -123,7 +125,7 @@ export default function FilaVenta({
             </label>
           )}
           <label className="block">
-            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-mute">Cantidad</span>
+            <span className={cn('mb-1 block', ROTULO_DATO)}>Cantidad</span>
             <Input
               aria-label={`Cantidad de ${item.nombre}`}
               className="h-9 w-16 text-center tabular-nums"
@@ -135,7 +137,7 @@ export default function FilaVenta({
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-mute">Precio de venta</span>
+            <span className={cn('mb-1 block', ROTULO_DATO)}>Precio de venta</span>
             <MoneyInput
               aria-label={`Precio de venta de ${item.nombre}`}
               max={LIMITE_MONTO_VENTAS}
@@ -146,7 +148,7 @@ export default function FilaVenta({
             />
           </label>
           <div className="w-28 text-right">
-            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-mute">Total</span>
+            <span className={cn('mb-1 block', ROTULO_DATO)}>Total</span>
             <span className="block h-9 truncate pt-1.5 text-sm font-extrabold tabular-nums text-fono-light">{gs(total)}</span>
           </div>
           <Button

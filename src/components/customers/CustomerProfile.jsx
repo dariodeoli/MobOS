@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
+import { descargarCsvCliente } from '@/utils/descargarArchivo'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
+import { fechaDia as fecha, fechaHora } from '@/utils/fecha'
 import { telefonoVisible } from '@/utils/telefono'
 import { codigoPedido } from '@/utils/pedido'
 import { cn } from '@/lib/utils'
@@ -20,7 +23,9 @@ import Icon from '@/components/shared/Icon'
 import ActorAvatar from './ActorAvatar'
 import { DEMO_MESSAGE_TEMPLATES } from './customerMessaging'
 import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline } from '@/lib/demoClientes'
+import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
 import {
+  Aviso,
   Badge,
   Button,
   ConfirmDialog,
@@ -76,8 +81,6 @@ const STATUS_BADGE = (map, value) => {
   const item = map[value]
   return item ? <Badge color={item.color}>{item.label}</Badge> : <Badge>{value || 'Sin estado'}</Badge>
 }
-const fecha = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleDateString('es-PY') : '—')
-const fechaHora = (value) => (value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short', hour12: false }) : '—')
 const antiguedadTexto = (dias) => {
   const total = Number(dias || 0)
   if (!total) return '—'
@@ -121,7 +124,6 @@ const GRID_GARANTIAS_CLI = 'grid min-w-[46rem] grid-cols-[minmax(9rem,1.5fr)_min
 const GRID_SEGUIMIENTOS = 'grid min-w-[54rem] grid-cols-[7rem_minmax(10rem,1.8fr)_7rem_7rem_6rem_8rem] items-center gap-x-2'
 const GRID_FACTURACION = 'grid min-w-[50rem] grid-cols-[minmax(10rem,1.5fr)_minmax(7rem,1fr)_minmax(8rem,1fr)_7rem_7rem] items-center gap-x-2'
 const GRID_DEUDA = 'grid min-w-[34rem] grid-cols-[7rem_6rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-center gap-x-2'
-const CELDA_CLI = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const TABS = [
   { key: 'resumen', label: 'Resumen' },
@@ -450,7 +452,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
   function copiarPortal() {
     const url = portalUrlFor(portal?.token)
     if (!url) return
-    navigator.clipboard?.writeText(url).then(() => setPortalMsg('Enlace copiado.')).catch(() => setPortalMsg(url))
+    copiarAlPortapapeles(url).then((ok) => setPortalMsg(ok ? 'Enlace copiado.' : url))
   }
 
   useEffect(() => {
@@ -499,11 +501,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
         billingIdentities: profile?.billingIdentities || [],
         rango: rangoPeriodo(periodoInforme, { desde: desdeInforme, hasta: hastaInforme }),
       })
-      const enlace = document.createElement('a')
-      enlace.href = URL.createObjectURL(new Blob([`\ufeff${informeCsv(secciones)}`], { type: 'text/csv;charset=utf-8' }))
-      enlace.download = nombreArchivoInforme(customer?.name || 'cliente', periodoInforme)
-      enlace.click()
-      URL.revokeObjectURL(enlace.href)
+      descargarCsvCliente(nombreArchivoInforme(customer?.name || 'cliente', periodoInforme), informeCsv(secciones))
       toast.success('Informe descargado.')
     } catch (cause) {
       toast.error('No se pudo generar el informe', cause?.message)
@@ -1186,11 +1184,11 @@ export default function CustomerProfile({ customer, open, onClose }) {
               </div>
               <div className="mt-2 overflow-x-auto" data-testid="perfil-deuda">
                 <div className={cn(GRID_DEUDA, 'px-1 pb-1 pt-1')}>
-                  <span className={CELDA_CLI}>Pedido</span>
-                  <span className={CELDA_CLI}>Fecha</span>
-                  <span className={cn(CELDA_CLI, 'text-right')}>Total</span>
-                  <span className={cn(CELDA_CLI, 'text-right')}>Pagado</span>
-                  <span className={cn(CELDA_CLI, 'text-right')}>Saldo</span>
+                  <span className={CELDA_ENCABEZADO}>Pedido</span>
+                  <span className={CELDA_ENCABEZADO}>Fecha</span>
+                  <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Total</span>
+                  <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Pagado</span>
+                  <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Saldo</span>
                 </div>
                 <div className="space-y-0.5">
                   {ordenesConSaldo.map((order) => (
@@ -1309,12 +1307,12 @@ export default function CustomerProfile({ customer, open, onClose }) {
               ) : (
                 <div className="overflow-x-auto" data-testid="perfil-dispositivos">
                   <div className={cn(GRID_DISPOSITIVOS, 'px-3.5 pb-2 pt-1')}>
-                    <span className={CELDA_CLI}>Equipo</span>
-                    <span className={CELDA_CLI}>IMEI</span>
-                    <span className={CELDA_CLI}>Comprado</span>
-                    <span className={CELDA_CLI}>Pedido</span>
-                    <span className={CELDA_CLI}>Garantía</span>
-                    <span className={cn(CELDA_CLI, 'text-right')}>Acciones</span>
+                    <span className={CELDA_ENCABEZADO}>Equipo</span>
+                    <span className={CELDA_ENCABEZADO}>IMEI</span>
+                    <span className={CELDA_ENCABEZADO}>Comprado</span>
+                    <span className={CELDA_ENCABEZADO}>Pedido</span>
+                    <span className={CELDA_ENCABEZADO}>Garantía</span>
+                    <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
                   </div>
                   <div className="space-y-1">
                   {dispositivos.map((device) => {
@@ -1349,10 +1347,10 @@ export default function CustomerProfile({ customer, open, onClose }) {
               ) : (
                 <div className="overflow-x-auto" data-testid="perfil-garantias">
                   <div className={cn(GRID_GARANTIAS_CLI, 'px-3.5 pb-2 pt-1')}>
-                    <span className={CELDA_CLI}>Caso</span>
-                    <span className={CELDA_CLI}>Serial</span>
-                    <span className={CELDA_CLI}>Fecha</span>
-                    <span className={CELDA_CLI}>Estado</span>
+                    <span className={CELDA_ENCABEZADO}>Caso</span>
+                    <span className={CELDA_ENCABEZADO}>Serial</span>
+                    <span className={CELDA_ENCABEZADO}>Fecha</span>
+                    <span className={CELDA_ENCABEZADO}>Estado</span>
                   </div>
                   <div className="space-y-1">
                   {warranties.map((item) => (
@@ -1497,12 +1495,12 @@ export default function CustomerProfile({ customer, open, onClose }) {
               ) : (
                 <div className="overflow-x-auto" data-testid="perfil-seguimientos">
                   <div className={cn(GRID_SEGUIMIENTOS, 'px-3.5 pb-2 pt-1')}>
-                    <span className={CELDA_CLI}>Tipo</span>
-                    <span className={CELDA_CLI}>Nota</span>
-                    <span className={CELDA_CLI}>Vence</span>
-                    <span className={CELDA_CLI}>Hecho</span>
-                    <span className={CELDA_CLI}>Autor</span>
-                    <span className={cn(CELDA_CLI, 'text-right')}>Acciones</span>
+                    <span className={CELDA_ENCABEZADO}>Tipo</span>
+                    <span className={CELDA_ENCABEZADO}>Nota</span>
+                    <span className={CELDA_ENCABEZADO}>Vence</span>
+                    <span className={CELDA_ENCABEZADO}>Hecho</span>
+                    <span className={CELDA_ENCABEZADO}>Autor</span>
+                    <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
                   </div>
                   <div className="space-y-1">
                   {followUps.map((item) => {
@@ -1618,7 +1616,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
               <div>
                 <p className="text-sm font-semibold">Solicitudes</p>
                 {authLoading && <div className="mt-2 space-y-2" aria-busy="true"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
-                {!authLoading && authError && <p role="alert" className="mt-2 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{authError}</p>}
+                {!authLoading && authError && <Aviso tono="error" className="mt-2">{authError}</Aviso>}
                 {!authLoading && !authError && !authorizations.length && (
                   <p className="mt-2 text-xs text-mute">Sin solicitudes registradas para este cliente.</p>
                 )}
@@ -1773,11 +1771,11 @@ export default function CustomerProfile({ customer, open, onClose }) {
               {!identitiesLoading && !identitiesError && identities.length > 0 && (
                 <div className="overflow-x-auto" data-testid="perfil-facturacion">
                   <div className={cn(GRID_FACTURACION, 'px-3.5 pb-2 pt-1')}>
-                    <span className={CELDA_CLI}>Razón social</span>
-                    <span className={CELDA_CLI}>RUC</span>
-                    <span className={CELDA_CLI}>Uso</span>
-                    <span className={CELDA_CLI}>Estado</span>
-                    <span className={cn(CELDA_CLI, 'text-right')}>Acciones</span>
+                    <span className={CELDA_ENCABEZADO}>Razón social</span>
+                    <span className={CELDA_ENCABEZADO}>RUC</span>
+                    <span className={CELDA_ENCABEZADO}>Uso</span>
+                    <span className={CELDA_ENCABEZADO}>Estado</span>
+                    <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
                   </div>
                   <div className="space-y-1">
                   {identities.map((identity) => {
@@ -2101,7 +2099,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
               : null}
           <p className="break-all rounded-lg border border-ink-600 bg-ink-900 px-3 py-2 text-[11px] text-mute">{portal?.token ? portalUrlFor(portal.token) : '—'}</p>
           {portalMsg && <p role="status" className="text-xs text-fono-light">{portalMsg}</p>}
-          {portalError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{portalError}</p>}
+          {portalError && <Aviso tono="error">{portalError}</Aviso>}
           <div className="flex flex-wrap justify-center gap-2">
             <Button type="button" variant="outline" disabled={!portal?.token} onClick={copiarPortal}><Icon name="copy" className="h-4 w-4" />Copiar enlace</Button>
             <Button type="button" variant="outline" disabled={!portal?.token} onClick={() => window.open(portalUrlFor(portal.token), '_blank', 'noopener')}><Icon name="external" className="h-4 w-4" />Abrir</Button>

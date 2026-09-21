@@ -1,4 +1,5 @@
 import { gs } from '@/utils/calculos'
+import { fechaHora } from '@/utils/fecha'
 import { printHtml } from '@/utils/printHtml'
 import { APP_NAME } from '@/lib/brand'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
@@ -134,7 +135,7 @@ td.num, th.num { text-align: right; white-space: nowrap; }
       </div>
     </div>
     <div class="meta">
-      Generado ${escapeHtml(new Date().toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }))}<br>
+      Generado ${escapeHtml(fechaHora(new Date()))}<br>
       Documento de control interno · no es comprobante fiscal
     </div>
   </header>

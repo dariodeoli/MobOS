@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Drawer, Badge, Button, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Drawer, Input, Label, Money, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import Cronologia from '@/components/shared/Cronologia'
 import EtiquetasProductoModal from '@/components/shared/EtiquetasProductoModal'
 import KardexProducto from '@/components/productos/KardexProducto'
@@ -8,6 +9,7 @@ import PercentField, { formatPercent, parsePercent } from '@/components/shared/P
 import { api } from '@/lib/api/client'
 import { num } from '@/utils/calculos'
 import SerialTexto from '@/components/shared/SerialTexto'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 const CONDITION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 const DESTINATION = { NORMAL: 'Normal', OFFER: 'Oferta', WHOLESALE: 'Mayorista' }
@@ -121,7 +123,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="font-mono text-sm font-bold tracking-wide">{current?.sku || 'Sin SKU'}</span>
-            {current?.sku && <button type="button" className="rounded-md p-1 text-mute transition hover:bg-fore/5 hover:text-fore" title="Copiar SKU" aria-label="Copiar SKU" onClick={() => { navigator.clipboard?.writeText(current.sku).catch(() => {}); toast.success('SKU copiado.') }}><Icon name="copy" className="h-3.5 w-3.5" /></button>}
+            {current?.sku && <button type="button" className="rounded-md p-1 text-mute transition hover:bg-fore/5 hover:text-fore" title="Copiar SKU" aria-label="Copiar SKU" onClick={() => { copiarAlPortapapeles(current.sku); toast.success('SKU copiado.') }}><Icon name="copy" className="h-3.5 w-3.5" /></button>}
           </div>
           <p className="mt-1 text-xs text-mute">{current?.branch?.name || ''}{current?.branchId && !current?.branch?.name ? 'Sucursal asignada' : ''}</p>
           <div className="mt-4 flex flex-wrap items-end gap-4">
@@ -137,12 +139,12 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
             {canManage && !esDemo && <Button variant="outline" disabled={busy} onClick={() => setEditando(value => !value)}>{editando ? 'Cancelar edición' : 'Editar'}</Button>}
             {canManage && !esDemo && <button type="button" disabled={busy} onClick={desactivar} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad">Desactivar</button>}
           </div>
-          {error && <p role="alert" className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+          {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
         </section>
 
         {editando && (
           <section className="rounded-2xl border border-fono/25 bg-fono/5 p-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Editar producto</h3>
+            <h3 className={ROTULO_SECCION}>Editar producto</h3>
             <form onSubmit={guardarEdicion} className="mt-3 grid gap-3 sm:grid-cols-2">
               <div><Label htmlFor="categoria">Categoría</Label><Select id="categoria" value={form.categoria} onChange={event => setForm(current => ({ ...current, categoria: event.target.value }))}>{CATEGORIAS.map(categoria => <option key={categoria} value={categoria}>{categoria}</option>)}{!CATEGORIAS.includes(form.categoria) && form.categoria && <option value={form.categoria}>{form.categoria}</option>}</Select></div>
               <div><Label htmlFor="condicion">Condición</Label><Select id="condicion" value={form.condicion} onChange={event => setForm(current => ({ ...current, condicion: event.target.value }))}>{Object.entries(CONDITION).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
@@ -164,7 +166,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
         )}
 
         <section className="rounded-2xl border border-ink-600 p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Equipos por estado</h3>
+          <h3 className={ROTULO_SECCION}>Equipos por estado</h3>
           {loadingUnits && <div className="mt-3 space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>}
           {!loadingUnits && units.length === 0 && <p className="mt-2 text-sm text-mute">{esDemo ? 'La lista de IMEI está disponible con una cuenta real.' : 'Este producto no tiene unidades serializadas cargadas.'}</p>}
           {!loadingUnits && units.length > 0 && <>
@@ -182,7 +184,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
 
         <section className="rounded-2xl border border-ink-600 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Cronología</h3>
+            <h3 className={ROTULO_SECCION}>Cronología</h3>
             <button type="button" onClick={() => setCronologiaAbierta(value => !value)} className="rounded-lg border border-ink-500 px-3 py-1.5 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">{cronologiaAbierta ? 'Ocultar' : 'Ver cronología'}</button>
           </div>
           {cronologiaAbierta && (
@@ -195,7 +197,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
         </section>
 
         <section className="rounded-2xl border border-ink-600 p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Datos del catálogo</h3>
+          <h3 className={ROTULO_SECCION}>Datos del catálogo</h3>
           <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{costo(current) > 0 ? <Money value={costo(current)} /> : 'pendiente'}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Seguro</p><p className="mt-1 font-semibold">{current?.insuranceRate != null && Number(current.insuranceRate) > 0 ? `${formatPercent(current.insuranceRate)}%` : 'sin seguro'}</p></div>

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Badge, Button, Card, ConfirmDialog, Dot, Select, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, Dot, Select, Skeleton, useToast } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { printingApi } from '@/lib/api/printing'
 import { useSesion } from '@/lib/sesion'
 import { APP_VERSION } from '@/lib/brand'
+import { fechaHora as fmt } from '@/utils/fecha'
 import { configImpresora, estadoAgente } from '@/lib/printing/agent'
 import { colorTrabajo, etiquetaTrabajo } from '@/lib/printing/estadoImpresoras'
 
@@ -31,7 +33,6 @@ const TIPO_TRABAJO = {
   'prueba-corta': 'Prueba de corte',
 }
 const tipoTrabajo = (kind) => TIPO_TRABAJO[kind] || String(kind || '').replace(/-/g, ' ') || 'Impresión'
-const fmt = (valor) => (valor ? new Date(valor).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '—')
 
 const COLOR_TONO = { ok: 'green', bad: 'red', warn: 'orange', slate: 'slate' }
 
@@ -167,10 +168,9 @@ export default function EstadoSistema() {
       '',
       ...chequeos.map((chequeo) => `[${TEXTO[chequeo.estado]}] ${chequeo.label}: ${chequeo.detalle}`),
     ]
-    try {
-      await navigator.clipboard.writeText(lineas.join('\n'))
+    if (await copiarAlPortapapeles(lineas.join('\n'))) {
       toast.success('Informe copiado', 'Pegalo en el reporte o en el chat de soporte.')
-    } catch {
+    } else {
       toast.error('No se pudo copiar el informe')
     }
   }
@@ -302,14 +302,14 @@ export default function EstadoSistema() {
             {(sincronizacion.trabajos.fallidos > 0 || sincronizacion.emails.fallidos > 0 || sincronizacion.reservas.vencidasSinLiberar > 0) && (
               <div className="space-y-2">
                 {sincronizacion.trabajos.fallidos > 0 && (
-                  <p className="rounded-xl border border-bad/30 bg-bad/10 p-3 text-sm text-mute">
+                  <Aviso tono="error" className="p-3 rounded-xl text-mute">
                     Hay <b className="text-fore">{sincronizacion.trabajos.fallidos}</b> trabajo(s) de impresión fallidos: revisalos en <b className="text-fore">Impresoras</b>.
-                  </p>
+                  </Aviso>
                 )}
                 {sincronizacion.emails.fallidos > 0 && (
-                  <p className="rounded-xl border border-bad/30 bg-bad/10 p-3 text-sm text-mute">
+                  <Aviso tono="error" className="p-3 rounded-xl text-mute">
                     Hay <b className="text-fore">{sincronizacion.emails.fallidos}</b> correo(s) que no salieron: revisá la configuración del correo.
-                  </p>
+                  </Aviso>
                 )}
                 {sincronizacion.reservas.vencidasSinLiberar > 0 && (
                   <p className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">

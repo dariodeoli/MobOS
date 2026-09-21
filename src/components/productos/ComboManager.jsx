@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Badge, Button, Input, Modal, MoneyInput, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Input, Modal, MoneyInput, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import ProductCombobox from '@/components/shared/ProductCombobox'
 import { resources } from '@/lib/api'
@@ -53,7 +53,7 @@ export default function ComboManager({ open, onClose }) {
     <Modal open={open} onClose={() => !busy && onClose()} title="Combos" className="max-w-2xl">
       <div className="space-y-4">
         <p className="text-sm text-mute">Un combo agrupa productos con precio fijo (ej. funda + lámina). El POS lo agrega como varias líneas repartiendo el precio, y descuenta el stock de cada componente.</p>
-        {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+        {error && <Aviso tono="error">{error}</Aviso>}
         {loading && <p className="text-sm text-mute">Cargando combos…</p>}
         {!loading && combos.length > 0 && <div className="space-y-1.5">{combos.map(combo => <div key={combo.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-ink-600 px-3 py-2"><span className="min-w-0 flex-1"><b className="block truncate text-[13px]">{combo.name}</b><span className="mt-0.5 block truncate text-[11px] text-mute">{(combo.items || []).map(item => `${item.quantity} × ${productos.find(p => p.id === item.productId)?.nombre || 'producto'}`).join(' + ')}</span></span><b className="shrink-0 text-sm tabular-nums">{gs(combo.pricePyg)}</b><Badge color={combo.isActive ? 'green' : 'slate'}>{combo.isActive ? 'Activo' : 'Inactivo'}</Badge><button type="button" disabled={busy} className="shrink-0 rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore" onClick={() => alternar(combo)}>{combo.isActive ? 'Desactivar' : 'Activar'}</button></div>)}</div>}
         {!loading && !combos.length && <p className="text-sm text-mute">Todavía no hay combos creados.</p>}

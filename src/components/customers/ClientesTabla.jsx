@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { gs } from '@/utils/calculos'
+import { descargarCsvCliente } from '@/utils/descargarArchivo'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { normalizarBusqueda } from '@/utils/cliente'
 import { telefonoVisible } from '@/utils/telefono'
 import { readCustomerMetadata } from './customerMessaging'
@@ -9,7 +11,7 @@ import { cn } from '@/lib/utils'
 import BarraLote from '@/components/shared/BarraLote'
 import { alternarId, seleccionarTodos } from '@/lib/seleccionLote'
 import { IconAction, useToast } from '@/components/ui'
-
+import { CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
 // Tabla de clientes alineada: una fila por persona, encabezados ordenables y
 // acciones compactas (perfil al hacer clic, WhatsApp con plantilla). Entra sin
 // scroll horizontal en desktop: todo trunca y el espacio se reparte con
@@ -53,22 +55,15 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
 
   async function copiarTelefonos() {
     const numeros = elegidas().map((row) => telefonoDe(row)).filter(Boolean)
-    try {
-      await navigator.clipboard.writeText(numeros.join('\n'))
-      toast.success(`${numeros.length} ${numeros.length === 1 ? 'teléfono copiado' : 'teléfonos copiados'}.`)
-    } catch { toast.error('No se pudieron copiar los teléfonos.') }
+    if (await copiarAlPortapapeles(numeros.join('\n'))) toast.success(`${numeros.length} ${numeros.length === 1 ? 'teléfono copiado' : 'teléfonos copiados'}.`)
+    else toast.error('No se pudieron copiar los teléfonos.')
   }
 
   function exportarSeleccionados() {
     const lista = elegidas()
     const filasCsv = [['Nombre', 'Teléfono', 'Correo', 'RUC', 'Ciudad', 'Pedidos', 'Total gastado'], ...lista.map((row) => [row.name || '', telefonoDe(row), row.email || '', row.document || '', ciudadDe(row), String(row.stats?.orders || 0), String(row.stats?.totalSpentPyg || 0)])]
     const csv = filasCsv.map((fila) => fila.map((celda) => `"${String(celda).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const url = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
-    const enlace = document.createElement('a')
-    enlace.href = url
-    enlace.download = 'mobos-clientes-seleccionados.csv'
-    enlace.click()
-    URL.revokeObjectURL(url)
+    descargarCsvCliente('mobos-clientes-seleccionados.csv', csv)
     toast.success(`${lista.length} ${lista.length === 1 ? 'cliente exportado' : 'clientes exportados'}.`)
   }
 
@@ -83,14 +78,14 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
         <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={filas.length > 0 && seleccionados.length === filas.length} onChange={() => setSeleccionados((actuales) => seleccionarTodos(filas, actuales))} />
         {encabezado('cliente', 'Cliente')}
         {encabezado('tipo', 'Tipo')}
-        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Teléfono</span>
-        <span className="text-center text-[10px] font-bold uppercase tracking-wider text-mute">Email</span>
-        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">RUC</span>
-        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Ciudad</span>
+        <span className={CELDA_ENCABEZADO}>Teléfono</span>
+        <span className={cn('text-center', ROTULO_DATO)}>Email</span>
+        <span className={CELDA_ENCABEZADO}>RUC</span>
+        <span className={CELDA_ENCABEZADO}>Ciudad</span>
         {encabezado('pedidos', 'Pedidos', 'justify-center')}
         {encabezado('total', 'Total gastado', 'justify-end')}
-        <span className="text-center text-[10px] font-bold uppercase tracking-wider text-mute">Nota</span>
-        <span className="text-right text-[10px] font-bold uppercase tracking-wider text-mute">Acciones</span>
+        <span className={cn('text-center', ROTULO_DATO)}>Nota</span>
+        <span className={cn('text-right', ROTULO_DATO)}>Acciones</span>
       </div>
       <div className="space-y-2">
         {filas.map(row => {

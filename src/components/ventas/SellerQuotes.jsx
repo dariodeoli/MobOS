@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { getProductos } from '@/lib/storage'
 import { gs, num } from '@/utils/calculos'
 import { codigoPedido } from '@/utils/pedido'
-import { Badge, Button, Input, Modal, MoneyInput, Textarea } from '@/components/ui'
+import { Aviso, Badge, Button, Input, Modal, MoneyInput, Textarea } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import QRCode from 'qrcode'
@@ -19,7 +20,7 @@ import { resources } from '@/lib/api'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { internationalPhone } from '@/utils/telefono'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
-
+import { CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
 const STATUS = { DRAFT: ['Borrador', 'slate'], SENT: ['Enviada', 'blue'], ACCEPTED: ['Aceptada', 'orange'], REJECTED: ['Rechazada', 'red'], CONVERTED: ['Convertida', 'green'], EXPIRED: ['Vencida', 'red'], CANCELLED: ['Cancelada', 'slate'] }
 // Chips de estado resueltos en el servidor (mismo patrón que Pedidos).
 const ABIERTAS = ['DRAFT', 'SENT', 'ACCEPTED']
@@ -165,7 +166,7 @@ export default function SellerQuotes() {
   async function copiarEnlace() {
     const url = quoteUrlFor(enlace?.publicToken)
     if (!url) return
-    try { await navigator.clipboard.writeText(url); setNotice('Enlace copiado al portapapeles.') } catch { setEnlaceError('No se pudo copiar el enlace.') }
+    if (await copiarAlPortapapeles(url)) setNotice('Enlace copiado al portapapeles.'); else setEnlaceError('No se pudo copiar el enlace.')
   }
   async function imprimirEnlace() {
     if (!enlace) return
@@ -196,18 +197,18 @@ export default function SellerQuotes() {
       {!esDemo && <Button type="button" onClick={() => { setCrearOpen(true); setError(''); setNotice('') }}>+ Nueva cotización</Button>}
       <button type="button" onClick={data.refresh} disabled={data.loading} className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore">Actualizar</button>
     </div>
-    {notice && <p role="status" className="rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">{notice}</p>}
-    {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+    {notice && <Aviso tono="ok">{notice}</Aviso>}
+    {error && <Aviso tono="error">{error}</Aviso>}
     <SellerFeedback {...data} empty={!rows.length} />
     {!data.loading && !data.error && <div className="overflow-x-auto" data-testid="cotizaciones-tabla">
       <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
-        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Número</span>
-        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Cliente</span>
-        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Artículos</span>
-        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Vence</span>
-        <span className="truncate text-[10px] font-bold uppercase tracking-wider text-mute">Estado</span>
-        <span className="truncate text-right text-[10px] font-bold uppercase tracking-wider text-mute">Total</span>
-        <span className="truncate text-right text-[10px] font-bold uppercase tracking-wider text-mute">Acciones</span>
+        <span className={CELDA_ENCABEZADO}>Número</span>
+        <span className={CELDA_ENCABEZADO}>Cliente</span>
+        <span className={CELDA_ENCABEZADO}>Artículos</span>
+        <span className={CELDA_ENCABEZADO}>Vence</span>
+        <span className={CELDA_ENCABEZADO}>Estado</span>
+        <span className={cn('truncate text-right', ROTULO_DATO)}>Total</span>
+        <span className={cn('truncate text-right', ROTULO_DATO)}>Acciones</span>
       </div>
       <div className="space-y-1">
         {rows.map(row => {
@@ -285,7 +286,7 @@ export default function SellerQuotes() {
             ? <img src={qr} alt="QR de la cotización" className="mx-auto h-44 w-44 rounded-xl bg-white p-2" />
             : null}
         <p className="break-all rounded-lg border border-ink-600 bg-ink-900 px-3 py-2 text-[11px] text-mute">{quoteUrlFor(enlace?.publicToken) || '—'}</p>
-        {enlaceError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{enlaceError}</p>}
+        {enlaceError && <Aviso tono="error">{enlaceError}</Aviso>}
         <div className="flex flex-wrap justify-center gap-2">
           <Button type="button" variant="outline" disabled={!enlace?.publicToken} onClick={copiarEnlace}><Icon name="copy" className="h-4 w-4" />Copiar enlace</Button>
           <Button type="button" variant="outline" disabled={enlaceBusy || !enlace} onClick={regenerarEnlace}><Icon name="refresh" className="h-4 w-4" />Regenerar</Button>

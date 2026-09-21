@@ -3,28 +3,30 @@ import { useUrlState } from '@/hooks/useUrlState'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
+import { fechaHora } from '@/utils/fecha'
 import Icon from '@/components/shared/Icon'
 import {
+  Aviso,
   Badge,
   Button,
   Card,
   EmptyState,
   FormField,
   Input,
+  Modal,
   MoneyInput,
+  Select,
   Skeleton,
   Textarea,
-  Modal,
-  Select,
   useToast,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
+import { CELDA_ENCABEZADO, ROTULO_SECCION } from '@/components/shared/tabla'
 
 // Tabla compacta: una fila por solicitud y las acciones de aprobación en la
 // misma línea. El detalle (autorizado, quién resolvió, notas) va en el title.
 const GRID_AUTORIZACIONES =
   'grid min-w-[54rem] grid-cols-[minmax(8rem,1.2fr)_7rem_7rem_minmax(6rem,0.9fr)_5.5rem_6.5rem_9rem] items-center gap-x-2'
-const CELDA_AUT = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const KINDS = {
   WHOLESALE: 'Mayorista',
@@ -73,10 +75,6 @@ const FILTERS = [
 
 const RESOLVERS = ['ADMIN', 'GERENTE']
 const DISCOUNT_MAX = 100000000
-const fechaHora = value =>
-  value && !Number.isNaN(Date.parse(value))
-    ? new Date(value).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' })
-    : '—'
 
 function resumenValor(kind, value) {
   const data = value && typeof value === 'object' ? value : {}
@@ -308,7 +306,7 @@ export default function Autorizaciones() {
           ))}
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <label htmlFor="filtro-tipo" className="text-xs font-bold uppercase tracking-wider text-mute">Tipo</label>
+          <label htmlFor="filtro-tipo" className={ROTULO_SECCION}>Tipo</label>
           <Select id="filtro-tipo" className="w-56" value={tipo} onChange={event => setTipo(event.target.value)}>
             <option value="">Todos los tipos</option>
             {Object.entries(KINDS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -316,12 +314,9 @@ export default function Autorizaciones() {
           {tipo && <button type="button" className="text-xs font-semibold text-mute hover:text-fore" onClick={() => setTipo('')}>Quitar filtro</button>}
         </div>
         {error && (
-          <p
-            role="alert"
-            className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad"
-          >
+          <Aviso tono="error" className="mt-3">
             {error}
-          </p>
+          </Aviso>
         )}
       </Card>
 
@@ -342,13 +337,13 @@ export default function Autorizaciones() {
         )}
         <div className="overflow-x-auto" data-testid="autorizaciones-tabla">
           <div className={cn(GRID_AUTORIZACIONES, 'px-3.5 pb-2 pt-1')}>
-            <span className={CELDA_AUT}>Cliente</span>
-            <span className={CELDA_AUT}>Tipo</span>
-            <span className={CELDA_AUT}>Pedido</span>
-            <span className={CELDA_AUT}>Solicitó</span>
-            <span className={CELDA_AUT}>Fecha</span>
-            <span className={CELDA_AUT}>Estado</span>
-            <span className={cn(CELDA_AUT, 'text-right')}>Acciones</span>
+            <span className={CELDA_ENCABEZADO}>Cliente</span>
+            <span className={CELDA_ENCABEZADO}>Tipo</span>
+            <span className={CELDA_ENCABEZADO}>Pedido</span>
+            <span className={CELDA_ENCABEZADO}>Solicitó</span>
+            <span className={CELDA_ENCABEZADO}>Fecha</span>
+            <span className={CELDA_ENCABEZADO}>Estado</span>
+            <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
           </div>
           <div className="space-y-1">
             {rows.map(row => {

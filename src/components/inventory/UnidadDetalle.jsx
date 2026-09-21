@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Drawer, Badge, Button, Input, Label, MoneyInput, Select, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Drawer, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import AttachmentInput from '@/components/shared/AttachmentInput'
 import Avatar from '@/components/shared/Avatar'
 import CurrencySelect from '@/components/shared/CurrencySelect'
@@ -13,6 +14,8 @@ import { useSesion } from '@/lib/sesion'
 import { cotizacionReferencia } from '@/lib/fx'
 import { gs } from '@/utils/calculos'
 import { sinCostoUnitario } from '@/utils/inventario'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
 
 const statusLabel = { AVAILABLE: 'Disponible', RESERVED: 'Reservado', SOLD: 'Vendido', DEFECTIVE: 'En revisión', IN_TRANSIT: 'En tránsito' }
 const conditionLabel = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
@@ -268,7 +271,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="font-mono text-sm font-bold tracking-wide">{unit.serial}</span>
-            <button type="button" className="rounded-md p-1 text-mute transition hover:bg-fore/5 hover:text-fore" title="Copiar IMEI/serial" aria-label="Copiar IMEI/serial" onClick={() => { navigator.clipboard?.writeText(unit.serial).catch(() => {}); toast.success('IMEI copiado.') }}><Icon name="copy" className="h-3.5 w-3.5" /></button>
+            <button type="button" className="rounded-md p-1 text-mute transition hover:bg-fore/5 hover:text-fore" title="Copiar IMEI/serial" aria-label="Copiar IMEI/serial" onClick={() => { copiarAlPortapapeles(unit.serial); toast.success('IMEI copiado.') }}><Icon name="copy" className="h-3.5 w-3.5" /></button>
           </div>
           <p className="mt-1 text-xs text-mute">{unit.branch?.name || 'Sucursal'}{unit.location?.name ? ` · ${unit.location.name}` : ''}{unit.product?.sku ? ` · ${unit.product.sku}` : ''}</p>
           {verificador && unit.lastVerifiedAt && (
@@ -279,7 +282,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
 
         {/* Datos */}
         <section className="rounded-2xl border border-ink-600 p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Ficha del equipo</h3>
+          <h3 className={ROTULO_SECCION}>Ficha del equipo</h3>
           <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Ubicación</p>
               {canManage
@@ -315,7 +318,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         {/* Costo del equipo: se puede completar después de recibirlo */}
         <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-costo">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Costo del equipo</h3>
+            <h3 className={ROTULO_SECCION}>Costo del equipo</h3>
             {sinCostoUnitario(unit) ? <Badge color="orange">Pendiente</Badge> : <Badge color="green">Cargado</Badge>}
           </div>
           <p className="mt-1 text-xs text-mute">En guaraníes (sin decimales) o en otra moneda con la cotización del día. Si todavía no lo sabés, dejalo vacío: queda pendiente y lo completás después. El dato alimenta el costo de la venta y la ganancia.</p>
@@ -339,13 +342,13 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         {/* Consulta de IMEI (#193/#200): costo antes, confirmación explícita y fuente/hora */}
         <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-imei">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Consulta de IMEI</h3>
+            <h3 className={ROTULO_SECCION}>Consulta de IMEI</h3>
             {esDemo ? <Badge color="blue">Demo: simulado</Badge> : <Badge color="slate">Función paga</Badge>}
           </div>
           <p className="mt-1 text-xs text-mute">Estado del equipo en IMEIcheck (blacklist, Find My/iCloud, SIM lock, MDM, garantía). Se muestra el costo antes de confirmar y cada consulta queda auditada. Si no se puede verificar, se muestra como «No verificado», nunca «Limpio».</p>
           {!imeiFase && !imeiBusy && <Button type="button" variant="outline" className="mt-2" onClick={imeiPrecheck} data-testid="imei-precheck">Consultar IMEI (ver costo)</Button>}
           {imeiBusy && <p className="mt-2 text-xs text-mute" role="status">Consultando…</p>}
-          {imeiError && <p role="alert" className="mt-2 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{imeiError}</p>}
+          {imeiError && <Aviso tono="error" className="mt-2">{imeiError}</Aviso>}
           {imeiFase === 'precheck' && imeiDatos && (
             <div className="mt-2 rounded-xl border border-ink-600 bg-ink-800/40 p-3 text-sm">
               <p className="font-semibold text-fore">{imeiDatos.servicio?.nombre || 'Apple Basic'} · {imeiDatos.simulado ? 'simulado (US$ 0,00)' : `US$ ${Number(imeiDatos.costoEstimadoUsd || 0).toFixed(2)}`}</p>
@@ -375,7 +378,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         {/* Códigos de esta unidad */}
         {codigos && (
           <section className="rounded-2xl border border-ink-600 p-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Códigos de esta unidad</h3>
+            <h3 className={ROTULO_SECCION}>Códigos de esta unidad</h3>
             <p className="mt-1 text-xs text-mute">El QR y el código de barras identifican esta unidad física (etiquetas, escaneo y verificación).</p>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-white p-3">
               <span className="min-w-0 flex-1" dangerouslySetInnerHTML={{ __html: codigos.barcode }} />
@@ -387,7 +390,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
 
         {/* Acciones */}
         <section className="rounded-2xl border border-ink-600 p-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Acciones</h3>
+          <h3 className={ROTULO_SECCION}>Acciones</h3>
           <div className="mt-3 flex flex-wrap gap-2">
             {unit.status === 'AVAILABLE' && <Button disabled={busy} onClick={() => ejecutar(() => onSell(unit))}>Vender</Button>}
             {unit.status === 'AVAILABLE' && <Button variant="outline" disabled={busy} onClick={() => ejecutar(() => onReserve(unit))}>Reservar</Button>}
@@ -404,7 +407,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         {/* Retiro/ajuste con autorización para roles que no gestionan inventario */}
         {!canManage && !['SOLD', 'RESERVED', 'IN_TRANSIT'].includes(unit.status) && (
           <section className="rounded-2xl border border-ink-600 p-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Autorización de stock</h3>
+            <h3 className={ROTULO_SECCION}>Autorización de stock</h3>
             <p className="mt-1 text-xs text-mute">Tu rol no retira ni ajusta unidades directamente: pedí autorización a gerencia y ejecutala desde acá.</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {unit.status === 'AVAILABLE' && <Button variant="outline" disabled={stockBusy} onClick={() => abrirStock('remove')}>Dar de baja</Button>}
@@ -429,7 +432,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
 
         {/* Cronología */}
         <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-cronologia">
-          <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-mute"><Icon name="clock" className="h-3.5 w-3.5" /> Cronología</h3>
+          <h3 className={cn('flex items-center gap-2', ROTULO_SECCION)}><Icon name="clock" className="h-3.5 w-3.5" /> Cronología</h3>
           {!canManage && <p className="mt-2 text-sm text-mute">La cronología con comentarios y fotos está disponible para administración y gerencia.</p>}
           {canManage && (
             <>
@@ -443,7 +446,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
                   <Button type="submit" disabled={subiendo || (!comentario.trim() && !adjunto)}>{subiendo ? 'Enviando…' : 'Comentar'}</Button>
                 </div>
               </form>
-              {error && <p role="alert" className="mt-3 rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+              {error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
               {loading && <div className="mt-4 space-y-2"><Skeleton className="h-14 w-full" /><Skeleton className="h-14 w-full" /></div>}
               {!loading && <div className="mt-4 space-y-4">
                 {events.map((event, index) => <article key={event.id || index} className="flex gap-3">
@@ -472,7 +475,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             IMEI {unit.serial} · {authStock ? 'Hay una autorización aprobada: al confirmar se ejecuta la acción.' : 'Se envía la solicitud a gerencia con este motivo.'}
           </p>
           <Textarea rows={3} maxLength={500} value={stockMotivo} onChange={event => setStockMotivo(event.target.value)} placeholder="Indicá el motivo (mínimo 3 caracteres)" />
-          {stockError && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-2.5 py-2 text-xs text-bad">{stockError}</p>}
+          {stockError && <Aviso tono="error" compact>{stockError}</Aviso>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => setStockAction(null)} disabled={stockBusy}>Cancelar</Button>
             <Button type="button" onClick={confirmarStock} disabled={stockBusy || stockMotivo.trim().length < 3}>

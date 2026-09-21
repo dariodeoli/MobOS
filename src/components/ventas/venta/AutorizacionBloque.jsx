@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { formatGs } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
-import { Button } from '@/components/ui'
+import { Aviso, Button } from '@/components/ui'
 
 // Bloque genérico de autorización de un solo uso. El vendedor pide, gerencia
 // resuelve en su panel y acá se refleja el estado; si hay una aprobada vigente
@@ -102,7 +102,7 @@ export default function AutorizacionBloque({
       </p>
       {nota && <p className="mt-1 text-xs text-mute">{nota}</p>}
       {rechazada?.resolvedNote && <p className="mt-1 text-xs text-bad">Motivo: {rechazada.resolvedNote}</p>}
-      {error && <p role="alert" className="mt-2 rounded-lg border border-bad/30 bg-bad/10 px-2.5 py-2 text-xs text-bad">{error}</p>}
+      {error && <Aviso tono="error" compact className="mt-2">{error}</Aviso>}
       <div className="mt-2 flex flex-wrap gap-2">
         {!soloEstado && (
           <Button type="button" onClick={solicitar} disabled={solicitando || bloqueado || (!sinMonto && monto <= 0) || Boolean(pendiente) || alcanza}>

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
-import { Badge, Button, ConfirmDialog, Input, Modal, Money, Select, Textarea, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, ConfirmDialog, Input, Modal, Money, Select, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
+import { fechaHoraCorta } from '@/utils/fecha'
 import { codigoPedido } from '@/utils/pedido'
 import { useSellerData, SellerFeedback } from '@/components/ventas/SellerData'
 import { deliveryFields, settlementFields, ENTREGA_LABELS, MEDIO_LABELS, RENDICION_LABELS, SIN_DATOS } from './datos'
@@ -79,7 +80,7 @@ function Asignaciones() {
           Todavía no hay repartidores. Creá un integrante con el rol Repartidor en Configuración → Equipo.
         </p>
       )}
-      {error && <p role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
+      {error && <Aviso tono="error">{error}</Aviso>}
       <SellerFeedback {...data} empty={!data.rows.length} />
       <div className="space-y-3">
         {data.rows.map(row => (
@@ -169,7 +170,7 @@ function Rendiciones() {
               <span className="text-sm font-semibold">{fila.repartidor}</span>
               <Badge color={TONO_RENDICION(fila.estado)}>{RENDICION_LABELS[fila.estado] || fila.estado}</Badge>
             </header>
-            <p className="mt-1 text-xs text-mute">{new Date(fila.fecha).toLocaleString('es-PY', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}{fila.sucursal ? ` · ${fila.sucursal}` : ''}</p>
+            <p className="mt-1 text-xs text-mute">{fechaHoraCorta(fila.fecha)}{fila.sucursal ? ` · ${fila.sucursal}` : ''}</p>
             <div className="mt-2 space-y-1">
               <p className="flex items-baseline justify-between gap-3"><span className="text-xs text-mute">Rendido</span><span className="text-base font-bold tabular-nums"><Money value={fila.total} /></span></p>
               <p className="flex items-baseline justify-between gap-3"><span className="text-xs text-mute">Saldo que queda</span><span className="text-sm tabular-nums"><Money value={fila.pendiente} /></span></p>

@@ -3,20 +3,19 @@ import { api } from '@/lib/api/client'
 import { listVentas, ventaDesdeApi } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { agruparCuotas, diasDeAtraso, resumenCuotas } from '@/lib/cobranzas'
+import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { telefonoVisible } from '@/utils/telefono'
-import { Badge, Button, Card, EmptyState, Modal, useToast } from '@/components/ui'
+import { fechaDia as fecha } from '@/utils/fecha'
+import { Aviso, Badge, Button, Card, EmptyState, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import PagosPedido from '@/components/ventas/PagosPedido'
 import { cn } from '@/lib/utils'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 // Cobranzas: cuotas de planes de crédito vencidas y próximas, con los días de
 // mora y el recargo configurado. El aviso por WhatsApp respeta la plantilla de
 // cobranzas, se marca una sola vez por cuota (el servidor lo audita) y deja el
 // enlace wa.me listo para enviar.
-const fecha = (value) => {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('es-PY')
-}
 
 export default function Cobranzas() {
   const toast = useToast()
@@ -107,18 +106,18 @@ export default function Cobranzas() {
           </div>
         </div>
         {resumen.sinTelefono > 0 && <p className="mt-2 text-xs text-warn">{resumen.sinTelefono} cuota(s) sin teléfono: no se puede armar el enlace de WhatsApp.</p>}
-        {aviso && <p role="status" className="mt-3 rounded-lg border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{aviso}</p>}
-        {error && <p role="alert" className="mt-3 rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{error}</p>}
+        {aviso && <Aviso tono="ok" className="p-3 mt-3">{aviso}</Aviso>}
+        {error && <Aviso tono="error" className="p-3 mt-3">{error}</Aviso>}
       </Card>
       {data !== null && rows.length === 0 && <Card><EmptyState compact icon="check" title="Sin cuotas pendientes" description="Los planes de crédito aparecerán acá con su vencimiento y su mora." /></Card>}
       {vencidas.length > 0 && <section><h3 className="text-xs font-bold uppercase tracking-wider text-bad">Vencidas ({vencidas.length})</h3><div className="mt-2 space-y-2">{vencidas.map((row) => <Fila key={row.id} row={row} />)}</div></section>}
-      {proximas.length > 0 && <section><h3 className="text-xs font-bold uppercase tracking-wider text-mute">Próximas ({proximas.length})</h3><div className="mt-2 space-y-2">{proximas.map((row) => <Fila key={row.id} row={row} />)}</div></section>}
+      {proximas.length > 0 && <section><h3 className={ROTULO_SECCION}>Próximas ({proximas.length})</h3><div className="mt-2 space-y-2">{proximas.map((row) => <Fila key={row.id} row={row} />)}</div></section>}
       {detalle && (
         <Modal open onClose={() => setDetalle(null)} title={`Mensaje para ${detalle.customerName || 'el cliente'}`} className="max-w-lg">
           <div className="space-y-3">
             <p className="whitespace-pre-wrap rounded-xl border border-ink-600 bg-ink-800/50 p-3 text-sm">{detalle.message}</p>
             <p className="break-all text-xs text-mute">{detalle.whatsappUrl || 'El cliente no tiene teléfono cargado: no hay enlace.'}</p>
-            {detalle.whatsappUrl && <button type="button" className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold" onClick={async () => { try { await navigator.clipboard.writeText(detalle.whatsappUrl); toast.success('Enlace copiado.') } catch { toast.error('No se pudo copiar el enlace.') } }}><Icon name="copy" className="mr-1 inline h-3 w-3" />Copiar enlace</button>}
+            {detalle.whatsappUrl && <button type="button" className="rounded-lg border border-ink-500 px-3 py-2 text-xs font-semibold" onClick={async () => { if (await copiarAlPortapapeles(detalle.whatsappUrl)) toast.success('Enlace copiado.'); else toast.error('No se pudo copiar el enlace.') }}><Icon name="copy" className="mr-1 inline h-3 w-3" />Copiar enlace</button>}
             <div className="flex justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setDetalle(null)}>Cerrar</Button><Button type="button" disabled={!detalle.whatsappUrl || Boolean(enviando)} onClick={() => { const row = detalle; setDetalle(null); recordar(row) }}>Abrir WhatsApp</Button></div>
           </div>
         </Modal>

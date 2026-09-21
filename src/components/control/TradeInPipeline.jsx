@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import { codigoPedido } from '@/utils/pedido'
+import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
 import {
   TRADE_IN_STATUSES, TRADE_IN_DESTINATIONS, TRADE_IN_TRANSITIONS,
   loadDemoTradeIns, updateDemoTradeIn, tradeInsApi, tradeInValuePyg, normalizeTradeInHistory,
@@ -28,7 +29,6 @@ function safePhotoUrl(value) {
 // (diagnóstico, accesorios, fotos, referencias, historial y acciones) se
 // despliega debajo, así el listado deja de ocupar media pantalla por equipo.
 const GRID_TRADEIN = 'grid min-w-[58rem] grid-cols-[minmax(9rem,1.3fr)_minmax(7rem,1fr)_7rem_6rem_6rem_6rem_7rem_6rem_1.5rem] items-center gap-x-2'
-const CELDA_TRADEIN = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 const fechaTradeIn = (value) => {
   const date = new Date(value)
   if (!value || Number.isNaN(date.getTime())) return '—'
@@ -162,7 +162,6 @@ function Device({ item, busy, onSave }) {
 }
 
 const GRID_VALORACIONES = 'grid min-w-[52rem] grid-cols-[minmax(11rem,1.4fr)_6rem_6.5rem_7rem_7rem_6rem_8rem] items-center gap-x-2'
-const CELDA_VALORACIONES = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 const CONDICIONES_VALUACION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 const VALUACION_VACIA = { model: '', storage: '', condition: 'USED', baseValuePyg: '', maxValuePyg: '', notes: '', isActive: true }
 
@@ -267,13 +266,13 @@ function Valuaciones({ esDemo }) {
     {!loading && !error && !visibles.length && <p className="text-sm text-mute">{rows.length ? 'Ningún valor coincide con la búsqueda.' : 'Todavía no hay valores cargados. Sin un valor cargado, el POS no sugiere nada.'}</p>}
     {visibles.length > 0 && <div className="overflow-x-auto" data-testid="valoraciones-tabla">
       <div className={cn(GRID_VALORACIONES, 'px-3.5 pb-2 pt-1')}>
-        <span className={CELDA_VALORACIONES}>Modelo</span>
-        <span className={CELDA_VALORACIONES}>Capacidad</span>
-        <span className={CELDA_VALORACIONES}>Condición</span>
-        <span className={cn(CELDA_VALORACIONES, 'text-right')}>Valor base</span>
-        <span className={cn(CELDA_VALORACIONES, 'text-right')}>Máximo</span>
-        <span className={CELDA_VALORACIONES}>Estado</span>
-        <span className={cn(CELDA_VALORACIONES, 'text-right')}>Acciones</span>
+        <span className={CELDA_ENCABEZADO}>Modelo</span>
+        <span className={CELDA_ENCABEZADO}>Capacidad</span>
+        <span className={CELDA_ENCABEZADO}>Condición</span>
+        <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Valor base</span>
+        <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Máximo</span>
+        <span className={CELDA_ENCABEZADO}>Estado</span>
+        <span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span>
       </div>
       <div className="space-y-1">{visibles.map(row => <div key={row.id} data-testid="valoracion-fila" className={cn(GRID_VALORACIONES, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
         <span className="min-w-0 truncate text-[13px] font-semibold" title={row.model}>{row.model}</span>
@@ -357,14 +356,14 @@ export default function TradeInPipeline() {
     {!busy && !error && !visible.length && <Card>No hay equipos que coincidan. Los equipos aparecen después de registrarlos como pago de una venta.</Card>}
     {visible.length > 0 && <div className="overflow-x-auto" data-testid="tradein-tabla">
       <div className={cn(GRID_TRADEIN, 'px-3.5 pb-2 pt-1')}>
-        <span className={CELDA_TRADEIN}>Equipo</span>
-        <span className={CELDA_TRADEIN}>Cliente</span>
-        <span className={CELDA_TRADEIN}>Estado</span>
-        <span className={CELDA_TRADEIN}>Toma</span>
-        <span className={CELDA_TRADEIN}>Reparación</span>
-        <span className={CELDA_TRADEIN}>Invertido</span>
-        <span className={CELDA_TRADEIN}>Publicado</span>
-        <span className={CELDA_TRADEIN}>Ingresó</span>
+        <span className={CELDA_ENCABEZADO}>Equipo</span>
+        <span className={CELDA_ENCABEZADO}>Cliente</span>
+        <span className={CELDA_ENCABEZADO}>Estado</span>
+        <span className={CELDA_ENCABEZADO}>Toma</span>
+        <span className={CELDA_ENCABEZADO}>Reparación</span>
+        <span className={CELDA_ENCABEZADO}>Invertido</span>
+        <span className={CELDA_ENCABEZADO}>Publicado</span>
+        <span className={CELDA_ENCABEZADO}>Ingresó</span>
         <span />
       </div>
       <div className="space-y-1">{visible.map((item) => <div key={`${item.id}:${item.status}:${item.updatedAt || ''}`}>

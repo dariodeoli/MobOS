@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, apiFetch } from '@/lib/api/client'
 import { Badge, Button, EmptyState, Input, Label, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import { ROTULO_DATO } from '@/components/shared/tabla'
+import { descargarArchivo } from '@/utils/descargarArchivo'
+import { cn } from '@/lib/utils'
 import { FECHA_KARDEX, consultaKardex, extremosDelRango } from '@/utils/kardex'
 
 // Descarga el CSV del rango que se está viendo, con la sesión de cookies.
@@ -16,14 +19,7 @@ async function descargarKardexCsv(productId, rango, nombreArchivo) {
     throw new Error(mensaje)
   }
   const blob = await response.blob()
-  const url = URL.createObjectURL(blob)
-  const enlace = document.createElement('a')
-  enlace.href = url
-  enlace.download = nombreArchivo
-  document.body.appendChild(enlace)
-  enlace.click()
-  enlace.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  descargarArchivo(nombreArchivo, blob)
 }
 
 // Kardex por producto (#106): historial de movimientos con saldo corrido. El
@@ -141,7 +137,7 @@ export default function KardexProducto({ product, open, onClose, esDemo = false 
             )}
             <div className="overflow-x-auto rounded-xl border border-ink-600" data-testid="kardex-tabla">
               <div className="max-h-[52vh] overflow-y-auto">
-                <div className={GRID + ' sticky top-0 z-10 border-b border-ink-600 bg-ink-800 px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-mute'}>
+                <div className={cn(GRID + ' sticky top-0 z-10 border-b border-ink-600 bg-ink-800 px-3.5 py-2', ROTULO_DATO)}>
                   <span>Fecha</span><span>Movimiento</span><span>Detalle</span><span>Usuario</span><span className="text-right">Entrada</span><span className="text-right">Salida</span><span className="text-right">Saldo</span>
                 </div>
                 <div className={GRID + ' border-b border-ink-600/60 bg-ink-700/30 px-3.5 py-2 text-xs'}>

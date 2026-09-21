@@ -4,7 +4,9 @@ import Icon from '@/components/shared/Icon'
 import { Badge, Button, Select } from '@/components/ui'
 import { renderPlantilla } from '@/lib/whatsappPlantillas'
 import { whatsappUrl } from '@/components/customers/customerMessaging'
+import { fechaDia } from '@/utils/fecha'
 import { telefonoVisible } from '@/utils/telefono'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 
 // Campañas de recompra (#82): segmentos calculados por el backend, selección
 // de destinatarios, vista previa de la plantilla de WhatsApp (categoría
@@ -16,7 +18,7 @@ const SEGMENTOS = [
 ]
 
 const primerNombre = (nombre) => String(nombre || 'cliente').trim().split(/\s+/)[0] || 'cliente'
-const fecha = (valor) => (valor ? new Date(valor).toLocaleDateString('es-PY') : '')
+const fecha = (valor) => fechaDia(valor, '')
 
 // Motivo por el que una ficha no se puede contactar ('' = elegible).
 function motivoNoElegible(row) {
@@ -125,14 +127,14 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <label className="block space-y-2"><span className="text-xs font-bold uppercase tracking-wider text-mute">Plantilla (Clientes)</span>
+        <label className="block space-y-2"><span className={ROTULO_SECCION}>Plantilla (Clientes)</span>
           <Select aria-label="Plantilla de la campaña" value={plantilla?.id || ''} onChange={(event) => setPlantillaId(event.target.value)} disabled={!plantillas.length}>
             {!plantillas.length && <option value="">Sin plantillas de clientes</option>}
             {plantillas.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </Select>
         </label>
         <div className="space-y-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-mute">Vista previa{previewRow ? ` · ${previewRow.name}` : ''}</span>
+          <span className={ROTULO_SECCION}>Vista previa{previewRow ? ` · ${previewRow.name}` : ''}</span>
           <p aria-label="Vista previa del mensaje" className="min-h-[4.5rem] whitespace-pre-wrap rounded-xl border border-ink-600 bg-ink-900/40 p-3 text-sm">{preview || 'Elegí una plantilla para ver el mensaje.'}</p>
         </div>
       </div>

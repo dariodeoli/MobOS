@@ -1,4 +1,5 @@
 import { apiFetch } from '@/lib/api/client'
+import { descargarArchivo } from '@/utils/descargarArchivo'
 
 // Descarga un CSV de /api/exports/<módulo> con la sesión de cookies. El nombre
 // del archivo lo elige quien llama: entre orígenes distintos el navegador no
@@ -20,12 +21,5 @@ export async function descargarCsv(modulo, filtros = {}, nombreArchivo) {
     throw new Error(mensaje)
   }
   const blob = await response.blob()
-  const url = URL.createObjectURL(blob)
-  const enlace = document.createElement('a')
-  enlace.href = url
-  enlace.download = nombreArchivo || `mobos-${modulo}.csv`
-  document.body.appendChild(enlace)
-  enlace.click()
-  enlace.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  descargarArchivo(nombreArchivo || `mobos-${modulo}.csv`, blob)
 }
