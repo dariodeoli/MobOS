@@ -10,6 +10,7 @@ import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
 import { qrUnidad } from '@/lib/printing/qr'
 import { api, apiFetch } from '@/lib/api/client'
+import { postDemoImei } from '@/lib/demoImei'
 import { useSesion } from '@/lib/sesion'
 import { cotizacionReferencia } from '@/lib/fx'
 import { gs } from '@/utils/calculos'
@@ -162,13 +163,10 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
     setImeiBusy(true); setImeiError(''); setImeiDatos(null); setImeiFase(null)
     imeiRequestId.current = null
     try {
-      if (esDemo) {
-        // #200: en demo solo se simula; no hay llamada alguna.
-        setImeiFase('precheck')
-        setImeiDatos({ simulado: true, imei: unit.serial, servicio: { nombre: 'Apple Basic', campos: ['blacklist actual', 'Find My/iCloud', 'garantía'], precioUsd: 0.06 }, costoEstimadoUsd: 0, requiereConfirmacion: true })
-        return
-      }
-      setImeiDatos(await api.post('/api/imei', { action: 'precheck', imei: unit.serial, servicio: 'APPLE_BASIC' }))
+      // #219: en demo el flujo es funcional contra el mock del backend.
+      setImeiDatos(esDemo
+        ? await postDemoImei({ action: 'precheck', imei: unit.serial, servicio: 'APPLE_BASIC' })
+        : await api.post('/api/imei', { action: 'precheck', imei: unit.serial, servicio: 'APPLE_BASIC' }))
       setImeiFase('precheck')
     } catch (cause) {
       setImeiError(cause?.status === 403 ? 'Función paga: pedile a administración que habilite la consulta de IMEI.' : (cause?.message || 'No se pudo preparar la consulta.'))
@@ -181,16 +179,9 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
     if (!imeiRequestId.current) imeiRequestId.current = globalThis.crypto?.randomUUID?.() || `imei-${unit.id}-${Date.now()}`
     setImeiBusy(true); setImeiError('')
     try {
-      if (esDemo) {
-        setImeiFase('resultado')
-        setImeiDatos({ simulado: true, etiqueta: 'Verificado (SIMULADO)', status: 'verificado', costUsd: 0, campos: [
-          { clave: 'blacklist', etiqueta: 'Blacklist actual', valor: 'Sin reportes actuales', fuente: 'demo', hora: new Date().toISOString() },
-          { clave: 'findMy', etiqueta: 'Find My / iCloud', valor: 'Off', fuente: 'demo', hora: new Date().toISOString() },
-          { clave: 'garantia', etiqueta: 'Garantía', valor: 'Vencida', fuente: 'demo', hora: null },
-        ] })
-        return
-      }
-      setImeiDatos(await api.post('/api/imei', { action: 'checks', imei: unit.serial, servicio: 'APPLE_BASIC', confirm: true, requestId: imeiRequestId.current }))
+      setImeiDatos(esDemo
+        ? await postDemoImei({ action: 'checks', imei: unit.serial, servicio: 'APPLE_BASIC', confirm: true, requestId: imeiRequestId.current })
+        : await api.post('/api/imei', { action: 'checks', imei: unit.serial, servicio: 'APPLE_BASIC', confirm: true, requestId: imeiRequestId.current }))
       setImeiFase('resultado')
     } catch (cause) {
       setImeiError(cause?.message || 'No se pudo consultar el IMEI.')

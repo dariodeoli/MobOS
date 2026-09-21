@@ -4,7 +4,7 @@
 //
 // Los seriales son claramente de prueba (prefijo DEMO, nunca un IMEI real) y los
 // costos vienen en USD (con cotización) o en Gs, como en la app real.
-import { IMEIS_DEMO_FICTICIOS, IPHONES_DEMO, serialDemo } from './demo/iphones.js'
+import { EQUIPO_DEMO, IMEIS_DEMO_FICTICIOS, IPHONES_DEMO, serialDemo } from './demo/iphones.js'
 import { guardarDemo, leerDemo } from './demoStorage.js'
 
 const KEY = 'mobos:demo-inventory:v1'
@@ -31,7 +31,9 @@ const PROVEEDORES = [
 ]
 
 const COTIZACION = 7300
-const USUARIO = { id: 'demo-user', name: 'Hernán Acosta' }
+// Usuario demo que firma la verificación: mismo shape que el API ({ id, name }).
+const verificadorDeDemo = (semilla) => { const usuario = EQUIPO_DEMO[Math.abs(Number(semilla) || 0) % EQUIPO_DEMO.length]; return { id: usuario.id, name: usuario.nombre, role: usuario.rol } }
+const semillaDe = (valor) => String(valor || '').split('').reduce((suma, char) => suma + char.charCodeAt(0), 0)
 
 // 24 unidades: 15 disponibles, 3 reservadas, 3 vendidas, 2 en revisión y 1 en
 // tránsito; 14 nuevas y 10 seminuevas; repartidas entre depósitos y piso.
@@ -77,7 +79,7 @@ function unidad(producto, indice) {
     supplier: PROVEEDORES[indice % PROVEEDORES.length],
     notes: indice % 6 === 0 ? 'Ingresó con caja abierta .' : '',
     createdAt: hace(30 - indice),
-    lastVerifiedBy: indice % 4 === 0 ? USUARIO : null,
+    lastVerifiedBy: indice % 4 === 0 ? verificadorDeDemo(indice) : null,
     verifiedAt: indice % 4 === 0 ? hace(indice % 10, 15) : null,
     sale: estado === 'SOLD' ? { fulfillmentStatus: indice === 19 ? 'DELIVERED' : indice === 20 ? 'READY_FOR_PICKUP' : 'PROCESSING', orderNumber: `MOB-00${40 + indice}` } : null,
   }
@@ -198,7 +200,7 @@ export function verifyDemoUnit(data = {}) {
   if (!unit) throw new Error('La unidad demo no existe.')
   unit.status = unit.status === 'IN_TRANSIT' ? 'AVAILABLE' : unit.status
   if (data.locationId) unit.locationId = data.locationId
-  unit.lastVerifiedBy = USUARIO
+  unit.lastVerifiedBy = verificadorDeDemo(semillaDe(unit.serial))
   unit.verifiedAt = new Date().toISOString()
   write(state)
   return snapshot(state, unit)
