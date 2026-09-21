@@ -1,7 +1,7 @@
-import { randomBytes } from 'node:crypto'
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { requireSession } from '../../../../../lib/auth'
+import { hashTokenPublico, nuevoTokenPublico } from '../../../../../lib/public-token'
 
 // Enlace/QR del portal del cliente (resumen de cuenta). Un token vigente por
 // nivel: Rápido (saldo, vencimientos y últimos pedidos) o Completo (además
@@ -9,8 +9,6 @@ import { requireSession } from '../../../../../lib/auth'
 // el token anterior y queda auditoría con el usuario que lo hizo.
 const LEVELS = ['rapido', 'completo'] as const
 const canManage = (role: string) => ['ADMIN', 'GERENTE', 'VENDEDOR'].includes(role)
-
-const nuevoToken = () => randomBytes(24).toString('base64url')
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await requireSession(request)
@@ -46,8 +44,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     select: { id: true, token: true },
     orderBy: { createdAt: 'desc' },
   })
-  if (vigente && !regenerate) return json({ level, token: vigente.token, regenerated: false })
+  // El token vigente no se vuelve a mostrar (#172/#178): si es legacy (en
+  // claro) se devuelve igual que antes; si ya está hasheado, la ficha avisa
+  // que hay un enlace activo y ofrece regenerarlo.
+  if (vigente && !regenerate) return json({ level, token: vigente.token ?? null, reused: true, regenerated: false })
 
+  const tokenEnClaro = nuevoTokenPublico()
   const creado = await prisma.$transaction(async tx => {
     if (vigente) {
       await tx.customerPortalToken.update({ where: { id: vigente.id }, data: { revokedAt: new Date() } })
@@ -57,10 +59,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         tenantId: tenant,
         customerId: customer.id,
         level,
-        token: nuevoToken(),
+        token: null,
+        tokenHash: hashTokenPublico(tokenEnClaro),
         createdBy: session.user.id,
       },
-      select: { level: true, token: true, createdAt: true },
+      select: { level: true, createdAt: true },
     })
     await tx.auditLog.create({
       data: {
@@ -74,5 +77,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     })
     return token
   })
-  return json({ ...creado, regenerated: Boolean(vigente) })
+  // El token en claro viaja una sola vez (para el enlace/QR); en la base queda
+  // únicamente su sha256.
+  return json({ level: creado.level, token: tokenEnClaro, regenerated: Boolean(vigente), reused: false, createdAt: creado.createdAt })
 }
