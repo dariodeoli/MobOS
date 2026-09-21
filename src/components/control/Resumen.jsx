@@ -11,11 +11,15 @@ import { num, gs, variacion } from '@/utils/calculos'
 import { armarResumenDia } from '@/utils/reporteResumen'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
 import RangoFechas, {
+  PRESETS,
   rangoDeParams,
   paramsDeRango,
   rangoAnterior,
+  rangoPorDefecto,
   etiquetaRango,
 } from '@/components/shared/RangoFechas'
+import { useUltimoUsado } from '@/lib/ultimoUsado'
+import { CLAVES_FIN, rangoDePreset } from '@/lib/finUltimoUsado'
 import ReportePreview from '@/components/shared/ReportePreview'
 import { buildResumenDiaHtml } from '@/components/shared/OrderReceipt'
 import { buildResumenEjecutivoHtml } from '@/components/shared/reporteEjecutivo'
@@ -372,13 +376,16 @@ export default function Resumen() {
   const catalogo = getProductos()
   // El rango y el filtro viven en la URL: recargar y compartir conserva el período.
   const [searchParams, setSearchParams] = useSearchParams()
-  const [rango, setRango] = useState(() => rangoDeParams(searchParams))
+  // #209: el período arranca con el último preset usado en Finanzas/Análisis.
+  const [presetRecordado, recordarPreset] = useUltimoUsado(CLAVES_FIN.rango, 'hoy')
+  const [rango, setRango] = useState(() => rangoDeParams(searchParams, () => rangoDePreset(PRESETS, presetRecordado, rangoPorDefecto)))
   const cambiarRango = useCallback(
     next => {
       setRango(next)
+      if (next?.preset) recordarPreset(next.preset)
       setSearchParams(actuales => paramsDeRango(next, actuales), { replace: true })
     },
-    [setSearchParams],
+    [setSearchParams, recordarPreset],
   )
   const [filtroLista, setFiltroLista] = useUrlState('filtro', 'todas')
   const [creditos, setCreditos] = useState(null)
