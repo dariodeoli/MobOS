@@ -102,3 +102,38 @@ test('los campos de dinero y porcentaje del barrido usan las primitivas', () => 
     assert.match(leer(ruta), patron, `${ruta}: falta la primitiva en el campo`)
   }
 })
+
+test('la biblioteca de objetos: búsquedas, toggles y segmentados compartidos', () => {
+  // #147: los objetos canónicos existen, cubren el patrón y no se reimplementan
+  // sueltos en las pantallas del barrido.
+  for (const ruta of ['components/shared/SearchField.jsx', 'components/shared/Switch.jsx', 'components/shared/SegmentedField.jsx']) {
+    assert.ok(leer(ruta).length > 0, `falta ${ruta}`)
+  }
+  // SearchField en las búsquedas del barrido.
+  for (const ruta of [
+    'components/ventas/ListaVentasDia.jsx',
+    'components/ventas/SellerCatalog.jsx',
+    'components/ventas/SellerOrders.jsx',
+    'components/ventas/SellerCustomers.jsx',
+    'components/ventas/SellerQuotes.jsx',
+    'components/control/Compras.jsx',
+    'components/control/Garantias.jsx',
+    'components/control/Auditoria.jsx',
+    'components/control/ServicioTecnico.jsx',
+    'components/control/TradeInPipeline.jsx',
+  ]) {
+    assert.match(leer(ruta), /<SearchField[\s\S]{0,200}(placeholder|ariaLabel)=/, `${ruta}: la búsqueda va con SearchField`)
+  }
+  // Toggle estilo iPhone en los booleanos (no en selección múltiple).
+  for (const ruta of ['components/control/PaymentAccounts.jsx', 'components/control/Precios.jsx', 'components/control/Inventario.jsx']) {
+    assert.match(leer(ruta), /<Switch[\s\S]{0,160}checked=/, `${ruta}: el booleano va con Switch`)
+  }
+  // Segmentado y subtabs compartidos.
+  assert.match(leer('components/control/Ganancias.jsx'), /SegmentedField[\s\S]{0,120}options=\{PERIODOS\}/, 'Ganancias: el período va con SegmentedField')
+  assert.match(leer('components/control/ListaVentasDia.jsx'.replace('control', 'ventas')), /<SegmentedField/, 'ListaVentasDia: los filtros van con SegmentedField')
+  assert.ok(leer('components/ui/index.jsx').includes('export function Subtabs'), 'Subtabs vive en la UI compartida')
+  assert.ok(!/function Subtabs\(/.test(leer('pages/PanelVendedor.jsx')), 'PanelVendedor no redefine Subtabs')
+  // Estándar de tamaños de monto (#148 §9) en el campo compartido.
+  assert.match(leer('components/ui/index.jsx'), /excedeMonto\(value, max\)/, 'MoneyInput debe marcar el monto que supera el límite')
+  assert.match(leer('utils/moneda.js'), /LIMITE_MONTO_VENTAS = 99_000_000_000/, 'falta el límite de ventas')
+})

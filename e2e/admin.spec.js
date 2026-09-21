@@ -147,7 +147,7 @@ test.describe('owner panel', () => {
 
   test('equipo → Roles y permisos describes each role and its matrix', async ({ page }) => {
     await page.goto('/configuracion/equipo')
-    await page.getByRole('button', { name: 'Roles y permisos' }).click()
+    await page.getByRole('tab', { name: 'Roles y permisos' }).click()
 
     await expect(page.getByRole('heading', { name: 'Roles y permisos' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Matriz de capacidades' })).toBeVisible()

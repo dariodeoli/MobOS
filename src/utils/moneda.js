@@ -3,6 +3,21 @@ const GS_FORMATTER = new Intl.NumberFormat('es-PY', {
   maximumFractionDigits: 0,
 })
 
+// Tamaños de monto de la app (épica #148, sección 9): el campo general
+// soporta hasta 10.000.000.000 y las ventas hasta 99.000.000.000. El campo
+// nunca recorta lo que se escribe; el formulario valida con estos límites.
+export const LIMITE_MONTO_GENERAL = 10_000_000_000
+export const LIMITE_MONTO_VENTAS = 99_000_000_000
+
+// ¿El monto supera el límite? Se usa para marcar el campo (`aria-invalid`) y
+// para validar antes de guardar; nunca para truncar el valor tipeado.
+export function excedeMonto(value, limite = LIMITE_MONTO_GENERAL) {
+  const texto = String(value ?? '').trim().replace(/\./g, '').replace(',', '.')
+  if (!texto) return false
+  const numero = Number(texto)
+  return Number.isFinite(numero) && Math.abs(numero) > limite
+}
+
 const USD_FORMATTER = new Intl.NumberFormat('es-PY', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,

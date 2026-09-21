@@ -11,7 +11,7 @@ import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
 import GlobalSearch from '@/components/app/GlobalSearch'
-import { Button, ConfirmDialog, Eyebrow, Input, Modal, PinInput, Select, Skeleton, useToast } from '@/components/ui'
+import { Button, ConfirmDialog, Eyebrow, Input, Modal, PinInput, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
@@ -289,26 +289,6 @@ const MESES = [
   'noviembre',
   'diciembre',
 ]
-
-function Subtabs({ value, onChange, items }) {
-  return (
-    <div className="mb-5 flex flex-wrap gap-2 rounded-2xl border border-fore/10 bg-ink p-2">
-      {items.map(([id, label]) => (
-        <button
-          key={id}
-          type="button"
-          onClick={() => onChange(id)}
-          className={cn(
-            'rounded-xl px-3 py-2 text-sm font-medium transition',
-            value === id ? 'bg-fono text-onbrand' : 'text-mute hover:bg-fore/5 hover:text-fore',
-          )}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 // Mientras una vista pesada descarga su código, la pantalla no queda vacía.
 function VistaCargando() {
