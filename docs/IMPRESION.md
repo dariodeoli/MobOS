@@ -31,7 +31,7 @@ QR muerto: se omite el código.
 
 | QR | Ruta | Página |
 | --- | --- | --- |
-| Comprobante | `/p/<token>` | Seguimiento del pedido (token de impresión) |
+| Comprobante | `/pedidos/<token>` (`/p/<token>` redirige) | Seguimiento del pedido (token de impresión) |
 | Etiqueta de unidad | `/u/<serial>` | Ficha de la unidad (pide sesión) |
 | Etiqueta de precio | `/producto/<sku>` | Ficha del producto (pide sesión) |
 | Ticket de prueba | `/prueba?d=&v=&f=&t=` | Verificación física de la impresión |

@@ -262,3 +262,9 @@ export function encolarComprobanteDemo({ reference, kind = 'comprobante', force 
 }
 
 export const totalEncoladosDemo = () => encoladosDemo.length
+
+// Token ficticio del QR del comprobante en demo (#204): estable por pedido y
+// nivel, como el token de impresión real (reimprimir el mismo nivel reutiliza
+// el token; cambiar de nivel emite el de ese nivel). No abre ninguna página: el
+// demo no tiene backend; sirve para ver el contrato del QR en el recorrido.
+export const tokenDeNivelDemo = (orderId, level) => (orderId ? `demo-${String(level || 'completo')}-${orderId}` : '')

@@ -213,11 +213,12 @@ export const recordarPreferencia = (nivel, formato) => {
 // vista. Es el token de impresión (impreso=true), que el panel no lista ni
 // revoca al regenerar enlaces: el papel sigue funcionando.
 import { isDemoRuntime } from '@/lib/demoMode'
+import { tokenDeNivelDemo } from '@/lib/printing/demo'
 
 export async function tokenDeNivel(orderId, level) {
   if (!orderId) return ''
-  // Demo (#194): el comprobante no pide tokens al API real.
-  if (isDemoRuntime) return ''
+  // Demo (#194/#204): token ficticio estable, sin tocar el API real.
+  if (isDemoRuntime) return tokenDeNivelDemo(orderId, level)
   try {
     const data = await api.post(`/api/orders/${encodeURIComponent(orderId)}/access-tokens`, { level, impreso: true })
     return data?.token || ''
