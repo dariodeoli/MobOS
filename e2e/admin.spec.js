@@ -942,6 +942,8 @@ test('portal del cliente → QA 360/768/1440 con nota pública, pedidos y compro
   expect(pedido.status).toBe(201)
   const garantia = await crmApi(page, '/api/warranties', { method: 'POST', body: JSON.stringify({ customerId: clienteId, customerName: nombre, serial: `PQA-${marca}`, description: 'Equipo portal QA' }) })
   expect([200, 201]).toContain(garantia.status)
+  const tokenGarantia = garantia.body?.publicToken
+  expect(tokenGarantia, 'la garantía debe devolver su token público al crearse').toBeTruthy()
 
   const token = await crmApi(page, `/api/customers/${clienteId}/access-token`, { method: 'POST', body: JSON.stringify({ level: 'completo' }) })
   expect(token.status).toBe(200)
@@ -978,4 +980,14 @@ test('portal del cliente → QA 360/768/1440 con nota pública, pedidos y compro
   await expect(page.getByText(numeroPedido).first()).toBeVisible()
   await expect(page.getByText('Equipo portal QA')).toBeVisible()
   await sinScrollHorizontal()
+
+  // Garantía pública (#172/#178): el token resuelve por hash y la página
+  // responde 429 cuando se pasa de la tasa permitida.
+  const publica = await page.evaluate(async ({ api, token }) => {
+    const res = await fetch(`${api}/api/public/warranty/${encodeURIComponent(token)}`)
+    const body = await res.json().catch(() => null)
+    return { status: res.status, serial: body?.serial }
+  }, { api: API, token: tokenGarantia })
+  expect(publica.status).toBe(200)
+  expect(publica.serial).toBe(`PQA-${marca}`)
 })
