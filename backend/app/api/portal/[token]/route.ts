@@ -20,7 +20,7 @@ async function buscarPortal(token: string) {
       level: true,
       tenantId: true,
       customerId: true,
-      customer: { select: { name: true } },
+      customer: { select: { name: true, publicNote: true } },
       tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
     },
   })
@@ -89,7 +89,12 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   const payload: Record<string, unknown> = {
     level: portal.level,
     company: { name: portal.tenant?.name || null, logo: Boolean(portal.tenant?.logos?.length) },
-    customer: { name: portal.customer?.name || null },
+    customer: {
+      name: portal.customer?.name || null,
+      // Nota pública de la tienda (issue #127): solo viaja si existe; la nota
+      // interna sigue prohibida en el portal.
+      ...(portal.customer?.publicNote ? { publicNote: portal.customer.publicNote } : {}),
+    },
     balancePyg: Number(saldo[0]?.pending || 0n),
     dueDates: vencimientos,
     orders: orders.map(order => ({

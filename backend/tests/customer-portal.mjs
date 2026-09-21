@@ -29,7 +29,7 @@ async function publicRequest(path) {
 }
 
 const ts = Date.now()
-const FORBIDDEN = ['costPyg', 'unitCostPyg', 'baseUnitCostPyg', 'notes', 'publicNote', 'phone', 'email', 'document', 'debtPyg', 'sellerId', 'receiptSnapshot']
+const FORBIDDEN = ['costPyg', 'unitCostPyg', 'baseUnitCostPyg', 'notes', 'phone', 'email', 'document', 'debtPyg', 'sellerId', 'receiptSnapshot']
 
 // ── Ficha con crédito, dirección y una garantía activa ─────────────────────
 let result = await request('/api/customers', 'POST', {
@@ -41,6 +41,15 @@ let result = await request('/api/customers', 'POST', {
 assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 const cliente = result.payload
 assert.ok(cliente.id)
+
+// Nota pública de la tienda (issue #127): viaja al portal. La nota interna
+// del equipo sigue prohibida en ambos niveles.
+const notaPublica = `Pasá por el local a retirar tu pedido ${ts}.`
+const notaInterna = `IT-INTERNA-NO-DEBE-VIAJAR-${ts}`
+result = await request(`/api/customers/${encodeURIComponent(cliente.id)}`, 'PATCH', { publicNote: notaPublica })
+assert.equal(result.response.status, 200, JSON.stringify(result.payload))
+result = await request(`/api/customers/${encodeURIComponent(cliente.id)}/notes`, 'POST', { content: notaInterna }, sellerToken)
+assert.equal(result.response.status, 201, JSON.stringify(result.payload))
 
 // Otro cliente con su propio pedido: no debe filtrarse al portal del primero.
 result = await request('/api/customers', 'POST', { name: `Cliente Portal Ajeno ${ts}` })
@@ -98,6 +107,7 @@ const rapido = result.payload
 assert.equal(rapido.level, 'rapido')
 assert.equal(rapido.company.name, 'Tenant A Integration')
 assert.equal(rapido.customer.name, cliente.name)
+assert.equal(rapido.customer.publicNote, notaPublica, 'El nivel rápido debe llevar la nota pública de la tienda.')
 assert.equal(rapido.balancePyg, 60000, 'El saldo pendiente debe sumar solo lo no cobrado.')
 assert.equal(rapido.dueDates.length, 1, 'El pedido a crédito debe listar su vencimiento.')
 assert.equal(rapido.dueDates[0].orderNumber, numeroPedido)
@@ -117,6 +127,8 @@ const serializado = JSON.stringify(rapido)
 for (const campo of FORBIDDEN) {
   assert.equal(serializado.includes(campo), false, `El portal no debe exponer ${campo}.`)
 }
+assert.equal(serializado.includes(notaInterna), false, 'La nota interna nunca viaja al portal rápido.')
+assert.equal(serializado.includes(notaPublica), true, 'La nota pública debe viajar al portal rápido.')
 
 // ── Enlace completo: garantías, direcciones y comprobantes ─────────────────
 result = await request(`/api/customers/${encodeURIComponent(cliente.id)}/access-token`, 'POST', { level: 'completo' }, sellerToken)
@@ -129,6 +141,7 @@ assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 const completo = result.payload
 assert.equal(completo.level, 'completo')
 assert.equal(completo.balancePyg, 60000)
+assert.equal(completo.customer.publicNote, notaPublica, 'El nivel completo debe llevar la nota pública de la tienda.')
 const garantia = (completo.warranties || []).find(item => item.serial === serialGarantia)
 assert.ok(garantia, 'El nivel completo debe listar las garantías activas.')
 assert.equal(garantia.description, 'Equipo con garantía portal')
@@ -140,6 +153,8 @@ const serializadoCompleto = JSON.stringify(completo)
 for (const campo of FORBIDDEN) {
   assert.equal(serializadoCompleto.includes(campo), false, `El portal completo no debe exponer ${campo}.`)
 }
+assert.equal(serializadoCompleto.includes(notaInterna), false, 'La nota interna nunca viaja al portal completo.')
+assert.equal(serializadoCompleto.includes(notaPublica), true, 'La nota pública debe viajar al portal completo.')
 
 // ── Regeneración: el enlace anterior deja de funcionar ─────────────────────
 result = await request(`/api/customers/${encodeURIComponent(cliente.id)}/access-token`, 'POST', { level: 'rapido', regenerate: true }, sellerToken)
