@@ -5,6 +5,7 @@ import { test, expect } from '@playwright/test'
 import { expectNoHorizontalOverflow } from './helpers/assertions.js'
 
 const viewports = [
+  { name: 'mobile-360', width: 360, height: 740 },
   { name: 'mobile', width: 375, height: 667 },
   { name: 'tablet-portrait', width: 768, height: 1024 },
   { name: 'tablet-landscape', width: 1024, height: 768 },

@@ -1,6 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { borrarCarrito, claveCarrito, guardarCarrito, leerCarrito } from './posCart.js'
+import {
+  borrarCarrito,
+  claveCarrito,
+  guardarCarrito,
+  leerCarrito,
+  lineasParaResumen,
+  totalResumen,
+} from './posCart.js'
 
 function mockStorage() {
   const datos = new Map()
@@ -75,4 +82,27 @@ test('cuota llena o almacenamiento roto no revienta', () => {
   assert.equal(leerCarrito('emp-a'), null)
   assert.equal(guardarCarrito('emp-a', null, { items: [] }), false)
   borrarCarrito('emp-a')
+})
+
+test('el resumen del carrito suma cantidades sin duplicar el total', () => {
+  const lineas = lineasParaResumen([
+    { key: 'a', nombre: 'Cable', precio: 45000, quantity: 2 },
+    { key: 'b', nombre: 'Funda', precio: 20000, quantity: 1 },
+  ])
+  assert.equal(lineas[0].nombre, 'Cable ×2')
+  assert.equal(lineas[0].subtotal, 90000)
+  assert.equal(lineas[1].nombre, 'Funda')
+  assert.equal(lineas[1].subtotal, 20000)
+  // El total sale de los subtotales: 90.000 + 20.000, no 4 × 45.000 + 20.000.
+  assert.equal(totalResumen(lineas), 110000)
+})
+
+test('el resumen tolera carrito vacío, nulo y cantidades inválidas', () => {
+  assert.deepEqual(lineasParaResumen([]), [])
+  assert.deepEqual(lineasParaResumen(null), [])
+  assert.equal(totalResumen(null), 0)
+  const lineas = lineasParaResumen([{ key: 'a', nombre: 'Cable', precio: 1000, quantity: 0 }])
+  assert.equal(lineas[0].quantity, 1)
+  assert.equal(lineas[0].subtotal, 1000)
+  assert.equal(totalResumen(lineas), 1000)
 })
