@@ -10,6 +10,7 @@ import { portalUrlFor, portalVitrinaUrlFor } from '@/lib/customerPortal'
 import { PERIODOS_INFORME, rangoPeriodo, seccionesInforme, informeCsv, nombreArchivoInforme } from '@/lib/customerReport'
 import QRCode from 'qrcode'
 import SerialTexto from '@/components/shared/SerialTexto'
+import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import { whatsappUrl } from './customerMessaging'
 import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
@@ -181,6 +182,53 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [comercialAbierto, setComercialAbierto] = useState(false)
   const [comercialForm, setComercialForm] = useState({ pricingTier: 'RETAIL', creditHabilitado: false, creditDays: '', creditLimitPyg: '' })
   const [guardandoComercial, setGuardandoComercial] = useState(false)
+  // Direcciones de la ficha (alta, edición y baja reemplazando el conjunto).
+  const [direccionForm, setDireccionForm] = useState(null)
+  const [direccionBusy, setDireccionBusy] = useState(false)
+
+  const direcciones = profile?.customer?.addresses || []
+
+  function abrirDireccion(address, index = -1) {
+    setDireccionForm(address
+      ? { index, label: address.label || '', address: address.address || '', city: address.city || '', department: address.department || '', country: address.country || 'Paraguay', isDefault: address.isDefault === true }
+      : { index: -1, label: '', address: '', city: '', department: '', country: 'Paraguay', isDefault: direcciones.length === 0 })
+  }
+
+  async function guardarDireccion(event) {
+    event.preventDefault()
+    if (!direccionForm || direccionBusy || !customer?.id) return
+    const address = direccionForm.address.trim()
+    if (!address) { toast.error('Dirección obligatoria', 'Ingresá el detalle de la dirección.'); return }
+    const actuales = direcciones.map((item) => ({ label: item.label, address: item.address, city: item.city, department: item.department, country: item.country, isDefault: item.isDefault }))
+    const nueva = { label: direccionForm.label.trim() || `Dirección ${actuales.length + 1}`, address, city: direccionForm.city.trim(), department: direccionForm.department.trim(), country: direccionForm.country.trim() || 'Paraguay', isDefault: direccionForm.isDefault }
+    const lista = direccionForm.index >= 0 ? actuales.map((item, index) => (index === direccionForm.index ? nueva : item)) : [...actuales, nueva]
+    const conPredeterminada = lista.map((item, index) => ({ ...item, isDefault: item.isDefault || (index === 0 && !lista.some((otra) => otra.isDefault)) }))
+    setDireccionBusy(true)
+    try {
+      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { addresses: conPredeterminada })
+      toast.success('Direcciones guardadas.')
+      setDireccionForm(null)
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudo guardar la dirección', cause?.message)
+    } finally { setDireccionBusy(false) }
+  }
+
+  async function removeDireccion() {
+    if (!pendingDelete || pendingDelete.type !== 'address' || deleteBusy || !customer?.id) return
+    setDeleteBusy(true)
+    try {
+      const lista = direcciones
+        .filter((_, index) => index !== pendingDelete.index)
+        .map((item, index) => ({ label: item.label, address: item.address, city: item.city, department: item.department, country: item.country, isDefault: index === 0 ? true : item.isDefault }))
+      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { addresses: lista })
+      toast.success('Dirección eliminada.')
+      setPendingDelete(null)
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudo eliminar la dirección', cause?.message)
+    } finally { setDeleteBusy(false) }
+  }
 
   function abrirComercial() {
     const ficha = profile?.customer || customer || {}
@@ -1467,6 +1515,44 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
           {tab === 'datos' && (
             <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">Direcciones</p>
+                <Button type="button" variant="outline" className="h-9 px-3 text-xs" onClick={() => abrirDireccion(null)}>
+                  <Icon name="plus" className="h-3.5 w-3.5" />
+                  Agregar dirección
+                </Button>
+              </div>
+              {!direcciones.length ? (
+                <EmptyState compact icon="store" title="Sin direcciones" description="Agregá las direcciones de entrega o facturación de este cliente." />
+              ) : (
+                <ul className="space-y-2" data-testid="perfil-direcciones">
+                  {direcciones.map((address, index) => (
+                    <li key={`${address.id || address.label || 'direccion'}-${index}`} className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="flex flex-wrap items-center gap-2 font-semibold">
+                          <span className="truncate">{address.label || `Dirección ${index + 1}`}</span>
+                          {address.isDefault && <Badge color="blue" className="w-fit whitespace-nowrap px-1.5 py-0 text-[10px]">Predeterminada</Badge>}
+                        </p>
+                        <p className="mt-0.5 break-words text-mute">
+                          {address.address}
+                          {address.city ? ` · ${address.city}` : ''}
+                          {address.department ? ` · ${address.department}` : ''}
+                          {address.country && address.country !== 'Paraguay' ? ` · ${address.country}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => abrirDireccion(address, index)}>Editar</button>
+                        <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'address', index })}>Eliminar</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {tab === 'datos' && (
+            <div className="space-y-4">
               <p className="text-sm font-semibold">Datos de facturación</p>
               <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1833,6 +1919,55 @@ export default function CustomerProfile({ customer, open, onClose }) {
           </div>
         </div>
       </Modal>
+
+      <Modal
+        open={Boolean(direccionForm)}
+        onClose={() => { if (!direccionBusy) setDireccionForm(null) }}
+        title={direccionForm?.index >= 0 ? 'Editar dirección' : 'Agregar dirección'}
+        className="max-w-lg"
+      >
+        {direccionForm && (
+          <form onSubmit={guardarDireccion} className="space-y-4">
+            <FormField label="Etiqueta" htmlFor="direccion-etiqueta" hint="Casa, oficina, depósito…">
+              <Input id="direccion-etiqueta" maxLength={80} disabled={direccionBusy} value={direccionForm.label} onChange={(event) => setDireccionForm((form) => ({ ...form, label: event.target.value }))} />
+            </FormField>
+            <FormField label="Dirección" htmlFor="direccion-detalle">
+              <Input id="direccion-detalle" maxLength={400} disabled={direccionBusy} autoCapitalize="sentences" value={direccionForm.address} onChange={(event) => setDireccionForm((form) => ({ ...form, address: event.target.value }))} placeholder="Calle, número y referencia" />
+            </FormField>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <span className="block text-[11px] font-medium uppercase tracking-wider text-mute">Ciudad</span>
+                <div className="mt-1.5">
+                  <CityAutocomplete esDemo={esDemo} disabled={direccionBusy} value={direccionForm.city} onSelect={(city, department) => setDireccionForm((form) => ({ ...form, city, department }))} />
+                </div>
+                {direccionForm.department && <p className="mt-1 text-xs text-fono-light">Departamento: {direccionForm.department}</p>}
+              </div>
+              <FormField label="País" htmlFor="direccion-pais">
+                <Input id="direccion-pais" maxLength={100} disabled={direccionBusy} value={direccionForm.country} onChange={(event) => setDireccionForm((form) => ({ ...form, country: event.target.value }))} />
+              </FormField>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" disabled={direccionBusy} checked={direccionForm.isDefault} onChange={(event) => setDireccionForm((form) => ({ ...form, isDefault: event.target.checked }))} />
+              Predeterminada
+            </label>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" disabled={direccionBusy} onClick={() => setDireccionForm(null)}>Cancelar</Button>
+              <Button type="submit" disabled={direccionBusy || !direccionForm.address.trim()}>{direccionBusy ? 'Guardando…' : 'Guardar dirección'}</Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        open={pendingDelete?.type === 'address'}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={removeDireccion}
+        title="Eliminar dirección"
+        description="Se quitará de la ficha del cliente. Las ventas ya registradas no cambian."
+        confirmLabel="Eliminar dirección"
+        variant="danger"
+        busy={deleteBusy}
+      />
 
       <Modal
         open={comercialAbierto}

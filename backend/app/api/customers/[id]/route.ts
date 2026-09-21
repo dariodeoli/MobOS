@@ -2,6 +2,7 @@ import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { requireSession } from '../../../../lib/auth'
 import { InputError, objectInput, textInput } from '../../../../lib/payment-input'
+import { addressesInput } from '../_lib'
 
 type RouteContext = { params: { id: string } }
 
@@ -147,6 +148,10 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       const listId = body.priceListId === null || body.priceListId === '' ? null : String(body.priceListId).trim().slice(0, 128)
       if (listId && !await prisma.priceList.findFirst({ where: { id: listId, tenantId: session.user.tenantId, isActive: true }, select: { id: true } })) throw new InputError('Lista de precios no encontrada.')
       data.priceListId = listId
+    }
+    // Direcciones: se reemplaza el conjunto completo (mismo contrato que el alta).
+    if (body.addresses !== undefined) {
+      data.addresses = { deleteMany: {}, create: addressesInput(body.addresses) ?? [] }
     }
     if (!Object.keys(data).length) throw new InputError('No enviaste cambios.')
     const updated = await prisma.customer.update({ where: { id: existing.id }, data, include: { addresses: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } } })

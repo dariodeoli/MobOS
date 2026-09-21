@@ -25,7 +25,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
       level: true,
       tenantId: true,
       customerId: true,
-      customer: { select: { name: true, loyaltyPointsPyg: true } },
+      customer: { select: { name: true, loyaltyPointsPyg: true, publicNote: true } },
       tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
     },
   })
@@ -63,7 +63,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   return json({
     nivel: portal.level,
     tienda: { nombre: portal.tenant?.name || null, tieneLogo: Boolean(portal.tenant?.logos?.length) },
-    cliente: { nombre: portal.customer?.name || null },
+    cliente: { nombre: portal.customer?.name || null, notaPublica: portal.customer?.publicNote || null },
     saldoFavorPyg: Number(saldoFavor._sum.remainingPyg || 0),
     // 1 punto = 1 Gs. canjeable; la empresa lo apaga con loyaltyPct = 0.
     puntosPyg: Number(portal.customer?.loyaltyPointsPyg || 0),
