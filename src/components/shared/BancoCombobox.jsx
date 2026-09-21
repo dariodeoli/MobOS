@@ -5,16 +5,15 @@ import { Input } from '@/components/ui'
 import BancoLogo from '@/components/shared/BancoLogo'
 import { cn } from '@/lib/utils'
 
-const MAX_SUGERENCIAS = 8
-
-// Campo de banco con sugerencias ilustradas: el usuario puede elegir del
-// catálogo paraguayo (con su logo) o escribir cualquier otro nombre.
+// Campo de banco con sugerencias ilustradas: al abrir muestra el catálogo
+// completo (lista scrollable) y mientras se escribe filtra al instante.
 // Mantiene el contrato del campo de texto: entrega el string por onChange.
 export default function BancoCombobox({ id, value = '', onChange, required = false, disabled = false, placeholder, className }) {
   const [abierto, setAbierto] = useState(false)
   const [resaltado, setResaltado] = useState(0)
   const listaId = useId()
   const raiz = useRef(null)
+  const lista = useRef(null)
 
   useEffect(() => {
     const cerrarFuera = (event) => {
@@ -27,9 +26,15 @@ export default function BancoCombobox({ id, value = '', onChange, required = fal
 
   const termino = normalizarBanco(value)
   const sugerencias = useMemo(() => {
-    if (!termino) return BANCOS_PARAGUAY.slice(0, MAX_SUGERENCIAS)
-    return BANCOS_PARAGUAY.filter((banco) => normalizarBanco(banco).includes(termino)).slice(0, MAX_SUGERENCIAS)
+    if (!termino) return BANCOS_PARAGUAY
+    return BANCOS_PARAGUAY.filter((banco) => normalizarBanco(banco).includes(termino))
   }, [termino])
+
+  // La opción resaltada con el teclado queda a la vista en la lista larga.
+  useEffect(() => {
+    if (!abierto) return
+    lista.current?.querySelector(`#${CSS.escape(`${listaId}-${resaltado}`)}`)?.scrollIntoView({ block: 'nearest' })
+  }, [abierto, resaltado, listaId])
 
   function elegir(banco) {
     onChange(banco)
@@ -75,10 +80,11 @@ export default function BancoCombobox({ id, value = '', onChange, required = fal
         onKeyDown={alTeclear}
       />
       {abierto && sugerencias.length > 0 && (
-        <ul id={listaId} role="listbox" aria-label="Bancos de Paraguay" className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-ink-500 bg-ink-800 py-1 shadow-xl">
+        <ul ref={lista} id={listaId} role="listbox" aria-label="Bancos de Paraguay" className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-ink-500 bg-ink-800 py-1 shadow-xl">
           {sugerencias.map((banco, indice) => (
             <li key={banco}>
               <button
+                id={`${listaId}-${indice}`}
                 type="button"
                 role="option"
                 aria-selected={indice === resaltado}
