@@ -4,7 +4,7 @@ import { isDemoRuntime } from './demoMode'
 const ENDPOINT = '/api/payment-accounts'
 const DEMO_KEY = 'mobos:demo-payment-accounts:v1'
 const KINDS = ['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX']
-const defaults = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, settlementDays: 0 }
+const defaults = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, discountPct: 0, settlementDays: 0 }
 const seed = [
   { ...defaults, id: 'demo-cash-pyg', name: 'Caja demo · Gs' },
   { ...defaults, id: 'demo-cash-usd', name: 'Caja demo · USD', currency: 'USD' },
@@ -20,6 +20,9 @@ function validate(data, partial = false) {
     if (!Object.hasOwn(data, key)) continue
     const value = data[key]
     if (['name', 'bank', 'holder', 'accountNumber'].includes(key)) {
+      // La API devuelve null en los opcionales vacíos: se normaliza a '' (el
+      // servidor lo vuelve a guardar como null). El nombre no admite vacío.
+      if (value === null && key !== 'name') { result[key] = ''; continue }
       if (typeof value !== 'string') throw new Error('Los datos de la cuenta deben ser texto.')
       result[key] = value.trim()
       if (result[key].length > 200) throw new Error('Cada campo admite hasta 200 caracteres.')
@@ -29,20 +32,25 @@ function validate(data, partial = false) {
   if ('currency' in result && !['PYG', 'USD', 'BRL', 'EUR', 'USDT'].includes(result.currency)) throw new Error('Elegí una moneda válida.')
   if ('kind' in result && !KINDS.includes(result.kind)) throw new Error('Elegí un medio de pago válido.')
   if ('isActive' in result && typeof result.isActive !== 'boolean') throw new Error('Estado de cuenta inválido.')
-  if ('feePercent' in result) {
-    const fee = result.feePercent
-    if (!['string', 'number'].includes(typeof fee) || String(fee).trim() === '' || !Number.isFinite(Number(fee)) || Number(fee) < 0 || Number(fee) > 100) {
-      throw new Error('La comisión debe estar entre 0 y 100%.')
+  for (const [key, mensaje] of [['feePercent', 'La comisión debe estar entre 0 y 100%.'], ['discountPct', 'El descuento debe estar entre 0 y 100%.']]) {
+    if (!(key in result)) continue
+    const valor = result[key]
+    if (!['string', 'number'].includes(typeof valor) || String(valor).trim() === '' || !Number.isFinite(Number(valor)) || Number(valor) < 0 || Number(valor) > 100) {
+      throw new Error(mensaje)
     }
-    result.feePercent = Number(fee)
+    result[key] = Number(valor)
   }
   if ('settlementDays' in result) {
     const days = Number(result.settlementDays)
     if (!Number.isSafeInteger(days) || days < 0 || days > 90) throw new Error('Los días en acreditarse deben estar entre 0 y 90.')
     result.settlementDays = days
   }
-  if (result.kind === 'TRANSFER' && (!partial || ['bank', 'holder', 'accountNumber'].every(key => key in result))) {
-    if (!result.bank || !result.holder || !result.accountNumber) throw new Error('Completá banco, titular y número de cuenta para transferencias.')
+  if (result.kind === 'TRANSFER') {
+    // El banco identifica la transferencia. Titular y número se exigen al
+    // crear; al editar alcanza el banco para poder renombrar o desactivar una
+    // cuenta predeterminada (#118) todavía incompleta.
+    if ((!partial || 'bank' in result) && !result.bank) throw new Error('Completá el banco de la transferencia.')
+    if (!partial && (!result.holder || !result.accountNumber)) throw new Error('Completá banco, titular y número de cuenta para transferencias.')
   }
   if (partial && !Object.keys(result).length) throw new Error('No hay cambios para guardar.')
   return result

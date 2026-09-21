@@ -5,11 +5,13 @@ import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount } from '
 import { BANCOS_PARAGUAY } from '@/lib/bancos-paraguay'
 import { Badge, Button, Card, Input, Label, Select } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
+import MedioPago from '@/components/shared/MedioPago'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
+import { MEDIOS_PAGO } from '@/lib/catalog'
 import { cn } from '@/lib/utils'
 
 // Tabla compacta: una fila por cuenta, con comisión, acreditación y descuento.
-const GRID_CUENTAS = 'grid min-w-[54rem] grid-cols-[minmax(9rem,1.3fr)_7rem_5rem_6.5rem_6.5rem_6.5rem_minmax(8rem,1fr)_9rem] items-center gap-x-2'
+const GRID_CUENTAS = 'grid min-w-[54rem] grid-cols-[minmax(0,1.3fr)_7rem_5rem_6.5rem_6.5rem_6.5rem_minmax(0,1fr)_9rem] items-center gap-x-2'
 const CELDA_CUENTAS = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
 
 const KINDS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta', TRADE_IN: 'Canje', PIX: 'Pix' }
@@ -22,6 +24,33 @@ const TEMPLATES = [
   { name: 'Tarjeta', kind: 'CARD', currency: 'PYG' },
   { name: 'Canje', kind: 'TRADE_IN', currency: 'PYG' },
 ]
+
+// Comportamiento del medio: el campo solo existe mientras el checkbox está
+// marcado; apagado, el valor se guarda en 0 (sin descuento, sin comisión,
+// acreditación inmediata). Un solo arreglo dibuja los tres bloques.
+const COMPORTAMIENTO = [
+  { field: 'discountPct', control: 'percent', check: 'Aplica descuento', label: 'Descuento por este medio (%)', hint: 'Sugerido al cobrar con este medio (ej. efectivo 5%).' },
+  { field: 'settlementDays', control: 'days', check: 'Se acredita en días', label: 'Días en acreditarse', hint: 'Tarjeta suele tardar 1-3 días hábiles.' },
+  { field: 'feePercent', control: 'percent', check: 'Tiene comisión', label: 'Comisión (%)', hint: 'Lo que retiene el medio sobre el total cobrado.' },
+]
+
+function flagsFrom(values) {
+  return Object.fromEntries(COMPORTAMIENTO.map(({ field }) => [field, Number(values[field]) > 0]))
+}
+
+// Logo de la cuenta: las marcas predeterminadas (#118) se dibujan con el mismo
+// SVG de MedioPago. Se comparan normalizadas para tolerar mayúsculas y acentos.
+const normalizar = (texto) => (texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+const MARCAS = new Set(MEDIOS_PAGO.map(normalizar))
+
+function marcaDe(account) {
+  return [account.bank, account.name].find((valor) => MARCAS.has(normalizar(valor))) || ''
+}
+
+// Porcentaje para la tabla: 0 se lee como "no aplica", no como "0%".
+function porcentaje(valor) {
+  return Number(valor || 0) > 0 ? `${formatPercent(valor)}%` : '—'
+}
 
 export default function PaymentAccounts() {
   const { sesion, empresa } = useSesion()
@@ -36,6 +65,7 @@ function AccountManager() {
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
   const [form, setForm] = useState(null)
+  const [flags, setFlags] = useState(flagsFrom(EMPTY))
   const [editingId, setEditingId] = useState(null)
   const [busy, setBusy] = useState(false)
   const lock = useRef(false)
@@ -54,12 +84,22 @@ function AccountManager() {
   }, [reload])
 
   function openForm(account = null) {
+    // Los opcionales vacíos llegan null desde la API: el formulario trabaja
+    // siempre con texto (evita inputs sin control y el error de validación).
+    const values = { ...EMPTY, ...account, bank: account?.bank || '', holder: account?.holder || '', accountNumber: account?.accountNumber || '' }
     setEditingId(account?.id ?? null)
-    setForm({ ...EMPTY, ...account })
+    setForm(values)
+    setFlags(flagsFrom(values))
     setMessage(null)
   }
 
   function change(key, value) { setForm(current => ({ ...current, [key]: value })) }
+
+  // Al abrir un campo, un 0 heredado del modelo se limpia para escribir directo.
+  function toggleBehavior(field, on) {
+    setFlags(current => ({ ...current, [field]: on }))
+    setForm(current => (on && !parsePercent(current[field]) ? { ...current, [field]: '' } : current))
+  }
 
   async function mutate(action, success) {
     if (lock.current) return
@@ -84,9 +124,17 @@ function AccountManager() {
 
   function save(event) {
     event.preventDefault()
-    const values = { ...form, feePercent: parsePercent(form.feePercent) ?? 0, discountPct: parsePercent(form.discountPct) ?? 0 }
+    const values = { ...form }
+    for (const { field, control } of COMPORTAMIENTO) {
+      values[field] = flags[field] ? (control === 'percent' ? parsePercent(values[field]) ?? 0 : Number(values[field]) || 0) : 0
+    }
     mutate(() => editingId ? updatePaymentAccount(editingId, values) : createPaymentAccount(values), 'Cuenta guardada.')
   }
+
+  // Al crear una transferencia, titular y número son obligatorios; al editar
+  // quedan opcionales: las cuentas predeterminadas (#118) llegan como esqueleto
+  // y se nombran o desactivan antes de completar esos datos.
+  const transferNuevo = form?.kind === 'TRANSFER' && !editingId
 
   return (
     <Card className="space-y-4">
@@ -104,19 +152,31 @@ function AccountManager() {
       {!loading && !loadError && !form && <div className="flex flex-wrap gap-2" aria-label="Plantillas rápidas">
         {TEMPLATES.map(template => <Button key={template.name} type="button" variant="outline" disabled={busy} onClick={() => openForm(template)}>+ {template.name}</Button>)}
       </div>}
-      {form && <form onSubmit={save} className="space-y-4 rounded-lg border border-ink-600 p-4">
+      {form && <form onSubmit={save} data-testid="cuenta-form" className="space-y-4 rounded-lg border border-ink-600 p-4">
         <h3 className="text-sm font-semibold">{editingId ? 'Editar cuenta' : 'Nueva cuenta'}</h3>
         <fieldset disabled={busy} className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2"><Label htmlFor="pa-name">Nombre</Label><Input id="pa-name" autoFocus required maxLength={200} value={form.name} onChange={event => change('name', event.target.value)} placeholder="Ej. Caja principal" /></div>
           <div><Label htmlFor="pa-kind">Medio de pago</Label><Select id="pa-kind" value={form.kind} onChange={event => change('kind', event.target.value)}>{Object.entries(KINDS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
           <div><Label htmlFor="pa-currency">Moneda</Label><CurrencySelect id="pa-currency" value={form.currency} onChange={event => change('currency', event.target.value)} /></div>
-          <div><Label htmlFor="pa-bank">Banco {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-bank" list="pa-bank-options" required={form.kind === 'TRANSFER'} maxLength={200} value={form.bank} onChange={event => change('bank', event.target.value)} placeholder="Buscá entre los bancos de Paraguay o escribí otro" /><datalist id="pa-bank-options">{BANCOS_PARAGUAY.map(bank => <option key={bank} value={bank} />)}</datalist></div>
-          <div><Label htmlFor="pa-holder">Titular {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-holder" required={form.kind === 'TRANSFER'} maxLength={200} value={form.holder} onChange={event => change('holder', event.target.value)} /></div>
-          <div><Label htmlFor="pa-number">Número de cuenta {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-number" type="text" required={form.kind === 'TRANSFER'} maxLength={200} value={form.accountNumber} onChange={event => change('accountNumber', event.target.value)} /></div>
-          <div><Label htmlFor="pa-fee">Comisión (%)</Label><PercentField id="pa-fee" required value={form.feePercent} onChange={value => change('feePercent', value)} /></div>
-          <div><Label htmlFor="pa-discount">Descuento por este medio (%)</Label><PercentField id="pa-discount" required value={form.discountPct} onChange={value => change('discountPct', value)} /><p className="mt-1 text-[11px] text-mute">Sugerido al cobrar con este medio (ej. efectivo 5%).</p></div>
-          <div><Label htmlFor="pa-settlement">Días en acreditarse</Label><Input id="pa-settlement" inputMode="numeric" maxLength={2} required value={form.settlementDays} onChange={event => change('settlementDays', event.target.value.replace(/\D/g, ''))} /><p className="mt-1 text-[11px] text-mute">Tarjeta suele tardar 1-3 días hábiles; efectivo 0.</p></div>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isActive} onChange={event => change('isActive', event.target.checked)} />Cuenta activa</label>
+          <div className="sm:col-span-2"><Label htmlFor="pa-bank">Banco {form.kind !== 'TRANSFER' && '(opcional)'}</Label><Input id="pa-bank" list="pa-bank-options" required={form.kind === 'TRANSFER'} maxLength={200} value={form.bank} onChange={event => change('bank', event.target.value)} placeholder="Buscá entre los bancos de Paraguay o escribí otro" /><datalist id="pa-bank-options">{BANCOS_PARAGUAY.map(bank => <option key={bank} value={bank} />)}</datalist></div>
+          <div><Label htmlFor="pa-holder">Titular {!transferNuevo && '(opcional)'}</Label><Input id="pa-holder" required={transferNuevo} maxLength={200} value={form.holder} onChange={event => change('holder', event.target.value)} /></div>
+          <div><Label htmlFor="pa-number">Número de cuenta {!transferNuevo && '(opcional)'}</Label><Input id="pa-number" type="text" required={transferNuevo} maxLength={200} value={form.accountNumber} onChange={event => change('accountNumber', event.target.value)} /></div>
+        </fieldset>
+        <fieldset disabled={busy} className="space-y-3 rounded-lg border border-ink-600/70 bg-ink-800/30 p-3">
+          <legend className="px-1 text-[10px] font-bold uppercase tracking-wider text-mute">Comportamiento del medio</legend>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {COMPORTAMIENTO.map(({ field, control, check, label, hint }) => <div key={field} className="space-y-2">
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean(flags[field])} onChange={event => toggleBehavior(field, event.target.checked)} />{check}</label>
+              {flags[field] && <div>
+                <Label htmlFor={`pa-${field}`}>{label}</Label>
+                {control === 'percent'
+                  ? <PercentField id={`pa-${field}`} required value={form[field]} onChange={value => change(field, value)} />
+                  : <Input id={`pa-${field}`} inputMode="numeric" maxLength={2} required value={form[field]} onChange={event => change(field, event.target.value.replace(/\D/g, ''))} placeholder="Ej. 2" />}
+                <p className="mt-1 text-[11px] text-mute">{hint}</p>
+              </div>}
+            </div>)}
+          </div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-fono" checked={form.isActive} onChange={event => change('isActive', event.target.checked)} />Cuenta activa</label>
         </fieldset>
         <p className="text-xs text-mute">La plantilla solo completa el formulario; guardá para crear la cuenta.</p>
         <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => { setForm(null); setMessage(null) }}>Cancelar</Button></div>
@@ -135,13 +195,14 @@ function AccountManager() {
         <div className="space-y-1">
         {accounts.map(account => {
           const datos = [account.bank, account.holder, account.accountNumber].filter(Boolean).join(' · ')
+          const marca = marcaDe(account)
           return <div key={account.id} data-testid="cuenta-fila" className={cn(GRID_CUENTAS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
-            <span className="min-w-0"><b className="block truncate text-[13px] font-semibold" title={account.name}>{account.name}</b><Badge color={account.isActive ? 'green' : 'slate'} className="mt-0.5 w-fit whitespace-nowrap px-1.5 py-0 text-[10px]">{account.isActive ? 'Activa' : 'Inactiva'}</Badge></span>
+            <span className="min-w-0"><span className="flex min-w-0 items-center gap-1.5">{marca && <MedioPago medio={marca} alto="h-3.5" />}<b className="truncate text-[13px] font-semibold" title={account.name}>{account.name}</b></span><Badge color={account.isActive ? 'green' : 'slate'} className="mt-0.5 w-fit whitespace-nowrap px-1.5 py-0 text-[10px]">{account.isActive ? 'Activa' : 'Inactiva'}</Badge></span>
             <span className="truncate text-xs text-mute">{KINDS[account.kind] || account.kind}</span>
             <span className="truncate text-xs text-mute">{account.currency === 'PYG' ? 'Gs' : account.currency}</span>
-            <span className="truncate text-xs tabular-nums text-mute">{formatPercent(account.feePercent ?? 0)}%</span>
+            <span className="truncate text-xs tabular-nums text-mute">{porcentaje(account.feePercent)}</span>
             <span className="truncate text-xs text-mute">{account.settlementDays > 0 ? `${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : 'Inmediata'}</span>
-            <span className="truncate text-xs tabular-nums text-mute">{Number(account.discountPct || 0) > 0 ? `${formatPercent(account.discountPct)}%` : '—'}</span>
+            <span className="truncate text-xs tabular-nums text-mute">{porcentaje(account.discountPct)}</span>
             <span className="truncate text-xs text-mute" title={datos || undefined}>{datos || '—'}</span>
             <span className="flex items-center justify-end gap-1.5">
               <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy || !!form} aria-label={`Editar ${account.name}`} onClick={() => openForm(account)}>Editar</Button>
