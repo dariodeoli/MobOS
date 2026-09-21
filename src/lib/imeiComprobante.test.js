@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { demoConsultaImei, detalleImei, enmascararImei, imeiValido, resumenImei, textoNota } from './imeiComprobante.js'
+import { demoConsultaImei, detalleImei, enmascararImei, htmlComprobanteImei, imeiValido, resumenImei, textoNota } from './imeiComprobante.js'
 
 test('el IMEI se muestra enmascarado (solo los últimos 4)', () => {
   assert.equal(enmascararImei('356789102345673'), '•••••••••••5673')
@@ -50,4 +50,23 @@ test('la nota adjunta lleva estado, fecha, fuente y el aviso de simulada', () =>
   assert.match(texto, /sin reportes/)
   assert.match(texto, /fuente IMEIcheck\.net/)
   assert.match(texto, /simulada en demo/)
+})
+
+// #203: el A4 del comprobante de IMEI tiene que imprimir con contraste real
+// (mismas reglas que el resto de los comprobantes) y no permitir inyección de
+// markup con valores del proveedor.
+test('el HTML A4 del comprobante IMEI fuerza contraste, escapa y no expone datos internos', () => {
+  const resumen = resumenImei({
+    ...demoConsultaImei('356789102345673'),
+    normalized: [{ clave: 'blacklist', etiqueta: '<img src=x onerror=alert(1)>', valor: '"><script>alert(1)</script>' }],
+  }, { cliente: '<b>Tienda</b>' })
+  const html = htmlComprobanteImei(resumen, { tienda: '<b>Tienda</b>' })
+  assert.ok(html.includes('-webkit-print-color-adjust:exact') && html.includes('print-color-adjust:exact'), 'contraste real al imprimir')
+  assert.ok(html.includes('@media print'), 'reglas de impresión')
+  assert.ok(html.includes('Documento no fiscal'))
+  assert.ok(html.includes('Simulada en demo'), 'avisa que el resultado es ficticio')
+  assert.ok(!html.includes('<script>'), 'escapa el markup del proveedor')
+  assert.ok(!html.includes('<img src=x'), 'escapa etiquetas del proveedor')
+  assert.ok(html.includes('&lt;b&gt;Tienda&lt;/b&gt;'), 'escapa el nombre de la tienda')
+  assert.ok(!/costo|provider|raw/i.test(html), 'sin datos internos')
 })

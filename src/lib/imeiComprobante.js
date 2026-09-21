@@ -86,11 +86,18 @@ export function textoNota(resumen) {
 
 /** HTML A4 del comprobante (respaldo cuando no hay agente de impresión). */
 export function htmlComprobanteImei(resumen, { tienda = '' } = {}) {
-  const filas = (resumen?.campos || []).map((campo) => `<tr><th>${campo.etiqueta}</th><td>${campo.valor}</td></tr>`).join('')
+  // Escape: los valores vienen del proveedor y de la empresa; el documento se
+  // abre para imprimir, así que no puede inyectar markup (#205).
+  const escapar = (valor) => String(valor ?? '')
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;')
+  const filas = (resumen?.campos || [])
+    .map((campo) => `<tr><th>${escapar(campo.etiqueta)}</th><td>${escapar(campo.valor)}</td></tr>`)
+    .join('')
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Verificación de IMEI</title>
-<style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:32px;color:#111}h1{font-size:20px;margin:0 0 4px}h2{font-size:13px;font-weight:600;color:#555;margin:0 0 16px}table{border-collapse:collapse;margin:16px 0;width:100%;max-width:460px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;font-size:13px}th{color:#555;font-weight:600;width:45%}.aviso{margin-top:16px;padding:8px 10px;border:1px solid #e0b400;background:#fff8e1;font-size:12px}.pie{margin-top:24px;font-size:11px;color:#777}</style></head>
-<body><h1>Verificación de IMEI</h1><h2>${tienda || resumen?.cliente || ''}</h2>
-<table><tr><th>IMEI</th><td>${resumen?.imei || '—'}</td></tr><tr><th>Estado</th><td>${resumen?.etiqueta || 'No verificado'}</td></tr><tr><th>Detalle</th><td>${resumen?.detalle || '—'}</td></tr>${filas}<tr><th>Fecha</th><td>${resumen?.fechaTexto || '—'}</td></tr><tr><th>Fuente</th><td>${resumen?.fuente || FUENTE_IMEI}</td></tr></table>
+<style>@page{size:A4;margin:14mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:32px;color:#111}h1{font-size:20px;margin:0 0 4px}h2{font-size:13px;font-weight:600;color:#555;margin:0 0 16px}table{border-collapse:collapse;margin:16px 0;width:100%;max-width:460px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;font-size:13px}th{color:#555;font-weight:600;width:45%}.aviso{margin-top:16px;padding:8px 10px;border:1px solid #e0b400;background:#fff8e1;font-size:12px}.pie{margin-top:24px;font-size:11px;color:#777}@media print{body{margin:0;color:#000}th,td,h1,h2,.aviso,.pie{color:#000}.aviso{border-color:#000;background:#fff}}</style></head>
+<body><h1>Verificación de IMEI</h1><h2>${escapar(tienda || resumen?.cliente || '')}</h2>
+<table><tr><th>IMEI</th><td>${escapar(resumen?.imei || '—')}</td></tr><tr><th>Estado</th><td>${escapar(resumen?.etiqueta || 'No verificado')}</td></tr><tr><th>Detalle</th><td>${escapar(resumen?.detalle || '—')}</td></tr>${filas}<tr><th>Fecha</th><td>${escapar(resumen?.fechaTexto || '—')}</td></tr><tr><th>Fuente</th><td>${escapar(resumen?.fuente || FUENTE_IMEI)}</td></tr></table>
 ${resumen?.simulado ? '<p class="aviso">Simulada en demo: el resultado es ficticio y no consulta al proveedor.</p>' : ''}
 <p class="pie">Comprobante informativo: no acredita propiedad ni reemplaza la verificación oficial del equipo. Documento no fiscal.</p></body></html>`
 }
