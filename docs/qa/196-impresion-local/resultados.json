@@ -1,0 +1,123 @@
+{
+  "base": "http://127.0.0.1:5273",
+  "fecha": "2026-09-21T18:24:35.335Z",
+  "resultados": [
+    {
+      "paso": "entrada a la demo como dueño",
+      "estado": "ok",
+      "detalle": "demo abierta como dueño",
+      "capturas": [
+        "01-panel-demo.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "Impresoras en demo: banner de ficticios y dos impresoras",
+      "estado": "ok",
+      "detalle": "banner de ficticios + 2 impresoras demo visibles",
+      "capturas": [
+        "02-impresoras-demo.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "actividad demo con estados honestos",
+      "estado": "ok",
+      "detalle": "estados=pendiente/aceptado/incierto/fallido/cancelado · inputs de validación=3",
+      "capturas": [
+        "03-actividad-demo.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "auto-validación demo: 1 dígito valida solo",
+      "estado": "ok",
+      "detalle": "escribir el dígito ficticio confirmó sin apretar Confirmar",
+      "capturas": [
+        "04-validacion-un-digito.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "auto-validación demo: 4 dígitos y aviso de no coincide",
+      "estado": "ok",
+      "detalle": "avisó con el número incorrecto y confirmó al completar el largo",
+      "capturas": [
+        "05-validacion-no-coincide.jpg",
+        "06-validacion-cuatro-digitos.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "cola demo: pendientes y fallidos con reintento simulado",
+      "estado": "ok",
+      "detalle": "cola con pendientes/fallidos y reintento simulado avisado",
+      "capturas": [
+        "07-cola-modal.jpg",
+        "08-cola-reintento-simulado.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "prueba de impresión demo simulada",
+      "estado": "ok",
+      "detalle": "la prueba avisa que es simulada y no envía nada",
+      "capturas": [
+        "09-prueba-simulada.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "cancelación demo: individual y en lote desde la cola",
+      "estado": "ok",
+      "detalle": "cancelación individual y en lote con aviso de demo",
+      "capturas": [
+        "10-cola-antes-de-cancelar.jpg",
+        "11-cola-cancelacion-individual.jpg",
+        "12-cola-cancelacion-lote.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "anti-duplicados demo: aviso de duplicado y «Reimprimir igual»",
+      "estado": "ok",
+      "detalle": "el segundo click avisó del duplicado y «Reimprimir igual» sumó una copia ficticia",
+      "capturas": [
+        "13-duplicado-primer-encolado.jpg",
+        "14-duplicado-aviso.jpg",
+        "15-duplicado-reimprimir.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "QR impreso que no vence y reimpresión",
+      "estado": "no-aplicable",
+      "detalle": "no se puede ejercitar en el demo anónimo: los tokens del QR salen del backend y el demo no tiene sesión; en el demo el acceso del cliente no se genera. Se verifica en el e2e de QR y en producción escaneando un comprobante real.",
+      "capturas": [],
+      "llamadasApi": []
+    }
+  ],
+  "llamadasAlApi": [],
+  "llamadasDeImpresion": [],
+  "llamadasDeOtrosModulos": [],
+  "erroresConsola": [
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Warning: validateDOMNesting(...): %s cannot appear as a child of <%s>.%s%s%s <p> tr   \n    at p\n    at tr\n    at tbody\n    at table\n    at div\n    at div\n    at Card (http://127.0.0.1:5273/src/components/ui/index.jsx:323:24)\n    at div\n    at Impresoras (http://127.0.0.1:5273/src/components/control/",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals"
+  ],
+  "erroresDeRed": [],
+  "erroresOtros": [
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Warning: validateDOMNesting(...): %s cannot appear as a child of <%s>.%s%s%s <p> tr   \n    at p\n    at tr\n    at tbody\n    at table\n    at div\n    at div\n    at Card (http://127.0.0.1:5273/src/components/ui/index.jsx:323:24)\n    at div\n    at Impresoras (http://127.0.0.1:5273/src/components/control/",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals"
+  ],
+  "veredicto": {
+    "pasosOk": 9,
+    "pasosTotal": 10,
+    "llamadasDeImpresion": 0,
+    "llamadasDeOtrosModulos": 0,
+    "erroresDeRed": 0
+  }
+}

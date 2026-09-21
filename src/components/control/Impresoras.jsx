@@ -7,6 +7,7 @@ import { printingApi } from '@/lib/api/printing'
 import { URL_AGENTE, cargarImpresoras, colaAgente, configImpresora, confirmarJob, diagnosticoAgente, enmascararToken, esIdBackend, estadoAgente, historialAgente, impresoraHaciaBackend, importarConfigUnaVez, imprimirTicketRouter, limpiarFallidos, puenteDe, refrescarDesdeBackend, registrarUltimaPrueba, reintentarFallidos, repararRed, sincronizarAgente } from '@/lib/printing/agent'
 import { TIPOS_TICKET_PRUEBA, ticketPruebaTipo } from '@/lib/printing/tickets'
 import { ESTADO_IMPRESORA, ETIQUETA_ESTADO, textoVerificacion } from '@/lib/printing/estadoImpresoras'
+import { colaDemo, historialDemo, storeDemo } from '@/lib/printing/demo'
 import { useEstadoImpresoras } from '@/hooks/useEstadoImpresoras'
 import Avatar from '@/components/shared/Avatar'
 import ImpresionComparativa from './ImpresionComparativa'
@@ -189,6 +190,18 @@ export default function Impresoras() {
 
   const consultar = useCallback(async () => {
     setCargando(true)
+    if (esDemo) {
+      // Modo demo (#194): datos ficticios en memoria. No se llama al agente
+      // local ni al backend real (el demo público no tiene sesión).
+      setStore(storeDemo())
+      setRemotos([])
+      setHistorial(historialDemo())
+      setCola(colaDemo())
+      setEstado({ disponible: false, version: 'demo', equipo: 'Demo' })
+      setSesiones([])
+      setCargando(false)
+      return
+    }
     // Import único de la configuración legacy (solo ADMIN; un 403 se ignora).
     try { await importarConfigUnaVez(tenantId) } catch { /* sin permiso o sin backend */ }
     // El backend manda: pisa la caché. Si no responde, se muestra la última.
@@ -220,7 +233,7 @@ export default function Impresoras() {
       setSesiones(cuenta?.sessions || [])
     } catch { setSesiones([]) }
     setCargando(false)
-  }, [tenantId])
+  }, [esDemo, tenantId])
 
   useEffect(() => {
     setStore(cargarImpresoras(tenantId))
@@ -252,6 +265,13 @@ export default function Impresoras() {
   // API primero y luego refresco de la caché (solo lectura). Devuelve la config
   // fresca o null si no se pudo guardar; nunca deja la caché divergente.
   const persistir = async (siguiente) => {
+    if (esDemo) {
+      // Demo (#194): los cambios quedan en memoria, con aviso honesto.
+      const demo = { ...siguiente, syncedAt: new Date().toISOString() }
+      setStore(demo)
+      toast.success('Cambios simulados (demo)', 'Dato ficticio: no se guardó en el servidor.')
+      return demo
+    }
     try {
       await difundirCambios(store.impresoras || [], siguiente.impresoras || [])
       const fresco = await refrescarDesdeBackend(tenantId)
@@ -293,7 +313,7 @@ export default function Impresoras() {
   // una impresión, prueba o diagnóstico en curso para no competir con el agente.
   const impresorasActivas = useMemo(() => impresoras.filter((impresora) => impresora.activa), [impresoras])
   const sondeoEnPausa = Boolean(probandoId) || diagnosticando || reparando
-  const { estados: estadosVivos, agregado } = useEstadoImpresoras(impresorasActivas, { enPausa: sondeoEnPausa })
+  const { estados: estadosVivos, agregado } = useEstadoImpresoras(impresorasActivas, { enPausa: sondeoEnPausa || esDemo })
 
   // Estado de configuración cuando todavía no hay verificación viva: la prueba
   // anterior y la detección del agente dan el contexto.
@@ -397,6 +417,16 @@ export default function Impresoras() {
     if (confirmandoRef.current) return
     const sufijo = String(valorDirecto ?? sufijos[fila.jobId] ?? '').trim()
     if (!sufijo) return toast.error('Falta el número', 'Escribí el número secreto que salió impreso después del guion.')
+    if (esDemo) {
+      // Demo (#194): la verificación se simula contra el número ficticio de la
+      // fila (una sola comparación local); no se llama al servidor.
+      if (!fila.sufijo) return toast.info('Todavía no salió', 'El trabajo está pendiente: se valida cuando salga el papel (demo).')
+      if (sufijo !== String(fila.sufijo)) return toast.error('No coincide', 'Probá con el número ficticio de la fila (demo).')
+      setHistorial((actual) => actual.map((item) => (item.jobId === fila.jobId ? { ...item, resultado: 'confirmado', confirmadoEn: new Date().toISOString() } : item)))
+      setSufijos((actual) => ({ ...actual, [fila.jobId]: '' }))
+      toast.success('Confirmado en papel (demo)', 'Dato ficticio: no se llamó al servidor.')
+      return
+    }
     confirmandoRef.current = true
     setConfirmandoId(fila.jobId)
     try {
@@ -520,6 +550,16 @@ export default function Impresoras() {
     if (!impresora || probandoId) return
     setProbandoId(impresora.id)
     setProgreso('Enviando…')
+    if (esDemo) {
+      // Demo (#194): la prueba se simula; no se envía nada a ningún equipo.
+      const ultimaPrueba = { ok: true, encolado: false, remoto: false, fecha: new Date().toISOString(), tipo, ref: ticket.ref, validacion: ticket.validacion, metodo: metodoDe(impresora), transporte: 'directo', jobId: null, corte: Boolean(ticket.corte) }
+      setProgreso('Prueba simulada')
+      setStore((actual) => ({ ...actual, impresoras: actual.impresoras.map((item) => (item.id === impresora.id ? { ...item, ultimaPrueba } : item)) }))
+      setPruebaDe(null)
+      setProbandoId(null)
+      toast.success('Prueba simulada (demo)', 'Dato ficticio: no se envió nada a la impresora ni al servidor.')
+      return
+    }
     const puente = puenteDe(store, impresora)
     // Local primero: en la Mac del puente imprime 127.0.0.1; en cualquier otro
     // dispositivo (o si el local rechaza antes de aceptar) se encola remoto.
@@ -579,6 +619,11 @@ export default function Impresoras() {
     const destino = impresora?.destino || configImpresora().impresora || ''
     if (!destino) {
       setDiagnostico({ ok: true, sinDestino: true, mensaje: 'No hay impresora configurada.' })
+      return
+    }
+    if (esDemo) {
+      // Demo (#194): diagnóstico ficticio, sin consultar al agente.
+      setDiagnostico({ ok: true, alcance: true, destino, metodo: 'LAN (demo)', mensaje: 'Diagnóstico simulado: la impresora demo responde.' })
       return
     }
     setDiagnosticando(true)
@@ -676,7 +721,19 @@ export default function Impresoras() {
     if (fresco) toast.success('Impresora predeterminada', impresora.nombre)
   }
 
+  function cancelarDemo(ids) {
+    setCola((actual) => actual ? { ...actual, pendientes: actual.pendientes.filter((trabajo) => !ids.includes(trabajo.id)) } : actual)
+    toast.success(ids.length === 1 ? 'Trabajo cancelado (demo)' : `${ids.length} trabajos cancelados (demo)`, 'Dato ficticio: no salen cuando el puente reconecte.')
+  }
+
   async function reintentar() {
+    if (esDemo) {
+      // Demo (#194): simulación local, sin agente.
+      setCola((actual) => actual ? { ...actual, pendientes: [...actual.pendientes, ...actual.fallidos.map((trabajo) => ({ ...trabajo, estado: 'pendiente', intentos: 0, error: '' }))], fallidos: [] } : actual)
+      setSeleccionados([])
+      toast.success('Reintento simulado (demo)', 'Dato ficticio: la cola del agente no se toca.')
+      return
+    }
     try {
       const resultado = await reintentarFallidos()
       toast.success('Reintentando', `${resultado?.reintentados || 0} trabajo(s) fallido(s) vuelven a la cola.`)
@@ -685,6 +742,13 @@ export default function Impresoras() {
   }
 
   async function limpiar(ids = []) {
+    if (esDemo) {
+      // Demo (#194): limpieza local, sin agente.
+      setCola((actual) => actual ? { ...actual, fallidos: actual.fallidos.filter((trabajo) => (ids.length ? !ids.includes(trabajo.id) : false)) } : actual)
+      setSeleccionados([])
+      toast.success('Limpieza simulada (demo)', 'Dato ficticio: la cola del agente no se toca.')
+      return
+    }
     try {
       const resultado = await limpiarFallidos(ids)
       setSeleccionados([])
@@ -695,6 +759,11 @@ export default function Impresoras() {
 
   async function repararConexion() {
     if (reparando) return
+    if (esDemo) {
+      // Demo (#194): no se toca la red.
+      toast.info('Reparación simulada (demo)', 'Dato ficticio: no se agregó ninguna IP ni cola CUPS.')
+      return
+    }
     setReparando(true)
     try {
       const resultado = await repararRed()
@@ -753,6 +822,11 @@ export default function Impresoras() {
 
   return (
     <div className="space-y-4">
+      {esDemo && (
+        <p role="status" className="rounded-xl border border-fono/30 bg-fono/10 p-3 text-sm text-mute">
+          <b className="text-fore">Datos ficticios de demostración</b>: las impresoras, la cola, la actividad y las verificaciones de esta pantalla son de mentira. Nada de lo que hagas acá toca tus equipos ni el servidor.
+        </p>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-sm text-mute">Configurá, probá y monitoreá tus impresoras térmicas.</p>
@@ -1219,7 +1293,7 @@ export default function Impresoras() {
               {pendientes.length > 0 && (
                 <section>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-mute">Pendientes del agente ({pendientes.length})</h4>
-                  <TablaTrabajos trabajos={pendientes} />
+                  <TablaTrabajos trabajos={pendientes} onCancelar={esDemo ? (trabajo) => cancelarDemo([trabajo.id]) : undefined} />
                 </section>
               )}
               {remotosEnCurso.length > 0 && (
@@ -1243,6 +1317,7 @@ export default function Impresoras() {
             </div>
           )}
           <div className="flex flex-wrap justify-end gap-2">
+            {esDemo && pendientes.length > 0 && <Button type="button" variant="outline" className="border-bad/40 text-bad hover:bg-bad/10" onClick={() => cancelarDemo(pendientes.map((trabajo) => trabajo.id))}>Cancelar pendientes ({pendientes.length})</Button>}
             {fallidos.length > 0 && <Button type="button" variant="outline" onClick={() => reintentar()}>Reintentar fallidos</Button>}
             {fallidos.length > 0 && <Button type="button" variant="ghost" disabled={!seleccionados.length} onClick={() => limpiar(seleccionados)}>Limpiar seleccionados ({seleccionados.length})</Button>}
             {fallidos.length > 0 && <Button type="button" variant="ghost" onClick={() => limpiar([])}>Limpiar todos</Button>}
@@ -1254,7 +1329,7 @@ export default function Impresoras() {
   )
 }
 
-function TablaTrabajos({ trabajos, seleccionados = [], onSeleccion }) {
+function TablaTrabajos({ trabajos, seleccionados = [], onSeleccion, onCancelar }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[36rem] text-sm">
@@ -1268,6 +1343,7 @@ function TablaTrabajos({ trabajos, seleccionados = [], onSeleccion }) {
             <th className="px-2 py-2">Intentos</th>
             <th className="px-2 py-2 text-right">Bytes</th>
             <th className="px-2 py-2">Error</th>
+            {onCancelar && <th className="px-2 py-2" />}
           </tr>
         </thead>
         <tbody>
@@ -1281,6 +1357,7 @@ function TablaTrabajos({ trabajos, seleccionados = [], onSeleccion }) {
               <td className="px-2 py-2 text-xs">{trabajo.intentos || 0}</td>
               <td className="px-2 py-2 text-right text-xs text-mute">{trabajo.bytes || 0}</td>
               <td className="px-2 py-2 max-w-[14rem] truncate text-[10px] text-bad" title={trabajo.error}>{trabajo.error || '—'}</td>
+              {onCancelar && <td className="px-2 py-2 text-right"><Button type="button" variant="outline" className="border-bad/40 text-bad hover:bg-bad/10" onClick={() => onCancelar(trabajo)}>Cancelar</Button></td>}
             </tr>
           ))}
         </tbody>

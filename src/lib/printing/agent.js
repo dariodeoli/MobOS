@@ -8,8 +8,10 @@
 
 import { printHtml } from '@/utils/printHtml'
 import { printingApi } from '@/lib/api/printing'
+import { isDemoRuntime } from '@/lib/demoMode'
 import { normalizarDestino, normalizarPuentes, puenteDe, basePuente } from './puentes'
 import { puedeCaerAlDialogo, resolverCamino, tokenDeAgente } from './ruteo'
+import { storeDemo } from './demo'
 
 export { puenteDe, resolverCamino, puedeCaerAlDialogo }
 export { esLoopback } from './ruteo'
@@ -190,6 +192,8 @@ export const impresoraHaciaBackend = (impresora) => ({
 // Refresca la caché desde el backend: el backend manda y pisa lo guardado.
 // Lanza si la API no responde; quien llama muestra la última caché.
 export async function refrescarDesdeBackend(tenantId, { api: cliente = printingApi } = {}) {
+  // Demo (#194): nunca pega al backend real; devuelve los datos ficticios.
+  if (isDemoRuntime) return storeDemo()
   const datos = await cliente.impresoras()
   const anterior = cargarImpresoras(tenantId)
   const sucursales = Array.isArray(datos?.branches)
@@ -302,6 +306,9 @@ export const impresoraPredeterminada = () => imprimirConDestino(cargarImpresoras
 // importa (documentos): el backend es la autoridad y la caché puede estar
 // vieja; si la consulta falla se conserva la caché.
 export async function cargarImpresorasRemotas({ forzar = false } = {}) {
+  // Demo (#194): sin backend real. La pantalla de Impresoras usa sus datos
+  // ficticios y cualquier otro consumidor recibe la misma lista de demo.
+  if (isDemoRuntime) return storeDemo()
   const actual = cargarImpresoras(tenantActivo)
   if (!forzar && imprimirConDestino(actual, sucursalActiva).predeterminada) return actual
   try { return await refrescarDesdeBackend(tenantActivo) } catch { return actual }
@@ -351,6 +358,8 @@ let cache = { hasta: 0, estado: null }
 // con el diálogo del navegador. Con token, el agente devuelve además las
 // impresoras detectadas y el estado de la cola.
 export async function estadoAgente({ forzar = false } = {}) {
+  // Demo (#194): no se sondea el agente de esta computadora.
+  if (isDemoRuntime) return { disponible: false, version: 'demo', equipo: 'Demo' }
   const { url, token } = configImpresora()
   if (!forzar && cache.estado && Date.now() < cache.hasta) return cache.estado
   const control = new AbortController()
@@ -474,6 +483,9 @@ export async function encolarRemoto(ticket, { impresora, copias, usuario = '', t
 // cualquier otro dispositivo encola remoto. Nunca los dos caminos por el mismo
 // trabajo: el remoto solo se usa si el local falló ANTES de aceptar.
 export async function imprimirTicketRouter(ticket, { store, impresora, copias, usuario = '', tipo = '', equipo = '', puente = null, tokenPista = '', ref = '', reimprimir = false } = {}) {
+  // Demo (#194): la impresión no está disponible; se avisa claro y no se toca
+  // ni el agente local ni el backend.
+  if (isDemoRuntime) return { ok: false, camino: 'demo', motivo: 'demo', error: 'Datos ficticios de demostración: la impresión no está disponible en el demo.' }
   const estado = await estadoAgente()
   const { camino } = resolverCamino(store, impresora, { disponible: Boolean(estado?.disponible) })
   if (camino === 'local') {
@@ -563,6 +575,8 @@ export async function imprimirTicketDirecto(ticket, opciones = {}) {
 //   ok + encolado   → quedó en la cola local o en la del puente (remoto)
 //   !ok + motivo    → fallo/sin-impresora/agente-no-disponible/incierto/en-cola
 export async function imprimirDocumento(ticket, { tipo = '', equipo = '', usuario = '', copias, store = null, impresora = null, ref = '', reimprimir = false } = {}) {
+  // Demo (#194): se avisa claro en vez de pegarle al backend real.
+  if (isDemoRuntime) return { ok: false, camino: 'demo', motivo: 'demo', error: 'Datos ficticios de demostración: la impresión no está disponible en el demo.' }
   const estado = await estadoAgente()
   // Sin agente local, la configuración del backend manda: el celular puede
   // tener la caché vieja (u otra predeterminada) y el trabajo saldría al

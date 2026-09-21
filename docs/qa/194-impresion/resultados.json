@@ -1,0 +1,168 @@
+{
+  "base": "http://127.0.0.1:5273",
+  "fecha": "2026-09-21T18:07:55.086Z",
+  "resultados": [
+    {
+      "paso": "entrada a la demo como dueño",
+      "estado": "ok",
+      "detalle": "demo abierta como dueño",
+      "capturas": [
+        "01-panel-demo.jpg"
+      ],
+      "llamadasApi": [
+        "GET /api/users/demo-user/avatar",
+        "GET /api/presence",
+        "POST /api/presence/heartbeat",
+        "GET /api/presence",
+        "POST /api/presence/heartbeat",
+        "GET /api/credits",
+        "GET /api/credits"
+      ]
+    },
+    {
+      "paso": "Impresoras en demo: banner de ficticios y dos impresoras",
+      "estado": "ok",
+      "detalle": "banner de ficticios + 2 impresoras demo visibles",
+      "capturas": [
+        "02-impresoras-demo.jpg"
+      ],
+      "llamadasApi": [
+        "GET /api/users/demo-user/avatar",
+        "GET /api/presence",
+        "POST /api/presence/heartbeat",
+        "GET /api/presence",
+        "POST /api/presence/heartbeat"
+      ]
+    },
+    {
+      "paso": "actividad demo con estados honestos",
+      "estado": "ok",
+      "detalle": "estados=pendiente/aceptado/incierto/fallido/cancelado · inputs de validación=3",
+      "capturas": [
+        "03-actividad-demo.jpg"
+      ],
+      "llamadasApi": [
+        "GET /api/presence",
+        "POST /api/presence/heartbeat"
+      ]
+    },
+    {
+      "paso": "auto-validación demo: 1 dígito valida solo",
+      "estado": "ok",
+      "detalle": "escribir el dígito ficticio confirmó sin apretar Confirmar",
+      "capturas": [
+        "04-validacion-un-digito.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "auto-validación demo: 4 dígitos y aviso de no coincide",
+      "estado": "ok",
+      "detalle": "avisó con el número incorrecto y confirmó al completar el largo",
+      "capturas": [
+        "05-validacion-no-coincide.jpg",
+        "06-validacion-cuatro-digitos.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "cola demo: pendientes y fallidos con reintento simulado",
+      "estado": "ok",
+      "detalle": "cola con pendientes/fallidos y reintento simulado avisado",
+      "capturas": [
+        "07-cola-modal.jpg",
+        "08-cola-reintento-simulado.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "prueba de impresión demo simulada",
+      "estado": "ok",
+      "detalle": "la prueba avisa que es simulada y no envía nada",
+      "capturas": [
+        "09-prueba-simulada.jpg"
+      ],
+      "llamadasApi": []
+    }
+  ],
+  "llamadasAlApi": [
+    "GET /api/users/demo-user/avatar",
+    "GET /api/presence",
+    "POST /api/presence/heartbeat",
+    "GET /api/presence",
+    "POST /api/presence/heartbeat",
+    "GET /api/credits",
+    "GET /api/credits",
+    "GET /api/users/demo-user/avatar",
+    "GET /api/presence",
+    "POST /api/presence/heartbeat",
+    "GET /api/presence",
+    "POST /api/presence/heartbeat",
+    "GET /api/presence",
+    "POST /api/presence/heartbeat"
+  ],
+  "llamadasDeImpresion": [],
+  "llamadasDeOtrosModulos": [
+    "GET /api/users/demo-user/avatar",
+    "GET /api/presence",
+    "POST /api/presence/heartbeat",
+    "GET /api/presence",
+    "POST /api/presence/heartbeat",
+    "GET /api/credits",
+    "GET /api/credits",
+    "GET /api/users/demo-user/avatar",
+    "GET /api/presence",
+    "POST /api/presence/heartbeat",
+    "GET /api/presence",
+    "POST /api/presence/heartbeat",
+    "GET /api/presence",
+    "POST /api/presence/heartbeat"
+  ],
+  "erroresConsola": [
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Warning: validateDOMNesting(...): %s cannot appear as a child of <%s>.%s%s%s <p> tr   \n    at p\n    at tr\n    at tbody\n    at table\n    at div\n    at div\n    at Card (http://127.0.0.1:5273/src/components/ui/index.jsx:323:24)\n    at div\n    at Impresoras (http://127.0.0.1:5273/src/components/control/",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ],
+  "erroresDeRed": [
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+    "Failed to load resource: net::ERR_CONNECTION_REFUSED"
+  ],
+  "erroresOtros": [
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Warning: Received `%s` for a non-boolean attribute `%s`.\n\nIf you want to write it to the DOM, pass a string instead: %s=\"%s\" or %s={value.toString()}.\n\nIf you used to conditionally omit it with %s={condition && value}, pass %s={condition ? value : undefined} instead.%s false className className fals",
+    "Warning: validateDOMNesting(...): %s cannot appear as a child of <%s>.%s%s%s <p> tr   \n    at p\n    at tr\n    at tbody\n    at table\n    at div\n    at div\n    at Card (http://127.0.0.1:5273/src/components/ui/index.jsx:323:24)\n    at div\n    at Impresoras (http://127.0.0.1:5273/src/components/control/"
+  ],
+  "veredicto": {
+    "pasosOk": 7,
+    "pasosTotal": 7,
+    "llamadasDeImpresion": 0,
+    "llamadasDeOtrosModulos": 14,
+    "erroresDeRed": 14
+  }
+}
