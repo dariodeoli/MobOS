@@ -476,6 +476,31 @@ const LEYENDA_NO_FISCAL = 'Documento no fiscal. No válido como factura.'
 
 // Nota de entrega: respalda la entrega física de la mercadería con el receptor
 // y su firma. Sin precios: el comprobante de venta ya los detalla.
+// Bloque de firma de los documentos que se firman en papel (#206): reserva
+// altura para firmar a mano, pide aclaración, CI y fecha, y deja un área de
+// observaciones. En 58 mm las etiquetas van en líneas cortas: no se escala el
+// documento A4 al rollo.
+function firmasTermicas(t, roles = [], { ancho = 80, observaciones = true } = {}) {
+  const corto = Number(ancho) <= 58
+  for (const rol of roles) {
+    t.avanza(1)
+    t.texto(`${rol}:`)
+    t.avanza(1)
+    t.texto(corto ? 'Aclaración: ______________' : 'Aclaración: ______________________________')
+    if (corto) {
+      t.texto('CI: ______________________')
+      t.texto('Fecha: ____/____/_________')
+    } else {
+      t.texto('CI: __________________  Fecha: ___/___/______')
+    }
+  }
+  if (observaciones) {
+    t.avanza(1)
+    t.texto('Observaciones:')
+    t.avanza(2)
+  }
+}
+
 export function ticketNotaEntrega(order, { ancho = 80 } = {}) {
   const t = crearTicket({ ancho }).iniciar()
   const items = Array.isArray(order.items) ? order.items : []
@@ -502,9 +527,7 @@ export function ticketNotaEntrega(order, { ancho = 80 } = {}) {
   t.par('Total de unidades', String(unidades))
   t.avanza(1)
   t.texto('Recibí conforme la mercadería detallada.')
-  t.texto('Receptor: ______________________________')
-  t.texto('Documento: _____________________________')
-  t.texto('Firma: _________________________________')
+  firmasTermicas(t, ['Recibí conforme'], { ancho, observaciones: true })
   t.linea()
   t.centrado(LEYENDA_NO_FISCAL)
   return t.avanza(2).corte()
@@ -530,9 +553,7 @@ export function ticketRemision(transfer, { ancho = 80 } = {}) {
   if (transfer.createdBy?.name) t.par('Despachado por', transfer.createdBy.name)
   if (transfer.notes) t.texto(transfer.notes)
   if (transfer.destinationLocation?.name) t.texto(`Destino en depósito: ${transfer.destinationLocation.name}`)
-  t.avanza(1)
-  t.texto('Entrega: _______________________________')
-  t.texto('Recepción: _____________________________')
+  firmasTermicas(t, ['Entregué (despacho)', 'Recibí conforme (recepción)'], { ancho, observaciones: true })
   t.linea()
   t.centrado(LEYENDA_NO_FISCAL)
   return t.avanza(2).corte()
@@ -560,8 +581,7 @@ export function ticketReciboInterno(payment = {}, order = {}, { ancho = 80 } = {
   if (payment.settlesAt) t.par('Acredita', fecha(payment.settlesAt))
   t.doble().par('TOTAL', gs(monto)).doble(false)
   t.avanza(1)
-  t.texto('Firma de quien recibe: __________________')
-  t.texto('Firma de quien entrega: _________________')
+  firmasTermicas(t, ['Entregué / cobré', 'Recibí conforme'], { ancho, observaciones: true })
   t.linea()
   t.centrado(LEYENDA_NO_FISCAL)
   return t.avanza(2).corte()
@@ -594,6 +614,7 @@ export function ticketProforma(quote = {}, { ancho = 80 } = {}) {
   if (descuento) t.par('Descuento', `- ${gs(descuento)}`)
   t.doble().par('TOTAL', gs(quote.totalPyg ?? 0)).doble(false)
   if (quote.notes) { t.linea(); t.texto(quote.notes) }
+  firmasTermicas(t, ['Aceptación del cliente'], { ancho, observaciones: true })
   t.linea()
   t.centrado(LEYENDA_NO_FISCAL)
   return t.avanza(2).corte()
