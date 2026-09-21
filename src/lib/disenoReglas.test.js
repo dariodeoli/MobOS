@@ -184,6 +184,26 @@ test('finanzas: horas en 24 h, vacíos y estados con etiquetas (#205)', () => {
   assert.ok(!/<button[^>]*>[^<]*<Icon/.test(leer('components/control/Comisiones.jsx')), 'las acciones de ícono de Comisiones van con IconAction (aria-label)')
 })
 
+test('la landing: identidad por tema, módulos nuevos y verificador de IMEI honesto (#202)', () => {
+  const landing = leer('pages/Landing.jsx')
+  assert.match(landing, /ThemeLogo/, 'la landing usa el logo que sigue al tema (#163)')
+  assert.match(landing, /ThemeToggle/, 'la landing permite cambiar de tema')
+  assert.match(landing, /ImeiVerificador/, 'la landing integra el verificador de IMEI')
+  assert.match(landing, /CapturaModulo/, 'los módulos muestran su captura')
+  for (const texto of ['POS completo', 'Cliente 360', 'Finanzas, caja y conciliación', 'Inventario por IMEI', 'Servicio técnico', 'Portal del cliente', 'Impresión de verdad', 'Funciona sin internet']) {
+    assert.ok(landing.includes(texto), `la landing presenta ${texto}`)
+  }
+  // El verificador es una demo visual: no consulta ni cobra, y lo dice.
+  const verificador = leer('components/landing/ImeiVerificador.jsx')
+  assert.match(verificador, /Ejemplo simulado/, 'el resultado se marca como simulado')
+  assert.match(verificador, /no se consulta al proveedor ni se cobra/, 'la sección aclara que no consulta ni cobra')
+  const demo = leer('lib/imeiDemoLanding.js')
+  assert.match(demo, /export const FUENTE_DEMO = 'IMEIcheck\.net \(simulado\)'/, 'la fuente dice que es simulada')
+  assert.match(demo, /simulado: true/, 'el resultado se marca simulado')
+  assert.match(demo, /NO_VERIFICADO = 'No verificado'/, 'sin verificar el estado es honesto')
+  assert.doesNotMatch(demo, /'Limpio'/, 'la demo no inventa un "Limpio"')
+})
+
 test('el pedido: secciones plegables, avatar compartido y densidad (#164)', () => {
   const colapsable = leer('components/shared/SeccionColapsable.jsx')
   assert.match(colapsable, /aria-expanded/, 'la sección plegable expone su estado')
