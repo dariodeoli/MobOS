@@ -1840,6 +1840,10 @@ model SuspendedSale {
   // Estado del carrito tal como lo serializa el POS (items, cliente, descuento,
   // entrega y facturación). El backend no lo interpreta.
   payload     Json
+  // Enlace público del borrador (sin autenticación): solo se guarda el sha256
+  // del token de 64 hex (docs/TOKENS.md). Se regenera para invalidar el anterior.
+  publicTokenHash   String?   @unique
+  publicTokenIssuedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

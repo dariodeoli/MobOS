@@ -515,3 +515,39 @@ test('POS: la venta cargada sin conexión se sincroniza al volver (sin duplicar)
     }, { api: API, cliente }), { timeout: 15_000 })
     .toEqual([{ offline: true }])
 })
+
+// #154: el borrador del carrito se comparte con un enlace público sin sesión,
+// que muestra productos, totales y un checkout con el monto.
+test('POS: el borrador se comparte con enlace público y checkout', async ({ page, browser }) => {
+  const marca = Date.now().toString(36)
+  await page.goto('/pos')
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(`Cliente enlace ${marca}`)
+  await page.getByPlaceholder('Buscar producto…').fill('Cable')
+  await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+
+  // Borrador (venta suspendida) con etiqueta.
+  await page.getByRole('button', { name: 'Suspender venta' }).click()
+  let dialogo = page.getByRole('dialog')
+  await dialogo.getByLabel('Etiqueta (opcional)').fill(`Carrito ${marca}`)
+  await dialogo.getByRole('button', { name: 'Suspender venta' }).click()
+  await expect(page.getByText(/Venta suspendida/).first()).toBeVisible({ timeout: 15_000 })
+
+  // Enlace público del borrador (se muestra una sola vez).
+  await page.getByRole('button', { name: 'Ventas suspendidas' }).click()
+  dialogo = page.getByRole('dialog')
+  const fila = dialogo.getByRole('article').filter({ hasText: `Carrito ${marca}` }).first()
+  await expect(fila).toBeVisible()
+  await fila.getByRole('button', { name: 'Enlace público' }).click()
+  const enlace = await dialogo.locator('p.font-mono').first().innerText()
+  expect(enlace).toMatch(/\/carrito\/[a-f0-9]{64}$/)
+
+  // Sin sesión: el cliente ve el carrito y el checkout con el monto.
+  const contexto = await browser.newContext()
+  const publica = await contexto.newPage()
+  await publica.goto(enlace)
+  await expect(publica.getByText('Carrito de compra')).toBeVisible()
+  await expect(publica.getByText(SEED.products.cable.name)).toBeVisible()
+  await expect(publica.getByText(/Checkout — Gs 45\.000/)).toBeVisible()
+  await expect(publica.getByText(/sujetos a confirmación/)).toBeVisible()
+  await contexto.close()
+})
