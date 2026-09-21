@@ -59,6 +59,8 @@ const protectedSections = {
   '/finanzas/bancos': 'Bancos y cuentas',
   '/finanzas/conciliacion': 'Conciliación',
   '/finanzas/creditos': 'Créditos',
+  '/finanzas/cuotas': 'Cuotas',
+  '/finanzas/comisiones': 'Comisiones',
   '/finanzas/publicidad': 'Publicidad',
   '/inventario': 'Inventario',
   '/inventario/unidades': 'Unidades',

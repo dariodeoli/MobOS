@@ -6,7 +6,7 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { listVentas, getVendedores, productosById, getProductos, listGastos } from '@/lib/storage'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
-import { num, gs } from '@/utils/calculos'
+import { num, gs, variacion } from '@/utils/calculos'
 import { armarResumenDia } from '@/utils/reporteResumen'
 import ListaVentasDia from '@/components/ventas/ListaVentasDia'
 import RangoFechas, {
@@ -209,8 +209,6 @@ function Metrica({ label, valor, delta, sub, tono = 'blue' }) {
     </Card>
   )
 }
-
-const variacion = (hoy, antes) => (antes > 0 ? ((hoy - antes) / antes) * 100 : null)
 
 export default function Resumen() {
   const { empresa } = useSesion()

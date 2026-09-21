@@ -4,7 +4,7 @@ import { useUrlState } from '@/hooks/useUrlState'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { useSesion } from '@/lib/sesion'
-import { gs } from '@/utils/calculos'
+import { gs, variacion } from '@/utils/calculos'
 import { Badge, Button, Card, DataTable, EmptyState, Select, Stat } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango, etiquetaRango } from '@/components/shared/RangoFechas'
@@ -293,7 +293,6 @@ export default function Reportes() {
             <div className="flex flex-wrap items-center gap-2">
               {(() => {
                 const previo = datos.previous.totals
-                const variacion = (actual, anterior) => anterior > 0 ? ((actual - anterior) / anterior) * 100 : null
                 return [
                   ['Ventas', totales.totalPyg, previo.totalPyg],
                   ['Cobrado', totales.collectedPyg, previo.collectedPyg],

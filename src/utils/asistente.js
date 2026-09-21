@@ -15,6 +15,7 @@ import {
   comisionDeVentas,
   totalesTienda,
   semaforo,
+  ticketPromedio,
 } from '@/utils/calculos'
 
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -34,10 +35,6 @@ function detectarPeriodo(t) {
   if (tiene(t, 'anio', 'ano', 'año', 'anual')) return 'anio'
   if (tiene(t, 'mes', 'mensual')) return 'mes'
   return 'mes' // default razonable para análisis del dueño
-}
-
-function ticket(ingresos, cant) {
-  return cant > 0 ? Math.round(ingresos / cant) : 0
 }
 
 // ── Respuestas por tema ─────────────────────────────────────────────
@@ -73,7 +70,7 @@ function respIngresos(periodo, data) {
     filas: [
       { k: 'Total facturado', v: gs(g.ingresos), fuerte: true },
       { k: 'Cantidad de ventas', v: String(g.cantVentas) },
-      { k: 'Ticket promedio', v: gs(ticket(g.ingresos, g.cantVentas)) },
+      { k: 'Ticket promedio', v: gs(ticketPromedio(g.ingresos, g.cantVentas)) },
     ],
     nota: g.cantVentas === 0 ? 'Todavía no hay ventas en este período.' : null,
   }

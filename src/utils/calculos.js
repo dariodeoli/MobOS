@@ -95,6 +95,21 @@ export function sumaPrecios(ventas) {
   return ventas.reduce((acc, v) => acc + num(v.precio), 0)
 }
 
+// ── Comparaciones y promedios del tablero (#145) ─────────────────────
+// Una sola fórmula para el Resumen ejecutivo y el Análisis extendido: el mismo
+// indicador no puede calcularse distinto según la pantalla. `variacion`
+// devuelve null cuando no hay base comparable (el llamador decide si la
+// muestra); `ticketPromedio` devuelve 0 sin operaciones, nunca NaN.
+export function variacion(actual, anterior) {
+  const base = num(anterior)
+  return base > 0 ? ((num(actual) - base) / base) * 100 : null
+}
+
+export function ticketPromedio(total, cantidad) {
+  const n = num(cantidad)
+  return n > 0 ? num(total) / n : 0
+}
+
 // Pagos confirmados de una venta: las entradas explícitas de `pagos` cuentan
 // salvo que tengan `status` distinto de CONFIRMED (modo API); las ventas sin
 // array de pagos caen a estadoPago/totalPagado (entradas legacy/demo).
