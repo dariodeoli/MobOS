@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import { APP_NAME } from '@/lib/brand'
 import { getCompanyContext } from '@/lib/api'
-import { getLogoDataUrl } from '@/lib/tenantLogo'
+import { getLogoDataUrl, varianteDeTema } from '@/lib/tenantLogo'
 import { cn } from '@/lib/utils'
 
 // Pantalla de carga de la app: logo institucional, línea de progreso animada y,
@@ -19,7 +19,7 @@ export default function LoadingScreen({ mensaje = 'Cargando tu tienda…', class
     setEmpresa(contexto.tenant)
     setPerfil(contexto.profile || null)
     let activo = true
-    getLogoDataUrl().then((url) => { if (activo && url) setLogo(url) })
+    getLogoDataUrl(varianteDeTema()).then((url) => { if (activo && url) setLogo(url) })
     return () => { activo = false }
   }, [])
 

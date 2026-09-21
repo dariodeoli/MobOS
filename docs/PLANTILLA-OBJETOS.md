@@ -193,6 +193,17 @@ patrón de uso de cada familia y un ejemplo corto.
   (`public/bancos/`, sin hotlinks) → marca vectorial compartida →
   monograma con iniciales y color. Se muestra con el objeto `BancoLogo`;
   las pantallas no arman rutas de logo por su cuenta.
+- **Logo por tema (#163): fondo oscuro → logo claro; fondo claro → logo oscuro.**
+  La empresa sube dos variantes (`light` = logo oscuro para fondos claros,
+  `dark` = logo claro para fondos oscuros; la pantalla de Configuración las
+  muestra sobre ambos fondos). En la app el logo de marca lo resuelve
+  `ThemeLogo` (sigue la clase `dark` de `<html>`); el de la empresa se pide con
+  `getLogoDataUrl(varianteDeTema())` o con `?variant=light|dark` en las páginas
+  públicas, y **en papel** (comprobantes A4 y térmicos, siempre fondo blanco) va
+  siempre la variante `light`. Una superficie con fondo fijo que no sigue al
+  tema (por ejemplo la tarjeta con degradé verde de la lista de precios) fuerza
+  la variante con `ThemeLogo variante="dark"`. La regla vive una sola vez en
+  `src/lib/tenantLogo.js`; no se duplica por pantalla.
 
 > Referencia MobOS: `src/components/shared/Avatar.jsx`, `src/lib/userAvatar.js`,
 > `src/lib/tenantLogo.js`, `src/components/shared/PhotoCropper.jsx`,

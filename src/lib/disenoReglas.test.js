@@ -137,3 +137,15 @@ test('la biblioteca de objetos: búsquedas, toggles y segmentados compartidos', 
   assert.match(leer('components/ui/index.jsx'), /excedeMonto\(value, max\)/, 'MoneyInput debe marcar el monto que supera el límite')
   assert.match(leer('utils/moneda.js'), /LIMITE_MONTO_VENTAS = 99_000_000_000/, 'falta el límite de ventas')
 })
+
+test('el logo sigue al tema: fondo oscuro → logo claro y fondo claro → logo oscuro (#163)', () => {
+  const biblioteca = leer('lib/tenantLogo.js')
+  assert.match(biblioteca, /export function varianteDeTema\(\)/, 'la variante por tema vive en tenantLogo')
+  assert.match(biblioteca, /classList\.contains\('dark'\)/, 'la variante se decide por la clase dark de <html>')
+  assert.match(leer('components/app/ThemeLogo.jsx'), /variante/, 'ThemeLogo puede forzar la variante cuando el fondo no sigue al tema')
+  const pedido = sinComentarios(leer('pages/PedidoPublico.jsx'))
+  assert.match(pedido, /variant=\$\{varianteDeTema\(\)\}/, 'el seguimiento pide la variante del tema activo')
+  assert.doesNotMatch(pedido, /logo\?variant=dark/, 'el seguimiento no fija el logo claro sobre fondo claro')
+  const celulares = leer('pages/Celulares.jsx')
+  assert.match(celulares, /ThemeLogo[^>]{0,80}variante="dark"/, 'la tarjeta con degradé verde fuerza el logo claro')
+})

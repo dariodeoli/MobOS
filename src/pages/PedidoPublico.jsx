@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
 import { codigoPedido, totalesPedido } from '@/utils/pedido'
+import { varianteDeTema } from '@/lib/tenantLogo'
 
 const FULFILLMENT = { PROCESSING: 'En preparación', IN_TRANSIT: 'En camino', READY_TO_SHIP: 'Listo para enviar', READY_FOR_PICKUP: 'Listo para retirar', DELIVERED: 'Entregado' }
 const ORDER_STATUS = { PENDING: 'Pendiente de pago', COMPLETED: 'Pagado', CANCELLED: 'Cancelado' }
@@ -54,8 +55,10 @@ export default function PedidoPublico() {
               <section className="rounded-2xl border border-ink-600 bg-ink-900 p-5 text-center">
                 {logoOk && (
                   <>
+                    {/* Pantalla: la variante sigue al fondo activo (#163). Papel:
+                        siempre la variante para fondo claro. */}
                     <img
-                      src={`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=dark`}
+                      src={`${API_URL}/api/orders/public/${encodeURIComponent(token || '')}/logo?variant=${varianteDeTema()}`}
                       alt={`Logo de ${order.company.name}`}
                       onError={() => setLogoOk(false)}
                       className="mx-auto mb-3 h-14 w-auto max-w-[200px] object-contain print:hidden"

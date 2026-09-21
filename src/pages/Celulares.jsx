@@ -150,7 +150,7 @@ export default function Celulares() {
           <div ref={ref} className="rounded-2xl bg-ink-800 overflow-hidden border border-ink-600">
             {/* Encabezado branded */}
             <div className="bg-gradient-to-br from-fono-dark via-fono to-fono-accent text-onbrand p-5">
-            <ThemeLogo className="h-8 mb-2" />
+            <ThemeLogo className="h-8 mb-2" variante="dark" />
               <div className="text-lg font-extrabold">Lista de Precios</div>
               <div className="text-xs opacity-80">Actualizado: {hoy}</div>
             </div>
