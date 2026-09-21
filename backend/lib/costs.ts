@@ -15,6 +15,9 @@ export type CostoEntrada = {
   originalCost?: unknown
   costCurrency?: unknown
   exchangeRatePyg?: unknown
+  // El PATCH de la unidad manda el cuerpo completo (nota, proveedor, acción…):
+  // este tipo nombra los campos del costo y tolera el resto del cuerpo.
+  [clave: string]: unknown
 }
 
 export type CostoNormalizado = {
