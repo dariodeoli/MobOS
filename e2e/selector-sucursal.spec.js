@@ -60,5 +60,9 @@ test.describe('selector de sucursal', () => {
     await expect(menu).toHaveCount(0)
     await expect(selector).toContainText(nombre)
     await expect(selector).toHaveAttribute('aria-expanded', 'false')
+
+    // La sucursal elegida es el «último usado»: sobrevive a la recarga (#209).
+    await page.reload()
+    await expect(page.getByTestId('sucursal-selector')).toContainText(nombre)
   })
 })

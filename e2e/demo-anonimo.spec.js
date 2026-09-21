@@ -402,3 +402,34 @@ test('configuración en demo muestra avisos claros y sin cargas colgadas', async
   await page.goto('/configuracion/negocio')
   await expect(page.getByRole('switch', { name: 'Aplica seguro' })).toBeVisible()
 })
+
+test('el último usado es el default y se puede cambiar (#209)', async ({ page }) => {
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
+  await expect(page).toHaveURL(/\/resumen$/)
+  await cerrarGuia(page)
+
+  const irADocumentacion = async () => {
+    await page.getByRole('button', { name: 'Configuración', exact: true }).click()
+    await page.locator('main').getByRole('button', { name: 'Sistema', exact: true }).click()
+    await page.locator('main').getByRole('button', { name: 'Documentación', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Documentación' })).toBeVisible()
+  }
+
+  await irADocumentacion()
+  const filtroPOS = page.locator('main').getByRole('button', { name: 'POS', exact: true })
+  await expect(page.locator('main').getByRole('button', { name: 'Todo', exact: true })).toHaveAttribute('aria-pressed', 'true')
+
+  // Elegir POS se recuerda dentro de la sesión (navegación SPA).
+  await filtroPOS.click()
+  await expect(filtroPOS).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: 'Resumen', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Resumen general' })).toBeVisible()
+  await irADocumentacion()
+  await expect(filtroPOS).toHaveAttribute('aria-pressed', 'true')
+
+  // En la demo, recargar descarta lo recordado y vuelve el default sensato.
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Documentación' })).toBeVisible()
+  await expect(page.locator('main').getByRole('button', { name: 'Todo', exact: true })).toHaveAttribute('aria-pressed', 'true')
+})
