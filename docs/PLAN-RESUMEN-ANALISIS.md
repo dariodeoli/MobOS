@@ -137,5 +137,20 @@ permisos ni de URLs.
 - `Asistente` queda para F4: es una capa conversacional síncrona y su
   migración merece su propia unidad.
 
+**Paso 4 — Reportes reutiliza Ganancias (#181).**
+- Los cálculos (período, día y rango) viven en `src/utils/ganancias.js`; los
+  consumen la vista de Ganancias, el calendario compartido
+  (`src/components/shared/CalendarioGanancias.jsx`) y Reportes.
+- Reportes dejó de armar sus consultas a mano (usa el adaptador de #171) y suma
+  una sección **Resultado por día** con el mismo calendario y el desglose
+  "Cómo se calcula el resultado" (ingresos, costo, gastos y publicidad), con
+  los mismos números que Análisis → Ganancias.
+- Sin cambios de números: sin API los cálculos delegan en
+  `calcularGanancia`/`calcularGananciaDia` (tests de equivalencia en
+  `src/utils/ganancias.test.js` y e2e que compara el resultado de ambas
+  vistas para el mismo día).
+- Hallazgo aparte (no corregido acá para no cambiar números): el reporte de
+  ventas de Reportes no acota por sucursal, mientras el de comisiones sí.
+
 **Pendiente.** F4 (retiro de cálculos duplicados y unificación de
 `/api/finance.margin`) y el Asistente.

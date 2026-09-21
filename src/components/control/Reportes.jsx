@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useUrlState } from '@/hooks/useUrlState'
-import { api } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { useSesion } from '@/lib/sesion'
+import { listVentas, listGastos, listAds, productosById } from '@/lib/storage'
 import { gs, variacion } from '@/utils/calculos'
+import { gananciaDeRango, lineasDeGanancia, serieDeReporte } from '@/utils/ganancias'
+import { reporteMetricas } from '@/lib/metricas'
 import { Badge, Button, Card, DataTable, EmptyState, Select, Stat } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import RangoFechas, { PRESETS, rangoDeParams, paramsDeRango, etiquetaRango } from '@/components/shared/RangoFechas'
+import CalendarioGanancias, { LineaValor } from '@/components/shared/CalendarioGanancias'
 import { formatPercent } from '@/components/shared/PercentField'
 import { descargarCsv } from '@/utils/descargarCsv'
 import {
@@ -21,10 +24,6 @@ import {
 } from '@/utils/reportes'
 
 const rangoInicial = () => ({ ...(PRESETS.find((p) => p.id === '30d') || PRESETS[0]).calc(), preset: '30d' })
-
-// Paraguay quedó en UTC-3 fijo. El desfase define qué cuenta como "día" del
-// negocio; no se deduce del navegador para que todos vean el mismo corte.
-const TZ_OFFSET = -180
 
 export default function Reportes() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -68,16 +67,15 @@ export default function Reportes() {
     setCargando(true)
     setError('')
     try {
+      // Un solo adaptador de métricas (#181/#171): él arma el tzOffset y la
+      // sucursal. El reporte de ventas conserva el alcance de siempre (sin
+      // acotar por sucursal) para no cambiar los números actuales.
       if (tipo === 'comisiones') {
-        const params = new URLSearchParams({ type: 'commissions', from: desde, to: hasta, tzOffset: String(TZ_OFFSET) })
-        if (sucursal?.id) params.set('branchId', sucursal.id)
-        const respuesta = await api.get(`/api/reports?${params}`)
+        const respuesta = await reporteMetricas({ rango: { desde, hasta }, branchId: sucursal?.id, groupBy: grupo, type: 'commissions' })
         if (pedidoRef.current !== id) return
         setDatosComisiones(respuesta)
       } else {
-        const respuesta = await api.get(
-          `/api/reports?from=${desde}&to=${hasta}&groupBy=${grupo}&tzOffset=${TZ_OFFSET}`,
-        )
+        const respuesta = await reporteMetricas({ rango: { desde, hasta }, groupBy: grupo })
         if (pedidoRef.current !== id) return
         setDatos(respuesta)
       }
@@ -95,8 +93,30 @@ export default function Reportes() {
     cargar()
   }, [cargar])
 
+  // Serie diaria para el calendario compartido: mismo reporte y mismos
+  // cálculos que Ganancias, con el rango elegido en Reportes.
+  const [serieGanancia, setSerieGanancia] = useState(null)
+  useEffect(() => {
+    if (tipo === 'comisiones' || !rangoValido(rango.desde, rango.hasta)) { setSerieGanancia(null); return }
+    let vigente = true
+    reporteMetricas({ rango, groupBy: 'day' })
+      .then((data) => { if (vigente) setSerieGanancia(serieDeReporte(data)) })
+      .catch(() => { if (vigente) setSerieGanancia(null) })
+    return () => { vigente = false }
+  }, [rango, tipo])
+
   const totales = datos?.totals || null
   const grupos = datos?.groups || []
+  // Resultado por día (#181): Reportes reutiliza el calendario y los cálculos
+  // de Ganancias. Ingresos/costo del reporte diario; gastos y publicidad de
+  // Finanzas, con las mismas fórmulas que Análisis → Ganancias.
+  const datosGanancia = {
+    ventas: listVentas(),
+    gastos: listGastos(),
+    ads: listAds(),
+    prodsById: productosById(),
+  }
+  const gananciaPeriodo = tipo === 'comisiones' || !totales ? null : gananciaDeRango(rango, datosGanancia, totales)
   const columnas = columnasReporte(grupo)
   const porLinea = esGrupoPorLinea(grupo)
   // Columnas para DataTable: mismos encabezados, alineación y clases por tipo
@@ -397,6 +417,37 @@ export default function Reportes() {
               </table>
             </Card>
           )}
+
+          {/* ── Resultado por día: reutiliza el calendario y los cálculos de
+              Ganancias (#181) con el mismo resultado que esa subpágina. ── */}
+          <div className="grid grid-cols-1 gap-4 min-[1200px]:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <CalendarioGanancias
+              datos={datosGanancia}
+              serieApi={serieGanancia}
+              titulo="Resultado por día"
+              nota="Mismos números que Análisis → Ganancias"
+            />
+            {gananciaPeriodo && (
+              <Card>
+                <h3 className="font-bold mb-3">Cómo se calcula el resultado</h3>
+                <div className="space-y-2 text-sm">
+                  {lineasDeGanancia(gananciaPeriodo).map((linea) => <LineaValor key={linea.label} {...linea} />)}
+                  <div className="border-t border-ink-600 pt-2 flex items-center justify-between font-extrabold">
+                    <span>Resultado</span>
+                    <span
+                      data-testid="reporte-resultado"
+                      className={gananciaPeriodo.estado === 'ganancia' ? 'text-ok' : gananciaPeriodo.estado === 'perdida' ? 'text-bad' : 'text-fore'}
+                    >
+                      {gs(gananciaPeriodo.ganancia)}
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs text-mute">
+                  Ingresos y costo salen de este reporte; gastos y publicidad de Finanzas, con el mismo cálculo que Análisis → Ganancias.
+                </p>
+              </Card>
+            )}
+          </div>
 
           <p className="text-xs text-mute">
             {porLinea
