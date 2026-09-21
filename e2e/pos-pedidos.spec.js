@@ -67,34 +67,41 @@ test('pedidos: enlace directo a un pedido fuera de la página lo resuelve por AP
   await expect(page.getByText('Artículos preparados')).toBeVisible()
 })
 
-// Impresión del pedido: A4 y el rollo de 58 mm con diseño vertical propio.
-test('pedidos: el comprobante ofrece A4 y 58 mm con diseño propio', async ({ page }) => {
+// Impresión del pedido: 80 mm (predeterminado), A4 y el rollo de 58 mm con
+// diseño vertical propio. Nivel y formato se eligen con íconos (#207/#208).
+test('pedidos: el comprobante ofrece 80 mm, A4 y 58 mm con diseño propio', async ({ page }) => {
   await page.goto('/pedidos')
   await page.getByTestId('pedido-fila').first().click()
   await expect(page.getByText('Artículos preparados')).toBeVisible()
   await page.getByRole('button', { name: 'Imprimir comprobante' }).click()
 
-  const formato = page.getByLabel('Formato de impresión')
+  const formato = page.getByRole('radiogroup', { name: 'Formato de impresión' })
   await expect(formato).toBeVisible()
-  const opciones = await formato.locator('option').allTextContents()
-  expect(opciones).toEqual(['A4', '58 mm'])
+  const opciones = await formato
+    .getByRole('radio')
+    .evaluateAll((radios) => radios.map((radio) => radio.getAttribute('aria-label')))
+  expect(opciones).toEqual(['Formato 80 mm', 'Formato A4', 'Formato 58 mm'])
+  await expect(formato.getByRole('radio', { name: 'Formato 80 mm' })).toBeChecked()
+
+  const nivel = page.getByRole('radiogroup', { name: 'Tipo de comprobante' })
+  await expect(nivel.getByRole('radio', { name: 'Comprobante Rápido' })).toBeChecked()
 
   const frame = page.locator('iframe[title="Vista previa del comprobante"]')
   // Los tres modelos: rápido identifica empresa y sucursal; el detallado imprime
   // la cronología del pedido.
-  await page.getByLabel('Tipo de comprobante').selectOption('rapido')
+  await nivel.getByRole('radio', { name: 'Comprobante Rápido' }).click()
   await expect(frame).toHaveAttribute('srcdoc', /Empresa/, { timeout: 15000 })
-  await page.getByLabel('Tipo de comprobante').selectOption('detallado')
+  await nivel.getByRole('radio', { name: 'Comprobante Detallado' }).click()
   await expect(frame).toHaveAttribute('srcdoc', /Cronología/, { timeout: 15000 })
 
   // 58 mm: una columna, total destacado y alto dinámico (no el A4 encogido).
-  await formato.selectOption('thermal-58')
+  await formato.getByRole('radio', { name: 'Formato 58 mm' }).click()
   await expect(frame).toHaveAttribute('srcdoc', /@page\{size:58mm auto;margin:3mm\}/, { timeout: 15000 })
   await expect(frame).toHaveAttribute('srcdoc', /class="t58"/)
   await expect(frame).toHaveAttribute('srcdoc', /class="row total"/)
   await expect(frame).toHaveAttribute('srcdoc', /nofiscal/)
 
-  await formato.selectOption('a4')
+  await formato.getByRole('radio', { name: 'Formato A4' }).click()
   await expect(frame).toHaveAttribute('srcdoc', /@page\{size:A4;margin:18mm 16mm\}/, { timeout: 15000 })
 })
 
