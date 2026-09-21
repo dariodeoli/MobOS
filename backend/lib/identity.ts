@@ -9,6 +9,7 @@ export const MOBOS_IDENTITY = {
     website: 'https://moboss.online',
     app: 'https://app.moboss.online',
     api: 'https://api.moboss.online',
+    clientPortal: 'https://clientes.moboss.online',
   },
 } as const
 
@@ -21,6 +22,8 @@ export const MOBOS_LEGACY_API_HOSTS = new Set(['api.controlaria.online'])
 export const MOBOS_ALLOWED_APP_ORIGINS = [
   MOBOS_IDENTITY.urls.app,
   MOBOS_IDENTITY.urls.website,
+  // El portal de clientes es una app propia y llama al API con credenciales (#129).
+  MOBOS_IDENTITY.urls.clientPortal,
   MOBOS_LOCAL_APP_ORIGIN,
 ] as const
 
