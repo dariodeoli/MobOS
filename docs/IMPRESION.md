@@ -227,6 +227,8 @@ estado se verifica en `/health.usb`.
 
 ## 6. Verificación antes de entregar
 
+- La **distribución del agente** (versiones, allow-list, checksum y rollback)
+  está en **`docs/IMPRESION-INSTALADOR.md`**.
 - `npm test` (unitarios de `src/**` + los del agente: `print-agent/test/**`,
   incluido el instalador y el empaquetado de `usb`).
 - `npm run test:e2e` con `e2e/impresion-remota.spec.js`: configuración, cola del

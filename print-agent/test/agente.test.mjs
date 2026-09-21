@@ -438,11 +438,14 @@ test('la cola lista, reintenta fallidos y guarda el usuario que imprimió', asyn
   // Con la config por defecto (3 intentos, espera clampeada a 1000 ms) cada
   // ciclo cuesta ~2,3 s: 'fallido' llega a los ~6 s. El presupuesto por defecto
   // de `esperar` (6 s) quedaba al límite y era otro flake por timing; se espera
-  // por condición con aire y con el estado real en el mensaje.
+  // por condición con aire y con el estado real en el mensaje. El presupuesto
+  // cubre el caso patológico: si el connect a la impresora caída no es
+  // ECONNREFUSED sino timeout (6 s por intento interno × 3), un intento de la
+  // cola puede costar ~19 s y los 3 toman ~1 min (visto en carga alta, 1/10).
   const fallido = await esperar(async () => {
     const estado = await fetch(`${base}/jobs`, { headers: cabeceras }).then((r) => r.json())
     return estado.fallidos.length === 1
-  }, { intentos: 100, espera: 150 })
+  }, { intentos: 400, espera: 150 })
   if (!fallido) {
     assert.fail(`el trabajo no quedó fallido sin impresora\n${await pistaDeFallo(agente, base, cabeceras, respuesta.jobId)}`)
   }
