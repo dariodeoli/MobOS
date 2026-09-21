@@ -12,9 +12,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 ---
 
 ## v1.0.120 — 2026-09-21 (pendiente de deploy)
-- **Otros (Acceso):** un vendedor **sin sucursal asignada ya puede entrar con su PIN** (antes el login lo rechazaba); la sesión queda acotada a toda la empresa y se refuerza con pruebas. (#137)
-- **Finanzas / Inventario / Clientes (Campos):** los últimos campos sueltos de dinero y porcentaje —Caja, límites de Configuración, crédito del cliente y pago al consignador— ahora usan los campos compartidos: separador de miles y coma decimal, sin errores de tipeo. (#136)
-- **Otros (Proceso):** nace esta sección **"Novedades para el dueño"**: cada entrega y cada cierre de issue resume lo hecho en lenguaje de negocio. (#140)
+- **Ventas / POS:** podés **vender sin internet**: la venta queda guardada en el equipo y se envía sola al reconectar, con el estado de la cola a la vista y la venta marcada para revisión; el catálogo queda disponible sin conexión. (#131)
+- **Impresión:** la cola muestra los pendientes con su usuario y permite **cancelarlos de a uno o en lote**, con aviso anti-duplicados ("ya hay una impresión pendiente"); la prueba de impresión se confirma validando el **código del papel**; el instalador del agente ya trae el **USB directo adentro** (sin pasos extra). (#128 #138 #96)
+- **Bancos:** catálogo actualizado con logos (se quitan Regional, Visión y BBVA) y el selector ya no se limita a 8 bancos. (#139)
+- **Campos:** los últimos campos sueltos de dinero y porcentaje —Caja, límites de Configuración, crédito del cliente y pago al consignador— usan los campos compartidos: separador de miles y coma decimal. (#136)
+- **Acceso:** un vendedor **sin sucursal asignada ya puede entrar con su PIN**. (#137)
+- **Otros:** pruebas automáticas más estables (impresión e inventario) y, desde ahora, esta sección resume cada entrega en lenguaje de negocio. (#126 #132 #140)
 
 ## v1.0.119 — 2026-09-21
 - **Otros (Resumen):** el panel de inicio ahora muestra primero lo que hay que
