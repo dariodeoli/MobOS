@@ -568,6 +568,16 @@ out="$(response_file)"
 request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=product&branchId=branch-a-it" 200 '' "$out" "$ADMIN_TOKEN" ''
 node "$BACKEND_ROOT/tests/reports-http.mjs" "$out" "$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COALESCE(SUM(\"totalPyg\"), 0) FROM \"Order\" WHERE \"tenantId\" = 'tenant-a-it' AND \"branchId\" = 'branch-a-it' AND \"status\" <> 'CANCELLED';")" "$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COUNT(*) FROM \"Order\" WHERE \"tenantId\" = 'tenant-a-it' AND \"branchId\" = 'branch-a-it' AND \"status\" <> 'CANCELLED';")" product
 
+echo "Indicadores unificados: pagos por procesadora, curva ABC y stock valorizado..."
+out="$(response_file)"
+request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=payments&paymentsBy=processor" 200 '' "$out" "$ADMIN_TOKEN" ''
+REPORTS_PAGOS="$out"
+out="$(response_file)"
+request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=product" 200 '' "$out" "$ADMIN_TOKEN" ''
+node "$BACKEND_ROOT/tests/reports-indicadores.mjs" "$REPORTS_PAGOS" "$out"
+out="$(response_file)"
+request GET "/api/reports?from=$REPORTS_FROM&to=$REPORTS_TO&groupBy=payments&paymentsBy=inventado" 400 '' "$out" "$ADMIN_TOKEN" ''
+
 echo "Exportaciones CSV por módulo (cabeceras, BOM y alcance por rol)..."
 node "$BACKEND_ROOT/tests/exports.mjs" "$BASE_URL" "$ADMIN_TOKEN" "$TOKEN_A"
 EXPORTS_AUDIT="$("$PG_BIN/psql" "$DATABASE_URL" -At -c "SELECT COUNT(*) FROM \"AuditLog\" WHERE \"action\" = 'DATA_EXPORTED' AND \"entity\" = 'customers';")"
@@ -686,4 +696,7 @@ echo "Consistencia financiera: la base del arnés da verde y los casos sembrados
   echo "El chequeo de consistencia no volvió a dar verde tras la limpieza del autotest." >&2
   exit 1
 }
+echo "Seguridad pública: token de liquidaciones hasheado, rotación y límite de uso..."
+PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/commission-settlement-public.mjs"
+
 echo "PASS: aislamiento, niveles de token, PIN/lockout, seller forzado, sucursales, rollback, pagos, rate limit de errores, backup/restauración, consistencia y logout."

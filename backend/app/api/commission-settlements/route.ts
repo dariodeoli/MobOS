@@ -1,7 +1,8 @@
 import type { Prisma } from '@prisma/client'
+import { randomBytes } from 'node:crypto'
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
-import { canAccessAny, requireSession } from '../../../lib/auth'
+import { canAccessAny, hashToken, requireSession } from '../../../lib/auth'
 import {
   MAX_REPORT_ORDERS,
   ReportInputError,
@@ -25,6 +26,10 @@ const STATUSES = ['DRAFT', 'PAID', 'CANCELLED'] as const
 
 const text = (value: unknown, max = 128) => typeof value === 'string' ? value.trim().slice(0, max) : ''
 
+// Token de verificación del comprobante: 64 hex (docs/TOKENS.md). Solo se
+// persiste su sha256; el crudo viaja una vez al emitirlo y no se loguea.
+const nuevoTokenVerificacion = () => randomBytes(32).toString('hex')
+
 type SettlementView = {
   id: string
   sellerId: string
@@ -34,7 +39,8 @@ type SettlementView = {
   marginPyg: number
   commissionPct: Prisma.Decimal | null
   status: string
-  verificationToken: string
+  verificationTokenHash: string | null
+  verificationTokenIssuedAt: Date | null
   notes: string | null
   createdAt: Date
   paidAt: Date | null
@@ -53,7 +59,10 @@ function shape(settlement: SettlementView) {
     marginPyg: settlement.marginPyg,
     commissionPct: settlement.commissionPct === null ? null : Number(settlement.commissionPct),
     status: settlement.status,
-    verificationToken: settlement.verificationToken,
+    // El token crudo no se devuelve nunca desde la base: se revela una vez al
+    // emitir o rotar. El panel usa `hasVerificationToken` para pedir uno nuevo.
+    hasVerificationToken: Boolean(settlement.verificationTokenHash),
+    verificationTokenIssuedAt: settlement.verificationTokenIssuedAt,
     notes: settlement.notes,
     createdAt: settlement.createdAt,
     paidAt: settlement.paidAt,
@@ -70,7 +79,8 @@ const SETTLEMENT_SELECT = {
   marginPyg: true,
   commissionPct: true,
   status: true,
-  verificationToken: true,
+  verificationTokenHash: true,
+  verificationTokenIssuedAt: true,
   notes: true,
   createdAt: true,
   paidAt: true,
@@ -129,6 +139,7 @@ export async function POST(request: Request) {
 
   try {
     const { start, end } = dayBounds(periodFrom, periodTo, offsetMinutes)
+    const token = nuevoTokenVerificacion()
     const orders = await prisma.order.findMany({
       where: { tenantId, sellerId, createdAt: { gte: start, lt: end } },
       select: {
@@ -213,6 +224,8 @@ export async function POST(request: Request) {
           marginPyg: row.marginPyg,
           commissionPct: row.commissionPct,
           linesJson: lines as unknown as Prisma.InputJsonValue,
+          verificationTokenHash: hashToken(token),
+          verificationTokenIssuedAt: new Date(),
           createdById: session.user.id,
         },
         select: SETTLEMENT_SELECT,
@@ -229,7 +242,7 @@ export async function POST(request: Request) {
       })
       return settlement
     })
-    return json(shape(created), { status: 201 })
+    return json({ ...shape(created), verificationToken: token }, { status: 201 })
   } catch (cause) {
     if (cause instanceof ReportInputError) return error(cause.message)
     return error('No se pudo cerrar la liquidación.', 500)

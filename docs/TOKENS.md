@@ -82,3 +82,28 @@ seguí estas reglas.
 > Referencias MobOS: `backend/lib/email-actions.ts`, `backend/lib/auth.ts`
 > (`hashToken`, `createSession`), `backend/app/api/auth/password-reset/route.ts`,
 > `backend/app/api/user-invitations/`, `src/lib/actionToken.js`.
+
+## 8. Tokens de comprobantes impresos (QR que no vence)
+
+El papel no expira: un comprobante impreso (hoy, la liquidación de comisiones)
+sigue verificando mientras no se emita un enlace nuevo. Reglas del patrón
+(#172/#178):
+
+- **Solo `sha256` en la base**: `CommissionSettlement.verificationTokenHash`.
+  El token crudo (64 hex) se revela **una vez** al emitir o rotar; no se
+  persiste ni se loguea, así un dump de la tabla no abre comprobantes.
+- **Backfill legacy**: la migración guarda el `sha256` de los tokens viejos
+  (cuid) y vacía la columna cruda; los QR ya impresos siguen validando por
+  hash.
+- **Rotación explícita**: la acción `rotate` (auditada
+  `COMMISSION_SETTLEMENT_TOKEN_ROTATED`) emite un token nuevo e invalida el
+  anterior. El panel avisa al reimprimir/copiar cuando ya no tiene el token en
+  memoria: sin crudo guardado, emitir uno nuevo es el único camino (el token
+  anterior deja de funcionar).
+- **Límite de uso**: los endpoints públicos aplican `enforceRateLimit`
+  (30 req/min por IP); `public/commission-settlements` lo hace desde #178,
+  igual que `portal`, `quotes` y `transfers`.
+
+> Prueba reproducible: `node backend/tests/commission-settlement-public.mjs`
+> (base descartable; emisión, verificación, 429, rotación, permisos,
+> aislamiento y backfill legacy).

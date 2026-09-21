@@ -75,6 +75,7 @@ export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams
     const { from, to, start, end } = rangoDe(params)
+    const soloResumen = ['1', 'true'].includes((params.get('soloResumen') || '').toLowerCase())
     const accountId = params.get('accountId') || ''
     const method = params.get('method') || ''
     const processor = (params.get('processor') || '').trim()
@@ -123,7 +124,7 @@ export async function GET(request: Request) {
     }))
     const resumen = summarizeReconciliation(filtrados as ReconciliationPayment[], batches)
 
-    const items = filtrados.slice(0, MAX_ITEMS).map((pago) => {
+    const items = soloResumen ? [] : filtrados.slice(0, MAX_ITEMS).map((pago) => {
       const estado = pago.reconciliation?.state || 'PENDING'
       return {
         id: pago.id,
@@ -161,14 +162,16 @@ export async function GET(request: Request) {
       porCuenta: resumen.byAccount,
       porMedio: resumen.byMethod,
       porProcesadora: resumen.byProcessor,
-      items,
-      lotes: lotes.map((lote) => ({
-        id: lote.id, createdAt: lote.createdAt, from: lote.from, to: lote.to,
-        accountId: lote.accountId, cuenta: lote.account?.name || 'Sin cuenta', procesadora: lote.account?.processor || '',
-        expectedPyg: lote.expectedPyg, receivedPyg: lote.receivedPyg, differencePyg: lote.differencePyg,
-        state: lote.state, estado: lote.state === 'REJECTED' ? 'REJECTED' : lote.differencePyg ? 'DIFFERENCE' : 'VERIFIED',
-        note: lote.note || '', creadoPor: lote.createdBy?.name || '', pagos: lote._count.reconciliations,
-      })),
+      ...(soloResumen ? {} : {
+        items,
+        lotes: lotes.map((lote) => ({
+          id: lote.id, createdAt: lote.createdAt, from: lote.from, to: lote.to,
+          accountId: lote.accountId, cuenta: lote.account?.name || 'Sin cuenta', procesadora: lote.account?.processor || '',
+          expectedPyg: lote.expectedPyg, receivedPyg: lote.receivedPyg, differencePyg: lote.differencePyg,
+          state: lote.state, estado: lote.state === 'REJECTED' ? 'REJECTED' : lote.differencePyg ? 'DIFFERENCE' : 'VERIFIED',
+          note: lote.note || '', creadoPor: lote.createdBy?.name || '', pagos: lote._count.reconciliations,
+        })),
+      }),
       truncado: pagos.length >= MAX_PAGOS || filtrados.length > MAX_ITEMS,
     })
   } catch (e) {

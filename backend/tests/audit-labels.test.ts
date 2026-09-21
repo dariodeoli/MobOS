@@ -38,4 +38,12 @@ assert.ok(!detalle.includes('previousDefault'), detalle)
 const puente = detalleAuditoria({ bridgeId: 'b-1', name: 'Mostrador', changes: { branchId: { from: null, to: 's-2' } } }, Number.POSITIVE_INFINITY)
 assert.ok(puente.includes('Puente: b-1'), puente)
 
+// #172/#178: las liquidaciones de comisiones y su rotación de enlace se leen
+// sin códigos crudos en la auditoría.
+assert.equal(ACCIONES_AUDITORIA.COMMISSION_SETTLED, 'Liquidación de comisiones creada')
+assert.equal(ACCIONES_AUDITORIA.COMMISSION_SETTLEMENT_PAID, 'Liquidación de comisiones pagada')
+assert.equal(ACCIONES_AUDITORIA.COMMISSION_SETTLEMENT_CANCELLED, 'Liquidación de comisiones anulada')
+assert.equal(ACCIONES_AUDITORIA.COMMISSION_SETTLEMENT_TOKEN_ROTATED, 'Enlace del comprobante rotado')
+assert.equal(AREAS_AUDITORIA.CommissionSettlement, 'Comisiones')
+
 console.log('PASS: etiquetas y áreas de auditoría (#59/#60)')

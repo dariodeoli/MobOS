@@ -5,6 +5,7 @@ import {
   MAX_REPORT_ORDERS,
   ReportInputError,
   aggregateReport,
+  curvaAbc,
   dayBounds,
   diasDelRango,
   esFechaValida,
@@ -226,4 +227,56 @@ test('avisa cuando los importes exceden el rango permitido', () => {
 
 test('el tope de órdenes analizadas es explícito', () => {
   assert.equal(MAX_REPORT_ORDERS, 5000)
+})
+
+// #171 (fase 2 de #145): corte de pagos por cuenta/procesadora/medio y curva
+// ABC en el servidor, para que la vista ejecutiva y la extendida compartan el
+// mismo criterio sin recalcular en el navegador.
+
+test('los pagos se agrupan por cuenta, procesadora o medio según paymentsBy', () => {
+  const base = [
+    orden({ id: 'a', payments: [{ status: 'CONFIRMED', amountPyg: 100000, method: 'CARD', accountName: 'Tarjeta Itaú', accountId: 'acc-1', processor: 'Bancard' }] }),
+    orden({ id: 'b', payments: [{ status: 'CONFIRMED', amountPyg: 50000, method: 'CARD', accountName: 'Tarjeta Itaú', accountId: 'acc-1', processor: 'Bancard' }] }),
+    orden({ id: 'c', payments: [{ status: 'CONFIRMED', amountPyg: 80000, method: 'TRANSFER', accountName: 'Itaú · Darío', accountId: 'acc-2', processor: null }] }),
+    // Foto vieja sin cuenta: cae al medio.
+    orden({ id: 'd', payments: [{ status: 'CONFIRMED', amountPyg: 20000, method: 'CASH' }] }),
+  ]
+  const porCuenta = aggregateReport(base, { groupBy: 'payments', offsetMinutes: DEFAULT_OFFSET_MINUTES, paymentsBy: 'account' })
+  assert.deepEqual(porCuenta.groups.map((g) => [g.label, g.totalPyg]), [['Tarjeta Itaú', 150000], ['Itaú · Darío', 80000], ['CASH', 20000]])
+  assert.equal(porCuenta.totals.totalPyg, 250000)
+
+  const porProcesadora = aggregateReport(base, { groupBy: 'payments', offsetMinutes: DEFAULT_OFFSET_MINUTES, paymentsBy: 'processor' })
+  assert.deepEqual(porProcesadora.groups.map((g) => [g.label, g.totalPyg]), [['Bancard', 150000], ['Sin procesadora', 100000]])
+
+  const porMedio = aggregateReport(base, { groupBy: 'payments', offsetMinutes: DEFAULT_OFFSET_MINUTES, paymentsBy: 'method' })
+  assert.deepEqual(porMedio.groups.map((g) => [g.label, g.totalPyg]), [['CARD', 150000], ['TRANSFER', 80000], ['CASH', 20000]])
+  // Sin corte explícito, la cuenta sigue siendo el comportamiento histórico.
+  const porDefecto = aggregateReport(base, { groupBy: 'payments', offsetMinutes: DEFAULT_OFFSET_MINUTES })
+  assert.equal(porDefecto.groups[0].label, 'Tarjeta Itaú')
+})
+
+test('valida el corte de pagos y lo expone en la consulta', () => {
+  const ok = parseReportQuery(new URLSearchParams('groupBy=payments&paymentsBy=processor'))
+  assert.ok(ok.ok)
+  if (ok.ok) assert.equal(ok.value.paymentsBy, 'processor')
+  assert.equal(parseReportQuery(new URLSearchParams('paymentsBy=inventado')).ok, false)
+})
+
+test('la curva ABC acumula y clasifica por venta descendente', () => {
+  const filas = [
+    { key: 'p1', grossPyg: 80000 },
+    { key: 'p2', grossPyg: 15000 },
+    { key: 'p3', grossPyg: 4000 },
+    { key: 'p4', grossPyg: 1000 },
+  ]
+  const conClase = curvaAbc(filas)
+  assert.deepEqual(conClase.map((f) => [f.key, f.accumulatedPct, f.abcClass]), [
+    ['p1', 80, 'A'],
+    ['p2', 95, 'B'],
+    ['p3', 99, 'C'],
+    ['p4', 100, 'C'],
+  ])
+  // Sin ventas no se inventa una clase: todo queda en C con 0%.
+  assert.deepEqual(curvaAbc([{ key: 'x', grossPyg: 0 }]).map((f) => [f.abcClass, f.accumulatedPct]), [['C', 0]])
+  assert.deepEqual(curvaAbc([]), [])
 })

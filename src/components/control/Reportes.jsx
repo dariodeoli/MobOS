@@ -323,8 +323,8 @@ export default function Reportes() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Stat label="Rotación del período" valor={datos.inventory?.sellThroughPct === null || datos.inventory?.sellThroughPct === undefined ? '—' : `${formatPercent(datos.inventory.sellThroughPct)}%`} sub={`${datos.inventory?.soldUnits ?? 0} unidades vendidas`} />
-            <Stat label="Stock actual" valor={`${datos.inventory?.onHandUnits ?? 0} u.`} sub="Productos activos de la sucursal" />
+            <Stat label="Rotación del período" valor={datos.inventory?.sellThroughPct === null || datos.inventory?.sellThroughPct === undefined ? '—' : `${formatPercent(datos.inventory.sellThroughPct)}%`} sub={`${datos.inventory?.soldUnits ?? 0} unidades vendidas${datos.inventory?.daysOfStock === null || datos.inventory?.daysOfStock === undefined ? '' : ` · ${datos.inventory.daysOfStock} días de stock`}`} />
+            <Stat label="Stock actual" valor={`${datos.inventory?.onHandUnits ?? 0} u.`} sub={`Valorizado ${gs(datos.inventory?.stockValuePyg ?? 0)}${datos.inventory?.stockWithoutCost ? ` · ${datos.inventory.stockWithoutCost} sin costo` : ''}`} />
             <Stat label="Faltantes" valor={`${datos.inventory?.shortages?.length ?? 0}`} sub={(datos.inventory?.shortages || []).slice(0, 2).map((p) => p.name).join(' · ') || 'Sin faltantes'} />
           </div>
 
@@ -371,12 +371,15 @@ export default function Reportes() {
               <table className="w-full min-w-[640px] text-sm">
                 <thead><tr className="border-b border-ink-600 text-left text-[11px] uppercase tracking-wider text-mute"><th className="px-4 py-3">Producto</th><th className="px-4 py-3 text-right">Venta</th><th className="px-4 py-3 text-right">% acum.</th><th className="px-4 py-3">Clase</th><th className="px-4 py-3 text-right">Disponibles</th><th className="px-4 py-3 text-right">Antigüedad</th></tr></thead>
                 <tbody>{(() => {
+                  // La clase ABC y el % acumulado vienen del servidor (#171):
+                  // la portada ejecutiva y esta tabla comparten el criterio.
+                  // El cálculo local queda solo como respaldo de compatibilidad.
                   const totalVenta = grupos.reduce((suma, g) => suma + Number(g.grossPyg || 0), 0) || 1
                   let acumulado = 0
                   const filas = [...grupos].sort((a, b) => Number(b.grossPyg || 0) - Number(a.grossPyg || 0)).map(g => {
                     acumulado += Number(g.grossPyg || 0)
-                    const pct = (acumulado / totalVenta) * 100
-                    const clase = pct <= 80 ? 'A' : pct <= 95 ? 'B' : 'C'
+                    const pct = g.accumulatedPct === null || g.accumulatedPct === undefined ? (acumulado / totalVenta) * 100 : Number(g.accumulatedPct)
+                    const clase = g.abcClass || (pct <= 80 ? 'A' : pct <= 95 ? 'B' : 'C')
                     const dias = g.oldestUnitAt ? Math.max(0, Math.floor((Date.now() - new Date(g.oldestUnitAt).getTime()) / 86400000)) : null
                     return { g, pct, clase, dias }
                   })

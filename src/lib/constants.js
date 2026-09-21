@@ -5,6 +5,7 @@ export const PAYMENT_METHOD_LABELS = {
   TRANSFER: 'Transferencia',
   CARD: 'Tarjeta / POS',
   PIX: 'Pix',
+  CRYPTO: 'USDT - Cripto',
   CREDIT: 'Crédito',
   TRADE_IN: 'Canje',
   STORE_CREDIT: 'Saldo a favor',

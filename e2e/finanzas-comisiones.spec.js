@@ -23,6 +23,10 @@ test.describe('reglas de comisión en Finanzas', () => {
       { api: API, nombre, pin },
     )
     expect(creado?.id).toBeTruthy()
+    // El usuario se creó con un fetch directo (no invalida la caché corta del
+    // cliente). Recargamos para que Comisiones lea /api/users fresco y el
+    // buscador de vendedores incluya al integrante recién creado.
+    await page.reload()
 
     // Configuración → Equipo solo avisa dónde viven ahora.
     await expect(page.getByRole('heading', { name: 'Comisiones' })).toBeVisible()
