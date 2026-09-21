@@ -217,7 +217,8 @@ const browser = await chromium.launch()
     await page.goto(`${BASE}/resumen`, { waitUntil: 'domcontentloaded' })
     const marca = page.getByTestId('shell-tienda')
     await marca.waitFor({ state: 'visible', timeout: 20000 })
-    const texto = (await marca.innerText()).trim()
+    // Se compara el texto del marcado: la miga lo muestra en mayúsculas por CSS.
+    const texto = (await marca.evaluate((el) => el.textContent)).trim()
     if (texto !== 'MobOS') throw new Error(`shell-tienda muestra «${texto}» (se esperaba MobOS)`)
     c.push(await shot(page, 'topbar-marca'))
 
@@ -225,7 +226,7 @@ const browser = await chromium.launch()
     await page.setViewportSize({ width: 390, height: 844 })
     const miga = page.getByTestId('shell-miga-tienda')
     await miga.waitFor({ state: 'visible', timeout: 20000 })
-    const textoMiga = (await miga.innerText()).trim()
+    const textoMiga = (await miga.evaluate((el) => el.textContent)).trim()
     if (textoMiga !== 'MobOS') throw new Error(`la miga móvil muestra «${textoMiga}» (se esperaba MobOS)`)
     c.push(await shot(page, 'topbar-marca-movil'))
 

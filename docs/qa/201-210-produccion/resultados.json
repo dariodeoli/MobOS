@@ -1,14 +1,14 @@
 {
-  "verificado": "2026-09-21T22:26:24.204Z",
+  "verificado": "2026-09-21T22:58:30.686Z",
   "base": "https://app.moboss.online",
-  "version": "v1.0.133",
+  "version": "v1.0.134",
   "llamadasApi": [],
   "erroresConsola": [],
   "resultados": [
     {
       "paso": "bloqueo (claro): MobOS logo, avatar del usuario y PIN intactos",
       "estado": "ok",
-      "detalle": "v1.0.133 · logo claro, iniciales y PIN auto-validado",
+      "detalle": "v1.0.134 · logo claro, iniciales y PIN auto-validado",
       "capturas": [
         "01-bloqueo-claro.jpg"
       ],
@@ -50,11 +50,22 @@
       "llamadasApi": []
     },
     {
+      "paso": "#223: el encabezado muestra solo MobOS y la empresa vive en el menú",
+      "estado": "ok",
+      "detalle": "«MobOS» en el topbar (escritorio y móvil) y «MobOS Tienda Demo» en el menú",
+      "capturas": [
+        "06-topbar-marca.jpg",
+        "07-topbar-marca-movil.jpg",
+        "08-menu-identidad.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
       "paso": "bloqueo (oscuro): el logo de MobOS cambia de variante",
       "estado": "ok",
       "detalle": "logo claro sobre fondo oscuro",
       "capturas": [
-        "06-bloqueo-oscuro.jpg"
+        "09-bloqueo-oscuro.jpg"
       ],
       "llamadasApi": []
     },
@@ -63,14 +74,14 @@
       "estado": "ok",
       "detalle": "tarjeta completa a 390 px con logo y avatar",
       "capturas": [
-        "07-bloqueo-movil.jpg"
+        "10-bloqueo-movil.jpg"
       ],
       "llamadasApi": []
     },
     {
       "paso": "deploy: el bundle publicado incluye #209 y #210",
       "estado": "ok",
-      "detalle": "claves y testid presentes en https://app.moboss.online/assets/index-CAsA0lAZ.js",
+      "detalle": "claves y testid presentes en https://app.moboss.online/assets/index-R6gyAy20.js",
       "capturas": [],
       "llamadasApi": []
     }
@@ -80,8 +91,8 @@
     "PresencePill con la foto de todas las personas: requiere sesión real con 2+ personas en línea (la demo no comparte presencia, #192). Local: e2e/shell-roles.spec.js mockea la presencia y verifica foto subida, iniciales y nombre corto."
   ],
   "resumen": {
-    "pasos": 8,
-    "ok": 8,
+    "pasos": 9,
+    "ok": 9,
     "fallos": 0
   }
 }
