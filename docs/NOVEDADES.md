@@ -11,6 +11,16 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.127 — 2026-09-21
+- **POS:** el catálogo muestra modelo, capacidad y stock de cada equipo, y el código escaneado pide confirmación antes de entrar a la venta; los montos aceptan hasta los límites de venta, el botón principal suma **Guardar pedido** y **Dividir saldo** propone lo que falta en la moneda de la cuenta. (#175)
+- **Pedidos:** la confirmación muestra el **número de pedido creado** con acceso directo, el detalle permite **cobrar el saldo** con el mismo modal de cobros y editar la **nota interna** en línea; la lista rotula **Hoy / Ayer / Anteayer**. (#175)
+- **POS / Analytics:** el tablero suma **selector de período** (hoy, 7 días, mes) y **cobros por cuenta**; el carrito ya no deja descuentos residuales y muestra cliente, vendedor y tipo de entrega. (#175)
+- **Finanzas:** Resumen y Análisis salen de un **backend único de métricas** con indicadores compartidos y portada ejecutiva; Reportes reutiliza los cálculos y el calendario de Ganancias. (#171 #181)
+- **Seguridad:** el seguimiento público de pedidos y las garantías/portal ya no guardan tokens en claro (hash con rotación) y suman límite de uso; el reporte de errores tiene cupo diario por IP. (#178)
+- **Rendimiento (Inventario):** índices nuevos para las búsquedas del POS, seriales, listado de pedidos y kardex (con volumen: el catálogo pasó de ~1,2 s a ~0,2 s). (#177)
+- **Impresión:** checklist de prueba física de la Mac del local y cobertura nueva de cola/cancelación/estado incierto, con flakies del spec estabilizados. (#170 #183)
+- **Pulido:** Inventario con un solo título, búsqueda compartida y estados vacíos coherentes; documentación interna de Clientes, Garantías y Servicio Técnico. (#184 #182)
+
 ## v1.0.126 — 2026-09-21
 - **Configuración y Equipo:** las subpáginas quedaron ordenadas por grupo con enlace estable y los formularios viven en un panel a la derecha en escritorio (apilados en móvil), con más densidad y sin scroll horizontal. (#165)
 - **Seguridad:** el enlace público del borrador ahora vence a los 7 días, se puede revocar, tiene límite de uso y el reingreso con PIN del dueño limita intentos; queda el informe de auditoría con los pendientes de otras superficies. (#172)
