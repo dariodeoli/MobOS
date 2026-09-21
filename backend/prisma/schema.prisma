@@ -2189,7 +2189,12 @@ model ServiceOrder {
   technicianName String?
   status         String    @default("RECIBIDO")
   pricePyg       Int       @default(0)
+  // Costo total del trabajo. Si la orden tiene el desglose cargado
+  // (repuesto + mano de obra + otros), el total se calcula y se guarda acá.
   costPyg        Int       @default(0)
+  partsPyg       Int?
+  laborPyg       Int?
+  otherCostPyg   Int?
   // Código de desbloqueo (PIN y/o patrón) cifrado, atado a esta orden.
   unlockSecret   String?
   unlockUpdatedAt DateTime?
@@ -2219,6 +2224,23 @@ model ServiceItem {
 
   @@unique([tenantId, name])
   @@index([tenantId, isActive])
+}
+
+// Puntos del checklist de recepción configurables por tipo de dispositivo.
+// La orden guarda el checklist marcado en `ServiceOrder.checklist` (Json con
+// estas etiquetas como claves); esta tabla define qué se ofrece al recibir.
+model ServiceChecklistItem {
+  id         String   @id @default(cuid())
+  tenantId   String
+  deviceType String   @default("iPhone")
+  label      String
+  sortOrder  Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([tenantId, deviceType, label])
+  @@index([tenantId, deviceType, isActive])
 }
 
 // Solicitud de cambio comercial del cliente (pasar a mayorista o habilitar
