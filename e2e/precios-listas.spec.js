@@ -95,7 +95,8 @@ test('gestión de listas y venta con escalón aplica el precio por cantidad', as
 
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
-  await paymentsSection.getByLabel('Cuenta de cobro').selectOption({ label: 'Caja E2E · PYG · CASH' })
+  await paymentsSection.getByLabel('Cuenta de cobro').first().click()
+  await page.getByRole('option', { name: /Caja E2E/ }).click()
   await paymentsSection.getByLabel('Monto original').fill('210000')
   await expect(paymentsSection.getByText('Pendiente').first().locator('strong')).toHaveText('Gs 0')
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()

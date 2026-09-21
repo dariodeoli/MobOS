@@ -1,4 +1,5 @@
-import { Input, Label, MoneyInput, Select, Textarea } from '@/components/ui'
+import { Input, Label, MoneyInput, Textarea } from '@/components/ui'
+import CuentaCobroCombobox from './CuentaCobroCombobox'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
 import SerialField from '@/components/shared/SerialField'
@@ -75,10 +76,11 @@ export default function PaymentAccountFields({ payment, accounts, onChange }) {
   return <div className="grid gap-3 rounded-2xl border border-ink-600 bg-ink-800/40 p-3 sm:grid-cols-2 sm:col-span-3">
     <div className="sm:col-span-2">
       <Label htmlFor="cuenta-de-cobro">Cuenta de cobro</Label>
-      <Select id="cuenta-de-cobro" aria-label="Cuenta de cobro" value={payment.accountId || ''} onChange={(e) => onChange({ accountId: e.target.value, originalAmount: '', exchangeRatePyg: '', tradeIn: undefined })}>
-        <option value="">Seleccionar cuenta</option>
-        {accounts.filter((a) => a.isActive && ['USD', 'PYG', 'BRL'].includes(a.currency)).map((a) => <option key={a.id} value={a.id}>{a.name} · {a.currency} · {a.kind}</option>)}
-      </Select>
+      <CuentaCobroCombobox
+        value={payment.accountId || ''}
+        accounts={accounts}
+        onChange={(accountId) => onChange({ accountId, originalAmount: '', exchangeRatePyg: '', tradeIn: undefined })}
+      />
       {account && <p className="mt-1 flex items-center gap-1.5 text-xs text-mute"><Icon name="wallet" className="h-3.5 w-3.5" />{[account.bank, account.accountNumber, account.holder].filter(Boolean).join(' · ') || 'Sin datos bancarios'}{account.settlementDays > 0 ? ` · acredita en ${account.settlementDays} día${account.settlementDays === 1 ? '' : 's'}` : ''}</p>}
     </div>
     <div><Label htmlFor="monto-original">Monto original ({account?.currency || 'moneda de la cuenta'})</Label><MoneyInput id="monto-original" aria-label="Monto original" disabled={!account} currency={account?.currency || 'PYG'} value={payment.originalAmount} onValueChange={(v) => onChange({ originalAmount: account?.currency === 'PYG' ? (v === '' ? '' : String(v)) : v })} placeholder={FOREIGN(account?.currency) ? '0,00' : '0'} /></div>

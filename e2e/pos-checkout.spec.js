@@ -13,6 +13,13 @@ import { codigoPedido } from '../src/utils/pedido.js'
 const customerName = `${SEED.checkoutCustomer} ${Date.now().toString(36)}`
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
+// Las cuentas de cobro ahora se eligen con buscador: se abre y se elige la
+// opción por nombre.
+async function elegirCuenta(page, paymentsSection, indice, nombre) {
+  await paymentsSection.getByLabel('Cuenta de cobro').nth(indice).click()
+  await page.getByRole('option', { name: new RegExp(nombre) }).click()
+}
+
 async function orderItems(page, name) {
   return page.evaluate(
     async ({ api, customer }) => {
@@ -63,14 +70,14 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   // Partial payment on the first account (cash).
   await addPayment.click()
   await expect(accountSelects).toHaveCount(1)
-  await accountSelects.nth(0).selectOption({ label: 'Caja E2E · PYG · CASH' })
+  await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await amountInputs.nth(0).fill('25000')
   await expect(paymentsSection.getByText('Equivalente: Gs 25.000')).toBeVisible()
 
   // Second payment account covers the remainder.
   await addPayment.click()
   await expect(accountSelects).toHaveCount(2)
-  await accountSelects.nth(1).selectOption({ label: 'Transferencia E2E · PYG · TRANSFER' })
+  await elegirCuenta(page, paymentsSection, 1, 'Transferencia E2E')
   await amountInputs.nth(1).fill('20000')
   await expect(paymentsSection.getByText('Equivalente: Gs 20.000')).toBeVisible()
 
@@ -316,9 +323,7 @@ test('POS manual price below list stores the list price for the receipt', async 
       .locator('div.space-y-3')
       .filter({ has: page.getByText('Pagos de esta venta') })
     await page.getByRole('button', { name: '+ Agregar pago' }).click()
-    await paymentsSection
-      .getByLabel('Cuenta de cobro')
-      .selectOption({ label: 'Caja E2E · PYG · CASH' })
+    await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
     await paymentsSection.getByLabel('Monto original').fill('40000')
     await expect(paymentsSection.getByText('Equivalente: Gs 40.000')).toBeVisible()
 
@@ -404,7 +409,7 @@ test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con 
 
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
-  await paymentsSection.getByLabel('Cuenta de cobro').nth(0).selectOption({ label: 'Caja E2E · PYG · CASH' })
+  await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await paymentsSection.getByLabel('Monto original').nth(0).fill(String(SEED.products.iphone.pricePyg))
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
   await expect(page.getByText('Venta registrada correctamente. Ya podés cargar la siguiente.')).toBeVisible({ timeout: 15_000 })
@@ -452,7 +457,7 @@ test('POS: el correo corregido de un cliente se guarda en la ficha al vender', a
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
-  await paymentsSection.getByLabel('Cuenta de cobro').selectOption({ label: 'Caja E2E · PYG · CASH' })
+  await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await paymentsSection.getByLabel('Monto original').fill('45000')
   await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
   await expect(page.getByText('Venta registrada correctamente. Ya podés cargar la siguiente.')).toBeVisible({ timeout: 15_000 })
@@ -481,7 +486,7 @@ test('POS: la venta cargada sin conexión se sincroniza al volver (sin duplicar)
   await expect(page.getByRole('button', { name: /^Crear pedido sin pago/ })).toBeVisible()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
-  await paymentsSection.getByLabel('Cuenta de cobro').selectOption({ label: 'Caja E2E · PYG · CASH' })
+  await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await paymentsSection.getByLabel('Monto original').fill('45000')
   await expect(page.getByRole('button', { name: /^Confirmar venta/ })).toBeVisible()
 
