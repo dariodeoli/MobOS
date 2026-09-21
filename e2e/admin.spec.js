@@ -36,7 +36,7 @@ test.describe('owner panel', () => {
     await expect(page.getByText('Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.')).toBeVisible()
     await expect(page.getByRole('button', { name: /^Inventario \(/ })).toBeVisible()
     // La tabla compacta alinea el serial por columna (últimos 4 destacados).
-    await expect(page.getByText('Verificación')).toBeVisible()
+    await expect(page.getByText('Verificado', { exact: true }).first()).toBeVisible()
     await expect(page.getByText(new RegExp(SEED.products.iphone.imei))).toBeVisible()
   })
 
