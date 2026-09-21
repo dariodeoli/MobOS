@@ -75,11 +75,44 @@ assert.equal(retiradoAjeno.status, 409, `Un reparto no se retira: ${JSON.stringi
 
 // ── Parcial y no entregado quedan disponibles para el reparto ──────────────
 const parcial = await crearPedido(`IT-PARCIAL-${stamp}`, 'Delivery')
+assert.equal((await cambiar(parcial.id, 'SHIPPED')).status, 200)
+assert.equal((await cambiar(parcial.id, 'IN_TRANSIT')).status, 200)
 assert.equal((await cambiar(parcial.id, 'PARTIAL')).status, 200)
 assert.equal((await cambiar(parcial.id, 'IN_TRANSIT')).status, 200, 'Una entrega parcial se puede reintentar.')
 const noEntregado = await crearPedido(`IT-NOENT-${stamp}`, 'Encomienda')
+assert.equal((await cambiar(noEntregado.id, 'SHIPPED')).status, 200)
+assert.equal((await cambiar(noEntregado.id, 'IN_TRANSIT')).status, 200)
 assert.equal((await cambiar(noEntregado.id, 'NOT_DELIVERED')).status, 200)
 assert.ok((await call(`/api/delivery/orders?estado=activos`, { headers: adminHeaders })).body
   .some((row) => row.id === noEntregado.id), 'No entregado sigue activo para reintentar.')
 
-console.log('#152: entrega separada del pago por tipo, transiciones y reparto OK.')
+// ── Máquinas separadas por método (#191) ────────────────────────────────────
+// Retiro: nunca "listo para enviar"; el reparto nunca "listo para retirar".
+const noEnviado = await cambiar(retiro.id, 'READY_TO_SHIP')
+assert.equal(noEnviado.status, 409, `Un retiro no pasa por listo para enviar: ${JSON.stringify(noEnviado.body)}`)
+const envioNoRetira = await cambiar(envio.id, 'READY_FOR_PICKUP')
+assert.equal(envioNoRetira.status, 409, `Un reparto no pasa por listo para retirar: ${JSON.stringify(envioNoRetira.body)}`)
+
+// El tracking público lleva método, encabezado y línea de progreso del método.
+const publicoEnvio = await call(`/api/orders/public/${envio.publicToken}`, { headers: {} })
+assert.equal(publicoEnvio.status, 200, JSON.stringify(publicoEnvio.body))
+const trackingEnvio = publicoEnvio.body.tracking || {}
+assert.equal(trackingEnvio.metodo, 'DELIVERY')
+assert.equal(trackingEnvio.encabezado, 'Seguimiento de envío')
+assert.equal(trackingEnvio.estadoLabel, 'Entregado')
+const pasosEnvio = (trackingEnvio.pasos || []).map((paso) => paso.label).join(' | ')
+assert.ok(pasosEnvio.includes('En camino al cliente'), `El delivery habla del cliente: ${pasosEnvio}`)
+assert.ok(!pasosEnvio.includes('Listo para retirar'), 'El delivery no muestra "listo para retirar".')
+assert.ok((trackingEnvio.pasos || []).every((paso) => paso.hecho), 'El pedido entregado tiene todos los pasos cumplidos.')
+assert.ok((trackingEnvio.pasos || []).some((paso) => paso.at), 'La línea de progreso trae fecha por actualización.')
+
+const publicoRetiro = await call(`/api/orders/public/${retiro.publicToken}`, { headers: {} })
+const trackingRetiro = publicoRetiro.body.tracking || {}
+assert.equal(trackingRetiro.encabezado, 'Seguimiento de retiro')
+assert.equal(trackingRetiro.estadoLabel, 'Retirado')
+const pasosRetiro = (trackingRetiro.pasos || []).map((paso) => paso.label).join(' | ')
+assert.ok(!pasosRetiro.includes('Listo para enviar'), 'El retiro no muestra "listo para enviar".')
+assert.ok(!pasosRetiro.includes('En camino al cliente'), 'El retiro no habla de "cliente".')
+assert.ok(pasosRetiro.includes('Listo para retirar'), `El retiro muestra su paso de retiro: ${pasosRetiro}`)
+
+console.log('#152/#191: entrega separada del pago, máquinas por método y tracking público OK.')

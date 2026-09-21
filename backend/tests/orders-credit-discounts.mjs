@@ -366,8 +366,10 @@ const publicAuto = await publicGet(`/api/public/warranty/${autoWarranty.publicTo
 assert.equal(publicAuto.response.status, 200)
 assert.ok(publicAuto.payload.daysRemaining > 0, 'La garantía automática debe tener días vigentes.')
 
-// Avisos WhatsApp por estado: mensaje con plantilla y marca de avisado.
-result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}`, 'PATCH', { fulfillmentStatus: 'READY_FOR_PICKUP' })
+// Avisos WhatsApp por estado: mensaje con plantilla y marca de avisado. El
+// aviso "listo para retirar" es de un pedido de retiro (#191): se cambia el
+// método y el estado en el mismo PATCH.
+result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}`, 'PATCH', { deliveryType: 'Retiro en tienda', fulfillmentStatus: 'READY_FOR_PICKUP' })
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))
 result = await request(`/api/orders/${encodeURIComponent(creditOrder.id)}/whatsapp-message`)
 assert.equal(result.response.status, 200, JSON.stringify(result.payload))

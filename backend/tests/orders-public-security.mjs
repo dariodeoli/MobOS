@@ -113,7 +113,7 @@ assert.equal(pedidoEnPortal.receiptToken, pedidoPortal.body.publicToken, 'el por
 assert.equal((await call(`/api/orders/public/${pedidoEnPortal.receiptToken}`, { headers: {} })).status, 200, 'el enlace del portal abre la vista pública')
 
 // El aviso de WhatsApp por estado sigue llevando el enlace de seguimiento.
-const avance = await call(`/api/orders/${pedidoPortal.body.id}`, { method: 'PATCH', body: { fulfillmentStatus: 'READY_FOR_PICKUP' } })
+const avance = await call(`/api/orders/${pedidoPortal.body.id}`, { method: 'PATCH', body: { deliveryType: 'Retiro en tienda', fulfillmentStatus: 'READY_FOR_PICKUP' } })
 assert.equal(avance.status, 200, JSON.stringify(avance.body))
 const aviso = await call(`/api/orders/${pedidoPortal.body.id}/whatsapp-message`)
 assert.equal(aviso.status, 200, JSON.stringify(aviso.body))

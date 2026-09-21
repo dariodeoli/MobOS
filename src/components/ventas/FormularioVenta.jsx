@@ -1185,7 +1185,9 @@ export default function FormularioVenta({
     setPagos(arr => [
       ...arr,
       usaCuentas
-        ? { ...PAGO_VACIO, accountId: '', originalAmount: '', exchangeRatePyg: '', ...(prefill.monto ? { monto: String(prefill.monto) } : {}) }
+        // Con cuentas, el monto se edita en `originalAmount` (moneda de la
+        // cuenta): «Dividir saldo» precarga ahí el saldo que falta (#187).
+        ? { ...PAGO_VACIO, accountId: '', originalAmount: prefill.monto ? String(prefill.monto) : '', exchangeRatePyg: '' }
         : { ...PAGO_VACIO, monto: prefill.monto ? String(prefill.monto) : pendiente > 0 ? String(pendiente) : '' },
     ])
   }

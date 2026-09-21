@@ -34,6 +34,22 @@ test.describe('public tracking API', () => {
     for (const payment of body.payments) {
       expect(Object.keys(payment).sort()).toEqual(['amountPyg', 'method', 'methodLabel', 'paidAt'])
     }
+    // #191: el tracking declara el método, su encabezado y la línea de progreso
+    // del método (nunca estados de otro flujo).
+    expect(body.tracking?.metodo).toMatch(/^(DELIVERY|RETIRO|RETIRO_SUCURSAL|TRASLADO)$/)
+    expect(body.tracking?.encabezado).toMatch(/^Seguimiento de (envío|retiro|traslado)$/)
+    expect(body.tracking?.estadoLabel).toBeTruthy()
+    expect(body.tracking?.pasos?.length).toBeGreaterThanOrEqual(3)
+    expect(body.tracking?.pasos?.some((paso) => paso.actual || paso.hecho)).toBe(true)
+    const etiquetas = (body.tracking?.pasos || []).map((paso) => paso.label).join(' | ')
+    if (body.tracking?.metodo === 'DELIVERY') {
+      expect(etiquetas).not.toContain('Listo para retirar')
+      expect(etiquetas).not.toContain('Retirado')
+    } else {
+      expect(etiquetas).not.toContain('Listo para enviar')
+      expect(etiquetas).not.toContain('En camino al cliente')
+    }
+
     for (const field of ['publicToken', 'phone', 'address', 'sellerId', 'tenantId', 'unitCostPyg', 'customer"']) {
       expect(JSON.stringify(body), `public payload must not include ${field}`).not.toContain(field)
     }
