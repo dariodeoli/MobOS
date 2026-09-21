@@ -11,11 +11,27 @@ const DEFAULT = {
   notes: 'Caja demo local',
 }
 
+// Inicio del día local en ISO: una caja abierta se muestra como "Turno de …"
+// y su saldo esperado cuenta los cobros del día desde esa apertura.
+function inicioDelDia(fecha = new Date()) {
+  const dia = new Date(fecha)
+  dia.setHours(0, 0, 0, 0)
+  return dia.toISOString()
+}
+
+// Coherencia del seed demo (#188): una sesión OPEN siempre tiene apertura. Los
+// datos guardados antes de esta corrección (openedAt null) se normalizan al
+// leerlos, sin inventar una apertura para cajas cerradas.
+function normalizar(cash) {
+  if (!cash || cash.status !== 'OPEN' || cash.openedAt) return cash
+  return { ...cash, openedAt: inicioDelDia() }
+}
+
 function read() {
   try {
-    return JSON.parse(localStorage.getItem(KEY)) || { ...DEFAULT }
+    return normalizar(JSON.parse(localStorage.getItem(KEY)) || { ...DEFAULT })
   } catch {
-    return { ...DEFAULT }
+    return normalizar({ ...DEFAULT })
   }
 }
 
