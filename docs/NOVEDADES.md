@@ -11,6 +11,10 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.123 — 2026-09-21
+- **POS / Equipo:** **bloqueo de sesión con PIN** por inactividad (la caja queda protegida si te alejás), menú de tres puntos, preferencias y **notificaciones**. (#158)
+- **Equipo:** los **PIN del staff ahora aceptan de 4 a 6 dígitos** y se suma la **documentación interna con buscador**. (#159)
+
 ## v1.0.122 — 2026-09-21
 - **Ventas / POS:** el cliente se busca con **pre-clientes por RUC**, nombres normalizados y correo recordado para la factura. (#150)
 - **Ventas / POS:** el **botón principal sigue el estado del pago** y la **cotización de la moneda es automática** al cobrar en dólares. (#151)
