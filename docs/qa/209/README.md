@@ -57,9 +57,17 @@ alineado con la auditoría del demo.
 
 ## Estado en producción
 
-`main` está en v1.0.131 y la sonda de producción de #171 confirma que la
-unificación está desplegada; el **#209 de Finanzas todavía no está integrado**
-(la sonda informa que el marcador `fin:gastos-tipo` no aparece en el bundle).
-La verificación de este patrón es la local de este documento más el e2e; cuando
-el integrador despliegue, se repite `scripts/qa-209-finanzas-ultimo-usado.mjs`
-(solo lectura) contra el build publicado.
+**Post-deploy verificado el 21-09 (v1.0.132, bundle `index-C6rm8Zvh.js`, con el
+lote ya integrado)**: `scripts/qa-209-finanzas-produccion.mjs` corre contra el
+demo público y da **6/6** con capturas en `produccion/`:
+
+- El bundle desplegado incluye las claves del patrón (`fin:gastos-tipo`,
+  `fin:gastos-moneda`, `fin:gastos-cuenta`, `fin:conciliacion-medio`, `fin:rango`).
+- Gastos y Conciliación del demo funcionan, el cambio se puede hacer y **nada
+  queda en `localStorage`** (memoria por pestaña).
+- El rango vive en la URL (compartible): sobrevive a la recarga por el parámetro
+  y al volver sin parámetro manda el default.
+- La demo no llama a los endpoints reales de métricas y no hay errores propios.
+
+`npm run release:smoke` confirma la versión publicada. Cuando se publique otra
+versión, se repite el mismo comando (solo lectura).

@@ -94,9 +94,8 @@ dominio del shell (MOS-DSN/MOS-PLT), se reporta.
   API integrada de `@/lib/ultimoUsado` y fix de demo sin `localStorage`):
   **55/55** (servidor vs SQL) · **14/14** (UI) · **6/6** (producción) · **6/6**
   (#209) · e2e 30/30 + smoke 7/7.
-- **Producción v1.0.131** (confirmado con `npm run release:smoke`, bundle nuevo
-  `index-CnbxgsKC.js`): la sonda de producción da 6/6 — el build desplegado ya
-  incluye la unificación (vistas, endpoints con sesión, demo sin llamadas
-  reales). El **lote pendiente de este slot** (aviso de portada + #209 FIN) no
-  está en el bundle desplegado, según el marcador `fin:gastos-tipo` que informa
-  la misma sonda. Cuando el integrador lo despliegue, se repite la sonda.
+- **Post-deploy v1.0.132** (bundle `index-C6rm8Zvh.js`, lote ya integrado):
+  `npm run release:smoke` confirma la versión publicada y la sonda de producción
+  vuelve a dar **6/6**, ahora con el marcador del lote (`fin:gastos-tipo`) en
+  **sí**: el aviso de portada y el #209 de Finanzas están desplegados. Cuando se
+  publique otra versión, se repite la sonda (solo lectura).
