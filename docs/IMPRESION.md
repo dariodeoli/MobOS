@@ -90,36 +90,63 @@ QR muerto: se omite el código.
   pedido nuevo es un token de nivel rápido (`impreso=false`), así que el panel
   puede volver a copiarlo, y rota con **Regenerar acceso QR** (junto con el
   papel y los enlaces compartidos).
-- Nunca reutilices el token del panel para imprimir ni regeneres un token
-  `impreso=true` salvo reimpresión explícita: el papel ya entregado moriría.
+- Nunca reutilices el token del panel para imprimir ni pases `regenerate` sobre
+  un token `impreso=true` (salvo reimpresión explícita): el papel ya entregado
+  moriría.
 - El `Order.publicToken` histórico sigue funcionando como nivel rápido: es la
   red de seguridad de cualquier QR viejo.
+
+### El QR impreso no vence (#178) y cómo reimprimir
+
+- Los tokens del papel **no vencen**: `OrderAccessToken` no tiene fecha de
+  expiración. Un comprobante de hace meses sigue abriendo su vista.
+- **Reimprimir el mismo nivel reutiliza el mismo token**: `tokenDeNivel()`
+  devuelve el vigente (`impreso=true`, sin `regenerate`), así que el papel nuevo
+  trae el mismo QR y el viejo sigue abriendo. Cambiar de nivel emite el token de
+  ese nivel; el papel del otro nivel no se toca.
+- La única acción que invalida papel es **«Regenerar acceso QR»**
+  (`revokeAll=true`, pestaña Acceso del cliente): revoca impresos y compartidos
+  a la vez. Se usa solo si un código se filtró; después hay que reimprimir.
+- **Cómo reimprimir**: abrí el pedido → «Imprimir comprobante» → elegí nivel y
+  formato → «Impresión directa» (o «Imprimir con diálogo» como respaldo). No hay
+  que tocar la base ni generar nada a mano.
 - **Si un QR impreso dice "Seguimiento no encontrado"**: el token no existe, no
-  es de ese pedido o fue revocado por una reimpresión/regeneración. Se reimprime
-  el comprobante (genera token nuevo) y listo; no hay que tocar la base.
+  es de ese pedido o fue revocado. Reimprimí el comprobante (el mismo nivel emite
+  un token vigente) y el papel vuelve a abrir. Ver §5.
 
 ## 3. Cola honesta (agente y puente)
 
 | Estado | Significado | Acción |
 | --- | --- | --- |
-| `pendiente` | En cola, la impresora no respondió todavía | Esperar; el agente reintenta solo. |
+| `pendiente` | En cola, la impresora no respondió todavía | Esperar; el agente reintenta solo (el panel puede cancelarlo, §10). |
 | `aceptado` | El transporte aceptó (TCP/CUPS), falta papel | Confirmar "Ya salió el papel" cuando salga. |
 | `confirmado` | El operador vio el papel | Nada: la cola queda limpia. |
 | `incierto` | No se sabe si salió (p. ej. reinicio en medio) | **No reintenta solo**: revisar y reimprimir a mano. |
 | `fallido` | Agotó intentos | Revisar impresora en Configuración → Impresoras. |
+| `cancelado` | Se canceló antes de salir (nadie lo reclamó) | Nada: **no sale al reconectar**. Lo reclamado/aceptado/incierto no se cancela. |
 
 - Aceptado **no** es confirmado: la UI lo dice y no inventa éxito.
 - Con trabajos encolados, abrir el diálogo avisa antes (puede duplicar el
   ticket cuando el reintento llegue).
 - El trabajo remoto se confirma desde Configuración → Impresoras (ahí está el
   número secreto del puente).
+- **Cancelar** (individual o en lote): en la cola del monitor
+  (Configuración → Estado del sistema) se cancela lo que sigue `pendiente`, con
+  confirmación; solo ADMIN/GERENTE y queda auditado con el usuario real. El
+  detalle (API, lote, permisos) está en §10.
+- **Anti-duplicados**: un encolado idéntico (mismo documento + tipo +
+  impresora) de los últimos **60 s** se bloquea mostrando el pendiente; la app
+  ofrece **«Reimprimir igual»** como confirmación explícita. Detalle en §11.
 - **Validación en papel (#138)**: el panel conoce el **largo** del sufijo (el
-  valor nunca sale del servidor ni se expone en el listado) y valida **solo**
-  al completar el código: la prueba (1 dígito) apenas se escribe y un sufijo
-  mayor al llegar a su largo, con un debounce corto para poder corregir. El
-  botón **Confirmar** y **Enter** quedan como respaldo; si el número no
-  coincide, el aviso es claro y se puede reintentar. Un trabajo sin largo
-  conocido (anterior a la columna `suffixLength`) sigue con el botón.
+  valor nunca sale del servidor ni se expone en el listado) y valida **solo** al
+  completar el código: la prueba (1 dígito) apenas se escribe y un sufijo mayor
+  al llegar a su largo, con un debounce corto para poder corregir. El botón
+  **Confirmar** y **Enter** quedan como respaldo. **Si el número no coincide**,
+  el aviso "No coincide" es claro y se puede reintentar; al confirmar, el input
+  se limpia y la fila pasa a «✓ en papel». Un trabajo sin largo conocido
+  (anterior a la columna `suffixLength`) se valida con el botón.
+- La **prueba física** en la Mac (launchd, IP secundaria, CUPS, USB y corte)
+  tiene su checklist en **`docs/IMPRESION-PRUEBA-FISICA.md`** (#170).
 
 ## 4. Registro y auditoría de impresión
 
@@ -146,6 +173,7 @@ por área en el selector: `Impresión · trabajo`, `Impresión · puente` e
 | `PRINT_JOB_INCIERTO` | No se sabe si salió (reinicio en medio): no reintenta solo. |
 | `PRINT_JOB_FAILED` | El trabajo falló o agotó intentos, con el error reportado. |
 | `PRINT_JOB_REQUEUED` | Un lease venció y el trabajo volvió a la cola. |
+| `PRINT_JOB_CANCELLED` | Se canceló un trabajo `pendiente` (individual o en lote); el metadato dice `via` y el actor real. |
 | `PRINT_JOB_CONFIRMED` / `PRINT_JOB_CONFIRM_FAILED` | Confirmación en papel: el operador acertó (o no) el número secreto. |
 
 - **Los tokens nunca se auditan**: ni el token del puente, ni el código de
@@ -184,27 +212,36 @@ estado se verifica en `/health.usb`.
 
 | Síntoma | Causa probable | Qué hacer |
 | --- | --- | --- |
-| Al escanear el QR: "Seguimiento no encontrado" | Token revocado o de otro pedido | Reimprimir el comprobante (token de impresión nuevo). Ver §2. |
+| Al escanear el QR: "Seguimiento no encontrado" | Token revocado o de otro pedido | Reimprimir el comprobante; el papel viejo sigue sirviendo (el QR impreso no vence). Ver §2. |
 | "Imprimir con diálogo" sale clarito o lento | Contraste de impresión perdido o mucho contenido | Usar impresión directa; revisar §1 (color-adjust y texto negro). |
 | La vista previa 80 mm tiene franjas blancas | Ancho de vista desalineado | `ANCHO_VISTA` de `ComprobantePreview.jsx` debe ser 302/219 px. |
 | La impresora no responde | Apagada, sin red o IP cambiada | Configuración → Impresoras muestra el estado vivo y el motivo. |
 | "Sin verificar" en Impresoras | El agente no puede alcanzarla | Revisar Red Local (macOS), misma red que el local, o usar el puente. |
 | El puente no reclama trabajos | Token de puente vencido/revocado | Gestionar puentes y revalidar el código de vinculación. |
 | Salen dos tickets | Diálogo abierto con cola pendiente | Confirmar el papel y no reabrir el diálogo (el aviso ya existe). |
-| USB no imprime | La cola USB depende de CUPS/driver | Probar el test de impresión de Configuración → Impresoras. |
+| El segundo click del mismo comprobante no encola y avisa | Guarda anti-duplicados (60 s) | «Reimprimir igual» si querés otra copia; si no, esperar a que salga el pendiente. Ver §11. |
+| Un trabajo quedó en la cola y no sale al reconectar | Está `cancelado` (nadie lo reclamó) | Es lo esperado: el cancelado no sale. Reimprimí si hace falta. Ver §10. |
+| El código del papel no valida solo | Trabajo anterior a `suffixLength` (largo desconocido) o el puente no respondió | Escribirlo y usar **Confirmar**; si dice "No coincide", revisar el número del papel (va después del guion). Ver §3. |
+| USB no imprime | La cola USB depende de CUPS/driver o falta la bandera | Checklist `docs/IMPRESION-PRUEBA-FISICA.md` §3 (USB con la ZKP8008). |
 | Un QR de etiqueta abre "Página no encontrada" | El papel es anterior al cambio a URLs (decía `MOBOS:`) o la base `VITE_APP_URL` quedó mal | Reimprimir la etiqueta; los códigos viejos siguen leyéndose por el código de barras. Ver "Contrato de los códigos QR". |
 
 ## 6. Verificación antes de entregar
 
-- `npm test` (incluye `src/lib/printing/*.test.js`, `src/lib/urls.test.js`,
-  `src/lib/metadataPolicy.test.js` y `src/lib/printing/qr.test.js`).
-- `npm run test:e2e` con `e2e/impresion-remota.spec.js` (puente, cola y UI),
-  `e2e/etiquetas-gondola.spec.js` (etiquetas de góndola) y
-  `e2e/qr-unificado.spec.js` (QR con URL, `/prueba` y fichas sin sesión).
+- `npm test` (unitarios de `src/**` + los del agente: `print-agent/test/**`,
+  incluido el instalador y el empaquetado de `usb`).
+- `npm run test:e2e` con `e2e/impresion-remota.spec.js`: configuración, cola del
+  monitor (cancelación individual y **en lote**, reconexión del puente), **anti-duplicados**
+  con «Reimprimir igual» y **validación en papel** (auto con 1 dígito, sufijo
+  largo y botón como respaldo). Además `e2e/etiquetas-gondola.spec.js` (etiquetas)
+  y `e2e/qr-unificado.spec.js` (QR con URL, `/prueba` y fichas sin sesión).
+- `npm run test:e2e:smoke` como gate rápido durante el trabajo (~20 s).
 - `MOBOS_IT_EXECUTE=1 bash backend/tests/integration-http.sh` si se tocó
-  backend de impresión.
+  backend de impresión (cubre estados de la cola, cancelación, anti-duplicados y
+  el claim del puente).
 - Si se tocó `print-agent/`: `npm run pack:agent` y commitear
   `backend/public/print-agent/` (`npm run pack:agent:check` es el gate).
+- La prueba en la Mac física (launchd/IP secundaria, CUPS, USB, corte) sigue el
+  checklist `docs/IMPRESION-PRUEBA-FISICA.md`.
 
 ## 7. Etiquetas de producto/góndola (#97)
 
@@ -315,6 +352,8 @@ estado se verifica en `/health.usb`.
 
 ## 10. Cancelar trabajos pendientes (#128)
 
+Resumen operativo en **§3**; acá está el detalle y la API.
+
 La cola del monitor (**Configuración → Estado del sistema → Cola de impresión**)
 muestra los trabajos remotos de la empresa: tipo, pedido/comprobante
 (`reference`), impresora y puente/sucursal, **usuario real** (foto + nombre) que
@@ -344,7 +383,13 @@ API: `POST /api/print/jobs/[id]/cancel` (individual) y
 filtros responde 400). Ambos cancelan condicionado por estado, así que un claim
 concurrente gana y ese trabajo no se cancela.
 
+**Cubierto por** (#170): arnés HTTP (cancelación individual y lote, permisos,
+claim que saltea cancelados, doble cancelación 409) y e2e del monitor
+(individual y en lote).
+
 ## 11. Guarda anti-duplicados al encolar (#128)
+
+Resumen operativo en **§3**; acá está el detalle y la API.
 
 **Decisión**: un trabajo idéntico **abierto** (`PENDIENTE`/`RECLAMADO`) del
 mismo documento (`reference`), mismo `kind` y misma impresora, encolado dentro
@@ -370,3 +415,7 @@ trabajo existente. El mensaje dice qué documento e impresora ya están en cola.
 API: `POST /api/print/jobs` responde 409 `{ message, duplicate: true, job }`;
 con `force: true` responde 201 y audita `PRINT_JOB_ENQUEUED` con
 `reimpresion: true`.
+
+**Cubierto por** (#170): arnés HTTP (bloqueo, trae el pendiente, `force` crea y
+audita la reimpresión) y e2e del comprobante repetido («Reimprimir igual» encola
+un trabajo nuevo).
