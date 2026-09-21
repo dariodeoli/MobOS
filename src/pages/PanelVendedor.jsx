@@ -50,8 +50,7 @@ const Config = lazy(() => import('@/components/control/Config'))
 const MiIdentidad = lazy(() => import('@/components/control/Config').then(modulo => ({ default: modulo.MiIdentidad })))
 const Vendedores = lazy(() => import('@/components/control/Vendedores'))
 const Autorizaciones = lazy(() => import('@/components/control/Autorizaciones'))
-const Garantias = lazy(() => import('@/components/control/Garantias'))
-const ServicioTecnico = lazy(() => import('@/components/control/ServicioTecnico'))
+const ServicioGarantias = lazy(() => import('@/components/control/ServicioGarantias'))
 const TradeInPipeline = lazy(() => import('@/components/control/TradeInPipeline'))
 const Impresoras = lazy(() => import('@/components/control/Impresoras'))
 const EstadoSistema = lazy(() => import('@/components/control/EstadoSistema'))
@@ -104,8 +103,7 @@ const OWNER_NAV = [
       ['inventario', 'Inventario', 'box'],
       ['compras', 'Compras', 'store'],
       ['tradein-admin', 'Trade-In', 'refresh'],
-      ['servicio', 'Servicio Técnico', 'wrench'],
-      ['garantias', 'Garantías', 'clock'],
+      ['servicio', 'Servicio y Garantías', 'wrench'],
       ['autorizaciones', 'Autorizaciones', 'check'],
     ],
   },
@@ -125,7 +123,7 @@ const TECNICO_NAV = [
   {
     titulo: 'Taller',
     items: [
-      ['servicio', 'Servicio Técnico', 'wrench'],
+      ['servicio', 'Servicio y Garantías', 'wrench'],
     ],
   },
 ]
@@ -278,12 +276,12 @@ const LABELS = {
   ubicaciones: 'Ubicaciones',
   compartido: 'Compartido',
   eliminados: 'Eliminados',
-  garantias: 'Garantías',
+  garantias: 'Servicio y Garantías',
   autorizaciones: 'Autorizaciones',
   inventario: 'Inventario',
   compras: 'Compras',
   'tradein-admin': 'Trade-In',
-  servicio: 'Servicio Técnico',
+  servicio: 'Servicio y Garantías',
 }
 
 const MESES = [
@@ -388,7 +386,10 @@ export default function PanelVendedor() {
     // El catálogo ('productos') se abre desde la solapa Productos de Compras:
     // no tiene ítem propio en el menú del dueño, pero la ruta tiene que ser
     // válida o el guard la redirige al POS (importador incluido).
-    return esOwner ? [...base, 'productos'] : base
+    // 'garantias' es igual desde #224: vive como solapa dentro de "Servicio y
+    // Garantías" (un solo ítem de menú), pero los enlaces viejos (/garantias,
+    // documentación) tienen que seguir abriendo la sección.
+    return esOwner ? [...base, 'productos', 'garantias'] : base
   }, [esOwner, esTecnico])
   // Un slug plano de pestaña (p. ej. /precios, que también es pestaña de
   // Configuración) se canoniza a /<padre>/<hijo> cuando el rol la tiene.
@@ -774,8 +775,7 @@ export default function PanelVendedor() {
           {vista === 'plantillas' && <WhatsAppTemplates />}
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
-          {(esOwner || esTecnico) && vista === 'servicio' && <ServicioTecnico />}
-          {esOwner && vista === 'garantias' && <Garantias />}
+          {(esOwner || esTecnico) && (vista === 'servicio' || vista === 'garantias') && <ServicioGarantias vistaInicial={vista} />}
           {esOwner && vista === 'autorizaciones' && <Autorizaciones />}
           {esOwner && vista === 'resumen' && <ResumenControl />}
           {esOwner && subpadre === 'analisis' && (

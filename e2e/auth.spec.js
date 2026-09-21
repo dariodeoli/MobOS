@@ -240,5 +240,23 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   await expect(page.getByText('OS-#0001')).toBeVisible()
   await expect(page.getByText('OS-#0002')).toBeVisible()
 
+  // Un solo módulo “Servicio y Garantías” (#224): en “Todo” cada registro
+  // muestra su tipo y la garantía ya convertida conserva su vínculo.
+  await page.getByRole('group', { name: 'Ver servicio o garantías' }).getByRole('button', { name: 'Todo', exact: true }).click()
+  const filasDemo = page.getByTestId('servicio-garantia-fila')
+  await expect(filasDemo.filter({ hasText: 'OS-#0001' }).getByText('Desde garantía')).toBeVisible()
+  await expect(page.locator('[data-testid="servicio-garantia-fila"][data-tipo="GARANTIA"]').filter({ hasText: 'Lucía Fernández' }).getByText('En servicio')).toBeVisible()
+  await expect(filasDemo.filter({ hasText: 'DEMO-W-0002' }).getByText('Garantía', { exact: true })).toBeVisible()
+  await page.screenshot({ path: '/tmp/qa224-demo-todo.png' })
+
+  // La garantía pendiente pasa al taller: la orden queda vinculada al caso.
+  const pendiente = page.locator('[data-testid="servicio-garantia-fila"][data-tipo="GARANTIA"]').filter({ hasText: 'DEMO-W-0002' })
+  await pendiente.getByRole('button', { name: 'Pasar a servicio' }).click()
+  await page.getByRole('dialog', { name: 'Pasar la garantía a servicio' }).getByRole('button', { name: 'Pasar a servicio' }).click()
+  await expect(page.getByText(/quedó vinculada y el historial se conserva en este navegador/)).toBeVisible()
+  await expect(pendiente.getByText('En servicio')).toBeVisible()
+  await expect(page.locator('[data-testid="servicio-garantia-fila"][data-tipo="SERVICIO"]').filter({ hasText: 'OS-#0005' })).toContainText('Desde garantía')
+  await page.screenshot({ path: '/tmp/qa224-demo-conversion.png' })
+
   expect(apiReal, `la demo no debe llamar al API real: ${apiReal.join(', ')}`).toEqual([])
 })

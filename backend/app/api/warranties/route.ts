@@ -41,20 +41,24 @@ export async function GET(request: Request) {
   // Servicio Técnico pueda avisarle por WhatsApp sin volver a tipearlo.
   const rows = branch ? await prisma.$queryRaw<Array<Record<string, unknown>>>`
     SELECT w."id", w."tenantId", w."branchId", w."orderItemId", w."kind", w."customerName", w."serial", w."description", w."status", w."responsibleName", w."createdAt", w."updatedAt", w."expiresAt", w."warrantyDays", w."coverage", w."exclusions", w."publicToken", (w."publicTokenHash" IS NOT NULL) AS "hasPublicLink",
-           c."phone" AS "customerPhone", c."countryCode" AS "customerCountryCode"
+           c."phone" AS "customerPhone", c."countryCode" AS "customerCountryCode",
+           so."id" AS "serviceOrderId", so."serviceNumber" AS "serviceOrderNumber", so."status" AS "serviceOrderStatus"
     FROM "WarrantyCase" w
     LEFT JOIN "OrderItem" oi ON oi."id" = w."orderItemId"
     LEFT JOIN "Order" o ON o."id" = oi."orderId"
     LEFT JOIN "Customer" c ON c."id" = o."customerId"
+    LEFT JOIN LATERAL (SELECT s."id", s."serviceNumber", s."status" FROM "ServiceOrder" s WHERE s."warrantyCaseId" = w."id" ORDER BY s."createdAt" DESC LIMIT 1) so ON true
     WHERE w."tenantId" = ${tenant} AND w."branchId" = ${branch} AND w."kind" = ${kind}
       AND (${q} = '' OR w."serial" ILIKE ${`%${q}%`} OR w."customerName" ILIKE ${`%${q}%`} OR w."description" ILIKE ${`%${q}%`})
     ORDER BY w."createdAt" DESC LIMIT 100` : await prisma.$queryRaw<Array<Record<string, unknown>>>`
     SELECT w."id", w."tenantId", w."branchId", w."orderItemId", w."kind", w."customerName", w."serial", w."description", w."status", w."responsibleName", w."createdAt", w."updatedAt", w."expiresAt", w."warrantyDays", w."coverage", w."exclusions", w."publicToken", (w."publicTokenHash" IS NOT NULL) AS "hasPublicLink",
-           c."phone" AS "customerPhone", c."countryCode" AS "customerCountryCode"
+           c."phone" AS "customerPhone", c."countryCode" AS "customerCountryCode",
+           so."id" AS "serviceOrderId", so."serviceNumber" AS "serviceOrderNumber", so."status" AS "serviceOrderStatus"
     FROM "WarrantyCase" w
     LEFT JOIN "OrderItem" oi ON oi."id" = w."orderItemId"
     LEFT JOIN "Order" o ON o."id" = oi."orderId"
     LEFT JOIN "Customer" c ON c."id" = o."customerId"
+    LEFT JOIN LATERAL (SELECT s."id", s."serviceNumber", s."status" FROM "ServiceOrder" s WHERE s."warrantyCaseId" = w."id" ORDER BY s."createdAt" DESC LIMIT 1) so ON true
     WHERE w."tenantId" = ${tenant} AND w."kind" = ${kind}
       AND (${q} = '' OR w."serial" ILIKE ${`%${q}%`} OR w."customerName" ILIKE ${`%${q}%`} OR w."description" ILIKE ${`%${q}%`})
     ORDER BY w."createdAt" DESC LIMIT 100`

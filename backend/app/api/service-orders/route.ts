@@ -79,10 +79,17 @@ export async function GET(request: Request) {
     ? await prisma.customer.findMany({ where: { tenantId: tenant, id: { in: customerIds } }, select: { id: true, phone: true, countryCode: true } })
     : []
   const contactoPorCliente = new Map(clientes.map(cliente => [cliente.id, cliente]))
+  // Garantía de origen de cada orden (#224), para el badge “Desde garantía”.
+  const garantiaIds = [...new Set(orders.map(order => order.warrantyCaseId).filter((id): id is string => Boolean(id)))]
+  const garantias = garantiaIds.length
+    ? await prisma.warrantyCase.findMany({ where: { tenantId: tenant, id: { in: garantiaIds } }, select: { id: true, kind: true, status: true, description: true, serial: true } })
+    : []
+  const garantiaPorId = new Map(garantias.map(garantia => [garantia.id, garantia]))
   return json(orders.map(order => ({
     ...conDesbloqueo(order, session.user.role),
     customerPhone: order.customerId ? contactoPorCliente.get(order.customerId)?.phone || null : null,
     customerCountryCode: order.customerId ? contactoPorCliente.get(order.customerId)?.countryCode || '+595' : '+595',
+    warranty: order.warrantyCaseId ? garantiaPorId.get(order.warrantyCaseId) || null : null,
   })))
 }
 
@@ -92,8 +99,19 @@ export async function POST(request: Request) {
   if (!puedeOperar(session.user)) return error('No autorizado.', 403)
   try {
     const body = objectInput(await request.json())
-    const customerName = clean(body.customerName, 200)
-    const device = clean(body.device, 200)
+    // Conversión de garantía a servicio (#224): la orden nace del caso de
+    // garantía, copia sus datos y queda vinculada para conservar el historial.
+    const warrantyCaseId = clean(body.warrantyCaseId, 200)
+    const garantia = warrantyCaseId
+      ? await prisma.warrantyCase.findFirst({ where: { id: warrantyCaseId, tenantId: tenant }, select: { id: true, kind: true, customerId: true, customerName: true, serial: true, description: true, diagnosis: true } })
+      : null
+    if (warrantyCaseId && !garantia) throw new InputError('Garantía no encontrada.')
+    if (garantia) {
+      const existente = await prisma.serviceOrder.findFirst({ where: { tenantId: tenant, warrantyCaseId: garantia.id }, select: { serviceNumber: true } })
+      if (existente) throw new InputError(`Esa garantía ya tiene una orden de servicio${existente.serviceNumber ? ` (${existente.serviceNumber})` : ''}.`, 409)
+    }
+    const customerName = clean(body.customerName, 200) || garantia?.customerName || ''
+    const device = clean(body.device, 200) || (garantia ? [garantia.description, garantia.serial].filter(Boolean).join(' · ') : '')
     if (!customerName || !device) throw new InputError('Cliente y dispositivo son obligatorios.')
     const status = typeof body.status === 'string' && STATUS.includes(body.status) ? body.status : 'RECIBIDO'
     const pricePyg = body.pricePyg === undefined || body.pricePyg === '' || body.pricePyg === null ? 0 : Number(body.pricePyg)
@@ -111,14 +129,15 @@ export async function POST(request: Request) {
       data: {
         tenantId: tenant,
         branchId: session.user.branchId || null,
-        customerId: await resolveCustomerId(prisma, tenant, body.customerId, customerName),
+        customerId: garantia?.customerId || await resolveCustomerId(prisma, tenant, body.customerId, customerName),
         customerName,
         device,
         serviceName: clean(body.serviceName, 200),
         serviceNumber: await nextServiceNumber(prisma, tenant),
-        serial: clean(body.serial, 100),
-        reportedIssue: clean(body.reportedIssue, 2000),
-        diagnosis: clean(body.diagnosis, 2000),
+        serial: clean(body.serial, 100) || garantia?.serial || null,
+        reportedIssue: clean(body.reportedIssue, 2000) || garantia?.description || null,
+        diagnosis: clean(body.diagnosis, 2000) || garantia?.diagnosis || null,
+        warrantyCaseId: garantia?.id || null,
         checklist: body.checklist && typeof body.checklist === 'object' && !Array.isArray(body.checklist) ? (body.checklist as Prisma.InputJsonValue) : {},
         technicianId: clean(body.technicianId, 200),
         technicianName: clean(body.technicianName, 200),
@@ -131,7 +150,7 @@ export async function POST(request: Request) {
         notes: clean(body.notes, 2000),
       },
     })
-    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'SERVICE_ORDER_CREATED', entity: 'ServiceOrder', entityId: created.id, metadata: { device, customerName, status, pricePyg, costPyg: costoTotal, desglose: conDesglose ? { partsPyg: partsPyg ?? 0, laborPyg: laborPyg ?? 0, otherCostPyg: otherCostPyg ?? 0 } : null } } })
+    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: garantia ? 'SERVICE_ORDER_FROM_WARRANTY' : 'SERVICE_ORDER_CREATED', entity: 'ServiceOrder', entityId: created.id, metadata: { device, customerName, status, pricePyg, costPyg: costoTotal, ...(garantia ? { warrantyCaseId: garantia.id } : {}), desglose: conDesglose ? { partsPyg: partsPyg ?? 0, laborPyg: laborPyg ?? 0, otherCostPyg: otherCostPyg ?? 0 } : null } } })
     const desbloqueo = leerDesbloqueo(body)
     if (desbloqueo) {
       const secreto = cifrarSecreto(desbloqueo, { uso: USO_DESBLOQUEO, referencia: created.id })
@@ -141,7 +160,7 @@ export async function POST(request: Request) {
     }
     return json(conDesbloqueo(created, session.user.role), { status: 201 })
   } catch (cause) {
-    return error(cause instanceof Error ? cause.message : 'No se pudo crear la orden de servicio.', 400)
+    return error(cause instanceof Error ? cause.message : 'No se pudo crear la orden de servicio.', cause instanceof InputError ? cause.status : 400)
   }
 }
 

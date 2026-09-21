@@ -2295,6 +2295,8 @@ model WarrantyCase {
   exclusions      String?
 
   warrantyPhotos  WarrantyPhoto[]
+  // Órdenes de servicio originadas en este caso (#224).
+  serviceOrders   ServiceOrder[] @relation("ServiceOrderWarranty")
 
   @@index([tenantId, createdAt])
   @@index([tenantId, serial])
@@ -2345,6 +2347,9 @@ model ServiceOrder {
   technicianId   String?
   technicianName String?
   status         String    @default("RECIBIDO")
+  // Garantía que originó esta orden (#224): la conversión conserva el historial.
+  warrantyCaseId String?
+  warrantyCase   WarrantyCase? @relation("ServiceOrderWarranty", fields: [warrantyCaseId], references: [id], onDelete: SetNull)
   pricePyg       Int       @default(0)
   // Costo total del trabajo. Si la orden tiene el desglose cargado
   // (repuesto + mano de obra + otros), el total se calcula y se guarda acá.
@@ -2365,6 +2370,7 @@ model ServiceOrder {
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
   @@index([customerId])
+  @@index([warrantyCaseId])
 }
 
 // Catálogo de servicios técnicos: nombre, tipo de dispositivo y precio sugerido.

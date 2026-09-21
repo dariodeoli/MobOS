@@ -130,6 +130,18 @@ const AYUDA = [
     ruta: '/servicio',
   },
   {
+    modulo: 'Garantías', titulo: 'Pasar una garantía al taller',
+    ubicacion: 'Servicio y Garantías → Todo → fila de la garantía → Pasar a servicio',
+    explicacion: 'Una garantía puede ingresar a servicio: se crea la orden con el equipo, el serial y el diagnóstico del caso. Las dos fichas conservan el historial y la garantía queda marcada “En servicio”.',
+    ruta: '/servicio',
+  },
+  {
+    modulo: 'Servicio Técnico', titulo: 'Servicio y garantías en una sola sección',
+    ubicacion: 'Stock y servicio → Servicio y Garantías (solapas Todo, Servicio y Garantías)',
+    explicacion: 'Las órdenes del taller y las garantías conviven en una sección: la solapa Todo las lista juntas y cada registro muestra su tipo (Servicio o Garantía). /garantias sigue abriendo la solapa de garantías.',
+    ruta: '/servicio',
+  },
+  {
     modulo: 'Equipo', titulo: 'Staff, roles y PIN', ubicacion: 'Configuración → Equipo → /configuracion/equipo',
     explicacion: 'Cada integrante tiene nombre, correo, rol y sucursal. Desde la fila podés cambiar el rol y asignar un PIN nuevo de 4 a 6 dígitos (aleatorio o manual): el PIN nunca se muestra.',
     ruta: '/configuracion/equipo',
