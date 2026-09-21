@@ -141,23 +141,15 @@ por área en el selector: `Impresión · trabajo`, `Impresión · puente` e
   el id corto del trabajo, el transporte, ancho/copias y el texto del error; no
   se muestra el JSON crudo del backend.
 
-### Checklist de prueba física pendiente (issue #17)
+### Prueba física pendiente (#17 launchd/CUPS y #96 USB)
 
-La prueba de corte por hardware todavía no está cerrada. Para hacerla:
-
-1. Crear la cola CUPS por red en la Mac puente:
-   `sudo lpadmin -p MOBOS_LAN -E -v socket://192.168.1.23:9100 -m raw`
-   (el `-m raw` es obligatorio: la app manda ESC/POS ya armado).
-2. Dar permiso de **Red Local** al proceso de `launchd` (Ajustes del Sistema →
-   Privacidad y seguridad → Red Local); sin eso el agente sale por la ruta
-   primaria y devuelve `EHOSTUNREACH` aunque desde Terminal funcione.
-3. Probar desde `launchd` (no desde Terminal): instalá o actualizá el agente en
-   la Mac y ejecutá el test de impresión con el tipo **Prueba de corte** desde
-   Configuración → Impresoras.
-4. Verificar en `/health` del agente que `red.alias` esté presente y que
-   `transporte` informe el camino real (`directo`, `cups` o `usb`).
-5. Confirmar en el papel: las 4 secciones de la prueba de corte y que el corte
-   GS V 0 seccione el rollo (registrar el resultado en el issue #17).
+El paso a paso vive en **`docs/IMPRESION-PRUEBA-FISICA.md`** (incluye qué mirar
+ante cada error y qué registrar en cada issue). Resumen: la cola CUPS se crea
+con `sudo lpadmin -p MOBOS_LAN -E -v socket://192.168.1.23:9100 -m raw`, el
+agente tiene que correr **por `launchd`** con permiso de **Red local**, y la
+prueba de corte (4 secciones + corte GS V 0) se corre desde
+Configuración → Impresoras. El USB directo se enciende con `"usb": true` y su
+estado se verifica en `/health.usb`.
 
 > Nota: `corte()` envía solo GS V más la alimentación de 4 líneas. El `ESC i`
 > que se probó al principio se retiró porque en la ZKP8008 ejecutaba un segundo
