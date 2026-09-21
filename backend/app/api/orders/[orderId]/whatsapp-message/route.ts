@@ -21,6 +21,7 @@ type OrderForMessage = {
   orderNumber: string | null
   totalPyg: number
   publicToken: string | null
+  accessTokens: Array<{ token: string }>
   fulfillmentStatus: string
   createdAt: Date
   customer: { name: string | null; phone: string | null; countryCode: string | null } | null
@@ -57,10 +58,14 @@ const orderInclude = {
   branch: { select: { name: true } },
   seller: { select: { name: true } },
   payments: { where: { status: 'CONFIRMED' as const }, select: { amountPyg: true } },
+  // #178: el pedido nuevo no guarda su token histórico en claro; el enlace de
+  // seguimiento del mensaje sale del enlace vigente de nivel rápido.
+  accessTokens: { where: { revokedAt: null, level: 'rapido' }, orderBy: { createdAt: 'desc' as const }, take: 1, select: { token: true } },
 }
 
 function buildPayload(order: OrderForMessage, template: { body: string; isActive: boolean } | null, fallback: string) {
-  const trackingUrl = order.publicToken ? `${process.env.MOBOS_APP_URL || 'https://app.moboss.online'}/pedido/${order.publicToken}` : ''
+  const tokenSeguimiento = order.publicToken || order.accessTokens[0]?.token || ''
+  const trackingUrl = tokenSeguimiento ? `${process.env.MOBOS_APP_URL || 'https://app.moboss.online'}/pedido/${tokenSeguimiento}` : ''
   const variables = { ...variablesDe(order), tracking_url: trackingUrl }
   const body = template?.isActive === false ? '' : (template?.body || fallback)
   const message = `${render(body, variables)}${trackingUrl && !body.includes('{{tracking_url}}') ? `\n${trackingUrl}` : ''}`.trim()

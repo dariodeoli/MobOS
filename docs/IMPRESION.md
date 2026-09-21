@@ -75,6 +75,21 @@ QR muerto: se omite el código.
   (`impreso=true`), pedido por `tokenDeNivel()`.
 - El panel **Acceso del cliente** lista y regenera **solo** los enlaces
   compartibles (`impreso=false`). Regenerar un enlace **no invalida el papel**.
+- El QR impreso **no vence por fecha**: sigue abriendo mientras nadie lo rote.
+  Solo deja de funcionar si se usa **Regenerar acceso QR** (revoca los tokens
+  impresos y los enlaces del pedido), si se regenera explícitamente el token
+  `impreso=true` de ese nivel o si se revoca el puente en la app.
+- **Cómo reimprimir**: abrí el pedido → *Imprimir comprobante*; el comprobante
+  reutiliza el token `impreso=true` del nivel elegido y sale con el mismo QR (o
+  genera uno nuevo si ese nivel no tenía). Si el papel viejo ya no debe servir,
+  usá **Regenerar acceso QR** *antes* de reimprimir: invalida todo lo anterior y
+  el comprobante nuevo sale con un código distinto.
+- En la base, el token histórico de seguimiento (`Order.publicToken`) ya no se
+  guarda en claro: los enlaces viejos se validan por su hash (sha256) y quedan
+  invalidados al regenerar el acceso del pedido. El enlace de seguimiento de un
+  pedido nuevo es un token de nivel rápido (`impreso=false`), así que el panel
+  puede volver a copiarlo, y rota con **Regenerar acceso QR** (junto con el
+  papel y los enlaces compartidos).
 - Nunca reutilices el token del panel para imprimir ni regeneres un token
   `impreso=true` salvo reimpresión explícita: el papel ya entregado moriría.
 - El `Order.publicToken` histórico sigue funcionando como nivel rápido: es la

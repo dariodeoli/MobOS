@@ -70,17 +70,28 @@ export async function POST(request: Request, context: { params: Promise<{ orderI
       } else if (vigente) {
         await tx.orderAccessToken.update({ where: { id: vigente.id }, data: { revokedAt: new Date() } })
       }
-      return tx.orderAccessToken.create({
+      const token = nuevoToken()
+      const creado = await tx.orderAccessToken.create({
         data: {
           orderId: acceso.order.id,
           tenantId: acceso.order.tenantId,
           level,
           impreso,
-          token: nuevoToken(),
+          token,
           createdBy: acceso.session.user.id,
         },
         select: { level: true, token: true, createdAt: true },
       })
+      // «Regenerar acceso QR» también corta el enlace histórico del pedido: se
+      // borran el token en claro y su hash para que no quede un acceso viejo
+      // vivo después de rotar (#178).
+      if (revokeAll) {
+        await tx.order.update({
+          where: { id: acceso.order.id },
+          data: { publicToken: null, publicTokenHash: null, publicTokenIssuedAt: null },
+        })
+      }
+      return creado
     })
     return json({ ...creado, impreso, regenerated: Boolean(vigente) || revokeAll, revoked: revokeAll })
   } catch (cause) {

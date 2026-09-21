@@ -59,6 +59,9 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
         fulfillmentStatus: true,
         dueAt: true,
         publicToken: true,
+        // #178: los pedidos nuevos ya no guardan su token histórico en claro;
+        // el enlace del comprobante sale del enlace vigente de nivel rápido.
+        accessTokens: { where: { revokedAt: null, level: 'rapido' }, orderBy: { createdAt: 'desc' }, take: 1, select: { token: true } },
         payments: { where: { status: 'CONFIRMED' }, select: { amountPyg: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -107,16 +110,21 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     },
     balancePyg: Number(saldo[0]?.pending || 0n),
     dueDates: vencimientos,
-    orders: orders.map(order => ({
-      orderNumber: order.orderNumber,
-      createdAt: order.createdAt,
-      totalPyg: order.totalPyg,
-      status: order.status,
-      fulfillmentStatus: order.fulfillmentStatus,
-      pendingPyg: pendienteDe(order.totalPyg, order.payments),
-      dueAt: order.dueAt,
-      ...(completo && order.publicToken ? { receiptToken: order.publicToken } : {}),
-    })),
+    orders: orders.map(order => {
+      // #178: el pedido nuevo no guarda su token histórico en claro; el enlace
+      // del comprobante sale del enlace vigente de nivel rápido (o del legacy).
+      const receiptToken = order.publicToken || order.accessTokens[0]?.token
+      return {
+        orderNumber: order.orderNumber,
+        createdAt: order.createdAt,
+        totalPyg: order.totalPyg,
+        status: order.status,
+        fulfillmentStatus: order.fulfillmentStatus,
+        pendingPyg: pendienteDe(order.totalPyg, order.payments),
+        dueAt: order.dueAt,
+        ...(completo && receiptToken ? { receiptToken } : {}),
+      }
+    }),
   }
 
   if (completo) {

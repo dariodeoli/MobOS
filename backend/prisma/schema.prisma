@@ -1074,7 +1074,14 @@ model Order {
   assignedAt        DateTime?
   orderNumber       String
   idempotencyKey    String?
-  publicToken       String            @unique @default(cuid())
+  // Token histórico de seguimiento. Ya no se escribe en claro: los enlaces
+  // legacy se validan por `publicTokenHash` (sha256) y el enlace vigente del
+  // pedido es un token de nivel rápido (`OrderAccessToken`). La columna queda
+  // por compatibilidad con los enlaces ya entregados.
+  publicToken       String?           @unique
+  // Hash del token histórico (sha256 de 64 hex) y cuándo se emitió.
+  publicTokenHash   String?           @unique
+  publicTokenIssuedAt DateTime?
   status            OrderStatus       @default(PENDING)
   fulfillmentStatus FulfillmentStatus @default(PROCESSING)
   subtotalPyg       Int

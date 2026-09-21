@@ -1,5 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
+import { createHash } from 'node:crypto'
 import { error, json } from '../../../../../lib/http'
+import { enforceRateLimit } from '../../../../../lib/rate-limit'
 
 // Vista pública del pedido. El token es aleatorio y no enumerable: autoriza una
 // sola vista según su nivel (rapido | completo | detallado). El token histórico
@@ -10,7 +12,11 @@ const PAYMENT_LABELS: Record<string, string> = {
   CREDIT: 'Crédito', TRADE_IN: 'Canje', PIX: 'Pix',
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ token: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ token: string }> }) {
+  // Superficie pública sin sesión: se limita por IP como el portal y las
+  // cotizaciones públicas (#178).
+  const limited = enforceRateLimit(request, 'orders-public', 30, 60_000)
+  if (limited) return limited
   const { token } = await context.params
   if (!token || token.length > 200) return error('Seguimiento no encontrado.', 404)
 
@@ -18,8 +24,11 @@ export async function GET(_request: Request, context: { params: Promise<{ token:
     where: { token, revokedAt: null },
     select: { orderId: true, level: true },
   })
+  // El token de seguimiento vive hasheado (#178); los enlaces legacy que ya
+  // estaban entregados siguen resolviendo por la columna vieja.
+  const tokenHash = createHash('sha256').update(token).digest('hex')
   const order = await prisma.order.findFirst({
-    where: acceso ? { id: acceso.orderId } : { publicToken: token },
+    where: acceso ? { id: acceso.orderId } : { OR: [{ publicTokenHash: tokenHash }, { publicToken: token }] },
     include: {
       items: { select: { id: true, description: true, quantity: true, unitPricePyg: true, listPricePyg: true, discountPyg: true, totalPyg: true } },
       payments: { orderBy: { createdAt: 'asc' } },
