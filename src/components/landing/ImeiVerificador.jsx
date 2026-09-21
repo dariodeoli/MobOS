@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, Check, RefreshCw, ScanLine, ShieldAlert, ShieldCheck } from 'lucide-react'
-import { Button, Input } from '@/components/ui'
+import { BarraProgreso, Button, Input } from '@/components/ui'
 import { publicUrls } from '@/lib/urls'
 import { fechaDia, fechaHora } from '@/utils/fecha'
 import { FUENTE_DEMO, IMEI_EJEMPLO, consultaImeiEjemplo, enmascararImeiDemo, validarImeiDemo } from '@/lib/imeiDemoLanding'
@@ -179,12 +179,7 @@ export default function ImeiVerificador() {
               </div>
               <div className="pointer-events-none absolute inset-x-0 top-0 h-16 mobos-escaneo bg-[linear-gradient(180deg,transparent,rgb(var(--c-fono)/.28),transparent)]" />
             </div>
-            <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-fore/10">
-              <span
-                className="block h-full rounded-full bg-fono transition-[width] duration-500 ease-out"
-                style={{ width: `${Math.round((paso / PASOS.length) * 100)}%` }}
-              />
-            </div>
+            <BarraProgreso valor={paso} max={PASOS.length} etiqueta="Progreso de la verificación" className="mt-4" />
             <ol className="mt-4 space-y-2 text-sm">
               {PASOS.map((texto, indice) => {
                 const hecho = paso > indice

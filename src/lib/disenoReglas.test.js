@@ -205,6 +205,32 @@ test('la landing: identidad por tema, módulos nuevos y verificador de IMEI hone
   assert.doesNotMatch(demo, /'Limpio'/, 'la demo no inventa un "Limpio"')
 })
 
+test('la identidad de usuario tiene un solo objeto y la biblioteca suma tres objetos nuevos (#211)', () => {
+  const chip = leer('components/shared/PersonaChip.jsx')
+  assert.match(chip, /from '@\/components\/shared\/Avatar'/, 'PersonaChip envuelve al Avatar compartido')
+  assert.match(chip, /picture \?\? persona\.picture/, 'la foto resuelve en orden único: local → Google → iniciales')
+  assert.match(chip, /primerNombre\(completo\)/, 'nombreCorto muestra solo el primer nombre')
+  assert.match(chip, /ESTADOS = \{[\s\S]{0,120}'en-linea'/, 'acepta estado de presencia')
+  const ui = leer('components/ui/index.jsx')
+  for (const objeto of ['export function FilaDato', 'export function CeldaMoneda', 'export function BarraProgreso']) {
+    assert.ok(ui.includes(objeto), `la UI compartida define ${objeto}`)
+  }
+  assert.match(ui, /role="progressbar"/, 'la barra de progreso es accesible')
+  const doc = leer('../docs/PLANTILLA-OBJETOS.md')
+  for (const nombre of ['PersonaChip', 'FilaDato', 'CeldaMoneda', 'BarraProgreso']) {
+    assert.ok(doc.includes(nombre), `la biblioteca documenta ${nombre}`)
+  }
+  // Adopciones de esta entrega: la presencia del pedido (foto + primer nombre),
+  // los totales del seguimiento y la barra del escaneo.
+  assert.match(leer('components/ventas/PresenciaPedido.jsx'), /PersonaChip[\s\S]{0,160}nombreCorto/, 'la presencia del pedido usa PersonaChip con primer nombre')
+  assert.match(leer('components/ventas/PresenciaPedido.jsx'), /persona\.id !== miId/, 'la presencia no se cuenta a sí misma')
+  assert.doesNotMatch(leer('components/ventas/PresenciaPedido.jsx'), /está viendo este pedido[\s\S]{0,40}\{otros\[0\]\.name\}/, 'no arma la identidad a mano')
+  assert.match(leer('pages/PedidoPublico.jsx'), /<FilaDato/, 'los totales del seguimiento usan FilaDato')
+  assert.match(leer('pages/PedidoPublico.jsx'), /<CeldaMoneda/, 'los importes del seguimiento usan CeldaMoneda')
+  assert.match(leer('components/landing/ImeiVerificador.jsx'), /<BarraProgreso/, 'la barra del escaneo es la compartida')
+  assert.ok(!/function Barra\(/.test(leer('components/landing/CapturaModulo.jsx')), 'las capturas no redefinen la barra')
+})
+
 test('el patrón «último usado como predeterminado» está documentado con su base real (#209)', () => {
   const doc = leer('../docs/PLANTILLA-OBJETOS.md')
   assert.match(doc, /Último usado como predeterminado \(#209\)/, 'el patrón vive en la biblioteca')
