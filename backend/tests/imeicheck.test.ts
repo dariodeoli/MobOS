@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { NO_VERIFICADO, SERVICIOS, consultarImei, enmascararImei, estadoDeConsulta, etiquetaEstado, normalizarRespuesta, validarImei } from '../lib/imeicheck'
+import { IDS_SANDBOX, NO_VERIFICADO, SERVICIOS, consultarImei, enmascararImei, estadoDeConsulta, etiquetaEstado, normalizarRespuesta, validarImei } from '../lib/imeicheck'
 
 // ── Validación de IMEI antes de llamar ─────────────────────────────────────
 assert.equal(validarImei('490154203237518').ok, true)
@@ -47,6 +47,14 @@ async function pruebasMock() {
   assert.equal(SERVICIOS.APPLE_BASIC.precioConfirmado, true, 'Apple Basic es el único precio con cargo comprobado')
   assert.equal(SERVICIOS.IDENTIFICACION.precioConfirmado, false, 'otras marcas: referencia, no cargo comprobado')
   assert.equal(SERVICIOS.BLACKLIST_PRO.precioConfirmado, false)
+// Catálogo Live: IDs reales y ninguno de Sandbox (12-15).
+assert.equal(SERVICIOS.APPLE_BASIC.serviceId, '1')
+assert.equal(SERVICIOS.APPLE_ADVANCED.serviceId, '2')
+assert.equal(SERVICIOS.FULL_MDM.serviceId, '3')
+assert.equal(SERVICIOS.BLACKLIST_PRO.serviceId, '16')
+assert.equal(SERVICIOS.FIND_MY.serviceId, '18')
+assert.equal(SERVICIOS.IDENTIFICACION.serviceId, '22')
+for (const servicio of Object.values(SERVICIOS)) assert.ok(!IDS_SANDBOX.includes(String(servicio.serviceId)), `el serviceId ${servicio.serviceId} es de Sandbox`)
   assert.match(String((ok.crudo as any).id), /^mock-/)
   
   const parcial = await consultarImei({ imei: '490154203237518', servicio: 'APPLE_BASIC', escenario: 'parcial' })
@@ -77,7 +85,7 @@ async function pruebasMock() {
   process.env.IMEICHECK_LIVE = '1'
   const sinCatalogo = await consultarImei({ imei: '490154203237518', servicio: 'APPLE_BASIC' })
   assert.equal(sinCatalogo.estado, 'fallido')
-  assert.match(String(sinCatalogo.error), /serviceId real/)
+  assert.match(String(sinCatalogo.error), /serviceId Live/)
   assert.equal(sinCatalogo.costoUsd, 0)
   delete process.env.IMEICHECK_LIVE
   delete process.env.IMEICHECK_TOKEN

@@ -23,12 +23,18 @@ export const PROVEEDOR = 'imeicheck.net'
 // real (Apple Basic USD 0,06); el resto son precios de referencia de la cuenta
 // que hay que validar contra el catálogo autenticado antes de mostrarlos como coste.
 export const SERVICIOS: Record<string, { nombre: string; precioUsd: number; precioConfirmado: boolean; campos: string[]; serviceId: string | null }> = {
-  APPLE_BASIC: { nombre: 'Apple Basic', precioUsd: 0.06, precioConfirmado: true, campos: ['blacklist actual', 'Find My/iCloud', 'garantía'], serviceId: null },
-  IDENTIFICACION: { nombre: 'Marca, modelo y fabricante', precioUsd: 0.01, precioConfirmado: false, campos: ['marca', 'modelo', 'fabricante'], serviceId: null },
-  BLACKLIST_PRO: { nombre: 'Blacklist Pro (historial)', precioUsd: 0.10, precioConfirmado: false, campos: ['historial de reportes', 'operador', 'fecha'], serviceId: null },
-  APPLE_ADVANCED: { nombre: 'Apple Advanced', precioUsd: 0.12, precioConfirmado: false, campos: ['blacklist actual', 'operador', 'fecha de bloqueo'], serviceId: null },
-  FULL_MDM: { nombre: 'Apple Full + MDM', precioUsd: 0.90, precioConfirmado: false, campos: ['MDM', 'Find My/iCloud', 'blacklist'], serviceId: null },
+  // IDs LIVE relevados de la cuenta (2026-09-21). NO usar los IDs 12-15
+  // (Sandbox, 0,00): devuelven datos aleatorios y no existen en Live.
+  APPLE_BASIC: { nombre: 'Apple Basic', precioUsd: 0.06, precioConfirmado: true, campos: ['blacklist actual', 'Find My/iCloud', 'garantía'], serviceId: '1' },
+  APPLE_ADVANCED: { nombre: 'Apple Advanced', precioUsd: 0.12, precioConfirmado: false, campos: ['blacklist actual', 'operador', 'fecha de bloqueo'], serviceId: '2' },
+  FULL_MDM: { nombre: 'Apple Full + MDM', precioUsd: 0.90, precioConfirmado: false, campos: ['MDM', 'Find My/iCloud', 'blacklist'], serviceId: '3' },
+  BLACKLIST_PRO: { nombre: 'Blacklist Pro (historial)', precioUsd: 0.10, precioConfirmado: false, campos: ['historial de reportes', 'operador', 'fecha'], serviceId: '16' },
+  FIND_MY: { nombre: 'Find My / iCloud', precioUsd: 0.01, precioConfirmado: false, campos: ['Find My/iCloud'], serviceId: '18' },
+  IDENTIFICACION: { nombre: 'Marca, modelo y fabricante', precioUsd: 0.01, precioConfirmado: false, campos: ['marca', 'modelo', 'fabricante'], serviceId: '22' },
 }
+
+// IDs que NUNCA van a Live: 12-15 son de Sandbox (0,00, datos aleatorios).
+export const IDS_SANDBOX = ['12', '13', '14', '15']
 
 export type EscenarioMock = 'ok' | 'parcial' | 'pendiente' | 'timeout' | 'sin-saldo' | 'no-autorizado' | 'imei-invalido'
 export type EstadoConsulta = 'verificado' | 'parcial' | 'pendiente' | 'fallido'
@@ -128,7 +134,7 @@ export async function consultarImei(input: { imei: unknown; servicio: keyof type
     return { estado, etiqueta: etiquetaEstado(estado), campos: normalizarRespuesta(simulado), crudo: simulado, costoUsd: estado === 'verificado' || estado === 'parcial' ? servicio.precioUsd : 0, esMock: true }
   }
   if (!validacion.ok) return { estado: 'fallido', etiqueta: NO_VERIFICADO, campos: normalizarRespuesta({}), crudo: null, costoUsd: 0, esMock: false, error: validacion.error }
-  if (!servicio.serviceId) return { estado: 'fallido', etiqueta: NO_VERIFICADO, campos: normalizarRespuesta({}), crudo: null, costoUsd: 0, esMock: true, error: `Falta el serviceId real de «${servicio.nombre}»: se obtiene del catálogo de la cuenta (GET /services).` }
+  if (!servicio.serviceId) return { estado: 'fallido', etiqueta: NO_VERIFICADO, campos: normalizarRespuesta({}), crudo: null, costoUsd: 0, esMock: true, error: `El servicio «${servicio.nombre}» no tiene serviceId Live cargado: se toma del catálogo de la cuenta (GET /services).` }
   try {
     const respuesta = await fetch(`${BASE_URL}/checks`, {
       method: 'POST',
