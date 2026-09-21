@@ -3,7 +3,11 @@
 // acciones destructivas ni permisos. El valor vive en el navegador
 // (localStorage namespaced), es siempre cambiable y la pantalla avisa cuando
 // recordó algo. Ver docs/PLANTILLA-OBJETOS.md §7.
+//
+// En la demo nada toca `localStorage` (#204): `demoStorage` guarda en memoria de
+// la pestaña y al recargar se descarta, igual que el resto de los datos demo.
 import { useCallback, useEffect, useState } from 'react'
+import { borrarDemo, guardarDemo, leerDemo } from './demoStorage.js'
 
 const PREFIJO = 'mobos:ultimo:'
 export const EVENTO_ULTIMO_USADO = 'mobos:ultimo-usado'
@@ -11,7 +15,7 @@ export const EVENTO_ULTIMO_USADO = 'mobos:ultimo-usado'
 /** Valor recordado para una clave (o el inicial si no hay nada guardado). */
 export function leerUltimo(clave, inicial = '') {
   try {
-    const guardado = localStorage.getItem(PREFIJO + clave)
+    const guardado = leerDemo(PREFIJO + clave)
     return guardado === null || guardado === '' ? inicial : guardado
   } catch {
     return inicial
@@ -21,8 +25,8 @@ export function leerUltimo(clave, inicial = '') {
 /** Guarda el último valor usado; vacío = olvidar la clave. */
 export function recordarUltimo(clave, valor) {
   try {
-    if (valor === null || valor === undefined || valor === '') localStorage.removeItem(PREFIJO + clave)
-    else localStorage.setItem(PREFIJO + clave, String(valor))
+    if (valor === null || valor === undefined || valor === '') borrarDemo(PREFIJO + clave)
+    else guardarDemo(PREFIJO + clave, String(valor))
   } catch {
     // Sin persistencia el valor vale para esta pestaña.
   }
