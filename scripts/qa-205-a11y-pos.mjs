@@ -1,9 +1,10 @@
 // Barrido fino de accesibilidad y elementos muertos del POS (#205).
 // Uso: BASE=<demo> QA_OUT=docs/qa/205 node scripts/qa-205-a11y-pos.mjs
 // Evidencia: docs/qa/205/resultados.json
+/* global document, CSS */
 import { createRequire } from 'node:module'
 import { mkdirSync, writeFileSync } from 'node:fs'
-const require = createRequire('/Users/fredd/.herdr/worktrees/mobos/MOS-POS/scripts/')
+const require = createRequire(import.meta.url)
 const { chromium } = require('@playwright/test')
 const BASE = process.env.BASE || 'https://app.moboss.online'
 const OUT = process.env.QA_OUT || 'docs/qa/205'
