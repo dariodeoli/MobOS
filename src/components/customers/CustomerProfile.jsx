@@ -95,7 +95,6 @@ const pagadoOrden = (order) => Number(order?.collectedPyg ?? order?.paidPyg ?? 0
 // Grillas de las pestañas: una fila por registro, datos en columnas fijas.
 const GRID_DISPOSITIVOS = 'grid min-w-[54rem] grid-cols-[minmax(8rem,1.2fr)_minmax(7rem,0.9fr)_6rem_6rem_8rem_6rem] items-center gap-x-2'
 const GRID_GARANTIAS_CLI = 'grid min-w-[46rem] grid-cols-[minmax(9rem,1.5fr)_minmax(7rem,1fr)_6rem_7rem] items-center gap-x-2'
-const GRID_NOTAS_CLI = 'grid min-w-[46rem] grid-cols-[minmax(12rem,2fr)_7rem_6rem_8rem] items-center gap-x-2'
 const GRID_SEGUIMIENTOS = 'grid min-w-[54rem] grid-cols-[7rem_minmax(10rem,1.8fr)_7rem_7rem_6rem_8rem] items-center gap-x-2'
 const GRID_FACTURACION = 'grid min-w-[50rem] grid-cols-[minmax(10rem,1.5fr)_minmax(7rem,1fr)_minmax(8rem,1fr)_7rem_7rem] items-center gap-x-2'
 const CELDA_CLI = 'truncate text-[10px] font-bold uppercase tracking-wider text-mute'
@@ -1062,32 +1061,25 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
           {tab === 'cronologia' && (
             <div className="space-y-4">
-              <p className="text-sm font-semibold">Comentarios del equipo</p>
+              <p className="text-sm font-semibold">Comentarios internos <span className="font-normal text-mute">(nunca visibles al cliente)</span></p>
               <form onSubmit={saveNote} className="space-y-3">
-                <FormField label={editingNote ? 'Editar nota' : 'Nueva nota'} htmlFor="profile-note">
-                  <Textarea id="profile-note" rows={3} maxLength={2000} placeholder="Nota interna del equipo sobre este cliente…" value={newNote} onChange={(event) => setNewNote(event.target.value)} />
+                <FormField label={editingNote ? 'Editar comentario' : 'Nuevo comentario'} htmlFor="profile-note">
+                  <Textarea id="profile-note" rows={3} maxLength={2000} placeholder="Observación interna del equipo sobre este cliente…" value={newNote} onChange={(event) => setNewNote(event.target.value)} />
                 </FormField>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button type="submit" disabled={noteBusy || !newNote.trim()}>{noteBusy ? 'Guardando…' : editingNote ? 'Guardar cambios' : 'Agregar nota'}</Button>
+                  <Button type="submit" disabled={noteBusy || !newNote.trim()}>{noteBusy ? 'Guardando…' : editingNote ? 'Guardar cambios' : 'Agregar comentario'}</Button>
                   {editingNote && <Button type="button" variant="ghost" onClick={() => { setEditingNote(null); setNewNote('') }}>Cancelar</Button>}
                 </div>
               </form>
               {!notes.length ? (
-                <EmptyState compact icon="edit" title="Sin notas" description="Guardá observaciones internas sobre este cliente." />
+                <EmptyState compact icon="edit" title="Sin comentarios" description="Guardá observaciones internas sobre este cliente (solo las ve el equipo)." />
               ) : (
-                <div className="overflow-x-auto" data-testid="perfil-notas">
-                  <div className={cn(GRID_NOTAS_CLI, 'px-3.5 pb-2 pt-1')}>
-                    <span className={CELDA_CLI}>Nota</span>
-                    <span className={CELDA_CLI}>Autor</span>
-                    <span className={CELDA_CLI}>Fecha</span>
-                    <span className={cn(CELDA_CLI, 'text-right')}>Acciones</span>
-                  </div>
-                  <div className="space-y-1">
+                <ul className="space-y-2" data-testid="perfil-notas">
                   {notes.map((item) => (
                     <li key={item.id} className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
                       <p className="whitespace-pre-wrap break-words">{item.content}</p>
                       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-xs text-mute" title={item.user?.name || 'Equipo'}><ActorAvatar user={item.user} hasAvatar={item.user?.hasAvatar === true} size="sm" /> <span>{primerNombre(item.user?.name) || 'Equipo'}</span> · {fechaHora(item.createdAt)}</p>
+                        <p className="flex items-center gap-1.5 text-xs text-mute" title={item.user?.name || 'Equipo'}><ActorAvatar user={item.user} hasAvatar={item.user?.hasAvatar === true} size="sm" /> <span>{item.user?.name || 'Equipo'}</span> · {fechaHora(item.createdAt)}</p>
                         <div className="flex gap-2">
                           <button type="button" className="text-xs font-semibold text-fono-light" onClick={() => { setEditingNote(item); setNewNote(item.content) }}>Editar</button>
                           <button type="button" className="text-xs font-semibold text-bad" onClick={() => setPendingDelete({ type: 'note', id: item.id })}>Eliminar</button>
@@ -1095,8 +1087,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                       </div>
                     </li>
                   ))}
-                  </div>
-                </div>
+                </ul>
               )}
             </div>
           )}
@@ -1476,9 +1467,9 @@ export default function CustomerProfile({ customer, open, onClose }) {
         open={pendingDelete?.type === 'note'}
         onCancel={() => setPendingDelete(null)}
         onConfirm={removeNote}
-        title="Eliminar nota"
-        description="Esta nota se eliminará de forma permanente. No se puede deshacer."
-        confirmLabel="Eliminar nota"
+        title="Eliminar comentario"
+        description="Este comentario se eliminará de forma permanente. No se puede deshacer."
+        confirmLabel="Eliminar comentario"
         variant="danger"
         busy={deleteBusy}
       />
