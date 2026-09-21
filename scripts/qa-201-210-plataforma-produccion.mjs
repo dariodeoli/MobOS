@@ -210,6 +210,34 @@ const browser = await chromium.launch()
     return 'ninguna request a /api/ durante todo el recorrido'
   })
 
+  // #223: el encabezado muestra solo la marca (normal y demo); la identidad de
+  // la empresa sigue en el menú.
+  await paso('#223: el encabezado muestra solo MobOS y la empresa vive en el menú', async (c) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto(`${BASE}/resumen`, { waitUntil: 'domcontentloaded' })
+    const marca = page.getByTestId('shell-tienda')
+    await marca.waitFor({ state: 'visible', timeout: 20000 })
+    const texto = (await marca.innerText()).trim()
+    if (texto !== 'MobOS') throw new Error(`shell-tienda muestra «${texto}» (se esperaba MobOS)`)
+    c.push(await shot(page, 'topbar-marca'))
+
+    // Miga móvil: mismo criterio en pantallas chicas.
+    await page.setViewportSize({ width: 390, height: 844 })
+    const miga = page.getByTestId('shell-miga-tienda')
+    await miga.waitFor({ state: 'visible', timeout: 20000 })
+    const textoMiga = (await miga.innerText()).trim()
+    if (textoMiga !== 'MobOS') throw new Error(`la miga móvil muestra «${textoMiga}» (se esperaba MobOS)`)
+    c.push(await shot(page, 'topbar-marca-movil'))
+
+    // La identidad de la empresa sigue disponible en el menú (cajón móvil).
+    await page.getByRole('button', { name: 'Menú', exact: true }).click()
+    const dialogo = page.getByRole('dialog')
+    const titulo = (await dialogo.getByRole('heading').first().innerText()).trim()
+    if (!titulo || titulo === 'MobOS') throw new Error(`el menú no muestra la identidad de la empresa: «${titulo}»`)
+    c.push(await shot(page, 'menu-identidad'))
+    return `«${texto}» en el topbar (escritorio y móvil) y «${titulo}» en el menú`
+  })
+
   await ctx.close()
 }
 
