@@ -12,6 +12,7 @@ import QRCode from 'qrcode'
 import SerialTexto from '@/components/shared/SerialTexto'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
+import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
 import ActorAvatar from './ActorAvatar'
@@ -29,6 +30,7 @@ import {
   Select,
   Skeleton,
   Textarea,
+  Toggle,
   useToast,
 } from '@/components/ui'
 
@@ -175,6 +177,55 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [desdeInforme, setDesdeInforme] = useState('')
   const [hastaInforme, setHastaInforme] = useState('')
   const [generandoInforme, setGenerandoInforme] = useState(false)
+  // Seguro del cliente (#160) y etiquetas de la ficha.
+  const [seguroForm, setSeguroForm] = useState({ enabled: false, pct: '' })
+  const [guardandoSeguro, setGuardandoSeguro] = useState(false)
+  const [tagsTexto, setTagsTexto] = useState('')
+  const [guardandoTags, setGuardandoTags] = useState(false)
+
+  useEffect(() => {
+    const ficha = profile?.customer
+    setSeguroForm({
+      enabled: ficha?.insuranceEnabled === true,
+      pct: ficha?.insuranceEnabled && ficha?.insuranceRatePct !== null && ficha?.insuranceRatePct !== undefined ? formatPercent(ficha.insuranceRatePct) : '',
+    })
+    setTagsTexto((ficha?.tags || []).join(', '))
+  }, [profile])
+
+  // El seguro afecta costo real y margen: lo configuran administración/gerencia.
+  async function guardarSeguro(enabled = seguroForm.enabled) {
+    if (guardandoSeguro || !customer?.id) return
+    const pct = parsePercent(seguroForm.pct)
+    if (enabled && seguroForm.pct.trim() && (pct === null || pct < 0 || pct > 100)) {
+      toast.error('Porcentaje inválido', 'El seguro debe estar entre 0 y 100 (hasta 2 decimales).')
+      return
+    }
+    setGuardandoSeguro(true)
+    try {
+      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, {
+        insuranceEnabled: enabled,
+        insuranceRatePct: pct,
+      })
+      toast.success(enabled ? 'Seguro del cliente activado.' : 'Seguro del cliente desactivado.')
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudo guardar el seguro', cause?.message)
+    } finally { setGuardandoSeguro(false) }
+  }
+
+  async function guardarTags(event) {
+    event.preventDefault()
+    if (guardandoTags || !customer?.id) return
+    const tags = tagsTexto.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20)
+    setGuardandoTags(true)
+    try {
+      await api.patch(`/api/customers/${encodeURIComponent(customer.id)}`, { tags })
+      toast.success('Etiquetas guardadas.')
+      refresh()
+    } catch (cause) {
+      toast.error('No se pudieron guardar las etiquetas', cause?.message)
+    } finally { setGuardandoTags(false) }
+  }
   // Listas de precios disponibles para asignar a la ficha.
   const [listasPrecios, setListasPrecios] = useState([])
   const [asignandoLista, setAsignandoLista] = useState(false)
@@ -645,6 +696,14 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const dispositivos = orders.flatMap(order => (order.items || []).flatMap(item => (item.serials || []).map(serial => ({ serial, model: item.description, date: order.createdAt, orderNumber: order.orderNumber, warranty: warranties.find(warranty => warranty.serial === serial) || null }))))
   const ordenesActivas = orders.filter((order) => order.status === 'PENDING' || order.status === 'REGISTERED').length
   const ciudadCliente = (profile?.customer?.addresses || []).find((address) => address.city)?.city || profile?.customer?.addresses?.[0]?.city || ''
+  // Ficha completa (#160): antigüedad, RUC, impuestos, dirección y seguro.
+  const antiguedadDiasFicha = profile?.customer?.createdAt ? Math.max(0, Math.round((Date.now() - new Date(profile.customer.createdAt).getTime()) / 86400000)) : 0
+  const rucCliente = profile?.customer?.billingDocument || ''
+  const direccionPrincipal = (profile?.customer?.addresses || []).find((address) => address.isDefault) || profile?.customer?.addresses?.[0] || null
+  const pagaImpuestos = profile?.customer?.taxExempt !== true
+  const seguroActivo = profile?.customer?.insuranceEnabled === true
+  const seguroPct = profile?.customer?.insuranceRatePct !== null && profile?.customer?.insuranceRatePct !== undefined ? formatPercent(profile.customer.insuranceRatePct) : ''
+  const ultimasOrdenes = orders.slice(0, 5)
   const tabCounts = { pedidos: orders.length, cronologia: timeline.length, datos: notes.length + followUps.length }
 
   async function saveNote(event) {
@@ -1016,11 +1075,43 @@ export default function CustomerProfile({ customer, open, onClose }) {
             )}
           </div>
 
+          <div className="grid gap-2 rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm sm:grid-cols-2 lg:grid-cols-4" data-testid="perfil-datos-clave">
+            <p><span className="text-mute">Antigüedad:</span> <b>{antiguedadTexto(antiguedadDiasFicha)}</b></p>
+            <p><span className="text-mute">RUC:</span> <b>{rucCliente || '—'}</b></p>
+            <p><span className="text-mute">Paga impuestos:</span> <b>{pagaImpuestos ? 'Sí' : 'No (exento)'}</b></p>
+            <p><span className="text-mute">Seguro:</span> <b>{seguroActivo ? `Activo${seguroPct ? ` · ${seguroPct}%` : ' · % de la empresa'}` : 'Inactivo'}</b></p>
+            <p className="min-w-0 truncate sm:col-span-2 lg:col-span-4" title={direccionPrincipal?.address || ''}>
+              <span className="text-mute">Dirección:</span> <b>{direccionPrincipal ? `${direccionPrincipal.address}${direccionPrincipal.city ? ` · ${direccionPrincipal.city}` : ''}` : '—'}</b>
+            </p>
+            <p className="flex flex-wrap items-center gap-1.5 sm:col-span-2 lg:col-span-4">
+              <span className="text-mute">Etiquetas:</span>
+              {(profile.customer?.tags || []).length
+                ? (profile.customer.tags || []).map((tag) => <Badge key={tag} color="slate" className="w-fit whitespace-nowrap px-1.5 py-0 text-[10px]">{tag}</Badge>)
+                : <span className="text-mute">Sin etiquetas</span>}
+            </p>
+          </div>
+
+          {orders.length > 0 && (
+            <div className="rounded-xl border border-ink-600 bg-ink-800 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Últimas órdenes</p>
+                <button type="button" className="text-xs font-semibold text-fono-light transition hover:underline" onClick={() => setTab('pedidos')}>Ver todas ({orders.length})</button>
+              </div>
+              <ul className="mt-1 space-y-1 text-sm">
+                {ultimasOrdenes.map((order) => (
+                  <li key={order.id} className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="min-w-0 truncate"><b>{codigoPedido(order.orderNumber) || 'Pedido'}</b> <span className="text-xs text-mute">{fecha(order.createdAt)}</span></span>
+                    <span className="flex items-center gap-2"><span className="tabular-nums text-mute">{formatGs(order.totalPyg)}</span>{STATUS_BADGE(ORDER_STATUS, order.status)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {deuda > 0 && (
             <div className="rounded-xl border border-warn/30 bg-warn/5 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-warn">Saldo pendiente: {formatGs(deuda)}</p>
-                <Badge color="red">{ordenesConSaldo.length} {ordenesConSaldo.length === 1 ? 'pedido' : 'pedidos'}</Badge>
+                <p className="text-sm font-semibold text-warn">Saldo pendiente: {formatGs(deuda)}</p>                <Badge color="red">{ordenesConSaldo.length} {ordenesConSaldo.length === 1 ? 'pedido' : 'pedidos'}</Badge>
               </div>
               <div className="mt-2 overflow-x-auto" data-testid="perfil-deuda">
                 <div className={cn(GRID_DEUDA, 'px-1 pb-1 pt-1')}>
@@ -1368,6 +1459,39 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
           {tab === 'datos' && (
             <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3" data-testid="perfil-seguro">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Seguro del cliente</p>
+                  <p className="mt-0.5 text-xs text-mute">Con el seguro activo, sus ventas suman el porcentaje al costo real y ajustan el margen. El porcentaje de la empresa lo define Finanzas.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Toggle
+                    checked={seguroForm.enabled}
+                    disabled={!puedeResolver || guardandoSeguro}
+                    ariaLabel="Seguro del cliente activo"
+                    onChange={(next) => { setSeguroForm((form) => ({ ...form, enabled: next })); guardarSeguro(next) }}
+                  />
+                  <span className={cn('text-xs font-semibold', seguroForm.enabled ? 'text-ok' : 'text-mute')}>{seguroForm.enabled ? 'Activo' : 'Inactivo'}</span>
+                </div>
+              </div>
+              {seguroForm.enabled && (
+                <div className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
+                  <div className="w-44">
+                    <FormField label="Porcentaje del cliente" htmlFor="perfil-seguro-pct" hint="Vacío = usa el de la empresa.">
+                      <PercentField id="perfil-seguro-pct" value={seguroForm.pct} disabled={!puedeResolver || guardandoSeguro} onChange={(value) => setSeguroForm((form) => ({ ...form, pct: value }))} />
+                    </FormField>
+                  </div>
+                  {puedeResolver && <Button type="button" variant="outline" disabled={guardandoSeguro} onClick={() => guardarSeguro(true)}>{guardandoSeguro ? 'Guardando…' : 'Guardar porcentaje'}</Button>}
+                </div>
+              )}
+              <form onSubmit={guardarTags} className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600 bg-ink-800 p-3">
+                <div className="min-w-[16rem] flex-1">
+                  <FormField label="Etiquetas" htmlFor="perfil-tags" hint="Separadas por coma (hasta 20).">
+                    <Input id="perfil-tags" maxLength={200} value={tagsTexto} onChange={(event) => setTagsTexto(event.target.value)} placeholder="mayorista, prioridad" />
+                  </FormField>
+                </div>
+                <Button type="submit" variant="outline" disabled={guardandoTags}>{guardandoTags ? 'Guardando…' : 'Guardar etiquetas'}</Button>
+              </form>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold">Configuración comercial</p>
                 {puedeResolver && (

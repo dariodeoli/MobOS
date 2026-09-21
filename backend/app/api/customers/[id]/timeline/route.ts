@@ -10,9 +10,11 @@ const ESTADO_GARANTIA: Record<string, string> = { RECEIVED: 'Recibida', DIAGNOSI
 const TIPO_SEGUIMIENTO: Record<string, string> = { CALL: 'Llamada', WHATSAPP: 'WhatsApp', VISIT: 'Visita', OTHER: 'Seguimiento' }
 const TIPO_AUTORIZACION: Record<string, string> = { WHOLESALE: 'Mayorista', CREDIT: 'Crédito', CREDIT_DAYS: 'Días de crédito', DISCOUNT: 'Descuento' }
 const CAMPOS_ES: Record<string, string> = {
-  name: 'Nombre', document: 'Documento', phone: 'Teléfono', countryCode: 'Código de país', email: 'Correo',
+  name: 'Nombre', firstName: 'Primer nombre', secondName: 'Segundo nombre',
+  document: 'Documento', phone: 'Teléfono', countryCode: 'Código de país', email: 'Correo',
   notes: 'Nota interna', publicNote: 'Nota pública', tags: 'Etiquetas', pricingTier: 'Tipo de cliente',
   creditLimitPyg: 'Límite de crédito', creditDays: 'Días de crédito', priceListId: 'Lista de precios',
+  insuranceEnabled: 'Seguro del cliente', insuranceRatePct: 'Porcentaje de seguro',
   billingName: 'Razón social', billingDocument: 'RUC', addresses: 'Direcciones', taxExempt: 'Exento de impuestos',
 }
 // Acciones de auditoría con nombre legible; las de notas quedan afuera porque

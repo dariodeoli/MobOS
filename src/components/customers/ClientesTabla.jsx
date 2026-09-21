@@ -25,27 +25,28 @@ export const notaInterna = (notes) => {
 }
 
 export default function ClientesTabla({ rows, templates, onPerfil }) {
-  const [orden, setOrden] = useState({ key: 'cliente', dir: 'asc' })
+  // Sin orden de columna, respeta el orden del servidor (actividad reciente).
+  const [orden, setOrden] = useState(null)
   const toast = useToast()
   const [seleccionados, setSeleccionados] = useState([])
 
-  const ordenarPor = (key) => setOrden(current => current.key === key
+  const ordenarPor = (key) => setOrden(current => current?.key === key
     ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
     : { key, dir: key === 'pedidos' || key === 'total' ? 'desc' : 'asc' })
   const encabezado = (key, label, extra = '') => (
-    <button type="button" onClick={() => ordenarPor(key)} className={cn('flex items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore', orden.key === key ? 'text-fono-light' : 'text-mute', extra)}>
-      {label}<span className="shrink-0">{orden.key === key ? (orden.dir === 'asc' ? '↑' : '↓') : ''}</span>
+    <button type="button" onClick={() => ordenarPor(key)} className={cn('flex items-center gap-1 truncate text-left text-[10px] font-bold uppercase tracking-wider transition hover:text-fore', orden?.key === key ? 'text-fono-light' : 'text-mute', extra)}>
+      {label}<span className="shrink-0">{orden?.key === key ? (orden.dir === 'asc' ? '↑' : '↓') : ''}</span>
     </button>
   )
 
-  const filas = [...rows].sort((a, b) => {
+  const filas = orden ? [...rows].sort((a, b) => {
     const factor = orden.dir === 'asc' ? 1 : -1
     if (orden.key === 'cliente') return normalizarBusqueda(a.name).localeCompare(normalizarBusqueda(b.name), 'es') * factor
     if (orden.key === 'tipo') return (Number(Boolean(b.wholesale)) - Number(Boolean(a.wholesale))) * factor
     if (orden.key === 'pedidos') return ((a.stats?.orders || 0) - (b.stats?.orders || 0)) * factor
     if (orden.key === 'total') return ((a.stats?.totalSpentPyg || 0) - (b.stats?.totalSpentPyg || 0)) * factor
     return 0
-  })
+  }) : rows
 
   const telefonoDe = (row) => row.phones?.[0] || row.phone || ''
   const elegidas = () => filas.filter((row) => seleccionados.includes(row.id))

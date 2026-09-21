@@ -1,5 +1,16 @@
 import { InputError } from '../../../lib/payment-input'
 
+// Seguro del cliente (#160): porcentaje 0–100 con hasta 2 decimales. Devuelve
+// undefined si no vino, null si vino vacío y 'invalido' si no es válido (para
+// que la ruta responda el error).
+export function leerPorcentajeSeguro(value: unknown): number | null | undefined | 'invalido' {
+  if (value === undefined) return undefined
+  if (value === null || value === '') return null
+  const rate = Number(String(value).replace(',', '.'))
+  if (!Number.isFinite(rate) || rate < 0 || rate > 100 || Math.round(rate * 100) !== rate * 100) return 'invalido'
+  return rate
+}
+
 const clean = (value: unknown, max: number) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
 
 // Direcciones del cliente: hasta 10, con etiqueta, ciudad, departamento y país.
