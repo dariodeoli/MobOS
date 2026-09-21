@@ -733,6 +733,11 @@ test.describe('mini CRM de clientes', () => {
     const comentario = `Raya lateral visible solo al equipo ${marca}`
     const nota = await crmApi(page, `/api/customers/${clienteId}/notes`, { method: 'POST', body: JSON.stringify({ content: comentario }) })
     expect(nota.status).toBe(201)
+    // La nota pública se guarda en la ficha, pero el contrato de privacidad del
+    // portal (backend/tests/customer-portal.mjs) prohíbe exponerla.
+    const notaPublica = `Nota publica interna ${marca}`
+    const guardado = await crmApi(page, `/api/customers/${clienteId}`, { method: 'PATCH', body: JSON.stringify({ publicNote: notaPublica }) })
+    expect(guardado.status).toBe(200)
 
     await page.goto(`/clientes?cliente=${encodeURIComponent(clienteId)}`)
     const ficha = page.getByRole('dialog')
@@ -747,6 +752,9 @@ test.describe('mini CRM de clientes', () => {
     expect(token.body?.token).toBeTruthy()
     const publico = await crmApi(page, `/api/portal/${encodeURIComponent(token.body.token)}`)
     expect(publico.status).toBe(200)
-    expect(JSON.stringify(publico.body)).not.toContain(comentario)
+    const serializado = JSON.stringify(publico.body)
+    expect(serializado).not.toContain(comentario)
+    expect(serializado).not.toContain(notaPublica)
+    expect(serializado).not.toContain('publicNote')
   })
 })

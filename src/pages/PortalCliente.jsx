@@ -74,12 +74,6 @@ export default function PortalCliente() {
 
         {portal && (
           <div className="space-y-4">
-            {portal.cliente?.notaPublica && (
-              <section className="rounded-2xl border border-fono/25 bg-fono/5 p-4 text-sm">
-                <p className="text-xs font-bold uppercase tracking-wider text-mute">Nota de la tienda</p>
-                <p className="mt-1 whitespace-pre-wrap break-words">{portal.cliente.notaPublica}</p>
-              </section>
-            )}
             <section className={`rounded-2xl border p-5 text-center ${saldoFavor > 0 ? 'border-ok/30 bg-ok/5' : 'border-ink-600 bg-ink-900'}`}>
               <p className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-mute">
                 <Icon name="wallet" className="h-3.5 w-3.5" aria-hidden="true" /> Saldo a favor

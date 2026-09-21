@@ -20,7 +20,7 @@ async function buscarPortal(token: string) {
       level: true,
       tenantId: true,
       customerId: true,
-      customer: { select: { name: true, publicNote: true } },
+      customer: { select: { name: true } },
       tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
     },
   })
@@ -89,7 +89,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
   const payload: Record<string, unknown> = {
     level: portal.level,
     company: { name: portal.tenant?.name || null, logo: Boolean(portal.tenant?.logos?.length) },
-    customer: { name: portal.customer?.name || null, publicNote: portal.customer?.publicNote || null },
+    customer: { name: portal.customer?.name || null },
     balancePyg: Number(saldo[0]?.pending || 0n),
     dueDates: vencimientos,
     orders: orders.map(order => ({
