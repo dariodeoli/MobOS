@@ -16,6 +16,8 @@ const SEED = {
       reportedIssue: 'No carga y se apaga solo.', diagnosis: 'Batería agotada.', technicianName: 'Técnico demo', status: 'DIAGNOSTICO',
       pricePyg: 250000, costPyg: 120000, partsPyg: 90000, laborPyg: 20000, otherCostPyg: 10000,
       receivedAt: haceDias(3), checklist: { 'Batería': 'ok', 'Face ID': 'ok' },
+      // Nació de un caso de garantía (#224): el vínculo se conserva.
+      warrantyCaseId: 'demo-w-1',
     },
     {
       id: 'demo-os-2', serviceNumber: 'OS-#0002', customerName: 'Distribuidora del Este S.A.', customerId: 'demo-cliente-distribuidora', customerPhone: '0982555111', customerCountryCode: '+595',

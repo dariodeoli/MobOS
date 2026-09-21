@@ -297,7 +297,9 @@ test.describe('owner panel', () => {
 
   test('servicio técnico → crea la orden y avanza el pipeline', async ({ page }) => {
     await page.goto('/servicio')
-    await expect(page.getByRole('heading', { name: 'Servicio Técnico' })).toBeVisible()
+    // Sección unificada (#224): el taller es una de sus solapas.
+    await expect(page.getByRole('heading', { name: 'Servicio y Garantías' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Servicio', exact: true })).toBeVisible()
 
     const stamp = Date.now().toString(36)
     const cliente = `Taller ${stamp}`
@@ -1150,4 +1152,44 @@ test('filtros: el ultimo usado queda como predeterminado', async ({ page }) => {
   await page.getByRole('button', { name: 'Todos', exact: true }).click()
   await page.reload()
   await expect(page.getByRole('button', { name: 'Todos', exact: true })).toHaveAttribute('aria-pressed', 'true')
+})
+
+// #224: Garantías y Servicio Técnico son una sola sección; cada registro se
+// distingue por su tipo y una garantía puede pasar al taller conservando el
+// historial (la orden queda vinculada al caso).
+test('servicio y garantías: la garantía pasa al taller con su historial', async ({ page }) => {
+  await page.goto('/servicio')
+  const marca = Date.now()
+  const cliente = await crmApi(page, '/api/customers', { method: 'POST', body: JSON.stringify({ name: `Garantía Taller ${marca}` }) })
+  const garantia = await crmApi(page, '/api/warranties', { method: 'POST', body: JSON.stringify({ customerId: cliente.body.id, customerName: cliente.body.name, serial: `GT-${marca}`, description: 'iPhone 12 con batería inflada', diagnosis: 'Revisar batería' }) })
+  expect([200, 201]).toContain(garantia.status)
+  const garantiaId = Array.isArray(garantia.body) ? garantia.body[0]?.id : garantia.body?.id
+
+  // Una sola sección con pestañas: Todo | Servicio | Garantías.
+  const tabs = page.getByRole('group', { name: 'Ver servicio o garantías' })
+  await expect(tabs).toBeVisible()
+  await tabs.getByRole('button', { name: 'Todo', exact: true }).click()
+
+  const filaDe = (tipo) => page.locator(`[data-testid="servicio-garantia-fila"][data-tipo="${tipo}"]`).filter({ hasText: cliente.body.name })
+  await expect(filaDe('GARANTIA').getByText('Garantía', { exact: true })).toBeVisible()
+  await expect(filaDe('GARANTIA')).toContainText(`GT-${marca}`)
+  await page.screenshot({ path: '/tmp/qa224-todo-garantia.png' })
+
+  // Conversión: se crea la orden desde el caso y el vínculo queda audible.
+  await filaDe('GARANTIA').getByRole('button', { name: 'Pasar a servicio' }).click()
+  const dialogo = page.getByRole('dialog', { name: 'Pasar la garantía a servicio' })
+  await expect(dialogo.getByText(/conserva su historial/)).toBeVisible()
+  await dialogo.getByRole('button', { name: 'Pasar a servicio' }).click()
+  await expect(page.getByText(/quedó vinculada y el historial se conserva/)).toBeVisible()
+  await expect(filaDe('GARANTIA').getByText('En servicio')).toBeVisible()
+  await expect(filaDe('SERVICIO').getByText('Desde garantía')).toBeVisible()
+  await expect(filaDe('SERVICIO')).toContainText(`GT-${marca}`)
+  await page.screenshot({ path: '/tmp/qa224-todo-servicio.png' })
+
+  // La orden quedó ligada al caso y no se puede convertir dos veces.
+  const ordenes = await crmApi(page, '/api/service-orders')
+  const orden = (ordenes.body || []).find((row) => row.warrantyCaseId === garantiaId)
+  expect(orden?.warranty?.id).toBe(garantiaId)
+  const repetir = await crmApi(page, '/api/service-orders', { method: 'POST', body: JSON.stringify({ warrantyCaseId: garantiaId }) })
+  expect(repetir.status).toBe(409)
 })
