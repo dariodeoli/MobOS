@@ -44,6 +44,10 @@ model Tenant {
   purchaseCreditLimitPyg Int?
   // Porcentaje de venta bajo lista permitido sin autorización (default 10).
   belowListPct           Int?
+  // Seguro predeterminado de la empresa (#162): porcentaje sobre el costo del
+  // producto que se suma al costo real de cada venta para el margen. Null o 0
+  // lo desactiva; el seguro del producto o de la categoría tiene prioridad.
+  insurancePct           Int?
   // Fidelización: porcentaje del total de cada venta que se acredita como
   // puntos canjeables (1 punto = 1 Gs.). 0 apaga la fidelización.
   loyaltyPct             Int              @default(0)
@@ -112,6 +116,10 @@ model Tenant {
   suspendedSales          SuspendedSale[]
   commissionSettlements   CommissionSettlement[]
   deliverySettlements     DeliverySettlement[]
+  sifenDocuments          SifenDocument[]
+  privateCompanies        PrivateCompany[]
+  accountHolders          AccountHolder[]
+  cashAuditMarks          CashAuditMark[]
 
   @@index([archivedAt])
 }
@@ -311,6 +319,7 @@ model User {
   invitationsSent UserInvitation[] @relation("InvitationInviter")
   printBridgesCreated PrintBridge[] @relation("PrintBridgeCreatedBy")
   printJobsRequested  PrintJob[]    @relation("PrintJobRequestedBy")
+  cashAuditMarks      CashAuditMark[] @relation("CashAuditAuditedBy")
   ordersAssigned      Order[]       @relation("OrderDeliveryAssignedTo")
   paymentsCollected   Payment[]     @relation("PaymentCollectedBy")
   deliverySettlementsRendered DeliverySettlement[] @relation("DeliverySettlementRenderedBy")
@@ -1091,6 +1100,7 @@ model Order {
   storeCredits StoreCredit[]
   storeCreditUses StoreCreditUse[]
   loyaltyMovements LoyaltyMovement[]
+  sifenDocuments SifenDocument[]
 
   @@unique([tenantId, orderNumber])
   @@unique([tenantId, idempotencyKey])
@@ -1619,6 +1629,7 @@ enum PaymentMethod {
   CREDIT
   TRADE_IN
   PIX
+  CRYPTO
   STORE_CREDIT
 }
 
@@ -1636,6 +1647,7 @@ enum PaymentAccountKind {
   CARD
   TRADE_IN
   PIX
+  CRYPTO
 }
 
 enum CustomerPricing {
@@ -1732,6 +1744,20 @@ model PaymentAccount {
   bank          String?
   holder        String?
   accountNumber String?
+  // Datos del titular y del medio (#142): cédula/RUC del titular, procesadora
+  // o adquirente de tarjeta, llave Pix, referencia libre (USDT/canje) y
+  // etiqueta de la moneda cuando es personalizada.
+  document      String?
+  processor     String?
+  pixKey        String?
+  reference     String?
+  currencyLabel String?
+  // Titular registrado (#143) y empresa/persona jurídica dueña de la cuenta.
+  // `holder` sigue guardando el nombre compuesto para historial y búsquedas.
+  holderId      String?
+  holderProfile AccountHolder?     @relation(fields: [holderId], references: [id], onDelete: SetNull)
+  companyId     String?
+  company       PrivateCompany?    @relation(fields: [companyId], references: [id], onDelete: SetNull)
   currency      PaymentCurrency
   kind          PaymentAccountKind
   isActive      Boolean            @default(true)
@@ -1745,6 +1771,47 @@ model PaymentAccount {
   payments      Payment[]
   cashMovements CashMovement[]
   purchasePayments PurchasePayment[]
+
+  @@index([tenantId, isActive])
+  @@index([holderId])
+  @@index([companyId])
+}
+
+// Empresa o persona jurídica con datos privados (#143): nombre legal, RUC y
+// dirección legal. Vive separada del nombre fantasía, la dirección comercial y
+// la información pública de la tienda; se usa como titular de cuentas.
+model PrivateCompany {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  legalName    String
+  ruc          String?
+  legalAddress String?
+  notes        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  paymentAccounts PaymentAccount[]
+
+  @@index([tenantId, isActive])
+}
+
+// Socio/titular de una cuenta de cobro (#143): nombres en orden (1º, 2º y 3º),
+// apellidos (1º y 2º) y cédula/RUC. Se ofrece en transferencia, Pix y USDT.
+model AccountHolder {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  firstName      String
+  middleName     String?
+  otherName      String?
+  lastName       String
+  secondLastName String?
+  document       String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  paymentAccounts PaymentAccount[]
 
   @@index([tenantId, isActive])
 }
@@ -2472,4 +2539,74 @@ enum PrintJobState {
 enum PrintJobPath {
   LOCAL
   REMOTO
+}
+
+// Documento electrónico de SIFEN (#130, Fase 1). Guarda el XML, el CDC y el
+// estado por pedido. Sin certificado configurado la app sigue emitiendo
+// documentos no fiscales y esta tabla queda vacía: la emisión real es Fase 2.
+model SifenDocument {
+  id                String              @id @default(cuid())
+  tenantId          String
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderId           String
+  order             Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status            SifenDocumentStatus @default(DRAFT)
+  // Ambiente de SIFEN con el que se emitió (test | prod).
+  ambiente          String              @default("test")
+  tipoDocumento     Int                 @default(1)
+  establecimiento   String
+  puntoExpedicion   String
+  numero            Int
+  timbrado          String
+  // CDC de 44 dígitos; null mientras el borrador no se compone.
+  cdc               String?
+  // XML del DE (borrador sin firma hasta la Fase 2).
+  xml               String?
+  // Respuesta normalizada de SIFEN (código, mensaje y protocolo).
+  respuesta         Json?
+  // Último error de envío/consulta, en texto plano.
+  error             String?
+  enviadoAt         DateTime?
+  resueltoAt        DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Un DE por pedido y ambiente: reintentos y correcciones reutilizan la fila.
+  @@unique([orderId, ambiente])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@index([cdc])
+}
+
+enum SifenDocumentStatus {
+  DRAFT
+  SENT
+  APPROVED
+  REJECTED
+}
+
+// Auditoría de efectivo (#161): marca por operación de caja (cobro o
+// movimiento) con estado verificada/pendiente/con diferencia, observación y
+// usuario real que auditó. La operación vive en Payment o CashMovement.
+model CashAuditMark {
+  id            String          @id @default(cuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  operationKind String
+  operationId   String
+  status        CashAuditStatus @default(PENDING)
+  note          String?
+  auditedById   String?
+  auditedBy     User?           @relation("CashAuditAuditedBy", fields: [auditedById], references: [id], onDelete: SetNull)
+  auditedAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([tenantId, operationKind, operationId])
+  @@index([tenantId, status])
+}
+
+enum CashAuditStatus {
+  VERIFIED
+  PENDING
+  DIFFERENCE
 }

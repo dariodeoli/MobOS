@@ -8,7 +8,9 @@ import { fechaClave, gs } from '@/utils/calculos'
 import { parseGsInput } from '@/utils/moneda'
 import { Card, Button, Input, Label, Select, Badge, EmptyState, MoneyInput, IconAction } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
+import ComboBuscador from '@/components/shared/ComboBuscador'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
+import { KIND_LABELS } from '@/lib/paymentAccounts'
 
 const EMPTY = () => ({ originalAmount: '', description: '', date: fechaClave(), currency: 'PYG', exchangeRatePyg: '1', accountId: '', kind: 'EXPENSE', counterparty: '', reference: '', dueAt: '' })
 const KINDS = { EXPENSE: 'Gasto', CHEQUE: 'Cheque emitido/cobrado', SUPPLIER_ADVANCE: 'Adelanto a proveedor', TRANSFER: 'Transferencia', OWNER_WITHDRAWAL: 'Retiro del dueño', ADJUSTMENT: 'Ajuste' }
@@ -44,6 +46,14 @@ export default function Gastos() {
   useEffect(() => { load() }, [esDemo, load])
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }))
   const activeAccounts = accounts.filter(account => account.isActive && account.currency === form.currency)
+  // Buscador de cuentas (#141): por nombre, banco, procesadora, titular,
+  // empresa o número; el detalle muestra con qué se identifica cada una.
+  const opcionesCuentas = activeAccounts.map(account => ({
+    value: account.id,
+    label: account.name,
+    detail: [account.bank || account.processor, account.holder, account.accountNumber].filter(Boolean).join(' · '),
+    badge: KIND_LABELS[account.kind] || account.kind,
+  }))
 
   async function save(event) {
     event.preventDefault(); setMessage('')
@@ -71,14 +81,14 @@ export default function Gastos() {
       <h2 className="font-bold">Registrar salida, cheque o adelanto</h2>
       <p className="mt-1 text-sm text-mute">La cotización queda congelada al guardar. Los cheques quedan pendientes hasta cobrarse o anularse.</p>
       {message && <p role="alert" className="mt-3 rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{message}</p>}
-      <form onSubmit={save} className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+      <form onSubmit={save} className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         <div><Label htmlFor="monto-gasto">Monto {form.currency === 'PYG' ? '(Gs)' : `(${form.currency})`}</Label><MoneyInput id="monto-gasto" required currency={form.currency} value={form.originalAmount} onValueChange={value => set('originalAmount', value)} placeholder={form.currency === 'PYG' ? '250.000' : '0,00'} /></div>
         <div><Label htmlFor="moneda-gasto">Moneda</Label><CurrencySelect id="moneda-gasto" value={form.currency} onChange={event => setForm(current => ({ ...current, currency: event.target.value, accountId: '', originalAmount: '', exchangeRatePyg: event.target.value === 'PYG' ? '1' : current.exchangeRatePyg }))} /></div>
-        {form.currency !== 'PYG' && <div><Label htmlFor="cotizacion-congelada-en-gs">Cotización congelada en Gs.</Label><MoneyInput id="cotizacion-congelada-en-gs" required currency="USD" symbol="Gs." value={form.exchangeRatePyg} onValueChange={value => set('exchangeRatePyg', value)} placeholder="7.500" /></div>}
+        {form.currency !== 'PYG' && <div><Label htmlFor="cotizacion-congelada-en-gs">Cotización en Gs.</Label><MoneyInput id="cotizacion-congelada-en-gs" required currency="USD" symbol="Gs." value={form.exchangeRatePyg} onValueChange={value => set('exchangeRatePyg', value)} placeholder="7.500" /></div>}
         <div><Label htmlFor="tipo">Tipo</Label><Select id="tipo" value={form.kind} onChange={event => set('kind', event.target.value)}>{Object.entries(KINDS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
-        <div><Label htmlFor="cuenta-opcional">Cuenta (opcional)</Label><Select id="cuenta-opcional" value={form.accountId} onChange={event => set('accountId', event.target.value)}><option value="">Sin cuenta asignada</option>{activeAccounts.map(account => <option key={account.id} value={account.id}>{account.name}</option>)}</Select></div>
-        {form.kind === 'CHEQUE' && <div><Label htmlFor="fecha-prevista-de-cobro">Fecha prevista de cobro</Label><Input id="fecha-prevista-de-cobro" type="date" value={form.dueAt} onChange={event => set('dueAt', event.target.value)} /></div>}
-        <div className="md:col-span-2"><Label htmlFor="descripcion">Descripción</Label><Input id="descripcion" required value={form.description} onChange={event => set('description', event.target.value)} placeholder="Ej. Seguro de mercadería" /></div>
+        <div className="col-span-2"><Label htmlFor="cuenta-opcional">Cuenta (opcional)</Label><ComboBuscador id="cuenta-opcional" value={activeAccounts.find(account => account.id === form.accountId)?.name || ''} options={opcionesCuentas} onChange={() => set('accountId', '')} onSelect={opcion => set('accountId', opcion.value)} placeholder="Buscá por nombre, banco, titular o empresa" emptyLabel="Sin cuentas para esta moneda." /></div>
+        {form.kind === 'CHEQUE' && <div><Label htmlFor="fecha-prevista-de-cobro">Fecha de cobro</Label><Input id="fecha-prevista-de-cobro" type="date" value={form.dueAt} onChange={event => set('dueAt', event.target.value)} /></div>}
+        <div className="col-span-2"><Label htmlFor="descripcion">Descripción</Label><Input id="descripcion" required value={form.description} onChange={event => set('description', event.target.value)} placeholder="Ej. Seguro de mercadería" /></div>
         <div><Label htmlFor="contraparte">Contraparte</Label><Input id="contraparte" value={form.counterparty} onChange={event => set('counterparty', event.target.value)} placeholder="Proveedor o beneficiario" /></div>
         <div><Label htmlFor="referencia">Referencia</Label><Input id="referencia" value={form.reference} onChange={event => set('reference', event.target.value)} placeholder="N.º transferencia o cheque" /></div>
         {requiereAutorizacion && !esDemo && (

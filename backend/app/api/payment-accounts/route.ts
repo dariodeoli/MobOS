@@ -5,17 +5,17 @@ import { error, json } from '../../../lib/http'
 import { accountSnapshot, decimalInput, InputError, objectInput, textInput } from '../../../lib/payment-input'
 
 function accountData(input: Record<string, unknown>, create: boolean) {
-  const data: { name?: string; bank?: string | null; holder?: string | null; accountNumber?: string | null; currency?: PaymentCurrency; kind?: PaymentAccountKind; isActive?: boolean; feePercent?: Prisma.Decimal; discountPct?: Prisma.Decimal; settlementDays?: number } = {}
+  const data: { name?: string; bank?: string | null; holder?: string | null; accountNumber?: string | null; document?: string | null; processor?: string | null; pixKey?: string | null; reference?: string | null; currencyLabel?: string | null; holderId?: string | null; companyId?: string | null; currency?: PaymentCurrency; kind?: PaymentAccountKind; isActive?: boolean; feePercent?: Prisma.Decimal; discountPct?: Prisma.Decimal; settlementDays?: number } = {}
   if (create || input.name !== undefined) data.name = textInput(input.name, 'name', 200)
-  for (const field of ['bank', 'holder', 'accountNumber'] as const) {
-    if (input[field] !== undefined) data[field] = input[field] === null || input[field] === '' ? null : textInput(input[field], field, 200)
+  for (const field of ['bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel'] as const) {
+    if (input[field] !== undefined) data[field] = input[field] === null || input[field] === '' ? null : textInput(input[field], field, field === 'currencyLabel' ? 12 : 200)
   }
   if (create || input.currency !== undefined) {
     if (!['PYG', 'USD', 'BRL', 'EUR', 'USDT'].includes(input.currency as string)) throw new InputError('Moneda inválida.')
     data.currency = input.currency as PaymentCurrency
   }
   if (create || input.kind !== undefined) {
-    if (!['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX'].includes(input.kind as string)) throw new InputError('Tipo de cuenta inválido. CREDIT solo es un método legacy.')
+    if (!['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX', 'CRYPTO'].includes(input.kind as string)) throw new InputError('Tipo de cuenta inválido. CREDIT solo es un método legacy.')
     data.kind = input.kind as PaymentAccountKind
   }
   if (input.isActive !== undefined) {
@@ -53,6 +53,33 @@ function validateTransfer(account: { kind?: PaymentAccountKind; bank?: string | 
   if (!requireDetails) return
   textInput(account.holder, 'holder', 200)
   textInput(account.accountNumber, 'accountNumber', 200)
+}
+
+// Cada medio tiene su moneda (#142): Pix cobra en reales y Cripto/USDT en
+// dólares. El resto (efectivo multinmoneda incluido) elige libremente.
+function validateCurrency(kind: PaymentAccountKind | undefined, currency: PaymentCurrency | undefined) {
+  if (kind === 'PIX' && currency !== 'BRL') throw new InputError('Pix cobra en reales (BRL).')
+  if (kind === 'CRYPTO' && currency !== 'USD') throw new InputError('Cripto/USDT cobra en dólares (USD).')
+}
+
+// Titular y empresa asociados (#143): solo se aceptan si existen en la empresa.
+async function validarPartes(tx: Prisma.TransactionClient, tenantId: string, data: Record<string, unknown>, body: Record<string, unknown>) {
+  if (body.holderId !== undefined) {
+    if (body.holderId === null || body.holderId === '') data.holderId = null
+    else {
+      const id = textInput(body.holderId, 'holderId', 200)
+      if (!(await tx.accountHolder.findFirst({ where: { id, tenantId }, select: { id: true } }))) throw new InputError('El titular no existe en la empresa.')
+      data.holderId = id
+    }
+  }
+  if (body.companyId !== undefined) {
+    if (body.companyId === null || body.companyId === '') data.companyId = null
+    else {
+      const id = textInput(body.companyId, 'companyId', 200)
+      if (!(await tx.privateCompany.findFirst({ where: { id, tenantId }, select: { id: true } }))) throw new InputError('La empresa no existe.')
+      data.companyId = id
+    }
+  }
 }
 
 // Cuentas predeterminadas (#118): los medios con logo de
@@ -107,8 +134,10 @@ async function write(request: Request, create: boolean) {
     const data = accountData(body, create)
     const tenantId = session.user.tenantId
     const result = await prisma.$transaction(async tx => {
+      await validarPartes(tx, tenantId, data, body)
       if (create) {
         validateTransfer(data, true)
+        validateCurrency(data.kind, data.currency)
         const account = await tx.paymentAccount.create({ data: { ...data, tenantId, name: data.name!, currency: data.currency!, kind: data.kind! } })
         await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'PAYMENT_ACCOUNT_CREATED', entity: 'PaymentAccount', entityId: account.id, metadata: { after: accountSnapshot(account) } } })
         return account
@@ -119,6 +148,7 @@ async function write(request: Request, create: boolean) {
       if (!before) throw new InputError('Cuenta no encontrada.', 404)
       if (!Object.keys(data).length) throw new InputError('Faltan cambios.')
       validateTransfer({ ...before, ...data }, false)
+      validateCurrency(data.kind ?? before.kind, data.currency ?? before.currency)
       const account = await tx.paymentAccount.update({ where: { id }, data })
       await tx.auditLog.create({ data: { tenantId, userId: session.user.id, action: 'PAYMENT_ACCOUNT_UPDATED', entity: 'PaymentAccount', entityId: id, metadata: { before: accountSnapshot(before), after: accountSnapshot(account) } } })
       return account

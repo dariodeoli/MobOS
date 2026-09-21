@@ -8,7 +8,7 @@ import { getAvatarDataUrl, olvidarAvatar } from '@/lib/userAvatar'
 import { promptLogo } from '@/lib/logoPrompt'
 import { getCompanyContext, sessionApi } from '@/lib/api/session'
 import { comprimirImagen } from '@/utils/imagen'
-import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, useToast } from '@/components/ui'
+import { Button, Card, Badge, ConfirmDialog, Eyebrow, FormField, Input, Label, Modal, MoneyInput, PasswordInput, PinInput, Toggle, useToast } from '@/components/ui'
 import { formatGs } from '@/utils/moneda'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
@@ -18,6 +18,7 @@ import RucField from '@/components/shared/RucField'
 import PercentField, { parsePercent } from '@/components/shared/PercentField'
 import InstagramField, { normalizarInstagram } from '@/components/shared/InstagramField'
 import UsoEquipo from '@/components/control/UsoEquipo'
+import DatosPrivados from '@/components/control/DatosPrivados'
 import { ROLE_LABELS } from '@/lib/roles'
 
 function fmtDate(value) {
@@ -62,6 +63,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   const [limiteBajoLista, setLimiteBajoLista] = useState('')
   const [limiteFidelizacion, setLimiteFidelizacion] = useState('')
   const [limiteMora, setLimiteMora] = useState('')
+  const [seguroPct, setSeguroPct] = useState('')
   const [password, setPassword] = useState('')
   const [archiveReason, setArchiveReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -173,7 +175,20 @@ export default function Config({ seccion = 'negocio' } = {}) {
     setLimiteBajoLista(String(account.tenant.belowListPct ?? 10))
     setLimiteFidelizacion(String(account.tenant.loyaltyPct ?? 0))
     setLimiteMora(account.tenant.collectionLateFeeBpPerDay ? String(account.tenant.collectionLateFeeBpPerDay / 100).replace('.', ',') : '')
+    setSeguroPct(account.tenant.insurancePct ? String(account.tenant.insurancePct) : '')
   }, [account])
+
+  // Seguro de ventas de la empresa (#162): % sobre el costo que se suma al
+  // costo real de cada venta nueva y afecta el margen.
+  async function guardarSeguro() {
+    if (busy) return
+    setBusy(true); setFailure(''); setNotice('')
+    try {
+      const data = await api.patch('/api/account', { action: 'updateLimits', insurancePct: seguroPct.trim() === '' ? null : Number(seguroPct) })
+      setAccount(current => current ? { ...current, tenant: { ...current.tenant, insurancePct: data.insurancePct ?? null } } : current)
+      setNotice('Seguro de ventas guardado.')
+    } catch (error) { setFailure(error?.message || 'No se pudo guardar el seguro.') } finally { setBusy(false) }
+  }
 
   async function guardarNumeracion() {
     if (busy) return
@@ -207,6 +222,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
   }
   return (
     <div className="space-y-4">
+      {failure && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{failure}</p>}{notice && <p role="status" className="rounded-xl border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{notice}</p>}
       {seccion === 'negocio' && <>
       <Card className="space-y-3">
         <div>
@@ -239,6 +255,14 @@ export default function Config({ seccion = 'negocio' } = {}) {
             <FormField label="Fidelización: puntos por venta (%)" hint="Porcentaje del total de cada venta que queda como puntos canjeables (1 punto = 1 Gs.). 0 la apaga." htmlFor="limite-fidelizacion">
               <PercentField id="limite-fidelizacion" max={100} disabled={busy} value={limiteFidelizacion} onChange={setLimiteFidelizacion} placeholder="0" />
             </FormField>
+          </div>
+          <div className="flex flex-wrap items-end gap-3 rounded-xl border border-ink-600/70 bg-ink-800/30 p-3">
+            <span className="flex items-center gap-2 text-sm"><Toggle id="seguro-toggle" checked={seguroPct.trim() !== '' && Number(seguroPct) > 0} onChange={(on) => setSeguroPct(on ? (seguroPct && Number(seguroPct) > 0 ? seguroPct : '25') : '')} label="Aplica seguro" /><span>Seguro de ventas</span></span>
+            <FormField label="Porcentaje sobre el costo (%)" htmlFor="seguro-pct" hint="Costo real = costo + seguro. Ej.: costo 100.000 y 25% → 125.000; el margen baja en 25.000.">
+              <PercentField id="seguro-pct" max={100} disabled={busy || seguroPct.trim() === ''} value={seguroPct} onChange={setSeguroPct} placeholder="25" />
+            </FormField>
+            <Button type="button" variant="outline" disabled={busy} onClick={guardarSeguro}>Guardar seguro</Button>
+            <p className="text-xs text-mute">Se aplica a las ventas nuevas; el producto o la categoría pueden tener su propio porcentaje.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button type="button" disabled={busy || !limiteGasto || !limiteCompra || limiteBajoLista === '' || limiteFidelizacion === ''} onClick={guardarLimites}>Guardar límites</Button>
@@ -286,6 +310,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
           </div>
           {logoError && <p role="alert" className="text-sm text-bad">{logoError}</p>}
         </Card>}
+        {esDueno && <DatosPrivados />}
         <SeccionTiendas account={account} />
         <SeccionInvitaciones />
         <IdentidadCuenta tenant={account?.tenant} reauthValidUntil={account?.reauthValidUntil} onReauthValid={(validUntil) => setAccount(current => current ? { ...current, reauthValidUntil: validUntil } : current)} />
@@ -307,7 +332,6 @@ export default function Config({ seccion = 'negocio' } = {}) {
 
         {esDueno && <Card className="space-y-3 border-bad/30"><div><h2 className="font-semibold text-bad">Eliminar empresa definitivamente</h2><p className="mt-1 text-sm text-mute">Borra la empresa y todo su historial: ventas, clientes, pagos, stock, integrantes y auditoría. No se puede deshacer ni recuperar. Si solo querés dejar de usarla por un tiempo, usá <b className="text-fore">Archivar empresa</b>: se conserva todo y podés restaurarla.</p></div><Button variant="outline" onClick={() => { setFailure(''); setEliminarAbierto(true) }} disabled={busy || !account?.reauthValidUntil} className="border-bad/50 text-bad hover:bg-bad/10">Eliminar empresa</Button></Card>}
         {esDueno && !account?.reauthValidUntil && <p className="text-xs text-mute">Confirmá tu identidad arriba para habilitar el archivado y la eliminación de la empresa.</p>}
-        {failure && <p role="alert" className="rounded-xl border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{failure}</p>}{notice && <p role="status" className="rounded-xl border border-ok/30 bg-ok/10 p-3 text-sm text-ok">{notice}</p>}
       </>}
       <DialogoDestructivo
         open={cerrarCuentaAbierto}

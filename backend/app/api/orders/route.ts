@@ -246,8 +246,9 @@ export async function POST(request: Request) {
   // de tipo BELOW_LIST_PRICE que pida el vendedor desde el carrito. Se valida
   // acá para fallar temprano y se consume dentro de la transacción. Hasta el
   // porcentaje configurado por la empresa (default 10%) no pide autorización.
-  const limitesEmpresa = await prisma.tenant.findUnique({ where: { id: tenant }, select: { belowListPct: true, loyaltyPct: true } })
+  const limitesEmpresa = await prisma.tenant.findUnique({ where: { id: tenant }, select: { belowListPct: true, loyaltyPct: true, insurancePct: true } })
   const belowListPct = Number(limitesEmpresa?.belowListPct ?? DEFAULT_BELOW_LIST_PCT)
+  const insurancePct = Math.min(100, Math.max(0, Number(limitesEmpresa?.insurancePct ?? 0)))
   // Fidelización: 0 (default) la deja apagada y la venta no cambia en nada.
   const loyaltyPct = Math.min(100, Math.max(0, Number(limitesEmpresa?.loyaltyPct ?? 0)))
   let priceAuthorization: { id: string; maxDiscountPyg: number } | null = null
@@ -403,16 +404,19 @@ export async function POST(request: Request) {
             if (!Number.isSafeInteger(belowListPyg) || !Number.isSafeInteger(belowListBasePyg)) throw new Error('Diferencia bajo lista fuera de rango.')
           }
           const policy = product.category ? await tx.costPolicy.findFirst({ where: { tenantId: tenant, category: product.category, isActive: true }, select: { insuranceRate: true } }) : null
-          // Precedencia: producto > seguro del cliente > política por categoría
-          // (helper compartido con FIN #162, que define el default de empresa).
+          // Precedencia de la tasa (#160): producto > seguro del cliente (con
+          // el default de la empresa) > política por categoría.
           const rate = resolveInsuranceRate({
             productRate: product.insuranceRate,
             customerEnabled: customerInsurance.enabled,
             customerRate: customerInsurance.ratePct,
             categoryRate: policy?.insuranceRate,
+            companyDefaultPct: insurancePct,
           })
-          if (!soldWithoutInsurance && rate > 0) {
-            insurancePyg = Math.round((price * rate) / 100)
+          // Base de cálculo de FIN (#162): el seguro es un porcentaje del costo
+          // del producto; costo real = costo + seguro.
+          if (!soldWithoutInsurance && rate > 0 && baseUnitCostPyg !== undefined) {
+            insurancePyg = Math.round((baseUnitCostPyg * rate) / 100)
             if (!safeInt(insurancePyg)) throw new InputError('El seguro calculado es inválido.')
           }
           const combinedCost = (baseUnitCostPyg ?? 0) + insurancePyg + extraCostPyg

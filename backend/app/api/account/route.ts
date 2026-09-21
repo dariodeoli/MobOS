@@ -148,6 +148,17 @@ export async function PATCH(request: Request) {
       // borra el valor: se omite y queda como estaba.
       const loyaltyPct = body.loyaltyPct === undefined || body.loyaltyPct === null || body.loyaltyPct === '' ? undefined : Number(body.loyaltyPct)
       if (loyaltyPct !== undefined && (!Number.isSafeInteger(loyaltyPct) || loyaltyPct < 0 || loyaltyPct > 100)) throw new Error('El porcentaje de fidelización debe ser un entero entre 0 y 100.')
+      // Seguro de ventas de la empresa (#162): porcentaje entero sobre el costo
+      // del producto. Null o vacío lo desactiva.
+      let insurancePct: number | null | undefined
+      if (body.insurancePct !== undefined) {
+        if (body.insurancePct === null || body.insurancePct === '') insurancePct = null
+        else {
+          const pct = Number(body.insurancePct)
+          if (!Number.isSafeInteger(pct) || pct < 0 || pct > 100) throw new Error('El seguro debe ser un entero entre 0 y 100.')
+          insurancePct = pct === 0 ? null : pct
+        }
+      }
       // Recargo diario por mora: porcentaje con hasta dos decimales (0–100).
       // Vacío o 0 desactiva el recargo (solo se informan los días de atraso).
       let collectionLateFeeBpPerDay: number | null | undefined
@@ -160,7 +171,7 @@ export async function PATCH(request: Request) {
           collectionLateFeeBpPerDay = bp === 0 ? null : bp
         }
       }
-      if (expenseLimitPyg === undefined && purchaseCreditLimitPyg === undefined && belowListPct === undefined && loyaltyPct === undefined && collectionLateFeeBpPerDay === undefined) return error('Indicá al menos un límite para actualizar.', 400)
+      if (expenseLimitPyg === undefined && purchaseCreditLimitPyg === undefined && belowListPct === undefined && loyaltyPct === undefined && collectionLateFeeBpPerDay === undefined && insurancePct === undefined) return error('Indicá al menos un límite para actualizar.', 400)
       const updated = await prisma.$transaction(async tx => {
         const tenant = await tx.tenant.update({
           where: { id: session.user.tenantId },
@@ -170,10 +181,11 @@ export async function PATCH(request: Request) {
             ...(belowListPct === undefined ? {} : { belowListPct }),
             ...(loyaltyPct === undefined ? {} : { loyaltyPct }),
             ...(collectionLateFeeBpPerDay === undefined ? {} : { collectionLateFeeBpPerDay }),
+            ...(insurancePct === undefined ? {} : { insurancePct }),
           },
-          select: { expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true, loyaltyPct: true, collectionLateFeeBpPerDay: true },
+          select: { expenseLimitPyg: true, purchaseCreditLimitPyg: true, belowListPct: true, loyaltyPct: true, collectionLateFeeBpPerDay: true, insurancePct: true },
         })
-        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_AUTHORIZATION_LIMITS_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { expenseLimitPyg: tenant.expenseLimitPyg, purchaseCreditLimitPyg: tenant.purchaseCreditLimitPyg, belowListPct: tenant.belowListPct, loyaltyPct: tenant.loyaltyPct, collectionLateFeeBpPerDay: tenant.collectionLateFeeBpPerDay } } })
+        await tx.auditLog.create({ data: { tenantId: session.user.tenantId, userId: session.user.id, action: 'TENANT_AUTHORIZATION_LIMITS_UPDATED', entity: 'Tenant', entityId: session.user.tenantId, metadata: { expenseLimitPyg: tenant.expenseLimitPyg, purchaseCreditLimitPyg: tenant.purchaseCreditLimitPyg, belowListPct: tenant.belowListPct, loyaltyPct: tenant.loyaltyPct, collectionLateFeeBpPerDay: tenant.collectionLateFeeBpPerDay, insurancePct: tenant.insurancePct } } })
         return tenant
       })
       return json({ ok: true, ...updated })

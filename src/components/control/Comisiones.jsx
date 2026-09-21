@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { api, API_URL } from '@/lib/api/client'
-import { Button, Card, ConfirmDialog, EmptyState, Select, Input, Badge, Modal, Skeleton, useToast } from '@/components/ui'
+import { Button, Card, ConfirmDialog, EmptyState, Input, Badge, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import ComboBuscador from '@/components/shared/ComboBuscador'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { gs } from '@/utils/calculos'
 import { printHtml } from '@/utils/printHtml'
@@ -79,6 +80,11 @@ export default function Comisiones() {
   const [qr, setQr] = useState('')
   const [qrError, setQrError] = useState('')
   const [imprimiendoId, setImprimiendoId] = useState(null)
+
+  // Buscador de vendedores (#141): resultados en tiempo real por nombre, correo
+  // o rol, con la misma mecánica que el buscador de productos.
+  const opcionesVendedores = usuarios.map(usuario => ({ value: usuario.id, label: usuario.name, detail: [usuario.email, usuario.role].filter(Boolean).join(' · ') }))
+  const nombreVendedor = (id) => usuarios.find(usuario => usuario.id === id)?.name || ''
 
   const cargar = useCallback(async () => {
     setError('')
@@ -210,10 +216,7 @@ export default function Comisiones() {
         <form onSubmit={crear} className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-end">
           <div className="flex-1">
             <span className="block text-[10px] font-bold uppercase text-mute mb-1">Vendedor</span>
-            <Select aria-label="Vendedor de la regla" value={nueva.userId} onChange={event => setNueva({ ...nueva, userId: event.target.value })} required>
-              <option value="">Elegí el vendedor</option>
-              {usuarios.map(usuario => <option key={usuario.id} value={usuario.id}>{usuario.name} · {usuario.role}</option>)}
-            </Select>
+            <ComboBuscador id="comision-vendedor" ariaLabel="Vendedor de la regla" value={nombreVendedor(nueva.userId)} options={opcionesVendedores} onChange={() => setNueva({ ...nueva, userId: '' })} onSelect={opcion => setNueva({ ...nueva, userId: opcion.value })} placeholder="Buscá por nombre, correo o rol" required emptyLabel="Sin vendedores con esa búsqueda." />
           </div>
           <div className="sm:w-36">
             <span className="block text-[10px] font-bold uppercase text-mute mb-1">% comisión</span>
@@ -263,10 +266,7 @@ export default function Comisiones() {
         <form onSubmit={cerrarLiquidacion} className="flex flex-col gap-3 mb-4 lg:flex-row lg:items-end">
           <div className="flex-1">
             <span className="block text-[10px] font-bold uppercase text-mute mb-1">Vendedor</span>
-            <Select aria-label="Vendedor de la liquidación" value={periodo.sellerId} onChange={event => setPeriodo({ ...periodo, sellerId: event.target.value })} required>
-              <option value="">Elegí el vendedor</option>
-              {usuarios.map(usuario => <option key={usuario.id} value={usuario.id}>{usuario.name} · {usuario.role}</option>)}
-            </Select>
+            <ComboBuscador id="liquidacion-vendedor" ariaLabel="Vendedor de la liquidación" value={nombreVendedor(periodo.sellerId)} options={opcionesVendedores} onChange={() => setPeriodo({ ...periodo, sellerId: '' })} onSelect={opcion => setPeriodo({ ...periodo, sellerId: opcion.value })} placeholder="Buscá por nombre, correo o rol" required emptyLabel="Sin vendedores con esa búsqueda." />
           </div>
           <div className="lg:w-40">
             <span className="block text-[10px] font-bold uppercase text-mute mb-1">Desde</span>
