@@ -187,10 +187,15 @@ patrón de uso de cada familia y un ejemplo corto.
   Los bloques de vacío van con `EmptyState` (`compact` dentro de tablas y
   paneles); no se arma la caja ni el texto centrado a mano.
 - **Aviso inline:** el mensaje de resultado pegado al flujo (error de un
-  formulario, confirmación de un guardado) va con `Aviso` (`ui/index.jsx`):
-  `tono="error"` (role `alert`, borde/fondo rojo) u `tono="ok"` (role `status`);
-  `compact` para el tamaño chico y `className` solo para espaciado o radio.
-  Prohibido copiar el `<p>` con `border-bad/30 bg-bad/10` por pantalla.
+  formulario, confirmación de un guardado, aviso preventivo) va con `Aviso`
+  (`ui/index.jsx`): `tono="error"` (role `alert`), `tono="ok"` o `tono="warn"`
+  (role `status`), `compact` para el tamaño chico y `como="div"` cuando el
+  contenido es estructurado (ícono, botón de reintentar); `className` solo para
+  espaciado, radio o layout. Prohibido copiar el `<p>`/`<div>` con
+  `border-bad/30 bg-bad/10` por pantalla.
+  - **Carga:** los placeholders de carga van con `Skeleton`; no se repite
+    `animate-pulse` + fondo en cada pantalla (las pulsaciones decorativas de un
+    ícono o un punto no son skeletons).
 - Avisos de modo (**test/demo/producción**) visibles y en un solo lugar.
 - Banners y avisos inline compartidos; prohibido repetir el mismo aviso por
   pantalla ni duplicar estados.

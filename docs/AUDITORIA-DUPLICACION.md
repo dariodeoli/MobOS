@@ -61,6 +61,18 @@ un `Gs.` de impresión (PRN) y los `<textarea>` de DSN.
 Duplicación pendiente medida: **10 → 6 usos** (`Gs.` de impresión en PRN y los
 5 `<textarea>` de DSN). El resto del tablero quedó en cero.
 
+### Lote 5 — Aviso completo, skeletons y avisos que faltaban (21-09)
+
+| Objeto | Dónde vive | Antes (evidencia) | Después |
+| --- | --- | --- | --- |
+| `Aviso` (completado) | `src/components/ui/index.jsx` | Faltaba el tono **warn** (30 banners con `border-warn/30 bg-warn/10`, 9 con texto de tono) y el contenedor para el **aviso con estructura** (6 casos con ícono o botón de reintentar que no podían ser un `<p>`) | `tono="warn"` + `como="div"`; 12 sitios migrados (Login, SellerData, Campañas, Kardex, IMEIcheck, Pagos, Paso de cobro, importación CSV, Comprobante, Inventario, Compras, panel y landing); la confirmación post-venta del POS también |
+| `Skeleton` (adopción) | `src/components/ui/index.jsx` | **9 placeholders de carga** hechos a mano con `animate-pulse` + fondo propio (SellerData, PortalUI, Campañas, UnidadDetalle, PedidoDetalle) | Todos pasan por `Skeleton` conservando forma y color; quedan solo pulsos decorativos (ícono de éxito, punto de estado) |
+
+Duplicación pendiente medida: **6 usos** sin cambios (PRN + DSN), pero el
+tablero quedó sin los avisos y las cargas duplicadas. Los patrones que quedan
+para revisar están listados en el script (`bg-warn/5`, notas neutras con borde
+warn y la celda de identidad de 13 px que espera a DSN).
+
 ### Identidad (#211) — sin duplicar
 
 Tras los últimos merges, la identidad está repartida así: `Avatar` compartido
@@ -122,13 +134,8 @@ para DSN (#211), que ya tiene el inventario y los call sites.
    mapas **internos con badge** (`CustomerProfile.jsx:45/63`, `label` + `color`
    con más estados) y el `FULFILLMENT` de `lib/printing/tickets.js` (PRN).
 
-2. **Aviso con estructura** (ícono o botón "Reintentar"): 6 lugares repiten el
-   mismo contenedor con `role="alert"` y contenido hijo
-   (`ventas/SellerData.jsx:68`, `customers/CampanasClientes.jsx:118`,
-   `productos/KardexProducto.jsx:131`, `pages/Login.jsx:318/324`,
-   `control/DatosPrivados.jsx:84`, `control/PaymentAccounts.jsx:252`). Necesita
-   que `Aviso` acepte un elemento contenedor (`como="div"`); quedó fuera del
-   lote para no inventar API sin DSN.
+2. ✅ **Aviso con estructura** (ícono o botón "Reintentar"): resuelto en el lote
+   5 con `Aviso como="div"`; los 6 lugares migraron sin cambiar el diseño.
 3. **Mapas de estado internos → etiqueta/tono duplicados** (dominio de cada
    slot; las páginas públicas ya se unificaron en `lib/estadosPedido.js`):
     - `lib/servicioChecklist.js` (ESTADOS), `control/ServicioTecnico.jsx:26-37`
