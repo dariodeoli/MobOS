@@ -1619,6 +1619,7 @@ enum PaymentMethod {
   CREDIT
   TRADE_IN
   PIX
+  CRYPTO
   STORE_CREDIT
 }
 
@@ -1636,6 +1637,7 @@ enum PaymentAccountKind {
   CARD
   TRADE_IN
   PIX
+  CRYPTO
 }
 
 enum CustomerPricing {
@@ -1732,6 +1734,14 @@ model PaymentAccount {
   bank          String?
   holder        String?
   accountNumber String?
+  // Datos del titular y del medio (#142): cédula/RUC del titular, procesadora
+  // o adquirente de tarjeta, llave Pix, referencia libre (USDT/canje) y
+  // etiqueta de la moneda cuando es personalizada.
+  document      String?
+  processor     String?
+  pixKey        String?
+  reference     String?
+  currencyLabel String?
   currency      PaymentCurrency
   kind          PaymentAccountKind
   isActive      Boolean            @default(true)

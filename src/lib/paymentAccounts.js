@@ -3,8 +3,9 @@ import { isDemoRuntime } from './demoMode'
 
 const ENDPOINT = '/api/payment-accounts'
 const DEMO_KEY = 'mobos:demo-payment-accounts:v1'
-const KINDS = ['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX']
-const defaults = { name: '', bank: '', holder: '', accountNumber: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, discountPct: 0, settlementDays: 0 }
+const KINDS = ['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX', 'CRYPTO']
+const CAMPOS_TEXTO = ['name', 'bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel']
+const defaults = { name: '', bank: '', holder: '', accountNumber: '', document: '', processor: '', pixKey: '', reference: '', currencyLabel: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, discountPct: 0, settlementDays: 0 }
 const seed = [
   { ...defaults, id: 'demo-cash-pyg', name: 'Caja demo · Gs' },
   { ...defaults, id: 'demo-cash-usd', name: 'Caja demo · USD', currency: 'USD' },
@@ -19,13 +20,14 @@ function validate(data, partial = false) {
   for (const key of Object.keys(defaults)) {
     if (!Object.hasOwn(data, key)) continue
     const value = data[key]
-    if (['name', 'bank', 'holder', 'accountNumber'].includes(key)) {
+    if (CAMPOS_TEXTO.includes(key)) {
       // La API devuelve null en los opcionales vacíos: se normaliza a '' (el
       // servidor lo vuelve a guardar como null). El nombre no admite vacío.
       if (value === null && key !== 'name') { result[key] = ''; continue }
       if (typeof value !== 'string') throw new Error('Los datos de la cuenta deben ser texto.')
       result[key] = value.trim()
-      if (result[key].length > 200) throw new Error('Cada campo admite hasta 200 caracteres.')
+      const max = key === 'currencyLabel' ? 12 : 200
+      if (result[key].length > max) throw new Error(`Cada campo admite hasta ${max} caracteres.`)
     } else result[key] = value
   }
   if ('name' in result && !result.name) throw new Error('Ingresá un nombre para la cuenta.')
@@ -52,6 +54,9 @@ function validate(data, partial = false) {
     if ((!partial || 'bank' in result) && !result.bank) throw new Error('Completá el banco de la transferencia.')
     if (!partial && (!result.holder || !result.accountNumber)) throw new Error('Completá banco, titular y número de cuenta para transferencias.')
   }
+  // Cada medio tiene su moneda (#142): Pix en reales y Cripto/USDT en dólares.
+  if (result.kind === 'PIX' && 'currency' in result && result.currency !== 'BRL') throw new Error('Pix cobra en reales (BRL).')
+  if (result.kind === 'CRYPTO' && 'currency' in result && result.currency !== 'USD') throw new Error('Cripto/USDT cobra en dólares (USD).')
   if (partial && !Object.keys(result).length) throw new Error('No hay cambios para guardar.')
   return result
 }

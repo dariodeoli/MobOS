@@ -4,7 +4,7 @@ import { error, json, tenantId } from '../../../../lib/http'
 import { ensureStoreBranch } from '../../../../lib/store-branch'
 
 const ROLES = ['ADMIN', 'GERENTE', 'CAJERA']
-const METHODS = ['CASH', 'TRANSFER', 'CARD', 'PIX', 'CREDIT', 'TRADE_IN'] as const
+const METHODS = ['CASH', 'TRANSFER', 'CARD', 'PIX', 'CRYPTO', 'CREDIT', 'TRADE_IN'] as const
 // Paraguay usa UTC-4: el "día" operativo de la sucursal se delimita así.
 const OFFSET = '-04:00'
 
