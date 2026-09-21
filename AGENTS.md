@@ -1,10 +1,10 @@
 # AGENTS.md — reglas de trabajo del repo
 
-Reglas organizadas por rol. **Worktrees = agentes. Implementador = integrador.**
+Reglas organizadas por rol. **Worktrees = agentes. Orquestador coordina; Integrador = único dueño de `main`.**
 
 ---
 
-## Para todos (agentes e implementador)
+## Para todos (orquestador, agentes e implementador)
 
 - Commits convencionales, por unidad de trabajo, sin atribución de IA.
 - No pushear secretos ni archivos `.env`.
@@ -12,8 +12,17 @@ Reglas organizadas por rol. **Worktrees = agentes. Implementador = integrador.**
 - Impresión: seguí `docs/IMPRESION.md` (token del QR impreso vs enlace del panel, cola honesta y qué hacer ante cada error).
 - Tokens, enlaces y sesiones: seguí `docs/TOKENS.md` (64 hex, solo `sha256` en la base, reloj de Postgres, un solo uso atómico); los enlaces de correo siempre con enlace de respaldo visible.
 - Fotos de personas: usá siempre el `Avatar` compartido (foto subida → foto de Google → iniciales) y seguí `docs/AVATAR.md`; listados y grillas, `docs/TABLAS.md`. Inventario de objetos reutilizables: `docs/PLANTILLA-OBJETOS.md`.
-- **Pedidos de Dario:** cada pedido vive como issue de GitHub (backlog canónico). Se reclama al empezar y se citan commits al entregar. Nada se trabaja "de memoria".
+- **Pedidos de Dario:** cada pedido vive como issue de GitHub (backlog canónico) — la abre el orquestador y el slot la cita con commits al entregar. Nada se trabaja "de memoria".
 - **Migraciones:** aditivas, idempotentes y re-ejecutables (`IF NOT EXISTS` cuando otra migración pudo crear el objeto antes). Los seeds no dependen de "si el dato no existe, salir": guards por conteo + `ON CONFLICT`.
+
+---
+
+## Reglas para el ORQUESTADOR (coordinación)
+
+1. **Dónde vive:** `~/.herdr/worktrees/mobos/orquestador/` — carpeta de coordinación **sin repo**: no tiene checkout y no puede tocar código ni `main`.
+2. **Qué hace:** es el interlocutor único de Dario: abre issues (plantillas de `.github/ISSUE_TEMPLATE/`), elige el slot por dominio (`SLOTS.md`), briefea (`BRIEF.md`), sigue handovers, ordena la integración al integrador y mantiene `ESTADO.md`.
+3. **Qué NO hace:** no mergea, no pushea, no despliega, no edita código; no resuelve conflictos.
+4. **Topología y ciclo:** `docs/TOPOLOGIA.md`.
 
 ---
 
@@ -44,7 +53,7 @@ Reglas organizadas por rol. **Worktrees = agentes. Implementador = integrador.**
 
 ## Reglas para el IMPLEMENTADOR (integrador)
 
-1. **Sos el único que toca `main`.** Pusheás con `MOBOS_INTEGRATOR=1 git push origin main`. Nadie más mergea ni pushea a main.
+1. **Sos el único que toca `main`.** Pusheás con `MOBOS_INTEGRATOR=1 git push origin main`. Nadie más mergea ni pushea a main. La orden de integración la da el orquestador; la coordinación (issues, briefs, tablero) no es de este rol.
 2. **`ht` (comando de Dario, exclusivo de este rol):** ciclo completo de integración + deploy. Los worktrees nunca lo ejecutan ni responden a él.
 3. **Preámbulo obligatorio del `ht`:**
    - Matar servidores zombies del repo (no de otros proyectos): `next-server` de worktrees de MobOS y, en el checkout principal, `lsof -ti :3001 :5175 | xargs kill -9`.

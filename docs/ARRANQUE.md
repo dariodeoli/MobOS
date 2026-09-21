@@ -4,13 +4,16 @@ Documento de punto de entrada para retomar MobOS en otra computadora. El detalle
 
 ## 1. Reglas por rol
 
-### Para todos (agentes e implementador)
-- Cada pedido vive como **issue de GitHub** (backlog canónico): se reclama al empezar y se citan commits al entregar. Nada se trabaja “de memoria”.
+### Para todos (orquestador, agentes e implementador)
+- Cada pedido vive como **issue de GitHub** (backlog canónico): la abre el orquestador y se citan commits al entregar. Nada se trabaja “de memoria”.
 - **Commits convencionales**, por unidad de trabajo, sin atribución de IA. No pushear secretos ni `.env`.
 - **Migraciones** aditivas, idempotentes y re-ejecutables (`ADD COLUMN IF NOT EXISTS`, `DROP CONSTRAINT IF EXISTS`, etc.). Seeds con guards por conteo + `ON CONFLICT`.
 - **Regla de oro de datos**: lo que el código guarda debe existir en la base y poder mostrarse. Tras cambiar el schema o agregar una migración: `npm run db:check` hasta que no haya diferencias.
 - Campos de formulario: `docs/CAMPOS.md` (invocable como **rdi**; skill `.claude/skills/rdi`; plantilla portable `docs/PLANTILLA-CAMPOS.md`).
 - Impresión, tokens, avatares, tablas: `docs/IMPRESION.md`, `docs/TOKENS.md`, `docs/AVATAR.md`, `docs/TABLAS.md`; inventario de objetos: `docs/PLANTILLA-OBJETOS.md`.
+
+### Orquestador (coordinación)
+- Vive en `~/.herdr/worktrees/mobos/orquestador/` (sin repo): abre issues, elige slot, briefea, sigue handovers y ordena la integración; **no** mergea, no pushea, no despliega, no edita código. Topología: `docs/TOPOLOGIA.md`.
 
 ### Worktrees (agentes)
 1. Solo tu rama y tu worktree. **Nunca** merge ni push a `main` (hook `pre-push` + protección de rama).
@@ -69,4 +72,4 @@ Documento de punto de entrada para retomar MobOS en otra computadora. El detalle
 2. `bash scripts/setup-hooks.sh` (pre-push que bloquea `main`).
 3. Backend: `npm --prefix backend run prisma:generate` y variables en `backend/.env` (`DATABASE_URL`, `MOBOS_APP_URL`, `MOBOS_MAINTENANCE_TOKEN`, `MOBOS_STORAGE_DIR`).
 4. Verificar la base: `npm run db:check` y `npm run release:smoke` para producción.
-5. Leer `AGENTS.md` completo y este archivo; el resto de las reglas por objeto está en `docs/`.
+5. Leer `AGENTS.md` completo, este archivo y `docs/TOPOLOGIA.md`; el resto de las reglas por objeto está en `docs/`.
