@@ -771,3 +771,91 @@ test.describe('mini CRM de clientes', () => {
     await expect(page.getByText(comentario)).toHaveCount(0)
   })
 })
+
+// Ficha completa y seguro del cliente (#160): alta con dos nombres, orden por
+// actividad, datos clave en el perfil y seguro con impacto real en el costo de
+// la venta (coordinado con FIN).
+test('clientes → actividad, alta con dos nombres y seguro del cliente', async ({ page }) => {
+  const marca = Date.now()
+  await page.addInitScript(() => localStorage.setItem('mobos:clientes-vista', 'list'))
+  await page.goto('/clientes')
+
+  // Alta con primer y segundo nombre desde el modal.
+  const primero = `Seguro Primero ${marca}`
+  const segundo = 'Segundo E2E'
+  await page.getByRole('button', { name: '+ Crear cliente' }).click()
+  await page.getByLabel('Primer nombre', { exact: true }).fill(primero)
+  await page.getByLabel(/Segundo nombre/).fill(segundo)
+  await page.getByRole('button', { name: 'Guardar cliente' }).click()
+  const nombreCompleto = `${primero} ${segundo}`
+
+  // La búsqueda instantánea lo encuentra por el nombre completo.
+  await page.getByLabel('Buscar clientes').fill(primero)
+  const fila = page.getByTestId('cliente-fila').filter({ hasText: nombreCompleto }).first()
+  await expect(fila).toBeVisible()
+
+  // Un pedido nuevo lo sube por encima de un cliente sin pedidos: la vista
+  // ordena por actividad reciente (comparación con "B", creado antes).
+  const actividad = `Actividad ${marca}`
+  const sinPedidos = `${actividad} B`
+  await page.evaluate(async ({ api, nombre }) => {
+    await fetch(`${api}/api/customers`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nombre }) })
+  }, { api: API, nombre: sinPedidos })
+  const alta = await page.evaluate(async ({ api, nombreCompleto }) => {
+    const cliente = await fetch(`${api}/api/customers?q=${encodeURIComponent(nombreCompleto)}`, { credentials: 'include' }).then((r) => r.json())
+    const productos = await fetch(`${api}/api/products`, { credentials: 'include' }).then((r) => r.json())
+    const cable = (productos || []).find((row) => row.sku === 'E2E-CABLE')
+    const pedido = await fetch(`${api}/api/orders`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderNumber: `E2E-SEG-${Date.now()}`, customerId: cliente[0].id, items: [{ productId: cable.id, description: cable.name, quantity: 1, unitPricePyg: cable.pricePyg }] }),
+    }).then((r) => r.json())
+    return { clienteId: cliente[0].id, pedidoId: pedido.id, numero: pedido.orderNumber }
+  }, { api: API, nombreCompleto })
+  expect(alta.clienteId).toBeTruthy()
+  await page.getByLabel('Buscar clientes').fill(actividad)
+  await expect(page.getByTestId('cliente-fila').first()).toContainText(nombreCompleto)
+
+  // Perfil: datos clave y últimas órdenes con "Ver todas".
+  await page.getByTestId('cliente-fila').filter({ hasText: nombreCompleto }).first().click()
+  const ficha = page.getByRole('dialog')
+  const claves = ficha.getByTestId('perfil-datos-clave')
+  await expect(claves.getByText('Antigüedad:')).toBeVisible()
+  await expect(claves.getByText('Paga impuestos:')).toBeVisible()
+  await expect(claves.getByText('RUC:')).toBeVisible()
+  await expect(claves.getByText('Seguro:')).toBeVisible()
+  await expect(ficha.getByText('Últimas órdenes')).toBeVisible()
+  await ficha.getByRole('button', { name: /Ver todas/ }).click()
+  await expect(ficha.getByRole('tab', { name: /^Pedidos/ })).toHaveAttribute('aria-selected', 'true')
+
+  // Seguro: toggle iPhone + porcentaje personalizado.
+  await ficha.getByRole('tab', { name: /^Datos/ }).click()
+  const toggle = ficha.getByRole('switch', { name: 'Seguro del cliente activo' })
+  await expect(toggle).toHaveAttribute('aria-checked', 'false')
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-checked', 'true')
+  await ficha.getByLabel('Porcentaje del cliente').fill('25')
+  await ficha.getByRole('button', { name: 'Guardar porcentaje' }).click()
+  await expect(page.getByText('Seguro del cliente activado.')).toBeVisible()
+
+  // El seguro impacta la venta: la próxima orden suma el 25% al costo real.
+  const impacto = await page.evaluate(async ({ api, clienteId }) => {
+    const productos = await fetch(`${api}/api/products`, { credentials: 'include' }).then((r) => r.json())
+    const cable = (productos || []).find((row) => row.sku === 'E2E-CABLE')
+    const pedido = await fetch(`${api}/api/orders`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderNumber: `E2E-SEG2-${Date.now()}`, customerId: clienteId, items: [{ productId: cable.id, description: cable.name, quantity: 1, unitPricePyg: cable.pricePyg }] }),
+    }).then((r) => r.json())
+    const linea = pedido.items?.[0]
+    return { insurancePyg: linea?.insurancePyg, unitCostPyg: linea?.unitCostPyg }
+  }, { api: API, clienteId: alta.clienteId })
+  expect(impacto.insurancePyg, 'la venta del cliente asegurado tiene seguro').toBeGreaterThan(0)
+  expect(impacto.unitCostPyg, 'el costo real incluye el seguro').toBeGreaterThan(impacto.insurancePyg)
+
+  // Limpieza: el seguro vuelve a inactivo.
+  await page.evaluate(async ({ api, clienteId }) => {
+    await fetch(`${api}/api/customers/${clienteId}`, {
+      method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ insuranceEnabled: false }),
+    })
+  }, { api: API, clienteId: alta.clienteId })
+})
