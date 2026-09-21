@@ -1,20 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
+import { isDemoRuntime } from '@/lib/demoMode'
 import { listVentas, listGastos, listAds, productosById } from '@/lib/storage'
-import { calcularGanancia, calcularGananciaDia, fechaClave, gs } from '@/utils/calculos'
+import { calcularGanancia, calcularGananciaDia, desdeDePeriodo, fechaClave, gs } from '@/utils/calculos'
+import { reporteMetricas } from '@/lib/metricas'
 import { Card, Badge } from '@/components/ui'
-import SegmentedField from '@/components/shared/SegmentedField'
-
-const PERIODOS = [
-  ['dia', 'Día'],
-  ['semana', 'Semana'],
-  ['mes', 'Mes'],
-  ['anio', 'Año'],
-]
-
-export function PeriodoTabs({ periodo, setPeriodo }) {
-  return <SegmentedField value={periodo} onChange={setPeriodo} options={PERIODOS} ariaLabel="Período" />
-}
+import PeriodoTabs from '@/components/shared/PeriodoTabs'
 
 export default function Ganancias() {
   const [periodo, setPeriodo] = useUrlState('periodo', 'dia')
@@ -24,7 +15,26 @@ export default function Ganancias() {
     ads: listAds(),
     prodsById: productosById(),
   }
-  const g = calcularGanancia(periodo, datos)
+  // Ingresos y costo del período salen del backend unificado (#171); gastos y
+  // publicidad siguen en Finanzas. Sin API (demo/offline) rige el cálculo local.
+  const [serieApi, setSerieApi] = useState(null)
+  useEffect(() => {
+    if (isDemoRuntime) { setSerieApi(null); return }
+    let vigente = true
+    reporteMetricas({ rango: { desde: desdeDePeriodo(periodo), hasta: fechaClave() }, groupBy: 'day' })
+      .then((data) => {
+        if (!vigente) return
+        setSerieApi({
+          totales: data?.totals || null,
+          desde: data?.from || '',
+          hasta: data?.to || '',
+          porDia: new Map((Array.isArray(data?.groups) ? data.groups : []).map((grupo) => [grupo.key, grupo])),
+        })
+      })
+      .catch(() => { if (vigente) setSerieApi(null) })
+    return () => { vigente = false }
+  }, [periodo])
+  const g = gananciaDelPeriodo(periodo, datos, serieApi?.totales)
 
   const positivo = g.estado === 'ganancia'
   const negativo = g.estado === 'perdida'
@@ -54,7 +64,7 @@ export default function Ganancias() {
       </Card>
 
       {/* Calendario de resultados por día */}
-      <CalendarioGanancias datos={datos} />
+      <CalendarioGanancias datos={datos} serieApi={serieApi} />
 
       {/* Desglose */}
       <Card>
@@ -112,7 +122,7 @@ const ESTILO_DIA = {
   vacio: 'bg-ink-800 text-mute border-ink-600',
 }
 
-function CalendarioGanancias({ datos }) {
+function CalendarioGanancias({ datos, serieApi }) {
   const hoy = new Date()
   const [cursor, setCursor] = useState(() => new Date(hoy.getFullYear(), hoy.getMonth(), 1))
   const [sel, setSel] = useState(null)
@@ -129,7 +139,7 @@ function CalendarioGanancias({ datos }) {
   for (let i = 0; i < offset; i++) celdas.push(null)
   for (let d = 1; d <= diasEnMes; d++) {
     const clave = fechaClave(new Date(anio, mes, d))
-    celdas.push({ d, clave, ...calcularGananciaDia(clave, datos) })
+    celdas.push({ d, clave, ...gananciaDelDia(clave, datos, serieApi) })
   }
 
   const irMes = (delta) => {
@@ -137,7 +147,7 @@ function CalendarioGanancias({ datos }) {
     setCursor(new Date(anio, mes + delta, 1))
   }
 
-  const detalle = sel ? calcularGananciaDia(sel, datos) : null
+  const detalle = sel ? gananciaDelDia(sel, datos, serieApi) : null
 
   return (
     <Card>
@@ -277,4 +287,45 @@ function Linea({ label, valor, signo, color }) {
       </span>
     </div>
   )
+}
+
+// ── Ganancias con el backend unificado (#171, fase 2 de #145) ────────
+// Ingresos y costo de mercadería salen de /api/reports (sin el tope de 100
+// órdenes de la caché); gastos y publicidad siguen viniendo de Finanzas con el
+// mismo filtro de período. Sin datos del API rige el cálculo local de siempre.
+
+function gananciaDelPeriodo(periodo, datos, totalesApi) {
+  const local = calcularGanancia(periodo, datos)
+  if (!totalesApi) return local
+  const ingresos = Number(totalesApi.totalPyg || 0)
+  const costoMercaderia = Number(totalesApi.costPyg || 0)
+  const ganancia = ingresos - costoMercaderia - local.totalGastos - local.totalAds
+  return {
+    ...local,
+    ingresos,
+    costoMercaderia,
+    ganancia,
+    estado: ganancia > 0 ? 'ganancia' : ganancia < 0 ? 'perdida' : 'empate',
+    cantVentas: Number(totalesApi.orders || 0),
+  }
+}
+
+function gananciaDelDia(clave, datos, serieApi) {
+  const local = calcularGananciaDia(clave, datos)
+  // Fuera del rango consultado (otro mes del calendario) manda la caché local:
+  // el reporte solo cubre el período activo.
+  if (!serieApi || !serieApi.desde || clave < serieApi.desde || clave > serieApi.hasta) return local
+  const grupo = serieApi.porDia.get(clave)
+  const ingresos = grupo ? Number(grupo.totalPyg || 0) : 0
+  const costoMercaderia = grupo ? Number(grupo.costPyg || 0) : 0
+  const ganancia = ingresos - costoMercaderia - local.totalGastos - local.totalAds
+  const sinDatos = !grupo && local.totalGastos === 0 && local.totalAds === 0
+  return {
+    ...local,
+    ingresos,
+    costoMercaderia,
+    ganancia,
+    estado: sinDatos ? 'vacio' : ganancia > 0 ? 'ganancia' : ganancia < 0 ? 'perdida' : 'empate',
+    cantVentas: grupo ? Number(grupo.orders || 0) : 0,
+  }
 }

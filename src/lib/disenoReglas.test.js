@@ -128,8 +128,13 @@ test('la biblioteca de objetos: búsquedas, toggles y segmentados compartidos', 
   for (const ruta of ['components/control/PaymentAccounts.jsx', 'components/control/Precios.jsx', 'components/control/Inventario.jsx']) {
     assert.match(leer(ruta), /<Switch[\s\S]{0,160}checked=/, `${ruta}: el booleano va con Switch`)
   }
-  // Segmentado y subtabs compartidos.
-  assert.match(leer('components/control/Ganancias.jsx'), /SegmentedField[\s\S]{0,120}options=\{PERIODOS\}/, 'Ganancias: el período va con SegmentedField')
+  // Segmentado y subtabs compartidos. El período vive en PeriodoTabs
+  // (#171: un solo objeto para Ganancias/Ganadores) y por dentro usa
+  // SegmentedField; las pantallas no reimplementan pestañas.
+  assert.match(leer('components/shared/PeriodoTabs.jsx'), /SegmentedField[\s\S]{0,120}options=\{PERIODOS\}/, 'PeriodoTabs: el período va con SegmentedField')
+  for (const ruta of ['components/control/Ganancias.jsx', 'components/control/Ganadores.jsx']) {
+    assert.match(leer(ruta), /<PeriodoTabs[\s\S]{0,120}(periodo|setPeriodo)=/, `${ruta}: el período va con PeriodoTabs`)
+  }
   assert.match(leer('components/control/ListaVentasDia.jsx'.replace('control', 'ventas')), /<SegmentedField/, 'ListaVentasDia: los filtros van con SegmentedField')
   assert.ok(leer('components/ui/index.jsx').includes('export function Subtabs'), 'Subtabs vive en la UI compartida')
   assert.ok(!/function Subtabs\(/.test(leer('pages/PanelVendedor.jsx')), 'PanelVendedor no redefine Subtabs')

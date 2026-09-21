@@ -14,6 +14,10 @@
 export const REPORT_GROUP_BY = ['product', 'category', 'seller', 'day', 'payments', 'newCustomers', 'branch', 'customers', 'returns'] as const
 export type ReportGroupBy = (typeof REPORT_GROUP_BY)[number]
 
+/** Corte de la agrupación `payments` (#171): cuenta, procesadora o medio. */
+export const PAYMENTS_BY = ['account', 'processor', 'method'] as const
+export type PaymentsBy = (typeof PAYMENTS_BY)[number]
+
 /** Roles con acceso a reportes financieros (costos y ganancia incluidos). */
 export const REPORT_ROLES = ['ADMIN', 'GERENTE'] as const
 
@@ -43,7 +47,7 @@ export type OrderItemLike = {
   totalPyg: number
 }
 
-export type PaymentLike = { status?: string | null; amountPyg: number; method?: string | null; accountName?: string | null }
+export type PaymentLike = { status?: string | null; amountPyg: number; method?: string | null; accountName?: string | null; accountId?: string | null; processor?: string | null }
 
 export type OrderLike = {
   id: string
@@ -82,6 +86,10 @@ export type ReportTotals = {
   netProfitPyg: number
   netMarginPct: number | null
   refundedPyg: number
+  // Conteos de órdenes para la portada ejecutiva (#171): cobradas y con saldo.
+  // En `groupBy=payments` (que cuenta pagos, no órdenes) quedan en 0.
+  paidOrders: number
+  pendingOrders: number
 }
 
 export type ReportGroup = {
@@ -114,6 +122,7 @@ export type ReportQuery = {
   to: string
   groupBy: ReportGroupBy
   offsetMinutes: number
+  paymentsBy: PaymentsBy
 }
 
 // ---- Comisiones por vendedor -------------------------------------------------
@@ -311,7 +320,13 @@ export function parseReportQuery(
     return { ok: false, error: `Agrupación inválida. Opciones: ${REPORT_GROUP_BY.join(', ')}.` }
   }
 
-  return { ok: true, value: { from, to, groupBy: groupByParam as ReportGroupBy, offsetMinutes } }
+  // Corte de `groupBy=payments`: cuenta (predeterminado), procesadora o medio.
+  const paymentsByParam = (params.get('paymentsBy') || 'account').trim() || 'account'
+  if (!(PAYMENTS_BY as readonly string[]).includes(paymentsByParam)) {
+    return { ok: false, error: `Corte de pagos inválido. Opciones: ${PAYMENTS_BY.join(', ')}.` }
+  }
+
+  return { ok: true, value: { from, to, groupBy: groupByParam as ReportGroupBy, offsetMinutes, paymentsBy: paymentsByParam as PaymentsBy } }
 }
 
 type Acumulador = {
@@ -334,6 +349,8 @@ type Acumulador = {
   salesWithoutCostPyg: number
   linesWithoutCost: number
   commissionPyg: number
+  paidOrders: number
+  pendingOrders: number
 }
 
 function nuevoAcumulador(key: string, label: string): Acumulador {
@@ -357,6 +374,8 @@ function nuevoAcumulador(key: string, label: string): Acumulador {
     salesWithoutCostPyg: 0,
     linesWithoutCost: 0,
     commissionPyg: 0,
+    paidOrders: 0,
+    pendingOrders: 0,
   }
 }
 
@@ -372,8 +391,10 @@ function obtener(grupos: Map<string, Acumulador>, key: string, label: string): A
 }
 
 function cerrar(acumulador: Acumulador): ReportGroup {
-  const { orderIds, customerIds, newIds, returningIds, salesWithCostPyg, ...resto } = acumulador
+  const { orderIds, customerIds, newIds, returningIds, salesWithCostPyg, paidOrders, pendingOrders, ...resto } = acumulador
   void salesWithCostPyg
+  void paidOrders
+  void pendingOrders
   return {
     ...resto,
     orders: orderIds.size,
@@ -410,7 +431,34 @@ function cerrarTotales(acumulador: Acumulador): ReportTotals {
       ? Math.round((Math.max(0, acumulador.profitPyg - acumulador.commissionPyg) / acumulador.salesWithCostPyg) * 1000) / 10
       : null,
     refundedPyg: group.refundedPyg,
+    paidOrders: acumulador.paidOrders,
+    pendingOrders: acumulador.pendingOrders,
   }
+}
+
+/**
+ * Curva ABC sobre filas con `grossPyg` (por defecto las de `groupBy=product`):
+ * ordena de mayor a menor, acumula el porcentaje y clasifica A ≤ 80%,
+ * B ≤ 95% y C el resto. La clasificación vive en el servidor para que la vista
+ * ejecutiva y la extendida usen el mismo criterio (#171, fase 2 de #145).
+ * El porcentaje acumulado se redondea a un decimal para mostrarlo tal cual.
+ */
+export function curvaAbc<T extends { grossPyg: number }>(
+  rows: T[],
+  cortes: { a?: number; b?: number } = {},
+): (T & { accumulatedPct: number; abcClass: 'A' | 'B' | 'C' })[] {
+  const corteA = cortes.a ?? 80
+  const corteB = cortes.b ?? 95
+  const ordenadas = [...rows].sort((x, y) => y.grossPyg - x.grossPyg)
+  const total = ordenadas.reduce((suma, fila) => suma + fila.grossPyg, 0)
+  let acumulado = 0
+  return ordenadas.map((fila) => {
+    acumulado += fila.grossPyg
+    const accumulatedPct = total > 0 ? Math.round((acumulado / total) * 1000) / 10 : 0
+    // Sin ventas no hay curva que clasificar: todo queda en C en vez de A.
+    const abcClass: 'A' | 'B' | 'C' = total > 0 && accumulatedPct <= corteA ? 'A' : total > 0 && accumulatedPct <= corteB ? 'B' : 'C'
+    return { ...fila, accumulatedPct, abcClass }
+  })
 }
 
 type HechoOrden = {
@@ -479,6 +527,9 @@ function acumularOrden(acumulador: Acumulador, hecho: HechoOrden) {
   acumulador.salesWithoutCostPyg = suma(acumulador.salesWithoutCostPyg, hecho.sinCosto)
   acumulador.linesWithoutCost += hecho.lineasSinCosto
   acumulador.commissionPyg = suma(acumulador.commissionPyg, hecho.comision)
+  const saldo = Math.max(0, (entero(orden.totalPyg) ?? 0) - hecho.cobrado)
+  if (saldo > 0) acumulador.pendingOrders += 1
+  else acumulador.paidOrders += 1
 }
 
 function claveDeItem(item: OrderItemLike): string {
@@ -498,7 +549,7 @@ function claveDeCategoria(item: OrderItemLike): string {
  */
 export function aggregateReport(
   orders: OrderLike[],
-  options: { groupBy: ReportGroupBy; offsetMinutes: number; firstOrderMonth?: Map<string, string> },
+  options: { groupBy: ReportGroupBy; offsetMinutes: number; firstOrderMonth?: Map<string, string>; paymentsBy?: PaymentsBy },
 ): ReportResult {
   const totales = nuevoAcumulador('total', 'Total')
   const grupos = new Map<string, Acumulador>()
@@ -506,6 +557,21 @@ export function aggregateReport(
 
   // Pagos por pasarela/cuenta: transacciones, bruto, reembolsado y neto.
   if (options.groupBy === 'payments') {
+    const corte = options.paymentsBy || 'account'
+    const claveDePago = (pago: PaymentLike): { key: string; label: string } => {
+      if (corte === 'processor') {
+        const processor = (pago.processor || '').trim()
+        return processor ? { key: processor.toLowerCase(), label: processor } : { key: 'sin-procesadora', label: 'Sin procesadora' }
+      }
+      if (corte === 'method') {
+        const method = (pago.method || '').trim()
+        return method ? { key: method.toLowerCase(), label: method } : { key: 'sin-metodo', label: 'Sin método' }
+      }
+      const accountName = (pago.accountName || '').trim()
+      const method = (pago.method || '').trim()
+      if (accountName) return { key: (pago.accountId || accountName).trim().toLowerCase(), label: accountName }
+      return method ? { key: `metodo:${method.toLowerCase()}`, label: method } : { key: 'sin-metodo', label: 'Sin método' }
+    }
     const acumularPago = (acumulador: Acumulador, pago: PaymentLike) => {
       const monto = entero(pago.amountPyg) ?? 0
       if (pago.status === 'REFUNDED') {
@@ -521,8 +587,7 @@ export function aggregateReport(
     for (const orden of orders) {
       if (orden.status === 'CANCELLED') continue
       for (const pago of Array.isArray(orden.payments) ? orden.payments : []) {
-        const key = (pago.accountName || pago.method || '').trim().toLowerCase() || 'sin-metodo'
-        const label = pago.accountName?.trim() || pago.method?.trim() || 'Sin método'
+        const { key, label } = claveDePago(pago)
         acumularPago(obtener(grupos, key, label), pago)
         acumularPago(totales, pago)
       }
@@ -550,6 +615,8 @@ export function aggregateReport(
         netProfitPyg: 0,
         netMarginPct: null,
         refundedPyg: totales.refundedPyg,
+        paidOrders: 0,
+        pendingOrders: 0,
       },
       groups: resultado,
     }

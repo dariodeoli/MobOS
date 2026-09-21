@@ -6,7 +6,9 @@ import {
   ReportInputError,
   aggregateCommissions,
   aggregateReport,
+  curvaAbc,
   dayBounds,
+  diasDelRango,
   localDayKey,
   parseReportQuery,
 } from '../../../lib/reporting'
@@ -28,7 +30,7 @@ export async function GET(request: Request) {
   if (type && type !== 'commissions') return error('Tipo de reporte inválido.')
   const parsed = parseReportQuery(url.searchParams)
   if (!parsed.ok) return error(parsed.error)
-  const { from, to, groupBy, offsetMinutes } = parsed.value
+  const { from, to, groupBy, offsetMinutes, paymentsBy } = parsed.value
 
   try {
     const { start, end } = dayBounds(from, to, offsetMinutes)
@@ -160,7 +162,7 @@ export async function GET(request: Request) {
       const totalPyg = groups.reduce((suma, item) => suma + item.totalPyg, 0)
       return json({
         from, to, groupBy, offsetMinutes, branchId, truncated: false, generatedAt: new Date().toISOString(),
-        totals: { orders: groups.length, units: 0, grossPyg: totalPyg, discountPyg: 0, deliveryPyg: 0, totalPyg, collectedPyg: 0, pendingPyg: 0, costPyg: 0, profitPyg: 0, salesWithCostPyg: 0, salesWithoutCostPyg: 0, linesWithoutCost: 0, marginPct: null, commissionPyg: 0, netProfitPyg: 0, netMarginPct: null, refundedPyg: totalPyg },
+        totals: { orders: groups.length, units: 0, grossPyg: totalPyg, discountPyg: 0, deliveryPyg: 0, totalPyg, collectedPyg: 0, pendingPyg: 0, costPyg: 0, profitPyg: 0, salesWithCostPyg: 0, salesWithoutCostPyg: 0, linesWithoutCost: 0, marginPct: null, commissionPyg: 0, netProfitPyg: 0, netMarginPct: null, refundedPyg: totalPyg, paidOrders: 0, pendingOrders: 0 },
         groups,
       })
     }
@@ -196,10 +198,15 @@ export async function GET(request: Request) {
             ? Number(snapshot.feePercent) : 0
           const feePyg = Number.isFinite(feePercent) && feePercent > 0
             ? Math.round((pago.amountPyg * feePercent) / 100) : 0
-          return { status: pago.status, amountPyg: pago.amountPyg, feePyg, method: pago.method ?? null, accountName: snapshot && typeof snapshot.name === 'string' ? snapshot.name : null }
+          return {
+            status: pago.status, amountPyg: pago.amountPyg, feePyg, method: pago.method ?? null,
+            accountName: snapshot && typeof snapshot.name === 'string' ? snapshot.name : null,
+            accountId: snapshot && typeof snapshot.id === 'string' ? snapshot.id : null,
+            processor: snapshot && typeof snapshot.processor === 'string' ? snapshot.processor : null,
+          }
         }),
       })),
-      { groupBy, offsetMinutes, firstOrderMonth },
+      { groupBy, offsetMinutes, firstOrderMonth, paymentsBy },
     )
 
     let unitAge: Map<string, { oldest: Date; available: number }> = new Map()
@@ -228,11 +235,11 @@ export async function GET(request: Request) {
       branchId: orden.branchId ?? null, branchName: orden.branch?.name ?? null, createdAt: orden.createdAt,
       items: orden.items.map((item) => ({ productId: item.productId, description: item.description, productName: null, category: null, quantity: item.quantity, unitCostPyg: item.unitCostPyg, totalPyg: item.totalPyg })),
       payments: orden.payments.map((pago) => ({ status: pago.status, amountPyg: pago.amountPyg })),
-    })), { groupBy, offsetMinutes })
+    })), { groupBy, offsetMinutes, paymentsBy })
 
     const productStock = await prisma.product.findMany({
       where: { tenantId: session.user.tenantId, isActive: true, ...(branchId ? { branchId } : {}) },
-      select: { id: true, name: true, sku: true, stock: true },
+      select: { id: true, name: true, sku: true, stock: true, costPyg: true },
       orderBy: [{ stock: 'asc' }, { name: 'asc' }],
       take: 1000,
     })
@@ -244,8 +251,15 @@ export async function GET(request: Request) {
     const onHand = productStock.reduce((sum, product) => sum + product.stock, 0)
     const soldUnits = [...soldByProduct.values()].reduce((sum, quantity) => sum + quantity, 0)
     const shortages = productStock.filter(product => product.stock <= 0).map(product => ({ id: product.id, name: product.name, sku: product.sku, stock: product.stock }))
+    // Valor del stock a costo (sin inventar costos ausentes) y rotación
+    // expresada en días de stock: unidades disponibles ÷ venta diaria promedio.
+    const stockValuePyg = productStock.reduce((sum, product) => sum + Math.max(0, product.stock) * Math.max(0, product.costPyg ?? 0), 0)
+    const stockWithoutCost = productStock.filter(product => product.stock > 0 && product.costPyg === null).length
+    const ventaDiaria = soldUnits / Math.max(1, diasDelRango(from, to))
+    const daysOfStock = ventaDiaria > 0 ? Math.round((onHand / ventaDiaria) * 10) / 10 : null
 
-    const reportGroups = reporte.groups.map(group => {
+    const conAbc = groupBy === 'product' ? curvaAbc(reporte.groups) : reporte.groups
+    const reportGroups = conAbc.map(group => {
       if (groupBy !== 'product') return group
       const age = unitAge.get(group.key)
       return { ...group, availableUnits: age?.available ?? 0, oldestUnitAt: age?.oldest?.toISOString() ?? null }
@@ -264,6 +278,9 @@ export async function GET(request: Request) {
         onHandUnits: onHand,
         soldUnits,
         sellThroughPct: onHand + soldUnits > 0 ? Math.round((soldUnits / (onHand + soldUnits)) * 1000) / 10 : null,
+        stockValuePyg,
+        stockWithoutCost,
+        daysOfStock,
         shortages,
       },
       groups: reportGroups, totals: reporte.totals,
