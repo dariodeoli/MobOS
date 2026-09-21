@@ -213,7 +213,7 @@ test('dueño: el inventario demo muestra unidades ficticias sin tocar el API', a
   const filas = page.getByTestId('inventario-fila')
   await expect(filas.first()).toBeVisible({ timeout: 15_000 })
   expect(await filas.count()).toBeGreaterThanOrEqual(20)
-  await expect(page.getByText(/DEMO0001/).first()).toBeVisible()
+  await expect(page.getByText(/AUR0001/).first()).toBeVisible()
 
   await filas.first().click()
   const detalle = page.getByRole('dialog')
@@ -359,7 +359,7 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   await page.goto('/garantias')
   await page.getByRole('button', { name: 'Nuevo caso' }).click()
   await page.getByPlaceholder('Nombre del cliente').fill(`Cliente cierre ${marca}`)
-  await page.getByPlaceholder('Serial o IMEI').fill(`DEMO-C201-${marca}`)
+  await page.getByPlaceholder('Serial o IMEI').fill(`AUR-C201-${marca}`)
   await page.getByPlaceholder('Falla reportada, revisión solicitada…').fill('Caso ficticio de cierre.')
   await page.getByRole('button', { name: 'Registrar caso' }).click()
   await expect(page.getByText(`Cliente cierre ${marca}`).first()).toBeVisible()

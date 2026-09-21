@@ -17,7 +17,7 @@ const demo = await import('./demoInventory.js')
 test('el seed demo tiene 24 unidades con seriales ficticios y estados variados', () => {
   const state = demo.demoInventorySeed()
   assert.equal(state.units.length, 24)
-  assert.ok(state.units.every(unit => unit.serial.startsWith('DEMO')), 'los seriales llevan prefijo DEMO')
+  assert.ok(state.units.every(unit => unit.serial.startsWith('AUR')), 'los seriales llevan prefijo ficticio AUR')
   assert.ok(state.units.every(unit => !/^\d{15}$/.test(unit.serial)), 'nunca un IMEI real')
   const estados = new Set(state.units.map(unit => unit.status))
   for (const esperado of ['AVAILABLE', 'RESERVED', 'SOLD', 'DEFECTIVE', 'IN_TRANSIT']) assert.ok(estados.has(esperado), esperado)
@@ -29,20 +29,20 @@ test('el seed demo tiene 24 unidades con seriales ficticios y estados variados',
 
 test('listar filtra por búsqueda y la vista de eliminados arranca vacía', () => {
   assert.equal(demo.listDemoUnits().length, 24)
-  const encontradas = demo.listDemoUnits('DEMO0002')
+  const encontradas = demo.listDemoUnits('AUR0002')
   assert.equal(encontradas.length, 1)
   assert.equal(demo.listDemoUnits('', 'removed').length, 0)
 })
 
 test('crear, mover y dar de baja una unidad demo', () => {
-  const creada = demo.createDemoUnit({ productId: 'demo-iphone-15-128-azul', serial: 'DEMO9999TEST', branchId: demo.DEMO_BRANCH, locationId: 'demo-ubic-piso', costPyg: 1000000 })
+  const creada = demo.createDemoUnit({ productId: 'demo-iphone-15-128-azul', serial: 'AUR9999TEST', branchId: demo.DEMO_BRANCH, locationId: 'demo-ubic-piso', costPyg: 1000000 })
   assert.equal(creada.status, 'AVAILABLE')
   assert.equal(creada.product.name, 'iPhone 15 128GB Azul')
   const movida = demo.updateDemoUnit({ id: creada.id, action: 'move', locationId: 'demo-ubic-deposito-2' })
   assert.equal(movida.locationId, 'demo-ubic-deposito-2')
   demo.updateDemoUnit({ id: creada.id, action: 'remove', reason: 'QA' })
   assert.equal(demo.listDemoUnits('', 'removed').length, 1)
-  assert.equal(demo.listDemoUnits('DEMO9999TEST').length, 0)
+  assert.equal(demo.listDemoUnits('AUR9999TEST').length, 0)
 })
 
 test('reservar y liberar mantiene el stock coherente', () => {
@@ -57,6 +57,6 @@ test('verificar una unidad deja usuario y fecha (sin datos reales)', () => {
   const unit = demo.listDemoUnits().find(item => item.status === 'AVAILABLE')
   const verificada = demo.verifyDemoUnit({ serial: unit.serial, locationId: 'demo-ubic-piso' })
   assert.equal(verificada.locationId, 'demo-ubic-piso')
-  assert.equal(verificada.lastVerifiedBy.name, 'Dueño demo')
+  assert.equal(verificada.lastVerifiedBy.name, 'Hernán Acosta')
   assert.ok(verificada.verifiedAt)
 })

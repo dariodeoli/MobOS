@@ -41,7 +41,7 @@ function leerEstado() {
       accountId: 'demo-transfer-itau', cuenta: 'Banco Itaú · Comercio demo', procesadora: '',
       expectedPyg: 3600000, receivedPyg: 3550000, differencePyg: -50000,
       state: 'VERIFIED', estado: 'DIFFERENCE',
-      note: 'Diferencia demo: comisión bancaria de la transferencia.', creadoPor: 'Dueño demo', pagos: 1,
+      note: 'Diferencia: comisión bancaria de la transferencia.', creadoPor: 'Hernán Acosta', pagos: 1,
     }],
     conciliados: {},
   }
@@ -83,7 +83,7 @@ export function conciliarDemoLote({ items = [], receivedPyg = 0, note = '' } = {
     state: 'VERIFIED',
     estado: differencePyg ? 'DIFFERENCE' : 'VERIFIED',
     note: String(note || ''),
-    creadoPor: 'Dueño demo',
+    creadoPor: 'Hernán Acosta',
     pagos: seleccion.length,
   }
   const next = {
@@ -145,7 +145,7 @@ export function construirDemoConciliacion({ ventas = [], cuentas = [], desde = '
         orderId: venta.id,
         orderNumber: numeroDeVenta.get(venta.id) || 'DEMO',
         cliente: venta.cliente || '',
-        vendedor: 'Dueño demo',
+        vendedor: 'Hernán Acosta',
         accountId: cuenta?.id || null,
         cuenta: cuenta?.name || pago.cuenta || 'Efectivo',
         titular: cuenta?.holder || '',

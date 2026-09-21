@@ -21,17 +21,17 @@ export const IPHONES_DEMO = [
 // Equipo demo (#213): roles, PINs ficticios y meta diaria. Los PINs son de
 // demostración; el acceso demo usa 2001 (dueño) y 3001 (vendedor).
 export const EQUIPO_DEMO = [
-  { id: 'demo-user', nombre: 'Dueño demo', rol: 'ADMIN', email: 'dueno@demo.mobos', pin: '2001', metaDiaria: 0, activo: true },
-  { id: 'demo-user-gerente', nombre: 'Ana Giménez', rol: 'GERENTE', email: 'ana@demo.mobos', pin: '2002', metaDiaria: 3000000, activo: true },
-  { id: 'demo-user-vendedor', nombre: 'Diego López', rol: 'VENDEDOR', email: 'diego@demo.mobos', pin: '2003', metaDiaria: 1500000, activo: true },
-  { id: 'demo-user-cajera', nombre: 'María Benítez', rol: 'CAJERA', email: 'maria@demo.mobos', pin: '2004', metaDiaria: 0, activo: true },
-  { id: 'demo-user-tecnico', nombre: 'Jorge Villalba', rol: 'TECNICO', email: 'jorge@demo.mobos', pin: '2005', metaDiaria: 0, activo: true },
-  { id: 'demo-user-vendedora', nombre: 'Sofía Cáceres', rol: 'VENDEDOR', email: 'sofia@demo.mobos', pin: '2006', metaDiaria: 1200000, activo: true },
+  { id: 'demo-user', nombre: 'Hernán Acosta', rol: 'ADMIN', email: '35800101@correo.com.py', pin: '2001', metaDiaria: 0, activo: true },
+  { id: 'demo-user-gerente', nombre: 'Ana Giménez', rol: 'GERENTE', email: '35800102@correo.com.py', pin: '2002', metaDiaria: 3000000, activo: true },
+  { id: 'demo-user-vendedor', nombre: 'Diego López', rol: 'VENDEDOR', email: '35800103@correo.com.py', pin: '2003', metaDiaria: 1500000, activo: true },
+  { id: 'demo-user-cajera', nombre: 'María Benítez', rol: 'CAJERA', email: '35800104@correo.com.py', pin: '2004', metaDiaria: 0, activo: true },
+  { id: 'demo-user-tecnico', nombre: 'Jorge Villalba', rol: 'TECNICO', email: '35800105@correo.com.py', pin: '2005', metaDiaria: 0, activo: true },
+  { id: 'demo-user-vendedora', nombre: 'Sofía Cáceres', rol: 'VENDEDOR', email: '35800106@correo.com.py', pin: '2006', metaDiaria: 1200000, activo: true },
 ]
 
 // Seriales/IMEIs ficticios del inventario demo (#213): prefijo DEMO y nunca un
 // IMEI real (no pasan Luhn). La lista es explícita para poder auditarla.
 export function serialDemo(n) {
-  return `DEMO${String(n).padStart(4, '0')}0000000000`.slice(0, 16)
+  return `AUR${String(n).padStart(4, '0')}0000000000`.slice(0, 16)
 }
 export const IMEIS_DEMO_FICTICIOS = Array.from({ length: 24 }, (_, i) => serialDemo(i + 1))

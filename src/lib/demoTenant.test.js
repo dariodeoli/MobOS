@@ -13,7 +13,7 @@ test('el tenant demo arranca con valores ficticios por defecto', () => {
   assert.equal(tenant.purchaseCreditLimitPyg, 5000000)
   assert.equal(tenant.belowListPct, 10)
   assert.equal(tenant.loyaltyPct, 0)
-  assert.equal(tenant.orderPrefix, 'DEMO')
+  assert.equal(tenant.orderPrefix, 'AUR')
   assert.equal(getDemoInsurancePct(), 0)
 })
 

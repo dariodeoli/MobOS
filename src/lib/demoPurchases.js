@@ -3,8 +3,8 @@ import { leerDemo, guardarDemo } from './demoStorage.js'
 
 const KEY = 'mobos:demo-purchases:v1'
 const seed = [
-  { id: 'demo-purchase-1', supplierName: 'Proveedor demo A', status: 'RECEIVED', createdAt: '2026-01-12T10:00:00.000Z', receivedAt: '2026-01-14T10:00:00.000Z', shippingPyg: 85000, customsPyg: 120000, lines: [{ id: 'demo-line-1', productId: 'demo-funda-magsafe-transparente', productName: 'Funda MagSafe Transparente', quantity: 24, unitCostPyg: 18000 }] },
-  { id: 'demo-purchase-2', supplierName: 'Proveedor demo B', status: 'DRAFT', createdAt: '2026-02-02T10:00:00.000Z', receivedAt: null, shippingPyg: 60000, customsPyg: 0, lines: [{ id: 'demo-line-2', productId: 'demo-cargador-usbc-20w', productName: 'Cargador USB-C 20W', quantity: 50, unitCostPyg: 9000 }] },
+  { id: 'demo-purchase-1', supplierName: 'Proveedor Norte', status: 'RECEIVED', createdAt: '2026-01-12T10:00:00.000Z', receivedAt: '2026-01-14T10:00:00.000Z', shippingPyg: 85000, customsPyg: 120000, lines: [{ id: 'demo-line-1', productId: 'demo-funda-magsafe-transparente', productName: 'Funda MagSafe Transparente', quantity: 24, unitCostPyg: 18000 }] },
+  { id: 'demo-purchase-2', supplierName: 'Proveedor Sur', status: 'DRAFT', createdAt: '2026-02-02T10:00:00.000Z', receivedAt: null, shippingPyg: 60000, customsPyg: 0, lines: [{ id: 'demo-line-2', productId: 'demo-cargador-usbc-20w', productName: 'Cargador USB-C 20W', quantity: 50, unitCostPyg: 9000 }] },
 ]
 
 function read() {

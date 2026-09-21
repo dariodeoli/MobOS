@@ -25,13 +25,13 @@ const UBICACIONES = [
 ]
 
 const PROVEEDORES = [
-  { id: 'demo-prov-importadora', name: 'Importadora Tecnológica S.A. (demo)', contact: 'Compras · +595 981 000 111', isActive: true },
-  { id: 'demo-prov-distribuidora', name: 'Distribuidora del Este (demo)', contact: 'Ventas · +595 982 000 222', isActive: true },
-  { id: 'demo-prov-mayorista', name: 'Mayorista Apple PY (demo)', contact: 'Pedidos · +595 983 000 333', isActive: true },
+  { id: 'demo-prov-importadora', name: 'Importadora Tecnológica S.A. ', contact: 'Compras · +595 981 000 111', isActive: true },
+  { id: 'demo-prov-distribuidora', name: 'Distribuidora del Este ', contact: 'Ventas · +595 982 000 222', isActive: true },
+  { id: 'demo-prov-mayorista', name: 'Mayorista Apple PY ', contact: 'Pedidos · +595 983 000 333', isActive: true },
 ]
 
 const COTIZACION = 7300
-const USUARIO = { id: 'demo-user', name: 'Dueño demo' }
+const USUARIO = { id: 'demo-user', name: 'Hernán Acosta' }
 
 // 24 unidades: 15 disponibles, 3 reservadas, 3 vendidas, 2 en revisión y 1 en
 // tránsito; 14 nuevas y 10 seminuevas; repartidas entre depósitos y piso.
@@ -75,7 +75,7 @@ function unidad(producto, indice) {
     locationId: UBICACION_POR_INDICE[indice - 1] || 'demo-ubic-deposito-1',
     supplierName: PROVEEDORES[indice % PROVEEDORES.length].name,
     supplier: PROVEEDORES[indice % PROVEEDORES.length],
-    notes: indice % 6 === 0 ? 'Ingresó con caja abierta (demo).' : '',
+    notes: indice % 6 === 0 ? 'Ingresó con caja abierta .' : '',
     createdAt: hace(30 - indice),
     lastVerifiedBy: indice % 4 === 0 ? USUARIO : null,
     verifiedAt: indice % 4 === 0 ? hace(indice % 10, 15) : null,
@@ -86,7 +86,7 @@ function unidad(producto, indice) {
     base.reservationCustomer = CLIENTES_RESERVA[indice % CLIENTES_RESERVA.length]
     base.reservationCustomerRef = { id: `demo-cliente-reserva-${indice}`, name: base.reservationCustomer }
   }
-  if (estado === 'DEFECTIVE') base.notes = base.notes || 'En revisión: batería al ' + base.batteryHealth + '% (demo).'
+  if (estado === 'DEFECTIVE') base.notes = base.notes || 'En revisión: batería al ' + base.batteryHealth + '% .'
   return enUsd
     ? { ...base, costCurrency: 'USD', originalCost: Math.round(producto.precioCosto / COTIZACION), exchangeRatePyg: COTIZACION, costPyg: Math.round((producto.precioCosto / COTIZACION) * COTIZACION) }
     : { ...base, costCurrency: 'PYG', originalCost: null, exchangeRatePyg: null, costPyg: costoPyg }
