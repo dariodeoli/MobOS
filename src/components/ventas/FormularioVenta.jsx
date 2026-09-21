@@ -15,6 +15,8 @@ import {
 } from '@/lib/storage'
 import { leerCarrito, guardarCarrito, borrarCarrito, lineasParaResumen } from '@/lib/posCart'
 import { encolarVenta } from '@/lib/offline/ventas'
+import { descartarPreCliente } from '@/lib/preClientes'
+import { normalizarNombre } from '@/utils/nombre'
 import { esErrorDeRed } from '@/lib/offline/queue'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { allocateCheckout } from '@/utils/checkout'
@@ -945,10 +947,24 @@ export default function FormularioVenta({
       if (!esDemo) {
         const orderPayload = {
             ...(customer.id
-              ? { customerId: customer.id }
+              ? {
+                  customerId: customer.id,
+                  // Contacto corregido en el POS: viaja para persistirlo en la
+                  // ficha (el correo dejaba de guardarse al editar y vender).
+                  ...(customer.email?.trim() || customer.phone?.trim()
+                    ? {
+                        customer: {
+                          ...(customer.email?.trim() ? { email: customer.email.trim() } : {}),
+                          ...(customer.phone?.trim() ? { phone: customer.phone.trim() } : {}),
+                        },
+                      }
+                    : {}),
+                }
               : {
                   customer: {
-                    name: f.cliente.trim(),
+                    // Nombre normalizado ("PEREZ, JUAN" → "Juan Perez"): la
+                    // ficha y el pedido se muestran siempre igual.
+                    name: normalizarNombre(f.cliente.trim()),
                     ...(customer.phone?.trim() ? { phone: customer.phone.trim() } : {}),
                     ...(customer.countryCode ? { countryCode: customer.countryCode } : {}),
                     ...(customer.email?.trim() ? { email: customer.email.trim() } : {}),
@@ -1082,6 +1098,8 @@ export default function FormularioVenta({
       localStorage.setItem(ULTIMO_VENDEDOR, f.vendedorId)
       idempotencyKeyRef.current = null // la próxima venta arranca con clave nueva
       const { empresaId, sucursalId } = contextoActual()
+      // La ficha ya existe (o la creó la venta): el borrador del RUC sobra.
+      if (customer.document) descartarPreCliente(empresaId, customer.document)
       borrarCarrito(empresaId, sucursalId)
       setCustomer({ ...CLIENTE_VACIO })
       setItems([])
