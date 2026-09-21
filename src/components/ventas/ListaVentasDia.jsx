@@ -4,6 +4,8 @@ import { useSesion } from '@/lib/sesion'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { fmtLargo } from '@/components/shared/RangoFechas'
 import MedioPago from '@/components/shared/MedioPago'
+import SearchField from '@/components/shared/SearchField'
+import SegmentedField from '@/components/shared/SegmentedField'
 import Icon from '@/components/shared/Icon'
 import { Card, Badge, Dot, EmptyState, Modal, Button, Textarea, IconAction, ConfirmDialog } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -158,46 +160,23 @@ export default function ListaVentasDia({
 
       {/* ── Búsqueda + filtros ───────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3 border-b border-ink-600 px-3 py-2">
-        <div className="relative min-w-[13rem] flex-1">
-          <Icon
-            name="search"
-            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute"
-          />
-          <input
-            value={busqueda}
-            onChange={e => {
-              setBusqueda(e.target.value)
-              setPagina(1)
-            }}
-            placeholder="Buscar por cliente, producto o vendedor…"
-            aria-label="Buscar ventas por cliente, producto o vendedor"
-            className="h-9 w-full rounded-lg border border-ink-500 bg-paper pl-9 pr-8 text-sm text-fore outline-none transition focus:border-fono placeholder:text-mute/60"
-          />
-          {busqueda && (
-            <button
-              onClick={() => setBusqueda('')}
-              aria-label="Limpiar búsqueda"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mute transition hover:text-fore"
-            >
-              <Icon name="close" className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-1">
-          {FILTROS.map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => cambiarFiltro(k)}
-              className={cn(
-                'whitespace-nowrap rounded-lg px-3 py-1.5 text-sm transition',
-                filtro === k ? 'bg-ink-600 font-medium text-fore' : 'text-mute hover:text-fore',
-              )}
-            >
-              {label}
-              <span className="ml-1.5 text-xs text-mute">{cuenta(k)}</span>
-            </button>
-          ))}
-        </div>
+        <SearchField
+          value={busqueda}
+          onChange={e => {
+            setBusqueda(e.target.value)
+            setPagina(1)
+          }}
+          placeholder="Buscar por cliente, producto o vendedor…"
+          ariaLabel="Buscar ventas por cliente, producto o vendedor"
+          className="min-w-[13rem] flex-1"
+        />
+        <SegmentedField
+          value={filtro}
+          onChange={cambiarFiltro}
+          options={FILTROS.map(([id, label]) => [id, label, null, cuenta(id)])}
+          ariaLabel="Filtrar ventas"
+          className="w-full sm:w-auto sm:flex-1"
+        />
       </div>
 
       {ventas.length === 0 ? (

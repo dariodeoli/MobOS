@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Input, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import SearchField from '@/components/shared/SearchField'
 import { gs } from '@/utils/calculos'
 import { printHtml } from '@/utils/printHtml'
 import { configImpresora, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
@@ -78,7 +79,7 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
     <Modal open={open} onClose={onClose} title="Etiquetas de góndola" className="max-w-2xl">
       <div className="space-y-4">
         <p className="text-sm text-mute">Elegí los productos y cuántas etiquetas de cada uno. El código de barras sale sobre el SKU (EAN-13 si el SKU lo es; si no, CODE128) y el precio es el de venta del producto.</p>
-        <Input aria-label="Buscar por nombre o SKU" placeholder="Buscar por nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <SearchField ariaLabel="Buscar por nombre o SKU" placeholder="Buscar por nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />
         <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-ink-600 p-2">
           {visibles.map((product) => {
             const id = claveDe(product)

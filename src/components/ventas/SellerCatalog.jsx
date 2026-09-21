@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { getProductos } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
-import { Badge, Button, Input, Select } from '@/components/ui'
+import { Badge, Button, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import SearchField from '@/components/shared/SearchField'
 import { cn } from '@/lib/utils'
 import { SellerFeedback, SellerSection, useSellerData } from './SellerData'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
@@ -172,8 +173,13 @@ export default function SellerCatalog() {
     <div className="flex flex-wrap items-center gap-2">
       <form className="flex min-w-[220px] flex-1 gap-2" onSubmit={(event) => { event.preventDefault(); setSearch(busquedaDiferida.trim()) }}>
         <div className="relative min-w-0 flex-1">
-          <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-mute" />
-          <Input ref={searchRef} aria-label="Buscar productos" className="pl-9" placeholder="Nombre o SKU" value={query} onChange={(event) => setQuery(event.target.value)} />
+          <SearchField
+            ref={searchRef}
+            ariaLabel="Buscar productos"
+            placeholder="Nombre o SKU"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
         </div>
         <Button>Buscar</Button>
       </form>

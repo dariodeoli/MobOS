@@ -4,6 +4,7 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount } from '@/lib/paymentAccounts'
 import { Badge, Button, Card, Input, Label, Select } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
+import Switch from '@/components/shared/Switch'
 import BancoCombobox from '@/components/shared/BancoCombobox'
 import BancoLogo from '@/components/shared/BancoLogo'
 import { marcaDeMedio } from '@/components/shared/MedioPago'
@@ -164,7 +165,7 @@ function AccountManager() {
           <legend className="px-1 text-[10px] font-bold uppercase tracking-wider text-mute">Comportamiento del medio</legend>
           <div className="grid gap-3 sm:grid-cols-2">
             {COMPORTAMIENTO.map(({ field, control, check, label, hint }) => <div key={field} className="space-y-2">
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean(flags[field])} onChange={event => toggleBehavior(field, event.target.checked)} />{check}</label>
+              <label className="flex items-center gap-2 text-sm"><Switch checked={Boolean(flags[field])} onChange={event => toggleBehavior(field, event.target.checked)} ariaLabel={check} />{check}</label>
               {flags[field] && <div>
                 <Label htmlFor={`pa-${field}`}>{label}</Label>
                 {control === 'percent'
@@ -174,7 +175,7 @@ function AccountManager() {
               </div>}
             </div>)}
           </div>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-fono" checked={form.isActive} onChange={event => change('isActive', event.target.checked)} />Cuenta activa</label>
+          <label className="flex items-center gap-2 text-sm"><Switch checked={form.isActive} onChange={event => change('isActive', event.target.checked)} />Cuenta activa</label>
         </fieldset>
         <p className="text-xs text-mute">La plantilla solo completa el formulario; guardá para crear la cuenta.</p>
         <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => { setForm(null); setMessage(null) }}>Cancelar</Button></div>

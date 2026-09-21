@@ -5,6 +5,7 @@ import { getProductos } from '@/lib/storage'
 import { num } from '@/utils/calculos'
 import { Badge, Button, Card, EmptyState, IconAction, Input, Label, Modal, MoneyInput, Select, useToast } from '@/components/ui'
 import ProductCombobox from '@/components/shared/ProductCombobox'
+import Switch from '@/components/shared/Switch'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 
 // Gestión de precios: listas por cliente (con ítems por producto o categoría y
@@ -229,7 +230,7 @@ export default function Precios() {
         <div className="max-w-md">
           <Label htmlFor="lista-nombre">Nombre</Label><Input id="lista-nombre" required value={editor.name} onChange={event => setEditor(current => ({ ...current, name: event.target.value }))} placeholder="Mayorista VIP, Empresas…" />
         </div>
-        <label className="flex items-center gap-2 text-sm text-mute"><input type="checkbox" className="h-4 w-4 accent-fono" checked={editor.isActive} onChange={event => setEditor(current => ({ ...current, isActive: event.target.checked }))} />Lista activa</label>
+        <label className="flex items-center gap-2 text-sm text-mute"><Switch checked={editor.isActive} onChange={event => setEditor(current => ({ ...current, isActive: event.target.checked }))} />Lista activa</label>
         <div className="space-y-2">
           <p className="text-[11px] font-medium uppercase tracking-wider text-mute">Ítems</p>
           {editor.items.map((item, index) => <div key={index} className="grid gap-2 rounded-xl border border-ink-600 p-2 sm:grid-cols-[7rem_minmax(10rem,1fr)_7rem_2.75rem] sm:items-center">
