@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { normalizarCosto, sinCosto } from '../lib/costs'
+import type { CostoNormalizado } from '../lib/costs'
 
 // ── Guaraníes: entero, sin decimales ────────────────────────────────────────
 assert.deepEqual(normalizarCosto({ originalCost: 1500000, costCurrency: 'PYG' }), { costPyg: 1500000, originalCost: 1500000, costCurrency: 'PYG', exchangeRatePyg: null })
@@ -25,13 +26,16 @@ assert.throws(() => normalizarCosto({ costCurrency: 'USD' }), /Indicá el monto 
 assert.deepEqual(normalizarCosto({}), { costPyg: null, originalCost: null, costCurrency: 'PYG', exchangeRatePyg: null })
 
 // ── Costo diferido: limpiar y conservar ────────────────────────────────────
-const actual = { costPyg: 500000, originalCost: 500000, costCurrency: 'PYG', exchangeRatePyg: null }
+const actual: Partial<CostoNormalizado> = { costPyg: 500000, originalCost: 500000, costCurrency: 'PYG', exchangeRatePyg: null }
 assert.deepEqual(normalizarCosto({}, actual), actual, 'sin datos de costo se conserva lo cargado')
-assert.deepEqual(normalizarCosto({ notes: 'raya' }, actual), actual, 'editar otros campos no toca el costo')
+// Un cambio que no toca el costo (una nota, por ejemplo) tampoco lo pisa.
+const edicionConNotas = { notes: 'raya' }
+assert.deepEqual(normalizarCosto(edicionConNotas, actual), actual, 'editar otros campos no toca el costo')
 assert.deepEqual(normalizarCosto({ costPyg: null }, actual), { costPyg: null, originalCost: null, costCurrency: 'PYG', exchangeRatePyg: null }, 'se puede dejar sin costo')
 assert.deepEqual(normalizarCosto({ originalCost: null }, actual).costPyg, null)
 // Completar después: se conserva la moneda cotizada de la unidad.
-assert.deepEqual(normalizarCosto({ originalCost: 400 }, { ...actual, costCurrency: 'USD', exchangeRatePyg: 7500 }), { costPyg: 3000000, originalCost: 400, costCurrency: 'USD', exchangeRatePyg: 7500 })
+const antesEnDolares: Partial<CostoNormalizado> = { ...actual, costCurrency: 'USD', exchangeRatePyg: 7500 }
+assert.deepEqual(normalizarCosto({ originalCost: 400 }, antesEnDolares), { costPyg: 3000000, originalCost: 400, costCurrency: 'USD', exchangeRatePyg: 7500 })
 
 // ── Marca de "sin costo" ───────────────────────────────────────────────────
 assert.equal(sinCosto({ costPyg: null, originalCost: null }), true)
