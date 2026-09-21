@@ -6,6 +6,8 @@ import { publicUrls } from '@/lib/urls'
 import { PinInput } from '@/components/ui'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import ProductFooter from '@/components/app/ProductFooter'
+import Icon from '@/components/shared/Icon'
+import { PuntosDemo } from '@/components/app/ComoFuncionaDemo'
 
 const demoProfiles = [
   {
@@ -133,6 +135,13 @@ export default function DemoAccess() {
                 </button>
               ))}
             </div>
+
+            <details className="mt-4 rounded-xl border border-fore/10 bg-paper/50 p-3">
+              <summary className="cursor-pointer list-none text-xs font-semibold text-mute marker:hidden">
+                <span className="inline-flex items-center gap-2"><Icon name="info" className="h-3.5 w-3.5 text-fono-dark" /> Cómo funciona la demo</span>
+              </summary>
+              <PuntosDemo className="mt-3" />
+            </details>
 
             <details className="mt-4 rounded-xl border border-fore/10 bg-paper/50 p-3">
               <summary className="cursor-pointer list-none text-xs font-semibold text-mute marker:hidden">
