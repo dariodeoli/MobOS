@@ -39,6 +39,24 @@ export function balanceDirection(direction: 'IN' | 'OUT', amount: number) {
   return direction === 'IN' ? amount : -amount
 }
 
+/**
+ * Seguro de una línea de venta (#162): porcentaje sobre el costo del producto.
+ * costo real = costo + seguro; el margen es venta − costo real.
+ * Ejemplo: costo 100.000, venta 150.000, seguro 25% → costo real 125.000 y
+ * margen 25.000 (sin seguro serían 50.000).
+ */
+export function seguroDeCosto(baseCostPyg: number, insurancePct: number) {
+  if (!Number.isSafeInteger(baseCostPyg) || baseCostPyg < 0) throw new FinanceInputError('Costo base inválido.')
+  if (!Number.isFinite(insurancePct) || insurancePct < 0 || insurancePct > 100) throw new FinanceInputError('El porcentaje de seguro debe estar entre 0 y 100.')
+  return Math.round((baseCostPyg * insurancePct) / 100)
+}
+
+export function margenConSeguro({ costoPyg, ventaPyg, seguroPct }: { costoPyg: number; ventaPyg: number; seguroPct: number }) {
+  const seguroPyg = seguroDeCosto(costoPyg, seguroPct)
+  const costoRealPyg = costoPyg + seguroPyg
+  return { seguroPyg, costoRealPyg, margenPyg: ventaPyg - costoRealPyg }
+}
+
 export type PayablePurchaseLine = { quantity: number; unitCostPyg: number; finalTotalCostPyg: number }
 export type PayablePurchase = { id: string; supplierName: string; lines: PayablePurchaseLine[]; payments: Array<{ amountPyg: number }> }
 

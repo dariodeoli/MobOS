@@ -44,6 +44,10 @@ model Tenant {
   purchaseCreditLimitPyg Int?
   // Porcentaje de venta bajo lista permitido sin autorización (default 10).
   belowListPct           Int?
+  // Seguro predeterminado de la empresa (#162): porcentaje sobre el costo del
+  // producto que se suma al costo real de cada venta para el margen. Null o 0
+  // lo desactiva; el seguro del producto o de la categoría tiene prioridad.
+  insurancePct           Int?
   // Fidelización: porcentaje del total de cada venta que se acredita como
   // puntos canjeables (1 punto = 1 Gs.). 0 apaga la fidelización.
   loyaltyPct             Int              @default(0)
