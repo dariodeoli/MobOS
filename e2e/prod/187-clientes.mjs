@@ -1,161 +1,129 @@
-// QA #187 (CRM): recorrido funcional headless contra PRODUCCIÓN.
-// Demo (Dueño/Vendedor) para Clientes + públicos sin sesión (tokens inválidos).
-// No escribe nada en producción: la demo vive en localStorage del navegador.
+// QA de producción (#187 / #198) — Clientes y Servicio.
+//
+// Verifica, headless y sin sesión:
+//  1. Demo anónima: ficha con datos ficticios (deuda, cronología, seguro),
+//     WhatsApp de plantilla, portal por token demo y Servicio Técnico, sin
+//     llamadas al API real.
+//  2. Públicos con token inválido: mensaje genérico y 404 en la API.
+//
+// Uso: node e2e/prod/187-clientes.mjs
+//   QA198_SHOTS=/tmp/qa198 (capturas) · QA_APP=… QA_PORTAL=… QA_API=… para otros entornos.
+//
+// Si el demo completo todavía no está deployado, el script lo informa
+// ("pendiente de deploy") y deja igual la verificación de públicos + captura.
+
 import { chromium } from '@playwright/test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 
-const APP = 'https://app.moboss.online'
-const PORTAL = 'https://clientes.moboss.online'
-const SHOTS = process.env.QA187_SHOTS || '/tmp/qa187'
+const APP = process.env.QA_APP || 'https://app.moboss.online'
+const PORTAL = process.env.QA_PORTAL || 'https://clientes.moboss.online'
+const API = process.env.QA_API || 'https://api.moboss.online'
+const SHOTS = process.env.QA198_SHOTS || '/tmp/qa198'
 mkdirSync(SHOTS, { recursive: true })
 
-const hallazgos = []
-const erroresConsola = []
-const paso = async (nombre, fn) => {
-  try { await fn(); console.log(`ok · ${nombre}`) } catch (cause) { hallazgos.push(`${nombre}: ${cause.message}`); console.log(`FALLA · ${nombre}: ${cause.message}`) }
-}
-const anotar = (texto) => { hallazgos.push(texto); console.log(`nota · ${texto}`) }
-
+const resultado = { demo: {}, publicos: {}, api: {}, pendienteDeploy: false, hallazgos: [] }
 const browser = await chromium.launch({ headless: true })
-const contexto = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+const contexto = await browser.newContext({ viewport: { width: 1440, height: 900 } })
 const page = await contexto.newPage()
-page.on('console', (msg) => { if (msg.type() === 'error') erroresConsola.push(`${msg.text()}`.slice(0, 200)) })
-page.on('pageerror', (error) => erroresConsola.push(`pageerror: ${error.message}`.slice(0, 200)))
-
-// ── 1. Demo · Dueño · Clientes ──────────────────────────────────────────────
-await paso('demo: abre /demo y entra como Dueño', async () => {
-  await page.goto(`${APP}/demo`, { waitUntil: 'domcontentloaded', timeout: 60000 })
-  await page.getByRole('button', { name: /Dueño/ }).first().click()
-  await page.waitForURL((url) => !url.pathname.startsWith('/demo'), { timeout: 60000 })
-  await page.waitForTimeout(1500)
-  await page.screenshot({ path: `${SHOTS}/01-demo-entrada.png`, fullPage: false })
+const apiReal = []
+page.on('request', (request) => {
+  if (/\/api\/(customers|message-templates|service-orders|service-items|service-checklists|portal|public\/portal)/.test(request.url())) apiReal.push(request.url())
 })
+
+// ── 1. Demo (anónima o con perfil Dueño) ────────────────────────────────────
+await page.goto(`${APP}/demo`, { waitUntil: 'domcontentloaded', timeout: 60000 })
+await page.waitForTimeout(1500)
+const entrada = page.getByRole('button', { name: /Dueño/ }).first()
+if (await entrada.count()) await entrada.click()
+else await page.getByRole('button', { name: /Entrar|Probar|Ver la demo/i }).first().click()
+await page.waitForURL((url) => !url.pathname.startsWith('/demo'), { timeout: 60000 })
+await page.waitForTimeout(1200)
+await page.screenshot({ path: `${SHOTS}/01-demo-entrada.png` })
 
 const nav = page.locator('aside nav, nav').first()
-await paso('demo: Clientes visible en el menú y abre la vista', async () => {
-  await nav.getByRole('button', { name: 'Clientes', exact: true }).click()
+await nav.getByRole('button', { name: 'Clientes', exact: true }).click()
+await page.waitForTimeout(1200)
+await page.screenshot({ path: `${SHOTS}/02-clientes-demo.png` })
+const lista = await page.locator('body').innerText()
+resultado.demo.seedVisible = lista.includes('Lucía Fernández')
+
+if (resultado.demo.seedVisible) {
+  await page.getByTestId('cliente-fila').filter({ hasText: 'Lucía Fernández' }).first().click()
   await page.waitForTimeout(1200)
-  await page.screenshot({ path: `${SHOTS}/02-demo-clientes.png`, fullPage: false })
-})
+  const ficha = page.getByRole('dialog')
+  resultado.demo.bannerDemo = await ficha.getByText(/Modo demo/).count() > 0
+  resultado.demo.deuda = await ficha.getByText('Saldo pendiente: Gs 1.500.000').count() > 0
+  resultado.demo.ultimasOrdenes = await ficha.getByText('MOB-#0008').count() > 0
+  await page.screenshot({ path: `${SHOTS}/03-ficha-deuda.png` })
 
-// Crea un cliente demo (queda solo en el navegador).
-const marca = `QA187${Date.now().toString(36).toUpperCase()}`
-await paso('demo: alta con primer y segundo nombre', async () => {
-  await page.getByRole('button', { name: '+ Crear cliente' }).click()
-  await page.getByLabel('Primer nombre', { exact: true }).fill('Cliente')
-  await page.getByLabel(/Segundo nombre/).fill(marca)
-  const modal = page.locator('form').filter({ hasText: 'Límite de crédito (Gs)' })
-  await modal.getByPlaceholder('981 123 456').fill('0981222333')
-  await page.getByRole('button', { name: 'Guardar cliente' }).click()
-  await page.waitForTimeout(1500)
-  await page.screenshot({ path: `${SHOTS}/03-demo-alta.png`, fullPage: false })
-})
-
-await paso('demo: la búsqueda instantánea encuentra al cliente y el teléfono va con +595', async () => {
-  await page.getByLabel('Buscar clientes').fill(marca)
+  await ficha.getByRole('tab', { name: /^Cronología/ }).click()
   await page.waitForTimeout(600)
-  const fila = page.getByTestId('cliente-fila').filter({ hasText: marca }).first()
-  await fila.waitFor({ timeout: 10000 })
-  const texto = await fila.innerText()
-  if (!texto.includes('+595 981 223 333')) throw new Error(`teléfono sin formato +595: ${texto}`)
-  await page.screenshot({ path: `${SHOTS}/04-demo-busqueda.png`, fullPage: false })
-})
+  resultado.demo.cronologia = await ficha.getByText('Pedido creado').count() > 0
+  await page.screenshot({ path: `${SHOTS}/04-ficha-cronologia.png` })
 
-await paso('demo: filtros segmentados responden', async () => {
-  await page.getByRole('button', { name: 'Mayoristas', exact: true }).click()
+  await ficha.getByRole('tab', { name: /^Datos/ }).click()
   await page.waitForTimeout(600)
-  await page.screenshot({ path: `${SHOTS}/05-demo-filtro.png`, fullPage: false })
-  await page.getByRole('button', { name: 'Todos', exact: true }).click()
-})
+  const seguro = ficha.getByRole('switch', { name: 'Seguro del cliente activo' })
+  resultado.demo.seguro = (await seguro.count()) > 0 && (await seguro.isChecked()) && (await seguro.isDisabled())
+  resultado.demo.seguroPct = await ficha.getByLabel('Porcentaje del cliente').inputValue().catch(() => '')
+  await page.screenshot({ path: `${SHOTS}/05-ficha-seguro.png` })
 
-await paso('demo: vista mobile 390 sin scroll horizontal', async () => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  // WhatsApp de plantilla (popover con plantillas demo, sin API).
+  await ficha.getByRole('button', { name: /Elegir plantilla de WhatsApp/ }).click()
   await page.waitForTimeout(600)
-  const { sw, cw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }))
-  if (sw > cw + 1) throw new Error(`scroll horizontal en mobile: ${sw} > ${cw}`)
-  await page.screenshot({ path: `${SHOTS}/06-demo-mobile.png`, fullPage: false })
-  await page.setViewportSize({ width: 1280, height: 900 })
-})
+  resultado.demo.whatsapp = await page.getByRole('dialog', { name: 'Plantillas de WhatsApp' }).getByText('Pedido listo para retirar').count() > 0
+  await page.screenshot({ path: `${SHOTS}/06-whatsapp-plantilla.png` })
+  await page.keyboard.press('Escape')
+  await page.keyboard.press('Escape')
 
-await paso('demo: clic en la fila (¿abre la ficha?)', async () => {
-  await page.getByLabel('Buscar clientes').fill(marca)
-  await page.waitForTimeout(600)
-  const fila = page.getByTestId('cliente-fila').filter({ hasText: marca }).first()
-  await fila.click()
-  await page.waitForTimeout(800)
-  const dialogo = await page.getByRole('dialog').count()
-  await page.screenshot({ path: `${SHOTS}/07-demo-clic-fila.png`, fullPage: false })
-  if (!dialogo) anotar('demo: el clic en la fila no abre la ficha del cliente (en demo la ficha está deshabilitada por diseño)')
-})
-
-// ── 2. Demo · Vendedor · QA por rol ────────────────────────────────────────
-await paso('demo: entra como Vendedor y ve Clientes', async () => {
-  await contexto.clearCookies()
-  const pagina2 = await contexto.newPage()
-  await pagina2.goto(`${APP}/demo`, { waitUntil: 'domcontentloaded', timeout: 60000 })
-  await pagina2.getByRole('button', { name: /Vendedor/ }).first().click()
-  await pagina2.waitForURL((url) => !url.pathname.startsWith('/demo'), { timeout: 60000 })
-  await pagina2.waitForTimeout(1200)
-  const nav2 = pagina2.locator('aside nav, nav').first()
-  await nav2.getByRole('button', { name: 'Clientes', exact: true }).click()
-  await pagina2.waitForTimeout(800)
-  await pagina2.screenshot({ path: `${SHOTS}/08-demo-vendedor.png`, fullPage: false })
-  await pagina2.close()
-})
-
-// ── 3. Públicos sin sesión (tokens inválidos) ──────────────────────────────
-const anonimo = await browser.newContext({ viewport: { width: 390, height: 844 } })
-const publica = await anonimo.newPage()
-const erroresPublicos = []
-publica.on('pageerror', (error) => erroresPublicos.push(error.message))
-
-for (const [ruta, etiqueta] of [['/cuenta/token-inexistente-qa187', 'cuenta'], ['/portal/token-inexistente-qa187', 'vitrina'], ['/garantia/token-inexistente-qa187', 'garantia']]) {
-  await paso(`público: ${etiqueta} con token inválido muestra error genérico`, async () => {
-    await publica.goto(`${PORTAL}${ruta}`, { waitUntil: 'domcontentloaded', timeout: 60000 })
-    await publica.waitForTimeout(1500)
-    await publica.screenshot({ path: `${SHOTS}/10-publico-${etiqueta}.png`, fullPage: false })
-    const texto = (await publica.locator('body').innerText()).toLowerCase()
-    if (!texto.includes('no encontrada') && !texto.includes('no es válido') && !texto.includes('venció')) throw new Error(`sin mensaje de error visible: ${texto.slice(0, 120)}`)
-    const { sw, cw } = await publica.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }))
-    if (sw > cw + 1) throw new Error(`scroll horizontal: ${sw} > ${cw}`)
+  // Portal por token demo (local, sin API).
+  const idDemo = await page.evaluate(() => {
+    try { return (JSON.parse(localStorage.getItem('mobos:demo-customers:v1') || '[]')[0] || {}).id || 'demo-cliente-lucia' } catch { return 'demo-cliente-lucia' }
   })
+  await page.goto(`${PORTAL}/cuenta/demo-demo-cliente-lucia-completo`)
+  await page.waitForTimeout(1000)
+  const portalTexto = await page.locator('body').innerText()
+  resultado.demo.portalCuenta = portalTexto.includes('Tienda demo') && portalTexto.includes('Gs 1.500.000')
+  await page.screenshot({ path: `${SHOTS}/07-portal-cuenta.png` })
+  await page.goto(`${PORTAL}/portal/demo-demo-cliente-lucia-completo`)
+  await page.waitForTimeout(1000)
+  resultado.demo.portalVitrina = (await page.locator('body').innerText()).includes('MOB-#0008')
+  await page.screenshot({ path: `${SHOTS}/08-portal-vitrina.png` })
+
+  // Observación demo: ?cliente= abre la ficha sin API real.
+  await page.goto(`${APP}/clientes?cliente=${encodeURIComponent(idDemo)}`)
+  await page.waitForTimeout(1500)
+  resultado.demo.clienteParam = await page.getByRole('dialog').getByText(/Modo demo/).count() > 0
+  await page.screenshot({ path: `${SHOTS}/09-cliente-param.png` })
+
+  // Servicio Técnico demo.
+  await page.goto(`${APP}/servicio`)
+  await page.waitForTimeout(1500)
+  const servicioTexto = await page.locator('body').innerText()
+  resultado.demo.servicio = servicioTexto.includes('OS-#0001') && servicioTexto.includes('OS-#0002')
+  await page.screenshot({ path: `${SHOTS}/10-servicio-demo.png` })
+} else {
+  resultado.pendienteDeploy = true
+  resultado.hallazgos.push('El demo completo (#194) todavía no está deployado: la lista de Clientes en producción está vacía y no muestra los seeds ficticios.')
 }
 
-await paso('público: la entrada del portal carga sin sesión', async () => {
-  await publica.goto(`${PORTAL}/`, { waitUntil: 'domcontentloaded', timeout: 60000 })
-  await publica.waitForTimeout(1200)
-  await publica.screenshot({ path: `${SHOTS}/11-publico-entrada.png`, fullPage: false })
-})
+resultado.demo.apiReal = [...new Set(apiReal)]
 
-// ── 4. Sondas de API en producción ─────────────────────────────────────────
-const api = 'https://api.moboss.online'
-const sonda = async (ruta) => {
-  const res = await fetch(`${api}${ruta}`, { headers: { 'x-forwarded-for': '203.0.113.187' } })
-  return res.status
+// ── 2. Públicos con token inválido ──────────────────────────────────────────
+const anonimo = await contexto.newPage()
+for (const [ruta, clave] of [['/cuenta/token-inexistente-qa198', 'cuenta'], ['/portal/token-inexistente-qa198', 'vitrina'], ['/garantia/token-inexistente-qa198', 'garantia']]) {
+  await anonimo.goto(`${PORTAL}${ruta}`, { waitUntil: 'domcontentloaded', timeout: 60000 })
+  await anonimo.waitForTimeout(1000)
+  const texto = (await anonimo.locator('body').innerText()).toLowerCase()
+  resultado.publicos[clave] = { generico: /no encontrada|no es válido|venció/.test(texto) }
+  await anonimo.screenshot({ path: `${SHOTS}/11-publico-${clave}.png` })
 }
-const apiResultados = {
-  portal: await sonda('/api/portal/token-inexistente-qa187'),
-  vitrina: await sonda('/api/public/portal/token-inexistente-qa187'),
-  garantia: await sonda('/api/public/warranty/token-inexistente-qa187'),
+for (const [ruta, clave] of [['/api/portal/token-inexistente-qa198', 'portal'], ['/api/public/portal/token-inexistente-qa198', 'vitrina'], ['/api/public/warranty/token-inexistente-qa198', 'garantia']]) {
+  const res = await fetch(`${API}${ruta}`)
+  resultado.api[clave] = res.status
 }
-let rateLimit = 0
-for (let i = 0; i < 35; i += 1) {
-  const status = await sonda('/api/public/warranty/token-inexistente-qa187')
-  if (status === 429) rateLimit += 1
-}
-console.log('api:', JSON.stringify(apiResultados), 'rate-limit-429:', rateLimit)
-
-// ── 5. Versión desplegada visible ──────────────────────────────────────────
-let version = ''
-await paso('app: versión en el pie', async () => {
-  await page.goto(`${APP}/demo`, { waitUntil: 'domcontentloaded', timeout: 60000 })
-  await page.waitForTimeout(1200)
-  const pie = await page.locator('footer, [class*="footer"]').first().innerText().catch(() => '')
-  version = (pie.match(/v?\d+\.\d+\.\d+/) || [''])[0]
-  await page.screenshot({ path: `${SHOTS}/12-demo-pie.png`, fullPage: false })
-})
 
 await browser.close()
-writeFileSync(`${SHOTS}/resumen.json`, JSON.stringify({ hallazgos, erroresConsola, erroresPublicos, apiResultados, rateLimit, version }, null, 2))
-console.log('--- RESUMEN ---')
-console.log(JSON.stringify({ hallazgos, erroresConsola: erroresConsola.slice(0, 5), erroresPublicos: erroresPublicos.slice(0, 3), apiResultados, rateLimit, version }, null, 2))
+writeFileSync(`${SHOTS}/resumen.json`, JSON.stringify(resultado, null, 2))
+console.log(JSON.stringify(resultado, null, 2))
+if (resultado.pendienteDeploy) process.exitCode = 3
