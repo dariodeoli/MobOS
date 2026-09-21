@@ -84,6 +84,8 @@ function resolveRoute(pathname) {
   if (protectedSections[pathname]) return { label: protectedSections[pathname] }
   // El detalle de un pedido conserva el título del listado.
   if (pathname.startsWith('/pedidos/')) return { label: 'Pedidos' }
+  // El panel del repartidor tiene su propio título.
+  if (pathname.startsWith('/delivery/')) return { label: 'Reparto' }
   // Compatibilidad: las URLs viejas /pos/* redirigen a los slugs nuevos.
   if (pathname === '/pos' || pathname.startsWith('/pos/')) return { label: 'Operación de tienda' }
   if (pathname === '/control' || pathname.startsWith('/control/')) return { label: 'Administración' }

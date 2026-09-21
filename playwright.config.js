@@ -81,7 +81,7 @@ export default defineConfig({
     {
       // No storage state: UI login flows and anonymous API tracking.
       name: 'core',
-      testMatch: /auth\.spec\.js|public-tracking\.spec\.js|cliente-portal-entrada\.spec\.js|demo-finanzas\.spec\.js/,
+      testMatch: /auth\.spec\.js|public-tracking\.spec\.js|cliente-portal-entrada\.spec\.js|demo-finanzas\.spec\.js|delivery\.spec\.js|shell-roles\.spec\.js/,
     },
     {
       // Seeded seller session (PIN 2468) for POS and permissions coverage.

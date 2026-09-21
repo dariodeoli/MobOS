@@ -200,6 +200,14 @@ async function ensureRepartidor(ctx, adminToken) {
 async function ensureDeliveryOrder(ctx, sellerToken, adminToken) {
   const state = await ctx.get(`/api/delivery/orders?estado=todos&asignado=${SEED.repartidor.id}`, { headers: bearer(adminToken) })
   if (!state.ok()) throw new Error(`delivery orders list failed: HTTP ${state.status()}`)
+  // El repartidor de prueba ve UN solo pedido (el sembrado): lo que quedó
+  // asignado de corridas anteriores se desasigna para que la suite sea
+  // determinista (delivery.spec afirma "y solo ese").
+  execFileSync(`${PG_BIN}/psql`, [
+    '-h', '127.0.0.1', '-p', process.env.MOBOS_E2E_PGPORT || '5439', '-U', 'postgres', '-d', process.env.MOBOS_E2E_DB || 'mobos_e2e',
+    '-v', 'ON_ERROR_STOP=1',
+    '-c', `UPDATE "Order" SET "assignedToId" = NULL WHERE "assignedToId" = (SELECT "id" FROM "User" WHERE "email" = '${SEED.repartidor.email}') AND "orderNumber" <> '${SEED.deliveryOrderNumber}';`,
+  ], { stdio: 'ignore' })
   const existente = (await state.json()).find((row) => row.orderNumber === SEED.deliveryOrderNumber)
   if (existente) {
     execFileSync(`${PG_BIN}/psql`, [
