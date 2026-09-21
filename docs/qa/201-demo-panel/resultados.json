@@ -1,0 +1,41 @@
+{
+  "issue": 201,
+  "titulo": "Demo: panel completo y funcional con datos demo, solo sesión (sin persistir nada)",
+  "fecha": "2026-09-21",
+  "rama": "slot/plataforma",
+  "commits": ["a125365", "1b944c7", "9f74e50"],
+  "spec": "e2e/demo-anonimo.spec.js",
+  "resultado": "7/7 en verde",
+  "verificaciones": {
+    "modulosDuenioRecorridos": 29,
+    "modulosVendedorRecorridos": 9,
+    "llamadasApiEnDemo": 0,
+    "clavesEspejoLocalStorageEnDemo": 0,
+    "guardadoSobreviveRecarga": false,
+    "consolaLimpiaEnDemo": true,
+    "loginRealTrasSesionDemo": "ok (marca de demo limpiada, el API real responde)"
+  },
+  "checks": {
+    "lint": "0 errores (1 warning preexistente react-hooks en WhatsAppTemplates)",
+    "buildFrontend": "ok",
+    "buildBackend": "ok (backend/.next/BUILD_ID creado)",
+    "prismaValidate": "ok",
+    "npmTest": "388 pass / 0 fail",
+    "backendTestUnit": "71 pass / 0 fail",
+    "dbCheck": "la base coincide con prisma/schema.prisma",
+    "e2eDemo": "7/7",
+    "e2eSmoke": "7/7"
+  },
+  "capturas": [
+    "01-entrada.jpg",
+    "02-como-funciona-entrada.jpg",
+    "03-como-funciona-modal.jpg",
+    "04-pos.jpg",
+    "05-pedidos.jpg",
+    "06-clientes.jpg",
+    "07-inventario.jpg",
+    "08-finanzas.jpg",
+    "09-plantillas.jpg",
+    "10-sistema-no-disponible.jpg"
+  ]
+}
