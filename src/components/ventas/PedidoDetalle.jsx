@@ -3,7 +3,8 @@ import PresenciaPedido from './PresenciaPedido'
 import { Drawer, Badge, Button, Input, Money, Select, Skeleton, Textarea, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import AttachmentInput from '@/components/shared/AttachmentInput'
-import ActorAvatar from '@/components/customers/ActorAvatar'
+import Avatar from '@/components/shared/Avatar'
+import SeccionColapsable from '@/components/shared/SeccionColapsable'
 import { primerNombre } from '@/lib/utils'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
@@ -44,10 +45,8 @@ const AUDIT_LABELS = {
 function nombreActor(name) {
   return String(name || '').trim().split(/\s+/).slice(0, 2).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') || 'Sistema'
 }
-// Sin foto, el cliente se identifica con el icono de persona (no iniciales).
-function Avatar({ name, size = 'md' }) {
-  return <span title={name || undefined} className={`grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-fono to-fono-dark text-onbrand ${size === 'sm' ? 'h-7 w-7' : 'h-9 w-9'}`}><Icon name="user" className={size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'} /></span>
-}
+// Sin foto, el cliente se muestra con el Avatar compartido (iniciales): no se
+// dibuja un avatar propio ni una imagen rota (#164).
 function relativeDate(value) {
   if (!value) return '—'
   const date = new Date(value)
@@ -71,6 +70,9 @@ function nombrePago(pago, order) {
 
 function PhotoThumb({ orderId, commentId, photo }) {
   const [url, setUrl] = useState('')
+  // Si el archivo llega dañado (o el blob no es una imagen), se muestra un
+  // marcador en vez de la imagen rota con el nombre del archivo encima (#164).
+  const [rota, setRota] = useState(false)
   useEffect(() => {
     let active = true; let objectUrl = ''
     fetch(`${API_URL}/api/orders/${encodeURIComponent(orderId)}/comments/${encodeURIComponent(commentId)}/photos/${encodeURIComponent(photo.id)}`, { credentials: 'include' })
@@ -83,7 +85,13 @@ function PhotoThumb({ orderId, commentId, photo }) {
     return <button type="button" className="flex items-center gap-1.5 rounded-lg border border-ink-600 px-2 py-1.5 text-xs text-fono-light" onClick={() => url && window.open(url, '_blank')}><Icon name="report" className="h-3.5 w-3.5" /> {photo.fileName}</button>
   }
   if (!url) return <span className="h-16 w-16 animate-pulse rounded-lg bg-ink-700" />
-  return <button type="button" onClick={() => window.open(url, '_blank')} className="overflow-hidden rounded-lg border border-ink-600 transition hover:border-fono"><img src={url} alt={photo.fileName} className="h-16 w-16 object-cover" /></button>
+  return (
+    <button type="button" onClick={() => window.open(url, '_blank')} className="overflow-hidden rounded-lg border border-ink-600 transition hover:border-fono">
+      {rota
+        ? <span className="grid h-16 w-16 place-items-center text-mute" title={photo.fileName}><Icon name="image" className="h-4 w-4" /></span>
+        : <img src={url} alt={photo.fileName} onError={() => setRota(true)} className="h-16 w-16 object-cover" />}
+    </button>
+  )
 }
 
 const NIVELES_ACCESO = [['rapido', 'Rápido'], ['completo', 'Completo'], ['detallado', 'Detallado']]
@@ -344,7 +352,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
       {loading && <div className="space-y-3"><Skeleton className="h-20 w-full" /><Skeleton className="h-40 w-full" /><Skeleton className="h-24 w-full" /></div>}
       {error && <p role="alert" className="mb-4 rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>}
       {!loading && (
-        <div className="space-y-5">
+        <div className="space-y-3">
           {/* Estado y cabecera */}
           <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -413,22 +421,20 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
 
           {/* Etiquetas */}
           {!esDemo && (
-            <section className="rounded-2xl border border-ink-600 p-4">
-              <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-mute"><Icon name="tag" className="h-3.5 w-3.5" /> Etiquetas</h3>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
+            <SeccionColapsable id={`pedido-${order.id}-etiquetas`} titulo="Etiquetas" icono="tag" resumen={tags.length ? `${tags.length} etiqueta${tags.length === 1 ? '' : 's'}` : 'Sin etiquetas'}>
+              <div className="flex flex-wrap items-center gap-2">
                 {tags.map(tag => <button key={tag} type="button" onClick={() => guardarTags(tags.filter(item => item !== tag))} className="group inline-flex items-center gap-1 rounded-full border border-fono/25 bg-fono/10 px-2.5 py-1 text-xs text-fono-light" title="Quitar etiqueta">{tag}<span className="text-mute group-hover:text-bad">×</span></button>)}
                 <form onSubmit={event => { event.preventDefault(); const tag = tagInput.trim(); if (!tag || tags.includes(tag) || tags.length >= 20) return; guardarTags([...tags, tag]); setTagInput('') }} className="flex items-center gap-1">
                   <Input aria-label="Nueva etiqueta" className="h-8 w-36 text-xs" maxLength={40} value={tagInput} onChange={event => setTagInput(event.target.value)} placeholder="Busca o crea etiquetas" />
                   <button type="submit" className="rounded-lg p-1.5 text-fono-light hover:bg-fono/10" aria-label="Agregar etiqueta"><Icon name="plus" className="h-4 w-4" /></button>
                 </form>
               </div>
-            </section>
+            </SeccionColapsable>
           )}
 
           {/* Artículos */}
-          <section className="rounded-2xl border border-ink-600 p-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Artículos preparados</h3>
-            <div className="mt-3 divide-y divide-ink-600/70">
+          <SeccionColapsable id={`pedido-${order.id}-articulos`} titulo="Artículos preparados" icono="box" resumen={items.length ? `${items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)} artículo(s) · ${gs(total)}` : 'Sin artículos detallados'}>
+            <div className="divide-y divide-ink-600/70">
               {items.map((item, index) => {
                 const serials = Array.isArray(item.serials) ? item.serials : []
                 return (
@@ -448,12 +454,11 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               })}
               {!items.length && <p className="py-3 text-sm text-mute">Sin artículos detallados.</p>}
             </div>
-          </section>
+          </SeccionColapsable>
 
           {/* Información de pago */}
-          <section className="rounded-2xl border border-ink-600 p-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Información de pago</h3>
-            <div className="mt-3 space-y-1.5 text-sm">
+          <SeccionColapsable id={`pedido-${order.id}-pago`} titulo="Información de pago" icono="wallet" resumen={`${estadoPago} · total ${gs(total)}`}>
+            <div className="space-y-1.5 text-sm">
               <p className="flex justify-between"><span className="text-mute">Subtotal · {items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)} artículos</span><span className="tabular-nums"><Money value={Number(order.subtotalPyg ?? total)} /></span></p>
               {Number(order.discountPyg || 0) > 0 && <p className="flex justify-between text-warn"><span>Descuento</span><span className="tabular-nums">− <Money value={order.discountPyg} /></span></p>}
               {Number(order.deliveryPyg || 0) > 0 && <p className="flex justify-between"><span className="text-mute">Envío</span><span className="tabular-nums"><Money value={order.deliveryPyg} /></span></p>}
@@ -467,13 +472,12 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 <span className="flex flex-wrap items-center gap-2"><span className="text-[10px] text-mute">Registrado por {nombreActor(nombrePago(pago, order))}</span><span className="tabular-nums font-semibold"><Money value={Number(pago.amountPyg || 0)} /></span><Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status}</Badge>{pago.settlesAt && <span className="text-[10px] text-mute">acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>
               </div>)}
             </div>}
-          </section>
+          </SeccionColapsable>
 
           {/* Comprobantes de pago: archivos adjuntos a cada cobro */}
           {payments.some(pago => (pago.proofs || []).length > 0) && (
-            <section className="rounded-2xl border border-ink-600 p-4">
-              <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-mute"><Icon name="report" className="h-3.5 w-3.5" /> Comprobantes</h3>
-              <div className="mt-3 space-y-3">
+            <SeccionColapsable id={`pedido-${order.id}-comprobantes`} titulo="Comprobantes" icono="report" resumen={`${payments.reduce((sum, pago) => sum + (pago.proofs || []).length, 0)} archivo(s) de pago`}>
+              <div className="space-y-3">
                 {payments.filter(pago => (pago.proofs || []).length > 0).map(pago => (
                   <div key={pago.id}>
                     <p className="text-xs text-mute">{ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method} · <Money value={Number(pago.amountPyg || 0)} /></p>
@@ -488,14 +492,18 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                   </div>
                 ))}
               </div>
-            </section>
+            </SeccionColapsable>
           )}
 
           {/* Cliente */}
-          <section className="rounded-2xl border border-ink-600 p-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Cliente</h3>
-            <div className="mt-3 flex items-start gap-3">
-              <Avatar name={order.customer?.name || order.customer || '?'} />
+          <SeccionColapsable
+            id={`pedido-${order.id}-cliente`}
+            titulo="Cliente"
+            icono="user"
+            resumen={[order.customer?.name || order.customer || 'Consumidor final', order.customer?.phone ? `${order.customer.countryCode || '+595'} ${order.customer.phone}` : ''].filter(Boolean).join(' · ')}
+          >
+            <div className="flex items-start gap-3">
+              <Avatar user={{ name: order.customer?.name || order.customer || 'Consumidor final' }} size="lg" />
               <div className="min-w-0">
                 <p className="truncate font-semibold">{order.customer?.name || order.customer || 'Consumidor final'}</p>
                 <p className="mt-0.5 text-xs text-mute">{order.customer?.phone ? `${order.customer.countryCode || '+595'} ${order.customer.phone}` : 'Sin teléfono'}{order.customer?.email ? ` · ${order.customer.email}` : ''}</p>
@@ -506,15 +514,14 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               </div>
             </div>
             {order.notes && <p className="mt-3 rounded-lg bg-ink-700/60 px-3 py-2 text-xs text-mute">Nota: {order.notes}</p>}
-          </section>
+          </SeccionColapsable>
 
           {/* Cronología */}
-          <section className="rounded-2xl border border-ink-600 p-4">
-            <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-mute"><Icon name="clock" className="h-3.5 w-3.5" /> Cronología</h3>
-            {esDemo && <p className="mt-2 text-sm text-mute">La cronología con comentarios y fotos está disponible con una cuenta real.</p>}
+          <SeccionColapsable id={`pedido-${order.id}-cronologia`} titulo="Cronología" icono="clock" resumen={events.length ? `${events.length} movimiento${events.length === 1 ? '' : 's'}` : 'Sin movimientos'}>
+            {esDemo && <p className="text-sm text-mute">La cronología con comentarios y fotos está disponible con una cuenta real.</p>}
             {!esDemo && (
               <>
-                <form onSubmit={enviarComentario} className="mt-3 space-y-2">
+                <form onSubmit={enviarComentario} className="space-y-2">
                   <textarea aria-label="Comentario del pedido" rows={2} maxLength={2000} value={comentario} onChange={event => setComentario(event.target.value)} placeholder="Escribí un comentario para el equipo…" className="w-full rounded-xl border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-fore outline-none transition focus:border-fono" />
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-ink-500 px-3 py-1.5 text-xs text-mute transition hover:border-fono hover:text-fore">
@@ -525,9 +532,9 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                     <span className="text-[10px] text-mute">Solo tú y otros empleados pueden ver los comentarios.</span>
                   </div>
                 </form>
-                <div className="mt-4 space-y-4">
+                <div className="mt-3 space-y-3">
                   {events.map(event => <article key={`${event.type}-${event.id}`} className="flex gap-3">
-                    <ActorAvatar user={event.user || { name: 'Sistema' }} hasAvatar={event.user?.hasAvatar === true} size="sm" />
+                    <Avatar user={event.user || { name: 'Sistema' }} hasAvatar={event.user?.hasAvatar} picture={event.user?.picture} size="sm" />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs text-mute" title={event.user?.name || 'Sistema'}><span className="font-semibold text-fore">{primerNombre(event.user?.name) || 'Sistema'}</span> · {relativeDate(event.at)}</p>
                       {event.type === 'comment' && <>
@@ -543,7 +550,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
                 </div>
               </>
             )}
-          </section>
+          </SeccionColapsable>
         </div>
       )}
       <ComprobantePreview order={{ ...order, timeline: timelineComprobante }} open={comprobante} onClose={() => setComprobante(false)}  formatos={FORMATOS_PEDIDO} />
