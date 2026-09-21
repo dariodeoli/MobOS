@@ -4,6 +4,8 @@ import { isDemoRuntime } from './demoMode'
 const ENDPOINT = '/api/payment-accounts'
 const DEMO_KEY = 'mobos:demo-payment-accounts:v1'
 const KINDS = ['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX', 'CRYPTO']
+// Etiquetas del medio para listados y buscadores (#142/#141).
+export const KIND_LABELS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta', PIX: 'Pix', CRYPTO: 'USDT - Cripto', TRADE_IN: 'Canje' }
 const CAMPOS_TEXTO = ['name', 'bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel', 'holderId', 'companyId']
 const defaults = { name: '', bank: '', holder: '', accountNumber: '', document: '', processor: '', pixKey: '', reference: '', currencyLabel: '', holderId: '', companyId: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, discountPct: 0, settlementDays: 0 }
 const seed = [

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount } from '@/lib/paymentAccounts'
-import { Badge, Button, Card, Input, Label, Select } from '@/components/ui'
+import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount, KIND_LABELS } from '@/lib/paymentAccounts'
+import { Badge, Button, Card, Input, Label, Select, Toggle } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import BancoCombobox from '@/components/shared/BancoCombobox'
 import BancoLogo from '@/components/shared/BancoLogo'
@@ -10,7 +10,7 @@ import ComboBuscador from '@/components/shared/ComboBuscador'
 import { marcaDeMedio } from '@/components/shared/MedioPago'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { getAccountHolders, getPrivateCompanies } from '@/lib/accountParties'
-import { nombreCompleto, opcionesDePartes } from '@/lib/accountNames'
+import { nombreCompleto, nombreSugeridoDeCuenta, opcionesDePartes } from '@/lib/accountNames'
 import { cn } from '@/lib/utils'
 
 // Tabla compacta: una fila por cuenta, con comisión, acreditación y descuento.
@@ -23,12 +23,12 @@ const EMPTY = { name: '', bank: '', holder: '', accountNumber: '', document: '',
 // comportamiento aplica. La moneda fija se guarda sola (Pix en reales, Cripto
 // en dólares) y el resto elige entre las del sistema o una personalizada.
 const MEDIOS = [
-  { kind: 'CASH', label: 'Efectivo', banco: false, titular: false, documento: false, cuenta: false, procesadora: false, pixKey: false, referencia: false, moneda: true, personalizada: true, comportamiento: ['discount'] },
-  { kind: 'TRANSFER', label: 'Transferencia', banco: true, titular: true, documento: true, cuenta: true, procesadora: false, pixKey: false, referencia: false, moneda: true, personalizada: false, comportamiento: ['discount', 'fee', 'settlement'] },
-  { kind: 'CARD', label: 'Tarjeta', banco: false, titular: false, documento: false, cuenta: false, procesadora: true, pixKey: false, referencia: false, moneda: true, personalizada: false, comportamiento: ['fee', 'settlement'] },
-  { kind: 'PIX', label: 'Pix', banco: false, titular: true, documento: false, cuenta: false, procesadora: false, pixKey: true, referencia: false, moneda: false, monedaFija: 'BRL', personalizada: false, comportamiento: [] },
-  { kind: 'CRYPTO', label: 'USDT - Cripto', banco: false, titular: true, documento: false, cuenta: false, procesadora: false, pixKey: false, referencia: true, moneda: false, monedaFija: 'USD', personalizada: false, comportamiento: [] },
-  { kind: 'TRADE_IN', label: 'Canje', banco: false, titular: true, documento: false, cuenta: false, procesadora: false, pixKey: false, referencia: true, moneda: true, personalizada: false, comportamiento: [] },
+  { kind: 'CASH', label: KIND_LABELS.CASH, banco: false, titular: false, documento: false, cuenta: false, procesadora: false, pixKey: false, referencia: false, moneda: true, personalizada: true, comportamiento: ['discount'] },
+  { kind: 'TRANSFER', label: KIND_LABELS.TRANSFER, banco: true, titular: true, documento: true, cuenta: true, procesadora: false, pixKey: false, referencia: false, moneda: true, personalizada: false, comportamiento: ['discount', 'fee', 'settlement'] },
+  { kind: 'CARD', label: KIND_LABELS.CARD, banco: false, titular: false, documento: false, cuenta: false, procesadora: true, pixKey: false, referencia: false, moneda: true, personalizada: false, comportamiento: ['fee', 'settlement'] },
+  { kind: 'PIX', label: KIND_LABELS.PIX, banco: false, titular: true, documento: false, cuenta: false, procesadora: false, pixKey: true, referencia: false, moneda: false, monedaFija: 'BRL', personalizada: false, comportamiento: [] },
+  { kind: 'CRYPTO', label: KIND_LABELS.CRYPTO, banco: false, titular: true, documento: false, cuenta: false, procesadora: false, pixKey: false, referencia: true, moneda: false, monedaFija: 'USD', personalizada: false, comportamiento: [] },
+  { kind: 'TRADE_IN', label: KIND_LABELS.TRADE_IN, banco: false, titular: true, documento: false, cuenta: false, procesadora: false, pixKey: false, referencia: true, moneda: true, personalizada: false, comportamiento: [] },
 ]
 const medioDe = (kind) => MEDIOS.find((medio) => medio.kind === kind) || MEDIOS[0]
 
@@ -107,6 +107,8 @@ function AccountManager() {
   const [message, setMessage] = useState(null)
   const [holders, setHolders] = useState([])
   const [companies, setCompanies] = useState([])
+  const [nombreTocado, setNombreTocado] = useState(false)
+  const nombreTocadoRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -138,20 +140,32 @@ function AccountManager() {
     setEditingId(account?.id ?? null)
     setForm(values)
     setFlags(flagsFrom(values))
+    // Una cuenta existente conserva su nombre; una nueva (o una plantilla) se
+    // completa sola mientras el usuario no escriba el nombre a mano (#141).
+    nombreTocadoRef.current = Boolean(account?.id)
+    setNombreTocado(Boolean(account?.id))
     setMessage(null)
   }
 
-  function change(key, value) { setForm(current => ({ ...current, [key]: value })) }
+  // Nombre automático: se recalcula con cada dato mientras no lo hayan tocado.
+  function conNombre(next) {
+    return nombreTocadoRef.current ? next : { ...next, name: nombreSugeridoDeCuenta(next) }
+  }
+
+  function change(key, value) {
+    if (key === 'name') { nombreTocadoRef.current = true; setNombreTocado(true) }
+    setForm(current => conNombre({ ...current, [key]: value }))
+  }
 
   // Elegir un titular o una empresa registrados completa el nombre y guarda el
   // vínculo (#143); si el titular todavía no tiene documento, se hereda.
   function elegirTitular(opcion) {
     if (!opcion) return
     if (opcion.tipo === 'holder') {
-      setForm(current => ({ ...current, holder: nombreCompleto(opcion.entidad), holderId: opcion.entidad.id, companyId: '', document: current.document || opcion.entidad.document || '' }))
+      setForm(current => conNombre({ ...current, holder: nombreCompleto(opcion.entidad), holderId: opcion.entidad.id, companyId: '', document: current.document || opcion.entidad.document || '' }))
       return
     }
-    setForm(current => ({ ...current, holder: opcion.entidad.legalName, companyId: opcion.entidad.id, holderId: '', document: current.document || opcion.entidad.ruc || '' }))
+    setForm(current => conNombre({ ...current, holder: opcion.entidad.legalName, companyId: opcion.entidad.id, holderId: '', document: current.document || opcion.entidad.ruc || '' }))
   }
 
   // Al cambiar de medio, la moneda fija del medio (Pix/USDT) se aplica sola y
@@ -159,7 +173,7 @@ function AccountManager() {
   function changeMedio(kind) {
     setForm(current => {
       const medio = medioDe(kind)
-      return {
+      return conNombre({
         ...current,
         kind,
         currency: medio.monedaFija || current.currency,
@@ -170,7 +184,7 @@ function AccountManager() {
         feePercent: medio.comportamiento.includes('fee') ? current.feePercent : 0,
         settlementDays: medio.comportamiento.includes('settlement') ? current.settlementDays : 0,
         discountPct: medio.comportamiento.includes('discount') ? current.discountPct : 0,
-      }
+      })
     })
     setFlags(current => ({
       feePercent: medioDe(kind).comportamiento.includes('fee') ? current.feePercent : false,
@@ -242,27 +256,27 @@ function AccountManager() {
       </div>}
       {form && <form onSubmit={save} data-testid="cuenta-form" className="space-y-4 rounded-lg border border-ink-600 p-4">
         <h3 className="text-sm font-semibold">{editingId ? 'Editar cuenta' : 'Nueva cuenta'}</h3>
-        <fieldset disabled={busy} className="grid gap-3 sm:grid-cols-2">
-          <div><Label htmlFor="pa-kind">Medio de pago</Label><Select id="pa-kind" value={form.kind} onChange={event => changeMedio(event.target.value)}>{MEDIOS.map(item => <option key={item.kind} value={item.kind}>{item.label}</option>)}</Select></div>
-          <div><Label htmlFor="pa-name">Nombre</Label><Input id="pa-name" autoFocus required maxLength={200} value={form.name} onChange={event => change('name', event.target.value)} placeholder="Ej. Caja principal" /></div>
+        <fieldset disabled={busy} className="grid gap-x-3 gap-y-2.5 sm:grid-cols-6">
+          <div className="sm:col-span-2"><Label htmlFor="pa-kind">Medio de pago</Label><Select id="pa-kind" value={form.kind} onChange={event => changeMedio(event.target.value)}>{MEDIOS.map(item => <option key={item.kind} value={item.kind}>{item.label}</option>)}</Select></div>
+          <div className="sm:col-span-4"><Label htmlFor="pa-name">Nombre</Label><Input id="pa-name" autoFocus required maxLength={200} value={form.name} onChange={event => change('name', event.target.value)} placeholder="Se completa solo" />{!nombreTocado && <p className="mt-1 text-[11px] text-mute">El nombre se completa solo al cargar el medio, el titular y la cuenta. Escribí para cambiarlo.</p>}</div>
+          {medio.banco && <div className="sm:col-span-3"><Label htmlFor="pa-bank">Banco {form.kind !== 'TRANSFER' && '(opcional)'}</Label><BancoCombobox id="pa-bank" value={form.bank} onChange={value => change('bank', value)} required={form.kind === 'TRANSFER'} placeholder="Buscá entre los bancos de Paraguay o escribí otro" /></div>}
+          {medio.procesadora && <div className="sm:col-span-3"><Label htmlFor="pa-processor">Procesadora</Label><Select id="pa-processor" value={PROCESADORAS.includes(form.processor) ? form.processor : form.processor ? '__otra' : ''} onChange={event => change('processor', event.target.value === '__otra' ? '' : event.target.value)}><option value="">Elegí la procesadora</option>{PROCESADORAS.map(procesadora => <option key={procesadora} value={procesadora}>{procesadora}</option>)}<option value="__otra">Otra…</option></Select>{!PROCESADORAS.includes(form.processor) && <Input className="mt-2" maxLength={200} value={form.processor} onChange={event => change('processor', event.target.value)} placeholder="Nombre de la procesadora" />}</div>}
           {monedaFija
-            ? <div><Label>Moneda</Label><p className="flex h-11 items-center rounded-lg border border-ink-500 bg-ink-800 px-3.5 text-sm text-mute md:h-9">{MONEDAS_FIJAS[monedaFija] || monedaFija} (fija para este medio)</p></div>
-            : <div><Label htmlFor="pa-currency">Moneda</Label><CurrencySelect id="pa-currency" value={form.currency} onChange={event => change('currency', event.target.value)} /></div>}
-          {medio.personalizada && <div className="sm:col-span-2"><Label htmlFor="pa-currency-label">Moneda personalizada (opcional)</Label><Input id="pa-currency-label" maxLength={12} value={form.currencyLabel} onChange={event => change('currencyLabel', event.target.value.toUpperCase())} placeholder="Ej. ARS, PEN, CLP" /><p className="mt-1 text-[11px] text-mute">Se usa como etiqueta visible; los cálculos siguen la moneda elegida arriba.</p></div>}
-          {medio.banco && <div className="sm:col-span-2"><Label htmlFor="pa-bank">Banco {form.kind !== 'TRANSFER' && '(opcional)'}</Label><BancoCombobox id="pa-bank" value={form.bank} onChange={value => change('bank', value)} required={form.kind === 'TRANSFER'} placeholder="Buscá entre los bancos de Paraguay o escribí otro" /></div>}
-          {medio.procesadora && <div><Label htmlFor="pa-processor">Procesadora</Label><Select id="pa-processor" value={PROCESADORAS.includes(form.processor) ? form.processor : form.processor ? '__otra' : ''} onChange={event => change('processor', event.target.value === '__otra' ? '' : event.target.value)}><option value="">Elegí la procesadora</option>{PROCESADORAS.map(procesadora => <option key={procesadora} value={procesadora}>{procesadora}</option>)}<option value="__otra">Otra…</option></Select>{!PROCESADORAS.includes(form.processor) && <Input className="mt-2" maxLength={200} value={form.processor} onChange={event => change('processor', event.target.value)} placeholder="Nombre de la procesadora" />}</div>}
-          {medio.titular && <div><Label htmlFor="pa-holder">Titular {!transferNuevo && '(opcional)'}</Label><ComboBuscador id="pa-holder" value={form.holder} required={transferNuevo} options={opcionesTitulares} onChange={(texto) => setForm(current => ({ ...current, holder: texto, holderId: '', companyId: '' }))} onSelect={elegirTitular} placeholder="Buscá titular, socio o empresa" />{(form.holderId || form.companyId) && <p className="mt-1 text-[11px] text-ok">{form.companyId ? 'Empresa registrada' : 'Titular registrado'} · se completa solo</p>}</div>}
-          {medio.documento && <div><Label htmlFor="pa-document">Documento (cédula/RUC)</Label><Input id="pa-document" maxLength={200} value={form.document} onChange={event => change('document', event.target.value)} placeholder="Ej. 3.456.789-0" /></div>}
-          {medio.cuenta && <div><Label htmlFor="pa-number">Número de cuenta {!transferNuevo && '(opcional)'}</Label><Input id="pa-number" type="text" required={transferNuevo} maxLength={200} value={form.accountNumber} onChange={event => change('accountNumber', event.target.value)} /></div>}
-          {medio.pixKey && <div><Label htmlFor="pa-pix-key">Llave Pix</Label><Input id="pa-pix-key" maxLength={200} value={form.pixKey} onChange={event => change('pixKey', event.target.value)} placeholder="CPF/CNPJ, correo, teléfono o aleatoria" /></div>}
-          {medio.referencia && <div><Label htmlFor="pa-reference">{form.kind === 'CRYPTO' ? 'Referencia de la billetera' : form.kind === 'TRADE_IN' ? 'Valor de canje' : 'Referencia'}</Label><Input id="pa-reference" maxLength={200} value={form.reference} onChange={event => change('reference', event.target.value)} placeholder={form.kind === 'CRYPTO' ? 'Ej. TRC20 · TQn9…' : form.kind === 'TRADE_IN' ? 'Ej. equipo recibido, valor acordado' : 'Referencia'} /></div>}
+            ? <div className="sm:col-span-2"><Label>Moneda</Label><p className="flex h-11 items-center rounded-lg border border-ink-500 bg-ink-800 px-3 text-sm text-mute md:h-9">{MONEDAS_FIJAS[monedaFija] || monedaFija}</p></div>
+            : <div className="sm:col-span-2"><Label htmlFor="pa-currency">Moneda</Label><CurrencySelect id="pa-currency" value={form.currency} onChange={event => change('currency', event.target.value)} /></div>}
+          {medio.personalizada && <div className="sm:col-span-2"><Label htmlFor="pa-currency-label">Moneda personalizada</Label><Input id="pa-currency-label" maxLength={12} value={form.currencyLabel} onChange={event => change('currencyLabel', event.target.value.toUpperCase())} placeholder="ARS, PEN…" /></div>}
+          {medio.titular && <div className="sm:col-span-3"><Label htmlFor="pa-holder">Titular {!transferNuevo && '(opcional)'}</Label><ComboBuscador id="pa-holder" value={form.holder} required={transferNuevo} options={opcionesTitulares} onChange={(texto) => setForm(current => conNombre({ ...current, holder: texto, holderId: '', companyId: '' }))} onSelect={elegirTitular} placeholder="Buscá titular, socio o empresa" />{(form.holderId || form.companyId) && <p className="mt-1 text-[11px] text-ok">{form.companyId ? 'Empresa registrada' : 'Titular registrado'} · se completa solo</p>}</div>}
+          {medio.documento && <div className="sm:col-span-3"><Label htmlFor="pa-document">Documento (cédula/RUC)</Label><Input id="pa-document" maxLength={200} value={form.document} onChange={event => change('document', event.target.value)} placeholder="Ej. 3.456.789-0" /></div>}
+          {medio.cuenta && <div className="sm:col-span-2"><Label htmlFor="pa-number">Número de cuenta {!transferNuevo && '(opcional)'}</Label><Input id="pa-number" type="text" required={transferNuevo} maxLength={200} value={form.accountNumber} onChange={event => change('accountNumber', event.target.value)} /></div>}
+          {medio.pixKey && <div className="sm:col-span-3"><Label htmlFor="pa-pix-key">Llave Pix</Label><Input id="pa-pix-key" maxLength={200} value={form.pixKey} onChange={event => change('pixKey', event.target.value)} placeholder="CPF/CNPJ, correo, teléfono o aleatoria" /></div>}
+          {medio.referencia && <div className="sm:col-span-3"><Label htmlFor="pa-reference">{form.kind === 'CRYPTO' ? 'Referencia de la billetera' : form.kind === 'TRADE_IN' ? 'Valor de canje' : 'Referencia'}</Label><Input id="pa-reference" maxLength={200} value={form.reference} onChange={event => change('reference', event.target.value)} placeholder={form.kind === 'CRYPTO' ? 'Ej. TRC20 · TQn9…' : form.kind === 'TRADE_IN' ? 'Ej. equipo recibido, valor acordado' : 'Referencia'} /></div>}
         </fieldset>
-        {camposComportamiento.length > 0 && <fieldset disabled={busy} className="space-y-3 rounded-lg border border-ink-600/70 bg-ink-800/30 p-3">
+        <fieldset disabled={busy} className="space-y-2 rounded-lg border border-ink-600/70 bg-ink-800/30 p-3">
           <legend className="px-1 text-[10px] font-bold uppercase tracking-wider text-mute">Comportamiento del medio</legend>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {camposComportamiento.map(({ field, control, check, label, hint }) => <div key={field} className="space-y-2">
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean(flags[field])} onChange={event => toggleBehavior(field, event.target.checked)} />{check}</label>
-              {flags[field] && <div>
+          <div className="grid gap-x-3 gap-y-2.5 sm:grid-cols-3">
+            {camposComportamiento.map(({ field, control, check, label, hint }) => <div key={field}>
+              <span className="flex items-center gap-2 text-sm"><Toggle id={`pa-${field}-toggle`} checked={Boolean(flags[field])} onChange={value => toggleBehavior(field, value)} label={check} /><span>{check}</span></span>
+              {flags[field] && <div className="mt-1.5 max-w-[8rem]">
                 <Label htmlFor={`pa-${field}`}>{label}</Label>
                 {control === 'percent'
                   ? <PercentField id={`pa-${field}`} required value={form[field]} onChange={value => change(field, value)} />
@@ -271,8 +285,8 @@ function AccountManager() {
               </div>}
             </div>)}
           </div>
-        </fieldset>}
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-4 w-4 accent-fono" checked={form.isActive} onChange={event => change('isActive', event.target.checked)} />Cuenta activa</label>
+          <span className="flex items-center gap-2 text-sm"><Toggle id="pa-active" checked={form.isActive} onChange={value => change('isActive', value)} label="Cuenta activa" /><span>Cuenta activa</span></span>
+        </fieldset>
         <div className="flex flex-wrap gap-2"><Button type="submit" disabled={busy}>{busy ? 'Guardando…' : 'Guardar cuenta'}</Button><Button type="button" variant="ghost" disabled={busy} onClick={() => { setForm(null); setMessage(null) }}>Cancelar</Button></div>
       </form>}
       {!loading && !loadError && <div className="overflow-x-auto" data-testid="cuentas-tabla">

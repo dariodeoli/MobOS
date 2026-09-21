@@ -39,3 +39,20 @@ export function opcionesDePartes(holders = [], companies = []) {
     .map((company) => ({ value: `company:${company.id}`, tipo: 'company', entidad: company, label: company.legalName || 'Empresa', detail: company.ruc || '', badge: 'Empresa' }))
   return [...deTitulares, ...deEmpresas]
 }
+
+// Nombre que se arma solo mientras se completan los datos (#141). El orden es:
+// medio/banco · empresa · titular · cuenta. Ejemplos: "Banco Itaú - Darío
+// Deoli", "Pix - Darío Deoli", "USDT - Darío Deoli" o "Banco Itaú - Empresa
+// XYZ - Cuenta 1234".
+export function nombreSugeridoDeCuenta(valores = {}) {
+  const partes = []
+  const moneda = valores.currencyLabel || (valores.currency === 'PYG' ? 'Gs' : valores.currency || '')
+  if (valores.kind === 'TRANSFER') partes.push(valores.bank || 'Transferencia')
+  else if (valores.kind === 'CARD') partes.push(valores.processor || 'Tarjeta')
+  else if (valores.kind === 'CASH') partes.push(`Efectivo${moneda ? ` ${moneda}` : ''}`)
+  else partes.push({ PIX: 'Pix', CRYPTO: 'USDT', TRADE_IN: 'Canje' }[valores.kind] || 'Cuenta')
+  if (valores.company) partes.push(valores.company)
+  if (valores.holder) partes.push(valores.holder)
+  if (valores.accountNumber) partes.push(`Cuenta ${valores.accountNumber}`)
+  return partes.filter(Boolean).join(' - ')
+}

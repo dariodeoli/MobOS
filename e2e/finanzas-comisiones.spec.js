@@ -35,9 +35,9 @@ test.describe('reglas de comisión en Finanzas', () => {
     await expect(page.getByRole('button', { name: 'Agregar regla' })).toBeVisible()
 
     // Crear una regla para el integrante dedicado (sin colisiones con seeds).
-    const vendedorSelect = page.getByRole('combobox', { name: 'Vendedor de la regla' })
-    await expect(vendedorSelect.locator(`option[value="${creado.id}"]`)).toHaveCount(1)
-    await vendedorSelect.selectOption(creado.id)
+    const vendedorBusqueda = page.getByRole('combobox', { name: 'Vendedor de la regla' })
+    await vendedorBusqueda.fill(nombre)
+    await page.getByRole('option', { name: new RegExp(nombre) }).click()
     await page.getByRole('textbox', { name: 'Porcentaje de comisión' }).fill('0,5')
     await page.getByRole('button', { name: 'Agregar regla' }).click()
     await expect(page.getByText('Regla de comisión creada.')).toBeVisible()
