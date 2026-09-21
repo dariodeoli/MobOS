@@ -605,6 +605,7 @@ export function prepararDatosDemo() {
       fecha: fecha(0),
       creadoEn: `${fecha(0)}T10:15:00`,
       cliente: 'María González',
+      clienteId: 'demo-cliente-maria',
       productoId: 'demo-iphone-15-pro-256-titanio',
       productoNombre: 'iPhone 15 Pro 256GB Titanio',
       precio: 6850000,
@@ -626,7 +627,7 @@ export function prepararDatosDemo() {
       estadoPago: 'Pagado',
       entrega: 'Retiro en tienda',
       montoDelivery: 0,
-      observacion: 'Venta demo completa',
+      observacion: 'Venta de mostrador',
     },
     {
       id: 'demo-venta-hoy-partial',
@@ -661,13 +662,14 @@ export function prepararDatosDemo() {
       estadoPago: 'Parcial',
       entrega: 'Retiro en tienda',
       montoDelivery: 0,
-      observacion: 'Seña demo combinada',
+      observacion: 'Seña en dos medios',
     },
     {
       id: 'demo-venta-ayer-pending',
       fecha: fecha(1),
       creadoEn: `${fecha(1)}T16:40:00`,
       cliente: 'Lucía Franco',
+      clienteId: null,
       productoId: 'demo-airpods-pro-2-usbc',
       productoNombre: 'AirPods Pro 2 USB-C',
       precio: 1850000,
@@ -681,18 +683,26 @@ export function prepararDatosDemo() {
       estadoPago: 'Pendiente',
       entrega: 'Delivery',
       montoDelivery: 30000,
-      observacion: 'Pendiente de cobro demo',
+      observacion: 'Pendiente de cobro',
     },
   ]
   // #213: pedidos demo extra con pagos divididos y medios variados. La tabla es
   // [cliente, productoId, precio, entrega, montoDelivery, pagos, días].
+  // #213/#216: cada pedido demo conoce su cliente, como en la cuenta real.
+  const CLIENTE_ID_POR_NOMBRE = {
+    'María González': 'demo-cliente-maria', 'Juan Pereira': 'demo-cliente-juan', 'Ana Villalba': 'demo-cliente-ana',
+    'Ramiro Cáceres': 'demo-cliente-ramiro', 'Estela Ramírez': 'demo-cliente-estela', 'Fernando Ortellado': 'demo-cliente-fernando',
+    'Gloria Martínez': 'demo-cliente-gloria', 'Hugo Benítez': 'demo-cliente-hugo',
+    'Distribuidora Luque S.A. ': 'demo-cliente-distribuidora-luque', 'Lucía Fernández': 'demo-cliente-lucia',
+    'Distribuidora del Este S.A.': 'demo-cliente-distribuidora', 'Carlos Ramírez': 'demo-cliente-carlos',
+  }
   const PAGOS_EXTRA = [
     ['María González', 'demo-iphone-15-pro-max-256-titanio', 7250000, 'Retiro en tienda', 0, [['DINERO', '', 4000000], ['TRANSFERENCIA', 'Banco Itaú', 3250000]], 0],
     ['Juan Pereira', 'demo-iphone-15-128-azul', 4850000, 'Delivery', 30000, [['DINERO', '', 2000000], ['TARJETA', 'ueno · Tarjeta demo', 2880000]], 1],
     ['Ana Villalba', 'demo-iphone-14-256-azul', 3950000, 'Retiro en tienda', 0, [['PIX', 'Pix - Comercio demo', 3950000]], 1],
     ['Ramiro Cáceres', 'demo-iphone-13-pro-max-256-grafito', 4450000, 'Retiro en tienda', 0, [['USDT - Cripto', 'USDT - Comercio demo', 2225000], ['DINERO USD', 'Caja · Dólares', 2225000]], 2],
     ['Estela Ramírez', 'demo-iphone-15-256-rosa', 5400000, 'Delivery', 30000, [['DINERO', '', 2000000], ['TRANSFERENCIA', 'Banco Continental', 3430000]], 2],
-    ['Distribuidora Luque S.A. (demo)', 'demo-iphone-14-128-medianoche', 3600000, 'Retiro en tienda', 0, [['TRANSFERENCIA', 'Banco Itaú', 3600000]], 3],
+    ['Distribuidora Luque S.A. ', 'demo-iphone-14-128-medianoche', 3600000, 'Retiro en tienda', 0, [['TRANSFERENCIA', 'Banco Itaú', 3600000]], 3],
     ['Gloria Martínez', 'demo-iphone-13-128-blanco', 3050000, 'Retiro en tienda', 0, [['CANJE', 'Canje demo', 1850000], ['DINERO', '', 1200000]], 3],
     ['Fernando Ortellado', 'demo-iphone-15-pro-256-negro', 6750000, 'Delivery', 30000, [['DINERO', '', 3000000], ['POS UENO', 'ueno · Tarjeta demo', 3780000]], 4],
     ['Hugo Benítez', 'demo-iphone-12-128-verde', 2350000, 'Retiro en tienda', 0, [], 5],
@@ -715,6 +725,7 @@ export function prepararDatosDemo() {
       precio,
       precioCosto: Math.round(precio * 0.78),
       comision: Math.round(precio * 0.01),
+      clienteId: CLIENTE_ID_POR_NOMBRE[cliente] || null,
       vendedorId: vendedoresDemo[indice % vendedoresDemo.length],
       medioPago: lista[0]?.medioPago || '',
       pagos: lista,
@@ -723,7 +734,7 @@ export function prepararDatosDemo() {
       estadoPago: totalPagado === 0 ? 'Pendiente' : totalPagado >= total ? 'Pagado' : 'Parcial',
       entrega,
       montoDelivery,
-      observacion: 'Pedido demo con pagos variados (#213)',
+      observacion: 'Pedido con pagos variados',
     })
   })
   const ventasDemo = ventas
@@ -745,7 +756,7 @@ export function prepararDatosDemo() {
   }
   cache.config = {
     ...cache.config,
-    nombreTienda: cache.config.nombreTienda || 'MobOS Tienda Demo',
+    nombreTienda: cache.config.nombreTienda || 'Aurora Móviles',
     demoSeedVersion: 4,
   }
   persistMirror()
