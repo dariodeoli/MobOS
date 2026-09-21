@@ -14,13 +14,18 @@ aserción de fuente. Regla madre: buscar antes de crear
 | --- | --- | --- | --- |
 | `Aviso` (banner inline error/ok) | `src/components/ui/index.jsx` | El mismo `<p>` con `rounded-lg border border-bad/30 bg-bad/10 … text-bad` copiado **92 veces en 53 archivos**, en 3 variantes de padding | **92 usos** pasan por `Aviso tono="error\|ok"`; `role` por tono (`alert`/`status`) y `compact` para el tamaño chico |
 | `CELDA_ENCABEZADO`, `ROTULO_DATO`, `ROTULO_SECCION` | `src/components/shared/tabla.js` | La clase de encabezado repetida **25 veces en 17 archivos** (como constante local `CELDA_*` en 14 y suelta en 4); el rótulo de sección repetido **49 veces en 20 archivos** | Encabezados y rótulos salen de un solo módulo: `CELDA_ENCABEZADO` en 16 pantallas, `ROTULO_DATO` en 13 y `ROTULO_SECCION` en 21; los alias locales `CELDA_INV/CELDA_CLI/…` desaparecen |
-| `fechaHora`, `fechaDia`, `fechaHoraCorta`, `fechaCorta` | `src/utils/fecha.js` | El helper `fechaHora`/`fmt`/`fecha` redefinido con el mismo cuerpo en **12 archivos** (más 3 usos sueltos de `dateStyle: 'short'`); el formato es-PY repetido en 58 lugares | Helperos compartidos con texto de vacío explícito (`'—'` o `''`), adoptados en **19 archivos**; el formato de pantalla queda en un solo lugar |
+| `fechaHora`, `fechaDia`, `fechaHoraCorta`, `fechaCorta` | `src/utils/fecha.js` | El helper `fechaHora`/`fmt`/`fecha` redefinido con el mismo cuerpo en **12 archivos** (más 3 usos sueltos de `dateStyle: 'short'`); el formato es-PY repetido en 58 lugares | Helpers compartidos con texto de vacío explícito (`'—'` o `''`) y **hora siempre en 24 h** (`hour12: false`), adoptados en **24 archivos** (pantallas + Caja, Reportes, Comisiones, Servicio Técnico y Campañas); el formato de pantalla queda en un solo lugar |
 | Tests | `src/utils/fecha.test.js`, `src/lib/objetosReglas.test.js` | — | Fallan si vuelve a aparecer el `<p>` del aviso, la clase de tabla copiada o el formato de fecha duplicado |
 
-Verificación del lote: `npm run lint` (0 errores), `npm test` (400 en verde),
+Verificación del lote: `npm run lint` (0 errores), `npm test` (418 en verde),
 `npm run build`, e2e smoke. Sin cambios de presentación: donde la pantalla
 definía un tamaño propio (por ejemplo `p-3`, `rounded-xl`, `px-3.5 py-2.5`) se
 conservó tal cual.
+
+Nota de rebase: `main` (v1.0.131) ya había barrido varias pantallas de finanzas
+con `hour12: false` y agregado `useUltimoUsado` (#209) y `whatsappUrl` en el
+dominio de clientes. El rebase conservó todo eso; el helper compartido adopta la
+regla de **24 h** y reemplaza los helpers locales sin revertir el barrido.
 
 ## 2. Backlog priorizado (con evidencia)
 
@@ -37,11 +42,12 @@ conservó tal cual.
      (`Gs` vs `Gs.`; `US$` en-US vs `USD` es-PY) y migrar; el caso duplicado
      exacto `precio(amount, currency)` de `Inventario`/`UnidadDetalle` puede
      unificarse apenas DSN confirme el texto.
-2. **Horas en 12 h vs 24 h.** `docs/CAMPOS.md` y `PLANTILLA-OBJETOS.md` piden
-   24 h, pero el locale `es-PY` de CLDR rinde 12 h: `toLocaleString('es-PY',
-   { dateStyle:'short', timeStyle:'short' })` → `17/9/26, 3:30 p. m.`. Los
-   helpers nuevos conservan la salida actual (no cambian la app); forzar
-   `hour12: false` es una decisión de diseño que cambia todas las fechas.
+2. **Horas en 12 h vs 24 h — resuelto.** `main` ya barrió las pantallas de
+   finanzas y otras con `hour12: false` y `disenoReglas.test.js` lo exige; los
+   helpers de `utils/fecha.js` fuerzan 24 h, así que la regla queda en un solo
+   lugar. Pendiente menor: `fechaHoraCorta` (rendiciones: `17-sept., 15:30`) y
+   `fechaCorta` (listas: `17-sept. · 15:30`) son dos variantes de la misma idea;
+   DSN debería decidir si convergen en una.
 3. **Celda de dato e identidad.** `truncate text-xs text-mute` se repite **74
    veces en 32 archivos** y `truncate text-[13px] font-semibold` **21 veces en
    14**; `TABLAS.md` habla de `text-sm` para el nombre. Candidatos:
@@ -54,7 +60,8 @@ conservó tal cual.
    getItem('mobos:<vista>-vista'))` + `ListGridToggle onChange={…setItem…}`
    está copiado en `control/Inventario.jsx` (2 vistas),
    `ventas/SellerCatalog.jsx` y `ventas/SellerCustomers.jsx` (**8 accesos**).
-   Objeto propuesto: hook `useVistaListaGrid(clave, inicial)`.
+   Objeto propuesto: hook `useVistaListaGrid(clave, inicial)`, con el mismo
+   patrón que `lib/ultimoUsado.js` (#209: recordar, siempre cambiable).
 5. **Copiar al portapapeles con feedback**: `navigator.clipboard` aparece
    **23 veces en 18 archivos** con tres estilos de feedback (toast, aviso
    local, silencio) y errores que a veces no se anuncian. Objeto propuesto:
@@ -64,11 +71,11 @@ conservó tal cual.
    `utils/descargarCsv.js` (que solo sirve para endpoints `/api/exports`).
    Objeto propuesto: `descargarArchivo(nombre, contenido/mime)` reutilizado por
    CSV, JSON y adjuntos.
-7. **Enlace de WhatsApp**: `https://wa.me/…` se arma a mano en 4 lugares
-   (`ventas/PagosPedido.jsx:40`, `customers/customerMessaging.js:17`,
-   `ventas/FormularioVenta.jsx:1917`, `pages/GarantiaPublica.jsx:85`), con y
-   sin plantilla. Objeto propuesto: `whatsappUrl(telefono, mensaje, countryCode)`
-   (ya existe la mitad en `customerMessaging.js`).
+7. **Enlace de WhatsApp**: `main` ya centralizó `whatsappUrl` en
+   `components/customers/customerMessaging.js` (Campañas lo usa). Quedan 3
+   copias: `ventas/PagosPedido.jsx:40`, `ventas/FormularioVenta.jsx:1917` y
+   `pages/GarantiaPublica.jsx:85`. Propuesta: mover `whatsappUrl` a
+   `utils/telefono.js` (junto a `internationalPhone`) y adoptarlo en los tres.
 8. **`device-id`**: el mismo `localStorage.getItem('mobos:device-id') ||
    crypto.randomUUID()` + `setItem` está en `pages/Login.jsx` (2),
    `pages/AceptarInvitacion.jsx` y `control/Config.jsx` (**8 accesos**).
@@ -134,11 +141,10 @@ conservó tal cual.
 ## 4. Cómo reproducir las cifras
 
 ```bash
-# Un archivo con el walker de la auditoría (mismo criterio: sin tests)
-node scripts/…   # ver el detalle en el handover de la rama
+node scripts/auditoria-duplicacion.mjs
 ```
 
-Los conteos salen de contar ocurrencias exactas de la clase o del helper con
-`readdirSync` recursivo sobre `src/`, excluyendo `*.test.*`. Los tests
+Recorre `src/` (sin tests) y cuenta adopción de los objetos y duplicación
+pendiente. Los conteos de este documento salen de ese script; los tests
 `src/lib/objetosReglas.test.js` y `src/lib/disenoReglas.test.js` son la versión
 ejecutable de las reglas: si la duplicación vuelve, fallan.
