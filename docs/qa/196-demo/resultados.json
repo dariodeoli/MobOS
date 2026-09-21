@@ -1,0 +1,89 @@
+{
+  "base": "https://app.moboss.online",
+  "apiVigilada": "api.moboss.online",
+  "versionDesplegada": "v1.0.127",
+  "fecha": "2026-09-21T18:04:28.261Z",
+  "llamadasApi": [
+    "https://api.moboss.online/api/users/demo-user/avatar",
+    "https://api.moboss.online/api/presence",
+    "https://api.moboss.online/api/presence/heartbeat",
+    "https://api.moboss.online/api/users/demo-user/avatar",
+    "https://api.moboss.online/api/presence",
+    "https://api.moboss.online/api/presence/heartbeat",
+    "https://api.moboss.online/api/users/demo-user/avatar",
+    "https://api.moboss.online/api/presence",
+    "https://api.moboss.online/api/presence/heartbeat",
+    "https://api.moboss.online/api/users/demo-user/avatar",
+    "https://api.moboss.online/api/presence",
+    "https://api.moboss.online/api/presence/heartbeat",
+    "https://api.moboss.online/api/users/demo-user/avatar",
+    "https://api.moboss.online/api/presence",
+    "https://api.moboss.online/api/presence/heartbeat"
+  ],
+  "demoNoTocaApi": false,
+  "resultados": [
+    {
+      "paso": "entrada anónima: /demo abre la entrada de perfiles sin login",
+      "estado": "fallo",
+      "detalle": "la entrada no avisa que los datos son ficticios",
+      "capturas": [
+        "01-demo-entrada.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "panel del vendedor en modo demo",
+      "estado": "ok",
+      "detalle": "panel abierto en https://app.moboss.online/pos",
+      "capturas": [
+        "02-panel-vendedor.jpg"
+      ],
+      "llamadasApi": [
+        "https://api.moboss.online/api/users/demo-user/avatar",
+        "https://api.moboss.online/api/presence",
+        "https://api.moboss.online/api/presence/heartbeat"
+      ]
+    },
+    {
+      "paso": "módulos del vendedor con datos locales",
+      "estado": "ok",
+      "detalle": "clientes y pedidos cargan en demo",
+      "capturas": [
+        "03-modulos-vendedor.jpg"
+      ],
+      "llamadasApi": [
+        "https://api.moboss.online/api/users/demo-user/avatar",
+        "https://api.moboss.online/api/presence",
+        "https://api.moboss.online/api/presence/heartbeat",
+        "https://api.moboss.online/api/users/demo-user/avatar",
+        "https://api.moboss.online/api/presence",
+        "https://api.moboss.online/api/presence/heartbeat"
+      ]
+    },
+    {
+      "paso": "navegación anónima sin sesión demo vuelve a /demo",
+      "estado": "fallo",
+      "detalle": "sin sesión demo /resumen fue a https://app.moboss.online/login (se esperaba /demo)",
+      "capturas": [
+        "04-anonimo-resumen.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "dueño: un guardado avisa que quedó simulado",
+      "estado": "fallo",
+      "detalle": "el guardado no muestra la nota de demo",
+      "capturas": [
+        "05-guardado-simulado.jpg"
+      ],
+      "llamadasApi": [
+        "https://api.moboss.online/api/users/demo-user/avatar",
+        "https://api.moboss.online/api/presence",
+        "https://api.moboss.online/api/presence/heartbeat",
+        "https://api.moboss.online/api/users/demo-user/avatar",
+        "https://api.moboss.online/api/presence",
+        "https://api.moboss.online/api/presence/heartbeat"
+      ]
+    }
+  ]
+}
