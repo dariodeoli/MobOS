@@ -11,6 +11,14 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.134 — 2026-09-21
+- **Envíos AEX:** contrato de envíos alineado a la documentación del proveedor (respuestas en array/objeto, destinatario y direcciones) y **confirmación bloqueada** hasta contar con datos reales de remitente y destinatario: se puede **cotizar**, no confirmar envíos con identidades de ejemplo. (#3)
+- **POS / Pedidos:** desde Inventario se puede **vender todos** los equipos seleccionados con el carrito precargado (#217); la cronología y los pagos del pedido muestran **foto y primer nombre** de quien actuó (#219).
+- **Impresión:** la etiqueta de unidad suma **QR, IMEI legible y bloques separados**, con evidencia por tamaño (#220); el comprobante de IMEI conserva los **últimos 4 dígitos** del equipo (#203).
+- **Demo:** los **agregados de clientes** (total gastado, pedidos, últimas compras) se calculan como en la cuenta real (#221 #213).
+- **Encabezado:** el topbar muestra solo la marca **MobOS** (#223).
+- **Consistencia:** montos de pantalla unificados, escape de textos y estados vacíos con la biblioteca compartida (#211).
+
 ## v1.0.133 — 2026-09-21
 - **«Último usado» en todo el sistema:** un único helper documentado (namespace `mobos:<área>:<dato>`, con migración del formato anterior) recuerda la última selección en POS (cuenta y entrega), Finanzas (Gastos y Conciliación), Clientes (filtros y plantilla de WhatsApp), Garantías, Inventario (motivos y depósitos), menú/grupos del shell, Auditoría e Historial; siempre visible y cambiable, y en el demo vive solo en la pestaña. (#209)
 - **Pantalla de bloqueo:** muestra la foto real del usuario (o iniciales) y los logos de MobOS y de la tienda según el tema. (#210)
