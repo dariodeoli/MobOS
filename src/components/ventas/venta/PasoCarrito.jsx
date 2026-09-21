@@ -39,7 +39,7 @@ export default function PasoCarrito({
       id="pos-resumen-venta"
       className="scroll-mt-32 overflow-hidden rounded-2xl border border-ink-600 bg-ink-800"
     >
-      <div className="border-b border-ink-600 bg-ink-700/50 px-4 py-3">
+      <div className="border-b border-ink-600 bg-ink-700/50 px-3.5 py-2.5">
         <EncabezadoBloque
           titulo="Productos de esta venta"
           descripcion="Revisá cantidades, precios, IMEI y descuentos."
@@ -65,7 +65,7 @@ export default function PasoCarrito({
         onImei={onImei}
       />
 
-      <div className="space-y-4 border-t border-ink-600 px-4 py-3">
+      <div className="space-y-3.5 border-t border-ink-600 px-3.5 py-2.5">
         <div>
           <Label htmlFor="descuento-extra-gs">Descuento extra (Gs)</Label>
           <MoneyInput
@@ -125,7 +125,7 @@ export default function PasoCarrito({
         )}
       </div>
 
-      <div className="flex items-center justify-between border-t border-ink-600 bg-ink-700 px-4 py-2.5">
+      <div className="flex items-center justify-between border-t border-ink-600 bg-ink-700 px-3.5 py-2">
         <span className="text-[11px] font-bold uppercase tracking-wider text-mute">
           Subtotal de productos
         </span>

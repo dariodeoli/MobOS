@@ -160,7 +160,6 @@ export async function PATCH(request: Request) {
           collectionLateFeeBpPerDay = bp === 0 ? null : bp
         }
       }
-      if (expenseLimitPyg === undefined && purchaseCreditLimitPyg === undefined && belowListPct === undefined && collectionLateFeeBpPerDay === undefined) return error('Indicá al menos un límite para actualizar.', 400)
       if (expenseLimitPyg === undefined && purchaseCreditLimitPyg === undefined && belowListPct === undefined && loyaltyPct === undefined && collectionLateFeeBpPerDay === undefined) return error('Indicá al menos un límite para actualizar.', 400)
       const updated = await prisma.$transaction(async tx => {
         const tenant = await tx.tenant.update({

@@ -235,8 +235,10 @@ export async function POST(request: Request) {
   // de tipo BELOW_LIST_PRICE que pida el vendedor desde el carrito. Se valida
   // acá para fallar temprano y se consume dentro de la transacción. Hasta el
   // porcentaje configurado por la empresa (default 10%) no pide autorización.
-  const limitesEmpresa = await prisma.tenant.findUnique({ where: { id: tenant }, select: { belowListPct: true } })
+  const limitesEmpresa = await prisma.tenant.findUnique({ where: { id: tenant }, select: { belowListPct: true, loyaltyPct: true } })
   const belowListPct = Number(limitesEmpresa?.belowListPct ?? DEFAULT_BELOW_LIST_PCT)
+  // Fidelización: 0 (default) la deja apagada y la venta no cambia en nada.
+  const loyaltyPct = Math.min(100, Math.max(0, Number(limitesEmpresa?.loyaltyPct ?? 0)))
   let priceAuthorization: { id: string; maxDiscountPyg: number } | null = null
   if (!canDiscount) {
     const rawPriceAuthorizationId = body.priceAuthorizationId
@@ -314,7 +316,7 @@ export async function POST(request: Request) {
           create: { tenantId: tenant, customerId, name: billingName, document: billingDocument, createdById: session.user.id },
         })
       }
-      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; priceSource?: string; priceListId?: string; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any }> = []
+      let subtotal = 0; const normalized: Array<{ productId?: string; description: string; quantity: number; unitPricePyg: number; listPricePyg?: number; priceSource?: string; priceListId?: string; totalPyg: number; discountPyg: number; discountPct?: number; unitCostPyg?: number; baseUnitCostPyg?: number; insurancePyg: number; extraCostPyg: number; soldWithoutInsurance: boolean; serials: string[]; serialsPending: number; costPending: boolean; promotionSnapshot?: any; comboId?: string; comboName?: string }> = []
       const soldUnits: Array<{ id: string; serial: string; productId: string }> = []
       const serialsInOrder = new Set<string>()
       // Diferencia acumulada entre precio de lista y precio cargado (venta bajo
@@ -332,6 +334,17 @@ export async function POST(request: Request) {
         serials.forEach(serial => serialsInOrder.add(serial))
         const promotion = item.couponCode === undefined ? undefined : await quotePromotion(tx, tenant, branchId, { ...item, quantity }, true)
         if (promotion && price !== promotion.unitPricePyg) throw new InputError('El precio del cupón cambió o fue alterado. Volvé a aplicarlo.', 409)
+        // Combo: la línea puede recordar de qué combo salió. Se valida contra la
+        // empresa y se congela el nombre para que el reporte no dependa del combo vivo.
+        let comboId: string | undefined; let comboName: string | undefined
+        if (item.comboId !== undefined && item.comboId !== null && item.comboId !== '') {
+          comboId = textInput(item.comboId, 'comboId', 200)
+          const combo = await tx.combo.findFirst({ where: { id: comboId, tenantId: tenant }, select: { name: true } })
+          if (!combo) throw new InputError('El combo de la línea no pertenece a esta empresa.', 404)
+          comboName = combo.name
+        } else if (item.comboName !== undefined && item.comboName !== null && item.comboName !== '') {
+          comboName = textInput(item.comboName, 'comboName', 200)
+        }
         let unitCostPyg: number | undefined; let baseUnitCostPyg: number | undefined; let listPricePyg: number | undefined; let priceSource: string | undefined; let insurancePyg = 0; let extraCostPyg = 0; let costPending = false; let serialsPending = 0
         const soldWithoutInsurance = item.soldWithoutInsurance === true
         if (item.soldWithoutInsurance !== undefined && typeof item.soldWithoutInsurance !== 'boolean') throw new InputError('"Vendido sin seguro" debe ser verdadero o falso.')
@@ -409,7 +422,7 @@ export async function POST(request: Request) {
         subtotal += lineTotal
         if (!Number.isSafeInteger(subtotal)) throw new Error('Total fuera de rango seguro.')
         normalized.push({ productId: item.productId || undefined, description: typeof item.description === 'string' && item.description.trim() ? item.description.trim() : 'Producto', quantity, unitPricePyg: price, ...(listPricePyg === undefined ? {} : { listPricePyg }),
-          ...(priceSource === undefined ? {} : { priceSource }), ...(priceListId ? { priceListId } : {}), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}) })
+          ...(priceSource === undefined ? {} : { priceSource }), ...(priceListId ? { priceListId } : {}), ...(unitCostPyg === undefined ? {} : { unitCostPyg }), ...(baseUnitCostPyg === undefined ? {} : { baseUnitCostPyg }), insurancePyg, extraCostPyg, soldWithoutInsurance, serials, serialsPending, costPending, discountPyg: lineDiscount, ...(discountPct !== undefined ? { discountPct } : {}), totalPyg: lineTotal, ...(promotion ? { promotionSnapshot: promotion.promotionSnapshot } : {}), ...(comboId ? { comboId } : {}), ...(comboName ? { comboName } : {}) })
       }
       if (discount > subtotal) throw new Error('El descuento no puede superar el subtotal.')
       const total = subtotal - discount + delivery
@@ -462,6 +475,16 @@ export async function POST(request: Request) {
 
       const order = await tx.order.create({ data: { tenantId: tenant, branchId, customerId, sellerId: session.user.id, orderNumber, idempotencyKey, subtotalPyg: subtotal, discountPyg: discount as number, deliveryPyg: delivery as number, deliveryType: cleanText(body.deliveryType, 'Tipo de entrega', 100), deliveryNotes: cleanText(body.deliveryNotes, 'Observaciones de entrega', 2000), ...(billingName === undefined ? {} : { billingName }), ...(billingDocument === undefined ? {} : { billingDocument }), ...(orderNotes === null ? {} : { notes: orderNotes }), ...(dueAt ? { dueAt } : {}), ...(creditDays !== null ? { creditDays } : {}), totalPyg: total, status: confirmed >= total ? 'COMPLETED' : 'PENDING', items: { create: normalized } } })
       await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'ORDER_CREATED', entity: 'Order', entityId: order.id, metadata: { orderNumber: order.orderNumber, totalPyg: total, items: normalized.length, ...(customerId ? { customerId } : {}) } } })
+      // Fidelización: acredita puntos por la venta (1 punto = 1 Gs.) dentro de
+      // la misma transacción. Con loyaltyPct en 0 no se toca nada.
+      if (loyaltyPct > 0 && order.customerId && total > 0) {
+        const pointsPyg = Math.floor((total * loyaltyPct) / 100)
+        if (pointsPyg > 0) {
+          await tx.loyaltyMovement.create({ data: { tenantId: tenant, customerId: order.customerId, orderId: order.id, kind: 'ACCRUAL', pointsPyg, note: `Venta ${order.orderNumber}`, createdById: session.user.id } })
+          await tx.customer.update({ where: { id: order.customerId }, data: { loyaltyPointsPyg: { increment: pointsPyg } } })
+          await tx.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'LOYALTY_ACCRUED', entity: 'Customer', entityId: order.customerId, metadata: { orderId: order.id, orderNumber: order.orderNumber, pointsPyg, loyaltyPct, totalPyg: total } } })
+        }
+      }
       const discountAuth = discountAuthorization
       if (discountAuth) {
         // Consumo atómico: dos ventas concurrentes con la misma autorización no
