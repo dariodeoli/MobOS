@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Modal, Input, Select, Button, MoneyInput, Badge } from '@/components/ui'
+import { Aviso, Badge, Button, Input, Modal, MoneyInput, Select } from '@/components/ui'
 import { useSesion } from '@/lib/sesion'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { descargarArchivo } from '@/utils/descargarArchivo'
@@ -348,7 +348,7 @@ export default function PagosPedido({ venta, onClose }) {
               <button key={value} type="button" className={`rounded-lg border px-3 py-2 text-xs font-semibold ${postventa.refundMode === value ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute'}`} onClick={() => setPostventa(current => ({ ...current, refundMode: value }))}>{label}</button>
             ))}
           </div>
-          {postventa.refundMode === 'CREDIT' && !order.customer?.id && <p className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">Este pedido no tiene cliente identificado: para dejar saldo a favor primero asignale un cliente.</p>}
+          {postventa.refundMode === 'CREDIT' && !order.customer?.id && <Aviso tono="warn" compact>Este pedido no tiene cliente identificado: para dejar saldo a favor primero asignale un cliente.</Aviso>}
           <label className="block text-xs text-mute">Monto — total cobrado {gs(cobrado)}<MoneyInput aria-label="Monto de reembolso" currency="PYG" value={postventa.refundPyg} onValueChange={next => setPostventa(current => ({ ...current, refundPyg: next === '' ? '' : String(next) }))} placeholder={String(cobrado)} /></label>
         </>}
         <label className="block text-xs text-mute">Stock devuelto

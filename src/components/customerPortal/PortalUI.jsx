@@ -1,4 +1,5 @@
 import Icon from '@/components/shared/Icon'
+import { Skeleton } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 // Objetos compartidos por los dos portales públicos del cliente (cuenta por QR
@@ -49,8 +50,8 @@ export function PortalEstado({ tono = 'info', children, className }) {
 export function PortalCargando({ texto = 'Cargando tu cuenta…' }) {
   return (
     <div role="status" aria-busy="true" className="space-y-3">
-      <div className="mx-auto h-24 animate-pulse rounded-2xl bg-ink-800/60" />
-      <div className="h-32 animate-pulse rounded-2xl bg-ink-800/60" />
+      <Skeleton className="mx-auto h-24 rounded-2xl bg-ink-800/60" />
+      <Skeleton className="h-32 rounded-2xl bg-ink-800/60" />
       <p className="text-center text-sm text-mute">{texto}</p>
     </div>
   )

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, Check, RefreshCw, ScanLine, ShieldAlert, ShieldCheck } from 'lucide-react'
-import { BarraProgreso, Button, Input } from '@/components/ui'
+import { Aviso, BarraProgreso, Button, Input } from '@/components/ui'
 import { publicUrls } from '@/lib/urls'
 import { fechaDia, fechaHora } from '@/utils/fecha'
 import { FUENTE_DEMO, IMEI_EJEMPLO, consultaImeiEjemplo, enmascararImeiDemo, validarImeiDemo } from '@/lib/imeiDemoLanding'
@@ -167,7 +167,7 @@ export default function ImeiVerificador() {
         </form>
 
         {error && (
-          <p role="alert" className="mt-4 rounded-xl border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{error}</p>
+          <Aviso className="mt-4 rounded-xl">{error}</Aviso>
         )}
 
         {fase === 'escaneando' && (

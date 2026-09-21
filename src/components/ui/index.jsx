@@ -514,16 +514,20 @@ export function ErrorState({ title = 'Algo salió mal', description, onRetry }) 
 const AVISOS = {
   error: 'border-bad/30 bg-bad/10 text-bad',
   ok: 'border-ok/30 bg-ok/10 text-ok',
+  warn: 'border-warn/30 bg-warn/10 text-warn',
 }
-export function Aviso({ tono = 'error', compact = false, className, children, ...props }) {
+export function Aviso({ tono = 'error', como = 'p', compact = false, className, children, ...props }) {
+  // `como="div"` para el aviso con estructura (ícono, botón de reintentar):
+  // un <p> no admite bloques y el envoltorio lo elige la pantalla.
+  const Etiqueta = como === 'div' ? 'div' : 'p'
   return (
-    <p
+    <Etiqueta
       role={tono === 'error' ? 'alert' : 'status'}
       className={cn('rounded-lg border', compact ? 'px-2.5 py-2 text-xs' : 'px-3 py-2 text-sm', AVISOS[tono], className)}
       {...props}
     >
       {children}
-    </p>
+    </Etiqueta>
   )
 }
 

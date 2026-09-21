@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api/client'
 import Icon from '@/components/shared/Icon'
-import { Badge, Button, EmptyState, Select } from '@/components/ui'
+import { Aviso, Badge, Button, EmptyState, Select, Skeleton } from '@/components/ui'
 import { renderPlantilla } from '@/lib/whatsappPlantillas'
 import { telefonoVisible, whatsappUrl } from '@/utils/telefono'
 import { fechaDia } from '@/utils/fecha'
@@ -115,8 +115,8 @@ export default function CampanasClientes({ templates = [], empresa, sucursal, ve
       {SEGMENTOS.map((item) => <button key={item.clave} type="button" aria-pressed={segmento === item.clave} title={item.descripcion} onClick={() => setSegmento(item.clave)} className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${segmento === item.clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{item.nombre}</button>)}
     </div>
 
-    {cargando && <div role="status" aria-busy="true" className="space-y-2 py-2"><span className="block h-12 animate-pulse rounded-xl bg-ink-700" /><span className="block h-12 animate-pulse rounded-xl bg-ink-700" /></div>}
-    {!cargando && error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-sm text-bad"><p>{error}</p>{!error.includes('Solo administración') && <Button variant="outline" onClick={cargar}>Reintentar</Button>}</div>}
+    {cargando && <div role="status" aria-busy="true" className="space-y-2 py-2"><Skeleton className="h-12 w-full rounded-xl bg-ink-700" /><Skeleton className="h-12 w-full rounded-xl bg-ink-700" /></div>}
+    {!cargando && error && <Aviso como="div" className="flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3"><p>{error}</p>{!error.includes('Solo administración') && <Button variant="outline" onClick={cargar}>Reintentar</Button>}</Aviso>}
 
     {!cargando && !error && data && <>
       <div className="flex flex-wrap items-center gap-2 text-sm">

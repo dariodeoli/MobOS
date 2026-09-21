@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSesion } from '@/lib/sesion'
 import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts, createPaymentAccount, updatePaymentAccount, KIND_LABELS } from '@/lib/paymentAccounts'
-import { Badge, Button, Card, EmptyState, Input, Label, Select } from '@/components/ui'
+import { Aviso, Badge, Button, Card, EmptyState, Input, Label, Select } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import Switch from '@/components/shared/Switch'
 import BancoCombobox from '@/components/shared/BancoCombobox'
@@ -250,7 +250,7 @@ function AccountManager() {
       {isDemoRuntime && <p className="text-sm text-mute">Demo: cuentas ficticias guardadas en este navegador. No ingreses datos bancarios reales.</p>}
       {loading && <p role="status" className="text-sm text-mute">Cargando cuentas…</p>}
       {loadError && <div role="alert" className="space-y-2 text-sm text-bad"><p>{loadError}</p><Button type="button" variant="outline" onClick={() => setReload(value => value + 1)}>Reintentar</Button></div>}
-      {message && <p role={message.ok ? 'status' : 'alert'} className={`rounded-lg border px-3 py-2 text-sm ${message.ok ? 'border-ok/30 bg-ok/10 text-ok' : 'border-bad/30 bg-bad/10 text-bad'}`}>{message.text}</p>}
+      {message && <Aviso tono={message.ok ? 'ok' : 'error'}>{message.text}</Aviso>}
       {!loading && !loadError && accounts.length === 0 && <EmptyState icon="wallet" title="Todavía no hay cuentas de cobro" description="Añadí una cuenta o elegí una plantilla para empezar a registrar cobros." action={<Button type="button" onClick={() => openForm()}>Añadir cuenta</Button>} />}
       {!loading && !loadError && !form && <div className="flex flex-wrap gap-2" aria-label="Plantillas rápidas">
         {TEMPLATES.map(template => <Button key={template.name} type="button" variant="outline" disabled={busy} onClick={() => openForm(template)}>+ {template.name}</Button>)}

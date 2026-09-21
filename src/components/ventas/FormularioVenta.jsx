@@ -1534,11 +1534,7 @@ export default function FormularioVenta({
       </div>
 
       {ok && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-ok/30 bg-ok/10 p-4 text-ok"
-        >
+        <Aviso tono="ok" como="div" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl p-4">
           <span className="grid h-9 w-9 shrink-0 animate-pulse place-items-center rounded-full bg-ok/20">
             <Icon name="check" className="h-4 w-4" />
           </span>
@@ -1577,7 +1573,7 @@ export default function FormularioVenta({
               </Button>
             </>
           )}
-        </div>
+        </Aviso>
       )}
       {avisoSuspension && (
         <div

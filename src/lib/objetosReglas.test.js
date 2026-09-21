@@ -199,3 +199,27 @@ test('los estados de pedido del cliente se definen una sola vez', () => {
     assert.match(estados, new RegExp(`export const ${nombre} =`), `falta ${nombre}`)
   }
 })
+
+test('Aviso cubre warn y el aviso con estructura', () => {
+  const ui = readFileSync(join(RAIZ, 'components/ui/index.jsx'), 'utf8')
+  assert.match(ui, /warn: 'border-warn\/30 bg-warn\/10 text-warn'/, 'Aviso debe tener tono warn')
+  assert.match(ui, /como === 'div' \? 'div' : 'p'/, 'Aviso debe permitir contenedor para el aviso con acción')
+  // No queda ningún banner con las clases del aviso armado a mano.
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/ui/index.jsx') && /(?:<p|<div)[^>]*rounded-(?:lg|xl)[^>]*border-(?:bad|ok|warn)\/30 bg-(?:bad|ok|warn)\/10[^"]*text-(?:bad|ok|warn)/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  for (const ruta of ['pages/Login.jsx', 'components/ventas/SellerData.jsx', 'components/productos/KardexProducto.jsx', 'components/landing/ImeiVerificador.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<Aviso\b/, `${ruta}: el aviso va con Aviso`)
+  }
+})
+
+test('las cargas usan Skeleton en vez de bloques animate-pulse', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/ui/index.jsx') && /animate-pulse[^"]*rounded-(?:lg|xl|2xl)/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [])
+  for (const ruta of ['components/ventas/SellerData.jsx', 'components/customerPortal/PortalUI.jsx', 'components/customers/CampanasClientes.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<Skeleton\b/, `${ruta}: la carga va con Skeleton`)
+  }
+})

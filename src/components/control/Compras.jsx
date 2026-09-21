@@ -498,7 +498,7 @@ export default function Compras() {
     <Modal open={recepcionDe !== null} onClose={() => !busy && setRecepcionDe(null)} title="Recibir mercadería">
       {recepcionDe && <form onSubmit={event => { event.preventDefault(); if (demo) recibirTodo(recepcionDe); else confirmarRecepcion(event) }} className="space-y-4">
         <p className="text-sm text-mute">{recepcionDe.supplierName} · {estadoCompra(recepcionDe).texto}. Lo que elijas entra al stock; el resto queda pendiente en la orden.</p>
-        {demo && <p className="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-sm text-warn">La recepción parcial requiere conexión con el servidor: en la demo solo se puede recibir la compra completa.</p>}
+        {demo && <Aviso tono="warn">La recepción parcial requiere conexión con el servidor: en la demo solo se puede recibir la compra completa.</Aviso>}
         <div className="space-y-2">
           {(recepcionDe.lines || []).map(item => {
             const pendiente = pendienteDeLinea(recepcionDe, item)

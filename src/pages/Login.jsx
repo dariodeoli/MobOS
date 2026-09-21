@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSesion } from '@/lib/sesion'
-import { Button, Input, Label, PasswordInput, PinInput, Select } from '@/components/ui'
+import { Aviso, Button, Input, Label, PasswordInput, PinInput, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import EmailField from '@/components/shared/EmailField'
 import { publicUrls, rutaInterna } from '@/lib/urls'
@@ -316,16 +316,16 @@ export default function Login() {
           </>}
 
           {error && (
-            <div className="flex items-start gap-2 rounded-lg border border-bad/30 bg-bad/10 px-3.5 py-2.5 text-sm text-bad">
+            <Aviso como="div" className="flex items-start gap-2 px-3.5 py-2.5">
               <Icon name="alert" className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{error}</span>
-            </div>
+            </Aviso>
           )}
           {ok && (
-            <div className="flex items-start gap-2 rounded-lg border border-ok/30 bg-ok/10 px-3.5 py-2.5 text-sm text-ok">
+            <Aviso tono="ok" como="div" className="flex items-start gap-2 px-3.5 py-2.5">
               <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{ok}</span>
-            </div>
+            </Aviso>
           )}
 
           {etapa !== 'tienda' && <Button type="submit" className="h-14 w-full rounded-xl text-base" disabled={cargando || (modo === 'entrar' && etapa === 'vendedor')}>

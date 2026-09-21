@@ -50,7 +50,7 @@ function FotoMini({ unitId, commentId, photo }) {
     return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl) }
   }, [unitId, commentId, photo.id])
   if (photo.mimeType === 'application/pdf') return <button type="button" className="flex items-center gap-1.5 rounded-lg border border-ink-600 px-2 py-1.5 text-xs text-fono-light" onClick={() => url && window.open(url, '_blank')}><Icon name="report" className="h-3.5 w-3.5" /> {photo.fileName}</button>
-  if (!url) return <span className="h-16 w-16 animate-pulse rounded-lg bg-ink-700" />
+  if (!url) return <Skeleton className="h-16 w-16 rounded-lg bg-ink-700" />
   return <button type="button" onClick={() => window.open(url, '_blank')} className="overflow-hidden rounded-lg border border-ink-600 transition hover:border-fono"><img src={url} alt={photo.fileName} className="h-16 w-16 object-cover" /></button>
 }
 

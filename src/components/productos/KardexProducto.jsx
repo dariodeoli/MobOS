@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, apiFetch } from '@/lib/api/client'
-import { Badge, Button, EmptyState, Input, Label, Modal, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, EmptyState, Input, Label, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { CELDA_MONTO, ROTULO_DATO } from '@/components/shared/tabla'
 import { descargarArchivo } from '@/utils/descargarArchivo'
@@ -122,18 +122,18 @@ export default function KardexProducto({ product, open, onClose, esDemo = false 
         )}
 
         {!esDemo && !loading && error && (
-          <div className="rounded-xl border border-bad/30 bg-bad/10 px-4 py-3 text-sm text-bad" role="alert">
+          <Aviso como="div" className="rounded-xl px-4 py-3">
             {error}
             <button type="button" onClick={cargar} className="ml-2 underline">Reintentar</button>
-          </div>
+          </Aviso>
         )}
 
         {!esDemo && !loading && !error && data && (
           <>
             {data.truncado && (
-              <p className="rounded-xl border border-warn/30 bg-warn/10 px-4 py-2.5 text-xs text-warn">
+              <Aviso tono="warn" compact className="rounded-xl px-4 py-2.5">
                 Se muestran los últimos {numero(data.movimientos.length)} movimientos de {numero(data.total)}. Acotá el rango para ver un período completo.
-              </p>
+              </Aviso>
             )}
             <div className="overflow-x-auto rounded-xl border border-ink-600" data-testid="kardex-tabla">
               <div className="max-h-[52vh] overflow-y-auto">
