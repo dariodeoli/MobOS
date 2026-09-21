@@ -859,3 +859,57 @@ test('clientes → actividad, alta con dos nombres y seguro del cliente', async 
     })
   }, { api: API, clienteId: alta.clienteId })
 })
+
+// Rediseño Lote 6-A (#166): Garantías con alta en modal, filtro por estado y
+// tabla compacta sin scroll horizontal.
+test('garantías → alta en modal, filtro por estado y tabla sin scroll', async ({ page }) => {
+  const marca = Date.now().toString(36).toUpperCase()
+  const cliente = `Cliente Garantía ${marca}`
+  await page.goto('/garantias')
+  await expect(page.getByRole('button', { name: 'Nuevo caso' }).first()).toBeVisible()
+  await page.getByRole('button', { name: 'Nuevo caso' }).first().click()
+  const modal = page.getByRole('dialog', { name: 'Nuevo caso de garantía' })
+  await modal.getByPlaceholder('Nombre del cliente').fill(cliente)
+  await modal.getByPlaceholder('Serial o IMEI').fill(`GAR-${marca}`)
+  await modal.getByPlaceholder('Falla reportada, revisión solicitada…').fill('No enciende')
+  await modal.getByRole('button', { name: 'Registrar caso' }).click()
+  const fila = page.getByTestId('garantia-fila').filter({ hasText: marca }).first()
+  await expect(fila).toBeVisible()
+
+  // La tabla entra sin scroll horizontal en desktop.
+  const { scrollWidth, clientWidth } = await page.getByTestId('garantias-tabla').evaluate((nodo) => ({ scrollWidth: nodo.scrollWidth, clientWidth: nodo.clientWidth }))
+  expect(scrollWidth, 'la tabla de garantías no debe scrollear en desktop').toBeLessThanOrEqual(clientWidth + 1)
+
+  // El filtro por estado deja solo lo que corresponde.
+  await page.getByRole('button', { name: 'Entregado', exact: true }).click()
+  await expect(page.getByTestId('garantia-fila').filter({ hasText: marca })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Recibido', exact: true }).click()
+  await expect(page.getByTestId('garantia-fila').filter({ hasText: marca }).first()).toBeVisible()
+})
+
+// QA por rol (#166): el vendedor ve y usa la ficha del cliente, pero el seguro
+// (costo real/margen) sigue siendo de administración/gerencia.
+test('clientes → el vendedor ve la ficha pero no configura el seguro', async ({ browser }) => {
+  const nombre = `QA Rol ${Date.now()}`
+  const contexto = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+  const vendedor = await contexto.newPage()
+  await vendedor.addInitScript(() => localStorage.setItem('mobos:clientes-vista', 'list'))
+  await loginAsSeller(vendedor)
+  const alta = await vendedor.evaluate(async ({ api, nombre }) => {
+    const res = await fetch(`${api}/api/customers`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nombre }) })
+    return { status: res.status, body: await res.json().catch(() => null) }
+  }, { api: API, nombre })
+  expect(alta.status).toBe(201)
+
+  await vendedor.goto(`/clientes?cliente=${encodeURIComponent(alta.body.id)}`)
+  const ficha = vendedor.getByRole('dialog')
+  await expect(ficha.getByRole('heading', { name: nombre })).toBeVisible()
+  await ficha.getByRole('tab', { name: /^Datos/ }).click()
+  await expect(ficha.getByRole('switch', { name: 'Seguro del cliente activo' })).toBeDisabled()
+
+  // El menú del vendedor no ofrece Garantías y servicio.
+  const sidebarNav = vendedor.locator('aside nav')
+  await expect(sidebarNav.getByRole('button', { name: 'Clientes', exact: true })).toBeVisible()
+  await expect(sidebarNav.getByRole('button', { name: 'Garantías y servicio', exact: true })).toHaveCount(0)
+  await contexto.close()
+})
