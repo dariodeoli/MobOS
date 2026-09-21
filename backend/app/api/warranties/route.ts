@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { hashTokenPublico, nuevoTokenPublico } from '../../../lib/public-token'
 import { prisma } from '../../../lib/prisma'
 import { resolveCustomerId } from '../../../lib/customer-link'
 import { canAccessAny, requireSession } from '../../../lib/auth'
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
   // El teléfono del cliente sale del pedido de origen (si existe) para que
   // Servicio Técnico pueda avisarle por WhatsApp sin volver a tipearlo.
   const rows = branch ? await prisma.$queryRaw<Array<Record<string, unknown>>>`
-    SELECT w."id", w."tenantId", w."branchId", w."orderItemId", w."kind", w."customerName", w."serial", w."description", w."status", w."responsibleName", w."createdAt", w."updatedAt", w."expiresAt", w."warrantyDays", w."coverage", w."exclusions", w."publicToken",
+    SELECT w."id", w."tenantId", w."branchId", w."orderItemId", w."kind", w."customerName", w."serial", w."description", w."status", w."responsibleName", w."createdAt", w."updatedAt", w."expiresAt", w."warrantyDays", w."coverage", w."exclusions", w."publicToken", (w."publicTokenHash" IS NOT NULL) AS "hasPublicLink",
            c."phone" AS "customerPhone", c."countryCode" AS "customerCountryCode"
     FROM "WarrantyCase" w
     LEFT JOIN "OrderItem" oi ON oi."id" = w."orderItemId"
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
     WHERE w."tenantId" = ${tenant} AND w."branchId" = ${branch} AND w."kind" = ${kind}
       AND (${q} = '' OR w."serial" ILIKE ${`%${q}%`} OR w."customerName" ILIKE ${`%${q}%`} OR w."description" ILIKE ${`%${q}%`})
     ORDER BY w."createdAt" DESC LIMIT 100` : await prisma.$queryRaw<Array<Record<string, unknown>>>`
-    SELECT w."id", w."tenantId", w."branchId", w."orderItemId", w."kind", w."customerName", w."serial", w."description", w."status", w."responsibleName", w."createdAt", w."updatedAt", w."expiresAt", w."warrantyDays", w."coverage", w."exclusions", w."publicToken",
+    SELECT w."id", w."tenantId", w."branchId", w."orderItemId", w."kind", w."customerName", w."serial", w."description", w."status", w."responsibleName", w."createdAt", w."updatedAt", w."expiresAt", w."warrantyDays", w."coverage", w."exclusions", w."publicToken", (w."publicTokenHash" IS NOT NULL) AS "hasPublicLink",
            c."phone" AS "customerPhone", c."countryCode" AS "customerCountryCode"
     FROM "WarrantyCase" w
     LEFT JOIN "OrderItem" oi ON oi."id" = w."orderItemId"
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
   if (!validDate(body.expiresAt)) return error('La fecha de vencimiento no es válida.')
   if (session.user.role === 'GERENTE' && branchId !== session.user.branchId) return error('No autorizado para esa sucursal.', 403)
   try {
+    let tokenPublico = ''
     const row = await prisma.$transaction(async (tx) => {
       const branch = await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "Branch" WHERE "id" = ${branchId} AND "tenantId" = ${tenant} AND "isActive" = true`
       if (!branch.length) throw new Error('Sucursal no encontrada.')
@@ -90,7 +92,8 @@ export async function POST(request: Request) {
       const coverage = optionalText(body.coverage, 'coverage'); const exclusions = optionalText(body.exclusions, 'exclusions')
       const warrantyDays = body.warrantyDays === undefined || body.warrantyDays === '' || body.warrantyDays === null ? undefined : Number(body.warrantyDays)
       if (warrantyDays !== undefined && (!Number.isSafeInteger(warrantyDays) || warrantyDays < 1 || warrantyDays > 730)) throw new Error('Los días de garantía deben estar entre 1 y 730.')
-      const publicToken = randomUUID()
+      const publicToken = nuevoTokenPublico()
+      tokenPublico = publicToken
       // Sin vencimiento explícito, se deriva de los días de garantía: desde la
       // compra si la garantía cuelga de una línea de pedido, o desde hoy.
       let expiresAt = body.expiresAt ? new Date(body.expiresAt) : null
@@ -101,11 +104,15 @@ export async function POST(request: Request) {
         const base = purchase[0]?.createdAt ? new Date(purchase[0].createdAt) : new Date()
         expiresAt = new Date(base.getTime() + warrantyDays * 86400000)
       }
-      await tx.warrantyCase.create({ data: { id, tenantId: tenant, branchId, orderItemId: body.orderItemId || null, ...(customerId ? { customerId } : {}), customerName, serial, description, responsibleName: typeof body.responsibleName === 'string' ? body.responsibleName.trim() : null, expiresAt, publicToken, warrantyDays: warrantyDays ?? null, coverage: coverage ?? null, exclusions: exclusions ?? null, diagnosis: diagnosis ?? null, technicianName: technicianName ?? null, ...(photos ? { photos } : {}), ...(parts ? { parts } : {}) } })
+      await tx.warrantyCase.create({ data: { id, tenantId: tenant, branchId, orderItemId: body.orderItemId || null, ...(customerId ? { customerId } : {}), customerName, serial, description, responsibleName: typeof body.responsibleName === 'string' ? body.responsibleName.trim() : null, expiresAt, publicToken, publicTokenHash: hashTokenPublico(publicToken), warrantyDays: warrantyDays ?? null, coverage: coverage ?? null, exclusions: exclusions ?? null, diagnosis: diagnosis ?? null, technicianName: technicianName ?? null, ...(photos ? { photos } : {}), ...(parts ? { parts } : {}) } })
       await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${tenant}, ${session.user.id}, 'WARRANTY_CREATED', 'WarrantyCase', ${id}, ${JSON.stringify({ serial, branchId, ...(customerId ? { customerId } : {}) })}::jsonb)`
       return tx.$queryRaw`SELECT * FROM "WarrantyCase" WHERE "id" = ${id}`
     })
-    return json(Array.isArray(row) ? row[0] : row, { status: 201 })
+    // El token en claro se muestra una sola vez (para copiar el enlace o
+    // imprimir el QR) y su sha256 queda guardado para la búsqueda pública
+    // (#172/#178). Mientras otras superficies (página pública del pedido) lean
+    // `publicToken`, la rotación explícita es la que lo borra.
+    return json({ ...(Array.isArray(row) ? row[0] : row), publicToken: tokenPublico }, { status: 201 })
   } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo crear la garantía.', 409) }
 }
 
@@ -131,10 +138,14 @@ export async function PATCH(request: Request) {
       if (warrantyDays !== undefined && (!Number.isSafeInteger(warrantyDays) || warrantyDays < 1 || warrantyDays > 730)) throw new Error('Los días de garantía deben estar entre 1 y 730.')
       const expiresAt = body.expiresAt === undefined ? undefined : validDate(body.expiresAt) ? (body.expiresAt === null || body.expiresAt === '' ? null : new Date(body.expiresAt)) : undefined
       if (expiresAt === undefined && body.expiresAt !== undefined) throw new Error('La fecha de vencimiento no es válida.')
-      const updated = await tx.warrantyCase.update({ where: { id: body.id }, data: { status: next, ...(typeof body.responsibleName === 'string' ? { responsibleName: body.responsibleName.trim() || null } : {}), ...(typeof body.description === 'string' ? { description: body.description.trim() } : {}), ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(resolution !== undefined ? { resolution } : {}), ...(photos !== undefined ? { photos } : {}), ...(parts !== undefined ? { parts } : {}), ...(repairCostPyg !== undefined ? { repairCostPyg } : {}), ...(coverage !== undefined ? { coverage } : {}), ...(exclusions !== undefined ? { exclusions } : {}), ...(warrantyDays !== undefined ? { warrantyDays } : {}), ...(expiresAt !== undefined ? { expiresAt } : {}) } })
-      await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${tenant}, ${session.user.id}, 'WARRANTY_UPDATED', 'WarrantyCase', ${body.id}, ${JSON.stringify({ from: current[0].status, to: next })}::jsonb)`
+      // Rotación del enlace público (#172/#178): el token en claro anterior se
+      // borra y el nuevo se muestra una sola vez en la respuesta.
+      const regenerar = body.regeneratePublicToken === true
+      const tokenNuevo = regenerar ? nuevoTokenPublico() : null
+      const updated = await tx.warrantyCase.update({ where: { id: body.id }, data: { status: next, ...(typeof body.responsibleName === 'string' ? { responsibleName: body.responsibleName.trim() || null } : {}), ...(typeof body.description === 'string' ? { description: body.description.trim() } : {}), ...(diagnosis !== undefined ? { diagnosis } : {}), ...(technicianName !== undefined ? { technicianName } : {}), ...(resolution !== undefined ? { resolution } : {}), ...(photos !== undefined ? { photos } : {}), ...(parts !== undefined ? { parts } : {}), ...(repairCostPyg !== undefined ? { repairCostPyg } : {}), ...(coverage !== undefined ? { coverage } : {}), ...(exclusions !== undefined ? { exclusions } : {}), ...(warrantyDays !== undefined ? { warrantyDays } : {}), ...(expiresAt !== undefined ? { expiresAt } : {}), ...(regenerar && tokenNuevo ? { publicToken: null, publicTokenHash: hashTokenPublico(tokenNuevo) } : {}) } })
+      await tx.$executeRaw`INSERT INTO "AuditLog" ("id", "tenantId", "userId", "action", "entity", "entityId", "metadata") VALUES (${randomUUID()}, ${tenant}, ${session.user.id}, 'WARRANTY_UPDATED', 'WarrantyCase', ${body.id}, ${JSON.stringify({ from: current[0].status, to: next, ...(regenerar ? { publicTokenRegenerated: true } : {}) })}::jsonb)`
       await notifyWarrantyStatusChanged(tx, { tenantId: tenant, caseId: body.id, customerName: String(updated.customerName ?? ''), serial: String(updated.serial ?? ''), statusLabel: STATUS_LABELS[next as (typeof STATUSES)[number]], publicToken: updated.publicToken ?? null })
-      return updated
+      return { ...updated, ...(regenerar && tokenNuevo ? { publicToken: tokenNuevo } : {}) }
     })
     return json(Array.isArray(result) ? result[0] : result)
   } catch (e) { return error(e instanceof Error ? e.message : 'No se pudo actualizar la garantía.', 409) }

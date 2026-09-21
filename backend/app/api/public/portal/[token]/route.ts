@@ -1,6 +1,7 @@
 import { prisma } from '../../../../../lib/prisma'
 import { error, json } from '../../../../../lib/http'
 import { enforceRateLimit } from '../../../../../lib/rate-limit'
+import { buscarPorTokenPublico, hashTokenPublico } from '../../../../../lib/public-token'
 
 // Vitrina pública del cliente: una página de solo lectura por token donde ve
 // sus pedidos, su saldo a favor, sus puntos de fidelización y —si el enlace es
@@ -19,17 +20,37 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
 
   const { token } = await context.params
   // `CustomerPortalToken` no tiene vencimiento: la vigencia es no revocado.
-  const portal = await prisma.customerPortalToken.findFirst({
-    where: { token: texto(token), revokedAt: null },
-    select: {
-      level: true,
-      tenantId: true,
-      customerId: true,
-      customer: { select: { name: true, loyaltyPointsPyg: true, publicNote: true } },
-      tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
-    },
-  })
+  // Resolución por hash (#172/#178) con fallback a enlaces legacy en claro.
+  const limpiar = texto(token)
+  const { row: portal, hash, legacy } = await buscarPorTokenPublico(
+    limpiar,
+    (tokenHash) => prisma.customerPortalToken.findFirst({
+      where: { tokenHash, revokedAt: null },
+      select: {
+        id: true,
+        level: true,
+        tenantId: true,
+        customerId: true,
+        customer: { select: { name: true, loyaltyPointsPyg: true, publicNote: true } },
+        tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
+      },
+    }),
+    (legacyToken) => prisma.customerPortalToken.findFirst({
+      where: { token: legacyToken, revokedAt: null },
+      select: {
+        id: true,
+        level: true,
+        tenantId: true,
+        customerId: true,
+        customer: { select: { name: true, loyaltyPointsPyg: true, publicNote: true } },
+        tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
+      },
+    }),
+  )
   if (!portal) return error('Cuenta no encontrada.', 404)
+  if (legacy && hash) {
+    await prisma.customerPortalToken.updateMany({ where: { id: portal.id, tokenHash: null }, data: { tokenHash: hash } }).catch(() => {})
+  }
 
   const completo = portal.level === 'completo'
   const [pedidos, saldoFavor, garantias] = await Promise.all([

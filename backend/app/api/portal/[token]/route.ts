@@ -1,6 +1,7 @@
 import { prisma } from '../../../../lib/prisma'
 import { error, json } from '../../../../lib/http'
 import { enforceRateLimit } from '../../../../lib/rate-limit'
+import { buscarPorTokenPublico } from '../../../../lib/public-token'
 
 // Resumen de cuenta público del cliente. El token es aleatorio y no
 // enumerable, y el nivel acota lo que se muestra:
@@ -12,18 +13,27 @@ import { enforceRateLimit } from '../../../../lib/rate-limit'
 // clientes ni información de contacto de terceros.
 const text = (value: unknown, max = 200) => (typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : '')
 
+// Resolución por hash (#172/#178) con fallback a enlaces legacy en claro; al
+// primer uso de un enlace legacy se le guarda el hash sin romper el QR.
 async function buscarPortal(token: string) {
   if (!token || token.length > 200) return null
-  return prisma.customerPortalToken.findFirst({
-    where: { token, revokedAt: null },
-    select: {
-      level: true,
-      tenantId: true,
-      customerId: true,
-      customer: { select: { name: true, publicNote: true } },
-      tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
-    },
-  })
+  const select = {
+    id: true,
+    level: true,
+    tenantId: true,
+    customerId: true,
+    customer: { select: { name: true, publicNote: true } },
+    tenant: { select: { name: true, logos: { select: { id: true }, take: 1 } } },
+  } as const
+  const { row, hash, legacy } = await buscarPorTokenPublico(
+    token,
+    (tokenHash) => prisma.customerPortalToken.findFirst({ where: { tokenHash, revokedAt: null }, select }),
+    (legacyToken) => prisma.customerPortalToken.findFirst({ where: { token: legacyToken, revokedAt: null }, select }),
+  )
+  if (row && legacy && hash) {
+    await prisma.customerPortalToken.updateMany({ where: { id: row.id, tokenHash: null }, data: { tokenHash: hash } }).catch(() => {})
+  }
+  return row
 }
 
 export async function GET(request: Request, context: { params: Promise<{ token: string }> }) {
