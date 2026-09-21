@@ -7,6 +7,7 @@ import { codigoPedido } from '@/utils/pedido'
 import { cn } from '@/lib/utils'
 import { primerNombre } from '@/lib/utils'
 import { portalUrlFor, portalVitrinaUrlFor } from '@/lib/customerPortal'
+import { PERIODOS_INFORME, rangoPeriodo, seccionesInforme, informeCsv, nombreArchivoInforme } from '@/lib/customerReport'
 import QRCode from 'qrcode'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { whatsappUrl } from './customerMessaging'
@@ -168,6 +169,11 @@ export default function CustomerProfile({ customer, open, onClose }) {
   const [notaInterna, setNotaInterna] = useState('')
   const [notaPublica, setNotaPublica] = useState('')
   const [guardandoNotas, setGuardandoNotas] = useState(false)
+  // Informe descargable: período elegido y rango personalizado.
+  const [periodoInforme, setPeriodoInforme] = useState('todo')
+  const [desdeInforme, setDesdeInforme] = useState('')
+  const [hastaInforme, setHastaInforme] = useState('')
+  const [generandoInforme, setGenerandoInforme] = useState(false)
   // Listas de precios disponibles para asignar a la ficha.
   const [listasPrecios, setListasPrecios] = useState([])
   const [asignandoLista, setAsignandoLista] = useState(false)
@@ -304,22 +310,50 @@ export default function CustomerProfile({ customer, open, onClose }) {
     return () => { vigente = false }
   }, [tab, analitica, esDemo, customer?.id])
 
-  function descargarInforme() {
-    if (!analitica) return
-    const filas = [
-      ['Pedido', 'Fecha', 'Estado', 'Total (Gs)'],
-      ...analitica.statement.map(item => [item.orderNumber, new Date(item.createdAt).toLocaleDateString('es-PY'), item.status, item.totalPyg]),
-      [],
-      ['Compras', analitica.ordersCount],
-      ['Total (Gs)', analitica.totalPyg],
-      ['Ticket promedio (Gs)', analitica.avgTicketPyg],
-    ]
-    const csv = filas.map(fila => fila.map(celda => `"${String(celda ?? '').replace(/"/g, '""')}"`).join(';')).join('\n')
-    const enlace = document.createElement('a')
-    enlace.href = URL.createObjectURL(new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' }))
-    enlace.download = `cliente-${(customer?.name || 'informe').replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 40)}.csv`
-    enlace.click()
-    URL.revokeObjectURL(enlace.href)
+  // Informe descargable: reúne todas las secciones del cliente en un CSV con el
+  // período elegido. La cronología se pide completa (páginas de 100) para que
+  // el informe no dependa de lo que ya está en pantalla.
+  async function descargarInforme() {
+    if (generandoInforme || !customer?.id) return
+    setGenerandoInforme(true)
+    try {
+      let eventos = timeline
+      if (!esDemo) {
+        eventos = []
+        let cursor = ''
+        for (let pagina = 0; pagina < 5; pagina += 1) {
+          const consulta = `/api/customers/${encodeURIComponent(customer.id)}/timeline?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`
+          const data = await api.get(consulta)
+          eventos = [...eventos, ...(Array.isArray(data?.events) ? data.events : [])]
+          cursor = data?.nextCursor || ''
+          if (!cursor) break
+        }
+      }
+      const ficha = profile?.customer || {}
+      const telefono = ficha.phone || customer?.phone || ''
+      const secciones = seccionesInforme({
+        customer: {
+          ...ficha,
+          telefonoVisible: telefono ? telefonoVisible(telefono, ficha.countryCode || customer?.countryCode) : '',
+          ciudad: (ficha.addresses || []).find((address) => address.city)?.city || '',
+          createdByName: ficha.createdBy?.name || '',
+        },
+        orders,
+        warranties,
+        timeline: eventos,
+        analytics: analitica,
+        billingIdentities: profile?.billingIdentities || [],
+        rango: rangoPeriodo(periodoInforme, { desde: desdeInforme, hasta: hastaInforme }),
+      })
+      const enlace = document.createElement('a')
+      enlace.href = URL.createObjectURL(new Blob([`\ufeff${informeCsv(secciones)}`], { type: 'text/csv;charset=utf-8' }))
+      enlace.download = nombreArchivoInforme(customer?.name || 'cliente', periodoInforme)
+      enlace.click()
+      URL.revokeObjectURL(enlace.href)
+      toast.success('Informe descargado.')
+    } catch (cause) {
+      toast.error('No se pudo generar el informe', cause?.message)
+    } finally { setGenerandoInforme(false) }
   }
 
 
@@ -1203,8 +1237,32 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     <Senales titulo="Días de mayor actividad" items={analitica.topWeekdays} primario={(item) => item.day} secundario={(item) => `${item.count} ${item.count === 1 ? 'compra' : 'compras'}`} />
                     <Senales titulo="Últimos meses" items={analitica.byMonth} primario={(item) => item.label || item.month} secundario={(item) => `${item.count} ${item.count === 1 ? 'compra' : 'compras'} · ${formatGs(item.totalPyg)}`} />
                   </div>
-                  <div className="flex justify-end">
-                    <Button type="button" variant="outline" onClick={descargarInforme} disabled={!analitica.statement.length}>Descargar informe (CSV)</Button>
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-600 bg-ink-800 p-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-paper p-1">
+                        {PERIODOS_INFORME.map((item) => (
+                          <button
+                            key={item.clave}
+                            type="button"
+                            aria-pressed={periodoInforme === item.clave}
+                            onClick={() => setPeriodoInforme(item.clave)}
+                            className={cn('rounded-lg px-2.5 py-1 text-xs font-semibold transition', periodoInforme === item.clave ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}
+                          >
+                            {item.nombre}
+                          </button>
+                        ))}
+                      </div>
+                      {periodoInforme === 'custom' && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Input type="date" aria-label="Desde" className="h-9 w-auto" value={desdeInforme} onChange={(event) => setDesdeInforme(event.target.value)} />
+                          <Input type="date" aria-label="Hasta" className="h-9 w-auto" value={hastaInforme} onChange={(event) => setHastaInforme(event.target.value)} />
+                        </div>
+                      )}
+                    </div>
+                    <Button type="button" variant="outline" onClick={descargarInforme} disabled={generandoInforme || !analitica.statement.length}>
+                      <Icon name="download" className="h-4 w-4" />
+                      {generandoInforme ? 'Generando…' : 'Descargar informe (CSV)'}
+                    </Button>
                   </div>
                 </>
               )}
