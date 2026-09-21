@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { gs } from '@/utils/calculos'
 import { normalizarBusqueda } from '@/utils/cliente'
+import { telefonoVisible } from '@/utils/telefono'
 import { readCustomerMetadata } from './customerMessaging'
 import Icon from '@/components/shared/Icon'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
@@ -13,21 +14,10 @@ import { useToast } from '@/components/ui'
 // acciones compactas (perfil al hacer clic, WhatsApp con plantilla). Entra sin
 // scroll horizontal en desktop: todo trunca y el espacio se reparte con
 // prioridad Cliente → Total gastado → Teléfono → Tipo → resto.
-const GRID = 'grid min-w-[66rem] grid-cols-[1.5rem_minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1fr)_2.5rem_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.45fr)_minmax(0,1.15fr)_2.5rem_minmax(0,0.7fr)] items-center gap-x-2'
+const GRID = 'grid min-w-[58rem] grid-cols-[1.5rem_minmax(0,1.7fr)_minmax(0,0.75fr)_minmax(0,0.95fr)_2.5rem_minmax(0,0.7fr)_minmax(0,0.75fr)_minmax(0,0.4fr)_minmax(0,1.2fr)_2.5rem_2.5rem] items-center gap-x-2'
 const ULTIMA_PLANTILLA = 'mobos:clientes:plantilla-wa'
 
 const ciudadDe = (row) => row.addresses?.find(address => address.city)?.city || ''
-// Teléfono visible: código de país + número local, agrupado 3-3-3 cuando tiene
-// 9 dígitos (formato Paraguay). No se usa para wa.me (ahí va internationalPhone).
-export const telefonoVisible = (phone, countryCode = '+595') => {
-  const code = String(countryCode || '+595').replace(/\D/g, '') || '595'
-  let digits = String(phone || '').replace(/\D/g, '')
-  if (digits.startsWith(code)) digits = digits.slice(code.length)
-  if (digits.startsWith('0')) digits = digits.slice(1)
-  if (!digits) return ''
-  const local = digits.length === 9 ? `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}` : digits
-  return `+${code} ${local}`
-}
 export const notaInterna = (notes) => {
   if (typeof notes !== 'string' || !notes.trim()) return ''
   if (readCustomerMetadata(notes).phones.length) return ''
@@ -87,7 +77,7 @@ export default function ClientesTabla({ rows, templates, onPerfil }) {
         <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={copiarTelefonos}>Copiar teléfonos</button>
         <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={exportarSeleccionados}>Exportar CSV</button>
       </BarraLote>
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" data-testid="clientes-tabla">
       <div className={cn(GRID, 'px-3.5 pb-2 pt-1')}>
         <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={filas.length > 0 && seleccionados.length === filas.length} onChange={() => setSeleccionados((actuales) => seleccionarTodos(filas, actuales))} />
         {encabezado('cliente', 'Cliente')}

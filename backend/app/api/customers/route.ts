@@ -64,21 +64,21 @@ export async function GET(request: Request) {
     condiciones.push(Prisma.sql`(c."createdAt" < ${cursorRow.createdAt} OR (c."createdAt" = ${cursorRow.createdAt} AND c."id" < ${cursor}))`)
   }
   if (q) {
-    // Búsqueda flexible: nombre, teléfono, CI/RUC, correo, datos de facturación,
-    // ciudad de las direcciones, etiquetas y también pedidos facturados a otro
-    // titular (razón social/RUC), para llegar al cliente desde la factura.
-    const texto = patronLike(q)
-    condiciones.push(Prisma.sql`(
-      c."name" ILIKE ${texto}
-      OR c."phone" ILIKE ${texto}
-      OR c."document" ILIKE ${texto}
-      OR c."email" ILIKE ${texto}
-      OR c."billingName" ILIKE ${texto}
-      OR c."billingDocument" ILIKE ${texto}
-      OR c."tags"::text ILIKE ${texto}
-      OR EXISTS (SELECT 1 FROM "CustomerAddress" a WHERE a."customerId" = c."id" AND (a."city" ILIKE ${texto} OR a."address" ILIKE ${texto}))
-      OR EXISTS (SELECT 1 FROM "Order" o WHERE o."customerId" = c."id" AND o."tenantId" = ${tenant} AND (o."billingName" ILIKE ${texto} OR o."billingDocument" ILIKE ${texto}))
-    )`)
+    // Búsqueda instantánea por palabras: cada palabra tipeada tiene que aparecer
+    // en alguno de los campos (así "perez juan" encuentra a "Juan Pérez").
+    // Cubre nombre, teléfono, CI/RUC, correo, datos de facturación vigentes e
+    // históricos, ciudad/dirección, etiquetas, notas internas y nota pública.
+    const tokens = q.split(/\s+/).filter(Boolean).slice(0, 6)
+    const campos = Prisma.sql`concat_ws(' ', c."name", c."phone", c."document", c."email", c."billingName", c."billingDocument", c."notes", c."publicNote", array_to_string(c."tags", ' '))`
+    condiciones.push(Prisma.sql`(${Prisma.join(tokens.map((token) => {
+      const patron = patronLike(token)
+      return Prisma.sql`(
+        ${campos} ILIKE ${patron}
+        OR EXISTS (SELECT 1 FROM "CustomerAddress" a WHERE a."customerId" = c."id" AND (a."city" ILIKE ${patron} OR a."address" ILIKE ${patron}))
+        OR EXISTS (SELECT 1 FROM "CustomerBillingIdentity" b WHERE b."customerId" = c."id" AND (b."name" ILIKE ${patron} OR b."document" ILIKE ${patron}))
+        OR EXISTS (SELECT 1 FROM "Order" o WHERE o."customerId" = c."id" AND o."tenantId" = ${tenant} AND (o."billingName" ILIKE ${patron} OR o."billingDocument" ILIKE ${patron}))
+      )`
+    }), ' AND ')})`)
   }
   const ids = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
     SELECT c."id"
