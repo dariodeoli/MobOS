@@ -102,9 +102,17 @@ test('pedidos: el comprobante ofrece A4 y 58 mm con diseño propio', async ({ pa
 // genérico "Sistema": el actor sale del usuario que confirmó la venta.
 test('pedidos: la cronología muestra al vendedor que creó el pedido', async ({ page }) => {
   await page.goto('/pedidos')
+  // Se elige un pedido real con cliente y vendedor (el código comercial puede
+  // cambiar por la migración de códigos, así que no se fija ninguno).
+  const objetivo = await page.evaluate(async (api) => {
+    const rows = await (await fetch(`${api}/api/orders`, { credentials: 'include' })).json()
+    const orden = rows.find((row) => row.customer?.name && row.seller?.name)
+    return orden ? { orderNumber: orden.orderNumber, seller: orden.seller.name } : null
+  }, API)
+  expect(objetivo?.orderNumber).toBeTruthy()
   const fila = page
     .getByTestId('pedido-fila')
-    .filter({ hasText: codigoPedido(SEED.seedOrderNumber) })
+    .filter({ hasText: codigoPedido(objetivo.orderNumber) })
     .first()
   await expect(fila).toBeVisible()
   await fila.click()
@@ -113,5 +121,5 @@ test('pedidos: la cronología muestra al vendedor que creó el pedido', async ({
   const creado = page.locator('article').filter({ hasText: 'Pedido creado' }).first()
   await expect(creado).toBeVisible()
   await expect(creado).not.toContainText('Sistema')
-  await expect(creado).toContainText('Vendedor')
+  await expect(creado).toContainText(objetivo.seller.split(' ')[0])
 })

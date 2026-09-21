@@ -124,6 +124,18 @@ const buscable = (row) => normalizarBusqueda([
   row.seriales.join(' '), row.seriales.map(serial => ultimos4(serial)).join(' '), String(row.total),
 ].filter(Boolean).join(' '))
 
+// Acento de color por estado de pago: la fila se lee de un vistazo sin tener
+// que buscar el badge (verde pagado, ámbar parcial, violeta crédito, rojo
+// pendiente/cancelado).
+const ACENTO_PAGO = (row) => {
+  if (estaCancelado(row)) return 'border-l-bad/70'
+  const estado = pagoDe(row)
+  if (estado === 'Pagado') return 'border-l-ok'
+  if (estado === 'Parcial') return 'border-l-warn'
+  if (estado === 'A crédito') return 'border-l-[#8b5cf6]'
+  return 'border-l-bad/60'
+}
+
 function FilaPedido({ row, onClick, onAcciones }) {
   const cancelado = estaCancelado(row)
   const tachado = cancelado ? 'line-through decoration-bad/70' : ''
@@ -138,7 +150,8 @@ function FilaPedido({ row, onClick, onAcciones }) {
       onClick={onClick}
       onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick?.() } }}
       className={cn(
-        'w-full rounded-xl border border-fore/10 bg-ink-800/40 px-2.5 py-1.5 text-left transition hover:border-fono/40 hover:bg-ink-700/50',
+        'w-full rounded-xl border border-l-4 border-fore/10 bg-ink-800/40 px-2.5 py-1.5 text-left transition hover:border-fono/40 hover:bg-ink-700/50',
+        ACENTO_PAGO(row),
         estaCompletado(row) && !cancelado && 'opacity-70 hover:opacity-100',
       )}
     >

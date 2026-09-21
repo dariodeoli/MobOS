@@ -195,7 +195,10 @@ export async function POST(request: Request) {
   const offlineSale = body.offline === true
   let stockFaltante = 0
   let sinImeiOffline = 0
-  if (body.customerId !== undefined && body.customer !== undefined) throw new InputError('Enviá customerId o customer, no ambos.')
+  // Se permite customerId + customer para actualizar los datos de contacto de
+  // una ficha ya elegida (correo/teléfono que el vendedor corrigió en el POS):
+  // en ese caso el objeto customer no lleva nombre.
+  if (body.customerId !== undefined && body.customer !== undefined && objectInput(body.customer).name !== undefined) throw new InputError('Enviá customerId o customer, no ambos.')
   const selectedCustomerId = body.customerId === undefined ? undefined : textInput(body.customerId, 'customerId', 200)
   let customer: { name: string; phone?: string; countryCode?: string; email?: string; document?: string; addresses: ReturnType<typeof inlineAddresses> } | undefined
   if (body.customer !== undefined) {
@@ -206,7 +209,7 @@ export async function POST(request: Request) {
     const countryCode = input.countryCode === undefined ? '+595' : textInput(input.countryCode, 'Código de país', 5)
     if (!/^\+\d{1,4}$/.test(countryCode)) throw new InputError('Código de país inválido.')
     const addresses = inlineAddresses(input.addresses === undefined && input.address !== undefined ? [{ label: 'Principal', address: input.address, isDefault: true }] : input.addresses)
-    customer = { name: textInput(input.name, 'Nombre', 200),
+    customer = { name: input.name === undefined ? '' : textInput(input.name, 'Nombre', 200),
       ...(phone === undefined ? {} : { phone }), countryCode,
       ...(input.email === undefined || input.email === '' ? {} : { email: textInput(input.email, 'Email', 200) }),
       ...(document === undefined ? {} : { document }), addresses }
@@ -273,7 +276,15 @@ export async function POST(request: Request) {
         priceListId = selectedCustomer.priceListId
         customerInsurance = { enabled: selectedCustomer.insuranceEnabled === true, ratePct: selectedCustomer.insuranceRatePct === null ? null : Number(selectedCustomer.insuranceRatePct) }
       }
-      if (customer) {
+      if (customerId && customer && !customer.name) {
+        // Contacto editado sobre una ficha ya elegida: se actualiza lo que el
+        // vendedor cargó (correo/teléfono) sin tocar el resto de la ficha.
+        await tx.customer.update({ where: { id: customerId }, data: {
+          ...(customer.email ? { email: customer.email } : {}),
+          ...(customer.phone ? { phone: customer.phone } : {}),
+        } })
+      }
+      if (customer && !customerId) {
         // Serialize inline checkouts for this tenant/name, including when no customer exists yet.
         await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(json_build_array(${tenant}::text, lower(${customer.name}::text))::text, 0))`
         // Literal equality: names containing % or _ must not act as ILIKE patterns.

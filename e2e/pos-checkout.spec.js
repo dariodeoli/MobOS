@@ -13,6 +13,13 @@ import { codigoPedido } from '../src/utils/pedido.js'
 const customerName = `${SEED.checkoutCustomer} ${Date.now().toString(36)}`
 const API = `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`
 
+// Las cuentas de cobro ahora se eligen con buscador: se abre y se elige la
+// opción por nombre.
+async function elegirCuenta(page, paymentsSection, indice, nombre) {
+  await paymentsSection.getByLabel('Cuenta de cobro').nth(indice).click()
+  await page.getByRole('option', { name: new RegExp(nombre) }).click()
+}
+
 async function orderItems(page, name) {
   return page.evaluate(
     async ({ api, customer }) => {
@@ -63,24 +70,25 @@ test('POS checkout with split payment registers the sale and lists it in pedidos
   // Partial payment on the first account (cash).
   await addPayment.click()
   await expect(accountSelects).toHaveCount(1)
-  await accountSelects.nth(0).selectOption({ label: 'Caja E2E · PYG · CASH' })
+  await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await amountInputs.nth(0).fill('25000')
   await expect(paymentsSection.getByText('Equivalente: Gs 25.000')).toBeVisible()
 
   // Second payment account covers the remainder.
   await addPayment.click()
   await expect(accountSelects).toHaveCount(2)
-  await accountSelects.nth(1).selectOption({ label: 'Transferencia E2E · PYG · TRANSFER' })
+  await elegirCuenta(page, paymentsSection, 1, 'Transferencia E2E')
   await amountInputs.nth(1).fill('20000')
   await expect(paymentsSection.getByText('Equivalente: Gs 20.000')).toBeVisible()
 
-  // Totals must balance before saving.
+  // Totals must balance before saving: el botón principal cambia de estado.
   const pendiente = paymentsSection.getByText('Pendiente').first()
   await expect(pendiente.locator('strong')).toHaveText('Gs 0')
+  await expect(page.getByRole('button', { name: /^Confirmar venta/ })).toBeVisible()
 
   // Delivery notes are optional: the backend accepts an omitted empty note
   // (fixed in the Phase-3 merge), so no observation is required here.
-  await page.getByRole('button', { name: /^Guardar venta/ }).click()
+  await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
 
   // Success banner with print actions.
   const banner = page
@@ -278,7 +286,7 @@ test('POS finds a customer by billing name, shows the selection and clears it', 
   await expect(seleccion).toBeVisible()
 
   // La factura guardada en la ficha se propone de nuevo en esta venta.
-  await page.getByText('Factura a otro titular (opcional)').click()
+  await page.getByText('Facturar a otro titular (opcional)').click()
   await expect(page.getByLabel('Nombre del titular de factura')).toHaveValue(razon)
   await expect(page.getByLabel('RUC del titular de factura')).toHaveValue('80012345-6')
 
@@ -315,13 +323,11 @@ test('POS manual price below list stores the list price for the receipt', async 
       .locator('div.space-y-3')
       .filter({ has: page.getByText('Pagos de esta venta') })
     await page.getByRole('button', { name: '+ Agregar pago' }).click()
-    await paymentsSection
-      .getByLabel('Cuenta de cobro')
-      .selectOption({ label: 'Caja E2E · PYG · CASH' })
+    await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
     await paymentsSection.getByLabel('Monto original').fill('40000')
     await expect(paymentsSection.getByText('Equivalente: Gs 40.000')).toBeVisible()
 
-    await page.getByRole('button', { name: /^Guardar venta/ }).click()
+    await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
     await expect(
       page.getByRole('status').filter({ hasText: 'Venta registrada correctamente.' }),
     ).toBeVisible()
@@ -403,12 +409,68 @@ test('POS vende un equipo serializado con su IMEI y bloquea el sobre pedido con 
 
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
-  await paymentsSection.getByLabel('Cuenta de cobro').nth(0).selectOption({ label: 'Caja E2E · PYG · CASH' })
+  await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await paymentsSection.getByLabel('Monto original').nth(0).fill(String(SEED.products.iphone.pricePyg))
-  await page.getByRole('button', { name: /^Guardar venta/ }).click()
+  await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
   await expect(page.getByText('Venta registrada correctamente. Ya podés cargar la siguiente.')).toBeVisible({ timeout: 15_000 })
 })
 
+// #150: el borrador del RUC consultado (pre-cliente) reaparece al buscar por
+// nombre y completa la ficha con un clic.
+test('POS: el pre-cliente guardado se ofrece al buscar por nombre', async ({ page }) => {
+  const nombre = `Pre Cliente ${Date.now().toString(36)}`
+  await page.goto('/pos')
+  await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
+  // Se siembra el borrador como lo haría la consulta de RUC (misma clave de
+  // empresa que usa la app).
+  await page.evaluate(async ({ api, nombre }) => {
+    // El id de empresa lo ve cualquier sesión en /api/auth/me (la cuenta es
+    // solo del dueño).
+    const sesion = await (await fetch(`${api}/api/auth/me`, { credentials: 'include' })).json()
+    const key = `mobos:preclientes:v1:${sesion.user?.tenantId || sesion.tenantId}`
+    const filas = JSON.parse(localStorage.getItem(key) || '[]')
+    filas.push({ document: '80012345-6', name: nombre, phone: '0981 000 111', creadoEn: Date.now(), venceEn: Date.now() + 86400000 })
+    localStorage.setItem(key, JSON.stringify(filas))
+  }, { api: API, nombre })
+  await page.reload()
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(nombre)
+  const borrador = page.getByText('Pre-cliente')
+  await expect(borrador).toBeVisible()
+  await borrador.click()
+  await expect(page.getByLabel('Nombre, teléfono, CI o RUC del cliente')).toHaveValue(nombre)
+  // Al elegir el borrador, el documento queda en el formulario.
+  await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
+  await expect(page.getByLabel('CI o RUC del cliente', { exact: true })).toHaveValue('80012345-6')
+})
+
+// #150: el correo editado sobre una ficha elegida se persiste al vender.
+test('POS: el correo corregido de un cliente se guarda en la ficha al vender', async ({ page }) => {
+  const marca = Date.now().toString(36)
+  const cliente = `${SEED.checkoutCustomer} correo ${marca}`
+  const correo = `cliente-${marca}@example.com`
+  await page.goto('/pos')
+  await page.getByLabel('Nombre, teléfono, CI o RUC del cliente').fill(cliente)
+  // Se crea la ficha con el pedido de la propia venta (cliente nuevo).
+  await page.getByText('Datos de contacto, RUC/CI y direcciones').click()
+  await page.getByLabel('Correo del cliente').fill(correo)
+  await page.getByPlaceholder('Buscar producto…').fill('Cable')
+  await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
+  const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
+  await page.getByRole('button', { name: '+ Agregar pago' }).click()
+  await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
+  await paymentsSection.getByLabel('Monto original').fill('45000')
+  await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
+  await expect(page.getByText('Venta registrada correctamente. Ya podés cargar la siguiente.')).toBeVisible({ timeout: 15_000 })
+
+  // La ficha quedó con el correo cargado (se consulta por la API).
+  await expect
+    .poll(async () => page.evaluate(async ({ api, cliente }) => {
+      const rows = await (await fetch(`${api}/api/customers?q=${encodeURIComponent(cliente)}`, { credentials: 'include' })).json()
+      const ficha = rows.find((row) => row.name === cliente)
+      return ficha?.email || null
+    }, { api: API, cliente }), { timeout: 15_000 })
+    .toBe(correo)
+})
 // Offline-first (Fase 1): sin conexión la venta queda en la cola local y al
 // volver la conexión se sincroniza sola, una sola vez (misma Idempotency-Key).
 test('POS: la venta cargada sin conexión se sincroniza al volver (sin duplicar)', async ({ page, context }) => {
@@ -419,15 +481,19 @@ test('POS: la venta cargada sin conexión se sincroniza al volver (sin duplicar)
   await page.getByPlaceholder('Buscar producto…').fill('Cable')
   await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
 
+  // Estado del botón principal: sin pago pide crear el pedido; al completar el
+  // cobro pasa a confirmar la venta.
+  await expect(page.getByRole('button', { name: /^Crear pedido sin pago/ })).toBeVisible()
   const paymentsSection = page.locator('div.space-y-3').filter({ has: page.getByText('Pagos de esta venta') })
   await page.getByRole('button', { name: '+ Agregar pago' }).click()
-  await paymentsSection.getByLabel('Cuenta de cobro').selectOption({ label: 'Caja E2E · PYG · CASH' })
+  await elegirCuenta(page, paymentsSection, 0, 'Caja E2E')
   await paymentsSection.getByLabel('Monto original').fill('45000')
+  await expect(page.getByRole('button', { name: /^Confirmar venta/ })).toBeVisible()
 
   // Sin conexión: la venta no llega al servidor pero no se pierde.
   await context.setOffline(true)
   await expect(page.getByTestId('cola-offline')).toHaveCount(0)
-  await page.getByRole('button', { name: /^Guardar venta/ }).click()
+  await page.getByRole('button', { name: /^(Confirmar venta|Crear pedido)/ }).click()
   await expect(page.getByText(/Venta guardada sin conexión/)).toBeVisible({ timeout: 15_000 })
   const cola = page.getByTestId('cola-offline')
   await expect(cola).toContainText('1 venta sin sincronizar')

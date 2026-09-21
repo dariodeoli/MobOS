@@ -452,7 +452,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
 
           {/* Información de pago */}
           <section className="rounded-2xl border border-ink-600 p-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Información de pago</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-mute">Transacciones e información de pago</h3>
             <div className="mt-3 space-y-1.5 text-sm">
               <p className="flex justify-between"><span className="text-mute">Subtotal · {items.reduce((sum, item) => sum + Number(item.quantity || 1), 0)} artículos</span><span className="tabular-nums"><Money value={Number(order.subtotalPyg ?? total)} /></span></p>
               {Number(order.discountPyg || 0) > 0 && <p className="flex justify-between text-warn"><span>Descuento</span><span className="tabular-nums">− <Money value={order.discountPyg} /></span></p>}
@@ -462,6 +462,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
               {pendiente > 0 && <p className="flex justify-between text-warn"><span>{['Pendiente', Number(order.creditDays || 0) > 0 ? `plazo ${order.creditDays} días` : '', order.dueAt ? `vence ${new Date(order.dueAt).toLocaleDateString('es-PY')}` : ''].filter(Boolean).join(' · ')}</span><span className="tabular-nums"><Money value={pendiente} /></span></p>}
             </div>
             {payments.length > 0 && <div className="mt-3 space-y-2 border-t border-ink-600 pt-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-mute">Transacciones ({payments.length})</p>
               {payments.map(pago => <div key={pago.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="text-mute">{ETIQUETAS_MEDIO_PAGO[pago.method] || pago.method}{pago.accountSnapshot?.name ? ` · ${pago.accountSnapshot.name}` : ''}{pago.reference ? ` · ${pago.reference}` : ''}</span>
                 <span className="flex flex-wrap items-center gap-2"><span className="text-[10px] text-mute">Registrado por {nombreActor(nombrePago(pago, order))}</span><span className="tabular-nums font-semibold"><Money value={Number(pago.amountPyg || 0)} /></span><Badge color={pago.status === 'CONFIRMED' ? 'green' : pago.status === 'PENDING' ? 'orange' : 'slate'}>{PAYMENT_STATUS[pago.status] || pago.status}</Badge>{pago.settlesAt && <span className="text-[10px] text-mute">acredita {new Date(pago.settlesAt).toLocaleDateString('es-PY')}</span>}</span>

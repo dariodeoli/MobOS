@@ -42,6 +42,10 @@ export default function PasoCobro({
   cantTotal,
   ok,
 }) {
+  // El botón principal dice qué se está por crear según lo cobrado: verde si
+  // está pago, naranja si es parcial y rojo si queda pendiente/a crédito.
+  const pagoCompleto = totalGeneral > 0 && totalPagado >= totalGeneral
+  const sinPago = totalPagado <= 0
   return (
     <section className="space-y-3.5 rounded-2xl border border-ink-600 bg-ink-800 p-3.5">
       <EncabezadoBloque
@@ -314,11 +318,17 @@ export default function PasoCobro({
       <div className="flex items-center gap-3">
         <Button
           type="submit"
-          variant="success"
+          variant={pagoCompleto ? 'success' : sinPago ? 'danger' : 'primary'}
+          className={`sticky bottom-20 min-h-12 flex-1 text-base shadow-lg shadow-fono/10 lg:bottom-3 ${!pagoCompleto && !sinPago ? 'bg-warn text-black hover:brightness-110' : ''}`}
           disabled={!valido || guardando || !cuentas || Boolean(errorCuentas) || guardadoIncompleto}
-          className="sticky bottom-20 min-h-12 flex-1 text-base shadow-lg shadow-fono/10 lg:bottom-3"
         >
-          {guardando ? 'Guardando venta…' : 'Guardar venta'}
+          {guardando
+            ? 'Guardando venta…'
+            : pagoCompleto
+              ? 'Confirmar venta'
+              : sinPago
+                ? (venderACredito ? 'Crear pedido a crédito' : 'Crear pedido sin pago')
+                : 'Crear pedido'}
           {cantTotal > 1 ? ` · ${cantTotal} productos` : ''}
           {totalGeneral > 0 ? ` · ${gs(totalGeneral)}` : ''}
         </Button>
