@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { Badge, Card, EmptyState } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
@@ -242,7 +243,10 @@ const normalizar = (texto) => String(texto || '').toLowerCase().normalize('NFD')
 export default function Documentacion() {
   const navigate = useNavigate()
   const [busqueda, setBusqueda] = useState('')
-  const [modulo, setModulo] = useState('Todo')
+  // Módulo de la documentación: último usado como predeterminado (#209).
+  const [modulo, recordarModulo] = useUltimoUsado('config:documentacion-modulo', 'Todo', {
+    valido: (valor) => MODULOS.includes(valor),
+  })
 
   const resultados = useMemo(() => {
     const consulta = normalizar(busqueda.trim())
@@ -276,7 +280,7 @@ export default function Documentacion() {
             key={item}
             type="button"
             aria-pressed={modulo === item}
-            onClick={() => setModulo(item)}
+            onClick={() => recordarModulo(item)}
             className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${modulo === item ? 'border-fono bg-fono/15 text-fono-light' : 'border-ink-600 text-mute hover:text-fore'}`}
           >
             {item}

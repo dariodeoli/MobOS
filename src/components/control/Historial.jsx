@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useUrlState } from '@/hooks/useUrlState'
+import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { listAuditoria } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { Card, Badge, Input, EmptyState } from '@/components/ui'
@@ -44,7 +45,13 @@ function norm(s) {
 
 export default function Historial() {
   const log = listAuditoria()
-  const [filtro, setFiltro] = useUrlState('filtro', 'todas')
+  // Filtro de acciones: el último usado es el default (#209); el enlace
+  // compartido con ?filtro= sigue mandando cuando viene en la URL.
+  const [filtroRecordado, recordarFiltro] = useUltimoUsado('config:historial-filtro', 'todas', {
+    valido: (valor) => FILTROS.some(([clave]) => clave === valor),
+  })
+  const [filtro, setFiltroUrl] = useUrlState('filtro', filtroRecordado)
+  const setFiltro = (clave) => { recordarFiltro(clave); setFiltroUrl(clave) }
   const [busqueda, setBusqueda] = useState('')
 
   const porAccion = filtro === 'todas' ? log : log.filter((x) => x.accion === filtro)

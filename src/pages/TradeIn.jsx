@@ -10,7 +10,7 @@ import {
   ESTADOS_PAGO,
 } from '@/lib/storage'
 import { useLive } from '@/hooks/useLive'
-import { leerDemo, guardarDemo } from '@/lib/demoStorage.js'
+import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { calcularTradein } from '@/utils/tradein'
 import { fechaClave, num, gs } from '@/utils/calculos'
 import { Button, Card, Input, Label, Select, Badge } from '@/components/ui'
@@ -380,7 +380,7 @@ function Resultado({ s, resultado, config, onReset, onSalir }) {
   const vendedores = getVendedores().filter((v) => v.activo)
   const [celId, setCelId] = useState('')
   const [vendedorId, setVendedorId] = useState(
-    () => leerDemo('fono:ultimoVendedor') || '',
+    () => leerUltimo('pos:vendedor', { porDefecto: '', legado: 'fono:ultimoVendedor' }),
   )
   const [cliente, setCliente] = useState('')
   const [estadoPago, setEstadoPago] = useState(ESTADOS_PAGO[0])
@@ -394,7 +394,7 @@ function Resultado({ s, resultado, config, onReset, onSalir }) {
 
   function registrar() {
     if (!cel || !cliente.trim() || !vendedorId) return
-    guardarDemo('fono:ultimoVendedor', vendedorId)
+    recordarUltimo('pos:vendedor', vendedorId)
     addVenta({
       vendedorId,
       cliente: cliente.trim(),

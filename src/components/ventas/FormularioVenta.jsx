@@ -15,7 +15,7 @@ import {
   ENTREGA,
 } from '@/lib/storage'
 import { leerCarrito, guardarCarrito, borrarCarrito, lineasParaResumen } from '@/lib/posCart'
-import { leerDemo, guardarDemo } from '@/lib/demoStorage.js'
+import { leerUltimo, recordarUltimo } from '@/lib/ultimoUsado'
 import { encolarVenta } from '@/lib/offline/ventas'
 import { descartarPreCliente } from '@/lib/preClientes'
 import { normalizarNombre } from '@/utils/nombre'
@@ -54,7 +54,9 @@ import PasoCobro from './venta/PasoCobro'
 
 // Recuerda el último vendedor elegido en esta compu, para no re-seleccionarlo
 // en cada venta (suelen ser ráfagas de la misma persona).
-const ULTIMO_VENDEDOR = 'fono:ultimoVendedor'
+// Último vendedor del POS: último usado como predeterminado (#209). El
+// namespace viejo (`fono:`) se migra al leer.
+const ULTIMO_VENDEDOR = 'pos:vendedor'
 
 // Montos en ₲ son enteros y se escriben con puntos de miles ("20.000"). Tomamos
 // solo los dígitos para no confundir el punto con un decimal (evita 20.000 20).
@@ -241,7 +243,7 @@ export default function FormularioVenta({
   // Carrito persistido: se restaura una sola vez al montar el formulario.
   const [cartInicial] = useState(() => leerCarritoInicial())
   const [f, setF] = useState(() => ({
-    ...VACIO(sesion?.vendedorId || leerDemo(ULTIMO_VENDEDOR)),
+    ...VACIO(sesion?.vendedorId || leerUltimo(ULTIMO_VENDEDOR, { porDefecto: '', legado: 'fono:ultimoVendedor' })),
     ...(cartInicial?.customer?.name ? { cliente: cartInicial.customer.name } : {}),
     ...(ENTREGA.includes(cartInicial?.entrega) ? { entrega: cartInicial.entrega } : {}),
     ...(cartInicial?.montoDelivery ? { montoDelivery: cartInicial.montoDelivery } : {}),
@@ -1115,7 +1117,7 @@ export default function FormularioVenta({
         completedOrder = order
       }
 
-      guardarDemo(ULTIMO_VENDEDOR, f.vendedorId)
+      recordarUltimo(ULTIMO_VENDEDOR, f.vendedorId)
       idempotencyKeyRef.current = null // la próxima venta arranca con clave nueva
       const { empresaId, sucursalId } = contextoActual()
       // La ficha ya existe (o la creó la venta): el borrador del RUC sobra.
@@ -1143,7 +1145,7 @@ export default function FormularioVenta({
             idempotencyKey: idempotencyKeyRef.current,
             resumen: { cliente: f.cliente, total: totalGeneral, items: orderItems.length },
           })
-          guardarDemo(ULTIMO_VENDEDOR, f.vendedorId)
+          recordarUltimo(ULTIMO_VENDEDOR, f.vendedorId)
           idempotencyKeyRef.current = null
           const { empresaId, sucursalId } = contextoActual()
           borrarCarrito(empresaId, sucursalId)

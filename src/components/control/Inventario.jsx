@@ -36,7 +36,7 @@ import { suppliersApi } from '@/lib/api/suppliers'
 import { cotizacionReferencia } from '@/lib/fx'
 import { estadoInventario, nombreProducto, sigueEnInventario, sinCostoUnitario, costoEnGs } from '@/utils/inventario'
 import { serialEnmascarado, ultimos4 } from '@/utils/serial'
-import { useUltimoUsado } from '@/lib/ultimoUsado'
+import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 
 const conditionLabel = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 const MOTIVOS_BAJA = ['Uso interno', 'Daño', 'Transferencia', 'Pérdida', 'Devolución a proveedor', 'Otro']
