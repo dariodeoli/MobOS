@@ -1,6 +1,7 @@
 import { api, request, apiFetch, API_URL } from './client'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { createDemoTransfer, createDemoUnit, listDemoBranches, listDemoLocations, listDemoReservations, listDemoTransfers, listDemoUnits, releaseDemoReservations, reserveDemoUnits, saveDemoLocation, updateDemoUnit, verifyDemoUnit } from '@/lib/demoInventory'
+import { getProductos } from '@/lib/storage'
+import { createDemoTransfer, createDemoUnit, demoStockAlerts, listDemoBranches, listDemoLocations, listDemoReservations, listDemoTransfers, listDemoUnits, releaseDemoReservations, reserveDemoUnits, saveDemoLocation, updateDemoUnit, verifyDemoUnit } from '@/lib/demoInventory'
 // El módulo de Inventario funciona igual en demo (#213): cuando hay sesión demo
 // los recursos leen el store session-only; con cuenta real van al API.
 const demo = (real, local) => (...args) => Promise.resolve(isDemoRuntime ? local(...args) : real(...args))
@@ -11,7 +12,7 @@ export { clearAccessToken, clearCompanyToken, clearSession, getAccessToken, getC
 export const resources = {
   customers: { list: (q = '') => api.get(`/api/customers?q=${encodeURIComponent(q)}`), create: data => api.post('/api/customers', data) },
   products: { list: (q = '') => api.get(`/api/products?q=${encodeURIComponent(q)}`), create: data => api.post('/api/products', data) },
-  stock: { list: () => api.get('/api/stock'), adjust: data => api.patch('/api/stock', data) },
+  stock: { list: demo(() => api.get('/api/stock'), () => demoStockAlerts(getProductos())), adjust: demo(data => api.patch('/api/stock', data), () => ({})) },
   inventoryBranches: { list: demo(() => api.get('/api/inventory-branches'), () => listDemoBranches()) },
   branches: { list: () => api.get('/api/branches'), create: data => api.post('/api/branches', data), update: data => api.patch('/api/branches', data) },
   inventoryUnits: { list: demo((q = '', view = 'active') => api.get(`/api/inventory-units?${new URLSearchParams({ ...(q ? { q } : {}), ...(view !== 'active' ? { view } : {}) })}`), (q = '', view = 'active') => listDemoUnits(q, view)), create: demo(data => api.post('/api/inventory-units', data), data => createDemoUnit(data)), update: demo(data => api.patch('/api/inventory-units', data), data => updateDemoUnit(data)), verify: demo(data => api.post('/api/inventory-units/verify', data), data => verifyDemoUnit(data)) },
