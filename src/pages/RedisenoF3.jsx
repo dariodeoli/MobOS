@@ -1,8 +1,7 @@
 import { Badge, BarraProgreso, Card } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
-import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
-import { cn } from '@/lib/utils'
+import { temaV2Activo } from '@/lib/temaV2'
 import { SECCIONES_INSPECCION } from '@/lib/inspeccionChecklist'
 
 // Mock de F3 (#241): cómo se vería el shell y el tablero operativo con los
@@ -33,6 +32,19 @@ function ChipEstado({ children, tono = 'ok' }) {
 }
 
 export default function RedisenoF3() {
+  if (!temaV2Activo()) {
+    return (
+      <div className="mx-auto max-w-xl p-6 text-sm text-mute">
+        <p className={ROTULO_SECCION}>Propuesta F3</p>
+        <p className="mt-2">
+          Esta pantalla es la vista previa del tablero operativo con el tema v2 y está detrás del flag
+          <b className="text-fore"> preview v2</b>. Activalo en este dispositivo para verla:
+        </p>
+        <p className="mt-2 rounded-lg border border-ink-600 bg-ink-800 px-3 py-2 font-mono text-xs">localStorage.setItem('mobos:tema-v2','1')</p>
+        <p className="mt-2">Después recargá. Con <b className="text-fore">'0'</b> volvés al default.</p>
+      </div>
+    )
+  }
   return (
     <div className="v2-piloto min-h-dvh bg-paper text-fore">
       <div className="flex items-center justify-between gap-3 border-b border-ink-600 bg-ink-900 px-4 py-2.5">
