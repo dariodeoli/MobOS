@@ -4,6 +4,25 @@ Plantilla portable: copiá este archivo como `AGENTS.md` en la raíz del repo y
 reemplazá los placeholders `<APP>`, `<PUERTO_APP>`, `<PUERTO_API>` y
 `<schema validate>` por los valores reales. Borrá lo que no aplique.
 
+## Comandos abreviados del dueño
+
+Los comandos con los que Dario ordena el trabajo (detalle en
+`owncoding-ui/docs/COMANDOS.md`, que es la fuente portable):
+
+| Comando | Qué hace |
+| --- | --- |
+| `pp` | Resumen de pendientes: producción, ramas, agentes, issues y pendientes de Dario. |
+| `pd` | Pendiente de deploy: tabla commit → qué cambia con su tipo (`feature`/`fix`/`test`/`docs`). |
+| `al` | Agentes libres y cómo repartir el trabajo. |
+| `ht` / `hd` | Ciclo completo de integración + deploy (ver abajo). |
+
+Reglas: **nada se mergea, pushea ni despliega sin `ht` o una ronda ordenada**;
+los conflictos se resuelven en el worktree del slot que rebasea (nunca en main);
+el orquestador no toca código. **Política automática:** con ≥ 15 commits nuevos
+sin integrar y el integrador libre, el orquestador dispara un `hd` automático
+(cooldown 20 min, un ciclo a la vez). Script de referencia para copiar:
+`owncoding-ui/tools/auto-ht.sh`.
+
 ## Comando abreviado `ht` (integrar y desplegar)
 - Cuando Dario escribe solo `ht`, ejecutar el ciclo completo sin preguntar: (0) preámbulo: matar servidores zombies (`lsof -ti :<PUERTO_APP> :<PUERTO_API> | xargs kill -9` y procesos de dev de worktrees) y verificar que no haya otro merge en curso (`.git/MERGE_HEAD` ajeno); (1) `git fetch origin --prune` en cada repo y relevar ramas con trabajo pendiente; (2) integrar a main una rama por vez (API antes que frontend), verificando el árbol mergeado (API y frontend con sus suites + build); (3) conflictos: si la rama quedó superseded por main, resolver del lado de main y verificar diff neto vacío; si hay trabajo real en conflicto, parar y preguntar; (4) pushear con `<APP>_INTEGRATOR=1`; (5) desplegar solo con el comando de release del proyecto y validar el smoke (reintentar hasta que producción sirva la versión nueva). Reportar al final qué ramas integraron y la versión desplegada.
 
