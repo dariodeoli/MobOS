@@ -15,6 +15,7 @@ import PedidoPublico from '@/pages/PedidoPublico'
 import PanelDelivery from '@/pages/PanelDelivery'
 import CarritoPublico from '@/pages/CarritoPublico'
 import GarantiaPublica from '@/pages/GarantiaPublica'
+import InformePublico from '@/pages/InformePublico'
 import CotizacionPublica from '@/pages/CotizacionPublica'
 import CuentaPublica from '@/pages/CuentaPublica'
 import PortalCliente from '@/pages/PortalCliente'
@@ -200,7 +201,8 @@ export default function App() {
             <Route path="/pedido/:token" element={<RedirigirPedidoPublico mismo />} />
             <Route path="/p/:token" element={<RedirigirPedidoPublico mismo />} />
             <Route path="/carrito/:token" element={<CarritoPublico />} />
-            <Route path="/garantia/:token" element={<GarantiaPublica />} />
+            <Route path="/garantia/:token" element={<GarantiaPublica />
+} />
             <Route path="/cotizacion/:token" element={<CotizacionPublica />} />
             <Route path="/remito/:token" element={<RemitoPublico />} />
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -275,7 +277,8 @@ export default function App() {
           <Route path="/comparador" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/tradein" element={<Navigate to="/trade-in" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+                    <Route path="/u/:serial" element={<InformePublico />} />
+          </Routes>
         </Suspense>
       </ToastProvider>
     </SesionProvider>
