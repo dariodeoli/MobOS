@@ -73,6 +73,22 @@ tablero quedó sin los avisos y las cargas duplicadas. Los patrones que quedan
 para revisar están listados en el script (`bg-warn/5`, notas neutras con borde
 warn y la celda de identidad de 13 px que espera a DSN).
 
+### Lote 7 — tokens de tema en pantallas transversales (#176) (21-09)
+
+| Cambio | Antes (evidencia) | Después |
+| --- | --- | --- |
+| Violeta de reservas → token `reserved` | `#8b5cf6` hardcodeado en `Inventario` (fila y tabla de reservas) y `UnidadDetalle` (ficha), conviviendo con el `text-reserved` del mismo bloque | `border-reserved`/`bg-reserved` en los 3 lugares; en oscuro el token acompaña al tema (antes quedaba fijo) |
+| Verde legacy → token `fono` | `accent-[#0c8876]` en los dos checkbox del remito público | `accent-fono` |
+| Paleta Tailwind default → tokens | `emerald/red/amber` del calendario de ganancias; `sky/amber/red/slate` de la página de estado; `border-amber-100` en la landing de celulares; `text-red-300` del bloqueo; `sky` de tránsito/AEX en Inventario | `ok/bad/warn/info/mute` según el mapeo (`sky→info`, `amber→warn`, `red→bad`, `emerald→ok`, `violet→reserved`); regla nueva en `objetosReglas.test.js` |
+
+**Para DSN en #176 (pantallas del POS, no las toqué):** `ListaVentasDia`
+(`bg-sky-400/15` ×2 → `info`), `SellerOrders` (`sky` del estado enviado → `info`
+y `#8b5cf6` de "a crédito" ×3 → `reserved`), `PagosPedido`
+(`border-red-400/30` → `bad`), `SellerCustomers` (`amber` → `warn`). Quedan
+también los puntos decorativos del mock de navegador en `Landing` (rojo/ámbar
+de "semáforo", no son estado) y la paleta gris de `GoogleButton` (marca de
+Google), ambos legítimos.
+
 ### Lote 6 — reconciliación con los objetos de DSN (#211) (21-09)
 
 - **Rebase sobre la integración pendiente**: los conflictos contra el trabajo de

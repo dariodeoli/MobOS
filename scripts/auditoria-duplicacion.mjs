@@ -84,6 +84,8 @@ const MEDICIONES = [
       contar('nombre de persona en celda (13px o sm)', /truncate text-(?:\[13px\]|sm) font-semibold/g),
       contar('mapas de estado con etiquetas propias', /const (ORDER_STATUS|FULFILLMENT|WARRANTY_STATUS|ESTADO_PEDIDO|ESTADO_ENTREGA|ESTADO_GARANTIA) = \{/g, { excluir: ['lib/estadosPedido.js', 'lib/printing/'] }),
       contar('barras de avance a mano', /style=\{\{ width: `\$\{[^}]*\}%` \}\}/g, { excluir: ['components/ui/index.jsx'] }),
+      contar('colores de paleta default en clases', /(text|bg|border|border-l|from|to)-(sky|amber|slate|red|blue|green|emerald|violet|purple|orange|yellow|pink|indigo)-[0-9]{2,3}/g),
+      contar('hex viejos de marca', /#8b5cf6|#0c8876/g, { excluir: ['lib/', 'components/shared/OrderReceipt.jsx', 'components/shared/reporteEjecutivo.js', 'components/control/Comisiones.jsx', 'components/control/Inventario.jsx'] }),
     ],
   },
 ]
