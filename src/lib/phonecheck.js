@@ -124,3 +124,31 @@ export function certificadoPhoneCheck(unit = {}, inspection = {}, { base = '' } 
     qr: { contenido: codigo, enlace: base ? `${base}/inventario/unidad/${encodeURIComponent(unit.id || '')}` : '' },
   }
 }
+
+/** Informe público (DSN/PRN): sin PII, serial enmascarado, listo para render/QR. */
+export function informePublicoInspection(payload = {}, { enlace = '' } = {}) {
+  const serial = String(payload.serial || '')
+  const enmascarado = serial.length > 4 ? `${'•'.repeat(serial.length - 4)}${serial.slice(-4)}` : serial
+  const locks = (payload.locks || []).map(lock => ({ label: lock.label, ok: Boolean(lock.ok) }))
+  return {
+    tipo: 'certificado-phonecheck',
+    version: 1,
+    titulo: 'Certificado PhoneCheck',
+    grado: payload.grado || 'P',
+    puntaje: payload.puntaje ?? null,
+    producto: payload.producto || '',
+    capacidad: payload.capacidad || '',
+    condicion: payload.condicion || '',
+    cosmetico: payload.cosmetico || '',
+    serial: enmascarado,
+    bateria: { porcentaje: payload.bateria?.porcentaje ?? null, ciclos: payload.bateria?.ciclos ?? null },
+    controles: locks,
+    repuestosNoOem: payload.repuestosNoOem || '',
+    items: (payload.items || []).map(item => ({ grupo: item.grupo, label: item.label, estado: item.estado, nota: item.estado && item.estado !== 'ok' ? item.nota : '' })),
+    verificado: payload.verificado || null,
+    fuente: payload.fuenteVerificacion || null,
+    aviso: 'iCloud/US Block clean no equivalen a blacklist mundial.',
+    enlace,
+    qr: ['CERT', enmascarado, payload.grado || 'P', payload.puntaje ?? '', payload.verificado || ''].join('|'),
+  }
+}
