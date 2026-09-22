@@ -20,10 +20,10 @@ import { resources } from '@/lib/api'
 import { api, apiFetch } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import { APP_NAME } from '@/lib/brand'
-import { printRemisionReceipt, printReservationReceipt, printTransferReceipt, transferReceiveUrlFor, buildUnitLabelsHtml } from '@/components/shared/OrderReceipt'
+import { printRemisionReceipt, printReservationReceipt, printTransferReceipt, transferReceiveUrlFor, buildUnitLabelsHtml, printOrderReceipt, tokenDeNivel, accessUrlFor } from '@/components/shared/OrderReceipt'
 import { configImpresora, imprimirConDialogo, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { imprimirDocumentoNoFiscal } from '@/lib/printing/documentos'
-import { ticketEtiquetasUnidad, ticketEtiquetaUbicacion, ticketEtiquetaUnidad, ticketRemision } from '@/lib/printing/tickets'
+import { ticketEtiquetasUnidad, ticketEtiquetaUbicacion, ticketEtiquetaUnidad, ticketRemision, ticketComprobante } from '@/lib/printing/tickets'
 import { leerEtiqueta } from '@/lib/printing/qr'
 
 import UnidadDetalle from '@/components/inventory/UnidadDetalle'
@@ -181,7 +181,7 @@ function MenuAcciones({ unit, busy, acciones }) {
   </span>
 }
 
-function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdjust, onRemove, onMove, onEdit, onCosto, cotizacion, busy, seleccionado = false, onAlternar }) {
+function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdjust, onRemove, onMove, onEdit, onCosto, onComprobante, cotizacion, busy, seleccionado = false, onAlternar }) {
   const v = verifiedLabel(unit)
   const estado = estadoInventario(unit)
   const serial = String(unit.serial || '')
@@ -198,6 +198,7 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
       : costoGs !== null ? gs(costoGs) : '—'
   const vencida = unit.warrantyUntil ? new Date(unit.warrantyUntil).getTime() < Date.now() : null
   const acciones = [
+    ...(unit.status === 'SOLD' ? [{ label: 'Comprobante rápido', tooltip: 'Imprimir el comprobante de la venta sin abrir la ficha', icon: 'receipt', run: () => onComprobante?.(unit) }] : []),
     { label: 'Vender', tooltip: 'Cargar la venta de esta unidad', icon: 'cart', run: () => onSell?.(unit) },
     { label: 'Reservar', tooltip: 'Apartar la unidad para un cliente', icon: 'clock', run: () => onReserve?.(unit) },
     { label: 'Verificar', tooltip: 'Registrar la verificación física ahora', icon: 'check', run: () => onVerify?.(unit) },
@@ -259,6 +260,7 @@ function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdj
     <span className="flex flex-wrap items-center justify-end gap-1">
       {unit.status === 'RESERVED' && <button type="button" disabled={busy} title="Cerrar la reserva y cargar la venta" onClick={event => { event.stopPropagation(); onSell?.(unit) }} className="whitespace-nowrap rounded-lg border border-fono/40 px-2 py-1 text-[10px] font-bold text-fono-light transition hover:bg-fono/10 disabled:opacity-50">Finalizar venta</button>}
       <button type="button" disabled={busy} title="Editar los datos de la unidad" onClick={event => { event.stopPropagation(); onEdit?.(unit) }} className="whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10px] font-semibold text-fore transition hover:border-fono/40">Editar</button>
+      {unit.status === 'SOLD' && <button type="button" disabled={busy} aria-label={`Imprimir comprobante rápido de ${serial}`} title="Imprimir comprobante rápido (nivel Rápido, 80 mm) sin salir de la lista" onClick={event => { event.stopPropagation(); onComprobante?.(unit) }} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-ink-600 text-mute transition hover:border-fono/40 hover:text-fore disabled:opacity-50"><Icon name="receipt" className="h-3.5 w-3.5" /></button>}
       <MenuAcciones unit={unit} busy={busy} acciones={acciones} />
     </span>
   </div>
@@ -340,6 +342,25 @@ async function printLabel(unit) {
   // tras un resultado incierto o encolado abrirlo podría duplicar el ticket.
   if (puedeCaerAlDialogo(resultado)) imprimirConDialogo(html)
   return resultado
+}
+
+// Comprobante rápido de una venta (#215 §10): se dispara desde la lista de
+// Vendidos sin abrir la ficha. Reutiliza el mismo comprobante que el resto de
+// la app (nivel Rápido): directo por la impresora configurada (80 mm por
+// defecto) y, ante un fallo claro, el PDF con OrderReceipt.
+async function printQuickReceipt(unit) {
+  const venta = unit?.sale
+  if (!venta?.orderId) return { ok: false, motivo: 'sin-pedido', error: 'La unidad no tiene un pedido asociado.' }
+  const { ancho } = configImpresora()
+  const formato = ancho === 58 ? 'thermal-58' : 'thermal-80'
+  const orden = await api.get(`/api/orders/${encodeURIComponent(venta.orderId)}`)
+  // El QR del nivel rápido: mismo token de impresión que emite el comprobante.
+  const token = await tokenDeNivel(orden.id, 'rapido')
+  const link = token ? accessUrlFor(token) : ''
+  const resultado = await imprimirDocumento(ticketComprobante(orden, { nivel: 'rapido', ancho, link }), { tipo: 'comprobante', ref: orden.orderNumber || venta.orderNumber || '' })
+  if (resultado?.ok || !puedeCaerAlDialogo(resultado)) return resultado
+  const abierto = await printOrderReceipt(orden, { level: 'rapido', format: formato, token })
+  return { ...resultado, dialogo: Boolean(abierto) }
 }
 
 // Remisión interna del traslado: primero la térmica (agente o puente) y solo
@@ -475,6 +496,19 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
       return
     }
     if (!puedeCaerAlDialogo(resultado)) setError(resultado.error || `No se pudo imprimir ${nombre.toLowerCase()}.`)
+  }
+  // Comprobante rápido desde Vendidos (#215 §10): un clic en el ícono, sin
+  // abrir la ficha ni salir de la lista.
+  async function imprimirComprobanteRapido(unit) {
+    if (busy) return
+    setBusy(true); setError(''); setNotice('')
+    try {
+      avisarImpresion(await printQuickReceipt(unit), 'Comprobante')
+    } catch (cause) {
+      setError(cause?.message || 'No se pudo imprimir el comprobante de la venta.')
+    } finally {
+      setBusy(false)
+    }
   }
   // ADMIN y GERENTE transfieren por su rol; el resto necesita autorización.
   const puedeTransferirSinAuth = sesion?.rol === 'dueno' || sesion?.rol === 'GERENTE'
@@ -1006,7 +1040,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
     </BarraLote>
     {tab === 'unidades' && vistaUnidades === 'list' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades seleccionado={disponibles.length > 0 && seleccionados.length === disponibles.length} onSeleccionar={() => setSeleccionados((actuales) => seleccionarTodos(disponibles, actuales))} /><div className="space-y-1">{disponibles.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onVerify={verify} onSell={sellUnit} onReserve={openReserveFor} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} seleccionado={seleccionados.includes(unit.id)} onAlternar={() => setSeleccionados((actuales) => alternarId(actuales, unit.id))} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en inventario.'} />}</div></div>}
     {tab === 'unidades' && vistaUnidades === 'grid' && <div className="mt-4 grid gap-2 sm:grid-cols-2 min-[1200px]:grid-cols-3">{disponibles.map(unit => <TarjetaUnidad key={unit.id} unit={unit} onClick={() => setDetalleUnidad(unit)} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay stock disponible.'} />}</div>}
-    {tab === 'vendidos' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades /><div className="space-y-1">{vendidos.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onVerify={verify} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} />)}{!vendidos.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'Todavía no hay vendidos en el período.'} />}</div></div>}
+    {tab === 'vendidos' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades /><div className="space-y-1">{vendidos.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onVerify={verify} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onComprobante={imprimirComprobanteRapido} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} />)}{!vendidos.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'Todavía no hay vendidos en el período.'} />}</div></div>}
     {tab === 'transito' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades /><div className="space-y-1">{enTransito.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onVerify={verify} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} />)}{!enTransito.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en tránsito.'} />}</div></div>}
 {tab === 'alertas' && <div className="mt-4 space-y-4">{sinCostoUnits.length > 0 && <section className="rounded-xl border border-warn/25 bg-warn/5 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div className="min-w-0"><h3 className="text-xs font-bold uppercase tracking-wider text-warn">Unidades sin costo ({sinCostoUnits.length})</h3><p className="mt-1 text-xs text-mute">Se recibieron sin costo: completalo desde la ficha para que la ganancia y el kardex no queden incompletos. Es el mismo dato que alimenta el «Costo pendiente» de Resumen cuando se venden sin costo.</p></div><Badge color="orange">Costo pendiente</Badge></div><div className="mt-2 flex flex-wrap gap-1.5">{sinCostoUnits.slice(0, 8).map(unit => <button key={unit.id} type="button" onClick={() => setDetalleUnidad(unit)} className="rounded-lg border border-ink-500 bg-ink-800 px-2 py-0.5 text-[11px] text-fore transition hover:border-fono">{nombreProducto(unit.product || {})} · {ultimos4(unit.serial)}</button>)}{sinCostoUnits.length > 8 && <span className="px-2 py-0.5 text-[11px] text-mute">y {sinCostoUnits.length - 8} más…</span>}</div></section>}{alertsLoading && <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}{alertsError && <Aviso tono="error">{alertsError}</Aviso>}{!alertsLoading && !alertsError && !(stockAlerts.alerts?.length || stockAlerts.outOfStock?.length) && <EmptyState compact icon="check" title="Sin alertas de reposición." description="Todo el stock está por encima de su umbral." />}{!alertsLoading && stockAlerts.alerts?.length > 0 && <section><h3 className={ROTULO_SECCION}>Bajo el umbral de reposición</h3><div className="mt-2 space-y-2">{stockAlerts.alerts.map(item => <article key={item.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-warn/25 bg-warn/5 px-3 py-2"><div className="min-w-0"><b className="text-sm">{item.name}</b><p className="mt-1 text-xs text-mute">{item.sku ? `SKU ${item.sku} · ` : ''}Stock {item.stock} de {item.reorderPoint}{item.branchName ? ` · ${item.branchName}` : ''}</p></div><div className="flex shrink-0 items-center gap-2"><Badge color="orange">Reponer</Badge><Button type="button" variant="outline" disabled={busy} onClick={() => { setThreshold({ id: item.id, name: item.name }); setThresholdValue(String(item.reorderPoint ?? '')) }}>Ajustar umbral</Button></div></article>)}</div></section>}{!alertsLoading && stockAlerts.outOfStock?.length > 0 && <section><h3 className={ROTULO_SECCION}>Agotados</h3><div className="mt-2 space-y-2">{stockAlerts.outOfStock.map(item => <article key={item.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-bad/25 bg-bad/5 px-3 py-2"><div className="min-w-0"><b className="text-sm">{item.name}</b><p className="mt-1 text-xs text-mute">{item.sku ? `SKU ${item.sku} · ` : ''}Sin stock{item.branchName ? ` · ${item.branchName}` : ''}</p></div><div className="flex shrink-0 items-center gap-2"><Badge color="red">Agotado</Badge><Button type="button" variant="outline" disabled={busy} onClick={() => { setThreshold({ id: item.id, name: item.name }); setThresholdValue(String(item.reorderPoint ?? '')) }}>Definir umbral</Button></div></article>)}</div></section>}</div>}
     {tab === 'reservas' && <div className="mt-4 overflow-x-auto" data-testid="reservas-tabla"><div className={cn(GRID_RESERVAS, 'px-3.5 pb-2 pt-1')}><span className={CELDA_ENCABEZADO}>Producto</span><span className={CELDA_ENCABEZADO}>IMEI</span><span className={CELDA_ENCABEZADO}>Cliente</span><span className={CELDA_ENCABEZADO}>Vence</span><span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span></div><div className="space-y-1">{reservations.map(unit => { const serial = String(unit.serial || ''); const cliente = unit.reservationCustomerRef?.name || unit.reservationCustomer || 'Sin cliente'; return <div key={unit.id} data-testid="reserva-fila" className={cn(GRID_RESERVAS, 'rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 px-3.5 py-2')}><span className="truncate text-[13px] font-semibold" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {}) || 'Producto'}</span><SerialTexto serial={serial} className="truncate text-[11px] text-mute" /><span className="truncate text-xs" title={cliente}>{cliente}</span><span className={CELDA_DATO} title={unit.reservedUntil ? new Date(unit.reservedUntil).toLocaleString('es-PY') : undefined}>{unit.reservedUntil ? fechaReserva(unit.reservedUntil) : '—'}</span><span className="flex flex-wrap items-center justify-end gap-1"><Button type="button" className="h-8 px-2 text-xs" disabled={busy} onClick={() => sellUnit(unit)}>Vender</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" title="Imprimir comprobante de la reserva" onClick={() => printReservationReceipt(unit, { format: 'a4' })}>Comprobante</Button><Button variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => releaseReservation(unit.serial)}>Liberar</Button></span></div> })}{!reservations.length && <EmptyState compact icon="box" title="No hay reservas activas." />}</div></div>}
