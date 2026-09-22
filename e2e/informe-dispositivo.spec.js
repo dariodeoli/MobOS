@@ -222,3 +222,32 @@ test('el certificado de inspección sale directo y sin inventar la inspección',
   await expect(page.locator('iframe[aria-hidden="true"]')).toHaveCount(0)
   await page.screenshot({ path: `${SALIDA}/06-certificado-impreso.jpg` })
 })
+
+// Hoja de estación en serie (#240 §4): desde el taller, «Imprimir en serie» →
+// «Hoja de estación» deja la lista A4 del carril (el HTML imprimible, con los
+// equipos y la firma/control). En el demo la impresión se bloquea con un aviso
+// honesto; acá se verifica el camino real en el arnés.
+test('la hoja de estación sale del taller con los equipos del carril', async ({ page }) => {
+  const marca = Date.now()
+  const imei = imeiValido()
+  await page.goto('/inventario/unidades')
+  await sembrarUnidadConConsulta(page, { marca, imei })
+
+  await page.goto('/inventario/taller', { waitUntil: 'domcontentloaded' })
+  const equipo = page.getByTestId('rack-equipo').filter({ hasText: imei })
+  await expect(equipo).toBeVisible({ timeout: 20_000 })
+  await page.getByLabel(`Seleccionar ${imei}`).check()
+  await page.getByTestId('rack-imprimir-serie').click()
+  await page.getByTestId('rack-hoja-estacion').click()
+
+  const marco = page.locator('iframe[aria-hidden="true"]').last()
+  await marco.waitFor({ state: 'attached', timeout: 10_000 })
+  const contenido = marco.contentFrame()
+  await expect(contenido.locator('h1')).toHaveText('Equipos en preparación')
+  const texto = await contenido.locator('body').innerText()
+  expect(texto).toContain('Hoja de estación')
+  expect(texto).toContain(imei)
+  expect(texto).toContain('Firma / control')
+  expect(texto).toContain('Marcá cada uno al verificarlo')
+  await page.screenshot({ path: `${SALIDA}/07-hoja-estacion.jpg`, type: 'jpeg', quality: 75 })
+})

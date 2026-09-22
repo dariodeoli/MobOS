@@ -24,7 +24,7 @@ import { resumenImei } from '../imeiComprobante.js'
 // objeto compartido (`src/lib/estadoEquipo.js` vía `phonecheck.js`) para que el
 // papel lea igual que la ficha y el informe publicado.
 import { INSPECCION_ESTADOS, INSPECCION_ITEMS } from '../phonecheck.js'
-import { ESTADOS_LOCK, LOCKS_DISPOSITIVO } from '../estadoEquipo.js'
+import { ESTADOS_LOCK, GRADOS_CONDICION, LOCKS_DISPOSITIVO } from '../estadoEquipo.js'
 
 export const AVISO_BLACKLIST = 'iCloud/US Block clean no equivalen a blacklist mundial.'
 
@@ -286,6 +286,7 @@ export function datosCertificado(unit = {}, { informe = null, verificacion = nul
   const datos = {
     titulo: texto(publico?.titulo) || 'Certificado de inspección',
     grado: checklist.grado || 'P',
+    gradoDescripcion: GRADOS_CONDICION[checklist.grado]?.descripcion || '',
     puntaje: checklist.puntaje,
     hay: checklist.hay,
     // Con la inspección incompleta no hay grado: el héroe dice «pendiente».

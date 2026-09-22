@@ -890,7 +890,7 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
     ${header(datos.titulo || 'Certificado de inspección', `${datos.sucursal || ''}${datos.sucursal ? ' · ' : ''}Emitido ${datos.fechaEmision || ''}`, logo)}
     <div class="nofiscal">Constancia de inspección · documento informativo</div>
     <div class="card grado"><div class="label">Grado</div><div class="letra">${escapeHtml(datos.grado || 'P')}</div>
-      <div class="detalle">${datos.completa ? `Puntaje ${escapeHtml(String(datos.puntaje))}/100 · ${escapeHtml(String(datos.ok))}/${escapeHtml(String(datos.evaluados))} conformes` : 'Pendiente de inspección'}</div></div>
+      <div class="detalle">${datos.gradoDescripcion ? `${escapeHtml(datos.gradoDescripcion)} · ` : ''}${datos.completa ? `Puntaje ${escapeHtml(String(datos.puntaje))}/100 · ${escapeHtml(String(datos.ok))}/${escapeHtml(String(datos.evaluados))} conformes` : 'Pendiente de inspección'}</div></div>
     <div class="card"><div class="label">Equipo</div><div><strong>${escapeHtml(datos.modelo || datos.producto || 'Producto')}</strong>
       ${fila('Serial', datos.serialImpreso || datos.serialEnmascarado)}
       ${fila('Condición', datos.condicion)}
@@ -911,7 +911,7 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
       ${fila('Fuente', datos.fuente?.proveedor ? `${datos.fuente.proveedor}${datos.fuente.fecha ? ` · ${fechaCortaDocumento(datos.fuente.fecha)}` : ''}` : '')}
     </div>
     ${datos.enlace ? `<div class="card"><div class="label">Informe público</div><div class="qr-fila">${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlacePublico ? datos.enlace : 'Escaneá para abrir el informe público.')}</p></div>${barras}</div>` : ''}
-    <footer>Constancia de inspección. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
+    <footer>Firma / control: ______________ · Constancia de inspección. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
   </body></html>`
 }
 
