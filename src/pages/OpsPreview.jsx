@@ -42,7 +42,7 @@ const TONOS = {
 
 export default function OpsPreview() {
   return (
-    <main className="min-h-dvh bg-paper px-4 py-6 text-fore sm:px-8" data-testid="ops-preview">
+    <main className="v2-piloto min-h-dvh bg-paper px-4 py-6 text-fore sm:px-8" data-testid="ops-preview">
       <div className="mx-auto max-w-6xl space-y-5">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -61,7 +61,7 @@ export default function OpsPreview() {
           {KPIS.map((kpi) => (
             <article key={kpi.label} className={cn('rounded-2xl border p-4', TONOS[kpi.tono])}>
               <p className={ROTULO_SECCION}>{kpi.label}</p>
-              <p className="mt-2 font-mono text-2xl font-bold tabular-nums tracking-tight">{kpi.value}</p>
+              <p className="v2-numero mt-2 text-2xl font-bold">{kpi.value}</p>
               <p className={cn(CELDA_DATO, 'mt-1')}>{kpi.delta || kpi.detalle}</p>
             </article>
           ))}
