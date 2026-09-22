@@ -334,7 +334,10 @@ test('el modo taller agrupa por estado y verifica en serie', async ({ page }) =>
       await expect(page.getByTestId(`rack-columna-${columna}`)).toBeVisible()
     }
     for (const unidad of datos.unidades) {
-      await expect(page.getByTestId('rack-equipo').filter({ hasText: unidad.serial })).toBeVisible()
+      const tile = page.getByTestId('rack-equipo').filter({ hasText: unidad.serial })
+      await expect(tile).toBeVisible()
+      // Stepper del flujo: recién recibidas arrancan en el paso 1.
+      await expect(tile.getByTestId('rack-pasos')).toHaveAttribute('data-paso', '1')
     }
     await page.screenshot({ path: 'test-results/qa-240-taller/02-despues-rack.jpg', type: 'jpeg', quality: 70 })
 
@@ -369,7 +372,7 @@ test('el modo taller agrupa por estado y verifica en serie', async ({ page }) =>
     await expect(page.getByTestId('rack-alcance-filtrados')).toBeVisible()
     await expect(page.getByTestId('rack-impresion-resumen')).toContainText('3 etiqueta')
     await expect(page.getByTestId('rack-hoja-estacion')).toBeEnabled()
-    await page.screenshot({ path: 'docs/qa/240-taller/06-rack-imprimir-serie.jpg', type: 'jpeg', quality: 70 })
+    await page.screenshot({ path: 'test-results/qa-240-taller/06-rack-imprimir-serie.jpg', type: 'jpeg', quality: 70 })
     await page.keyboard.press('Escape')
 
     // Verificación en serie.
@@ -378,9 +381,9 @@ test('el modo taller agrupa por estado y verifica en serie', async ({ page }) =>
 
     // Las tres pasan a «verificado» (todavía sin costo).
     for (const unidad of datos.unidades) {
-      await expect(
-        page.getByTestId('rack-columna-verificado').getByTestId('rack-equipo').filter({ hasText: unidad.serial }),
-      ).toBeVisible({ timeout: 20000 })
+      const tile = page.getByTestId('rack-columna-verificado').getByTestId('rack-equipo').filter({ hasText: unidad.serial })
+      await expect(tile).toBeVisible({ timeout: 20000 })
+      await expect(tile.getByTestId('rack-pasos')).toHaveAttribute('data-paso', '2')
     }
     await page.screenshot({ path: 'test-results/qa-240-taller/03-rack-verificado.jpg', type: 'jpeg', quality: 70 })
   } finally {

@@ -13,6 +13,29 @@ function nombreUnidad(unit) {
   return unit?.product?.name || unit?.product?.nombre || 'Equipo'
 }
 
+// Stepper compacto del flujo de la unidad (por verificar → verificado →
+// listo): el paso actual va resaltado y el nombre queda a la vista.
+const PASOS_RACK = ['por-verificar', 'verificado', 'listo']
+
+function PasosUnidad({ estado }) {
+  const indice = Math.max(0, PASOS_RACK.indexOf(estado))
+  return (
+    <span className="mt-1.5 flex items-center gap-1" data-testid="rack-pasos" data-paso={indice + 1} aria-label={`Paso ${indice + 1} de ${PASOS_RACK.length}: ${ETIQUETA_RACK[estado]}`}>
+      {PASOS_RACK.map((paso, orden) => (
+        <span
+          key={paso}
+          aria-hidden="true"
+          className={cn(
+            'h-1.5 rounded-full transition-all',
+            orden < indice ? 'w-3 bg-fono/60' : orden === indice ? 'w-5 bg-fono' : 'w-1.5 bg-ink-600',
+          )}
+        />
+      ))}
+      <span className="text-[10px] font-semibold text-mute">{ETIQUETA_RACK[estado]}</span>
+    </span>
+  )
+}
+
 function tileTonos(estado) {
   if (estado === 'listo') return 'border-ok/30 bg-ok/5'
   if (estado === 'verificado') return 'border-info/25 bg-info/5'
@@ -220,6 +243,7 @@ export default function TallerRack({
                             {!conCosto(unit) && <Badge color="orange">Sin costo</Badge>}
                             {(unit.location?.name || unit.locationName) && <span className={CELDA_DATO}>{unit.location?.name || unit.locationName}</span>}
                           </p>
+                          <PasosUnidad estado={estadoUnidad} />
                         </div>
                         <div className="flex shrink-0 flex-col items-end gap-1">
                           {estadoUnidad === 'por-verificar' && (
