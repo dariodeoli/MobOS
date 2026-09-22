@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { qrDataUrl } from '@/lib/qr'
 import { Aviso, Badge, Button, Drawer, Input, Label, Modal, MoneyInput, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
@@ -8,7 +9,6 @@ import MedidorBateria from '@/components/shared/MedidorBateria'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import AutorizacionBloque from '@/components/ventas/venta/AutorizacionBloque'
 import JsBarcode from 'jsbarcode'
-import QRCode from 'qrcode'
 import { qrUnidad } from '@/lib/printing/qr'
 import { api, apiFetch } from '@/lib/api/client'
 import { postDemoImei } from '@/lib/demoImei'
@@ -131,7 +131,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
     const enlace = qrUnidad(unit.serial)
     ;(async () => {
       try {
-        const qr = enlace ? await QRCode.toDataURL(enlace, { errorCorrectionLevel: 'M', margin: 0, width: 220 }) : ''
+        const qr = enlace ? await qrDataUrl(enlace, { margen: 0 }) : ''
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
         JsBarcode(svg, code, { format: 'CODE128', displayValue: false, width: 2, height: 54, margin: 0 })
         if (active) setCodigos({ qr, barcode: svg.outerHTML })

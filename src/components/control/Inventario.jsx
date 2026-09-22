@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { qrDataUrl } from '@/lib/qr'
 import { useSearchParams } from 'react-router-dom'
 import { useBusquedaDiferida } from '@/hooks/useBusquedaDiferida'
 import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
-import QRCode from 'qrcode'
 import { getProductos, modoDatosActual, updateProducto } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { formatUsd } from '@/utils/moneda'
@@ -328,7 +328,7 @@ async function printLabels(units = []) {
 async function printLocationLabel(location) {
   const code = `MOBOS:UBI:${location.id}`
   let qr = ''
-  try { qr = await QRCode.toDataURL(code, { errorCorrectionLevel: 'M', margin: 0, width: 190 }) } catch { /* La etiqueta conserva el texto aunque el QR no se renderice. */ }
+  try { qr = await qrDataUrl(code, { margen: 0, ancho: 190 }) } catch { /* La etiqueta conserva el texto aunque el QR no se renderice. */ }
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Ubicación ${safe(location.name)}</title><style>@page{size:58mm auto;margin:2mm}*{box-sizing:border-box}body{width:54mm;margin:0;font:11px/1.4 ui-sans-serif,system-ui,sans-serif;color:#0f1720;text-align:center}.brand{display:flex;justify-content:space-between;font-size:7.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#0c8876;border-bottom:1px solid #d5dbe0;padding-bottom:1.5mm;margin-bottom:2.5mm}.name{font-size:15px;font-weight:900;letter-spacing:-.01em}.meta{font-size:8.5px;color:#66707a;margin-top:1mm}.qr{width:26mm;height:26mm;margin:3mm auto 2mm;display:block}footer{margin-top:2mm;border-top:1px dashed #999;padding-top:1.5mm;font-size:7px;color:#66707a}</style></head><body><div class="brand"><span>${safe(APP_NAME)} · UBICACIÓN</span><span>STOCK</span></div><div class="name">${safe(location.name)}</div><div class="meta">${safe(location.branch?.name || '')}${location.code ? ` · ${safe(location.code)}` : ''}</div>${qr ? `<img class="qr" src="${qr}" alt="QR">` : ''}<footer>Escaneá al recibir o trasladar para asignar esta ubicación.</footer></body></html>`
   const resultado = await imprimirDocumento(ticketEtiquetaUbicacion(location), { tipo: 'etiqueta-ubicacion' })
   // Diálogo solo si el fallo fue CLARO (nada se envió ni quedó en cola):
@@ -903,7 +903,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
       if (!token) throw new Error('No se pudo preparar el enlace.')
       setRemitoQr(current => current && current.id === item.id ? { ...current, publicToken: token } : current)
       const url = transferReceiveUrlFor(token)
-      if (url) setRemitoQrImg(await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, width: 220 }))
+      if (url) setRemitoQrImg(await qrDataUrl(url))
     } catch (cause) {
       if (seq === remitoQrSeq.current) setRemitoQrError(cause?.message || 'No se pudo preparar el enlace.')
     } finally { if (seq === remitoQrSeq.current) setRemitoQrBusy(false) }
@@ -919,7 +919,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
       if (!token) throw new Error('No se pudo regenerar el enlace.')
       setRemitoQr(current => current ? { ...current, publicToken: token } : current)
       const url = transferReceiveUrlFor(token)
-      if (url) setRemitoQrImg(await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, width: 220 }))
+      if (url) setRemitoQrImg(await qrDataUrl(url))
       setNotice('Enlace regenerado: el remito impreso con el QR anterior ya no confirma la recepción.')
     } catch (cause) {
       if (seq === remitoQrSeq.current) setRemitoQrError(cause?.message || 'No se pudo regenerar el enlace.')

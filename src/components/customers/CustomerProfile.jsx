@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { qrDataUrl } from '@/lib/qr'
 import { api } from '@/lib/api/client'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
@@ -13,7 +14,6 @@ import { portalUrlFor, portalVitrinaUrlFor } from '@/lib/customerPortal'
 import EstadoBadge from '@/components/shared/EstadoBadge'
 import { ESTADO_ENTREGA_BADGE, ESTADO_GARANTIA_BADGE, ESTADO_PEDIDO_BADGE } from '@/lib/estadosPedido'
 import { PERIODOS_INFORME, rangoPeriodo, seccionesInforme, informeCsv, nombreArchivoInforme } from '@/lib/customerReport'
-import QRCode from 'qrcode'
 import SerialTexto from '@/components/shared/SerialTexto'
 import CityAutocomplete from '@/components/shared/CityAutocomplete'
 import WhatsAppMenu from '@/components/shared/WhatsAppMenu'
@@ -391,7 +391,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       setPortal({ token })
       setPortalMsg('Enlace de demostración: se resuelve en este navegador, sin datos reales.')
       const url = portalUrlFor(token)
-      setPortalQr(url ? await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, width: 220 }) : '')
+      setPortalQr(url ? await qrDataUrl(url) : '')
       return
     }
     setPortalBusy(true); setPortalError(''); setPortalMsg('')
@@ -409,7 +409,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       }
       setPortal({ token })
       const url = portalUrlFor(token)
-      if (url) setPortalQr(await QRCode.toDataURL(url, { errorCorrectionLevel: 'M', margin: 1, width: 220 }))
+      if (url) setPortalQr(await qrDataUrl(url))
       if (regenerate) setPortalMsg('Enlace regenerado: el anterior ya no funciona.')
     } catch (cause) {
       setPortalError(cause?.message || 'No se pudo preparar el portal.')

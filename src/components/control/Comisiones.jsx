@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import QRCode from 'qrcode'
+import { qrDataUrl } from '@/lib/qr'
 import { api, API_URL } from '@/lib/api/client'
 import { Aviso, Badge, Button, Card, ConfirmDialog, EmptyState, IconAction, Input, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
@@ -34,7 +34,7 @@ const enlaceVerificacion = (token) => token && API_URL ? `${API_URL}/api/public/
 // se recibe ya emitido (el token crudo no vive en la base).
 async function htmlLiquidacion(detalle, enlace) {
   let qr = ''
-  try { if (enlace) qr = await QRCode.toDataURL(enlace, { errorCorrectionLevel: 'M', margin: 1, width: 220 }) } catch { /* el enlace queda impreso igual */ }
+  try { if (enlace) qr = await qrDataUrl(enlace) } catch { /* el enlace queda impreso igual */ }
   const estado = ESTADO_LIQUIDACION[detalle.status]?.[0] || detalle.status || ''
   const filas = (detalle.lines || []).map(line => `<tr><td>${escapeHtml(line.orderNumber || 'Venta')}${line.date ? ` · ${escapeHtml(line.date)}` : ''}</td><td class="num">${escapeHtml(gs(line.basePyg || 0))}</td><td class="num">${escapeHtml(gs(line.commissionPyg || 0))}</td></tr>`).join('')
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Liquidación de comisiones</title><style>
@@ -154,7 +154,7 @@ export default function Comisiones() {
     setQr(''); setQrError('')
     const enlace = enlaceVerificacion(token)
     if (!enlace) return
-    QRCode.toDataURL(enlace, { errorCorrectionLevel: 'M', margin: 1, width: 320 })
+    qrDataUrl(enlace, { ancho: 320 })
       .then(setQr)
       .catch(() => setQrError('No se pudo generar el QR; el enlace queda visible para compartir.'))
   }

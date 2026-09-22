@@ -83,6 +83,17 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 12 — QR unificado y ficha del informe público (22-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `lib/qr.js` (`qrDataUrl`, `QR_OPCIONES`) + `shared/CodigoQr` | **16 llamadas a `QRCode.toDataURL`** repetidas en 7 archivos (ficha de cliente, cotizaciones, comprobantes, inventario, unidad, comisiones, cotización pública) con opciones parecidas pero no iguales (nivel M/H, margen 0/1/2, ancho 190/200/220/320) | Todas pasan por `qrDataUrl` (opciones por defecto: nivel M, margen 1, ancho 220; los casos que necesitan otra cosa las pisan explícitamente) y el objeto `CodigoQr` para mostrarlo |
+| `shared/FichaCertificado` | No existía: el informe imprimible (PRN) arma su propio layout y la página pública no existía | Tarjeta del informe público que compone `ChipEstado`, `GradoBadge`, `MedidorBateria`, `ChipsLocks` y `CodigoQr`; lista para la página `/u/<serial>` y la vista previa |
+| `shared/ChipEstado` + tonos | El chip de estado del equipo no existía en la app (solo en la biblioteca) | `ChipEstado` con `ESTADOS_CHIP`/`TONOS_CHIP` de `lib/estadoEquipo.js` |
+
+**Duplicación pendiente: 0 usos.** Biblioteca: `owncoding-ui` **v0.12.0**
+(`FichaCertificado`, `CodigoQr`, `qrDataUrl`).
+
 ### Lote 11 — duplicaciones nuevas y categoría en el buscador de productos (22-09)
 
 | Objeto | Antes (evidencia) | Después |

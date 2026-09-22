@@ -1,4 +1,5 @@
 import { gs } from '@/utils/calculos'
+import { qrDataUrl } from '@/lib/qr'
 import { printHtml, escapeHtml } from '@/utils/printHtml'
 import { APP_NAME } from '@/lib/brand'
 import { ESTADO_ENTREGA } from '@/lib/estadosPedido'
@@ -8,7 +9,6 @@ import { totalesPedido } from '@/utils/pedido'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from '@/lib/printing/codigos'
 import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from '@/lib/printing/etiquetaUnidad'
 import { estadoGarantia, fechaVerificacionInforme } from '@/lib/printing/informeDispositivo'
-import QRCode from 'qrcode'
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
 import { getLogoDataUrl } from '@/lib/tenantLogo'
@@ -36,7 +36,7 @@ export async function printTransferReceipt(transfer, { format = 'a4' } = {}) {
   }).join('')
   const enlace = transferReceiveUrlFor(transfer?.publicToken)
   let qr = ''
-  try { if (enlace) qr = await QRCode.toDataURL(enlace, { errorCorrectionLevel: 'M', margin: 1, width: 200 }) } catch { /* el enlace queda impreso igual */ }
+  try { if (enlace) qr = await qrDataUrl(enlace, { ancho: 200 }) } catch { /* el enlace queda impreso igual */ }
   const recepcion = enlace ? `${qr ? `<img class="qr" src="${qr}" alt="QR de recepción">` : ''}<p class="small">Confirmá la recepción escaneando el QR o desde ${escapeHtml(enlace)}</p>` : ''
   const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Remito de traslado</title><style>@page{size:${thermal ? '80mm auto' : 'A4'};margin:${thermal ? '4mm' : '16mm'}}body{font:${thermal ? '10px' : '13px'} system-ui,sans-serif;margin:0;color:#111;max-width:${thermal ? '72mm' : '760px'}}h1{font-size:${thermal ? '15px' : '20px'};margin:0 0 4px}.muted{color:#555}.row{display:flex;justify-content:space-between;gap:12px;margin:8px 0}.items{margin:14px 0;border-top:1px dashed #999}.item{padding:8px 0;border-bottom:1px dashed #999}.serials{font-size:9px;line-height:1.5;color:#333;margin-top:4px}.qr{display:block;width:${thermal ? '32mm' : '42mm'};height:${thermal ? '32mm' : '42mm'};margin:12px auto 4px}.small{font-size:10px;word-break:break-all;text-align:center;color:#555}@media print{body{margin:0}}</style></head><body><h1>Remito de traslado</h1><p class="muted">${escapeHtml(transfer.sourceBranch?.name || 'Origen')} → ${escapeHtml(transfer.destinationBranch?.name || 'Destino')} · ${transfer.createdAt ? new Date(transfer.createdAt).toLocaleString('es-PY') : ''}</p><div class="items">${lineas}</div>${transfer.aexGuide ? `<div class="row"><span>Guía AEX</span><span>${escapeHtml(transfer.aexGuide)}</span></div>` : ''}${transfer.createdBy?.name ? `<div class="row"><span>Generado por</span><span>${escapeHtml(transfer.createdBy.name)}</span></div>` : ''}${transfer.receivedAt ? `<div class="row"><span>Recibido</span><span>${escapeHtml(new Date(transfer.receivedAt).toLocaleString('es-PY'))}${transfer.receivedNote ? ` · ${escapeHtml(transfer.receivedNote)}` : ''}</span></div>` : ''}${transfer.notes ? `<p class="muted">${escapeHtml(transfer.notes)}</p>` : ''}${recepcion}</body></html>`
   return printHtml(html)
@@ -115,7 +115,7 @@ export async function buildUnitLabelsHtml(units = [], { ancho = 58, base = '' } 
     const contexto = contextoEtiquetaUnidad(datos)
     let qr = ''
     try {
-      if (datos.enlace) qr = await QRCode.toDataURL(datos.enlace, { errorCorrectionLevel: 'M', margin: 0, width: anchoMm === 80 ? 220 : 180 })
+      if (datos.enlace) qr = await qrDataUrl(datos.enlace, { margen: 0 })
     } catch { /* sin QR queda el código de barras y el código de unidad como texto */ }
     let barras = ''
     if (datos.codigo) {
@@ -310,7 +310,7 @@ export async function buildOrderReceiptHtml(ordenViva, { level = 'completo', for
   const when = order.createdAt || order.creadoEn || order.fecha
   const link = token ? accessUrlFor(token) : trackingUrlFor(order)
   let qr = ''
-  try { if (link) qr = await QRCode.toDataURL(link, { errorCorrectionLevel: 'H', margin: 2, width: 320 }) } catch { /* el enlace queda impreso igual */ }
+  try { if (link) qr = await qrDataUrl(link, { nivel: 'H', margen: 2, ancho: 320 }) } catch { /* el enlace queda impreso igual */ }
   const itemsCount = items.reduce((suma, item) => suma + Number(item.quantity || 1), 0)
   const empresa = order.tenant?.name || order.empresaNombre || ''
   const sucursal = order.branch || null
@@ -494,7 +494,7 @@ export async function printQuoteReceipt(quote, { format = 'a4', token = '' } = {
   const items = Array.isArray(quote.items) ? quote.items : []
   const enlace = quoteUrlFor(token || quote.publicToken)
   let qr = ''
-  try { if (enlace) qr = await QRCode.toDataURL(enlace, { errorCorrectionLevel: 'M', margin: 1, width: 200 }) } catch { /* el enlace queda impreso igual */ }
+  try { if (enlace) qr = await qrDataUrl(enlace, { ancho: 200 }) } catch { /* el enlace queda impreso igual */ }
   const logo = await getLogoDataUrl()
   const empresa = quote.tenant?.name || quote.companyName || ''
   const sucursal = quote.branch || null
@@ -756,7 +756,7 @@ export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } 
   const garantia = estadoGarantia(datos)
   const logo = await getLogoDataUrl()
   let qr = ''
-  try { if (datos.enlace) qr = await QRCode.toDataURL(datos.enlace, { errorCorrectionLevel: 'H', margin: 2, width: 320 }) } catch { /* el enlace queda impreso igual */ }
+  try { if (datos.enlace) qr = await qrDataUrl(datos.enlace, { nivel: 'H', margen: 2, ancho: 320 }) } catch { /* el enlace queda impreso igual */ }
   const fila = (etiqueta, valor) => (valor ? `<div class="fila-informe"><span>${escapeHtml(etiqueta)}</span><span>${escapeHtml(valor)}</span></div>` : '')
   const verificacion = datos.verificacion
     ? `${fila('Estado', `${datos.verificacion.etiqueta || 'No verificado'}${datos.verificacion.simulado ? ' · simulada' : ''}`)}
