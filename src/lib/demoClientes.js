@@ -54,6 +54,7 @@ export const SEED_DEMO_CLIENTES = [
     billingName: 'Fernández & Cía.',
     billingDocument: '80012345-6',
     notes: 'Prefiere retirar por la tarde. Raya lateral en el equipo anterior.',
+    publicNote: '¡Gracias por ser parte de Aurora Móviles! Cualquier consulta, escribinos y te respondemos al toque.',
     taxExempt: false,
     tags: ['prioridad'],
     pricingTier: 'RETAIL',
@@ -61,7 +62,10 @@ export const SEED_DEMO_CLIENTES = [
     creditDays: 15,
     insuranceEnabled: true,
     insuranceRatePct: 12.5,
-    addresses: [{ id: 'demo-dir-1', label: 'Casa', address: 'Av. Mcal. López 1234', city: 'Asunción', department: 'Capital', country: 'Paraguay', isDefault: true }],
+    addresses: [
+      { id: 'demo-dir-1', label: 'Casa', address: 'Av. Mcal. López 1234', city: 'Asunción', department: 'Capital', country: 'Paraguay', isDefault: true },
+      { id: 'demo-dir-1b', label: 'Trabajo', address: 'Av. España 500', city: 'Asunción', department: 'Capital', country: 'Paraguay', isDefault: false },
+    ],
     demoProfile: {
       orders: [
         pedido({ id: 'demo-p-8', numero: 'MOB-0008', total: 3000000, pagado: 1500000, estado: 'PENDING', dias: 12, items: [{ id: 'demo-i-8', description: 'iPhone 15 · 128 GB', quantity: 1, model: 'iPhone 15', category: 'Celulares', serials: ['356789012345678'] }] }),
@@ -105,7 +109,10 @@ export const SEED_DEMO_CLIENTES = [
     creditDays: 30,
     insuranceEnabled: false,
     insuranceRatePct: null,
-    addresses: [{ id: 'demo-dir-2', label: 'Depósito', address: 'Km 12 Ruta 2', city: 'Ciudad del Este', department: 'Alto Paraná', country: 'Paraguay', isDefault: true }],
+    addresses: [
+      { id: 'demo-dir-2', label: 'Depósito', address: 'Km 12 Ruta 2', city: 'Ciudad del Este', department: 'Alto Paraná', country: 'Paraguay', isDefault: true },
+      { id: 'demo-dir-2b', label: 'Sucursal', address: 'Av. San Blas 45', city: 'Ciudad del Este', department: 'Alto Paraná', country: 'Paraguay', isDefault: false },
+    ],
     demoProfile: {
       orders: [
         pedido({ id: 'demo-p-7', numero: 'MOB-0007', total: 12500000, pagado: 12500000, dias: 20, items: [{ id: 'demo-i-7', description: 'iPhone 14 · 128 GB', quantity: 5, model: 'iPhone 14', category: 'Celulares', serials: [] }] }),
@@ -132,7 +139,7 @@ export const SEED_DEMO_CLIENTES = [
     billingDocument: '',
     notes: '',
     taxExempt: true,
-    tags: [],
+    tags: ['ocasional'],
     pricingTier: 'RETAIL',
     creditLimitPyg: 0,
     creditDays: null,
@@ -166,14 +173,19 @@ const clienteExtra = (id, nombres, documento, telefono, ciudad, opciones = {}) =
   billingName: opciones.facturaA || '',
   billingDocument: opciones.facturaDoc || '',
   notes: opciones.notas || '',
-  taxExempt: opciones.tier === 'WHOLESALE',
+  // Un mayorista con RUC no está exento: el flag se pasa explícito (el seed de
+  // Carlos es el caso exento). Antes se marcaba exento a todo mayorista.
+  taxExempt: opciones.exento === true,
   tags: opciones.tags || [],
   pricingTier: opciones.tier || 'RETAIL',
   creditLimitPyg: opciones.credito || 0,
   creditDays: opciones.dias ?? null,
   insuranceEnabled: Boolean(opciones.seguro),
   insuranceRatePct: opciones.seguro ? 12.5 : null,
-  addresses: [{ id: `${id}-dir`, label: 'Casa', address: `Calle ${nombres.split(' ')[0]} ${100 + id.length}`, city: ciudad, department: 'Central', country: 'Paraguay', isDefault: true }],
+  addresses: [
+    { id: `${id}-dir`, label: 'Casa', address: `Calle ${nombres.split(' ')[0]} ${100 + id.length}`, city: ciudad, department: 'Central', country: 'Paraguay', isDefault: true },
+    ...(opciones.extraDirecciones || []).map((extra, indice) => ({ id: `${id}-dir-${indice + 2}`, isDefault: false, country: 'Paraguay', department: 'Central', ...extra })),
+  ],
   demoProfile: {
     orders: opciones.pedidos || [],
     warranties: [],
@@ -185,13 +197,13 @@ const clienteExtra = (id, nombres, documento, telefono, ciudad, opciones = {}) =
 const pedidoDemo = (id, numero, total, pagado, dias, description) => pedido({ id, numero, total, pagado, dias, items: [{ id: `${id}-i`, description, quantity: 1, serials: [] }] })
 SEED_DEMO_CLIENTES.push(
   clienteExtra('demo-cliente-maria', 'María González', '3.987.654', '0983111222', 'Asunción', { tags: ['frecuente'], credito: 1500000, dias: 15, seguro: true, notas: 'Cliente frecuente: siempre paga en fecha.', pedidos: [pedidoDemo('demo-p-9', 'MOB-0009', 6850000, 6850000, 5, 'iPhone 15 Pro · 256 GB')] }),
-  clienteExtra('demo-cliente-juan', 'Juan Pereira', '4.556.677', '0981222333', 'San Lorenzo', { pedidos: [pedidoDemo('demo-p-10', 'MOB-0010', 4850000, 2000000, 9, 'iPhone 15 · 128 GB')] }),
-  clienteExtra('demo-cliente-ana', 'Ana Villalba', '5.111.222', '0972555888', 'Fernando de la Mora', { seguro: true, notes: 'Prefiere contacto por WhatsApp.' }),
-  clienteExtra('demo-cliente-ramiro', 'Ramiro Cáceres', '4.222.333', '0985666999', 'Capiatá', { tags: ['reventa'], tier: 'WHOLESALE', credito: 8000000, dias: 30, facturaA: 'Ramiro Import (demo)', facturaDoc: '80098765-4', pedidos: [pedidoDemo('demo-p-11', 'MOB-0011', 12500000, 12500000, 30, 'iPhone 14 Pro · 256 GB × 3')] }),
+  clienteExtra('demo-cliente-juan', 'Juan Pereira', '4.556.677', '0981222333', 'San Lorenzo', { tags: ['nuevo'], pedidos: [pedidoDemo('demo-p-10', 'MOB-0010', 4850000, 2000000, 9, 'iPhone 15 · 128 GB')] }),
+  clienteExtra('demo-cliente-ana', 'Ana Villalba', '5.111.222', '0972555888', 'Fernando de la Mora', { tags: ['whatsapp'], seguro: true, notes: 'Prefiere contacto por WhatsApp.' }),
+  clienteExtra('demo-cliente-ramiro', 'Ramiro Cáceres', '4.222.333', '0985666999', 'Capiatá', { tags: ['reventa'], tier: 'WHOLESALE', credito: 8000000, dias: 30, facturaA: 'Ramiro Import', facturaDoc: '80098765-4', extraDirecciones: [{ label: 'Depósito', address: 'Ruta 1 Km 20' }], pedidos: [pedidoDemo('demo-p-11', 'MOB-0011', 12500000, 12500000, 30, 'iPhone 14 Pro · 256 GB × 3')] }),
   clienteExtra('demo-cliente-estela', 'Estela Ramírez', '3.222.111', '0987999111', 'Asunción', { tags: ['prioridad'], notes: 'Factura a nombre de la empresa del esposo.' }),
-  clienteExtra('demo-cliente-distribuidora-luque', 'Distribuidora Luque S.A. (demo)', '80077777-1', '0982111000', 'Luque', { tier: 'WHOLESALE', credito: 15000000, dias: 30, facturaA: 'Distribuidora Luque S.A. (demo)', facturaDoc: '80077777-1', pedidos: [pedidoDemo('demo-p-12', 'MOB-0012', 9600000, 5000000, 14, 'iPhone 13 · 128 GB × 4')] }),
-  clienteExtra('demo-cliente-fernando', 'Fernando Ortellado', '2.888.999', '0973111444', 'Mariano Roque Alonso', {}),
-  clienteExtra('demo-cliente-gloria', 'Gloria Martínez', '6.123.456', '0981222777', 'Lambaré', { seguro: true, notes: 'Cambió de equipo con trade-in.' }),
+  clienteExtra('demo-cliente-distribuidora-luque', 'Distribuidora Luque S.A.', '80077777-1', '0982111000', 'Luque', { tags: ['volumen', 'factura'], tier: 'WHOLESALE', credito: 15000000, dias: 30, facturaA: 'Distribuidora Luque S.A.', facturaDoc: '80077777-1', pedidos: [pedidoDemo('demo-p-12', 'MOB-0012', 9600000, 5000000, 14, 'iPhone 13 · 128 GB × 4')] }),
+  clienteExtra('demo-cliente-fernando', 'Fernando Ortellado', '2.888.999', '0973111444', 'Mariano Roque Alonso', { tags: ['frecuente'] }),
+  clienteExtra('demo-cliente-gloria', 'Gloria Martínez', '6.123.456', '0981222777', 'Lambaré', { tags: ['trade-in'], seguro: true, notes: 'Cambió de equipo con trade-in.' }),
   clienteExtra('demo-cliente-hugo', 'Hugo Benítez', '4.999.888', '0986555222', 'Itauguá', { tags: ['moroso'], credito: 1000000, dias: 7, pedidos: [pedidoDemo('demo-p-13', 'MOB-0013', 2350000, 500000, 40, 'iPhone 12 · 128 GB')] }),
 )
 
@@ -286,7 +298,7 @@ export function demoCuentaPayload(token) {
   const conSaldo = orders.filter((order) => Number(order.pendingPyg || 0) > 0).map((order) => ({ orderNumber: order.orderNumber, dueAt: haceDias(-6), pendingPyg: order.pendingPyg }))
   return {
     level: nivel,
-    company: { name: 'Tienda demo', logo: false },
+    company: { name: 'Aurora Móviles', logo: false },
     customer: { name: cliente.name, ...(cliente.publicNote ? { publicNote: cliente.publicNote } : {}) },
     balancePyg: saldoDeuda(cliente),
     dueDates: conSaldo,
@@ -302,8 +314,8 @@ export function demoVitrinaPayload(token) {
   const orders = cliente.demoProfile?.orders || []
   return {
     nivel,
-    tienda: { nombre: 'Tienda demo', tieneLogo: false },
-    cliente: { nombre: cliente.name },
+    tienda: { nombre: 'Aurora Móviles', tieneLogo: false },
+    cliente: { nombre: cliente.name, ...(cliente.publicNote ? { notaPublica: cliente.publicNote } : {}) },
     saldoFavorPyg: 0,
     puntosPyg: 0,
     pedidos: orders.map((order) => ({ numero: order.orderNumber, fecha: order.createdAt, estado: order.status, fulfillmentStatus: 'DELIVERED', totalPyg: order.totalPyg, saldoPyg: order.pendingPyg })),
