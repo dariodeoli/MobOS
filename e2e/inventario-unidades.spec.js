@@ -322,10 +322,10 @@ test('la solapa Alertas renderiza sin quedar en blanco', async ({ page }) => {
 test('el modo taller agrupa por estado y verifica en serie', async ({ page }) => {
   const datos = await preparar(page, marca())
   try {
-    mkdirSync('docs/qa/240-taller', { recursive: true })
+    mkdirSync('test-results/qa-240-taller', { recursive: true })
     await page.goto('/inventario/unidades')
     await expect(page.getByRole('heading', { name: 'Unidades' })).toBeVisible()
-    await page.screenshot({ path: 'docs/qa/240-taller/01-antes-inventario.jpg', type: 'jpeg', quality: 70 })
+    await page.screenshot({ path: 'test-results/qa-240-taller/01-antes-inventario.jpg', type: 'jpeg', quality: 70 })
 
     await page.goto('/inventario/taller')
     const rack = page.getByTestId('rack-taller')
@@ -336,20 +336,20 @@ test('el modo taller agrupa por estado y verifica en serie', async ({ page }) =>
     for (const unidad of datos.unidades) {
       await expect(page.getByTestId('rack-equipo').filter({ hasText: unidad.serial })).toBeVisible()
     }
-    await page.screenshot({ path: 'docs/qa/240-taller/02-despues-rack.jpg', type: 'jpeg', quality: 70 })
+    await page.screenshot({ path: 'test-results/qa-240-taller/02-despues-rack.jpg', type: 'jpeg', quality: 70 })
 
     // Estaciones: una sola a la vez.
     await page.getByTestId('rack-estacion-por-verificar').click()
     await expect(page.getByTestId('rack-columna-por-verificar')).toBeVisible()
     await expect(page.getByTestId('rack-columna-listo')).toHaveCount(0)
-    await page.screenshot({ path: 'docs/qa/240-taller/04-rack-estacion.jpg', type: 'jpeg', quality: 70 })
+    await page.screenshot({ path: 'test-results/qa-240-taller/04-rack-estacion.jpg', type: 'jpeg', quality: 70 })
     await page.getByTestId('rack-estacion-todas').click()
     await expect(page.getByTestId('rack-columna-listo')).toBeVisible()
 
     // Filtros: búsqueda por IMEI (y ubicación) sobre el rack.
     await page.getByLabel('Buscar en el taller').fill(datos.unidades[0].serial)
     await expect(page.getByTestId('rack-equipo')).toHaveCount(1)
-    await page.screenshot({ path: 'docs/qa/240-taller/05-rack-busqueda.jpg', type: 'jpeg', quality: 70 })
+    await page.screenshot({ path: 'test-results/qa-240-taller/05-rack-busqueda.jpg', type: 'jpeg', quality: 70 })
     await page.getByLabel('Buscar en el taller').fill('')
     await page.getByLabel('Filtrar por ubicación').selectOption({ label: datos.locationName })
     await expect(page.getByTestId('rack-equipo').filter({ hasText: datos.unidades[0].serial })).toBeVisible()
@@ -371,7 +371,7 @@ test('el modo taller agrupa por estado y verifica en serie', async ({ page }) =>
         page.getByTestId('rack-columna-verificado').getByTestId('rack-equipo').filter({ hasText: unidad.serial }),
       ).toBeVisible({ timeout: 20000 })
     }
-    await page.screenshot({ path: 'docs/qa/240-taller/03-rack-verificado.jpg', type: 'jpeg', quality: 70 })
+    await page.screenshot({ path: 'test-results/qa-240-taller/03-rack-verificado.jpg', type: 'jpeg', quality: 70 })
   } finally {
     await limpiar(page, datos)
   }
