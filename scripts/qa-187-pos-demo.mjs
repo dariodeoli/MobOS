@@ -95,11 +95,15 @@ async function agregarPago(cuenta, monto) {
   await esperar(1000)
   const indice = (await page.getByLabel('Cuenta de cobro').count()) - 1
   const combo = page.getByLabel('Cuenta de cobro').nth(indice)
-  await combo.click()
-  await combo.fill(cuenta)
-  await esperar(900)
-  await page.getByRole('option').filter({ hasText: new RegExp(cuenta.split(' ')[0], 'i') }).first().click()
-  await esperar(800)
+  // Con #209 la cuenta puede venir preseleccionada: solo se elige si está vacía.
+  const yaTiene = await combo.inputValue().catch(() => '')
+  if (!yaTiene) {
+    await combo.click()
+    await combo.fill(cuenta)
+    await esperar(900)
+    await page.getByRole('option').filter({ hasText: new RegExp(cuenta.split(' ')[0], 'i') }).first().click()
+    await esperar(800)
+  }
   await page.getByLabel('Monto original').nth(indice).fill(String(monto))
   await esperar(900)
 }
@@ -214,11 +218,15 @@ try {
       await esperar(1100)
       prefill = await page.getByLabel('Monto original').nth(1).inputValue()
       const combo2 = page.getByLabel('Cuenta de cobro').nth(1)
-      await combo2.click()
-      await combo2.fill('Transferencia')
-      await esperar(900)
-      await page.getByRole('option').filter({ hasText: /Transferencia/i }).first().click()
-      await esperar(800)
+      // La cuenta puede venir preseleccionada (#209): solo se cambia si está vacía.
+      const yaTiene2 = await combo2.inputValue().catch(() => '')
+      if (!yaTiene2) {
+        await combo2.click()
+        await combo2.fill('Transferencia')
+        await esperar(900)
+        await page.getByRole('option').filter({ hasText: /Transferencia/i }).first().click()
+        await esperar(800)
+      }
     }
     const bloques = await page.getByLabel('Monto original').count()
     await shot('split-dividido')

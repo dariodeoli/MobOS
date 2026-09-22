@@ -1,0 +1,139 @@
+{
+  "base": "https://app.moboss.online",
+  "version": "v1.0.136",
+  "fecha": "2026-09-22T00:31:06.119Z",
+  "viewport": {
+    "desktop": "1440x900",
+    "movil": "390x844"
+  },
+  "metodo": "Playwright headless (chromium) sobre la demo pública",
+  "pasos": [
+    {
+      "paso": "entrada a la demo como vendedor",
+      "estado": "ok",
+      "detalle": "versión desplegada: v1.0.136 · perfiles: 2 · menú: VENDER POS Mis pedidos Delivery Clientes HERRAMIENTAS Productos Promociones Precios Trade-In Cotizaciones",
+      "capturas": [
+        "01-acceso-demo.jpg",
+        "02-panel-vendedor.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "pos: venta en una sola pantalla (carrito visible sin salir)",
+      "estado": "ok",
+      "detalle": "buscador visible: true (bottom 775/900) · total visible: true (bottom 312/900) · hoy visible: 1",
+      "capturas": [
+        "03-pos-pantalla-unica.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "catalogo: buscar y agregar con modelo y capacidad",
+      "estado": "ok",
+      "detalle": "sugerencias: iPhone 15 Pro 256GB Titanio DEMO-IPHONE-15-PRO-256-T | iPhone 15 Pro 256GB Negro DEMO-IPHONE-15-PRO-256-N | iPhone 15 Pro Max 256GB Titanio Natural IP15PM-256-NAT · carrito: TOTAL DE ESTA VENTA Gs 6.850.000 1 producto · 1 unidad TU DÍA 3 ventas · 3 pedidos Facturación Gs 14.280.000",
+      "capturas": [
+        "04-catalogo-resultados.jpg",
+        "05-producto-agregado.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "carrito: segundo producto, cantidad 2 y descuento",
+      "estado": "ok",
+      "detalle": "2 u.: TOTAL DE ESTA VENTA Gs 13.880.000 2 productos · 3 unidades TU DÍA 3 ventas · 3 pedidos Facturación Gs 14.280.0 · con descuento: TOTAL DE ESTA VENTA Gs 13.780.000 2 productos · 3 unidades Descuento − Gs 100.000 TU DÍA 3 ventas · 3 pedidos  · borrado: TOTAL DE ESTA VENTA Gs 13.880.000 2 productos · 3 unidades TU DÍA 3 ventas · 3 pedidos Facturación Gs 14.280.0",
+      "capturas": [
+        "06-carrito-descuento.jpg",
+        "07-carrito-sin-descuento.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "cliente: buscador y alta por nombre nuevo",
+      "estado": "ok",
+      "detalle": "resultados de \"María\": Titanio | Negro | Retiro en tienda | Delivery · clientes demo encontrados: false · botón con cliente: \"Crear pedido sin pago · 3 productos · Gs 13.880.000\"",
+      "capturas": [
+        "08-cliente-nuevo.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "borradores: suspender y listar (aviso honesto de la demo)",
+      "estado": "ok",
+      "detalle": "alta: \"Las ventas suspendidas se guardan en el servidor de tu tienda y necesitan conexión. En la demo no se guardan n\" · listado: mismo aviso de demo",
+      "capturas": [
+        "09-borrador-aviso-demo.jpg",
+        "10-borradores-listado-demo.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "split: parcial con dividir saldo y segundo medio",
+      "estado": "fallo",
+      "detalle": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('option').filter({ hasText: /Caja/i }).first()\u001b[22m\n",
+      "capturas": [
+        "11-fallo-split-parcial-con-dividir-saldo-y-segundo-medio.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "entrega: delivery con costo y retiro sin monto",
+      "estado": "ok",
+      "detalle": "con delivery: TOTAL DE ESTA VENTA Gs 13.910.000 2 productos · 3 unidades Entrega + Gs 30.000 TU DÍA 3 ventas · 3 pedidos Facturación G · monto deshabilitado en retiro: true",
+      "capturas": [
+        "12-entrega-delivery.jpg",
+        "13-entrega-retiro.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "venta: cubrir el saldo, confirmar y vaciar el carrito",
+      "estado": "fallo",
+      "detalle": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByLabel('Monto original').first()\u001b[22m\n\u001b[2m    - locator resolved to <input disabled value=\"\" placeholder=\"0\" id=\"monto-original\" inputmode=\"numeric\" aria-label=\"Monto original\" class=\"w-full rounded-lg border border-ink-500 bg-ink-800 px-3.5 text-fore h-11 md:h-9 text-base md:text-sm outline-none transition focus:border-fono focus:ring-1 focus:ring-fono/40 placeholder:text-mute/60 pl-12 tabular-nums\"/>\u001b[22m\n\u001b[2m    - fill(",
+      "capturas": [
+        "14-fallo-venta-cubrir-el-saldo-confirmar-y-vaciar-el-carrito.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "analytics: métricas del POS y período",
+      "estado": "ok",
+      "detalle": "métricas completas · período 7 días: false · «Cobros por cuenta»: false",
+      "capturas": [
+        "15-analytics-modal.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "movil 390x844: POS con carrito accesible",
+      "estado": "ok",
+      "detalle": "desborde horizontal: 0px → 0px · buscador: true · total: TOTAL DE ESTA VENTA Gs 150.000 1 producto · 1 unidad TU DÍA 3 ventas · 3 pedidos Facturación Gs 14.280.000",
+      "capturas": [
+        "16-pos-movil.jpg",
+        "17-pos-movil-carrito.jpg"
+      ],
+      "erroresConsola": [],
+      "fallosRed": []
+    },
+    {
+      "paso": "diagnostico: consola y red",
+      "estado": "ok",
+      "detalle": "errores de consola: 0 · API ≥400: 0 · pedidos fallidos: 0 · top endpoints:  · consola: ",
+      "capturas": [],
+      "erroresConsola": [],
+      "fallosRed": []
+    }
+  ],
+  "errores": [],
+  "fallosRed": [],
+  "pedidosFallidos": []
+}
