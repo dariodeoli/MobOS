@@ -6,6 +6,7 @@
 // costos vienen en USD (con cotización) o en Gs, como en la app real.
 import { EQUIPO_DEMO, IMEIS_DEMO_FICTICIOS, IPHONES_DEMO, serialDemo } from './demo/iphones.js'
 import { guardarDemo, leerDemo } from './demoStorage.js'
+import { formatGs } from '../utils/moneda.js'
 
 const KEY = 'mobos:demo-inventory:v1'
 export const DEMO_BRANCH = 'mobos-demo-central'
@@ -335,7 +336,7 @@ export function marcarUnidadesVendidasDemo({ serials = [], orderNumber = '', cus
     unit.reservationCustomer = ''
     unit.reservationCustomerRef = null
     unit.sale = { orderNumber, fulfillmentStatus: 'PROCESSING', soldAt: at, customerName }
-    unit.events = [...(unit.events || []), { id: `demo-evento-${Date.now().toString(36)}-${vendidas.length}`, type: 'sale', title: 'Venta', detail: `Vendido en ${orderNumber || 'el pedido'}${customerName ? ` a ${customerName}` : ''}${totalPyg ? ` por Gs ${Number(totalPyg).toLocaleString('es-PY')}` : ''}`, at }]
+    unit.events = [...(unit.events || []), { id: `demo-evento-${Date.now().toString(36)}-${vendidas.length}`, type: 'sale', title: 'Venta', detail: `Vendido en ${orderNumber || 'el pedido'}${customerName ? ` a ${customerName}` : ''}${totalPyg ? ` por ${formatGs(totalPyg)}` : ''}`, at }]
     vendidas.push(snapshot(state, unit))
   }
   write(state)

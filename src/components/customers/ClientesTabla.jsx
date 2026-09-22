@@ -109,7 +109,7 @@ export default function ClientesTabla({ rows, templates, onPerfil, onResumen }) 
               </span>
               <span className="min-w-0">
                 <span className={cn('block', CELDA_IDENTIDAD_GRANDE)} title={row.name}>{row.name || 'Sin nombre'}</span>
-                <span className="block truncate text-xs text-mute" title={[telefonoMostrado, row.email].filter(Boolean).join(' · ')}>
+                <span className={cn(CELDA_DATO, 'block')} title={[telefonoMostrado, row.email].filter(Boolean).join(' · ')}>
                   {telefonoMostrado || 'Sin teléfono'}{row.email ? ` · ${row.email}` : ''}
                 </span>
               </span>

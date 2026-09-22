@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Input } from '@/components/ui'
+import IconoCategoria from '@/components/shared/IconoCategoria'
 import { cn } from '@/lib/utils'
 
 const MAX_SUGGESTIONS = 8
@@ -150,7 +151,7 @@ export default function ProductCombobox({ products = [], selectedId = '', onSele
                 }}
                 onMouseEnter={() => setHighlight(index)}
               >
-                <span className="min-w-0 truncate text-fore">{productName(product)}</span>
+                <span className="flex min-w-0 items-center gap-2"><IconoCategoria categoria={product.category || productName(product)} className="h-4 w-4 text-mute" /><span className="truncate text-fore">{productName(product)}</span></span>
                 {product.sku ? <span className="shrink-0 text-xs text-mute">{product.sku}</span> : null}
               </button>
             </li>
