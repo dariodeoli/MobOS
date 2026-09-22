@@ -237,7 +237,15 @@ async function ensureProducts(ctx, adminToken) {
   if (!res.ok()) throw new Error(`products list failed: HTTP ${res.status()}`)
   const rows = await res.json()
   for (const [key, product] of Object.entries(SEED.products)) {
-    const found = rows.find((r) => r.sku === product.sku)
+    let found = rows.find((r) => r.sku === product.sku)
+    if (!found) {
+      // La base persistente acumula productos de todas las corridas: el
+      // listado general trae hasta 200 y el SKU del seed puede quedar fuera de
+      // esa ventana (el create chocaba después con el IMEI: 409). Búsqueda
+      // puntual antes de decidir crearlo.
+      const porSku = await ctx.get(`/api/products?q=${encodeURIComponent(product.sku)}`, { headers: bearer(adminToken) })
+      if (porSku.ok()) found = (await porSku.json()).find((r) => r.sku === product.sku)
+    }
     if (found) {
       product.id = found.id
       // Serialized products own their stock via units; skip the stock reset.
