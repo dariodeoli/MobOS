@@ -197,13 +197,13 @@ function ResumenVenta({ totalGeneral, items, unidades, montoDescuento, montoDeli
   return (
     <section
       data-testid="resumen-compra"
-      className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-fono/30 bg-ink-800 px-4 py-3 shadow-lg shadow-black/10"
+      className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-fono/50 bg-gradient-to-r from-fono/15 via-ink-800 to-ink-800 px-4 py-3 shadow-lg shadow-fono/10"
     >
       <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-[11px] font-bold uppercase tracking-wider text-mute">
           Total de esta venta
         </span>
-        <span className="text-2xl font-extrabold tracking-tight tabular-nums text-fore">
+        <span className="text-2xl font-extrabold tracking-tight tabular-nums text-fono-light">
           {gs(totalGeneral)}
         </span>
         <span className="text-xs text-mute">
