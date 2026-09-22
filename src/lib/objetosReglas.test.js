@@ -396,3 +396,20 @@ test('los iconos de categoría salen del objeto compartido (#242)', () => {
     .map(({ ruta }) => ruta)
   assert.deepEqual(copiados, [], 'los glifos de categoría no se copian por pantalla')
 })
+
+// Lote 12: el QR y la ficha del informe público salen de los objetos; ninguna
+// pantalla vuelve a llamar a `qrcode` por su cuenta.
+test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('lib/qr.js') && /from 'qrcode'|QRCode\.toDataURL/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [], 'el QR se genera solo en lib/qr.js')
+  const qr = readFileSync(join(RAIZ, 'lib/qr.js'), 'utf8')
+  assert.match(qr, /export async function qrDataUrl\(/)
+  assert.match(qr, /export const QR_OPCIONES =/)
+  assert.match(readFileSync(join(RAIZ, 'components/shared/CodigoQr.jsx'), 'utf8'), /export default function CodigoQr\(/)
+  const ficha = readFileSync(join(RAIZ, 'components/shared/FichaCertificado.jsx'), 'utf8')
+  for (const objeto of ['ChipEstado', 'ChipsLocks', 'CodigoQr', 'GradoBadge', 'MedidorBateria']) {
+    assert.match(ficha, new RegExp(`<${objeto}\\b`), `la ficha de certificado compone ${objeto}`)
+  }
+})
