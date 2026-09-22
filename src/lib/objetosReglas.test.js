@@ -347,3 +347,52 @@ test('las cargas usan Skeleton en vez de bloques animate-pulse', () => {
     assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<Skeleton\b/, `${ruta}: la carga va con Skeleton`)
   }
 })
+
+// Épica #240 (PhoneCheck): checklist, locks, batería y grado. Los objetos viven
+// en `shared/` y los estados en `lib/estadoEquipo.js`; ninguna pantalla copia
+// las etiquetas ni arma el % de batería por su cuenta.
+test('los objetos de inspección del equipo salen de shared/ y lib/estadoEquipo (#240)', () => {
+  for (const ruta of ['components/shared/SemaforoItem.jsx', 'components/shared/ChipsLocks.jsx', 'components/shared/MedidorBateria.jsx', 'components/shared/GradoBadge.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /export default function /, `falta ${ruta}`)
+  }
+  const estado = readFileSync(join(RAIZ, 'lib/estadoEquipo.js'), 'utf8')
+  for (const nombre of ['ESTADOS_ITEM', 'LOCKS_DISPOSITIVO', 'ESTADOS_LOCK', 'GRADOS_CONDICION', 'tonoBateria', 'gradoCondicion']) {
+    assert.match(estado, new RegExp(`export (const|function) ${nombre}`), `falta ${nombre}`)
+  }
+
+  // El % de batería se dibuja con el objeto (chip o barra), no con un span suelto.
+  const sueltos = archivosFuente()
+    .filter(({ ruta, contenido }) => /batteryHealth/.test(contenido)
+      && !ruta.endsWith('components/shared/MedidorBateria.jsx')
+      && !ruta.endsWith('lib/estadoEquipo.js')
+      && /\{unit\.batteryHealth\}%|\$\{unit\.batteryHealth\}%/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(sueltos, [], 'el % de batería va con MedidorBateria')
+  for (const ruta of ['components/inventory/UnidadDetalle.jsx', 'components/control/Inventario.jsx', 'components/inventory/SerialUnitPicker.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<MedidorBateria\b/, `${ruta}: la batería va con MedidorBateria`)
+  }
+
+  // Las etiquetas propias del checklist y del grado no se re-escriben por
+  // pantalla ('Sin verificar' se comparte con otros dominios, no se controla).
+  const etiquetasPropias = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('lib/estadoEquipo.js') && /('Con observación'|'Grado A'|'Grado B'|'Grado C')/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(etiquetasPropias, [], 'las etiquetas de inspección salen de lib/estadoEquipo')
+})
+
+// #242: los glifos de categoría (mobile/laptop/tablet/watch/buds/cable) y el
+// mapa categoría→icono viven en un solo objeto; el POS y el catálogo los usan.
+test('los iconos de categoría salen del objeto compartido (#242)', () => {
+  const objeto = readFileSync(join(RAIZ, 'components/shared/IconoCategoria.jsx'), 'utf8')
+  for (const glifo of ['mobile', 'laptop', 'tablet', 'watch', 'buds', 'cable']) {
+    assert.match(objeto, new RegExp(`\\n  ${glifo}: 'M`), `falta el glifo ${glifo}`)
+  }
+  const categorias = readFileSync(join(RAIZ, 'lib/categorias.js'), 'utf8')
+  for (const nombre of ['CATEGORIAS_PRODUCTO', 'ICONO_CATEGORIA', 'normalizarCategoria', 'categoriaDe', 'iconoDeCategoria']) {
+    assert.match(categorias, new RegExp(`export (const|function) ${nombre}`), `falta ${nombre}`)
+  }
+  const copiados = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/shared/IconoCategoria.jsx') && contenido.includes('M8 2h8a2 2 0 0 1 2 2v16'))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(copiados, [], 'los glifos de categoría no se copian por pantalla')
+})

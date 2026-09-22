@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { Badge, Button, Skeleton } from '@/components/ui'
 import SerialTexto from '@/components/shared/SerialTexto'
+import MedidorBateria from '@/components/shared/MedidorBateria'
 import { serialEnmascarado } from '@/utils/serial'
 
 const normalize = (value = '') => String(value).trim().replace(/^MOBOS:/i, '').replace(/[\s-]+/g, '').toUpperCase()
@@ -69,7 +70,7 @@ export default function SerialUnitPicker({ product, customerName, selectedSerial
           <span className="flex min-w-0 items-baseline gap-1 text-[12px]"><span className="shrink-0">IMEI</span><SerialTexto serial={unit.serial} className="truncate text-mute" tonoCola="font-bold text-fono-light" /></span>
           <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-mute">
             <Badge color={unit.condition === 'USED' ? 'orange' : 'green'}>{unit.condition === 'USED' ? 'Seminuevo' : 'Nuevo'}</Badge>
-            {unit.batteryHealth ? <span>{unit.batteryHealth}%</span> : null}
+            {unit.batteryHealth ? <MedidorBateria porcentaje={unit.batteryHealth} variante="chip" /> : null}
             {unit.location?.name ? <span>· {unit.location.name}</span> : null}
             {!available && !selected ? <span className="font-semibold text-bad">No disponible</span> : null}
           </span>

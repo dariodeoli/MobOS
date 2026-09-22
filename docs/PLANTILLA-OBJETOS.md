@@ -226,8 +226,29 @@ patrón de uso de cada familia y un ejemplo corto.
 > Referencia MobOS: `EmptyState`, `ErrorState`, `Skeleton`, `Aviso`, `Nota` en
 > `src/components/ui/index.jsx`; modo demo en `src/lib/demoMode.js`.
 
-## 5. Diálogos, acciones y overlays
+## 4 bis. Operación de equipos (épicas #240/#241/#242)
 
+Objetos para el checklist, la inspección y el rack de equipos (base del piloto
+v2). Los estados y las etiquetas viven en `src/lib/estadoEquipo.js` y las
+categorías en `src/lib/categorias.js`; los objetos son presentacionales.
+
+- **`shared/SemaforoItem`**: punto + ícono con el estado del ítem
+  (`ok`/`aviso`/`falla`/`sinVerificar`), etiqueta y detalle; el nombre accesible
+  es «Punto: Estado».
+- **`shared/MedidorBateria`**: el % de batería con el mismo color por umbral
+  (≥90 ok, 80–89 atención, <80 cambio), en `variante="barra"` (ficha/rack) o
+  `"chip"` (listas y tablas); sin dato muestra `—`, nunca 0.
+- **`shared/GradoBadge`**: grado de condición A/B/C con color fijo y
+  descripción opcional para el informe.
+- **`shared/ChipsLocks`**: chips de iCloud/Find My, MDM, ESN/lista negra y
+  carrier/SIM lock (verde libre, rojo activo, gris sin dato).
+- **`shared/IconoCategoria`** (#242): glifos mobile/laptop/tablet/watch/buds/
+  cable; `categoria="MacBook Pro"` resuelve el icono con `iconoDeCategoria`.
+- El checklist, el tile de equipo, el stepper y los tokens del tema consola se
+  codificaron primero en la biblioteca (owncoding-ui **v0.10.0**, props en su
+  `docs/REGLAS.md` §8 bis) y se adoptan acá a medida que los consume el piloto.
+
+## 5. Diálogos, acciones y overlays
 - **Ancho por tipo, no por uso (#237):** el `Modal` compartido expone
   `size` con cuatro tamaños y el ancho vive en `shared/modal.js`
   (`corto` = `max-w-md`: avisos, confirmaciones y formularios de un campo;
