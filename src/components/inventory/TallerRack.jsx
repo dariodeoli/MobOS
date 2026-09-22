@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Badge, Button, Card, Select } from '@/components/ui'
+import { Badge, Button, Card, Modal, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
 import { CELDA_DATO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
+import { PIE_ACCIONES } from '@/components/shared/formulario'
 import { cn } from '@/lib/utils'
 import { agruparRack, bateriaDe, conCosto, ESTACIONES, estadoEnRack, ETIQUETA_RACK, filtrarRack, gradoDe, ORDEN_RACK, TONO_RACK } from '@/lib/tallerRack'
 
@@ -32,8 +33,11 @@ export default function TallerRack({
   onVerificarLote,
   onEtiqueta,
   onEtiquetasLote,
+  onHoja,
 }) {
   const [seleccionados, setSeleccionados] = useState([])
+  const [imprimirAbierto, setImprimirAbierto] = useState(false)
+  const [alcance, setAlcance] = useState('seleccion')
   const [estacion, setEstacion] = useState('todas')
   const [busqueda, setBusqueda] = useState('')
   const [ubicacionId, setUbicacionId] = useState('')
@@ -43,6 +47,16 @@ export default function TallerRack({
   const porId = useMemo(() => new Map(unidades.map((unit) => [unit.id, unit])), [unidades])
   const elegidas = seleccionados.map((id) => porId.get(id)).filter(Boolean)
   const visibles = estacion === 'todas' ? ORDEN_RACK : [estacion]
+  const opcionesImpresion = [
+    ...(elegidas.length ? [{ id: 'seleccion', label: 'Selección', lista: elegidas }] : []),
+    ...(estacion !== 'todas' ? [{ id: 'estacion', label: `Estación «${ETIQUETA_RACK[estacion]}»`, lista: grupos[estacion] }] : []),
+    { id: 'filtrados', label: 'Todo lo filtrado', lista: filtradas },
+  ]
+  const objetivo = (opcionesImpresion.find((opcion) => opcion.id === alcance) || opcionesImpresion[0]).lista
+  const abrirImpresion = () => {
+    setAlcance(elegidas.length ? 'seleccion' : estacion !== 'todas' ? 'estacion' : 'filtrados')
+    setImprimirAbierto(true)
+  }
 
   const alternar = (id) => setSeleccionados((actuales) => (
     actuales.includes(id) ? actuales.filter((x) => x !== id) : [...actuales, id]
@@ -79,11 +93,11 @@ export default function TallerRack({
           <Button
             type="button"
             variant="outline"
-            disabled={busy || elegidas.length === 0}
-            onClick={() => { onEtiquetasLote?.(elegidas); setSeleccionados([]) }}
-            data-testid="rack-imprimir-lote"
+            disabled={busy || filtradas.length === 0}
+            onClick={abrirImpresion}
+            data-testid="rack-imprimir-serie"
           >
-            <Icon name="printer" className="h-4 w-4" /> Imprimir etiquetas
+            <Icon name="printer" className="h-4 w-4" /> Imprimir en serie…
           </Button>
           {elegidas.length > 0 && (
             <button
@@ -231,6 +245,43 @@ export default function TallerRack({
           )
         })}
       </div>
+
+      {/* Impresión en serie (#240 §4): etiquetas del alcance elegido u hoja de
+          estación imprimible para el depósito. */}
+      <Modal open={imprimirAbierto} onClose={() => setImprimirAbierto(false)} title="Imprimir en serie" size="corto">
+        <p className="text-sm text-mute">Elegí qué equipos entran en la impresión.</p>
+        <div className="mt-3 space-y-1.5" role="radiogroup" aria-label="Alcance de la impresión">
+          {opcionesImpresion.map(({ id, label, lista }) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={alcance === id}
+              data-testid={`rack-alcance-${id}`}
+              onClick={() => setAlcance(id)}
+              className={cn(
+                'flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition',
+                alcance === id ? 'border-fono bg-fono/10 text-fono-light' : 'border-ink-600 hover:border-fono/40',
+              )}
+            >
+              <span className="font-semibold">{label}</span>
+              <span className="shrink-0 text-xs tabular-nums text-mute">{lista.length} equipos</span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-mute" data-testid="rack-impresion-resumen">
+          {objetivo.length} etiqueta(s): {objetivo.slice(0, 6).map((unit) => `${nombreUnidad(unit)} ${String(unit.serial || '').slice(-4)}`).join(' · ')}
+          {objetivo.length > 6 ? ` · +${objetivo.length - 6}` : ''}
+        </p>
+        <div className={cn(PIE_ACCIONES, 'mt-4')}>
+          <Button type="button" variant="outline" disabled={!objetivo.length || busy} onClick={() => { onHoja?.(objetivo, estacion === 'todas' ? 'Taller' : ETIQUETA_RACK[estacion]); setImprimirAbierto(false) }} data-testid="rack-hoja-estacion">
+            Hoja de estación
+          </Button>
+          <Button type="button" disabled={!objetivo.length || busy} onClick={() => { onEtiquetasLote?.(objetivo); setSeleccionados([]); setImprimirAbierto(false) }} data-testid="rack-imprimir-serie-confirmar">
+            <Icon name="printer" className="h-4 w-4" /> Etiquetas ({objetivo.length})
+          </Button>
+        </div>
+      </Modal>
     </Card>
   )
 }
