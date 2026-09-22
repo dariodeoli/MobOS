@@ -34,8 +34,12 @@ test.describe('bloqueo de sesión', () => {
 
     await page.getByTestId('menu-acciones').click()
     const menu = page.getByTestId('menu-acciones-lista')
-    for (const item of ['Configuración', 'Caja', 'Análisis', 'Clientes', 'Bloquear pantalla', 'Cambiar sucursal', 'Cerrar sesión', 'Eliminar cuenta']) {
+    // Menú corto (#228): solo accesos de uso; nada destructivo ni duplicado.
+    for (const item of ['Configuración', 'Caja', 'Análisis', 'Clientes', 'Bloquear pantalla']) {
       await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible()
+    }
+    for (const fuera of ['Eliminar cuenta', 'Cerrar sesión', 'Preferencias', 'Cambiar sucursal']) {
+      await expect(menu.getByRole('menuitem', { name: fuera, exact: true })).toHaveCount(0)
     }
     await menu.getByRole('menuitem', { name: 'Bloquear pantalla', exact: true }).click()
 
@@ -55,11 +59,18 @@ test.describe('bloqueo de sesión', () => {
     await page.goto('/ventas')
     await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
-    // Preferencia de 1 minuto (el default son 10) para no esperar.
-    await page.getByTestId('menu-acciones').click()
-    await page.getByRole('menuitem', { name: 'Preferencias', exact: true }).click()
-    await page.locator('#pref-bloqueo').selectOption('1')
-    await page.getByRole('dialog').getByRole('button', { name: 'Listo' }).click()
+    // Preferencia de 1 minuto (el default son 10) para no esperar. Las
+    // preferencias del dispositivo viven en Configuración → Sistema (#228);
+    // acá se siembran para la persona de la sesión y se recarga.
+    const userId = await page.evaluate(async (api) => {
+      const respuesta = await fetch(`${api}/api/auth/me`, { credentials: 'include' })
+      return (await respuesta.json())?.user?.id || ''
+    }, `http://localhost:${process.env.MOBOS_E2E_API_PORT || '3001'}`)
+    await page.evaluate((id) => {
+      localStorage.setItem(`mobos:preferencias:${id}`, JSON.stringify({ bloqueoMinutos: 1, notificaciones: true }))
+    }, userId)
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Nueva venta' })).toBeVisible()
 
     await page.clock.fastForward(61_000)
     await expect(page.getByTestId('pantalla-bloqueada')).toBeVisible()

@@ -416,9 +416,9 @@ test('la demo no persiste nada: guardados, recarga, salida y base intacta', asyn
   await page.goto('/pos')
   await expect(page.locator('#pos-resumen-venta').getByText('0 productos')).toBeVisible()
 
-  // Salir limpia la marca de demo de la pestaña.
-  await page.getByTestId('menu-acciones').click()
-  await page.getByRole('menuitem', { name: 'Cerrar sesión', exact: true }).click()
+  // Salir limpia la marca de demo de la pestaña (el cierre vive en la barra
+  // superior; el menú de tres puntos ya no lo duplica, #228).
+  await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).first().click()
   await page.getByRole('button', { name: 'Salir', exact: true }).click()
   await expect(page).toHaveURL(/\/login$/)
   const trasSalir = await instantaneaNavegador(page)

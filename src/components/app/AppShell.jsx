@@ -8,7 +8,6 @@ import PresencePill from '@/components/app/PresencePill'
 import ProductFooter from '@/components/app/ProductFooter'
 import MenuAcciones from '@/components/app/MenuAcciones'
 import PanelNotificaciones from '@/components/app/PanelNotificaciones'
-import Preferencias from '@/components/app/Preferencias'
 import ComoFuncionaDemo from '@/components/app/ComoFuncionaDemo'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { usePresenceTracker } from '@/hooks/usePresence'
@@ -290,11 +289,10 @@ export default function AppShell({
       }
     } catch { /* sin storage: no se abre sola */ }
   }, [esDemo])
-  const { usuario: usuarioSesion, sucursales = [], sucursal, cambiarSucursal } = useSesion()
+  const { usuario: usuarioSesion } = useSesion()
   const usuarioActual = usuario || usuarioSesion
-  const [preferencias, cambiarPreferencias] = usePreferencias(usuarioActual?.id)
+  const [preferencias] = usePreferencias(usuarioActual?.id)
   const notificaciones = useNotificaciones(usuarioActual?.id, { activo: menuAcciones && !esDemo })
-  const [preferenciasAbiertas, setPreferenciasAbiertas] = useState(false)
   const [notificacionesAbiertas, setNotificacionesAbiertas] = useState(false)
   const enLinea = useOnlineStatus()
   usePresenceTracker()
@@ -485,11 +483,6 @@ export default function AppShell({
                 <MenuAcciones
                   onNavegar={(id, opciones) => navegar(id, opciones)}
                   onBloquear={onLockRequest}
-                  onSalir={onLogout}
-                  onPreferencias={() => setPreferenciasAbiertas(true)}
-                  sucursales={sucursales}
-                  sucursal={sucursal}
-                  onCambiarSucursal={cambiarSucursal}
                 />
               </>
             )}
@@ -570,12 +563,6 @@ export default function AppShell({
 
       {menuAcciones && (
         <>
-          <Preferencias
-            open={preferenciasAbiertas}
-            onClose={() => setPreferenciasAbiertas(false)}
-            preferencias={preferencias}
-            onCambiar={cambiarPreferencias}
-          />
           <PanelNotificaciones
             open={notificacionesAbiertas}
             onClose={() => setNotificacionesAbiertas(false)}
