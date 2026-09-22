@@ -9,6 +9,17 @@ tiene que devolver y **qué mirar si falla**. Las reglas del módulo viven en
 > exactos listos para aplicar (incluido el bloque que junta todo para pegar en
 > el issue): **`docs/IMPRESION-17-LAUNCHD.md`**.
 
+## Orden de la prueba (seguir de arriba a abajo)
+
+1. **§0** — pegar el bloque: guarda `~/mobos-prueba-fisica.txt` con todo el estado.
+2. **§1** — #17: agente actualizado, permiso de Red local, IP secundaria y prueba
+   **desde launchd**.
+3. **§2** — #17: cola CUPS de respaldo (si `-m raw` falla, alta manual por IP).
+4. **§3** — #96: bandera `usb`, módulo, dispositivo y prueba de corte por USB.
+5. **§5** — pegar el archivo + la plantilla del issue que corresponda.
+
+Todo lo que se toca es reversible (`print-agent/uninstall-macos.sh`).
+
 > Registrar el resultado en el issue correspondiente con: **versión del agente**,
 > `transporte` real, `errno` si hubo error y si el ticket salió por el papel.
 
@@ -67,10 +78,10 @@ salud() { curl -s --max-time 3 http://127.0.0.1:17890/health -H "x-mobos-print-t
    Configuración → Impresoras). La app la recrea al arrancar, pero se pierde al
    reiniciar la Mac o cambiar de red.
 2. **El agente corre por launchd, no por Terminal** (es la única prueba que
-   refleja lo que ve el agente automático):
+   refleja lo que ve el agente automático). El pid sale de `launchctl`, así no se
+   confunde con otros proyectos:
    ```bash
-   launchctl list | grep com.mobos.print
-   ps -o command= -p "$(pgrep -f 'server.mjs' | head -1)"
+   PID=$(launchctl list | awk '/com.mobos.print/{print $1}'); echo "pid: $PID"; ps -o command= -p "$PID"
    ```
    Reiniciar el servicio después de cualquier cambio de configuración:
    ```bash
@@ -78,8 +89,9 @@ salud() { curl -s --max-time 3 http://127.0.0.1:17890/health -H "x-mobos-print-t
    launchctl load   ~/Library/LaunchAgents/com.mobos.print.plist
    ```
 3. **Permiso de Red local** (macOS 15+): Ajustes del Sistema → Privacidad y
-   seguridad → **Red local** → activar el binario de Node/agente. Sin esto,
-   `launchd` da `EHOSTUNREACH` aunque desde Terminal funcione.
+   seguridad → **Red local** → activar **node** (el binario que muestra el paso
+   2). El instalador abre el panel exacto al terminar. Sin esto, `launchd` da
+   `EHOSTUNREACH` aunque desde Terminal funcione.
 4. **Verificar en `/health`**: `red.alias.presente=true`, `red.tcp=true`,
    `red.transporte` (`directo`/`cups`/`usb`) y, después de imprimir,
    `red.ultimoTransporte`.
@@ -88,22 +100,28 @@ salud() { curl -s --max-time 3 http://127.0.0.1:17890/health -H "x-mobos-print-t
    **cortarse** (GS V 0). Si no corta, probar las 4 variantes de la prueba de
    corte antes de tocar código.
 
-## 2. Cola CUPS `MOBOS_LAN`
+## 2. Cola CUPS `MobOS_LAN`
 
 1. ¿Existe la cola?
    ```bash
-   lpstat -v | grep MOBOS_LAN
+   lpstat -v | grep -i -E 'mobos|192\.168\.1\.23'
    ```
    Si no existe (el instalador avisa «Sin permiso para crear la cola CUPS»):
    ```bash
-   sudo lpadmin -p MOBOS_LAN -E -v socket://192.168.1.23:9100 -m raw
+   sudo lpadmin -p MobOS_LAN -E -v socket://192.168.1.23:9100 -m raw
    ```
-   El `-m raw` es **obligatorio**: la app manda ESC/POS ya armado.
-2. **Verificar en `/health`**: `red.cups=true` y
-   `red.cupsUri=socket://192.168.1.23:9100`.
+   Si `lpadmin -m raw` da error en esta Mac (es el caso reportado), crear la cola
+   a mano: **Ajustes → Impresoras y escáneres → Agregar impresora → IP** →
+   Dirección `192.168.1.23`, Protocolo **HP Jetdirect – Socket**, Nombre
+   `MobOS_LAN`, Usar **Generic PostScript Printer** (el agente manda el ticket
+   con `lp -o raw`, así que el driver no filtra los bytes). El nombre es libre:
+   el agente usa `MobOS_LAN` si existe y, si no, cualquier cola `socket://` que
+   apunte a esa impresora.
+2. **Verificar en `/health`**: `red.cups="MobOS_LAN"`,
+   `red.cupsUri="socket://192.168.1.23:9100"` y `red.colaTipo="red"`.
 3. **Probar el respaldo**: con la impresora accesible solo por CUPS (por ejemplo,
    bloqueando el TCP directo del proceso), imprimir una prueba y confirmar
-   `red.transporte=cups`.
+   `red.transporte="cups"`.
 
 ## 3. USB directo con la ZKP8008 (#96)
 
