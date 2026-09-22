@@ -85,7 +85,7 @@ footer de versión, temas claro/oscuro por tokens CSS (`--c-*`).
 Pendientes detectados para lotes siguientes (fuera del Lote 1): `PanelVendedor`
 tiene la paleta “Ir a…” sin disparador y que duplica la búsqueda global;
 `Celulares`, `Comparador` y `TradeIn` (internas del dueño) conservan cabecera
-propia fuera del shell; `.mobos-topbar` en `index.css` no se usa.
+propia fuera del shell.
 
 > **Resuelto en #179:** `PanelDelivery` ya está ruteado (`/delivery/repartos` y
 > `/delivery/rendiciones`), su cuerpo no repite identidad y el repartidor cae en

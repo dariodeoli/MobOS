@@ -105,7 +105,6 @@ tbody tr:hover { background-color: rgba(21, 215, 184, .035); }
 }
 
 /* Sistema visual MobOS 1.1.0.1: topbar/footer respetan notch y controles táctiles. */
-.mobos-topbar { min-height: 3.75rem; padding-top: env(safe-area-inset-top); }
 .mobos-footer { padding-bottom: max(.75rem, env(safe-area-inset-bottom)); }
 
 /* El acceso mantiene su tamaño real: en pantallas bajas la página desplaza
