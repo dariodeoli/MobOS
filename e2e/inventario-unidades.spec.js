@@ -338,6 +338,26 @@ test('el modo taller agrupa por estado y verifica en serie', async ({ page }) =>
     }
     await page.screenshot({ path: 'docs/qa/240-taller/02-despues-rack.jpg', type: 'jpeg', quality: 70 })
 
+    // Estaciones: una sola a la vez.
+    await page.getByTestId('rack-estacion-por-verificar').click()
+    await expect(page.getByTestId('rack-columna-por-verificar')).toBeVisible()
+    await expect(page.getByTestId('rack-columna-listo')).toHaveCount(0)
+    await page.screenshot({ path: 'docs/qa/240-taller/04-rack-estacion.jpg', type: 'jpeg', quality: 70 })
+    await page.getByTestId('rack-estacion-todas').click()
+    await expect(page.getByTestId('rack-columna-listo')).toBeVisible()
+
+    // Filtros: búsqueda por IMEI (y ubicación) sobre el rack.
+    await page.getByLabel('Buscar en el taller').fill(datos.unidades[0].serial)
+    await expect(page.getByTestId('rack-equipo')).toHaveCount(1)
+    await page.screenshot({ path: 'docs/qa/240-taller/05-rack-busqueda.jpg', type: 'jpeg', quality: 70 })
+    await page.getByLabel('Buscar en el taller').fill('')
+    await page.getByLabel('Filtrar por ubicación').selectOption({ label: datos.locationName })
+    await expect(page.getByTestId('rack-equipo').filter({ hasText: datos.unidades[0].serial })).toBeVisible()
+    await page.getByLabel('Filtrar por ubicación').selectOption('')
+
+    // Impresión en serie: la selección y el carril completo.
+    await expect(page.getByTestId('rack-imprimir-por-verificar')).toBeEnabled()
+
     // Selección de las unidades nuevas y verificación en serie.
     for (const unidad of datos.unidades) await page.getByLabel(`Seleccionar ${unidad.serial}`).check()
     await expect(page.getByTestId('rack-seleccionados')).toHaveText('3 seleccionados')

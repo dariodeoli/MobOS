@@ -1066,6 +1066,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
       <div className="mt-4">
         <TallerRack
           unidades={disponibles}
+          ubicaciones={locations}
           busy={busy}
           onVerificar={(unit) => verify(unit)}
           onVerificarLote={verificarLote}

@@ -79,3 +79,27 @@ export function agruparRack(unidades = []) {
 export function sinVerificar(unidades = []) {
   return unidades.filter((unidad) => !verificada(unidad))
 }
+
+// Estaciones del rack: la vista completa o una sola estación (útil en móvil y
+// con lotes grandes). Los ids coinciden con los estados.
+export const ESTACIONES = [
+  { id: 'todas', label: 'Todas' },
+  { id: 'por-verificar', label: ETIQUETA_RACK['por-verificar'] },
+  { id: 'verificado', label: ETIQUETA_RACK.verificado },
+  { id: 'listo', label: ETIQUETA_RACK.listo },
+]
+
+export function normalizarBusqueda(valor) {
+  return String(valor || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+}
+
+/** Filtros del rack: búsqueda por IMEI/modelo y ubicación (vacío = todo). */
+export function filtrarRack(unidades = [], { busqueda = '', ubicacionId = '' } = {}) {
+  const termino = normalizarBusqueda(busqueda)
+  return unidades.filter((unidad) => {
+    if (ubicacionId && unidad.locationId !== ubicacionId) return false
+    if (!termino) return true
+    return [unidad.serial, unidad.product?.name, unidad.product?.nombre]
+      .some((valor) => normalizarBusqueda(valor).includes(termino))
+  })
+}

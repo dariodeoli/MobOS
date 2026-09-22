@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { agruparRack, bateriaDe, conCosto, estadoEnRack, gradoDe, sinVerificar, verificada } from './tallerRack.js'
+import { agruparRack, bateriaDe, conCosto, estadoEnRack, filtrarRack, gradoDe, normalizarBusqueda, sinVerificar, verificada } from './tallerRack.js'
 
 // #240 §4: estados del modo taller/rack.
 
@@ -49,4 +49,16 @@ test('agrupa y cuenta las unidades sin verificar', () => {
   assert.deepEqual(grupos.listo.map((u) => u.id), ['u2'])
   assert.deepEqual(grupos.verificado.map((u) => u.id), ['u3'])
   assert.deepEqual(sinVerificar(units).map((u) => u.id), ['u1'])
+})
+
+test('filtra por IMEI o modelo (sin acentos ni mayúsculas) y por ubicación', () => {
+  const units = [
+    { id: 'u1', serial: 'AUR123', product: { name: 'iPhone 15 Pro' }, locationId: 'loc-1' },
+    { id: 'u2', serial: 'SAM456', product: { name: 'Samsung S24' }, locationId: 'loc-2' },
+  ]
+  assert.deepEqual(filtrarRack(units, { busqueda: 'aur12' }).map((u) => u.id), ['u1'])
+  assert.deepEqual(filtrarRack(units, { busqueda: 'IPHONE' }).map((u) => u.id), ['u1'])
+  assert.deepEqual(filtrarRack(units, { ubicacionId: 'loc-2' }).map((u) => u.id), ['u2'])
+  assert.deepEqual(filtrarRack(units, { busqueda: 'samsung', ubicacionId: 'loc-1' }), [])
+  assert.equal(normalizarBusqueda('  iPhone 15  '), 'iphone 15')
 })

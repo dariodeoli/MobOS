@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Badge, Button, Card } from '@/components/ui'
+import { Badge, Button, Card, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
-import { CELDA_DATO } from '@/components/shared/tabla'
+import SearchField from '@/components/shared/SearchField'
+import { CELDA_DATO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
-import { agruparRack, bateriaDe, conCosto, estadoEnRack, ETIQUETA_RACK, gradoDe, ORDEN_RACK, TONO_RACK } from '@/lib/tallerRack'
+import { agruparRack, bateriaDe, conCosto, ESTACIONES, estadoEnRack, ETIQUETA_RACK, filtrarRack, gradoDe, ORDEN_RACK, TONO_RACK } from '@/lib/tallerRack'
 
 const COLOR_GRADO = { A: 'green', B: 'orange', C: 'slate' }
 
@@ -13,17 +14,19 @@ function nombreUnidad(unit) {
 
 function tileTonos(estado) {
   if (estado === 'listo') return 'border-ok/30 bg-ok/5'
-  if (estado === 'verificado') return 'border-sky-400/25 bg-sky-400/5'
+  if (estado === 'verificado') return 'border-info/25 bg-info/5'
   return 'border-warn/25 bg-warn/5'
 }
 
 // Modo taller/rack (#240 §4): varios equipos en preparación agrupados por
-// estado (por verificar → verificado → listo para vender) con acciones en serie
-// (verificar / imprimir etiquetas). Reutiliza la verificación y las etiquetas
-// del inventario; cuando INV aterrice la inspección (#240 §1-2), cada tile
-// muestra el grado y la batería sin cambiar esta pantalla.
+// estación (por verificar → verificado → listo para vender), con filtros
+// (búsqueda/ubicación), impresión en serie (selección o carril completo) y
+// acciones por unidad. Reutiliza la verificación y las etiquetas del
+// inventario; cuando INV aterrice la inspección (#240 §1-2), cada tile muestra
+// el grado y la batería sin cambiar esta pantalla.
 export default function TallerRack({
   unidades = [],
+  ubicaciones = [],
   busy = false,
   onVerificar,
   onVerificarLote,
@@ -31,9 +34,15 @@ export default function TallerRack({
   onEtiquetasLote,
 }) {
   const [seleccionados, setSeleccionados] = useState([])
-  const grupos = useMemo(() => agruparRack(unidades), [unidades])
+  const [estacion, setEstacion] = useState('todas')
+  const [busqueda, setBusqueda] = useState('')
+  const [ubicacionId, setUbicacionId] = useState('')
+
+  const filtradas = useMemo(() => filtrarRack(unidades, { busqueda, ubicacionId }), [unidades, busqueda, ubicacionId])
+  const grupos = useMemo(() => agruparRack(filtradas), [filtradas])
   const porId = useMemo(() => new Map(unidades.map((unit) => [unit.id, unit])), [unidades])
   const elegidas = seleccionados.map((id) => porId.get(id)).filter(Boolean)
+  const visibles = estacion === 'todas' ? ORDEN_RACK : [estacion]
 
   const alternar = (id) => setSeleccionados((actuales) => (
     actuales.includes(id) ? actuales.filter((x) => x !== id) : [...actuales, id]
@@ -45,6 +54,7 @@ export default function TallerRack({
       return todos ? actuales.filter((id) => !ids.includes(id)) : [...new Set([...actuales, ...ids])]
     })
   }
+  const conteo = (id) => (id === 'todas' ? filtradas.length : grupos[id].length)
 
   return (
     <Card className="p-4 md:p-5" data-testid="rack-taller">
@@ -52,7 +62,7 @@ export default function TallerRack({
         <div className="min-w-0">
           <h2 className="font-semibold">Modo taller</h2>
           <p className="mt-1 text-xs text-mute">
-            Los equipos en preparación, de «por verificar» a «listo para vender». Seleccioná varios para actuar en serie.
+            Los equipos en preparación, de «por verificar» a «listo para vender». Elegí una estación, filtrá y actuá en serie.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -75,11 +85,62 @@ export default function TallerRack({
           >
             <Icon name="printer" className="h-4 w-4" /> Imprimir etiquetas
           </Button>
+          {elegidas.length > 0 && (
+            <button
+              type="button"
+              className="text-xs font-semibold text-mute hover:underline"
+              onClick={() => setSeleccionados([])}
+            >
+              Limpiar
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        {ORDEN_RACK.map((estado) => {
+      {/* Estaciones del flujo (con conteos): Todas o una sola. */}
+      <div className="mt-4 flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1" role="tablist" aria-label="Estaciones del taller">
+        {ESTACIONES.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={estacion === id}
+            data-testid={`rack-estacion-${id}`}
+            onClick={() => setEstacion(id)}
+            className={cn(
+              'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition',
+              estacion === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore',
+            )}
+          >
+            {label}
+            <span className="tabular-nums text-[10px] text-mute">{conteo(id)}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <SearchField
+          value={busqueda}
+          onChange={(event) => setBusqueda(event.target.value)}
+          placeholder="Buscar IMEI o modelo en el taller"
+          ariaLabel="Buscar en el taller"
+          className="min-w-0 flex-1"
+        />
+        <Select
+          aria-label="Filtrar por ubicación"
+          className="w-auto"
+          value={ubicacionId}
+          onChange={(event) => setUbicacionId(event.target.value)}
+        >
+          <option value="">Todas las ubicaciones</option>
+          {ubicaciones.map((ubicacion) => (
+            <option key={ubicacion.id} value={ubicacion.id}>{ubicacion.name}</option>
+          ))}
+        </Select>
+      </div>
+
+      <div className={cn('mt-4 grid gap-3', visibles.length > 1 ? 'lg:grid-cols-3' : '')}>
+        {visibles.map((estado) => {
           const lista = grupos[estado]
           const todos = lista.length > 0 && lista.every((unit) => seleccionados.includes(unit.id))
           return (
@@ -94,14 +155,26 @@ export default function TallerRack({
                   <span className="text-xs tabular-nums text-mute">{lista.length}</span>
                 </span>
                 {lista.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => alternarColumna(estado)}
-                    className="text-[11px] font-semibold text-fono-light hover:underline"
-                    data-testid={`rack-seleccionar-${estado}`}
-                  >
-                    {todos ? 'Quitar todos' : 'Seleccionar todos'}
-                  </button>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => alternarColumna(estado)}
+                      className="text-[11px] font-semibold text-fono-light hover:underline"
+                      data-testid={`rack-seleccionar-${estado}`}
+                    >
+                      {todos ? 'Quitar todos' : 'Seleccionar todos'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => onEtiquetasLote?.(lista)}
+                      className="text-[11px] font-semibold text-fono-light hover:underline disabled:opacity-50"
+                      title={`Imprimir las etiquetas de los ${lista.length} equipos de esta estación`}
+                      data-testid={`rack-imprimir-${estado}`}
+                    >
+                      Imprimir ({lista.length})
+                    </button>
+                  </span>
                 )}
               </header>
               <div className="mt-3 space-y-2">
@@ -125,7 +198,7 @@ export default function TallerRack({
                           aria-label={`Seleccionar ${unit.serial}`}
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold" title={nombreUnidad(unit)}>{nombreUnidad(unit)}</p>
+                          <p className={CELDA_IDENTIDAD} title={nombreUnidad(unit)}>{nombreUnidad(unit)}</p>
                           <p className="mt-0.5 truncate font-mono text-[11px] text-fono-light" title={unit.serial}>{unit.serial}</p>
                           <p className="mt-1 flex flex-wrap items-center gap-1.5">
                             {grado && <Badge color={COLOR_GRADO[grado]}>Grado {grado}</Badge>}
@@ -150,7 +223,7 @@ export default function TallerRack({
                 })}
                 {!lista.length && (
                   <p className="rounded-xl border border-dashed border-ink-600 p-3 text-center text-[11px] text-mute">
-                    Sin equipos acá.
+                    {busqueda || ubicacionId ? 'Nada coincide con el filtro.' : 'Sin equipos acá.'}
                   </p>
                 )}
               </div>
