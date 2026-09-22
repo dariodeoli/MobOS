@@ -1,0 +1,42 @@
+{
+  "base": "http://127.0.0.1:5283",
+  "fecha": "2026-09-22T14:16:40.669Z",
+  "pasos": [
+    {
+      "documento": "informe-80mm",
+      "archivo": "informe-80mm.pdf",
+      "formato": "thermal-80",
+      "paginas": 3
+    },
+    {
+      "documento": "informe-a4",
+      "archivo": "informe-a4.pdf",
+      "formato": "a4",
+      "paginas": 3
+    },
+    {
+      "documento": "informe-80mm-escpos",
+      "archivo": "informe-80mm-escpos.pdf",
+      "formato": "ESC/POS 80 mm",
+      "paginas": 1
+    },
+    {
+      "documento": "certificado-80mm",
+      "archivo": "certificado-80mm.pdf",
+      "formato": "thermal-80",
+      "paginas": 3
+    },
+    {
+      "documento": "certificado-a4",
+      "archivo": "certificado-a4.pdf",
+      "formato": "a4",
+      "paginas": 3
+    },
+    {
+      "documento": "qr-enlace",
+      "archivo": "qr-enlace.png",
+      "formato": "QR",
+      "enlace": "https://app.moboss.online/u/351500000000004"
+    }
+  ]
+}
