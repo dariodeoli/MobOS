@@ -1,6 +1,8 @@
 import { Badge, BarraProgreso, Card } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { cn } from '@/lib/utils'
 import { temaV2Activo } from '@/lib/temaV2'
 import { SECCIONES_INSPECCION } from '@/lib/inspeccionChecklist'
 
