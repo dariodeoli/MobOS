@@ -2,6 +2,7 @@ import { api } from './api/client'
 import { isDemoRuntime } from './demoMode'
 import { errorDeMoneda } from './paymentAccountsReglas.js'
 import { leerDemo, guardarDemo } from './demoStorage.js'
+import { CUENTAS_DEMO } from './demoCuentasCobro.js'
 
 const ENDPOINT = '/api/payment-accounts'
 const DEMO_KEY = 'mobos:demo-payment-accounts:v1'
@@ -10,17 +11,9 @@ const KINDS = ['CASH', 'TRANSFER', 'CARD', 'TRADE_IN', 'PIX', 'CRYPTO']
 export const KIND_LABELS = { CASH: 'Efectivo', TRANSFER: 'Transferencia', CARD: 'Tarjeta', PIX: 'Pix', CRYPTO: 'USDT - Cripto', TRADE_IN: 'Canje' }
 const CAMPOS_TEXTO = ['name', 'bank', 'holder', 'accountNumber', 'document', 'processor', 'pixKey', 'reference', 'currencyLabel', 'holderId', 'companyId']
 const defaults = { name: '', bank: '', holder: '', accountNumber: '', document: '', processor: '', pixKey: '', reference: '', currencyLabel: '', holderId: '', companyId: '', currency: 'PYG', kind: 'CASH', isActive: true, feePercent: 0, discountPct: 0, settlementDays: 0 }
-const seed = [
-  { ...defaults, id: 'demo-cash-pyg', name: 'Caja · Guaraníes', reference: 'Caja chica mostrador' },
-  { ...defaults, id: 'demo-cash-usd', name: 'Caja · Dólares', currency: 'USD', reference: 'Caja chica dólares' },
-  { ...defaults, id: 'demo-transfer-itau', name: 'Banco Itaú · Comercio demo', kind: 'TRANSFER', bank: 'Itaú', holder: 'Aurora Móviles', accountNumber: 'DEMO-0001' },
-  { ...defaults, id: 'demo-transfer-continental', name: 'Banco Continental · Comercio demo', kind: 'TRANSFER', bank: 'Continental', holder: 'Aurora Móviles', accountNumber: 'DEMO-0002' },
-  { ...defaults, id: 'demo-card-ueno', name: 'ueno · Tarjeta demo', kind: 'CARD', bank: 'ueno', processor: 'UPay', holder: 'Aurora Móviles' },
-  { ...defaults, id: 'demo-card-dinelco', name: 'Dinelco · Tarjeta demo', kind: 'CARD', processor: 'Dinelco', holder: 'Aurora Móviles' },
-  { ...defaults, id: 'demo-pix', name: 'Pix - Comercio demo', kind: 'PIX', currency: 'BRL', pixKey: 'pix@demo.mobos', holder: 'Aurora Móviles' },
-  { ...defaults, id: 'demo-crypto', name: 'USDT - Comercio demo', kind: 'CRYPTO', currency: 'USD', reference: 'Tron TRC20 ', holder: 'Aurora Móviles' },
-  { ...defaults, id: 'demo-trade-in', name: 'Canje demo', kind: 'TRADE_IN' },
-]
+// Medios de cobro ficticios de la demo (#190): sistema nuevo completo, con
+// datos verosímiles (ver `demoCuentasCobro.js`).
+const seed = CUENTAS_DEMO.map((cuenta) => ({ ...defaults, ...cuenta }))
 
 function validate(data, partial = false) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Datos de cuenta inválidos.')

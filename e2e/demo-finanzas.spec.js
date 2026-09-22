@@ -58,6 +58,37 @@ test.describe('demo de Finanzas', () => {
     expect(conSeguro).not.toBe(sinSeguro)
   })
 
+  test('los medios del sistema nuevo se ven completos y sin la palabra demo (#190)', async ({ page }) => {
+    await entrarDemo(page)
+
+    // Cuentas de cobro: todos los medios nuevos con datos verosímiles.
+    await page.goto('/finanzas/bancos')
+    const filas = page.getByTestId('cuenta-fila')
+    for (const nombre of ['Caja · Guaraníes', 'Itaú · Cuenta corriente', 'ueno · Tarjeta', 'Pix · Itaú', 'USDT · Binance', 'Canje · Equipos']) {
+      await expect(filas.filter({ hasText: nombre })).toHaveCount(1)
+    }
+    for (const texto of await filas.allInnerTexts()) {
+      expect(texto, `la cuenta muestra «demo»: ${texto}`).not.toMatch(/demo/i)
+    }
+
+    // Caja: turno propio con nombre real y el efectivo del día auditado.
+    await page.goto('/finanzas/caja')
+    await expect(page.getByText('Abierta', { exact: true })).toBeVisible()
+    await expect(page.getByText(/Turno de (Vos|Hernán Acosta)/)).toBeVisible()
+    await expect(page.getByText('demo-user')).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Auditoría de efectivo' })).toBeVisible()
+
+    // Conciliación: los cobros del sistema nuevo entran con su medio y el lote
+    // con su cuenta, y el número de pedido usa el prefijo de la empresa.
+    await page.goto('/finanzas/conciliacion')
+    const medio = page.getByLabel('Medio')
+    await expect(medio.locator('option', { hasText: 'Pix' }).first()).toHaveCount(1)
+    await expect(medio.locator('option', { hasText: 'USDT - Cripto' }).first()).toHaveCount(1)
+    await expect(medio.locator('option', { hasText: 'Canje' }).first()).toHaveCount(1)
+    await expect(page.getByTestId('conciliacion-lote').first()).toContainText('Itaú · Cuenta corriente')
+    await expect(page.getByTestId('conciliacion-fila').first().getByText(/AUR-\d{4}/)).toBeVisible()
+  })
+
   test('la conciliación funciona en la demo con datos ficticios', async ({ page }) => {
     await entrarDemo(page)
     await page.goto('/finanzas/conciliacion')

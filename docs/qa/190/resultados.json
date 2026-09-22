@@ -1,0 +1,17 @@
+{
+  "web": "http://localhost:5215",
+  "resultados": [
+    {
+      "nombre": "Cuentas de cobro: medios del sistema nuevo, sin «demo» en los datos",
+      "ok": true
+    },
+    {
+      "nombre": "Caja: turno con nombre real y auditoría del día",
+      "ok": true
+    },
+    {
+      "nombre": "Conciliación: medios nuevos, lote con su cuenta y número de la empresa",
+      "ok": true
+    }
+  ]
+}

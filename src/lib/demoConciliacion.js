@@ -1,5 +1,6 @@
 import { paymentMethodLabel } from './constants.js'
 import { leerDemo, guardarDemo } from './demoStorage.js'
+import { getDemoTenant } from './demoTenant.js'
 
 // Conciliación ficticia de la demo (#194): arma el mismo contrato que
 // `GET /api/finance/reconciliation` a partir de los cobros de las ventas demo y
@@ -9,17 +10,25 @@ import { leerDemo, guardarDemo } from './demoStorage.js'
 const KEY = 'mobos:demo-conciliacion:v1'
 
 // Medio legacy de las ventas demo → código del medio como lo usa el reporte.
+// Las claves van en mayúsculas: el llamador normaliza el medio a mayúsculas.
 const METODOS_DE_MEDIO = {
   DINERO: 'CASH',
+  'DINERO USD': 'CASH',
   'UENO BANK': 'TRANSFER',
+  TRANSFERENCIA: 'TRANSFER',
   'POS UENO': 'CARD',
+  TARJETA: 'CARD',
+  PIX: 'PIX',
   'PIK ITAÚ': 'PIX',
+  'USDT - CRIPTO': 'CRYPTO',
+  USDT: 'CRYPTO',
+  CANJE: 'TRADE_IN',
   DINELCO: 'CARD',
   CONTINENTAL: 'TRANSFER',
   FAMILIAR: 'TRANSFER',
 }
 // Procesadora para los cobros con tarjeta que no traen una cuenta con procesadora.
-const PROCESADORAS_DE_MEDIO = { 'POS UENO': 'UPay', DINELCO: 'Dinelco', 'PIK ITAÚ': 'Pix' }
+const PROCESADORAS_DE_MEDIO = { 'POS UENO': 'UPay', TARJETA: 'UPay', DINELCO: 'Dinelco', 'PIK ITAÚ': 'Pix' }
 
 /** Código del medio (CASH, TRANSFER…) a partir del medio legacy de la demo. */
 export function metodoDeMedio(medioLegacy) {
@@ -38,7 +47,7 @@ function leerEstado() {
   return {
     lotes: [{
       id: 'demo-lote-1', createdAt: hace(2), from: hace(2), to: hace(2),
-      accountId: 'demo-transfer-itau', cuenta: 'Banco Itaú · Comercio demo', procesadora: '',
+      accountId: 'demo-transfer-itau', cuenta: 'Itaú · Cuenta corriente', procesadora: '',
       expectedPyg: 3600000, receivedPyg: 3550000, differencePyg: -50000,
       state: 'VERIFIED', estado: 'DIFFERENCE',
       note: 'Diferencia: comisión bancaria de la transferencia.', creadoPor: 'Hernán Acosta', pagos: 1,
@@ -123,8 +132,9 @@ export function construirDemoConciliacion({ ventas = [], cuentas = [], desde = '
   }
   const cuentaPorNombre = new Map((cuentas || []).map((cuenta) => [String(cuenta?.name || '').toLowerCase(), cuenta]))
   const numeroDeVenta = new Map()
+  const prefijo = getDemoTenant().orderPrefix || 'AUR'
   let siguiente = 1
-  for (const venta of ventas) numeroDeVenta.set(venta.id, `DEMO-${String(siguiente++).padStart(4, '0')}`)
+  for (const venta of ventas) numeroDeVenta.set(venta.id, `${prefijo}-${String(siguiente++).padStart(4, '0')}`)
 
   const items = []
   for (const venta of ventas) {

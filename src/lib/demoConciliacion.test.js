@@ -26,6 +26,27 @@ const ventas = [
   { id: 'demo-venta-ayer', fecha: clave(AYER), creadoEn: fechaAyer(16), cliente: 'Lucía Franco', pagos: [{ id: 'pago-4', medioPago: 'POS UENO', cuenta: 'Tarjeta demo', monto: 200000, fecha: fechaAyer(16) }] },
 ]
 
+test('la conciliación demo reconoce los medios del sistema nuevo (#190)', () => {
+  const ventasNuevas = [
+    { id: 'demo-venta-pix', fecha: clave(HOY), creadoEn: fechaHoy(9), cliente: 'Ana Villalba', pagos: [{ id: 'pago-pix', medioPago: 'PIX', cuenta: 'Pix ficticio', monto: 1000000, fecha: fechaHoy(9) }] },
+    { id: 'demo-venta-usdt', fecha: clave(HOY), creadoEn: fechaHoy(9), cliente: 'Ramiro Cáceres', pagos: [{ id: 'pago-usdt', medioPago: 'USDT - Cripto', cuenta: '', monto: 500000, fecha: fechaHoy(9) }] },
+    { id: 'demo-venta-canje', fecha: clave(HOY), creadoEn: fechaHoy(9), cliente: 'Gloria Martínez', pagos: [{ id: 'pago-canje', medioPago: 'CANJE', cuenta: '', monto: 300000, fecha: fechaHoy(9) }] },
+    { id: 'demo-venta-tarjeta', fecha: clave(HOY), creadoEn: fechaHoy(9), cliente: 'Juan Pereira', pagos: [{ id: 'pago-tarjeta', medioPago: 'TARJETA', cuenta: '', monto: 200000, fecha: fechaHoy(9) }] },
+    { id: 'demo-venta-transfer', fecha: clave(HOY), creadoEn: fechaHoy(9), cliente: 'Estela Ramírez', pagos: [{ id: 'pago-transfer', medioPago: 'TRANSFERENCIA', cuenta: '', monto: 400000, fecha: fechaHoy(9) }] },
+  ]
+  const data = construirDemoConciliacion({ ventas: ventasNuevas, cuentas, desde: '2000-01-01', hasta: '2100-01-01' })
+  const metodos = Object.fromEntries(data.items.map((item) => [item.id, item.method]))
+  assert.deepEqual(metodos, {
+    'pago-pix': 'PIX',
+    'pago-usdt': 'CRYPTO',
+    'pago-canje': 'TRADE_IN',
+    'pago-tarjeta': 'CARD',
+    'pago-transfer': 'TRANSFER',
+  })
+  assert.equal(data.items.filter((item) => item.method === 'CASH').length, 0, 'ningún medio nuevo cae en efectivo')
+  assert.equal(data.porMedio.find((fila) => fila.key === 'CRYPTO').label, 'USDT - Cripto')
+})
+
 test('la conciliación demo agrupa cobros, cuentas y procesadoras', () => {
   const data = construirDemoConciliacion({ ventas, cuentas, desde: '2000-01-01', hasta: '2100-01-01' })
   assert.equal(data.items.length, 4)
@@ -34,7 +55,7 @@ test('la conciliación demo agrupa cobros, cuentas y procesadoras', () => {
   assert.equal(data.resumen.verifiedCount, 0)
   // #213: la demo arranca con un lote conciliado con diferencia (comisión bancaria).
   assert.equal(data.resumen.lotes, 1)
-  assert.equal(data.items[0].orderNumber, 'DEMO-0001')
+  assert.equal(data.items[0].orderNumber, 'AUR-0001')
   assert.equal(data.items[0].metodo, 'Efectivo')
 
   const efectivo = data.porMedio.find((fila) => fila.key === 'CASH')

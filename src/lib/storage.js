@@ -490,7 +490,7 @@ export function updateProducto(id, cambios) {
 export function getVendedores() {
   if (!isDemoRuntime && cache.vendedores.length === 0) {
     cache.vendedores = isDemoRuntime
-      ? [{ id: 'demo-user', nombre: 'Usuario demo', activo: true, metaDiaria: 1000000 }]
+      ? [{ id: 'demo-user', nombre: 'Hernán Acosta', activo: true, metaDiaria: 1000000 }]
       : clone(VENDEDORES_DEFAULT)
     persistMirror()
   }
@@ -652,7 +652,7 @@ export function prepararDatosDemo() {
         {
           id: 'demo-pago-hoy-partial-b',
           medioPago: 'UENO BANK',
-          cuenta: 'Caja demo',
+          cuenta: 'Caja · Guaraníes',
           monto: 30000,
           fecha: `${fecha(0)}T11:21:00`,
         },
@@ -697,17 +697,17 @@ export function prepararDatosDemo() {
     'Distribuidora del Este S.A.': 'demo-cliente-distribuidora', 'Carlos Ramírez': 'demo-cliente-carlos',
   }
   const PAGOS_EXTRA = [
-    ['María González', 'demo-iphone-15-pro-max-256-titanio', 7250000, 'Retiro en tienda', 0, [['DINERO', '', 4000000], ['TRANSFERENCIA', 'Banco Itaú', 3250000]], 0],
-    ['Juan Pereira', 'demo-iphone-15-128-azul', 4850000, 'Delivery', 30000, [['DINERO', '', 2000000], ['TARJETA', 'ueno · Tarjeta demo', 2880000]], 1],
-    ['Ana Villalba', 'demo-iphone-14-256-azul', 3950000, 'Retiro en tienda', 0, [['PIX', 'Pix - Comercio demo', 3950000]], 1],
-    ['Ramiro Cáceres', 'demo-iphone-13-pro-max-256-grafito', 4450000, 'Retiro en tienda', 0, [['USDT - Cripto', 'USDT - Comercio demo', 2225000], ['DINERO USD', 'Caja · Dólares', 2225000]], 2],
-    ['Estela Ramírez', 'demo-iphone-15-256-rosa', 5400000, 'Delivery', 30000, [['DINERO', '', 2000000], ['TRANSFERENCIA', 'Banco Continental', 3430000]], 2],
-    ['Distribuidora Luque S.A. ', 'demo-iphone-14-128-medianoche', 3600000, 'Retiro en tienda', 0, [['TRANSFERENCIA', 'Banco Itaú', 3600000]], 3],
-    ['Gloria Martínez', 'demo-iphone-13-128-blanco', 3050000, 'Retiro en tienda', 0, [['CANJE', 'Canje demo', 1850000], ['DINERO', '', 1200000]], 3],
-    ['Fernando Ortellado', 'demo-iphone-15-pro-256-negro', 6750000, 'Delivery', 30000, [['DINERO', '', 3000000], ['POS UENO', 'ueno · Tarjeta demo', 3780000]], 4],
+    ['María González', 'demo-iphone-15-pro-max-256-titanio', 7250000, 'Retiro en tienda', 0, [['DINERO', '', 4000000], ['TRANSFERENCIA', 'Itaú · Cuenta corriente', 3250000]], 0],
+    ['Juan Pereira', 'demo-iphone-15-128-azul', 4850000, 'Delivery', 30000, [['DINERO', '', 2000000], ['TARJETA', 'ueno · Tarjeta', 2880000]], 1],
+    ['Ana Villalba', 'demo-iphone-14-256-azul', 3950000, 'Retiro en tienda', 0, [['PIX', 'Pix · Itaú', 3950000]], 1],
+    ['Ramiro Cáceres', 'demo-iphone-13-pro-max-256-grafito', 4450000, 'Retiro en tienda', 0, [['USDT - Cripto', 'USDT · Binance', 2225000], ['DINERO USD', 'Caja · Dólares', 2225000]], 2],
+    ['Estela Ramírez', 'demo-iphone-15-256-rosa', 5400000, 'Delivery', 30000, [['DINERO', '', 2000000], ['TRANSFERENCIA', 'Continental · Cuenta corriente', 3430000]], 2],
+    ['Distribuidora Luque S.A. ', 'demo-iphone-14-128-medianoche', 3600000, 'Retiro en tienda', 0, [['TRANSFERENCIA', 'Itaú · Cuenta corriente', 3600000]], 3],
+    ['Gloria Martínez', 'demo-iphone-13-128-blanco', 3050000, 'Retiro en tienda', 0, [['CANJE', 'Canje · Equipos', 1850000], ['DINERO', '', 1200000]], 3],
+    ['Fernando Ortellado', 'demo-iphone-15-pro-256-negro', 6750000, 'Delivery', 30000, [['DINERO', '', 3000000], ['POS UENO', 'ueno · Tarjeta', 3780000]], 4],
     ['Hugo Benítez', 'demo-iphone-12-128-verde', 2350000, 'Retiro en tienda', 0, [], 5],
     ['María González', 'demo-airpods-pro-2-usbc', 1850000, 'Retiro en tienda', 0, [['DINERO', '', 1850000]], 6],
-    ['Juan Pereira', 'demo-cargador-usbc-20w', 220000, 'Retiro en tienda', 0, [['DINERO', '', 100000], ['PIX', 'Pix - Comercio demo', 120000]], 7],
+    ['Juan Pereira', 'demo-cargador-usbc-20w', 220000, 'Retiro en tienda', 0, [['DINERO', '', 100000], ['PIX', 'Pix · Itaú', 120000]], 7],
     ['Ana Villalba', 'demo-funda-magsafe-transparente', 180000, 'Delivery', 20000, [['DINERO USD', 'Caja · Dólares', 200000]], 8],
   ]
   const vendedoresDemo = ['demo-user', 'demo-user-vendedor', 'demo-user-vendedora']
