@@ -5,7 +5,8 @@ import Icon from '@/components/shared/Icon'
 import SerialField from '@/components/shared/SerialField'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from '@/lib/demoMode'
-import { normalizarModelo, valorSugerido } from '@/utils/tradeInCheckout'
+import { getProductos } from '@/lib/storage'
+import { normalizarModelo, valorSugerido, valorSugeridoDeCatalogo } from '@/utils/tradeInCheckout'
 import { GRADOS_TOMA, HALLAZGOS_TOMA, gradoSugerido, valuarToma } from '@/lib/tradeInValuation'
 import { SellerSection } from './SellerData'
 import SellerPromotions from './SellerPromotions'
@@ -36,7 +37,14 @@ export default function SellerTools({ vista, onCargarVenta }) {
   // El valor sugerido se consulta con retraso mientras se escribe: es una
   // referencia para el vendedor, nunca un dato que bloquee la carga.
   useEffect(() => {
-    if (isDemoRuntime || normalizarModelo(model).length < 2) {
+    if (isDemoRuntime) {
+      // Demo (#240): la base sale del catálogo ficticio, sin tocar el API.
+      const base = valorSugeridoDeCatalogo(getProductos(), model, condition)
+      setSugerencia(base)
+      setSugerenciaEstado(base ? 'listo' : normalizarModelo(model).length < 2 ? 'idle' : 'sin')
+      return
+    }
+    if (normalizarModelo(model).length < 2) {
       setSugerencia(null)
       setSugerenciaEstado('idle')
       return

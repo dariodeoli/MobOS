@@ -47,9 +47,42 @@ La valuación consume la unidad cuando venga de inventario:
 | `03-continuar-en-pos.png` | «Usar» lleva el valor valuado al acuerdo y el canje continúa en el POS con el resumen de la inspección en las notas |
 | `04-grado-sugerido.png` | El grado se sugiere solo: con botones (hallazgo menor) queda **B (−4%)** y sin hallazgos vuelve a **A** (base) |
 
+## Paridad demo y verificación en la demo pública
+
+La valuación no se podía ver en la demo: sin tabla de valores en el servidor no
+había base. Se completó con una **base derivada del catálogo ficticio**
+(`valorSugeridoDeCatalogo`: precio de venta del modelo más parecido × factor por
+condición — nuevo 62%, seminuevo 50%, reacondicionado 42%, redondeado a Gs
+10.000), sin tocar el API. Tests en `tradeInCheckout.test.js` (incluye el
+redondeo y el caso sin coincidencia).
+
+`scripts/qa-240-valuacion-demo.mjs` (reusable harness/producción) corre en la
+demo pública sin sesión: **5/5 pasos** con capturas en
+`docs/QA-240-7-valuacion-grado-demo/`:
+
+| Paso | Resultado |
+|---|---|
+| Base del catálogo demo sin consultar el API de valores | **Gs 1.530.000** (iPhone 13 128GB · seminuevo) |
+| Hallazgos (pantalla −18% + botones −5%) + **grado sugerido C (−12%)** | **−35% → Gs 994.500**, con el detalle de cada descuento (`−18% · −Gs 275.400`, `−5% · −Gs 76.500`, `−12% · −Gs 183.600`) |
+| Grado sugerido según hallazgos | un hallazgo mayor → **Gs 1.071.000** (−30%); sin hallazgos → vuelve a la base |
+| «Usar» lleva el valor al acuerdo | acordado **Gs 1.071.000** |
+
+### Post-deploy .142 (pendiente de que salga)
+
+Al cierre de esta entrega producción y `main` seguían en **v1.0.141** (sondeo
+13:52–13:57 UTC) y el ítem viaja en la rama. Cuando el release impacte:
+
+```bash
+node scripts/qa-240-valuacion-demo.mjs        # https://app.moboss.online/demo
+```
+
+Deja capturas + `resultados.json` (versión desplegada, valores por paso y
+llamadas de red) y sale 1 si algo falla o si la demo consulta el API.
+
 ## Verificación
 
-- `node --test src/lib/tradeInValuation.test.js` **5 ✓** · `npm test` ✓ ·
+- `node --test src/lib/tradeInValuation.test.js` **5 ✓** ·
+  `node --test src/utils/tradeInCheckout.test.js` **6 ✓** · `npm test` ✓ ·
   backend `test:unit` ✓ · lint 0 · builds FE/BE con `BUILD_ID` ·
   `prisma:validate` ✓ · sin marcadores (sin cambios de schema).
 - e2e `e2e/qa-240-valuacion.spec.js` (cuenta real del harness, sesión del
