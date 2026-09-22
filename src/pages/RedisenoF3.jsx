@@ -1,6 +1,8 @@
 import { Badge, BarraProgreso, Card } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { cn } from '@/lib/utils'
 import { SECCIONES_INSPECCION } from '@/lib/inspeccionChecklist'
 
 // Mock de F3 (#241): cómo se vería el shell y el tablero operativo con los
@@ -69,7 +71,7 @@ export default function RedisenoF3() {
         </Card>
 
         {/* Tiles de equipo con chips */}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={cn(GRILLA_DOS_COLUMNAS, 'lg:grid-cols-3')}>
           {EQUIPOS.map((equipo) => (
             <article key={equipo.serial} className="rounded-2xl border border-ink-600 bg-ink-900 p-4">
               <div className="flex items-start justify-between gap-3">
