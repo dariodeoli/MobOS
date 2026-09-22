@@ -788,7 +788,7 @@ export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } 
     ${fila('Repuestos no OEM', inspeccion.repuestosNoOem)}
     ${itemsHtml}
     ${!itemsChecklist.length && !inspeccion.verificador && !inspeccion.grado ? '<p class="muted">Sin verificación física registrada.</p>' : ''}`
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de dispositivo ${escapeHtml(datos.serial || '')}</title><style>${styles(format)}
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de dispositivo ${escapeHtml(datos.imei || datos.identificador || '')}</title><style>${styles(format)}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
     .fila-informe>span:first-child{color:#66707a}
     .campos-informe{margin-top:6px;border-top:1px dashed #d5dbe0;padding-top:6px}
@@ -854,6 +854,13 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
     datos.bateria?.ciclos ? `${datos.bateria.ciclos} ciclos` : '',
   ].filter(Boolean).join(' · ')
   const items = (datos.items || []).filter((item) => item.estado)
+  // En A4 el checklist va en dos columnas: con los 23 ítems de la UI de DSN
+  // igual entra en una página.
+  const tablaItems = (lista) => `<table class="checklist"><thead><tr><th>Ítem</th><th>Estado</th><th>Nota</th></tr></thead><tbody>${lista.map((item) => `<tr><td>${escapeHtml(item.label || item.clave || '')}</td><td class="${['ok', 'na'].includes(String(item.estado)) ? 'ok' : 'no-ok'}">${escapeHtml(estadoChecklist(item.estado))}</td><td>${escapeHtml(item.nota || '')}</td></tr>`).join('')}</tbody></table>`
+  const mitadItems = Math.ceil(items.length / 2)
+  const tablaChecklist = format === 'a4' && items.length > 6
+    ? `<div class="checklist-dos">${tablaItems(items.slice(0, mitadItems))}${tablaItems(items.slice(mitadItems))}</div>`
+    : tablaItems(items)
   const controles = (datos.controles || []).map((control) => `<span class="control ${control.estado === 'sin-dato' ? 'sin-dato' : control.ok ? 'ok' : 'no-ok'}">${escapeHtml(control.label)} · ${control.estado === 'sin-dato' ? 'Sin dato' : control.ok ? 'OK' : 'FALLA'}${control.valor ? ` · ${escapeHtml(control.valor)}` : ''}</span>`).join(' ')
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(datos.titulo || 'Certificado de inspección')} ${escapeHtml(datos.serialEnmascarado || '')}</title><style>${styles(format)}
     .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
@@ -865,6 +872,7 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
     .control.no-ok{border-color:#a33;color:#a33}
     .control.sin-dato{border-color:#9aa4ad;color:#66707a}
     .checklist{margin:4px 0 0}
+    .checklist-dos{display:flex;gap:12px}.checklist-dos table{flex:1 1 0;min-width:0}
     .checklist td,.checklist th{border-bottom:1px dashed #d5dbe0;padding:2px 4px 2px 0;text-align:left;font-size:9px}
     .checklist th{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#66707a}
     .checklist td:first-child{width:44%}
@@ -881,8 +889,8 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
   </style></head><body>
     ${header(datos.titulo || 'Certificado de inspección', `${datos.sucursal || ''}${datos.sucursal ? ' · ' : ''}Emitido ${datos.fechaEmision || ''}`, logo)}
     <div class="nofiscal">Constancia de inspección · documento informativo</div>
-    <div class="card grado"><div class="letra">${escapeHtml(datos.grado || 'P')}</div>
-      <div class="detalle">${datos.puntaje === null || datos.puntaje === undefined ? 'Pendiente de inspección' : `Puntaje ${escapeHtml(String(datos.puntaje))}/100 · ${escapeHtml(String(datos.ok))}/${escapeHtml(String(datos.evaluados))} conformes`}</div></div>
+    <div class="card grado"><div class="label">Grado</div><div class="letra">${escapeHtml(datos.grado || 'P')}</div>
+      <div class="detalle">${datos.completa ? `Puntaje ${escapeHtml(String(datos.puntaje))}/100 · ${escapeHtml(String(datos.ok))}/${escapeHtml(String(datos.evaluados))} conformes` : 'Pendiente de inspección'}</div></div>
     <div class="card"><div class="label">Equipo</div><div><strong>${escapeHtml(datos.modelo || datos.producto || 'Producto')}</strong>
       ${fila('Serial', datos.serialImpreso || datos.serialEnmascarado)}
       ${fila('Condición', datos.condicion)}
@@ -893,7 +901,7 @@ export async function buildCertificadoHtml(datos = {}, { format = 'a4' } = {}) {
     </div></div>
     ${datos.enlace || controles ? `<div class="card"><div class="label">Controles</div>${controles || '<p class="muted">Sin verificación IMEI registrada.</p>'}</div>` : ''}
     <div class="card"><div class="label">Checklist</div>
-      ${items.length ? `<table class="checklist"><thead><tr><th>Ítem</th><th>Estado</th><th>Nota</th></tr></thead><tbody>${items.map((item) => `<tr><td>${escapeHtml(item.label || item.clave || '')}</td><td class="${['ok', 'na'].includes(String(item.estado)) ? 'ok' : 'no-ok'}">${escapeHtml(estadoChecklist(item.estado))}</td><td>${escapeHtml(item.nota || '')}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">Pendiente de inspección.</p>'}
+      ${items.length ? tablaChecklist : '<p class="muted">Pendiente de inspección.</p>'}
       ${datos.nota ? `<p class="muted">Nota: ${escapeHtml(datos.nota)}</p>` : ''}
       <p class="small">${escapeHtml(datos.aviso || '')}</p>
     </div>
