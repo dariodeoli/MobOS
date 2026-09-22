@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import LoadingScreen from '@/components/app/LoadingScreen'
 import AvisoVersion from '@/components/app/AvisoVersion'
+import { flagsV2, rutaV2 } from '@/lib/flags'
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { publicUrls } from '@/lib/urls'
 import { SesionProvider, useSesion } from '@/lib/sesion'
@@ -30,6 +31,7 @@ const Status = lazy(() => import('@/pages/Status'))
 const RecuperarContrasena = lazy(() => import('@/pages/RecuperarContrasena'))
 const PortalClientesEntrada = lazy(() => import('@/pages/PortalClientesEntrada'))
 const RecuperarEmpresa = lazy(() => import('@/pages/RecuperarEmpresa'))
+const OpsPreview = lazy(() => import('@/pages/OpsPreview'))
 
 // El usuario existe pero nadie lo sumó todavía a una tienda. Pasa cuando el
 // dueño crea la cuenta y aún no la asignó a su empresa.
@@ -176,6 +178,19 @@ export default function App() {
   if (dominioAnterior) {
     const ruta = `${window.location.pathname}${window.location.search}${window.location.hash}`
     return <RedireccionDominio destino={`${dominioAnterior}${ruta}`} />
+  }
+
+  // Infraestructura F3 (#241): `/ops-preview` (dev o VITE_OPS_PREVIEW=1) y la
+  // ruta real `/ops` (solo con VITE_OPS_V2=1). Fuera del menú hasta la
+  // aprobación del piloto; la lógica vive en `lib/flags.js`.
+  const vistaOps = rutaV2(window.location.pathname, flagsV2({ dev: import.meta.env.DEV, env: import.meta.env }))
+  if (vistaOps) {
+    return (
+      <>
+        <MetadatosPagina />
+        <Suspense fallback={<PaginaCargando />}><OpsPreview /></Suspense>
+      </>
+    )
   }
 
   const landingPreview = import.meta.env.DEV && window.location.pathname === '/landing-preview'

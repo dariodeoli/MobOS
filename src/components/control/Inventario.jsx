@@ -49,6 +49,8 @@ import IconoCategoria from '@/components/shared/IconoCategoria'
 import { etiquetaDeCategoria } from '@/lib/categorias'
 import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA, PIE_ACCIONES, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
 import TallerRack from '@/components/inventory/TallerRack'
+import { printHtml } from '@/utils/printHtml'
+import { buildStationSheetHtml } from '@/lib/printing/hojaEstacion'
 const conditionLabel = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 const MOTIVOS_BAJA = ['Uso interno', 'Daño', 'Transferencia', 'Pérdida', 'Devolución a proveedor', 'Otro']
 const MOTIVOS_REVISION = ['Revisión física', 'Falla detectada', 'Verificación vencida', 'Otro']
@@ -1082,6 +1084,10 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
           onVerificarLote={verificarLote}
           onEtiqueta={(unit) => printLabel(unit).then(avisarImpresion)}
           onEtiquetasLote={(lista) => printLabels(lista).then(avisarImpresion)}
+          onHoja={(lista, titulo) => {
+            if (esDemo) { toast.error('La impresión no está disponible en el demo.'); return }
+            printHtml(buildStationSheetHtml(lista, { estacion: titulo }))
+          }}
         />
       </div>
     )}

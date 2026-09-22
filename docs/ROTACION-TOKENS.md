@@ -111,6 +111,39 @@ revocar viejo).
 | **Semana 1 (higiene)** | MOBOS_AUTH_SECRET (avisar del re-login) · MOBOS_MAINTENANCE_TOKEN · WEEM · RUC/SUN · Google · SIFEN · outbox |
 | **Trimestral** | Repaso completo + `npm run audit:logs` |
 
+## Soporte automatizado
+
+Después de cada cambio, corré el verificador (no imprime valores):
+
+```bash
+# Higiene del repo + producción + endpoints internos + token viejo
+MOBOS_MAINTENANCE_TOKEN=<nuevo> MOBOS_MAINTENANCE_TOKEN_VIEJO=<viejo> \
+  node scripts/verificar-rotacion-tokens.mjs
+```
+
+Qué chequea: auditoría de logs del repo · `/api/health` y `/login` de producción ·
+los 3 endpoints internos con el token nuevo (200) · que el token viejo dé 401 ·
+y deja como *pendientes* los secretos que se verifican a mano (IMEIcheck, AEX,
+correo, RUC/SUN, Google) según la tabla de arriba. Sale 1 si algo falla.
+
+## Registro de rotación
+
+Tabla para completar Dario en cada rotación (una fila por secreto):
+
+| Fecha | Secreto | Generado en | Cargado en Coolify | Verificado | Viejo revocado | Quién |
+| --- | --- | --- | --- | --- | --- | --- |
+| | `IMEICHECK_TOKEN` | | | | | |
+| | Claves sandbox AEX | | | | | |
+| | Token/webhook de deploy | | | | | |
+| | Token API de Coolify (least privilege) | | | | | |
+| | `MOBOS_AUTH_SECRET` | | | | | |
+| | `MOBOS_MAINTENANCE_TOKEN` | | | | | |
+| | `WEEM_EMAIL_RELAY_TOKEN` | | | | | |
+| | `RUC_SUN_API_KEY` | | | | | |
+| | `GOOGLE_CLIENT_SECRET` | | | | | |
+| | `MOBOS_SIFEN_CERT_PASSWORD` | | | | | |
+| | Claves de outbox | | | | | |
+
 ## Checklist de cierre
 
 - [ ] **2FA activo** en las cuentas Owner (Freddy) y Admin (Dario), con códigos de recuperación guardados.
