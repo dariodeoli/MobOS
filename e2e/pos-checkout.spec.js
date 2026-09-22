@@ -321,8 +321,10 @@ test('POS manual price below list stores the list price for the receipt', async 
     await page.getByPlaceholder('Buscar producto…').fill('Cable')
     await page.getByRole('button', { name: new RegExp(SEED.products.cable.name) }).click()
 
-    // Precio manual 40.000 sobre lista 45.000: la fila marca el descuento.
+    // Precio manual 40.000 sobre lista 45.000: la fila marca el descuento
+    // (con el carrito colapsado, el detalle se despliega con el chevron #225).
     await page.getByLabel(`Precio de venta de ${SEED.products.cable.name}`).fill('40000')
+    await page.getByRole('button', { name: `Ver detalle de ${SEED.products.cable.name}` }).click()
     await expect(page.getByText('descuento − Gs 5.000')).toBeVisible()
 
 

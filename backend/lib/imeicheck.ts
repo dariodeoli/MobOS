@@ -143,7 +143,10 @@ export async function consultarImei(input: { imei: unknown; servicio: keyof type
     // #233: un timeout es ambiguo (pudo cobrarse): queda «a conciliar» con costo estimado.
     const estado: EstadoConsulta = escenario === 'timeout' ? 'conciliar' : estadoDeConsulta(simulado.status)
     const costo = estado === 'verificado' || estado === 'parcial' || estado === 'conciliar' ? servicio.precioUsd : 0
-    return { estado, etiqueta: etiquetaEstado(estado), campos: normalizarRespuesta(simulado), crudo: simulado, costoUsd: costo, esMock: true }
+    return {
+      estado, etiqueta: etiquetaEstado(estado), campos: normalizarRespuesta(simulado), crudo: simulado, costoUsd: costo, esMock: true,
+      ...(estado === 'conciliar' ? { error: 'timeout del proveedor: la consulta pudo cobrarse; queda a conciliar con el proveedor (no se reintenta sola).' } : {}),
+    }
   }
   if (!validacion.ok) return { estado: 'fallido', etiqueta: NO_VERIFICADO, campos: normalizarRespuesta({}), crudo: null, costoUsd: 0, esMock: false, error: validacion.error }
   if (!servicio.serviceId) return { estado: 'fallido', etiqueta: NO_VERIFICADO, campos: normalizarRespuesta({}), crudo: null, costoUsd: 0, esMock: true, error: `El servicio «${servicio.nombre}» no tiene serviceId Live cargado: se toma del catálogo de la cuenta (GET /services).` }

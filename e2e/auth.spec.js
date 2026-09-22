@@ -124,14 +124,15 @@ test('demo: la ficha del cliente abre sin sesión y no consulta el API', async (
   const menuWa = () => page.getByRole('dialog', { name: 'Plantillas de WhatsApp' })
   const chevronWa = () => ficha.getByRole('button', { name: /Elegir plantilla de WhatsApp para/ })
   await chevronWa().click()
-  await expect(menuWa().getByText('Pedido listo para retirar')).toBeVisible()
-  await menuWa().getByRole('button', { name: 'Pedido llegó a sucursal' }).click()
-  await expect(menuWa().getByRole('button', { name: /Pedido llegó a sucursal/ }).getByText('Última usada')).toBeVisible()
-  await expect(menuWa().getByLabel('Mensaje de WhatsApp')).toHaveValue(/ya llegó/i)
+  // La ficha en demo usa las plantillas del contexto cliente (#160/#194).
+  await expect(menuWa().getByText('Saldo pendiente')).toBeVisible()
+  await menuWa().getByRole('button', { name: 'Saldo pendiente' }).click()
+  await expect(menuWa().getByRole('button', { name: /Saldo pendiente/ }).getByText('Última usada')).toBeVisible()
+  await expect(menuWa().getByLabel('Mensaje de WhatsApp')).toHaveValue(/saldo pendiente/i)
   // Cerrar y reabrir: la última usada sigue siendo la predeterminada.
   await chevronWa().click()
   await chevronWa().click()
-  await expect(menuWa().getByRole('button', { name: /Pedido llegó a sucursal/ }).getByText('Última usada')).toBeVisible()
+  await expect(menuWa().getByRole('button', { name: /Saldo pendiente/ }).getByText('Última usada')).toBeVisible()
   await chevronWa().click()
 
   // ?cliente=<id demo> abre la misma ficha (resuelto contra el navegador).
