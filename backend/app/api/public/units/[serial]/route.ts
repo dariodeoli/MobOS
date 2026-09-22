@@ -47,6 +47,7 @@ export async function GET(request: Request, context: { params: Promise<{ serial:
   const ventaDe = (unidad: (typeof unidades)[number]) => ventas.find((venta) => venta.serial.toLowerCase() === unidad.serial.toLowerCase() && venta.orderItem.order.tenantId === unidad.tenantId) || null
   const elegida = unidades.find((unidad) => ventaDe(unidad)) || [...unidades].sort((a, b) => (b.lastVerifiedAt?.getTime() || 0) - (a.lastVerifiedAt?.getTime() || 0))[0]
   const venta = ventaDe(elegida)
+  const inspeccion = (elegida.inspection || {}) as Record<string, any>
 
   const [check, garantia] = await Promise.all([
     prisma.imeiCheckQuery.findFirst({ where: { tenantId: elegida.tenantId, imei: elegida.serial }, orderBy: { requestedAt: 'desc' }, select: { imeiMasked: true, provider: true, status: true, requestedAt: true } }),
@@ -67,9 +68,11 @@ export async function GET(request: Request, context: { params: Promise<{ serial:
       verifiedBy: elegida.lastVerifiedBy?.name || null,
       verifiedByCode: elegida.verifiedByCode || null,
       verificationCount: elegida.verificationCount || 0,
-      // La inspección con grado/checklist (INV) se muestra cuando exista.
-      grade: null,
+      // La inspección de INV (#240): grado y repuestos no-OEM detectados.
+      grade: inspeccion.grado || null,
       checklist: null,
+      repuestosNoOem: String(inspeccion.repuestosNoOem || ''),
+      repuestosNoOemNota: String(inspeccion.repuestosNoOemNota || ''),
     },
     sale: venta ? { orderNumber: venta.orderItem.order.orderNumber, date: venta.orderItem.order.createdAt, branch: venta.orderItem.order.branch?.name || null } : null,
     warranty: garantia ? { status: ESTADO_GARANTIA[garantia.status] || garantia.status, description: garantia.description, expiresAt: venceGarantia } : null,

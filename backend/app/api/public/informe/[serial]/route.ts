@@ -23,6 +23,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ser
     capacidad: unit.product?.capacity || '',
     condicion: unit.condition || '',
     cosmetico: inspeccion.cosmetico || '',
+    repuestosNoOem: inspeccion.repuestosNoOem || '',
+    repuestosNoOemNota: inspeccion.repuestosNoOemNota || '',
     serial: oculto,
     bateria: { porcentaje: inspeccion.bateriaPct ?? unit.batteryHealth ?? null, ciclos: inspeccion.bateriaCiclos ?? null },
     controles: locks.map((lock: any) => ({ label: lock.label, ok: Boolean(lock.ok) })),
