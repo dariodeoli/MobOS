@@ -397,6 +397,22 @@ test('los iconos de categoría salen del objeto compartido (#242)', () => {
   assert.deepEqual(copiados, [], 'los glifos de categoría no se copian por pantalla')
 })
 
+// Lote 14: la vista previa del papel (ancho real por formato) es un objeto; las
+// pantallas no vuelven a copiar el mapa de anchos ni las clases del iframe.
+test('la vista previa del papel sale de shared/VistaPreviaPapel (#241)', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('components/shared/VistaPreviaPapel.jsx') && /ANCHO_VISTA|ANCHOS_PAPEL/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [], 'los anchos de papel viven en el objeto')
+  for (const ruta of ['components/shared/ComprobantePreview.jsx', 'components/shared/ReportePreview.jsx']) {
+    assert.match(readFileSync(join(RAIZ, ruta), 'utf8'), /<VistaPreviaPapel\b/, `${ruta}: usa la vista previa compartida`)
+  }
+  const objeto = readFileSync(join(RAIZ, 'components/shared/VistaPreviaPapel.jsx'), 'utf8')
+  assert.match(objeto, /export const ANCHOS_PAPEL =/)
+  assert.match(objeto, /'thermal-80': 'max-w-\[302px\]'/)
+  assert.match(objeto, /a4: 'max-w-\[794px\]'/)
+})
+
 // Lote 13: el estado/condición de la unidad se lee igual en la lista y en la
 // ficha; ninguna pantalla vuelve a definir su mapa de tonos.
 test('el tono de la unidad vive en utils/inventario (#217)', () => {

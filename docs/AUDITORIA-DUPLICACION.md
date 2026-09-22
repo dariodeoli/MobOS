@@ -83,6 +83,15 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 14 — preview del papel compartido (22-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `shared/VistaPreviaPapel` (+ `ANCHOS_PAPEL`) | El mapa `ANCHO_VISTA` (ancho real del papel: 302/219/208 px) y las clases del `<iframe>` estaban copiados en `ComprobantePreview.jsx` y `ReportePreview.jsx`; el informe de PRN repetía el mismo patrón | Un solo objeto: `formato` → ancho real (mm a 96 dpi) con `a4` incluido, centro automático y alto configurable; las dos vistas previas lo usan y el informe lo puede consumir igual |
+| Biblioteca | — | `owncoding-ui` rama **`cmp/preview-v2`**: `VistaPreviaPapel` + `ANCHOS_PAPEL` con props en `docs/REGLAS.md` §8 bis y entradas en CHANGELOG/README (el release lo ordena el integrador) |
+
+**Duplicación pendiente: 0 usos.**
+
 ### Lote 13 — estado de la unidad con una sola regla (22-09)
 
 | Objeto | Antes (evidencia) | Después |
