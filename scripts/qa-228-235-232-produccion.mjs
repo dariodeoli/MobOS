@@ -130,6 +130,26 @@ await paso('#148 §14: el aviso abre el panel de notificaciones', async (c) => {
   return `panel visible (${texto.slice(0, 80)}…)`
 })
 
+// #240 §4: modo taller/rack en la demo (carriles, estaciones, filtros y serie).
+await paso('#240 §4: modo taller/rack con estaciones y filtros', async (c) => {
+  await page.goto(`${BASE}/inventario/taller`, { waitUntil: 'domcontentloaded' })
+  await page.getByTestId('rack-taller').waitFor({ state: 'visible', timeout: 20000 })
+  await page.getByTestId('rack-columna-por-verificar').waitFor({ state: 'visible', timeout: 20000 })
+  await page.getByLabel('Buscar en el taller').waitFor({ state: 'visible', timeout: 20000 })
+  // Estaciones: una sola a la vez.
+  await page.getByTestId('rack-estacion-por-verificar').click()
+  if (await page.getByTestId('rack-columna-listo').count()) throw new Error('la estación no filtró los carriles')
+  await page.getByTestId('rack-estacion-todas').click()
+  // Filtro por el serial de la primera unidad.
+  const serial = await page.getByTestId('rack-equipo').first().getAttribute('data-serial')
+  await page.getByLabel('Buscar en el taller').fill(serial)
+  await page.waitForTimeout(400)
+  if ((await page.getByTestId('rack-equipo').count()) !== 1) throw new Error(`la búsqueda del rack no filtró a ${serial}`)
+  await page.getByLabel('Buscar en el taller').fill('')
+  c.push(await shot(page, 'rack-taller'))
+  return `carriles + estaciones + filtros + acciones en serie (${serial})`
+})
+
 // #232: auditoría de higiene de logs del repo.
 await paso('#232: auditoría de logs sin volcados de env/secrets', async () => {
   let salida = ''
