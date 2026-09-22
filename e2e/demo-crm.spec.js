@@ -70,5 +70,67 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   await ficha.getByRole('tab', { name: /^Cronología/ }).click()
   await expect(ficha.getByText(/AUR-#0001/).first()).toBeVisible()
 
+  // §19 (#160): el perfil demo completa antigüedad, gastado, órdenes,
+  // direcciones (con adicionales), tags, minorista/mayorista y paga impuestos.
+  await page.goto('/clientes?cliente=demo-cliente-ramiro')
+  const mayorista = page.getByRole('dialog')
+  await mayorista.getByText('TOTAL GASTADO').waitFor({ timeout: 20000 })
+  const textoMayorista = (await mayorista.innerText()).replace(/\s+/g, ' ')
+  await expect(mayorista.getByText('Mayorista').first()).toBeVisible()
+  await expect(mayorista.getByText(/Paga impuestos: Sí/)).toBeVisible()
+  await expect(mayorista.getByText(/Antigüedad:/)).toBeVisible()
+  await expect(mayorista.getByText(/Etiquetas:/)).toBeVisible()
+  await expect(mayorista.getByText('reventa').first()).toBeVisible()
+  expect(textoMayorista).toMatch(/TOTAL GASTADO Gs [\d.]+/)
+  expect(textoMayorista).toMatch(/PEDIDOS \d+/)
+  await mayorista.getByRole('tab', { name: /^Resumen/ }).click()
+  await page.waitForTimeout(600)
+  await page.screenshot({ path: '/tmp/qa160-demo-perfil-mayorista.png' })
+  await mayorista.getByRole('tab', { name: /^Datos/ }).click()
+  const direccionesRamiro = mayorista.getByTestId('perfil-direcciones').locator('li')
+  await expect(direccionesRamiro).toHaveCount(2)
+  await expect(mayorista.getByTestId('perfil-direcciones')).toContainText('Depósito')
+  await mayorista.getByTestId('perfil-direcciones').scrollIntoViewIfNeeded()
+  await page.waitForTimeout(400)
+  await page.screenshot({ path: '/tmp/qa160-demo-perfil-mayorista-direcciones.png' })
+
+  // Lucía también tiene dirección adicional (la ficha muestra las dos).
+  await page.goto('/clientes?cliente=demo-cliente-lucia')
+  const lucia = page.getByRole('dialog')
+  await lucia.getByText('TOTAL GASTADO').waitFor({ timeout: 20000 })
+  await expect(lucia.getByText(/Paga impuestos: Sí/)).toBeVisible()
+  await expect(lucia.getByText(/Antigüedad:/)).toBeVisible()
+  await lucia.getByRole('tab', { name: /^Datos/ }).click()
+  await expect(lucia.getByTestId('perfil-direcciones').locator('li')).toHaveCount(2)
+  await expect(lucia.getByTestId('perfil-direcciones')).toContainText('Trabajo')
+  await lucia.getByTestId('perfil-direcciones').scrollIntoViewIfNeeded()
+  await page.waitForTimeout(400)
+  await page.screenshot({ path: '/tmp/qa160-demo-perfil-lucia-direcciones.png' })
+
+  // Plantilla demo del cliente: se renderiza completa (sin la variable de
+  // pedido vacía de las plantillas de órdenes).
+  await lucia.getByRole('tab', { name: /^Resumen/ }).click()
+  await lucia.getByRole('button', { name: /Elegir plantilla de WhatsApp/ }).click()
+  const menuWa = page.getByRole('dialog', { name: 'Plantillas de WhatsApp' })
+  await menuWa.waitFor({ timeout: 10000 })
+  // La vista previa se completa un tick después de abrir el menú: se espera.
+  let mensaje = ''
+  for (let intento = 0; intento < 20 && !mensaje; intento += 1) {
+    mensaje = await menuWa.getByLabel('Mensaje de WhatsApp').inputValue()
+    if (!mensaje) await page.waitForTimeout(200)
+  }
+  expect(mensaje).toMatch(/Lucía Fernández/)
+  expect(mensaje).not.toMatch(/Tu pedido\s+ya está/)
+  await expect(menuWa.getByText('Saldo pendiente')).toBeVisible()
+  await page.screenshot({ path: '/tmp/qa160-demo-whatsapp-cliente.png' })
+  await page.keyboard.press('Escape')
+
+  // El portal demo sale como Aurora Móviles y muestra la nota pública sembrada.
+  await page.goto('/portal/demo-demo-cliente-lucia-completo')
+  await expect(page.getByText('Nota de la tienda')).toBeVisible({ timeout: 15000 })
+  await expect(page.getByText(/Gracias por ser parte de Aurora Móviles/)).toBeVisible()
+  await expect(page.getByText('MOB-#0008').first()).toBeVisible()
+  await page.screenshot({ path: '/tmp/qa160-demo-vitrina-nota.png' })
+
   expect(apiReal, `la demo no debe llamar al API real: ${apiReal.join(', ')}`).toEqual([])
 })

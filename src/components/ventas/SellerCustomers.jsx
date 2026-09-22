@@ -55,7 +55,7 @@ import CustomerCommunicationCard from '@/components/customers/CustomerCommunicat
 import ClientesTabla from '@/components/customers/ClientesTabla'
 import CustomerProfile from '@/components/customers/CustomerProfile'
 import CampanasClientes from '@/components/customers/CampanasClientes'
-import { customerMetadata, DEMO_MESSAGE_TEMPLATES, readCustomerMetadata } from '@/components/customers/customerMessaging'
+import { customerMetadata, DEMO_CUSTOMER_TEMPLATES, readCustomerMetadata } from '@/components/customers/customerMessaging'
 import { whatsappUrl } from '@/utils/telefono'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 
@@ -70,7 +70,7 @@ const coincideFiltroCliente = (row, filtro) => {
   return true
 }
 const templateFields = (row) => ({ id: row.id, key: row.key || '', name: row.name || 'Mensaje', body: row.body || '', category: row.category || '' })
-const readDemoTemplates = () => DEMO_MESSAGE_TEMPLATES
+const readDemoTemplates = () => DEMO_CUSTOMER_TEMPLATES
 export const customerFields = (row) => {
   const metadata = readCustomerMetadata(row.notes)
   const phone = row.phone || ''

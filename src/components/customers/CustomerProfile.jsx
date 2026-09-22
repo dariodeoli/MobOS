@@ -21,7 +21,7 @@ import PercentField, { formatPercent, parsePercent } from '@/components/shared/P
 import RucField from '@/components/shared/RucField'
 import Icon from '@/components/shared/Icon'
 import ActorAvatar from './ActorAvatar'
-import { DEMO_MESSAGE_TEMPLATES } from './customerMessaging'
+import { DEMO_CUSTOMER_TEMPLATES } from './customerMessaging'
 import { buildDemoAnalytics, buildDemoProfile, buildDemoTimeline } from '@/lib/demoClientes'
 import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
 import {
@@ -83,8 +83,11 @@ const STATUS_BADGE = (map, value) => {
   return item ? <Badge color={item.color}>{item.label}</Badge> : <Badge>{value || 'Sin estado'}</Badge>
 }
 const antiguedadTexto = (dias) => {
-  const total = Number(dias || 0)
-  if (!total) return '—'
+  if (dias === null || dias === undefined || dias === '') return '—'
+  const total = Number(dias)
+  if (!Number.isFinite(total) || total < 0) return '—'
+  // Un cliente creado hoy tiene antigüedad 0: se muestra «Hoy», no «—».
+  if (total === 0) return 'Hoy'
   if (total < 30) return `${total} ${total === 1 ? 'día' : 'días'}`
   const meses = Math.floor(total / 30)
   if (meses < 12) return `${meses} ${meses === 1 ? 'mes' : 'meses'}`
@@ -1055,7 +1058,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
         <div className="space-y-5">
           {esDemo && (
             <p role="status" className="rounded-xl border border-warn/30 bg-warn/5 px-3 py-2 text-xs text-warn">
-              Modo demo: esta ficha usa los datos cargados en tu navegador. No hay pedidos, pagos, deuda, cronología ni portal, y las acciones están deshabilitadas.
+              Modo demo: esta ficha usa los datos cargados en tu navegador (pedidos, deuda, cronología y portal incluidos). Nada se guarda en una tienda real.
             </p>
           )}
           <header className="flex flex-wrap items-center justify-between gap-3">
@@ -1098,7 +1101,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                     category="CUSTOMERS"
                     storageKey="mobos:clientes:plantilla-wa"
                     title={profile.customer?.name || customer?.name}
-                    plantillas={esDemo ? DEMO_MESSAGE_TEMPLATES : undefined}
+                    plantillas={esDemo ? DEMO_CUSTOMER_TEMPLATES : undefined}
                     contexto={{
                       cliente: profile.customer?.name || customer?.name || '',
                       nombre: profile.customer?.name || customer?.name || '',
@@ -1420,7 +1423,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
 
           {tab === 'estadisticas' && (
             <div className="space-y-3">
-              {esDemo && <p className="text-sm text-mute">Las estadísticas se calculan con las ventas reales de la tienda.</p>}
+              {esDemo && <p className="text-sm text-mute">Las estadísticas se calculan con los pedidos de la demo, con las mismas fórmulas que la cuenta real.</p>}
               {cargandoAnalitica && <Skeleton className="h-24 w-full" />}
               {!cargandoAnalitica && analitica && (
                 <>

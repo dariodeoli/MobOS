@@ -229,10 +229,10 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   const enlace = await page.locator('p.break-all').textContent()
   expect(enlace).toMatch(/\/cuenta\/demo-demo-cliente-lucia-rapido$/)
   await page.goto(enlace)
-  await expect(page.getByRole('heading', { name: 'Tienda demo' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Aurora Móviles' })).toBeVisible()
   await expect(page.getByText('Gs 1.500.000').first()).toBeVisible()
   await page.goto(enlace.replace('/cuenta/', '/portal/'))
-  await expect(page.getByRole('heading', { name: 'Tienda demo' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Aurora Móviles' })).toBeVisible()
   await expect(page.getByText('MOB-#0008').first()).toBeVisible()
 
   // Servicio Técnico demo con casos en el pipeline.

@@ -4,6 +4,15 @@ export const DEMO_MESSAGE_TEMPLATES = [
   { id: 'demo-reservation', key: 'reservation', name: 'Reserva confirmada', body: 'Hola, {{customer_name}}. Reservamos tu pedido {{order_number}} hasta {{reservation_until}}.' },
 ]
 
+// Plantillas demo del contexto Clientes (#160/#194): variables del cliente
+// (nombre, saldo, sucursal) para que la vista previa salga completa. Las de
+// pedidos (DEMO_MESSAGE_TEMPLATES) usan variables de orden y siguen para POS.
+export const DEMO_CUSTOMER_TEMPLATES = [
+  { id: 'demo-customer-hola', key: 'customer_hello', name: 'Saludo del equipo', body: 'Hola, {{customer_name}}. Te escribimos de {{empresa}} · {{sucursal}} por si necesitás algo.' },
+  { id: 'demo-customer-saldo', key: 'customer_balance', name: 'Saldo pendiente', body: 'Hola, {{customer_name}}. Tu saldo pendiente es {{saldo_pendiente}}. Cualquier consulta, respondé este mensaje.' },
+  { id: 'demo-customer-novedades', key: 'customer_news', name: 'Novedades', body: 'Hola, {{customer_name}}. Pasá por {{sucursal}} y aprovechá las novedades de {{empresa}}.' },
+]
+
 const META_PREFIX = 'mobos:customer-meta:'
 
 export function renderMessage(template, customer) {
