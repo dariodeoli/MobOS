@@ -11,6 +11,12 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.137 — 2026-09-21
+- **Finanzas y Reportes (Lote 6-C):** tablas y filas compactas alineadas a la biblioteca, **sin scroll horizontal** en las 8 vistas medidas (1280/1440), con estados vacíos coherentes y acciones a la vista. (#169)
+- **Inventario:** cada **ubicación tiene su color** (se elige al crearla/editar y se usa en la tabla y las etiquetas) y se puede **recibir un lote completo** de un traslado con depósito destino. (#218)
+- **Interfaz:** el interruptor se unifica en el objeto **Switch** (se retira el `Toggle` viejo) y las celdas de dato/monto, avisos y skeletons salen de los objetos compartidos; la auditoría de duplicación queda al día. (#186 #211)
+- **QA:** recorrido del POS en producción v1.0.136 (10/12 pasos verdes, con 2 hallazgos de split/cierre documentados para POS), verificación post-deploy de Clientes demo y del dominio Impresión.
+
 ## v1.0.136 — 2026-09-21
 - **Inventario:** tabla compacta con columnas reordenadas y **costo en USD editable en la fila** (con el formateador canónico), menú de acciones por unidad y estados visuales; **acciones masivas por lote** (verificar, reservar, dar de baja, enviar a revisión, cambiar ubicación, imprimir etiquetas, exportar CSV, copiar IMEIs) y **ordenamiento inteligente** (modelo 17→13, costos, etc.) con pestaña **Vendidos**. (#216 #217)
 - **IMEI:** el modo **simulado se avisa antes de confirmar** — la consulta muestra que es simulada y con costo 0 (sin llamadas ni cargos); el flujo real queda igual, con confirmación explícita. Sin LIVE. (#193 #200)
