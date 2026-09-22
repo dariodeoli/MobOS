@@ -73,21 +73,47 @@ export default function SellerPromotions() {
         </div>
       })}</div>
     </div>}
-    {admin && <form onSubmit={create} className="space-y-3 rounded-xl border border-fore/10 p-4">
+    {admin && <form onSubmit={create} className="rounded-xl border border-fore/10 p-4">
       <h2 className="font-semibold">Crear cupón</h2>
-      {['code', 'name'].map(key => <label className="block" key={key}>{{ code: 'Código', name: 'Nombre' }[key]}<Input required pattern={key === 'code' ? '[A-Za-z0-9_-]{2,40}' : undefined} maxLength={key === 'code' ? 40 : 120} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label>)}
-      <label className="block">Productos incluidos
-        <span className="flex items-center gap-2">
-          <ProductCombobox key={form.productId || 'todos'} className="flex-1" products={products} selectedId={form.productId} onSelect={product => setForm(current => ({ ...current, productId: product.id }))} placeholder="Todos los productos" />
-          {form.productId && <button type="button" className="h-9 shrink-0 rounded-lg border border-ink-500 px-2 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad" onClick={() => setForm(current => ({ ...current, productId: '' }))}>Quitar producto</button>}
-        </span>
-      </label>
-      <label className="block">Tipo<Select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })}><option value="PERCENT">Porcentaje</option><option value="FIXED">Monto Gs. por unidad</option></Select></label>
-      <label className="block">Descuento{form.kind === 'FIXED' ? <MoneyInput required value={form.value} onValueChange={v => setForm({ ...form, value: v })} /> : <PercentField required value={form.value} onChange={value => setForm({ ...form, value })} />}</label>
-      <label className="block">Límite de unidades (opcional)<Input inputMode="numeric" type="number" step="1" min="1" max={2147483647} value={form.maxUnits} onChange={e => setForm({ ...form, maxUnits: e.target.value.replace(/\D/g, '') })} /></label>
-      {['startsAt','endsAt'].map(key => <label className="block" key={key}>{key === 'startsAt' ? 'Inicio (hora local)' : 'Fin (hora local)'}<Input required type="datetime-local" value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label>)}
-      <p className="text-sm text-mute">No acumulable con descuento global. Para cambiar condiciones, desactivá el cupón y creá otro código.</p>
-      <Button disabled={busy}>Crear cupón</Button>
+      {/* Grilla responsive (#238): 1 campo por fila en móvil, 2 en tablet y hasta
+          4 en desktop; los campos cortos no se estiran (ancho máximo propio). */}
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {['code', 'name'].map(key => (
+          <label className="block" key={key}>
+            {{ code: 'Código', name: 'Nombre' }[key]}
+            <Input required pattern={key === 'code' ? '[A-Za-z0-9_-]{2,40}' : undefined} maxLength={key === 'code' ? 40 : 120} className={key === 'code' ? 'max-w-[11rem]' : ''} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} />
+          </label>
+        ))}
+        <label className="block">
+          Tipo
+          <Select className="max-w-[11rem]" value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value })}><option value="PERCENT">Porcentaje</option><option value="FIXED">Monto Gs. por unidad</option></Select>
+        </label>
+        <label className="block">
+          Descuento
+          {form.kind === 'FIXED'
+            ? <MoneyInput required className="max-w-[9rem]" value={form.value} onValueChange={v => setForm({ ...form, value: v })} />
+            : <PercentField required className="max-w-[9rem]" value={form.value} onChange={value => setForm({ ...form, value })} />}
+        </label>
+        <label className="block">
+          Límite de unidades (opcional)
+          <Input inputMode="numeric" type="number" step="1" min="1" max={2147483647} className="max-w-[9rem]" value={form.maxUnits} onChange={e => setForm({ ...form, maxUnits: e.target.value.replace(/\D/g, '') })} />
+        </label>
+        {['startsAt','endsAt'].map(key => (
+          <label className="block" key={key}>
+            {key === 'startsAt' ? 'Inicio (hora local)' : 'Fin (hora local)'}
+            <Input required type="datetime-local" className="max-w-[13rem]" value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} />
+          </label>
+        ))}
+        <label className="block sm:col-span-2">
+          Productos incluidos
+          <span className="flex items-center gap-2">
+            <ProductCombobox key={form.productId || 'todos'} className="flex-1" products={products} selectedId={form.productId} onSelect={product => setForm(current => ({ ...current, productId: product.id }))} placeholder="Todos los productos" />
+            {form.productId && <button type="button" className="h-9 shrink-0 rounded-lg border border-ink-500 px-2 text-xs font-semibold text-mute transition hover:border-bad hover:text-bad" onClick={() => setForm(current => ({ ...current, productId: '' }))}>Quitar producto</button>}
+          </span>
+        </label>
+      </div>
+      <p className="mt-3 text-sm text-mute">No acumulable con descuento global. Para cambiar condiciones, desactivá el cupón y creá otro código.</p>
+      <Button className="mt-3" disabled={busy}>Crear cupón</Button>
     </form>}
     {message && <p role="status">{message}</p>}
   </SellerSection>
