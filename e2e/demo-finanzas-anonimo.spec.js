@@ -6,23 +6,18 @@
 // Los chequeos de las funciones de #194 son "soft": si el deploy todavía no las
 // tiene, el test las lista como pendientes en vez de cortar el recorrido.
 import { test, expect } from '@playwright/test'
+import { cerrarGuiaDemo } from './helpers/demo.js'
 
 const BASE = (process.env.DEMO_BASE_URL || '').replace(/\/$/, '')
 const API_PORT = process.env.MOBOS_E2E_API_PORT || '3001'
 const esLlamadaApi = (url) => url.includes(`localhost:${API_PORT}`) || url.includes('api.moboss.online')
 const url = (ruta) => `${BASE}${ruta}`
 
-async function cerrarGuia(page) {
-  // La guía de la demo se abre sola la primera vez por pestaña (#201).
-  const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
-  if (await guia.count()) await page.getByRole('button', { name: 'Cerrar' }).last().click()
-}
-
 async function entrarDemo(page) {
   await page.goto(url('/demo'))
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
   await page.waitForURL((destino) => !destino.pathname.startsWith('/demo'))
-  await cerrarGuia(page)
+  await cerrarGuiaDemo(page)
   await expect(page.getByText(/datos ficticios/).first()).toBeVisible()
 }
 

@@ -3,6 +3,7 @@
 // y los agregados (#221: total gastado, pedidos, última compra), la ficha, la
 // cronología y el portal se recalculan desde los pedidos, sin tocar el API.
 import { test, expect } from '@playwright/test'
+import { cerrarGuiaDemo } from './helpers/demo.js'
 
 test('demo: la venta del POS actualiza la actividad y los agregados del cliente', async ({ page }) => {
   const apiReal = []
@@ -14,7 +15,7 @@ test('demo: la venta del POS actualiza la actividad y los agregados del cliente'
   await page.goto('/demo')
   await page.getByRole('button', { name: /Vendedor/ }).first().click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
-  if (await page.getByRole('dialog', { name: 'Cómo funciona la demo' }).count()) await page.getByRole('button', { name: 'Cerrar' }).last().click()
+  await cerrarGuiaDemo(page)
 
   // Estado inicial de Lucía: 5 compras válidas y Gs 7.750.000 (#221).
   await nav.getByRole('button', { name: 'Clientes', exact: true }).click()

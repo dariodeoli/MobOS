@@ -2,6 +2,7 @@
 // serial + WhatsApp desde la ficha del cliente, y el enlace en su cuenta.
 import { test, expect } from '@playwright/test'
 import { SEED } from './helpers/seed-data.js'
+import { cerrarGuiaDemo } from './helpers/demo.js'
 
 const API = SEED.api
 const SALIDA = 'docs/QA-240-informe-dispositivo'
@@ -111,7 +112,7 @@ test('demo: el informe del equipo también funciona con datos del navegador', as
   await page.goto('/demo')
   await page.getByRole('button', { name: /Dueño/ }).first().click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
-  if (await page.getByRole('dialog', { name: 'Cómo funciona la demo' }).count()) await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  await cerrarGuiaDemo(page)
   await page.goto('/clientes?cliente=demo-cliente-lucia')
   const ficha = page.getByRole('dialog')
   await ficha.getByRole('tab', { name: /^Pedidos/ }).click()

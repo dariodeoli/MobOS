@@ -2,6 +2,7 @@
 // The seeded company and sellers come from global-setup.
 
 import { test, expect } from '@playwright/test'
+import { cerrarGuiaDemo } from './helpers/demo.js'
 import { SEED } from './helpers/seed-data.js'
 import { loginCompany, completeSellerPin, logout } from './helpers/login.js'
 
@@ -96,7 +97,7 @@ test('demo: la ficha del cliente abre sin sesión y no consulta el API', async (
   await page.getByRole('button', { name: /Dueño/ }).first().click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
   // La guía de la demo se abre sola la primera vez por pestaña (#201).
-  if (await page.getByRole('dialog', { name: 'Cómo funciona la demo' }).count()) await page.getByRole('button', { name: 'Cerrar' }).last().click()
+  await cerrarGuiaDemo(page)
   await page.locator('aside nav, nav').first().getByRole('button', { name: 'Clientes', exact: true }).click()
   await expect(page.getByRole('button', { name: '+ Crear cliente' })).toBeVisible()
 
@@ -161,7 +162,7 @@ test('demo: ficha con deuda, cronología, seguro, portal y servicio', async ({ p
   await page.getByRole('button', { name: /Dueño/ }).first().click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
   // La guía de la demo se abre sola la primera vez por pestaña (#201).
-  if (await page.getByRole('dialog', { name: 'Cómo funciona la demo' }).count()) await page.getByRole('button', { name: 'Cerrar' }).last().click()
+  await cerrarGuiaDemo(page)
   await page.locator('aside nav, nav').first().getByRole('button', { name: 'Clientes', exact: true }).click()
 
   await page.getByLabel('Buscar clientes').fill('Lucía')

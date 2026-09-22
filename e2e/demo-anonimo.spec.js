@@ -6,15 +6,13 @@ import { test, expect } from '@playwright/test'
 import { createRequire } from 'node:module'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { loginCompany, completeSellerPin } from './helpers/login.js'
+import { cerrarGuiaDemo } from './helpers/demo.js'
 
 const API_PORT = process.env.MOBOS_E2E_API_PORT || '3001'
 const esLlamadaApi = (url) => url.includes(`localhost:${API_PORT}`) || url.includes('api.moboss.online')
 
 // Cierra la guía "Cómo funciona la demo" si se abrió sola (primera visita).
-async function cerrarGuia(page) {
-  const cerrar = page.getByRole('button', { name: 'Cerrar' }).last()
-  if (await page.getByRole('dialog', { name: 'Cómo funciona la demo' }).count()) await cerrar.click()
-}
+const cerrarGuia = cerrarGuiaDemo
 
 // Conteo real de filas del harness (#204): la demo no debe tocar la base.
 function databaseUrl() {

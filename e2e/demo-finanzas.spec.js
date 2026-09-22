@@ -1,18 +1,13 @@
 // #194 (y #188): la demo de Finanzas funciona sin API real, con datos
 // ficticios visibles y sin "Falta sesión".
 import { test, expect } from '@playwright/test'
-
-async function cerrarGuia(page) {
-  // La guía de la demo se abre sola la primera vez por pestaña (#201).
-  const guia = page.getByRole('dialog', { name: 'Cómo funciona la demo' })
-  if (await guia.count()) await page.getByRole('button', { name: 'Cerrar' }).last().click()
-}
+import { cerrarGuiaDemo } from './helpers/demo.js'
 
 async function entrarDemo(page) {
   await page.goto('/demo')
   await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
   await page.waitForURL((url) => !url.pathname.startsWith('/demo'))
-  await cerrarGuia(page)
+  await cerrarGuiaDemo(page)
   await expect(page.getByText('Modo demo', { exact: false }).first()).toBeVisible()
 }
 
