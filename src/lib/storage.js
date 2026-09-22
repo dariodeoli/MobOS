@@ -13,6 +13,7 @@ import { num } from '@/utils/calculos'
 import { APP_NAME } from '@/lib/brand'
 import { api } from '@/lib/api'
 import { isDemoRuntime } from './demoMode'
+import { marcarUnidadesVendidasDemo } from './demoInventory.js'
 import { guardarDemo } from './demoStorage.js'
 import { MEDIOS_PAGO } from './catalog'
 import { guardarSnapshotCatalogo, leerSnapshotCatalogo } from './offline/snapshot'
@@ -867,6 +868,13 @@ export function addVenta(venta) {
     nueva.totalPendiente === 0 ? 'Pagado' : nueva.totalPagado > 0 ? 'Parcial' : 'Pendiente'
   entUpsert('ventas', nueva)
   moverStock(nueva.productoId, -1)
+  // #227: la venta demo también baja la unidad (SOLD + cronología), como el API real.
+  if (isDemoRuntime) {
+    const seriales = nueva.seriales || nueva.serials || nueva.imei || (nueva.items || []).flatMap(item => item.serials || item.seriales || (item.imei ? [item.imei] : []))
+    if (Array.isArray(seriales) && seriales.length) {
+      marcarUnidadesVendidasDemo({ serials: seriales, orderNumber: nueva.orderNumber || nueva.numero || '', customerName: nueva.cliente || '', totalPyg: nueva.precio })
+    }
+  }
   logAuditoria('crear', nueva)
   return nueva
 }
