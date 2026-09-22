@@ -315,7 +315,7 @@ export function Badge({ className, color = 'slate', ...props }) {
 }
 
 // ── Punto de estado (semáforo minimalista) ──────────────────────────
-const DOT = { green: 'bg-ok', red: 'bg-bad', blue: 'bg-fono', slate: 'bg-mute', orange: 'bg-warn' }
+const DOT = { green: 'bg-ok', red: 'bg-bad', blue: 'bg-fono', slate: 'bg-mute', orange: 'bg-warn', ok: 'bg-ok', warn: 'bg-warn', bad: 'bg-bad', info: 'bg-info', mute: 'bg-mute' }
 export function Dot({ color = 'slate', pulse = false, className }) {
   return (
     <span className={cn('relative inline-flex h-2 w-2 shrink-0', className)}>

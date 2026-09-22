@@ -4,7 +4,26 @@
 const sinEspacios = (value) => String(value ?? '').toLowerCase().replace(/\s+/g, '')
 
 export const ESTADOS_UNIDAD = { AVAILABLE: 'Disponible', RESERVED: 'Reservado', SOLD: 'Vendido', DEFECTIVE: 'En revisión', IN_TRANSIT: 'En tránsito' }
-const TONO_ESTADO = { AVAILABLE: 'green', RESERVED: 'orange', IN_TRANSIT: 'blue', DEFECTIVE: 'slate', SOLD: 'red' }
+const TONO_ESTADO = { AVAILABLE: 'ok', RESERVED: 'warn', IN_TRANSIT: 'info', DEFECTIVE: 'mute', SOLD: 'bad' }
+const COLOR_TONO = { ok: 'green', warn: 'orange', info: 'blue', mute: 'slate', bad: 'red' }
+
+// Tono semántico del estado de la unidad, con la condición para "disponible"
+// (nueva = ok, usada = atención): la MISMA regla en la lista, la tarjeta, la
+// ficha y los puntos de las ubicaciones. Antes la ficha mostraba verde una
+// unidad seminuevo que la lista mostraba en naranja.
+export function tonoInventario(unit = {}) {
+  if (unit.status === 'SOLD') {
+    const entrega = unit.sale?.fulfillmentStatus
+    if (entrega === 'READY_FOR_PICKUP') return 'warn'
+    if (entrega === 'DELIVERED') return 'mute'
+    return 'bad'
+  }
+  if (unit.status === 'AVAILABLE' && unit.condition && unit.condition !== 'NEW') return 'warn'
+  return TONO_ESTADO[unit.status] || 'mute'
+}
+
+/** Color del Badge a partir del tono semántico (`Badge` usa nombres de color). */
+export const colorInventario = (unit = {}) => COLOR_TONO[tonoInventario(unit)] || 'slate'
 
 // Nombre para la tabla: modelo + capacidad ("iPhone 15 Pro Max · 256 GB").
 // Si el nombre ya trae la capacidad no se repite.
@@ -34,8 +53,19 @@ export function estadoInventario(unit = {}) {
     if (entrega === 'DELIVERED') return { clave: 'DELIVERED', label: 'Entregado', tone: 'slate' }
     return { clave: 'SOLD', label: 'Vendido', tone: 'red' }
   }
-  return { clave: unit.status, label: ESTADOS_UNIDAD[unit.status] || unit.status || '—', tone: TONO_ESTADO[unit.status] || 'slate' }
+  return { clave: unit.status, label: ESTADOS_UNIDAD[unit.status] || unit.status || '—', tone: colorInventario(unit) }
 }
+
+// Etiqueta y color de la condición física (nuevo / seminuevo / reacondicionado):
+// la misma regla en la lista, la tarjeta y la ficha de la unidad.
+export const CONDICION_UNIDAD = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
+
+export const etiquetaCondicionUnidad = (unit = {}) => CONDICION_UNIDAD[unit.condition] || unit.condition || '—'
+
+export const colorCondicionUnidad = (unit = {}) => (unit.condition === 'NEW' ? 'green' : 'orange')
+
+/** Punto de condición de las listas compactas (bg-*). */
+export const puntoCondicionUnidad = (unit = {}) => (unit.condition === 'NEW' ? 'bg-ok' : unit.condition === 'USED' ? 'bg-warn' : 'bg-mute')
 
 // Costo diferido: la unidad se puede cargar sin costo y completarlo después.
 // Un costo 0 cargado a propósito no cuenta como pendiente.

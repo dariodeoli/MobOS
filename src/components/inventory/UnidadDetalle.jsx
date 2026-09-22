@@ -18,13 +18,10 @@ import { useSesion } from '@/lib/sesion'
 import { cotizacionReferencia } from '@/lib/fx'
 import { gs } from '@/utils/calculos'
 import { montoTexto } from '@/utils/moneda'
-import { sinCostoUnitario } from '@/utils/inventario'
+import { colorCondicionUnidad, estadoInventario, etiquetaCondicionUnidad, sinCostoUnitario } from '@/utils/inventario'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 
-const statusLabel = { AVAILABLE: 'Disponible', RESERVED: 'Reservado', SOLD: 'Vendido', DEFECTIVE: 'En revisión', IN_TRANSIT: 'En tránsito' }
-const conditionLabel = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
-const badgeTone = { AVAILABLE: 'green', RESERVED: 'orange', IN_TRANSIT: 'blue', DEFECTIVE: 'slate', SOLD: 'red' }
 const EVENT_LABEL = { audit: 'Auditoría', transfer: 'Traslado', comment: 'Comentario', sale: 'Venta' }
 
 const money = (value, currency) => {
@@ -274,8 +271,8 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         {/* Encabezado */}
         <section className="rounded-2xl border border-ink-600 bg-gradient-to-br from-ink-800 to-ink-800/40 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge data-testid="unidad-estado" color={badgeTone[unit.status] || 'slate'}>{statusLabel[unit.status] || unit.status}</Badge>
-            <Badge color={unit.condition === 'NEW' ? 'green' : 'orange'}>{conditionLabel[unit.condition] || unit.condition}</Badge>
+            <Badge data-testid="unidad-estado" color={estadoInventario(unit).tone}>{estadoInventario(unit).label}</Badge>
+            <Badge color={colorCondicionUnidad(unit)}>{etiquetaCondicionUnidad(unit)}</Badge>
             {unit.reservationCustomer && <Badge color="orange">Atajado por {unit.reservationCustomer}</Badge>}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
