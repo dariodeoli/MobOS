@@ -35,3 +35,8 @@ test('el tablero ops preview usa los tokens v2 y no llama al API', async ({ page
 
   expect(llamadas, `llamadas al API: ${llamadas.join(', ')}`).toEqual([])
 })
+
+test('la ruta real /ops queda inactiva sin el flag', async ({ page }) => {
+  await page.goto('/ops')
+  await expect(page.getByTestId('ops-preview')).toHaveCount(0)
+})
