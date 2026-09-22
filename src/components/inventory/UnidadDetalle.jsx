@@ -19,6 +19,7 @@ import { gs } from '@/utils/calculos'
 import { montoTexto } from '@/utils/moneda'
 import { sinCostoUnitario } from '@/utils/inventario'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import ChecklistInspeccion, { resumenChecklist, valorInicialChecklist } from '@/components/inventory/ChecklistInspeccion'
 import { cn } from '@/lib/utils'
 
 const statusLabel = { AVAILABLE: 'Disponible', RESERVED: 'Reservado', SOLD: 'Vendido', DEFECTIVE: 'En revisión', IN_TRANSIT: 'En tránsito' }
@@ -87,6 +88,13 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   const [stockMotivo, setStockMotivo] = useState('')
   const [stockError, setStockError] = useState('')
   const [stockBusy, setStockBusy] = useState(false)
+  // Inspección (#240): UI lista; la persistencia la define INV. Se precarga la
+  // batería que ya tiene la unidad para no pedirla dos veces.
+  const [inspeccion, setInspeccion] = useState(() => {
+    const base = valorInicialChecklist()
+    return { ...base, bateriaSalud: unit?.batteryHealth ? String(unit.batteryHealth) : '' }
+  })
+  const resumenInspeccion = resumenChecklist(inspeccion)
   const [consignador, setConsignador] = useState(unit.consignorName || '')
   const [consignadorTel, setConsignadorTel] = useState(unit.consignorPhone || '')
   const [consignadorMonto, setConsignadorMonto] = useState(unit.consignorPyg === null || unit.consignorPyg === undefined ? '' : String(unit.consignorPyg))
@@ -345,6 +353,22 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             <span className="text-xs text-mute">{sinCostoUnitario(unit) ? 'Todavía sin costo.' : `Actual: ${money(unit.originalCost, unit.costCurrency)}${unit.costPyg !== null && unit.costPyg !== undefined ? ` · ${money(unit.costPyg, 'PYG')}` : ''}`}</span>
             <Button type="button" variant="outline" disabled={guardandoCosto} onClick={guardarCosto} data-testid="unidad-costo-guardar">{guardandoCosto ? 'Guardando…' : 'Guardar costo'}</Button>
           </div>
+        </section>
+
+        {/* Inspección por checklist (#240): semáforo por ítem, batería y grado. */}
+        <section className="rounded-2xl border border-ink-600 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className={ROTULO_SECCION}>Inspección del equipo</h3>
+            {resumenInspeccion.grado ? (
+              <span className="rounded-full border border-ink-500 px-2 py-0.5 text-xs font-bold" title="Grado provisional calculado con el checklist">Grado {resumenInspeccion.grado}</span>
+            ) : (
+              <span className="text-[11px] text-mute">{resumenInspeccion.revisados} de {resumenInspeccion.total} ítems</span>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-mute">
+            Marcá cada punto con Pasa / Falla / N-A. El puntaje y el grado se calculan solos; la persistencia y el grado oficial llegan con INV (#240).
+          </p>
+          <ChecklistInspeccion className="mt-3" valor={inspeccion} onChange={setInspeccion} soloLectura={!canManage} />
         </section>
 
         {/* Consulta de IMEI (#193/#200): costo antes, confirmación explícita y fuente/hora */}
