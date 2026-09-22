@@ -445,7 +445,9 @@ test.describe('owner panel', () => {
     await page.getByRole('button', { name: 'Abrir caja', exact: true }).click()
 
     await expect(page.getByRole('heading', { name: 'Cerrar caja' })).toBeVisible()
-    await expect(page.getByText('Abierta', { exact: true })).toBeVisible()
+    // La tabla nueva de Ventas por caja también muestra un badge "Abierta":
+    // se escopa al estado de la sesión (el <strong> del encabezado de caja).
+    await expect(page.getByRole('strong').filter({ hasText: 'Abierta' })).toBeVisible()
   })
 })
 
