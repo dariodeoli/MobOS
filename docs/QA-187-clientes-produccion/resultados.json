@@ -1,0 +1,142 @@
+{
+  "app": "https://app.moboss.online",
+  "portal": "https://clientes.moboss.online",
+  "fecha": "2026-09-22T00:39:53.305Z",
+  "version": "1.0.136",
+  "pasos": [
+    {
+      "paso": "entrada anónima a /demo",
+      "ok": true,
+      "detalle": "versión v1.0.136"
+    },
+    {
+      "paso": "lista de clientes con agregados reales (#221)",
+      "ok": true,
+      "detalle": "Lucía: 5 compras · Gs 7.750.000"
+    },
+    {
+      "paso": "búsqueda instantánea y filtros segmentados",
+      "ok": true,
+      "detalle": "«Lucía» → 1 fila · sin resultados → 0 filas · filtros presentes"
+    },
+    {
+      "paso": "alta de cliente en demo (local, sin API)",
+      "ok": true,
+      "detalle": "QAY64X9 creado en el navegador"
+    },
+    {
+      "paso": "ficha → resumen con total, saldo y últimas órdenes",
+      "ok": true,
+      "detalle": "total Gs 7.750.000 · saldo Gs 1.500.000 · MOB-#0008"
+    },
+    {
+      "paso": "deuda por pedido del cliente",
+      "ok": true,
+      "detalle": "Gs 1.500.000 en MOB-#0008"
+    },
+    {
+      "paso": "pedidos asociados con historial y equipos con serial",
+      "ok": true,
+      "detalle": "MOB-#0008, MOB-#0005, MOB-#0002 + cancelada + serial 356789012345678"
+    },
+    {
+      "paso": "cronología del cliente con eventos",
+      "ok": true,
+      "detalle": "pedido, pago, comentario y garantía en la cronología"
+    },
+    {
+      "paso": "datos del cliente: seguro activo con porcentaje",
+      "ok": true,
+      "detalle": "seguro activo · 12,5%"
+    },
+    {
+      "paso": "estadísticas calculadas (#221)",
+      "ok": true,
+      "detalle": "5 compras · Gs 1.550.000 · Cada 172 días"
+    },
+    {
+      "paso": "whatsapp con plantilla y enlace al chat",
+      "ok": true,
+      "detalle": "wa.me/595981123456 · «Hola, Lucía Fernández. Tu pedido ya está listo par…»"
+    },
+    {
+      "paso": "portal del cliente por token demo (QR, cuenta y vitrina)",
+      "ok": true,
+      "detalle": "https://clientes.moboss.online/cuenta/demo-demo-cliente-lucia-rapido + vitrina + nivel completo"
+    },
+    {
+      "paso": "?cliente=<id> abre la ficha del cliente",
+      "ok": true,
+      "detalle": "la ficha abre con los datos demo"
+    },
+    {
+      "paso": "servicio técnico demo (OS del pipeline)",
+      "ok": true,
+      "detalle": "OS-#0001 y OS-#0002 visibles"
+    },
+    {
+      "paso": "clientes en mobile sin scroll horizontal",
+      "ok": true,
+      "detalle": "ancho 390px sin scroll · tabla 928px"
+    },
+    {
+      "paso": "demo Vendedor: Clientes visible por rol",
+      "ok": true,
+      "detalle": "la cartera demo carga con el rol Vendedor"
+    }
+  ],
+  "publicos": {
+    "cuenta": {
+      "generico": true,
+      "sinDatos": true
+    },
+    "vitrina": {
+      "generico": true,
+      "sinDatos": true
+    },
+    "garantia": {
+      "generico": true,
+      "sinDatos": true
+    }
+  },
+  "api": {
+    "portal": 404,
+    "vitrina": 404,
+    "garantia": 404
+  },
+  "rateLimit": {
+    "pedido429": 17,
+    "ultimoEstado": 429,
+    "retryAfter": "1"
+  },
+  "apiReal": [],
+  "observaciones": [
+    "la plantilla demo de Clientes deja «Tu pedido  ya está…» (la variable de pedido no aplica a la ficha)"
+  ],
+  "hallazgos": [],
+  "capturas": [
+    "01-demo-entrada.png",
+    "02-clientes-agregados.png",
+    "03-clientes-busqueda.png",
+    "04-clientes-alta.png",
+    "05-ficha-resumen.png",
+    "06-ficha-deuda.png",
+    "07-ficha-pedidos.png",
+    "08-ficha-cronologia.png",
+    "09-ficha-seguro.png",
+    "10-ficha-estadisticas.png",
+    "11-whatsapp-plantilla.png",
+    "12-portal-qr.png",
+    "13-portal-cuenta.png",
+    "14-portal-vitrina.png",
+    "15-portal-completo.png",
+    "16-cliente-por-url.png",
+    "17-servicio-demo.png",
+    "18-clientes-mobile.png",
+    "19-demo-vendedor.png",
+    "20-publico-cuenta.png",
+    "21-publico-vitrina.png",
+    "22-publico-garantia.png"
+  ],
+  "demoNoTocaApi": true
+}

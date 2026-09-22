@@ -1,45 +1,78 @@
-# QA #187 — Clientes y portal público en PRODUCCIÓN
+# QA #187 — Clientes completo en PRODUCCIÓN (v1.0.136)
 
-Recorrido funcional headless (Playwright, Chromium) contra
-`https://app.moboss.online/demo` y los públicos de
-`https://clientes.moboss.online`. **Versión desplegada verificada: v1.0.126.**
+Recorrido funcional headless (Playwright, Chromium) contra la demo pública
+(`/demo` → Dueño y Vendedor), los públicos de `clientes.moboss.online` y el API
+público. **Versión verificada: v1.0.136.** Incluye la evidencia de **#221**
+(agregados de clientes calculados como la cuenta real).
 
-- Script reproducible: `e2e/prod/187-clientes.mjs`
-  (`node e2e/prod/187-clientes.mjs`; capturas en `QA187_SHOTS`, por defecto `/tmp/qa187`).
-- Capturas de esta corrida: `docs/QA-187-clientes-produccion/`.
-- Sin escrituras en producción: la demo vive en `localStorage` del navegador y
-  los públicos se probaron con tokens inválidos.
+- Script: `e2e/prod/187-clientes.mjs` (`node e2e/prod/187-clientes.mjs`;
+  capturas en `QA187_SHOTS`, por defecto esta carpeta).
+- Resultado crudo: `resultados.json` — **16/16 pasos OK**, 22 capturas.
+  La demo **no llamó al API de clientes/portal/warranty** y los públicos con
+  token inválido no mostraron datos.
+- Sin sesión real ni escrituras: la demo vive en `localStorage` del navegador y
+  los públicos se probaron con tokens inválidos (más el rate limit de #178).
+- Evidencia #221 en detalle: `docs/QA-221-demo-clientes-prod.md` y
+  `docs/QA-221-demo-clientes-prod/` (script `scripts/qa-221-clientes-produccion.mjs`).
 
-## Verificado (sin sesión real)
+## Verificado (16/16)
 
-| Área | Pasos | Resultado |
+| # | Área | Resultado | Captura |
+|---|---|---|---|
+| 1 | Entrada anónima a `/demo` + versión desplegada | **v1.0.136**, sin login, aviso de datos ficticios | `01-demo-entrada.png` |
+| 2 | Listado de clientes con **agregados reales (#221)** | Lucía con **5 compras** y **Gs 7.750.000**; la cartera demo (12) con pedidos/totales | `02-clientes-agregados.png` |
+| 3 | Búsqueda instantánea y filtros | “Lucía” → 1 fila · sin resultados → 0 filas · chips Todos/Mayoristas/Con deuda/Con crédito | `03-clientes-busqueda.png` |
+| 4 | Alta de cliente en demo | `+ Crear cliente` → Guardar → queda en la lista (local, sin API) | `04-clientes-alta.png` |
+| 5 | Ficha → **Resumen** | Total gastado Gs 7.750.000 · Saldo pendiente Gs 1.500.000 (Deuda) · Órdenes activas · Última compra 9/9/2026 · “Cliente desde” · últimas órdenes MOB-#0008/MOB-#0005 | `05-ficha-resumen.png` |
+| 6 | **Deuda por pedido** | Bloque de deuda con el pedido pendiente MOB-#0008 y su saldo | `06-ficha-deuda.png` |
+| 7 | **Pedidos asociados** | Historial completo (incluida MOB-#0031 **Cancelado**) y equipos con IMEI/serial (`356789012345678`) | `07-ficha-pedidos.png` |
+| 8 | **Cronología** | Pedido creado, pago, comentario del equipo y garantía registrada | `08-ficha-cronologia.png` |
+| 9 | **Datos → Seguro del cliente** | Interruptor activo (deshabilitado en demo) con 12,5% | `09-ficha-seguro.png` |
+| 10 | **Estadísticas (#221)** | 5 compras (la cancelada no cuenta) · ticket Gs 1.550.000 · frecuencia **Cada 172 días** · gasto por mes · favoritos por producto/modelo/categoría | `10-ficha-estadisticas.png` |
+| 11 | **WhatsApp** | Plantilla con el nombre interpolado y `Abrir WhatsApp` → `wa.me/595981123456?text=…` | `11-whatsapp-plantilla.png` |
+| 12 | **Portal del cliente (demo)**: QR y enlace por token | `/cuenta/demo-demo-cliente-lucia-rapido` | `12-portal-qr.png` |
+| 13 | Portal → cuenta | Saldo **Gs 1.500.000** | `13-portal-cuenta.png` |
+| 14 | Portal → vitrina (`/portal/…`) | Pedido MOB-#0008 | `14-portal-vitrina.png` |
+| 15 | Portal → nivel completo | Saldo y bloques del nivel completo | `15-portal-completo.png` |
+| 16 | `?cliente=<id>` abre la ficha | Con los datos demo | `16-cliente-por-url.png` |
+| 17 | Servicio Técnico demo (contexto) | OS-#0001 y OS-#0002 | `17-servicio-demo.png` |
+| 18 | Mobile 390×844 | Sin scroll horizontal de página; la tabla del listado scrollea dentro de su contenedor | `18-clientes-mobile.png` |
+| 19 | Demo **Vendedor** | La cartera demo carga con el rol | `19-demo-vendedor.png` |
+
+## Públicos y API (sin sesión)
+
+| Público (token inválido) | Resultado | Captura |
 |---|---|---|
-| Demo Dueño | `/demo` → Dueño (PIN 3001) → menú **Clientes** | Abre la vista; tabla compacta con filtros segmentados (#166 desplegado) |
-| Alta | `+ Crear cliente` → Primer nombre + Segundo nombre + teléfono → Guardar | El cliente queda en la lista (demo local) |
-| Búsqueda | Escribir el nombre sin Enter | Instantánea; encuentra la fila |
-| Teléfono | Ver la celda Teléfono | `+595 981 222 333` (formato único) |
-| Filtros | Chips Todos / Mayoristas / Con deuda / Con crédito | Responden (grupo accesible “Filtrar clientes”) |
-| Mobile | 390×844 | Sin scroll horizontal (`scrollWidth == clientWidth`) |
-| Demo Vendedor | `/demo` → Vendedor (PIN 2001) → Clientes | Lista visible (QA por rol) |
-| Público `/cuenta/<token inválido>` | Abrir en anónimo | “Cuenta no encontrada”, mensaje genérico, sin datos y sin scroll |
-| Público `/portal/<token inválido>` | Idem | “Este enlace no es válido o venció”, sin datos |
-| Público `/garantia/<token inválido>` | Idem | “Garantía no encontrada”, sin datos |
-| API | `GET /api/portal/…`, `/api/public/portal/…`, `/api/public/warranty/…` con token inválido | **404** en los tres (sin enumeración) |
+| `/cuenta/token-inexistente…` | Mensaje genérico, **sin datos** ni montos | `20-publico-cuenta.png` |
+| `/portal/token-inexistente…` | Idem (“no es válido o venció”) | `21-publico-vitrina.png` |
+| `/garantia/token-inexistente…` | Idem (“Garantía no encontrada”) | `22-publico-garantia.png` |
 
-## No verificable sin sesión real (pasos para hacerlo)
+- API con token inválido: **404** en `/api/portal/…`, `/api/public/portal/…` y
+  `/api/public/warranty/…` (sin enumeración ni datos).
+- **Rate limit (#178) verificado en producción**: superados los 30 pedidos por
+  minuto por IP y ruta, el API responde **429 con `Retry-After`** (observado en
+  la corrida: `pedido429: 17`, `retryAfter: 1` con la ventana ya parcialmente
+  consumida). El item quedaba pendiente de re-verificación en el reporte
+  anterior (v1.0.126): **cerrado**.
 
-1. **Ficha, deuda, cronología y seguro del cliente** (producción, con sesión):
-   1. Entrar a `https://app.moboss.online/login` con la empresa y el PIN de un usuario con permiso.
-   2. Ir a **Clientes** y abrir la ficha de un cliente con pedidos.
-   3. Revisar **Resumen** (total gastado, saldo pendiente, órdenes activas), la **deuda por pedido** y **Últimas órdenes → Ver todas**.
-   4. Pestaña **Cronología**: pedidos, pagos, entregas, cambios y solicitudes; probar **Cargar más**.
-   5. Pestaña **Datos → Seguro del cliente**: encender el interruptor, cargar un % y verificar que la venta siguiente sume el seguro al costo (requiere rol ADMIN/GERENTE).
-2. **Portal con token válido**: en la ficha → **Portal del cliente** → generar/copiar el enlace (o **Regenerar**), abrirlo sin sesión y verificar saldo, vencimientos, pedidos, **Ver comprobante**, garantías (nivel completo) y la **Nota de la tienda**.
-3. **Garantía pública con token válido**: en Garantías → fila → copiar el enlace del QR y abrirlo sin sesión.
+## Pendiente sin sesión real (pasos documentados)
+
+1. **Portal con token real de una venta** (requiere sesión): Clientes → ficha →
+   **Portal del cliente (demo)** y generarlo; abrirlo sin sesión y verificar
+   saldo, vencimientos, **Ver comprobante** y la nota de la tienda.
+2. **Garantía pública con token válido**: la página `/garantia/<token>` no tiene
+   modo demo; requiere sesión (Garantías → fila → copiar el enlace del QR).
+3. **Seguro del cliente afectando una venta real** (rol ADMIN/GERENTE): Datos →
+   Seguro → encender y cargar % → la venta siguiente lo suma al costo.
 
 ## Hallazgos y observaciones (sin bugs de producto)
 
-- **Demo (resuelto en #189):** el clic en la fila ya abre la ficha con los datos del navegador y `?cliente=<id>` se resuelve contra la demo; la ficha avisa “Modo demo” y las acciones quedan deshabilitadas (nada pega al API real).
-- **Demo:** quedan llamadas 401 a `api.moboss.online` (presence, créditos, impresoras) porque la demo no tiene sesión; no bloquean el recorrido. Ruido conocido de otros dominios.
-- **Agente de impresión:** el navegador intenta `http://127.0.0.1:17890/health` (puerto del agente local); sin agente instalado falla y es el comportamiento esperado.
-- **#178 (rate limit + hash en públicos):** no está desplegado en v1.0.126 (la rama `slot/clientes` lo trae). Por eso la sonda de 35 pedidos a `public/warranty` no mostró 429; se re-verifica tras integrar/deployar.
+- **Cero fallos** en los 16 pasos; la demo no tocó el API real y los públicos
+  no filtraron datos.
+- **Observaciones de demo** (todas ya reportadas en `docs/QA-221-demo-clientes-prod.md`):
+  la ficha cuenta 6 pedidos contra 5 compras del listado/Estadísticas; los
+  avisos de demo (“No hay pedidos, pagos, deuda, cronología ni portal” y “las
+  estadísticas se calculan con las ventas reales de la tienda”) quedaron
+  desactualizados; los favoritos muestran montos en Gs 0; el portal dice
+  “Tienda demo” (la tienda es Aurora Móviles); y la plantilla demo de Clientes
+  deja “Tu pedido  ya está…”.
