@@ -103,21 +103,9 @@ export default function Celulares() {
   }
 
   return (
-    <div className="min-h-dvh bg-ink-700">
-      <header className="sticky top-0 z-30 bg-fono text-onbrand pt-safe shadow-md">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-bold">Lista de Precios</div>
-          <Button
-            variant="ghost"
-            className="text-onbrand hover:bg-ink-800/15"
-            onClick={() => navigate('/')}
-          >
-            Volver
-          </Button>
-        </div>
-      </header>
+    <div className="space-y-4">
 
-      <main className="max-w-3xl mx-auto p-4 space-y-4">
+      <main className="mx-auto max-w-3xl space-y-4">
         <div className="flex gap-2">
           <Button
             variant="success"

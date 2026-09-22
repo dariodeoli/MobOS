@@ -226,7 +226,7 @@ export default function ListaVentasDia({
                   </div>
                   {(g.items.some(item => Number(item.serialsPending || 0) > 0) || g.items.some(item => item.costPending === true)) && <div className="mt-1.5 flex flex-wrap gap-1.5 pl-4">
                     {g.items.some(item => Number(item.serialsPending || 0) > 0) && <span className="rounded bg-warn/20 px-1.5 py-0.5 text-[10px] font-semibold text-warn">sin IMEI (sobre pedido)</span>}
-                    {g.items.some(item => item.costPending === true) && <span className="rounded bg-sky-400/15 px-1.5 py-0.5 text-[10px] font-semibold text-info">costo pendiente</span>}
+                    {g.items.some(item => item.costPending === true) && <span className="rounded bg-info/15 px-1.5 py-0.5 text-[10px] font-semibold text-info">costo pendiente</span>}
                   </div>}
                   <div className="mt-2 flex flex-wrap items-center gap-2 pl-4">
                     <IconAction icon="receipt" tone="fono" label="Pagos y comprobantes" onClick={() => setPagoPedido(v)} />
@@ -317,7 +317,7 @@ export default function ListaVentasDia({
                                   </span>
                                 )}
                                 {item.costPending === true && (
-                                  <span className="ml-1 inline-flex items-center gap-1 rounded bg-sky-400/15 px-1.5 py-0.5 font-semibold text-info">
+                                  <span className="ml-1 inline-flex items-center gap-1 rounded bg-info/15 px-1.5 py-0.5 font-semibold text-info">
                                     <Icon name="alert" className="h-3 w-3" /> costo pendiente
                                   </span>
                                 )}

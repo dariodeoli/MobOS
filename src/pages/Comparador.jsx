@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { listCelulares, rankCelular, rankCapacidad, getComparadorImagenes } from '@/lib/storage'
 import { useLive } from '@/hooks/useLive'
 import { gs } from '@/utils/calculos'
 import { colorHex } from '@/utils/colores'
 import { cn } from '@/lib/utils'
-import { Button, Select } from '@/components/ui'
+import { Select } from '@/components/ui'
 import ProductFooter from '@/components/app/ProductFooter'
 import Icon from '@/components/shared/Icon'
 
@@ -94,7 +93,6 @@ function Columna({ info, valor, onModelo, onColor, modelos }) {
 
 export default function Comparador() {
   useLive()
-  const navigate = useNavigate()
   const [condicion, setCondicion] = useState('Nuevo')
 
   const activos = useMemo(
@@ -165,19 +163,7 @@ export default function Comparador() {
   }
 
   return (
-    <div className="min-h-dvh bg-ink-700">
-      <header className="sticky top-0 z-30 bg-fono text-onbrand pt-safe shadow-md">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
-          <div className="flex items-center gap-2 font-bold">Comparar modelos</div>
-          <Button
-            variant="ghost"
-            className="text-onbrand hover:bg-ink-800/15"
-            onClick={() => navigate('/celulares')}
-          >
-            Lista de precios
-          </Button>
-        </div>
-      </header>
+    <div className="space-y-4">
 
       <main className="mx-auto max-w-5xl space-y-5 p-4">
         {/* Switch de condición */}
