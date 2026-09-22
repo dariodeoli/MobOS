@@ -1521,7 +1521,7 @@ export default function FormularioVenta({
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <span className="rounded-full border border-fono/20 bg-fono/5 px-3 py-1 text-xs font-semibold text-fono-light">
+          <span className="rounded-full border border-fono/20 bg-fono/5 px-3 py-1 text-xs font-semibold text-fore">
             Hoy: {fechaClave().split('-').reverse().join('/')}
           </span>
           {/* Carrito en espera: suspender la venta actual y retomar otra. Vive
@@ -2066,7 +2066,7 @@ export default function FormularioVenta({
                 <p className="mt-0.5 text-sm">
                   {gs(Number(escaneado.precioVenta) || 0)} ·{' '}
                   {num(escaneado.stock) > 0
-                    ? <span className="text-ok">{num(escaneado.stock)} en stock</span>
+                    ? <span className="font-semibold text-fore">{num(escaneado.stock)} en stock</span>
                     : <span className="text-bad">Agotado</span>}
                 </p>
               </div>
