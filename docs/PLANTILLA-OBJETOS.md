@@ -136,6 +136,12 @@ patrón de uso de cada familia y un ejemplo corto.
 ## 3. Cápsulas, chips y tarjetas — objetos de entidad
 
 - **Cápsula de estado**: color semántico + texto corto + `nowrap`; colores por
+  mapa, nunca elegidos a ojo. Los estados de pedido/entrega/garantía salen de
+  `src/lib/estadosPedido.js`: `tonoPedido`/`tonoGarantia` para las páginas del
+  cliente y los mapas con badge (`ESTADO_PEDIDO_BADGE`, `ESTADO_ENTREGA_BADGE`,
+  `ESTADO_GARANTIA_BADGE`, con `label` + `color`) para las pantallas de gestión,
+  que se dibujan con `shared/EstadoBadge` (lote 10). No se re-etiqueta un estado
+  por pantalla ni se copia el mapa dentro de un componente.
   tokens, nunca hardcodeados.
 - **Badge/contador**: número en píldora, `tabular-nums`, `nowrap`.
 - **Cápsula de dato (KPI)**: eyebrow + valor fuerte + nota; alineación idéntica
@@ -151,9 +157,11 @@ patrón de uso de cada familia y un ejemplo corto.
 - **Celda de dinero: `ui/CeldaMoneda` (#211)** — celda de tablas y listas
   alineada a la derecha con `Money`, `tabular-nums` y tono; el sufijo va como
   `children`. Ejemplo: `<CeldaMoneda valor={pago.amountPyg} tono="ok" />`.
-- **Barra de progreso: `ui/BarraProgreso` (#211)** — accesible
-  (`role="progressbar"`), con tono (`fono`/`ok`/`warn`/`bad`/`mute`), altura
-  (`sm`/`md`/`lg`) y `etiqueta`. Ejemplo:
+- **Barra de progreso: `ui/BarraProgreso` (#211, lote 10)** — accesible
+  (`role="progressbar"`), con tono (`fono`/`ok`/`warn`/`bad`/`mute`/`onbrand`),
+  altura (`sm`/`md`/`lg`) y `etiqueta`. Para las barras de gráfico (ranking,
+  series) se ajustan `pista` y `relleno` con los tokens del tema en vez de
+  armar el markup. Ejemplo:
   `<BarraProgreso valor={paso} max={pasos.length} etiqueta="Progreso de la verificación" />`.
 - **Sección de detalle plegable (#164)**: `shared/SeccionColapsable` — el
   encabezado muestra título + resumen del dato útil (cantidad, total, estado) y
@@ -183,8 +191,10 @@ patrón de uso de cada familia y un ejemplo corto.
 > (`ROTULO_DATO`, `CELDA_ENCABEZADO`, `ROTULO_SECCION`, `CELDA_DATO`,
 > `CELDA_NUMERO`, `CELDA_IDENTIDAD`, `CELDA_IDENTIDAD_GRANDE`),
 > `src/components/shared/formulario.js` (`GRILLA_DOS_COLUMNAS`, `PIE_ACCIONES`),
+> `src/components/shared/EstadoBadge.jsx` (estado con badge desde el mapa),
 > `src/lib/estadosPedido.js`
-> (estados de pedido/entrega/garantía con su tono para las páginas del cliente).
+> (estados de pedido/entrega/garantía con su tono para las páginas del cliente y
+> los mapas con badge de las pantallas de gestión).
 
 ## 4. Estados y avisos — únicos por concepto
 
@@ -198,6 +208,12 @@ patrón de uso de cada familia y un ejemplo corto.
   contenido es estructurado (ícono, botón de reintentar); `className` solo para
   espaciado, radio o layout. Prohibido copiar el `<p>`/`<div>` con
   `border-bad/30 bg-bad/10` por pantalla.
+- **Nota (`ui/Nota`, lote 10):** la aclaración que **no** es resultado (no
+  anuncia con `role`) va con `Nota`: `tono="warn"` (predeterminado, borde
+  ámbar), `tono="info"` o `tono="neutro"`, `compact` para el tamaño chico y
+  `como="div"` si lleva estructura. Antes cada pantalla copiaba el `<p>` con
+  `border-warn/30 bg-warn/10` y texto neutro (Impresoras, Estado del sistema,
+  Comparativa de impresión, Aceptar invitación).
   - **Carga:** los placeholders de carga van con `Skeleton`; no se repite
     `animate-pulse` + fondo en cada pantalla (las pulsaciones decorativas de un
     ícono o un punto no son skeletons).
@@ -207,7 +223,7 @@ patrón de uso de cada familia y un ejemplo corto.
 - Los avisos destacados al dueño son solo: bloqueos, plazos con fecha, plata o
   riesgos propios (máximo tres).
 
-> Referencia MobOS: `EmptyState`, `ErrorState`, `Skeleton`, `Aviso` en
+> Referencia MobOS: `EmptyState`, `ErrorState`, `Skeleton`, `Aviso`, `Nota` en
 > `src/components/ui/index.jsx`; modo demo en `src/lib/demoMode.js`.
 
 ## 5. Diálogos, acciones y overlays

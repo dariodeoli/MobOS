@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Badge, Button, Modal, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Modal, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
 import { demoConsultaImei, htmlComprobanteImei, imeiValido, resumenImei, textoNota } from '@/lib/imeiComprobante'
@@ -76,7 +76,7 @@ export default function ImeiVerificacionModal({ open, onClose, imei = '', client
 
         {cargando && <div className="space-y-2" aria-busy="true"><Skeleton className="h-16 w-full" /><Skeleton className="h-10 w-full" /></div>}
 
-        {!cargando && error && <p role="alert" className="rounded-lg border border-warn/30 bg-warn/5 px-3 py-2 text-sm text-warn">{error}</p>}
+        {!cargando && error && <Aviso tono="warn">{error}</Aviso>}
 
         {!cargando && !error && !consulta && (
           <div className="rounded-xl border border-ink-600 p-3 text-sm text-mute">

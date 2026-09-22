@@ -10,6 +10,8 @@ import { codigoPedido } from '@/utils/pedido'
 import { cn } from '@/lib/utils'
 import { primerNombre } from '@/lib/utils'
 import { portalUrlFor, portalVitrinaUrlFor } from '@/lib/customerPortal'
+import EstadoBadge from '@/components/shared/EstadoBadge'
+import { ESTADO_ENTREGA_BADGE, ESTADO_GARANTIA_BADGE, ESTADO_PEDIDO_BADGE } from '@/lib/estadosPedido'
 import { PERIODOS_INFORME, rangoPeriodo, seccionesInforme, informeCsv, nombreArchivoInforme } from '@/lib/customerReport'
 import QRCode from 'qrcode'
 import SerialTexto from '@/components/shared/SerialTexto'
@@ -43,30 +45,6 @@ import {
   useToast,
 } from '@/components/ui'
 import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
-const ORDER_STATUS = {
-  PENDING: { label: 'Pendiente', color: 'orange' },
-  REGISTERED: { label: 'Registrado', color: 'blue' },
-  COMPLETED: { label: 'Completado', color: 'green' },
-  CANCELLED: { label: 'Cancelado', color: 'red' },
-}
-const FULFILLMENT_STATUS = {
-  PROCESSING: { label: 'Preparando', color: 'blue' },
-  PENDING: { label: 'Pendiente', color: 'slate' },
-  SHIPPED: { label: 'Enviado', color: 'blue' },
-  IN_TRANSIT: { label: 'En camino', color: 'orange' },
-  PICKED_UP: { label: 'Retirado', color: 'green' },
-  PARTIAL: { label: 'Entrega parcial', color: 'orange' },
-  NOT_DELIVERED: { label: 'No entregado', color: 'red' },
-  READY_TO_SHIP: { label: 'Listo p/ enviar', color: 'blue' },
-  READY_FOR_PICKUP: { label: 'Listo para retirar', color: 'green' },
-  DELIVERED: { label: 'Entregado', color: 'slate' },
-}
-const WARRANTY_STATUS = {
-  RECEIVED: { label: 'Recibida', color: 'orange' },
-  DIAGNOSIS: { label: 'En diagnóstico', color: 'blue' },
-  READY: { label: 'Lista', color: 'green' },
-  DELIVERED: { label: 'Entregada', color: 'slate' },
-}
 const FOLLOW_UP_KINDS = {
   CALL: { label: 'Llamada', color: 'blue' },
   WHATSAPP: { label: 'WhatsApp', color: 'green' },
@@ -77,10 +55,6 @@ const LOYALTY_KINDS = {
   ACCRUAL: { label: 'Acumulado', color: 'green' },
   REDEMPTION: { label: 'Canjeado', color: 'orange' },
   ADJUSTMENT: { label: 'Ajuste', color: 'slate' },
-}
-const STATUS_BADGE = (map, value) => {
-  const item = map[value]
-  return item ? <Badge color={item.color}>{item.label}</Badge> : <Badge>{value || 'Sin estado'}</Badge>
 }
 const antiguedadTexto = (dias) => {
   if (dias === null || dias === undefined || dias === '') return '—'
@@ -1058,9 +1032,9 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
       {!loading && !error && profile && (
         <div className="space-y-5">
           {esDemo && (
-            <p role="status" className="rounded-xl border border-warn/30 bg-warn/5 px-3 py-2 text-xs text-warn">
+            <Aviso tono="warn" compact>
               Modo demo: esta ficha usa los datos cargados en tu navegador (pedidos, deuda, cronología y portal incluidos). Nada se guarda en una tienda real.
-            </p>
+            </Aviso>
           )}
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
@@ -1176,7 +1150,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                 {ultimasOrdenes.map((order) => (
                   <li key={order.id} className="flex flex-wrap items-center justify-between gap-2">
                     <span className="min-w-0 truncate"><b>{codigoPedido(order.orderNumber) || 'Pedido'}</b> <span className="text-xs text-mute">{fecha(order.createdAt)}</span></span>
-                    <span className="flex items-center gap-2"><span className="tabular-nums text-mute">{formatGs(order.totalPyg)}</span>{STATUS_BADGE(ORDER_STATUS, order.status)}</span>
+                    <span className="flex items-center gap-2"><span className="tabular-nums text-mute">{formatGs(order.totalPyg)}</span><EstadoBadge mapa={ESTADO_PEDIDO_BADGE} valor={order.status} /></span>
                   </li>
                 ))}
               </ul>
@@ -1280,7 +1254,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                   columns={[
                     { key: 'createdAt', label: 'Fecha', render: (row) => <span className="text-mute">{fecha(row.createdAt)}</span> },
                     { key: 'orderNumber', label: 'N.º', render: (row) => <span className="font-medium">{codigoPedido(row.orderNumber) || '—'}</span> },
-                    { key: 'status', label: 'Estado', render: (row) => <div className="flex flex-col gap-1">{STATUS_BADGE(ORDER_STATUS, row.status)}{FULFILLMENT_STATUS[row.fulfillmentStatus] && <span className="text-[11px] text-mute">{FULFILLMENT_STATUS[row.fulfillmentStatus].label}</span>}</div> },
+                    { key: 'status', label: 'Estado', render: (row) => <div className="flex flex-col gap-1"><EstadoBadge mapa={ESTADO_PEDIDO_BADGE} valor={row.status} />{ESTADO_ENTREGA_BADGE[row.fulfillmentStatus] && <span className="text-[11px] text-mute">{ESTADO_ENTREGA_BADGE[row.fulfillmentStatus].label}</span>}</div> },
                     { key: 'totalPyg', label: 'Total', align: 'right', render: (row) => formatGs(row.totalPyg) },
                     { key: 'paidPyg', label: 'Pagado', align: 'right', render: (row) => <span className="text-ok">{formatGs(pagadoOrden(row))}</span> },
                     { key: 'balancePyg', label: 'Saldo', align: 'right', render: (row) => <span className={saldoOrden(row) > 0 ? 'text-warn' : ''}>{formatGs(saldoOrden(row))}</span> },
@@ -1290,7 +1264,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                     <div className="rounded-xl border border-ink-600 bg-ink-800 p-3 text-sm">
                       <div className="flex items-center justify-between gap-2">
                         <b>{codigoPedido(row.orderNumber) || '—'}</b>
-                        {STATUS_BADGE(ORDER_STATUS, row.status)}
+                        <EstadoBadge mapa={ESTADO_PEDIDO_BADGE} valor={row.status} />
                       </div>
                       <p className="mt-1 text-xs text-mute">{fecha(row.createdAt)}{row.branch?.name ? ` · ${row.branch.name}` : ''}</p>
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
@@ -1364,7 +1338,7 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                       <span className={CELDA_IDENTIDAD} title={item.description || undefined}>{item.description || 'Garantía'}</span>
                       <span className="min-w-0"><SerialTexto serial={item.serial} className="truncate text-[11px] text-mute" /></span>
                       <span className={CELDA_DATO}>{fecha(item.createdAt)}</span>
-                      <span className="min-w-0">{STATUS_BADGE(WARRANTY_STATUS, item.status)}</span>
+                      <span className="min-w-0"><EstadoBadge mapa={ESTADO_GARANTIA_BADGE} valor={item.status} /></span>
                     </div>
                   ))}
                   </div>

@@ -175,8 +175,8 @@ function Preview({ appDomain }) {
   return (
     <div className="relative mx-auto max-w-[620px] rounded-[2rem] border border-fore/10 bg-ink-800 p-3 shadow-[0_30px_90px_rgba(0,0,0,.42)]">
       <div className="flex h-9 items-center gap-2 rounded-t-[1.35rem] bg-ink-700 px-4 text-[10px] text-mute">
-        <i className="h-2 w-2 rounded-full bg-red-400" />
-        <i className="h-2 w-2 rounded-full bg-amber-300" />
+        <i className="h-2 w-2 rounded-full bg-bad" />
+        <i className="h-2 w-2 rounded-full bg-warn" />
         <i className="h-2 w-2 rounded-full bg-fono" />
         <span className="ml-3 rounded bg-fore/5 px-2 py-1">
           {appDomain.replace("https://", "")}

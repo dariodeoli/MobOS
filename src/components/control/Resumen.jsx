@@ -27,7 +27,7 @@ import { ticketResumenDia } from '@/lib/printing/reportes'
 import { imprimirDocumento } from '@/lib/printing/agent'
 import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
-import { Card, Badge, Dot, EmptyState, Button } from '@/components/ui'
+import { BarraProgreso, Card, Badge, Dot, EmptyState, Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/shared/tabla'
 import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
@@ -154,9 +154,7 @@ function CardFacturado({ total, totalAnt, cobrado, pendiente, pagadas, sinPagar,
             </div>
           </button>
         </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-onbrand/20">
-          <div className="h-full rounded-full bg-onbrand" style={{ width: `${pctCobrado}%` }} />
-        </div>
+        <BarraProgreso className="mt-3" valor={pctCobrado} tono="onbrand" pista="bg-onbrand/20" etiqueta={`Cobrado: ${pctCobrado}%`} />
       </div>
     </div>
   )
@@ -604,12 +602,7 @@ export default function Resumen() {
                     <MedioPago medio={m.medio} alto="h-4" />
                     <span className="text-sm font-medium">{gs(m.monto)}</span>
                   </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-ink-600">
-                    <div
-                      className="h-full rounded-full bg-blue-line"
-                      style={{ width: `${base.total > 0 ? Math.min(100, (m.monto / base.total) * 100) : 0}%` }}
-                    />
-                  </div>
+                  <BarraProgreso valor={m.monto} max={base.total} relleno="bg-blue-line" pista="bg-ink-600" etiqueta={`${m.medio}: ${gs(m.monto)}`} />
                 </div>
               ))}
             </div>
@@ -702,12 +695,7 @@ export default function Resumen() {
                 <span className="min-w-0 flex-1 truncate text-sm font-medium sm:w-32 sm:flex-none">
                   {v.nombre}
                 </span>
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-600">
-                  <div
-                    className={cn('h-full rounded-full', i === 0 ? 'bg-ok' : 'bg-blue-line')}
-                    style={{ width: `${(v.total / maxVend) * 100}%` }}
-                  />
-                </div>
+                <BarraProgreso className="flex-1" valor={v.total} max={maxVend} tono={i === 0 ? 'ok' : 'fono'} relleno={i === 0 ? undefined : 'bg-blue-line'} pista="bg-ink-600" etiqueta={`${v.nombre}: ${gs(v.total)}`} />
                 <span className="w-10 text-right text-xs text-mute">{v.n}</span>
                 <span className="w-24 text-right text-sm font-semibold sm:w-28">{gs(v.total)}</span>
                 <span className="hidden w-28 text-right text-sm text-ok sm:block">{gs(v.com)}</span>

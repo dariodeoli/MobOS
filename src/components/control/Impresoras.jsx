@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Modal, Select, Skeleton, useToast } from '@/components/ui'
+import { Badge, Button, Card, ConfirmDialog, EmptyState, FormField, Input, Modal, Nota, Select, Skeleton, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import { useSesion } from '@/lib/sesion'
 import { api } from '@/lib/api/client'
@@ -910,14 +910,14 @@ export default function Impresoras() {
           </div>
         )}
         {!estado?.disponible && !cargando && (
-          <p className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
+          <Nota>
             No se encontró el agente en <b className="text-fore">{store.agentUrl}</b>. En esta computadora la impresión sale por acá; en cualquier otro dispositivo los trabajos se encolan y los imprime el puente vinculado. Para instalar el agente, usá <b className="text-fore">Gestionar puentes</b> y vinculá esta computadora con el código.
-          </p>
+          </Nota>
         )}
         {estado?.disponible && estado.alias && !estado.alias.presente && (configImpresora().impresora || store.impresoras.some((item) => String(item.destino || '').startsWith('lan:'))) && (
-          <p className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
+          <Nota>
             La IP secundaria <b className="text-fore">{estado.alias.ip}</b> (red de la impresora) no está agregada: se pierde al reiniciar o cambiar de red. El agente la recrea solo al iniciar la Mac; si no, usá <b className="text-fore">Reparar conexión</b>.
-          </p>
+          </Nota>
         )}
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="ghost" onClick={() => diagnosticar(null)} disabled={diagnosticando || !estado?.disponible}>{diagnosticando ? 'Consultando…' : 'Diagnóstico de red'}</Button>
@@ -941,9 +941,9 @@ export default function Impresoras() {
             <p className="mt-1 text-sm text-mute">Cada trabajo sale por el puente de la sucursal del pedido o del vendedor. Si la sucursal no tiene puente activo, el trabajo se encola al puente de la empresa.</p>
           </div>
           {sucursalesSinPuente.length > 0 && (
-            <p role="alert" data-testid="alerta-sucursal-sin-puente" className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
+            <Nota role="alert" data-testid="alerta-sucursal-sin-puente">
               <b className="text-warn">Sucursal sin puente activo:</b> {sucursalesSinPuente.map((sucursal) => sucursal.nombre).join(', ')} {sucursalesSinPuente.length === 1 ? 'tiene' : 'tienen'} ventas y ningún puente asignado. Sus impresiones se encolan al puente de la empresa.
-            </p>
+            </Nota>
           )}
           <div className={cn('lg:grid-cols-3', GRILLA_DOS_COLUMNAS_COMPACTA)}>
             {cobertura.map((sucursal) => (
@@ -1713,9 +1713,9 @@ function ModalPrueba({ impresora, chip, verificacion, metodo, usuario, puente, t
           </div>
         )}
         {tipo === 'corte' && (
-          <p className="rounded-lg border border-warn/30 bg-warn/10 p-2 text-xs text-mute">
+          <Nota compact>
             La verificación del corte es <b className="text-fore">física</b>: el ticket debe separarse del rollo solo. El éxito por TCP confirma el envío, no la cuchilla. Si no corta, revisá <b className="text-fore">Cutter Enable: YES</b> en la impresora.
-          </p>
+          </Nota>
         )}
         {enviando && <p role="status" className="rounded-lg border border-fono/25 bg-fono/10 p-2 text-xs text-fono-light">{progreso}</p>}
         <div className={PIE_ACCIONES_REVERSO}>

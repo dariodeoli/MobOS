@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
-import { formatGsInput, errorMonto, parseGsInput } from '@/utils/moneda'
+import { formatGs, formatGsInput, errorMonto, parseGsInput } from '@/utils/moneda'
 import { getDemoCash, getDemoCashExpected, openDemoCash, closeDemoCash } from '@/lib/demoCash'
 import { listVentas } from '@/lib/storage'
 import { fechaHora } from '@/utils/fecha'
@@ -101,7 +101,7 @@ function ArqueoDenominaciones({ cantidades, onCambiar, id }) {
                 onCambiar(valor, event.target.value.replace(/\D/g, '').slice(0, 7))
               }
               placeholder="0"
-              aria-label={`Cantidad de ${tipo.toLowerCase()}s de ${valor.toLocaleString('es-PY')} guaraníes`}
+              aria-label={`Cantidad de ${tipo.toLowerCase()}s de ${formatGs(valor)}`}
               className="h-9 text-center tabular-nums"
             />
             <p className="text-right text-sm tabular-nums text-mute">

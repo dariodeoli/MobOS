@@ -5,6 +5,7 @@ import { Aviso, Badge, Button, Input, Modal, Money, MoneyInput, Select, useToast
 import Icon from '@/components/shared/Icon'
 import { cn } from '@/lib/utils'
 import { codigoPedido } from '@/utils/pedido'
+import { montoTexto } from '@/utils/moneda'
 import { useSellerData, SellerFeedback } from '@/components/ventas/SellerData'
 import { deliveryFields, ENTREGA_LABELS, entregable, SIN_DATOS } from './datos'
 
@@ -100,7 +101,7 @@ export default function DriverOrders() {
     if (!cobro || enviando) return
     const montoNumero = Number(monto)
     if (!Number.isSafeInteger(montoNumero) || montoNumero <= 0) { setError('Ingresá un monto mayor a cero.'); return }
-    if (montoNumero > cobro.pendiente) { setError(`El cobro supera el saldo (falta ${cobro.pendiente.toLocaleString('es-PY')} Gs).`); return }
+    if (montoNumero > cobro.pendiente) { setError(`El cobro supera el saldo (falta ${montoTexto(cobro.pendiente)}).`); return }
     setEnviando(true); setError('')
     try {
       await api.post(`/api/delivery/orders/${encodeURIComponent(cobro.id)}/collections`, {

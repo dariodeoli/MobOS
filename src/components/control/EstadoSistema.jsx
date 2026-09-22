@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Aviso, Badge, Button, Card, ConfirmDialog, Dot, Select, Skeleton, useToast } from '@/components/ui'
+import { Aviso, Badge, Button, Card, ConfirmDialog, Dot, Nota, Select, Skeleton, useToast } from '@/components/ui'
 import Avatar from '@/components/shared/Avatar'
 import Icon from '@/components/shared/Icon'
 import { api } from '@/lib/api/client'
@@ -215,9 +215,9 @@ export default function EstadoSistema() {
         )}
         {error && <p role="alert" className="text-sm text-bad">{error}</p>}
         {(resumen.atencion > 0 || resumen.error > 0) && (
-          <p className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
+          <Nota>
             Los puntos “a revisar” son configuraciones del servidor (credenciales, correo, cifrado) o de este equipo (agente de impresión). El dueño puede completarlos en <b className="text-fore">Configuración</b>; el resto de la app sigue funcionando sin ellos.
-          </p>
+          </Nota>
         )}
       </Card>
 
@@ -315,9 +315,9 @@ export default function EstadoSistema() {
                   </Aviso>
                 )}
                 {sincronizacion.reservas.vencidasSinLiberar > 0 && (
-                  <p className="rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm text-mute">
+                  <Nota>
                     Hay <b className="text-fore">{sincronizacion.reservas.vencidasSinLiberar}</b> reserva(s) vencidas sin liberar: revisalas en <b className="text-fore">Inventario → Reservas</b>.
-                  </p>
+                  </Nota>
                 )}
               </div>
             )}
