@@ -216,6 +216,7 @@ test('el mismo IMEI en dos tiendas queda aislado por tienda', async ({ page, bro
 // #233: una consulta ambigua (timeout) queda «A conciliar» con costo estimado y
 // administración puede conciliarla asociando la orden del proveedor.
 test('el timeout queda a conciliar y administración lo concilia sin repetir la consulta', async ({ page }) => {
+  await page.goto('/inventario/unidades')
   const IMEI_TIMEOUT = imeiValido()
   const requestId = `qa-233-${Date.now()}`
   const creada = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'checks', imei: IMEI_TIMEOUT, servicio: 'APPLE_BASIC', confirm: true, requestId, escenario: 'timeout' }) })

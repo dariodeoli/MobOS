@@ -142,7 +142,7 @@ export async function consultarImei(input: { imei: unknown; servicio: keyof type
     const simulado = mock(escenario, validacion.ok ? validacion.imei : String(input.imei ?? ''))
     // #233: un timeout es ambiguo (pudo cobrarse): queda «a conciliar» con costo estimado.
     const estado: EstadoConsulta = escenario === 'timeout' ? 'conciliar' : estadoDeConsulta(simulado.status)
-    const costo = estado === 'fallido' ? 0 : servicio.precioUsd
+    const costo = estado === 'verificado' || estado === 'parcial' || estado === 'conciliar' ? servicio.precioUsd : 0
     return { estado, etiqueta: etiquetaEstado(estado), campos: normalizarRespuesta(simulado), crudo: simulado, costoUsd: costo, esMock: true }
   }
   if (!validacion.ok) return { estado: 'fallido', etiqueta: NO_VERIFICADO, campos: normalizarRespuesta({}), crudo: null, costoUsd: 0, esMock: false, error: validacion.error }

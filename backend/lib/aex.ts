@@ -289,9 +289,12 @@ export async function aexSolicitarYConfirmar(input: {
     const error = fallaDe(respuesta)
     if (error) return fallar('confirmar_servicio', error.codigo, error.mensaje)
     const filas = filasDe(respuesta)
-    const fila = filas.find((item) => String(item?.numero_guia || item?.guia || '').trim()) || filas[0] || {}
-    const guia = String(fila.numero_guia || fila.guia || '').trim()
-    if (!guia) return fallar('confirmar_servicio', 'sin-guia', 'AEX confirmó pero no devolvió numero_guia.')
+    const conGuia = (item: any) => [item?.numero_guia, item?.guia, item?.nro_guia, item?.numeroGuia, item?.datos?.numero_guia].map(valor => String(valor || '').trim()).find(Boolean) || ''
+    const fila = filas.find((item) => conGuia(item)) || filas[0] || {}
+    const guia = conGuia(fila)
+    // #231: sin guía interpretable la respuesta es ambigua (pudo crearse): se
+    // concilia por referencia; jamás se reintenta a ciegas.
+    if (!guia) return fallar('confirmar_servicio', 'ambiguo', 'AEX respondió sin número de guía interpretable: conciliar por codigo_operacion (solo lectura), no reintentar.')
     return { ok: true, etapa: 'confirmar_servicio', guia, idSolicitud, costoPyg: elegida?.costo || 0, servicio: elegida?.nombre || 'Servicio', codigo: String(fila.codigo || '0'), mensaje: String(fila.mensaje || '') }
   } catch (causa) {
     return fallar('confirmar_servicio', 'red', causa instanceof Error ? causa.message : 'Error de red confirmando el servicio.')

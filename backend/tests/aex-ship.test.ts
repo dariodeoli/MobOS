@@ -11,7 +11,7 @@ process.env.MOBOS_AEX_PUBLIC_KEY = 'clave-publica-sandbox'
 process.env.MOBOS_AEX_PRIVATE_KEY = 'clave-privada-sandbox'
 
 const CIUDADES = [{ codigo_ciudad: 'ASU', denominacion: 'Asunción' }, { codigo_ciudad: 'CDE', denominacion: 'Ciudad del Este' }]
-const estado: { solicitarError: { codigo: string; mensaje: string } | null; confirmarError: { codigo: string; mensaje: string } | null; capturas: Record<string, any>; trackingBody: any } = { solicitarError: null, confirmarError: null, capturas: {}, trackingBody: null }
+const estado: { solicitarError: { codigo: string; mensaje: string } | null; confirmarError: { codigo: string; mensaje: string } | null; confirmarPayload: any; capturas: Record<string, any>; trackingBody: any } = { solicitarError: null, confirmarError: null, confirmarPayload: null, capturas: {}, trackingBody: null }
 const respuesta = (datos: unknown, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => datos })
 
 aexTransporteDePrueba(async (url, opciones) => {
@@ -27,7 +27,7 @@ aexTransporteDePrueba(async (url, opciones) => {
   if (ruta.includes('/envios/confirmar_servicio')) {
     estado.capturas.confirmar = cuerpo
     if (estado.confirmarError) return respuesta(estado.confirmarError)
-    return respuesta({ datos: [{ codigo: '0', mensaje: 'OK', numero_guia: 'A009999999' }] })
+    return respuesta(estado.confirmarPayload || { datos: [{ codigo: '0', mensaje: 'OK', numero_guia: 'A009999999' }] })
   }
   if (ruta.includes('/envios/tracking')) {
     estado.trackingBody = cuerpo
@@ -115,7 +115,21 @@ async function pruebas() {
   }
   estado.confirmarError = null
 
-  // Paso 4: consulta read-only por codigo_operacion (no manda número de guía).
+  // Paso 4 (#231): confirmación sin número de guía interpretable = ambigua.
+  estado.confirmarPayload = { datos: [{ codigo: '0', mensaje: 'OK' }] }
+  const ambigua = await conClaves(() => aexSolicitarYConfirmar(entrada()))
+  assert.equal(ambigua.ok, false)
+  if (!ambigua.ok) {
+    assert.equal(ambigua.etapa, 'confirmar_servicio')
+    assert.equal(ambigua.codigo, 'ambiguo')
+    assert.match(ambigua.mensaje, /conciliar/i)
+  }
+  estado.confirmarPayload = { datos: [{ guia: 'A009999999' }] }
+  const recuperada = await conClaves(() => aexSolicitarYConfirmar(entrada()))
+  assert.equal(recuperada.ok, true, 'acepta la guía anidada')
+  estado.confirmarPayload = null
+
+  // Paso 5: consulta read-only por codigo_operacion (no manda número de guía).
   const tracking = await conClaves(() => aexTrackingDetallado({ codigoOperacion: 'MOBOS-SANDBOX-c4183d67' }))
   assert.equal(tracking.ok, true)
   assert.equal(estado.trackingBody.codigo_operacion, 'MOBOS-SANDBOX-c4183d67')
