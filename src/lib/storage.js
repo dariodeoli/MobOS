@@ -568,6 +568,7 @@ export function prepararDatosDemo() {
     producto('demo-airpods-pro-2-usbc', 'AirPods Pro 2 USB-C', 'Audio', 1850000, 1300000, 3, {
       estado: 'Nuevo',
     }),
+    producto('demo-vidrio-17-pro', 'Protector de vidrio 17 Pro', 'Protectores', 120000, 45000, 0, {}),
   ]
   const productoPorId = new Map()
   // #213: catálogo de iPhones del demo (12 modelos). Los que ya existen por
@@ -740,7 +741,7 @@ export function prepararDatosDemo() {
   const ventasDemo = ventas
     .map(item => ({ ...item, productoId: productoPorId.get(item.productoId) || item.productoId }))
     .filter(item => !cache.ventas.some(actual => actual.id === item.id))
-  if (version < 4) {
+  if (version < 5) {
     // Los celulares demo llevan sucursal y SKU: el inventario serializado y la
     // carga rápida los necesitan (los productos viejos se completan acá).
     cache.productos = [...cache.productos, ...nuevosProductos].map(item =>
@@ -748,6 +749,21 @@ export function prepararDatosDemo() {
         ? { ...item, branchId: item.branchId || 'mobos-demo-central', sku: item.sku || item.id.toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 24) }
         : item,
     )
+    // #195: catálogo demo al día (SKU, sucursal, mayorista) y umbrales para que
+    // la pestaña Alertas muestre reposición y agotados en la demo.
+    const umbrales = { 'demo-airpods-pro-2-usbc': 5, 'demo-vidrio-17-pro': 3, 'demo-funda-silicona-negra': 10 }
+    cache.productos = cache.productos.map(item => {
+      if (item.id === 'demo-vidrio-17-pro' && Number(item.stock) === 0 && !item.reorderPoint) return { ...item, reorderPoint: umbrales[item.id] }
+      const demo = item.id?.startsWith('demo-')
+      if (!demo) return item
+      return {
+        ...item,
+        sku: item.sku || item.id.toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 24),
+        branchId: item.branchId || 'mobos-demo-central',
+        precioMayorista: item.precioMayorista || Math.round(Number(item.precioVenta || 0) * 0.93),
+        ...(umbrales[item.id] ? { reorderPoint: item.reorderPoint || umbrales[item.id] } : {}),
+      }
+    })
     // Equipo demo (#213): 6 usuarios con rol, correo y PIN ficticios.
     const idsEquipo = new Set(EQUIPO_DEMO.map(usuario => usuario.id))
     cache.vendedores = [...cache.vendedores.filter(usuario => !idsEquipo.has(usuario.id)), ...EQUIPO_DEMO]
@@ -757,7 +773,7 @@ export function prepararDatosDemo() {
   cache.config = {
     ...cache.config,
     nombreTienda: cache.config.nombreTienda || 'Aurora Móviles',
-    demoSeedVersion: 4,
+    demoSeedVersion: 5,
   }
   persistMirror()
   notify()

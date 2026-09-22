@@ -305,3 +305,14 @@ export function saveDemoSupplier(data = {}) {
 export function demoInventorySeed() {
   return read()
 }
+
+// Alertas de reposición demo (#195): mismo contrato que GET /api/stock a partir
+// del catálogo local (umbral por producto). Sin llamadas al API.
+export function demoStockAlerts(productos = []) {
+  const conUmbral = productos.filter(product => Number(product.reorderPoint) > 0)
+  const fila = product => ({ id: product.id, name: product.nombre || product.name, sku: product.sku || '', stock: Number(product.stock) || 0, reorderPoint: Number(product.reorderPoint) || 0, branchName: product.branch?.name || 'Aurora Móviles' })
+  return {
+    alerts: conUmbral.filter(product => Number(product.stock) > 0 && Number(product.stock) <= Number(product.reorderPoint)).map(fila),
+    outOfStock: conUmbral.filter(product => Number(product.stock) <= 0).map(fila),
+  }
+}

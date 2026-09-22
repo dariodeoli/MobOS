@@ -516,7 +516,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
     return () => { active = false }
   }, [tab, apiMode, canManageVisibility])
   const loadAlerts = useCallback(async () => {
-    if (!apiMode || !canViewAlerts) return
+    if (!inventarioOperativo || !canViewAlerts) return
     setAlertsLoading(true); setAlertsError('')
     const params = new URLSearchParams()
     if (sucursal?.id) params.set('branchId', sucursal.id)
@@ -525,7 +525,7 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
       const payload = await api.get(`/api/stock-alerts${query}`)
       setStockAlerts(payload || { alerts: [], outOfStock: [] })
     } catch (cause) { setAlertsError(cause?.message || 'No se pudieron cargar las alertas.') } finally { setAlertsLoading(false) }
-  }, [apiMode, canViewAlerts, sucursal?.id])
+  }, [inventarioOperativo, canViewAlerts, sucursal?.id])
   useEffect(() => { loadAlerts() }, [loadAlerts])
   const tabValido = (value) => INVENTARIO_TABS.includes(value)
   // La URL manda: si cambia por atrás/adelante o por un enlace profundo, la
@@ -540,7 +540,8 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
     if (!threshold || !Number.isInteger(value) || value < 0 || value > 99999) return
     setBusy(true); setError('')
     try {
-      await api.patch('/api/products', { id: threshold.id, reorderPoint: value })
+      if (esDemo) updateProducto(threshold.id, { reorderPoint: value })
+      else await api.patch('/api/products', { id: threshold.id, reorderPoint: value })
       setNotice(`Umbral de ${threshold.name} actualizado a ${value}.`)
       setThreshold(null)
       await loadAlerts()
