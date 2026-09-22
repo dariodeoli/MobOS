@@ -11,6 +11,17 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.142 — 2026-09-22
+- **Inventario — inspección (PhoneCheck):** checklist por unidad con puntaje y **grado A/B/C**, batería (% y ciclos), chips de locks (Find My/MDM/SIM), repuestos no-OEM y **certificado con QR**; informe del dispositivo en 80 mm y A4 con QR al informe público, y tablero de certificaciones. (#240 #242)
+- **Inventario — modo taller/rack:** vista de taller con estaciones, filtros y acciones/impresión **en serie** sobre las unidades. (#240 #241)
+- **Trade-in:** valuación del equipo con grado y hallazgos al recibirlo. (#240)
+- **POS:** iconos por categoría en catálogo y carrito, borradores en la demo con guardado local y la venta demo descuenta stock, marca vendida la unidad y deja cronología. (#148 #227 #242)
+- **Diseño:** piloto de **tokens v2** en la tabla de inventario, la ficha de unidad y el carrito POS, con paquete de aprobación y capturas antes/después. (#241)
+- **Clientes/comentarios:** menciones en comentarios de pedido con la misma regla que la UI. (#148)
+- **Finanzas (demo):** saldo a favor visible en la demo, con la equivalencia con gift cards documentada. (#148)
+- **IMEI/conciliación:** el timeout queda "a conciliar" con `resolvedAt`, costo real y campos normalizados en el panel. (#233)
+- **Seguridad:** guía de rotación con 2FA y least privilege. (#232)
+
 ## v1.0.141 — 2026-09-22
 - **Demo:** al vender en el demo, la unidad pasa a **Vendidos**, **baja el stock** del modelo y queda la **cronología** de la unidad (#227, cierra la observación del barrido #195).
 - **Notificaciones:** el panel suma **tareas de taller y pedidos asignados** para el equipo (#148 §14).
