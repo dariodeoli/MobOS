@@ -1,0 +1,32 @@
+{
+  "resultados": [
+    {
+      "nombre": "Demo: se entra como Dueño y se cierra la guía",
+      "ok": true,
+      "detalle": "/resumen"
+    },
+    {
+      "nombre": "Gastos: un monto fuera del tope se conserva, se marca y el guardado lo explica",
+      "ok": true,
+      "detalle": "aviso: El monto supera el máximo permitido (2.147.483.647)"
+    },
+    {
+      "nombre": "Gastos: un monto dentro del tope no se marca",
+      "ok": true,
+      "detalle": "2.000.000.000 sin marca"
+    },
+    {
+      "nombre": "Caja: el arqueo fuera del tope se bloquea con el mismo mensaje",
+      "ok": true,
+      "detalle": "bloqueado con mensaje (cierre)"
+    },
+    {
+      "nombre": "API: sin sesión real la demo no escribe en el servidor (constancia)",
+      "ok": true,
+      "detalle": "401 sin sesión: la demo no escribe; el tope del servidor se verificó en local"
+    }
+  ],
+  "web": "https://app.moboss.online",
+  "api": "https://api.moboss.online",
+  "fecha": "2026-09-22T15:31:17.581Z"
+}
