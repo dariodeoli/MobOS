@@ -88,7 +88,7 @@ const grabarRed = (page, permitidas = []) => page.on('request', (req) => {
     capturas.push(await shot(page, 'panel-vendedor'))
     const texto = await page.locator('body').innerText()
     if (!/Nueva venta|Venta/i.test(texto)) throw new Error(`no abrió el POS (URL ${page.url()})`)
-    if (!/datos son ficticios/i.test(texto)) throw new Error('no se ve el banner de datos ficticios')
+    if (!/datos ficticios/i.test(texto)) throw new Error('no se ve el banner de datos ficticios')
     return `panel abierto en ${page.url()}`
   })
 

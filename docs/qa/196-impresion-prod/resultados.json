@@ -1,6 +1,6 @@
 {
   "base": "https://app.moboss.online",
-  "fecha": "2026-09-21T18:55:41.136Z",
+  "fecha": "2026-09-22T00:40:08.870Z",
   "resultados": [
     {
       "paso": "entrada a la demo como dueño",
@@ -90,10 +90,13 @@
       "llamadasApi": []
     },
     {
-      "paso": "QR impreso que no vence y reimpresión",
-      "estado": "no-aplicable",
-      "detalle": "no se puede ejercitar en el demo anónimo: los tokens del QR salen del backend y el demo no tiene sesión; en el demo el acceso del cliente no se genera. Se verifica en el e2e de QR y en producción escaneando un comprobante real.",
-      "capturas": [],
+      "paso": "QR del comprobante en demo: token ficticio estable y por nivel (#204)",
+      "estado": "ok",
+      "detalle": "token ficticio estable por nivel (demo-completo-demo-venta-hoy-partial) y reimpresión con el mismo token",
+      "capturas": [
+        "16-qr-comprobante-demo.jpg",
+        "17-qr-demo-nivel-detallado.jpg"
+      ],
       "llamadasApi": []
     }
   ],
@@ -104,7 +107,7 @@
   "erroresDeRed": [],
   "erroresOtros": [],
   "veredicto": {
-    "pasosOk": 9,
+    "pasosOk": 10,
     "pasosTotal": 10,
     "llamadasDeImpresion": 0,
     "llamadasDeOtrosModulos": 0,

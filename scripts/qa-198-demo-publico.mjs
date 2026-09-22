@@ -205,7 +205,7 @@ try {
 
   // ── Split: pago parcial + Dividir saldo ──────────────────────────────
   await paso('split: parcial con dividir saldo y segundo medio', async () => {
-    await agregarPago('Caja demo', 3000000)
+    await agregarPago('Guaraníes', 3000000)
     const botonDividir = page.getByRole('button', { name: /Dividir saldo/ })
     const hayDividir = await botonDividir.count()
     const textoDividir = hayDividir ? await texto(botonDividir) : ''
@@ -218,9 +218,9 @@ try {
       prefill = await page.getByLabel('Monto original').nth(1).inputValue()
       const combo2 = page.getByLabel('Cuenta de cobro').nth(1)
       await combo2.click()
-      await combo2.fill('Transferencia')
+      await combo2.fill('Itaú')
       await esperar(900)
-      await page.getByRole('option').filter({ hasText: /Transferencia/i }).first().click()
+      await page.getByRole('option').filter({ hasText: /Itaú/i }).first().click()
       await esperar(800)
     }
     const bloques = await page.getByLabel('Monto original').count()
