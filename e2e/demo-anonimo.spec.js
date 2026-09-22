@@ -514,3 +514,24 @@ test('la entrada /demo no duplica la guía y el PIN está siempre a la vista (#2
   await pin.pressSequentially('2001')
   await expect(page).toHaveURL(/\/pos$/)
 })
+
+// #240: verificación del checklist PhoneCheck en demo (capturas opt-in).
+test('demo: el checklist PhoneCheck se completa y deja grado', async ({ page }) => {
+  const salida = process.env.MOBOS_240_DEMO || ''
+  await page.goto('/demo')
+  await page.getByRole('button', { name: /Entrar como Dueño/ }).click()
+  await expect(page).toHaveURL(/\/resumen$/)
+  await page.goto('/inventario/unidades')
+  await page.getByTestId('inventario-fila').first().waitFor({ timeout: 15_000 })
+  await page.getByTestId('inventario-fila').first().click()
+  const bloque = page.getByTestId('unidad-phonecheck')
+  await expect(bloque).toBeVisible()
+  if (salida) await page.screenshot({ path: `${salida}/01-phonecheck-demo.png` })
+  // Marca OK en todos los ítems (un clic por ítem) y guarda.
+  const ok = bloque.getByRole('button', { name: 'OK', exact: true })
+  for (let i = 0; i < await ok.count(); i += 1) await ok.nth(i).click()
+  await bloque.getByTestId('unidad-phonecheck-guardar').click()
+  await expect(page.getByText('Inspección guardada.')).toBeVisible({ timeout: 15_000 })
+  await expect(bloque.getByText('Grado A')).toBeVisible()
+  if (salida) await page.screenshot({ path: `${salida}/02-phonecheck-grado.png` })
+})

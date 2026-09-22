@@ -224,11 +224,13 @@ test('el timeout queda a conciliar y administración lo concilia sin repetir la 
   expect(creada.datos.etiqueta).toBe('A conciliar')
   expect(creada.datos.costUsd).toBe(0.06)
 
-  const conciliada = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'conciliar', requestId, externalId: 'ORD-233-DEMO', status: 'verificado', costUsd: 0.06, note: 'Orden recuperada del proveedor (demo).' }) })
+  const conciliada = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'conciliar', requestId, externalId: 'ORD-233-DEMO', status: 'verificado', costUsd: 0.06, resolvedAt: '2026-09-21T23:09:00-03:00', normalized: [{ clave: 'findMy', etiqueta: 'Find My / iCloud', valor: 'On', fuente: 'imeicheck.net', hora: '2026-09-21T23:09:00-03:00' }], note: 'Conciliado con el panel; iCloud/US Block clean no certifican blacklist mundial.' }) })
   expect(conciliada.status).toBe(200)
   expect(conciliada.datos.externalId).toBe('ORD-233-DEMO')
   expect(conciliada.datos.status).toBe('verificado')
   expect(Number(conciliada.datos.costUsd)).toBe(0.06)
+  expect(conciliada.datos.resolvedAt).toBe('2026-09-22T02:09:00.000Z')
+  expect(conciliada.datos.normalized?.[0]?.valor).toBe('On')
 
   const historial = await api(page, `imei?imei=${IMEI_TIMEOUT}`, { method: 'GET' })
   const fila = historial.datos.consultas.find(item => item.id === creada.datos.id)

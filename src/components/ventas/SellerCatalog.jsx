@@ -5,6 +5,7 @@ import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { getProductos } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
 import { montoUsd } from '@/utils/moneda'
+import { categoriaMeta } from '@/lib/categoriasProducto'
 import { Badge, Button, Select } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
 import SearchField from '@/components/shared/SearchField'
@@ -51,8 +52,8 @@ function FilaProducto({ row, onClick, seleccionado = false, onAlternar }) {
       <span className="flex items-center" onClick={(event) => event.stopPropagation()}>
         <input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar ${row.name || 'producto'}`} checked={seleccionado} onChange={() => onAlternar?.()} />
       </span>
-      <span className={CELDA_IDENTIDAD_GRANDE} title={row.name}>{row.name}</span>
-      <span className="truncate text-[11px] text-mute" title={row.category || undefined}>{row.category || '—'}</span>
+      <span className={CELDA_IDENTIDAD_GRANDE} title={row.name}><span className="mr-1.5 inline-grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-ink-600 bg-ink-800 align-middle text-mute" title={`Categoría: ${categoriaMeta(row).label}`}><Icon name={categoriaMeta(row).icon} className="h-3.5 w-3.5" /></span>{row.name}</span>
+      <span className="truncate text-[11px] text-mute" title={row.category || undefined}>{categoriaMeta(row).label}</span>
       <Badge color={CONDITION_TONE[row.condition] || 'slate'} className="w-fit justify-self-start whitespace-nowrap px-1.5 py-0.5 text-[10px]">{CONDITION[row.condition] || 'Nuevo'}</Badge>
       <span className="truncate font-mono text-[11px] text-mute" title={row.sku || undefined}>{row.sku || 'Sin SKU'}</span>
       <span className="truncate text-right text-[11px] tabular-nums text-mute">{mayorista(row) > 0 ? gs(mayorista(row)) : '—'}</span>

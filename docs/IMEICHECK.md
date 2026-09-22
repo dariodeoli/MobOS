@@ -100,3 +100,19 @@ Reglas actualizadas:
   se habilita `IMEICHECK_LIVE=1` ni se repite una consulta paga a ciegas.
 - Errores con respuesta del proveedor (4xx/5xx) siguen siendo `fallido` con costo 0;
   solo lo ambiguo (timeout/red) pasa a «a conciliar».
+
+## Conciliación auditada (#233) — cierre
+
+La consulta autorizada del IMEI de prueba (`3509704••••0150`, Apple Basic, 21/09 23:09)
+figuró en el panel del proveedor como **Successful, US$ 0,06**, con iPhone 16 Pro Max,
+**Find My ON**, SIM desbloqueada, garantía vencida, iCloud Clean y US Block Clean.
+El registro de producción (timeout, costUsd 0) se concilia con la acción admin:
+`status: verificado`, `costUsd 0.06`, `resolvedAt 21/09 23:09`, `externalId` del
+proveedor, **campos normalizados** del panel y la nota:
+
+> «iCloud Clean» y «US Block Clean» **no equivalen a blacklist mundial**: no
+> certifican el estado global del equipo; la única fuente de blacklist es el campo
+> de blacklist/ESN. Evidencia en #193.
+
+Lección: **timeout ≠ no cobrado**. Siempre conciliar contra el panel antes de asumir
+que no hubo cargo; nunca repetir la consulta para "verificar".

@@ -83,11 +83,12 @@ export async function POST(request: Request) {
         externalId: typeof body?.externalId === 'string' && body.externalId.trim() ? body.externalId.trim().slice(0, 128) : registro.externalId,
         conciliatedAt: new Date(),
         conciliationNote: typeof body?.note === 'string' ? body.note.trim().slice(0, 500) : registro.conciliationNote,
-        resolvedAt: new Date(),
+        resolvedAt: typeof body?.resolvedAt === 'string' && !Number.isNaN(new Date(body.resolvedAt).getTime()) ? new Date(body.resolvedAt) : new Date(),
+        normalized: Array.isArray(body?.normalized) ? body.normalized : registro.normalized,
         error: status === 'conciliar' ? registro.error : null,
       },
     })
-    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'IMEI_QUERY_CONCILIED', entity: 'ImeiCheckQuery', entityId: registro.id, metadata: { requestId: registro.requestId, status, costUsd, externalId: actualizado.externalId } } })
+    await prisma.auditLog.create({ data: { tenantId: tenant, userId: session.user.id, action: 'IMEI_QUERY_CONCILIATED', entity: 'ImeiCheckQuery', entityId: registro.id, metadata: { requestId: registro.requestId, status, costUsd, externalId: actualizado.externalId } } })
     return json(expectativa(actualizado, true))
   }
   const clave = typeof body?.servicio === 'string' && SERVICIOS[body.servicio] ? body.servicio : 'APPLE_BASIC'

@@ -12,7 +12,7 @@ import QRCode from 'qrcode'
 import { qrUnidad } from '@/lib/printing/qr'
 import { api, apiFetch } from '@/lib/api/client'
 import { postDemoImei } from '@/lib/demoImei'
-import { COSMETICOS, INSPECCION_ESTADOS, INSPECCION_ITEMS, resumenInspection } from '@/lib/phonecheck'
+import { COSMETICOS, INSPECCION_ESTADOS, INSPECCION_ITEMS, locksDeVerificacion, resumenInspection } from '@/lib/phonecheck'
 import { resources } from '@/lib/api'
 import { useSesion } from '@/lib/sesion'
 import { cotizacionReferencia } from '@/lib/fx'
@@ -99,7 +99,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
   const [costo, setCosto] = useState(costoInicial)
   const [guardandoCosto, setGuardandoCosto] = useState(false)
   // #240 PhoneCheck
-  const [inspeccion, setInspeccion] = useState(() => ({ items: unit.inspection?.items || {}, cosmetico: unit.inspection?.cosmetico || '', nota: unit.inspection?.nota || '' }))
+  const [inspeccion, setInspeccion] = useState(() => ({ items: unit.inspection?.items || {}, cosmetico: unit.inspection?.cosmetico || '', nota: unit.inspection?.nota || '', bateriaPct: unit.inspection?.bateriaPct ?? (unit.batteryHealth ?? ''), bateriaCiclos: unit.inspection?.bateriaCiclos ?? '', repuestosNoOem: unit.inspection?.repuestosNoOem || '' }))
   const [guardandoInspeccion, setGuardandoInspeccion] = useState(false)
   // Consulta de IMEI (#193/#200): precheck con costo visible, confirmación
   // explícita y resultado auditado. En demo solo SIMULA (sin llamadas).
@@ -405,6 +405,13 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
               </div>
             })}
           </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-4">
+            <Input aria-label="Batería %" inputMode="numeric" maxLength={3} placeholder="Batería %" value={inspeccion.bateriaPct} onChange={event => setInspeccion(actual => ({ ...actual, bateriaPct: event.target.value.replace(/\D/g, '') }))} />
+            <Input aria-label="Ciclos de batería" inputMode="numeric" maxLength={5} placeholder="Ciclos" value={inspeccion.bateriaCiclos} onChange={event => setInspeccion(actual => ({ ...actual, bateriaCiclos: event.target.value.replace(/\D/g, '') }))} />
+            <Input aria-label="Repuestos no OEM" placeholder="Repuestos no OEM / reparaciones" value={inspeccion.repuestosNoOem} onChange={event => setInspeccion(actual => ({ ...actual, repuestosNoOem: event.target.value }))} />
+            <Button type="button" variant="outline" disabled={imeiBusy} title="Corre la verificación de IMEI y trae los bloqueos al checklist" onClick={async () => { await imeiPrecheck(); await imeiConfirmar(); setInspeccion(actual => ({ ...actual, fuente: 'IMEIcheck' })) }}>{imeiBusy ? 'Verificando…' : 'Verificar y completar'}</Button>
+          </div>
+          {(() => { const chips = locksDeVerificacion(imeiDatos || {}); if (!chips.length) return null; return <div className="mt-2 flex flex-wrap items-center gap-1.5">{chips.map(chip => <span key={chip.clave} className={`rounded-lg border px-2 py-1 text-[10px] font-semibold ${chip.ok ? 'border-ok/40 text-ok' : 'border-bad/40 text-bad'}`} title={`${chip.label}: ${chip.valor}`}>{chip.label}: {chip.valor}</span>)}</div> })()}
           <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
             <Select aria-label="Cosmético" value={inspeccion.cosmetico} onChange={event => setInspeccion(actual => ({ ...actual, cosmetico: event.target.value }))}><option value="">Cosmético…</option>{COSMETICOS.map(valor => <option key={valor} value={valor}>{valor}</option>)}</Select>
             <Input aria-label="Nota general de inspección" placeholder="Nota general" value={inspeccion.nota} onChange={event => setInspeccion(actual => ({ ...actual, nota: event.target.value }))} />
