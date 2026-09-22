@@ -66,6 +66,14 @@ QR muerto: se omite el código.
   de aclaración, CI y fecha debajo. Térmicos (58/80): 3 avances (~12 mm) más la
   línea ancha, con los campos en líneas cortas; el diseño de 58 mm no es el de
   80 escalado. El área de observaciones va con aire, nunca al borde.
+- **Comprobante rápido (#215 §10):** en **Vendidos**, el ícono de cada fila
+  imprime el comprobante de la venta (nivel Rápido, el mismo comprobante de la
+  app) sin abrir la ficha; sale directo por la impresora configurada (80 mm por
+  defecto) y, ante un fallo claro, el PDF de respaldo con `OrderReceipt`.
+- **Etiquetas del lote (#218):** en **Traslados**, la acción «Etiquetas» de una
+  transferencia reimprime todas las unidades del lote y la recepción («Recibir
+  lote» o «Recibir en sucursal») permite reimprimir la de una unidad; sale desde
+  la sucursal donde está el lote (destino), sin depender del origen.
 - Los tickets ESC/POS viven en `src/lib/printing/tickets.js`; los HTML A4, en
   `src/components/shared/OrderReceipt.jsx` (mismo `styles()` que el comprobante).
 - La **etiqueta AEX** es la excepción al camino térmico: AEX devuelve un PDF ya
@@ -206,12 +214,16 @@ estado se verifica en `/health.usb`.
 
 ### Pendientes conocidos
 
-- **Multi-puente por sucursal (#95)**: hoy el puente es por empresa; falta
-  asignarlo por sucursal para que varias cajas impriman en paralelo.
 - **USB físico directo (#96)**: la implementación y el empaquetado están
   (node-usb viaja en el tarball del agente; ver `print-agent/USB-DIRECTO.md`);
   solo falta la **prueba física con la ZKP8008** en la Mac (conectar por USB,
-  encender `"usb": true` y verificar el ticket y `/health.usb`).
+  encender `"usb": true` y verificar el ticket y `/health.usb`). Al igual que la
+  prueba de agente/CUPS (#17), queda en manos de Dario con el checklist
+  `docs/IMPRESION-PRUEBA-FISICA.md`.
+- **Multi-puente por sucursal (#95)**: implementado (los puentes y las
+  impresoras se asignan por sucursal y la app resuelve el puente por la sucursal
+  del trabajo, con fallback al predeterminado de la empresa; ver la cobertura e2e
+  «dos sucursales: cada trabajo sale por el puente de su sucursal»).
 
 ## 5. Errores frecuentes y qué hacer
 
@@ -296,7 +308,9 @@ estado se verifica en `/health.usb`.
   PDF. El ancho sale de `configImpresora().ancho` (58 u 80 mm).
 - **Reimpresión al llegar a otra sucursal**: la recepción en tránsito
   (Inventario → En tránsito → «Recibir en sucursal») trae «Reimprimir etiqueta»
-  para que el destino imprima el papel sin depender de la sucursal de origen.
+  para que el destino imprima el papel sin depender de la sucursal de origen; el
+  lote completo se reimprime desde Traslados → «Etiquetas» de la transferencia
+  (#218), resuelto con las unidades que están en la sucursal activa.
 - Evidencia: `scripts/qa-220-etiquetas.mjs` genera los PDFs por tamaño con
   captura y valida el contenido (`docs/qa/220-etiquetas/`); el e2e
   `etiquetas-unidad.spec.js` cubre individual, seleccionadas y reimpresión por
