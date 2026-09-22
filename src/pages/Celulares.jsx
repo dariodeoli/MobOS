@@ -149,7 +149,7 @@ export default function Celulares() {
                 items={nuevos}
                 tema={{
                   encabezado: 'bg-ok/15 text-ok',
-                  modelo: 'text-ok border-emerald-100',
+                  modelo: 'text-ok border-ok/40',
                 }}
               />
               <BloqueCondicion
@@ -157,7 +157,7 @@ export default function Celulares() {
                 items={seminuevos}
                 tema={{
                   encabezado: 'bg-warn/15 text-warn',
-                  modelo: 'text-warn border-amber-100',
+                  modelo: 'text-warn border-warn/40',
                 }}
               />
             </div>

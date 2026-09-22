@@ -24,3 +24,14 @@ test('respeta las partículas en minúscula', () => {
   assert.equal(normalizarNombre('MARIA DE LOS ANGELES GOMEZ'), 'Maria de los Angeles Gomez')
   assert.equal(normalizarNombre('JUAN DE LA CRUZ'), 'Juan de la Cruz')
 })
+
+test('ordena el formato SIFEN "apellidos primero" cuando viene en mayúsculas', () => {
+  // El proveedor de RUC devuelve A1 A2 N1 N2 en mayúsculas y sin coma.
+  assert.equal(normalizarNombre('PEREZ GOMEZ JUAN CARLOS', { apellidosPrimero: 'sifen' }), 'Juan Carlos Perez Gomez')
+  assert.equal(normalizarNombre('PEREZ GOMEZ JUAN', { apellidosPrimero: 'sifen' }), 'Juan Perez Gomez')
+  // Con dos palabras no se adivina el orden (se deja tal cual); forzado, s00ed.
+  assert.equal(normalizarNombre('OLIVEIRA DARIO', { apellidosPrimero: 'sifen' }), 'Oliveira Dario')
+  assert.equal(normalizarNombre('OLIVEIRA DARIO', { apellidosPrimero: true }), 'Dario Oliveira')
+  // Un nombre escrito por el vendedor (no todo mayúsculas) se respeta.
+  assert.equal(normalizarNombre('Juan Carlos Perez', { apellidosPrimero: 'sifen' }), 'Juan Carlos Perez')
+})

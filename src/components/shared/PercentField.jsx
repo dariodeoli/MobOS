@@ -1,4 +1,6 @@
 import { Input } from '@/components/ui'
+import { cn } from '@/lib/utils'
+import { TAMANOS_CAMPO } from '@/utils/tamanos'
 
 // Porcentaje 0–100 con coma decimal y hasta 2 decimales (0,2 / 12,5). El valor
 // viaja como string formateado con coma; '' representa el campo vacío. Los
@@ -41,7 +43,7 @@ export default function PercentField({
   return (
     <Input
       id={id}
-      className={className}
+      className={cn(TAMANOS_CAMPO.porcentaje, className)}
       type="text"
       inputMode="decimal"
       autoComplete="off"

@@ -108,7 +108,7 @@ export default function PantallaBloqueada({
               onChange={onPinChange}
               className="mt-5"
             />
-            {error && <p role="alert" className="mt-3 text-sm text-red-300">{error}</p>}
+            {error && <p role="alert" className="mt-3 text-sm text-bad">{error}</p>}
             <p className="mt-4 text-[11px] text-mute">{busy ? 'Verificando…' : 'Se valida solo al completar el PIN.'}</p>
             {esDemo && (
               <p className="mt-2 rounded-xl border border-fono-dark/20 bg-fono-dark/5 p-2 text-[11px] text-mute">

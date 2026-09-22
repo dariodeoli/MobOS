@@ -120,9 +120,9 @@ export default function CalendarioGanancias({ datos, serieApi, titulo, nota, seg
 
           {/* Leyenda */}
           <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11px] text-mute">
-            <Leyenda color="bg-emerald-300" label="Ganancia" />
-            <Leyenda color="bg-red-300" label="Pérdida" />
-            <Leyenda color="bg-amber-300" label="Empate" />
+            <Leyenda color="bg-ok" label="Ganancia" />
+            <Leyenda color="bg-bad" label="Pérdida" />
+            <Leyenda color="bg-warn" label="Empate" />
             <Leyenda color="bg-ink-600" label="Sin ventas" />
           </div>
         </div>

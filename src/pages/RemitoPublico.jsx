@@ -114,7 +114,7 @@ export default function RemitoPublico() {
                     const clave = `line-${line.id || index}`
                     return (
                       <label key={clave} className="flex items-center gap-3 rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
-                        <input type="checkbox" className="h-4 w-4 accent-[#0c8876]" checked={Boolean(confirmados[clave])} disabled={recibido} onChange={event => setConfirmados(current => ({ ...current, [clave]: event.target.checked }))} />
+                        <input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean(confirmados[clave])} disabled={recibido} onChange={event => setConfirmados(current => ({ ...current, [clave]: event.target.checked }))} />
                         <span className="min-w-0 flex-1">{line.productName} × {line.quantity}</span>
                       </label>
                     )
@@ -125,7 +125,7 @@ export default function RemitoPublico() {
                       <div className="mt-2 space-y-1.5">
                         {seriales.map(serial => (
                           <label key={serial} className="flex items-center gap-3">
-                            <input type="checkbox" className="h-4 w-4 accent-[#0c8876]" checked={Boolean(confirmados[serial])} disabled={recibido} onChange={event => setConfirmados(current => ({ ...current, [serial]: event.target.checked }))} />
+                            <input type="checkbox" className="h-4 w-4 accent-fono" checked={Boolean(confirmados[serial])} disabled={recibido} onChange={event => setConfirmados(current => ({ ...current, [serial]: event.target.checked }))} />
                             <span className="font-mono text-xs text-mute">{serial}</span>
                           </label>
                         ))}

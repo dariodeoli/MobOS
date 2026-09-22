@@ -1,6 +1,7 @@
 import { createContext, forwardRef, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { formatGs, formatGsInput, parseGsInput, formatUsdInput, parseUsdInput, excedeMonto, LIMITE_MONTO_GENERAL } from '@/utils/moneda'
+import { formatGs, formatGsInput, parseGsInput, formatUsdInput, parseUsdInput, excedeMonto, LIMITE_MONTO_GENERAL, largoMaximoMonto } from '@/utils/moneda'
+import { TAMANOS_CAMPO } from '@/utils/tamanos'
 import Icon from '@/components/shared/Icon'
 
 // ── Button ──────────────────────────────────────────────────────────
@@ -111,11 +112,14 @@ export function PinInput({ value, onChange, onComplete, length = 4, autoFocus = 
 // pasan `LIMITE_MONTO_VENTAS`): el campo nunca trunca lo escrito, solo lo
 // marca con `aria-invalid` para que el formulario lo valide.
 const MONEY_SYMBOL = { PYG: 'Gs.', USD: 'US$', BRL: 'R$', EUR: '€', USDT: 'USDT' }
-export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, className, max = LIMITE_MONTO_GENERAL, ...props }) {
+export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, className, max = LIMITE_MONTO_GENERAL, maxLength, ...props }) {
   const isPyg = currency === 'PYG'
   const prefix = symbol || MONEY_SYMBOL[currency] || currency
   const display = isPyg ? formatGsInput(value) : formatUsdInput(value)
   const excede = excedeMonto(value, max)
+  // Largo máximo del campo: el monto más grande documentado (con separadores)
+  // entra completo y no se puede escribir de más; se puede pisar por prop.
+  const topeLargo = maxLength ?? largoMaximoMonto(max, { decimales: !isPyg })
   return (
     <div className="relative">
       <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-xs font-semibold text-mute">
@@ -126,12 +130,13 @@ export function MoneyInput({ currency = 'PYG', symbol, value, onValueChange, cla
         aria-invalid={excede || undefined}
         title={excede ? `El monto supera el máximo permitido (${max.toLocaleString('es-PY')})` : props.title}
         inputMode={isPyg ? 'numeric' : 'decimal'}
+        maxLength={topeLargo}
         value={display}
         onChange={(event) => {
           const next = event.target.value.replace(/[^\d.,]/g, '')
           onValueChange?.(isPyg ? (next.trim() ? parseGsInput(next) : '') : parseUsdInput(next))
         }}
-        className={cn(prefix.length > 3 ? 'pl-14' : 'pl-12', 'tabular-nums', className)}
+        className={cn(TAMANOS_CAMPO.moneda, prefix.length > 3 ? 'pl-14' : 'pl-12', 'tabular-nums', className)}
       />
     </div>
   )
