@@ -51,3 +51,38 @@ export function resumenInspection(inspection = {}) {
   const puntaje = puntajeInspection(inspection)
   return { puntaje, grado: gradoInspection(puntaje) }
 }
+
+/** Chips de bloqueos a partir de la verificación IMEI (campos normalizados). */
+export function locksDeVerificacion(verificacion = {}) {
+  const campos = Array.isArray(verificacion?.campos) ? verificacion.campos : Array.isArray(verificacion?.normalized) ? verificacion.normalized : []
+  const porClave = Object.fromEntries(campos.map(campo => [campo.clave, campo.valor]))
+  const chips = []
+  if (porClave.findMy !== undefined) chips.push({ clave: 'icloud', label: 'iCloud', valor: porClave.findMy || '—', ok: String(porClave.findMy).toLowerCase() === 'off' })
+  if (porClave.mdm !== undefined) chips.push({ clave: 'mdm', label: 'MDM', valor: porClave.mdm || '—', ok: !/on|s[ií]|activ/i.test(String(porClave.mdm || '')) })
+  if (porClave.blacklist !== undefined) chips.push({ clave: 'esn', label: 'ESN/Blacklist', valor: porClave.blacklist || '—', ok: !/reportad/i.test(String(porClave.blacklist || '')) })
+  if (porClave.simLock !== undefined) chips.push({ clave: 'carrier', label: 'Carrier/SIM', valor: porClave.simLock || '—', ok: /unlock|libre/i.test(String(porClave.simLock || '')) })
+  return chips
+}
+
+/** Payload listo para el informe (DSN/PRN): todo lo que la unidad inspeccionada muestra. */
+export function payloadInformeInspection({ unit = {}, inspection = {}, verificacion = null } = {}) {
+  const { puntaje, grado } = resumenInspection(inspection)
+  return {
+    unitId: unit.id,
+    serial: unit.serial || '',
+    producto: unit.product?.name || unit.product?.nombre || '',
+    capacidad: unit.product?.capacity || '',
+    condicion: unit.condition || '',
+    cosmetico: inspection.cosmetico || '',
+    bateria: { porcentaje: inspection.bateriaPct ?? unit.batteryHealth ?? null, ciclos: inspection.bateriaCiclos ?? null },
+    locks: locksDeVerificacion(verificacion || {}),
+    repuestosNoOem: inspection.repuestosNoOem || '',
+    items: INSPECCION_ITEMS.map(item => ({ clave: item.clave, label: item.label, grupo: item.grupo, estado: inspection.items?.[item.clave]?.estado || null, nota: inspection.items?.[item.clave]?.nota || '' })),
+    puntaje,
+    grado,
+    nota: inspection.nota || '',
+    verificado: inspection.inspeccionadoAt || null,
+    verificadoPor: inspection.inspeccionadoPor || '',
+    fuenteVerificacion: verificacion ? { proveedor: verificacion.provider || 'imeicheck.net', fecha: verificacion.resolvedAt || verificacion.requestedAt || null, etiqueta: verificacion.etiqueta || '' } : null,
+  }
+}
