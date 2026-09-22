@@ -94,7 +94,56 @@ export default function PasoCobro({
         </div>
       )}
 
-      {/* Medio de pago */}
+      // Entrega primero (#230): el costo del envío se ve antes de cobrar.
+            {/* Entrega + monto envío */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="entrega">Entrega</Label>
+          <Select id="entrega" value={f.entrega} onChange={set('entrega')}>
+            {ENTREGA.map(x => (
+              <option key={x} value={x}>
+                {x === 'Delivery'
+                  ? 'Delivery'
+                  : x === 'Encomienda'
+                    ? 'Envío por encomienda'
+                    : x === 'Retiro en tienda'
+                      ? 'Retiro en tienda'
+                      : x}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="monto-entrega">
+            {f.entrega === 'Retiro en tienda' ? 'Monto del delivery (₲)' : f.entrega === 'Encomienda' ? 'Costo de la encomienda (₲)' : 'Costo del envío (₲)'}
+          </Label>
+          <MoneyInput
+            id="monto-entrega"
+            max={LIMITE_MONTO_VENTAS}
+            value={f.montoDelivery}
+            onValueChange={v => setF(s => ({ ...s, montoDelivery: v }))}
+            placeholder="0 si retira en tienda"
+            disabled={f.entrega === 'Retiro en tienda'}
+          />
+        </div>
+      </div>
+
+      {/* Observación */}
+      <div>
+        <Label htmlFor="observacion">Observación</Label>
+        <Textarea
+          id="observacion"
+          rows={1}
+          value={f.observacion}
+          onChange={event =>
+            setF(current => ({ ...current, observacion: capitalizarPrimera(event.target.value) }))
+          }
+          placeholder="Notas, color, envío vía encomienda, etc."
+          autoCapitalize="sentences"
+        />
+      </div>
+
+{/* Medio de pago */}
       {cuentas?.length === 0 && (
         <div>
           <Label htmlFor="medio-pago-venta">Medio de pago</Label>
@@ -281,54 +330,6 @@ export default function PasoCobro({
             </strong>
           </span>
         </div>
-      </div>
-
-      {/* Entrega + monto envío */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <Label htmlFor="entrega">Entrega</Label>
-          <Select id="entrega" value={f.entrega} onChange={set('entrega')}>
-            {ENTREGA.map(x => (
-              <option key={x} value={x}>
-                {x === 'Delivery'
-                  ? 'Delivery'
-                  : x === 'Encomienda'
-                    ? 'Envío por encomienda'
-                    : x === 'Retiro en tienda'
-                      ? 'Retiro en tienda'
-                      : x}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="monto-entrega">
-            {f.entrega === 'Retiro en tienda' ? 'Monto del delivery (₲)' : f.entrega === 'Encomienda' ? 'Costo de la encomienda (₲)' : 'Costo del envío (₲)'}
-          </Label>
-          <MoneyInput
-            id="monto-entrega"
-            max={LIMITE_MONTO_VENTAS}
-            value={f.montoDelivery}
-            onValueChange={v => setF(s => ({ ...s, montoDelivery: v }))}
-            placeholder="0 si retira en tienda"
-            disabled={f.entrega === 'Retiro en tienda'}
-          />
-        </div>
-      </div>
-
-      {/* Observación */}
-      <div>
-        <Label htmlFor="observacion">Observación</Label>
-        <Textarea
-          id="observacion"
-          rows={1}
-          value={f.observacion}
-          onChange={event =>
-            setF(current => ({ ...current, observacion: capitalizarPrimera(event.target.value) }))
-          }
-          placeholder="Notas, color, envío vía encomienda, etc."
-          autoCapitalize="sentences"
-        />
       </div>
 
       <div className="flex items-center gap-3">
