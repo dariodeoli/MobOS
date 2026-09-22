@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
 import { gs } from '@/utils/calculos'
+import { primerNombre } from '@/lib/utils'
 import { fechaHora } from '@/utils/fecha'
 import { codigoPedido, totalesPedido } from '@/utils/pedido'
 import { varianteDeTema } from '@/lib/tenantLogo'
@@ -139,6 +140,9 @@ export default function PedidoPublico() {
                 {Number(order.discountPyg || 0) > 0 && <FilaDato etiqueta="Descuento" etiquetaComo="dt" valorComo="dd" valor={`− ${gs(order.discountPyg)}`} tono="warn" />}
                 {Number(order.deliveryPyg || 0) > 0 && <FilaDato etiqueta="Entrega" etiquetaComo="dt" valorComo="dd" valor={gs(order.deliveryPyg)} />}
               </dl>
+              {order.seller && (
+                <p className="mt-3 text-[11px] text-mute">Atendido por <b className="text-fore">{primerNombre(order.seller)}</b></p>
+              )}
               {aCredito && (
                 <div className="mt-3 rounded-xl border border-bad/40 bg-bad/10 p-3 text-sm text-bad">
                   <p className="font-bold uppercase tracking-wider">{entregadoConSaldo ? 'Entregado a crédito' : 'A crédito'}</p>

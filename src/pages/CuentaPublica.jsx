@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { API_URL } from '@/lib/api/client'
+import { varianteDeTema } from '@/lib/tenantLogo'
 import { gs } from '@/utils/calculos'
 import { fechaDia as fecha, fechaHora } from '@/utils/fecha'
 import { codigoPedido } from '@/utils/pedido'
@@ -47,7 +48,7 @@ export default function CuentaPublica() {
 
   const saldo = Number(cuenta?.balancePyg || 0)
   const alDia = cuenta && saldo <= 0
-  const logoUrl = `${API_URL}/api/portal/${encodeURIComponent(token || '')}/logo`
+  const logoUrl = `${API_URL}/api/portal/${encodeURIComponent(token || '')}/logo?variant=${varianteDeTema()}`
 
   return (
     <main className="min-h-dvh bg-ink-950 px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] text-fore sm:py-12">
