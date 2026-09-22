@@ -1,7 +1,7 @@
 {
-  "verificado": "2026-09-22T15:30:29.824Z",
+  "verificado": "2026-09-22T19:07:41.641Z",
   "base": "https://app.moboss.online",
-  "version": "v1.0.142",
+  "version": "v1.0.143",
   "llamadasApi": [],
   "erroresConsola": [],
   "resultados": [
@@ -17,7 +17,7 @@
     {
       "paso": "demo: entrar como Dueño con el PIN 3001",
       "estado": "ok",
-      "detalle": "PIN 3001 abrió la demo (v1.0.142)",
+      "detalle": "PIN 3001 abrió la demo (v1.0.143)",
       "capturas": [
         "02-demo-dentro.jpg"
       ],
@@ -53,16 +53,35 @@
     {
       "paso": "#240 §4: modo taller/rack con estaciones y filtros",
       "estado": "ok",
-      "detalle": "carriles + estaciones + filtros + acciones en serie (AUR0001000000000)",
+      "detalle": "carriles + estaciones + filtros + stepper + acciones en serie (AUR0001000000000)",
       "capturas": [
         "06-rack-taller.jpg"
       ],
       "llamadasApi": []
     },
     {
+      "paso": "#240 §4: impresión en serie con alcance y aviso de demo",
+      "estado": "ok",
+      "detalle": "alcances por estación/filtro + hoja de estación; aviso de demo (23 etiqueta(s): iPhone 15 Pro 256GB Titanio 0000 · iPhone 15…)",
+      "capturas": [
+        "07-rack-impresion-serie.jpg",
+        "08-rack-impresion-demo.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
+      "paso": "#241: F3 apagada — /ops y /ops-preview no responden sin flag",
+      "estado": "ok",
+      "detalle": "sin VITE_OPS_V2 ni VITE_OPS_PREVIEW: /ops→/resumen y /ops-preview→/resumen",
+      "capturas": [
+        "09-ops-apagada.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
       "paso": "#232: auditoría de logs sin volcados de env/secrets",
       "estado": "ok",
-      "detalle": "✓ Higiene de logs OK (1109 archivos auditados).",
+      "detalle": "✓ Higiene de logs OK (1148 archivos auditados).",
       "capturas": [],
       "llamadasApi": []
     },
@@ -77,11 +96,12 @@
   "pendientesSinSesionReal": [
     "Zona de peligro (Eliminar cuenta) en Configuración → Seguridad: en la demo se muestra como no disponible; cobertura local en e2e/admin.spec.js (#228) con reauth + palabra ELIMINAR.",
     "Notificaciones con datos reales (pedidos, menciones, aprobaciones): la demo no comparte presencia/notificaciones; cobertura local en e2e/notificaciones.spec.js.",
+    "Impresión real (etiquetas y hoja de estación A4): la demo la bloquea con aviso; cobertura local en e2e/inventario-unidades.spec.js y src/lib/printing/hojaEstacion.test.js.",
     "Restringir visibilidad de logs y rotar secretos en Coolify: pasos para Dario en docs/SEGURIDAD-LOGS.md y docs/ROTACION-TOKENS.md."
   ],
   "resumen": {
-    "pasos": 8,
-    "ok": 8,
+    "pasos": 10,
+    "ok": 10,
     "fallos": 0
   }
 }

@@ -1,5 +1,7 @@
-// Verificación post-deploy del dominio PLT (#228 menú, #235 página demo y
-// #232 higiene de logs) + panel de notificaciones de #148 §14, con capturas.
+// Verificación post-deploy del dominio PLT (#228 menú, #235 página demo,
+// #232 higiene de logs) + panel de notificaciones de #148 §14 y taller/rack +
+// infraestructura F3 de #240/#241 (stepper, impresión en serie y rutas v2
+// apagadas), con capturas.
 //
 // Uso: node scripts/qa-228-235-232-produccion.mjs
 //      QA_BASE_URL=<demo> QA_OUT=docs/qa/228-235-produccion node scripts/qa-228-235-232-produccion.mjs
@@ -24,6 +26,7 @@ const erroresConsola = []
 const pendientesSinSesionReal = [
   'Zona de peligro (Eliminar cuenta) en Configuración → Seguridad: en la demo se muestra como no disponible; cobertura local en e2e/admin.spec.js (#228) con reauth + palabra ELIMINAR.',
   'Notificaciones con datos reales (pedidos, menciones, aprobaciones): la demo no comparte presencia/notificaciones; cobertura local en e2e/notificaciones.spec.js.',
+  'Impresión real (etiquetas y hoja de estación A4): la demo la bloquea con aviso; cobertura local en e2e/inventario-unidades.spec.js y src/lib/printing/hojaEstacion.test.js.',
   'Restringir visibilidad de logs y rotar secretos en Coolify: pasos para Dario en docs/SEGURIDAD-LOGS.md y docs/ROTACION-TOKENS.md.',
 ]
 let capturas = 0
@@ -130,12 +133,19 @@ await paso('#148 §14: el aviso abre el panel de notificaciones', async (c) => {
   return `panel visible (${texto.slice(0, 80)}…)`
 })
 
-// #240 §4: modo taller/rack en la demo (carriles, estaciones, filtros y serie).
+// #240 §4: modo taller/rack en la demo (carriles, estaciones, filtros, serie
+// y stepper del flujo por unidad).
 await paso('#240 §4: modo taller/rack con estaciones y filtros', async (c) => {
   await page.goto(`${BASE}/inventario/taller`, { waitUntil: 'domcontentloaded' })
   await page.getByTestId('rack-taller').waitFor({ state: 'visible', timeout: 20000 })
   await page.getByTestId('rack-columna-por-verificar').waitFor({ state: 'visible', timeout: 20000 })
   await page.getByLabel('Buscar en el taller').waitFor({ state: 'visible', timeout: 20000 })
+  // Stepper del flujo: una unidad recién recibida marca el paso 1 de 3.
+  const primerPaso = page.getByTestId('rack-columna-por-verificar').getByTestId('rack-equipo').first().getByTestId('rack-pasos')
+  await primerPaso.waitFor({ state: 'visible', timeout: 10000 })
+  if ((await primerPaso.getAttribute('data-paso')) !== '1') throw new Error('el stepper no marca el paso 1 en «por verificar»')
+  const etiquetaPaso = await primerPaso.getAttribute('aria-label')
+  if (!/Paso 1 de 3/.test(etiquetaPaso || '')) throw new Error(`stepper sin etiqueta clara: ${etiquetaPaso}`)
   // Estaciones: una sola a la vez.
   await page.getByTestId('rack-estacion-por-verificar').click()
   if (await page.getByTestId('rack-columna-listo').count()) throw new Error('la estación no filtró los carriles')
@@ -147,7 +157,46 @@ await paso('#240 §4: modo taller/rack con estaciones y filtros', async (c) => {
   if ((await page.getByTestId('rack-equipo').count()) !== 1) throw new Error(`la búsqueda del rack no filtró a ${serial}`)
   await page.getByLabel('Buscar en el taller').fill('')
   c.push(await shot(page, 'rack-taller'))
-  return `carriles + estaciones + filtros + acciones en serie (${serial})`
+  return `carriles + estaciones + filtros + stepper + acciones en serie (${serial})`
+})
+
+// #240 §4: impresión en serie (alcances por estación/filtro) y aviso honesto
+// de la demo al querer imprimir la hoja de estación.
+await paso('#240 §4: impresión en serie con alcance y aviso de demo', async (c) => {
+  await page.getByTestId('rack-estacion-por-verificar').click()
+  await page.getByTestId('rack-imprimir-serie').click()
+  const modal = page.getByRole('dialog', { name: 'Imprimir en serie' })
+  await modal.waitFor({ state: 'visible', timeout: 10000 })
+  await page.getByTestId('rack-alcance-estacion').waitFor({ state: 'visible', timeout: 10000 })
+  await page.getByTestId('rack-alcance-filtrados').waitFor({ state: 'visible', timeout: 10000 })
+  await page.getByTestId('rack-alcance-filtrados').click()
+  if ((await page.getByTestId('rack-alcance-filtrados').getAttribute('aria-checked')) !== 'true') {
+    throw new Error('el alcance elegido no quedó marcado')
+  }
+  const resumen = (await page.getByTestId('rack-impresion-resumen').innerText()).replace(/\s+/g, ' ').trim()
+  if (!/\d+ etiqueta/.test(resumen)) throw new Error(`el resumen no muestra el alcance elegido: ${resumen}`)
+  c.push(await shot(page, 'rack-impresion-serie'))
+  await page.getByTestId('rack-hoja-estacion').click()
+  await page.getByText('La impresión no está disponible en el demo.').waitFor({ state: 'visible', timeout: 10000 })
+  c.push(await shot(page, 'rack-impresion-demo'))
+  await page.getByTestId('rack-estacion-todas').click()
+  return `alcances por estación/filtro + hoja de estación; aviso de demo (${resumen.slice(0, 60)}…)`
+})
+
+// #241: infraestructura F3 apagada en producción (rutas v2 sin flag).
+await paso('#241: F3 apagada — /ops y /ops-preview no responden sin flag', async (c) => {
+  await page.goto(`${BASE}/ops`, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1500)
+  if (await page.getByTestId('ops-preview').count()) throw new Error('la ruta /ops sirvió el tablero sin VITE_OPS_V2')
+  const rutaOps = new URL(page.url()).pathname
+  if (rutaOps === '/ops') throw new Error('/ops quedó servida (no redirigió a la app)')
+  c.push(await shot(page, 'ops-apagada'))
+  await page.goto(`${BASE}/ops-preview`, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1500)
+  if (await page.getByTestId('ops-preview').count()) throw new Error('la vista previa se sirvió en producción sin flag')
+  const rutaPreview = new URL(page.url()).pathname
+  if (rutaPreview === '/ops-preview') throw new Error('/ops-preview quedó servida (no redirigió a la app)')
+  return `sin VITE_OPS_V2 ni VITE_OPS_PREVIEW: /ops→${rutaOps} y /ops-preview→${rutaPreview}`
 })
 
 // #232: auditoría de higiene de logs del repo.
