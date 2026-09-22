@@ -77,7 +77,7 @@ export default function AuditoriaEfectivo() {
     setBusy(true); setError('')
     try {
       if (esDemo) {
-        const marca = guardarMarcaDemo(operacion.kind, operacion.id, { status: borrador.status, note: borrador.note || '', auditadoPor: 'Dueño demo', auditedAt: new Date().toISOString() })
+        const marca = guardarMarcaDemo(operacion.kind, operacion.id, { status: borrador.status, note: borrador.note || '', auditadoPor: 'Hernán Acosta', auditedAt: new Date().toISOString() })
         setData(current => current ? {
           ...current,
           operaciones: current.operaciones.map((fila) => fila.kind === operacion.kind && fila.id === operacion.id

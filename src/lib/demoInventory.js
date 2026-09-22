@@ -72,7 +72,7 @@ function unidad(producto, indice) {
     condition: condicion,
     batteryHealth: condicion === 'NEW' ? 100 : 80 + (indice % 16),
     productId: producto.id,
-    product: { id: producto.id, name: producto.nombre, nombre: producto.nombre, capacity: producto.atributos?.capacidad || '', sku: producto.id.toUpperCase().slice(0, 16), pricePyg: producto.precioVenta },
+    product: { id: producto.id, name: producto.nombre, nombre: producto.nombre, capacity: producto.atributos?.capacidad || '', sku: producto.sku || producto.id.toUpperCase().slice(0, 16), pricePyg: producto.precioVenta },
     branchId: indice % 8 === 0 ? DEMO_BRANCH_2 : DEMO_BRANCH,
     locationId: UBICACION_POR_INDICE[indice - 1] || 'demo-ubic-deposito-1',
     supplierName: PROVEEDORES[indice % PROVEEDORES.length].name,
