@@ -40,6 +40,8 @@ import Creditos from '@/components/control/Creditos'
 import Cobranzas from '@/components/control/Cobranzas'
 import Comisiones from '@/components/control/Comisiones'
 import RolesPermisos from '@/components/control/RolesPermisos'
+import Celulares from '@/pages/Celulares'
+import Comparador from '@/pages/Comparador'
 
 // Vistas pesadas en lazy: su código se descarga recién cuando se navega a ellas.
 const VistaCargarVenta = lazy(() => import('@/components/ventas/VistaCargarVenta'))
@@ -260,6 +262,8 @@ const LABELS = {
   ganadores: 'Ganadores',
   asistente: 'Asistente',
   caja: 'Caja',
+  celulares: 'Lista de precios',
+  comparador: 'Comparador',
   gastos: 'Gastos',
   bancos: 'Bancos y cuentas',
   conciliacion: 'Conciliación',
@@ -387,7 +391,10 @@ export default function PanelVendedor() {
     // 'garantias' es igual desde #224: vive como solapa dentro de "Servicio y
     // Garantías" (un solo ítem de menú), pero los enlaces viejos (/garantias,
     // documentación) tienen que seguir abriendo la sección.
-    return esOwner ? [...base, 'productos', 'garantias'] : base
+    // 'celulares' (lista de precios) y 'comparador' viven dentro del shell
+    // (#180) y se abren desde Precios y Productos: no tienen ítem de menú,
+    // pero su ruta tiene que ser válida o el guard la manda al POS.
+    return esOwner ? [...base, 'productos', 'garantias', 'celulares', 'comparador'] : base
   }, [esOwner, esTecnico])
   // Un slug plano de pestaña (p. ej. /precios, que también es pestaña de
   // Configuración) se canoniza a /<padre>/<hijo> cuando el rol la tiene.
@@ -771,6 +778,8 @@ export default function PanelVendedor() {
           {esOwner && subpadre === 'inventario' && <Inventario tab={vista} onTabChange={irASubtab} />}
           {(esOwner && (vista === 'compras' || vista === 'productos')) && <div className="mb-3 flex flex-wrap gap-1 rounded-xl border border-ink-600 bg-ink-800 p-1">{[['compras', 'Compras'], ['productos', 'Productos']].map(([id, label]) => <button key={id} type="button" aria-pressed={vista === id} onClick={() => ir(id)} className={cn('rounded-lg px-2.5 py-1.5 text-xs font-semibold transition', vista === id ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore')}>{label}</button>)}</div>}
           {vista === 'plantillas' && <WhatsAppTemplates />}
+          {esOwner && vista === 'celulares' && <Celulares />}
+          {esOwner && vista === 'comparador' && <Comparador />}
           {esOwner && vista === 'compras' && <Compras />}
           {esOwner && vista === 'tradein-admin' && <TradeInPipeline />}
           {(esOwner || esTecnico) && (vista === 'servicio' || vista === 'garantias') && <ServicioGarantias vistaInicial={vista} />}

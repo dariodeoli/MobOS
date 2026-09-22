@@ -25,8 +25,6 @@ import { DESTINO_LEGADO } from '@/lib/rutas'
 
 // Rutas secundarias en lazy: su código baja solo cuando se navega a ellas.
 const Landing = lazy(() => import('@/pages/Landing'))
-const Comparador = lazy(() => import('@/pages/Comparador'))
-const Celulares = lazy(() => import('@/pages/Celulares'))
 const Status = lazy(() => import('@/pages/Status'))
 const RecuperarContrasena = lazy(() => import('@/pages/RecuperarContrasena'))
 const PortalClientesEntrada = lazy(() => import('@/pages/PortalClientesEntrada'))
@@ -273,8 +271,8 @@ export default function App() {
           <Route path="/control/:tab?" element={<AreaProtegida owner><ControlRedirect /></AreaProtegida>} />
           {/* Enlaces guardados: /pos/<vista> y /tradein redirigen al slug nuevo. */}
           <Route path="/pos/:vista/:orderId?" element={<AreaProtegida><PosRedirect /></AreaProtegida>} />
-          <Route path="/celulares" element={<AreaProtegida owner><Celulares /></AreaProtegida>} />
-          <Route path="/comparador" element={<AreaProtegida owner><Comparador /></AreaProtegida>} />
+          <Route path="/celulares" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
+          <Route path="/comparador" element={<AreaProtegida owner><PanelVendedor /></AreaProtegida>} />
           <Route path="/tradein" element={<Navigate to="/trade-in" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

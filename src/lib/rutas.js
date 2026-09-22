@@ -25,6 +25,8 @@ export const RUTA_DE_VISTA = {
   analisis: '/analisis',
   finanzas: '/finanzas',
   equipo: '/configuracion',
+  celulares: '/celulares',
+  comparador: '/comparador',
 }
 
 // URL canónica de una vista; null si el id no existe.
@@ -100,5 +102,6 @@ export const DESTINO_LEGADO = {
   ads: '/finanzas',
   incompletos: '/productos',
   imagenes: '/productos',
-  celulares: '/productos',
+  celulares: '/celulares',
+  comparador: '/comparador',
 }
