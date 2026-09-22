@@ -286,7 +286,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         <section className="rounded-2xl border border-ink-600 p-4">
           <h3 className={ROTULO_SECCION}>Ficha del equipo</h3>
           <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Ubicación</p>
+            <div className="rounded-xl bg-ink-800/60 p-3" title="Depósito o sucursal donde está la unidad"><p className="text-xs text-mute">Ubicación</p>
               {canManage
                 ? <Select aria-label="Ubicación de la unidad" className="mt-1" value={unit.locationId || ''} disabled={busy} onChange={event => ejecutar(() => onMove?.(unit, event.target.value || null))}>
                     <option value="">Sin ubicación</option>
@@ -294,7 +294,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
                   </Select>
                 : <p className="mt-1 font-semibold">{unit.location?.name || '—'}</p>}
             </div>
-            <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Batería</p><p className="mt-1 font-semibold">{unit.batteryHealth ? `${unit.batteryHealth}%` : '—'}</p></div>
+            <div className="rounded-xl bg-ink-800/60 p-3" title="Salud de la batería informada al recibir la unidad"><p className="text-xs text-mute">Batería</p><p className="mt-1 font-semibold">{unit.batteryHealth ? `${unit.batteryHealth}%` : '—'}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Proveedor</p><p className="mt-1 font-semibold">{unit.supplier?.name || unit.supplierName || '—'}{unit.supplier?.name && unit.supplier?.code ? ' (' + unit.supplier.code + ')' : ''}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Costo</p><p className="mt-1 font-semibold">{sinCostoUnitario(unit) ? <span className="text-warn">Pendiente</span> : money(unit.originalCost, unit.costCurrency)}{!sinCostoUnitario(unit) && unit.costPyg ? ` · ${money(unit.costPyg, 'PYG')}` : ''}</p></div>
             <div className="rounded-xl bg-ink-800/60 p-3"><p className="text-xs text-mute">Ingresó a stock</p><p className="mt-1 font-semibold">{ingreso ? ingreso.toLocaleDateString('es-PY') : '—'}{diasEnStock != null ? <span className="ml-2 text-xs font-normal text-mute">{diasEnStock} {diasEnStock === 1 ? 'día' : 'días'} en stock</span> : null}</p></div>
@@ -394,15 +394,15 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         <section className="rounded-2xl border border-ink-600 p-4">
           <h3 className={ROTULO_SECCION}>Acciones</h3>
           <div className="mt-3 flex flex-wrap gap-2">
-            {unit.status === 'AVAILABLE' && <Button disabled={busy} onClick={() => ejecutar(() => onSell(unit))}>Vender</Button>}
-            {unit.status === 'AVAILABLE' && <Button variant="outline" disabled={busy} onClick={() => ejecutar(() => onReserve(unit))}>Reservar</Button>}
-            {unit.status === 'IN_TRANSIT' && <Button disabled={busy} onClick={() => ejecutar(() => onArrive(unit))}>Recibir en sucursal</Button>}
-            {unit.status === 'RESERVED' && <Button disabled={busy} onClick={() => ejecutar(() => onSell(unit))}>Finalizar venta</Button>}
-            {unit.status === 'RESERVED' && <Button variant="outline" disabled={busy} onClick={() => ejecutar(() => onRelease(unit.serial))}>Liberar reserva</Button>}
-            {unit.status !== 'SOLD' && <Button variant="outline" disabled={busy} onClick={() => ejecutar(() => onVerify(unit))}>✓ Verificado</Button>}
-            <Button variant="outline" onClick={() => onLabel(unit)}>Etiqueta</Button>
-            <Button variant="outline" disabled={busy || ['SOLD', 'RESERVED', 'IN_TRANSIT'].includes(unit.status)} onClick={() => ejecutar(() => onAdjust(unit))}>{unit.status === 'DEFECTIVE' ? 'Habilitar' : 'Enviar a revisión'}</Button>
-            <Button variant="outline" disabled={busy || unit.status !== 'AVAILABLE'} onClick={() => ejecutar(() => onRemove(unit))}>Dar de baja</Button>
+            {unit.status === 'AVAILABLE' && <Button disabled={busy} title="Cargar la venta de esta unidad" onClick={() => ejecutar(() => onSell(unit))}>Vender</Button>}
+            {unit.status === 'AVAILABLE' && <Button variant="outline" disabled={busy} title="Apartar la unidad para un cliente" onClick={() => ejecutar(() => onReserve(unit))}>Reservar</Button>}
+            {unit.status === 'IN_TRANSIT' && <Button disabled={busy} title="Confirmar la llegada de la unidad a esta sucursal" onClick={() => ejecutar(() => onArrive(unit))}>Recibir en sucursal</Button>}
+            {unit.status === 'RESERVED' && <Button disabled={busy} title="Cerrar la venta de la unidad reservada" onClick={() => ejecutar(() => onSell(unit))}>Finalizar venta</Button>}
+            {unit.status === 'RESERVED' && <Button variant="outline" disabled={busy} title="Soltar la reserva y dejar la unidad disponible" onClick={() => ejecutar(() => onRelease(unit.serial))}>Liberar reserva</Button>}
+            {unit.status !== 'SOLD' && <Button variant="outline" disabled={busy} title="Registrar la verificación física ahora" onClick={() => ejecutar(() => onVerify(unit))}>✓ Verificado</Button>}
+            <Button variant="outline" title="Imprimir la etiqueta de esta unidad" onClick={() => onLabel(unit)}>Etiqueta</Button>
+            <Button variant="outline" disabled={busy || ['SOLD', 'RESERVED', 'IN_TRANSIT'].includes(unit.status)} title={unit.status === 'DEFECTIVE' ? 'Devolver la unidad al stock disponible' : 'Marcar la unidad en revisión con un motivo'} onClick={() => ejecutar(() => onAdjust(unit))}>{unit.status === 'DEFECTIVE' ? 'Habilitar' : 'Enviar a revisión'}</Button>
+            <Button variant="outline" disabled={busy || unit.status !== 'AVAILABLE'} title="Sacar la unidad del stock (queda en Eliminados)" onClick={() => ejecutar(() => onRemove(unit))}>Dar de baja</Button>
           </div>
         </section>
 
@@ -412,8 +412,8 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
             <h3 className={ROTULO_SECCION}>Autorización de stock</h3>
             <p className="mt-1 text-xs text-mute">Tu rol no retira ni ajusta unidades directamente: pedí autorización a gerencia y ejecutala desde acá.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {unit.status === 'AVAILABLE' && <Button variant="outline" disabled={stockBusy} onClick={() => abrirStock('remove')}>Dar de baja</Button>}
-              <Button variant="outline" disabled={stockBusy} onClick={() => abrirStock('adjust')}>{unit.status === 'DEFECTIVE' ? 'Habilitar' : 'Enviar a revisión'}</Button>
+              {unit.status === 'AVAILABLE' && <Button variant="outline" disabled={stockBusy} title="Sacar la unidad del stock (queda en Eliminados)" onClick={() => abrirStock('remove')}>Dar de baja</Button>}
+              <Button variant="outline" disabled={stockBusy} title={unit.status === 'DEFECTIVE' ? 'Devolver la unidad al stock disponible' : 'Marcar la unidad en revisión con un motivo'} onClick={() => abrirStock('adjust')}>{unit.status === 'DEFECTIVE' ? 'Habilitar' : 'Enviar a revisión'}</Button>
             </div>
             <div className="mt-3">
               <AutorizacionBloque
