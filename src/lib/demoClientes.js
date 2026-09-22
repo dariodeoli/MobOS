@@ -1,4 +1,6 @@
 import { leerDemo, guardarDemo } from './demoStorage.js'
+import { formatGs } from '../utils/moneda.js'
+import { codigoPedido } from '../utils/pedido.js'
 import { IMEIS_DEMO_FICTICIOS as AUR_SERIALES } from './demo/iphones.js'
 import { analiticaDePedidos } from './customerAggregates.js'
 // Datos ficticios del modo demo para Clientes (#189/#194). Nada de esto sale
@@ -306,5 +308,79 @@ export function demoVitrinaPayload(token) {
     puntosPyg: 0,
     pedidos: orders.map((order) => ({ numero: order.orderNumber, fecha: order.createdAt, estado: order.status, fulfillmentStatus: 'DELIVERED', totalPyg: order.totalPyg, saldoPyg: order.pendingPyg })),
     garantias: [],
+  }
+}
+
+/** Cartera completa de la demo: seeds (#194) + lo creado en esta pestaña (#201). */
+export function listarClientesDemo() {
+  return [...SEED_DEMO_CLIENTES, ...clientesDemoGuardados()]
+}
+
+/** Busca un cliente demo por id (seeds primero, igual que el portal). */
+export function buscarClienteDemo(id) {
+  return listarClientesDemo().find((row) => String(row.id) === String(id)) || null
+}
+
+/** Guarda un cliente demo sin duplicar por id (reemplaza si ya existe). */
+export function actualizarClienteDemo(customer) {
+  const lista = clientesDemoGuardados()
+  const siguiente = lista.some((row) => row.id === customer.id)
+    ? lista.map((row) => (row.id === customer.id ? customer : row))
+    : [...lista, customer]
+  guardarDemo(KEY, JSON.stringify(siguiente))
+  return customer
+}
+
+/**
+ * Registra una venta demo en la ficha del cliente (#160/#194): la vista por
+ * actividad reciente, los agregados (#221), la ficha y el portal leen los
+ * pedidos del cliente, así que la venta se refleja igual que en la cuenta real.
+ * Los seeds viven en la memoria de la pestaña: el objeto mutado es el que leen
+ * lista, ficha y portal.
+ */
+export function registrarPedidoDemoDeVenta(clienteId, venta = {}) {
+  const cliente = buscarClienteDemo(clienteId)
+  if (!cliente) return null
+  const pedido = pedidoDesdeVenta(venta)
+  const demo = cliente.demoProfile || (cliente.demoProfile = {})
+  demo.orders = [pedido, ...(Array.isArray(demo.orders) ? demo.orders : [])]
+  const evento = {
+    id: `${pedido.id}-timeline`,
+    type: 'order',
+    action: 'Pedido creado',
+    createdAt: pedido.createdAt,
+    user: { id: 'demo-user', name: pedido.seller?.name || 'Equipo demo' },
+    detail: `Pedido ${codigoPedido(pedido.orderNumber) || 'Demo'} · ${formatGs(pedido.totalPyg)} · ${pedido.pendingPyg > 0 ? 'Pendiente' : 'Pagado'}`,
+  }
+  demo.timeline = [evento, ...(Array.isArray(demo.timeline) ? demo.timeline : EVENTOS(cliente))].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  if (!SEED_DEMO_CLIENTES.some((row) => row.id === cliente.id)) actualizarClienteDemo(cliente)
+  return pedido
+}
+
+/** Forma canónica de un pedido demo (misma que los seeds). */
+function pedidoDesdeVenta({ numero = '', total = 0, pagado = 0, fecha, items = [], vendedor = '', sucursal = '', estado } = {}) {
+  const totalPyg = Math.max(0, Math.round(Number(total) || 0))
+  const collectedPyg = Math.max(0, Math.min(totalPyg, Math.round(Number(pagado) || 0)))
+  const pendingPyg = Math.max(0, totalPyg - collectedPyg)
+  const normalizados = items.map((item, indice) => ({
+    id: item.id || `demo-venta-item-${indice + 1}`,
+    description: item.description || '',
+    quantity: Math.max(1, Number(item.quantity) || 1),
+    model: item.model || '',
+    category: item.category || '',
+    serials: Array.isArray(item.serials) ? item.serials : [],
+  }))
+  return {
+    id: `demo-venta-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
+    orderNumber: numero,
+    totalPyg,
+    collectedPyg,
+    pendingPyg,
+    createdAt: fecha || new Date().toISOString(),
+    status: estado || (pendingPyg > 0 ? 'PENDING' : 'COMPLETED'),
+    branch: { id: 'mobos-demo-central', name: sucursal || 'Casa Central' },
+    seller: { id: 'demo-user', name: vendedor || 'Equipo demo' },
+    serials: normalizados.flatMap((item) => item.serials),
+    items: normalizados,
   }
 }

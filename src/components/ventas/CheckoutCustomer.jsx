@@ -11,7 +11,7 @@ import { coincideCliente, datosFacturacionCliente } from '@/utils/cliente'
 import { capitalizarPrimera } from '@/utils/texto'
 import { normalizarNombre } from '@/utils/nombre'
 import { buscarPreClientes, guardarPreCliente, diasDeBorrador } from '@/lib/preClientes'
-import { clientesDemoGuardados } from '@/lib/demoClientes'
+import { listarClientesDemo } from '@/lib/demoClientes'
 import { useSesion } from '@/lib/sesion'
 
 const emptyAddress = () => ({ label: 'Principal', address: '', city: '', department: '', country: 'Paraguay', notes: '', isDefault: true })
@@ -49,9 +49,10 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     if (!query) { setMatches([]); return () => { active = false } }
     const timer = setTimeout(async () => {
       try {
-        // En demo la lista vive en memoria de la pestaña (#201): el shim evita
-        // leer un localStorage que ya no se escribe.
-        const rows = esDemo ? clientesDemoGuardados() : await api.get(`/api/customers?q=${encodeURIComponent(query)}`)
+        // En demo la cartera es la de la pestaña (#201): seeds (#194) + lo
+        // creado acá. Antes solo buscaba lo creado y los seeds no se podían
+        // elegir en el POS (#160).
+        const rows = esDemo ? listarClientesDemo() : await api.get(`/api/customers?q=${encodeURIComponent(query)}`)
         if (!active) return
         const encontrados = rows.filter(customer => coincideCliente(customer, query)).slice(0, 5)
         setMatches(encontrados)

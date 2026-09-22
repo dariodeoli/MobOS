@@ -27,7 +27,8 @@ import { fechaClave, num, gs } from '@/utils/calculos'
 import { allocateCheckout } from '@/utils/checkout'
 import { tradeInDraftPayment } from '@/utils/tradeInCheckout'
 import { validateDemoPromotionItems, recordDemoPromotionUsage } from '@/lib/demoPromotions'
-import { clientesDemoGuardados, guardarClienteDemo } from '@/lib/demoClientes'
+import { guardarClienteDemo, listarClientesDemo, registrarPedidoDemoDeVenta } from '@/lib/demoClientes'
+import { tomarNumeroPedidoDemo } from '@/lib/demoTenant'
 import { resources } from '@/lib/api'
 import { api } from '@/lib/api/client'
 import { agruparProductos } from '@/utils/colores'
@@ -239,7 +240,7 @@ export default function FormularioVenta({
   tradeInDraft,
   onTradeInConsumed,
 }) {
-  const { sesion, esDemo, empresa } = useSesion()
+  const { sesion, esDemo, empresa, sucursal } = useSesion()
   const navigate = useNavigate()
   const puedeDescontar = esDemo || ['dueno', 'GERENTE'].includes(sesion?.rol)
   const productos = getProductos().filter(p => p.activo)
@@ -1058,7 +1059,7 @@ export default function FormularioVenta({
         const validation = await validateDemoTradeIns(payments)
         if (validation === false || validation?.error || validation?.ok === false)
           throw new Error(validation?.error || 'No se pudo validar el canje.')
-        const clientesDemo = clientesDemoGuardados()
+        const clientesDemo = listarClientesDemo()
         const clienteDemo = customer.id
           ? customer
           : clientesDemo.find(
@@ -1100,8 +1101,33 @@ export default function FormularioVenta({
         }
         if (!clientesDemo.some(c => c.id === clienteDemo.id))
           guardarClienteDemo(clienteDemo)
+        // La venta entra en la ficha del cliente (#160/#194): la vista por
+        // actividad, los agregados (#221), la ficha y el portal leen sus
+        // pedidos, así que se actualizan como en la cuenta real.
+        const numeroPedidoDemo = tomarNumeroPedidoDemo()
+        registrarPedidoDemoDeVenta(clienteDemo.id, {
+          numero: numeroPedidoDemo,
+          total: totalGeneral,
+          pagado: totalPagado,
+          fecha: fechaVenta,
+          vendedor: sesion?.nombre || '',
+          sucursal: sucursal?.nombre || '',
+          estado: pendiente === 0 ? 'COMPLETED' : 'PENDING',
+          items: orderItems.map(item => {
+            const producto = productos.find(p => p.id === item.productId)
+            return {
+              id: item.productId,
+              description: item.description || producto?.nombre || '',
+              quantity: item.quantity || 1,
+              model: producto?.atributos?.modelo || '',
+              category: producto?.categoria || '',
+              serials: item.inventoryUnitSerials || [],
+            }
+          }),
+        })
         const order = {
           ...ventas[0],
+          orderNumber: numeroPedidoDemo,
           id: ventas[0].id,
           compraId,
           cliente: String(f.cliente ?? '').trim(),
