@@ -11,6 +11,7 @@
     "lint:fix": "eslint src scripts --fix",
     "db:check": "node scripts/check-db-schema.mjs",
     "test": "node --test \"src/**/*.test.js\" \"print-agent/**/*.test.mjs\"",
+    "audit:logs": "node scripts/audit-logs.mjs",
     "pack:agent": "node scripts/pack-agent.mjs",
     "pack:agent:check": "node scripts/pack-agent.mjs --check",
     "aex:sandbox": "node scripts/aex-sandbox-prueba.mjs",

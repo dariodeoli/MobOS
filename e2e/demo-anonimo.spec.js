@@ -4,7 +4,7 @@
 
 import { test, expect } from '@playwright/test'
 import { createRequire } from 'node:module'
-import { readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { loginCompany, completeSellerPin } from './helpers/login.js'
 
 const API_PORT = process.env.MOBOS_E2E_API_PORT || '3001'
@@ -491,4 +491,26 @@ test('el último usado es el default y se puede cambiar (#209)', async ({ page }
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Documentación', exact: true })).toBeVisible()
   await expect(page.locator('main').getByRole('button', { name: 'Todo', exact: true })).toHaveAttribute('aria-pressed', 'true')
+})
+
+// #235: la entrada /demo queda más limpia y directa, sin tocar el flujo del PIN.
+test('la entrada /demo no duplica la guía y el PIN está siempre a la vista (#235)', async ({ page }) => {
+  await page.goto('/demo')
+  await expect(page.getByRole('heading', { name: /Entrá al sistema/ })).toBeVisible()
+
+  // La guía vive en el panel: en la entrada ya no se repite.
+  await expect(page.getByText('Cómo funciona la demo')).toHaveCount(0)
+  // Descripciones cortas.
+  await expect(page.getByText('Ventas y clientes.')).toBeVisible()
+  await expect(page.getByText('Operación completa.')).toBeVisible()
+
+  // "Ingresar otro PIN" está abierto: el campo se ve sin desplegar nada.
+  const pin = page.locator('#demo-pin')
+  await expect(pin).toBeVisible()
+  mkdirSync('docs/qa/235', { recursive: true })
+  await page.screenshot({ path: 'docs/qa/235/02-despues.jpg', type: 'jpeg', quality: 72 })
+
+  // El flujo intacto: el PIN abre el perfil y entra a la demo.
+  await pin.pressSequentially('2001')
+  await expect(page).toHaveURL(/\/pos$/)
 })
