@@ -140,6 +140,74 @@ try {
   pasos.push({ paso: 'impresión directa en la demo', detalle: honesto ? 'aviso honesto del demo' : 'sin aviso detectable', ok: honesto })
   await captura('04-impresion-directa-demo')
 
+  // 3 bis) Certificado de inspección: botón en la ficha + PDF + QR.
+  if (await botonCertificado.count()) {
+    // Vuelve a abrir la ficha (el modal del informe sigue montado hasta cerrarlo).
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await esperar(2200)
+    await page.getByTestId('inventario-fila').first().click()
+    await esperar(900)
+    await page.getByRole('dialog').getByRole('button', { name: 'Certificado', exact: true }).click()
+    await esperar(1500)
+    const modalCertificado = page.getByRole('dialog').filter({ hasText: 'Certificado de inspección' })
+    await captura('05-certificado-modal')
+    for (const [formato, etiqueta] of [['a4', 'a4'], ['thermal-80', '80mm']]) {
+      await modalCertificado.getByLabel(/Formato del (documento|informe)/).selectOption(formato).catch(() => {})
+      await esperar(1200)
+      await modalCertificado.getByRole('button', { name: 'Descargar PDF' }).click()
+      const marco = page.locator('iframe[aria-hidden="true"]').last()
+      await marco.waitFor({ state: 'attached', timeout: 15_000 })
+      await esperar(600)
+      const html = await marco.contentFrame().locator('html').evaluate((el) => el.outerHTML)
+      const pdf = await pdfDeHtml(`certificado-${etiqueta}`, html, formato === 'a4' ? 'a4' : formato)
+      const qr = (html.match(/<img class="qr" src="data:image\/png;base64,([^"]+)"/) || [])[1]
+      let enlace = ''
+      if (qr) {
+        const imagen = join(SALIDA, `qr-certificado-${etiqueta}.png`)
+        writeFileSync(imagen, Buffer.from(qr, 'base64'))
+        enlace = leerQr(imagen)
+      }
+      const problemas = []
+      if (!/Certificado|CERTIFICADO/i.test(html)) problemas.push('sin título de certificado')
+      if (!/Constancia de inspección/i.test(html)) problemas.push('sin leyenda de constancia')
+      if (!enlace) problemas.push('el QR no se pudo leer')
+      else if (!new RegExp(`^${BASE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/u/`).test(enlace)) problemas.push(`el QR apunta a «${enlace}»`)
+      if (/\b[A-Z]{2,}\d{6,}\b/.test(html.replace(/<[^>]+>/g, ' '))) problemas.push('muestra el serial completo')
+      resultados.push({ documento: `certificado-${etiqueta}`, version: version ? `v${version}` : '', paginas: pdf.paginas, qr: enlace, estado: problemas.length ? 'fallo' : 'ok', ...(problemas.length ? { detalle: problemas.join(' · ') } : {}) })
+    }
+    await modalCertificado.getByRole('button', { name: 'Cerrar' }).click().catch(() => page.keyboard.press('Escape'))
+    await esperar(600)
+  } else {
+    resultados.push({ documento: 'certificado', version: version ? `v${version}` : '', paginas: '—', qr: '', estado: 'ok', detalle: 'todavía no desplegado (ronda pendiente)' })
+  }
+
+  // 4 bis) Hoja de estación (modo taller): el camino real es taller → imprimir
+  // en serie → hoja de estación. En la demo la impresión se bloquea con un
+  // aviso honesto; el PDF de la hoja se genera con el mismo builder.
+  await page.keyboard.press('Escape')
+  await page.goto(`${BASE}/inventario/taller`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+  await esperar(2500)
+  await captura('06-taller-rack')
+  const botonImprimir = page.getByTestId('rack-imprimir-serie')
+  if (await botonImprimir.count()) {
+    await botonImprimir.click()
+    await esperar(900)
+    await captura('07-taller-imprimir-serie')
+    const botonHoja = page.getByTestId('rack-hoja-estacion')
+    if (await botonHoja.count()) {
+      await botonHoja.click()
+      await esperar(1500)
+      const aviso = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
+      const honesto = /no está disponible en el demo/i.test(aviso)
+      pasos.push({ paso: 'hoja de estación (demo)', detalle: honesto ? 'aviso honesto del demo' : aviso.slice(-140), ok: honesto })
+      await captura('08-hoja-estacion-aviso-demo')
+    } else {
+      pasos.push({ paso: 'hoja de estación (demo)', detalle: 'el botón no está en el modal', ok: false })
+    }
+  } else {
+    pasos.push({ paso: 'hoja de estación (demo)', detalle: 'el taller no mostró el botón de imprimir en serie', ok: false })
+  }
+
   // 5) Consistencia de lo impreso con lo que muestra la app.
   const html80 = readFileSync(join(SALIDA, 'informe-80mm.pdf')).toString('latin1')
   pasos.push({ paso: 'PDF 80 mm generado desde la app', detalle: `${html80.length} bytes`, ok: html80.length > 1000 })

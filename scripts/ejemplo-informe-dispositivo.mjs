@@ -151,6 +151,17 @@ try {
   const htmlCertificadoA4 = await datosDe('/src/components/shared/OrderReceipt.jsx', 'buildCertificadoHtml', [datosCertificado, { format: 'a4' }])
   await pdfHtml('certificado-a4', htmlCertificadoA4, 'a4')
 
+  // Hoja de estación (modo taller): la lista de equipos de un carril para el
+  // depósito. Se arma con el builder real y tres unidades del inventario demo.
+  const otrasDemo = listDemoUnits('', 'active').filter((fila) => fila.id !== demo.id).slice(0, 2)
+  const equiposHoja = [
+    { ...unidad },
+    { ...otrasDemo[0], inspection: { grado: 'B', puntaje: 78, bateriaSalud: '88', bateriaPct: '88', bateriaCiclos: '412', inspeccionadoPor: 'Jorge Villalba', inspeccionadoAt: enDias(-2) } },
+    { ...otrasDemo[1] },
+  ]
+  const htmlHoja = await datosDe('/src/lib/printing/hojaEstacion.js', 'buildStationSheetHtml', [equiposHoja, { estacion: 'Por verificar', fecha: HOY }])
+  await pdfHtml('hoja-estacion-a4', htmlHoja, 'a4')
+
   // QR suelto (el mismo que va impreso) para escanear desde la pantalla.
   const qr = (htmlA4.match(/<img class="qr" src="data:image\/png;base64,([^"]+)"/) || [])[1]
   if (!qr) throw new Error('el informe A4 no trae el QR del informe público')
