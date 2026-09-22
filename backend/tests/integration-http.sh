@@ -704,6 +704,9 @@ node "$BACKEND_ROOT/tests/cash-sessions.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 echo "Trade-in publicado: costo del equipo (valor + reparaciones) y seguro en el margen (#148 §19)..."
 node "$BACKEND_ROOT/tests/trade-in-cost.mjs" "$BASE_URL" "$ADMIN_TOKEN"
 
+echo "Venta por IMEI: costo real de la unidad (reparaciones/repuestos) y seguro (#148 §19)..."
+node "$BACKEND_ROOT/tests/unit-cost-margin.mjs" "$BASE_URL" "$ADMIN_TOKEN"
+
 echo "Seguridad pública: token de liquidaciones hasheado, rotación y límite de uso..."
 PG_BIN="$PG_BIN" node "$BACKEND_ROOT/tests/commission-settlement-public.mjs"
 
