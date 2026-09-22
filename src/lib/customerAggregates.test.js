@@ -19,7 +19,19 @@ test('stats del listado: cuenta, total y última compra sin cancelados', () => {
   assert.equal(stats.orders, 2)
   assert.equal(stats.totalSpentPyg, 1500000)
   assert.equal(new Date(stats.lastOrderAt).getTime() > new Date(statsDePedidos([pedido('X', 1, 10)]).lastOrderAt).getTime(), true)
-  assert.deepEqual(statsDePedidos([]), { orders: 0, totalSpentPyg: 0, lastOrderAt: null })
+  assert.deepEqual(statsDePedidos([]), { orders: 0, totalSpentPyg: 0, lastOrderAt: null, pendingPyg: 0 })
+})
+
+test('stats: la deuda suma el pendiente de los pedidos vivos (no cancelados)', () => {
+  const stats = statsDePedidos([
+    { ...pedido('MOB-0001', 3000000, 12), pendingPyg: 1500000, collectedPyg: 1500000 },
+    { ...pedido('MOB-0002', 1000000, 5), pendingPyg: 0, collectedPyg: 1000000 },
+    { ...pedido('MOB-0003', 900000, 2, { estado: 'CANCELLED' }), pendingPyg: 900000 },
+    // Sin pendingPyg guardado: se calcula total − cobrado.
+    { ...pedido('MOB-0004', 800000, 1), collectedPyg: 300000 },
+  ])
+  assert.equal(stats.pendingPyg, 2000000)
+  assert.equal(stats.orders, 3)
 })
 
 test('analítica: ticket promedio, primera/última compra y frecuencia', () => {

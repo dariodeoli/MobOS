@@ -103,8 +103,21 @@ export async function GET(request: Request) {
     _sum: { totalPyg: true },
     _max: { createdAt: true },
   })
-  const statsPorCliente = new Map(stats.map((fila) => [fila.customerId, { orders: fila._count._all, totalSpentPyg: fila._sum.totalPyg ?? 0, lastOrderAt: fila._max.createdAt }]))
-  return json(ordenados.map((customer) => ({ ...customer, wholesale: esMayorista(customer), stats: statsPorCliente.get(customer.id) || { orders: 0, totalSpentPyg: 0, lastOrderAt: null } })))
+  // Deuda por cliente (#236): pendiente de los pedidos vivos (total − cobrado
+  // confirmado), el mismo criterio que el filtro «Con deuda».
+  const idsOrdenados: string[] = ordenados.map((customer) => String(customer.id)).filter((id) => id.length > 0)
+  const deudas = idsOrdenados.length
+    ? await prisma.$queryRaw<Array<{ customerId: string | null; pendingPyg: number }>>`
+        SELECT o."customerId", SUM(GREATEST(o."totalPyg" - COALESCE(p.paid, 0), 0))::float8 AS "pendingPyg"
+        FROM "Order" o
+        LEFT JOIN (SELECT "orderId", SUM("amountPyg") AS paid FROM "Payment" WHERE "tenantId" = ${tenant} AND "status" = 'CONFIRMED' GROUP BY "orderId") p ON p."orderId" = o."id"
+        WHERE o."tenantId" = ${tenant} AND o."status" <> 'CANCELLED' AND o."customerId" IN (${Prisma.join(idsOrdenados)})
+        GROUP BY o."customerId"
+      `
+    : []
+  const deudaPorCliente = new Map(deudas.filter((fila) => fila.customerId).map((fila) => [String(fila.customerId), Number(fila.pendingPyg) || 0]))
+  const statsPorCliente = new Map(stats.map((fila) => [fila.customerId, { orders: fila._count._all, totalSpentPyg: fila._sum.totalPyg ?? 0, lastOrderAt: fila._max.createdAt, pendingPyg: fila.customerId ? deudaPorCliente.get(fila.customerId) || 0 : 0 }]))
+  return json(ordenados.map((customer) => ({ ...customer, wholesale: esMayorista(customer), stats: statsPorCliente.get(customer.id) || { orders: 0, totalSpentPyg: 0, lastOrderAt: null, pendingPyg: 0 } })))
 }
 
 export async function POST(request: Request) {

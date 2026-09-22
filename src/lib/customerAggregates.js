@@ -16,12 +16,21 @@ const diaSemana = (fecha) => fecha.toLocaleDateString('es-PY', { weekday: 'long'
 const capitalizar = (texto) => texto.charAt(0).toUpperCase() + texto.slice(1)
 const totalDe = (order) => Number(order?.totalPyg || 0)
 
+// Deuda de un pedido: el pendiente guardado o, si falta, total − cobrado.
+const pendienteDe = (order) => {
+  const guardado = order?.pendingPyg
+  const calculado = totalDe(order) - Number(order?.collectedPyg ?? order?.paidPyg ?? 0)
+  const valor = guardado === undefined || guardado === null ? calculado : Number(guardado)
+  return Number.isFinite(valor) && valor > 0 ? valor : 0
+}
+
 /** Estadísticas del listado: mismos campos que devuelve el API de clientes. */
 export function statsDePedidos(orders = []) {
   const validos = (Array.isArray(orders) ? orders : []).filter((order) => !CANCELADOS.has(String(order?.status || '')))
   const totalSpentPyg = validos.reduce((suma, order) => suma + totalDe(order), 0)
+  const pendingPyg = validos.reduce((suma, order) => suma + pendienteDe(order), 0)
   const lastOrderAt = validos.reduce((max, order) => (order?.createdAt && (!max || order.createdAt > max) ? order.createdAt : max), null)
-  return { orders: validos.length, totalSpentPyg, lastOrderAt }
+  return { orders: validos.length, totalSpentPyg, lastOrderAt, pendingPyg }
 }
 
 /** Analítica de la ficha: mismos campos y fórmulas que el API real. */

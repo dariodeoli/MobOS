@@ -13,6 +13,9 @@ export const DEMO_CUSTOMER_TEMPLATES = [
   { id: 'demo-customer-novedades', key: 'customer_news', name: 'Novedades', body: 'Hola, {{customer_name}}. Pasá por {{sucursal}} y aprovechá las novedades de {{empresa}}.' },
 ]
 
+/** Clave de «última plantilla usada» del contexto Clientes (lista y popup). */
+export const ULTIMA_PLANTILLA_CLIENTES = 'mobos:clientes:plantilla-wa'
+
 const META_PREFIX = 'mobos:customer-meta:'
 
 export function renderMessage(template, customer) {

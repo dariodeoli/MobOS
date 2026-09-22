@@ -54,6 +54,7 @@ import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
 import CustomerCommunicationCard from '@/components/customers/CustomerCommunicationCard'
 import ClientesTabla from '@/components/customers/ClientesTabla'
 import CustomerProfile from '@/components/customers/CustomerProfile'
+import ClienteResumenPopup from '@/components/customers/ClienteResumenPopup'
 import CampanasClientes from '@/components/customers/CampanasClientes'
 import { customerMetadata, DEMO_CUSTOMER_TEMPLATES, readCustomerMetadata } from '@/components/customers/customerMessaging'
 import { whatsappUrl } from '@/utils/telefono'
@@ -106,6 +107,10 @@ export default function SellerCustomers() {
   const [message, setMessage] = useState('')
   const [saveError, setSaveError] = useState('')
   const [profileCustomer, setProfileCustomer] = useState(null)
+  // Resumen rápido (#236): el ojito abre el popup; el detalle completo abre el
+  // perfil (CustomerProfile) en la pestaña pedida (resumen o datos al editar).
+  const [resumenCliente, setResumenCliente] = useState(null)
+  const [profileTab, setProfileTab] = useState('resumen')
   const [listas, setListas] = useState([])
   const [crearAbierto, setCrearAbierto] = useState(false)
   const [importAbierto, setImportAbierto] = useState(false)
@@ -300,9 +305,17 @@ export default function SellerCustomers() {
       </section>
     )}
     {!data.loading && !data.error && vista === 'grid' && <ul className={GRILLA_DOS_COLUMNAS}>{ordenados.map((row) => <CustomerCommunicationCard key={row.id} customer={row} templates={plantillasClientes} onViewProfile={setProfileCustomer} />)}</ul>}
-    {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={setProfileCustomer} />}
+    {!data.loading && !data.error && vista === 'list' && <ClientesTabla rows={ordenados} templates={plantillasClientes} onPerfil={(row) => { setProfileTab('resumen'); setProfileCustomer(row) }} onResumen={setResumenCliente} />}
     {!data.loading && !data.error && data.hayMas && <div className="flex justify-center pt-1"><button type="button" disabled={data.cargandoMas} onClick={data.cargarMas} className="rounded-lg border border-ink-500 px-4 py-2 text-xs font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">{data.cargandoMas ? 'Cargando…' : 'Cargar más clientes'}</button></div>}
-    <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={cerrarPerfil} />
+    <CustomerProfile customer={profileCustomer} open={Boolean(profileCustomer)} onClose={cerrarPerfil} tabInicial={profileTab} />
+    <ClienteResumenPopup
+      row={resumenCliente}
+      open={Boolean(resumenCliente)}
+      onClose={() => setResumenCliente(null)}
+      templates={plantillasClientes}
+      onEditar={(row) => { setResumenCliente(null); setProfileTab('datos'); setProfileCustomer(row) }}
+      onDetalle={(row) => { setResumenCliente(null); setProfileTab('resumen'); setProfileCustomer(row) }}
+    />
     {!templateData.loading && templateData.error && <Aviso tono="warn" className="p-3">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</Aviso>}
     <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" className="max-w-2xl">
       <form onSubmit={importar} className="space-y-3">
