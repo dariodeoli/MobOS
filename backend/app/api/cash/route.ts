@@ -194,7 +194,7 @@ export async function POST(request: Request) {
   const body = await request.json(); const action = body.action
   const notes = note(body.notes); if (notes === undefined) return error('Las notas deben ser texto de hasta 500 caracteres.')
   if (action === 'open') {
-    const openingPyg = Number(body.openingPyg); if (!int(openingPyg)) return error('El fondo inicial debe ser un entero no negativo.')
+    const openingPyg = Number(body.openingPyg); if (!int(openingPyg)) return error('El fondo inicial debe ser un entero entre 0 y 2.147.483.647.')
     try {
       const result = await prisma.$transaction(async (tx) => {
         const id = randomUUID()
@@ -214,7 +214,7 @@ export async function POST(request: Request) {
     // Con desglose por denominación el total contado se deriva del detalle; sin
     // él se mantiene el total manual de siempre.
     const countedPyg = arqueo.breakdown ? arqueo.countedPyg : Number(body.countedPyg)
-    if (!int(countedPyg)) return error('El efectivo contado debe ser un entero no negativo.')
+    if (!int(countedPyg)) return error('El efectivo contado debe ser un entero entre 0 y 2.147.483.647.')
     const requestedSessionId = typeof body.sessionId === 'string' && body.sessionId ? body.sessionId : null
     const result = await prisma.$transaction(async (tx) => {
       const open = requestedSessionId

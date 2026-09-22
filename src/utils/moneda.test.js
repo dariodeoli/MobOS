@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { formatGs, formatGsInput, formatUsd, formatUsdInput, parseGsInput, parseUsdInput, excedeMonto, LIMITE_MONTO_VENTAS, montoGs, montoUsd, montoTexto, largoMaximoMonto } from './moneda.js'
+import { formatGs, formatGsInput, formatUsd, formatUsdInput, parseGsInput, parseUsdInput, excedeMonto, errorMonto, limiteMonto, LIMITE_MONTO_ALMACENABLE, LIMITE_MONTO_GENERAL, LIMITE_MONTO_VENTAS, montoGs, montoUsd, montoTexto, largoMaximoMonto } from './moneda.js'
 import { gs, gsInput } from './calculos.js'
 
 test('formatea guaraníes con separadores locales', () => {
@@ -69,4 +69,16 @@ test('el largo máximo del monto sale del tope permitido', () => {
   assert.equal(largoMaximoMonto(99_000_000_000), 14)
   assert.equal(largoMaximoMonto(10_000_000_000, { decimales: true }), 17)
   assert.equal(largoMaximoMonto(1000), 5)
+})
+
+test('el tope almacenable acota los límites y da el mensaje de bloqueo', () => {
+  assert.equal(limiteMonto(), LIMITE_MONTO_ALMACENABLE, 'sin límite propio manda el tope real')
+  assert.equal(limiteMonto(LIMITE_MONTO_GENERAL), LIMITE_MONTO_ALMACENABLE, '10B se acota a lo almacenable')
+  assert.equal(limiteMonto(1_000_000), 1_000_000, 'un límite menor se respeta')
+  assert.equal(limiteMonto('invalido'), LIMITE_MONTO_ALMACENABLE)
+  assert.equal(errorMonto(2_000_000_000), '', 'dos mil millones entran')
+  assert.match(errorMonto(3_000_000_000), /máximo que el sistema puede guardar/)
+  assert.match(errorMonto('3.000.000.000'), /máximo que el sistema puede guardar/)
+  // Las ventas siguen acotadas al tope real aunque su límite de producto sea 99B.
+  assert.match(errorMonto(3_000_000_000, LIMITE_MONTO_VENTAS), /máximo que el sistema puede guardar/)
 })

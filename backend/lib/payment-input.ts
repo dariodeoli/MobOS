@@ -66,13 +66,13 @@ export async function normalizePayment(tx: Prisma.TransactionClient, tenantId: s
     const exchangeRatePyg = decimalInput(input.exchangeRatePyg ?? (currency === 'PYG' ? 1 : undefined), 'exchangeRatePyg', 6)
     if (currency === 'PYG' && !exchangeRatePyg.eq(1)) throw new InputError('La cotización PYG debe ser 1.')
     const converted = originalAmount.mul(exchangeRatePyg).toDecimalPlaces(0, Prisma.Decimal.ROUND_HALF_UP)
-    if (converted.lt(1) || converted.gt(INT_MAX)) throw new InputError('Monto convertido fuera de rango.')
+    if (converted.lt(1) || converted.gt(INT_MAX)) throw new InputError('El monto convertido supera el máximo que el sistema puede guardar (Gs 2.147.483.647).')
     result = { accountId, accountSnapshot: snapshot, currency, originalAmount, exchangeRatePyg, method,
       amountPyg: converted.toNumber(), status: status as PaymentStatus, reference }
   } else {
     if (input.originalAmount !== undefined || input.exchangeRatePyg !== undefined || input.currency !== undefined) throw new InputError('Los campos de moneda requieren accountId.')
     const amountPyg = Number(input.amountPyg)
-    if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > INT_MAX || !['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'TRADE_IN', 'PIX', 'STORE_CREDIT'].includes(input.method as string)) throw new InputError('Monto entero positivo y método válido son obligatorios.')
+    if (!Number.isSafeInteger(amountPyg) || amountPyg <= 0 || amountPyg > INT_MAX || !['CASH', 'TRANSFER', 'CARD', 'CREDIT', 'TRADE_IN', 'PIX', 'STORE_CREDIT'].includes(input.method as string)) throw new InputError('El monto debe ser un entero positivo hasta 2.147.483.647 y el método tiene que ser válido.')
     result = { amountPyg, method: input.method as PaymentMethod, status: status as PaymentStatus, reference }
   }
   // Previsión de acreditación: medios con settlementDays (tarjeta, PIX) tienen

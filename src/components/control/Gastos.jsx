@@ -5,7 +5,7 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { getPaymentAccounts } from '@/lib/paymentAccounts'
 import { listGastos, addGasto } from '@/lib/storage'
 import { fechaClave, gs } from '@/utils/calculos'
-import { parseGsInput } from '@/utils/moneda'
+import { errorMonto, LIMITE_MONTO_ALMACENABLE, parseGsInput } from '@/utils/moneda'
 import { Aviso, Badge, Button, Card, EmptyState, IconAction, Input, Label, MoneyInput, Select } from '@/components/ui'
 import CurrencySelect from '@/components/shared/CurrencySelect'
 import ComboBuscador from '@/components/shared/ComboBuscador'
@@ -94,6 +94,12 @@ export default function Gastos() {
     event.preventDefault(); setMessage('')
     const originalAmount = form.currency === 'PYG' ? parseGsInput(form.originalAmount) : form.originalAmount
     if (!Number(originalAmount) || !form.description.trim()) { setMessage('Completá monto y descripción.'); return }
+    // #148 §9: el campo no trunca, el formulario valida contra el tope real de
+    // almacenamiento (los límites de producto 10B/99B necesitan la migración).
+    const errorLimite = form.currency === 'PYG'
+      ? errorMonto(originalAmount)
+      : (montoPyg > LIMITE_MONTO_ALMACENABLE ? 'El monto convertido supera el máximo que el sistema puede guardar.' : '')
+    if (errorLimite) { setMessage(errorLimite); return }
     if (requiereAutorizacion && !authGasto) { setMessage('El gasto supera el límite sin autorización. Solicitá autorización a gerencia y esperá la aprobación.'); return }
     setBusy(true)
     try {
