@@ -1,7 +1,7 @@
 {
-  "verificado": "2026-09-22T13:14:24.968Z",
+  "verificado": "2026-09-22T15:30:29.824Z",
   "base": "https://app.moboss.online",
-  "version": "v1.0.141",
+  "version": "v1.0.142",
   "llamadasApi": [],
   "erroresConsola": [],
   "resultados": [
@@ -17,7 +17,7 @@
     {
       "paso": "demo: entrar como Dueño con el PIN 3001",
       "estado": "ok",
-      "detalle": "PIN 3001 abrió la demo (v1.0.141)",
+      "detalle": "PIN 3001 abrió la demo (v1.0.142)",
       "capturas": [
         "02-demo-dentro.jpg"
       ],
@@ -51,9 +51,18 @@
       "llamadasApi": []
     },
     {
+      "paso": "#240 §4: modo taller/rack con estaciones y filtros",
+      "estado": "ok",
+      "detalle": "carriles + estaciones + filtros + acciones en serie (AUR0001000000000)",
+      "capturas": [
+        "06-rack-taller.jpg"
+      ],
+      "llamadasApi": []
+    },
+    {
       "paso": "#232: auditoría de logs sin volcados de env/secrets",
       "estado": "ok",
-      "detalle": "✓ Higiene de logs OK (1027 archivos auditados).",
+      "detalle": "✓ Higiene de logs OK (1109 archivos auditados).",
       "capturas": [],
       "llamadasApi": []
     },
@@ -71,8 +80,8 @@
     "Restringir visibilidad de logs y rotar secretos en Coolify: pasos para Dario en docs/SEGURIDAD-LOGS.md y docs/ROTACION-TOKENS.md."
   ],
   "resumen": {
-    "pasos": 7,
-    "ok": 7,
+    "pasos": 8,
+    "ok": 8,
     "fallos": 0
   }
 }
