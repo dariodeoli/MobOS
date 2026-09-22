@@ -1,4 +1,5 @@
 import { leerDemo, guardarDemo } from './demoStorage.js'
+import { IMEIS_DEMO_FICTICIOS as AUR_SERIALES } from './demo/iphones.js'
 import { analiticaDePedidos } from './customerAggregates.js'
 // Datos ficticios del modo demo para Clientes (#189/#194). Nada de esto sale
 // del navegador: los seeds se muestran siempre y lo que se crea se guarda en
@@ -191,6 +192,31 @@ SEED_DEMO_CLIENTES.push(
   clienteExtra('demo-cliente-gloria', 'Gloria Martínez', '6.123.456', '0981222777', 'Lambaré', { seguro: true, notes: 'Cambió de equipo con trade-in.' }),
   clienteExtra('demo-cliente-hugo', 'Hugo Benítez', '4.999.888', '0986555222', 'Itauguá', { tags: ['moroso'], credito: 1000000, dias: 7, pedidos: [pedidoDemo('demo-p-13', 'MOB-0013', 2350000, 500000, 40, 'iPhone 12 · 128 GB')] }),
 )
+
+
+// #219/#221: historial variado para los clientes demo (varias compras, fechas
+// distribuidas en meses/años, montos/estados distintos, productos y seriales).
+const historial = (cliente, cantidad, salto = 83, arranque = 24) => Array.from({ length: cantidad }, (_, i) => {
+  const productos = [
+    ['iPhone 15 Pro · 256 GB', 6850000], ['iPhone 15 · 128 GB', 4850000], ['iPhone 14 · 128 GB', 3600000],
+    ['iPhone 13 · 128 GB', 3050000], ['iPhone 12 · 256 GB', 2750000], ['AirPods Pro 2 USB-C', 1850000],
+    ['Apple Watch SE', 1800000], ['Cargador USB-C 20W', 220000], ['Funda MagSafe', 180000],
+  ]
+  const [descripcion, precio] = productos[(cliente.length + i * 3) % productos.length]
+  const pagado = i % 4 === 0 ? Math.round(precio * 0.5) : precio
+  return pedido({
+    id: `${cliente}-p-${i + 1}`,
+    numero: `MOB-${String(100 + ((cliente.length + i) % 800)).padStart(4, '0')}`,
+    total: precio,
+    pagado,
+    estado: pagado >= precio ? (i % 3 === 0 ? 'READY_FOR_PICKUP' : 'COMPLETED') : 'PENDING',
+    dias: arranque + i * salto,
+    items: [{ id: `${cliente}-i-${i + 1}`, description: descripcion, quantity: 1, serials: [AUR_SERIALES[(cliente.length + i) % AUR_SERIALES.length]] }],
+  })
+})
+for (const cliente of SEED_DEMO_CLIENTES) {
+  if (!cliente.demoProfile?.orders?.length) cliente.demoProfile.orders = historial(cliente.id, 3 + (cliente.id.length % 4))
+}
 
 export function clientesDemoGuardados() {
   try {

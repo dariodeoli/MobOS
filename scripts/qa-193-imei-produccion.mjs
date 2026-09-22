@@ -101,6 +101,7 @@ try {
     const texto = await bloque.innerText()
     if (/no pasa la verificación|15 dígitos|Falta el IMEI/i.test(texto)) throw new Error(`la unidad no tiene un IMEI válido: ${texto.slice(-140)}`)
     if (!/Apple Basic/.test(texto)) throw new Error('no apareció el servicio Apple Basic')
+    if (!/SIMULADO/.test(texto) || !/Sin cobro/.test(texto)) throw new Error('el precheck no avisa que es SIMULADO sin cobro antes de confirmar')
     await capturar(page, '03-precheck')
     return (texto.match(/US\$ [0-9.]+/) || ['(sin costo a la vista)'])[0]
   })

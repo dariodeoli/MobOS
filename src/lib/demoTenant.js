@@ -12,7 +12,7 @@ const DEFAULTS = {
   belowListPct: 10,
   loyaltyPct: 0,
   collectionLateFeeBpPerDay: null,
-  orderPrefix: 'DEMO',
+  orderPrefix: 'AUR',
   orderNextNumber: 1,
 }
 

@@ -34,7 +34,10 @@ test('el IMEI se valida antes de consultar y el precheck no cobra', async ({ pag
   expect(precheck.datos.servicio.precioUsd).toBe(0.06)
   expect(precheck.datos.servicio.precioConfirmado).toBe(true)
   expect(precheck.datos.requiereConfirmacion).toBe(true)
-  expect(precheck.datos.costoEstimadoUsd).toBe(0.06)
+  expect(precheck.datos.modo).toBe('simulado', 'sin LIVE el modo visible es simulado')
+  expect(precheck.datos.simulado).toBe(true)
+  expect(precheck.datos.costoEstimadoUsd).toBe(0)
+  expect(precheck.datos.costoReferenciaUsd).toBe(0.06)
   // El precheck no deja registro (no hubo consulta).
   const historial = await api(page, `imei?imei=${IMEI}`, { method: 'GET' })
   expect(historial.datos.consultas).toEqual([])
@@ -96,7 +99,9 @@ test('la ficha de la unidad muestra el costo, pide confirmación y deja el resul
     await expect(bloque).toBeVisible()
     await bloque.getByTestId('imei-precheck').click()
     await expect(bloque).toContainText('Apple Basic')
-    await expect(bloque.getByTestId('imei-confirmar')).toContainText('US$ 0.06')
+    await expect(bloque).toContainText('SIMULADO')
+    await expect(bloque).toContainText('Sin cobro')
+    await expect(bloque.getByTestId('imei-confirmar')).toContainText('simulada')
     await bloque.getByTestId('imei-confirmar').click()
     // Resultado con estado explícito, fuente del proveedor y campos normalizados.
     await expect(bloque).toContainText('Verificado')
@@ -188,7 +193,8 @@ test('el mismo IMEI en dos tiendas queda aislado por tienda', async ({ page, bro
     expect(precheckB.status()).toBe(200)
     const precheckDatos = await precheckB.json()
     expect(precheckDatos.advertencia).toBeNull()
-    expect(precheckDatos.costoEstimadoUsd).toBe(0.06)
+    expect(precheckDatos.costoEstimadoUsd).toBe(0)
+    expect(precheckDatos.costoReferenciaUsd).toBe(0.06)
 
     // Consulta propia de B: queda solo en su historial.
     const consultaB = await apiB.post(`${API}/api/imei`, { headers: cabecerasB, data: { action: 'checks', imei: IMEI_COMPARTIDO, servicio: 'APPLE_BASIC', confirm: true, requestId: `qa-193-tienda-b-${Date.now()}` } })

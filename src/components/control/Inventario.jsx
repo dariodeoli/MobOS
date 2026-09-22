@@ -5,6 +5,7 @@ import { useVistaListaGrid } from '@/hooks/useVistaListaGrid'
 import QRCode from 'qrcode'
 import { getProductos, modoDatosActual } from '@/lib/storage'
 import { gs } from '@/utils/calculos'
+import { formatUsd } from '@/utils/moneda'
 import { montoTexto } from '@/utils/moneda'
 import BarraLote from '@/components/shared/BarraLote'
 import Switch from '@/components/shared/Switch'
@@ -118,7 +119,7 @@ const fechaVerificacion = (value) => {
 // Anchos medidos sobre el contenido real de cada columna: las compactas
 // (batería, proveedor, costo, estado) ceden el ancho a producto, serial y
 // verificación, que son los datos que se leen de un vistazo.
-const UNIDADES_GRID = 'grid min-w-[62rem] grid-cols-[1.5rem_minmax(8rem,1.6fr)_7.25rem_6.75rem_5.25rem_2.75rem_4.5rem_5.5rem_7.5rem_8rem] items-center gap-x-2'
+const UNIDADES_GRID = 'grid min-w-[66rem] grid-cols-[1.5rem_minmax(11rem,2fr)_6.5rem_4.5rem_6.5rem_5.5rem_6.5rem_6rem_8.5rem] items-center gap-x-2'
 const GRID_RESERVAS = 'grid min-w-[44rem] grid-cols-[minmax(8rem,1.4fr)_minmax(5rem,0.9fr)_minmax(6rem,1.1fr)_6rem_15rem] items-center gap-x-2'
 const GRID_ELIMINADOS = 'grid min-w-[42rem] grid-cols-[minmax(8rem,1.4fr)_minmax(5rem,0.9fr)_minmax(7rem,1.6fr)_7rem] items-center gap-x-2'
 const GRID_TRASLADOS = 'grid min-w-[54rem] grid-cols-[minmax(9rem,1.4fr)_minmax(9rem,1.6fr)_6rem_6rem_7rem_11rem] items-center gap-x-2'
@@ -127,6 +128,12 @@ const fechaReserva = (value) => {
   if (!value || Number.isNaN(date.getTime())) return '—'
   const dia = date.toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')
   return `${dia} · ${date.toLocaleTimeString('es-PY', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+}
+// Abreviatura estable para proveedor (3–5 caracteres) y códigos cortos.
+const abrev = (texto, largo = 5) => {
+  const limpio = String(texto || '').trim()
+  if (!limpio) return '—'
+  return limpio.length > largo ? `${limpio.slice(0, largo)}…` : limpio
 }
 
 function EncabezadoUnidades({ seleccionado = false, onSeleccionar }) {
@@ -137,63 +144,121 @@ function EncabezadoUnidades({ seleccionado = false, onSeleccionar }) {
         ? <input type="checkbox" className="h-4 w-4 accent-fono" aria-label="Seleccionar visibles" title="Seleccionar visibles" checked={seleccionado} onChange={onSeleccionar} />
         : <span />}
       <span className={celda}>Producto</span>
-      <span className={celda}>Verificación</span>
-      <span className={celda}>IMEI / Serial</span>
-      <span className={celda}>Ubicación</span>
-      <span className={celda}>Bat.</span>
-      <span className={celda}>Proveedor</span>
+      <span className={celda}>Modelo / variante</span>
+      <span className={celda} title="Proveedor (3 a 5 caracteres; pasá el mouse para verlo completo)">Proveedor</span>
       <span className={`${celda} text-right`}>Costo</span>
+      <span className={celda} title="Ubicación: depósito o sucursal por código corto">Ubi</span>
       <span className={celda}>Estado</span>
+      <span className={celda} title="Quién verificó la unidad y cuándo">Verificado</span>
       <span className={`${celda} text-right`}>Acciones</span>
     </div>
   )
 }
 
-function FilaUnidad({ unit, onClick, onVerify, onSell, busy, seleccionado = false, onAlternar }) {
+// Menú de acciones de la fila: íconos con tooltip, se cierra al elegir o al
+// hacer clic afuera.
+function MenuAcciones({ unit, busy, acciones }) {
+  const [abierto, setAbierto] = useState(false)
+  useEffect(() => {
+    if (!abierto) return undefined
+    const cerrar = () => setAbierto(false)
+    document.addEventListener('mousedown', cerrar)
+    return () => document.removeEventListener('mousedown', cerrar)
+  }, [abierto])
+  if (!acciones.length) return null
+  return <span className="relative" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+    <button type="button" disabled={busy} aria-label={`Acciones de ${unit.serial}`} title="Más acciones" onClick={() => setAbierto((valor) => !valor)} className="grid h-7 w-7 place-items-center rounded-lg border border-ink-600 text-mute transition hover:border-fono/40 hover:text-fore">
+      <Icon name="dots" className="h-3.5 w-3.5" />
+    </button>
+    {abierto && <span className="absolute right-0 top-full z-30 mt-1 w-56 rounded-xl border border-ink-500 bg-paper p-1 shadow-xl">
+      {acciones.map((accion) => <button key={accion.label} type="button" disabled={busy || accion.disabled} title={accion.tooltip} onClick={() => { setAbierto(false); accion.run() }} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-fore transition hover:bg-ink-700 disabled:opacity-40">
+        <Icon name={accion.icon} className="h-3.5 w-3.5 shrink-0 text-mute" />
+        <span className="min-w-0 flex-1 truncate">{accion.label}</span>
+        {accion.hint && <span className="shrink-0 text-[10px] text-mute">{accion.hint}</span>}
+      </button>)}
+    </span>}
+  </span>
+}
+
+function FilaUnidad({ unit, onClick, onVerify, onSell, onReserve, onLabel, onAdjust, onRemove, onMove, onEdit, onCosto, cotizacion, busy, seleccionado = false, onAlternar }) {
   const v = verifiedLabel(unit)
   const estado = estadoInventario(unit)
   const serial = String(unit.serial || '')
-  // Antigüedad: solo se marca cuando el stock ya lleva tiempo parado.
+  const [costoAbierto, setCostoAbierto] = useState(false)
+  const [costoUsd, setCostoUsd] = useState('')
   const diasStock = unit.createdAt ? Math.floor((Date.now() - new Date(unit.createdAt).getTime()) / 86400000) : null
   const ingreso = unit.createdAt ? new Date(unit.createdAt).toLocaleDateString('es-PY') : null
-  return <div role="button" tabIndex={0} data-testid="inventario-fila" onClick={onClick} onKeyDown={event => { if (event.key === 'Enter') onClick() }} className={`${UNIDADES_GRID} cursor-pointer rounded-lg border border-ink-600 px-3 py-2 transition hover:border-fono/40 ${rowTone(unit)}`}>
+  const costoGs = costoEnGs(unit)
+  const enUsd = costoGs === null ? null : (unit.costCurrency === 'USD' && !cotizacion ? Number(unit.originalCost) : (cotizacion > 0 ? costoGs / cotizacion : Number(unit.originalCost)))
+  const costoTexto = sinCostoUnitario(unit)
+    ? null
+    : enUsd !== null && Number.isFinite(enUsd)
+      ? formatUsd(enUsd)
+      : costoGs !== null ? gs(costoGs) : '—'
+  const vencida = unit.warrantyUntil ? new Date(unit.warrantyUntil).getTime() < Date.now() : null
+  const acciones = [
+    { label: 'Vender', tooltip: 'Cargar la venta de esta unidad', icon: 'cart', run: () => onSell?.(unit) },
+    { label: 'Reservar', tooltip: 'Apartar la unidad para un cliente', icon: 'clock', run: () => onReserve?.(unit) },
+    { label: 'Verificar', tooltip: 'Registrar la verificación física ahora', icon: 'check', run: () => onVerify?.(unit) },
+    { label: 'Imprimir etiqueta', tooltip: 'Imprimir la etiqueta de esta unidad', icon: 'printer', run: () => onLabel?.(unit) },
+    { label: 'Enviar a revisión', tooltip: 'Marcar la unidad en revisión con un motivo', icon: 'alert', run: () => onAdjust?.(unit) },
+    { label: 'Cambiar ubicación', tooltip: 'Mover la unidad a otro depósito o sucursal', icon: 'box', run: () => onMove?.(unit) },
+    { label: 'Dar de baja', tooltip: 'Sacar la unidad del stock (queda en Eliminados)', icon: 'trash', run: () => onRemove?.(unit) },
+    { label: 'Ver detalles', tooltip: 'Abrir la ficha completa de la unidad', icon: 'eye', run: () => onClick?.() },
+  ]
+  return <div role="button" tabIndex={0} data-testid="inventario-fila" onClick={onClick} onKeyDown={event => { if (event.key === 'Enter') onClick() }} className={`${UNIDADES_GRID} cursor-pointer rounded-lg border border-ink-600 px-3 py-1.5 transition hover:border-fono/40 ${rowTone(unit)}`}>
     {onAlternar
       ? <span className="flex items-center" onClick={(event) => event.stopPropagation()}><input type="checkbox" className="h-4 w-4 accent-fono" aria-label={`Seleccionar ${nombreProducto(unit.product || {})} ${serial}`} checked={seleccionado} onChange={() => onAlternar()} /></span>
       : <span />}
-    <span className="flex min-w-0 items-center gap-2">
-      <b className="truncate text-[13px] leading-snug" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {})}</b>
-      {/* Condición por color: verde nuevo, ámbar seminuevo, gris reacondicionado. */}
+    <span className="flex min-w-0 flex-col">
+      <span className="flex min-w-0 items-center gap-1.5">
+      <b className="min-w-0 text-[13px] leading-tight" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {})}</b>
       <span
         className={`h-2 w-2 shrink-0 rounded-full ${unit.condition === 'NEW' ? 'bg-ok' : unit.condition === 'USED' ? 'bg-warn' : 'bg-mute'}`}
-        title={conditionLabel[unit.condition] || unit.condition}
+        title={`Condición: ${conditionLabel[unit.condition] || unit.condition}`}
         aria-label={`Condición: ${conditionLabel[unit.condition] || unit.condition}`}
       />
       {diasStock != null && diasStock >= 30 && (
         <span className={`shrink-0 rounded border px-1 text-[10px] font-semibold tabular-nums ${diasStock >= 90 ? 'border-bad/30 text-bad' : 'border-warn/30 text-warn'}`} title={`Ingresó a stock el ${ingreso} · ${diasStock} días`}>{diasStock} d</span>
       )}
+      </span>
+      <SerialTexto serial={serial} className="truncate text-[10px] text-mute" />
     </span>
-    <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-mute">
-      {v ? <Avatar user={v.usuario} size="xs" /> : <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink-700 text-[8px] font-bold text-fore">—</span>}
-      <span className="truncate" title={v ? `Verificó ${v.quien}` : undefined}>{v ? fechaVerificacion(unit.lastVerifiedAt) : 'Sin verificar'}</span>
+    <span className="flex min-w-0 flex-wrap items-center gap-1 text-[11px] text-mute">
+      <span className="truncate" title={`${conditionLabel[unit.condition] || unit.condition}${unit.product?.capacity ? ` · ${unit.product.capacity}` : ''}`}>{conditionLabel[unit.condition] || '—'}{unit.product?.capacity ? ` · ${unit.product.capacity}` : ''}</span>
+      {unit.batteryHealth ? <span className="shrink-0 rounded border border-ink-600 px-1 tabular-nums" title={`Batería: ${unit.batteryHealth}% (salud informada)`}>{unit.batteryHealth}%</span> : null}
     </span>
-    <SerialTexto serial={serial} className="truncate text-[11px] text-mute" />
-    <span className="flex min-w-0 items-center gap-1.5 text-xs text-mute">
-      {unit.location?.name ? <><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: locationTone(unit.location) }} /><span className="truncate">{unit.location.name}</span></> : '—'}
+    <span className="truncate text-xs text-mute" title={unit.supplierName || undefined}>{abrev(unit.supplierName, 5)}</span>
+    <span className="flex items-center justify-end gap-1 text-right text-xs font-semibold tabular-nums text-fore">
+      {costoAbierto ? (
+        <span className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+          <Input autoFocus aria-label={`Costo en USD de ${serial}`} className="h-7 w-20 px-1 text-right text-xs" inputMode="decimal" value={costoUsd} onChange={(event) => setCostoUsd(event.target.value.replace(/[^0-9.,]/g, ''))} onKeyDown={(event) => { if (event.key === 'Enter') { onCosto?.(unit, costoUsd); setCostoAbierto(false) } if (event.key === 'Escape') setCostoAbierto(false) }} />
+          <button type="button" title="Guardar el costo en USD" onClick={() => { onCosto?.(unit, costoUsd); setCostoAbierto(false) }} className="rounded-lg border border-ok/40 px-1.5 py-0.5 text-[10px] font-bold text-ok">OK</button>
+          <button type="button" title="Cancelar" onClick={() => setCostoAbierto(false)} className="rounded-lg px-1 text-[10px] text-mute">✕</button>
+        </span>
+      ) : sinCostoUnitario(unit) ? (
+        <Badge color="orange" className="px-1.5 py-0.5 text-[10px]" title="Falta cargar el costo: usá el lápiz para completarlo">Sin costo</Badge>
+      ) : <span title={`Costo cargado${costoGs !== null ? ` (${gs(costoGs)})` : ''}`}>{costoTexto}</span>}
+      <button type="button" disabled={busy} title="Editar el costo en dólares" aria-label={`Editar el costo de ${serial}`} onClick={(event) => { event.stopPropagation(); setCostoUsd(enUsd !== null && Number.isFinite(enUsd) ? String(Number(enUsd.toFixed(2))) : ''); setCostoAbierto(true) }} className="text-mute transition hover:text-fono"><Icon name="edit" className="h-3.5 w-3.5" /></button>
     </span>
-    <span className="text-xs text-mute tabular-nums">{unit.batteryHealth ? `🔋 ${unit.batteryHealth}%` : '—'}</span>
-    <span className="truncate text-xs text-mute" title={unit.supplierName || undefined}>{unit.supplierName || '—'}</span>
-    <span className="truncate text-right text-xs font-semibold tabular-nums text-fore">{sinCostoUnitario(unit)
-      ? <Badge color="orange" className="px-1.5 py-0.5 text-[10px]" title="Falta cargar el costo: completalo desde la ficha">Sin costo</Badge>
-      : formatCost(unit) || (costoEnGs(unit) !== null ? gs(costoEnGs(unit)) : '—')}</span>
+    <span className="flex min-w-0 items-center gap-1.5 text-xs text-mute" title={unit.location?.name ? `Ubicación: ${unit.location.name}${unit.location.code ? ` (${unit.location.code})` : ''}` : 'Sin ubicación asignada'}>
+      {unit.location?.name ? <><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: locationTone(unit.location) }} /><span className={`truncate ${unit.location.code ? 'font-semibold text-fore/80' : ''}`}>{unit.location.code ? abrev(unit.location.code, 4) : unit.location.name}</span></> : '—'}
+    </span>
     <span className="min-w-0">
       <Badge color={estado.tone} className="max-w-full truncate" title={estado.label}>{estado.label}</Badge>
+      {vencida !== null && <span className={`mt-0.5 block truncate text-[10px] font-semibold ${vencida ? 'text-bad' : 'text-ok'}`} title={vencida ? `Garantía vencida el ${new Date(unit.warrantyUntil).toLocaleDateString('es-PY')}` : `Garantía vigente hasta ${new Date(unit.warrantyUntil).toLocaleDateString('es-PY')}`}>Garantía {vencida ? 'vencida' : 'vigente'}</span>}
       {unit.reservationCustomer && <span className="mt-0.5 block truncate text-[10px] font-semibold text-reserved" title={`Reservado para ${unit.reservationCustomer}`}>{unit.reservationCustomer}</span>}
       {unit.consignorName && <span className="mt-0.5 block truncate text-[10px] font-semibold text-fono-light" title={`En consignación de ${unit.consignorName}`}>Consignado</span>}
     </span>
+    <span className={`flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-0.5 text-[10px] ${v ? 'bg-ok/10 text-ok' : 'border border-ink-600 text-mute'}`} title={v ? `Verificó: ${v.quien} · ${fechaVerificacion(unit.lastVerifiedAt)}` : 'Todavía sin verificación física'}>
+      {v ? <Avatar user={v.usuario} size="xs" /> : <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-ink-700 text-[8px] font-bold text-fore">—</span>}
+      <span className="truncate">{v ? fechaVerificacion(unit.lastVerifiedAt) : 'Sin verificar'}</span>
+      <button type="button" disabled={busy} aria-label="✓ Verificar" title={`Verificar ${serial} (un clic)`} onClick={(event) => { event.stopPropagation(); onVerify?.(unit) }} className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-ok/40 text-ok transition hover:bg-ok/10 disabled:opacity-50"><Icon name="check" className="h-3.5 w-3.5" /></button>
+    </span>
     <span className="flex flex-wrap items-center justify-end gap-1">
       {unit.status === 'RESERVED' && <button type="button" disabled={busy} title="Cerrar la reserva y cargar la venta" onClick={event => { event.stopPropagation(); onSell?.(unit) }} className="whitespace-nowrap rounded-lg border border-fono/40 px-2 py-1 text-[10px] font-bold text-fono-light transition hover:bg-fono/10 disabled:opacity-50">Finalizar venta</button>}
-      <button type="button" disabled={busy} title="Registrar verificación física ahora" onClick={event => { event.stopPropagation(); onVerify?.(unit) }} className="whitespace-nowrap rounded-lg border border-ok/40 px-2 py-1 text-[10px] font-bold text-ok transition hover:bg-ok/10 disabled:opacity-50">✓ Verificar</button>
-      <Icon name="chevron" className="h-3.5 w-3.5 shrink-0 -rotate-90 text-mute transition" />
+      <button type="button" disabled={busy} title="Editar los datos de la unidad" onClick={event => { event.stopPropagation(); onEdit?.(unit) }} className="whitespace-nowrap rounded-lg border border-ink-600 px-2 py-1 text-[10px] font-semibold text-fore transition hover:border-fono/40">Editar</button>
+      <MenuAcciones unit={unit} busy={busy} acciones={acciones} />
     </span>
   </div>
 }
@@ -480,7 +545,8 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   }
   const availableProducts = useMemo(() => products.filter(product => product.branchId), [products])
   const filtroBusqueda = lista => { const q = query.trim().toLowerCase(); if (!q) return lista; return lista.filter(unit => [unit.serial, unit.product?.name, unit.reservationCustomer, unit.notes, unit.supplierName].some(valor => String(valor || '').toLowerCase().includes(q))) }
-  const ordenarUnidades = lista => { const nombre = unit => String(unit.product?.name || '').toLowerCase(); switch (orden) { case 'modelo-az': return [...lista].sort((a, b) => nombre(a).localeCompare(nombre(b))); case 'modelo-za': return [...lista].sort((a, b) => nombre(b).localeCompare(nombre(a))); case 'nuevos': return [...lista].sort((a, b) => (a.condition === 'NEW' ? -1 : 1) - (b.condition === 'NEW' ? -1 : 1) || nombre(a).localeCompare(nombre(b))); case 'semis': return [...lista].sort((a, b) => (a.condition !== 'NEW' ? -1 : 1) - (b.condition !== 'NEW' ? -1 : 1) || nombre(a).localeCompare(nombre(b))); case 'mezclado': return [...lista].sort((a, b) => nombre(a).localeCompare(nombre(b))); default: return lista } }
+  const modeloNatural = unit => { const numero = String(unit.product?.model || unit.product?.name || '').match(/(\d{2})/); return numero ? Number(numero[1]) : 0 }
+  const ordenarUnidades = lista => { const nombre = unit => String(unit.product?.name || '').toLowerCase(); switch (orden) { case 'modelo-az': return [...lista].sort((a, b) => nombre(a).localeCompare(nombre(b))); case 'modelo-za': return [...lista].sort((a, b) => nombre(b).localeCompare(nombre(a))); case 'nuevos': return [...lista].sort((a, b) => (a.condition === 'NEW' ? -1 : 1) - (b.condition === 'NEW' ? -1 : 1) || nombre(a).localeCompare(nombre(b))); case 'semis': return [...lista].sort((a, b) => (a.condition !== 'NEW' ? -1 : 1) - (b.condition !== 'NEW' ? -1 : 1) || nombre(a).localeCompare(nombre(b))); case 'mezclado': return [...lista].sort((a, b) => nombre(a).localeCompare(nombre(b))); case 'modelo-natural': return [...lista].sort((a, b) => modeloNatural(b) - modeloNatural(a) || nombre(a).localeCompare(nombre(b))); case 'costo-mayor': return [...lista].sort((a, b) => (costoEnGs(b) ?? 0) - (costoEnGs(a) ?? 0)); case 'costo-menor': return [...lista].sort((a, b) => (costoEnGs(a) ?? 0) - (costoEnGs(b) ?? 0)); default: return lista } }
   // Inventario: la unidad sigue acá mientras no haya salido del local. Por eso
   // entran reservadas, en revisión y vendidas sin entregar.
   const disponibles = ordenarUnidades(filtroBusqueda(units.filter(sigueEnInventario)))
@@ -546,6 +612,13 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
   async function moveLocation(unit, locationId) {
     if (!unit || (unit.locationId || null) === (locationId || null)) return
     await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'move', locationId }), locationId ? 'Ubicación actualizada.' : 'Unidad sin ubicación.')
+  }
+  // #216: costo en dólares editable desde la fila (lápiz) con la cotización del día.
+  async function guardarCostoRapido(unit, valor) {
+    const monto = Number(String(valor || '').replace(',', '.'))
+    if (!Number.isFinite(monto) || monto <= 0) { setError('Indicá un costo en dólares mayor a cero.'); return }
+    const rate = Number(cotizacion) > 0 ? Number(cotizacion) : undefined
+    await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'details', costCurrency: 'USD', originalCost: monto, ...(rate ? { exchangeRatePyg: rate } : {}) }), 'Costo actualizado en dólares.')
   }
   function sellUnit(unit) {
     // Se lleva producto, IMEI y —si la unidad estaba reservada— el cliente, para
@@ -866,28 +939,54 @@ export default function Inventario({ tab: tabProp, onTabChange } = {}) {
     // panel, así que no se navega y la URL conserva la pestaña anterior.
     if (next !== 'conteos') onTabChange?.(next)
   }
-  function requestReason(kind, unit) {
+  function requestReason(kind, unitOrUnits) {
+    const units = Array.isArray(unitOrUnits) ? unitOrUnits : [unitOrUnits]
+    const unit = units[0]
     const esBaja = kind === 'remove'
     const habilita = kind === 'adjust' && unit?.status === 'DEFECTIVE'
     const opciones = esBaja ? MOTIVOS_BAJA : MOTIVOS_REVISION
     const recordado = esBaja ? motivoBajaRecordado : motivoRevisionRecordado
     setReason('')
     setReasonKind(!habilita && opciones.includes(recordado) ? recordado : '')
-    setReasonAction({ kind, unit })
+    setReasonAction({ kind, units, unit })
   }
-  async function applyReason(event) { event.preventDefault(); if (!reason.trim() || !reasonAction) return; const { kind, unit } = reasonAction; const lastFour = ultimos4(unit.serial); const motivo = reasonKind ? reasonKind + ': ' + reason.trim() : reason.trim(); if (kind === 'adjust') { const status = unit.status === 'DEFECTIVE' ? 'AVAILABLE' : 'DEFECTIVE'; await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'adjust', status, reason: motivo }), `IMEI ${lastFour} marcado como ${status === 'DEFECTIVE' ? 'en revisión' : 'disponible'}.`) } else if (kind === 'remove') { await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'remove', reason: motivo }), `IMEI ${lastFour} retirado. Podés restaurarlo desde Eliminados.`) } else { await setAndRefresh(() => resources.inventoryUnits.update({ id: unit.id, action: 'restore', reason: reason.trim() }), `IMEI ${lastFour} restaurado a disponible.`) }; if (kind === 'remove' && reasonKind) recordarMotivoBaja(reasonKind); if (kind === 'adjust' && reasonKind && unit.status !== 'DEFECTIVE') recordarMotivoRevision(reasonKind); setReasonAction(null) }
+  async function applyReason(event) {
+    event.preventDefault()
+    if (!reason.trim() || !reasonAction) return
+    const { kind, units = [], unit } = reasonAction
+    const objetivos = units.length ? units : [unit]
+    const motivo = reasonKind ? `${reasonKind}: ${reason.trim()}` : reason.trim()
+    if (kind === 'remove' && reasonKind) recordarMotivoBaja(reasonKind)
+    if (kind === 'adjust' && reasonKind && objetivos[0]?.status !== 'DEFECTIVE') recordarMotivoRevision(reasonKind)
+    for (const target of objetivos) {
+      const lastFour = ultimos4(target.serial)
+      if (kind === 'adjust') {
+        const status = target.status === 'DEFECTIVE' ? 'AVAILABLE' : 'DEFECTIVE'
+        await setAndRefresh(() => resources.inventoryUnits.update({ id: target.id, action: 'adjust', status, reason: motivo }), `IMEI ${lastFour} marcado como ${status === 'DEFECTIVE' ? 'en revisión' : 'disponible'}.`)
+      } else if (kind === 'remove') {
+        await setAndRefresh(() => resources.inventoryUnits.update({ id: target.id, action: 'remove', reason: motivo }), `IMEI ${lastFour} retirado. Podés restaurarlo desde Eliminados.`)
+      } else {
+        await setAndRefresh(() => resources.inventoryUnits.update({ id: target.id, action: 'restore', reason: reason.trim() }), `IMEI ${lastFour} restaurado a disponible.`)
+      }
+    }
+    setReasonAction(null)
+  }
   async function createTransfer(event) { event.preventDefault(); const serials = transfer.serials.split(/[\n,;]+/).map(normalizeScan).filter(Boolean); if (!serials.length) { setError('Indicá al menos un IMEI/serial para trasladar.'); return }; if (!puedeTransferirSinAuth && !transferAuth) { setError('Tu rol necesita autorización de gerencia para transferir entre sucursales. Solicitá la autorización y esperá la aprobación.'); return }; await setAndRefresh(async () => { await resources.transfers.create({ ...transfer, destinationLocationId: transfer.destinationLocationId || null, lines: [{ productId: transfer.productId, quantity: serials.length, serials }], ...(transferAuth && !puedeTransferirSinAuth ? { transferAuthorizationId: transferAuth.id } : {}) }); setTransfer({ sourceBranchId: '', destinationBranchId: '', destinationLocationId: '', productId: '', serials: '', notes: '' }); setTransferAuth(null); setTransferOpen(false) }, 'Transferencia registrada con trazabilidad por IMEI.') }
   if (!inventarioOperativo) return <Card><h2 className="font-bold">Inventario operativo</h2><p className="mt-2 text-sm text-mute">Ingresá con una cuenta real para controlar IMEI, reservas, ubicaciones y transferencias. La demo conserva sus datos aislados.</p></Card>
-  return <div className="space-y-4"><Card className="p-4 md:p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-mute">Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.</p><div className="flex shrink-0 flex-wrap items-center gap-2"><Button onClick={abrirReceive}>+ Recibir unidad</Button><Button variant="outline" onClick={() => setReserveOpen(true)}>Reservar</Button><Button variant="outline" onClick={() => setTransferOpen(true)}>Transferir</Button></div></div><form onSubmit={search} className="mt-4 flex flex-wrap gap-2"><SearchField value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" ariaLabel="Buscar en inventario" className="min-w-0 flex-1" /><Select value={orden} onChange={event => recordarOrden(event.target.value)} className="w-auto" aria-label="Orden del inventario" title="Se recuerda tu último orden"><option value="recientes">Recientes</option><option value="modelo-az">Modelo A→Z</option><option value="modelo-za">Modelo Z→A</option><option value="nuevos">Nuevos primero</option><option value="semis">Seminuevos primero</option><option value="mezclado">Modelos mezclados</option></Select><Button type="button" variant="outline" onClick={() => setScannerOpen(true)}>Escanear</Button><Button type="button" variant="outline" onClick={startCount}>Conteo rápido</Button><ListGridToggle value={vistaUnidades} onChange={cambiarVistaUnidades} />{disponibles.length > 0 && <Button type="button" variant="outline" onClick={() => printLabels(disponibles).then(avisarImpresion)}>Etiquetas ({disponibles.length})</Button>}<Button type="button" variant="outline" onClick={() => setGondolaOpen(true)}>Etiquetas de góndola</Button>{tab === 'unidades' && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando || busy} onClick={exportarUnidades}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}</form><div className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">{[['unidades', `Inventario (${disponibles.length})`], ...(canViewAlerts ? [['alertas', `Alertas (${(stockAlerts.alerts?.length || 0) + (stockAlerts.outOfStock?.length || 0)})`]] : []), ['reservas', `Reservas (${reservations.length})`], ['traslados', `Traslados (${transfers.length})`], ['vendidos', `Vendidos (${vendidos.length})`], ['transito', `En tránsito (${enTransito.length})`], ['ubicaciones', `Ubicaciones (${locations.length})`], ['compartido', 'Compartido'], ['eliminados', `Eliminados (${removedUnits.length})`], ['conteos', 'Conteos']].map(([key, label]) => <button key={key} onClick={() => cambiarTab(key)} className={`shrink-0 rounded-md px-3 py-2 text-xs font-semibold ${tab === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>)}</div>{notice && <Aviso tono="ok" className="mt-3">{notice}</Aviso>}{error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
+  return <div className="space-y-4"><Card className="p-4 md:p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-mute">Cada IMEI es una unidad física con sucursal, ubicación, estado y auditoría.</p><div className="flex shrink-0 flex-wrap items-center gap-2"><Button onClick={abrirReceive}>+ Recibir unidad</Button><Button variant="outline" onClick={() => setReserveOpen(true)}>Reservar</Button><Button variant="outline" onClick={() => setTransferOpen(true)}>Transferir</Button></div></div><form onSubmit={search} className="mt-4 flex flex-wrap gap-2"><SearchField value={query} onChange={event => setQuery(event.target.value)} placeholder="Escanear IMEI, SKU o buscar modelo" ariaLabel="Buscar en inventario" className="min-w-0 flex-1" /><Select value={orden} onChange={event => recordarOrden(event.target.value)} className="w-auto" aria-label="Orden del inventario" title="Se recuerda tu último orden"><option value="recientes">Recientes</option><option value="modelo-az">Modelo A→Z</option><option value="modelo-za">Modelo Z→A</option><option value="nuevos">Nuevos primero</option><option value="semis">Seminuevos primero</option><option value="modelo-natural">Modelo (17→13)</option><option value="mezclado">Modelos mezclados</option><option value="costo-mayor">Costo mayor</option><option value="costo-menor">Costo menor</option></Select><Button type="button" variant="outline" onClick={() => setScannerOpen(true)}>Escanear</Button><Button type="button" variant="outline" onClick={startCount}>Conteo rápido</Button><ListGridToggle value={vistaUnidades} onChange={cambiarVistaUnidades} />{disponibles.length > 0 && <Button type="button" variant="outline" onClick={() => printLabels(disponibles).then(avisarImpresion)}>Etiquetas ({disponibles.length})</Button>}<Button type="button" variant="outline" onClick={() => setGondolaOpen(true)}>Etiquetas de góndola</Button>{tab === 'unidades' && <Button type="button" variant="outline" className="h-9 px-3 text-xs" disabled={exportando || busy} onClick={exportarUnidades}><Icon name="download" className="h-4 w-4" />Exportar CSV</Button>}</form><div className="mt-4 flex gap-1 overflow-x-auto rounded-lg border border-ink-600 bg-ink-800 p-1">{[['unidades', `Inventario (${disponibles.length})`], ...(canViewAlerts ? [['alertas', `Alertas (${(stockAlerts.alerts?.length || 0) + (stockAlerts.outOfStock?.length || 0)})`]] : []), ['reservas', `Reservas (${reservations.length})`], ['traslados', `Traslados (${transfers.length})`], ['vendidos', `Vendidos (${vendidos.length})`], ['transito', `En tránsito (${enTransito.length})`], ['ubicaciones', `Ubicaciones (${locations.length})`], ['compartido', 'Compartido'], ['eliminados', `Eliminados (${removedUnits.length})`], ['conteos', 'Conteos']].map(([key, label]) => <button key={key} onClick={() => cambiarTab(key)} className={`shrink-0 rounded-md px-3 py-2 text-xs font-semibold ${tab === key ? 'bg-fono/15 text-fono-light' : 'text-mute hover:text-fore'}`}>{label}</button>)}</div>{notice && <Aviso tono="ok" className="mt-3">{notice}</Aviso>}{error && <Aviso tono="error" className="mt-3">{error}</Aviso>}
     <BarraLote cantidad={seleccionados.length} onLimpiar={() => setSeleccionados([])}>
+      <button type="button" disabled={busy} title="Registrar la verificación física de todas las seleccionadas" onClick={() => Promise.all(unidadesElegidas().map(unidad => verify(unidad)))} className="rounded-lg border border-ok/40 px-2 py-1 text-xs font-semibold text-ok transition hover:bg-ok/10 disabled:opacity-50">Verificar todos</button>
+      <button type="button" disabled={busy} title="Apartar todas las seleccionadas para un cliente" onClick={() => { setReserve(data => ({ ...data, serials: unidadesElegidas().map(unidad => unidad.serial).join(', ') })); setReserveOpen(true) }} className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore disabled:opacity-50">Reservar todos</button>
+      <button type="button" disabled={busy} title="Marcar en revisión con un motivo (queda auditado)" onClick={() => requestReason('adjust', unidadesElegidas())} className="rounded-lg border border-warn/40 px-2 py-1 text-xs font-semibold text-warn transition hover:bg-warn/10 disabled:opacity-50">Enviar a revisión</button>
+      <button type="button" disabled={busy} title="Dar de baja con un motivo (quedan en Eliminados)" onClick={() => requestReason('remove', unidadesElegidas())} className="rounded-lg border border-bad/40 px-2 py-1 text-xs font-semibold text-bad transition hover:bg-bad/10 disabled:opacity-50">Dar de baja</button>
       <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={copiarImeis}>Copiar IMEIs</button>
       <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={() => printLabels(unidadesElegidas()).then(avisarImpresion)}>Imprimir etiquetas</button>
       <button type="button" className="rounded-lg border border-ink-500 px-2 py-1 text-xs font-semibold transition hover:text-fore" onClick={exportarUnidadesSeleccionadas}>Exportar CSV</button>
     </BarraLote>
-    {tab === 'unidades' && vistaUnidades === 'list' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades seleccionado={disponibles.length > 0 && seleccionados.length === disponibles.length} onSeleccionar={() => setSeleccionados((actuales) => seleccionarTodos(disponibles, actuales))} /><div className="space-y-1">{disponibles.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onVerify={verify} onSell={sellUnit} onClick={() => setDetalleUnidad(unit)} seleccionado={seleccionados.includes(unit.id)} onAlternar={() => setSeleccionados((actuales) => alternarId(actuales, unit.id))} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en inventario.'} />}</div></div>}
+    {tab === 'unidades' && vistaUnidades === 'list' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades seleccionado={disponibles.length > 0 && seleccionados.length === disponibles.length} onSeleccionar={() => setSeleccionados((actuales) => seleccionarTodos(disponibles, actuales))} /><div className="space-y-1">{disponibles.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onVerify={verify} onSell={sellUnit} onReserve={openReserveFor} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} seleccionado={seleccionados.includes(unit.id)} onAlternar={() => setSeleccionados((actuales) => alternarId(actuales, unit.id))} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en inventario.'} />}</div></div>}
     {tab === 'unidades' && vistaUnidades === 'grid' && <div className="mt-4 grid gap-2 sm:grid-cols-2 min-[1200px]:grid-cols-3">{disponibles.map(unit => <TarjetaUnidad key={unit.id} unit={unit} onClick={() => setDetalleUnidad(unit)} />)}{!disponibles.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay stock disponible.'} />}</div>}
-    {tab === 'vendidos' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades /><div className="space-y-1">{vendidos.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onClick={() => setDetalleUnidad(unit)} />)}{!vendidos.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'Todavía no hay vendidos en el período.'} />}</div></div>}
-    {tab === 'transito' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades /><div className="space-y-1">{enTransito.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onClick={() => setDetalleUnidad(unit)} />)}{!enTransito.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en tránsito.'} />}</div></div>}
+    {tab === 'vendidos' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades /><div className="space-y-1">{vendidos.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onVerify={verify} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} />)}{!vendidos.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'Todavía no hay vendidos en el período.'} />}</div></div>}
+    {tab === 'transito' && <div className="mt-4 overflow-x-auto"><EncabezadoUnidades /><div className="space-y-1">{enTransito.map(unit => <FilaUnidad key={unit.id} unit={unit} busy={busy} onVerify={verify} onLabel={unit => printLabel(unit).then(avisarImpresion)} onAdjust={unit => requestReason('adjust', unit)} onRemove={unit => requestReason('remove', unit)} onMove={unit => setDetalleUnidad(unit)} onEdit={unit => setDetalleUnidad(unit)} onCosto={guardarCostoRapido} cotizacion={cotizacion} onClick={() => setDetalleUnidad(unit)} />)}{!enTransito.length && <EmptyState compact icon="box" title={query ? 'Ninguna unidad coincide con la búsqueda.' : 'No hay unidades en tránsito.'} />}</div></div>}
 {tab === 'alertas' && <div className="mt-4 space-y-4">{sinCostoUnits.length > 0 && <section className="rounded-xl border border-warn/25 bg-warn/5 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div className="min-w-0"><h3 className="text-xs font-bold uppercase tracking-wider text-warn">Unidades sin costo ({sinCostoUnits.length})</h3><p className="mt-1 text-xs text-mute">Se recibieron sin costo: completalo desde la ficha para que la ganancia y el kardex no queden incompletos. Es el mismo dato que alimenta el «Costo pendiente» de Resumen cuando se venden sin costo.</p></div><Badge color="orange">Costo pendiente</Badge></div><div className="mt-2 flex flex-wrap gap-1.5">{sinCostoUnits.slice(0, 8).map(unit => <button key={unit.id} type="button" onClick={() => setDetalleUnidad(unit)} className="rounded-lg border border-ink-500 bg-ink-800 px-2 py-0.5 text-[11px] text-fore transition hover:border-fono">{nombreProducto(unit.product || {})} · {ultimos4(unit.serial)}</button>)}{sinCostoUnits.length > 8 && <span className="px-2 py-0.5 text-[11px] text-mute">y {sinCostoUnits.length - 8} más…</span>}</div></section>}{alertsLoading && <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>}{alertsError && <Aviso tono="error">{alertsError}</Aviso>}{!alertsLoading && !alertsError && !(stockAlerts.alerts?.length || stockAlerts.outOfStock?.length) && <EmptyState compact icon="check" title="Sin alertas de reposición." description="Todo el stock está por encima de su umbral." />}{!alertsLoading && stockAlerts.alerts?.length > 0 && <section><h3 className={ROTULO_SECCION}>Bajo el umbral de reposición</h3><div className="mt-2 space-y-2">{stockAlerts.alerts.map(item => <article key={item.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-warn/25 bg-warn/5 px-3 py-2"><div className="min-w-0"><b className="text-sm">{item.name}</b><p className="mt-1 text-xs text-mute">{item.sku ? `SKU ${item.sku} · ` : ''}Stock {item.stock} de {item.reorderPoint}{item.branchName ? ` · ${item.branchName}` : ''}</p></div><div className="flex shrink-0 items-center gap-2"><Badge color="orange">Reponer</Badge><Button type="button" variant="outline" disabled={busy} onClick={() => { setThreshold({ id: item.id, name: item.name }); setThresholdValue(String(item.reorderPoint ?? '')) }}>Ajustar umbral</Button></div></article>)}</div></section>}{!alertsLoading && stockAlerts.outOfStock?.length > 0 && <section><h3 className={ROTULO_SECCION}>Agotados</h3><div className="mt-2 space-y-2">{stockAlerts.outOfStock.map(item => <article key={item.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-bad/25 bg-bad/5 px-3 py-2"><div className="min-w-0"><b className="text-sm">{item.name}</b><p className="mt-1 text-xs text-mute">{item.sku ? `SKU ${item.sku} · ` : ''}Sin stock{item.branchName ? ` · ${item.branchName}` : ''}</p></div><div className="flex shrink-0 items-center gap-2"><Badge color="red">Agotado</Badge><Button type="button" variant="outline" disabled={busy} onClick={() => { setThreshold({ id: item.id, name: item.name }); setThresholdValue(String(item.reorderPoint ?? '')) }}>Definir umbral</Button></div></article>)}</div></section>}</div>}
     {tab === 'reservas' && <div className="mt-4 overflow-x-auto" data-testid="reservas-tabla"><div className={cn(GRID_RESERVAS, 'px-3.5 pb-2 pt-1')}><span className={CELDA_ENCABEZADO}>Producto</span><span className={CELDA_ENCABEZADO}>IMEI</span><span className={CELDA_ENCABEZADO}>Cliente</span><span className={CELDA_ENCABEZADO}>Vence</span><span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span></div><div className="space-y-1">{reservations.map(unit => { const serial = String(unit.serial || ''); const cliente = unit.reservationCustomerRef?.name || unit.reservationCustomer || 'Sin cliente'; return <div key={unit.id} data-testid="reserva-fila" className={cn(GRID_RESERVAS, 'rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 px-3.5 py-2')}><span className="truncate text-[13px] font-semibold" title={nombreProducto(unit.product || {})}>{nombreProducto(unit.product || {}) || 'Producto'}</span><SerialTexto serial={serial} className="truncate text-[11px] text-mute" /><span className="truncate text-xs" title={cliente}>{cliente}</span><span className="truncate text-xs text-mute" title={unit.reservedUntil ? new Date(unit.reservedUntil).toLocaleString('es-PY') : undefined}>{unit.reservedUntil ? fechaReserva(unit.reservedUntil) : '—'}</span><span className="flex flex-wrap items-center justify-end gap-1"><Button type="button" className="h-8 px-2 text-xs" disabled={busy} onClick={() => sellUnit(unit)}>Vender</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" title="Imprimir comprobante de la reserva" onClick={() => printReservationReceipt(unit, { format: 'a4' })}>Comprobante</Button><Button variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => releaseReservation(unit.serial)}>Liberar</Button></span></div> })}{!reservations.length && <EmptyState compact icon="box" title="No hay reservas activas." />}</div></div>}
     {tab === 'traslados' && <div className="mt-4 overflow-x-auto" data-testid="traslados-tabla"><div className={cn(GRID_TRASLADOS, 'px-3.5 pb-2 pt-1')}><span className={CELDA_ENCABEZADO}>Ruta</span><span className={CELDA_ENCABEZADO}>Líneas</span><span className={CELDA_ENCABEZADO}>Fecha</span><span className={CELDA_ENCABEZADO}>Estado</span><span className={CELDA_ENCABEZADO}>Guía AEX</span><span className={cn(CELDA_ENCABEZADO, 'text-right')}>Acciones</span></div><div className="space-y-1">{transfers.map(item => { const lineas = item.lines?.map(line => `${line.quantity} × ${line.sourceProduct?.name}`).join(' · ') || 'Sin líneas'; return <div key={item.id} data-testid="traslado-fila" className={cn(GRID_TRASLADOS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2')}><span className="truncate text-[13px] font-semibold" title={`${item.sourceBranch?.name} → ${item.destinationBranch?.name}`}>{item.sourceBranch?.name} → {item.destinationBranch?.name}</span><span className="truncate text-xs text-mute" title={[lineas, item.notes].filter(Boolean).join(' · ')}>{lineas}{item.notes ? <span className="text-mute/70"> · {item.notes}</span> : null}</span><span className="truncate text-xs text-mute" title={`Enviado el ${new Date(item.createdAt).toLocaleDateString('es-PY')}`}>{new Date(item.createdAt).toLocaleDateString('es-PY', { day: '2-digit', month: 'short' }).replace('.', '')}</span><span className="min-w-0"><Badge color={item.receivedAt ? 'green' : 'blue'} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]" title={item.receivedAt ? `Recibido el ${new Date(item.receivedAt).toLocaleDateString('es-PY')}` : 'Todavía no llegó a destino'}>{item.receivedAt ? 'Recibido' : 'En camino'}</Badge></span><span className="truncate font-mono text-[11px] text-fono-light" title={item.aexGuide || undefined}>{item.aexGuide || '—'}</span><span className="flex flex-wrap items-center justify-end gap-1"><Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => prepararRemitoQr(item)}>Enlace/QR</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => printTransferReceipt(item, { format: 'a4' })}>Remito</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" title="Remisión interna con firma de entrega y recepción" onClick={() => imprimirRemision(item).then(resultado => avisarImpresion(resultado, 'Remisión'))}>Remisión</Button>{!item.aexGuide && <Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => cotizarEnvio(item)}>Enviar por AEX</Button>}{item.aexGuide ? <><Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => abrirEtiquetaAex(item)}>Etiqueta AEX</Button><Button type="button" variant="outline" className="h-8 px-2 text-xs" onClick={() => seguirGuia(item)}>Seguimiento</Button></> : guiaPara?.id === item.id ? <form onSubmit={guardarGuia} className="flex flex-wrap items-center gap-1"><Input className="h-8 w-40" aria-label="Guía AEX" value={guiaPara.guia} onChange={event => setGuiaPara(current => ({ ...current, guia: event.target.value }))} placeholder="A003526979" /><Button type="submit" className="h-8 px-2 text-xs" disabled={busy}>Guardar</Button><Button type="button" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setGuiaPara(null)}>Cancelar</Button></form> : <Button type="button" variant="outline" className="h-8 px-2 text-xs" disabled={busy} onClick={() => setGuiaPara({ id: item.id, guia: '' })}>Agregar guía</Button>}</span></div> })}{!transfers.length && <EmptyState compact icon="box" title="Todavía no hay transferencias." />}</div></div>}

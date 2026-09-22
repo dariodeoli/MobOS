@@ -64,7 +64,7 @@ Pasos manuales equivalentes:
    15 dígitos con Luhn válido.
 2. Sección **Consulta de IMEI** → «Consultar IMEI (ver costo)»: debe mostrar
    Apple Basic, los campos y el costo US$ 0,06, sin ejecutar nada.
-3. «Confirmar consulta (US$ 0.06)»: el resultado debe traer el badge
+3. Antes de confirmar, el precheck debe decir **SIMULADO · Sin cobro (referencia US$ 0,06)** y el botón **“Confirmar consulta simulada (sin cobro)”**; con `IMEICHECK_LIVE=1` y token dice “Función paga” y muestra el costo real. «Confirmar consulta (US$ 0.06)»: el resultado debe traer el badge
    **SIMULADO**, el estado, los campos (blacklist, Find My/iCloud, garantía) con
    fuente `imeicheck.net` y fecha.
 4. DevTools → Network: **ninguna** llamada a `imeicheck.net`; todo pasa por

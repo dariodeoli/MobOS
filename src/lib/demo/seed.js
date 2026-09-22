@@ -1,4 +1,5 @@
 import { APP_NAME } from '@/lib/brand'
+import { EQUIPO_DEMO } from './iphones'
 
 // ── Defaults ────────────────────────────────────────────────────────
 export function prod(nombre, categoria) {
@@ -35,9 +36,10 @@ export const PRODUCTOS_DEFAULT = [
   prod('Tarjetero MagSafe', 'Accesorios'),
 ]
 
-// Sin vendedores de ejemplo: el dueño carga los nombres reales desde el
-// formulario de venta ("➕ Agregar vendedor") o desde el Centro de Control.
-export const VENDEDORES_DEFAULT = []
+// #213: el equipo demo (rol, correo y PIN ficticios) es el seed por defecto del
+// modo demo. En la tienda real los vendedores se cargan desde el Centro de
+// Control o la API; esto alimenta la demo y el modo local.
+export const VENDEDORES_DEFAULT = EQUIPO_DEMO
 
 export const FRASES_DEFAULT = [
   'Cada venta te acerca a tu meta. ¡Vamos!',

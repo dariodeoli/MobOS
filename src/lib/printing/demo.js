@@ -24,7 +24,7 @@ export function storeDemo() {
     bridges: [
       {
         id: 'puente-demo',
-        nombre: 'Mac del mostrador (demo)',
+        nombre: 'Mac del mostrador ',
         branchId: 'suc-demo',
         url: '',
         token: '',
@@ -33,11 +33,11 @@ export function storeDemo() {
         ultimaSenal: haceSegundos(12),
       },
     ],
-    sucursales: [{ id: 'suc-demo', nombre: 'Casa central (demo)', activa: true, hasSales: true }],
+    sucursales: [{ id: 'suc-demo', nombre: 'Casa central ', activa: true, hasSales: true }],
     impresoras: [
       {
         id: 'imp-demo-80',
-        nombre: 'Térmica mostrador (demo)',
+        nombre: 'Térmica mostrador ',
         marca: 'ZKP',
         modelo: 'ZKP8008',
         ubicacion: 'Mostrador',
@@ -57,7 +57,7 @@ export function storeDemo() {
       },
       {
         id: 'imp-demo-58',
-        nombre: 'Térmica depósito (demo)',
+        nombre: 'Térmica depósito ',
         marca: 'Epson',
         modelo: 'TM-T20',
         ubicacion: 'Depósito',
@@ -83,7 +83,7 @@ export function storeDemo() {
 // telemetría). `sufijo` es el número ficticio que valida la verificación.
 const fila = (datos) => ({
   cliente: 'Demo',
-  puente: 'Mac del mostrador (demo)',
+  puente: 'Mac del mostrador ',
   tokenPista: 'a1b2…',
   modo: 'lan',
   ancho: 80,
@@ -101,12 +101,12 @@ export function historialDemo() {
       fecha: haceMinutos(2),
       usuario: 'Dario (Dueño)',
       impresora: 'lan:192.168.1.23:9100',
-      impresoraNombre: 'Térmica mostrador (demo)',
+      impresoraNombre: 'Térmica mostrador ',
       resultado: 'aceptado',
       confirmadoEn: null,
       error: '',
       bytes: 1180,
-      ref: 'DEMO-#0001',
+      ref: 'AUR-#0001',
       tipo: 'comprobante',
       validacion: 'DEMO-01',
       // Prueba de un dígito: valida sola apenas se escribe.
@@ -121,12 +121,12 @@ export function historialDemo() {
       fecha: haceMinutos(7),
       usuario: 'Lucía (Vendedora)',
       impresora: 'cups:MobOS_LAN',
-      impresoraNombre: 'Térmica depósito (demo)',
+      impresoraNombre: 'Térmica depósito ',
       resultado: 'aceptado',
       confirmadoEn: null,
       error: '',
       bytes: 940,
-      ref: 'DEMO-#0002',
+      ref: 'AUR-#0002',
       tipo: 'nota-entrega',
       validacion: 'DEMO-02',
       // Sufijo de cuatro dígitos: valida al completar el largo.
@@ -141,12 +141,12 @@ export function historialDemo() {
       fecha: haceMinutos(12),
       usuario: 'Dario (Dueño)',
       impresora: 'lan:192.168.1.23:9100',
-      impresoraNombre: 'Térmica mostrador (demo)',
+      impresoraNombre: 'Térmica mostrador ',
       resultado: 'pendiente',
       confirmadoEn: null,
       error: 'connect ECONNREFUSED 192.168.1.23:9100',
       bytes: 760,
-      ref: 'DEMO-#0003',
+      ref: 'AUR-#0003',
       tipo: 'proforma',
       validacion: 'DEMO-03',
       // Todavía no salió: no hay número del papel (sin auto-validación).
@@ -159,12 +159,12 @@ export function historialDemo() {
       fecha: haceMinutos(25),
       usuario: 'Lucía (Vendedora)',
       impresora: 'lan:192.168.1.23:9100',
-      impresoraNombre: 'Térmica mostrador (demo)',
+      impresoraNombre: 'Térmica mostrador ',
       resultado: 'incierto',
       confirmadoEn: null,
       error: 'El puente se reinició durante la impresión.',
       bytes: 1120,
-      ref: 'DEMO-#0004',
+      ref: 'AUR-#0004',
       tipo: 'recibo-interno',
       validacion: 'DEMO-04',
       sufijo: '',
@@ -176,12 +176,12 @@ export function historialDemo() {
       fecha: haceMinutos(48),
       usuario: 'Dario (Dueño)',
       impresora: 'cups:MobOS_LAN',
-      impresoraNombre: 'Térmica depósito (demo)',
+      impresoraNombre: 'Térmica depósito ',
       resultado: 'fallido',
       confirmadoEn: null,
       error: 'Sin respuesta de 192.168.1.23:9100 en 6000 ms.',
       bytes: 640,
-      ref: 'DEMO-#0005',
+      ref: 'AUR-#0005',
       tipo: 'etiqueta',
       validacion: 'DEMO-05',
       sufijo: '',
@@ -193,12 +193,12 @@ export function historialDemo() {
       fecha: haceMinutos(75),
       usuario: 'Marcos (Gerente)',
       impresora: 'lan:192.168.1.23:9100',
-      impresoraNombre: 'Térmica mostrador (demo)',
+      impresoraNombre: 'Térmica mostrador ',
       resultado: 'cancelado',
       confirmadoEn: null,
       error: '',
       bytes: 520,
-      ref: 'DEMO-#0006',
+      ref: 'AUR-#0006',
       tipo: 'comprobante',
       validacion: 'DEMO-06',
       sufijo: '',
@@ -212,7 +212,7 @@ export function historialDemo() {
 const trabajoCola = (datos) => ({
   origen: 'local',
   cliente: 'Demo',
-  puente: 'Mac del mostrador (demo)',
+  puente: 'Mac del mostrador ',
   modo: 'lan',
   ancho: 80,
   sufijo: '',
@@ -224,14 +224,14 @@ const trabajoCola = (datos) => ({
 export function colaDemo() {
   return {
     pendientes: [
-      trabajoCola({ id: 'demo-cola-1', creadoEn: haceMinutos(1), impresora: 'lan:192.168.1.23:9100', usuario: 'Dario (Dueño)', estado: 'pendiente', intentos: 0, error: '', bytes: 760, ref: 'DEMO-#0003', tipo: 'proforma', validacion: 'DEMO-03' }),
-      trabajoCola({ id: 'demo-cola-2', creadoEn: haceMinutos(4), impresora: 'cups:MobOS_LAN', usuario: 'Lucía (Vendedora)', estado: 'pendiente', intentos: 1, error: 'connect ECONNREFUSED 192.168.1.23:9100', bytes: 880, ref: 'DEMO-#0007', tipo: 'nota-entrega', validacion: 'DEMO-07' }),
+      trabajoCola({ id: 'demo-cola-1', creadoEn: haceMinutos(1), impresora: 'lan:192.168.1.23:9100', usuario: 'Dario (Dueño)', estado: 'pendiente', intentos: 0, error: '', bytes: 760, ref: 'AUR-#0003', tipo: 'proforma', validacion: 'DEMO-03' }),
+      trabajoCola({ id: 'demo-cola-2', creadoEn: haceMinutos(4), impresora: 'cups:MobOS_LAN', usuario: 'Lucía (Vendedora)', estado: 'pendiente', intentos: 1, error: 'connect ECONNREFUSED 192.168.1.23:9100', bytes: 880, ref: 'AUR-#0007', tipo: 'nota-entrega', validacion: 'DEMO-07' }),
     ],
     inciertos: [
-      trabajoCola({ id: 'demo-cola-3', creadoEn: haceMinutos(25), impresora: 'lan:192.168.1.23:9100', usuario: 'Lucía (Vendedora)', estado: 'incierto', intentos: 2, error: 'El agente se reinició durante la impresión.', bytes: 1120, ref: 'DEMO-#0004', tipo: 'recibo-interno', validacion: 'DEMO-04' }),
+      trabajoCola({ id: 'demo-cola-3', creadoEn: haceMinutos(25), impresora: 'lan:192.168.1.23:9100', usuario: 'Lucía (Vendedora)', estado: 'incierto', intentos: 2, error: 'El agente se reinició durante la impresión.', bytes: 1120, ref: 'AUR-#0004', tipo: 'recibo-interno', validacion: 'DEMO-04' }),
     ],
     fallidos: [
-      trabajoCola({ id: 'demo-cola-4', creadoEn: haceMinutos(48), impresora: 'cups:MobOS_LAN', usuario: 'Dario (Dueño)', estado: 'fallido', intentos: 3, error: 'Sin respuesta de 192.168.1.23:9100 en 6000 ms.', bytes: 640, ref: 'DEMO-#0005', tipo: 'etiqueta', validacion: 'DEMO-05' }),
+      trabajoCola({ id: 'demo-cola-4', creadoEn: haceMinutos(48), impresora: 'cups:MobOS_LAN', usuario: 'Dario (Dueño)', estado: 'fallido', intentos: 3, error: 'Sin respuesta de 192.168.1.23:9100 en 6000 ms.', bytes: 640, ref: 'AUR-#0005', tipo: 'etiqueta', validacion: 'DEMO-05' }),
     ],
   }
 }
@@ -252,7 +252,7 @@ export function encolarComprobanteDemo({ reference, kind = 'comprobante', force 
   if (duplicado) {
     return {
       duplicado: true,
-      mensaje: `Ya hay una impresión pendiente de ${clave} para Térmica mostrador (demo). Si querés otra copia, confirmá "Reimprimir igual".`,
+      mensaje: `Ya hay una impresión pendiente de ${clave} para Térmica mostrador . Si querés otra copia, confirmá "Reimprimir igual".`,
       job: duplicado,
     }
   }

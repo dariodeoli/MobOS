@@ -4,7 +4,7 @@
 //
 // Los seriales son claramente de prueba (prefijo DEMO, nunca un IMEI real) y los
 // costos vienen en USD (con cotización) o en Gs, como en la app real.
-import { IPHONES_DEMO } from './demo/iphones.js'
+import { EQUIPO_DEMO, IMEIS_DEMO_FICTICIOS, IPHONES_DEMO, serialDemo } from './demo/iphones.js'
 import { guardarDemo, leerDemo } from './demoStorage.js'
 
 const KEY = 'mobos:demo-inventory:v1'
@@ -25,13 +25,15 @@ const UBICACIONES = [
 ]
 
 const PROVEEDORES = [
-  { id: 'demo-prov-importadora', name: 'Importadora Tecnológica S.A. (demo)', contact: 'Compras · +595 981 000 111', isActive: true },
-  { id: 'demo-prov-distribuidora', name: 'Distribuidora del Este (demo)', contact: 'Ventas · +595 982 000 222', isActive: true },
-  { id: 'demo-prov-mayorista', name: 'Mayorista Apple PY (demo)', contact: 'Pedidos · +595 983 000 333', isActive: true },
+  { id: 'demo-prov-importadora', name: 'Importadora Tecnológica S.A. ', contact: 'Compras · +595 981 000 111', isActive: true },
+  { id: 'demo-prov-distribuidora', name: 'Distribuidora del Este ', contact: 'Ventas · +595 982 000 222', isActive: true },
+  { id: 'demo-prov-mayorista', name: 'Mayorista Apple PY ', contact: 'Pedidos · +595 983 000 333', isActive: true },
 ]
 
 const COTIZACION = 7300
-const USUARIO = { id: 'demo-user', name: 'Dueño demo' }
+// Usuario demo que firma la verificación: mismo shape que el API ({ id, name }).
+const verificadorDeDemo = (semilla) => { const usuario = EQUIPO_DEMO[Math.abs(Number(semilla) || 0) % EQUIPO_DEMO.length]; return { id: usuario.id, name: usuario.nombre, role: usuario.rol } }
+const semillaDe = (valor) => String(valor || '').split('').reduce((suma, char) => suma + char.charCodeAt(0), 0)
 
 // 24 unidades: 15 disponibles, 3 reservadas, 3 vendidas, 2 en revisión y 1 en
 // tránsito; 14 nuevas y 10 seminuevas; repartidas entre depósitos y piso.
@@ -58,10 +60,6 @@ function hace(dias, hora = 10) {
   return fecha.toISOString()
 }
 
-export function serialDemo(n) {
-  return `DEMO${String(n).padStart(4, '0')}0000000000`.slice(0, 16)
-}
-
 function unidad(producto, indice) {
   const estado = ESTADOS[indice - 1]
   const condicion = indice % 5 === 0 ? 'USED' : indice % 7 === 0 ? 'REFURBISHED' : 'NEW'
@@ -69,7 +67,7 @@ function unidad(producto, indice) {
   const costoPyg = enUsd ? null : Math.round(Number(producto.precioCosto) * 0.94 / 1000) * 1000
   const base = {
     id: `demo-unit-${indice}`,
-    serial: serialDemo(indice),
+    serial: IMEIS_DEMO_FICTICIOS[indice - 1] || serialDemo(indice),
     status: estado,
     condition: condicion,
     batteryHealth: condicion === 'NEW' ? 100 : 80 + (indice % 16),
@@ -79,9 +77,9 @@ function unidad(producto, indice) {
     locationId: UBICACION_POR_INDICE[indice - 1] || 'demo-ubic-deposito-1',
     supplierName: PROVEEDORES[indice % PROVEEDORES.length].name,
     supplier: PROVEEDORES[indice % PROVEEDORES.length],
-    notes: indice % 6 === 0 ? 'Ingresó con caja abierta (demo).' : '',
+    notes: indice % 6 === 0 ? 'Ingresó con caja abierta .' : '',
     createdAt: hace(30 - indice),
-    lastVerifiedBy: indice % 4 === 0 ? USUARIO : null,
+    lastVerifiedBy: indice % 4 === 0 ? verificadorDeDemo(indice) : null,
     verifiedAt: indice % 4 === 0 ? hace(indice % 10, 15) : null,
     sale: estado === 'SOLD' ? { fulfillmentStatus: indice === 19 ? 'DELIVERED' : indice === 20 ? 'READY_FOR_PICKUP' : 'PROCESSING', orderNumber: `MOB-00${40 + indice}` } : null,
   }
@@ -90,7 +88,7 @@ function unidad(producto, indice) {
     base.reservationCustomer = CLIENTES_RESERVA[indice % CLIENTES_RESERVA.length]
     base.reservationCustomerRef = { id: `demo-cliente-reserva-${indice}`, name: base.reservationCustomer }
   }
-  if (estado === 'DEFECTIVE') base.notes = base.notes || 'En revisión: batería al ' + base.batteryHealth + '% (demo).'
+  if (estado === 'DEFECTIVE') base.notes = base.notes || 'En revisión: batería al ' + base.batteryHealth + '% .'
   return enUsd
     ? { ...base, costCurrency: 'USD', originalCost: Math.round(producto.precioCosto / COTIZACION), exchangeRatePyg: COTIZACION, costPyg: Math.round((producto.precioCosto / COTIZACION) * COTIZACION) }
     : { ...base, costCurrency: 'PYG', originalCost: null, exchangeRatePyg: null, costPyg: costoPyg }
@@ -202,7 +200,7 @@ export function verifyDemoUnit(data = {}) {
   if (!unit) throw new Error('La unidad demo no existe.')
   unit.status = unit.status === 'IN_TRANSIT' ? 'AVAILABLE' : unit.status
   if (data.locationId) unit.locationId = data.locationId
-  unit.lastVerifiedBy = USUARIO
+  unit.lastVerifiedBy = verificadorDeDemo(semillaDe(unit.serial))
   unit.verifiedAt = new Date().toISOString()
   write(state)
   return snapshot(state, unit)

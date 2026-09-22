@@ -70,7 +70,7 @@ export function construirDemoAuditoriaEfectivo({ ventas = [], cash = null, desde
         montoPyg: Number(pago.monto) || 0,
         pedido: `DEMO-${String(indice + 1).padStart(4, '0')}`,
         cliente: venta.cliente || '',
-        vendedor: 'Dueño demo',
+        vendedor: 'Hernán Acosta',
         nota: '',
         status: marca?.status || 'PENDING',
         notaAuditoria: marca?.note || '',

@@ -46,22 +46,22 @@ function assertDemo() {
 const haceDias = (dias) => new Date(Date.now() - dias * 86400000).toISOString()
 const SEED_TRADE_INS = [
   {
-    id: 'demo-trade-in-1', status: 'REVIEW', serial: 'DEMO-TI-0001', device: 'iPhone 12 · 128 GB',
+    id: 'demo-trade-in-1', status: 'REVIEW', serial: 'AUR-TI-0001', device: 'iPhone 12 · 128 GB',
     customerName: 'Carlos Ramírez', customerId: 'demo-cliente-carlos', condition: 'bueno', batteryHealth: 86,
     valuePyg: 1850000, acceptedValuePyg: 1850000, repairCostPyg: 0, destination: 'NORMAL',
     createdAt: haceDias(4), updatedAt: haceDias(2),
     history: [
-      { at: haceDias(4), fromStatus: null, toStatus: 'RECEIVED', notes: 'Recibido en mostrador (demo).' },
+      { at: haceDias(4), fromStatus: null, toStatus: 'RECEIVED', notes: 'Recibido en mostrador .' },
       { at: haceDias(2), fromStatus: 'RECEIVED', toStatus: 'REVIEW', notes: 'En revisión técnica.' },
     ],
   },
   {
-    id: 'demo-trade-in-2', status: 'READY', serial: 'DEMO-TI-0002', device: 'iPhone 13 · 256 GB',
+    id: 'demo-trade-in-2', status: 'READY', serial: 'AUR-TI-0002', device: 'iPhone 13 · 256 GB',
     customerName: 'Lucía Fernández', customerId: 'demo-cliente-lucia', condition: 'excelente', batteryHealth: 92,
     valuePyg: 2600000, acceptedValuePyg: 2500000, repairCostPyg: 120000, destination: 'OFFER',
     createdAt: haceDias(9), updatedAt: haceDias(1),
     history: [
-      { at: haceDias(9), fromStatus: null, toStatus: 'RECEIVED', notes: 'Trade-in del pedido MOB-0008 (demo).' },
+      { at: haceDias(9), fromStatus: null, toStatus: 'RECEIVED', notes: 'Trade-in del pedido MOB-0008 .' },
       { at: haceDias(5), fromStatus: 'RECEIVED', toStatus: 'REPAIR', notes: 'Cambio de módulo de carga.' },
       { at: haceDias(1), fromStatus: 'REPAIR', toStatus: 'READY', notes: 'Listo para publicar en oferta.' },
     ],
@@ -134,11 +134,11 @@ export function recordDemoTradeIns(order, payments) {
     orderId: order.id, orderNumber: order.orderNumber || order.codigo || order.id,
     // Only snapshots supplied by the demo checkout; never query real customers.
     customerId: order.customerId || order.customer?.id || null,
-    customerName: order.customerName || order.customer?.name || order.cliente || 'Cliente demo',
+    customerName: order.customerName || order.customer?.name || order.cliente || 'Cliente Aurora',
     sellerId: order.sellerId || order.vendedorId || order.seller?.id || 'demo-user',
-    sellerName: order.sellerName || order.seller?.name || order.vendedorNombre || 'Vendedor demo',
+    sellerName: order.sellerName || order.seller?.name || order.vendedorNombre || 'Diego López',
     repairCostPyg: 0, status: 'RECEIVED', productId: null, createdAt: at, updatedAt: at,
-    history: [{ at, fromStatus: null, toStatus: 'RECEIVED', notes: 'Recibido como parte de pago demo.', repairCostPyg: 0 }],
+    history: [{ at, fromStatus: null, toStatus: 'RECEIVED', notes: 'Recibido como parte de pago.', repairCostPyg: 0 }],
   }))
   const paymentKeys = new Set(rows.map((row) => `${row.orderId}:${row.paymentId}`))
   for (const row of next) {
