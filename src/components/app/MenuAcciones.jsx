@@ -1,15 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import Icon from '@/components/shared/Icon'
-import { Modal } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
-// Menú de tres puntos del POS: accesos directos a Configuración (Equipo), Caja,
-// Análisis y Clientes; bloqueo, cambio de sucursal, cierre de sesión,
-// eliminación de cuenta y preferencias. El cambio de sucursal usa el catálogo
-// de la sesión (el backend ya aplica el alcance por sucursal).
-export default function MenuAcciones({ onNavegar, onBloquear, onSalir, onPreferencias, sucursales = [], sucursal, onCambiarSucursal }) {
+// Menú de tres puntos del POS (#228): solo accesos de uso, corto y predecible.
+// Lo que es configuración vive en Configuración (también Preferencias); el tema
+// y el cierre de sesión quedan donde ya estaban (barra superior y menú lateral),
+// y Eliminar cuenta vive en Configuración → Seguridad (nunca a un toque).
+const ITEMS = [
+  ['Configuración', 'settings', 'equipo', ''],
+  ['Caja', 'wallet', 'finanzas', ''],
+  ['Análisis', 'chart', 'analisis', ''],
+  ['Clientes', 'user', 'clientes', ''],
+  ['Bloquear pantalla', 'lock', 'bloquear', ''],
+]
+
+export default function MenuAcciones({ onNavegar, onBloquear }) {
   const [abierto, setAbierto] = useState(false)
-  const [cambiandoSucursal, setCambiandoSucursal] = useState(false)
   const cajaRef = useRef(null)
 
   useEffect(() => {
@@ -24,22 +30,13 @@ export default function MenuAcciones({ onNavegar, onBloquear, onSalir, onPrefere
     }
   }, [abierto])
 
-  function accion(callback) {
+  function accion(destino) {
     setAbierto(false)
-    callback?.()
+    if (destino === 'bloquear') { onBloquear?.(); return }
+    if (destino === 'finanzas') { onNavegar?.('finanzas', { subtab: 'caja' }); return }
+    if (destino === 'analisis') { onNavegar?.('analisis', { subtab: 'reportes' }); return }
+    onNavegar?.(destino)
   }
-
-  const ITEMS = [
-    ['Configuración', 'settings', () => onNavegar('equipo'), ''],
-    ['Caja', 'wallet', () => onNavegar('finanzas', { subtab: 'caja' }), ''],
-    ['Análisis', 'chart', () => onNavegar('analisis', { subtab: 'reportes' }), ''],
-    ['Clientes', 'user', () => onNavegar('clientes'), ''],
-    ['Preferencias', 'sliders', onPreferencias, ''],
-    ['Bloquear pantalla', 'lock', onBloquear, ''],
-    ['Cambiar sucursal', 'store', () => setCambiandoSucursal(true), ''],
-    ['Cerrar sesión', 'logout', onSalir, ''],
-    ['Eliminar cuenta', 'trash', () => onNavegar('equipo', { subtab: 'seguridad' }), 'text-bad'],
-  ]
 
   return (
     <div className="relative" ref={cajaRef}>
@@ -62,12 +59,12 @@ export default function MenuAcciones({ onNavegar, onBloquear, onSalir, onPrefere
           data-testid="menu-acciones-lista"
           className="absolute right-0 z-30 mt-1 w-60 overflow-hidden rounded-xl border border-ink-600 bg-ink p-1 shadow-2xl"
         >
-          {ITEMS.map(([etiqueta, icono, callback, tono]) => (
+          {ITEMS.map(([etiqueta, icono, destino, tono]) => (
             <button
               key={etiqueta}
               type="button"
               role="menuitem"
-              onClick={() => accion(callback)}
+              onClick={() => accion(destino)}
               className={cn('flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-ink-700', tono || 'text-fore')}
             >
               <Icon name={icono} className="h-4 w-4 text-mute" />
@@ -76,35 +73,6 @@ export default function MenuAcciones({ onNavegar, onBloquear, onSalir, onPrefere
           ))}
         </div>
       )}
-
-      <Modal open={cambiandoSucursal} onClose={() => setCambiandoSucursal(false)} title="Cambiar sucursal" className="max-w-md">
-        {sucursales.length > 1 ? (
-          <div className="space-y-1.5" role="radiogroup" aria-label="Sucursales disponibles">
-            <p className="text-sm text-mute">Elegí con qué sucursal vas a operar. Aplica a ventas, stock y caja.</p>
-            {sucursales.map(item => (
-              <button
-                key={item.id}
-                type="button"
-                role="menuitemradio"
-                aria-checked={item.id === sucursal?.id}
-                onClick={() => { setCambiandoSucursal(false); onCambiarSucursal?.(item.id) }}
-                className={cn(
-                  'flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm transition',
-                  item.id === sucursal?.id ? 'border-fono bg-fono/10 text-fono-light' : 'border-ink-600 hover:border-fono/40',
-                )}
-              >
-                <span className="font-semibold">{item.nombre || item.name}</span>
-                {item.id === sucursal?.id && <Icon name="check" className="h-4 w-4" />}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-mute">
-            {sucursal?.nombre ? `Estás operando en ${sucursal.nombre}.` : 'Esta empresa todavía no tiene sucursales cargadas.'}
-            {' '}Cuando haya más de una, vas a poder cambiar desde acá.
-          </p>
-        )}
-      </Modal>
     </div>
   )
 }

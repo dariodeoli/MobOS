@@ -12,12 +12,14 @@ import SelectorSucursal from '@/components/shared/SelectorSucursal'
 import Icon from '@/components/shared/Icon'
 import AppShell from '@/components/app/AppShell'
 import GlobalSearch from '@/components/app/GlobalSearch'
-import { ConfirmDialog, Modal, PinInput, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
+import { Card, ConfirmDialog, Modal, PinInput, Select, Skeleton, Subtabs, useToast } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { rutaDeVista, vistaDeRuta } from '@/lib/rutas'
 import PantallaBloqueada from '@/components/app/PantallaBloqueada'
 import DemoNoDisponible from '@/components/app/DemoNoDisponible'
 import { usePreferencias } from '@/hooks/usePreferencias'
+import { PreferenciasContenido } from '@/components/app/Preferencias'
+import { ROTULO_SECCION } from '@/components/shared/tabla'
 import { useBloqueoInactividad } from '@/hooks/useBloqueoInactividad'
 import SellerCustomers from '@/components/ventas/SellerCustomers'
 import SellerCatalog from '@/components/ventas/SellerCatalog'
@@ -193,6 +195,7 @@ const SUBPAGINAS = {
       ['historial', 'Auditoría'],
       ['impresoras', 'Impresoras'],
       ['documentacion', 'Documentación'],
+      ['preferencias', 'Preferencias'],
       ['sistema', 'Estado del sistema'],
     ],
   },
@@ -226,7 +229,7 @@ const GRUPOS_CONFIG = [
   { id: 'personas', label: 'Personas', icon: 'users', tabs: ['equipo', 'identidad', 'roles'] },
   { id: 'negocio', label: 'Negocio', icon: 'store', tabs: ['negocio', 'precios', 'sucursales'] },
   { id: 'seguridad', label: 'Seguridad', icon: 'lock', tabs: ['seguridad', 'historial'] },
-  { id: 'sistema', label: 'Sistema', icon: 'settings', tabs: ['impresoras', 'documentacion', 'sistema'] },
+  { id: 'sistema', label: 'Sistema', icon: 'settings', tabs: ['impresoras', 'documentacion', 'preferencias', 'sistema'] },
 ]
 
 const SUBPAGINA_DE_TAB = Object.fromEntries(
@@ -256,6 +259,7 @@ const LABELS = {
   seguridad: 'Seguridad',
   impresoras: 'Impresoras',
   documentacion: 'Documentación',
+  preferencias: 'Preferencias',
   sistema: 'Estado del sistema',
   reportes: 'Reportes',
   ganancias: 'Ganancias',
@@ -514,7 +518,7 @@ export default function PanelVendedor() {
 
   // Preferencias del dispositivo: los minutos de bloqueo mandan sobre el
   // temporizador de inactividad (10 por defecto).
-  const [preferencias] = usePreferencias(usuario?.id)
+  const [preferencias, cambiarPreferencias] = usePreferencias(usuario?.id)
   const pinLength = esDemo ? 4 : (usuario?.pinLength || 4)
   const pinLengthCambio = esDemo
     ? 4
@@ -844,6 +848,12 @@ export default function PanelVendedor() {
                 : <Config seccion="seguridad" />)}
               {vista === 'impresoras' && <Impresoras />}
               {vista === 'documentacion' && <Documentacion />}
+              {vista === 'preferencias' && (
+                <Card className="p-4 md:p-5">
+                  <h2 className={ROTULO_SECCION}>Preferencias del dispositivo</h2>
+                  <div className="mt-3"><PreferenciasContenido preferencias={preferencias} onCambiar={cambiarPreferencias} /></div>
+                </Card>
+              )}
               {vista === 'sistema' && (esDemo
                 ? <DemoNoDisponible modulo="Estado del sistema" motivo="Consulta los servicios reales de MobOS (API, base e impresión)." />
                 : <EstadoSistema />)}
