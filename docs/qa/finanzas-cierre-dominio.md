@@ -1,9 +1,28 @@
 # Cierre del dominio **Finanzas** (slot/finanzas)
 
-- **Rama:** `slot/finanzas` · **Última verificación:** producción **v1.0.140**
-  (`release:smoke` OK) · **Fecha:** 2026-09-22
+- **Rama:** `slot/finanzas` · **Verificación definitiva:** producción
+  **v1.0.141** (`release:smoke` OK) · **Fecha:** 2026-09-22
 - Índice de todo lo entregado y verificado en el dominio, con la evidencia y la
   versión en la que quedó integrado. Sirve de punto de entrada para auditoría.
+
+## Verificación definitiva (v1.0.141) — sin gaps reales
+
+Corrida de cierre sobre la última versión publicada, todo en verde:
+
+| Sonda | Resultado |
+| --- | --- |
+| `release:smoke` | ✅ v1.0.141 publicada |
+| §9 montos (`qa-148-montos-produccion.mjs`) | **5/5** |
+| §17/§18/§19 (`qa-148-17-18-19-produccion.mjs`) | **8/8** · **11/11** cortes del analytics |
+| §18 ventas por caja / analytics (`QA_SOLO_DEMO=1`) | **2/2** · **1/1** |
+| Recorrido de Finanzas #185 | **16/16** · 25 capturas · 0 errores |
+| Resumen/Análisis (#171) y último usado (#209) | **6/6** · **6/6** |
+
+Evidencia: `produccion-1.0.141/` y `185/produccion-1.0.141/`.
+
+**Queda asentado: al 2026-09-22 no hay ningún gap funcional abierto de #148
+§17/§18/§19 en el dominio.** Lo único pendiente son dos decisiones de producto
+(abajo), ninguna es un defecto.
 
 ## Secciones de la épica #148 en el dominio
 
@@ -26,7 +45,7 @@
 | #190 Demo al día | Cuentas/caja/conciliación con datos reales, AUR-####, sesión demo | `190/` |
 | #209 Último usado | Último medio/cuenta en Gastos, Conciliación y período | `209/` |
 | #204 / #205 | Seguro persistente, lotes no reasignables, pulido de caja | `204/`, `205/` |
-| #185 Recorrido de Finanzas en producción | 16/16 pasos, 3 corridas (v1.0.137, v1.0.139 y v1.0.140) | `185/produccion/reporte.md`, `185/produccion-1.0.139/`, `185/produccion-1.0.140/` |
+| #185 Recorrido de Finanzas en producción | 16/16 pasos, 4 corridas (v1.0.137, v1.0.139, v1.0.140 y v1.0.141) | `185/produccion/reporte.md`, `185/produccion-1.0.139/`, `185/produccion-1.0.140/`, `185/produccion-1.0.141/` |
 
 ## Sondas re-ejecutables (producción)
 
