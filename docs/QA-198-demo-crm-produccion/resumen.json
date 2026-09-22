@@ -1,0 +1,35 @@
+{
+  "demo": {
+    "seedVisible": true,
+    "bannerDemo": true,
+    "deuda": true,
+    "ultimasOrdenes": true,
+    "cronologia": true,
+    "seguro": true,
+    "seguroPct": "12,5",
+    "whatsapp": true,
+    "portalCuenta": true,
+    "portalVitrina": true,
+    "clienteParam": true,
+    "servicio": true,
+    "apiReal": []
+  },
+  "publicos": {
+    "cuenta": {
+      "generico": true
+    },
+    "vitrina": {
+      "generico": true
+    },
+    "garantia": {
+      "generico": true
+    }
+  },
+  "api": {
+    "portal": 404,
+    "vitrina": 404,
+    "garantia": 404
+  },
+  "pendienteDeploy": false,
+  "hallazgos": []
+}
