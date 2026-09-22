@@ -143,6 +143,29 @@ export default function CuentaPublica() {
               )}
             </PortalSeccion>
 
+            {cuenta.informes?.length > 0 && (
+              <PortalSeccion titulo="Informes de tus equipos" icono="report">
+                <p className="mt-2 text-sm text-mute">Compartí el informe del equipo que compraste: modelo, estado, verificación y garantía.</p>
+                <div className="mt-3 space-y-2">
+                  {cuenta.informes.map((informe, index) => (
+                    <article key={`${informe.serial}-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-ink-800/60 px-3 py-2.5 text-sm">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{informe.model || 'Equipo'}</p>
+                        <p className="mt-0.5 text-xs text-mute">{codigoPedido(informe.orderNumber) || 'Pedido'} · serial {String(informe.serial || '').slice(-6)}</p>
+                      </div>
+                      <Link
+                        to={`/u/${encodeURIComponent(informe.serial)}`}
+                        className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-fono/40 px-3 py-2 text-xs font-bold text-fono-light transition hover:bg-fono/10"
+                      >
+                        <Icon name="external" className="h-4 w-4" />
+                        Ver informe
+                      </Link>
+                    </article>
+                  ))}
+                </div>
+              </PortalSeccion>
+            )}
+
             {cuenta.level === 'completo' && (
               <PortalSeccion titulo="Garantías activas" icono="shield">
                 {cuenta.warranties?.length ? (

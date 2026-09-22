@@ -303,6 +303,7 @@ export function demoCuentaPayload(token) {
     balancePyg: saldoDeuda(cliente),
     dueDates: conSaldo,
     orders: orders.map((order) => ({ orderNumber: order.orderNumber, createdAt: order.createdAt, totalPyg: order.totalPyg, status: order.status, fulfillmentStatus: 'DELIVERED', pendingPyg: order.pendingPyg, dueAt: order.pendingPyg > 0 ? haceDias(-6) : null, ...(nivel === 'completo' ? { receiptToken: `demo-${order.id}` } : {}) })),
+    informes: orders.flatMap((order) => (order.items || []).flatMap((item) => (item.serials || []).map((serial) => ({ serial, model: item.description, orderNumber: order.orderNumber })))),
     ...(nivel === 'completo' ? { warranties: [], addresses: cliente.addresses || [] } : {}),
   }
 }

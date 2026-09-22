@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { descargarCsvCliente } from '@/utils/descargarArchivo'
 import { copiarAlPortapapeles } from '@/utils/portapapeles'
+import { whatsappUrl } from '@/utils/telefono'
 import { useSesion } from '@/lib/sesion'
 import { formatGs } from '@/utils/moneda'
 import { fechaDia as fecha, fechaHora } from '@/utils/fecha'
@@ -43,6 +44,7 @@ import {
   Skeleton,
   Textarea,
   useToast,
+  IconAction,
 } from '@/components/ui'
 import { GRILLA_DOS_COLUMNAS, GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 const FOLLOW_UP_KINDS = {
@@ -519,6 +521,30 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
   const [identitiesError, setIdentitiesError] = useState('')
   const [identityForm, setIdentityForm] = useState(null)
   const [identityBusy, setIdentityBusy] = useState(false)
+  // Informe de dispositivo (#240 ítem 3): link público por serial + WhatsApp.
+  // En demo se navega en la misma pestaña (el modo demo vive por pestaña).
+  const origen = typeof window !== 'undefined' ? window.location.origin : ''
+  const enlaceInforme = (serial) => `${origen}/u/${encodeURIComponent(String(serial || '').trim())}`
+  function nombreDelCliente() {
+    const completo = profile?.customer?.name || customer?.name || ''
+    return String(completo).trim().split(/\s+/)[0] || ''
+  }
+  function abrirInforme(device) {
+    const url = enlaceInforme(device.serial)
+    if (esDemo) { window.location.href = url; return }
+    copiarAlPortapapeles(url).then((ok) => toast.success(ok ? 'Informe: enlace copiado y abriéndolo en otra pestaña.' : 'Abriendo el informe del equipo.'))
+    window.open(url, '_blank', 'noopener')
+  }
+  function compartirInforme(device) {
+    const nombre = nombreDelCliente()
+    const mensaje = `Hola${nombre ? ` ${nombre}` : ''}, acá tenés el informe del equipo ${device.model || ''}: ${enlaceInforme(device.serial)}`
+    const destino = whatsappUrl(phone, mensaje, profile?.customer?.countryCode || customer?.countryCode)
+    if (destino) { window.open(destino, '_blank', 'noopener'); return }
+    copiarAlPortapapeles(enlaceInforme(device.serial)).then((ok) => ok
+      ? toast.info('Sin teléfono del cliente', 'Copiamos el enlace del informe para que se lo pases.')
+      : toast.error('No se pudo preparar el WhatsApp', 'El cliente no tiene teléfono cargado.'))
+  }
+
   // Portal del cliente: enlace/QR por nivel con el resumen de su cuenta.
   const [portal, setPortal] = useState(null)
   const [portalNivel, setPortalNivel] = useState('rapido')
@@ -1308,6 +1334,8 @@ export default function CustomerProfile({ customer, open, onClose, tabInicial = 
                         <span className="min-w-0">{vence ? <Badge color={dias === 0 ? 'red' : dias <= 15 ? 'orange' : 'green'} className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">{dias === 0 ? 'Vencida' : `${dias} días`}</Badge> : <Badge color="slate" className="w-fit whitespace-nowrap px-1.5 py-0.5 text-[10px]">Sin garantía</Badge>}</span>
                         <span className="flex items-center justify-end gap-1.5">
                           {device.serial && <button type="button" className="whitespace-nowrap rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light transition hover:bg-fono/10" onClick={() => setImeiDe(device)}>Verificación IMEI</button>}
+                          {device.serial && <IconAction icon="external" tone="fono" label={`Ver informe del equipo ${device.serial}`} onClick={() => abrirInforme(device)} />}
+                          {device.serial && <IconAction icon="send" tone="ok" label={`Compartir informe del equipo ${device.serial} por WhatsApp`} onClick={() => compartirInforme(device)} />}
                           {device.warranty?.publicToken && <a className="whitespace-nowrap rounded-lg border border-fono/40 px-2.5 py-1 text-xs font-semibold text-fono-light" href={`${window.location.origin}/garantia/${device.warranty.publicToken}`} target="_blank" rel="noreferrer">Ver garantía</a>}
                         </span>
                       </div>
