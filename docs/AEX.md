@@ -32,3 +32,10 @@ Referencia: doc AEX v1.5.4. Adaptador único: `backend/lib/aex.ts`.
 fue aceptada y sin movimientos: **queda pendiente conciliar con AEX** (panel/soporte)
 antes de cualquier nuevo intento. El parser tolera `numero_guia`, `guia`, `nro_guia`
 y variantes anidadas; sin guía devuelve `ambiguo`, nunca una guía inventada.
+
+## Tipo de documento en remitente/destinatario (#231)
+
+AEX acepta **RUC**, **CIP** (cédula) y **PAS** (pasaporte). Mandar `"CI"` da error:
+la cédula se envía como **`CIP`**. `tipoDocumentoAex()` normaliza alias
+(`CI`, `Cédula`, `DNI` → CIP; `Pasaporte`, `Passport` → PAS; `RUC` → RUC) y por
+defecto usa CIP (persona física). El remitente del comercio va con RUC.

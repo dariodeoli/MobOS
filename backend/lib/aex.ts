@@ -182,10 +182,20 @@ export type AexDireccion = { codigo: string; callePrincipal: string; numeroCasa?
 
 // Campos de remitente/destinatario según la doc: documento, nombre, email y al
 // menos un teléfono. `personeria` distingue persona física (F) o jurídica (J).
+// Doc v1.5.4: los tipos de documento válidos son RUC, CIP (cédula) y PAS
+// (pasaporte). "CI" NO es válido para AEX: la cédula se manda como "CIP" (#231).
+export const TIPOS_DOCUMENTO_AEX = ['RUC', 'CIP', 'PAS'] as const
+export function tipoDocumentoAex(valor: unknown): (typeof TIPOS_DOCUMENTO_AEX)[number] {
+  const limpio = String(valor ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g, '')
+  if (limpio === 'RUC') return 'RUC'
+  if (['PAS', 'PASAPORTE', 'PASSPORT'].includes(limpio)) return 'PAS'
+  return 'CIP'
+}
+
 function parteAex(parte: AexParte) {
   return {
     ...(parte.codigo ? { codigo: parte.codigo } : {}),
-    tipo_documento: parte.tipoDocumento || 'CI',
+    tipo_documento: tipoDocumentoAex(parte.tipoDocumento),
     numero_documento: parte.numeroDocumento,
     nombre: parte.nombre,
     ...(parte.apellido ? { apellido: parte.apellido } : {}),

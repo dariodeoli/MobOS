@@ -132,7 +132,7 @@ const envio = await aexSolicitarYConfirmar({
   pesoKg,
   codigoOperacion,
   remitente: { tipoDocumento: 'RUC', numeroDocumento: '80012345-0', nombre: 'Comercio demo', email: 'comercio@demo.mobos', telefono: 21000000 },
-  destinatario: { tipoDocumento: 'CI', numeroDocumento: '1234567', nombre: 'Cliente demo', apellido: 'Prueba', email: 'cliente@demo.mobos', telefono: 981000000 },
+  destinatario: { tipoDocumento: 'CIP', numeroDocumento: '1234567', nombre: 'Cliente demo', apellido: 'Prueba', email: 'cliente@demo.mobos', telefono: 981000000 },
   pickup: { codigo: 'DEMO-ORIGEN', callePrincipal: 'Av. Ficticia 1234', numeroCasa: 123, calleTransversal1: 'Calle Falsa', referencias: 'Portón negro (demo)' },
   entrega: { codigo: 'DEMO-DESTINO', callePrincipal: 'Av. del Demo 789', numeroCasa: 456, calleTransversal1: 'Calle Ejemplo', referencias: 'Frente a la plaza (demo)' },
 })
