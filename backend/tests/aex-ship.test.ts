@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { aexSolicitarYConfirmar, aexTrackingDetallado, aexTransporteDePrueba } from '../lib/aex'
+import { aexSolicitarYConfirmar, aexTrackingDetallado, aexTransporteDePrueba, tipoDocumentoAex } from '../lib/aex'
 
 // #3: el adaptador de envíos sigue la doc v1.5.4 — `solicitar_servicio` y
 // `confirmar_servicio` devuelven JSON Array, la confirmación exige remitente,
@@ -146,3 +146,12 @@ pruebas()
   .then(() => { console.log('aex-ship.test.ts: ok') })
   .catch((error) => { console.error('aex-ship.test.ts: FALLO', error); process.exitCode = 1 })
   .finally(() => aexTransporteDePrueba(null))
+
+// Tipo de documento AEX (#231): CI no es válido, la cédula va como CIP.
+assert.equal(tipoDocumentoAex('CI'), 'CIP', 'CI no es válido para AEX')
+assert.equal(tipoDocumentoAex('cip'), 'CIP')
+assert.equal(tipoDocumentoAex('Cédula'), 'CIP')
+assert.equal(tipoDocumentoAex('RUC'), 'RUC')
+assert.equal(tipoDocumentoAex('pasaporte'), 'PAS')
+assert.equal(tipoDocumentoAex('PASSPORT'), 'PAS')
+assert.equal(tipoDocumentoAex(''), 'CIP', 'por defecto persona física')

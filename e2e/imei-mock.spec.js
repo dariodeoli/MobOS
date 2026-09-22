@@ -237,3 +237,25 @@ test('el timeout queda a conciliar y administración lo concilia sin repetir la 
   expect(fila.externalId).toBe('ORD-233-DEMO')
   expect(fila.etiqueta).toBe('Verificado')
 })
+
+// #233: conciliación desde la UI (acción auditada, sin storage state ni consola).
+test('la ficha permite conciliar una consulta pendiente desde la UI', async ({ page }) => {
+  const IMEI_UI = imeiValido()
+  await page.goto('/inventario/unidades')
+  const requestId = `qa-233ui-${Date.now()}`
+  const creada = await api(page, 'imei', { method: 'POST', body: JSON.stringify({ action: 'checks', imei: IMEI_UI, servicio: 'APPLE_BASIC', confirm: true, requestId, escenario: 'timeout' }) })
+  expect(creada.status).toBe(201)
+  await page.getByTestId('inventario-fila').first().waitFor({ timeout: 15_000 })
+  await page.getByTestId('inventario-fila').first().click()
+  await page.getByTestId('imei-consultas-abrir').click()
+  await page.getByLabel('IMEI a consultar').fill(IMEI_UI)
+  await page.getByTestId('imei-consultas-buscar').click()
+  await page.getByTestId(`imei-conciliar-${creada.datos.id}`).click()
+  await page.getByLabel('Costo real USD').fill('0.06')
+  await page.getByLabel('Nota de conciliación').fill('iCloud/US Block clean ≠ blacklist mundial')
+  await page.getByTestId('imei-conciliar-guardar').click()
+  await expect(page.getByText('Consulta conciliada.')).toBeVisible({ timeout: 15_000 })
+  const historial = await api(page, `imei?imei=${IMEI_UI}`, { method: 'GET' })
+  expect(historial.datos.consultas.find(fila => fila.id === creada.datos.id).etiqueta).toBe('Verificado')
+  if (process.env.MOBOS_QA_140) await page.screenshot({ path: `${process.env.MOBOS_QA_140}/09-conciliar.png` })
+})

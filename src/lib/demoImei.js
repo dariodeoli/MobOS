@@ -76,3 +76,20 @@ export function consultasDemoImei(imei = '') {
   const filas = leer()
   return imei ? filas.filter((fila) => fila.imei === String(imei).toUpperCase()) : filas
 }
+
+/** Conciliación demo (#233): mismo contrato que la acción admin. */
+export function conciliarDemoImei({ requestId, id, status = 'verificado', costUsd = 0.06, resolvedAt = null, externalId = '', normalized = null, note = '' } = {}) {
+  const filas = leer()
+  const fila = filas.find(item => (requestId && item.requestId === requestId) || (id && item.id === id))
+  if (!fila) throw Object.assign(new Error('No se encontró la consulta a conciliar.'), { status: 404 })
+  fila.status = status
+  fila.etiqueta = status === 'verificado' ? 'Verificado' : status === 'parcial' ? 'Parcial' : 'No verificado'
+  fila.costUsd = Number(costUsd) || 0
+  if (resolvedAt) fila.resolvedAt = new Date(resolvedAt).toISOString()
+  if (externalId) fila.externalId = externalId
+  if (Array.isArray(normalized)) fila.normalized = normalized
+  fila.conciliatedAt = new Date().toISOString()
+  fila.conciliationNote = note
+  guardar(filas.map(item => (item.id === fila.id ? fila : item)))
+  return fila
+}

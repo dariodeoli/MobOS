@@ -1,7 +1,7 @@
 // #240: puntaje y grado del PhoneCheck.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-const { COSMETICOS, INSPECCION_ITEMS, certificadoPhoneCheck, gradoInspection, locksDeVerificacion, payloadInformeInspection, puntajeInspection, resumenCertificaciones, resumenInspection } = await import('./phonecheck.js')
+const { COSMETICOS, INSPECCION_ITEMS, certificadoPhoneCheck, gradoInspection, informePublicoInspection, locksDeVerificacion, payloadInformeInspection, puntajeInspection, resumenCertificaciones, resumenInspection } = await import('./phonecheck.js')
 
 test('puntaje: OK=1, observación=0,5, falla=0 y no aplica no cuenta', () => {
   const items = {}
@@ -66,4 +66,14 @@ test('la etiqueta Certificado lleva grado, puntaje y QR del informe (#240)', () 
   assert.equal(cert.puntaje, 100)
   assert.match(cert.qr.contenido, /^CERT\|u1\|AUR0001\|A\|100/)
   assert.equal(cert.qr.enlace, 'https://app.moboss.online/inventario/unidad/u1')
+})
+
+test('el informe publico sale sin PII y con QR (#240 DSN/PRN)', () => {
+  const informe = informePublicoInspection({ grado: 'A', puntaje: 100, serial: 'AUR0001', producto: 'iPhone 15', items: [{ grupo: 'Pantalla', label: 'Pantalla', estado: 'falla', nota: 'Rayón profundo' }, { grupo: 'Audio', label: 'Audio', estado: 'ok', nota: 'no debe salir' }], locks: [{ label: 'iCloud', ok: true }], bateria: { porcentaje: '89', ciclos: '310' }, verificado: '2026-09-22T10:00:00.000Z' }, { enlace: 'https://app.moboss.online/informe/abc' })
+  assert.equal(informe.serial, '•••0001')
+  assert.equal(informe.items[0].nota, 'Rayón profundo')
+  assert.equal(informe.items[1].nota, '')
+  assert.match(informe.aviso, /blacklist mundial/)
+  assert.match(informe.qr, /^CERT\|/)
+  assert.ok(!JSON.stringify(informe).includes('AUR0001'), 'no filtra el serial completo')
 })
