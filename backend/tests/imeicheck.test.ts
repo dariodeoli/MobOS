@@ -70,13 +70,20 @@ for (const servicio of Object.values(SERVICIOS)) assert.ok(!IDS_SANDBOX.includes
   assert.equal(parcial.etiqueta, 'Parcial')
   assert.equal(parcial.costoUsd, 0.06, 'una respuesta parcial sí se cobra')
   
-  for (const escenario of ['pendiente', 'timeout', 'sin-saldo', 'no-autorizado'] as const) {
+  for (const escenario of ['pendiente', 'sin-saldo', 'no-autorizado'] as const) {
     const resultado = await consultarImei({ imei: '490154203237518', servicio: 'APPLE_BASIC', escenario })
     assert.notEqual(resultado.estado, 'verificado', escenario)
     assert.equal(resultado.etiqueta, NO_VERIFICADO, escenario)
     assert.equal(resultado.costoUsd, 0, 'lo no verificado no se cobra')
   }
   
+  // #233: el timeout es ambiguo (pudo cobrarse): «a conciliar» con costo estimado.
+  const timeout = await consultarImei({ imei: '490154203237518', servicio: 'APPLE_BASIC', escenario: 'timeout' })
+  assert.equal(timeout.estado, 'conciliar')
+  assert.equal(timeout.etiqueta, 'A conciliar')
+  assert.equal(timeout.costoUsd, 0.06, 'estima el costo, no 0 a secas')
+  assert.match(String(timeout.error), /conciliar/i)
+
   // IMEI inválido: no se llama ni se cobra.
   const invalido = await consultarImei({ imei: '123', servicio: 'APPLE_BASIC' })
   assert.equal(invalido.estado, 'fallido')

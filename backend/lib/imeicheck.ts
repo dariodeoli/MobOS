@@ -47,7 +47,7 @@ export const SERVICIOS: Record<string, { nombre: string; precioUsd: number; prec
 export const IDS_SANDBOX = ['12', '13', '14', '15']
 
 export type EscenarioMock = 'ok' | 'parcial' | 'pendiente' | 'timeout' | 'sin-saldo' | 'no-autorizado' | 'imei-invalido'
-export type EstadoConsulta = 'verificado' | 'parcial' | 'pendiente' | 'fallido'
+export type EstadoConsulta = 'verificado' | 'parcial' | 'conciliar' | 'pendiente' | 'fallido'
 export type CampoVerificacion = { clave: string; etiqueta: string; valor: string | null; fuente: string; hora: string | null }
 
 export const NO_VERIFICADO = 'No verificado'
@@ -83,7 +83,7 @@ export function estadoDeConsulta(status: unknown): EstadoConsulta {
   return 'fallido'
 }
 
-export const etiquetaEstado = (estado: EstadoConsulta) => (estado === 'verificado' ? 'Verificado' : estado === 'parcial' ? 'Parcial' : NO_VERIFICADO)
+export const etiquetaEstado = (estado: EstadoConsulta) => (estado === 'verificado' ? 'Verificado' : estado === 'parcial' ? 'Parcial' : estado === 'conciliar' ? 'A conciliar' : NO_VERIFICADO)
 
 /** Normaliza la respuesta del proveedor a los campos que muestra la UI. */
 export function normalizarRespuesta(payload: unknown, { fuente = PROVEEDOR, hora = new Date().toISOString() } = {}): CampoVerificacion[] {
@@ -140,8 +140,10 @@ export async function consultarImei(input: { imei: unknown; servicio: keyof type
   // Fase 1: sin `IMEICHECK_LIVE=1` no hay ninguna llamada real, aunque haya token.
   if (!enVivo) {
     const simulado = mock(escenario, validacion.ok ? validacion.imei : String(input.imei ?? ''))
-    const estado = estadoDeConsulta(simulado.status)
-    return { estado, etiqueta: etiquetaEstado(estado), campos: normalizarRespuesta(simulado), crudo: simulado, costoUsd: estado === 'verificado' || estado === 'parcial' ? servicio.precioUsd : 0, esMock: true }
+    // #233: un timeout es ambiguo (pudo cobrarse): queda «a conciliar» con costo estimado.
+    const estado: EstadoConsulta = escenario === 'timeout' ? 'conciliar' : estadoDeConsulta(simulado.status)
+    const costo = estado === 'fallido' ? 0 : servicio.precioUsd
+    return { estado, etiqueta: etiquetaEstado(estado), campos: normalizarRespuesta(simulado), crudo: simulado, costoUsd: costo, esMock: true }
   }
   if (!validacion.ok) return { estado: 'fallido', etiqueta: NO_VERIFICADO, campos: normalizarRespuesta({}), crudo: null, costoUsd: 0, esMock: false, error: validacion.error }
   if (!servicio.serviceId) return { estado: 'fallido', etiqueta: NO_VERIFICADO, campos: normalizarRespuesta({}), crudo: null, costoUsd: 0, esMock: true, error: `El servicio «${servicio.nombre}» no tiene serviceId Live cargado: se toma del catálogo de la cuenta (GET /services).` }
@@ -163,7 +165,9 @@ export async function consultarImei(input: { imei: unknown; servicio: keyof type
     const costo = estado === 'fallido' ? 0 : Number.isFinite(montoProvisto) && montoProvisto > 0 ? montoProvisto : servicio.precioUsd
     return { estado, etiqueta: etiquetaEstado(estado), campos: normalizarRespuesta(payload), crudo: payload, costoUsd: costo, esMock: false, error: (payload as any)?.error ? redactar(String((payload as any).error)) : undefined }
   } catch (causa) {
-    const mensaje = causa instanceof Error && causa.name === 'TimeoutError' ? 'El proveedor no respondió a tiempo (timeout).' : redactar(causa instanceof Error ? causa.message : 'Error de red.')
-    return { estado: 'fallido', etiqueta: NO_VERIFICADO, campos: normalizarRespuesta({}), crudo: null, costoUsd: 0, esMock: false, error: mensaje }
+    const timeout = causa instanceof Error && causa.name === 'TimeoutError'
+    const mensaje = timeout ? 'El proveedor no respondió a tiempo (timeout): la orden pudo haberse cobrado, queda a conciliar.' : redactar(causa instanceof Error ? causa.message : 'Error de red.')
+    // #233: timeout/red = ambiguo ⇒ «a conciliar» con costo estimado, nunca 0 a secas.
+    return { estado: timeout ? 'conciliar' : 'fallido', etiqueta: timeout ? 'A conciliar' : NO_VERIFICADO, campos: normalizarRespuesta({}), crudo: null, costoUsd: timeout ? servicio.precioUsd : 0, esMock: false, error: mensaje }
   }
 }
