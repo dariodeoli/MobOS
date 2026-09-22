@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Aviso, Button, ConfirmDialog, Modal, useToast } from '@/components/ui'
 import Icon from '@/components/shared/Icon'
+import VistaPreviaPapel from '@/components/shared/VistaPreviaPapel'
 import {
   FORMATOS_COMPROBANTE,
   NIVELES_MODELO,
@@ -29,7 +30,6 @@ import { ticketComprobante } from '@/lib/printing/tickets'
 // impresora configurada en Impresoras.
 // La vista previa usa el ancho real del papel (mm a 96 dpi) para que lo que se
 // ve coincida con lo que sale impreso, sin franjas blancas a los costados.
-const ANCHO_VISTA = { 'thermal-80': 'max-w-[302px]', 'thermal-58': 'max-w-[219px]', 'thermal-55': 'max-w-[208px]', thermal: 'max-w-[219px]' }
 export default function ComprobantePreview({ order, open, onClose, formatos = FORMATOS_COMPROBANTE }) {
   const toast = useToast()
   const inicial = (() => {
@@ -271,11 +271,7 @@ export default function ComprobantePreview({ order, open, onClose, formatos = FO
           onCancel={() => setPreguntaDuplicado(null)}
           onConfirm={() => { setPreguntaDuplicado(null); imprimirDirecto(true) }}
         />
-        <iframe
-          title="Vista previa del comprobante"
-          srcDoc={html}
-          className={`h-[60vh] w-full rounded-xl border border-ink-600 bg-white ${ANCHO_VISTA[formato] ? 'mx-auto ' + ANCHO_VISTA[formato] : ''}`}
-        />
+        <VistaPreviaPapel formato={formato} contenido={html} titulo="Vista previa del comprobante" />
       </div>
     </Modal>
   )

@@ -256,6 +256,10 @@ categorías en `src/lib/categorias.js`; los objetos son presentacionales.
   unidad (empresa, modelo, IMEI enmascarado, grado, batería, "x de y pass",
   locks, quién/cuándo verificó y QR al enlace `/u/<serial>`), para la página
   pública y la vista previa del informe.
+- **`shared/VistaPreviaPapel`** (#241, preview v2): el documento impreso con el
+  ancho real del papel (`thermal-80`/`thermal-58`/`thermal-55`/`a4`); lo usan el
+  preview de comprobantes y el de reportes (antes cada uno copiaba el mapa de
+  anchos y las clases del iframe).
 - El checklist, el tile de equipo, el stepper y los tokens del tema consola se
   codificaron primero en la biblioteca (owncoding-ui **v0.11.0**, props en su
   `docs/REGLAS.md` §8 bis, tokens v2 en su `styles.css`) y se adoptan acá a
