@@ -1,7 +1,7 @@
 // #240: puntaje y grado del PhoneCheck.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-const { COSMETICOS, INSPECCION_ITEMS, certificadoPhoneCheck, gradoInspection, informePublicoInspection, locksDeVerificacion, payloadInformeInspection, puntajeInspection, resumenCertificaciones, resumenInspection } = await import('./phonecheck.js')
+const { COSMETICOS, INSPECCION_ITEMS, certificadoPhoneCheck, costoRepuestosInspection, gradoInspection, informePublicoInspection, locksDeVerificacion, payloadInformeInspection, puntajeInspection, resumenCertificaciones, resumenInspection } = await import('./phonecheck.js')
 
 test('puntaje: OK=1, observación=0,5, falla=0 y no aplica no cuenta', () => {
   const items = {}
@@ -66,6 +66,16 @@ test('la etiqueta Certificado lleva grado, puntaje y QR del informe (#240)', () 
   assert.equal(cert.puntaje, 100)
   assert.match(cert.qr.contenido, /^CERT\|u1\|AUR0001\|A\|100/)
   assert.equal(cert.qr.enlace, 'https://app.moboss.online/inventario/unidad/u1')
+})
+
+test('el costo de repuestos de la inspección se normaliza para el margen (#148 §19)', () => {
+  assert.equal(costoRepuestosInspection({ costoRepuestosPyg: 120000 }), 120000)
+  assert.equal(costoRepuestosInspection({ costoRepuestosPyg: '350000' }), 350000)
+  assert.equal(costoRepuestosInspection({}), 0)
+  assert.equal(costoRepuestosInspection({ costoRepuestosPyg: null }), 0)
+  assert.equal(costoRepuestosInspection({ costoRepuestosPyg: -5 }), 0)
+  assert.equal(costoRepuestosInspection({ costoRepuestosPyg: 1.5 }), 0)
+  assert.equal(costoRepuestosInspection({ costoRepuestosPyg: 'nada' }), 0)
 })
 
 test('el informe publico sale sin PII y con QR (#240 DSN/PRN)', () => {

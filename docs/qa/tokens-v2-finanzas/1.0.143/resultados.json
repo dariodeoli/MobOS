@@ -1,0 +1,47 @@
+{
+  "web": "https://app.moboss.online",
+  "version": "1.0.143",
+  "fecha": "2026-09-22T19:11:27.630Z",
+  "resultados": [
+    {
+      "nombre": "Demo: se entra como Dueño y se cierra la guía",
+      "ok": true,
+      "detalle": "/resumen"
+    },
+    {
+      "nombre": "Tokens v2 · resumen: montos, fechas y tablas sin romperse",
+      "ok": true,
+      "detalle": "15 montos · 0 fechas · 1 tablas · sin tabular-nums: \"Gs 14.280.000\" (span), \"Gs 14.280.000\" (span), \"Gs 132.500\" (span), \"Gs 14.280.000\" (span), \"Gs 132.500\" (span), \"Gs 14.280.000\" (span)"
+    },
+    {
+      "nombre": "Tokens v2 · ganancias: montos, fechas y tablas sin romperse",
+      "ok": true,
+      "detalle": "3 montos · 0 fechas · 0 tablas · sin tabular-nums: \"Gs 3.255.000\" (div[ganancia-resultado]), \"Gs 3.255.000\" (span)"
+    },
+    {
+      "nombre": "Tokens v2 · caja: montos, fechas y tablas sin romperse",
+      "ok": true,
+      "detalle": "44 montos · 9 fechas · 2 tablas · montos tabulares ✓"
+    },
+    {
+      "nombre": "Tokens v2 · conciliacion: montos, fechas y tablas sin romperse",
+      "ok": true,
+      "detalle": "50 montos · 22 fechas · 1 tablas · sin tabular-nums: \"Gs 0\" (span[conciliacion-fila]), \"Gs 0\" (span[conciliacion-fila])"
+    },
+    {
+      "nombre": "Tokens v2 · gastos: montos, fechas y tablas sin romperse",
+      "ok": true,
+      "detalle": "1 montos · 0 fechas · 0 tablas · montos tabulares ✓"
+    },
+    {
+      "nombre": "Tokens v2 · bancos: montos, fechas y tablas sin romperse",
+      "ok": true,
+      "detalle": "1 montos · 0 fechas · 1 tablas · montos tabulares ✓"
+    },
+    {
+      "nombre": "Tokens v2 · móvil 390: caja y gastos sin desborde de página",
+      "ok": true,
+      "detalle": "caja: 43 montos · 9 fechas · 2 tablas · montos tabulares ✓ · gastos: 0 montos · 0 fechas · 0 tablas · montos tabulares ✓"
+    }
+  ]
+}

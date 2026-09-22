@@ -5,13 +5,14 @@
 - Índice de todo lo entregado y verificado en el dominio, con la evidencia y la
   versión en la que quedó integrado. Sirve de punto de entrada para auditoría.
 
-## Verificación definitiva (v1.0.142) — sin gaps reales
+## Verificación definitiva (v1.0.143) — sin gaps reales
 
-Corrida de cierre sobre la última versión publicada, todo en verde:
+Corrida de cierre sobre la última versión publicada (que ya incluye los costos
+reales al margen), todo en verde:
 
 | Sonda | Resultado |
 | --- | --- |
-| `release:smoke` | ✅ v1.0.142 publicada |
+| `release:smoke` | ✅ v1.0.143 publicada |
 | §9 montos (`qa-148-montos-produccion.mjs`) | **5/5** |
 | §17/§18/§19 (`qa-148-17-18-19-produccion.mjs`) | **8/8** · **11/11** cortes del analytics |
 | §18 ventas por caja / analytics (`QA_SOLO_DEMO=1`) | **2/2** · **1/1** |
@@ -19,8 +20,14 @@ Corrida de cierre sobre la última versión publicada, todo en verde:
 | Resumen/Análisis (#171) y último usado (#209) | **6/6** · **6/6** |
 | Tokens v2 en Finanzas (`qa-finanzas-tokens-v2.mjs`) | **8/8** · sin roturas (montos, fechas y tablas) |
 
-Evidencia: `produccion-1.0.142/`, `185/produccion-1.0.142/` y
-`tokens-v2-finanzas/1.0.142/`.
+Cadena de costos reales cubierta por el arnés: unidad por IMEI (reparaciones y
+repuestos cargados en Inventario), **repuestos no-OEM de la inspección
+PhoneCheck** (`costoRepuestosPyg`) y trade-in (valor + reparaciones). Evidencia:
+`148-19-costo-unidad-reparaciones.md`, `148-19-repuestos-no-oem.md` y
+`148-19-trade-in-costo.md`.
+
+Evidencia de la ronda: `produccion-1.0.143/`, `185/produccion-1.0.143/` y
+`tokens-v2-finanzas/1.0.143/`.
 
 **Queda asentado: al 2026-09-22 no hay ningún gap funcional abierto de #148
 §17/§18/§19 en el dominio.** Lo único pendiente son dos decisiones de producto

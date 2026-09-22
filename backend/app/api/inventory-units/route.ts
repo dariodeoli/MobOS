@@ -5,6 +5,7 @@ import { requireSession } from '../../../lib/auth'
 import { InventoryUnitStatus, PaymentCurrency, ProductCondition } from '@prisma/client'
 import { INVENTORY_REMOVED, INVENTORY_RESTORED, removedInventoryUnitIds } from '../../../lib/inventory'
 import { normalizarCosto } from '../../../lib/costs'
+import { INT_MAX } from '../../../lib/payment-input'
 import { serialKey } from '../../../lib/validation'
 import { changeStock } from '../../../lib/stock'
 import { consumeAuthorization } from '../../../lib/authorizations'
@@ -175,7 +176,12 @@ export async function PATCH(request: Request) {
     for (const item of items) { const valor = estados[String(item?.estado || '')]; if (valor === null || valor === undefined) continue; suma += valor; cuenta += 1 }
     const puntaje = cuenta ? Math.round((suma / cuenta) * 100) : null
     const grado = puntaje === null ? null : puntaje >= 90 ? 'A' : puntaje >= 75 ? 'B' : 'C'
-    const actualizada = await prisma.inventoryUnit.update({ where: { id }, data: { inspection: { ...inspeccion, items, puntaje, grado, inspeccionadoAt: new Date().toISOString(), inspeccionadoPor: session.user.name } as any } })
+    // Costo de repuestos/arreglos detectados en la inspección (#240): lo que
+    // costó dejar el equipo en condiciones. Suma al costo real del equipo para
+    // el margen y el seguro (#148 §19), así que se valida y normaliza acá.
+    const costoRepuestos = inspeccion.costoRepuestosPyg === undefined || inspeccion.costoRepuestosPyg === '' || inspeccion.costoRepuestosPyg === null ? null : Number(inspeccion.costoRepuestosPyg)
+    if (costoRepuestos !== null && (!Number.isSafeInteger(costoRepuestos) || costoRepuestos < 0 || costoRepuestos > INT_MAX)) return error('El costo de repuestos debe ser un entero entre 0 y 2.147.483.647.')
+    const actualizada = await prisma.inventoryUnit.update({ where: { id }, data: { inspection: { ...inspeccion, items, puntaje, grado, costoRepuestosPyg: costoRepuestos, inspeccionadoAt: new Date().toISOString(), inspeccionadoPor: session.user.name } as any } })
     return json(actualizada)
   }
 

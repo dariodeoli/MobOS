@@ -53,3 +53,34 @@ assert.equal(Number(linea.unitCostPyg), costoReal + seguroEsperado, 'costo real 
 assert.equal(linea.costPending, false, 'la línea no queda con costo pendiente')
 
 console.log(`PASS: venta por IMEI con costo de unidad ${costoReal} (base ${costoBase} + repuestos ${repuestos}) · seguro ${seguroEsperado} · ${checks} chequeos`)
+
+// 4) Repuestos detectados en la inspección PhoneCheck (#240): el costo cargado
+//    en la inspección (no-OEM / arreglos) también suma al costo real del equipo.
+const serialInsp = `992${Date.now().toString().slice(-12)}`
+const costoInspBase = 800000
+const costoRepuestosInsp = 120000
+const precioInsp = 1500000
+const productoInsp = await req('/api/products', 'POST', { name: `Equipo inspeccionado ${sufijo}`, sku: `INSP-${sufijo}`, pricePyg: precioInsp, costPyg: costoInspBase, stock: 1, imei: serialInsp, branchId: rama, condition: 'USED' }, 201)
+const unidadesInsp = await req(`/api/inventory-units?q=${serialInsp}&branchId=${rama}`)
+const listaInsp = Array.isArray(unidadesInsp) ? unidadesInsp : unidadesInsp.units || []
+const unidadInsp = listaInsp.find((fila) => fila.serial === serialInsp)
+assert.ok(unidadInsp, 'la unidad inspeccionada aparece en Inventario')
+await req('/api/inventory-units', 'PATCH', {
+  id: unidadInsp.id,
+  action: 'inspection',
+  inspection: { items: [{ clave: 'pantalla', estado: 'falla', nota: 'Pantalla no OEM' }], repuestosNoOem: 'Pantalla no original', costoRepuestosPyg: costoRepuestosInsp },
+})
+const ventaInsp = await req('/api/orders', 'POST', {
+  customerId: cliente.id,
+  branchId: rama,
+  items: [{ productId: productoInsp.id, description: productoInsp.name, quantity: 1, unitPricePyg: precioInsp, inventoryUnitSerials: [serialInsp] }],
+  payments: [{ method: 'TRANSFER', amountPyg: precioInsp, status: 'CONFIRMED' }],
+}, 201)
+const lineaInsp = ventaInsp.items?.[0]
+const costoRealInsp = costoInspBase + costoRepuestosInsp
+const seguroInsp = Math.round((costoRealInsp * tasaSeguro) / 100)
+assert.equal(Number(lineaInsp.baseUnitCostPyg), costoRealInsp, 'el costo de repuestos de la inspección tiene que sumar al costo base')
+assert.equal(Number(lineaInsp.insurancePyg), seguroInsp, 'el seguro se calcula sobre el costo con repuestos')
+assert.equal(Number(lineaInsp.unitCostPyg), costoRealInsp + seguroInsp, 'costo real = unidad + repuestos de inspección + seguro')
+
+console.log(`PASS: inspección no-OEM con repuestos ${costoRepuestosInsp} → costo real ${costoRealInsp} · seguro ${seguroInsp} · ${checks} chequeos`)
