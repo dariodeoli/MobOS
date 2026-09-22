@@ -17,11 +17,38 @@ function archivosFuente() {
 }
 
 test('la consulta de RUC vive solo en el objeto compartido RucField', () => {
+  // `demoRuc.js` es el mock del navegador que usa el campo en la demo (#234):
+  // no consulta el API, solo nombra el endpoint en su comentario.
+  const permitidos = new Set(['components/shared/RucField.jsx', 'lib/demoRuc.js'])
   const culpables = archivosFuente()
-    .filter((archivo) => /api\/ruc/.test(archivo.contenido) && archivo.ruta !== 'components/shared/RucField.jsx')
+    .filter((archivo) => /api\/ruc/.test(archivo.contenido) && !permitidos.has(archivo.ruta))
     .map((archivo) => archivo.ruta)
 
   assert.deepEqual(culpables, [])
+})
+
+test('el extractor de RUC vive dentro del input y se ve en todos los lugares, también en demo (#234)', () => {
+  const rucField = readFileSync(join(RAIZ, 'components/shared/RucField.jsx'), 'utf8')
+  assert.ok(rucField.includes('BotonDentroCampo'), 'el botón de extraer vive dentro del campo (objeto compartido)')
+  assert.ok(!rucField.includes('<Button'), 'no vuelve un botón externo al lado del input')
+  assert.ok(rucField.includes('consultarRucDemo'), 'en demo resuelve contra el mock del navegador, sin /api/ruc')
+  assert.ok(rucField.includes('Simulada en demo'), 'el resultado simulado se marca como tal')
+
+  const usos = archivosFuente().filter((archivo) => /<RucField/.test(archivo.contenido))
+  const esperados = [
+    'components/control/Compras.jsx',
+    'components/control/Config.jsx',
+    'components/customers/CustomerProfile.jsx',
+    'components/ventas/CheckoutCustomer.jsx',
+    'components/ventas/SellerCustomers.jsx',
+  ]
+  assert.deepEqual(usos.map((archivo) => archivo.ruta).sort(), esperados, 'todos los lugares con RUC usan el objeto compartido')
+  for (const uso of usos) {
+    for (const bloque of uso.contenido.match(/<RucField[\s\S]*?\/>/g) || []) {
+      assert.ok(/esDemo/.test(bloque), `${uso.ruta}: cada RucField declara esDemo para funcionar en la demo`)
+      assert.ok(!/mostrarExtractor=\{!esDemo\}/.test(bloque), `${uso.ruta}: el extractor no se oculta en demo`)
+    }
+  }
 })
 
 test('el correo y el teléfono no se escriben como input crudo fuera de sus objetos', () => {

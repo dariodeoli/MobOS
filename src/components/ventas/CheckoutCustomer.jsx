@@ -109,7 +109,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
     <details className="rounded-xl border border-ink-600 p-3"><summary className="flex cursor-pointer items-center gap-2 text-sm font-medium text-fono-light"><Icon name="user" className="h-3.5 w-3.5" /> Datos de contacto, RUC/CI y direcciones</summary>
       <div className={cn('mt-3', GRILLA_DOS_COLUMNAS)}>
         <div className="text-xs text-mute">Teléfono<PhoneField countryCode={value.countryCode || '+595'} phone={value.phone || ''} onCountryCodeChange={countryCode => onChange({ ...value, countryCode })} onChange={phone => onChange({ ...value, phone })} countryAriaLabel="Código de país" phoneAriaLabel="Teléfono del cliente" /></div>
-        <div className="text-xs text-mute">CI o RUC<RucField ariaLabel="CI o RUC del cliente" disabled={false} value={value.document || ''} onChange={(document) => onChange({ ...value, document })} onAplicar={aplicarDocumento} mostrarExtractor={!esDemo} /></div>
+        <div className="text-xs text-mute">CI o RUC<RucField ariaLabel="CI o RUC del cliente" disabled={false} value={value.document || ''} onChange={(document) => onChange({ ...value, document })} onAplicar={aplicarDocumento} esDemo={esDemo} /></div>
         <label className="text-xs text-mute">Correo<EmailField aria-label="Correo del cliente" value={value.email || ''} onChange={(email) => onChange({ ...value, email })} placeholder="cliente@correo.com" /></label>
       </div>
       <div className="mt-4 space-y-3"><div className="flex items-center justify-between"><strong className="text-sm">Direcciones</strong><Button type="button" variant="outline" onClick={addAddress}>+ Dirección</Button></div>        {!value.addresses?.length && <p className="text-xs text-mute">Sin dirección cargada. Podés continuar con retiro en tienda.</p>}
@@ -135,7 +135,7 @@ export default function CheckoutCustomer({ value, onChange, esDemo, billingTo, o
             <p className="mt-2 text-xs text-mute">Factura a nombre de otra persona o empresa (esposo/a, padre, RUC): buscá por RUC/cédula o escribí el nombre y los datos fiscales se completan solos.</p>
             <div className={cn('mt-3', GRILLA_DOS_COLUMNAS)}>
               <label className="text-xs text-mute">Nombre y apellido del titular<Input aria-label="Nombre del titular de factura" value={billingTo?.name || ''} onChange={event => onBillingChange({ ...billingTo, name: normalizarNombre(event.target.value) })} placeholder="Nombre y apellido" /></label>
-              <div className="text-xs text-mute">RUC del titular<RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...billingTo, document })} onAplicar={(datos) => onBillingChange({ ...billingTo, name: normalizarNombre(datos.name || billingTo?.name, { apellidosPrimero: 'sifen' }), document: datos.fullRuc || billingTo?.document })} mostrarExtractor={!esDemo} /></div>
+              <div className="text-xs text-mute">RUC del titular<RucField ariaLabel="RUC del titular de factura" value={billingTo?.document || ''} onChange={(document) => onBillingChange({ ...billingTo, document })} onAplicar={(datos) => onBillingChange({ ...billingTo, name: normalizarNombre(datos.name || billingTo?.name, { apellidosPrimero: 'sifen' }), document: datos.fullRuc || billingTo?.document })} esDemo={esDemo} /></div>
             </div>
           </>
         )}

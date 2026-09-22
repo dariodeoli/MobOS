@@ -2059,6 +2059,7 @@ export default function CustomerProfile({ customer, open, onClose }) {
                 value={identityForm.document}
                 onChange={(document) => setIdentityForm((form) => ({ ...form, document }))}
                 onAplicar={(datos) => setIdentityForm((form) => ({ ...form, name: datos.name || form.name, document: datos.fullRuc || form.document }))}
+                esDemo={esDemo}
               />
             </FormField>
             <div className="flex justify-end gap-2">

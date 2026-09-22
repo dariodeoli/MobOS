@@ -378,7 +378,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
 
 function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
   const toast = useToast()
-  const { empresa, actualizarEmpresa, usuario } = useSesion()
+  const { empresa, actualizarEmpresa, usuario, esDemo } = useSesion()
   const [foto, setFoto] = useState('')
   const [fotoError, setFotoError] = useState('')
   const [fotoBusy, setFotoBusy] = useState(false)
@@ -515,7 +515,7 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
               </FormField>
             </div>
             <FormField label="RUC" htmlFor="edit-ruc">
-              <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => setForm(current => ({ ...current, ruc }))} disabled={busy} placeholder="RUC del negocio (opcional)" autoComplete="off" />
+              <RucField id="edit-ruc" value={form?.ruc || ''} onChange={ruc => setForm(current => ({ ...current, ruc }))} onAplicar={(datos) => setForm(current => ({ ...current, name: datos.name || current.name, ruc: datos.fullRuc || current.ruc }))} disabled={busy} esDemo={esDemo} placeholder="RUC del negocio (opcional)" autoComplete="off" />
             </FormField>
             {reauthVigente ? (
               <p className="text-xs text-ok">Tu contraseña fue verificada hace menos de 10 minutos: no hace falta escribirla de nuevo.</p>

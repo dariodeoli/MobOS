@@ -32,10 +32,11 @@ patrón de uso de cada familia y un ejemplo corto.
 | Contraseña | `ui/PasswordInput` | mostrar/ocultar obligatorio, 8–72 en auth | `<PasswordInput value={pass} onChange={…} />` |
 | Archivo / imagen | `shared/AttachmentInput` (+`AttachmentList`, `PhotoCropper`) | JPG/PNG/WebP/PDF ≤5 MiB validado en cliente y servidor; foto de persona con `Avatar` | `<AttachmentInput onSelect={setAdjunto} />` |
 | Búsqueda instantánea | `shared/SearchField` | lupa + botón limpiar; el debounce vive en la pantalla; conserva `placeholder`/`aria-label`/ref | `<SearchField value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar…" />` |
+| Acción dentro del campo | `shared/BotonDentroCampo` | botón trailing **adentro** del input (`relative` + `pr-11`): ícono con tooltip (`title`/`aria-label`) y estado ocupado "Consultando…" con spinner; vacío → `disabled` | `<BotonDentroCampo etiqueta="Extraer los datos del RUC" ocupado={consultando} onClick={consultar} />` |
 | Banco | `shared/BancoCombobox` (+`BancoLogo`) | catálogo BCP completo al abrir, filtra al instante, texto libre, logo por banco | `<BancoCombobox value={bank} onChange={setBank} />` |
 | Producto | `shared/ProductCombobox` | buscar/elegir y crear producto desde el campo | `<ProductCombobox products={prods} onSelect={…} onCreate={…} />` |
 | Ciudad | `shared/CityAutocomplete` | sugiere y completa el departamento | `<CityAutocomplete value={ciudad} onChange={…} />` |
-| RUC / CI | `shared/RucField` (+`utils/ruc.js`) | input + **Extraer RUC**; el resultado se aplica solo al confirmar | `<RucField value={ruc} onChange={…} />` |
+| RUC / CI | `shared/RucField` (+`utils/ruc.js`, `lib/demoRuc.js`) | botón **Extraer** adentro del input (trailing) con "Consultando…"; en demo, resultado simulado marcado; se aplica solo al confirmar | `<RucField value={ruc} onChange={…} esDemo={esDemo} />` |
 | Instagram / usuario | `shared/InstagramField` | `@` fijo, sin espacios, guarda el usuario pelado | `<InstagramField value={ig} onChange={…} />` |
 | Catálogo cerrado | `ui/Select` | opciones cerradas (estado, rol, moneda, medio); nunca texto libre para catálogos | `<Select value={rol} onChange={…}>{…}</Select>` |
 | **Booleano** | `shared/Switch` | estado de formulario ("activo", "aplica descuento"): interruptor estilo iPhone; guarda `onChange(event.target.checked)` | `<Switch checked={form.activo} onChange={e => set(e.target.checked)} />Activo` |
@@ -107,6 +108,7 @@ patrón de uso de cada familia y un ejemplo corto.
 > `MoneyInput`, `Money`, `PasswordInput`, `PinInput`, `Subtabs`),
 > `src/components/shared/` (`SearchField`, `SegmentedField`, `Switch`,
 > `PercentField`, `PhoneField`, `EmailField`, `SerialField`, `RucField`,
+> `BotonDentroCampo`,
 > `CityAutocomplete`, `ProductCombobox`, `BancoCombobox`, `BancoLogo`,
 > `AttachmentInput`, `RangoFechas`, `ListGridToggle`), `src/utils/moneda.js`
 > (`LIMITE_MONTO_GENERAL`, `LIMITE_MONTO_VENTAS`, `excedeMonto`),
