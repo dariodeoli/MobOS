@@ -16,7 +16,10 @@ const { chromium } = require('@playwright/test')
 const RAIZ = dirname(dirname(fileURLToPath(import.meta.url)))
 const API = process.env.QA_API_URL || 'http://localhost:3115'
 const WEB = process.env.QA_BASE_URL || 'http://localhost:5215'
-const SALIDA = join(RAIZ, 'docs/qa/148-18-analytics-pos')
+const SALIDA = process.env.QA_OUT || join(RAIZ, 'docs/qa/148-18-analytics-pos')
+// `QA_SOLO_DEMO=1` corre únicamente la parte de la demo pública (producción, sin
+// credenciales de tienda): omite el inicio de sesión real y su verificación.
+const SOLO_DEMO = process.env.QA_SOLO_DEMO === '1'
 mkdirSync(SALIDA, { recursive: true })
 
 const resultados = []
@@ -31,16 +34,16 @@ const ver = async (nombre, fn) => {
   }
 }
 
-const loginRespuesta = await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json', origin: WEB }, body: JSON.stringify({ email: 'e2e-tienda@test.local', password: 'E2e-password-123', deviceId: 'qa-148a' }) })
-const login = await loginRespuesta.json()
-let cookies = (loginRespuesta.headers.getSetCookie?.() || []).map((fila) => fila.split(';')[0]).join('; ')
-const admin = (login.sellers || []).find((fila) => fila.name === 'Administrador')
-const pinRespuesta = await fetch(`${API}/api/auth/pin`, { method: 'POST', headers: { 'content-type': 'application/json', origin: WEB, cookie: cookies }, body: JSON.stringify({ sellerId: admin.id, pin: '1234' }) })
-cookies = `${cookies}; ${(pinRespuesta.headers.getSetCookie?.() || []).map((fila) => fila.split(';')[0]).join('; ')}`
+const loginRespuesta = SOLO_DEMO ? null : await fetch(`${API}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json', origin: WEB }, body: JSON.stringify({ email: 'e2e-tienda@test.local', password: 'E2e-password-123', deviceId: 'qa-148a' }) })
+const login = loginRespuesta ? await loginRespuesta.json() : null
+let cookies = (loginRespuesta?.headers.getSetCookie?.() || []).map((fila) => fila.split(';')[0]).join('; ')
+const admin = (login?.sellers || []).find((fila) => fila.name === 'Administrador')
+const pinRespuesta = SOLO_DEMO ? null : await fetch(`${API}/api/auth/pin`, { method: 'POST', headers: { 'content-type': 'application/json', origin: WEB, cookie: cookies }, body: JSON.stringify({ sellerId: admin.id, pin: '1234' }) })
+cookies = `${cookies}; ${(pinRespuesta?.headers.getSetCookie?.() || []).map((fila) => fila.split(';')[0]).join('; ')}`
 
 const browser = await chromium.launch()
 
-await ver('Sesión real: el tablero muestra los cortes netos y por caja', async () => {
+if (!SOLO_DEMO) await ver('Sesión real: el tablero muestra los cortes netos y por caja', async () => {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
   await ctx.addCookies(cookies.split('; ').map((par) => { const [name, ...resto] = par.split('='); return { name, value: resto.join('='), domain: 'localhost', path: '/' } }))
   const page = await ctx.newPage()

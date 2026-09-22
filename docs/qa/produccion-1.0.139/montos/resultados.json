@@ -1,0 +1,32 @@
+{
+  "resultados": [
+    {
+      "nombre": "Demo: se entra como Dueño y se cierra la guía",
+      "ok": true,
+      "detalle": "/resumen"
+    },
+    {
+      "nombre": "Gastos: un monto fuera del tope se conserva, se marca y el guardado lo explica",
+      "ok": false,
+      "detalle": "expect(locator).toHaveAttribute(expected) failed\n\nLocator:  locator('#monto-gasto')\nExpected: \"true\"\nReceived: \"\"\nTimeout:  5000ms\n\nCall log:\n  - Expect \"toHaveAttribute\" locator('#monto-gasto') with timeout 5000ms\n  - waiting for locator('#monto-gasto')\n    14 × locator resolved to <input required="
+    },
+    {
+      "nombre": "Gastos: un monto dentro del tope no se marca",
+      "ok": true,
+      "detalle": "2.000.000.000 sin marca"
+    },
+    {
+      "nombre": "Caja: el arqueo fuera del tope se bloquea con el mismo mensaje",
+      "ok": false,
+      "detalle": "expect(locator).toBeVisible() failed\n\nLocator: getByText(/máximo que el sistema puede guardar/)\nExpected: visible\nTimeout: 10000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" getByText(/máximo que el sistema puede guardar/) with timeout 10000ms\n  - waiting for getByText(/máximo q"
+    },
+    {
+      "nombre": "API: sin sesión real la demo no escribe en el servidor (constancia)",
+      "ok": true,
+      "detalle": "401 sin sesión: la demo no escribe; el tope del servidor se verificó en local"
+    }
+  ],
+  "web": "https://app.moboss.online",
+  "api": "https://api.moboss.online",
+  "fecha": "2026-09-22T09:09:25.189Z"
+}
