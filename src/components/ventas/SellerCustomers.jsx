@@ -317,7 +317,7 @@ export default function SellerCustomers() {
       onDetalle={(row) => { setResumenCliente(null); setProfileTab('resumen'); setProfileCustomer(row) }}
     />
     {!templateData.loading && templateData.error && <Aviso tono="warn" className="p-3">No se pudieron cargar las plantillas. Podés seguir gestionando clientes.</Aviso>}
-    <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" className="max-w-2xl">
+    <Modal open={importAbierto} onClose={() => !importBusy && setImportAbierto(false)} title="Importar clientes" size="amplio">
       <form onSubmit={importar} className="space-y-3">
         <p className="text-sm text-mute">Pegá las filas del export (la primera línea son los encabezados). Se reconocen: Customer ID, First/Last Name, Email, Phone, Default Address (Company, Address1, Address2, City), Note y Tags. Los duplicados por RUC, teléfono o ID no se vuelven a crear.</p>
         <Textarea aria-label="Filas del export a importar" rows={10} className="font-mono text-xs" value={importTexto} onChange={(event) => setImportTexto(event.target.value)} placeholder={'Customer ID\tFirst Name\tLast Name\tEmail\t…'} />
