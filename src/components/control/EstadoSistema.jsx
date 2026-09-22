@@ -32,6 +32,7 @@ const TIPO_TRABAJO = {
   'liquidacion-comision': 'Liquidación de comisión',
   'etiquetas-stock': 'Etiquetas de unidades',
   'etiqueta-ubicacion': 'Etiqueta de ubicación',
+  'informe-dispositivo': 'Informe de dispositivo',
   prueba: 'Ticket de prueba',
   'prueba-corta': 'Prueba de corte',
 }

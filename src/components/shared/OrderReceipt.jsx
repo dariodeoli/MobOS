@@ -7,6 +7,7 @@ import { ahorroDeLinea } from '@/utils/precioLista'
 import { totalesPedido } from '@/utils/pedido'
 import { datosDeCodigo, formatoDeCodigo, ETIQUETA_FORMATO } from '@/lib/printing/codigos'
 import { contextoEtiquetaUnidad, datosEtiquetaUnidad } from '@/lib/printing/etiquetaUnidad'
+import { estadoGarantia, fechaVerificacionInforme } from '@/lib/printing/informeDispositivo'
 import QRCode from 'qrcode'
 import JsBarcode from 'jsbarcode'
 import { api } from '@/lib/api/client'
@@ -744,4 +745,60 @@ export async function buildResumenDiaHtml(resumen = {}, { format = 'a4' } = {}) 
 
 export async function printResumenDia(resumen, options = {}) {
   return printHtml(await buildResumenDiaHtml(resumen, options))
+}
+
+// Informe de dispositivo imprimible (#240): equipo, verificación IMEI,
+// inspección física, garantía y el QR al informe público. Usa los mismos
+// estilos que el resto (`styles(format)`) para A4 y rollo, con los datos
+// normalizados por `datosInformeDispositivo`.
+export async function buildInformeDispositivoHtml(datos = {}, { format = 'a4' } = {}) {
+  const inspeccion = datos.inspeccion || {}
+  const garantia = estadoGarantia(datos)
+  const logo = await getLogoDataUrl()
+  let qr = ''
+  try { if (datos.enlace) qr = await QRCode.toDataURL(datos.enlace, { errorCorrectionLevel: 'H', margin: 2, width: 320 }) } catch { /* el enlace queda impreso igual */ }
+  const fila = (etiqueta, valor) => (valor ? `<div class="fila-informe"><span>${escapeHtml(etiqueta)}</span><span>${escapeHtml(valor)}</span></div>` : '')
+  const verificacion = datos.verificacion
+    ? `${fila('Estado', `${datos.verificacion.etiqueta || 'No verificado'}${datos.verificacion.simulado ? ' · simulada' : ''}`)}
+       ${datos.verificacion.detalle ? `<p class="muted">${escapeHtml(datos.verificacion.detalle)}</p>` : ''}
+       ${(datos.verificacion.campos || []).length ? `<div class="campos-informe">${datos.verificacion.campos.map((campo) => `<div class="fila-informe"><span>${escapeHtml(campo.etiqueta)}</span><span>${escapeHtml(campo.valor)}</span></div>`).join('')}</div>` : ''}
+       <p class="small">Fuente ${escapeHtml(datos.verificacion.fuente || '')}${datos.verificacion.fechaTexto ? ` · ${escapeHtml(datos.verificacion.fechaTexto)}` : ''}</p>`
+    : '<p class="muted">Sin consulta de IMEI registrada.</p>'
+  const inspeccionHtml = `
+    ${fila('Verificado por', inspeccion.verificador)}
+    ${fila('Verificado el', fechaVerificacionInforme(datos))}
+    ${fila('Verificaciones', inspeccion.verificaciones ? String(inspeccion.verificaciones) : '')}
+    ${fila('Grado', inspeccion.grado || 'Sin grado asignado')}
+    ${fila('Checklist', inspeccion.total ? `${inspeccion.aprobados}/${inspeccion.total}${inspeccion.puntaje ? ` · puntaje ${inspeccion.puntaje}` : ''}` : '')}
+    ${!inspeccion.verificador && !inspeccion.grado ? '<p class="muted">Sin verificación física registrada.</p>' : ''}`
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de dispositivo ${escapeHtml(datos.serial || '')}</title><style>${styles(format)}
+    .fila-informe{display:flex;justify-content:space-between;gap:10px;margin:2px 0}
+    .fila-informe>span:first-child{color:#66707a}
+    .campos-informe{margin-top:6px;border-top:1px dashed #d5dbe0;padding-top:6px}
+    .qr{display:block;width:${format === 'a4' ? '26mm' : '28mm'};height:auto;margin:6px auto 3px}
+    ${format === 'a4' ? `.card{padding:8px 10px;margin:7px 0}.card .label{margin-bottom:2px}
+      .nofiscal{margin:8px 0;padding:5px 8px;font-size:10px}.brand{padding-bottom:6px;margin-bottom:8px}
+      h1{font-size:18px}body{font-size:12px;line-height:1.45}p{margin:4px 0}footer{margin-top:8px;padding-top:6px}` : ''}
+    @media print{.fila-informe>span:first-child{color:#000}}
+  </style></head><body>
+    ${header('Informe de dispositivo', `${datos.sucursal || ''}${datos.sucursal ? ' · ' : ''}Emitido ${datos.fechaEmision || ''}`, logo)}
+    <div class="nofiscal">Documento informativo · no válido como factura</div>
+    <div class="card"><div class="label">Equipo</div><div><strong>${escapeHtml(datos.modelo || 'Producto')}</strong>${datos.sku ? ` · ${escapeHtml(datos.sku)}` : ''}
+      ${fila('IMEI', datos.imei || '—')}
+      ${fila('Serial', datos.serialImpreso)}
+      ${fila('Condición', datos.condicion)}
+      ${fila('Batería', datos.bateria)}
+      ${fila('Ubicación', datos.ubicacion)}
+      ${fila('Proveedor', datos.proveedor)}
+    </div></div>
+    <div class="card"><div class="label">Verificación IMEI</div>${verificacion}</div>
+    <div class="card"><div class="label">Inspección física</div>${inspeccionHtml}</div>
+    <div class="card"><div class="label">Garantía de la tienda</div>${fila('Estado', garantia.etiqueta)}${fila('Vence el', garantia.hasta)}</div>
+    ${datos.enlace ? `<div class="card"><div class="label">Informe público</div>${qr ? `<img class="qr" src="${qr}" alt="QR del informe">` : ''}<p class="small">${escapeHtml(datos.enlace)}</p></div>` : ''}
+    <footer>Documento informativo. Generado por ${escapeHtml(APP_NAME)}${datos.emisor ? ` para ${escapeHtml(datos.emisor)}` : ''} · ${escapeHtml(datos.fechaEmision || '')}</footer>
+  </body></html>`
+}
+
+export async function printInformeDispositivo(datos, options = {}) {
+  return printHtml(await buildInformeDispositivoHtml(datos, options))
 }

@@ -372,6 +372,11 @@ categorías en `src/lib/categorias.js`; los objetos son presentacionales.
   armar el texto con `toLocaleString` o repetir la función local de precio.
 - **Escape de plantillas HTML:** `escapeHtml` (`utils/printHtml.js`) es la única
   definición para comprobantes, informes y tickets.
+- **Datos de documento imprimible:** cada documento arma sus datos en un módulo
+  puro y una sola definición alimenta ESC/POS y HTML (`datosEtiquetaUnidad` en
+  `src/lib/printing/etiquetaUnidad.js`, `datosInformeDispositivo` en
+  `src/lib/printing/informeDispositivo.js`); la pantalla no calcula campos del
+  papel.
 - **Enlace de WhatsApp:** `whatsappUrl(telefono, mensaje, countryCode)`
   (`utils/telefono.js`): número internacional + mensaje escapado, `''` si no
   hay teléfono. Prohibido armar `https://wa.me/…` por pantalla.
