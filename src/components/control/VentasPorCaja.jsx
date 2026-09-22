@@ -7,7 +7,7 @@ import { useUltimoUsado } from '@/hooks/useUltimoUsado'
 import { CLAVES_FIN, rangoDePreset } from '@/lib/finUltimoUsado'
 import { gs } from '@/utils/calculos'
 import { fechaCorta, fechaHoraCorta } from '@/utils/fecha'
-import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
+import { CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 import RangoFechas, { PRESETS, rangoDeParams } from '@/components/shared/RangoFechas'
 import { Aviso, Badge, Card, EmptyState, Skeleton } from '@/components/ui'
 import { cn } from '@/lib/utils'
@@ -83,7 +83,7 @@ export default function VentasPorCaja() {
               return (
                 <div key={sesion.id} data-testid="ventas-por-caja-fila" className={cn(GRID, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2')}>
                   <span className="min-w-0">
-                    <b className="block truncate text-[13px] font-semibold">{sesion.openedByName || 'Sin responsable'}</b>
+                    <b className={cn('block', CELDA_IDENTIDAD)}>{sesion.openedByName || 'Sin responsable'}</b>
                     <span className="mt-0.5 block truncate text-[11px] text-mute">
                       {abierta ? `Abierta ${fechaHoraCorta(sesion.openedAt)}` : `${fechaCorta(sesion.openedAt)} · cerró ${fechaHoraCorta(sesion.closedAt)}`}
                       {sesion.notes ? ` · ${sesion.notes}` : ''}

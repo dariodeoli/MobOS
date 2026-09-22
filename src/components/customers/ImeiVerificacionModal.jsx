@@ -5,6 +5,7 @@ import { api } from '@/lib/api/client'
 import { demoConsultaImei, htmlComprobanteImei, imeiValido, resumenImei, textoNota } from '@/lib/imeiComprobante'
 import { ticketVerificacionImei } from '@/lib/printing/tickets'
 import { imprimirConDialogo, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
+import { PIE_ACCIONES } from '@/components/shared/formulario'
 
 // Verificación de IMEI del cliente (#203): muestra el resultado que ya consultó
 // INV (#193/#200) con la info mínima (estado, fecha y fuente IMEIcheck.net) y
@@ -101,7 +102,7 @@ export default function ImeiVerificacionModal({ open, onClose, imei = '', client
               <p className="mt-2 text-[11px] text-mute">Comprobante informativo, sin costos ni datos internos.</p>
             </div>
 
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className={PIE_ACCIONES}>
               <Button type="button" variant="outline" disabled={busy} onClick={() => adjuntar('comentario')}>
                 <Icon name="edit" className="h-4 w-4" />
                 Adjuntar al comentario

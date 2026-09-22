@@ -8,6 +8,8 @@ import { isDemoRuntime } from '@/lib/demoMode'
 import { normalizarModelo, valorSugerido } from '@/utils/tradeInCheckout'
 import { SellerSection } from './SellerData'
 import SellerPromotions from './SellerPromotions'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { cn } from '@/lib/utils'
 
 const CONDICIONES = [['USED', 'Seminuevo'], ['NEW', 'Nuevo'], ['REFURBISHED', 'Reacondicionado']]
 
@@ -54,11 +56,11 @@ export default function SellerTools({ vista, onCargarVenta }) {
         <span className="grid h-9 w-9 place-items-center rounded-xl bg-fono/15 text-fono-light"><Icon name="refresh" className="h-4 w-4" /></span>
         <div><p className="text-sm font-bold">Canje como parte de pago</p><p className="text-[11px] text-mute">El valor sugerido es una referencia editable; vale el valor acordado con el cliente.</p></div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={GRILLA_DOS_COLUMNAS}>
         <label className="block space-y-1.5 text-xs text-mute">Modelo y capacidad<Input required maxLength={150} value={model} onChange={(event) => setModel(event.target.value)} placeholder="Ej. iPhone 13 128GB" /></label>
         <label className="block space-y-1.5 text-xs text-mute">IMEI / serial<SerialField required value={imei} onChange={setImei} placeholder="35…" /></label>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={GRILLA_DOS_COLUMNAS}>
         <label className="block space-y-1.5 text-xs text-mute">Condición<Select value={condition} onChange={(event) => setCondition(event.target.value)}>{CONDICIONES.map(([valor, etiqueta]) => <option key={valor} value={valor}>{etiqueta}</option>)}</Select></label>
         <div className="self-end text-xs text-mute">
           {sugerenciaEstado === 'buscando' && <p role="status">Buscando valor sugerido…</p>}
@@ -72,7 +74,7 @@ export default function SellerTools({ vista, onCargarVenta }) {
         </div>
       </div>
       <label className="block space-y-1.5 text-xs text-mute">Detalle de la condición<Textarea required maxLength={2000} value={conditionNotes} onChange={(event) => setConditionNotes(event.target.value)} placeholder="Estado, accesorios y reparaciones pendientes" /></label>
-      <div className="grid gap-3 sm:grid-cols-2 sm:items-end">
+      <div className={cn('sm:items-end', GRILLA_DOS_COLUMNAS)}>
         <label className="block space-y-1.5 text-xs text-mute">Valor de toma acordado (Gs)<MoneyInput required value={value} onValueChange={setValue} placeholder="0" /></label>
         <p className="rounded-xl border border-ink-600 bg-ink-800/60 px-3 py-2 text-sm">Valor acordado: <b className="tabular-nums text-fono-light">{valid ? gs(Number(value)) : '—'}</b></p>
       </div>

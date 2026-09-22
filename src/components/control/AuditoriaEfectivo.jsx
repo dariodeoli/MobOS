@@ -10,6 +10,7 @@ import { fechaCorta, fechaHora } from '@/utils/fecha'
 import { cn } from '@/lib/utils'
 import { Aviso, Badge, Button, Card, EmptyState, Input, Select } from '@/components/ui'
 import { CELDA_DATO, CELDA_ENCABEZADO, ROTULO_DATO } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 // Auditoría de efectivo (#161): efectivo inicial y recibido por sesión, cada
 // operación (pedido, cliente, fecha/hora, monto, vendedor y nota) con su marca
 // verificada/pendiente/con diferencia y observación, sobre un rango de fechas.
@@ -116,7 +117,7 @@ export default function AuditoriaEfectivo() {
       </div>
       {error && <Aviso tono="error">{error}</Aviso>}
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={cn('lg:grid-cols-4', GRILLA_DOS_COLUMNAS_COMPACTA)}>
         <div className="rounded-xl border border-ink-600 p-3"><p className={ROTULO_DATO}>Efectivo inicial</p><strong className="mt-1 block tabular-nums">{formatGs(resumen.aperturaPyg || 0)}</strong><p className="mt-0.5 text-[11px] text-mute">{data?.sesiones?.length || 0} sesión(es)</p></div>
         <div className="rounded-xl border border-ink-600 p-3"><p className={ROTULO_DATO}>Efectivo recibido</p><strong className="mt-1 block tabular-nums text-ok">{formatGs(resumen.recibidoPyg || 0)}</strong><p className="mt-0.5 text-[11px] text-mute">{resumen.operaciones || 0} operación(es)</p></div>
         <div className="rounded-xl border border-ink-600 p-3"><p className={ROTULO_DATO}>Esperado en caja</p><strong className="mt-1 block tabular-nums">{formatGs(resumen.esperadoPyg || 0)}</strong><p className="mt-0.5 text-[11px] text-mute">Apertura + efectivo confirmado</p></div>

@@ -18,7 +18,8 @@ import { gs } from '@/utils/calculos'
 import { getDemoWarranties, saveDemoWarranties } from '@/lib/demoWarranties'
 import { cn } from '@/lib/utils'
 import SerialTexto from '@/components/shared/SerialTexto'
-import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 const STATES = [['RECEIVED', 'Recibido'], ['DIAGNOSIS', 'En diagnóstico'], ['READY', 'Listo'], ['DELIVERED', 'Entregado']]
 const label = Object.fromEntries(STATES)
 const blank = { customerName: '', serial: '', description: '', responsibleName: '', technicianName: '', diagnosis: '', resolution: '', repairCostPyg: '', partsText: '', photosText: '', branchId: '', warrantyDays: '', expiresAt: '', coverage: '', exclusions: '' }
@@ -162,7 +163,7 @@ export default function Garantias() {
           const serial = String(item.serial || '')
           const detalle = [item.diagnosis ? `Diagnóstico: ${item.diagnosis}` : '', item.resolution ? `Resolución: ${item.resolution}` : '', item.repairCostPyg ? `Costo: ${gs(item.repairCostPyg)}` : '', item.responsibleName ? `Resp: ${item.responsibleName}` : '', item.parts?.length ? `Repuestos: ${item.parts.join(', ')}` : '', item.photos?.length ? `${item.photos.length} ${item.photos.length === 1 ? 'foto' : 'fotos'}` : ''].filter(Boolean).join(' · ')
           return <div key={item.id} data-testid="garantia-fila" className={cn(GRID_GARANTIAS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
-            <span className="truncate text-sm font-semibold" title={item.customerName}>{item.customerName || 'Sin cliente'}</span>
+            <span className={CELDA_IDENTIDAD_GRANDE} title={item.customerName}>{item.customerName || 'Sin cliente'}</span>
             <SerialTexto serial={serial} className="truncate text-[11px] text-fono-light" />
             <span className={CELDA_DATO} title={[item.description, detalle].filter(Boolean).join(' · ')}>{item.description || '—'}{detalle ? <span className="text-mute/70"> · {detalle}</span> : null}</span>
             <span className={CELDA_DATO}>{item.technicianName || '—'}</span>
@@ -191,7 +192,7 @@ export default function Garantias() {
         {fotosCargando && <div className="space-y-2"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>}
         {!fotosCargando && !fotos.length && <EmptyState compact icon="image" title="Sin fotos para este caso." description="Subí la primera foto para dejar evidencia del estado del equipo." />}
         {fotos.length > 0 && (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className={GRILLA_DOS_COLUMNAS_COMPACTA}>
             {fotos.map(foto => (
               <a key={foto.id} href={`${API_URL}/api/warranties/${fotosDe.id}/photos/${foto.id}`} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-2 rounded-lg border border-ink-600 px-3 py-2 text-sm text-fore transition hover:border-fono hover:bg-fono/5">
                 <span className="min-w-0 truncate">{foto.label || foto.fileName}</span>

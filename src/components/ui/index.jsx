@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { formatGs, formatGsInput, parseGsInput, formatUsdInput, parseUsdInput, excedeMonto, limiteMonto, LIMITE_MONTO_GENERAL, largoMaximoMonto } from '@/utils/moneda'
 import { TAMANOS_CAMPO } from '@/utils/tamanos'
 import Icon from '@/components/shared/Icon'
+import { PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
 
 // ── Button ──────────────────────────────────────────────────────────
 const VARIANTS = {
@@ -281,7 +282,7 @@ export function ConfirmDialog({
           <Icon name={variant === 'danger' ? 'alert' : 'check'} className="h-5 w-5" />
         </div>
         <p className="text-sm leading-6 text-mute">{description}</p>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className={PIE_ACCIONES_REVERSO}>
           <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>Cancelar</Button>
           <Button type="button" variant={variant} onClick={onConfirm} disabled={busy}>{busy ? 'Procesando…' : confirmLabel}</Button>
         </div>

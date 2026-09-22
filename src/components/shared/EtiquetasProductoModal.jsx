@@ -7,6 +7,9 @@ import { printHtml } from '@/utils/printHtml'
 import { configImpresora, imprimirDocumento, puedeCaerAlDialogo } from '@/lib/printing/agent'
 import { ticketEtiquetasProducto } from '@/lib/printing/tickets'
 import { buildProductLabelsHtml } from '@/components/shared/OrderReceipt'
+import { CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
+import { cn } from '@/lib/utils'
+import { PIE_ACCIONES } from '@/components/shared/formulario'
 
 // Etiquetas de producto/góndola: se eligen productos (o un rango por búsqueda),
 // se define cuántas etiquetas por producto y salen por la térmica configurada
@@ -90,7 +93,7 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
                 <label className="flex min-w-0 flex-1 items-center gap-2.5">
                   <input type="checkbox" className="h-4 w-4 shrink-0 accent-fono" checked={marcado} onChange={() => alternar(id)} aria-label={`Seleccionar ${nombreDe(product)}`} />
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold" title={nombreDe(product)}>{nombreDe(product)}</span>
+                    <span className={cn('block', CELDA_IDENTIDAD_GRANDE)} title={nombreDe(product)}>{nombreDe(product)}</span>
                     <span className="block truncate text-[11px] text-mute">{product?.sku ? `SKU ${product.sku}` : 'Sin SKU'} · {precio > 0 ? gs(precio) : 'sin precio'}</span>
                   </span>
                 </label>
@@ -104,7 +107,7 @@ export default function EtiquetasProductoModal({ open, onClose, productos = [], 
           {!visibles.length && <p className="px-2 py-6 text-center text-sm text-mute">Ningún producto coincide con la búsqueda.</p>}
         </div>
         {items.length > 0 && <p className="text-xs text-mute">{items.length} producto(s) · {totalEtiquetas} etiqueta(s) en total.</p>}
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className={PIE_ACCIONES}>
           <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
           <Button type="button" variant="outline" disabled={!items.length || enviando} onClick={conDialogo}><Icon name="download" className="h-4 w-4" />Descargar PDF</Button>
           <Button type="button" disabled={!items.length || enviando} onClick={imprimir}><Icon name="printer" className="h-4 w-4" />{enviando ? 'Enviando…' : 'Imprimir etiquetas'}</Button>

@@ -6,6 +6,8 @@ import { publicUrls } from '@/lib/urls'
 import { PinInput } from '@/components/ui'
 import ThemeLogo from '@/components/app/ThemeLogo'
 import ProductFooter from '@/components/app/ProductFooter'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { cn } from '@/lib/utils'
 
 const demoProfiles = [
   {
@@ -109,7 +111,7 @@ export default function DemoAccess() {
               Elegí un perfil y entrá directo. Todo queda guardado solo en este navegador.
             </p>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <div className={cn('mt-5 lg:grid-cols-1 xl:grid-cols-2', GRILLA_DOS_COLUMNAS)}>
               {demoProfiles.map((profile) => (
                 <button
                   type="button"

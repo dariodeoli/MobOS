@@ -566,7 +566,7 @@ export default function PedidoDetalle({ row, esDemo, customerOrderCount = 0, onC
             {!esDemo && (
               <>
                 <form onSubmit={enviarComentario} className="mt-3 space-y-2">
-                  <textarea aria-label="Comentario del pedido" rows={2} maxLength={2000} value={comentario} onChange={event => setComentario(event.target.value)} placeholder="Escribí un comentario para el equipo… Usá @ para mencionar" className="w-full rounded-xl border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-fore outline-none transition focus:border-fono" />
+                  <Textarea aria-label="Comentario del pedido" rows={2} maxLength={2000} value={comentario} onChange={event => setComentario(event.target.value)} placeholder="Escribí un comentario para el equipo… Usá @ para mencionar" className="rounded-xl px-3 py-2 text-sm" />
                   {sugerenciasMencion.length > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-[11px] text-mute">Mencionar:</span>

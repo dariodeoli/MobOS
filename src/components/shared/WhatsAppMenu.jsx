@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api/client'
 import { useSesion } from '@/lib/sesion'
 import Icon from '@/components/shared/Icon'
+import { Textarea } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { whatsappUrl } from '@/utils/telefono'
 import { renderPlantilla } from '@/lib/whatsappPlantillas'
@@ -192,12 +193,12 @@ export default function WhatsAppMenu({
           )}
           {elegida && !error && (
             <div className="mt-1.5 space-y-1.5 border-t border-ink-600 pt-1.5">
-              <textarea
+              <Textarea
                 aria-label="Mensaje de WhatsApp"
                 rows={5}
                 value={mensajeEditado}
                 onChange={(event) => setMensajeEditado(event.target.value)}
-                className="w-full resize-none rounded-lg border border-ink-500 bg-ink-800 px-2.5 py-2 text-xs leading-5 text-fore outline-none transition placeholder:text-mute/60 focus:border-fono focus:ring-1 focus:ring-fono/40"
+                className="px-2.5 py-2 text-xs leading-5"
               />
               <div className="flex items-center justify-between gap-2">
                 <button

@@ -21,7 +21,7 @@ import {
   useToast,
 } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import { CELDA_DATO, CELDA_ENCABEZADO, ROTULO_SECCION } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD_GRANDE, ROTULO_SECCION } from '@/components/shared/tabla'
 // Tabla compacta: una fila por solicitud y las acciones de aprobación en la
 // misma línea. El detalle (autorizado, quién resolvió, notas) va en el title.
 const GRID_AUTORIZACIONES =
@@ -381,7 +381,7 @@ export default function Autorizaciones() {
                       : 'border-ink-600 bg-ink-800/40',
                   )}
                 >
-                  <span className="truncate text-sm font-semibold" title={detalle}>
+                  <span className={CELDA_IDENTIDAD_GRANDE} title={detalle}>
                     {row.customer?.name ||
                       sujetoDe(row) ||
                       (row.kind === 'DISCOUNT' || row.kind === 'BELOW_LIST_PRICE'

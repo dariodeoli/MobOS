@@ -5,8 +5,7 @@ import { Aviso, Badge, Card, EmptyState, Select, Skeleton } from '@/components/u
 import SearchField from '@/components/shared/SearchField'
 import { descargarCsv } from '@/utils/descargarCsv'
 import { cn } from '@/lib/utils'
-import { CELDA_ENCABEZADO } from '@/components/shared/tabla'
-
+import { CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 // Pantalla real de auditoría: el registro que escribe el backend en cada
 // operación. Antes solo existía en la demo; en producción no había dónde verlo.
 
@@ -395,7 +394,7 @@ export default function Auditoria() {
                 className={cn(GRID_AUDITORIA, 'cursor-pointer rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40', abierto && 'border-fono/40')}
               >
                 <span className="min-w-0"><Badge color={tone} className="w-fit max-w-full truncate whitespace-nowrap px-1.5 py-0.5 text-[10px]" title={row.action}>{label}</Badge></span>
-                <span className="truncate text-[13px] font-semibold" title={row.user?.name || undefined}>{row.user?.name || 'Sistema'}</span>
+                <span className={CELDA_IDENTIDAD} title={row.user?.name || undefined}>{row.user?.name || 'Sistema'}</span>
                 <span className="truncate text-[11px] text-mute" title={row.entity}>{ENTIDAD_LABEL[row.entity] || row.entity}</span>
                 <span className="truncate text-[11px] text-mute" title={row.entityId || undefined}>{detalle || row.entityId || '—'}</span>
                 <span className="truncate text-right text-[11px] text-mute">{fechaHora(row.createdAt)}</span>

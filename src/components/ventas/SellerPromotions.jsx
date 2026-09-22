@@ -9,7 +9,7 @@ import ProductCombobox from '@/components/shared/ProductCombobox'
 import PercentField, { formatPercent, parsePercent } from '@/components/shared/PercentField'
 import { cn } from '@/lib/utils'
 import { SellerSection, SellerFeedback, useSellerData } from './SellerData'
-import { CELDA_DATO, CELDA_ENCABEZADO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_ENCABEZADO, CELDA_IDENTIDAD } from '@/components/shared/tabla'
 // Tabla compacta: una fila por cupón, con vigencia y estado en su columna.
 const GRID_PROMOS = 'grid min-w-[56rem] grid-cols-[6.5rem_minmax(8rem,1.2fr)_7rem_minmax(8rem,1.2fr)_6.5rem_6.5rem_6.5rem_8rem] items-center gap-x-2'
 const fechaCorta = (value) => {
@@ -63,7 +63,7 @@ export default function SellerPromotions() {
         const alcance = p.productId ? (products.find(product => product.id === p.productId)?.nombre || 'Producto específico') : 'Todos los productos'
         return <div key={p.id} data-testid="promocion-fila" className={cn(GRID_PROMOS, 'rounded-xl border border-ink-600 bg-ink-800/40 px-3.5 py-2 transition hover:border-fono/40')}>
           <span className="truncate font-mono text-[11px] font-bold text-fono-light" title={p.code}>{p.code}</span>
-          <span className="truncate text-[13px] font-semibold" title={p.name}>{p.name}</span>
+          <span className={CELDA_IDENTIDAD} title={p.name}>{p.name}</span>
           <span className="truncate text-xs tabular-nums text-mute">{p.kind === 'PERCENT' ? `${formatPercent(p.value)}%` : gs(p.value)}</span>
           <span className={CELDA_DATO} title={alcance}>{alcance}</span>
           <span className={CELDA_DATO}>{fechaCorta(p.startsAt)}</span>

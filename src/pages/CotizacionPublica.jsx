@@ -5,7 +5,8 @@ import { API_URL } from '@/lib/api/client'
 import { varianteDeTema } from '@/lib/tenantLogo'
 import { gs } from '@/utils/calculos'
 import Icon from '@/components/shared/Icon'
-import { Aviso } from '@/components/ui'
+import { Aviso, Textarea } from '@/components/ui'
+import { PIE_ACCIONES } from '@/components/shared/formulario'
 
 const ABIERTAS = ['DRAFT', 'SENT']
 const ESTADO = { DRAFT: 'Pendiente de confirmar', SENT: 'Pendiente de confirmar', ACCEPTED: 'Aceptada', REJECTED: 'Rechazada', CONVERTED: 'Convertida en pedido', EXPIRED: 'Vencida', CANCELLED: 'Cancelada' }
@@ -147,9 +148,9 @@ export default function CotizacionPublica() {
                 {rechazando ? (
                   <div className="mt-4 space-y-3">
                     <label className="block text-xs text-mute">Motivo del rechazo (opcional)
-                      <textarea rows={3} maxLength={500} value={motivo} onChange={event => setMotivo(event.target.value)} className="mt-1.5 w-full rounded-xl border border-ink-500 bg-ink-800 px-3 py-2 text-sm text-fore outline-none transition focus:border-fono" placeholder="Contanos por qué no avanzás con esta cotización" />
+                      <Textarea rows={3} maxLength={500} value={motivo} onChange={event => setMotivo(event.target.value)} className="mt-1.5 rounded-xl px-3 py-2 text-sm" placeholder="Contanos por qué no avanzás con esta cotización" />
                     </label>
-                    <div className="flex flex-wrap justify-end gap-2">
+                    <div className={PIE_ACCIONES}>
                       <button type="button" disabled={busy} onClick={() => { setRechazando(false); setMotivo('') }} className="rounded-xl border border-ink-500 px-4 py-2 text-sm font-semibold text-mute transition hover:border-fono hover:text-fore disabled:opacity-60">Volver</button>
                       <button type="button" disabled={busy} onClick={() => resolver('reject')} className="rounded-xl border border-bad/40 bg-bad/10 px-4 py-2 text-sm font-semibold text-bad transition hover:bg-bad/20 disabled:opacity-60">Confirmar rechazo</button>
                     </div>

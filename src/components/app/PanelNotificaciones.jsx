@@ -1,6 +1,6 @@
 import Icon from '@/components/shared/Icon'
 import { Aviso, Button, EmptyState, Modal, Skeleton } from '@/components/ui'
-import { CELDA_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 
 const ICONO = {
@@ -66,7 +66,7 @@ export default function PanelNotificaciones({ open, onClose, items, cargando, er
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-semibold">{item.title}</span>
+                    <span className={CELDA_IDENTIDAD_GRANDE}>{item.title}</span>
                     <span className="shrink-0 text-[10px] text-mute">{hace(item.at)}</span>
                   </span>
                   <span className={cn('mt-0.5 block', CELDA_DATO)}>{item.detail}</span>

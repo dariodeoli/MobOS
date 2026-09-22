@@ -168,17 +168,20 @@ patrón de uso de cada familia y un ejemplo corto.
   una sola vez en `src/components/shared/tabla.js`:
   `ROTULO_DATO` (etiqueta de dato, 10 px), `CELDA_ENCABEZADO` (encabezado de
   grilla en una línea, `truncate` + `ROTULO_DATO`), `ROTULO_SECCION` (título
-  de sección, 12 px), `CELDA_DATO` (dato secundario truncado) y `CELDA_NUMERO`
-  (número o cantidad: `text-right tabular-nums`). El **dinero** va con
-  `ui/CeldaMoneda` (renderiza `Money`), no con la clase. Lo que agrega layout va
-  con `cn(objeto, '…')`; prohibido copiar las clases o crear alias locales
-  (`CELDA_INV`, `celda`, …).
+  de sección, 12 px), `CELDA_DATO` (dato secundario truncado), `CELDA_NUMERO`
+  (número o cantidad: `text-right tabular-nums`) y `CELDA_IDENTIDAD` /
+  `CELDA_IDENTIDAD_GRANDE` (nombre/identidad de la fila, 13 px y 14 px). El
+  **dinero** va con `ui/CeldaMoneda` (renderiza `Money`), no con la clase. Lo
+  que agrega layout va con `cn(objeto, '…')`; prohibido copiar las clases o
+  crear alias locales (`CELDA_INV`, `celda`, …).
 
 > Referencia MobOS: `Badge`, `Dot`, `Stat`, `Card`, `ListGridToggle`,
 > `SeccionColapsable`, `FilaDato`, `CeldaMoneda`, `BarraProgreso`,
 > `ComprobantePreview`, `Cronologia`, `src/components/shared/tabla.js`
 > (`ROTULO_DATO`, `CELDA_ENCABEZADO`, `ROTULO_SECCION`, `CELDA_DATO`,
-> `CELDA_NUMERO`), `src/lib/estadosPedido.js`
+> `CELDA_NUMERO`, `CELDA_IDENTIDAD`, `CELDA_IDENTIDAD_GRANDE`),
+> `src/components/shared/formulario.js` (`GRILLA_DOS_COLUMNAS`, `PIE_ACCIONES`),
+> `src/lib/estadosPedido.js`
 > (estados de pedido/entrega/garantía con su tono para las páginas del cliente).
 
 ## 4. Estados y avisos — únicos por concepto

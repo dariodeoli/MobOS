@@ -31,7 +31,7 @@ import { copiarAlPortapapeles } from '@/utils/portapapeles'
 import { descargarArchivo } from '@/utils/descargarArchivo'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
-
+import { GRILLA_DOS_COLUMNAS, PIE_ACCIONES, PIE_ACCIONES_REVERSO } from '@/components/shared/formulario'
 async function copiarValor(toast, valor, etiqueta) {
   if (!valor) return
   const copiado = await copiarAlPortapapeles(valor)
@@ -260,7 +260,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
             <p className="mt-1 text-sm text-mute">Por encima de estos montos, los roles operativos (cajera, vendedor) necesitan una autorización aprobada de gerencia para registrar un gasto o una compra a crédito. La venta bajo lista hasta el porcentaje indicado no pide autorización; más abajo, sí. El dueño y gerencia no la necesitan. La fidelización acredita al cliente, por cada venta, el porcentaje indicado del total como puntos canjeables por saldo a favor (1 punto = 1 Gs.); 0 la apaga.</p>
             {demo && <p className="mt-1 rounded-lg border border-fono/30 bg-fono/5 px-3 py-2 text-xs text-fono-light">Demo: los cambios se guardan solo en este navegador y el seguro se aplica al margen que ves en Análisis → Ganancias.</p>}
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={GRILLA_DOS_COLUMNAS}>
             <FormField label="Gasto sin autorización (Gs)" htmlFor="limite-gasto">
               <MoneyInput id="limite-gasto" disabled={busy} value={limiteGasto} onValueChange={setLimiteGasto} placeholder="1.000.000" />
             </FormField>
@@ -296,7 +296,7 @@ export default function Config({ seccion = 'negocio' } = {}) {
             <p className="mt-1 text-sm text-mute">Se muestra en el encabezado de los comprobantes. Recomendado: PNG con <b className="text-fore">fondo transparente</b>, 1024×1024 px (1600×600 si es horizontal) y hasta 1 MiB. Para modo claro y oscuro conviene el <b className="text-fore">logo oscuro</b> en fondo claro y el <b className="text-fore">logo claro</b> en fondo oscuro.</p>
             <Button type="button" variant="ghost" className="mt-1 h-auto px-0 py-1 text-xs text-fono-light" onClick={copiarPrompt}><Icon name="copy" className="h-3.5 w-3.5" />Copiar prompt para generar el logo</Button>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={GRILLA_DOS_COLUMNAS}>
             {[['light', 'Modo claro', 'Logo oscuro, para fondos claros'], ['dark', 'Modo oscuro', 'Logo claro, para fondos oscuros']].map(([variant, titulo, ayuda]) => (
               <div key={variant} className="rounded-xl border border-ink-600 p-3">
                 <p className="text-sm font-medium">{titulo}</p>
@@ -506,7 +506,7 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
             <FormField label="Dirección" htmlFor="edit-direccion">
               <Input id="edit-direccion" maxLength={400} disabled={busy} value={form?.address || ''} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} placeholder="Dirección del negocio (para el comprobante)" />
             </FormField>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={GRILLA_DOS_COLUMNAS}>
               <FormField label="Ciudad" hint={form?.department ? `Departamento: ${form.department}` : undefined}>
                 <CityAutocomplete disabled={busy} value={form?.city || ''} onSelect={(city, department) => setForm(current => ({ ...current, city, department }))} placeholder="Ciudad del negocio" />
               </FormField>
@@ -525,7 +525,7 @@ function IdentidadCuenta({ reauthValidUntil, onReauthValid, tenant }) {
               </FormField>
             )}
             {error && <Aviso tono="error">{error}</Aviso>}
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className={PIE_ACCIONES}>
               <Button type="button" variant="ghost" disabled={busy} onClick={restablecer}>Restablecer</Button>
               <Button type="submit" disabled={busy || !form?.name?.trim() || !form?.email?.trim()}>{busy ? 'Guardando…' : 'Guardar cambios'}</Button>
             </div>
@@ -840,7 +840,7 @@ function DialogoDestructivo({ open, title, description, palabra, necesitaClave =
           <Input id="dialogo-palabra" autoFocus={!necesitaClave} disabled={busy} value={palabraActual} onChange={(event) => setPalabraActual(event.target.value)} placeholder={palabra} />
         </div>
         {error && <Aviso tono="error">{error}</Aviso>}
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className={PIE_ACCIONES_REVERSO}>
           <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>Cancelar</Button>
           <Button type="button" variant="danger" onClick={() => onConfirm(necesitaClave ? { password: clave } : {})} disabled={busy || !lista}>{busy ? 'Procesando…' : confirmLabel}</Button>
         </div>
@@ -941,7 +941,7 @@ function SeccionSucursales() {
             <FormField label="Nombre" htmlFor="sucursal-nombre">
               <Input id="sucursal-nombre" required maxLength={100} disabled={busy} value={form?.name || ''} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Nombre de la sucursal" />
             </FormField>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={GRILLA_DOS_COLUMNAS}>
               <FormField label="Teléfono (opcional)">
                 <PhoneField disabled={busy} countryCode={form?.countryCode || '+595'} phone={form?.phone || ''} onCountryCodeChange={countryCode => setForm(current => ({ ...current, countryCode }))} onChange={phone => setForm(current => ({ ...current, phone }))} placeholder="Teléfono" />
               </FormField>
@@ -956,7 +956,7 @@ function SeccionSucursales() {
               <Input id="sucursal-direccion" maxLength={200} disabled={busy} value={form?.address || ''} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} placeholder="Dirección completa" />
             </FormField>
             {error && <Aviso tono="error">{error}</Aviso>}
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className={PIE_ACCIONES}>
               {form?.id && <Button type="button" variant="ghost" disabled={busy} onClick={() => abrir(null)}>Cancelar edición</Button>}
               <Button type="submit" disabled={busy || !form?.name?.trim()}>{busy ? 'Guardando…' : form?.id ? 'Guardar cambios' : 'Crear sucursal'}</Button>
             </div>

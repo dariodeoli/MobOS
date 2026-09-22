@@ -10,6 +10,8 @@ import { api } from '@/lib/api/client'
 import { num } from '@/utils/calculos'
 import SerialTexto from '@/components/shared/SerialTexto'
 import { ROTULO_SECCION } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
+import { cn } from '@/lib/utils'
 
 const CONDITION = { NEW: 'Nuevo', USED: 'Seminuevo', REFURBISHED: 'Reacondicionado' }
 const DESTINATION = { NORMAL: 'Normal', OFFER: 'Oferta', WHOLESALE: 'Mayorista' }
@@ -145,7 +147,7 @@ export default function ProductoDetalle({ product, canManage, esDemo, onClose, o
         {editando && (
           <section className="rounded-2xl border border-fono/25 bg-fono/5 p-4">
             <h3 className={ROTULO_SECCION}>Editar producto</h3>
-            <form onSubmit={guardarEdicion} className="mt-3 grid gap-3 sm:grid-cols-2">
+            <form onSubmit={guardarEdicion} className={cn('mt-3', GRILLA_DOS_COLUMNAS)}>
               <div><Label htmlFor="categoria">Categoría</Label><Select id="categoria" value={form.categoria} onChange={event => setForm(current => ({ ...current, categoria: event.target.value }))}>{CATEGORIAS.map(categoria => <option key={categoria} value={categoria}>{categoria}</option>)}{!CATEGORIAS.includes(form.categoria) && form.categoria && <option value={form.categoria}>{form.categoria}</option>}</Select></div>
               <div><Label htmlFor="condicion">Condición</Label><Select id="condicion" value={form.condicion} onChange={event => setForm(current => ({ ...current, condicion: event.target.value }))}>{Object.entries(CONDITION).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div>
               <div><Label htmlFor="modelo">Modelo</Label><Input id="modelo" value={form.modelo} onChange={event => setForm(current => ({ ...current, modelo: event.target.value }))} placeholder="Ej. iPhone 15 Pro Max" /></div>

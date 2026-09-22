@@ -29,7 +29,8 @@ import MedioPago from '@/components/shared/MedioPago'
 import Icon from '@/components/shared/Icon'
 import { Card, Badge, Dot, EmptyState, Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import { CELDA_DATO, ROTULO_DATO } from '@/components/shared/tabla'
+import { CELDA_DATO, CELDA_IDENTIDAD_GRANDE, ROTULO_DATO } from '@/components/shared/tabla'
+import { GRILLA_DOS_COLUMNAS_COMPACTA } from '@/components/shared/formulario'
 // Products at or below this stock count are flagged in the low-stock widget.
 const UMBRAL_STOCK_BAJO = 3
 
@@ -279,7 +280,7 @@ function CardStock({ inventario }) {
         {celdas.map(([label, valor]) => (
           <div key={label} className="rounded-lg border border-ink-600 bg-ink-800/40 px-3 py-2">
             <div className={ROTULO_DATO}>{label}</div>
-            <div className="mt-0.5 truncate text-sm font-semibold tabular-nums">{valor}</div>
+            <div className={cn('mt-0.5 tabular-nums', CELDA_IDENTIDAD_GRANDE)}>{valor}</div>
           </div>
         ))}
       </div>
@@ -654,7 +655,7 @@ export default function Resumen() {
             Todos los productos tienen stock suficiente
           </div>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className={GRILLA_DOS_COLUMNAS_COMPACTA}>
             {stockBajo.map(p => {
               const stock = num(p.stock)
               return (

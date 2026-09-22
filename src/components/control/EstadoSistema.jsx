@@ -12,6 +12,7 @@ import { configImpresora, estadoAgente } from '@/lib/printing/agent'
 import { colorTrabajo, etiquetaTrabajo } from '@/lib/printing/estadoImpresoras'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 
 // Estado del sistema: la misma lista de chequeos que se corre antes de entregar
 // una versión, dentro de la app, para ver de un vistazo qué configuración falta.
@@ -230,12 +231,12 @@ export default function EstadoSistema() {
         </div>
 
         {cargando && !sincronizacion ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /></div>
+          <div className={cn('lg:grid-cols-4', GRILLA_DOS_COLUMNAS)}><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /></div>
         ) : !sincronizacion ? (
           errorSync && <p role="alert" className="text-sm text-bad">{errorSync}</p>
         ) : (
           <>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className={cn('lg:grid-cols-4', GRILLA_DOS_COLUMNAS)}>
               <TarjetaSync
                 titulo="Puentes"
                 tono={tonoPuentes}

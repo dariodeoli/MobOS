@@ -7,6 +7,7 @@ import { useSesion } from '@/lib/sesion'
 import EncabezadoBloque from './EncabezadoBloque'
 import { CELDA_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
+import { GRILLA_DOS_COLUMNAS } from '@/components/shared/formulario'
 
 // La venta en una sola pantalla: para quién es y qué se vende. El cliente
 // primero (define la lista de precios) y después el catálogo, que agrega al
@@ -100,7 +101,7 @@ export default function PasoProductos({
               placeholder="Nombre base (ej: Protector 17 Air)"
               autoCapitalize="words"
             />
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={GRILLA_DOS_COLUMNAS}>
               <label className="block text-xs text-mute">
                 Categoría
                 <Select
