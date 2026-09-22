@@ -11,6 +11,17 @@ cada integración, y todo handover/cierre de issue incluye un bloque
 
 ---
 
+## v1.0.140 — 2026-09-22
+- **POS:** el carrito arranca con **líneas colapsadas, IMEI en línea y flecha** para expandir (#225); se quitó el campo **Fecha** (la venta es del día) (#229); la **entrega va antes del cobro** con su costo a la vista (#230); **promociones en grilla** de hasta 4 campos por fila (#238).
+- **Inventario:** la tabla de unidades queda en **una sola fila** (producto + IMEI), con **foto del verificador** y **Estado centrado** (#239); la pantalla de **Alertas** vuelve a abrir en producción (#226); si el proveedor de IMEI **no responde**, la consulta queda **«a conciliar»** con su costo estimado (#233) y una confirmación AEX ambigua **se concilia sin reintentar** (#231); los datos del demo ya no dicen "demo" (**Aurora Móviles**, prefijo **AUR**) con guarda automática (#222).
+- **Finanzas:** **montos consistentes** con el tope real que el sistema puede guardar (bloqueo y mensaje claros) y **analytics de caja** por turno. (#148)
+- **Clientes:** la lista queda **estilo Pedidos**, con **resumen rápido** al pasar por la fila y detalle compacto (#236).
+- **Diseño:** **contraste AA** de los tokens de texto en tema claro (#176) y restos del shell ordenados (#180).
+- **Plataforma:** el menú de tres puntos ya no permite **eliminar la cuenta de un toque** (va a Configuración con confirmación fuerte) y no repite tema/cerrar sesión (#228); la página `/demo` queda más directa (#235); los **logs de deploy no exponen secretos** con auditoría y checklist (#232).
+- **Impresión:** guía de aplicación de impresoras (#17: launchd + IP secundaria) y QA de comprobantes.
+- **Componentes:** el **extractor de RUC vive dentro del input** y se ve también en el demo simulado (#234); **anchos de modales** consistentes con auditoría automática (#237) y formularios compartidos (#211).
+- **Demo:** verificación de Inventario en demo 8/9 (0 llamadas al API); el hallazgo de **sync con POS** queda trackeado en #227.
+
 ## v1.0.139 — 2026-09-21
 - **Caja / POS:** **ventas por caja y corte por sesión**: cada turno muestra lo vendido y se cierra con su corte. (#148 §18)
 - **Clientes:** la **venta del POS demo entra en la ficha del cliente** y se sumó la evidencia post-deploy del dominio. (#160 #187)
