@@ -50,3 +50,15 @@ B, D y E, y al final F/G/H.
   clases de la vista previa (`npm test` 579/580): se ajusta antes de arrancar F4.
 - Carrito POS: vuelve al piloto cuando esa guarda esté resuelta.
 - Datos de INV (#240) para los chips de locks del tablero y la ficha completa.
+
+## F4 arrancado · shell (navegación v2)
+
+Primer paso del lote F4, detrás del flag `preview v2` y sin tocar el default:
+
+- **Navegación**: el ítem activo usa el **azul de acción** del v2 y los rótulos
+  de grupo quedan más marcados; hover con superficie suave. Es CSS dentro del
+  scope `.tema-v2`, así que se apaga con el flag o retirando el bloque.
+- Capturas (claro y oscuro, 390 y 1280, con el flag apagado y prendido):
+  `c241f4-shell-{off,on}-{claro,oscuro}-{mobile,desktop}.png` en esta carpeta.
+- Siguiente en el shell: densidad de la barra superior y del menú plegado (los
+  cambios de estructura se hacen con PLT, que es dueño del archivo).

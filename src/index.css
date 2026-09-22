@@ -255,3 +255,27 @@ html.dark input[type='date']::-webkit-calendar-picker-indicator:hover {
 }
 .v2-piloto .v2-numero,
 .tema-v2 .v2-numero { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+
+/* ── F4 · shell v2: navegación (#241) ──────────────────────────────────
+   Solo dentro del scope del flag `preview v2`: el ítem activo usa el azul de
+   acción y los rótulos de grupo más marcados. Reversible con el flag. */
+.tema-v2 nav a,
+.tema-v2 nav button {
+  border-radius: 10px;
+  transition: background-color .15s ease, color .15s ease;
+}
+.tema-v2 nav a:hover,
+.tema-v2 nav button:hover {
+  background: rgb(var(--c-fore) / .05);
+}
+.tema-v2 nav [aria-current="page"],
+.tema-v2 nav [aria-pressed="true"] {
+  background: rgb(var(--c-info) / .14);
+  color: rgb(var(--c-info));
+  font-weight: 600;
+}
+.tema-v2 nav b,
+.tema-v2 nav h3 {
+  letter-spacing: .08em;
+  color: rgb(var(--c-mute));
+}
