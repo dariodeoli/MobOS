@@ -146,7 +146,7 @@ function EncabezadoUnidades({ seleccionado = false, onSeleccionar }) {
         : <span />}
       <span className={celda}>Producto</span>
       <span className={celda}>Modelo / variante</span>
-      <span className={celda} title="Proveedor (3 a 5 caracteres; pasá el mouse para verlo completo)">Proveedor</span>
+      <span className={celda} title="Proveedor (3 a 5 caracteres; pasá el mouse para verlo completo)">Prov</span>
       <span className={`${celda} text-right`}>Costo</span>
       <span className={celda} title="Ubicación: depósito o sucursal por código corto">Ubi</span>
       <span className={`${celda} text-center`}>Estado</span>
