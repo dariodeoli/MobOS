@@ -397,6 +397,24 @@ test('los iconos de categoría salen del objeto compartido (#242)', () => {
   assert.deepEqual(copiados, [], 'los glifos de categoría no se copian por pantalla')
 })
 
+// Lote 13: el estado/condición de la unidad se lee igual en la lista y en la
+// ficha; ninguna pantalla vuelve a definir su mapa de tonos.
+test('el tono de la unidad vive en utils/inventario (#217)', () => {
+  const culpables = archivosFuente()
+    .filter(({ ruta, contenido }) => !ruta.endsWith('utils/inventario.js') && /const badgeTone = \{|const statusLabel = \{/.test(contenido))
+    .map(({ ruta }) => ruta)
+  assert.deepEqual(culpables, [], 'el tono de estado sale de utils/inventario')
+  for (const ruta of ['components/control/Inventario.jsx', 'components/inventory/UnidadDetalle.jsx']) {
+    const codigo = readFileSync(join(RAIZ, ruta), 'utf8')
+    assert.match(codigo, /from '@\/utils\/inventario'/, `${ruta}: importa las reglas compartidas`)
+    assert.match(codigo, /estadoInventario\(unit\)\.tone/, `${ruta}: el badge usa el tono compartido`)
+  }
+  const inventario = readFileSync(join(RAIZ, 'utils/inventario.js'), 'utf8')
+  for (const nombre of ['tonoInventario', 'colorInventario', 'etiquetaCondicionUnidad', 'colorCondicionUnidad', 'puntoCondicionUnidad', 'CONDICION_UNIDAD']) {
+    assert.match(inventario, new RegExp(`export (const|function) ${nombre}`), `falta ${nombre}`)
+  }
+})
+
 // Lote 12: el QR y la ficha del informe público salen de los objetos; ninguna
 // pantalla vuelve a llamar a `qrcode` por su cuenta.
 test('el QR del informe sale de lib/qr y shared/CodigoQr (#240)', () => {

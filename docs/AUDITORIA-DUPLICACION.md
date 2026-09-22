@@ -83,6 +83,17 @@ warn y la celda de identidad de 13 px que espera a DSN).
 Duplicación pendiente medida: **6 → 1 usos** (queda solo el `Gs.` de una
 plantilla de impresión de PRN, que se coordina con ese slot).
 
+### Lote 13 — estado de la unidad con una sola regla (22-09)
+
+| Objeto | Antes (evidencia) | Después |
+| --- | --- | --- |
+| `tonoInventario` / `colorInventario` / `estadoInventario` (`utils/inventario.js`) | La lista (`Inventario.jsx`) y la ficha (`UnidadDetalle.jsx`) tenían mapas propios: una unidad **disponible seminuevo** se veía naranja en la lista y verde en la ficha; `statusLabel`/`badgeTone` duplicados | Una sola regla: `AVAILABLE`+`NEW` → ok, `AVAILABLE`+usada → atención, `RESERVED` → atención, `IN_TRANSIT` → info, `DEFECTIVE` → neutro, `SOLD` → falla (y "listo p/ retirar"/"entregado" heredan la entrega del pedido) |
+| `CONDICION_UNIDAD`, `etiquetaCondicionUnidad`, `colorCondicionUnidad`, `puntoCondicionUnidad` | La etiqueta de condición estaba copiada en 2 archivos y el punto de la lista tenía la regla inline | Etiqueta, color y punto salen del mismo módulo; el `<Select>` de recepción arma sus opciones con `CONDICION_UNIDAD` |
+| `Dot` (ui) | Solo aceptaba `green/red/blue/slate/orange` | Suma los tonos semánticos (`ok/warn/bad/info/mute`) para que los puntos usen el mismo tono que el badge |
+
+**Duplicación pendiente: 0 usos.** Biblioteca: `owncoding-ui` **v0.12.0** +
+`docs/V2.md` §4 (ejemplo completo de migración de una pantalla).
+
 ### Lote 12 — QR unificado y ficha del informe público (22-09)
 
 | Objeto | Antes (evidencia) | Después |
