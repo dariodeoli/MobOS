@@ -10,9 +10,10 @@ import { LIMITE_MONTO_VENTAS, montoUsd } from '@/utils/moneda'
 import { ROTULO_DATO } from '@/components/shared/tabla'
 import { cn } from '@/lib/utils'
 
-// Fila editable de la venta: cantidad, precio de venta, color/variante, IMEI,
-// descuento de línea y cupón en un solo lugar. El total se recalcula en el
-// padre a partir de estos campos.
+// Fila editable de la venta (#225): colapsada por defecto con lo esencial
+// (foto/modelo, cantidad, precio de venta y total) y el IMEI elegido visible
+// en la línea; el chevron despliega el detalle (color, precio de lista,
+// descuento de línea, cupón, stock y cambiar/quitar IMEI).
 export default function FilaVenta({
   item,
   producto,
@@ -25,6 +26,7 @@ export default function FilaVenta({
   onQuitar,
   onImei,
 }) {
+  const [abierta, setAbierta] = useState(false)
   const [cuponAbierto, setCuponAbierto] = useState(Boolean(item.couponCode))
   const [cupon, setCupon] = useState('')
   const [cuponBusy, setCuponBusy] = useState(false)
@@ -46,6 +48,7 @@ export default function FilaVenta({
       : Math.min(Number(String(item.descuento || '').replace(/\D/g, '')) || 0, precio * cantidad)
   const ahorroLista = lista > precio ? (lista - precio) * cantidad : 0
   const total = precio * cantidad - descuentoLinea
+  const tieneImei = (item.serials?.length || 0) > 0
 
   async function aplicarCupon() {
     const code = cupon.trim()
@@ -86,155 +89,204 @@ export default function FilaVenta({
         </span>
       )}
       <div className="min-w-0 flex-1">
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <b className="truncate text-sm">{item.nombre}</b>
-            {item.couponCode && <Badge color="green">Cupón {item.couponCode}</Badge>}
-            {item.precioOrigen === 'LIST' && <Badge color="blue">{item.precioLista ? `Lista ${item.precioLista}` : 'Precio de lista'}</Badge>}
-            {item.precioOrigen === 'TIER' && <Badge color="green">{item.precioMinQty}+ unidades</Badge>}
-            {item.precioOrigen === 'WHOLESALE' && <Badge color="orange">Mayorista</Badge>}
-            {item.precioOrigen === 'USD' && <Badge color="slate">{`Precio en ${montoUsd(item.precioUsd)}`}</Badge>}
-            {item.serials?.length > 0 && (
-              <Badge color="blue">IMEI {serialEnmascarado(item.serials[0])}</Badge>
-            )}
-            {item.sobrePedido && <Badge color="orange">Sobre pedido</Badge>}
-            {item.soldWithoutInsurance && <Badge color="slate">Sin seguro</Badge>}
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <b className="truncate text-sm">{item.nombre}</b>
+              {item.couponCode && <Badge color="green">Cupón {item.couponCode}</Badge>}
+              {item.precioOrigen === 'LIST' && <Badge color="blue">{item.precioLista ? `Lista ${item.precioLista}` : 'Precio de lista'}</Badge>}
+              {item.precioOrigen === 'TIER' && <Badge color="green">{item.precioMinQty}+ unidades</Badge>}
+              {item.precioOrigen === 'WHOLESALE' && <Badge color="orange">Mayorista</Badge>}
+              {item.precioOrigen === 'USD' && <Badge color="slate">{`Precio en ${montoUsd(item.precioUsd)}`}</Badge>}
+              {item.sobrePedido && <Badge color="orange">Sobre pedido</Badge>}
+              {item.soldWithoutInsurance && <Badge color="slate">Sin seguro</Badge>}
+            </div>
+            {/* IMEI en la línea, visible también colapsada (#225): enmascarado al
+                colapsar y completo al expandir. Sin IMEI queda el aviso pendiente. */}
+            <p className="mt-1 font-mono text-[11px]" aria-live="polite">
+              {tieneImei ? (
+                <span className="text-mute">IMEI {abierta ? item.serials.join(' · ') : serialEnmascarado(item.serials[0])}</span>
+              ) : (
+                <span className="font-semibold text-warn">Falta elegir IMEI</span>
+              )}
+            </p>
           </div>
-          <p className="mt-1 text-[11px] text-mute">
-            {lista > 0 ? <>Precio de lista {gs(lista)}</> : 'Sin precio de lista: definí el precio de venta'}
-            {ahorroLista > 0 && <span className="ml-2 font-semibold text-warn">descuento − {gs(ahorroLista)}</span>}
-          </p>
-        </div>
 
-        <div className="flex flex-wrap items-end gap-2">
-          {variantes.length > 1 && (
+          <div className="flex flex-wrap items-end gap-2">
             <label className="block">
-              <span className={cn('mb-1 block', ROTULO_DATO)}>Color</span>
-              <Select
-                aria-label={`Color de ${item.nombre}`}
-                className="h-9 w-40"
-                value={item.productoId}
+              <span className={cn('mb-1 block', ROTULO_DATO)}>Cantidad</span>
+              <Input
+                aria-label={`Cantidad de ${item.nombre}`}
+                className="h-9 w-16 text-center tabular-nums"
+                inputMode="numeric"
+                maxLength={4}
                 disabled={guardando}
-                onChange={event => cambiarVariante(event.target.value)}
-              >
-                {variantes.map(variante => (
-                  <option key={variante.id} value={variante.id}>{variante.color || variante.nombre}</option>
-                ))}
-              </Select>
+                value={String(cantidad)}
+                onChange={event => onEditar({ quantity: Number(event.target.value.replace(/\D/g, '') || 1) })}
+              />
             </label>
-          )}
-          <label className="block">
-            <span className={cn('mb-1 block', ROTULO_DATO)}>Cantidad</span>
-            <Input
-              aria-label={`Cantidad de ${item.nombre}`}
-              className="h-9 w-16 text-center tabular-nums"
-              inputMode="numeric"
-              maxLength={4}
+            <label className="block">
+              <span className={cn('mb-1 block', ROTULO_DATO)}>Precio de venta</span>
+              <MoneyInput
+                aria-label={`Precio de venta de ${item.nombre}`}
+                max={LIMITE_MONTO_VENTAS}
+                className="h-9 w-40"
+                disabled={guardando}
+                value={Number(item.precio) || 0}
+                onValueChange={value => onEditar({ precio: value === '' ? 0 : Number(value) })}
+              />
+            </label>
+            <div className="w-28 text-right">
+              <span className={cn('mb-1 block', ROTULO_DATO)}>Total</span>
+              <span className="block h-9 truncate pt-1.5 text-sm font-extrabold tabular-nums text-fono-light">{gs(total)}</span>
+            </div>
+            {puedeDescontar && (
+              <button
+                type="button"
+                className="grid h-9 w-9 place-items-center rounded-lg text-mute transition hover:bg-fono/10 hover:text-fono-light"
+                title="Descuento de la línea"
+                aria-label={`Descuento de ${item.nombre}`}
+                disabled={guardando}
+                onClick={() => setAbierta(true)}
+              >
+                <Icon name="tag" className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              type="button"
+              className={cn(
+                'relative grid h-9 w-9 place-items-center rounded-lg transition hover:bg-fono/10',
+                tieneImei ? 'text-ok' : 'text-warn',
+              )}
+              title={tieneImei ? 'Cambiar IMEI' : 'Falta elegir IMEI'}
+              aria-label={tieneImei ? `Cambiar IMEI de ${item.nombre}` : `Elegir IMEI de ${item.nombre} (pendiente)`}
               disabled={guardando}
-              value={String(cantidad)}
-              onChange={event => onEditar({ quantity: Number(event.target.value.replace(/\D/g, '') || 1) })}
-            />
-          </label>
-          <label className="block">
-            <span className={cn('mb-1 block', ROTULO_DATO)}>Precio de venta</span>
-            <MoneyInput
-              aria-label={`Precio de venta de ${item.nombre}`}
-              max={LIMITE_MONTO_VENTAS}
-              className="h-9 w-40"
+              onClick={onImei}
+            >
+              <Icon name="box" className="h-4 w-4" />
+              {!tieneImei && <span aria-hidden="true" className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-warn" />}
+            </button>
+            <button
+              type="button"
+              className="grid h-9 w-9 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad"
+              title="Eliminar producto"
+              aria-label={`Eliminar ${item.nombre}`}
               disabled={guardando}
-              value={Number(item.precio) || 0}
-              onValueChange={value => onEditar({ precio: value === '' ? 0 : Number(value) })}
-            />
-          </label>
-          <div className="w-28 text-right">
-            <span className={cn('mb-1 block', ROTULO_DATO)}>Total</span>
-            <span className="block h-9 truncate pt-1.5 text-sm font-extrabold tabular-nums text-fono-light">{gs(total)}</span>
+              onClick={onQuitar}
+            >
+              <Icon name="trash" className="h-4 w-4" />
+            </button>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-9 px-3 text-xs"
-            disabled={guardando}
-            onClick={onImei}
-          >
-            {item.serials?.length ? 'Cambiar IMEI' : 'Elegir IMEI'}
-          </Button>
+        </div>
+
+        {abierta && (
+          <>
+            {variantes.length > 1 && (
+              <label className="mt-2 block">
+                <span className={cn('mb-1 block', ROTULO_DATO)}>Color</span>
+                <Select
+                  aria-label={`Color de ${item.nombre}`}
+                  className="h-9 w-40"
+                  value={item.productoId}
+                  disabled={guardando}
+                  onChange={event => cambiarVariante(event.target.value)}
+                >
+                  {variantes.map(variante => (
+                    <option key={variante.id} value={variante.id}>{variante.color || variante.nombre}</option>
+                  ))}
+                </Select>
+              </label>
+            )}
+            <p className="mt-2 text-[11px] text-mute">
+              {lista > 0 ? <>Precio de lista {gs(lista)}</> : 'Sin precio de lista: definí el precio de venta'}
+              {ahorroLista > 0 && <span className="ml-2 font-semibold text-warn">descuento − {gs(ahorroLista)}</span>}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-mute">
+              {puedeDescontar && (
+                <span className="flex items-center gap-2">
+                  Descuento línea:
+                  <PercentField
+                    aria-label={`Descuento % de ${item.nombre}`}
+                    value={item.descuentoPct || ''}
+                    onChange={value => onEditar({ descuentoPct: value, descuento: '' })}
+                    placeholder="%"
+                    className="h-8 w-16 px-2 py-1 text-xs"
+                  />
+                  <MoneyInput
+                    aria-label={`Descuento fijo de ${item.nombre}`}
+                    max={LIMITE_MONTO_VENTAS}
+                    value={item.descuento || ''}
+                    onValueChange={value => onEditar({ descuento: value === '' ? '' : String(value), descuentoPct: '' })}
+                    placeholder="Gs 0"
+                    className="h-8 w-32"
+                  />
+                </span>
+              )}
+              <button
+                type="button"
+                className="font-semibold text-fono-light hover:underline"
+                onClick={() => setCuponAbierto(open => !open)}
+              >
+                {item.couponCode ? 'Cambiar cupón' : 'Aplicar cupón'}
+              </button>
+              {item.couponCode && (
+                <button
+                  type="button"
+                  className="text-mute hover:text-bad"
+                  onClick={() => onEditar({ couponCode: null, precio: lista || precio })}
+                >
+                  Quitar cupón
+                </button>
+              )}
+              {cuponAbierto && (
+                <span className="flex flex-wrap items-center gap-2">
+                  <Input
+                    aria-label={`Código de cupón de ${item.nombre}`}
+                    className="h-8 w-40"
+                    maxLength={40}
+                    value={cupon}
+                    onChange={event => setCupon(event.target.value)}
+                    placeholder="Código del cupón"
+                  />
+                  <Button type="button" variant="outline" className="h-8 px-3 text-xs" disabled={cuponBusy || !cupon.trim()} onClick={aplicarCupon}>
+                    {cuponBusy ? 'Validando…' : 'Aplicar'}
+                  </Button>
+                </span>
+              )}
+              {cuponError && <span role="alert" className="text-bad">{cuponError}</span>}
+            </div>
+            {(modelo || capacidad || Number.isFinite(stock)) && (
+              <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-mute">
+                {(modelo || capacidad) && <span>{[modelo, capacidad].filter(Boolean).join(' · ')}</span>}
+                {Number.isFinite(stock) && (agotado
+                  ? <span className="font-semibold text-bad">Agotado</span>
+                  : <span>{stock} en stock</span>)}
+              </p>
+            )}
+            {tieneImei && (
+              <span className="mt-2 flex flex-wrap items-center gap-3 text-[11px]">
+                <button type="button" className="font-semibold text-fono-light hover:underline" onClick={onImei}>Cambiar IMEI</button>
+                <button type="button" className="text-mute hover:text-bad" onClick={() => onEditar({ serials: [] })}>Quitar IMEI</button>
+              </span>
+            )}
+          </>
+        )}
+
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <span className="text-[11px] text-mute">
+            {abierta ? 'Detalle de la línea' : `${cantidad} × ${gs(precio)}`}
+          </span>
           <button
             type="button"
-            className="grid h-9 w-9 place-items-center rounded-lg text-mute transition hover:bg-bad/10 hover:text-bad"
-            title="Eliminar producto"
-            aria-label={`Eliminar ${item.nombre}`}
-            disabled={guardando}
-            onClick={onQuitar}
+            className="grid h-7 w-7 place-items-center rounded-lg text-mute transition hover:bg-ink-700 hover:text-fore"
+            aria-expanded={abierta}
+            aria-label={abierta ? `Ver menos detalle de ${item.nombre}` : `Ver detalle de ${item.nombre}`}
+            title={abierta ? 'Ver menos' : 'Ver detalle'}
+            onClick={() => setAbierta(value => !value)}
           >
-            <Icon name="trash" className="h-4 w-4" />
+            <Icon name="back" className={cn('h-4 w-4 rotate-90 transition', abierta && '-rotate-90')} />
           </button>
         </div>
-      </div>
-
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-mute">
-        {puedeDescontar && (
-          <span className="flex items-center gap-2">
-            Descuento línea:
-            <PercentField
-              aria-label={`Descuento % de ${item.nombre}`}
-              value={item.descuentoPct || ''}
-              onChange={value => onEditar({ descuentoPct: value, descuento: '' })}
-              placeholder="%"
-              className="h-8 w-16 px-2 py-1 text-xs"
-            />
-            <MoneyInput
-              aria-label={`Descuento fijo de ${item.nombre}`}
-              max={LIMITE_MONTO_VENTAS}
-              value={item.descuento || ''}
-              onValueChange={value => onEditar({ descuento: value === '' ? '' : String(value), descuentoPct: '' })}
-              placeholder="Gs 0"
-              className="h-8 w-32"
-            />
-          </span>
-        )}
-        <button
-          type="button"
-          className="font-semibold text-fono-light hover:underline"
-          onClick={() => setCuponAbierto(open => !open)}
-        >
-          {item.couponCode ? 'Cambiar cupón' : 'Aplicar cupón'}
-        </button>
-        {item.couponCode && (
-          <button
-            type="button"
-            className="text-mute hover:text-bad"
-            onClick={() => onEditar({ couponCode: null, precio: lista || precio })}
-          >
-            Quitar cupón
-          </button>
-        )}
-        {cuponAbierto && (
-          <span className="flex flex-wrap items-center gap-2">
-            <Input
-              aria-label={`Código de cupón de ${item.nombre}`}
-              className="h-8 w-40"
-              maxLength={40}
-              value={cupon}
-              onChange={event => setCupon(event.target.value)}
-              placeholder="Código del cupón"
-            />
-            <Button type="button" variant="outline" className="h-8 px-3 text-xs" disabled={cuponBusy || !cupon.trim()} onClick={aplicarCupon}>
-              {cuponBusy ? 'Validando…' : 'Aplicar'}
-            </Button>
-          </span>
-        )}
-        {cuponError && <span role="alert" className="text-bad">{cuponError}</span>}
-      </div>
-      {(modelo || capacidad || Number.isFinite(stock)) && (
-        <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px] text-mute">
-          {(modelo || capacidad) && <span>{[modelo, capacidad].filter(Boolean).join(' · ')}</span>}
-          {Number.isFinite(stock) && (agotado
-            ? <span className="font-semibold text-bad">Agotado</span>
-            : <span>{stock} en stock</span>)}
-        </p>
-      )}
       </div>
     </div>
   )
