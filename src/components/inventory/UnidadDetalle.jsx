@@ -59,6 +59,14 @@ function FotoMini({ unitId, commentId, photo }) {
 export default function UnidadDetalle({ unit, busy, canManage, locations = [], onClose, onChanged, onSell, onReserve, onVerify, onArrive, onLabel, onRelease, onAdjust, onRemove, onMove }) {
   const toast = useToast()
   const { esDemo } = useSesion()
+  // #193/#200: modo del adaptador visible ANTES de confirmar (real: simulado o vivo).
+  const [imeiModo, setImeiModo] = useState('simulado')
+  useEffect(() => {
+    if (esDemo) return undefined
+    let activo = true
+    api.get('/api/imei').then(datos => { if (activo && datos?.modo) setImeiModo(datos.modo) }).catch(() => {})
+    return () => { activo = false }
+  }, [esDemo])
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -164,9 +172,11 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
     imeiRequestId.current = null
     try {
       // #219: en demo el flujo es funcional contra el mock del backend.
-      setImeiDatos(esDemo
+      const datos = esDemo
         ? await postDemoImei({ action: 'precheck', imei: unit.serial, servicio: 'APPLE_BASIC' })
-        : await api.post('/api/imei', { action: 'precheck', imei: unit.serial, servicio: 'APPLE_BASIC' }))
+        : await api.post('/api/imei', { action: 'precheck', imei: unit.serial, servicio: 'APPLE_BASIC' })
+      if (datos?.modo) setImeiModo(datos.modo)
+      setImeiDatos(datos)
       setImeiFase('precheck')
     } catch (cause) {
       setImeiError(cause?.status === 403 ? 'Función paga: pedile a administración que habilite la consulta de IMEI.' : (cause?.message || 'No se pudo preparar la consulta.'))
@@ -335,7 +345,7 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
         <section className="rounded-2xl border border-ink-600 p-4" data-testid="unidad-imei">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className={ROTULO_SECCION}>Consulta de IMEI</h3>
-            {esDemo ? <Badge color="blue">Demo: simulado</Badge> : <Badge color="slate">Función paga</Badge>}
+            {esDemo ? <Badge color="blue">Demo: simulado</Badge> : imeiModo === 'vivo' ? <Badge color="slate">Función paga</Badge> : <Badge color="blue">SIMULADO · Sin cobro</Badge>}
           </div>
           <p className="mt-1 text-xs text-mute">Estado del equipo en IMEIcheck (blacklist, Find My/iCloud, SIM lock, MDM, garantía). Se muestra el costo antes de confirmar y cada consulta queda auditada. Si no se puede verificar, se muestra como «No verificado», nunca «Limpio».</p>
           {!imeiFase && !imeiBusy && <Button type="button" variant="outline" className="mt-2" onClick={imeiPrecheck} data-testid="imei-precheck">Consultar IMEI (ver costo)</Button>}
@@ -343,11 +353,11 @@ export default function UnidadDetalle({ unit, busy, canManage, locations = [], o
           {imeiError && <Aviso tono="error" className="mt-2">{imeiError}</Aviso>}
           {imeiFase === 'precheck' && imeiDatos && (
             <div className="mt-2 rounded-xl border border-ink-600 bg-ink-800/40 p-3 text-sm">
-              <p className="font-semibold text-fore">{imeiDatos.servicio?.nombre || 'Apple Basic'} · {imeiDatos.simulado ? 'simulado (US$ 0,00)' : `US$ ${Number(imeiDatos.costoEstimadoUsd || 0).toFixed(2)}`}</p>
+              <p className="font-semibold text-fore">{imeiDatos.simulado || imeiModo !== 'vivo' ? `${imeiDatos.servicio?.nombre || 'Apple Basic'} · SIMULADO · Sin cobro (referencia US$ ${Number(imeiDatos.costoReferenciaUsd ?? imeiDatos.servicio?.precioUsd ?? 0).toFixed(2)})` : `${imeiDatos.servicio?.nombre || 'Apple Basic'} · US$ ${Number(imeiDatos.costoEstimadoUsd || 0).toFixed(2)}`}</p>
               <p className="mt-1 text-xs text-mute">Campos: {(imeiDatos.servicio?.campos || []).join(' · ')}</p>
               {imeiDatos.advertencia && <p className="mt-1 text-xs text-warn">{imeiDatos.advertencia}</p>}
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Button type="button" disabled={imeiBusy} onClick={imeiConfirmar} data-testid="imei-confirmar">{imeiDatos.simulado ? 'Confirmar consulta simulada' : `Confirmar consulta (US$ ${Number(imeiDatos.costoEstimadoUsd || 0).toFixed(2)})`}</Button>
+                <Button type="button" disabled={imeiBusy} onClick={imeiConfirmar} data-testid="imei-confirmar">{imeiDatos.simulado || imeiModo !== 'vivo' ? 'Confirmar consulta simulada (sin cobro)' : `Confirmar consulta (US$ ${Number(imeiDatos.costoEstimadoUsd || 0).toFixed(2)})`}</Button>
                 <Button type="button" variant="ghost" disabled={imeiBusy} onClick={() => { setImeiFase(null); setImeiDatos(null) }}>Cancelar</Button>
               </div>
             </div>

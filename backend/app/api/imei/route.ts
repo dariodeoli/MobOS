@@ -1,7 +1,7 @@
 import { prisma } from '../../../lib/prisma'
 import { error, json } from '../../../lib/http'
 import { canAccessAny, requireSession } from '../../../lib/auth'
-import { SERVICIOS, consultarImei, enmascararImei, etiquetaEstado, validarImei, type EscenarioMock } from '../../../lib/imeicheck'
+import { SERVICIOS, consultarImei, enmascararImei, etiquetaEstado, modoImeicheck, validarImei, type EscenarioMock } from '../../../lib/imeicheck'
 
 // Flujo de consulta de IMEI (#193) — FASE 1 (mocks).
 //
@@ -31,6 +31,7 @@ export async function GET(request: Request) {
     take: Math.min(50, Math.max(1, Number(params.get('limit')) || 20)),
   })
   return json({
+    ...modoImeicheck(),
     servicios: SERVICIOS,
     consultas: consultas.map(fila => ({
       id: fila.id,
@@ -78,11 +79,16 @@ export async function POST(request: Request) {
       orderBy: { requestedAt: 'desc' },
       select: { id: true, status: true, costUsd: true, requestedAt: true },
     })
+    const simulado = modoImeicheck().modo === 'simulado'
     return json({
+      ...modoImeicheck(),
       imei: enmascararImei(validacion.imei),
       servicio: { clave, ...servicio },
       requiereConfirmacion: true,
-      costoEstimadoUsd: servicio.precioUsd,
+      // En simulado no hay cobro: el precio queda solo como referencia visible.
+      costoEstimadoUsd: simulado ? 0 : servicio.precioUsd,
+      costoReferenciaUsd: servicio.precioUsd,
+      ...(simulado ? { simulado: true } : {}),
       advertencia: reciente ? 'Ya hay una consulta de este servicio para el mismo IMEI en las últimas 24 h.' : null,
       reciente,
     })
@@ -117,7 +123,7 @@ export async function POST(request: Request) {
       resolvedAt: resultado.estado === 'pendiente' ? null : new Date(),
     },
   })
-  return json({ ...expectativa(registro, ROLES_VER_CRUDO.includes(session.user.role)), esMock: resultado.esMock }, { status: 201 })
+  return json({ ...expectativa(registro, ROLES_VER_CRUDO.includes(session.user.role)), esMock: resultado.esMock, ...modoImeicheck() }, { status: 201 })
 }
 
 function expectativa(fila: any, verCrudo: boolean) {

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { IDS_SANDBOX, NO_VERIFICADO, SERVICIOS, consultarImei, enmascararImei, estadoDeConsulta, etiquetaEstado, normalizarRespuesta, validarImei } from '../lib/imeicheck'
+import { IDS_SANDBOX, NO_VERIFICADO, SERVICIOS, consultarImei, enmascararImei, estadoDeConsulta, etiquetaEstado, modoImeicheck, normalizarRespuesta, validarImei } from '../lib/imeicheck'
 
 // ── Validación de IMEI antes de llamar ─────────────────────────────────────
 assert.equal(validarImei('490154203237518').ok, true)
@@ -38,8 +38,16 @@ assert.ok(sinDatos.every(campo => campo.valor === null), 'sin datos no se invent
 
 async function pruebasMock() {
   // ── Fase 1: mocks (sin token, sin red) ─────────────────────────────────────
-  delete process.env.IMEICHECK_TOKEN
   delete process.env.IMEICHECK_LIVE
+  // Modo visible: sin LIVE o sin token siempre es simulado; con ambos, vivo.
+  process.env.IMEICHECK_TOKEN = 'token-de-prueba-1234567890'
+  assert.equal(modoImeicheck().modo, 'simulado', 'token sin LIVE sigue simulado')
+  assert.equal(modoImeicheck().proveedor, 'imeicheck.net')
+  process.env.IMEICHECK_LIVE = '1'
+  assert.equal(modoImeicheck().modo, 'vivo', 'LIVE=1 con token es vivo')
+  delete process.env.IMEICHECK_LIVE
+  delete process.env.IMEICHECK_TOKEN
+  assert.equal(modoImeicheck().modo, 'simulado', 'sin token siempre simulado')
   const ok = await consultarImei({ imei: '490154203237518', servicio: 'APPLE_BASIC', escenario: 'ok' })
   assert.equal(ok.esMock, true)
   assert.equal(ok.estado, 'verificado')

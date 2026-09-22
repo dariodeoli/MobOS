@@ -22,6 +22,13 @@ const TIMEOUT_MS = 8000
 
 export const PROVEEDOR = 'imeicheck.net'
 
+/** Modo visible: mismo criterio que la llamada real (flag + token). Nunca expone el token. */
+export function modoImeicheck(): { modo: 'simulado' | 'vivo'; proveedor: string } {
+  const token = process.env.IMEICHECK_TOKEN || ''
+  const enVivo = process.env.IMEICHECK_LIVE === '1' && Boolean(token)
+  return { modo: enVivo ? 'vivo' : 'simulado', proveedor: PROVEEDOR }
+}
+
 // Flujo por defecto. `precioConfirmado` marca lo único comprobado con un cargo
 // real (Apple Basic USD 0,06); el resto son precios de referencia de la cuenta
 // que hay que validar contra el catálogo autenticado antes de mostrarlos como coste.
